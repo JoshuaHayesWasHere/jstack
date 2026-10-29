@@ -33,6 +33,12 @@
   Every run of the check this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
+  B="$H/tasks/<slug>.md"
+  head=$(git rev-parse HEAD)
+  clean=$(git status --porcelain)
+  out=$(mktemp)
+  code=$(mktemp)
+  {
   if [ -f scripts/select_tests.py ]; then
       on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit} /^Stack:/ {print $(5); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
       on=origin/${on:-main}
@@ -59,16 +65,32 @@
               printf '%s\n' "$tests"
               ;;
           esac
+          printf 'make check-fast BASE=%s %s\n' "$base" "$lint" > "$code.command"
           uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" $lint
       fi
   else
+      echo 'jgauge check' > "$code.command"
       uv run --project "$T/../source" jgauge check --thread '<thread id>' << 'THE_CHECK_ENDS_HERE'
   <check command>
   THE_CHECK_ENDS_HERE
   fi
+  echo $? > "$code"
+  } | tee "$out"
+  ran=$(cat "$code")
+  command=$(sed 's/ *$//' "$code.command" 2> /dev/null)
+  case $command in
+  'jgauge check') tail -n 1 "$out" | grep -q '^done: the check exited ' || command= ;;
+  esac
+  if [ -n "$command" ] && [ "$ran" != 76 ] && [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] &&
+      [ "$(git rev-parse HEAD)" = "$head" ] && grep -q '^## Result' "$B" 2> /dev/null; then
+      printf 'Checked: %s exit %s at %s\n' "$command" "$ran" "$head" >> "$B"
+  fi
+  (exit "$ran")
   ```
 
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
+  Once the brief has a Result, the block adds `Checked: <the command> exit <its exit> at <the full head>` to it for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
+  It adds none for a check that never ran, that waits for a slot or still runs, or that ran on uncommitted work or on a head that moved while it ran.
   In jstack the block prints its `selected:` line first, with the test files it runs, and `make check-fast` runs the lint and those files in a slot of the short lane.
   `PYTEST=:` is what keeps a selection of none or of all to the lint.
   Give the call a time limit of 3 minutes (`timeout: 180000` in Claude Code), and never send it to the background.

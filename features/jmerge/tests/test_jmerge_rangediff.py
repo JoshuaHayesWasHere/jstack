@@ -955,3 +955,78 @@ def test_the_note_and_the_wait_are_read_off_the_verdict():
         "the rebase changed the content after its review; scoped review of "
         "git range-diff --no-color a..b c..d"
     )
+
+
+def handled(rebased, review_of, head, line):
+    """The brief of a crew that answered the review of `review_of`, said whether its fix is owed
+    a review, and checked `head` with the check command, which ended `exit 0`, and that wrote
+    `line` as its `Fixed:` line, or no such line."""
+    crew = (
+        "Finding: fixed, it is wrong\n"
+        "Second pass: none, the fix stayed inside the reviewed files\n"
+        f"Checked: make check-fast BASE=origin/main exit 0 at {head}\n"
+        f"{line}"
+    )
+    rebased.brief(merge.review("findings", review_of) + crew)
+    return rebased.proven_merged.home.tasks / "alpha.md"
+
+
+def test_a_fix_with_no_fixed_line_is_judged_from_git_and_its_checked_line(proven_merged, rules):
+    """`jmerge` reads the `Fixed:` line a crew did not write from git: the fix is the head the
+    `Checked:` line names, pushed on the head the review saw. It writes nothing to the brief."""
+    rebased = Rebased(proven_merged, {8: "theirs 8"})
+    tree = proven_merged.tree
+    pushed = commit(tree, "the fix", {15: "the fix"})
+    merge.git(tree, "push", "-q", "origin", "alpha")
+    proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE])
+    handled(rebased, rebased.head, pushed, f"Fixed: {pushed}\n")
+    written = run.jmerge(proven_merged, rules, "--check")
+    assert written == [f"ready 7 {pushed} alpha alpha"]
+    brief = handled(rebased, rebased.head, pushed, "")
+    text = brief.read_text()
+    assert run.jmerge(proven_merged, rules, "--check") == written
+    assert brief.read_text() == text
+
+
+def test_a_fix_with_no_fixed_line_kept_before_a_rebase_is_compared_from_that_head(
+    proven_merged, rules
+):
+    """The review saw the base, the fix is the head the crew kept before it rebased, and the
+    `Checked:` line names the rebased head: git gives the fix as the crew would have named it."""
+    rebased = Rebased(proven_merged, {8: "theirs 8"})
+    handled(rebased, rebased.base, rebased.head, f"Fixed: {rebased.before}\n")
+    written = run.jmerge(proven_merged, rules, "--check")
+    assert written == [f"ready 7 {rebased.head} alpha alpha, {rebased.carried()}"]
+    handled(rebased, rebased.base, rebased.head, "")
+    assert run.jmerge(proven_merged, rules, "--check") == written
+
+
+@pytest.mark.parametrize(
+    "unproven",
+    [
+        pytest.param(lambda text, head: text.replace(" exit 0 ", " exit 1 "), id="a failed check"),
+        pytest.param(lambda text, head: text.replace(head, "d" * 40), id="a check of another head"),
+        pytest.param(lambda text, head: text.replace("Second pass:", "Second:"), id="no decision"),
+        pytest.param(
+            lambda text, head: text.replace("Finding: fixed", "Fixed it"), id="unanswered"
+        ),
+    ],
+)
+def test_a_fix_with_no_fixed_line_and_no_proof_of_it_is_not_handled(proven_merged, rules, unproven):
+    rebased = Rebased(proven_merged, {8: "theirs 8"})
+    tree = proven_merged.tree
+    pushed = commit(tree, "the fix", {15: "the fix"})
+    merge.git(tree, "push", "-q", "origin", "alpha")
+    proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE])
+    brief = handled(rebased, rebased.head, pushed, "")
+    brief.write_text(unproven(brief.read_text(), pushed))
+    (said,) = run.jmerge(proven_merged, rules, "--check")
+    assert said.startswith(f"wait 7 {merge.URL}: its findings are not handled: ")
+
+
+def test_no_fixed_line_is_read_where_nothing_was_pushed_after_the_review(proven_merged, rules):
+    rebased = Rebased(proven_merged, {8: "theirs 8"})
+    handled(rebased, rebased.head, rebased.head, "")
+    assert run.jmerge(proven_merged, rules, "--check") == [
+        f"wait 7 {merge.URL}: its findings are not handled: the Result has no Fixed line"
+    ]

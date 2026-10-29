@@ -25,6 +25,7 @@ from crew_helpers import (
     stays,
     with_field,
 )
+from jbus import rebase as asks
 from jmerge import cli, ready
 from test_home_thread import as_read
 
@@ -363,11 +364,18 @@ def test_a_links_move_waits_for_a_review_that_is_running(under, tmp_path):
 
 
 def test_the_scoped_review_of_a_rebase_is_launched_as_the_review_is_and_holds_a_rebase():
+    """The paragraph on a rebase that changed the content launches the reviewer with the
+    command of the message jbus sends for `jmerge`'s wait line."""
     text = sections()["Stay on the pull request"]
     (rule,) = [part for part in text.split("\n\n") if "Scoped reviewer: <threadId>" in part]
-    assert "`the rebase changed the content after its review`" in rule
-    assert "`/pr-review run <slug> scoped <old range> <new range>`" in rule
-    assert "`git range-diff`" in rule
+    old, new = f"{'1' * 40}..{'a' * 40}", f"{'2' * 40}..{'c' * 40}"
+    (said,) = re.findall(r"`(the rebase changed [^`]+)`", rule)
+    wait = f"wait 7 {merge.URL}: {said}; scoped review of git range-diff --no-color {old} {new}"
+    number, _, ask = asks.content(wait)
+    (launch,) = re.findall(r"`(/pr-review run <slug> scoped [^`]+)`", rule)
+    filled = launch.replace("<slug>", "alpha").replace("<old range>", old)
+    assert number == 7
+    assert f"`{filled.replace('<new range>', new)}`" in ask.message.format(number=7, slug="alpha")
     about = block("Stay on the pull request", "mergeable")
     (counted,) = re.findall(r"/\^\(([^)]*)\): /", about)
     assert "Scoped reviewer" in counted.split("|")

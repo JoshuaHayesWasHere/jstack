@@ -99,6 +99,10 @@ The section "Protected paths" describes one more hold.
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
   If the review had findings, the Result has a `Fixed:` line that names the head or says `none needed`.
+  The crewmate writes that line, and the crew's check block writes the `Checked: <command> exit <code> at <head>` line each time the check command ends on a committed head.
+  Where the crewmate wrote no `Fixed:` line, `jmerge` reads one from the brief and git (`ready.unwritten_fixed`): `jbriefs --findings --left` says `write Fixed:`, a `Checked:` line says exit 0 at the head, and in `review` mode a `Second pass:` or `Scoped review:` line follows the review.
+  That line names the head, or the newest head kept under `refs/jstack/pre-rebase/<slug>/` that holds the fix, or says `none needed` where every finding was declined.
+  `jmerge` judges the brief with it and writes nothing to the brief.
   A review after the first owes that line, and a push after it, only where it has an `error` finding.
   A `Second pass: needed since <head>` line makes the pull request wait for a review of a later head.
 - **Every blocking finding is answered.**

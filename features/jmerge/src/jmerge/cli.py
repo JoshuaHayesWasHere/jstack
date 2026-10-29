@@ -81,6 +81,11 @@ def _text(cwd: Path, *command: str) -> str | None:
     return None if ran.returncode else ran.stdout.decode(errors="replace")
 
 
+def _line_after(text: str, line: str) -> str:
+    """`line` as it goes at the end of `text`, on a line of its own."""
+    return ("" if not text or text.endswith("\n") else "\n") + line + "\n"
+
+
 def _read(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="replace")
@@ -631,6 +636,22 @@ class Repo:
         since = self.own_fork(default, reviewed, head, stacked) if stacked else None
         return rangediff.verdict(self.main, reviewed, head, default, since or "")
 
+    def as_fixed(self, slug: str, text: str, one: ready.PullRequest) -> str:
+        """The brief's text as `jmerge` judges it: with the `Fixed:` line a crew did not write
+        (`ready.unwritten_fixed`), where git gives the commit it names, the newest of the head
+        and the heads kept before a rebase that holds the fix (`kept_fix`). The line is read and
+        never written to the brief."""
+        unwritten = ready.unwritten_fixed(text, one.head)
+        if unwritten is None:
+            return text
+        commit = (
+            "" if unwritten.reason else self.kept_fix(slug, one.base, unwritten.reviewed, one.head)
+        )
+        if not (unwritten.reason or commit):
+            return text
+        word = f"none needed, {unwritten.reason}" if unwritten.reason else commit
+        return text + _line_after(text, f"Fixed: {word}")
+
     def kept_fix(self, slug: str, base: str, reviewed: str, *first: str) -> str:
         """The newest of `first`, then of the heads the crew kept under
         `refs/jstack/pre-rebase/<slug>/` before each rebase, that holds a fix pushed after
@@ -796,7 +817,7 @@ class Repo:
         brief = ready.brief_of(one.url, self.state / "tasks")
         if brief is None:
             return Judgement("", "wait", ready.DRAFT if one.draft else ready.NO_BRIEF, "", None)
-        text = _read(brief)
+        text = self.as_fixed(brief.stem, _read(brief), one)
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default

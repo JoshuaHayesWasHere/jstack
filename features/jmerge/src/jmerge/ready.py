@@ -16,6 +16,8 @@ from jmerge.stacked import Stacked
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
+_CHECKED = re.compile(r"Checked: .+ exit (\d+) at ([0-9a-f]{40})")
+_NONE_NEEDED = "none needed, <reason>: "
 _RANKS = {"clean": 0, "findings": 1}
 _ACK = re.compile(
     r"Dropped on rebase: (.+?), (\d+) of main's, (\d+) of its own, at ([0-9a-f]{12}): (.+)"
@@ -584,6 +586,8 @@ class Said:
     owes: bool = False
     rounds: list[Round] = field(default_factory=list)
     triage: findings.Triage = field(default_factory=findings.Triage)
+    decided: bool = False
+    checked: dict[str, str] = field(default_factory=dict)
 
 
 def said_of(text: str) -> Said:
@@ -599,10 +603,16 @@ def said_of(text: str) -> Said:
     said.reviewed = next((one.head for one in reversed(triage.sections) if one.head), "")
     sent = [one for one in triage.findings if one.blocks]
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
+    first = triage.sections[0].line if triage.sections else -1
     for at, line in enumerate(text.splitlines()):
         fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
         if _COMMIT.fullmatch(fixed) or fixed == "none":
             said.fixed = fixed
+        if line.startswith(("Second pass:", "Scoped review:")) and 0 <= first < at:
+            said.decided = True
+        checked = _CHECKED.fullmatch(line.strip())
+        if checked:
+            said.checked[checked[2]] = checked[1]
         if line.startswith("Second pass:"):
             fields = _fields(line)
             said.wider = fields[2:3] == ["needed"]
@@ -769,6 +779,38 @@ def short_of(text: str, head: str) -> str:
         if head == reviewed:
             return NOT_PUSHED
     return unanswered(said) or unruled(said)
+
+
+@dataclass(frozen=True)
+class Unwritten:
+    """The `Fixed:` line a crew did not write, as `jmerge` reads it from the brief and git
+    instead. A `reason` is `Fixed: none needed, <reason>`, and with none the line names the
+    commit pushed for the findings after `reviewed`, the head the last review saw, which git
+    gives (`cli.Repo.kept_fix`). `jmerge` judges the brief with the line and writes nothing
+    back."""
+
+    reviewed: str
+    reason: str = ""
+
+
+def unwritten_fixed(text: str, head: str) -> Unwritten | None:
+    """The `Fixed:` line the brief has not got at `head`, or None. It is read where the last
+    round's verdict owes the crew one (`_owes`), the brief has no `Fixed:` line that names a
+    full commit or the word none, `jbriefs --findings --left` says `write Fixed:`, a `Checked:`
+    line says the check command exited 0 at `head`, and, in `review` mode, a `Second pass:` or
+    `Scoped review:` line says whether the fix is owed a review."""
+    said = said_of(text)
+    if said.mode in (NONE, AFTER) or not said.owes or said.fixed:
+        return None
+    if said.checked.get(head) != "0" or (said.mode == REVIEW and not said.decided):
+        return None
+    left = findings.left(said.triage)
+    if not left.startswith("write Fixed: "):
+        return None
+    shape = left.removeprefix("write Fixed: ")
+    if shape.startswith(_NONE_NEEDED):
+        return Unwritten(said.reviewed, shape.removeprefix(_NONE_NEEDED))
+    return Unwritten(said.reviewed) if _COMMIT.fullmatch(said.reviewed) else None
 
 
 def _scoped_since(said: Said) -> bool:
