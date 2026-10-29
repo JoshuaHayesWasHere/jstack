@@ -69,14 +69,14 @@ A `hold` is the user's, except for `unruled`. `tell` returns the pull requests w
 it has in hand, and a pass shows those to the user as a `wait`. A hold that is not in hand is an
 item of the user's list (`waiting`), and the user learns of it when it appears on that list. Such a
 hold always has an owner. A hold that `tell` cannot take on goes to the user at once: a hold whose
-crew jbus did not launch, or one with no `Rebase:` line to take the ranges from. A hold also goes to
-the user when jbus could not tell its crew by the `LAPSE`th pass, because the thread stays at work
-or the message is not delivered. A hold that its crew did not lift goes to the user too. Starting
-with the pass after a stall that finds nobody at work, that hold is an item of the user's list,
-until the reason or the head changes. A stall that jbus sends while work is still going on does not
-make the hold the user's. The hold becomes the user's once that work has ended and `PASSES` idle
-passes have gone by. A pass that could not ask T3 Code or GitHub has no crew to ask. Then `told`
-keeps in hand the holds `tell` had in hand, and every other hold is the user's.
+crew jbus did not launch, or one whose crew kept no head before its rebase to take the ranges from.
+A hold also goes to the user when jbus could not tell its crew by the `LAPSE`th pass, because the
+thread stays at work or the message is not delivered. A hold that its crew did not lift goes to the
+user too. Starting with the pass after a stall that finds nobody at work, that hold is an item of
+the user's list, until the reason or the head changes. A stall that jbus sends while work is still
+going on does not make the hold the user's. The hold becomes the user's once that work has ended and
+`PASSES` idle passes have gone by. A pass that could not ask T3 Code or GitHub has no crew to ask.
+Then `told` keeps in hand the holds `tell` had in hand, and every other hold is the user's.
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ NO_THREAD = "short pull request with no thread to tell"
 REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
 REVIEW = "review: "
-NO_RANGE = "its Result has no Rebase line for its head, so the hold is the user's"
+NO_RANGE = "its crew kept no head before its rebase, so the hold is the user's"
 _OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)
 NO_FIX_RANGE = (
     'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
@@ -348,17 +348,14 @@ def ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None
     """Return the two ranges of a scoped review that ends on `head`: the patch before it and
     the patch after. Each patch starts where its branch left the default branch.
 
-    The patch before ends on one commit. For a rebase, that commit is the one the `Rebase:`
-    line of this head names. With no such line, it is the newest head the crew kept under
-    `refs/jstack/pre-rebase/<slug>/`, since the crew's keep step writes the ref and no line.
-    For a fix, it is the head the last `Scoped review: needed since` line names, the one the
-    last review saw."""
-    brief = task_brief(run, slug)
+    The patch before ends on one commit. For a rebase, that commit is the newest head the crew
+    kept under `refs/jstack/pre-rebase/<slug>/`, which `jmerge` reads too: the crew's keep step
+    writes the ref, and a `Rebase:` line an older brief has is read as no line. For a fix, it is
+    the head the last `Scoped review: needed since` line names, the one the last review saw."""
     if kind == "fix":
-        before = (_OWED.findall(brief) or [""])[-1]
+        before = (_OWED.findall(task_brief(run, slug)) or [""])[-1]
     else:
-        before = next((was for _, was, to in reversed(below.rebases(brief)) if to == head), "")
-        before = before or _kept(run, slug)
+        before = _kept(run, slug)
     default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     if not before or default.returncode:
         return None

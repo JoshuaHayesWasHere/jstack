@@ -1,8 +1,8 @@
 """`scripts/hot_files.py` prints, for each file in a date range, the merged pull requests that
 touched it, the pairs of them that were open at once, and the rebases that dropped lines in it.
 
-The test runs the script as a user runs it, with a temporary home that holds a `merge.log` and two
-briefs. A fake `gh` on `PATH` answers from fixed pull requests and writes down what it was asked.
+The test runs the script as a user runs it, with a temporary home that holds a `merge.log`. A fake
+`gh` on `PATH` answers from fixed pull requests and writes down what it was asked.
 The test also runs the home skill's weekly block, with the same fake `gh`.
 
 """
@@ -23,7 +23,6 @@ SCRIPT = REPO / "scripts" / "hot_files.py"
 SKILL = REPO / "features" / "home" / "skills" / "home" / "SKILL.md"
 FENCED = re.compile(r"^```sh\n(.*?)^```", re.M | re.S)
 URL = "https://github.com/o/r"
-SHA = {name: name * 40 for name in "0123456789abcdef"}
 
 GH = """\
 #!/bin/sh
@@ -73,26 +72,6 @@ LOG = f"""\
 2026-10-03 09:10 wait 9 {OTHER}/pull/9: {dropped("c", ("a.md", 0, 5))}
 """
 
-ONE = f"""\
-# one: a task
-
-## Result
-Branch: one   Pull request: {URL}/pull/3
-Rebase: patch changed in a.md b.py, before {SHA["a"]}, head {SHA["b"]}
-Rebase: patch changed in a.md b.py, before {SHA["a"]}, head {SHA["b"]}
-Rebase: patch unchanged, before {SHA["b"]}, head {SHA["c"]}
-Rebase: patch changed in a.md, before {SHA["c"]}, head {SHA["d"]}
-Rebase: patch changed in b.py and c.md, before {SHA["d"]}, head {SHA["1"]}
-Rebase: patch changed in 2 feature files, before {SHA["1"]}, head {SHA["2"]}
-"""
-TWO = f"""\
-# two: a task
-
-## Result
-Branch: two   Pull request: {URL}/pull/7
-Rebase: patch changed in a.md, before {SHA["e"]}, head {SHA["f"]}
-"""
-
 
 def kitchen(tmp_path, pulls=PULLS):
     """Set up the fake `gh` and the home, and return the environment to run in and the home.
@@ -105,11 +84,6 @@ def kitchen(tmp_path, pulls=PULLS):
     The merge.log records dropped lines for #1 at two heads, and logs one of those twice. It also
     records dropped lines for #2, in a hold line with no head: jmerge wrote hold lines in that form
     before they named the review. A drop before the range and a drop in another repo do not count.
-
-    One brief is of #3, which merged in the range. Four rebases changed its patch, and the brief
-    lists one of them twice. One of those lines names a file only by the last part of its path,
-    after an "and", as briefs do. Another line names no file. The other brief is of #7, which did
-    not merge in the range.
     """
     stub = tmp_path / "stub"
     stub.mkdir()
@@ -117,10 +91,8 @@ def kitchen(tmp_path, pulls=PULLS):
     (stub / "gh").chmod(0o755)
     (stub / "prs.json").write_text(json.dumps(pulls))
     home = tmp_path / "home"
-    (home / "tasks").mkdir(parents=True)
+    home.mkdir()
     (home / "merge.log").write_text(LOG)
-    (home / "tasks" / "one.md").write_text(ONE)
-    (home / "tasks" / "two.md").write_text(TWO)
     env = {
         **os.environ,
         "PATH": f"{stub}:{os.environ['PATH']}",
@@ -166,7 +138,7 @@ def test_the_three_tables(tmp_path):
     assert merged[:4] == [(4, "a.md"), (2, "b.py"), (1, "docs/c.md"), (1, "gen/f001.txt")]
     assert len(merged) == 20
     assert pairs == [(3, "a.md")]
-    assert drops == [(3, 8, 2, "a.md"), (1, 2, 2, "b.py"), (0, 0, 1, "docs/c.md")]
+    assert drops == [(3, 8, "a.md"), (1, 2, "b.py")]
 
 
 def test_it_asks_gh_for_the_range_in_local_days(tmp_path):
@@ -193,7 +165,7 @@ def test_top_cuts_each_table(tmp_path):
     assert [rows for _, rows in tables(ran.stdout)] == [
         [(4, "a.md")],
         [(3, "a.md")],
-        [(3, 8, 2, "a.md")],
+        [(3, 8, "a.md")],
     ]
 
 
@@ -202,18 +174,8 @@ def test_a_pull_request_at_the_file_cap_is_named_as_undercounted(tmp_path):
 
     ran = run(env, "--since", "2026-10-01", "--until", "2026-10-07", "--home", str(home))
 
-    assert ran.stderr.splitlines()[0] == (
+    assert ran.stderr.splitlines() == [
         "undercounted: #4 lists 100 files, gh's cap, so a file past its 100th is not counted"
-    )
-
-
-def test_a_rebase_line_that_names_no_file_of_its_pull_request_is_named(tmp_path):
-    env, home = kitchen(tmp_path)
-
-    ran = run(env, "--since", "2026-10-01", "--until", "2026-10-07", "--home", str(home))
-
-    assert ran.stderr.splitlines()[1:] == [
-        "unread: one.md at 222222222222 names 2 feature files, no path of #3, so it is not counted"
     ]
 
 
@@ -222,11 +184,7 @@ def test_a_drop_outside_the_range_is_not_counted(tmp_path):
 
     ran = run(env, "--since", "2026-10-03", "--until", "2026-10-07", "--home", str(home))
 
-    assert tables(ran.stdout)[2][1] == [
-        (1, 4, 2, "a.md"),
-        (0, 0, 2, "b.py"),
-        (0, 0, 1, "docs/c.md"),
-    ]
+    assert tables(ran.stdout)[2][1] == [(1, 4, "a.md")]
 
 
 def test_with_no_home_the_third_table_says_so(tmp_path):
@@ -262,7 +220,9 @@ def test_the_status_runs_it_once_a_week(tmp_path):
         return ran.stdout
 
     first = status()
-    assert [rows[0][-1] for _, rows in tables(first)] == ["a.md", "a.md", "a.md"]
+    (_, merged), (_, pairs), (_, drops) = tables(first)
+    assert [merged[0][-1], pairs[0][-1]] == ["a.md", "a.md"]
+    assert drops == [], "every drop in the merge.log is older than the week the block reads"
     assert all(len(rows) <= 5 for _, rows in tables(first))
 
     assert status() == ""

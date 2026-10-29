@@ -1,7 +1,7 @@
 """The rounds of each task. They are its brief's `## Review` sections in order, each with its
 verdict, its head and its count of findings. For the task as a whole, the panel also gives whether
-it needed a second or a scoped pass, how many wakes the crewmate had, and how many rebases the
-branch had.
+it needed a second or a scoped pass and how many wakes the crewmate had. It counts no rebases:
+`jmerge` works a rebase out from git, and a `Rebase:` line an older brief has is read as no line.
 
 `jmerge`'s own reader, `ready.said_of`, reads the sections. The merge decides by what that
 reader returns. A section has no time of its own. A round has a time only where the event log
@@ -29,7 +29,6 @@ _TASK = {
     "second": None,
     "scoped": None,
     "woke": None,
-    "rebases": None,
 }
 SHAPE = {"rounds": [_TASK]}
 SOURCES = (EVENTS_FILE,)
@@ -95,7 +94,6 @@ def rounds(read: Read, slug: str) -> dict[str, Any]:
         "second": reader.second,
         "scoped": reader.scoped,
         "woke": sum(1 for line in lines if _WOKE.match(line)),
-        "rebases": sum(1 for line in lines if line.startswith("Rebase:")),
     }
 
 

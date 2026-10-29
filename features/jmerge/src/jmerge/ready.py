@@ -592,10 +592,11 @@ def said_of(text: str) -> Said:
     sent = [one for one in triage.findings if one.blocks]
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     first = triage.sections[0].line if triage.sections else -1
+    fixed_at = -1
     for at, line in enumerate(text.splitlines()):
         fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
         if _COMMIT.fullmatch(fixed) or fixed == "none":
-            said.fixed = fixed
+            said.fixed, fixed_at = fixed, at
         if line.startswith(("Second pass:", "Scoped review:")) and 0 <= first < at:
             said.decided = True
         checked = _CHECKED.fullmatch(line.strip())
@@ -612,9 +613,22 @@ def said_of(text: str) -> Said:
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
+    if said.mode == REVIEW and _stale(triage.sections, said.reviewed, fixed_at):
+        said.fixed = ""
     _round(said)
     said.owes = _owes(said)
     return said
+
+
+def _stale(sections: list[findings.Section], reviewed: str, at: int) -> bool:
+    """Whether the `Fixed:` line at index `at` answers an earlier round than the last: a review
+    is written above it, and the first section of the last round, the head `reviewed`, below
+    it. Such a line is read as no line for the last round, so `unwritten_fixed` reads the one
+    that round is owed. A `twice` brief's line answers its first review, and is read as it is."""
+    if at < 0 or not reviewed:
+        return False
+    starts = [one.line for one in sections if one.head == reviewed]
+    return any(one.line < at for one in sections) and min(starts, default=at) > at
 
 
 def _owes(said: Said) -> bool:
@@ -858,13 +872,17 @@ def _covered(said: Said) -> str:
 
 
 def under_fix(text: str, head: str) -> str:
+    """The head the last review saw, where the `Fixed:` commit after it is `head` or the commit
+    `jmerge` compares `head` with (`to_range_diff`), or empty. That commit may be the one a
+    rebase made of the fix, and then `jmerge` compares from the head the crew kept before that
+    rebase, as for a `Fixed:` line it reads from git (`cli.Repo.kept_fix`)."""
     said = said_of(text)
-    reviewed = said.reviewed
-    if said.mode in (TWICE, CLEANUP):
+    reviewed, fixed = said.reviewed, said.fixed
+    if said.mode in (TWICE, CLEANUP) or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
         return ""
-    if said.fixed == head != reviewed and _COMMIT.fullmatch(reviewed):
+    if fixed == head:
         return reviewed if _COMMIT.fullmatch(head) else ""
-    return ""
+    return reviewed if to_range_diff(text, head) == fixed else ""
 
 
 @dataclass(frozen=True)

@@ -26,9 +26,7 @@ def test_explained_drops_get_one_ask_for_the_scoped_review_and_the_home_is_never
     unruled = ready.SCOPED_UNRULED.format(
         files="a.py", command=f"git range-diff --no-color {old} {new}"
     )
-    said = short.rebased() + (
-        f"Dropped on rebase: a.py, 2 of main's, 0 of its own, at {short.head[:12]}: on purpose\n"
-    )
+    said = f"Dropped on rebase: a.py, 2 of main's, 0 of its own, at {short.head[:12]}: on purpose\n"
     short.out(unruled, result=said)
     short.passes(2)
     (ask,) = to(kitchen, short.thread)

@@ -590,6 +590,20 @@ class Repo:
             return "" if commit == reviewed else commit
         return ""
 
+    def before_rebase(self, slug: str, base: str, reviewed: str, fixed: str) -> str:
+        """The commit `jmerge` compares from for `fixed`, a `Fixed:` commit after `reviewed`.
+        Where a rebase made it, so it leaves `base` elsewhere than `reviewed` does, that is the
+        head the crew kept before the rebase (`kept_fix`), else `reviewed`, as for a `Fixed:`
+        line read from git. It is `fixed` itself where no rebase came between, and where git
+        cannot name the fork of either commit."""
+        forks = [
+            _run(self.main, "git", "merge-base", f"origin/{base}", commit)
+            for commit in (reviewed, fixed)
+        ]
+        if any(fork.returncode for fork in forks) or forks[0].stdout == forks[1].stdout:
+            return fixed
+        return self.kept_fix(slug, base, reviewed) or reviewed
+
     def rebase_since_review(self, base: str, covered: str, head: str) -> ready.Rebase | None:
         forks = []
         for commit in (covered, head):
@@ -741,11 +755,14 @@ class Repo:
         short = short or ready.short_of(text, one.head)
         rebase: ready.Rebase | None = None
         covered = ready.to_range_diff(text, one.head)
+        under = ready.under_fix(text, one.head)
         lost: tuple[ready.Drop, ...] = ()
         if not short and covered:
             if _run(self.main, "git", "fetch", "-q", "origin").returncode:
                 short = f"{one.base} could not be fetched to see what its rebase kept"
             else:
+                if under:
+                    covered = self.before_rebase(brief.stem, one.base, under, covered)
                 rebase = self.rebase_since_review(one.base, covered, one.head)
             found = () if short or rebase is None else self.dropped(one.base, rebase, one.head)
             if isinstance(found, ready.NoPatch):
@@ -759,7 +776,6 @@ class Repo:
         )
         note = ""
         silent = ready.unexplained(lost, text, one.head)
-        under = ready.under_fix(text, one.head)
         if (
             under
             and covered is None
