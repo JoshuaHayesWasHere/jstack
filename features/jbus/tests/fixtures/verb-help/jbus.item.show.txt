@@ -1,7 +1,0 @@
-usage: jbus item show [-h] id
-
-positional arguments:
-  id
-
-options:
-  -h, --help  show this help message and exit

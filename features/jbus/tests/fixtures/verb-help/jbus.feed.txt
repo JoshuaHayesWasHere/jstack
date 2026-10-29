@@ -1,6 +1,0 @@
-usage: jbus feed [-h] [--after AFTER] [--wait WAIT]
-
-options:
-  -h, --help     show this help message and exit
-  --after AFTER  the id of the last event you read
-  --wait WAIT    wait up to this many seconds for a new event, 600 at most

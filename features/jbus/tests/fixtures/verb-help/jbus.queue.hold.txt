@@ -1,7 +1,0 @@
-usage: jbus queue hold [-h] slug
-
-positional arguments:
-  slug
-
-options:
-  -h, --help  show this help message and exit

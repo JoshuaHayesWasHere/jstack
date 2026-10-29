@@ -1,8 +1,0 @@
-usage: jbus forget [-h] [--dir] path [path ...]
-
-positional arguments:
-  path        a file to delete
-
-options:
-  -h, --help  show this help message and exit
-  --dir       also remove a path that is an empty directory

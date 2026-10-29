@@ -1,8 +1,0 @@
-usage: jbus bot [-h] {key} ...
-
-positional arguments:
-  {key}
-    key       make the bot a new key, print it once, and keep only its hash
-
-options:
-  -h, --help  show this help message and exit

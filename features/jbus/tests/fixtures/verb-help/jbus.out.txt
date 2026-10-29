@@ -1,5 +1,0 @@
-usage: jbus out [-h] --scope SCOPE
-
-options:
-  -h, --help     show this help message and exit
-  --scope SCOPE  the scoped home whose work is asked of

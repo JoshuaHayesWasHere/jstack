@@ -51,10 +51,10 @@ LISTED = verbs.listed(jbus.__path__)
 def main(argv: list[str] | None = None) -> int:
     typed, _ = verbs.parser(LISTED, __doc__).parse_known_args(argv)
     verb = verbs.verb(LISTED[typed.command])
-    parser = verbs.parser(LISTED, __doc__, verb)
+    parser = verbs.parser(LISTED, __doc__, [verb])
     args, extra = parser.parse_known_args(argv)
     extra = verbs.words_left(args, extra)
-    from jbus import queue, t3
+    from jbus import queue
 
     for given in extra:
         column = given.lstrip("-").split("=")[0].replace("-", "_")
@@ -65,6 +65,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"unrecognized arguments: {' '.join(extra)}")
     try:
         return verb.run(args, jbus.load() if verb.config else None)
-    except (jbus.Refused, t3.T3Error) as error:
+    except Exception as error:
+        from jbus import t3
+
+        if not isinstance(error, jbus.Refused | t3.T3Error):
+            raise
         print(error)
         return 1

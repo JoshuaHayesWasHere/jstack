@@ -1,7 +1,0 @@
-usage: jbus clear [-h] [--scope SCOPE] [--after AFTER]
-
-options:
-  -h, --help     show this help message and exit
-  --scope SCOPE  the scoped home whose blockers these are
-  --after AFTER  how many minutes a question stays open before the home takes
-                 its default

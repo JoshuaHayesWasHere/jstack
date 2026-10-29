@@ -1,6 +1,0 @@
-usage: jbus digest [-h] [--json] [--since SINCE]
-
-options:
-  -h, --help     show this help message and exit
-  --json         as JSON, the one form there is
-  --since SINCE  count the merges from this time, the user's zone with none

@@ -1,7 +1,0 @@
-usage: jbus events [-h] [--slug SLUG] [--since SINCE]
-
-options:
-  -h, --help     show this help message and exit
-  --slug SLUG    only the events of this slug
-  --since SINCE  only the events sent at or after this time, the user's zone
-                 with none

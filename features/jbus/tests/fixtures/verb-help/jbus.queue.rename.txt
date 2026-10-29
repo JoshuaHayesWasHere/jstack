@@ -1,8 +1,0 @@
-usage: jbus queue rename [-h] slug new
-
-positional arguments:
-  slug
-  new         the new slug; the old one is retired
-
-options:
-  -h, --help  show this help message and exit

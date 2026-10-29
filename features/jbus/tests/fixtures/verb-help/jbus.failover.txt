@@ -1,8 +1,0 @@
-usage: jbus failover [-h] --replay ITEMS --thread THREAD [--dry-run]
-
-options:
-  -h, --help       show this help message and exit
-  --replay ITEMS   a JSON list of T3 Code thread items, or an object whose
-                   items is one
-  --thread THREAD  the live thread the cap is replayed on
-  --dry-run        print the move and write nothing

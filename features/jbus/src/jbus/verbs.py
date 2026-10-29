@@ -343,11 +343,12 @@ def _cli_party(given: str) -> str:
 
 
 def parser(
-    found: dict[str, Listed], description: str | None, chosen: Verb | None = None
+    found: dict[str, Listed], description: str | None, chosen: Iterable[Verb] = ()
 ) -> argparse.ArgumentParser:
     """Build the parser of `jbus`, with a parser for each verb that `listed` found. Only the
-    `chosen` verb's parser takes its arguments and `--help`. With none chosen, the parser reads
-    which verb was typed, and leaves everything after it unread."""
+    `chosen` verbs' parsers take their arguments and `--help`: `jbus.cli.main` chooses the one
+    typed. With none chosen, the parser reads which verb was typed, and leaves everything after
+    it unread."""
     made = argparse.ArgumentParser(prog="jbus", description=description, allow_abbrev=False)
     made.add_argument("--project", help="the project's name in the config, when it has several")
     made.add_argument(
@@ -365,11 +366,11 @@ def parser(
         "option: t3-message, t3-pick, lavish-page, typed (a word's id) or answer",
     )
     commands = made.add_subparsers(dest="command", required=True)
+    taking = {verb.name: verb for verb in chosen}
     for one in found.values():
-        if chosen is not None and one.name == chosen.name:
-            chosen.arguments(
-                commands.add_parser(one.name, help=one.help, allow_abbrev=chosen.abbrev)
-            )
+        if one.name in taking:
+            verb = taking[one.name]
+            verb.arguments(commands.add_parser(one.name, help=one.help, allow_abbrev=verb.abbrev))
         else:
             commands.add_parser(one.name, help=one.help, add_help=False)
     made.usage = usage(made)

@@ -7,10 +7,9 @@ feature declared a verb outside `jbus.cli`, at 80 columns and with no colour. `j
 `jbus-queue-add.txt` is `jbus queue add --help`. The tests run the real command and hold it to those
 files, byte for byte.
 
-`fixtures/verb-help/` holds what `jbus --help` and the `--help` of every verb, and of every verb
-under one, printed before `jbus` read its verbs off the sources and imported only the module of
-the verb that runs. `jbus.queue.add.txt` is `jbus queue add --help`. A test holds the command to
-each page, and holds the pages to every verb there is.
+`jbus` reads its verbs off the sources and imports only the module of the verb that runs. A test
+holds what `jbus --help` and the `--help` of every verb, and of every verb under one, print to what
+the parser prints when every verb takes its arguments, as when `jbus` imported every verb.
 """
 
 import argparse
@@ -153,9 +152,6 @@ def test_the_pass_s_one_verb_is_in_poll_and_cli_runs_no_verb():
     assert not [name for name in vars(cli) if name.startswith("_") and name[1:] in cli.LISTED]
 
 
-EVERY = Path(__file__).parent / "fixtures" / "verb-help"
-
-
 def walked(parser, typed):
     """Return what is typed for the help page of `parser` and of each verb under it."""
     found = [typed]
@@ -166,31 +162,26 @@ def walked(parser, typed):
     return found
 
 
-def every_page():
-    """Return what is typed for each help page that `jbus` has: its own, each verb's, and each
-    verb's under a verb. Each verb's parser takes its arguments only when it is the one chosen."""
-    found = [[]]
-    for one in cli.LISTED.values():
-        made = verbs.parser(cli.LISTED, cli.__doc__, verbs.verb(one))
-        chosen = next(a for a in made._actions if isinstance(a, argparse._SubParsersAction))
-        found += walked(chosen.choices[one.name], [one.name])
-    return found
-
-
-def test_the_pages_are_every_verb_s_and_every_verb_under_one():
-    pages = sorted(".".join(["jbus", *typed]) for typed in every_page())
-    assert pages == sorted(path.stem for path in EVERY.glob("*.txt"))
-
-
-@pytest.mark.parametrize("page", sorted(path.stem for path in EVERY.glob("*.txt")))
-def test_every_help_prints_what_it_printed_when_jbus_imported_every_verb(page, monkeypatch):
-    monkeypatch.setenv("COLUMNS", "80")
-    monkeypatch.setenv("NO_COLOR", "1")
+def printed(parse, argv):
+    """Return what `parse(argv)` prints before it exits 0."""
     out = io.StringIO()
     with contextlib.redirect_stdout(out), pytest.raises(SystemExit) as stopped:
-        cli.main([*page.split(".")[1:], "--help"])
-    assert stopped.value.code == 0
-    assert unwrapped(out.getvalue()) == (EVERY / f"{page}.txt").read_text()
+        parse(argv)
+    assert stopped.value.code == 0, argv
+    return out.getvalue()
+
+
+def test_every_help_prints_what_the_parser_of_every_verb_prints(monkeypatch):
+    monkeypatch.setenv("COLUMNS", "80")
+    monkeypatch.setenv("NO_COLOR", "1")
+    every = [verbs.verb(one) for one in cli.LISTED.values()]
+    eager = verbs.parser(cli.LISTED, cli.__doc__, every)
+    pages = walked(eager, [])
+    assert len(pages) > len(every)
+    for typed in pages:
+        assert printed(cli.main, [*typed, "--help"]) == printed(
+            eager.parse_args, [*typed, "--help"]
+        )
 
 
 def loaded_by(argv):

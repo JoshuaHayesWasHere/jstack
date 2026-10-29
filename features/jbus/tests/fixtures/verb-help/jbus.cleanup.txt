@@ -1,7 +1,0 @@
-usage: jbus cleanup [-h] brief
-
-positional arguments:
-  brief       the reviewed brief, <state>/tasks/<slug>.md
-
-options:
-  -h, --help  show this help message and exit

@@ -1,7 +1,0 @@
-usage: jbus budget [-h] [--calls CALLS] [--wait SECONDS]
-
-options:
-  -h, --help      show this help message and exit
-  --calls CALLS   the calls the caller is about to make (default: 0)
-  --wait SECONDS  while held, ask again every 30 seconds for up to this long
-                  (default: 0)

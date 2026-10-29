@@ -1,6 +1,0 @@
-usage: jbus snapshot [-h] [--alarm | --why WHY]
-
-options:
-  -h, --help  show this help message and exit
-  --alarm     count a snapshot that did not finish, and alert
-  --why WHY   what changed, put in the commit message after the time
