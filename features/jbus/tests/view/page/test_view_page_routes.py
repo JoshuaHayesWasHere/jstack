@@ -313,7 +313,7 @@ def test_an_old_link_to_the_flow_drawer_and_both_its_buttons_open_the_board(scen
             "hash:#/demo",
             "hash:#/demo/flow",
             "hash:#/demo",
-            "tap:#prog-h a.btn",
+            "tap:#prog-t a.btn",
             "hash:#/demo",
             "open:steps",
             "tap:#dw a.linkish",

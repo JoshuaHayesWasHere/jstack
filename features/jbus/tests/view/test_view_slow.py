@@ -70,8 +70,9 @@ def test_each_stage_counts_its_own_rows_and_you_is_what_needs_you_counts(served)
     you = stage(given, "you")
     assert you["rows"] == len(given["needs"]) > 0
     first = given["needs"][0]
+    assert first["slug"] and first["slug"] != first["what"]
     assert you["oldest"] == {
-        "what": first["what"],
+        "what": first["slug"],
         "project": first["project"],
         "since": first["since"],
         "open": first["open"],

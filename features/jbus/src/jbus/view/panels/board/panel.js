@@ -67,13 +67,16 @@ function boardCard(h, stages) {
     (h.chain.length ? '<ol class="bd-chain" aria-label="the plan, in order">' + h.chain.map(boardStep).join("") + '</ol>' : "") +
     (sum ? '<div class="bd-sum" aria-label="workers by stage">' + sum + '</div>' : "") +
     (h.workers.length ? '<ol class="clean">' + h.workers.map(function (w) { return boardWorker(w, stages); }).join("") + '</ol>' : '<p class="bd-none">No worker at work</p>') +
-    (h.merged.length ? '<p class="bd-done"><b>Merged today ' + h.merged.length + '</b> ' + h.merged.map(function (w) { return '<button type="button" class="bd-ml" data-open="' + esc(w.open) + '">' + esc(w.slug) + '</button>' + (w.pr ? ' ' + esc(w.pr) : ""); }).join(", ") + '</p>' : "") +
+    boardOver("Merged today", h.merged) + boardOver("Done", h.done) +
     '</section>';
 }
+function boardOver(tag, ws) {
+  return ws.length ? '<p class="bd-done"><b>' + tag + ' ' + ws.length + '</b> ' + ws.map(function (w) { return '<button type="button" class="bd-ml" data-open="' + esc(w.open) + '">' + esc(w.slug) + '</button>' + (w.pr ? ' ' + esc(w.pr) : ""); }).join(", ") + '</p>' : "";
+}
 function dBoard(arg, d) {
-  var all = d.homes.reduce(function (n, h) { return n + h.workers.length; }, 0), merged = d.homes.reduce(function (n, h) { return n + h.merged.length; }, 0);
+  var all = d.homes.reduce(function (n, h) { return n + h.workers.length; }, 0), merged = d.homes.reduce(function (n, h) { return n + h.merged.length; }, 0), done = d.homes.reduce(function (n, h) { return n + h.done.length; }, 0);
   return BOARD_STYLE + head("Homes", "Every home and its workers") +
-    '<p class="src" style="margin:10px 0 0">' + plural(d.homes.length, "home", "homes") + ', ' + plural(all, "worker", "workers") + ' at work, ' + merged + ' merged today. The chain is each home\'s plan, in order. The bar is the process, ' + esc(d.stages.map(function (s) { return s.name; }).join(" \u203a ")) + ', and the time is how long on the stage.</p>' +
+    '<p class="src" style="margin:10px 0 0">' + plural(d.homes.length, "home", "homes") + ', ' + plural(all, "worker", "workers") + ' at work, ' + merged + ' merged today' + (done ? ', ' + done + ' done' : "") + '. The chain is each home\'s plan, in order. The bar is the process, ' + esc(d.stages.map(function (s) { return s.name; }).join(" \u203a ")) + ', and the time is how long on the stage.</p>' +
     '<div class="bd-grid">' + d.homes.map(function (h) { return boardCard(h, d.stages); }).join("") + '</div>';
 }
 panel({
