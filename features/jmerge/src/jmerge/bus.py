@@ -3,9 +3,11 @@ its migrations and its generated files), the queue's rows and stored briefs ther
 an accept. jmerge imports nothing of jbus: jbus fills this in (`jbus.port.Port`) and names it
 under the entry point group `GROUP`, which `found` reads.
 
-Where no package fills it in, or jbus has no project of the checkout, `jmerge` runs as it does
-in a repo with no jbus: no queue, no migrations, `uv.lock` the one generated file, and an accept
-on `--by` and `--at` alone.
+Where jbus has no project of the checkout, `jmerge` runs as it does in a repo with no jbus: no
+queue, no migrations, `uv.lock` the one generated file, and an accept on `--by` and `--at` alone.
+Where no package fills the port in, as in an install from before it, `found` refuses: the queue
+reads as unreadable, so nothing merges, and an accept is refused, since no go and no door can be
+read.
 """
 
 from __future__ import annotations
@@ -83,17 +85,16 @@ class Bus(Protocol):
 
 
 @functools.cache
-def found() -> Bus | None:
-    """The bus a package names under `GROUP`, or None."""
+def found() -> Bus:
+    """The bus a package names under `GROUP`. Raise `jsettings.Refused` where none does."""
     for point in entry_points(group=GROUP):
         return point.load()()
-    return None
+    raise jsettings.Refused(f"no package names a bus under {GROUP}: reinstall jstack")
 
 
 def place(checkout: Path) -> Place | None:
-    """`Bus.place` of the bus there is, or None with none."""
-    bus = found()
-    return None if bus is None else bus.place(checkout)
+    """`Bus.place` of the bus there is."""
+    return found().place(checkout)
 
 
 def quiet_place(checkout: Path) -> Place | None:

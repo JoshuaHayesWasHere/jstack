@@ -193,7 +193,7 @@ class Repo:
         return rows.main(self.main)
 
     @functools.cached_property
-    def migrations(self) -> rows.Migrations | None:
+    def migrations(self) -> bus.Migrations | None:
         return rows.migrations(self.main)
 
     def numbers(self, base: str) -> set[int] | None:
@@ -1088,12 +1088,8 @@ class Repo:
             except jsettings.Refused:
                 return 1
             return 0
-        found_bus = bus.found()
-        if found_bus is None:
-            say(f"refused {about}: no bus takes the act of an accept here")
-            return 1
         touched = bool(ready.protected_path(one, self.protected, self.left(one) or ()))
-        outcome, line = found_bus.accept(
+        outcome, line = bus.found().accept(
             acting, one.number, found.slug, one.head, text, touched, does
         )
         if outcome == "done":
@@ -1816,10 +1812,9 @@ def main(argv: list[str] | None = None) -> int:
             say(f"refused {args.accept}: no open pull request has that number")
             return 1
         acting = None
-        found_bus = bus.found()
-        if said and not args.check and found_bus is not None:
+        if said and not args.check:
             try:
-                acting = found_bus.acting(main_checkout, args.message, args.at, args.as_, user)
+                acting = bus.found().acting(main_checkout, args.message, args.at, args.as_, user)
             except jsettings.Refused as error:
                 say(f"refused {args.accept}: {str(error).removeprefix('refused: ')}")
                 return 1

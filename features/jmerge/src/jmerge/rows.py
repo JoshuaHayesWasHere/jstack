@@ -8,8 +8,7 @@ from pathlib import Path
 
 import jsettings
 from jmerge import bus, judgement, mainjson, ready
-from jmerge.bus import Migrations as Migrations
-from jmerge.bus import Row
+from jmerge.bus import Migrations, Row
 from jmerge.checks import NOT_RED
 from jsettings import brief as brief_head
 from jsettings import store
@@ -60,16 +59,14 @@ def read(checkout: Path) -> list[Row] | None:
         return None
     if state is None:
         return []
-    found = bus.found()
-    return None if found is None else found.rows(state)
+    return bus.found().rows(state)
 
 
 def stored(checkout: Path, slug: str) -> str | None:
     """The brief of `slug` as jbus stores it for the project of `checkout`, the text its go is
     judged against (`judgement.has_go`), or nothing."""
     state = _state(checkout)
-    found = bus.found()
-    return found.stored(state, slug) if isinstance(state, Path) and found else None
+    return bus.found().stored(state, slug) if isinstance(state, Path) else None
 
 
 def main(checkout: Path) -> mainjson.Main:
