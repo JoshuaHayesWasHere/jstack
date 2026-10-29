@@ -7,6 +7,8 @@ that names `old-shelf`, a scope that has retired: jbriefs puts its row under the
 row says which scope it named.
 """
 
+import os
+
 import pytest
 
 from jbus.view import state as built
@@ -235,6 +237,31 @@ def test_a_home_made_last_takes_the_next_colour_and_moves_no_other_whatever_its_
     (crate / "home-id").write_text("mcp:crate\n")
     (crate / "plan.md").write_text("# apple-crate home: plan\nGoal (2026-10-28, x): crates\n")
     assert colours(scene) == before | {"apple-crate": 4}
+
+
+def made(scene, name, day, at):
+    """A scope the block made on `day`, its prefix written at `at` seconds past the epoch."""
+    scope = scene.home / name
+    scope.mkdir()
+    (scope / "home-id").write_text(f"mcp:{name}\n")
+    (scope / "plan.md").write_text(f"# {name} home: plan\nGoal ({day}, x): {name}\n")
+    (scope / "prefix").write_text(f"{name[:3]}-\n")
+    os.utime(scope / "prefix", (at, at))
+
+
+def test_two_homes_made_the_same_day_take_their_colours_in_the_order_they_were_made(
+    tmp_path, monkeypatch
+):
+    """`zeta-box` and `alpha-box` are made on one day, then `aardvark-box` on the same day:
+    the last made takes 6, though it sorts first by name, and moves neither of the others."""
+    scene = Scene(tmp_path, monkeypatch)
+    homed(scene)
+    made(scene, "zeta-box", "2026-10-28", 1000)
+    made(scene, "alpha-box", "2026-10-28", 2000)
+    before = colours(scene)
+    assert (before["zeta-box"], before["alpha-box"]) == (4, 5)
+    made(scene, "aardvark-box", "2026-10-28", 3000)
+    assert colours(scene) == before | {"aardvark-box": 6}
 
 
 def test_past_eight_homes_the_colours_count_round_from_1(tmp_path, monkeypatch):

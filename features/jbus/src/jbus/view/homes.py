@@ -38,10 +38,11 @@ first entry, and a scope with no plan have none.
 
 Each home has a `colour`, 1 to `COLOURS`, the page's `--cat-<colour>` swatch beside its name.
 It is the home's place in the order the homes were made, counted round past `COLOURS`: the
-root is 1, then each scope by its `started` day, a scope with none first and by name among
-equals. A scope made later, which the block dates, comes after every scope there is, so it
-takes the next colour and moves no other home's, whatever its name. A home that is no scope
-now has none.
+root is 1, then each scope by its `started` day, a scope with none first, then by the time of
+its `prefix`, which the block writes once as it makes the scope, and by name among equals. A
+scope made later, which the block dates and gives its prefix, comes after every scope there
+is, so it takes the next colour and moves no other home's, whatever its name and on the same
+day too. A home that is no scope now has none.
 """
 
 from __future__ import annotations
@@ -77,6 +78,15 @@ def _read(path: Path) -> str | None:
         return path.read_text(errors="replace")
     except OSError:
         return None
+
+
+def _made(scope: Path) -> float:
+    """When the block made the scope: the time of its `prefix`, which it writes once, or 0
+    where it has none."""
+    try:
+        return (scope / "prefix").stat().st_mtime
+    except OSError:
+        return 0.0
 
 
 @dataclass(frozen=True)
@@ -175,7 +185,7 @@ class Homes:
     def colours(self) -> dict[str, int]:
         """Each home's colour, by its name: the root's, then each scope's in the order they
         were made."""
-        made = sorted(self.scopes, key=lambda one: self.started(one[0]) or "")
+        made = sorted(self.scopes, key=lambda one: (self.started(one[0]) or "", _made(one[0])))
         names = [ROOT, *(one.name for one, _, _ in made)]
         return {name: place % COLOURS + 1 for place, name in enumerate(names)}
 
