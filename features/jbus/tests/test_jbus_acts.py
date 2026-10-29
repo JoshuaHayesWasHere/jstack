@@ -12,10 +12,10 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import acts, blockers, item, party, questions, queue, waiting, wake
+from jbus import acts, blockers, item, party, questions, queue, waiting, wake, word
 from jbus import view as jview
 from jbus.view import state as view_state
-from test_jbus_kitchen import ASK, RAN, SAID, Kitchen
+from test_jbus_kitchen import ASK, RAN, SAID, Kitchen, sends
 from test_jbus_queue import add, adds, approves, batch, brief, rows, sha12
 from view.scene import free_port
 
@@ -520,3 +520,79 @@ def test_a_batch_that_adds_a_brief_that_holds_and_approves_it_is_refused(kitchen
     )
     assert "gamma" not in rows(kitchen)
     assert logged(kitchen) == []
+
+
+READ = "read vision.md"
+SHAPE = (
+    "an act is {action: go, slug, sha12}, {action: answer, number, words, keeps} or "
+    "{action: word, words}, with evidence bot-chat:<address>/<device> and an optional seen"
+)
+
+
+def test_a_bot_word_on_bot_chat_evidence_goes_to_the_projects_home(kitchen, route):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    add(kitchen, "alpha", approve=False)
+    status, said = route.act({"action": "word", "words": f"  {READ} ", "evidence": CHAT})
+    assert status == 200, said
+    made = said["act"]
+    assert (made["outcome"], made["line"], made["party"]["kind"]) == ("done", word.KEPT, "bot")
+    assert made["action"]["verb"] == "word"
+    assert made["evidence"] | {"said_at": ""} == {
+        "source": "bot-chat",
+        "ref": CHAT.removeprefix("bot-chat:"),
+        "words": READ,
+        "said_at": "",
+        "said_in": f"bot-chat {CHAT.removeprefix('bot-chat:')}",
+        "checked": False,
+        "picks": [],
+    }
+    (sent,) = sends(kitchen)
+    assert sent["threadId"] == "home-1" and sent["message"].endswith(f"\n\n{READ}")
+    assert sent["clientRequestId"] == f"word|demo|{made['id']}|home-1"
+    (kept,) = [one for one in word.load(kitchen.state) if one.id == made["id"]]
+    assert (kept.thread, kept.by, kept.checked) == ("home-1", "bot/bot", False)
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [None, "voice:+15550100/a-phone", "bot-chat:+15550100", "bot-chat:/a-phone", "t3-message:a/b"],
+    ids=["missing", "voice", "no-device", "no-address", "not-the-bots"],
+)
+@pytest.mark.parametrize("verb", ["go", "word"])
+def test_a_bot_go_or_word_on_evidence_that_is_not_the_bots_chat_is_refused(
+    kitchen, route, verb, evidence
+):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    add(kitchen, "alpha", approve=False)
+    body = {"action": "word", "words": READ}
+    if verb == "go":
+        body = {"action": "go", "slug": "alpha", "sha12": sha12(stored(kitchen, "alpha"))}
+    if evidence is not None:
+        body["evidence"] = evidence
+    assert route.act(body) == (400, {"error": SHAPE})
+    assert (logged(kitchen), sends(kitchen), rows(kitchen)["alpha"]["approved"]) == ([], [], "")
+
+
+@pytest.mark.parametrize("verb", ["go", "word"])
+def test_a_bot_word_is_checked_as_a_go_is_for_its_key_and_its_project(kitchen, route, verb):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    add(kitchen, "alpha", approve=False)
+    body = {"action": "word", "words": READ, "evidence": CHAT}
+    if verb == "go":
+        body = {"action": "go", "slug": "alpha", "sha12": sha12(stored(kitchen, "alpha"))}
+        body["evidence"] = CHAT
+    refused = {"error": "this route is the bot's, and takes the bot's key"}
+    assert route.act(body, key=False) == (401, refused)
+    assert route.act(body, key="not-the-key") == (401, refused)
+    assert route.act(body, project="nope")[0] == 404
+    assert (logged(kitchen), sends(kitchen), rows(kitchen)["alpha"]["approved"]) == ([], [], "")
+
+
+def test_a_bot_word_with_no_words_is_refused(kitchen, route):
+    add(kitchen, "alpha", approve=False)
+    for words in (None, "", "   ", 3):
+        body = {"action": "word", "evidence": CHAT}
+        if words is not None:
+            body["words"] = words
+        assert route.act(body) == (400, {"error": SHAPE})
+    assert (logged(kitchen), sends(kitchen)) == ([], [])
