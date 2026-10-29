@@ -11,7 +11,7 @@ import subprocess
 import test_room as room
 from crew_helpers import block
 from test_jbus_signal import later
-from test_jbus_wake_home import homed
+from test_jbus_wake_failing import refusing
 
 
 def wakes(kitchen):
@@ -34,8 +34,7 @@ def test_a_crewmate_ends_its_turn_while_the_home_thread_takes_wakes(kitchen):
 
 
 def test_a_crewmate_stays_in_its_turn_while_the_home_thread_is_failing(kitchen):
-    homed(kitchen)
-    kitchen.t3.refuse_send = True
+    refusing(kitchen)
     for number in range(3):
         kitchen.poll(later(5 * number))
     (said,) = wakes(kitchen)
