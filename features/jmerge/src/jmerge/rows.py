@@ -20,6 +20,13 @@ def migrations(checkout: Path) -> Migrations | None:
     return None if found is None else found.migrations
 
 
+def bases(checkout: Path) -> tuple[str, ...]:
+    """The branches besides the default one that the project of `checkout` names as merge bases,
+    or none where jbus has no project of it or its config does not load."""
+    found = bus.quiet_place(checkout)
+    return () if found is None else found.bases
+
+
 def merge_order(rows: list[Row] | None, slugs: dict[int, str]) -> list[int]:
     table = {row["slug"]: row for row in rows or []}
 

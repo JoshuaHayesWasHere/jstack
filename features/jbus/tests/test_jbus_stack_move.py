@@ -40,7 +40,7 @@ def commit(tree, name, text, message=""):
 class Stack:
     """The git history of the stack, and what GitHub lists of it."""
 
-    def __init__(self, kitchen, conflict=False, fixed=False):
+    def __init__(self, kitchen, conflict=False, fixed=False, into="main"):
         self.kitchen, tree = kitchen, kitchen.checkout
         self.start = git(tree, "rev-parse", "main")
         git(tree, "switch", "-q", "-c", "one")
@@ -52,15 +52,18 @@ class Stack:
             self.last = commit(tree, "fix.txt", "fix\n")
         git(tree, "push", "-q", "origin", "one", "two")
         git(tree, "switch", "-q", "main")
+        if into != "main":
+            git(tree, "switch", "-q", "-c", into)
         self.merge = commit(tree, "one.txt", "one\n", "one (#10)")
         if conflict:
             commit(tree, "two.txt", "main's own two\n")
-        git(tree, "push", "-q", "origin", "main")
+        git(tree, "push", "-q", "origin", into)
+        git(tree, "switch", "-q", "main")
         git(tree, "branch", "-q", "-D", "one", "two")
         two = {**kitchen.opened("two", 11), "headRefOid": self.head, "baseRefName": "one"}
         kitchen.set("open.json", [two])
         one = {**kitchen.merged("one", 10, self.merge), "headRefOid": self.last}
-        kitchen.set("merged.json", [{**one, "baseRefName": "main"}])
+        kitchen.set("merged.json", [{**one, "baseRefName": into}])
 
     def origin(self, ref):
         return git(self.kitchen.origin, "rev-parse", ref)
@@ -86,16 +89,14 @@ def stack_conflict(stacked, monkeypatch):
     return Stack(stacked, conflict=True)
 
 
-def unmoved(kitchen, head):
-    """What jmerge says of #11 at `head` on main, by its brief's `Stacked on:` line: nothing once
-    it may merge."""
+def unmoved(kitchen, head, base="main", bases=()):
+    """What jmerge says of #11 at `head` on `base`, by its brief's `Stacked on:` line and the
+    merge bases its project names: nothing once it may merge."""
     repo = Repo(kitchen.checkout, kitchen.root / "jmerge", None, False, user=jsettings.Settings())
     url = "https://example.test/pull/11"
-    pull = ready.PullRequest(
-        11, url, "feat: two", "two", head, "main", "MERGEABLE", (), (), False, 1
-    )
-    text = (kitchen.home / "tasks" / "two.md").read_text()
-    return repo.on_stack(pull, "main", stacks.of(text))
+    pull = ready.PullRequest(11, url, "feat: two", "two", head, base, "MERGEABLE", (), (), False, 1)
+    stacked = stacks.of((kitchen.home / "tasks" / "two.md").read_text())
+    return ready.held(pull, "main", stacked, bases) or repo.on_stack(pull, "main", stacked)
 
 
 def test_a_merged_base_moves_its_link_onto_main_in_the_same_pass_with_no_send(stack):
@@ -111,6 +112,23 @@ def test_a_merged_base_moves_its_link_onto_main_in_the_same_pass_with_no_send(st
     assert sends(kitchen) == []
     kitchen.poll(NOW + timedelta(minutes=3))
     assert sends(kitchen) == [] and stack.origin("two") == moved
+
+
+def test_a_base_merged_into_a_merge_base_moves_its_link_onto_that_base(stacked, monkeypatch):
+    """The sidebar's rows merge into `t3code-jstack`, a merge base of the project: a link on a
+    row that merged there is moved onto it, and jmerge then merges it there as it would one on
+    main."""
+    signed(monkeypatch)
+    stack = Stack(stacked, into="t3code-jstack")
+    kitchen = stack.kitchen
+    stack.kitchen.poll(NOW)
+    moved = stack.origin("two")
+    assert edits(kitchen) == ["pr edit 11 --base t3code-jstack"]
+    assert git(kitchen.origin, "rev-parse", f"{moved}^") == stack.merge
+    assert head_line(kitchen) == stacks.Stacked("one", "t3code-jstack", stack.merge)
+    assert stack.origin("main") == stack.start
+    assert unmoved(kitchen, moved, "t3code-jstack", ("t3code-jstack",)) == ""
+    assert sends(kitchen) == []
 
 
 def test_the_crews_own_worktree_follows_the_move(stack):

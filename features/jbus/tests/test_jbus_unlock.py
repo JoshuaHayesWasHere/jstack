@@ -215,8 +215,11 @@ def test_a_rebase_message_with_no_answer_waits_and_is_tried_again(launched):
     )
 
 
-def test_a_default_branch_that_is_not_known_sends_no_message_and_is_tried_again(launched):
+def test_a_base_that_is_not_known_sends_no_message_and_is_tried_again(launched):
+    """GitHub lists the pull request with no base, and the default branch is not known."""
     out(launched)
+    listed = {**launched.opened("alpha", 7), "headRefOid": "c" * 40, "baseRefName": ""}
+    launched.set("open.json", [listed])
     launched.git("symbolic-ref", "-d", "refs/remotes/origin/HEAD")
     said = launched.poll()
     assert "wait alpha: the default branch is not known, so its crew is not told" in said

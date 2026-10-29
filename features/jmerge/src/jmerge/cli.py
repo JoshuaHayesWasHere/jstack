@@ -187,6 +187,10 @@ class Repo:
         return rows.main(self.main)
 
     @functools.cached_property
+    def bases(self) -> tuple[str, ...]:
+        return rows.bases(self.main)
+
+    @functools.cached_property
     def migrations(self) -> bus.Migrations | None:
         return rows.migrations(self.main)
 
@@ -738,7 +742,7 @@ class Repo:
         self.lifts = []
         lifted = self.lifted(one)
         stacked = stacks.of(text)
-        short = self.lift(ready.held(one, default, stacked), lifted)
+        short = self.lift(ready.held(one, default, stacked, self.bases), lifted)
         short = short or self.on_stack(one, default, stacked)
         short = short or self.lift(ready.short_of(text, one.head), lifted)
         rebase: ready.Rebase | None = None
@@ -825,7 +829,11 @@ class Repo:
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
-        """The red hold on a pull request into main: main's hold, and its browser run's."""
+        """The red hold on a pull request into main: main's hold, and its browser run's. A pull
+        request into another merge base has neither: main's red says nothing of that branch, and
+        no fix of main can merge into it."""
+        if one.base != default:
+            return ""
         main, ran = self.main_state, rows.UNPROVED
         if main.red and main.failed and not mainjson.fix_of(slug):
             ran = self.proved(one, main.red, main.failed)
@@ -1385,7 +1393,7 @@ class Sweep:
             try:
                 said = json.loads(asked.stdout)
                 state = "" if asked.returncode else str(said["state"])
-                if state == "MERGED" and said["baseRefName"] == self.default:
+                if state == "MERGED" and said["baseRefName"] in (self.default, *self.repo.bases):
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
                 state = ""
@@ -1482,6 +1490,8 @@ class Sweep:
                 why = f"{first.source} and {more[0].source} both name it"
             elif branch == self.default:
                 why = "it is the default branch"
+            elif branch in self.repo.bases:
+                why = "it is a merge base of the project"
             else:
                 why = sweep.kept(first, self.found(first, left))
             if why:
@@ -1543,7 +1553,9 @@ def parser() -> argparse.ArgumentParser:
         description="Merge this repo's pull requests that are reviewed, fixed and green, pull "
         "the main checkout, and remove each one's worktree and branches. Prints one line per "
         "open pull request. A pull request based on a branch other than the default branch "
-        "is never merged. "
+        "is never merged, unless its project names that branch as a merge base (jbus project "
+        "bases --add): one into a merge base merges on the default branch's rules, and a red main "
+        "does not hold it. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
         "(features/jmerge/src/jmerge/ci-paths.txt) waits for a fresh check: where the "

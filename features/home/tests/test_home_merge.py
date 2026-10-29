@@ -127,8 +127,9 @@ case "$1 $2" in
             echo "GraphQL: Head branch was modified. Review and try the merge again." >&2
             exit 1
         fi
-        commit=$(git -C "$ORIGIN" commit-tree "$6^{tree}" -p refs/heads/main -m "the task (#$3)")
-        git -C "$ORIGIN" update-ref refs/heads/main "$commit"
+        base=$(cat "$STUB/merge-base" 2> /dev/null || echo main)
+        commit=$(git -C "$ORIGIN" commit-tree "$6^{tree}" -p "refs/heads/$base" -m "the task (#$3)")
+        git -C "$ORIGIN" update-ref "refs/heads/$base" "$commit"
         echo "$commit" > "$STUB/merged" ;;
     "pr view")
         if [ "$4 $5" = "--json state,headRefOid,baseRefName" ]; then
