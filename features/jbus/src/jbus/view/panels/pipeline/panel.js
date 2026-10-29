@@ -11,13 +11,6 @@
     ".pl-d { display: block; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
     ".pl-l { font: inherit; font-family: var(--mono); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }" +
     ".pl-hm { display: none; font-size: 15px; color: var(--ink); align-self: center; }" +
-    ".pl-strip { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }" +
-    ".pl-st { min-width: 0; display: grid; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); padding: 4px 6px 5px; }" +
-    ".pl-st.hot { border-color: var(--due); box-shadow: inset 0 0 0 1px var(--due); }" +
-    ".pl-k, .pl-o, .pl-x { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    ".pl-n { font-size: 22px; font-weight: 800; line-height: 1.1; }" +
-    ".pl-bar { display: block; height: 5px; margin: 3px 0 2px; background: var(--sunk); border-radius: 3px; overflow: hidden; }" +
-    ".pl-bar i { display: block; height: 100%; background: var(--due); }" +
     ".pl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }" +
     ".pl-chips button { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; cursor: pointer; }" +
     ".pl-chips button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }" +
@@ -44,8 +37,8 @@
     ".pl-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 10px 0 0; padding: 4px 4px 4px 12px; border: 1.5px solid var(--focus); border-radius: 8px; background: var(--surface); font-size: 15px; font-weight: 700; scroll-margin-top: 12px; overflow-wrap: anywhere; }" +
     ".pl-show button { font: inherit; min-width: 44px; min-height: 36px; color: var(--ink); background: none; border: 0; border-radius: 6px; cursor: pointer; }" +
     ".pl-unpl { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    "@media (max-width: 1180px) { .pl-strip, .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
-    "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-strip { display: none; } .pl-board { gap: 6px; }" +
+    "@media (max-width: 1180px) { .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
+    "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-board { gap: 6px; }" +
     " .pl-chips button, .pl-hm { min-height: 44px; } .pl-hm { display: inline-flex; align-items: center; padding: 0 6px; } .pl-c { min-height: 44px; font-size: 15px; } }" +
     "@media (min-width: 641px) and (max-width: 1024px) { #homes { display: none; } } @media (max-width: 1024px) { .pl-hm { display: inline-flex; align-items: center; } }";
   document.head.appendChild(css);
@@ -221,15 +214,6 @@ function boardStages(view) {
 
 function boardCols(stages) { return stages.map(function (s) { return "minmax(0, " + (s.count ? "1fr" : ".5fr") + ")"; }).join(" "); }
 
-function boardStrip(stages, hot) {
-  return '<ol class="pl-strip" data-role="strip" aria-label="Rows in each stage" style="grid-template-columns: ' + boardCols(stages) + '">' + stages.map(function (s) {
-    var age = s.key === "merged" ? "today" : s.oldest ? "oldest " + boardAge(s.oldest.since) : "";
-    return '<li class="pl-st' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><span class="pl-k">' + esc(s.name) + '</span> <span class="pl-n">' + s.count + '</span>' +
-      (age ? ' <span class="pl-o">' + age + '</span>' : "") +
-      (s.count && s.key !== "merged" ? '<span class="pl-bar"><i style="width:' + Math.round(100 * s.still / s.count) + '%"></i></span>' + (s.still ? '<span class="pl-x">' + s.still + ' not moving</span>' : "") : "") + '</li>';
-  }).join("") + '</ol>';
-}
-
 function boardChips(view) {
   var homes = {}, said = {}, still = 0, mine = boardOf(view.home);
   boardRows().forEach(function (r) {
@@ -360,7 +344,7 @@ function boardDraw() {
 
 function boardBoard(view) {
   var picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "", stages = boardStages(view);
-  return boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
+  return boardHeads() + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
 }
 
 function boardSet(change) {
