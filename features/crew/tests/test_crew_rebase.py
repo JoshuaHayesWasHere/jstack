@@ -364,7 +364,7 @@ def test_a_links_move_waits_for_a_review_that_is_running(under, tmp_path):
 
 def test_the_scoped_review_of_a_rebase_is_launched_as_the_review_is_and_holds_a_rebase():
     text = sections()["Stay on the pull request"]
-    (rule,) = [line for line in text.splitlines() if "Scoped reviewer: <threadId>" in line]
+    (rule,) = [part for part in text.split("\n\n") if "Scoped reviewer: <threadId>" in part]
     assert "`the rebase changed the content after its review`" in rule
     assert "`/pr-review run <slug> scoped <old range> <new range>`" in rule
     assert "`git range-diff`" in rule
