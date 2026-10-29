@@ -12,12 +12,13 @@ import json
 from datetime import timedelta
 
 import jbus
-from jbus import outbox, passes, wakes
+from jbus import outbox, passes, t3, wakes
 from jbus.view import state
 from test_jbus_github import FAILED, failed, launched, pull, sends
 from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_leftover import home
 from test_jbus_live import hanging
+from test_jbus_queue import add, brief
 
 __all__ = ["launched"]
 
@@ -200,3 +201,42 @@ def test_an_item_whose_words_move_only_to_a_new_commit_or_time_is_not_news():
     worse = wakes.Item(key=red.key, to=red.to, line="red main: two checks failed, red at def5678")
     assert wakes.pick([moved], seen, red.to) == []
     assert wakes.pick([worse], seen, red.to) == [worse]
+
+
+def test_a_row_to_approve_wakes_the_home_whose_brief_it_is_and_not_the_root(tmp_path, monkeypatch):
+    """Every home starts in the main checkout, so a scoped home queues its row from there. The
+    row's approve item is still the home's whose brief it is (`jbriefs.home`), as `jbus home`
+    says, and the root's own row is the root's."""
+    kitchen = Kitchen(tmp_path, monkeypatch)
+    root, sidebar = home(kitchen)["threadId"], home(kitchen, "sidebar")["threadId"]
+    checkout = tmp_path / "repo"
+    checkout.mkdir()
+    monkeypatch.chdir(checkout)
+    for slug, named in (("sb-rows-build", "sidebar"), ("alpha", "mcp:a-home")):
+        text = brief(slug).replace("Home: mcp:a-home", f"Home: {named}")
+        add(kitchen, slug, approve=False, text=text)
+        kitchen.brief(slug, f"Home: {named}\n")
+    rows = json.loads((kitchen.state / "queue.json").read_text())
+    assert {row["queued_by"]["directory"] for row in rows} == {str(checkout)}
+    since = (NOW - 10 * MIN).isoformat()
+    listed = [
+        {"kind": "approve", "key": f"approve:{slug}", "slug": slug, "since": since}
+        | {"line": f"approve {slug}: jbus --project demo queue approve {slug}"}
+        for slug in ("sb-rows-build", "alpha")
+    ]
+    jbus.write_json(kitchen.state / "wake.json", {"began": iso(NOW - 60 * MIN)})
+    config = jbus.load()
+    run = passes.Pass(config, config.projects[0], NOW)
+    wakes.tell(run, t3.Client(config.server, config.token_path), listed)
+    heard = {
+        thread: [
+            line
+            for given in sends(kitchen)
+            if given["threadId"] == thread
+            for line in given["message"].splitlines()
+            if line.startswith("- approve ")
+        ]
+        for thread in (root, sidebar)
+    }
+    assert [line.split(":")[0] for line in heard[sidebar]] == ["- approve sb-rows-build"]
+    assert [line.split(":")[0] for line in heard[root]] == ["- approve alpha"]
