@@ -61,17 +61,26 @@ def test_jstack_imports_only_the_feature_of_the_name_typed():
 
 
 def test_help_names_every_command(capsys):
-    assert cli.main(["--help"]) == 0
+    with pytest.raises(SystemExit) as ended:
+        cli.main(["--help"])
+    assert ended.value.code == 0
     shown = capsys.readouterr().out
-    assert shown.startswith("usage: jstack <name>")
-    for name, (command, _) in COMMANDS.items():
-        assert f"  {name} " in shown and f"runs {command}\n" in shown
+    assert shown.startswith("usage: jstack [-h] {")
+    assert "{" + ",".join(COMMANDS) + "}" in shown
 
 
-@pytest.mark.parametrize("argv", [[], ["nope"], ["jleak"]])
+@pytest.mark.parametrize("argv", [[], ["nope"], ["jleak"], ["--nope"]])
 def test_no_name_or_a_name_the_table_lacks_exits_2_with_the_usage(argv, capsys):
-    assert cli.main(argv) == 2
-    said = capsys.readouterr().err
-    assert "usage: jstack <name>" in said
-    assert ("no command" in said) == bool(argv)
-    assert all(f"no command {name!r}" in said for name in argv)
+    with pytest.raises(SystemExit) as ended:
+        cli.main(argv)
+    assert ended.value.code == 2
+    assert capsys.readouterr().err.startswith("usage: jstack [-h] {")
+
+
+def test_the_command_runs_with_its_own_argv_and_jstack_s_is_put_back(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["jstack", "leak", "--trailers"])
+    seen = []
+    monkeypatch.setattr("jleak.cli.main", lambda argv: seen.append((list(sys.argv), argv)) or 7)
+    assert cli.main() == 7
+    assert seen == [(["jleak", "--trailers"], ["--trailers"])]
+    assert sys.argv == ["jstack", "leak", "--trailers"]

@@ -233,7 +233,9 @@ def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_
         "jmerge",
         "jpack",
         "jroles",
+        "jstack",
     ]
+    assert trees["jstack"].choices == tuple(sorted(name[1:] for name in trees if name != "jstack"))
     bus = trees["jbus"]
     assert bus.flags == {"--project": True, "--as": True, "--evidence": True}
     assert "poll" in bus.verbs and "view" in bus.verbs

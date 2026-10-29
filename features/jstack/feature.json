@@ -1,11 +1,14 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "jstack",
-  "description": "One command for every feature's command: `jstack leak ...` runs what `jleak ...` runs.",
+  "description": "Runs the other commands: `jstack leak` runs `jleak`.",
   "packages": [
     "src/jstack"
   ],
   "commands": {
     "jstack": "jstack.cli:main"
-  }
+  },
+  "docs": [
+    "docs/jstack.md"
+  ]
 }

@@ -33,7 +33,7 @@ cd jstack
 sh install.sh --setup
 ```
 
-The script installs the nine commands as an editable install of the clone, so keep the clone where it is.
+The script installs the ten commands as an editable install of the clone, so keep the clone where it is.
 Run it in the main checkout, not in a worktree.
 From then on, `jinstall` and its verbs work as this page says, and [Working on jstack](#working-on-jstack) has what a clone checks in addition.
 
@@ -63,7 +63,7 @@ A path that starts with `~` is under your home directory.
 
 | Path | What the install puts there | When |
 |---|---|---|
-| `~/.local/share/uv/tools/jstack`, and the nine commands in `~/.local/bin` | The tool itself, which `uv tool install` puts, not `jinstall` | Before `jinstall` runs |
+| `~/.local/share/uv/tools/jstack`, and the ten commands in `~/.local/bin` | The tool itself, which `uv tool install` puts, not `jinstall` | Before `jinstall` runs |
 | `~/.local/share/jstack/harness/<harness>/` | One layout of the skills, playbooks, templates and hooks for each harness: `claude-code`, `codex` and `cursor` ([The layouts](#the-layouts)). It is under `$XDG_DATA_HOME` when that is set. | Always |
 | `~/.claude/skills/<skill>` | A link for each skill, into Claude Code's layout | Always |
 | `~/.codex/skills/<skill>` | A link for each skill, into Codex's layout | Always |

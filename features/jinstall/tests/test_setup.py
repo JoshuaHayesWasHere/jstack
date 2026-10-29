@@ -173,7 +173,7 @@ def test_a_missing_program_names_the_one_command_to_get_it(user):
     ]
 
 
-WSL2 = "run jstack inside WSL2"
+WSL2 = "install jstack inside WSL2"
 
 
 @pytest.mark.parametrize(

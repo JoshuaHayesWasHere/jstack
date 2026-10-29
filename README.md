@@ -30,7 +30,7 @@ It waits for you only before a step that deletes data, rewrites history, spends 
 A question only you can answer becomes a **gate**.
 The thread takes a default, carries on, and asks you.
 Your answer closes the gate, and with no answer the gate keeps its default.
-Nine commands do the routine work with no model, and [Reference](#reference) lists them all.
+Ten commands do the routine work with no model, and [Reference](#reference) lists them all.
 
 ## Requirements
 
@@ -40,9 +40,9 @@ jstack runs only when every **hard** need is met.
 | Need | Level | Notes |
 |---|---|---|
 | Linux or macOS | hard | Supported: macOS on Apple Silicon, and Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). |
-| T3 Code | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Stable or nightly, `0.1.2-nightly.20261022.3526` or newer, which stable `0.1.2` meets. |
+| T3 Code | hard | The desktop app the threads run in, with Claude Code as their agent: `pingdotgg/t3code` on GitHub, stable `0.1.2`, or nightly `0.1.2-nightly.20261022.3526` or newer. |
 | Claude Code | hard | The `claude` command on `PATH`. |
-| `uv` | hard | It installs the nine commands as one tool, `jstack`. |
+| `uv` | hard | It installs the ten commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
 | `jq` | hard | 1.6 or newer. |
 | `gh`, signed in | hard | `gh auth login`. The threads open pull requests with it, and `jmerge` merges with it. |
@@ -57,7 +57,7 @@ jstack runs without it.
 | Need | What you lose without it |
 |---|---|
 | `jbus`, with its config and its sign-in | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. `jbus` sends its wakes to each project's home thread, and has no webhook. |
-| systemd `--user`, or launchd on macOS | No background jobs. On macOS, launchd runs them in its place. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
+| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 | `lavish-axi` | No visual pages. A scout writes its report with no page, and a round of questions is asked as text. |
@@ -85,7 +85,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
 	```
 
-	The script installs `uv` when it is missing, installs the nine commands as the `uv` tool `jstack`, and runs `jinstall --setup`.
+	The script installs `uv` when it is missing, installs the ten commands as the `uv` tool `jstack`, and runs `jinstall --setup`.
 	With `uv` already there, you can do the same by hand, for one version:
 
 	```sh
@@ -176,7 +176,7 @@ Each command has one page.
 | `jmerge` | [features/jmerge/docs/jmerge.md](features/jmerge/docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [features/jpack/docs/jpack.md](features/jpack/docs/jpack.md) | Checks a context pack. |
 | `jroles` | [features/jroles/docs/jroles.md](features/jroles/docs/jroles.md) | Picks the model for a role from the role map. |
-| `jstack` |  | One command for every feature's command: `jstack leak ...` runs what `jleak ...` runs. |
+| `jstack` | [features/jstack/docs/jstack.md](features/jstack/docs/jstack.md) | Runs the other commands: `jstack leak` runs `jleak`. |
 <!-- generated: end -->
 
 | Page | Read it to |
