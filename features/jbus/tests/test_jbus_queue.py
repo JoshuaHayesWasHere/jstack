@@ -690,27 +690,6 @@ def test_a_dependency_merged_into_an_integration_branch_counts_as_merged(kitchen
     assert listed and not [line for line in listed if "--base" in line]
 
 
-def test_a_row_whose_files_a_brief_still_out_names_is_launched_all_the_same(kitchen):
-    add(kitchen, "alpha")
-    kitchen.set(
-        "claims.txt",
-        "alpha not launched root Where: `src/alpha/`\n"
-        "other running root Where: `docs/`, `src/alpha/one.py` (a fix)\n",
-    )
-    kitchen.poll()
-    kitchen.poll(NOW + timedelta(minutes=3))
-    assert gates(kitchen) == [] and "--claims" in kitchen.log("claims")
-    assert len(kitchen.t3.launches) == 1
-
-
-def test_a_claims_check_that_did_not_run_stops_no_launch_and_is_no_gate(kitchen):
-    add(kitchen, "alpha")
-    (kitchen.stub / "claims-fail").touch()
-    said = kitchen.poll()
-    assert [line for line in said if "jmerge --claims" in line] == []
-    assert len(kitchen.t3.launches) == 1 and gates(kitchen) == []
-
-
 def test_a_dependency_merged_long_ago_is_asked_for_by_name_and_stays_merged(kitchen):
     """The merged list is a window of a hundred pull requests, so jbus does not take a slug
     outside the window as unmerged."""

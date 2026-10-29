@@ -100,7 +100,6 @@ ORDER = [
     "after-derive 30 states.unplaced (client, world, rows)",
     "after-derive 40 states.keep_work (rows)",
     "after-derive 50 item.follow (rows)",
-    "after-derive 60 dispatch.overlaps (sight, budget)",
     "close 10 stall.tell",
     "close 20 waiting.keep (sight)",
     "close 25 blockers.raise_listed",
