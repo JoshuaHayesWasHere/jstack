@@ -26,6 +26,11 @@ at that tip again until the check of a later tip ends. A tip's check is main's o
 tip, or at the red tip kept as `broken`: a rerun that passes on that same commit ends the
 red there.
 
+A failed check at main's tip is not red at once: `main_check` reruns its failed push run once
+(`watch._check`), and the tip is `pending` until the rerun ends. A pass on the rerun leaves the
+tip green, with no `broken` kept and no fix row filed. A second failure, or a run rerun once
+already, by jbus or by hand, is red as before.
+
 `tell` does not tell a crew of a conflict. Only a push ends a conflict, and `rebase.github`
 tells the crew about a conflict once per head. `tell` asks the remote for main's commit on
 each pass, since no step of a pass is sure to fetch. A pull request's check state is GitHub's own.
@@ -119,16 +124,17 @@ def short_of(pull: dict) -> str:
     return RED if checks(pull) == "failed" else ""
 
 
-def main_check(run: Pass, sha: str, again: bool = False) -> str:
+def main_check(run: Pass, sha: str, again: bool = False, rerun: bool = False) -> str:
     """Return whether the checks of a commit on main passed, as `watch._check` answers.
 
     It goes through the answers `checks.json` keeps, so it asks GitHub for a final answer
     once. With `again`, it asks again about a kept `failed` or `NO_JOB`, since a rerun of the
-    check on the same commit may have passed."""
+    check on the same commit may have passed. With `rerun`, a failed push run at its first
+    attempt is rerun once, and the commit is `pending` until the rerun ends."""
     known: dict[str, str] = read_json(run.state / "checks.json", {})
     if again and known.get(sha) in ("failed", NO_JOB):
         del known[sha]
-    answer = _check(run, known, sha)
+    answer = _check(run, known, sha, rerun=rerun)
     write_json(run.state / "checks.json", known)
     return answer
 
@@ -225,7 +231,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
             *landed(run, last or "", main),
         )
     ):
-        check = main_check(run, tip, again=tip in (main, stands))
+        check = main_check(run, tip, again=tip in (main, stands), rerun=tip == main)
         if check == "green":
             green, broken, waiting, unrun = tip, "", [], ""
         elif check == "failed":

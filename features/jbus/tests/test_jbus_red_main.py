@@ -13,6 +13,8 @@ Like `test_jbus_watch.py`, the tests run the real pass against the fakes.
 import json
 from datetime import timedelta
 
+import pytest
+
 import jbus.queue
 import jbus.waiting
 import jbus.wake
@@ -605,3 +607,77 @@ def test_a_fix_row_left_on_its_own_green_and_launched_is_named_once_on_a_later_g
     kitchen.poll(NOW + timedelta(minutes=12))
     left = f"retro {name}: main is green again at {green[:12]}, and its row launched, so it is "
     assert len([line for line in kitchen.lines("retro") if line.startswith(left)]) == 1
+
+
+RUN = "https://example.test/o/r/actions/runs/501"
+
+
+def failed_once(kitchen, attempt=1):
+    """Merge alpha at main's tip, whose push run failed at `attempt`, and return the tip."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.quiet()
+    red = tip(kitchen)
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, red)])
+    kitchen.set("commits.json", [kitchen.commit(red)])
+    checks(kitchen, red, "failure")
+    pushed(kitchen, red, "failure", attempt)
+    return red
+
+
+def pushed(kitchen, sha, conclusion, attempt):
+    """Give a commit main's one push run, at `attempt`, ended as `conclusion`, or still running
+    where `conclusion` is empty."""
+    one = {"id": 501, "name": "check", "html_url": RUN, "run_attempt": attempt}
+    one |= {"status": "completed" if conclusion else "queued", "conclusion": conclusion or None}
+    kitchen.set("push-runs.json", {sha: [one]})
+
+
+def reruns(kitchen):
+    return [call for call in kitchen.log("gh") if call.startswith("run rerun")]
+
+
+def test_a_failed_push_run_on_main_is_rerun_once_and_its_pass_ends_the_red_with_no_row(kitchen):
+    red = failed_once(kitchen)
+    kitchen.poll()
+    assert reruns(kitchen) == ["run rerun --failed 501"]
+    assert kept(kitchen) == mainjson.Main() and main_red(kitchen) == []
+    pushed(kitchen, red, "", 2)
+    checks(kitchen, red, "")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kept(kitchen) == mainjson.Main() and main_red(kitchen) == []
+    pushed(kitchen, red, "success", 2)
+    checks(kitchen, red, "success")
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert kept(kitchen) == mainjson.Main(green=red)
+    assert main_red(kitchen) == [] and kitchen.lines("retro") == []
+    assert reruns(kitchen) == ["run rerun --failed 501"]
+
+
+def test_a_push_run_that_fails_again_on_its_rerun_files_the_row_naming_both_runs(kitchen):
+    red = failed_once(kitchen)
+    kitchen.poll()
+    pushed(kitchen, red, "failure", 2)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kept(kitchen) == mainjson.Main(red=red)
+    (fix,) = main_red(kitchen)
+    assert fix["slug"] == f"{mainjson.FIX}{red[:12]}"
+    brief = (kitchen.home / "tasks" / f"{fix['slug']}.md").read_text()
+    assert f"{RUN}/attempts/1" in brief and f"{RUN}/attempts/2" in brief
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert reruns(kitchen) == ["run rerun --failed 501"]
+
+
+@pytest.mark.parametrize(
+    "attempt, refused",
+    [(2, False), (1, True)],
+    ids=["rerun once already, by hand", "GitHub refuses the rerun"],
+)
+def test_a_push_run_that_is_not_rerun_is_red_at_once(kitchen, attempt, refused):
+    if refused:
+        kitchen.set("gh-no-rerun", "")
+    red = failed_once(kitchen, attempt)
+    kitchen.poll()
+    assert kept(kitchen) == mainjson.Main(red=red)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
+    assert set(reruns(kitchen)) == (set() if attempt > 1 else {"run rerun --failed 501"})
