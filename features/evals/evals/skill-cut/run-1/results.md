@@ -2,9 +2,14 @@
 
 Written by `uv run python features/evals/evals/skill-cut/eval.py`, never by hand.
 
-Base: `c228ac614900a72bfcb56f3397c72ca570da17f4`. Variant: `4003f32e2b1e3c3dfd1b4625c1923dbb8b2208ee`. Candidate: `claude-opus-5-5` at `medium` effort, no tools. Judge: `claude-sonnet-5-5` at `medium`, only for an answer the key cannot settle. Trials: 3 a case and arm.
+Base: `c228ac614900a72bfcb56f3397c72ca570da17f4`.
+Variant: `4003f32e2b1e3c3dfd1b4625c1923dbb8b2208ee`.
+Candidate: `claude-opus-5-5` at `medium` effort, no tools.
+Judge: `claude-sonnet-5-5` at `medium`, only for an answer the key cannot settle.
+Trials: 3 a case and arm.
 
-Files that differ between the two revisions: `principles/migrate-callers-then-delete-legacy-apis.md`, `principles/type-system-discipline.md`, `skills/interrogate/references/lead-judgment.md`. The diff is `variant.patch`.
+Files that differ between the two revisions: `principles/migrate-callers-then-delete-legacy-apis.md`, `principles/type-system-discipline.md`, `skills/interrogate/references/lead-judgment.md`.
+The diff is `variant.patch`.
 
 ## Family `lead`: each case, the mean of its trials, and the spread of trials
 
@@ -28,7 +33,10 @@ Files that differ between the two revisions: `principles/migrate-callers-then-de
 | `pstack-trigger-effort` | 0.667 | 0.722 | 0.694 | 0.25 / 0.08 / 0.08 |
 | `standing-undo` | 0.722 | 0.750 | 0.750 | 0.08 / 0.00 / 0.00 |
 
-Mean over 17 cases: base 0.729, base again 0.710, variant 0.739. Noise floor (base against base again): 0.019, so the variant is held to 0.710 or above: it is. Variant against base over the cases: 8 higher, 4 tied, 5 lower, sign test p 0.581: no loss under 0.05. **Does not regress.**
+Mean over 17 cases: base 0.729, base again 0.710, variant 0.739.
+Noise floor (base against base again): 0.019, so the variant is held to 0.710 or above: it is.
+Variant against base over the cases: 8 higher, 4 tied, 5 lower, sign test p 0.581: no loss under 0.05.
+**Does not regress.**
 
 Readings, not counted by the rule (mean over the cases): agreement on sent, noted and dismissed, three ways; the share of the findings the crewmate fixed that the answer sent; findings sent per answer.
 
@@ -70,7 +78,10 @@ Readings, not counted by the rule (mean over the cases): agreement on sent, note
 | `types-no-cast` | 1.000 | 1.000 | 1.000 | 0.00 / 0.00 / 0.00 |
 | `types-sum-type` | 1.000 | 1.000 | 1.000 | 0.00 / 0.00 / 0.00 |
 
-Mean over 27 cases: base 0.963, base again 0.963, variant 0.963. Noise floor (base against base again): 0.000, so the variant is held to 0.963 or above: it is. Variant against base over the cases: 0 higher, 27 tied, 0 lower, sign test p 1.000: no loss under 0.05. **Does not regress.**
+Mean over 27 cases: base 0.963, base again 0.963, variant 0.963.
+Noise floor (base against base again): 0.000, so the variant is held to 0.963 or above: it is.
+Variant against base over the cases: 0 higher, 27 tied, 0 lower, sign test p 1.000: no loss under 0.05.
+**Does not regress.**
 
 ## The judge
 

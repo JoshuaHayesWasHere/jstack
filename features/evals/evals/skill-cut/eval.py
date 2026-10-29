@@ -551,13 +551,16 @@ def report() -> None:
         "",
         "Written by `uv run python features/evals/evals/skill-cut/eval.py`, never by hand.",
         "",
-        f"Base: `{ran['base']}`. Variant: `{ran['variant']}`. Candidate: `{ran['model']}` at "
-        f"`{ran['effort']}` effort, no tools. Judge: `{ran['judge']}` at `{ran['effort']}`, only "
-        f"for an answer the key cannot settle. Trials: {ran['trials']} a case and arm.",
+        f"Base: `{ran['base']}`.",
+        f"Variant: `{ran['variant']}`.",
+        f"Candidate: `{ran['model']}` at `{ran['effort']}` effort, no tools.",
+        f"Judge: `{ran['judge']}` at `{ran['effort']}`, only for an answer the key cannot settle.",
+        f"Trials: {ran['trials']} a case and arm.",
         "",
         "Files that differ between the two revisions: "
         + (", ".join(f"`{p}`" for p in changed) or "none")
-        + ". The diff is `variant.patch`.",
+        + ".",
+        "The diff is `variant.patch`.",
     ]
     verdicts = {}
     for family in FAMILIES:
@@ -580,12 +583,12 @@ def report() -> None:
         b, a, v = said["means"]
         lines += [
             "",
-            f"Mean over {len(cases_of)} cases: base {b:.3f}, base again {a:.3f}, variant {v:.3f}. "
+            f"Mean over {len(cases_of)} cases: base {b:.3f}, base again {a:.3f}, variant {v:.3f}.",
             f"Noise floor (base against base again): {said['floor']:.3f}, so the variant is held "
-            f"to {b - said['floor']:.3f} or above: {'it is' if said['within'] else 'it is not'}. "
+            f"to {b - said['floor']:.3f} or above: {'it is' if said['within'] else 'it is not'}.",
             f"Variant against base over the cases: {said['wins']} higher, {said['ties']} tied, "
             f"{said['losses']} lower, sign test p {said['p']:.3f}: "
-            f"{'a loss under 0.05' if said['lost'] else 'no loss under 0.05'}. "
+            f"{'a loss under 0.05' if said['lost'] else 'no loss under 0.05'}.",
             f"**{'Does not regress' if said['holds'] else 'Regresses'}.**",
         ]
         if family == "lead":
