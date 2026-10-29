@@ -36,7 +36,7 @@ No seat is a subagent.
 ```sh
 slug='<the arena slug>'
 entry='<the plan entry>'
-size='<S, M, L or XL>'
+size='<S, M or L>'
 where='<the paths the artifact is in, each in backticks>'
 priority='<n>'
 scope=''

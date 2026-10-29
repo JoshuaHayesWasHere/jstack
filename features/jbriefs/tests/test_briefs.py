@@ -315,7 +315,25 @@ def test_the_template_has_a_design_line_that_jbus_launches_only_once_it_is_fille
     assert line in text and parse.designed(text) == parse.NO_DESIGN
     for said in ("Design: scouts/alpha-design.md", "Design: none, a one-line fix"):
         assert parse.designed(text.replace(line, said)) == ""
-        assert parse.designed(text.replace(line + "\n", "") + RESULT + said) != ""
+        assert parse.designed(text.replace(line, "Design: TBD") + RESULT + said) != ""
+
+
+CLEAN = (
+    '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\nProves it: `make check`\n'
+    "Size: S\nWhere: `src/alpha/`\nPull request: open one when done\nReview: twice\n"
+    "Playbook: none\n"
+)
+
+
+@pytest.mark.parametrize(
+    "lines",
+    ["", "Design: none, a removal\n", "Skills: none\n", "Design: none, a fix\nSkills: none\n"],
+    ids=["both left out", "design written", "skills written", "both written"],
+)
+def test_a_brief_may_leave_out_design_and_skills_where_they_would_say_none(lines):
+    """A brief with no `Design:` or `Skills:` line needs no design and names no skill, as `none`
+    would say, and one that writes them still lints."""
+    assert parse.faults(CLEAN + lines) == []
 
 
 PROOFS = {
@@ -666,25 +684,26 @@ def test_a_playbook_that_is_no_file_is_refused_with_one_line(said, why):
         ("Size:", "brief's Size: line is empty"),
         ("Size: medium", "brief's Size: line says medium"),
         ("Size: S.", "brief's Size: line says S."),
-        ("Size: <S | M | L | XL>", "brief's Size: line is the template's own text"),
+        ("Size: <S | M | L>", "brief's Size: line is the template's own text"),
+        ("Size: XL", "brief's Size: line says XL"),
     ],
-    ids=["no size", "empty", "a word", "a stop after it", "the template"],
+    ids=["no size", "empty", "a word", "a stop after it", "the template", "XL"],
 )
 def test_a_brief_with_no_size_is_refused_with_one_line(line, why):
     text = SHAPED.replace("Size: S\n", f"{line}\n" if line else "")
-    assert parse.sized(text) == f"{why} (S, M, L or XL)"
+    assert parse.sized(text) == f"{why} (S, M or L)"
 
 
 def test_only_the_head_of_a_brief_is_read_for_its_size_and_playbook():
     after = SHAPED.replace("Size: S\nPlaybook: feature\n", "") + RESULT
-    assert parse.sized(after + "Size: S\n") == "brief has no Size: line (S, M, L or XL)"
+    assert parse.sized(after + "Size: S\n") == "brief has no Size: line (S, M or L)"
     assert parse.playbook(after + "Playbook: fix\n") == ""
 
 
 def test_the_templates_have_a_size_line_and_the_brief_is_refused_until_it_is_filled_in():
     (line,) = [one for one in TEMPLATE.read_text().splitlines() if one.startswith("Size:")]
     text = written(by_a_scout=False)
-    assert line in text and parse.sized(text).endswith("is the template's own text (S, M, L or XL)")
+    assert line in text and parse.sized(text).endswith("is the template's own text (S, M or L)")
     filled = text.replace(line, "Size: M").replace(
         next(one for one in text.splitlines() if one.startswith("Playbook:")), "Playbook: feature"
     )

@@ -568,7 +568,7 @@ PLAIN = "# alpha: a task\nWhere: `src/alpha/`\n"
 DESIGNS = {
     "the path of a design": ("Design: scouts/alpha-design.md\n", ""),
     "none, with its reason": ("Design: none, a one-line fix\n", ""),
-    "no line": ("", parse.NO_DESIGN),
+    "no line, as none would say": ("", ""),
     "a url": ("Design: https://example.test/designs/alpha.html#the-gate\n", ""),
     "None, with its reason": ("Design: None, a one-line fix\n", ""),
     "a path in backticks": ("Design: `scouts/alpha-design.md`\n", ""),
@@ -588,8 +588,8 @@ DESIGNS = {
         parse.NO_DESIGN,
     ),
     "a line in a result, under the head": (
-        "## Result\nDesign: none, it was small\n",
-        parse.NO_DESIGN,
+        "## Result\nDesign: TBD\n",
+        "",
     ),
 }
 
@@ -598,15 +598,18 @@ DESIGNS = {
 def test_a_brief_is_designed_by_a_design_line_in_its_head(case):
     line, short = DESIGNS[case]
     assert parse.designed(PLAIN + line) == short
-    assert parse.NO_DESIGN == "brief has no Design: line (run /architect or say none, <why>)"
+    assert parse.NO_DESIGN == (
+        "brief's Design: line gives no design call (run /architect or say none, <why>)"
+    )
 
 
-UNDESIGNED = brief("alpha").replace("Design: none, a test\n", "")
+UNDESIGNED = brief("alpha").replace("Design: none, a test\n", "Design: TBD\n")
 
 
-def test_queue_add_refuses_a_brief_with_no_design_line():
+def test_queue_add_takes_a_brief_with_no_design_line_and_refuses_one_that_gives_no_call():
     """A lint runs when `jbus queue add` first queues a row, and that command is the one that
-    refuses a brief."""
+    refuses a brief. A brief with no `Design:` line needs no design, as `none` would say."""
+    assert parse.faults(brief("alpha").replace("Design: none, a test\n", "")) == []
     assert parse.NO_DESIGN in parse.faults(UNDESIGNED)
     assert parse.faults(brief("alpha")) == []
 
@@ -615,7 +618,7 @@ def launched(kitchen):
     return [given["title"] for given in kitchen.t3.launches]
 
 
-def test_an_approved_row_whose_brief_has_no_design_line_is_grandfathered_and_launches(kitchen):
+def test_an_approved_row_whose_brief_gives_no_design_call_is_grandfathered_and_launches(kitchen):
     """A lint added after the user approved a row does not refuse the row: jbus launches it
     and asks the user no gate question."""
     kitchen.config(max_running=6)

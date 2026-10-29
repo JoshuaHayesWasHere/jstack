@@ -7,7 +7,7 @@
    A **Done when** line that asks for the check names it as "the check command (`$H/fresh-check`)", never as a literal `make check`: the crewmate runs the command `fresh-check` names, once.
    `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while `fresh-check` names another check command: mend the line and add the brief again.
 
-   Its `Size:` line is the task's t-shirt size, `S`, `M`, `L` or `XL`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read. `jbus queue add` queues no brief with no such line, or with any other word on it.
+   Its `Size:` line is the task's t-shirt size, `S`, `M` or `L`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read. `jbus queue add` queues no brief with no such line, or with any other word on it.
 
    Its `Review:` line says how much review the pull request gets. It is fixed now, when the brief is written, and the crewmate and the reviewer both go by it:
 
@@ -21,8 +21,8 @@
 
    A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
 
-   A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
-   It also refuses a `Review: review` or `Review: after` with no `Decisions:` line that gives the user's words for it, and a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`.
+   A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, where the brief has one, that names the design or says `none, <why>`; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
+   It also refuses a `Review: after` with no `Decisions:` line that gives the user's words for it, and a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`.
 
    Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's code in hand when it starts, code it changes, calls or imports?
    Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.

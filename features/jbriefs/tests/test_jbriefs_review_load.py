@@ -1,6 +1,6 @@
 """These tests cover two lints of `jbriefs.parse.faults`, which `jbus queue add` runs. A brief
-whose `Review:` is not the default `twice` gives the user's words for it, and a brief never asks
-for a load that takes every core."""
+whose `Review:` is `after` or `cleanup` gives the user's words for it, and a brief never asks for
+a load that takes every core."""
 
 import pytest
 
@@ -21,17 +21,18 @@ def test_a_clean_brief_has_no_fault():
     assert parse.faults(brief()) == []
 
 
-@pytest.mark.parametrize("review", ["Review: twice\n", "Review: none\n"])
-def test_twice_and_none_need_no_word(review):
+@pytest.mark.parametrize("review", ["Review: twice\n", "Review: review\n", "Review: none\n"])
+def test_twice_review_and_none_need_no_word(review):
+    """The template offers `review` as it offers `twice`, so the linter takes it with no word."""
     assert parse.faults(brief(review)) == []
 
 
-@pytest.mark.parametrize("mode", ["review", "after", "cleanup"])
+@pytest.mark.parametrize("mode", ["after", "cleanup"])
 @pytest.mark.parametrize(
     "decisions",
     ["", "Decisions: none\n", "Decisions: None.\n", "Decisions: <any the user made>\n"],
 )
-def test_review_or_after_with_no_word_is_refused(mode, decisions):
+def test_after_or_cleanup_with_no_word_is_refused(mode, decisions):
     (fault,) = parse.faults(brief(f"Review: {mode}\n", decisions))
     assert fault.startswith(f"brief's Review: line says {mode} with no Decisions: line")
     assert "Review: twice" in fault
@@ -46,7 +47,7 @@ def test_review_or_after_with_no_word_is_refused(mode, decisions):
         "Decisions: none, jbus filed this from a red main and the user has not seen it\n",
     ],
 )
-def test_review_or_after_with_the_word_passes(mode, decisions):
+def test_review_after_or_cleanup_with_the_word_passes(mode, decisions):
     assert parse.faults(brief(f"Review: {mode}\n", decisions)) == []
 
 

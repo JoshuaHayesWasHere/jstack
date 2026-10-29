@@ -63,7 +63,7 @@ The fingerprint of those fields uses no model.
 An edit to `Skills:`, `Decisions:`, `Design:`, `Proves it:`, `Review:`, `Playbook:`, `Pull request:` or a note keeps the go (`NOT_MEANING` lists them).
 After a change to any of the six fields, the user must give the go again.
 `jbus queue add` runs the checks of `jbriefs.parse.faults` when it first queues a row.
-Among them, a brief whose `Review:` is `review` or `after` needs a `Decisions:` line with the user's words for it, or `none, <why>` where jbus files the brief, since `twice` is the default.
+Among them, a brief whose `Review:` is `after` needs a `Decisions:` line with the user's words for it, or `none, <why>` where jbus files the brief, since `twice` is the default.
 Another refuses a brief whose head asks for a load that takes every core (`stress-ng --cpu 0`, `stress-ng --cpu $(nproc)`, every core), and names a bounded load inside `jgauge test-slot` instead.
 A third, `layered`, refuses a brief whose `Builds on:` line gives a plan layer as its reason (`the base of layer 2`), since a row stacks only on a parent whose code it changes, calls or imports.
 `features/jbriefs/src/jbriefs/standing.py` holds the three.
