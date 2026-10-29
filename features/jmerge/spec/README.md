@@ -77,7 +77,7 @@ The design also has both pull requests open from the start, so it has no launch 
 
 - The model's `ranRed[p]` is a check that ran while main was red, and the code's condition is a base that has moved since the check started (`features/jmerge/src/jmerge/cli.py`, `Repo.again`).
   The code also judges again a check that failed over a base that was green and moved since, and a change broken on its own then fails again at the updated head as its own.
-- The model judges again any red pull request, and the code only one whose single shortfall is the failed check: a pull request short of a review, a queue row or anything else keeps `check has not passed` (`Repo.judge`).
+- The model judges again any red pull request, and the code only one whose single shortfall is the failed check: a pull request short of a review, a queue row or anything else keeps `check has failed` (`Repo.judge`).
 - The model's `told[p]` is one flag that the crew's fix clears, and the code asks once for a head and a base tip, in `base-merges.json`, while jbus tells a crew once for a head.
 - The model has one main, and the code reads each pull request's own base, main or an integration branch.
 - The model leaves out a GitHub that refuses the update.

@@ -64,10 +64,10 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
 | `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
-In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has not passed [check-failed]`, and the line it prints has none.
+In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has failed [check-failed]`, and the line it prints has none.
 The code is fixed for a reason whatever its text says: a `Reason` in `features/jmerge/src/jmerge/ready.py` has its constant's name in lower case, its words joined by `-` (`CHECK_FAILED` is `check-failed`), and a reason given as plain text has the code of its rule in `ready.rules`.
-`check has not passed` is `check-failed` where every latest run of the check failed and `not-passed` where one is queued, running or passed, and a reason no rule names is `unknown`.
-jbus and the view read a pull request's step from the code, and from the text on a line logged before the codes.
+`check has failed` (`check-failed`) is a check every latest run of which failed, `check has not passed` (`not-passed`) one that is queued, running or passed, and a reason no rule names is `unknown`.
+jbus and the view read a pull request's step from the code, and from the text on a line logged before the codes and on a line as `jmerge` prints it, which `ready.code_of` gives the same code.
 
 A pull request that waits does not make `jmerge` exit non-zero.
 `jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, or when it refuses an `--accept`.
@@ -149,7 +149,7 @@ The section "Protected paths" describes one more hold.
   With no such file, or one that names no check, the only required check is `check` (`ready.REQUIRED`).
   A check that the repo's workflows never run then blocks no merge.
   For example, jstack's own state directory names `check` (the suite), `borders` (the border lint) and `macos` (the macOS job), so its pull requests wait for all three.
-  A pull request waits with `<check> has not passed` for the first required check that has not passed, and with `it conflicts with its base` for a conflict.
+  A pull request waits with `<check> has failed` for the first required check that has not passed where its latest run failed, with `<check> has not passed` where it has not, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
   A pull request into an integration branch does not wait on `check`: CI runs that check on a pull request into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
   It still waits on every other check the `required-checks` file names.
@@ -310,14 +310,14 @@ A pull request's check runs on its merge with the base as the base was then, and
 So a check that failed while the base was red stays red after the base is fixed, though the pull request owes no change (`features/jmerge/src/jmerge/rejudge.py`).
 `jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`, main or an integration branch) has moved since the check started.
 That holds for every required check the `required-checks` file names, `macos` as much as `check`.
-It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has not passed`, a red base included.
+It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has failed`, a red base included.
 So a crew is asked for what its pull request is short of, such as a scoped review of a push after its review, and its base is merged in once that is done (#529, 2026-10-27: ten hours on `macos has not passed` while it was short of a scoped review that nobody was asked for).
 It asks GitHub to merge the base into the branch, `PUT /repos/{owner}/{repo}/pulls/<n>/update-branch` with `expected_head_sha`, which rewrites no history.
 The line is then `GitHub was asked to merge <base> at <tip12> into it: its check failed before <base> moved`, or `GitHub did not merge <base> at <tip12> into it: <what GitHub said>`.
 It asks once for a head and a base tip, and keeps what GitHub said in `base-merges.json` in the state directory.
 `--check` asks nothing, and says `its check failed before <base> moved: GitHub is to merge <base> at <tip12> into it`.
 GitHub's new check at the new head then decides by the normal path, and a change broken on its own fails there as its own.
-A pull request broken on its own is not given its base again: when the last two runs of a required check it failed both failed a same pytest id, and main's run of that check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has not passed`.
+A pull request broken on its own is not given its base again: when the last two runs of a required check it failed both failed a same pytest id, and main's run of that check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has failed`.
 It reads the runs of each failed check's own workflow, and a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`.
 Main's run at a run's base is main's latest run of the same check that started by the time the pull request's run started.
 A check that main never runs, as `macos` and `borders` run on pull requests alone, has no such run, so its repeats are not known and the base is merged in as before.

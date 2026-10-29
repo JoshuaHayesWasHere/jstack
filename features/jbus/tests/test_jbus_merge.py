@@ -326,7 +326,7 @@ def test_every_reason_ready_returns_is_one_of_its_constants():
             "wait: its fix changed more than the findings named: the second pass is not written",
             "second",
         ),
-        ("wait: a check has not finished", "check"),
+        ("wait: check has not passed", "check"),
         ("wait: no proven safety fact at 0123456789ab (x)", ""),
         ("wait: it conflicts with its base", "rebase"),
         ("hold: needs user, the rebase dropped 1 of main's lines in src/a.py", "hold"),

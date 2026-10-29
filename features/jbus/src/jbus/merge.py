@@ -7,8 +7,8 @@ two passes never run `jmerge` together, and `jmerge` holds the repo's merge lock
 main's tip to its merge, so a hand run of the user's never merges between them either.
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
-and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
-`wait` line on its own. `step` goes by a reason's code where `merge.log` wrote one. `parse`, `step`
+and `watch` read the `Line` that `parse` returns, not the text, and `rebase` and `expedite` go by
+its reason's code. `step` goes by a reason's code where `merge.log` wrote one. `parse`, `step`
 and `Said` are in `jbus.judged`, below `jbus.watch`, which reads them too.
 
 A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`). `expedite` asks the

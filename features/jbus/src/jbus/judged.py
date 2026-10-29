@@ -10,25 +10,20 @@ from __future__ import annotations
 from jmerge import ready
 from jmerge.lines import one as parse
 
-GONE = ("proof",)
-"""The steps of reasons only an older `jmerge` wrote, which the view no longer draws: the Proof of
-a guarded path, whose gate `jmerge` dropped."""
-
 
 def step(said: str, code: str = "") -> str:
     """Return the step a pull request waits on, read from the last line `jmerge` printed about it
     (`<word>: <reason>`) and the reason's code where `merge.log` wrote one. A `hold` is on the
     `hold` step, and a `wait` is on the step of its code (`ready.step_of`). A line with no code,
     as `jmerge` prints it or as an older `merge.log` has it, takes the code its reason's text
-    gives (`ready.code_of`). Return nothing for a line with no reason, for a reason no rule
-    names, or for one on a step of `GONE`."""
+    gives (`ready.code_of`). Return nothing for a line with no reason, or for a reason no rule
+    names."""
     word, _, reason = said.partition(": ")
     if not reason:
         return ""
     if word == "hold":
         return "hold"
-    found = ready.step_of(code or ready.code_of(reason))
-    return "" if found in GONE else found
+    return ready.step_of(code or ready.code_of(reason))
 
 
 class Said(list[str]):

@@ -1045,7 +1045,10 @@ def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(k
     assert [one["rule"] for one in went if one["went"] == "held"][0].startswith("cap: ")
 
 
-STALE = "wait 7 https://example.test/pull/7: main changed src/alpha/a.py after its check started"
+STALE = (
+    "wait 7 https://example.test/pull/7: main changed src/alpha/a.py after its check started at "
+    "07:00 ET; it needs a fresh check"
+)
 
 
 def test_a_crew_that_waits_on_a_slot_while_main_moves_twice_is_told_to_rebase_once_after_its_wake(

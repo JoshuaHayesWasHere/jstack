@@ -113,7 +113,7 @@ def test_a_review_with_a_finding_that_has_no_ending_is_not_finished(proven_merge
 def test_a_check_that_has_not_passed_at_the_head_waits(proven_merged, rules):
     failed = {**merge.FAILED, "startedAt": STARTED["startedAt"]}
     proven_merged.home.open_pull_request(proven_merged.head, checks=(failed,), files=[SKILL])
-    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: check has not passed"]
+    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: check has failed"]
     assert proven_merged.untouched()
 
 
@@ -211,9 +211,9 @@ BORDERS_PASSED = merge.run("SUCCESS", "borders")
     [
         ((merge.PASSED, BORDERS_PASSED), ""),
         ((merge.PASSED,), "borders has no run at {head}"),
-        ((merge.PASSED, merge.run("FAILURE", "borders")), "borders has not passed"),
+        ((merge.PASSED, merge.run("FAILURE", "borders")), "borders has failed"),
         ((BORDERS_PASSED,), "check has no run at {head}"),
-        ((merge.FAILED, merge.run("FAILURE", "borders")), "check has not passed"),
+        ((merge.FAILED, merge.run("FAILURE", "borders")), "check has failed"),
     ],
 )
 def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):

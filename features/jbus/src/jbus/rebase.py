@@ -91,9 +91,11 @@ from jbus.watch import (
     job_log,
     task_brief,
 )
+from jmerge import lines as lines_of
 from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
+from jmerge.lines import Line
 
 EVENTS = {
     "rebase": "quiet",
@@ -104,10 +106,9 @@ EVENTS = {
     "refailed": "quiet",
     "green": "quiet",
 }
-_WAIT = re.compile(r"^wait (\d+) \S+: (.+)$")
-_HEAD = re.compile(r"\bfails on ([0-9a-f]{12}) over today's main")
-CONFLICT = re.compile(r"\bconflicts with its base")
-STALE = (re.compile(r"\bchanged .+ after its check started"), _HEAD, CONFLICT)
+STALE = (ready.MAIN_CHANGED.code, ready.CONFLICTS.code)
+"""The codes of the `wait` reasons that only a rebase lifts: the default branch changed under the
+check, and a conflict with the base."""
 NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
 SECOND = "stale again after its one rebase"
@@ -121,13 +122,7 @@ MESSAGE = (
 )
 
 
-_RANGES = r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
-_CONTENT = re.compile(r"\b" + re.escape(ready.CONTENT_CHANGED.removesuffix("{command}")) + _RANGES)
-_UNRULED = re.compile(
-    r"\b"
-    + re.escape(ready.SCOPED_UNRULED.removesuffix("{command}")).replace(re.escape("{files}"), ".+")
-    + _RANGES
-)
+_RANGES = re.compile(r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$")
 REREVIEW = (
     "jbus: your rebase of pull request #{number} changed its content after its review ({command})."
 )
@@ -146,9 +141,7 @@ SCOPED = (
 )
 
 
-DROPS = re.compile(
-    r"^wait (\d+) (\S+): the rebase dropped .+ with no Dropped on rebase line at ([0-9a-f]{12})"
-)
+_AT = re.compile(r" at ([0-9a-f]{12})$")
 DROPPED = (
     "jbus: {reason} (pull request #{number}). Put the lines back, commit and push. Or, where "
     "a line is gone on purpose, add one line to the Result for each file, with the counts "
@@ -190,17 +183,28 @@ class Ask:
     refused: str = REFUSED
 
 
+def _waits(line: str) -> tuple[Line, str] | None:
+    """Return a `wait` line of `jmerge` and its reason's code, or None for any other line. A line
+    as `jmerge` prints it has no code, and takes the one its text gives (`ready.code_of`)."""
+    said = lines_of.one(line)
+    if said is None or said.word != "wait" or not said.reason:
+        return None
+    return said, said.code or ready.code_of(said.reason)
+
+
 def content(line: str) -> tuple[int, str, Ask] | None:
     """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
     that jbus requests. `content` reads a line that waits on a scoped review: of a rebase that
-    changed the content, or of drops the Result explains that no review has ruled on."""
-    found = _WAIT.match(line)
-    for pattern, why in ((_CONTENT, REREVIEW), (_UNRULED, UNRULED)):
-        named = found and pattern.search(found[2])
-        if found and named:
-            asked = _scoped(why.replace("{command}", named[1]), named[2], named[3])
-            return int(found[1]), found[2], Ask("rereview", *asked, named[4])
-    return None
+    changed the content, or of drops the Result explains that no review has ruled on. The two
+    ranges of the review are the ones the reason's range-diff names."""
+    found = _waits(line)
+    scoped = {ready.CONTENT_CHANGED.code: REREVIEW, ready.SCOPED_UNRULED.code: UNRULED}
+    why = scoped.get(found[1], "") if found else ""
+    named = _RANGES.search(found[0].reason) if found and why else None
+    if not found or not named:
+        return None
+    asked = _scoped(why.replace("{command}", named[1]), named[2], named[3])
+    return found[0].number, found[0].reason, Ask("rereview", *asked, named[4])
 
 
 def _scoped(why: str, old: str, new: str) -> tuple[str, str, str]:
@@ -212,17 +216,16 @@ def _scoped(why: str, old: str, new: str) -> tuple[str, str, str]:
 
 
 def drops(line: str) -> tuple[int, str, str] | None:
-    """Return the number of the pull request, the text that `jmerge` prints after it, and the first
-    twelve characters of the head. `drops` reads a line that waits on a drop nobody explained."""
-    found = DROPS.match(line)
-    return (int(found[1]), found[2], found[3]) if found else None
+    """Return the number of the pull request, its address, and the first twelve characters of the
+    head. `drops` reads a line that waits on a drop nobody explained."""
+    found = _waits(line)
+    named = _AT.search(found[0].reason) if found and found[1] == ready.DROPPED.code else None
+    return (found[0].number, found[0].name, named[1]) if found and named else None
 
 
 def stale(line: str) -> tuple[int, str] | None:
-    found = _WAIT.match(line)
-    if found and any(reason.search(found[2]) for reason in STALE):
-        return int(found[1]), found[2]
-    return None
+    found = _waits(line)
+    return (found[0].number, found[0].reason) if found and found[1] in STALE else None
 
 
 def asks(line: str) -> tuple[int, str, Ask] | None:
@@ -235,8 +238,7 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
         return number, line.partition(": ")[2], ask
     if not found:
         return content(line)
-    named = _HEAD.search(found[1])
-    ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, named[1] if named else "", True)
+    ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, default=True)
     return *found, ask
 
 
@@ -489,7 +491,7 @@ def post(
     if ask.head and not head.startswith(ask.head):
         return None
     again = any(mark.startswith(f"rebase|{slug}|") for mark in sent)
-    if ask.kind == "rebase" and again and not CONFLICT.search(reason):
+    if ask.kind == "rebase" and again and ready.code_of(reason) != ready.CONFLICTS.code:
         run.gate(slug, SECOND, f"#{number}: {reason}", key=f"{SECOND} {head[:12]}")
         return None
     try:

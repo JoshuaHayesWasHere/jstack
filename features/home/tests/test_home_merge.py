@@ -392,6 +392,7 @@ def test_findings_all_declined_are_ready_at_the_reviewed_head(home):
 
 STOOD_IN = f"CI: did not run at {PUSHED}, `make check` passed in this worktree at that head\n"
 NOT_PASSED = "check has not passed"
+CHECK_FAILED = "check has failed"
 NO_RUN = f"check has no run at {PUSHED[:12]}"
 
 
@@ -624,7 +625,7 @@ SHORT = {
     "check failed": (
         CHECKED_ALONE,
         {"head": PUSHED, "checks": (FAILED, OTHER_PASSED)},
-        NOT_PASSED,
+        CHECK_FAILED,
     ),
     "check has not finished": (
         FIXED,
@@ -659,7 +660,7 @@ SHORT = {
     "check passed, and a run that started later failed": (
         CHECKED_ALONE,
         {"head": PUSHED, "checks": (timed("FAILURE", "01:30:00", "01:41:00"), PASSED_LATER)},
-        NOT_PASSED,
+        CHECK_FAILED,
     ),
     "check's one run was cancelled": (
         FIXED,
@@ -672,12 +673,12 @@ SHORT = {
             "head": PUSHED,
             "checks": ({"__typename": "StatusContext", "context": "check", "state": "FAILURE"},),
         },
-        NOT_PASSED,
+        CHECK_FAILED,
     ),
     "no check ran, and an old Result says the check command stood in": (
         brief(review("clean", PUSHED), STOOD_IN),
         {"head": PUSHED, "checks": (UNSTARTED, run("SKIPPED", "deploy"))},
-        NOT_PASSED,
+        CHECK_FAILED,
     ),
     "every check skipped, and an old Result says the check command stood in": (
         brief(review("clean", PUSHED), STOOD_IN),
@@ -1098,7 +1099,7 @@ def test_a_merge_off_file_merges_nothing_whoever_runs_it(merged, flags):
 def test_merge_off_is_said_only_of_what_would_have_been_merged(merged):
     merged.home.nohome("/nohome merge")
     merged.home.open_pull_request(merged.head, checks=(FAILED,))
-    assert merged.run() == [f"wait 7 {URL}: {NOT_PASSED}"]
+    assert merged.run() == [f"wait 7 {URL}: {CHECK_FAILED}"]
 
 
 def test_switched_back_on_the_repo_is_merged_again(merged):
