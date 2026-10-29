@@ -57,7 +57,7 @@ from jbus.launches import record_path, records
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
-from jmerge import mainjson
+from jmerge import judgement, mainjson
 from jmerge import stacked as stacks
 from jroles import ledger, pool
 
@@ -420,12 +420,12 @@ class Turns:
                     run.held.add(slug)
                 continue
             brief = queue.brief(run.state, slug)
-            if brief is None or not queue.approved_text(row, brief):
+            if brief is None or not judgement.approved_text(row, brief):
                 row, brief = queue.current(run.state, slug)
                 if row is None or not row.get("approved"):
                     continue
-            if brief is None or not queue.approved_text(row, brief):
-                now = queue.brief_sha(brief or "")[:12]
+            if brief is None or not judgement.approved_text(row, brief):
+                now = judgement.brief_sha(brief or "")[:12]
                 lines = tuple(queue.changed(row, brief))
                 if not full:
                     what = f"brief changed after approval: {'; '.join(lines)}"
@@ -481,12 +481,12 @@ class Turns:
                 run.gate(slug, "the default branch is not known in the main checkout")
                 continue
             default = base.stdout.strip().removeprefix("origin/")
-            plain = queue.body(brief)
+            plain = judgement.body(brief)
             green = mainjson.read(run.state).green
             text = homed(launched_text(plain, green, on), brief)
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
-            on_disk = "" if wrote else queue.body(target.read_text(errors="replace"))
+            on_disk = "" if wrote else judgement.body(target.read_text(errors="replace"))
             if not wrote and on_disk.strip() != plain.strip():
                 run.gate(slug, f"tasks/{slug}.md differs from the approved brief", str(target))
                 continue
@@ -526,7 +526,7 @@ class Turns:
                 return NO_ROOM
             again = queue.fresh(run.state, slug) or {}
             same = all(again.get(column) == row.get(column) for column in ("approved", "brief_sha"))
-            if not same or not queue.approved_text(row, queue.brief(run.state, slug) or ""):
+            if not same or not judgement.approved_text(row, queue.brief(run.state, slug) or ""):
                 run.say(f"wait {slug}: its row changed during the pass")
                 continue
             if wrote:
@@ -536,7 +536,7 @@ class Turns:
                 put := homed(launched_text(kept, green, on), brief)
             ):
                 target.write_text(put)
-            sha = queue.brief_sha(brief)
+            sha = judgement.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
             retried = read_json(path, {}).get("state") == "retry"
@@ -677,7 +677,7 @@ def _rerun(run: Pass, slug: str) -> str:
 def homed(text: str, brief: str) -> str:
     """Return `text` with the `Home:` line of `brief`, the queued brief, last in its head, when
     `brief` names a home and the head of `text` names none. Every message about a launched row is
-    routed by its copy in `tasks/`, so the copy names the home its row belongs to. `queue.body`
+    routed by its copy in `tasks/`, so the copy names the home its row belongs to. `judgement.body`
     leaves the line out, so the brief's sha stays the same."""
     home = named(brief)
     if not home or named(text):

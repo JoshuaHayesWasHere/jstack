@@ -41,7 +41,7 @@ import jsettings
 from jbriefs import below, findings
 from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
-from jbus.judged import Said, parse, step
+from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, sections
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
@@ -49,7 +49,7 @@ from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import holders, slot, waiters
 from jmerge import checks as reading
-from jmerge import mainjson
+from jmerge import judgement, mainjson
 from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
@@ -513,10 +513,11 @@ def written(result: str) -> work.Written:
 
 def pull(world: World, slug: str, result: str, said: str) -> work.Pull:
     """Return the slug's pull request as the facet `Pull` has it. `said` is what `jmerge`
-    last said of an open one (`jbus.judged.step`). A `Branch:` line that ends on an address, with
-    neither an open nor a merged pull request under the slug, means that pull request closed."""
+    last said of an open one (`jmerge.judgement.step`). A `Branch:` line that ends on an address,
+    with neither an open nor a merged pull request under the slug, means that pull request
+    closed."""
     if slug in world.open:
-        return work.Pull(step(said) or work.Pull.OTHER)
+        return work.Pull(judgement.step(said) or work.Pull.OTHER)
     if slug in world.merged:
         return work.Pull.MERGED
     words = below.line(result, "Branch:").split()
@@ -583,7 +584,7 @@ def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
     if not row.get("approved"):
         return work.Row.UNAPPROVED
     brief = queue.brief(run.state, row["slug"])
-    if brief is None or not queue.approved_text(row, brief):
+    if brief is None or not judgement.approved_text(row, brief):
         return work.Row.CHANGED
     return work.Row.BEHIND if unmet else work.Row.FREE
 

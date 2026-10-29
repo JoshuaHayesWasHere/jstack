@@ -17,8 +17,7 @@ import pytest
 
 import test_home_merge as merge
 from jbus import merge as jbus_merge
-from jbus import queue
-from jmerge import ready
+from jmerge import judgement, ready
 
 BETA_URL = "https://example.test/pull/8"
 
@@ -59,7 +58,7 @@ def given(state, rows):
             text = f"# {one['slug']}: the task\n"
             (state / "briefs").mkdir(exist_ok=True)
             (state / "briefs" / f"{one['slug']}.md").write_text(text)
-            one["brief_sha"] = queue.brief_sha(text)
+            one["brief_sha"] = judgement.brief_sha(text)
     return rows
 
 

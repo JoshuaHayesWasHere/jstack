@@ -19,6 +19,7 @@ import pytest
 
 import jbus
 from jbus import leftover, questions, queue, wakes
+from jmerge import judgement
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_leftover import home
 from test_jbus_queue import brief, rows, widened
@@ -113,7 +114,7 @@ def test_an_entry_go_approves_each_row_filed_under_it_and_an_edit_with_no_second
     )
     queued(kitchen, "alpha", text=widened("alpha"))
     assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
-    assert rows(kitchen)["alpha"]["brief_sha"] == queue.brief_sha(widened("alpha"))
+    assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(widened("alpha"))
     code, said = kitchen.main("plan")
     assert code == 0, said
     (line,) = [one for one in said.splitlines() if one.startswith("epic |")]

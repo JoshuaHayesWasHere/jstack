@@ -34,6 +34,7 @@ import jroles
 from jbus import dispatch, queue, t3, verbs, watch, write_json
 from jbus.passes import Changed, Depends
 from jbus.t3 import Client, T3Error, T3Refused
+from jmerge import judgement
 from jroles import pool
 
 TITLE = "scout: "
@@ -98,8 +99,8 @@ def _launch(half: Any) -> None:
         if not row.get("approved"):
             continue
         text = queue.brief(run.state, slug)
-        if text is None or not queue.approved_text(row, text):
-            now = queue.brief_sha(text or "")[:12]
+        if text is None or not judgement.approved_text(row, text):
+            now = judgement.brief_sha(text or "")[:12]
             lines = tuple(queue.changed(row, text))
             run.reasons[slug] = Changed(now, row.get("brief_sha", "")[:12], lines)
             run.say(f"wait scout {slug}: its request changed after its go: approve it again")
@@ -112,9 +113,12 @@ def _launch(half: Any) -> None:
             run.say(f"wait scout {slug}: the dispatch is off or stopped: nothing is launched")
             return
         target = run.home / "scouts" / f"{slug}.md"
-        plain = queue.body(text)
+        plain = judgement.body(text)
         wrote = not target.exists()
-        if not wrote and queue.body(target.read_text(errors="replace")).strip() != plain.strip():
+        if (
+            not wrote
+            and judgement.body(target.read_text(errors="replace")).strip() != plain.strip()
+        ):
             run.condition(slug, f"scouts/{slug}.md differs from the queued request", str(target))
             continue
         try:
@@ -138,13 +142,13 @@ def _launch(half: Any) -> None:
             return
         again = queue.fresh(run.state, slug) or {}
         same = all(again.get(column) == row.get(column) for column in ("approved", "brief_sha"))
-        if not same or not queue.approved_text(row, queue.brief(run.state, slug) or ""):
+        if not same or not judgement.approved_text(row, queue.brief(run.state, slug) or ""):
             run.say(f"wait scout {slug}: its row changed during the pass")
             continue
         if wrote:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(dispatch.homed(plain, text))
-        sha = queue.brief_sha(text)
+        sha = judgement.brief_sha(text)
         path = dispatch.record_path(run, slug, sha)
         launch = {
             "key": f"{run.project.name}/{slug}/{sha[:12]}",

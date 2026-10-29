@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 import jbus
 import test_tool_calls as tools
 from jbus import passes, poll, queue, wake
+from jmerge import judgement
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
@@ -56,7 +57,7 @@ def widened(slug, line="One more line."):
 
 
 def sha12(text):
-    return queue.brief_sha(text)[:12]
+    return judgement.brief_sha(text)[:12]
 
 
 def go(kitchen, slug, sha=None, project="demo"):
@@ -87,7 +88,7 @@ def queued_before(kitchen, slug, text, priority=1, depends="", approve=True):
     table = json.loads(path.read_text())
     for row in table:
         if row["slug"] == slug and row.get("approval"):
-            row["brief_sha"] = queue.brief_sha(text)
+            row["brief_sha"] = judgement.brief_sha(text)
             for column in ("brief_sha", "scope", "meaning"):
                 row["approval"].pop(column, None)
     path.write_text(json.dumps(table))
@@ -104,7 +105,7 @@ def gates(kitchen):
 def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(kitchen):
     add(kitchen, "beta", priority=2, depends="alpha,gamma", approve=False)
     add(kitchen, "alpha", priority=1, approve=False)
-    sha = queue.brief_sha(brief("alpha"))
+    sha = judgement.brief_sha(brief("alpha"))
     assert queue.who(rows(kitchen)["beta"]["queued_by"]) == "the demo home"
     assert {
         name: value for name, value in rows(kitchen)["beta"].items() if name != "queued_by"
@@ -259,7 +260,7 @@ def test_an_approval_is_refused_unless_it_names_the_sha_of_the_stored_brief(kitc
     assert (kitchen.state / "queue.json").read_text() == before
     assert go(kitchen, "alpha", shown)[0] == 0
     assert rows(kitchen)["alpha"]["approved"] == GO
-    assert rows(kitchen)["alpha"]["brief_sha"] == queue.brief_sha(brief("alpha"))
+    assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(brief("alpha"))
 
 
 def test_an_approval_with_no_sha_is_not_run(kitchen):
@@ -344,7 +345,7 @@ def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(k
     text = batch(adds("alpha", "--priority 3", newer), approves("alpha", sha12(newer)))
     assert kitchen.main("queue", "apply", stdin=text)[0] == 0
     row = rows(kitchen)["alpha"]
-    assert (row["priority"], row["brief_sha"]) == (3, queue.brief_sha(newer))
+    assert (row["priority"], row["brief_sha"]) == (3, judgement.brief_sha(newer))
     older = batch(adds("alpha", "--priority 3"), approves("alpha", sha12(newer)))
     assert kitchen.main("queue", "apply", stdin=older) == (
         1,
@@ -536,7 +537,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, js
     add(kitchen, "alpha")
     said = kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = queue.body(brief("alpha")) + "Home: mcp:a-home\n"
+    written = judgement.body(brief("alpha")) + "Home: mcp:a-home\n"
     assert given == {
         "projectId": PROJECT,
         "title": "crew: alpha",
@@ -1262,7 +1263,7 @@ def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):
     add(kitchen, "alpha", approve=False, text=unsaid)
     kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = queue.body(brief("alpha")) + "Home: mcp:a-home\n"
+    written = judgement.body(brief("alpha")) + "Home: mcp:a-home\n"
     assert "and more" not in written
     assert given["message"] == f"/crew alpha\n\n{written}"
     assert (kitchen.home / "tasks/alpha.md").read_text() == written + "Thread: mcp:thread-1\n"
@@ -1282,7 +1283,7 @@ def test_a_brief_on_disk_with_another_thread_line_is_launched_and_gets_the_launc
 def test_the_sha_a_brief_is_approved_by_is_the_one_add_prints_and_every_list_shows(kitchen):
     """One function says which lines count, so jbus never refuses the command that a list prints."""
     text = readdressed("alpha", thread="mcp:a-thread")
-    shown = queue.brief_sha(brief("alpha"))[:12]
+    shown = judgement.brief_sha(brief("alpha"))[:12]
     added = f"add alpha --priority 1\n--- brief alpha\n{text}--- end\n"
     assert kitchen.main("queue", "apply", stdin=added) == (
         0,
@@ -1294,10 +1295,10 @@ def test_the_sha_a_brief_is_approved_by_is_the_one_add_prints_and_every_list_sho
     whole = hashlib.sha256(text.encode()).hexdigest()[:12]
     assert go(kitchen, "alpha", whole) == (1, f"refused: alpha's brief is {shown}, not {whole}\n")
     assert go(kitchen, "alpha", shown)[0] == 0
-    assert rows(kitchen)["alpha"]["brief_sha"] == queue.brief_sha(text)
-    assert queue.approved_text(rows(kitchen)["alpha"], brief("alpha"))
-    assert not queue.approved_text(rows(kitchen)["alpha"], widened("alpha", "More."))
-    assert queue.approved_text(rows(kitchen)["alpha"], brief("alpha", "More.\n"))
+    assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(text)
+    assert judgement.approved_text(rows(kitchen)["alpha"], brief("alpha"))
+    assert not judgement.approved_text(rows(kitchen)["alpha"], widened("alpha", "More."))
+    assert judgement.approved_text(rows(kitchen)["alpha"], brief("alpha", "More.\n"))
 
 
 def test_merge_after_is_written_by_add_shown_and_set_anew_by_the_next_add(kitchen):

@@ -16,6 +16,7 @@ import pytest
 
 import jbus
 from jbus import queue, sidered
+from jmerge import judgement
 from test_jbus_kitchen import FIX_BRIEFS, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
@@ -154,11 +155,11 @@ def test_an_edit_voids_the_go_and_the_pass_approves_the_new_brief_only_for_the_s
     moved = text(BRANCH_RED, "gamma", wider=True)
     queue.add(kitchen.state, BRANCH_RED, 0, [], moved, ran_by=queue.PASS)
     stored = queue.brief(kitchen.state, RED)
-    assert not queue.approved_text(rows(kitchen)[RED], stored)
+    assert not judgement.approved_text(rows(kitchen)[RED], stored)
     kitchen.poll()
     assert went(kitchen, RED) == ("alpha", queue.RULE)
-    assert queue.approved_text(rows(kitchen)[RED], stored)
-    assert not queue.approved_text(rows(kitchen)[BRANCH_RED], moved)
+    assert judgement.approved_text(rows(kitchen)[RED], stored)
+    assert not judgement.approved_text(rows(kitchen)[BRANCH_RED], moved)
 
 
 def test_a_row_the_users_word_approved_waits_for_the_user_after_an_edit_voids_it(kitchen):
@@ -169,7 +170,7 @@ def test_a_row_the_users_word_approved_waits_for_the_user_after_an_edit_voids_it
     wider = text("cleanup-alpha", wider=True)
     queue.add(kitchen.state, "cleanup-alpha", 0, [], wider)
     kitchen.quiet()
-    assert not queue.approved_text(rows(kitchen)["cleanup-alpha"], wider)
+    assert not judgement.approved_text(rows(kitchen)["cleanup-alpha"], wider)
 
 
 def test_queue_add_approves_a_follow_up_whatever_number_the_follow_rule_file_holds(kitchen):

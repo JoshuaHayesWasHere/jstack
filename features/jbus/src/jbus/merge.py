@@ -35,12 +35,12 @@ from typing import TYPE_CHECKING
 
 from jbus import alert, outbox, verbs
 from jbus.judged import Said, parse
-from jbus.judged import step as step
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
 from jmerge import ready
+from jmerge.judgement import step as step
 from jmerge.lines import Line as Line
 
 if TYPE_CHECKING:

@@ -10,6 +10,7 @@ import pytest
 import jbus
 from jbus import item, questions, queue, wake, work
 from jbus.item import MOVES, Item, Risk, State, Verb, Where
+from jmerge import judgement
 from test_jbus_kitchen import NOW, complete
 
 PASS = timedelta(minutes=3)
@@ -310,7 +311,7 @@ def test_queue_add_refuses_an_item_it_cannot_link_and_queues_nothing(kitchen, na
 
 def test_a_row_added_with_a_go_maps_to_approved(kitchen):
     assert add(kitchen, "alpha")[0] == 0
-    sha = queue.brief_sha(complete("alpha"))[:12]
+    sha = judgement.brief_sha(complete("alpha"))[:12]
     word = kitchen.word()
     assert kitchen.main("queue", "approve", "alpha", "--word", word, "--sha", sha)[0] == 0
     assert add(kitchen, "alpha")[0] == 0

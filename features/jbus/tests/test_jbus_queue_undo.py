@@ -9,6 +9,7 @@ import pytest
 
 import jbus
 from jbus import acts, queue
+from jmerge import judgement
 from test_jbus_kitchen import NOW, RAN, Kitchen
 from test_jbus_queue import add, brief, go, rows
 from test_jbus_row_history import transitions
@@ -99,7 +100,7 @@ def test_rename_moves_an_unlaunched_row_with_its_columns_and_its_go(kitchen):
     assert code == 0, said
     renamed = text.replace("# alpha:", "# delta:", 1)
     assert said.splitlines()[0] == (
-        f"renamed alpha to delta: brief {queue.brief_sha(renamed)[:12]}, its go holds"
+        f"renamed alpha to delta: brief {judgement.brief_sha(renamed)[:12]}, its go holds"
     )
     assert "alpha" not in rows(kitchen)
     row = rows(kitchen)["delta"]
@@ -193,7 +194,7 @@ def test_withdraw_takes_out_an_unlaunched_row_by_the_home_that_ran_it(kitchen, s
     code, said = queue_(kitchen, "withdraw", "alpha", "--why", "a second row for one brief")
     assert code == 0, said
     was = "gate" if status == "gate" else "queued"
-    kept = kitchen.state / "removed" / f"alpha.{queue.brief_sha(brief('alpha'))[:12]}.md"
+    kept = kitchen.state / "removed" / f"alpha.{judgement.brief_sha(brief('alpha'))[:12]}.md"
     assert said.splitlines()[0] == (
         f"removed alpha: was {was}, {RAN} by the demo home, brief kept at {kept}: "
         "a second row for one brief"

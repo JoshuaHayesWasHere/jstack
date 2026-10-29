@@ -96,6 +96,7 @@ from jbus import (
 )
 from jbus.passes import Pass
 from jbus.wake import Box
+from jmerge import judgement
 from jsettings import brief as brief_head
 
 if TYPE_CHECKING:
@@ -165,7 +166,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
             "nothing is queued"
         )
     directory = homes.home_of(config.home(project), text)
-    sha = queue.brief_sha(text)
+    sha = judgement.brief_sha(text)
     with locked(directory, LOCK):
         kept = ledger(directory)
         had = kept.get(key) if isinstance(kept.get(key), list) else []
@@ -369,7 +370,9 @@ class _Ground:
             row, text = queue.current(run.state, one["slug"])
             if row is None or one["slug"] in run.removed or row.get("status", "queued") != "queued":
                 return False
-            return not (row.get("approved") and text is not None and queue.approved_text(row, text))
+            return not (
+                row.get("approved") and text is not None and judgement.approved_text(row, text)
+            )
         if kind == "gate":
             open_now = self.gates()
             return open_now is None or one["key"] in open_now

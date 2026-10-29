@@ -129,13 +129,7 @@ from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbus import Refused, party, verbs, write_json
 from jmerge import judgement
-from jmerge.judgement import approved_text as approved_text
-from jmerge.judgement import body as body
 from jmerge.judgement import bound
-from jmerge.judgement import brief_sha as brief_sha
-from jmerge.judgement import fingerprint as fingerprint
-from jmerge.judgement import has_go as has_go
-from jmerge.judgement import sha as sha
 from jsettings import store
 
 EVENTS = {"queue": "quiet"}
@@ -231,7 +225,7 @@ def removed_path(state: Path) -> Path:
 
 def aside_path(state: Path, slug: str, text: str) -> Path:
     """Return where jbus keeps the stored brief of a removed row."""
-    return state / "removed" / f"{slug}.{brief_sha(text)[:12]}.md"
+    return state / "removed" / f"{slug}.{judgement.brief_sha(text)[:12]}.md"
 
 
 def removed(state: Path) -> dict[str, dict[str, str]]:
@@ -435,7 +429,7 @@ def changed(row: Row, text: str | None) -> list[str]:
     kept = bound(row)
     if not kept:
         return ["the go is bound to a sha of the whole brief, so no line can be named"]
-    return meaning.changed(kept, body(text))
+    return meaning.changed(kept, judgement.body(text))
 
 
 def verify(row: Row, text: str | None, path: str) -> dict[str, Any]:
@@ -445,12 +439,14 @@ def verify(row: Row, text: str | None, path: str) -> dict[str, Any]:
     made = held(kept) if kept else {}
     now = {"path": path, "brief_sha": "", "scope": "", "meaning": []}
     if text is not None:
-        mine = fingerprint(text)
-        now.update(brief_sha=brief_sha(text), scope=meaning.fingerprint(mine), meaning=mine)
+        mine = judgement.fingerprint(text)
+        now.update(
+            brief_sha=judgement.brief_sha(text), scope=meaning.fingerprint(mine), meaning=mine
+        )
     return {
         "slug": row["slug"],
         "approved": approval(row),
-        "holds": has_go(row, text),
+        "holds": judgement.has_go(row, text),
         "brief_sha": row.get("brief_sha", ""),
         "approval": made,
         "brief": now,
@@ -803,7 +799,7 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
             f"word, and silence starts no row where {why}"
         )
     text = batch.brief(follows) if here else None
-    if text is not None and not approved_text(row, text):
+    if text is not None and not judgement.approved_text(row, text):
         raise Refused(f"{cannot} {follows}: {follows}'s brief changed after its approval")
     return row
 
@@ -993,11 +989,11 @@ def _by_rule(
     text = batch.brief(slug)
     if row is None or text is None or row.get("held") or row.get("status", "queued") != "queued":
         return ""
-    if row.get("approved") and approved_text(row, text):
+    if row.get("approved") and judgement.approved_text(row, text):
         return ""
     try:
         parent = follow_up(batch, slug, branches, units)
-        verb = Approve(slug, RULE, FOLLOW_REF, brief_sha(text)[:12], parent)
+        verb = Approve(slug, RULE, FOLLOW_REF, judgement.brief_sha(text)[:12], parent)
         return _do(verb, batch, user, None, {}, {}, ran_by)
     except Refused as error:
         if not named_parent(slug, text):
@@ -1053,7 +1049,7 @@ def _builds_on(rows: list[Row], verb: Add) -> None:
     has is not checked again, so an add that only changes a row's priority or brief goes through
     for a row queued before this check."""
     had = next((row.get("depends", []) for row in rows if row["slug"] == verb.slug), [])
-    named = chains.builds_on(body(verb.text))
+    named = chains.builds_on(judgement.body(verb.text))
     for other in verb.depends:
         if other not in had and other not in named:
             raise Refused(
@@ -1288,9 +1284,9 @@ def _new_faults(row: Row | None, was: str | None, text: str, slug: str = "") -> 
     newer lint found, that fault does not refuse the row. Only a fault the edit brought
     refuses it.
     """
-    found = faults(body(text), slug)
-    if row and row.get("approved") and was is not None and approved_text(row, text):
-        old = faults(body(was), slug)
+    found = faults(judgement.body(text), slug)
+    if row and row.get("approved") and was is not None and judgement.approved_text(row, text):
+        old = faults(judgement.body(was), slug)
         return [fault for fault in found if fault not in old]
     return found
 
@@ -1302,9 +1298,14 @@ def grandfathered(state: Path, rows: list[Row]) -> list[tuple[str, list[str]]]:
     found = []
     for row in sorted(rows, key=order):
         text = brief(state, row["slug"])
-        if over(row) or not row.get("approved") or text is None or not approved_text(row, text):
+        if (
+            over(row)
+            or not row.get("approved")
+            or text is None
+            or not judgement.approved_text(row, text)
+        ):
             continue
-        said = faults(body(text), row["slug"])
+        said = faults(judgement.body(text), row["slug"])
         if said:
             found.append((row["slug"], said))
     return found
@@ -1336,7 +1337,7 @@ def reasked(state: Path, rows: list[Row]) -> list[str]:
         for row in sorted(rows, key=order)
         if not over(row)
         and row.get("approved")
-        and not approved_text(row, brief(state, row["slug"]) or "")
+        and not judgement.approved_text(row, brief(state, row["slug"]) or "")
     ]
 
 
@@ -1374,7 +1375,7 @@ def _do(
             raise Refused("refused: no brief on stdin")
         _twin(batch, verb)
         found = [row for row in rows if row["slug"] == verb.slug]
-        made = SCOUT if requested(body(verb.text)) else CREW
+        made = SCOUT if requested(judgement.body(verb.text)) else CREW
         handed = bool(found) and _handed(found[0], made)
         if found and role(found[0]) != made and not handed:
             theirs, given = ("scout's", "crewmate's") if made == CREW else ("crewmate's", "scout's")
@@ -1420,10 +1421,14 @@ def _do(
         if verb.merge_after:
             depends += f", merges after {', '.join(verb.merge_after)}"
         of = f", entry {row['entry']}" if "entry" in row else ""
-        shown = brief_sha(verb.text)[:12]
+        shown = judgement.brief_sha(verb.text)[:12]
         go = ""
-        if row.get("approved") and was is not None and brief_sha(was) != brief_sha(verb.text):
-            holds = approved_text(row, verb.text)
+        if (
+            row.get("approved")
+            and was is not None
+            and judgement.brief_sha(was) != judgement.brief_sha(verb.text)
+        ):
+            holds = judgement.approved_text(row, verb.text)
             go = GO_HOLDS if holds else GO_VOID
         return f"added {verb.slug}: priority {verb.priority}{depends}{of}, brief {shown}{go}"
     if isinstance(verb, Approve):
@@ -1434,13 +1439,13 @@ def _do(
         text = batch.brief(verb.slug)
         if text is None:
             raise Refused(f"refused: {verb.slug} has no brief, add it again")
-        stored = brief_sha(text)
+        stored = judgement.brief_sha(text)
         if stored[:12] != verb.given:
             raise Refused(f"refused: {verb.slug}'s brief is {stored[:12]}, not {verb.given}")
-        again = row.get("approved") and approved_text(row, text) and not row.get("held")
+        again = row.get("approved") and judgement.approved_text(row, text) and not row.get("held")
         if verb.heard is not None and again and not _ruled(row):
             return f"{ALREADY} {verb.slug}: brief {stored[:12]}, {approval(row)}"
-        if ruled and row.get("approved") and approved_text(row, text) and not _ruled(row):
+        if ruled and row.get("approved") and judgement.approved_text(row, text) and not _ruled(row):
             raise Refused(
                 f"refused: {verb.slug} has the user's go, which holds, and a follow-up's go "
                 "would write over it"
@@ -1500,7 +1505,7 @@ def _grant(
     """Record a go on the row for the brief `text`, on the words `rests`, and return the line
     that says so. Every go jbus records is made here: an `approve`, and a go by a rule."""
     batch.parents.append(row["slug"])
-    stored, means = brief_sha(text), fingerprint(text)
+    stored, means = judgement.brief_sha(text), judgement.fingerprint(text)
     made = Approval(
         basis=basis,
         ref=ref,
@@ -1555,7 +1560,7 @@ def _waits(row: Row | None, text: str | None) -> bool:
     its go does not hold for its brief."""
     if row is None or text is None or row.get("held") or row.get("status", "queued") != "queued":
         return False
-    return not has_go(row, text)
+    return not judgement.has_go(row, text)
 
 
 def _entered(
@@ -1686,7 +1691,7 @@ def _launching(row: Row, asks: Asks | None) -> None:
 def _unheaded(text: str, slug: str) -> str:
     """Return the brief's `body` with its `# <slug>:` head line taken out: what the brief asks
     for under any slug."""
-    first, _, rest = body(text).partition("\n")
+    first, _, rest = judgement.body(text).partition("\n")
     return (rest if first.startswith(f"# {slug}:") else f"{first}\n{rest}").strip()
 
 
@@ -1747,19 +1752,19 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     first, cut, rest = text.partition("\n")
     head = f"# {old}:"
     renamed = f"# {new}:{first.removeprefix(head)}{cut}{rest}" if first.startswith(head) else text
-    holds = has_go(row, text)
+    holds = judgement.has_go(row, text)
     if holds:
         kept = record(row)
         if kept and kept.scope:
-            means = fingerprint(renamed)
+            means = judgement.fingerprint(renamed)
             bound = replace(
                 kept,
-                brief_sha=brief_sha(renamed),
+                brief_sha=judgement.brief_sha(renamed),
                 scope=meaning.fingerprint(means),
                 meaning=means,
             )
             row["approval"] = held(bound)
-        row["brief_sha"] = brief_sha(renamed)
+        row["brief_sha"] = judgement.brief_sha(renamed)
     row["slug"] = new
     if "parent_entry" not in row:
         row.setdefault("entry", old)
@@ -1768,7 +1773,7 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     batch.briefs[old] = None
     batch.briefs[new] = renamed
     go = GO_HOLDS if holds else ""
-    return f"renamed {old} to {new}: brief {brief_sha(renamed)[:12]}{go}"
+    return f"renamed {old} to {new}: brief {judgement.brief_sha(renamed)[:12]}{go}"
 
 
 def _waited_on(rows: list[Row], slug: str) -> None:

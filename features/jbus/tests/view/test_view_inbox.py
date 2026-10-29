@@ -10,6 +10,7 @@ import pytest
 from jbriefs import home as jbriefs
 from jbus import acts, queue, word
 from jbus.view.panels.you import panel as panel_you
+from jmerge import judgement
 from test_jbus_kitchen import complete
 from view.scene import EVIL, GATE, Scene, Served
 from view.test_view_answer import POLLED, Counter
@@ -37,7 +38,7 @@ def unapproved(counter, slug="oat-milk"):
     code, said = counter.kitchen.main("queue", "add", slug, "--priority", "1", stdin=complete(slug))
     assert code == 0, said
     counter.passes(1)
-    return queue.brief_sha(queue.brief(counter.state, slug))[:12]
+    return judgement.brief_sha(queue.brief(counter.state, slug))[:12]
 
 
 def needs(served):
@@ -77,7 +78,7 @@ def test_each_need_has_one_action_and_says_what_happens_if_the_user_does_nothing
     assert by["gate"]["default"] == "the first one"
     assert by["approve"]["default"] == panel_you.IDLE["approve"]
     assert by["hold"]["default"] == panel_you.IDLE["hold"]
-    assert by["approve"]["sha"] == queue.brief_sha(queue.brief(scene.state, "tea-kettle"))[:12]
+    assert by["approve"]["sha"] == judgement.brief_sha(queue.brief(scene.state, "tea-kettle"))[:12]
     assert {one["sha"] for one in found if one["kind"] != "approve"} == {""}
     home = jbriefs.thread_of(scene.home)
     link = panel_you.THREAD.format(home) if home else ""
