@@ -15,6 +15,12 @@ EXTENDS Naturals
 \*            so an idle one (a `sleep`, a headless browser waiting) is left for ever.
 CONSTANT Gap
 
+\* Draft: what jmerge does with a draft that waits on your word.
+\*   "held":    the code: Repo.judged returns your word's hold before the draft, so the draft is
+\*              never marked ready, and jmerge --accept refuses a draft.
+\*   "readied": a control that marks it ready as any reviewed draft, so your word lifts it.
+CONSTANT Draft
+
 PRs == {"a", "b"}
 
 \* st: "queued" (a row with your go, not launched yet), "open" (its pull request) or "merged".
@@ -180,7 +186,7 @@ Ready(p) ==
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `for other in row.get("merge_after", []):`
     \* A draft has no check of its own yet, so it proves no fix, and has no browser run.
     /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem, text)`
-    /\ ~needs[p]                            \* features/jmerge/src/jmerge/cli.py `hold = ready.needs_the_user(one, self.protected, left, user=self.user)`
+    /\ Draft = "held" => ~needs[p]          \* features/jmerge/src/jmerge/cli.py `hold = ready.needs_the_user(one, self.protected, left, user=self.user)`
     /\ rv' = [rv EXCEPT ![p] = "ready"]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
                    Fix, Browser, go, needs>>
@@ -370,4 +376,8 @@ MachineNotLeftFull == Settled => ~full
 
 \* "While main is red and nothing else can happen, its fix waits only on your approval, or on your word for its pull request."
 MainFixWaitsOnlyOnYou == (Settled /\ Red) => ENABLED (ApproveMainFix \/ ApproveBrowserFix \/ YourWord)
+
+\* A probe, no rule: your word never lifts a hold. The control with Draft = "readied" breaks it,
+\* so a lift is taken there.
+NoLift == \A p \in PRs : ~ENABLED Accept(p)
 ====

@@ -28,7 +28,8 @@ Today's code breaks three rules, `FlowsWhenGreen`, `NoMergeTurnsMainRed` and `Ma
 It breaks on a draft that touches a protected path.
 `Repo.judged` returns the hold before it reaches `if one.draft:`, and jmerge marks a draft ready only when its reason is the draft (`READY_ON`), so the draft stays one.
 `jmerge --accept` lifts the hold, finds the draft's wait under it, and refuses, so your word cannot move it either.
-A copy of the model that marks such a draft ready holds `FlowsWhenGreen`, so that draft is its only break.
+A control sets `FlowToday.tla`'s constant `Draft` to `readied`, which marks such a draft ready, and `FlowToday.cfg` sets it to `held`, the code.
+The control holds `FlowsWhenGreen`, so that draft is its only break, and breaks the probe `NoLift`, so your word lifts a hold there.
 It breaks `NoMergeTurnsMainRed` because a check can still miss a test that reads the changed path.
 `scripts/select_tests.py` runs every test no rule owns (#397), and each test whose `READ_SET` matches the changed path (#426).
 `testing/tests/test_cross_cutting.py` makes a test that globs or walks the tree declare a read set, but it sees only the reads it knows.
