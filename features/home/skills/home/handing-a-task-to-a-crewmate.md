@@ -14,9 +14,10 @@
    | Write | When |
    |---|---|
    | `Review: twice` | always, unless one below holds or the user says otherwise: the user, 2026-10-21, "from now on do one round of addressing fixes and then another round of review. on the second review file any findings medium or above in severity as follow ups, ignore the rest." It gets one review and one fix round, then a second review whose `warning` and `error` findings become a cleanup row and whose `info` findings are dropped, and it merges once that second review is written |
-   | `Review: review` | the user asks for a review whose findings are all fixed before the merge |
+   | `Review: review` | the user asks for a review whose findings are answered before the merge: the crewmate answers each finding of the first review, and after it only an `error` is fixed in the pull request, while a later review's `warning` findings become a cleanup row and its `info` findings are dropped |
    | `Review: after` | the user's standing rule is speed first: it merges once its check passes, and its review's findings become a cleanup row, a follow-up that jbus approves by the follow-up rule where the row's go holds |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
+   | `Review: cleanup` | never by the home: `jbus cleanup` writes it on each cleanup row it files, which gets one review of its own diff, in which only an `error` is fixed and no finding files a cleanup row of its own |
 
    A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
 
