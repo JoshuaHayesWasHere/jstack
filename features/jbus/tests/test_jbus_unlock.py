@@ -1,6 +1,6 @@
-"""A shared file never stops a launch: an overlap is one event, and the check against shared
-files happens at merge time. There, jbus tells a crew to rebase, once per head, when its pull
-request went stale or conflicts. Like `test_jbus_queue.py`, the tests run the real pass against
+"""A shared file never stops a launch: the check against shared files happens at merge time.
+There, jbus tells a crew to rebase, once per head, when its pull request went stale or
+conflicts. Like `test_jbus_queue.py`, the tests run the real pass against
 the fakes."""
 
 import json
@@ -21,87 +21,14 @@ def task(slug, *paths):
     return complete(slug).replace(f"Where: `src/{slug}/`", f"Where: {named}")
 
 
-def claim(slug, *paths, state="out"):
-    return f"{slug} {state} root Where: {', '.join(f'`{path}`' for path in paths)}\n"
-
-
 def test_a_row_whose_file_a_running_crew_names_is_launched(kitchen):
     kitchen.config(max_running=2)
     add(kitchen, "alpha", text=task("alpha", "src/jbus/cli.py"))
     kitchen.t3.thread("other")
     kitchen.brief("other", "Thread: mcp:thread-1\n")
-    kitchen.set("claims.txt", claim("other", "src/jbus/cli.py"))
     said = kitchen.poll()
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
     assert "launched alpha: mcp:thread-2" in said and gates(kitchen) == []
-
-
-def test_a_claims_check_that_fails_never_stops_a_launch(kitchen):
-    add(kitchen, "alpha")
-    (kitchen.stub / "claims-fail").touch()
-    said = kitchen.poll()
-    assert "launched alpha: mcp:thread-1" in said
-    assert [line for line in said if line.startswith("wait ")] == []
-    assert gates(kitchen) == [] and kitchen.lines("overlap") == []
-
-
-def test_an_overlap_is_one_event_for_each_pair_and_nothing_else(kitchen):
-    add(kitchen, "alpha", text=task("alpha", "src/jbus/cli.py", "tests/test_alpha.py"))
-    kitchen.set(
-        "claims.txt",
-        claim("alpha", "src/jbus/cli.py", "tests/test_alpha.py")
-        + claim("other", "docs/", "src/jbus/cli.py")
-        + claim("apart", "src/jmerge/"),
-    )
-    kitchen.poll()
-    line = "overlap alpha: shares src/jbus/cli.py with other; whichever merges second rebases"
-    assert len(kitchen.t3.launches) == 1 and kitchen.lines("overlap") == [line]
-    (event,) = kitchen.events("overlap")
-    assert event["slug"] == "alpha"
-    assert "overlap|alpha|alpha other" in jbus.read_json(kitchen.state / "sent.json", [])
-    kitchen.poll(NOW + timedelta(minutes=3))
-    assert kitchen.lines("overlap") == [line] and gates(kitchen) == []
-
-
-def test_each_pair_of_briefs_out_is_one_event_and_a_brief_not_launched_is_none(kitchen):
-    add(kitchen, "alpha", text=task("alpha", "src/jbus/"))
-    kitchen.set(
-        "claims.txt",
-        claim("alpha", "src/jbus/")
-        + claim("one", "src/jbus/cli.py", "src/jbus/dispatch.py")
-        + claim("two", "src/jbus/", state="pull request 9")
-        + claim("later", "src/jbus/cli.py", state="not launched"),
-    )
-    kitchen.poll()
-    rebases = "whichever merges second rebases"
-    assert len(kitchen.t3.launches) == 1 and kitchen.lines("overlap") == [
-        f"overlap alpha: shares src/jbus/cli.py, src/jbus/dispatch.py with one; {rebases}",
-        f"overlap alpha: shares src/jbus with two; {rebases}",
-        f"overlap one: shares src/jbus/cli.py, src/jbus/dispatch.py with two; {rebases}",
-    ]
-
-
-def test_an_overlap_names_five_paths_and_counts_the_rest(kitchen):
-    paths = [f"src/jbus/{name}.py" for name in "abcdefg"]
-    add(kitchen, "alpha", text=task("alpha", *paths))
-    kitchen.set("claims.txt", claim("alpha", *paths) + claim("other", "src/jbus/"))
-    kitchen.poll()
-    assert kitchen.lines("overlap") == [
-        f"overlap alpha: shares {', '.join(paths[:5])} and 2 more with other; "
-        "whichever merges second rebases"
-    ]
-
-
-def test_a_row_that_is_not_launched_sends_no_overlap(kitchen):
-    add(kitchen, "alpha", text=task("alpha", "src/jbus/cli.py"))
-    kitchen.set(
-        "claims.txt",
-        claim("alpha", "src/jbus/cli.py", state="not launched") + claim("other", "src/jbus/cli.py"),
-    )
-    kitchen.t3.refuse = "no"
-    kitchen.poll()
-    assert gates(kitchen) == ["condition alpha: T3 Code refused the launch"]
-    assert kitchen.lines("overlap") == []
 
 
 def out(kitchen, head="c" * 40, reason=CHANGED + ": it needs a rebase", word="wait"):
