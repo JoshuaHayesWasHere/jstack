@@ -90,9 +90,6 @@
 
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
   Once the brief has a Result, the block adds `Checked: <the command> exit <its exit> at <the full head>` to it for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
-  It adds none for a check that never ran, that waits for a slot or still runs, or that ran on uncommitted work or on a head that moved while it ran.
-  In jstack the block prints its `selected:` line first, with the test files it runs, and `make check-fast` runs the lint and those files in a slot of the short lane.
-  `PYTEST=:` is what keeps a selection of none or of all to the lint.
   Give the call a time limit of 3 minutes (`timeout: 180000` in Claude Code), and never send it to the background.
   With every slot of the lane taken, it ends 76, and the turn ends as a targeted run's does, with the same one line.
   It ends with the exit code of `make check-fast`, and on 0 the `selected:` line and that exit code go on `Proof:`.
@@ -102,7 +99,6 @@
   It starts the check command on its own, holding one of the machine-wide test slots, and the call waits on it for up to 9 minutes. Give the call a time limit of 10 minutes, the longest a call in the foreground gets (`timeout: 600000` in Claude Code), and never send it to the background. With every slot taken, nothing runs: the check registers this thread as a waiter, and the block prints `waiting` and ends 76. That wait is the one time the turn ends: end it at once with the one line above, and on jbus's message run this block again, which starts the check afresh. A check runs as long as the check command takes once it holds a slot, longer where the command runs the whole suite, so one call is not always enough: on `running`, run the block again, in this turn, as many times as it takes, until it prints `done`. Never end your turn while your own check runs, and never say you will go on once it finishes: nothing wakes a thread when a command ends, only a message does, and the push, the Result and the pull request would never come. A check that a call or a turn before this one started is joined, not started again (`joined`), and one that ended after the last call gives what it said (`checked`). A check whose answer a call already gave runs afresh on the next call, so a failure that was not the change's (a flake, a full `/tmp`) is run again by running the block again. On `stale`, the check ran on files that have changed since, and its answer is no proof: run the block again. On `done`, the block ends with the command's exit code: put its last line on `Proof:`. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the check command is not how you find out whether an edit works: the targeted runs are. Run it again only after changing something to fix what that run found.
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one run of the check command, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself.
   While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite.
-  The reviewer never runs it, whatever the brief's `Review:` line says.
   A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Write each Markdown prose line you add or change as one sentence, and leave old lines as they are: jstack's check (`features/writing/scripts/prose_lint.py`) fails a new line that holds two.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
@@ -195,4 +191,3 @@ On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>
 On `not sent`, nothing was queued: fill in the line it names and run it again.
 An answer that differs from the default comes back as a message here, from jbus.
 A review finding you cannot settle without the user's word is such a question.
-The four things "Carry on" never does on a default are such gates, each one that holds.

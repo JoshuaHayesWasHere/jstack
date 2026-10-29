@@ -27,18 +27,14 @@
    It prints the section's `Head:` and `Patch-id:` lines whole.
    `yes` means the pull request's head and this checkout's are both still the head kept at the start, with nothing uncommitted.
    On `no`, say that first in the section.
-   The crewmate's thread may push or rebase in this worktree while the review is out, and a `no` is how that shows.
    The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and its second-pass check compares from that head.
    The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells.
-   It always prints a `Head:` line, since the head reviewed is known whatever GitHub answers: the crew skill and `jmerge` read it.
    On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
 3. Add what the reviewer finds itself: "Wider than the brief" and "In flight".
    A brief whose `Review:` line says `cleanup` skips this step: a cleanup row's one review reads its own diff alone, and its `In flight:` line says `not checked, a cleanup row's review reads its own diff alone`.
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
-   `features/home/hooks/agent-sends.sh` refuses a reviewer's `t3_thread_send` to its crewmate or to any home of the repo.
    The section is this pass's one output: jbus reads it on its next pass, asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
-   A clean pass, a second review whose findings are all filed as a cleanup row or dropped, and a pass whose other reviewers have not written yet owe the crewmate no line, so nobody is woken for them.
    With no `Thread:` line in the brief, jbus tells the home in its place, and with no home it parks the findings as a gate.
 5. Read `$T/review.md` now.
    Append it, filled in, to `$H/tasks/<slug>.md`, with the `By:` line Start printed under its heading, and `Sent to: not sent, jbus tells the crew when it owes a line` as its last line.
@@ -67,7 +63,6 @@
 
    On `written`, first run this with the block at the top.
    A brief whose first `Review:` line says `after` has merged, or will, on its check alone, so its findings go to a cleanup row and not to the crewmate.
-   After a brief's first review, the severity this review wrote routes each finding, whatever its bucket or tag: only an `error` goes to the crewmate of a brief that says `review`, its `warning` findings go to the cleanup row, and its `info` findings are dropped.
    A brief that says `twice` sends its second review's `error` and `warning` findings to the cleanup row too.
    `jbus cleanup` is the one rule for which findings those are, so the block asks it whatever the brief's `Review:` line says:
 
@@ -91,14 +86,13 @@
    On `first review`, the crewmate answers the findings, and jbus tells it of them.
    On any other line, the findings this pass filed go to the cleanup row and not to the crewmate: `jmerge` merges an `after` brief on its check, a `twice` brief once its second review is written, and a `review` brief once the errors of this pass, if it has any, are fixed.
    It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit.
-   The row says `Size: S` and `Review: cleanup`: its own review reads its diff alone, only an `error` of it goes to its crewmate, and the rest is dropped, so `jbus cleanup` files no row for a cleanup row.
+   The row says `Size: S` and `Review: cleanup`, so `jbus cleanup` files no row for a cleanup row.
    The row is a follow-up of `<slug>`, so jbus approves it by the follow-up rule when it is queued, or on the next pass, where `<slug>`'s go holds; otherwise it waits for the user's go.
    The row depends on `<slug>`, so it launches only once that pull request has merged, and its crew starts from a main that has it.
    A `<slug>` row already removed from the queue has nothing left to wait on, so the block queues the row with no such dependency.
    On any `no cleanup row`, the review was clean, had nothing for the row, the row is already queued, or the brief is a cleanup row or says `none`, and nothing more is done.
 
-6. Send nothing more, to a home or to anyone: jbus tells the crewmate of the section, and `jmerge`, run by jbus, reads it from the brief.
-7. Say the same in this thread in at most five lines. A reviewer does not review the fixes: the scoped pass of a fix is another reviewer's, launched by the crewmate when its fix changed a file outside `tests/`.
-8. Last, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
+6. Say the same in this thread in at most five lines.
+7. Last, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
    It takes effect when the turn ends, so it is the last call, made only once the block of step 5 printed `written`.
    A reviewer that stopped early, for any reason, does not settle: its thread stays where the user can see why.
