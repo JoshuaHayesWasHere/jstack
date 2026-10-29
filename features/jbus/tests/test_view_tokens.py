@@ -2,9 +2,13 @@
 `page.html` itself.
 
 Each token of the page's `:root` is `light-dark(<light>, <dark>)`. Text meets 4.5:1 on every ground
-it is set on. A control's border and the focus ring meet 3:1 (SC 1.4.11). The text of the brand
-button meets 4.5:1 on the button, as does the canvas token set as text on the ink and due tokens (a
-count, the stopped banner). The test prints the table of every pair, and `-s` shows it.
+it is set on. A control's border and the focus ring meet 3:1 (SC 1.4.11). Each status (ok, run,
+due, missed, held, stacked) is text too: it meets 4.5:1 on every ground and on its own tint, and
+ink and ink-2 meet 4.5:1 on every tint. Each status and the first six categorical colours meet 3:1
+on every ground as a mark (a bar, a dot, a stripe). The text of the brand button meets 4.5:1 on the
+button, as do the brand's text on the ok fill of a merged milestone and the canvas token set as
+text on the ink and due tokens (the stopped banner, a count). The test prints the table of every
+pair, and `-s` shows it.
 """
 
 import re
@@ -13,16 +17,18 @@ from jbus.view import PAGE
 
 THEMES = ("light", "dark")
 GROUNDS = ("canvas", "surface", "sunk")
-TEXT = ("ink", "ink-2", "ink-3", "due", "missed")
+STATUS = ("ok", "run", "due", "missed", "held", "stacked")
+TEXT = ("ink", "ink-2", "ink-3", *STATUS)
 BOUNDS = ("line", "focus")
+MARKS = (*STATUS, *(f"cat-{n}" for n in range(1, 7)))
 PAIRS = (
     *((ink, ground, 4.5) for ink in TEXT for ground in GROUNDS),
-    ("due", "due-tint", 4.5),
-    ("missed", "missed-tint", 4.5),
-    ("ink", "due-tint", 4.5),
-    ("ink", "missed-tint", 4.5),
+    *((status, f"{status}-tint", 4.5) for status in STATUS),
+    *((ink, f"{status}-tint", 4.5) for ink in ("ink", "ink-2") for status in STATUS),
     *((bound, ground, 3.0) for bound in BOUNDS for ground in GROUNDS),
+    *((mark, ground, 3.0) for mark in MARKS for ground in GROUNDS),
     ("on-brand", "brand", 4.5),
+    ("on-brand", "ok", 4.5),
     ("canvas", "ink", 4.5),
     ("canvas", "due", 4.5),
 )
