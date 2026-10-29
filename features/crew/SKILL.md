@@ -92,7 +92,7 @@ A turn never ends while a subagent of the crew runs, since a subagent left runni
 
 ## Do the task
 
-Before you start the task, and each time a step names this section: read `$T/../skills/crew/do-the-task.md` now.
+Before you start the task: read `$T/../skills/crew/do-the-task.md` now.
 
 ## End
 
@@ -258,15 +258,15 @@ The review's findings are not a comment: they come as a message in this thread (
 
 ### The checks
 
-Once the pull request is open, on each wake about its checks, and each time a step names this section: read `$T/../skills/crew/the-checks.md` now.
+Once the pull request is open: read `$T/../skills/crew/the-checks.md` now.
 
 ### A conflict
 
-On a message that the pull request is in conflict, that its check fails over today's main, or that a rebase changed the content after its review, and each time a step names this section: read `$T/../skills/crew/a-conflict.md` now.
+On a message that the pull request is in conflict, that its check fails over today's main, or that a rebase changed the content after its review: read `$T/../skills/crew/a-conflict.md` now.
 
 ### A link that moved
 
-On jbus's line that a link it stacked moved or is in conflict, and each time a step names this section: read `$T/../skills/crew/a-link-that-moved.md` now.
+On jbus's line that a link it stacked moved or is in conflict: read `$T/../skills/crew/a-link-that-moved.md` now.
 
 ## Telling the home
 
@@ -318,8 +318,8 @@ If it prints a thread id, send that thread the message with the `t3-code` server
 
 ## The review
 
-Once the pull request is open, on the message that brings a review's findings, and each time a step names this section: read `$T/../skills/crew/the-review.md` now.
+Once the pull request is open: read `$T/../skills/crew/the-review.md` now.
 
 ### A second pass
 
-Once a review's findings are handled, on each wake that finds the pull request green after that, and each time a step names this section: read `$T/../skills/crew/a-second-pass.md` now.
+Once a review's findings are handled: read `$T/../skills/crew/a-second-pass.md` now.
