@@ -40,7 +40,8 @@ Preconditions:
 - **Load.**
   Run `echo "999.00 9.99 9.99 1/100 1" > "${VERIFY_JSTACK_SANDBOX:?}/machine/proc/loadavg"`, then `record jgauge-room jgauge room`.
   It prints `wait: load 999.00 is at or over 200% of <n> cores`, and exits 0.
-- **A row waits.** Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\n' | record jgauge-room jbus queue add alpha --priority 1`.
+- **A row waits.**
+  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\n' | record jgauge-room jbus queue add alpha --priority 1`.
   Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`, then run `record jgauge-room jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id.
   Run `record jgauge-room jbus queue approve alpha --sha "$(sha256sum "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)" --word <the id>`, then `record jgauge-room jbus poll`.
   The pass prints `wait alpha: no room: load 999.00 is at or over 200% of <n> cores` and no `launched` line.
