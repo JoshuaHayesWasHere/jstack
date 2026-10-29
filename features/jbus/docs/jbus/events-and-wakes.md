@@ -24,11 +24,11 @@ The desk shows only where `notify-send` is on the PATH.
 ## One list wakes a home
 
 A home is woken from one list: the open items it owns that are new to it since its last wake (`jbus.wakes`).
-The list is what the view already builds: each entry of [what is wrong](the-view.md) that an agent owns, each leftover a home has, and each need of yours that the root home passes on.
+The list is what the view already builds: each entry of [what is wrong](the-view.md) that an agent owns, each leftover a home has, and each need of yours that a home passes on.
 A line of a home's `plan.md` that defers an action on an event no code watches, as "brief once foo lands" or "on resume", is an item of that home's too (`jbus.prose`), unless the first pass on the machine found it already there.
 A stall is how a step hands a row to its home: the clock's second miss, a check cancelled twice, a decline the scoped pass did not uphold.
 An item's key is what it is, with no run and no time in it: a red is its failing tests, so one red is one item whatever runs or branches show it.
-An item the home's own thread caused does not wake it, as a row to approve whose brief is that home's.
+A row to approve is the item of the home whose brief it is, as `jbus home` says, and any other need is the root home's.
 An item whose cause is another open item folds into that item, as the stall of a row whose pull request is red, unless the row is that item's fix.
 An item that leaves the list wakes no one.
 A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.

@@ -1,14 +1,14 @@
 """A home is woken from one list: the open items it owns that are new to it since its last wake.
 
-The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
+The items are the entries of `state.wrongs` an agent owns, the needs a home passes on
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
 (`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`) and the open alerts
 whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
 snapshot that failed, a home that stalled. An item's key has no run and no time in it: a red's
 failing tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes
-the items one home thread owns that are new to it, less those its own thread caused and those whose
-cause is another open item, unless the row is that item's fix.
+the items one home thread owns that are new to it, less those whose cause is another open item,
+unless the row is that item's fix.
 An item that leaves the list wakes no one. A thread's record keeps each key it was told with a
 digest of what it said, for `KEEP` after the item leaves the list, so an item told again in that
 time wakes its home only when what it says changed.
@@ -88,14 +88,13 @@ _RUN_ID = re.compile(r"/actions/runs/(\d+)")
 
 @dataclass(frozen=True)
 class Item:
-    """One open item: `to` owns it, `by` caused it, `of` is the key of the item that caused it, and
-    `fixes` the keys of the items its row is the fix of."""
+    """One open item: `to` owns it, `of` is the key of the item that caused it, and `fixes` the
+    keys of the items its row is the fix of."""
 
     key: str
     to: str
     line: str
     row: str = ""
-    by: str = ""
     of: str = ""
     fixes: frozenset[str] = field(default_factory=frozenset)
     wrong: str = ""
@@ -111,10 +110,10 @@ def words(one: Item) -> str:
 
 
 def pick(items: list[Item], seen: dict[str, Any], thread: str) -> list[Item]:
-    """Return the items the thread owns that are new to it, each key once: not caused by the
-    thread, not folded into another open item, and not told to it before with the same words. A
-    key that two items share, as one red on two branches, is told while either says what was told.
-    A record written before the digest was kept counts as the same words."""
+    """Return the items the thread owns that are new to it, each key once: not folded into another
+    open item, and not told to it before with the same words. A key that two items share, as one
+    red on two branches, is told while either says what was told. A record written before the
+    digest was kept counts as the same words."""
     keys = {one.key for one in items}
     told = {
         one.key
@@ -124,7 +123,7 @@ def pick(items: list[Item], seen: dict[str, Any], thread: str) -> list[Item]:
     found: dict[str, Item] = {}
     for one in items:
         folded = one.of in keys and one.of != one.key and one.of not in one.fixes
-        if one.to != thread or one.by == thread or folded or one.key in told:
+        if one.to != thread or folded or one.key in told:
             continue
         found.setdefault(one.key, one)
     return list(found.values())
@@ -299,17 +298,18 @@ def root_of(run: Pass) -> str:
 
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
-    """The needs of the user that the root home passes on: each item of the list that the user
-    has to decide (`blockers.deciding`). A row to approve is caused by the home whose brief it
-    is. They wake the root's thread (`root_of`)."""
+    """The needs of the user that a home passes on: each item of the list that the user has to
+    decide (`blockers.deciding`). A row to approve is the item of the home whose brief it is
+    (`jbriefs.home`), as `jbus home` says, and any other need, or a home with no thread, the
+    root's (`root_of`)."""
     root, items = root_of(run), []
     for one, line in blockers.deciding(run, listed):
         brief = run.home / "tasks" / f"{one.get('slug')}.md"
         text = (
             brief.read_text(errors="replace") if one["kind"] == "approve" and brief.exists() else ""
         )
-        by = thread_of(homes.home_of(run.home, text)) if text else ""
-        items.append(Item(key=one["key"], to=root, line=line, row=one.get("slug") or "", by=by))
+        to = thread_of(homes.home_of(run.home, text)) or root
+        items.append(Item(key=one["key"], to=to, line=line, row=one.get("slug") or ""))
     return items
 
 
