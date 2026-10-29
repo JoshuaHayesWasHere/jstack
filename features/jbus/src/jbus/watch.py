@@ -1127,11 +1127,16 @@ def fix_brief(
     (`_nightly_red`), a red side workflow (`sidered.owe`) or a red integration branch
     (`sidered.integration_branches`). `jobs` is each failed job's name, URL and failed tests,
     which `Read` names before the lines of `read`. `Where` names `files`, then the file of each
-    failed test, or says `nowhere` where there are none. `filed` is what jbus filed it from, and
+    failed test, less any shared doc a fix brief may not claim (`queue.shared_doc`), or says
+    `nowhere` where there are none. `filed` is what jbus filed it from, and
     `follows` the row whose work the fix is a follow-up of: a pass approves it on that row's go
     (`queue.follow_ups`)."""
     tests = [test for _, _, failed in jobs for test in failed]
-    where = dict.fromkeys([*files, *(test.split("::")[0] for test in tests)])
+    where = [
+        file
+        for file in dict.fromkeys([*files, *(test.split("::")[0] for test in tests)])
+        if not queue.shared_doc(f"`{file}`")
+    ]
     return "\n".join(
         [
             f"# {heading}",
