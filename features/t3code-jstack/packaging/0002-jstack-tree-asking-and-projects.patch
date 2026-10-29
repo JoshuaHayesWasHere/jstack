@@ -1,7 +1,7 @@
-From ad4abd410dd3f8283b0d02634e756333adb0c8ff Mon Sep 17 00:00:00 2001
+From e7d800e0950ed9fb946167e2e7901813d15f64db Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 13:30:58 -0400
-Subject: [PATCH 2/3] fix(web): jstack tree opens queued rows at their asking
+Subject: [PATCH 2/4] fix(web): jstack tree opens queued rows at their asking
  thread; other projects use the tree's rows
 
 ---
