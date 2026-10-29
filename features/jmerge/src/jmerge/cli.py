@@ -920,7 +920,7 @@ class Repo:
         listed = said.get("jobs") if isinstance(said, dict) else None
         named = []
         for job in listed if isinstance(listed, list) else []:
-            if not isinstance(job, dict) or job.get("conclusion") in rows.NOT_RED:
+            if not isinstance(job, dict) or job.get("conclusion") in checks.NOT_RED:
                 continue
             log = self.job_log(str(job.get("id")))
             if log is None:

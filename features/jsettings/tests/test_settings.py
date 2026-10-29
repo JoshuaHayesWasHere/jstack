@@ -1,8 +1,7 @@
 """The user's name and time zone are settings. `jsettings.load` reads them from one file, and
-every command runs on defaults when there is no file. Before the user's name became a setting, older
-versions wrote some files on disk under old names. The commands read those old names as the new
-ones. The tests run as `features/jbus/tests/test_jbus.py` runs, with the real command and the
-real pass against the fakes."""
+every command runs on defaults when there is no file. The tests run as
+`features/jbus/tests/test_jbus.py` runs, with the real command and the real pass against the
+fakes."""
 
 import json
 import os
@@ -16,11 +15,10 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import passes, wake
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import AT, add, brief, rows, sha12
-from test_stall import ACCEPTED, HEAD, SAFE, URL, held, later, shown
-from testing.jstack_fixtures import NAMED, OLD_EVENT, OLD_LEVEL, ZONE
+from test_stall import HEAD, SAFE, URL
+from testing.jstack_fixtures import NAMED
 
 
 @pytest.fixture
@@ -199,133 +197,6 @@ def test_a_row_approved_before_the_name_was_a_setting_still_launches(kitchen):
     kitchen.poll()
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
     assert rows(kitchen)["alpha"]["approved"] == "2026-10-11 20:28 ET by Robin"
-
-
-@pytest.mark.usefixtures("named_user")
-def test_an_outbox_of_the_old_names_goes_out_in_the_next_post_under_the_new(kitchen):
-    kitchen.quiet()
-    waits = f"{OLD_EVENT} demo: approve alpha: do it · unblocks alpha · since 11:00 ET"
-    old = [
-        {
-            "project": "demo",
-            "slug": "approve:alpha",
-            "event": OLD_EVENT,
-            "line": waits,
-            "text": "",
-            "loud": OLD_LEVEL,
-            "say": waits,
-        },
-        {
-            "project": "demo",
-            "slug": "beta",
-            "event": "gate",
-            "line": "gate beta: which one?",
-            "text": "",
-            "loud": OLD_LEVEL,
-        },
-    ]
-    jbus.write_json(kitchen.state / "outbox.json", old)
-    kitchen.poll()
-    said = "waiting-on-user demo: approve alpha: do it · unblocks alpha · since 11:00 ET"
-    (post,) = kitchen.wakes.posts
-    assert post[:2] == [
-        {**old[0], "event": "waiting-on-user", "loud": "user", "line": said, "say": said},
-        {**old[1], "loud": "user"},
-    ]
-    assert kitchen.wakes.said[0][:2] == [said, "gate beta: which one?"]
-    assert kitchen.waiting() == []
-
-
-@pytest.mark.usefixtures("named_user")
-def test_a_key_sent_under_the_old_event_name_keeps_the_finding_from_going_twice(kitchen):
-    kitchen.quiet()
-    jbus.write_json(kitchen.state / "sent.json", [f"{OLD_EVENT}|#9|a line"])
-    run = passes.Pass(jbus.load(), jbus.load().projects[0], NOW)
-    assert run.find("#9", "waiting-on-user", "a line") is False
-    assert run.find("#9", "waiting-on-user", "another line") is True
-    assert [one["line"] for one in kitchen.events()] == ["another line"]
-    assert jbus.read_json(kitchen.state / "sent.json", []) == [
-        "waiting-on-user|#9|a line",
-        "waiting-on-user|#9|another line",
-    ]
-
-
-@pytest.mark.usefixtures("named_user")
-def test_the_log_is_read_under_the_new_names_and_an_old_level_in_the_config_is_ignored(kitchen):
-    record = {"at": "2026-10-11T15:00:00+00:00", "id": "a", "slug": "beta", "text": ""}
-    record |= {"event": OLD_EVENT, "loud": OLD_LEVEL, "line": f"{OLD_EVENT} demo: do it"}
-    kitchen.state.mkdir(parents=True, exist_ok=True)
-    (kitchen.state / wake.LOG).write_text(json.dumps(record) + "\n")
-    (logged,) = wake.Box(kitchen.state, jbus.load().projects[0]).log()
-    assert (logged["event"], logged["loud"]) == ("waiting-on-user", "user")
-    assert logged["line"] == "waiting-on-user demo: do it"
-    path = kitchen.config_dir / "config.toml"
-    named = 'name = "demo"\n'
-    text = path.read_text().replace(named, f'{named}loud = ["{OLD_LEVEL}"]\n')
-    kitchen.write(path, text)
-    assert jbus.load().ignored == ("loud of project demo",)
-
-
-def test_the_list_under_the_old_name_is_read_once_and_written_under_the_new(kitchen, jstack_config):
-    held(kitchen, ACCEPTED)
-    kitchen.poll()
-    jstack_config.write_text(NAMED)
-    new, old = kitchen.state / "waiting-on-user.json", kitchen.state / f"{OLD_EVENT}.json"
-    assert [one["key"] for one in shown(kitchen)] == ["#286"]
-    said = (
-        f"{OLD_EVENT} demo: hand-merge #286 {URL}: it is yours · unblocks jbus-a · since 11:00 ET"
-    )
-    was = {"root": "#286", "line": said, "since": NOW.isoformat(), "unblocks": ["jbus-a"]}
-    jbus.write_json(old, [was])
-    new.unlink()
-    stall = (kitchen.state / "stall.json").read_text()
-    line = said.replace(OLD_EVENT, "waiting-on-user")
-    assert kitchen.main("queue", "show")[1].startswith(f"waiting on Robin:\n{line}\n\n|")
-    assert old.exists() and not new.exists()
-    kitchen.config(max_running=6, dispatch=False)
-    kitchen.poll(later(1))
-    assert not old.exists()
-    (kept,) = shown(kitchen)
-    assert (kept["key"], kept["kind"], kept["line"]) == ("#286", "hold", line)
-    assert (kept["since"], kept["unblocks"]) == (NOW.isoformat(), ["jbus-a"])
-    assert (kitchen.state / "stall.json").read_text() == stall
-    kitchen.config(max_running=6)
-    kitchen.poll(later(2) + timedelta(seconds=1))
-    assert [one["key"] for one in shown(kitchen)] == ["#286"] and not old.exists()
-    assert OLD_EVENT not in new.read_text()
-
-
-def test_the_old_names_are_those_of_the_user_the_settings_name_and_of_nobody_else(
-    kitchen, jstack_config
-):
-    went = {"chef": "quiet"}
-    assert jbus.old_names() == went
-    held(kitchen, ACCEPTED)
-    kitchen.poll()
-    assert (kitchen.state / "waiting-on-user.json").exists()
-    jstack_config.write_text(NAMED)
-    assert jbus.old_names() == {OLD_LEVEL: "user", OLD_EVENT: "waiting-on-user", **went}
-    assert jbus.current_level("wren", jbus.old_names()) == "wren"
-    for live in ("Chef", "Quiet", "User"):
-        jstack_config.write_text(f'user = "{live}"\n')
-        level = jbus.current_level(live.lower(), jbus.old_names())
-        assert level == went.get(live.lower(), live.lower())
-    jstack_config.write_text("user = 7\n")
-    assert jbus.old_names() == went
-
-
-@pytest.mark.parametrize("name", ["Remark", "Word", "Settled", "Gate", "Result"])
-def test_a_user_named_as_a_kind_or_a_key_begins_leaves_that_kind_and_that_key_as_written(
-    kitchen, jstack_config, name
-):
-    jstack_config.write_text(f'user = "{name}"\n{ZONE}')
-    word = name.lower()
-    keys = [f"{word}|alpha|#1|a line", f"waiting-on-{word}|#9|a line"]
-    jbus.write_json(kitchen.state / "sent.json", keys)
-    box = wake.Box(kitchen.state, jbus.load().projects[0])
-    assert box.sent() == [keys[0], "waiting-on-user|#9|a line"]
-    one = {"event": word, "loud": word, "line": f"{word} demo: a line"}
-    assert wake.current(one, jbus.old_names()) == {**one, "loud": "user"}
 
 
 def test_across_a_clock_change_the_refusal_names_the_word_the_time_typed_has(jstack_config):

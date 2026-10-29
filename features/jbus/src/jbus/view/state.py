@@ -105,13 +105,11 @@ from jbriefs import below
 from jbriefs import home as jbriefs
 from jbriefs import parse as briefs
 from jbus import (
-    current_level,
     expedite,
     item,
     leftover,
     merge,
     mirror,
-    old_names,
     outbox,
     questions,
     queue,
@@ -950,15 +948,12 @@ def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
 
 
 def _events(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The events of the log, oldest first, each as its time, kind, loudness, slug and line.
-    The loudness has its current name. A line from before jbus dropped the name `chef` is
-    `quiet`."""
-    names = old_names()
+    """The events of the log, oldest first, each as its time, kind, loudness, slug and line."""
     return [
         {
             "at": when(one.get("at")),
             "kind": text(one.get("event"), 40),
-            "loud": current_level(text(one.get("loud"), 10), names),
+            "loud": text(one.get("loud"), 10),
             "slug": text(one.get("slug"), 80),
             "line": text(one.get("line")),
         }
@@ -1966,7 +1961,7 @@ def needs(
     found: tuple[panels.Panel, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """What waits on the user in one project, oldest first, as `/stack.json`'s `needs` has
-    each entry: the feed's catch-up (`jbus.feed`)."""
+    each entry: the feed's catch-up (`jbus.cursor`)."""
     found = panels.found() if found is None else found
     shape = next(panel.shape for panel in found if panel.name == "you")["needs"]
     return keep(Read(sources, name, now, runs, found=found).panel("you")["needs"], shape)

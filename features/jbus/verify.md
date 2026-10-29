@@ -246,7 +246,6 @@ A decision wakes the home thread:
   This recipe does not drive a home thread that T3 Code refuses.
   `failed_wakes` counts such failures, and the third in a row raises the `home thread demo` alert.
   `features/jbus/tests/test_jbus_wake_home.py` covers that case.
-- Where the sandbox's config still has the old `wake`, `webhook_url` or `webhook_key`, each pass also prints an `ignored:` line that names them.
 - The outbox may hold more than the decisions you raised, because a pass adds its own.
   Assert on the event you raised, not on a count.
 

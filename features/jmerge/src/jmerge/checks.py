@@ -5,6 +5,10 @@ from collections.abc import Callable
 
 from jmerge.ready import latest
 
+NOT_RED = ("success", "neutral", "skipped", "cancelled")
+"""The conclusions of a REST check run, or of a job, that are no failure: a cancelled run is no
+failed check. jbus's watch of main and jmerge's read of a branch both judge by it."""
+
 
 def latest_of_each(rollup: list[dict]) -> list[dict]:
     names = dict.fromkeys(one.get("name") or one.get("context") for one in rollup)

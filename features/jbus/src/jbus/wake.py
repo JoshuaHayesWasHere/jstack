@@ -17,10 +17,7 @@ once. `Box` takes a short lock for each change, because `jbus gate` and `jbus do
 while a pass runs. `notify` shows on the desktop what jbus could not send.
 
 An event for the user goes to one route, the project's home thread through T3 Code
-(`jbus.alert.flush`), with its outbox, five-minute gap and `last_error` in `home-thread/`. jbus had
-a webhook route once, with outboxes in the project's state folder and in `top-level/`. What still
-waits in one of those moves to the home thread's outbox on the next pass, and the old outbox goes
-(`Box.fold`).
+(`jbus.alert.flush`), with its outbox, five-minute gap and `last_error` in `home-thread/`.
 
 Every body has a top-level `kind`: `events` for what an outbox of events sends, and `reminder` and
 `refresh` for the timers of what blocks (`waiting.cadence`). The second target, the config's
@@ -81,10 +78,8 @@ SNAPSHOT_AT = (17, 15)
 PRUNE_AFTER = timedelta(days=7)
 LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
-UNPOSTED = "unposted.json"
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
-TOP_LEVEL = "top-level"
 TOOK = "posted_home"
 HOME = "home-thread"
 BLOCKING = "blocking"
@@ -164,31 +159,6 @@ def event(
     return {**made, "loud": loud} | ({"say": say} if loud == "user" else {})
 
 
-def renamed(line: str, names: dict[str, str]) -> str:
-    """A line begins with its event's kind. If that kind has an old name, return the line
-    with the new name in its place. `names` is `jbus.old_names`."""
-    kind, space, rest = line.partition(" ")
-    now = jbus.current_kind(kind, names)
-    return (now if now in LOUDNESS else kind) + space + rest
-
-
-def current(one: dict[str, Any], names: dict[str, str]) -> dict[str, Any]:
-    """Return an event read from disk, with its kind, its level and its lines under today's
-    names. `names` is `jbus.old_names`."""
-    read = {"event": jbus.current_kind, "loud": jbus.current_level}
-    now = {key: by(one[key], names) for key, by in read.items() if isinstance(one.get(key), str)}
-    lines = {
-        key: renamed(one[key], names) for key in ("line", "say") if isinstance(one.get(key), str)
-    }
-    return {**one, **now, **lines}
-
-
-def _key(key: str, names: dict[str, str]) -> str:
-    """Return a key of what was sent, with its leading kind renamed to the kind's name now."""
-    kind, bar, rest = key.partition("|")
-    return jbus.current_kind(kind, names) + bar + rest
-
-
 def _loud(one: dict[str, Any]) -> Loud:
     """Return an event's level: its `loud`, or its kind's level for an older event with none."""
     return one.get("loud") or LOUDNESS.get(one.get("event", ""), "quiet")
@@ -259,14 +229,11 @@ class Box:
         return datetime.now(UTC)
 
     def _outbox(self, route: Route | None = None) -> list[dict[str, Any]]:
-        folder = (route or self.home).folder
-        names = jbus.old_names()
-        return [current(one, names) for one in read_json(folder / "outbox.json", [])]
+        return read_json((route or self.home).folder / "outbox.json", [])
 
     def sent(self) -> list[str]:
         """Return the keys of everything ever sent."""
-        names = jbus.old_names()
-        return [_key(key, names) for key in read_json(self.state / "sent.json", [])]
+        return read_json(self.state / "sent.json", [])
 
     def send(
         self,
@@ -347,7 +314,6 @@ class Box:
         """
         events: list[dict[str, Any]] = []
         waiting: dict[str, list[dict[str, Any]]] = {}
-        names = jbus.old_names()
         before: dict[str, int] = {}
         for record in _records(self.state / LOG):
             if TOOK in record:
@@ -355,7 +321,7 @@ class Box:
                     if waiting.get(name):
                         waiting[name].pop(0)["posted"] = record["at"]
             elif "event" in record:
-                one = {**current(record, names), "posted": None}
+                one = {**record, "posted": None}
                 events.append(one)
                 waiting.setdefault(one.pop("id", ""), []).append(one)
                 one["id"] = _entry(record, before)
@@ -455,34 +421,6 @@ class Box:
             if made["kind"] == "refresh":
                 waiting = [one for one in waiting if one.get("kind") != "refresh"]
             write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)
-
-    def fold(self) -> int:
-        """Move each event for the user that waits in an outbox of the old webhook, the project's
-        own in its state folder or the top-level one in `TOP_LEVEL`, to the home thread's outbox,
-        and remove those outboxes. An event goes once: one whose id waits there already stays as
-        it is. Return how many events moved."""
-        old = [self.state / "outbox.json", self.state / TOP_LEVEL / "outbox.json"]
-        with locked(self.state, LOCK):
-            if not any(path.exists() for path in old):
-                return 0
-            names = jbus.old_names()
-            waiting = self._outbox()
-            there = {_id(one) for one in waiting}
-            moved = 0
-            for path in old:
-                for one in (current(one, names) for one in read_json(path, [])):
-                    if _loud(one) == "user" and _id(one) not in there:
-                        there.add(_id(one))
-                        waiting.append(one)
-                        moved += 1
-            if moved:
-                self.home.folder.mkdir(parents=True, exist_ok=True)
-                write_json(self.home.folder / "outbox.json", waiting, mode=0o600)
-            for path in old:
-                path.unlink(missing_ok=True)
-            shutil.rmtree(self.state / TOP_LEVEL, ignore_errors=True)
-            (self.state / UNPOSTED).unlink(missing_ok=True)
-        return moved
 
     def waiting(self, route: Route | None = None) -> int:
         blocking = route is not None and route.blocking
@@ -603,9 +541,9 @@ def _records(path: Path) -> list[dict[str, Any]]:
 
 
 def entries(state: Path) -> list[dict[str, Any]]:
-    """Every event of the project's log in the order of the file, under today's names, each
-    with its `id`: the one id a party names an event by, as the event it last saw (a go's
-    `seen`) or as the feed's cursor (`jbus.feed`).
+    """Every event of the project's log in the order of the file, each with its `id`: the one id
+    a party names an event by, as the event it last saw (a go's `seen`) or as the feed's cursor
+    (`jbus.cursor`).
 
     The id is a hash of the line as the file holds it and of how many equal lines come before
     it, so two equal events have two ids. The file only grows, apart from the daily prune
@@ -613,10 +551,9 @@ def entries(state: Path) -> list[dict[str, Any]]:
     since they have one time: an id names the same line across restarts and prunes. A line
     jbus owed (`UNLOGGED`) is written late with its first time, so the prune can drop it before
     a party that read past it reads it."""
-    names = jbus.old_names()
     before: dict[str, int] = {}
     return [
-        current(record, names) | {"id": _entry(record, before)}
+        record | {"id": _entry(record, before)}
         for record in _records(state / LOG)
         if "event" in record and TOOK not in record
     ]

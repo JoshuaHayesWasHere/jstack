@@ -63,9 +63,7 @@ and a brief queued again under another home is the same brief. jbus stores the b
 lines included, and a launch sends it without them (`body`). A row that the user approved before
 jbus had the fingerprint (#249) holds its go for the text of that approval, which jbus matches by
 the row's `brief_sha`, or, from before `brief_sha` left out the two lines, by the sha256 of the
-whole text. The first `add` of such a row binds the go to the fingerprint of the stored brief, once,
-while the go still holds for it: the row's `rebound` column. From then on the go holds as a
-fingerprint's does, so a home that rewrites `Home:` or `Thread:` voids no older go.
+whole text.
 
 When a go no longer holds, `changed` names the lines of the brief that differ from what was
 approved (`meaning.changed`), and the pass's gate says them.
@@ -474,10 +472,10 @@ def fingerprint(text: str) -> meaning.Meaning:
 def approved_text(row: Row, text: str) -> bool:
     """Return whether the row's go holds for the brief `text`.
 
-    A go recorded with a fingerprint, or bound to one by an `add` (`rebound`), holds for every
-    brief that means the same (`meaning.same`), whatever its wording. An older go holds only for
-    the text the user approved: its row's `brief_sha`. For a row approved before `brief_sha` left
-    out the two lines, it is the sha256 of the whole text, line for line.
+    A go recorded with a fingerprint holds for every brief that means the same (`meaning.same`),
+    whatever its wording. An older go holds only for the text the user approved: its row's
+    `brief_sha`. For a row approved before `brief_sha` left out the two lines, it is the sha256 of
+    the whole text, line for line.
     """
     bound = _bound(row)
     if bound:
@@ -494,10 +492,10 @@ def has_go(row: Row, text: str | None) -> bool:
 
 
 def _bound(row: Row) -> meaning.Meaning:
-    """Return the fingerprint the row's go binds: its record's, or the one an `add` bound an older
-    go to (`rebound`). Return nothing for a go bound only to a sha."""
+    """Return the fingerprint the row's go binds: its record's. Return nothing for a go bound only
+    to a sha."""
     kept = record(row)
-    return kept.meaning if kept and kept.scope else row.get("rebound", [])
+    return kept.meaning if kept and kept.scope else []
 
 
 def changed(row: Row, text: str | None) -> list[str]:
@@ -527,7 +525,6 @@ def verify(row: Row, text: str | None, path: str) -> dict[str, Any]:
         "holds": has_go(row, text),
         "brief_sha": row.get("brief_sha", ""),
         "approval": made,
-        "rebound": row.get("rebound", []),
         "brief": now,
     }
 
@@ -639,7 +636,7 @@ def _handed(row: Row, made: str) -> bool:
 def _hand_over(row: Row) -> None:
     """Make a scout's finished row a crewmate's: it is queued again with no go, since its go was
     for the request and not the brief."""
-    for column in ("role", "approval", "rebound", "held"):
+    for column in ("role", "approval", "held"):
         row.pop(column, None)
     row.update(approved="", brief_sha="", **_blank())
 
@@ -1102,7 +1099,6 @@ def _followers(batch: _Batch) -> list[str]:
 def _hold(row: Row) -> None:
     row.update(approved="", brief_sha="", held=True)
     row.pop("approval", None)
-    row.pop("rebound", None)
 
 
 def _unfollow(rows: list[Row], parent: str, hold: bool = True) -> list[str]:
@@ -1482,8 +1478,6 @@ def _do(
             row["entry"] = verb.entry
         was = batch.brief(verb.slug)
         kept = record(row)
-        if was is not None and not _bound(row) and row.get("approved") and approved_text(row, was):
-            row.update(brief_sha=brief_sha(was), rebound=fingerprint(was))
         if not found or handed or (kept and kept.basis == RULE):
             batch.queued.append(verb.slug)
         batch.added.append(verb.slug)
@@ -1593,7 +1587,6 @@ def _grant(
         closed_by=closed_by,
     )
     row.pop("held", None)
-    row.pop("rebound", None)
     row.update(approved=made.line(), approval=held(made), brief_sha=stored)
     return f"approved {row['slug']}: brief {stored[:12]}, {made.line()}"
 
@@ -1660,7 +1653,6 @@ def _void(rows: list[Row], row: Row) -> list[str]:
     its entry, approves it again. Each follow-up of it is taken back the same way."""
     row.update(approved="", brief_sha="")
     row.pop("approval", None)
-    row.pop("rebound", None)
     return [row["slug"], *_unfollow(rows, row["slug"], hold=False)]
 
 
@@ -1835,8 +1827,6 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
                 meaning=means,
             )
             row["approval"] = held(bound)
-        elif row.get("rebound"):
-            row["rebound"] = fingerprint(renamed)
         row["brief_sha"] = brief_sha(renamed)
     row["slug"] = new
     if "parent_entry" not in row:

@@ -190,11 +190,6 @@ def poll(
             client = t3.Client(config.server, config.token_path)
         except jbus.Refused as error:
             say(str(error))
-        if config.ignored:
-            say(
-                f"ignored: {config.config_dir / 'config.toml'} still has "
-                f"{', '.join(config.ignored)}: jbus reads none of them, remove them"
-            )
         now = now or datetime.now(UTC)
         last = jbus.read_json(config.status_path, {})
         raised: dict[str, str] = {}

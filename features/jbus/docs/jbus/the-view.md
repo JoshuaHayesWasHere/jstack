@@ -217,7 +217,7 @@ The page has no sign-in.
 The page is reachable only on the addresses the view listens on.
 The view refuses a page's write whose `Origin` header is not its own address, so another site open in your browser cannot answer or approve for you.
 `POST /act` is the bot's route: it needs no `Origin`, takes only the bot's key (`jbus bot key`), and gets 401 without it.
-`GET /feed?project=<name>&after=<id>&wait=<seconds>` is the bot's feed, the page `jbus feed` prints: the project's events and acts after a cursor, long polled, or a reset with `needs` (the queue's "The bot's feed").
+`GET /feed?project=<name>&after=<id>&wait=<seconds>` is the bot's feed: the project's events and acts after a cursor, long polled, or a reset with `needs` (the queue's "The bot's feed").
 Whoever can reach the port can answer and approve, as any shell on this machine can with `jbus answer` and `jbus item approve`.
 A client that is not a browser can set the `Origin` header to anything.
 The server reads jbus's config and the sign-in to T3 Code only for a write that has an answer or a word to send, and it sends neither to the page.
