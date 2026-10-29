@@ -305,10 +305,6 @@ Leave the project and modes out, and the model unless `jroles` printed one.
 
 Put the new thread's id on the brief's `Thread:` line with the block of step 3 of "Handing a task to a crewmate", which takes the old line's place, and give the user the link. One writer per worktree: never launch on a worktree whose last thread is `running`.
 
-## A stack the user lands
-
-When the head of `$M/plan.md` names `autopilot-stack` on its `Playbook:` line, or the user lands a stack: read `$T/../skills/home/stack-the-user-lands.md` now.
-
 ## Scoped homes
 
 When the root home is asked for status, when the repo has more than one home, or when the user asks for a home scoped to one goal: read `$T/../skills/home/scoped-homes.md` now.

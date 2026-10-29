@@ -410,11 +410,11 @@ def test_without_that_message_a_default_branch_that_moved_is_still_no_reason(why
     assert git(tmp_path / "main", "for-each-ref", "refs/jstack") == ""
 
 
-def test_the_message_never_rebases_a_link_of_a_stack_by_itself(tmp_path):
+def test_the_message_never_rebases_a_link_jbus_stacked_by_itself(tmp_path):
     link = Link(tmp_path, "main")
     asked(link, "MERGEABLE")
     before = link.head()
-    brief = with_field("Stack: billing 2 on under")
+    brief = with_field("Stacked on: under under")
     (said,) = stays(link, "mergeable", brief, "stale", slug="a-link")
     assert said.startswith("a link of a stack: no rebase here")
     assert link.head() == before

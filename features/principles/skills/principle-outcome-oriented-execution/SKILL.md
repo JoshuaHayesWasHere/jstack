@@ -22,4 +22,4 @@ Optimize for the intended, verifiable end state rather than preserving smooth in
 - Keep high-signal checks for actively touched areas while migrating
 - Require full static and runtime verification at plan completion
 
-<!-- card: Keep moving with nobody watching | 3 | Converge on the target end state. Do not keep every intermediate step smooth with throwaway compatibility code. | `orchestrate`; `shipping`; `swarm` -->
+<!-- card: Keep moving with nobody watching | 3 | Converge on the target end state. Do not keep every intermediate step smooth with throwaway compatibility code. | `orchestrate`; `swarm` -->

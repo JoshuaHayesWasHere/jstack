@@ -18,8 +18,6 @@ Playbook: <a row `a crewmate` runs, from the home skill's block that prints a ro
 Home: <scope>
 <The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while a plan layer, docs order or a shared file is no such need and an order that is only about merging is `--merge-after` with no line.>
 Builds on: <slug>: <what of its work this row starts from>; <slug>: <what of its work>
-<The line below is there only for a link of a stack, in a plan whose head names the playbook `autopilot-stack`. Only the home writes it: the first word is the stack's name, the place counts from 1 at the bottom, and link 1 sits on the default branch.>
-Stack: <name> <place> on <the branch it sits on>
 <The five lines below are there when a scout wrote this brief. A home that writes one from a light scout's answer may fill `Read:`, `Change:` and `Rests on:` from it; any other brief the home writes leaves all five out.>
 Read: <the files to read first, each with its path and line and what is there>
 Change: <the files to change, each with its path and line and what changes>

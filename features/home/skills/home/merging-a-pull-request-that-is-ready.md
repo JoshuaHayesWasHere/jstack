@@ -89,7 +89,6 @@ Ready means all of these hold.
 The rules are in `features/jmerge/src/jmerge/ready.py`, and nowhere else:
 
 - its base is the default branch. A pull request based on another branch would be merged into that branch, and nothing of it would reach the default one: the line is `wait <number> <url>: its base is <branch>, not <default branch>`, and no flag lifts it;
-- its brief has no `Stack:` line in its head, or the user said to land that stack. A stack is landed by the user: the line is `wait <number> <url>: it is in the stack <name>, which the user lands`, and `--land <name>` lifts it, for that stack alone. A `Stack:` line with no name is held, and no `--land` lifts it;
 - the brief has a `## Review` section, so a review was written. A brief with `Review: none` gets no review, so it is never ready: it needs the user's word;
 - the review is clean, or the crewmate's Result has its `Fixed:` line;
 - the head is the commit the `Fixed:` line names, and after findings that is not the head the review saw: a fix is a push.
@@ -111,7 +110,7 @@ Two more things keep a ready pull request from the command, and only the user li
   Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `features/jbus/src/jbus/merge.py`.
   A `*` matches within one part of a path.
   `jmerge` refuses to run, and merges nothing, while that file or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
-  The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it, `--land` included.
+  The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it.
   A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not.
   GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else.
   GitHub must have said every path the pull request changes: one whose file list it cut short is held, and so is one whose renames it would not give the old paths of.
@@ -136,12 +135,7 @@ To see what is ready and merge nothing, run `uv run --project "$T/../source" jme
 It merges nothing whatever the switch says, and prints `ready <number> <head> <branch> <slug>` for each of this home's pull requests that is ready.
 A pull request that is held, or whose repo's merge is off, is printed as it is without the flag: it is not `ready`.
 
-A stack is landed by the user's word only, "land <name>", said in this thread, and by the user's own run: the home runs no `jmerge --land`, since jbus is the only merger, and jbus never adds `--land`.
-End the turn with `stop local <name>: landing the stack is the user's own run of jmerge --land <name> from the main checkout` ("How a turn ends"), and do nothing more.
-That run lifts the second wait for the pull requests whose `Stack:` line names that stack, and nothing else: each is merged as any other, when it is ready and its base is the default branch.
-So one run lands the bottom link and prints `its base is <branch>, not <default branch>` for every link above it.
-The merged link's remote branch stays while a pull request is based on it, and its line says so under `kept:`.
-`jmerge` changes no base, and prints nothing that says a new base is the next step: "A stack the user lands" has it, and the playbook `shipping` has the steps in order.
+A merged branch stays on the remote while an open pull request is based on it, and its line says so under `kept:`.
 
 A merge clears up after itself only when all is clean at that moment.
 What is left then, and what never had a merge by this command, is the sweep's: a `kept:` of a merge, a pull request merged by hand, a crewmate that ended with no pull request, a scout's worktree, the gate's ref.

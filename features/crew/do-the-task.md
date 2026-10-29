@@ -24,7 +24,7 @@
   jbus's message that the run ended, which names the command and its exit code, is the cue to read what the run printed and go on.
 - Once every **Done when** line holds, with the work committed, run the check of the change, once.
   In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the check is the lint and only the tests that cover the files the branch changed since it left its base, in the short lane.
-  The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` or `Stack:` line, and `origin/main` for a brief with neither.
+  The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
   A base branch that is gone, as one is once it merged, is `origin/main` too.
   It never takes a full slot: CI's check on the pull request runs every test the selection leaves out, and CI's check is the gate.
   In any other repo the check is the repo's check command, the first line of `$H/fresh-check` with its `jgauge test-slot --` left off (the block takes the slot itself), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
@@ -40,7 +40,7 @@
   code=$(mktemp)
   {
   if [ -f scripts/select_tests.py ]; then
-      on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit} /^Stack:/ {print $(5); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
+      on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
       on=origin/${on:-main}
       git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
       if ! base=$(git merge-base "$on" HEAD); then
@@ -142,7 +142,6 @@
 
   ```sh
   B="$H/tasks/<slug>.md"
-  line=$(awk '/^## / {exit} /^Stack:/ {print; exit}' "$B")
   stacked=$(awk '/^## / {exit} /^Stacked on:/ {print; exit}' "$B")
   if [ -n "$stacked" ]; then
       printf '%s\n' "$stacked" | awk '{
@@ -150,15 +149,10 @@
           else if (NF == 6 && $(5) == "at") print "base " $(4) ": the brief\047s Stacked on: line, moved onto " $(4) " once " $(3) " merged"
           else print "no base: the brief\047s Stacked on: line is not Stacked on: <slug> <branch>, and only jbus writes it"
       }'
-  elif [ -n "$line" ]; then
-      printf '%s\n' "$line" | awk '{
-          if (NF == 5 && $(3) ~ /^[0-9]+$/ && $(4) == "on") print "base " $(5) ": the brief\047s Stack: line, link " $(3) " of the stack " $(2)
-          else print "no base: the brief\047s Stack: line is not Stack: <name> <place> on <branch>, and only the home writes it"
-      }'
   elif base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD); then
-      echo "base ${base#origin/}: the default branch, the brief has no Stack: line"
+      echo "base ${base#origin/}: the default branch, the brief has no Stacked on: line"
   else
-      echo "no base: the brief has no Stack: line, and the remote's default branch is not known here"
+      echo "no base: the brief has no Stacked on: line, and the remote's default branch is not known here"
   fi
   ```
 
@@ -182,7 +176,6 @@
 
   On `label cross-cutting`, open it with `--label cross-cutting` too.
   A pull request already open whose diff a later push makes touch two features gets it with `gh pr edit --add-label cross-cutting`, and the borders check reruns when it is labelled.
-  A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
   On `no base`, open no pull request: write what it printed on the Result's `Left:` line and in what you tell the home.

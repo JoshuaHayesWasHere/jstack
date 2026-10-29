@@ -33,12 +33,6 @@
       "source": "jstack"
     },
     {
-      "name": "autopilot-stack",
-      "kind": "playbook",
-      "path": "features/home/skills/home/playbooks/autopilot-stack.md",
-      "source": "jstack"
-    },
-    {
       "name": "bug-fix",
       "kind": "playbook",
       "path": "features/crew/playbooks/bug-fix.md",
@@ -157,12 +151,6 @@
       "name": "session-pickup",
       "kind": "playbook",
       "path": "features/home/skills/home/playbooks/session-pickup.md",
-      "source": "jstack"
-    },
-    {
-      "name": "shipping",
-      "kind": "playbook",
-      "path": "features/home/skills/home/playbooks/shipping.md",
       "source": "jstack"
     },
     {

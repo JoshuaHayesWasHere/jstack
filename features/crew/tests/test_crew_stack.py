@@ -7,7 +7,6 @@ import pytest
 
 import test_home_merge as merge
 from crew_helpers import BRIEF, Link, PullRequest, block, covers, git, with_field
-from jmerge import ready
 
 
 def base_of(tmp_path, brief, knows_default=True):
@@ -24,7 +23,7 @@ def base_of(tmp_path, brief, knows_default=True):
     (tmp_path / "tasks").mkdir()
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     ran = subprocess.run(
-        ["sh", "-c", block("Do the task", "only the home writes it").replace("<slug>", "alpha")],
+        ["sh", "-c", block("Do the task", "only jbus writes it").replace("<slug>", "alpha")],
         capture_output=True,
         text=True,
         cwd=work,
@@ -35,48 +34,18 @@ def base_of(tmp_path, brief, knows_default=True):
     return line
 
 
-def test_a_brief_with_no_stack_line_opens_its_pull_request_on_the_default_branch(tmp_path):
+def test_a_brief_with_no_stacked_on_line_opens_its_pull_request_on_the_default_branch(tmp_path):
     assert base_of(tmp_path, BRIEF).startswith("base main: the default branch, ")
 
 
-@pytest.mark.parametrize(
-    ("line", "base", "place"),
-    [
-        ("Stack: billing 1 on main", "main", "1"),
-        ("Stack: billing 2 on add-schema", "add-schema", "2"),
-    ],
-)
-def test_a_link_of_a_stack_opens_its_pull_request_on_the_branch_its_brief_names(
-    line, base, place, tmp_path
-):
-    said = base_of(tmp_path, with_field(line))
-    assert said.split(": ")[0] == f"base {base}"
-    assert said.endswith(f"link {place} of the stack billing")
-    assert ready.stack_of(with_field(line)) == "billing"
-
-
-def test_only_a_stack_line_in_the_head_of_the_brief_gives_a_base(tmp_path):
-    said = base_of(tmp_path, BRIEF + "Stack: billing 2 on add-schema\n")
+def test_only_a_stacked_on_line_in_the_head_of_the_brief_gives_a_base(tmp_path):
+    said = base_of(tmp_path, BRIEF + "Stacked on: beta add-schema\n")
     assert said.startswith("base main: the default branch, ")
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        "Stack: billing",
-        "Stack: billing 2",
-        "Stack: billing 2 add-schema",
-        "Stack: billing two on x",
-    ],
-)
-def test_a_stack_line_that_names_no_branch_gives_no_base_to_guess(line, tmp_path):
-    said = base_of(tmp_path, with_field(line))
-    assert said.startswith("no base: the brief's Stack: line is not ")
 
 
 def test_a_clone_that_does_not_know_the_default_branch_gives_no_base(tmp_path):
     said = base_of(tmp_path, BRIEF, knows_default=False)
-    assert said.startswith("no base: the brief has no Stack: line, and ")
+    assert said.startswith("no base: the brief has no Stacked on: line, and ")
 
 
 def test_a_link_whose_base_merged_moves_its_own_commits_onto_the_default_branch(tmp_path):
@@ -93,7 +62,7 @@ def test_a_link_whose_base_merged_moves_its_own_commits_onto_the_default_branch(
     assert link.move() == ["already on origin/main: no rebase"]
 
 
-def test_a_link_does_not_move_before_the_home_changed_its_base(tmp_path):
+def test_a_link_does_not_move_before_its_base_changed(tmp_path):
     link = Link(tmp_path, "under")
     before = link.head()
     assert link.move() == ["already on origin/under: no rebase"]
@@ -106,30 +75,6 @@ def test_a_link_whose_parent_was_rewritten_under_it_is_rebased_from_where_it_sta
     assert link.move() == ["moved from under onto origin/under"]
     assert not link.rebasing()
     assert git(link.work, "log", "--format=%s", "origin/under..HEAD") == "the link"
-
-
-@pytest.mark.parametrize("mergeable", ["CONFLICTING", "MERGEABLE"])
-def test_a_conflict_never_rebases_a_link_of_a_stack_by_itself(mergeable, tmp_path):
-    link = Link(tmp_path, "main")
-    view = f'{{"baseRefName": "main", "mergeable": "{mergeable}"}}'
-    (link.stub / "view.json").write_text(view)
-    before = link.head()
-    (tmp_path / "tasks").mkdir()
-    brief = tmp_path / "tasks" / "a-link.md"
-    about = block("Stay on the pull request", "mergeable").replace("<slug>", "a-link")
-
-    brief.write_text(with_field("Stack: billing 2 on under"))
-    (said,) = link.run_text(about, H=str(tmp_path)).splitlines()
-    assert said.startswith("a link of a stack: no rebase here")
-    assert link.head() == before
-    assert not (link.git_dir / "crew-before-rebase").exists()
-    brief.write_text(BRIEF + "Stack: billing 2 on under\n")
-    said = link.run_text(about, H=str(tmp_path)).splitlines()
-    if mergeable == "MERGEABLE":
-        assert said == ["no conflict: no rebase"]
-    else:
-        stopped = "the rebase stopped: resolve these, then git rebase --continue"
-        assert said == [stopped, "under.txt"]
 
 
 def test_a_link_does_not_move_when_github_cannot_be_asked(tmp_path):

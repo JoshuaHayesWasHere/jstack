@@ -61,7 +61,7 @@ def test_the_launch_starts_a_crewmate_named_for_its_role_in_a_worktree_on_the_ta
 def test_each_launch_has_a_twin_that_differs_only_by_the_model_selection():
     launches = [sent for sent in given() if "workspaceStrategy" in sent]
     tool = next(call for call in CALLS if call.tool == "t3_thread_launch")
-    assert len(launches) == 6
+    assert len(launches) == 4
     for launch, twin in zip(launches[::2], launches[1::2], strict=True):
         assert "modelSelection" not in launch
         assert twin == {**launch, "modelSelection": json.loads(SELECTION)}

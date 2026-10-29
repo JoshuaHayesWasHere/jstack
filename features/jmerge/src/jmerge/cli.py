@@ -150,7 +150,6 @@ class Repo:
         state: Path,
         home: str | None,
         every: bool,
-        land: str | None = None,
         protected: tuple[str, ...] = (),
         ci: tuple[str, ...] = (),
         merged: Merged | None = None,
@@ -161,7 +160,6 @@ class Repo:
         self.main = main
         self.state = state
         self.every = every
-        self.land = land or None
         self.protected = protected
         self.ci = ci
         self.merged = merged
@@ -390,7 +388,8 @@ class Repo:
             )
             return 1
         branch, pull = claims.branch_of(slug, text)
-        changed = self.changed(branch, claims.stacked_on(text))
+        stacked = stacks.of(text)
+        changed = self.changed(branch, stacked.branch if stacked else "")
         if changed is None and pull:
             asked = _run(
                 self.main, "gh", "pr", "view", pull, "--json", "files", "--jq", ".files[].path"
@@ -751,7 +750,7 @@ class Repo:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
         stacked = stacks.of(text)
-        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
+        short = ready.held(one, default, self.integration, stacked)
         short = short or self.on_stack(one, default, stacked)
         short = short or ready.short_of(text, one.head)
         rebase: ready.Rebase | None = None
@@ -796,11 +795,7 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         short = (
             rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
-            or (
-                rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
-                if ready.stack_of(text) is None
-                else ""
-            )
+            or rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
             or self.red(one, default, brief.stem, text)
             or self.short_on_migrations(one, one.base)
         )
@@ -1578,10 +1573,10 @@ def parser() -> argparse.ArgumentParser:
         description="Merge this repo's pull requests that are reviewed, fixed and green, pull "
         "the main checkout, and remove each one's worktree and branches. Prints one line per "
         "open pull request. A pull request based on a branch that is neither the default "
-        "branch nor one the integration file in the repo's state names is never merged, and "
-        "one whose brief has a Stack: line only with --land. One into an integration branch "
-        "is judged against that branch, and the one that lands it on the default branch "
-        "merges with a merge commit where the repo allows one, else as a squash. "
+        "branch nor one the integration file in the repo's state names is never merged. "
+        "One into an integration branch is judged against that branch, and the one that "
+        "lands it on the default branch merges with a merge commit where the repo allows one, "
+        "else as a squash. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
         "(features/jmerge/src/jmerge/ci-paths.txt) waits for a fresh check: where the "
@@ -1686,12 +1681,6 @@ def parser() -> argparse.ArgumentParser:
         "a --message alone",
     )
     top.add_argument(
-        "--land",
-        metavar="STACK",
-        help="the stack the user said to land: merge its pull requests as any other, each "
-        "once its base is the default branch",
-    )
-    top.add_argument(
         "--home",
         metavar="ID",
         help="the home that is asking: say what jmerge would do of its own pull requests, as "
@@ -1748,7 +1737,6 @@ def main(argv: list[str] | None = None) -> int:
         state,
         args.home,
         not args.home,
-        args.land,
         patterns(PROTECTED),
         patterns(CI_PATHS),
         Merged(main_checkout, state, run=not args.check),

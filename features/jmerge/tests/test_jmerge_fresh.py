@@ -298,9 +298,7 @@ def repo(kitchen, monkeypatch, merged=None):
     monkeypatch.setenv("PATH", f"{home.stub}:{os.environ['PATH']}")
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
-    return cli.Repo(
-        home.main, home.state, merge.ME, False, None, PROTECTED, CI, merged=merged, user=ET
-    )
+    return cli.Repo(home.main, home.state, merge.ME, False, PROTECTED, CI, merged=merged, user=ET)
 
 
 def test_a_merge_by_hand_between_the_judgment_and_the_merge_has_it_judged_again(
