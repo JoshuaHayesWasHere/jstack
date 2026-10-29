@@ -204,4 +204,4 @@ A push for a failed check made after a review saw an older head is ruled on the 
 A failing push before any review starts nothing more than the reviewer the pull request was still owed.
 
 A task is stacked on another task's branch in one case only, and a crewmate sees it as a line in the head of its brief.
-A row that builds on another row's code launches once that row opened its pull request, on its branch: jbus writes its `Stacked on:` line, moves it when its base moves, and tells it to rebase with "A link that moved".
+A row that builds on another row's code launches once that row opened its pull request, on its branch: jbus writes its `Stacked on:` line, and only once its base merged moves it, or tells it once to rebase with "A link that moved".
