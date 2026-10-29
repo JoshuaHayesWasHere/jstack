@@ -15,11 +15,8 @@ import crew_helpers as crew
 import jsettings
 import test_home_merge as merge
 import test_jmerge_run as jrun
-from jbriefs import findings
-from jmerge import gate as merge_gate
 from jmerge import ready
 from test_home_thread import NAMED, as_read
-from test_portable_shell import bsd_tools
 from test_room import BIN, IDLE, machine, says, uv
 from testing.layouts import assembled
 from testing.paths import REPO
@@ -1368,115 +1365,6 @@ def test_a_diff_inside_the_where_prints_nothing(reviewer):
 def test_a_brief_whose_where_names_no_path_is_not_read_as_no_wider(reviewer):
     branch_of_the_task(reviewer, "wherever it takes", "README.md")
     assert reviewer("### Wider than the brief") == ([], 1)
-
-
-def gated(reviewer, gate=None, fill=None, **more):
-    """Make a pull request whose branch has one commit on top of main, and a repo state
-    with the merge gate `gate`, or with no merge gate when `gate` is None. Run the
-    reviewer's "The merge gate" at the head, with the block's words in `fill` changed too.
-    Return what the block printed, its exit code, the merge base and the head."""
-    work = reviewer.work
-    origin = reviewer.state / "origin.git"
-    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", origin], check=True)
-    for args in (
-        ["checkout", "-q", "-b", "main"],
-        ["commit", "-q", "--allow-empty", "-m", "main"],
-        ["remote", "add", "origin", str(origin)],
-        ["push", "-q", "origin", "main"],
-        ["checkout", "-q", "-b", "a-task"],
-        ["commit", "-q", "--allow-empty", "-m", "the task"],
-    ):
-        subprocess.run(
-            ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=work, check=True
-        )
-    fork, head = (
-        subprocess.run(
-            ["git", "rev-parse", ref], cwd=work, capture_output=True, text=True
-        ).stdout.strip()
-        for ref in ("main", "HEAD")
-    )
-    (reviewer.stub / "view.json").write_text(
-        json.dumps({"baseRefName": "main", "headRefOid": head})
-    )
-    if gate is not None:
-        state = reviewer.state / "home" / ".local" / "state" / "home" / work.name
-        state.mkdir(parents=True, exist_ok=True)
-        (state / "merge-gate").write_text(f"\n  {gate}  \n")
-    fill = {"<the head kept at the start>": head, **(fill or {})}
-    printed, code = reviewer("### The merge gate", fill=fill, **more)
-    return printed, code, fork, head
-
-
-def test_a_failing_merge_gate_is_one_error_finding_on_what_the_change_lacks(reviewer, tmp_path):
-    called = tmp_path / "called"
-    script = tmp_path / "receipt-check"
-    script.write_text(
-        '#!/bin/sh\necho "$@" "$BASE" "$HEAD" > "$CALLED"\n'
-        "echo 'no passing receipt covers jmerge'\necho 'replay it' >&2\nexit 1\n"
-    )
-    script.chmod(0o755)
-    printed, code, fork, head = gated(reviewer, f"CALLED={called} {script}")
-    assert code == 0
-    assert printed == [
-        f"error - the merge gate fails at {head[:12]}: no passing receipt covers jmerge "
-        "(principle: none) (bucket: Act on)"
-    ]
-    assert called.read_text().split() == [fork, head, fork, head]
-    review = f"## Review\nVerdict: findings\nHead: {head}\nFindings:\n- {printed[0]}\n"
-    (finding,) = findings.triage(BRIEF + "\n" + review).blocking()
-    assert (finding.lead.severity, finding.lead.place) == ("error", "-")
-
-
-@pytest.mark.parametrize("gate", [None, "true"])
-def test_no_merge_gate_or_one_that_passes_prints_nothing(reviewer, gate):
-    assert gated(reviewer, gate)[:2] == ([], 0)
-
-
-def test_a_merge_gate_that_cannot_start_is_a_finding_too(reviewer, tmp_path):
-    (printed,), code, _, head = gated(reviewer, str(tmp_path / "missing"))
-    assert code == 0
-    assert printed.startswith(f"error - the merge gate fails at {head[:12]}: merge-gate: ")
-    assert printed.endswith("(principle: none) (bucket: Act on)")
-
-
-def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(
-    reviewer, monkeypatch, capsys
-):
-    """The block's limit is 9 minutes, so the test runs the step's command with a limit of 1 s."""
-    _, _, _, head = gated(reviewer, "true")
-    state = reviewer.state / "home" / ".local" / "state" / "home" / reviewer.work.name
-    (state / "merge-gate").write_text("sleep 30; :\n")
-    monkeypatch.chdir(reviewer.work)
-    monkeypatch.setenv("PATH", f"{reviewer.stub}:{os.environ['PATH']}")
-    monkeypatch.setenv("STUB", str(reviewer.stub))
-    began = time.monotonic()
-    code = merge_gate.review(state, head, URL, limit=1)
-    printed = capsys.readouterr().out.splitlines()
-    assert code == 0 and time.monotonic() - began < 20
-    assert printed == [
-        f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
-        "(principle: none) (bucket: Act on)"
-    ]
-
-
-def test_a_merge_gate_is_stopped_on_the_tools_of_macos_too(reviewer, tmp_path, monkeypatch, capsys):
-    """macOS has no `timeout`: with only its tools on PATH, a gate past the limit is still
-    stopped, it and what it started, and said so."""
-    tools = bsd_tools(tmp_path / "bsd")
-    _, _, _, head = gated(reviewer, "true")
-    state = reviewer.state / "home" / ".local" / "state" / "home" / reviewer.work.name
-    (state / "merge-gate").write_text("sleep 30; :\n")
-    monkeypatch.chdir(reviewer.work)
-    monkeypatch.setenv("PATH", f"{reviewer.stub}:{BIN}:{tools}")
-    monkeypatch.setenv("STUB", str(reviewer.stub))
-    began = time.monotonic()
-    code = merge_gate.review(state, head, URL, limit=1)
-    printed = capsys.readouterr().out.splitlines()
-    assert code == 0 and time.monotonic() - began < 15
-    assert printed == [
-        f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
-        "(principle: none) (bucket: Act on)"
-    ]
 
 
 def test_the_open_pull_requests_that_share_a_file_are_listed(reviewer):

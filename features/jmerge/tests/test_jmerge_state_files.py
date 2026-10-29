@@ -15,13 +15,11 @@ from jmerge import cli, rejudge
 
 def test_the_repo_state_is_under_jbus_home_dir_with_home_elsewhere(tmp_path, monkeypatch):
     main = tmp_path / "checkouts" / "demo"
-    main.mkdir(parents=True)
-    subprocess.run(["git", "init", "-q", str(main)], check=True)
     monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
     monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "homes"))
-    assert cli.state_of(main) == tmp_path / "homes" / "demo"
+    assert cli.homes_state(main) == tmp_path / "homes" / "demo"
     monkeypatch.delenv("JBUS_HOME_DIR")
-    assert cli.state_of(main) == tmp_path / "elsewhere" / ".local" / "state" / "home" / "demo"
+    assert cli.homes_state(main) == tmp_path / "elsewhere" / ".local" / "state" / "home" / "demo"
 
 
 def pull(number, head):

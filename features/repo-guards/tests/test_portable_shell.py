@@ -21,7 +21,7 @@ import pytest
 
 from testing.paths import REPO
 
-PERL_TIMEOUT = "the perl alarm the merge gate of `features/pr-review/SKILL.md` runs"
+PERL_TIMEOUT = "`perl -e 'alarm shift; exec @ARGV' <seconds> <command>`"
 
 GNU_ONLY = [
     (

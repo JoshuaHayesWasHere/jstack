@@ -258,17 +258,6 @@ BASE_MOVED_DUE = Reason(
     "check", "{base} moved after its check started: GitHub is to merge {base} at {tip} into it"
 )
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
-GATE_FAILED = Reason("hold", "its merge gate failed: {first}")
-GATE_UNSTARTED = Reason("hold", "its merge gate could not start: {why}")
-GATE_TIMED_OUT = Reason("hold", "its merge gate ran over {limit} and was stopped")
-GATE_BUSY = Reason(
-    "check", "its merge gate waits for the next run: this run's gates used their time"
-)
-GATE_LOCKED = Reason("check", "its merge gate waits for another run's gate to end")
-GATE_HELD = re.compile(
-    "|".join(one.pattern for one in (GATE_FAILED, GATE_UNSTARTED, GATE_TIMED_OUT))
-)
-
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
@@ -1109,7 +1098,6 @@ def needs_the_user(
 class Judged:
     tip: str = ""
     fresh: str = ""
-    gate: str = ""
 
 
 def stale_paths(
@@ -1147,16 +1135,6 @@ def _first_five(paths: tuple[str, ...]) -> str:
 
 def fresh_command(text: str) -> str:
     return "".join(text.strip().splitlines()[:1]).strip()
-
-
-def gate_held(why: str) -> bool:
-    """Whether a reason is the merge gate's hold, which only a passing gate lifts."""
-    return bool(GATE_HELD.fullmatch(why))
-
-
-def first_line(output: str, code: int) -> str:
-    """The gate's first line of output, or its exit code where it printed none."""
-    return next((line.strip() for line in output.splitlines() if line.strip()), f"exit {code}")
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")

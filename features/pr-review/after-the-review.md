@@ -33,7 +33,7 @@
    It always prints a `Head:` line, since the head reviewed is known whatever GitHub answers: the crew skill and `jmerge` read it.
    On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
-3. Add what the reviewer finds itself: "Wider than the brief", "The merge gate" and "In flight".
+3. Add what the reviewer finds itself: "Wider than the brief" and "In flight".
    A brief whose `Review:` line says `cleanup` skips this step: a cleanup row's one review reads its own diff alone, and its `In flight:` line says `not checked, a cleanup row's review reads its own diff alone`.
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
    `features/home/hooks/agent-sends.sh` refuses a reviewer's `t3_thread_send` to its crewmate or to any home of the repo.

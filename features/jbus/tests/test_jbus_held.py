@@ -105,7 +105,7 @@ def test_a_running_crew_of_a_held_row_wakes_nobody(kitchen):
 
 
 def test_a_wait_on_the_merge_runner_wakes_nobody(kitchen):
-    held = Held(kitchen, ready.GATE_BUSY)
+    held = Held(kitchen, ready.UNDECIDED)
     held.until(45)
     assert held.told() == [] and held.needs() == []
 
