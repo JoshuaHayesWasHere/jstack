@@ -180,6 +180,26 @@ def test_the_committed_run_1_rescores_to_its_results_byte_for_byte(tmp_path, mon
     assert {one["arm"] for one in key.values()} == set(run.ARMS)
 
 
+def test_a_reports_prose_holds_one_sentence_to_a_line_so_a_branch_can_commit_its_run(
+    tmp_path, monkeypatch
+):
+    """`prose_lint.py` judges each line a cut branch adds, a new run's `results.md` among them."""
+    path = REPO / "features" / "writing" / "scripts" / "prose_lint.py"
+    spec = importlib.util.spec_from_file_location("skill_cut_prose_lint", path)
+    lint = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lint)
+    for name in ("cases", "run-1"):
+        shutil.copytree(EVAL / name, tmp_path / name)
+    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", tmp_path / "cases" / "steps.json")
+    (tmp_path / "run-1" / "results.md").unlink()
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    assert run.main(["--run", "run-1"]) == 0
+    lines = (tmp_path / "run-1" / "results.md").read_text().splitlines()
+    judged = [one for one, prose in zip(lines, lint.prose(lines), strict=True) if prose]
+    assert judged
+    assert [one for one in judged if len(lint.sentences(one)) > 1] == []
+
+
 def test_a_whole_write_adds_one_run_of_a_few_files_whatever_the_number_of_answers(
     tmp_path, monkeypatch
 ):
