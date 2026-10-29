@@ -238,7 +238,7 @@ def stubbed() -> Iterator[None]:
     """Put in the five stubs and nothing else: GitHub's two answers, the launch record, the
     brief's thread, and a crew whose turn has ended."""
     with (
-        mock.patch.object(mainmoved, "main_check", lambda run, at, again=False, rerun=False: run.checks[at]),
+        mock.patch.object(mainmoved, "main_check", lambda run, at, **_: run.checks[at]),
         mock.patch.object(mainmoved, "failed_at", lambda run, at: [failing(int(at[0]))]),
         mock.patch.object(dispatch, "launched", lambda run, slug: THREAD if slug == RED_PR else ""),
         mock.patch.object(briefs, "thread_of", lambda brief: THREAD),
