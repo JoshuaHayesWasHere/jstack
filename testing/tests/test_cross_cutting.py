@@ -193,6 +193,9 @@ def test_every_pattern_of_a_read_set_matches_a_file_the_repo_tracks():
         "SKILLS = assembled() / 'skills'\nfiles = sorted(SKILLS.glob('*/SKILL.md'))\n",
         "FEATURE = Path(__file__).parents[1]\nfiles = (FEATURE / 'skills').rglob('*')\n",
         "names = os.listdir(REPO / 'features')\n",
+        "def naming(repo=REPO):\n    return subprocess.run(['git', 'ls-files'], cwd=repo)\n",
+        "def listed(root):\n    return subprocess.run(['git', '-C', str(root), 'ls-files'])\n\n\n"
+        "def test_it():\n    assert listed(REPO)\n",
     ],
     ids=[
         "a glob of the root",
@@ -204,6 +207,8 @@ def test_every_pattern_of_a_read_set_matches_a_file_the_repo_tracks():
         "a layout",
         "a folder beside the test",
         "a listing",
+        "git ls-files in a default of REPO",
+        "git ls-files in a root given REPO",
     ],
 )
 def test_a_read_of_the_checkout_is_a_read_of_the_tree(source):
@@ -219,6 +224,8 @@ def test_a_read_of_the_checkout_is_a_read_of_the_tree(source):
         "SKILLS = skills()\nLOG = SKILLS['show-me-your-work'] / 'log.sh'\n",
         "for node in ast.walk(tree):\n    pass\n",
         "SKILL = assembled() / 'skills' / 'home' / 'SKILL.md'\n",
+        "def listed(root):\n    return subprocess.run(['git', 'ls-files'], cwd=root)\n\n\n"
+        "def test_it(tmp_path):\n    assert listed(tmp_path)\n",
     ],
     ids=[
         "tmp_path",
@@ -227,6 +234,7 @@ def test_a_read_of_the_checkout_is_a_read_of_the_tree(source):
         "a name only indexed",
         "ast.walk",
         "one file of a layout",
+        "git ls-files in a root given tmp_path",
     ],
 )
 def test_a_read_of_a_folder_the_test_made_or_of_one_named_file_is_not(source):
