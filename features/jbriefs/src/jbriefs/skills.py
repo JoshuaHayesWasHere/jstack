@@ -52,7 +52,6 @@ ALIAS = "principle-"
 DEFAULT = "default"
 LABEL = "Skills:"
 RUN = "Skills run:"
-# Fields the Result template has dropped, which a Result written before still holds.
 _GONE = frozenset({"Wider"})
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _SPLIT = re.compile(r"[,\s]+")
