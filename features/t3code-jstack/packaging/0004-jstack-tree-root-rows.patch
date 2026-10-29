@@ -1,4 +1,4 @@
-From 16fe804a010bcf7c072b26f2872a727b8551da00 Mon Sep 17 00:00:00 2001
+From 2218611e373ca40c2ad4ef32e260b1f739581d59 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 15:22:00 -0400
 Subject: [PATCH 4/4] feat(web): jstack tree roots step down in size, every
@@ -466,7 +466,7 @@ index 0000000000..170ca400a3
 +  });
 +});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
-index e495cff074..8de8f62d3e 100644
+index e495cff074..3e7f933b25 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 @@ -6,13 +6,14 @@ import { memo, type MouseEvent, type ReactNode, useState } from "react";
@@ -580,7 +580,7 @@ index e495cff074..8de8f62d3e 100644
              <button
                type="button"
 -              data-sidebar-action-for={row.key}
-+              tabIndex={-1}
++              tabIndex={main === null ? -1 : undefined}
 +              data-sidebar-action-for={main === null ? undefined : row.key}
                aria-label={
                  row.collapsed ? `Unfold ${group.displayName}` : `Fold ${group.displayName}`
