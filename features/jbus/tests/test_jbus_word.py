@@ -445,3 +445,92 @@ def test_a_word_sent_whose_record_was_not_written_goes_again_under_the_same_key(
     assert "word demo: sent to home-1" in kitchen.poll()
     assert [one["clientRequestId"] for one in sends(kitchen)] == [f"word|demo|{ID}|home-1"] * 2
     assert list(kitchen.t3.messages) == [f"word|demo|{ID}|home-1"]
+
+
+BOT = "bot-chat:t36u/a-phone"
+READ = ("--evidence", BOT, "--words", "read vision.md")
+
+
+def test_a_word_on_the_bots_chat_goes_to_the_home_with_its_evidence(kitchen):
+    """A home carries the user's words from the bot's chat with `--evidence bot-chat:...`."""
+    (kitchen.home / "home-id").write_text("home-1\n")
+    code, out = kitchen.main("word", "--to", "demo", *READ)
+    assert code == 0 and out.startswith("sent: demo, to home-1, word "), out
+    (sent,) = sends(kitchen)
+    assert sent["threadId"] == "home-1" and sent["message"].endswith("\n\nread vision.md")
+    (one,) = [each for each in acts.read(kitchen.state) if each["action"]["verb"] == "word"]
+    assert (one["party"]["kind"], one["evidence"]["source"], one["evidence"]["ref"]) == (
+        "home",
+        "bot-chat",
+        "t36u/a-phone",
+    )
+    assert (one["evidence"]["checked"], one["evidence"]["said_in"]) == (
+        False,
+        "bot-chat t36u/a-phone",
+    )
+    assert out == f"sent: demo, to home-1, word {one['id']}\n"
+
+
+def test_a_word_on_the_bots_chat_is_not_the_users_own(kitchen):
+    """The bot's chat is not words jbus read itself, so `--as user` is refused for it."""
+    (kitchen.home / "home-id").write_text("home-1\n")
+    code, out = kitchen.main("--as", "user", "word", "--to", "demo", *READ)
+    assert code == 1 and out == (acts.UNCHECKED_USER.format(source="bot-chat") + "\n"), out
+    assert word.load(kitchen.state) == [] and sends(kitchen) == []
+
+
+SHAPE = "--evidence is bot-chat:<address>/<device> or t3-message:<thread>/<message>"
+
+
+@pytest.mark.parametrize(
+    "argv, says",
+    [
+        (
+            ["--evidence", "voice:t36u/a-phone", "--words", "go"],
+            f"refused: {SHAPE}, not voice:t36u/a-phone",
+        ),
+        (["--evidence", "bot-chat:t36u", "--words", "go"], f"refused: {SHAPE}, not bot-chat:t36u"),
+        (
+            ["--evidence", "bot-chat:/a-phone", "--words", "go"],
+            f"refused: {SHAPE}, not bot-chat:/a-phone",
+        ),
+        (["--evidence", BOT], "refused: --evidence bot-chat takes the user's words with --words"),
+        (["--words", "go"], "refused: --words goes with --evidence bot-chat:<address>/<device>"),
+        (
+            [*SAID, "--words", "go"],
+            "refused: --words goes with --evidence bot-chat:<address>/<device>",
+        ),
+        ([*SAID, *READ], "refused: a word is one message: --message or --evidence, not both"),
+    ],
+    ids=[
+        "voice",
+        "no-device",
+        "no-address",
+        "no-words",
+        "words-alone",
+        "words-on-a-message",
+        "both",
+    ],
+)
+def test_a_word_on_evidence_that_is_not_the_bots_chat_is_refused(kitchen, argv, says):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    assert kitchen.main("word", "--to", "demo", *argv) == (1, f"{says}\n")
+    assert word.load(kitchen.state) == [] and sends(kitchen) == []
+
+
+def test_a_word_on_a_t3_message_given_as_evidence_is_the_message(kitchen):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    given = ("--evidence", f"t3-message:{REF}")
+    assert kitchen.main("word", "--to", "demo", *given) == (
+        0,
+        f"sent: demo, to home-1, word {ID}\n",
+    )
+
+
+def test_a_word_on_the_bots_chat_goes_to_no_scope(kitchen):
+    """`--scope` takes only words jbus read itself, and the bot's chat is not."""
+    assert kitchen.main("word", "--to", "demo", "--scope", "every", *READ) == (
+        1,
+        f"{word.SCOPE_CHECKED}\n",
+    )
+    assert word.load(kitchen.state) == [] and sends(kitchen) == []
