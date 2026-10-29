@@ -39,7 +39,6 @@ window.addEventListener("load", function () {
       wide: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       parts: parts.map(function (p) { return { name: p.getAttribute("data-part"), region: p.closest("[data-region]") ? p.closest("[data-region]").getAttribute("data-region") : "", box: box(p), text: text(p), cut: cut(p) }; }),
-      chains: (function (c) { return c ? { box: box(c), text: text(c) } : null; })(document.querySelector("[data-role=chains]")),
       board: box(document.getElementById("pipeline")),
       header: header(),
       stamp: getComputedStyle(document.querySelector(".hdr .brand"), "::after").content,
@@ -49,9 +48,9 @@ window.addEventListener("load", function () {
     };
   }
   /* The board's own section is drawn only once the board has answered: Every home on a phone,
-     the matrix at a desk. The part that holds Every home is there, empty, before that. */
+     the board's columns at a desk. The part that holds Every home is there, empty, before that. */
   (function wait() {
-    var parts = all("[data-part]"), ready = parts.length && !parts.some(asking) && document.querySelector(touch ? "[data-role=homes]" : "[data-role=matrix]");
+    var parts = all("[data-part]"), ready = parts.length && !parts.some(asking) && document.querySelector(touch ? "[data-role=homes]" : "[data-role=cards]");
     if (!ready && Date.now() - started < window.__at) { setTimeout(wait, 200); return; }
     var pre = document.createElement("pre");
     pre.id = "probe";
