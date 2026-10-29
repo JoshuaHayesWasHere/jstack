@@ -18,7 +18,7 @@ When the whole suite passes, the job `check` uploads the artifact `green-tree-<t
 A marker means the whole suite passed on that tree, so a run of only some tests uploads no marker.
 The job summary says `full suite: yes` or `no` and `tree <tree>`, and `jbus ci --notice` writes the same to `ci.jsonl` as the job's `full` and `tree`.
 
-The full suite runs on each push to main or to an integration branch, and when someone starts the workflow by hand.
+The full suite runs on each push to main, and when someone starts the workflow by hand.
 It runs as four jobs side by side, `full 1 of 4` to `full 4 of 4`, and the job `full` passes only when all four passed.
 Each of the four first runs `scripts/green_tree.py`, which looks for a marker of the tree it checked out.
 The marker is either the ref `refs/jstack/green-tree/full/<tree>` that `jmerge`'s fresh check pushed, before fl-gh-recheck, after the whole suite passed, or a `green-tree-<tree>` artifact of a successful run of the workflow.

@@ -1,12 +1,9 @@
-"""The check workflow runs on main, on the integration branches (any `integration/...`) and
-on a pull request into main that is not a draft. The next run never cancels a run on any of
-them, because each push's run is a concurrency group of its own. A pull request gets the job
-`check`, the fast one, which runs the lint and the tests its change reaches. A push to main or
-to an integration branch, and a manual run, get the job `full`, the whole suite. Each runs its
-tests as four parts side by side, the jobs `check-shard` and `full-shard`, and passes only when
-all four did. The workflow checks a push to an integration branch as it checks a push to main.
-jmerge holds a pull request into an integration branch while that branch is red, so jmerge has a
-check to read on the branch's tip.
+"""The check workflow runs on main and on a pull request into main that is not a draft. The
+next run never cancels a run on either, because each push's run is a concurrency group of its
+own. A pull request gets the job `check`, the fast one, which runs the lint and the tests its
+change reaches. A push to main, and a manual run, get the job `full`, the whole suite. Each runs
+its tests as four parts side by side, the jobs `check-shard` and `full-shard`, and passes only
+when all four did.
 
 The test reads the workflow file as YAML with two small readers, `mapping` and `block`, which handle
 only mappings by their indentation, a scalar, and a list in brackets.
@@ -125,17 +122,16 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_or_a_branch_and_by_hand():
-    """A pull request into any other branch, a parent row's branch or an integration branch,
-    starts no run: its work is checked once it reaches main's gate, and an integration branch is
-    checked on each push to it. Of a
-    pull request into main, a push, a reopen and the mark that it is ready start one."""
+def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_and_by_hand():
+    """A pull request into any other branch, such as a parent row's branch, starts no run: its
+    work is checked once it reaches main's gate. Of a pull request into main, a push, a reopen
+    and the mark that it is ready start one."""
     assert block("on") == {
         "pull_request": {
             "branches": ["main"],
             "types": ["opened", "synchronize", "reopened", "ready_for_review"],
         },
-        "push": {"branches": ["main", "integration/**"]},
+        "push": {"branches": ["main"]},
         "workflow_dispatch": None,
     }
 
