@@ -94,7 +94,7 @@ Before you start the task, and the first time a step names this section: read `$
 ## End
 
 1. Read `$T/result.md` now. Append it, filled in, to `$H/tasks/<slug>.md`.
-   Where the brief asks for a pull request, `Status: done` is written only once it is open and the `Pull request:` line names it: until then the status is `not done`, and jbus keeps a Result that says `done` and names none running, and tells its thread once.
+   Where the brief asks for a pull request, the Result is written only once it is open, and its `Pull request:` line names it: jbus keeps a row whose Result says `Status: done` and names none running, and tells its thread once.
 2. See whether the home is told.
    Run this in one call with the block at the top.
    It is the only check:

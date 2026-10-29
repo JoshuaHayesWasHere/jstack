@@ -201,6 +201,20 @@ def test_a_row_removed_leaves_its_thread_removed(kitchen):
     assert "alpha" not in rows(kitchen)
 
 
+@pytest.mark.parametrize(("asked", "written"), [("open one when done", "none"), ("none", None)])
+def test_a_crew_thread_with_no_row_has_written_nothing_while_its_result_owes_its_pull_request(
+    kitchen, asked, written
+):
+    """A crew thread out with no row is judged while it owes its pull request, and drops out of
+    the list once its Result ends the task."""
+    kitchen.brief("alpha", f"Pull request: {asked}\n" + result())
+    thread = kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    kept = json.loads((kitchen.state / work.NAME).read_text())["work"]
+    lines = [one["facts"]["written"] for one in kept if one["key"] == thread["threadId"]]
+    assert lines == ([written] if written else [])
+
+
 def test_a_hung_turn(kitchen):
     add(kitchen, "alpha")
     kitchen.t3.thread("alpha", "running", idle=timedelta(minutes=25))

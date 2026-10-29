@@ -179,6 +179,16 @@ def test_a_row_that_depends_on_a_done_row_is_launched_and_on_a_left_row_waits(ki
     assert column(kitchen, "paint") == ("queued", "", "depends on sketch")
 
 
+def test_a_row_that_depends_on_a_row_whose_result_owes_its_pull_request_waits(kitchen):
+    add(kitchen, "design")
+    add(kitchen, "build", priority=2, depends="design")
+    kitchen.brief("design", "Pull request: open one when done\n" + result())
+    kitchen.t3.thread("design", "completed")
+    kitchen.poll()
+    assert kitchen.t3.launches == []
+    assert column(kitchen, "build") == ("queued", "", "depends on design")
+
+
 def test_a_result_written_under_a_thread_still_at_work_is_done(kitchen):
     add(kitchen, "alpha")
     kitchen.brief("alpha", result())
