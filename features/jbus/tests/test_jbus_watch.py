@@ -12,7 +12,7 @@ import pytest
 import jbus
 import jbus.queue
 from jbus import poll
-from test_jbus_kitchen import NOW, RESULT, TOKEN, iso
+from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
 
 
@@ -201,6 +201,7 @@ def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitche
     ):
         assert said in text
     assert "feat: older (#6)" not in text
+    filed_as(text, "main")
     assert jbus.queue.brief_sha(text) == jbus.queue.brief_sha(
         (kitchen.state / "briefs" / "main-red-dddddddddddd.md").read_text()
     )
@@ -697,6 +698,7 @@ def test_a_red_browser_run_with_shots_and_other_failures_files_each_row_with_its
     assert "tests/test_jbus_view_page.py::test_one" in fix
     assert SHOT not in fix and "jbus-view-shots" not in fix
     assert "\nWhere: `tests/test_jbus_view_page.py`\n" in fix
+    filed_as(fix, "browser")
     redrawn = (kitchen.home / "tasks" / "shots-2026-10-12.md").read_text()
     assert SHOT in redrawn and "test_one" not in redrawn
     assert sorted(kitchen.lines("retro")) == [
@@ -1018,6 +1020,7 @@ def test_a_macos_nightly_that_timed_out_is_red_with_no_test_named_and_is_filed_o
         "\nWhere: the tests the macOS nightly runs on main, under `features/` and `testing/`\n"
         in text
     )
+    filed_as(text, "macos")
     assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
 
 
