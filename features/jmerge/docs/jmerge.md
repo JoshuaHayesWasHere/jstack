@@ -99,6 +99,7 @@ The section "Protected paths" describes one more hold.
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
   If the review had findings, the Result has a `Fixed:` line that names the head or says `none needed`.
+  A review after the first owes that line, and a push after it, only where it has an `error` finding.
   A `Second pass: needed since <head>` line makes the pull request wait for a review of a later head.
 - **Every blocking finding is answered.**
   Each blocking finding needs an answer that counts, for every pull request and not only after a second pass.
@@ -106,8 +107,11 @@ The section "Protected paths" describes one more hold.
   Its parser, `features/jbriefs/src/jbriefs/findings.py`, is the one the crew skill and jbus use too.
   Each finding gets an id, `F1`, `F2`, ..., in the order it appears.
   Two reviewers' findings share one id when they are at the same head, in the same file within 5 lines (`NEAR`), and cite the same principle.
-  Three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
-  A `Consider` finding does not block, and a finding's severity does not change whether it blocks.
+  In a first review, three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
+  A `Consider` finding there does not block, and a finding's severity does not change whether it blocks.
+  In a review after the first, a scoped pass or a second pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
+  An `error` blocks, a `warning` goes to the cleanup row `cleanup-<slug>` that its reviewer files (`jbus cleanup`), and an `info` is dropped.
+  So a second review with warnings and no error owes no fix push and merges on its checks.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).
   It also counts only if no other finding was declined for the same reason.
@@ -131,6 +135,10 @@ The section "Protected paths" describes one more hold.
   The second review's findings block no merge, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`).
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
   A brief whose first review was clean, or whose Result says `Fixed: none needed`, needs no second review.
+- A brief that says `Review: cleanup` is a cleanup row that `jbus cleanup` filed.
+  It gets one review, and only that review's `error` findings block: each waits for an answer by id, a `Fixed:` line and a push.
+  Every other finding is dropped, and a review with no error merges on its checks.
+  `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
   A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check` and `integration`.

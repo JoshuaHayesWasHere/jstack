@@ -34,10 +34,11 @@
    On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
 3. Add what the reviewer finds itself: "Wider than the brief", "The merge gate" and "In flight".
+   A brief whose `Review:` line says `cleanup` skips this step: a cleanup row's one review reads its own diff alone, and its `In flight:` line says `not checked, a cleanup row's review reads its own diff alone`.
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
    `features/home/hooks/agent-sends.sh` refuses a reviewer's `t3_thread_send` to its crewmate or to any home of the repo.
    The section is this pass's one output: jbus reads it on its next pass, asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
-   A clean pass, a second review filed as a cleanup row and a pass whose other reviewers have not written yet owe the crewmate no line, so nobody is woken for them.
+   A clean pass, a second review whose findings are all filed as a cleanup row or dropped, and a pass whose other reviewers have not written yet owe the crewmate no line, so nobody is woken for them.
    With no `Thread:` line in the brief, jbus tells the home in its place, and with no home it parks the findings as a gate.
 5. Read `$T/review.md` now.
    Append it, filled in, to `$H/tasks/<slug>.md`, with the `By:` line Start printed under its heading, and `Sent to: not sent, jbus tells the crew when it owes a line` as its last line.
@@ -66,36 +67,35 @@
 
    On `written`, first run this with the block at the top.
    A brief whose first `Review:` line says `after` has merged, or will, on its check alone, so its findings go to a cleanup row and not to the crewmate.
-   So do the findings of the second review of a brief that says `twice`:
+   After a brief's first review, the severity this review wrote routes each finding, whatever its bucket or tag: only an `error` goes to the crewmate of a brief that says `review`, its `warning` findings go to the cleanup row, and its `info` findings are dropped.
+   A brief that says `twice` sends its second review's `error` and `warning` findings to the cleanup row too.
+   `jbus cleanup` is the one rule for which findings those are, so the block asks it whatever the brief's `Review:` line says:
 
    ```sh
    B="$H/tasks/<slug>.md"
-   if awk '/^Review:/ {after = ($(2) == "after" || $(2) == "twice"); exit} END {exit !after}' "$B"; then
-       if text=$(uv run --project "$T/../source" jbus cleanup "$B"); then
-           if ! said=$(printf '%s\n' "$text" | uv run --project "$T/../source" jbus queue add "cleanup-<slug>" --priority 50 --depends "<slug>" 2>&1); then
-               case $said in
-               "refused: cleanup-<slug> cannot depend on <slug>: <slug> was removed"*)
-                   printf '%s\n' "$text" | uv run --project "$T/../source" jbus queue add "cleanup-<slug>" --priority 50 ;;
-               *) echo "$said" && false ;;
-               esac
-           else
-               echo "$said"
-           fi
+   if text=$(uv run --project "$T/../source" jbus cleanup "$B"); then
+       if ! said=$(printf '%s\n' "$text" | uv run --project "$T/../source" jbus queue add "cleanup-<slug>" --priority 50 --depends "<slug>" 2>&1); then
+           case $said in
+           "refused: cleanup-<slug> cannot depend on <slug>: <slug> was removed"*)
+               printf '%s\n' "$text" | uv run --project "$T/../source" jbus queue add "cleanup-<slug>" --priority 50 ;;
+           *) echo "$said" && false ;;
+           esac
        else
-           echo "$text"
+           echo "$said"
        fi
    else
-       echo "not after: the brief says Review: review or none, so its crewmate answers the findings"
+       echo "$text"
    fi
    ```
 
-   On `not after` and on `first review`, the crewmate answers the findings, and jbus tells it of them.
-   On any other line, the findings go to the cleanup row and not to the crewmate, and the crewmate is told nothing: `jmerge` merges an `after` brief on its check and a `twice` brief once its second review is written.
+   On `first review`, the crewmate answers the findings, and jbus tells it of them.
+   On any other line, the findings this pass filed go to the cleanup row and not to the crewmate: `jmerge` merges an `after` brief on its check, a `twice` brief once its second review is written, and a `review` brief once the errors of this pass, if it has any, are fixed.
    It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit.
+   The row says `Size: S` and `Review: cleanup`: its own review reads its diff alone, only an `error` of it goes to its crewmate, and the rest is dropped, so `jbus cleanup` files no row for a cleanup row.
    The row is a follow-up of `<slug>`, so jbus approves it by the follow-up rule when it is queued, or on the next pass, where `<slug>`'s go holds; otherwise it waits for the user's go.
    The row depends on `<slug>`, so it launches only once that pull request has merged, and its crew starts from a main that has it.
    A `<slug>` row already removed from the queue has nothing left to wait on, so the block queues the row with no such dependency.
-   On any other `no cleanup row`, of an `after` brief, or of a `twice` brief whose row is already in the queue, the review was clean or the row is already queued, and nothing more is done.
+   On any `no cleanup row`, the review was clean, had nothing for the row, the row is already queued, or the brief is a cleanup row or says `none`, and nothing more is done.
 
 6. Send nothing more, to a home or to anyone: jbus tells the crewmate of the section, and `jmerge`, run by jbus, reads it from the brief.
 7. Say the same in this thread in at most five lines. A reviewer does not review the fixes: the scoped pass of a fix is another reviewer's, launched by the crewmate when its fix changed a file outside `tests/`.

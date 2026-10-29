@@ -13,7 +13,7 @@ from collections.abc import Iterable
 
 Fields = Iterable[tuple[str, list[str]]]
 
-_ASKED_REVIEW = ("review", "after")
+_ASKED_REVIEW = ("review", "after", "cleanup")
 _MARKER = re.compile(r"^[\s\"'*+-]+")
 _NONE = re.compile(r"none\b", re.I)
 _NONE_WHY = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
@@ -29,8 +29,9 @@ def review(fields: Fields, unfilled: str) -> str:
 
     `twice` is the default (the user, 2026-10-21: "from now on do one round of addressing fixes
     and then another round of review"), and `none` is for text-only or throwaway work. A brief
-    that asks for `review` or `after` says why on its `Decisions:` line: the user's words, or
-    `none, <why>` where jbus files the brief itself. A line that is missing, the template's own
+    that asks for `review`, `after` or `cleanup` says why on its `Decisions:` line: the user's
+    words, or `none, <why>` where jbus files the brief itself, as `jbus cleanup` files each
+    `cleanup` row. A line that is missing, the template's own
     text, or a `none` with no reason after a comma (`none`, `none yet`) gives no word.
     """
     fields = list(fields)

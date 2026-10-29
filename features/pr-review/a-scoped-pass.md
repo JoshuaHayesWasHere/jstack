@@ -4,6 +4,7 @@ A rebase gives a reviewed pull request another head. `jmerge` compares the head 
 
 A scoped pass is also the review of a fix.
 A fix pushed for a review's findings that changes a file outside `tests/` gets the same pass, of the fix alone, in place of a whole second review, and it is the last: a fix for its findings merges on the checks.
+Like any review after the first, it routes each finding by the severity it writes, whatever its bucket or tag: only an `error` goes to the crewmate, a `warning` goes to the cleanup row that step 6 files, and an `info` is dropped.
 The crewmate launches it in the turn that pushes the fix, when the block of the crew skill's "A second pass" prints `scoped: launch the scoped reviewer`, and where it did not, jbus asks it to.
 The message is the same one.
 Its ranges are the patch up to the head the last review saw, then the patch up to the fixed head, so the range-diff shows the fix as the commits on the new side alone.

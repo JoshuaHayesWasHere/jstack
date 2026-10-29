@@ -110,7 +110,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1068-1070
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1086-1088
     \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
     /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:139

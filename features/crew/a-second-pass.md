@@ -1,6 +1,7 @@
 ### A second pass
 
 A brief that says `Review: twice` runs none of this section: its second review is the one "The review" launches after its one fix round, and on a wake that finds it green, the `fixed and green` line is sent once that review is written.
+A brief that says `Review: cleanup` runs none of it either: a cleanup row gets one review, and a fix for its errors gets none.
 
 The reviewer reviews once and you fix once.
 Whether anybody reviews the fix depends on what it changed, whichever files the findings named.
@@ -8,6 +9,7 @@ A fix that changes a file outside `tests/` gets one scoped review: a reviewer th
 A fix that changes files under `tests/` only, or nothing, gets none: what stands behind it is the pull request's own checks.
 A blocking finding you declined by id gets that scoped review all the same, also when nothing was pushed: a decline changes no line, so nothing else would look at it again, and the scoped reviewer rules on it.
 That review is the last: a fix pushed for its findings gets no further review, and merges on its checks.
+Its findings are a second review's, so only its `error` findings come to this thread, and a fix is owed for those alone: its reviewer files its `warning` findings as the cleanup row, `cleanup-<slug>`, and drops its `info` ones ("The review").
 No fix gets a whole second review.
 
 What decides is this, run with the block at the top, in this worktree. Run it once the findings are handled and the fix, if there is one, is pushed, before the `Fixed:` line is written, and on each wake that finds the pull request green after that. It is the only check:
@@ -130,6 +132,7 @@ A pull request with more than one review and no `Scoped review:` line, the later
   Its `jroles review` runs with `--thread <thread id>`, and on exit 75 this thread makes no launch and ends its turn with the one line "The review" gives for a capped pool, whatever the "Launching" section says: jbus wakes it once the cap has ended.
 - `scoped: no scoped reviewer could be launched for this head`: the `Scoped reviewer: none` line is there and the home has been told. Nothing more to do: the pull request waits for the user's word.
 - `scoped: the scoped reviewer is launched`: nothing to do. Its findings come as a message in this thread, and the message comes after its `## Review` is written. One that arrives while this block still prints this line has no section behind it: write no answer and no `Fixed:` line for it, because `jmerge` goes by the section and waits for it, and jbus asks for a replacement reviewer when the section stays unwritten. Handle them as a review's: an answer by id for each, and the counting block until it says `write Fixed:`. Then the `Fixed:` line is one of three: the new head, if you pushed for these findings; left as it is, after a clean scoped pass; `Fixed: none needed, <reason>`, if it had findings and you declined them all. A reviewer whose review could not be done says so in its message and writes a section with `Verdict: not run`. That section is not a review, and the block still prints this line for it: add one line to the Result saying why the review was not done, and park a gate ("Do the task"), with the default that the pull request waits. A `Scoped reviewer:` line counts for the head it names after `of` and for no other, and one that names no head counts for none. A rebase's scoped reviewer is written the same way, `Scoped reviewer: <threadId>, of <head>`, as the message from jbus says. Once the head has moved the block prints the launch line again, for the head there is now.
+  Only its errors come in that message, and a scoped review with no error sends none and asks no line of you: its pull request merges on its checks, and the `Fixed:` line stays as it is.
 - `had`: the review of the fix is in the brief, as a `## Review` section of a later head than the one the `Scoped review:` line names, and its findings are handled as above. No reviewer is launched again, whatever a fix for its findings changed: the `fixed and green` line follows.
 - A decline the scoped pass did not uphold, its `Declines: not upheld F<n>: <the disproof>` line, is yours to fix: fix it, push, answer it `Finding F<n>: fixed, ...`, and write `Fixed: <the head you pushed>` again.
   Declining it again does not lift the ruling, and the fix gets no further review: the scoped pass is the last.

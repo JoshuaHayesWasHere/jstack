@@ -1,5 +1,5 @@
-"""`jbus cleanup <brief>`: print the brief of the cleanup row that a `Review: after` review
-needs.
+"""`jbus cleanup <brief>`: print the brief of the cleanup row that a review files: a `Review:
+after` brief's review, and the review after the first of a `Review: review` or `twice` brief.
 
 The pull request of a brief whose `Review:` line says `after` merges on its check alone
 (`jmerge.ready.after`). Its review's findings do not block the merge, and a crew fixes them
@@ -14,15 +14,23 @@ and the pull request's merge commit as GitHub gives it. Where the pull request h
 the brief gives the head the review saw instead, says it has not merged, and says the row launches
 after it merges. A finding with no repo path, `-` or none, stays out of the brief's `Where:`.
 Where the review needs no row, the command prints nothing but the reason, on one line, and exits
-with status 1. That is when the brief does not say `after` or `twice`, when the review is clean or
-has no verdict, or when the row is already in the queue. A `queue add` on a row that is already
-there would withdraw its approval.
+with status 1. That is when the brief says `none`, when the brief is itself a cleanup row, when
+the review is clean or has no verdict, or when the row is already in the queue. A `queue add` on a
+row that is already there would withdraw its approval.
 
-For a brief that says `twice`, the crew answers the first review in one fix round. The row's brief
-lists the findings of the second review (`ready.second_review`): each one of severity `warning` or
-`error`, whatever its bucket. The command drops the `info` findings and counts them. Until the
-reviewer writes that second review, the command prints `FIRST`, because the first review goes to the
-crew.
+Which findings the row lists is each finding's route, `findings.FILED` (`jbriefs.findings`), and
+the severity the review wrote decides it, whatever the bucket. For a brief that says `review`, the
+crew answers the first review, and after it only an error goes to the crew: the row lists the
+`warning` findings of the reviews after the first (`ready.second_review`), the scoped pass of the
+fix among them. For a brief that says `twice`, the crew answers the first review in one fix round,
+and the row lists the second review's `warning` and `error` findings. Both drop the `info`
+findings and count them. Until the reviewer writes a review after the first, the command prints
+`FIRST`, because the first review goes to the crew.
+
+Every row this command files says `Review: cleanup` (`findings.CLEANUP`): it gets one review, of
+its own diff, in which only an error goes to its crew and the rest is dropped. So the command files
+no row for a cleanup row, one filed before that line included, which it knows by its slug
+(`OWN`): no follow-up of a follow-up is queued.
 """
 
 from __future__ import annotations
@@ -38,12 +46,11 @@ from jbus import mirror, queue, verbs, watch
 from jmerge import ready
 
 PRIORITY = 50
-NOT_AFTER = "no cleanup row: the brief does not say Review: after or twice"
-FIRST = "first review: a Review: twice brief's first review goes to its crewmate, as step 4 named"
-NO_WARNING = (
-    "no cleanup row: its second review has no warning or error finding, {info} info dropped"
-)
-FILED = ("error", "warning")
+NO_REVIEW = "no cleanup row: the brief says Review: none"
+OWN = "no cleanup row: {slug} is a cleanup row, and a cleanup row files none of its own"
+FIRST = "first review: a brief's first review goes to its crewmate, as step 4 named"
+NO_WARNING = "no cleanup row: its second review has no {kept} finding, {info} info dropped"
+KEPT = {findings.REVIEW: "warning", findings.TWICE: "warning or error"}
 UNREVIEWED = "no cleanup row: its last review has no verdict yet"
 CLEAN = "no cleanup row: its last review is clean"
 THERE = "no cleanup row: {slug} is already in the queue"
@@ -59,21 +66,13 @@ def slug_of(slug: str) -> str:
 
 
 def filed(text: str) -> tuple[list[findings.Finding], int]:
-    """Return the findings the brief's cleanup row lists, and the count of those it drops.
-    For an `after` brief, they are the findings that the brief's triage sends, and the
-    function drops none. For a `twice` brief, they are the second review's findings of
-    severity `warning` or `error`, and the count is that of its `info` findings."""
+    """Return the findings the brief's cleanup row lists, those routed `findings.FILED`, and
+    the count of those the reviews after the first drop. An `after` brief's are the findings
+    its review sent, while its last verdict is `findings`."""
     said = ready.said_of(text)
-    if said.mode == ready.AFTER:
-        return (findings.triage(text).sent() if said.verdict == "findings" else []), 0
-    heads = ready.second_review(text)
-    second = [
-        one
-        for one in said.triage.findings
-        if one.lead.head in heads and not one.superseded and one.bucket != findings.DISMISSED
-    ]
-    kept = [one for one in second if one.severity in FILED]
-    return kept, len(second) - len(kept)
+    if said.mode == ready.AFTER and said.verdict != "findings":
+        return [], 0
+    return said.triage.routed(findings.FILED), len(said.triage.routed(findings.DROPPED))
 
 
 def brief(
@@ -89,7 +88,7 @@ def brief(
     is open. The row has the `Home:` line of `text`, so its Result goes to the home of
     the work."""
     sent, dropped = kept
-    if said.mode not in (ready.AFTER, ready.TWICE) or not sent:
+    if said.mode not in (ready.AFTER, ready.TWICE, ready.REVIEW) or not sent:
         return ""
     url, _ = watch.named(mirror.last_result(text) or "")
     pull = (
@@ -97,11 +96,19 @@ def brief(
         if merge
         else OPEN.format(url=url, head=said.reviewed or "its head")
     )
-    twice = said.mode == ready.TWICE
-    listed = "\n".join(f"- {_shown(one, twice)}" for one in sent)
+    second = said.mode in (ready.TWICE, ready.REVIEW)
+    listed = "\n".join(f"- {_shown(one, second)}" for one in sent)
     places = sorted(dict.fromkeys(one.path for one in sent if one.path not in ("", "-")))
     waits = " Its pull request is open and has not merged, so this row launches after it merges."
-    if twice:
+    if said.mode == ready.REVIEW:
+        why = "so it merged once its second review's errors were fixed, and" if merge else "and"
+        head = (
+            f"# {slug_of(slug)}: fix the warnings the second review of {slug} found\n"
+            f"Task: {slug} said `Review: review`, {why} the warning findings of its second "
+            f"review come here; its errors were its crewmate's, and its {dropped} info findings "
+            f"were dropped.{'' if merge else waits} Pull request: {pull}.\n"
+        )
+    elif said.mode == ready.TWICE:
         why = (
             "so it merged once its second review was written, and that review's"
             if merge
@@ -134,18 +141,19 @@ def brief(
         f"Decisions: none, jbus files this follow-up of {slug}'s review, and its findings "
         "are the task\n"
         "Pull request: open one when done\n"
-        "Review: review\n"
+        f"Review: {findings.CLEANUP}\n"
         "Playbook: bug-fix\n"
         f"Builds on: {slug}: the code of its pull request, which the findings are in\n"
         + (f"Home: {named}\n" if named else "")
     )
 
 
-def _shown(one: findings.Finding, twice: bool) -> str:
-    """Return one finding's line. A `twice` row's line includes the finding's severity,
-    which is why the finding is in the row. An `after` row's line keeps its old form."""
+def _shown(one: findings.Finding, second: bool) -> str:
+    """Return one finding's line. A line from a second review includes the finding's
+    severity, which is why the finding is in the row. An `after` row's line keeps its old
+    form."""
     place = f"{one.path}:{one.line}" if one.line is not None else one.path
-    severity = f"{one.severity} " if twice else ""
+    severity = f"{one.severity} " if second else ""
     risk = f" (risk: {one.risk})" if one.risk else ""
     return f"{one.id} {severity}{place}: {one.lead.what} ({one.bucket}){risk}"
 
@@ -180,16 +188,19 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
         raise jbus.Refused(f"refused: no brief at {path} ({error.strerror})") from error
     slug = path.stem
     said = ready.said_of(text)
-    if said.mode not in (ready.AFTER, ready.TWICE):
-        print(NOT_AFTER)
+    if said.mode == ready.NONE:
+        print(NO_REVIEW)
         return 1
-    if said.mode == ready.TWICE and not ready.second_review(text):
+    if said.mode == findings.CLEANUP or slug.startswith(slug_of("")):
+        print(OWN.format(slug=slug))
+        return 1
+    if said.mode in KEPT and not ready.second_review(text):
         print(FIRST)
         return 1
     kept = filed(text)
     why = ""
-    if said.mode == ready.TWICE and not kept[0]:
-        why = NO_WARNING.format(info=kept[1])
+    if said.mode in KEPT and not kept[0]:
+        why = NO_WARNING.format(kept=KEPT[said.mode], info=kept[1])
     elif said.verdict not in ("clean", "findings"):
         why = UNREVIEWED
     elif said.verdict == "clean":
@@ -209,8 +220,8 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
 VERBS = (
     verbs.Verb(
         "cleanup",
-        "print the cleanup row a Review: after review or a Review: twice second review owes, "
-        "or why none",
+        "print the cleanup row a Review: after review, or the second review of a Review: "
+        "review or twice brief, owes, or why none",
         _arguments,
         _run,
     ),

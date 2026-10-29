@@ -63,6 +63,9 @@ INTENT=$(
   fi
   play=$(uv run --project "$T/../source" jbus playbook reviewer "$BRIEF")
   if [ -n "$play" ]; then printf '\n%s\n' "$play"; fi
+  if [ "$(awk '/^Review:/ {print $(2); exit}' "$BRIEF")" = cleanup ]; then
+    printf '\nThis is a cleanup row: it fixes the findings its Done when lines list, and nothing else. Read its own diff alone. Only an error this review finds goes to its crewmate, and every other finding is dropped.\n'
+  fi
   printf '\n%s\n' "$SCOPE"
 )
 I="$T/../skills/interrogate/references"
@@ -114,6 +117,7 @@ echo "$D/prompt.md"
   The scope is the pull request's diff, `gh pr diff <url>`.
   The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief has a `Skills:` line that is not `none`, that line with what each named skill owes and the artifact the Results hold for each, as `jbriefs --skills-run` prints it with `jmerge`'s own reading, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites, read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text.
   A scoped pass puts the earlier findings and the crew's answers, as `jbriefs --findings` prints them, right above the `SCOPE` text ("A scoped pass", step 3).
+  A cleanup row, a brief that says `Review: cleanup`, has a few sentences more right above the `SCOPE` text: its review reads its own diff alone, and only an error of it goes to its crewmate.
   That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
 - Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff is in it as GitHub sent it, not retyped by this thread. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
 - Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
@@ -128,6 +132,10 @@ echo "$D/prompt.md"
 - **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on)` or `(bucket: Consider)`, in the forms "Outside the diff" gives. The bucket tag is what `jmerge` reads: an **Act on** finding holds the merge until the crewmate answers it by id, a **Consider** one does not. A finding on security, auth, billing, data, migrations or concurrency ends with one more tag, `(risk: <that area>)`: the crewmate may not decline it without a gate that asks the user. Write no id: `jbriefs --findings` gives each finding its id, and merges this reviewer's with another's of the same place. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there, `<severity> <file>:<line> <what is wrong> (principle: <name>) (dismissed: <the reason>)`: it is what lets the user overrule the lead, and where another reviewer raised the same finding, `jbriefs --findings` prints the dismissal beside it. Neither goes to the crewmate.
 - The buckets are the lead's reading. What the crewmate does with a finding is still its own: `Finding F<n>: fixed`, or `Finding F<n>: not fixed` with a reason (the crew skill, "The review").
+- In a review after the first, a scoped pass or a second pass, and in the one review of a cleanup row, a brief that says `Review: cleanup`, the severity alone routes each finding, and the bucket and the risk tag are written as they are and route nothing (`jbriefs.findings`, `_LATER`).
+  Only an `error` goes to the crewmate and holds the merge.
+  A `warning` goes to the cleanup row, `cleanup-<slug>`, that "After the review" files, and a cleanup row's own warnings are dropped, so no follow-up of a follow-up is queued.
+  An `info` is dropped.
 
 **5. The one safety fact.** Read `$T/../skills/blast-radius/SKILL.md` now, its "How sure are you" list and its steps 2 and 5: find the one fact this change is safe because of, and prove it by running real code at this head. Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
 

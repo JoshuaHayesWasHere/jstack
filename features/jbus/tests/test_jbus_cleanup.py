@@ -167,8 +167,8 @@ def assert_open(stored):
     [
         ("after", "clean", cleanup.CLEAN),
         ("after", "not run", cleanup.UNREVIEWED),
-        ("review", "findings", "not after:"),
-        ("none", "findings", "not after:"),
+        ("review", "findings", cleanup.FIRST),
+        ("none", "findings", cleanup.NO_REVIEW),
     ],
 )
 def test_a_clean_review_or_another_mode_makes_no_row(reviewer, mode, verdict, said):
@@ -248,9 +248,9 @@ def test_a_finding_with_no_repo_path_stays_out_of_where(reviewer):
 
 def test_a_second_review_of_info_findings_alone_or_clean_makes_no_row(reviewer):
     twice(reviewer, "".join(line for line in SECOND.splitlines(True) if line.startswith("- info")))
-    assert reviewer.run().strip() == cleanup.NO_WARNING.format(info=2)
+    assert reviewer.run().strip() == cleanup.NO_WARNING.format(kept="warning or error", info=2)
     twice(reviewer, "")
-    assert reviewer.run().strip() == cleanup.NO_WARNING.format(info=0)
+    assert reviewer.run().strip() == cleanup.NO_WARNING.format(kept="warning or error", info=0)
     assert reviewer.rows() == []
 
 
@@ -258,3 +258,62 @@ def test_the_first_review_of_a_twice_brief_files_nothing_and_goes_to_the_crew(re
     twice(reviewer)
     assert reviewer.run().strip() == cleanup.FIRST
     assert reviewer.rows() == []
+
+
+SCOPED = (
+    "- error src/a.py:40 the retry never stops (bucket: Consider)\n"
+    "- warning src/d.py:7 a test asserts what the code computed (bucket: Act on)\n"
+    "- warning src/e.py:2 a write is not undone on a crash (bucket: Act on) (risk: data)\n"
+    "- info src/c.py:1 not worth it (bucket: Act on)\n"
+)
+
+
+def scoped(reviewer, second=SCOPED, slug="alpha", mode="review"):
+    """Write a `review` brief whose crew answered its first review and pushed its fix, and whose
+    fix has its scoped pass, which found `second`."""
+    (reviewer.tasks / f"{slug}.md").write_text(
+        f'# {slug}: a task\nTask: "do it"\nPull request: open one when done\nReview: {mode}\n\n'
+        f"## Result\nStatus: done\nBranch: {slug}   Pull request: {PULL}\n"
+        f"Reviewer: mcp:9 #1\nFinding F1: fixed, the loop\nScoped review: needed since {HEAD}, "
+        f"the fix changed src/a.py\nFixed: {FIX}\nScoped reviewer: mcp:10, of {FIX}\n\n"
+        f"## Review\nBy: codex #1\nVerdict: findings\nHead: {HEAD}\nFindings:\n{FOUND}"
+        f"\n## Review\nBy: codex #1\nVerdict: findings\nScope: range-diff x..{HEAD} x..{FIX}\n"
+        f"Head: {FIX}\nFindings:\n{second}"
+    )
+
+
+def test_the_second_review_of_a_review_brief_files_its_warnings_alone_as_a_small_row(reviewer):
+    scoped(reviewer)
+    reviewer.run()
+    (row,) = reviewer.rows()
+    assert (row["slug"], row["depends"]) == ("cleanup-alpha", ["alpha"])
+    stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
+    (done,) = [part for part in stored.split("Done when:\n")[1:]]
+    listed = [one for one in done.splitlines() if one.startswith("- F")]
+    assert listed == [
+        "- F5 warning src/d.py:7: a test asserts what the code computed (Act on)",
+        "- F6 warning src/e.py:2: a write is not undone on a crash (Act on) (risk: data)",
+    ], "the error is its crewmate's, the info is dropped, and the first review's are done"
+    assert "\nSize: S\n" in stored and "\nReview: cleanup\n" in stored
+    assert "Where: `src/d.py`, `src/e.py`\n" in stored
+    assert "its 1 info findings were dropped" in task_line(stored)
+
+
+def test_a_second_review_of_a_review_brief_with_errors_alone_makes_no_row(reviewer):
+    scoped(reviewer, SCOPED.splitlines(True)[0] + SCOPED.splitlines(True)[3])
+    assert reviewer.run().strip() == cleanup.NO_WARNING.format(kept="warning", info=1)
+    assert reviewer.rows() == []
+
+
+@pytest.mark.parametrize(
+    ("slug", "mode"), [("tidy", "cleanup"), ("cleanup-alpha", "review"), ("cleanup-beta", "twice")]
+)
+def test_a_cleanup_row_files_no_row_of_its_own_whatever_its_findings(reviewer, slug, mode):
+    scoped(reviewer, slug=slug, mode=mode)
+    done = subprocess.run(
+        [sys.executable, "-m", "jbus", "cleanup", str(reviewer.tasks / f"{slug}.md")],
+        env={**os.environ, "JBUS_CONFIG_DIR": str(reviewer.config)},
+        capture_output=True,
+        text=True,
+    )
+    assert (done.returncode, done.stdout.strip()) == (1, cleanup.OWN.format(slug=slug))

@@ -156,8 +156,9 @@ LAUNCHED = "Reviewer: mcp:codex\nReviewer: mcp:cursor\n"
             + by("codex gpt-6-sol xhigh", TWO[:1])
             + by("cursor grok-4.7 xhigh", TWO[1:])
             + by("codex gpt-6-sol xhigh", TWO[1:], head="b" * 40),
-            "write Fixed: none needed, <reason>: 1 findings of the last review, none fixed",
-            id="a scoped review after the pair is the last review, and the pair is not",
+            "write nothing: the last review sends this thread no finding, since only an error "
+            "of a later review comes here, and the Fixed: line stays as it is",
+            id="a review after the pair is the last review, and sends no warning to the crew",
         ),
     ],
 )
@@ -381,7 +382,7 @@ def test_a_warning_fixed_beside_info_findings_declined_gets_the_review_of_its_fi
     ]
 
 
-def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased_head(
+def test_a_scoped_review_of_info_findings_alone_owes_nothing_at_the_rebased_head(
     proven_merged, rules
 ):
     rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
@@ -393,7 +394,9 @@ def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased
     reviews = jrun.proven("clean", rebased.before) + section
     rebased.brief(reviews, declined())
     state, brief = proven_merged.home.state, (proven_merged.home.tasks / "alpha.md").read_text()
-    assert said(state, "The review", "--left", brief) == [NONE_FIXED]
+    (left,) = said(state, "The review", "--left", brief)
+    assert left.startswith("write nothing:"), "a later review's info findings are dropped"
+    assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} alpha alpha"]
     assert said(state, "The review", "Second pass:", brief, cwd=proven_merged.tree) == [
         NOTHING_PUSHED
     ]

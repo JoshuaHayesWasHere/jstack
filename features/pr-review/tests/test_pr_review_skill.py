@@ -502,6 +502,17 @@ def test_a_playbook_that_is_not_a_crewmates_is_said_and_no_principle_follows(rev
     assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
 
 
+def test_a_cleanup_rows_review_is_told_it_reads_its_own_diff_and_only_an_error_goes_on(reviewer):
+    reviewer.brief.write_text(BRIEF + "Review: cleanup\n")
+    said = intent(reviewer)
+    assert said.startswith(f"{INTENT}\n") and said.endswith(f"\n\n{scope()}\n")
+    told = said.removeprefix(f"{INTENT}\n").removesuffix(f"\n\n{scope()}\n")
+    assert "This is a cleanup row" in told and "Read its own diff alone." in told
+    assert "Only an error this review finds goes to its crewmate" in told
+    reviewer.brief.write_text(BRIEF + "Review: review\n")
+    assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
+
+
 def test_a_brief_whose_playbook_is_none_gives_the_reviewers_the_brief_alone(reviewer):
     reviewer.brief.write_text(BRIEF + "Playbook: none\n")
     assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
