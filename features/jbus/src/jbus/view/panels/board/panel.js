@@ -17,7 +17,7 @@ var BOARD_STYLE = '<style>' +
   '.bd-st { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: 15px; white-space: nowrap; }' +
   '.bd-st .bd-sw { color: var(--ink-2); } .bd-st .ask { color: var(--due); font-weight: 700; } .bd-st .bad { color: var(--missed); font-weight: 700; }' +
   '.bd-dots { display: inline-flex; gap: 3px; } .bd-dots i { display: block; flex: none; width: 12px; height: 6px; border-radius: 3px; background: var(--hair); }' +
-  '.bd-dots i.bd-was { background: var(--ink-3); } .bd-dots i.bd-at { background: var(--brand); width: 18px; }' +
+  '.bd-dots i.bd-was { background: var(--ink-3); } .bd-dots i.bd-at { background: var(--run); width: 18px; }' +
   '.bd-dots.ask i.bd-at { background: var(--due); } .bd-dots.bad i.bd-at { background: var(--missed); }' +
   '.bd-a { font-size: 15px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }' +
   '.bd-goal { margin: 2px 0 6px; font-size: 15px; color: var(--ink-2); }' +
@@ -25,7 +25,7 @@ var BOARD_STYLE = '<style>' +
   '.bd-chain li { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }' +
   '.bd-chain li + li::before { content: "\\2192"; color: var(--ink-3); margin: 0 4px 0 2px; }' +
   '.bd-m { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 2px var(--ink-3); }' +
-  '.bd-m.merged { background: var(--ink-3); } .bd-m.working { background: var(--brand); box-shadow: none; } .bd-m.queued { box-shadow: inset 0 0 0 2px var(--brand); } .bd-m.parked { box-shadow: inset 0 0 0 2px var(--hair); }' +
+  '.bd-m.merged { background: var(--ink-3); } .bd-m.working { background: var(--run); box-shadow: none; } .bd-m.queued { box-shadow: inset 0 0 0 2px var(--brand); } .bd-m.parked { box-shadow: inset 0 0 0 2px var(--hair); }' +
   '.bd-chain .merged .bd-cs, .bd-chain .parked .bd-cs { color: var(--ink-2); } .bd-chain .working .bd-cs { font-weight: 700; }' +
   '.bd-cs { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
   '.bd-done { margin: 0; padding: 4px 0 0; border-top: 1px solid var(--hair); font-size: 15px; color: var(--ink-2); }' +

@@ -1,6 +1,6 @@
-var MS_PARTS = [["over", "merged", "var(--brand)"], ["pr", "at a pull request", "color-mix(in srgb, var(--brand) 45%, var(--surface))"], ["work", "in work", "var(--ink-3)"], ["queued", "queued", "var(--hair)"]];
+var MS_PARTS = [["over", "merged", "var(--ok)"], ["pr", "at a pull request", "color-mix(in srgb, var(--run) 45%, var(--surface))"], ["work", "in work", "var(--ink-3)"], ["queued", "queued", "var(--hair)"]];
 var MS_MARK = {
-  merged: ["merged", "background:var(--brand);border-color:var(--brand)", "var(--on-brand)"],
+  merged: ["merged", "background:var(--ok);border-color:var(--ok)", "var(--on-brand)"],
   working: ["working", "background:var(--surface);border-color:var(--ink-2)", "var(--ink)"],
   waiting: ["waiting on review or check", "background:var(--surface);border-color:var(--ink-3);border-style:dashed", "var(--ink)"],
   queued: ["queued", "background:var(--sunk);border-color:var(--hair);border-style:dashed", "var(--ink-2)"],
