@@ -208,9 +208,11 @@ def commands(piece):
 
 
 def strays(at, words):
-    """The verbs and flags in the words after a command's name that its help does not have."""
+    """The verbs and flags in the words after a command's name that its help does not have. A `;`
+    that shlex leaves on a word ends the command after that word."""
     found, skip, placed = [], False, False
-    for word in filter(None, (word.strip("[]") for word in words)):
+    words = [part for word in words for part in re.split(r"(;)$", word.strip("[]"))]
+    for word in filter(None, words):
         if skip:
             skip = False
         elif word in ENDS or word in SCRIPTS:
@@ -397,6 +399,7 @@ def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(tr
             'uv run --project "$T/../source" jbus scout add a-slug',
             'elif ! shown=$(jbus --project "$P" noticed 2>&1); then',
             "jbus queue list",
+            "if jgauge room --dark; then jbus nothere; fi",
             "```",
         )
     )
@@ -406,6 +409,8 @@ def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(tr
         'jbus: the verb scout, in `uv run --project "$T/../source" jbus scout add a-slug`',
         'jbus: the verb noticed, in `elif ! shown=$(jbus --project "$P" noticed 2>&1); then`',
         "jbus queue: the verb list, in `jbus queue list`",
+        "jgauge room: --dark, in `if jgauge room --dark; then jbus nothere; fi`",
+        "jbus: the verb nothere, in `if jgauge room --dark; then jbus nothere; fi`",
     ]
     assert gone(trees, "On `jbus is not installed`, say so.", spans=False) == []
     told = "\n".join(
