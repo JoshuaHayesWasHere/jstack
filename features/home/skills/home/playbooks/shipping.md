@@ -42,6 +42,7 @@ Never done here, and who does it:
 - **GitHub's auto-merge or merge-when-ready on a link.** Nobody does: `jmerge` merges at the head it checked.
 - **A watch on the pull request being landed.**
   Nobody does: jbus's pass merges it, and nudges this home when it stays quiet with work out.
-- **Verifying a link again after its move.** Nobody does: `jmerge` compares the moved head with the reviewed one by `git range-diff`, and asks for a scoped review only where the content changed.
+- **Verifying a link again after its move.**
+  Nobody does: `jmerge` compares the moved head with the reviewed one by `git range-diff`, and asks for a scoped review only where the content changed.
 
 **Hand over:** in this thread, to the user, after each merge and at the close: what landed, with pull request and commit; the link that stopped the landing and why; what the next link needs; and the open gates.
