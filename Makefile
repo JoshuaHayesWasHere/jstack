@@ -38,10 +38,8 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n"
 # four jobs side by side, one for each part.
 PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
 
-# The lint of `check` and `check-fast`: features/writing/scripts/comment_lint.py warns on the
-# mechanical unslop rules in the comments and docstrings of the files changed since BASE and fails
-# nothing, scripts/generate-jstack-trees.py fails a generated file stale against features/, and
-# scripts/check-jstack-docs.py a page of the README or docs that says what the tree does not have.
+# The lint of `check` and `check-fast`. comment_lint.py only warns; generate-jstack-trees.py fails
+# a stale generated file, and check-jstack-docs.py a doc that says what the tree does not have.
 BASE ?= origin/main
 
 .PHONY: lint
@@ -52,6 +50,9 @@ lint:
 	uv run ruff check .
 	uv run ruff format --check .
 
+# `make test TESTS=<files>` runs only those files. TESTS stays out of the environment, where a
+# make that a test runs would take it for its own.
+unexport TESTS
 .PHONY: test
 test:
 	$(PYTEST)$(if $(TESTS), $(TESTS))
@@ -59,10 +60,9 @@ test:
 .PHONY: check
 check: lint test
 
-# The check of a change: features/writing/scripts/prose_lint.py holds each prose line the diff
-# from BASE adds to one sentence, then the lint and `make test TESTS=<files>`, the files that
-# scripts/select_tests.py names for the diff, or `make check` where it says `all`. A pull
-# request's CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge; a desk, origin/main.
+# The check of a change: prose_lint.py on the prose lines the diff from BASE adds, the lint, and the
+# files select_tests.py names for the diff, one a line, which the unquoted `echo` puts on one; or
+# `make check` where it says `all`. CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge.
 .PHONY: check-fast
 check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
