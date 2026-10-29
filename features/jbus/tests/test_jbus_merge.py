@@ -187,7 +187,7 @@ def test_a_jmerge_that_stops_for_another_reason_is_still_said_on_each_pass(kitch
 
 STEPS = {name: reason.step for name, reason in ready.reasons().items()}
 WORDS = {"REQUIRED", "RULES", "GRAMMAR", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "UNKNOWN"}
-WORDS |= {"REVIEW", "NONE", "AFTER", "TWICE"}
+WORDS |= {"REVIEW", "NONE", "AFTER", "TWICE", "CLEANUP"}
 WORDS |= {"BROWSER", "BROWSER_FAILED", "BROWSER_PENDING"}
 
 
@@ -204,7 +204,7 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     earlier rule takes for another step, and on a constant that is no `Reason` and no word.
     `WORDS` are the strings that `ready` names but that are not reasons: the checks' names, the
     rules' path, the section that has the lists' grammar, the words of a note and of a local
-    check's result, the code of a reason no rule names, the four review modes a brief's
+    check's result, the code of a reason no rule names, the five review modes a brief's
     `Review:` line says, and the states of a browser run.
 
     One reason is on no step, and the view shows it as Unknown and tells no home: `OTHER_HOME`,
