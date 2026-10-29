@@ -122,6 +122,20 @@ def test_a_done_result_naming_no_pull_request_with_no_commit_of_its_own_is_done(
     assert column(kitchen) == ("done", "", "") and sends(kitchen) == []
 
 
+def test_a_held_row_that_ended_with_no_commit_of_its_own_comes_back_to_done(kitchen):
+    """A row an older rule moved back from done, which the home then held, is done on the next pass
+    and leaves the table `jbus queue show` prints."""
+    add(kitchen, "alpha")
+    branched(kitchen, commits=0)
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.t3.thread("alpha", "completed")
+    assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
+    kitchen.poll()
+    assert column(kitchen) == ("done", "", "")
+    code, shown = kitchen.main("--project", "demo", "queue", "show")
+    assert code == 0 and "| alpha |" not in shown
+
+
 def test_a_done_row_whose_result_names_no_pull_request_its_brief_asks_for_is_not_reopened(kitchen):
     """The rule on a pull request owed is judged as a row moves to done: a pass never moves a row
     already done back, even one whose branch has a commit of its own."""

@@ -231,7 +231,7 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
         if (
             result
             and not unfinished(result)
-            and not owes_pull(text, result)
+            and not owes_pull(run, slug, text, result)
             and slug not in world.open
         ):
             tasks.add(slug)
@@ -450,7 +450,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
         if slug in run.limited:
             continue
         result = mirror.last_result(brief)
-        owes = owes_pull(brief, result)
+        owes = owes_pull(run, slug, brief, result)
         over = not at_work([thread]) if owes else status in ENDED
         if not over or not ended or thread.get("settled") or thread.get("snoozed"):
             continue

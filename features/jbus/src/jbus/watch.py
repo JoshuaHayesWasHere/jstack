@@ -460,16 +460,32 @@ def unfinished(result: str) -> str:
     return ""
 
 
-def owes_pull(brief: str, result: str) -> bool:
+def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     """Say whether a crew's Result that would end its task clean still owes the pull request its
-    brief asks for (`Pull request: open one ...`): its `Branch:` line names none. Such a task is not
-    done, whatever its `Status:` says: its row runs, and its thread is told once to open it
-    (`threads.resume`). A brief whose `Pull request:` line says none, a scout's or a report's, owes
-    nothing. Neither does a follow-up Result, a later round: the home's close of a row nothing more
-    is wanted of (`leftover`), or the crew's answer once it was told."""
+    brief asks for (`Pull request: open one ...`): its `Branch:` line names none, and that branch
+    has a commit of its own (`own`). Such a task is not done, whatever its `Status:` says: its row
+    runs, and its thread is told once to open it (`threads.resume`). A crew that found nothing to
+    change owes nothing. Nor does a brief whose `Pull request:` line says none, a scout's or a
+    report's, or a follow-up Result, a later round: the home's close of a row nothing more is
+    wanted of (`leftover`), or the crew's answer once it was told. The rule is judged as a row
+    moves to done: a row the table had at done when the pass began owes nothing (`Pass.done`)."""
     if not result.startswith("## Result\n") or unfinished(result):
         return False
-    return bool(_ASKS.search(brief.split("\n## ")[0]))
+    if slug in run.done or not _ASKS.search(brief.split("\n## ")[0]):
+        return False
+    return own(run, below.line(result, "Branch:").split()[0])
+
+
+def own(run: Pass, branch: str) -> bool:
+    """Say whether a branch has a commit on neither the default branch nor the commit it was made
+    from, the first line of its reflog: a crew's worktree starts from main, or from the branch of
+    the link it was stacked on, whose commits are not the crew's. A branch that is gone has none."""
+    ref = f"refs/heads/{branch}"
+    made = run.run("git", "reflog", "show", "--format=%H %gs", ref).stdout.splitlines()
+    start = made[-1].split()[0] if made and " branch: Created from " in made[-1] else ""
+    base = f"origin/{_default_branch(run)}"
+    asked = run.run("git", "rev-list", "-n", "1", ref, "--not", base, *filter(None, [start]))
+    return not asked.returncode and bool(asked.stdout.strip())
 
 
 def after_merge(result: str) -> bool:
@@ -501,7 +517,7 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
     if thread is None or at_work([thread]):
         return None
     result = world.result(run, slug)
-    if not result or owes_pull(brief_of(run, slug), result):
+    if not result or owes_pull(run, slug, brief_of(run, slug), result):
         return None
     short = unfinished(result)
     return End("left", short) if short else End("done")
@@ -676,7 +692,7 @@ def facts(
         result = last_result(brief_of(run, slug))
         found = seen.crew(slug)
         said = thread(found, str((found or {}).get("live", "")))
-    owes = owes_pull(brief_of(run, slug), result)
+    owes = owes_pull(run, slug, brief_of(run, slug), result)
     if owes and said in OVER:
         said = work.Thread.QUIET
     answered = seen.answered
@@ -782,7 +798,7 @@ def owed(run: Pass, role: str, slug: str) -> work.Written:
     if role == "crew":
         brief = brief_of(run, slug)
         result = last_result(brief)
-        return work.Written.NONE if owes_pull(brief, result) else written(result)
+        return work.Written.NONE if owes_pull(run, slug, brief, result) else written(result)
     return work.Written.CLEAN
 
 
