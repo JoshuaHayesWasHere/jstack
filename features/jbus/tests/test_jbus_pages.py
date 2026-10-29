@@ -1,7 +1,7 @@
 """These tests check the built part of `features/jbus/docs/jbus/`, and the length of every docs
-page.
+page, each page under a `features/<name>/docs/`.
 
-`LONG` names each page over the cap, by its path under docs/, until somebody splits the page. The
+`LONG` names each page over the cap, by its path in the repo, until somebody splits the page. The
 list only shrinks."""
 
 import shutil
@@ -14,16 +14,24 @@ import pytest
 from jbus import pages, wake
 from testing.paths import REPO
 
+READ_SET = ("features/*/docs/",)
+
 CAP = 300
-LONG = frozenset()
+LONG = frozenset(
+    {
+        "features/jbus/docs/jbus/the-queue.md",
+        "features/jinstall/docs/configuration.md",
+        "features/jmerge/docs/jmerge.md",
+    }
+)
 
 
 def over(root, allowed):
-    """Return the pages under `root/docs` that are over the cap and that `allowed` lacks, and the
-    pages that `allowed` lists that are no longer over the cap."""
+    """Return the pages under each `root/features/<name>/docs` that are over the cap and that
+    `allowed` lacks, and the pages that `allowed` lists that are no longer over the cap."""
     lengths = {
-        str(path.relative_to(root / "docs")): len(path.read_text().splitlines())
-        for path in (root / "docs").glob("**/*.md")
+        str(path.relative_to(root)): len(path.read_text().splitlines())
+        for path in root.glob("features/*/docs/**/*.md")
     }
     long = {name for name, lines in lengths.items() if lines > CAP}
     return [f"{name}: {lengths[name]} lines" for name in sorted(long - allowed)] + [
