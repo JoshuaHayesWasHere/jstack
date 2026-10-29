@@ -927,7 +927,6 @@ def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(pane
     assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
 
 
-
 SCRIPTS = {
     "scripts/kit/__init__.py": "",
     "scripts/kit/walk.py": "def walk():\n    pass\n",
@@ -1040,7 +1039,6 @@ def test_an_all_says_which_path_forced_it(repo, tmp_path):
     assert found, lines[0]
     assert (found["selection"], int(found["files"]), int(found["of"])) == ("all", total, total)
     assert found["forced"] == "pyproject.toml"
-
 
 
 def test_a_changed_python_file_in_no_module_set_is_named_under_the_summary_line(repo, tmp_path):
@@ -1244,7 +1242,8 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
     unread = [
         f"{name} from {Path(file).relative_to(REPO)}"
         for name, file in found["files"].items()
-        if name in imported and Path(file).is_relative_to(scripts)
+        if name in imported
+        and Path(file).is_relative_to(scripts)
         and select.modules().get(name) != Path(file).relative_to(REPO).as_posix()
     ]
     assert (missing, found["failed"], unread) == ([], [], [])
