@@ -431,6 +431,11 @@ If no line is lost, `git range-diff` between the head the review saw and the reb
   `jmerge` merges once a `## Review` names the rebased head.
   A range-diff that cannot run counts as a content change.
 
+The reviewed range leaves out the commits the rebased head's base already holds.
+A stacked link's range can start below the link under it, and so hold that link's squash merge on main, which pairs with nothing in the new range.
+`jmerge` starts the reviewed range at its fork from the new base instead, when git names one fork above the old start.
+A commit of the pull request's own that the rebase changed or left out is still a change.
+
 When the rebase drops a line, `jmerge` waits for the crewmate and prints `the rebase dropped <k> of main's lines in <file> ... with no Dropped on rebase line at <head12>`.
 The crewmate puts the lines back, or adds `Dropped on rebase: <file>, <k> of main's, <j> of its own, at <head12>: <why>` to its Result.
 The scoped review then rules on each such file with a `Drops: upheld <files>` or `Drops: not upheld <file>: <why>` line.
