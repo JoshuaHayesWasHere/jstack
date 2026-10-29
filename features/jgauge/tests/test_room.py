@@ -539,16 +539,13 @@ def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_
     assert errors == [] and seen and set(seen) == {True}
 
 
-def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path, monkeypatch):
-    """The second write comes a second after the first, as one does on a loaded machine. The
-    limits are one text for both: a plan of windows resets a time from now, so a second later
-    it is another text, and `put` rewrites it as it should."""
+def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path):
+    """The limits text is built once, so the two writes hold the same text whatever second
+    each comes in: a plan of windows resets a time from now."""
     plan = limits(FRESH)
     machine(tmp_path, **IDLE, plan=plan)
     names = ("stub/df", "stub/nproc", "stub/tmp/df", "proc/loadavg", "limits")
     before = {name: (tmp_path / name).stat() for name in names}
-    later = time.time() + 1
-    monkeypatch.setattr(time, "time", lambda: later)
     machine(tmp_path, **IDLE, plan=plan)
     after = {name: (tmp_path / name).stat() for name in names}
     assert {name: (one.st_ino, one.st_mtime_ns) for name, one in after.items()} == {
