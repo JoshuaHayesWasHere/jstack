@@ -8,7 +8,7 @@ that acted, the `Action` it took, the `Evidence` it acted on, and what came of i
   The bot has no name: one bot speaks for the user, and it is known by its route alone.
 - `Door`: an action that is irreversible or slow to revert. `DOORS` is the one table of them:
   the six cases a gate's `Holds:` line names (`CASES`), each with the words that name it in
-  prose, which `jbus.waiting` and `jbus.item` read.
+  prose, which `jbus.waiting` and `jbus.item` read in a gate's words as `prose` gives them.
 - `Evidence`: the user's words an act rests on, and where jbus read them. `checked` says jbus
   read the words and their time itself, in T3 Code (a message, or the answer to a question box)
   or on a Lavish page; anything typed or
@@ -25,6 +25,7 @@ evidence. Everything else the bot or a home may do as the user would.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal, get_args
 
@@ -98,6 +99,14 @@ CASES = tuple(one.case for one in DOORS)
 
 def door(case: str) -> Door:
     return next(one for one in DOORS if one.case == case)
+
+
+def prose(words: str) -> str:
+    """A gate's words as the door table reads them: with its `Asked by:` line left out, and each
+    run of words joined by hyphens read as one word. A slug such as token-no-cleanup-rows then
+    names no door, while force-push, e-mail and api-key still do."""
+    words = re.sub(r"^\s*Asked by:.*$", "", words, flags=re.M | re.I)
+    return re.sub(r"(?<=\w)-(?=\w)", "", words)
 
 
 SOURCE = {

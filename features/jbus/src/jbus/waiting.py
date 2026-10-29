@@ -460,7 +460,8 @@ def _approvable(run: Pass, slug: str) -> bool:
 
 def paused(text: str) -> str:
     """Return the always-pause name that matches a text, or nothing."""
-    return next((name for name, rule in PAUSE.items() if re.search(rule, text, re.I)), "")
+    words = party.prose(text)
+    return next((name for name, rule in PAUSE.items() if re.search(rule, words, re.I)), "")
 
 
 def _last_events(run: Pass) -> dict[str, datetime]:
