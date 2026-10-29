@@ -262,6 +262,8 @@ def test_a_job_env_is_read_from_its_own_job_and_not_from_a_step():
 def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_naming_it(
     tmp_path,
 ):
+    from jbus import shots
+
     found, _ = steps(BROWSER.read_text(), "browser")
     names = [step.get("name") for step in found]
     look = found[names.index("test browser")]
@@ -269,6 +271,7 @@ def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_
     assert names.index("test browser") == names.index("chrome for testing") + 1
     assert names[-2:] == ["make check-browser", "the view's shots"] and "if" not in look
     assert found[-1]["if"] == "failure()"
+    assert found[-1]["with"]["name"] == shots.ARTIFACT
     browser = tmp_path / "google-chrome"
 
     def ran():
@@ -2004,8 +2007,20 @@ def test_each_check_jmerge_requires_is_a_job_of_a_pull_request_and_borders_fails
     assert set(ready.REQUIRED) <= set(pulled)
     for name, workflow in pulled.items():
         assert name in jobs(workflow.read_text())
-    (*_, lint), _ = steps(BORDERS.read_text(), "borders")
+    found, _ = steps(BORDERS.read_text(), "borders")
+    (lint,) = [step for step in found if step.get("name") == "lint borders"]
     assert lint["run"].startswith("python3 scripts/lint-borders.py --hard ")
+
+
+def test_borders_fails_a_pull_request_that_changes_a_kept_shot_and_another_file_after_any_lint():
+    """The kept shots are the shots row's alone (`jbus.shots`): borders, a check jmerge requires,
+    runs the rule over the pull request's diff from the tip of its base, after the lint whatever
+    the lint said."""
+    found, _ = steps(BORDERS.read_text(), "borders")
+    names = [step.get("name") for step in found]
+    assert names[-2:] == ["lint borders", "kept shots"]
+    assert found[-1]["run"] == "python3 features/jbus/scripts/kept_shots.py --base HEAD^1"
+    assert found[-1]["if"] == "${{ !cancelled() }}"
 
 
 NO_AI_TRAILERS = REPO / "scripts" / "no_ai_trailers.py"

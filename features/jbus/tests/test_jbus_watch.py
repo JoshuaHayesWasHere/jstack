@@ -615,32 +615,150 @@ def test_a_red_browser_run_files_one_brief_approved_by_rule_naming_its_failed_te
     assert kitchen.lines("retro") == [line]
 
 
-def test_a_red_browser_run_whose_log_says_the_browser_moved_names_the_shots_to_keep(kitchen):
-    shot = "features/jbus/tests/view/page/test_view_page_look.py::test_each_route[all-desk-light]"
-    moved = (
-        "the shots were drawn by Google Chrome 155.0.8059.39, and this is Google Chrome "
-        f"156.0.8078.47: {jbus.watch.BROWSER.moved}"
+SHOT = (
+    "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot"
+)
+DAY = (
+    "features/jbus/tests/view/page/test_view_page_days.py::"
+    "test_view_shot_draws_the_overview_of_each_day_at_each_width"
+)
+KEEP = "gh run download 88 -n jbus-view-shots -D features/jbus/tests/fixtures/jbus-view/shots"
+
+
+def shots_log(*lines, count):
+    return "".join(f"2026-10-18T07:09:02.0000000Z {line}\n" for line in lines) + (
+        f"2026-10-18T07:09:03.0000000Z ===== {count} failed, 90 passed in 400.00s =====\n"
     )
+
+
+def moved(test, shot):
+    """The two lines a shot test's log has where its shot moved: what it failed with, as pytest
+    prints it in full, and its summary line."""
+    said = f"1.20% of {shot} moved; the new shot is /tmp/{shot}: {jbus.shots.MOVED}"
+    return f"E       Failed: {said}", f"FAILED {test} - Failed: {said[:40]}..."
+
+
+def shots_rows(kitchen):
+    return red_rows(kitchen, "shots-")
+
+
+def test_a_red_browser_run_whose_failures_are_kept_shots_files_the_shots_row_and_no_fix(kitchen):
     browser_runs(kitchen, browser_run())
-    log = (
-        f"2026-10-18T07:09:02.0000000Z E               Failed: {moved}\n"
-        f"2026-10-18T07:09:03.0000000Z FAILED {shot} - Failed: {moved}\n"
-        "2026-10-18T07:09:03.0000000Z ===== 1 failed, 93 passed in 400.00s =====\n"
+    log = shots_log(
+        *moved(f"{SHOT}[light-desk-all]", "all-1440-light.png"),
+        *moved(f"{DAY}[t-390]", "day-t-390.png"),
+        count=2,
     )
     kitchen.set("logs.json", {"911": log})
     kitchen.poll()
-    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
-    keep = "gh run download 88 -n jbus-view-shots -D features/jbus/tests/fixtures/jbus-view/shots"
-    assert f"`{keep}`" in text
-    where = text.split("\nWhere: ")[1].split("\n")[0]
-    assert "`features/jbus/tests/fixtures/jbus-view/shots/`" in where
+    assert browser_red(kitchen) == []
+    assert [row["slug"] for row in shots_rows(kitchen)] == ["shots-2026-10-12"]
+    text = (kitchen.home / "tasks" / "shots-2026-10-12.md").read_text()
+    assert f"`{KEEP}`" in text
+    assert "\nWhere: `features/jbus/tests/fixtures/jbus-view/shots/`\n" in text
+    assert f"`{SHOT}[light-desk-all]`" in text and f"`{DAY}[t-390]`" in text
+    assert "a merge changed the look of main" in text
+    run = 'the red run "the browser run 88 failed on 2026-10-12, 2 shots moved"'
+    assert run in shots_rows(kitchen)[0]["approved"]
+    line = "retro shots-2026-10-12: the browser run 88 failed on 2026-10-12, 2 shots moved"
+    assert kitchen.lines("retro") == [line]
+    assert json.loads((kitchen.state / "browser-runs.json").read_text()) == {"88": ""}
 
 
-def test_a_red_browser_run_whose_log_does_not_say_the_browser_moved_names_no_shots(kitchen):
+def test_a_red_browser_run_whose_log_says_the_browser_moved_files_the_shots_row_saying_so(
+    kitchen,
+):
+    moved = (
+        "the shots were drawn by Google Chrome 155.0.8059.39, and this is Google Chrome "
+        f"156.0.8078.47: {jbus.shots.MOVED}"
+    )
+    browser_runs(kitchen, browser_run())
+    log = shots_log(f"E               Failed: {moved}", f"FAILED {SHOT}[all-desk-light]", count=1)
+    kitchen.set("logs.json", {"911": log})
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+    text = (kitchen.home / "tasks" / "shots-2026-10-12.md").read_text()
+    assert f"`{KEEP}`" in text
+    assert "the browser that draws them moved" in text
+
+
+def test_a_red_browser_run_with_shots_and_other_failures_files_each_row_with_its_own_tests(
+    kitchen,
+):
+    browser_runs(kitchen, browser_run())
+    log = shots_log(
+        *moved(f"{SHOT}[light-desk-all]", "all-1440-light.png"),
+        "FAILED tests/test_jbus_view_page.py::test_one - AssertionError",
+        count=2,
+    )
+    kitchen.set("logs.json", {"911": log})
+    kitchen.poll()
+    fix = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert "tests/test_jbus_view_page.py::test_one" in fix
+    assert SHOT not in fix and "jbus-view-shots" not in fix
+    assert "\nWhere: `tests/test_jbus_view_page.py`\n" in fix
+    redrawn = (kitchen.home / "tasks" / "shots-2026-10-12.md").read_text()
+    assert SHOT in redrawn and "test_one" not in redrawn
+    assert sorted(kitchen.lines("retro")) == [
+        "retro browser-red-2026-10-12: the browser run 88 failed on 2026-10-12, 1 test named",
+        "retro shots-2026-10-12: the browser run 88 failed on 2026-10-12, 1 shot moved",
+    ]
+    seen = json.loads((kitchen.state / "browser-runs.json").read_text())
+    assert seen == {"88": "browser-red-2026-10-12"}
+
+
+def test_two_red_runs_of_one_day_whose_shots_moved_are_one_shots_row(kitchen):
+    nightly = browser_run(88, ago=timedelta(hours=2))
+    release = browser_run(89, ago=timedelta(minutes=30), event="push", head_branch="v1.0.0")
+    browser_runs(kitchen, release, nightly)
+    job = {"id": 911, "name": "browser", "status": "completed", "conclusion": "failure"}
+    kitchen.set("run-jobs.json", {"88": [job], "89": [job]})
+    kitchen.set(
+        "logs.json", {"911": shots_log(*moved(f"{SHOT}[light-desk-all]", "x.png"), count=1)}
+    )
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in shots_rows(kitchen)] == ["shots-2026-10-12"]
+    assert list((kitchen.home / "tasks").glob("shots-*-2.md")) == []
+    assert browser_red(kitchen) == []
+
+
+def test_a_shot_test_that_failed_without_saying_a_shot_moved_files_the_fix_row_too(kitchen):
+    """A shot test fails for more than a moved shot: a browser that made no shot, a timeout. Its
+    failure is the fix row's, so main's red is filed, and jmerge holds pull requests on it."""
+    browser_runs(kitchen, browser_run())
+    log = shots_log(
+        *moved(f"{SHOT}[light-desk-all]", "all-1440-light.png"),
+        "E       AssertionError: the browser made no shot",
+        f"FAILED {SHOT}[dark-phone-help] - AssertionError: the browser made no shot",
+        count=2,
+    )
+    kitchen.set("logs.json", {"911": log})
+    kitchen.poll()
+    fix = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert f"`{SHOT}[dark-phone-help]`" in fix
+    assert [row["slug"] for row in shots_rows(kitchen)] == ["shots-2026-10-12"]
+    seen = json.loads((kitchen.state / "browser-runs.json").read_text())
+    assert seen == {"88": "browser-red-2026-10-12"}
+
+
+def test_a_shot_test_that_crashed_alone_files_the_fix_row_and_maps_the_run_to_it(kitchen):
+    browser_runs(kitchen, browser_run())
+    log = shots_log(f"FAILED {DAY}[t-390] - AssertionError: assert (1, '') == (0, '')", count=1)
+    kitchen.set("logs.json", {"911": log})
+    kitchen.poll()
+    fix = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert f"`{DAY}[t-390]`" in fix
+    seen = json.loads((kitchen.state / "browser-runs.json").read_text())
+    assert seen == {"88": "browser-red-2026-10-12"}
+
+
+def test_a_red_browser_run_whose_log_names_no_shot_files_no_shots_row(kitchen):
     browser_runs(kitchen, browser_run())
     kitchen.poll()
     text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
     assert "jbus-view-shots" not in text
+    assert shots_rows(kitchen) == []
 
 
 def test_a_red_browser_run_filed_is_not_filed_again_and_an_edited_brief_stays(kitchen):

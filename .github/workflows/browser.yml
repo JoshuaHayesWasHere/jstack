@@ -11,9 +11,9 @@ name: browser
 # of these tests red, as no pull request ran them. The run is no required check: a merge does
 # not wait on it.
 #
-# A red run is not told from here: jbus reads this workflow's runs and files and queues the
-# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py). It skips a manual
-# run off main, and no other, so a pull request's red run is filed too.
+# A red run is not told from here: jbus reads this workflow's runs on main and on a tag, and files
+# `shots-<date>` for the kept shots that moved and `browser-red-<date>` for any other failure
+# (features/jbus/src/jbus/watch.py). A pull request's run, or a manual run off main, files none.
 on:
   pull_request:
     branches: [main]
@@ -40,8 +40,8 @@ env:
   # to the next over days: on 2026-10-27 one run drew with 155 and the next with 156, and the
   # shot test failed every shot on whichever was not `browser.txt`'s. To bump it, take a
   # version from googlechromelabs.github.io/chrome-for-testing, put it here with the sha256sum
-  # of its chrome-linux64.zip, and keep the shots of this run's `jbus-view-shots` artifact
-  # in features/jbus/tests/fixtures/jbus-view/shots/ (testing/tests/test_workflows.py).
+  # of its chrome-linux64.zip, in a pull request with no shot in it: the next nightly fails every
+  # shot, and the shots row it files redraws them (features/jbus/src/jbus/shots.py).
   CHROME_VERSION: "156.0.8078.47"
   CHROME_SHA256: e6c94490f0b6b337225aeb2d2a5034858516b7017356980ba94f5176d8774a50
 
@@ -79,8 +79,8 @@ jobs:
         run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the browser run declares"; exit 1; }
       - name: make check-browser
         run: make check-browser
-      # The view's shots as this runner drew them (test_view_page_look.py), to keep in place
-      # of the kept ones when the browser that draws them moved.
+      # The view's shots as this runner drew them (test_view_page_look.py), which the shots row
+      # keeps in place of the kept ones once a shot or the browser moved (jbus.shots.ARTIFACT).
       - name: the view's shots
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

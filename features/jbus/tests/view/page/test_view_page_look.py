@@ -15,15 +15,19 @@ row, moves far more than that.
 Two builds of a browser, or one browser on two machines with other fonts, draw the same page
 further apart than that. So the shots are kept from one browser, the one the nightly browser
 run on CI uses, and `browser.txt` beside them names it, as its `--version` prints it. On any
-other browser the comparison is skipped (`drawn_by`), but in a CI run that is not a pull
-request's, the nightly or a run on main, where it fails: there the browser moved, and the
-run's `jbus-view-shots` artifact holds the shots to keep in place of these. A pull request's
-run skips it, so a move of the runner's browser stops no pull request: the red run on main
-has the fix's row, since jbus files a `browser-red-` brief for it that names the artifact
-(`jbus.watch.BROWSER`).
+other browser the comparison is skipped (`drawn_by`).
 
-`JSTACK_SHOTS=keep` writes each shot afresh in place of comparing it: a change that means to
-change the look runs the tests that way and commits the new shots with it.
+The kept shots are main's, and a pull request keeps them: only the shots row redraws them
+(`jbus.shots`). So a shot that moved, a shot that is missing, or a browser that moved fails only
+a CI run on main or on a tag, the nightly and a release (`judged`). There the run's
+`jbus-view-shots` artifact holds the shots to keep, and jbus files the shots row of the day from
+it. Anywhere else, a pull request's run, a run by hand on a branch or a desk, the test compares
+the page with main's shots and skips with what moved and where the shot it drew is: a feature
+that changes the look merges with main's shots, and its look is looked at in the shots row's pull
+request. What moved there is the change's, or a look that merged since the last shots row.
+
+`JSTACK_SHOTS=keep` writes each shot afresh in place of comparing it, for a look at the shots of
+a change on a desk; only the shots row's pull request commits them.
 `JSTACK_SHOTS_OUT=<dir>` also writes each shot as drawn, and `browser.txt`, into that folder."""
 
 import os
@@ -34,7 +38,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageChops
 
-from jbus.watch import BROWSER
+from jbus import shots
 from testing.paths import REPO
 from view.page.browser import (
     BROWSES,
@@ -84,16 +88,48 @@ def browser():
     return said.stdout.strip()
 
 
+def judged():
+    """Whether a shot that moved fails here: in a CI run on main or on a tag, whose shots jbus
+    files the shots row from. Anywhere else the kept shots are main's, and a change may not
+    redraw them."""
+    ref = os.environ.get("GITHUB_REF", "")
+    return bool(os.environ.get("CI")) and (ref == "refs/heads/main" or ref.startswith("refs/tags/"))
+
+
+def judge(said, skipped):
+    """Fail with `said` and the line that names the shots to keep where the run is `judged`,
+    and skip with `skipped` anywhere else."""
+    if judged():
+        pytest.fail(f"{said}: {shots.MOVED}")
+    pytest.skip(skipped)
+
+
 def drawn_by(drew, this):
-    """Skip the comparison when the shots were drawn by a browser that is not this one, and
-    fail it instead in a CI run that is not a pull request's, with the line jbus reads for the
-    fix (`BROWSER.moved`)."""
+    """Skip the comparison when the shots were drawn by a browser that is not this one, and fail
+    it instead on main or a tag (`judge`): there the browser that draws them moved."""
     if drew == this:
         return
-    moved_on = f"the shots were drawn by {drew}, and this is {this}"
-    if os.environ.get("CI") and os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
-        pytest.fail(f"{moved_on}: {BROWSER.moved}")
-    pytest.skip(moved_on)
+    moved_on = f"{shots.BROWSER_MOVED} {drew}, and this is {this}"
+    judge(moved_on, moved_on)
+
+
+def compare(kept, drawn, new):
+    """Compare the shot `drawn`, an RGB image, with the one kept as `kept`, on the browser that
+    drew the kept ones only (`drawn_by`). A missing or moved shot fails on main and skips anywhere
+    else (`judge`), naming `new`, where the drawn shot is."""
+    drawn_by((SHOTS / DRAWN_BY).read_text().strip(), browser())
+    if not kept.exists():
+        said = f"no shot is kept for {kept.name}; the new shot is {new}"
+        judge(said, f"{said}: {MAINS}")
+    with Image.open(kept) as old:
+        share = moved(old.convert("RGB"), drawn)
+    if share > MOVED:
+        drawn.save(new)
+        said = f"{share:.2%} of {kept.name} moved; the new shot is {new}"
+        judge(said, f"{said}: {MAINS}")
+
+
+MAINS = "a pull request keeps main's shots, and the shots row redraws them once it merged"
 
 
 def shot(scene, tmp_path, route, screen, theme):
@@ -148,13 +184,4 @@ def test_each_route_looks_as_its_kept_shot(scene, tmp_path, monkeypatch, name, s
         (folder / DRAWN_BY).write_text(browser() + "\n")
     if os.environ.get("JSTACK_SHOTS") == "keep":
         return
-    drawn_by((SHOTS / DRAWN_BY).read_text().strip(), browser())
-    assert kept.exists(), f"no shot is kept for {kept.name}: run with JSTACK_SHOTS=keep"
-    with Image.open(kept) as old:
-        share = moved(old.convert("RGB"), drawn)
-    if share > MOVED:
-        drawn.save(tmp_path / kept.name)
-    assert share <= MOVED, (
-        f"{share:.2%} of {kept.name} moved; the new shot is {tmp_path / kept.name}. If the "
-        "change means it, run with JSTACK_SHOTS=keep and commit the shots."
-    )
+    compare(kept, drawn, tmp_path / kept.name)
