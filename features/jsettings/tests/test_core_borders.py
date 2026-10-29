@@ -8,6 +8,7 @@ The test fails when one goes and `WAITS` still names it, so the list only shrink
 import ast
 from pathlib import Path
 
+READ_SET = ("features/*/src/",)
 ROOT = Path(__file__).resolve().parents[3]
 FEATURES = ROOT / "features"
 CORE = "jsettings"

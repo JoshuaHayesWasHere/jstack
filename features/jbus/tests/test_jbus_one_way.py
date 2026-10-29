@@ -3,7 +3,7 @@
 jbus asks "is this thread at work?", "was this key sent?", "what does this row's brief say?" and
 "which threads does T3 Code list?" in many modules. Each question has one answer: `watch.at_work`,
 `wake.Box.sent`, `watch.task_brief` and `t3.listed`, and each lock of a state file is taken by
-`jbus.locked`. The scan reads the package's code, not its prose, so a later rule built on one of
+`jbus.locked`, which is the core's (`jsettings.store.locked`). The scan reads the package's code, not its prose, so a later rule built on one of
 these moves every caller at once.
 """
 
@@ -73,16 +73,17 @@ def test_only_at_work_tests_a_thread_against_live():
 
 @pytest.mark.parametrize(
     ("name", "home"),
-    [("task_brief", "watch.py"), ("locked", "__init__.py"), ("home_thread", "watch.py")],
+    [("task_brief", "watch.py"), ("locked", None), ("home_thread", "watch.py")],
 )
 def test_each_shared_job_has_one_definition(name, home):
+    """A job of jbus's own is defined in its one module, and one the core holds in none."""
     defined = [
         where
         for where, tree in modules().items()
         for node in ast.walk(tree)
         if isinstance(node, ast.FunctionDef) and node.name == name
     ]
-    assert defined == [home]
+    assert defined == ([home] if home else [])
 
 
 @pytest.mark.parametrize("copy", ["_brief", "_locked"])
@@ -97,15 +98,15 @@ def test_no_module_keeps_its_own_copy(copy):
 
 
 def test_only_locked_and_the_locks_of_their_own_take_a_flock():
-    """A state file's lock is `jbus.locked`, so a new one does not open and flock its own. The pass
-    lock of `poll` and the snapshot's lock are taken with no wait, and `scouts` and `queue` keep the
-    locks they had: moving them is a change of its own."""
+    """A state file's lock is `jbus.locked`, so a new one does not open and flock its own. The
+    pass lock of `poll` and the queue's lock are `jbus.locked` too, and the snapshot keeps its
+    lock, which waits for a time and then gives up."""
     takers = [
         name
         for name, tree in modules().items()
         if any(isinstance(node, ast.Attribute) and node.attr == "flock" for node in ast.walk(tree))
     ]
-    assert takers == ["__init__.py", "poll.py", "queue.py", "snapshot.py"]
+    assert takers == ["snapshot.py"]
 
 
 def test_only_listed_pages_the_threads():
