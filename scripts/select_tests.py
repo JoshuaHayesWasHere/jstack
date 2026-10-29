@@ -7,8 +7,8 @@ library, so it runs before `uv sync`.
 
 A changed module selects the test files that import it, directly or through any chain of modules. So
 the script also selects a test file that imports a module that imports the changed module. The
-module may be in `src/`, a feature's `features/<name>/src/`, the tests, `testing/` or a package of
-`scripts/`. The tests are
+module may be in `src/`, a feature's `features/<name>/src/`, the tests, `testing/`, a package of
+`scripts/` or a folder a test puts on `sys.path` (`PATHS`). The tests are
 in `testing/tests/` and in each feature's own folder of tests, `features/<name>/tests/`. A test file
 may sit in a folder below one of those, as `features/jbus/tests/view/test_view_bus.py` does. The
 script counts such a file as importing the `conftest.py` of each folder it is in below that
@@ -114,6 +114,9 @@ FIXTURES = re.compile(TESTS.pattern + "fixtures/")
 SHARED = "testing/"
 SHARED_TESTS = "testing/tests"
 SCRIPTS = "scripts"
+PATHS = ("features/*/spec", "features/skill-library/skills/statechart/scripts")
+"""The folders a test puts on `sys.path` and imports from by name. A test that loads a file by
+its path, as the skill-cut eval's test does, puts no folder here."""
 EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
 DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
@@ -217,13 +220,15 @@ def modules():
     `testing.<name>`. Its `tests/` is the exception: it is a folder of tests, so its modules take
     their names from that folder. The fixtures' folders hold no module. A test may put `scripts/`
     on `sys.path`, so each package there, as `scripts/jtrees/`, takes its name from that folder.
-    A lone script there is no module: a test loads it from its path."""
+    A lone script there is no module: a test loads it from its path. Each folder of `PATHS` is a
+    root too, and a file there whose name is no identifier, as `FlowToday.map.py`, is no module."""
     roots = [
         ROOT / "src",
         *sorted(ROOT.glob("features/*/src")),
         ROOT / SHARED_TESTS,
         *sorted(ROOT.glob("features/*/tests")),
         ROOT / SCRIPTS,
+        *sorted(folder for pattern in PATHS for folder in ROOT.glob(pattern)),
         ROOT,
     ]
     found = {}
@@ -243,6 +248,8 @@ def modules():
             parts = list(path.relative_to(root).with_suffix("").parts)
             if parts[-1] == "__init__":
                 parts.pop()
+            if not all(part.isidentifier() for part in parts):
+                continue
             if not FIXTURES.match(named):
                 found[".".join(parts)] = named
     return found
