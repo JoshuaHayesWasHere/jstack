@@ -35,13 +35,15 @@ CANARIES = {
     "NoProof": ["MainFixWaitsOnlyOnYou"],
 }
 
-# Today's code breaks two rules. A check that selects a test reading the whole tree only by
-# chance merges a change that breaks it. And once main's fix row closed with its fix in an open
+# Today's code breaks three rules. A check that selects a test reading the whole tree only by
+# chance merges a change that breaks it. Once main's fix row closed with its fix in an open
 # pull request, that fix merges only when its own check proves it, which it does only when it
 # selected the tests main failed and the red run's logs name them: otherwise nothing can merge.
+# And a draft that waits on your word stays a draft: jmerge marks a draft ready only when the
+# draft is all it waits on, and judges your word first, while jmerge --accept refuses a draft.
 # Since #427 jbus.strays stops what a crew left, busy or idle, once its turn ended, so no
 # leftover keeps the machine full.
-TODAY_BREAKS = ["NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
+TODAY_BREAKS = ["FlowsWhenGreen", "NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
 
 # What jbus.strays stops of an idle process a finished turn left (FlowToday.tla's `Gap`), and
 # the rules the code breaks with it. Before #427 an idle one is stopped only once its row ended,

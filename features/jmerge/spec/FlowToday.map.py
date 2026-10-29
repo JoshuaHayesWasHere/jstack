@@ -1,12 +1,14 @@
 # Chart labels for FlowToday, drawn against FlowDesign.
-reader_actions = ["ApproveMainFix", "ApproveBrowserFix"]
+reader_actions = ["ApproveMainFix", "ApproveBrowserFix", "Approve", "HoldRow", "Accept"]
 
 
 def _kind(v, p):
     if v["st"][p] == "merged":
         return "merged"
     if v["st"][p] == "queued":
-        return "waiting to launch"
+        return "waiting to launch" if v.get("go", {}).get(p, True) else "its row held"
+    if v.get("rv", {}).get(p) == "draft":
+        return "a draft, " + ("waiting on your word" if v["needs"][p] else "its review first")
     ci = v["ci"][p]
     if ci == "none":
         return "waiting for a check"
@@ -15,6 +17,10 @@ def _kind(v, p):
     if ci == "pass" and v["fixes"][p]:
         proved = v["proved"][p]
         return "passed, holds main's fix, " + ("proved" if proved else "not proved")
+    if ci == "pass" and not v.get("go", {}).get(p, True):
+        return "passed, its row held"
+    if ci == "pass" and v.get("needs", {}).get(p, False):
+        return "passed, waiting on your word"
     if ci == "pass":
         return "passed, " + _waits(v, p)
     if v["fixes"][p]:
@@ -89,7 +95,11 @@ STEPS = {
     "ApproveBrowserFix": "you approve the fix of main's browser run",
     "BrowserFix": "its crew fixes what its browser run found",
     "Nightly": "main's nightly browser run fails, and jbus files its fix",
-    "Launch": "jbus launches its crew, which opens its pull request",
+    "Launch": "jbus launches its crew, which opens its pull request as a draft",
+    "Ready": "its review is written and fixed, and jmerge marks it ready",
+    "Approve": "you approve its row",
+    "HoldRow": "you hold its row",
+    "Accept": "you say the word, and it merges",
     "Check": "its check runs",
     "CrewFix": "its crew fixes its change",
     "Merge": "it merges",
@@ -119,6 +129,11 @@ def cause(v, facts, invariant):
                 "the pull request went red while main was red, "
                 "and nothing checks it again once main is fixed"
             )
+        if "a draft, waiting on your word" in kinds:
+            return (
+                "a draft that touches a path that needs you is held before jmerge marks it ready, "
+                "and jmerge --accept refuses a draft, so your word cannot move it"
+            )
         if "red, its own break hidden behind main's" in kinds:
             return (
                 "its own break failed while main was red too, so its "
@@ -140,6 +155,11 @@ def cause(v, facts, invariant):
             return (
                 "an idle process a crew left fills the machine, "
                 "so even an approved fix for main cannot start"
+            )
+        if any(v["fixes"][p] and v.get("rv", {}).get(p) == "draft" for p in ("a", "b")):
+            return (
+                "main's fix row closed with its fix in an open draft, which jmerge never marks "
+                "ready while main is red, so its check never runs to prove the fix"
             )
         if any(v["fixes"][p] and v["ci"][p] == "fail" for p in ("a", "b")):
             return (
