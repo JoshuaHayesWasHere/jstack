@@ -765,6 +765,15 @@ SAID = """window.addEventListener("load", function () { setTimeout(function () {
 MERGED_TODAY = re.compile(r"merged today\W*(\d+)|(\d+) merged today", re.I)
 
 
+DONE = re.compile(r"\b(\d+) done\b|\bDone (\d+)\b")
+
+
+DONE_SAID = {"#/": [], "#/triage": [], "#/demo": [2], "#/demo/board": [1, 1, 2]}
+"""The done counts each route draws over that day: the project page's 2 done work items, and on
+the Homes board, drawn over the project page, the 1 done row the board still has, in its
+summary and on its card."""
+
+
 def merged_and_done(scene):
     """A day with 21 rows merged and 2 rows done, each with a work item done today: jam-jar's row
     says done, and oat-milk's the pass judged done while its row still says running."""
@@ -798,3 +807,5 @@ def test_every_merged_today_reads_the_rows_jbus_merged_today(scene, tmp_path, ro
     found = [int(one or two) for one, two in MERGED_TODAY.findall(seen["text"])]
     assert found, seen["text"]
     assert set(found) == {21}, (found, seen["text"])
+    done = sorted(int(one or two) for one, two in DONE.findall(seen["text"]))
+    assert done == DONE_SAID[route], (done, seen["text"])
