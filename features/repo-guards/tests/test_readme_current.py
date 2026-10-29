@@ -71,13 +71,13 @@ OPTIONAL = {
 }
 NO_REQUIREMENT = (
     "config",
-    "t3 jstack build",
     "roles",
     "patterns",
     "provider inventory",
     "ci report",
     "relay",
 )
+ON_ARCH = ("t3 jstack build",)
 OF_THE_CHECKOUT = ("generated files are current",)
 LAYOUTS = ("layout claude-code", "layout codex", "layout cursor")
 NAMED = (
@@ -402,6 +402,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     given = {need: "hard" for names in HARD.values() for need in names}
     given |= {need: "optional" for names in OPTIONAL.values() for need in names}
     given |= {need: "optional" for need in NO_REQUIREMENT}
+    given |= {need: "optional" for need in ON_ARCH if pacman}
     given |= {need: "hard" for need in (*OF_THE_CHECKOUT, *LAYOUTS)}
     assert given == {name: need.level.value for name, need in found.items()}
 
