@@ -2,6 +2,7 @@
 
 T3 Code's sidebar lists threads.
 jstack's tree sidebar draws a jstack project from jbus's state instead: one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
+Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
 Upstream T3 Code knows nothing of jbus, so the tree is a patch series that this feature keeps, and `t3code-jstack` is T3 Code nightly built with it.
 It is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doctor` lists it only where T3 Code is a nightly build.
 
@@ -24,7 +25,8 @@ When the patches do not apply to a tag, setup writes the tag and the series to `
 While the newest nightly refuses the patches, the doctor reads `ok` with `<tag> does not take jstack's patches: rebase them`, and the build stays on the last nightly that took them.
 Any other failure stops the build and names its log.
 
-To build by hand, without jinstall, run the command below. `T3CODE_JSTACK_TAG` picks the tag, and the PKGBUILD's tag is the default.
+To build by hand, without jinstall, run the command below.
+`T3CODE_JSTACK_TAG` picks the tag, and the PKGBUILD's tag is the default.
 
 ```sh
 env BUILDDIR=~/.cache/t3code-jstack PKGDEST=~/.cache/t3code-jstack SRCDEST=~/.cache/t3code-jstack \
