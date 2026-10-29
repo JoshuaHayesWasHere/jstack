@@ -75,6 +75,26 @@ jbus refuses a state file that is not there, a session or an entry the file does
 The row then reads `your pick on a Lavish page, <time>, <page file name>; run <time> by the <repo> home`.
 If the block prints `no entry`, the page gave no go that jbus can read, so ask the user for their word another way.
 
+### A go given in a question box
+
+The user's pick in a question box this home asked, Claude Code's AskUserQuestion, is their go for each row a label they picked names.
+The answer is the go: never ask the user to say it again in chat, and never ask them for a `go` after they picked.
+Ask for a go in the box only with labels that name the rows by slug, one row to a label, such as `cite-renumber (M)`, and a question that asks which rows to start.
+A multi-select box takes several rows in one answer, which is one go for every row it picked.
+T3 Code keeps the box as an item of the home's thread of the type `user_input_request`, with an id that begins `turn-item:runtime-request:`.
+Once the user answered, read this thread with T3 Code's `t3_thread_read`, `view` `activity`, with a small `limit` and `afterPosition` near the end, and take the `itemId` of the last `user_input_request` whose text holds the question you asked.
+Approve each row its labels name with that item, the row's sha and this home's thread, `$ME` of the block that finds this home:
+
+```sh
+jbus --project <project> queue approve <slug> --sha <sha12> --pick "$ME/<item id>"
+```
+
+jbus reads the box from T3 Code, and who answered it, when and with which labels from T3 Code's own store, and approves only on the user's own answer.
+It refuses, each in one line, an item that is not a question box, a box nobody answered yet, a box an agent answered through T3 Code's MCP server, and an answer none of whose picked labels names the row.
+Text the user typed in place of a label approves nothing, since it may say no as well as yes: read what it says and act on it as their answer, and approve no row on it.
+The row then reads `your pick in a question box, <time>, in <thread>: "<label>", for "<question>"; run <time> by the <repo> home`.
+A brief with a `Holds:` line is a door, and a pick opens it no more than a message does: jbus parks its gate for the user's own word, as for any go of this home's.
+
 ### A plan entry's go
 
 The user gives the go for work once per plan entry, never per row.
@@ -104,7 +124,7 @@ Both keys, `go` and `go_quiet_minutes`, are in the user's jstack `config.toml`, 
 
 ### A follow-up approved by the follow-up rule
 
-A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
+A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message`, `--pick` or `--page`.
 In two cases a row launches on no word of the user's for it: a follow-up of approved work needs no new approval, and a fix jbus filed from a red check is approved by the same rule.
 The rule is known by what it says, in code: jbus reads no number for it from `standing.md` or a `follow-rule` file.
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
