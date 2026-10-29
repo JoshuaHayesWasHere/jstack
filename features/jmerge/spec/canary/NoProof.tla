@@ -44,7 +44,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1090-1092
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1086-1088
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:139, as before #583
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])

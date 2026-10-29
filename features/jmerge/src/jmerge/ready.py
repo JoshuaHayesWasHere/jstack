@@ -639,17 +639,13 @@ def said_of(text: str) -> Said:
 
 def _owes(said: Said) -> bool:
     """Whether the last round's verdict owes the crew a line: a `Fixed:` line, and a push for
-    what it fixed. A last round with a first review in it owes one on `Verdict: findings`. A
-    last round of later reviews alone owes one only where it sends the crew a finding, which
-    is an error (`findings.route`): its warnings go to the cleanup row and the rest are
-    dropped. A cleanup row's one review is read the same way."""
+    what it fixed. `findings.owes` decides it, the rule `jbriefs --findings --left` reads too."""
     if said.verdict != "findings":
         return False
     sections = said.triage.sections
-    last = {n for n, one in enumerate(sections) if one.head == said.reviewed}
-    if said.mode != CLEANUP and not all(sections[n].later for n in last):
-        return True
-    return any(one.sent and one.lead.section in last for one in said.triage.findings)
+    return findings.owes(
+        said.triage, {n for n, one in enumerate(sections) if one.head == said.reviewed}
+    )
 
 
 def after(text: str) -> bool:

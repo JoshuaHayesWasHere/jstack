@@ -136,3 +136,13 @@ def test_a_cleanup_row_fixes_its_errors_and_gets_no_review_after_that():
     )
     assert ready.short_of(declined, HEAD) == "", "no scoped pass is owed to rule on the decline"
     assert ready.asks_no_ruling(declined)
+
+
+def test_a_clean_late_first_review_beside_a_warnings_only_pass_owes_nothing(tmp_path):
+    late = review(FIX, ()).replace("#1", "#2")
+    text = fixed((WARNING,)).replace(
+        "Reviewer: mcp:9 #1\n", "Reviewer: mcp:9 #1\nReviewer: mcp:11 #2\n"
+    )
+    text += late
+    assert ready.short_of(text, FIX) == ""
+    assert left(tmp_path, text).startswith("write nothing:")

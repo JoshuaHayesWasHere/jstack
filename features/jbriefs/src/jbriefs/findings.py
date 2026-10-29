@@ -735,7 +735,7 @@ def left(said: Triage) -> str:
         return line + (": " + ", ".join(named) if named else "")
     last = _last_round(said)
     recent = [one for one in sent if one.lead.section in last]
-    if not recent and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
+    if not owes(said, last) and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
         return (
             "write nothing: the last review sends this thread no finding, since only an error "
             "of a later review comes here, and the Fixed: line stays as it is"
@@ -752,6 +752,16 @@ def left(said: Triage) -> str:
     if sent:
         return f"write Fixed: none needed, <reason>: {len(sent)} findings, none fixed"
     return "write Fixed: none needed, <reason>: the review has no findings"
+
+
+def owes(said: Triage, last: set[int]) -> bool:
+    """Whether the round of the sections `last` owes the crew a line. A first review in it
+    owes one on `Verdict: findings`, whatever it sent. A later review, and every review of a
+    cleanup row, owes one only for a finding it sends the crew, which is an error (`_route`)."""
+    first = said.mode != CLEANUP and any(
+        not said.sections[n].later and said.sections[n].verdict == "findings" for n in last
+    )
+    return first or any(one.sent and one.lead.section in last for one in said.findings)
 
 
 def _last_round(said: Triage) -> set[int]:
