@@ -7,7 +7,7 @@ window.addEventListener("unhandledrejection", function (e) { window.__errs.push(
 window.addEventListener("load", function () {
   var all = function (sel, el) { return [].slice.call((el || document).querySelectorAll(sel)); };
   var text = function (el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; };
-  setTimeout(function () { document.querySelector('#prog-h [data-open="find"]').click(); }, 2500);
+  setTimeout(function () { document.querySelector('#prog-t [data-open="find"]').click(); }, 2500);
   setTimeout(function () {
     window.__focus = document.activeElement ? document.activeElement.id : "";
     var q = document.getElementById("find-q");

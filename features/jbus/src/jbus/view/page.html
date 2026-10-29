@@ -216,6 +216,9 @@
   .sec { font-size: var(--text-lg); margin: var(--space-12) 0 var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); align-items: baseline; }
   .sec .cnt { font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); }
   .sec .btn { margin-left: auto; }
+  .sec-h { font-size: inherit; margin: 0; display: flex; gap: var(--space-6); align-items: baseline; }
+  .sec-t { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+  .sec-t .btn { margin-left: 0; }
   .pgl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--hair); }
   .pgl > li { border-bottom: 1px solid var(--hair); }
   .pg { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-6); align-items: baseline; padding: var(--space-3) var(--space-2); }
@@ -519,7 +522,7 @@
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
     <section aria-labelledby="prog-h">
-      <h2 class="sec" id="prog-h"></h2>
+      <div class="sec"><h2 class="sec-h" id="prog-h"></h2><div class="sec-t" id="prog-t" role="group" aria-label="Open more of the project"></div></div>
       <p class="calm" id="calm" hidden>Nothing in progress</p>
       <div id="prog"></div>
     </section>
@@ -967,12 +970,13 @@
   }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
-    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<a class="btn" href="' + esc(board()) + '">Queue as a flow</a>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>' + '<button type="button" class="btn" data-open="find">Find</button>');
+    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>');
+    put($("prog-t"), (S.tasks.length ? '<a class="btn" href="' + esc(board()) + '">Queue as a flow</a>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>' + '<button type="button" class="btn" data-open="find">Find</button>');
     $("calm").hidden = rows.length > 0;
     renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
     $("merged-d").hidden = !merged.length && !done.length;
-    say($("merged-s"), "Merged today \u00b7 " + (merged.length + done.length));
+    say($("merged-s"), "Merged today \u00b7 " + merged.length + (done.length ? " \u00b7 " + done.length + " done" : ""));
     put($("merged-l"), merged.map(function (m) { return '<li>' + openBtn("task:" + m.slug, m.slug) + (ITEM_OF[m.slug] ? itemLink(ITEM_OF[m.slug]) : "") + '<span class="src">' + esc(m.pr) + '</span><span class="src">' + hm(ms(m.at)) + '</span></li>'; }).join("") +
       done.map(function (it) { return '<li>' + openBtn("item:" + it.id, it.title || it.slug || it.id) + itemLink(it) + '<span class="src">done</span><span class="src">' + hm(itemAt(it)) + '</span></li>'; }).join("") + (merged.length ? '<li>' + openBtn("merged", "Every merge, with the time to merge") + '</li>' : ""));
     put($("health"), healthLine(sm) + "");

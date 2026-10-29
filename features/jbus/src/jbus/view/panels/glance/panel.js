@@ -123,7 +123,7 @@ function glanceAct() {
   STACK.projects.forEach(function (p) { var v = ms(p.last && p.last.at); if (v != null && (last == null || v > last)) { last = v; what = p.last.what; } });
   ((STACK.slow || {}).stages || []).forEach(function (s) { var v = s.oldest && ms(s.oldest.since); if (v != null && (!still || v < still.at)) still = { at: v, stage: s, one: s.oldest }; });
   var quiet = STACK.glance && ms(STACK.glance.verdict.quiet_since) != null;
-  var said = still ? 'longest still: <a href="' + esc(linkOf(still.one.open)) + '"><code>' + esc(still.one.what) + '</code></a> ' + short(NOW - still.at) + (still.stage.key === "you" ? ", waiting on you" : " at " + esc(still.stage.key)) : "no row stands still";
+  var said = still ? 'longest still: <a href="' + esc(linkOf(still.one.open)) + '">' + esc(still.one.what) + '</a>, ' + short(NOW - still.at) + (still.stage.key === "you" ? ", waiting on you" : " at " + esc(still.stage.key)) : "no row stands still";
   return '<div class="tile' + (quiet ? " op" : "") + '" data-role="act"' + (what ? ' title="' + esc("The last act: " + what) + '"' : "") + '><span class="tag" data-gloss="card:act">Since last act</span><span class="tile-n">' + (last == null ? "none kept" : short(NOW - last)) + '</span><span class="tile-s">' + said + '</span></div>';
 }
 function glanceHours(times) {

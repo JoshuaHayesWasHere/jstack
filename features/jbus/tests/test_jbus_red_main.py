@@ -23,7 +23,7 @@ from jbus import questions
 from jmerge import mainjson, ready
 from jmerge import rows as jmerge_rows
 from test_jbus_chains import queue_add
-from test_jbus_kitchen import NOW, RESULT, approved, complete, go, iso, queued
+from test_jbus_kitchen import NOW, RESULT, approved, complete, filed_as, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
 from test_jbus_queue import go as queue_go
 from test_jbus_watch import main_of, main_red
@@ -141,6 +141,7 @@ def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_approved
     text = (kitchen.home / "tasks" / f"{name}.md").read_text()
     assert f"# {name}: main's check failed at {red[:12]}" in text
     assert "chore: a hand merge" in text
+    filed_as(text, "main-quiet", red)
 
 
 def test_the_same_red_within_a_day_of_a_briefed_merge_is_filed_once(kitchen):
@@ -663,6 +664,7 @@ def test_a_push_run_that_fails_again_on_its_rerun_files_the_row_naming_both_runs
     assert fix["slug"] == f"{mainjson.FIX}{red[:12]}"
     brief = (kitchen.home / "tasks" / f"{fix['slug']}.md").read_text()
     assert f"{RUN}/attempts/1" in brief and f"{RUN}/attempts/2" in brief
+    filed_as(brief, "main-rerun", red)
     kitchen.poll(NOW + timedelta(minutes=6))
     assert reruns(kitchen) == ["run rerun --failed 501"]
 
