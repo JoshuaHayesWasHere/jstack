@@ -71,13 +71,13 @@ OPTIONAL = {
 }
 NO_REQUIREMENT = (
     "config",
-    "t3 jstack build",
     "roles",
     "patterns",
     "provider inventory",
     "ci report",
     "relay",
 )
+ON_ARCH = ("t3 jstack build",)
 OF_THE_CHECKOUT = ("generated files are current",)
 LAYOUTS = ("layout claude-code", "layout codex", "layout cursor")
 NAMED = (
@@ -372,7 +372,14 @@ def test_every_link_and_picture_of_every_page_leads_to_a_file_and_a_heading_it_h
     assert [f"{path.name}: {target}" for path in PAGES for target in broken(path)] == []
 
 
-def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_them():
+@pytest.mark.parametrize("pacman", [Path("/usr/bin/pacman"), None], ids=["arch", "not arch"])
+def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_them(
+    monkeypatch, pacman
+):
+    which = Machine.which
+    monkeypatch.setattr(
+        Machine, "which", lambda self, name: pacman if name == "pacman" else which(self, name)
+    )
     said = section(README.read_text(), "Requirements")
     found = {}
     for need in listed.needs(Machine.here(REPO)):
@@ -395,6 +402,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     given = {need: "hard" for names in HARD.values() for need in names}
     given |= {need: "optional" for names in OPTIONAL.values() for need in names}
     given |= {need: "optional" for need in NO_REQUIREMENT}
+    given |= {need: "optional" for need in ON_ARCH if pacman}
     given |= {need: "hard" for need in (*OF_THE_CHECKOUT, *LAYOUTS)}
     assert given == {name: need.level.value for name, need in found.items()}
 
