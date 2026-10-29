@@ -244,7 +244,7 @@ At the start, on status, whenever a gate is asked, shown or closed, and when a s
 
 ## The user's word, carried by jbus
 
-When a message says it is the user's word carried by jbus, when this home records the user's word or a plan entry's go, approves a row on a page's go or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
+When a message says it is the user's word carried by jbus, when this home records the user's word or a plan entry's go, approves a row on a page's go, on a pick in a question box or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
 
 ## Merging a pull request that is ready
 

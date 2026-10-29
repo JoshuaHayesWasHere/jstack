@@ -17,6 +17,8 @@ only (`_held`):
 
 `Client.message` reads one message by its id, with `t3_thread_read`. T3 Code gives who wrote
 the message, its text and its time, and that is why jbus counts the user's word as checked.
+`Client.item` reads any item of a thread by its id the same way, such as a question box
+(`jbus.boxes`).
 """
 
 from __future__ import annotations
@@ -340,23 +342,36 @@ class Client:
                 return f"to {arguments['threadId']}: no brief has it on a Thread: line"
         return ""
 
-    def message(self, thread: str, message: str) -> Message:
-        """Return the message of the thread with that id, with its whole text. Raise
-        `T3Refused` when the thread does not have the message, or the message has no time."""
-        item = f"turn-item:message:{urllib.parse.quote(message, safe='')}"
+    def item(
+        self, thread: str, item: str, key: str = "itemId", value: str = "", view: str = ""
+    ) -> tuple[dict[str, Any], str, str]:
+        """Return the item of the thread whose `key` is `value` (its `itemId` is `item` by
+        default), read by `item` in `view`, with its whole text and the thread's title. Raise
+        `T3Refused` when the thread does not have it."""
         asked = {"threadId": thread, "itemId": item, "maxCharsPerItem": CHARS}
+        if view:
+            asked["view"] = view
         text, offset = "", 0
         while True:
             read = self.call("t3_thread_read", {**asked, "textOffset": offset} if offset else asked)
-            found = [one for one in read.get("items") or [] if one.get("messageId") == message]
+            found = [one for one in read.get("items") or [] if one.get(key) == (value or item)]
             if not found:
-                raise T3Refused(f"t3_thread_read: thread {thread} has no message {message}")
+                raise T3Refused(f"t3_thread_read: thread {thread} has no item {value or item}")
             text += found[0].get("text") or ""
             further = found[0].get("nextTextOffset")
             if not isinstance(further, int) or further <= offset:
                 break
             offset = further
-        one = found[0]
+        return found[0], text, str((read.get("thread") or {}).get("title") or "")
+
+    def message(self, thread: str, message: str) -> Message:
+        """Return the message of the thread with that id, with its whole text. Raise
+        `T3Refused` when the thread does not have the message, or the message has no time."""
+        item = f"turn-item:message:{urllib.parse.quote(message, safe='')}"
+        try:
+            one, text, title = self.item(thread, item, "messageId", message)
+        except T3Refused as error:
+            raise T3Refused(f"t3_thread_read: thread {thread} has no message {message}") from error
         try:
             at = jsettings.when(str(one.get("updatedAt")))
         except ValueError as error:
@@ -364,7 +379,7 @@ class Client:
         return Message(
             thread=thread,
             id=message,
-            title=str((read.get("thread") or {}).get("title") or ""),
+            title=title,
             kind=str(one.get("type") or ""),
             by=str(one.get("createdBy") or ""),
             source=str(one.get("creationSource") or ""),

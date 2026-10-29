@@ -19,8 +19,8 @@ from test_jbus_queue import add, brief, go, sha12
 
 STAMP = '--by user --at "<YYYY-MM-DD HH:MM ET>"'
 BASES = (
-    "with --word <id>, --answer <number>, --message <thread id>/<message id> or --page "
-    "<session key>/<entry id>"
+    "with --word <id>, --answer <number>, --message <thread id>/<message id>, --pick "
+    "<thread id>/<item id> or --page <session key>/<entry id>"
 )
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"

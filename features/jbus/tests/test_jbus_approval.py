@@ -290,8 +290,8 @@ def test_a_row_with_no_approval_is_listed_with_the_command_and_its_three_bases(k
     (one,) = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert one["line"] == (
         f"approve alpha: jbus --project demo queue approve alpha --sha {sha12(brief('alpha'))} "
-        "with --word <id>, --answer <number>, --message <thread id>/<message id> or --page "
-        "<session key>/<entry id>"
+        "with --word <id>, --answer <number>, --message <thread id>/<message id>, --pick "
+        "<thread id>/<item id> or --page <session key>/<entry id>"
     )
 
 
