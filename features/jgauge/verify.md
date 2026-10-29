@@ -15,7 +15,7 @@ Tests: none
 ## Sub-features
 
 - `room-go` prints `go` on an idle machine under its plan limits.
-- `room-load` prints `wait:` when the one-minute load is at or over 85% of the cores.
+- `room-load` prints `wait:` when the one-minute load is at or over 200% of the cores.
 - `room-limit` prints `wait:` when the five-hour or weekly limit is at or over 100% used.
 - `room-instance` reads the limits of the instance `--instance` names, from `<LIMITS>.<instanceId>`, and the built-in `claudeAgent`'s from `LIMITS`.
 - `room-unknown` prints `go` and a `note:` on stderr when the plan's limits are not known.
@@ -37,11 +37,13 @@ Preconditions:
 - `$PROC` is `$VERIFY_JSTACK_SANDBOX/machine/proc` and `$LIMITS` is `$VERIFY_JSTACK_SANDBOX/machine/limits`: the load starts at `0.10` and both limits at 10.
 
 - **Idle.** Run `record jgauge-room jgauge room`. It prints `go`.
-- **Load.** Run `echo "999.00 9.99 9.99 1/100 1" > "${VERIFY_JSTACK_SANDBOX:?}/machine/proc/loadavg"`, then `record jgauge-room jgauge room`. It prints `wait: load 999.00 is at or over 85% of <n> cores`, and exits 0.
+- **Load.**
+  Run `echo "999.00 9.99 9.99 1/100 1" > "${VERIFY_JSTACK_SANDBOX:?}/machine/proc/loadavg"`, then `record jgauge-room jgauge room`.
+  It prints `wait: load 999.00 is at or over 200% of <n> cores`, and exits 0.
 - **A row waits.** Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\n' | record jgauge-room jbus queue add alpha --priority 1`.
   Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`, then run `record jgauge-room jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id.
   Run `record jgauge-room jbus queue approve alpha --sha "$(sha256sum "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)" --word <the id>`, then `record jgauge-room jbus poll`.
-  The pass prints `wait alpha: no room: load 999.00 is at or over 85% of <n> cores` and no `launched` line.
+  The pass prints `wait alpha: no room: load 999.00 is at or over 200% of <n> cores` and no `launched` line.
 - **Room again.** Run `echo "0.10 0.10 0.10 1/100 1" > "${VERIFY_JSTACK_SANDBOX:?}/machine/proc/loadavg"`, then `record jgauge-room jbus poll`. It prints `launched alpha: mcp:sandbox-thread-1`.
 - **Plan limit.** Run `printf 'five_hour 100 %s\nseven_day 10 %s\n' "$(($(date +%s) + 3600))" "$(($(date +%s) + 3600))" > "${VERIFY_JSTACK_SANDBOX:?}/machine/limits"`, then `record jgauge-room jgauge room`. It prints `wait: the five-hour limit is 100% used, at or over 100%, and resets in 1 h 0 min` (or `0 h 59 min`).
 - **Another instance.** Run `printf 'five_hour 10 %s\nseven_day 10 %s\n' "$(($(date +%s) + 3600))" "$(($(date +%s) + 3600))" > "${VERIFY_JSTACK_SANDBOX:?}/machine/limits.claudeAgent_claude_prime"`, then `record jgauge-room jgauge room --instance claudeAgent_claude_prime`. It prints `go`: the cap above is `claudeAgent`'s, and prime's own file has room.
