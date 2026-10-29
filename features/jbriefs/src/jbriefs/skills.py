@@ -42,6 +42,8 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
+from jsettings import brief as brief_head
+
 CATALOG = "skills.json"
 MARKER = "pyproject.toml"
 PACKAGED = "share/jstack"
@@ -193,12 +195,7 @@ def _none(line: str) -> bool:
 
 def _head(text: str) -> str | None:
     """What the first `Skills:` line of a brief's head says, or None for a head with none."""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith(LABEL):
-            return line.removeprefix(LABEL).strip()
-    return None
+    return brief_head.head(text, LABEL)
 
 
 def named(text: str) -> tuple[Named, ...]:

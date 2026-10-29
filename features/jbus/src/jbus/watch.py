@@ -41,7 +41,6 @@ import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
-from jbus.joblog import Failed, failed_in, plain
 from jbus.judged import Said, parse, step
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -55,6 +54,7 @@ from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 from jmerge.checks import NOT_RED
+from jmerge.joblog import Failed, failed_in, plain
 from jsettings import budget as allowance
 
 EVENTS = {"merged": "quiet", "stale": "quiet", "retro": "quiet"}

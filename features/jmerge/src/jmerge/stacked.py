@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from jsettings import brief as brief_head
+
 LINE = "Stacked on:"
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 
@@ -24,16 +26,12 @@ class Stacked:
 
 def of(text: str) -> Stacked | None:
     """The `Stacked on:` line in the head of a brief, above its first `## `, or None."""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith(LINE):
-            words = line.removeprefix(LINE).split()
-            if len(words) == 2:
-                return Stacked(*words)
-            if len(words) == 4 and words[2] == "at" and _COMMIT.fullmatch(words[3]):
-                return Stacked(words[0], words[1], words[3])
-            return None
+    said = brief_head.head(text, LINE)
+    words = said.split() if said is not None else []
+    if len(words) == 2:
+        return Stacked(*words)
+    if len(words) == 4 and words[2] == "at" and _COMMIT.fullmatch(words[3]):
+        return Stacked(words[0], words[1], words[3])
     return None
 
 

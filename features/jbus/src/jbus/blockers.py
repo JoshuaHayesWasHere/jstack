@@ -96,6 +96,7 @@ from jbus import (
 )
 from jbus.passes import Pass
 from jbus.wake import Box
+from jsettings import brief as brief_head
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -115,13 +116,8 @@ _STAMP = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
 def head(text: str, name: str) -> str:
     """Return what a line `<name>: ` in the brief's head says, or nothing when the line is not
     there or still holds a placeholder."""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith(f"{name}:"):
-            said = line[len(name) + 1 :].strip()
-            return "" if said.startswith("<") else said
-    return ""
+    said = brief_head.head(text, f"{name}:") or ""
+    return "" if said.startswith("<") else said
 
 
 def decide(box: Box, slug: str, key: str, said: str, reply: str, *, listed: bool = False) -> bool:

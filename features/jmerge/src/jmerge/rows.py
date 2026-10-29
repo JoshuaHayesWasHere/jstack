@@ -10,6 +10,7 @@ import jbus
 from jbus import queue
 from jmerge import mainjson, ready
 from jmerge.checks import NOT_RED
+from jsettings import brief as brief_head
 
 NO_PULL = "no pull request yet"
 
@@ -300,9 +301,7 @@ def integration_fix(branch: str, sha: str) -> str:
 def fixes(text: str) -> tuple[str, str] | None:
     """The branch and the red tip, to 12 characters, that the brief's `FIXES` line names in its
     head, or nothing."""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
+    for line in brief_head.head_lines(text):
         if line.startswith(FIXES):
             words = line.removeprefix(FIXES).split()
             if len(words) == 3 and words[1] == "at" and len(words[2]) >= mainjson.SHA:

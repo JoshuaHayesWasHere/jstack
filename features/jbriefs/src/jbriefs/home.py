@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from jsettings.brief import head
 from jsettings.paths import homes_dir as homes_dir
 
 WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
@@ -45,12 +46,7 @@ def ids(directory: Path) -> tuple[str, str]:
 def named(brief: str) -> str:
     """The first word of the brief's first `Home:` line in its head, or an empty string when the
     head has no such line."""
-    for line in brief.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("Home:"):
-            return "".join(line.removeprefix("Home:").split()[:1])
-    return ""
+    return "".join((head(brief, "Home:") or "").split()[:1])
 
 
 def scopes(state: Path) -> list[tuple[Path, str, str]]:
