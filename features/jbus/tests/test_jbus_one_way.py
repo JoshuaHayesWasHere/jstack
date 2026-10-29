@@ -3,8 +3,8 @@
 jbus asks "is this thread at work?", "was this key sent?", "what does this row's brief say?" and
 "which threads does T3 Code list?" in many modules. Each question has one answer: `watch.at_work`,
 `wake.Box.sent`, `watch.task_brief` and `t3.listed`, and each lock of a state file is taken by
-`jbus.locked`, which is the core's (`jsettings.store.locked`). The scan reads the package's code, not its prose, so a later rule built on one of
-these moves every caller at once.
+`jbus.locked`, which is the core's (`jsettings.store.locked`). The scan reads the package's code,
+not its prose, so a later rule built on one of these moves every caller at once.
 """
 
 import ast
