@@ -52,6 +52,12 @@ def mixed(paths: list[str]) -> list[str]:
     return [path for path in paths if not kept(path)]
 
 
+def said(jobs: list[tuple[str, str, list[str]]]) -> str:
+    """How many shots moved, over each failed job's name, URL and failed shot tests."""
+    count = sum(len(tests) for _, _, tests in jobs)
+    return f"{count} shot{'' if count == 1 else 's'} moved"
+
+
 def brief(
     name: str,
     day: str,
@@ -67,13 +73,11 @@ def brief(
     run, `filed` is the start of the `Decisions:` line of a row jbus filed, `jobs` each failed
     job's name, URL and failed shot tests, `read` the line that names the run, and `moved` whether
     its log says the browser that draws them moved."""
-    tests = [test for _, _, failed in jobs for test in failed]
-    said = f"{len(tests)} shot{'' if len(tests) == 1 else 's'} moved"
     why = "the browser that draws them moved" if moved else "a merge changed the look of main"
     return "\n".join(
         [
             f"# {name}: the view's kept shots are redrawn over main on {day}",
-            f'Task: "{run} {number} failed on {day}, {said}" (jbus, from browser.yml)',
+            f'Task: "{run} {number} failed on {day}, {said(jobs)}" (jbus, from browser.yml)',
             "Done when:",
             f"- the shots under `{KEPT}/` and their `browser.txt` are those of the run's "
             f"`{ARTIFACT}` artifact, which the browser that draws them drew over main: "
@@ -81,8 +85,9 @@ def brief(
             f"- the pull request changes nothing outside `{KEPT}/`",
             "- the Result names each shot that moved and the merge that moved it, or the "
             "browser that moved, so the look is looked at",
-            "Proves it: the pull request's borders check passes, and its browser run skips no "
-            "shot as moved",
+            "Proves it: the pull request's borders check passes "
+            "(`python3 features/jbus/scripts/kept_shots.py --base origin/main`), and its browser "
+            "run, browser.yml, skips no shot as moved",
             "Size: S",
             f"Where: `{KEPT}/`",
             f"Do not touch: anything outside `{KEPT}/`",

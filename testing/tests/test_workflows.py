@@ -262,6 +262,8 @@ def test_a_job_env_is_read_from_its_own_job_and_not_from_a_step():
 def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_naming_it(
     tmp_path,
 ):
+    from jbus import shots
+
     found, _ = steps(BROWSER.read_text(), "browser")
     names = [step.get("name") for step in found]
     look = found[names.index("test browser")]
@@ -269,6 +271,7 @@ def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_
     assert names.index("test browser") == names.index("chrome for testing") + 1
     assert names[-2:] == ["make check-browser", "the view's shots"] and "if" not in look
     assert found[-1]["if"] == "failure()"
+    assert found[-1]["with"]["name"] == shots.ARTIFACT
     browser = tmp_path / "google-chrome"
 
     def ran():
