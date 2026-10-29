@@ -5,8 +5,6 @@
 A wake is what jbus sends you when a pass finds events for you.
 It goes to one place, the project's home thread through T3 Code, and jbus has no webhook.
 A config that still has `wake`, `webhook_url` or `webhook_key`, at the top or in a `[[project]]`, loads, and jbus ignores those keys.
-Each pass prints `ignored: <config> still has <keys>: jbus reads none of them, remove them`, and the doctor's line on the jbus config names them too.
-On its next pass, jbus moves what still waits in an old webhook outbox to the home thread's outbox.
 
 A wake to the home thread is one `t3_thread_send` to the thread in the home's `home-id`, in queue mode.
 It carries the chat lines and the events, the body below as JSON, and its retry key is made from that body, so a retry sends the same message once.

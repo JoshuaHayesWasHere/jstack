@@ -210,7 +210,7 @@ def test_the_defaults_the_configuration_page_gives_are_the_loaders(tmp_path):
         "warn_days": str(config.warn_days),
         "wake_alert": str(config.wake_alert),
     }
-    assert config.ignored == () and not re.search(r"^\| `loud` \|", said, re.M)
+    assert not re.search(r"^\| `loud` \|", said, re.M)
     assert project.state == project.name
     keys = re.findall(r"^\| `(\w+)` \|", section(said, "jstack"), re.M)
     assert tuple(keys) == jsettings.KEYS

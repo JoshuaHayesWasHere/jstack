@@ -40,7 +40,6 @@ It prints one line for each blocker of the home it runs for (`--scope <scope>` f
 
 | Line | What it means |
 |---|---|
-| `cleared question <n>: took its default, ...` | The question was open `--after` minutes (30 with none) and needs no decision of yours. The thread acted on its default when it asked, so the home takes it: `jbus clear` logs the gate in the home's `gates.md` as answered by the home, and the question closes from there. Nothing is posted, and a later answer of yours still replaces it. |
 | `decision question <n>: ...` | You have to decide it, and the pass raises it. |
 | `fix <key>: ..., try <n> of <cap>` | The home briefs a fix with `Fix of:` and `When green:`, and queues it. |
 | `wait <key>: ...` | A fix of the key is queued and not over. |

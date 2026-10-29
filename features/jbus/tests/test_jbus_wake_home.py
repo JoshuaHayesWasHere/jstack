@@ -6,22 +6,17 @@ five-minute gap. A send T3 Code refuses keeps the events in the outbox for the n
 streak alerts in the journal and on the desk. A wake to a home thread whose instance is capped waits
 in the outbox for the reset, and counts as no failed send.
 
-A config from before, with `wake`, `webhook_url` or `webhook_key`, loads as this one route and posts
-nothing. What an old webhook outbox still holds moves to the home thread's, and the old webhook's
-streaks end on the next pass with no line.
-
 Every test runs the real pass or the real command against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
-import socket
 from datetime import timedelta
 
 import pytest
 
 import jbus
-from jbus import alert, blockers, wake
+from jbus import blockers, wake
 from jroles import ledger
 from test_jbus_kitchen import HOME, NOW
 from test_jbus_signal import decide, later
@@ -55,25 +50,6 @@ def decide_again(kitchen):
     wake.Box(kitchen.state, config.project("demo")).send("beta", "decision", "decision beta: ?")
 
 
-def listener():
-    """A socket that listens and is never read, so that a post to it would be seen."""
-    server = socket.socket()
-    server.bind(("127.0.0.1", 0))
-    server.listen()
-    server.settimeout(0)
-    return server
-
-
-def old_config(kitchen, url):
-    """Write a config from before: `wake = "both"` and a webhook pair at the top and in the
-    project's table."""
-    pair = [f"webhook_url = {json.dumps(url)}", 'webhook_key = "an-old-key"']
-    kitchen.config(own=['wake = "both"', *pair], wake="both")
-    path = kitchen.config_dir / "config.toml"
-    first, rest = path.read_text().split("\n", 1)
-    path.write_text("\n".join([first, *pair, rest]))
-
-
 def test_the_event_reaches_the_home_thread(kitchen):
     homed(kitchen)
     said = kitchen.poll(NOW)
@@ -101,87 +77,6 @@ def test_a_decision_reaches_the_home_thread_as_an_event_unless_the_one_list_carr
     kitchen.poll(later(10))
     told = [one["message"] for one in wakes(kitchen)[before:]]
     assert any("decision beta: which way?" in one for one in told) is not listed
-
-
-def test_an_old_config_with_wake_both_and_a_webhook_url_loads_as_home_and_posts_nothing(kitchen):
-    server = listener()
-    try:
-        url = f"http://127.0.0.1:{server.getsockname()[1]}/wake"
-        old_config(kitchen, url)
-        decide(kitchen)
-        config = jbus.load()
-        assert config.ignored == (
-            "wake at the top",
-            "webhook_url at the top",
-            "webhook_key at the top",
-            "wake of project demo",
-            "webhook_url of project demo",
-            "webhook_key of project demo",
-        )
-        said = kitchen.poll(NOW)
-        assert len(wakes(kitchen)) == 1
-        try:
-            server.accept()
-            posted = True
-        except BlockingIOError:
-            posted = False
-        assert not posted
-        assert url not in "\n".join(said) and "an-old-key" not in "\n".join(said)
-    finally:
-        server.close()
-
-
-def test_a_webhook_streak_from_before_is_gone_after_one_pass_with_no_line(kitchen):
-    homed(kitchen)
-    old = {
-        key.format("demo"): {
-            "key": key.format("demo"),
-            "count": 148,
-            "since": NOW.isoformat(),
-            "alerted": True,
-            "paged": True,
-        }
-        for key in alert.OLD
-    }
-    other = {"key": "other", "count": 1, "since": NOW.isoformat(), "alerted": False}
-    jbus.write_json(kitchen.state_dir / "streaks.json", {**old, "other": other})
-    said = kitchen.poll(NOW)
-    kept = jbus.read_json(kitchen.state_dir / "streaks.json", {})
-    assert not [key for key in kept if "webhook" in key]
-    assert kept["other"] == other
-    assert not [one for one in said if "webhook" in one]
-    assert not [line for line in kitchen.lines() if "webhook" in line]
-    code, status = kitchen.main("status")
-    assert code == 0 and "webhook" not in status
-
-
-def test_what_an_old_webhook_outbox_holds_reaches_the_home_thread_once(kitchen):
-    """2026-10-23: decisions waited for the own webhook under `wake = "webhook"`, the webhook
-    refused them, and `wake = "home"` left them in that outbox for good."""
-    kitchen.config()
-    decide(kitchen)
-    decide_again(kitchen)
-    held = waiting(kitchen)
-    jbus.write_json(kitchen.state / "outbox.json", held)
-    jbus.write_json(kitchen.state / wake.HOME / "outbox.json", held[:1])
-    (kitchen.state / "top-level").mkdir()
-    jbus.write_json(kitchen.state / "top-level" / "outbox.json", held[1:])
-    jbus.write_json(kitchen.state / "unposted.json", {"told": []})
-    said = kitchen.poll(NOW)
-    lines = sent_events(kitchen)
-    assert lines.count("decision alpha: which one?") == 1
-    assert lines.count("decision beta: ?") == 1
-    assert waiting(kitchen) == []
-    assert not (kitchen.state / "outbox.json").exists()
-    assert not (kitchen.state / "top-level").exists()
-    assert not (kitchen.state / "unposted.json").exists()
-    assert (
-        "moved demo: 1 events for the user from the old webhook's outbox to the home thread's"
-        in said
-    )
-    again = kitchen.poll(later(10))
-    assert sent_events(kitchen) == lines
-    assert not any(one.startswith("moved demo") for one in again)
 
 
 def test_the_webhook_marks_from_before_leave_wake_json_on_the_next_pass(kitchen):

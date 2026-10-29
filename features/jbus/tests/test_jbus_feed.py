@@ -1,8 +1,8 @@
-"""The feed: what changed since a bot's cursor, as versioned records, by `jbus feed` and by the
-view's `GET /feed`, with a long poll, and a reset with the `needs` snapshot when the cursor is
+"""The feed: what changed since a bot's cursor, as versioned records, by the view's `GET /feed`,
+with a long poll, and a reset with the `needs` snapshot when the cursor is
 unknown or expired. Each need carries its doors, so a bot can tell what it may not act on.
 
-The tests run the real command and the real view server over a kitchen's state.
+The tests run the real view server over a kitchen's state.
 """
 
 import http.client
@@ -15,8 +15,9 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import feed, wake
+from jbus import cursor as cursors
 from jbus import view as jview
+from jbus import wake
 from jbus.view import state as view_state
 from jbus.view.panels.you import panel as you
 from test_jbus_acts import CHAT, HOLDS, Route, bot_go, gate, stored
@@ -54,10 +55,13 @@ def box(kitchen):
     return wake.Box(kitchen.state, jbus.load().project("demo"))
 
 
-def fed(kitchen, *more):
-    code, said = kitchen.main("feed", *more)
-    assert code == 0, said
-    return json.loads(said)
+def fed(kitchen, after="", wait=None):
+    """The page after `after`, from a view started for this one read."""
+    view = View(kitchen)
+    try:
+        return view.feed(after, wait)
+    finally:
+        view.close()
 
 
 class View:
@@ -123,7 +127,7 @@ def test_a_cursor_reads_every_event_after_it_once_across_a_restart(kitchen):
     every = read["events"] + after["events"]
     assert len({one["id"] for one in every}) == 4
     assert [one["id"] for one in every][-1] == after["cursor"]
-    assert fed(kitchen, "--after", cursor)["events"] == every
+    assert fed(kitchen, cursor)["events"] == every
     (one, *_) = every
     assert {key: one[key] for key in EVENT if key not in ("id", "at")} == {
         "v": 1,
@@ -141,7 +145,7 @@ def test_an_unknown_or_expired_cursor_resets_with_the_needs_to_catch_up_on(kitch
     kitchen.poll()
     box(kitchen).send("alpha", "queue", "queue demo: alpha is queued")
     newest = json.loads(kitchen.main("events")[1].splitlines()[-1])["id"]
-    for page in (fed(kitchen, "--after", "not-an-id"), fed(kitchen)):
+    for page in (fed(kitchen, "not-an-id"), fed(kitchen)):
         assert (page["v"], page["reset"], page["events"], page["cursor"]) == (1, True, [], newest)
         assert [(one["kind"], one["slug"]) for one in page["needs"]] == [("approve", "alpha")]
     view = View(kitchen)
@@ -158,8 +162,8 @@ def test_an_unknown_or_expired_cursor_resets_with_the_needs_to_catch_up_on(kitch
     kept = fed(kitchen)["cursor"]
     box(kitchen).send("delta", "queue", "queue demo: delta is queued")
     box(kitchen).forget(datetime.now(UTC) - wake.LOG_KEEP)
-    assert fed(kitchen, "--after", expired)["reset"] is True
-    assert lines(fed(kitchen, "--after", kept)) == ["queue demo: delta is queued"]
+    assert fed(kitchen, expired)["reset"] is True
+    assert lines(fed(kitchen, kept)) == ["queue demo: delta is queued"]
 
 
 def test_a_long_poll_returns_at_the_first_new_event_or_at_its_timeout(kitchen):
@@ -186,7 +190,7 @@ def test_a_long_poll_returns_at_the_first_new_event_or_at_its_timeout(kitchen):
     finally:
         view.close()
     began = time.monotonic()
-    page = fed(kitchen, "--after", woke["cursor"], "--wait", "1")
+    page = fed(kitchen, woke["cursor"], wait=1)
     assert (page["events"], page["reset"]) == ([], False)
     assert time.monotonic() - began >= 1
 
@@ -234,7 +238,7 @@ def test_each_need_carries_the_fields_the_bots_asked_for_and_its_doors(kitchen, 
     filed = needs["gate", "beta"]
     assert (filed["what"], filed["doors"]) == ("drop the old tables?", ["deletes data"])
     assert bot_go(route, kitchen, "alpha")[0] == 200
-    (acted,) = [one for one in fed(kitchen, "--after", cursor)["events"] if one["kind"] == "act"]
+    (acted,) = [one for one in fed(kitchen, cursor)["events"] if one["kind"] == "act"]
     assert sorted(acted) == sorted(EVENT)
     assert (acted["v"], acted["subject"], acted["act"]["v"], acted["act"]["outcome"]) == (
         1,
@@ -252,7 +256,7 @@ def test_a_go_seen_after_the_second_of_two_equal_events_is_not_stale(kitchen, ro
     cursor = fed(kitchen)["cursor"]
     for _ in range(2):
         box(kitchen).send("beta", "queue", "queue demo: beta's brief changed")
-    first, second = (one["id"] for one in fed(kitchen, "--after", cursor)["events"])
+    first, second = (one["id"] for one in fed(kitchen, cursor)["events"])
     status, said = bot_go(route, kitchen, "beta", seen=first)
     assert (status, said["error"]) == (
         409,
@@ -288,7 +292,7 @@ def test_a_long_poll_sees_an_event_written_while_it_read_the_log(kitchen, monkey
 
     monkeypatch.setattr(wake, "entries", read_then_write)
     ticks = iter(range(1000))
-    page = feed.wait(
+    page = cursors.wait(
         kitchen.state,
         "demo",
         cursor,
@@ -303,11 +307,11 @@ def test_a_long_poll_sees_an_event_written_while_it_read_the_log(kitchen, monkey
 def test_a_reset_on_an_empty_log_gives_a_cursor_that_reads_from_its_first_event(kitchen):
     made = box(kitchen)
     start = fed(kitchen)
-    assert (start["reset"], start["events"], start["cursor"]) == (True, [], feed.START)
-    again = fed(kitchen, "--after", start["cursor"])
-    assert (again["reset"], again["events"], again["cursor"]) == (False, [], feed.START)
+    assert (start["reset"], start["events"], start["cursor"]) == (True, [], cursors.START)
+    again = fed(kitchen, start["cursor"])
+    assert (again["reset"], again["events"], again["cursor"]) == (False, [], cursors.START)
     made.send("alpha", "queue", "queue demo: alpha is queued")
-    read = fed(kitchen, "--after", again["cursor"])
+    read = fed(kitchen, again["cursor"])
     assert (read["reset"], lines(read)) == (False, ["queue demo: alpha is queued"])
     assert read["cursor"] == read["events"][-1]["id"]
 
@@ -318,7 +322,7 @@ def test_a_long_poll_on_an_empty_log_waits_for_its_first_event(kitchen):
     later = threading.Timer(1, made.send, ("alpha", "queue", "queue demo: alpha is queued"))
     later.start()
     began = time.monotonic()
-    page = fed(kitchen, "--after", cursor, "--wait", "5")
+    page = fed(kitchen, cursor, wait=5)
     took = time.monotonic() - began
     later.join()
     assert (page["reset"], lines(page)) == (False, ["queue demo: alpha is queued"])

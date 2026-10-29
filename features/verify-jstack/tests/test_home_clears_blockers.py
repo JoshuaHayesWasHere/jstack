@@ -148,34 +148,23 @@ def approve(sandbox, slug):
     return run(sandbox, f"jbus queue approve {slug} --sha {sha} --word {said[-1]}")
 
 
-def test_a_stale_gate_is_cleared_by_the_home_with_no_event(demo):
+def test_a_gate_the_user_need_not_decide_is_closed_by_the_pass_with_no_event(demo):
     assert run(demo, "jbus gate alpha", GATE).stdout == "queued: question 1\n"
 
-    cleared = run(demo, "jbus clear --after 0")
+    cleared = run(demo, "jbus clear")
     polled = run(demo, "jbus poll")
 
     assert cleared.returncode == 0, cleared.stderr
-    assert "cleared question 1: took its default, made tea" in cleared.stdout
-    gates = (demo.parent / "home" / ".local" / "state" / "home" / "demo" / "gates.md").read_text()
-    assert "## Gate q1: tea or coffee?\n" in gates
-    assert "Status: answered, the default taken by the home" in gates
+    assert "question 1" not in cleared.stdout
+    assert polled.returncode == 0, polled.stderr
     (record,) = json.loads((demo.parent / "state" / "demo" / "questions.json").read_text())[
         "records"
     ]
-    assert record["answer"]["closed_by"] == "gates.md"
-    assert polled.returncode == 0, polled.stderr
+    assert record["answer"]["closed_by"] == "silence"
+    assert not (demo.parent / "home" / ".local" / "state" / "home" / "demo" / "gates.md").exists()
     assert posted(demo) == []
     assert waiting_to_post(demo) == []
-    assert "cleared question 1" not in run(demo, "jbus clear --after 0").stdout
-
-
-def test_a_young_gate_is_left_open(demo):
-    run(demo, "jbus gate alpha", GATE)
-
-    cleared = run(demo, "jbus clear")
-
-    assert "question 1" not in cleared.stdout
-    assert not (demo.parent / "home" / ".local" / "state" / "home" / "demo" / "gates.md").exists()
+    assert "question 1" not in run(demo, "jbus clear").stdout
 
 
 def test_a_red_check_gets_a_fix_row_with_no_event(demo):
@@ -206,7 +195,7 @@ def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_lis
     assert run(demo, "jbus gate alpha", HOLDS).stdout == "queued: question 1\n"
 
     run(demo, "jbus poll")
-    cleared = run(demo, "jbus clear --after 0")
+    cleared = run(demo, "jbus clear")
     run(demo, "jbus gate alpha", HOLDS)
     run(demo, "jbus poll")
 
@@ -214,7 +203,6 @@ def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_lis
     ((line,),) = listed(demo)
     assert line.startswith("question 1: remove the three stale branches, it holds (deletes data)")
     assert "decision question 1" in cleared.stdout
-    assert "cleared question 1" not in cleared.stdout
 
 
 def test_a_fix_with_no_when_green_line_is_refused(demo):
@@ -369,21 +357,19 @@ def test_a_scope_change_raised_by_hand_is_one_decision_with_its_reply(demo):
     )
 
 
-def test_a_scoped_home_clears_its_own_gates_and_not_the_root_s(demo):
+def test_a_scoped_home_raises_its_own_gates_and_not_the_root_s(demo):
     state = demo.parent / "home" / ".local" / "state" / "home" / "demo"
     (state / "s").mkdir()
     (state / "s" / "plan.md").write_text("# plan\n")
     (state / "s" / "home-id").write_text("mcp:scoped-home\n")
     (state / "tasks" / "alpha.md").write_text("# alpha: a demo task\nHome: s\n")
-    run(demo, "jbus gate alpha", GATE)
+    run(demo, "jbus gate alpha", HOLDS)
 
-    root = run(demo, "jbus clear --after 0").stdout
-    scoped = run(demo, "jbus clear --scope s --after 0").stdout
+    root = run(demo, "jbus clear").stdout
+    scoped = run(demo, "jbus clear --scope s").stdout
 
     assert "question 1" not in root
-    assert scoped.startswith("cleared question 1: took its default, made tea")
-    assert "## Gate q1: tea or coffee?" in (state / "s" / "gates.md").read_text()
-    assert not (state / "gates.md").exists()
+    assert scoped.startswith("decision question 1: it holds (deletes data)")
 
 
 def red_pull(sandbox, slug, path):

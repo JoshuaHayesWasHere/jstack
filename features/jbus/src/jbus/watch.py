@@ -55,6 +55,7 @@ from jmerge import mainjson
 from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
+from jmerge.checks import NOT_RED
 
 EVENTS = {"merged": "quiet", "stale": "quiet", "retro": "quiet"}
 TITLE = "crew: "
@@ -66,7 +67,6 @@ TIMEBOX_HOURS = 4.0
 WAITING_MINUTES = 30
 UNWRITTEN_MINUTES = 15
 RETRO = timedelta(hours=24)
-NOT_RED = ("success", "neutral", "skipped", "cancelled")
 NO_JOB = "nojob"
 """What `_check` answers for a commit on main whose failed check runs started no job."""
 RERUNS = "reruns.json"

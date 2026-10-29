@@ -1,11 +1,10 @@
-"""The page of a project's log after a cursor, which `jbus feed` prints and `GET /feed` serves.
+"""The page of a project's log after a cursor, which `GET /feed` on the view serves.
 
 The feed is the project's log, `events.jsonl`, in the order of the file, read after the event a
 cursor names (`wake.entries`). Each act is an `act` event of that log (`jbus.acts`), so events and
-acts come in one order. The same page is `jbus feed --after <id>` on the command line and
-`GET /feed?project=<project>&after=<id>` on the view (`jbus.view`). Nothing is pushed: a bot has
-no endpoint, and the user wants no webhook alarms. The verb is `jbus.feed`, and the view's door is
-`jbus.view.feeds`.
+acts come in one order. The page is `GET /feed?project=<project>&after=<id>` on the view
+(`jbus.view`), whose door is `jbus.view.feeds`. Nothing is pushed: a bot has no endpoint, and the
+user wants no webhook alarms.
 
 A page is `{"v", "project", "reset", "cursor", "events"}`. `cursor` is the id of the last event
 of the page, or the cursor given where nothing came after it, and the next read is after it. Each
