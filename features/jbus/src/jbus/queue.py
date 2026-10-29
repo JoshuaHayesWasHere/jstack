@@ -128,7 +128,7 @@ import jsettings
 from jbriefs import chains, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
-from jbus import Refused, party, verbs, write_json
+from jbus import Refused, party, thread_of, verbs, write_json
 from jmerge import judgement
 from jmerge.judgement import bound
 from jsettings import store
@@ -279,7 +279,7 @@ def owned(
         return
     mine = home if not adder else None
     for where in (home, *(scope for scope, _, _ in homes.scopes(home))):
-        if adder and homes.thread_of(where) == adder:
+        if adder and thread_of(where) == adder:
             mine = where
     if mine is None:
         raise Refused(

@@ -4,6 +4,7 @@ with work out.
 A child home is a scope of the repo's home: a directory of the state with a `home-id` or a
 `Was home:` line. The root home, the state directory itself, is watched as a child is, under the
 key `/` in `children.json`, which no scope's name can be. What a home has out (`out`) is read
+import jbus
 from jbus's own records, never from the home: each queue row of a brief of its that is not over,
 each entry of its plan whose go holds with no live row (`plan.owed`), each crew or reviewer
 thread of such a brief that the last pass found unsettled, each question jbus holds for it, and
@@ -40,6 +41,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import jbus
 import jsettings
 from jbriefs import below
 from jbriefs import home as homes
@@ -227,7 +229,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}
     for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
-        thread = homes.thread_of(scope)
+        thread = jbus.thread_of(scope)
         lines = out(run.home, scope, run.state, threads)
         if scope == run.home:
             lines = [line for line in lines if not line.startswith(USERS)]

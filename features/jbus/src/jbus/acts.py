@@ -44,6 +44,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import jbus
 import jsettings
 from jbus import (
     Config,
@@ -298,7 +299,7 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         carried = f"nothing is sent, and {went}"
     elif given.keeps and not closed.holds:
         carried = "nothing is sent"
-    elif questions.thread_of(run.home, closed.slug):
+    elif jbus.thread_of(run.home, closed.slug):
         carried = f"the next pass tells {closed.slug}'s thread"
     else:
         carried = f"{closed.slug} has no Thread: line in a brief or request, so no thread is told"

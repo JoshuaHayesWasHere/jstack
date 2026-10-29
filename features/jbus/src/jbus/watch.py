@@ -40,7 +40,6 @@ from typing import Any
 
 import jsettings
 from jbriefs import below, findings
-from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse
 from jbus.launches import records
@@ -399,12 +398,6 @@ def job(run: Pass, repo: str, number: str) -> dict:
     return given if isinstance(given, dict) else {}
 
 
-def home_thread(run: Pass, brief: str) -> str:
-    """Return the thread of the home that owns the brief (`jbriefs.home`), or nothing while that
-    home has no thread."""
-    return thread_of(home_of(run.home, brief))
-
-
 def task_brief(run: Pass, slug: str) -> str:
     """Return the slug's brief under the home's `tasks/`, or nothing where there is none."""
     try:
@@ -595,9 +588,9 @@ class Seen:
 
     def crew(self, slug: str) -> dict[str, Any] | None:
         """Return the one crew thread out for a slug, as it appears in the list of threads out."""
-        return self.thread_of("crew", slug)
+        return self.one_out("crew", slug)
 
-    def thread_of(self, role: str, slug: str) -> dict[str, Any] | None:
+    def one_out(self, role: str, slug: str) -> dict[str, Any] | None:
         """Return the one thread of `role` out for a slug, as the list of threads out has it."""
         found = [one for one in self.out or [] if one["role"] == role and one["slug"] == slug]
         return found[0] if len(found) == 1 else None
@@ -702,7 +695,7 @@ def _scouted(
     written was settled; one that left it with nothing written is still starting, as far as the
     pass can tell."""
     slug = row["slug"]
-    one = seen.thread_of("scout", slug)
+    one = seen.one_out("scout", slug)
     said = thread(one, str((one or {}).get("live", ""))) if one else None
     written = owed(run, "scout", slug)
     if one is None and launched:

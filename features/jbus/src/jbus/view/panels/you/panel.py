@@ -176,7 +176,7 @@ def retired(home: Path) -> set[str]:
             closed = CLOSED.search((scope / "handoff.md").read_text(errors="replace"))
         except OSError:
             closed = None
-        if closed and not jbriefs.thread_of(scope):
+        if closed and not jbus.thread_of(scope):
             found.add(scope.name)
     return found
 
@@ -479,7 +479,7 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
 def _thread(read: Read, home: str) -> str:
     """The link to the thread of the home by its name, the root's for none, or nothing where it
     has none."""
-    found = jbriefs.thread_of(read.home / home if home else read.home)
+    found = jbus.thread_of(read.home / home if home else read.home)
     return THREAD.format(found) if found else ""
 
 

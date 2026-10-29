@@ -106,9 +106,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+import jbus
 import jsettings
 from jbriefs import below
-from jbriefs import home as jbriefs
 from jbriefs import parse as briefs
 from jbus import (
     expedite,
@@ -117,7 +117,6 @@ from jbus import (
     merge,
     mirror,
     outbox,
-    questions,
     queue,
     read_json,
     waiting,
@@ -1114,7 +1113,7 @@ def asker(home: Path, slug: str, threads: Any) -> tuple[str, str]:
     request. Its role is the one the last pass listed it with (`threads`). Where the pass did
     not list it, its file gives the role: a brief is a crew's and a request is a scout's.
     Both the thread and the role are nothing for a slug with no such line."""
-    thread = questions.thread_of(home, slug)
+    thread = jbus.thread_of(home, slug)
     if not thread:
         return "", ""
     for one in threads if isinstance(threads, list) else []:
@@ -1725,7 +1724,7 @@ whose home it is, the root home, or the user."""
 def _home_of(read: Read, row: str) -> tuple[str, str]:
     """The name and the thread of the home of a row, or of the root home for no row."""
     scope = read.homes.of_task(row).name if row else ""
-    thread = jbriefs.thread_of(read.home / scope if scope else read.home)
+    thread = jbus.thread_of(read.home / scope if scope else read.home)
     return (f"home {scope}" if scope else ROOT_HOME), thread
 
 

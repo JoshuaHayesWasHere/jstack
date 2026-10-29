@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import jbus
 import jsettings
+from jbriefs.home import home_of
 from jbus import (
     cancelled,
     dispatch,
@@ -85,7 +87,7 @@ def unplaced(half: Half) -> None:
             continue
         number = str(pull.get("number", ""))
         said = states.seen.said.get(number, "")
-        thread = watch.home_thread(run, watch.brief_of(run, slug))
+        thread = jbus.thread_of(home_of(run.home, watch.brief_of(run, slug)))
         merge.unplaced(run, half.client, slug, number, said, thread)
 
 

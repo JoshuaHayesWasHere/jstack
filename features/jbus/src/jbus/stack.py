@@ -48,8 +48,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from jbriefs import parse as briefs
-from jbus import END_TURN, dispatch, rebase, review, verbs
+from jbus import END_TURN, dispatch, rebase, review, thread_of, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
 from jbus.watch import World, against, task_brief
@@ -155,7 +154,7 @@ def _moved(
             why = said[-1] if said else f"gh exited {asked.returncode}"
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
-    thread = briefs.thread_of(task_brief(run, slug))
+    thread = thread_of(run.home, slug)
     if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")

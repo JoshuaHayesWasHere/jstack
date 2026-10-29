@@ -42,6 +42,8 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import jsettings
+from jbriefs import home as homes
+from jbriefs import parse
 from jgauge import sizes
 from jsettings import Refused as Refused
 from jsettings.paths import RealDir as RealDir
@@ -249,6 +251,23 @@ def private(path: Path) -> None:
     mode = path.stat().st_mode & 0o777
     if mode & 0o077:
         raise Refused(f"refused: {path} is mode {mode:03o}, readable by others: chmod 600 it")
+
+
+def thread_of(home: Path, slug: str = "") -> str:
+    """The one lookup of whom jbus sends to: the thread an owner is now, read again on each call.
+    A home's directory, the root's or a scope's, is its home's thread (`jbriefs.home`). A slug is
+    the thread on the `Thread:` line of its brief under `tasks/`, or else of its request under
+    `scouts/`. It is an empty string where there is none."""
+    if not slug:
+        return homes.thread_of(home)
+    for kind in ("tasks", "scouts"):
+        try:
+            text = (home / kind / f"{slug}.md").read_text(errors="replace")
+        except OSError:
+            text = ""
+        if found := parse.thread_of(text):
+            return found
+    return ""
 
 
 def _migrations(entry: dict[str, Any]) -> tuple[str, str]:

@@ -55,7 +55,7 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
     if not args.brief.strip():
         raise jbus.Refused("refused: no brief, set B to <state>/tasks/<slug>.md and run it again")
     found = _directory(Path(args.brief))
-    said = str(found) if args.directory else home.thread_of(found)
+    said = str(found) if args.directory else jbus.thread_of(found)
     if said:
         print(said)
     return 0

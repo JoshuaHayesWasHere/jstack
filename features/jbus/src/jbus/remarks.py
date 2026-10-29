@@ -32,8 +32,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from jbriefs import parse as briefs
-from jbus import outbox, read_json, verbs, write_json
+from jbus import outbox, read_json, thread_of, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _api
@@ -149,11 +148,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
     """Send each crew what the owner wrote on its open pull request, once for each remark."""
     crews = []
     for slug, pull in world.open.items():
-        try:
-            brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-        except OSError:
-            continue
-        thread = briefs.thread_of(brief)
+        thread = thread_of(run.home, slug)
         if thread:
             crews.append((slug, pull["number"], thread))
     if not crews:

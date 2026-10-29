@@ -17,7 +17,7 @@ unless:
 
 `stops.json` in the project's jbus state holds two lists, `stops` of `Stop` and `answers` of
 `Answer` (`Kept`): each record is one message and what became of it. A taken stop goes at once, as
-one message that needs `decide`, to the root's thread: `jbriefs.home.thread_of`, read when the
+one message that needs `decide`, to the root's thread: `jbus.thread_of`, read when the
 message goes and never kept, so a stop never reaches a thread that handed off. A stop that cannot
 go (no root home is running, or its thread is capped, or T3 Code gave no answer) waits in the file,
 and each pass tries it again (`deliver`). The message's retry key is the stop's key and the time it
@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
-from jbus import Config, Refused, locked, outbox, queue, verbs, write_json
+from jbus import Config, Refused, locked, outbox, queue, thread_of, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 
@@ -171,10 +171,10 @@ def _stamp(run: Pass) -> str:
 def _scope(home: Path, thread: str) -> Path:
     """Return the directory of the scoped home whose thread `--from` is. Refuse the root's thread,
     and a thread that is no home's now."""
-    if thread and thread == homes.thread_of(home):
+    if thread and thread == thread_of(home):
         raise Refused("refused: --from is the root home's thread, and only a scoped home stops")
     for scope, _, _ in homes.scopes(home):
-        if thread and homes.thread_of(scope) == thread:
+        if thread and thread_of(scope) == thread:
             return scope
     raise Refused(f"refused: --from {thread} is no scoped home's thread now, in no home-id")
 
@@ -249,7 +249,7 @@ def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
     text = " ".join(text.split())
     if not text:
         raise Refused("refused: an answer has the root's words")
-    root = homes.thread_of(run.home)
+    root = thread_of(run.home)
     if not root or thread != root:
         raise Refused(f"refused: --from {thread} is not the root home's thread, which answers")
     at = _stamp(run)
@@ -327,7 +327,7 @@ def _held(run: Pass, one: Stop) -> str:
 
 
 def _ask(run: Pass, client: Client | None, one: Stop) -> None:
-    thread = homes.thread_of(run.home)
+    thread = thread_of(run.home)
     text = ASKS.format(scope=one.scope, row=one.row, held=_held(run, one), what=one.what)
     waits = _send(
         run, client, thread, NO_ROOT, row=one.row, sent=one.sent, text=text, needs="decide"
@@ -340,7 +340,7 @@ def _ask(run: Pass, client: Client | None, one: Stop) -> None:
 
 
 def _tell(run: Pass, client: Client | None, one: Answer) -> None:
-    thread = homes.thread_of(run.home / one.scope)
+    thread = thread_of(run.home / one.scope)
     text = ANSWERS.format(scope=one.scope, row=one.row, answer=one.text)
     gone = NO_SCOPE.format(scope=one.scope)
     waits = _send(run, client, thread, gone, row=one.row, sent=one.sent, text=text, needs="act")

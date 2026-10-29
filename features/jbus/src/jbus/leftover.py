@@ -57,12 +57,12 @@ from typing import Any
 
 import jsettings
 from jbriefs import below
-from jbriefs.home import thread_of
-from jbus import mirror, questions, queue, read_json, verbs, write_json
+from jbriefs.home import home_of
+from jbus import mirror, questions, queue, read_json, thread_of, verbs, write_json
 from jbus.passes import Pass
 from jbus.told import FILE as TOLD
 from jbus.told import told_to
-from jbus.watch import World, at_work, brief_of, home_thread, last_result, named
+from jbus.watch import World, at_work, brief_of, last_result, named
 
 KIND = "leftover"
 NAME = "leftover.json"
@@ -259,7 +259,7 @@ def _judge(
 ) -> Record:
     """Return a leftover's record after this pass. The record says whether the home or the user
     has the leftover."""
-    thread = home_thread(run, brief)
+    thread = thread_of(home_of(run.home, brief))
     if not thread:
         return replace(record, why=NO_HOME)
     told = told_to(read_json(run.state / TOLD, {}), thread)

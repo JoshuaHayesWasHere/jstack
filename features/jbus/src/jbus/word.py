@@ -39,7 +39,7 @@ none for a scope that already holds the same word, by any path: the command says
 Each new one goes to its scope's thread at once, as a word of its own.
 
 A word goes once, as one queued message to the thread in that home's `home-id`. jbus reads that file
-when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends the word
+when it sends the word, not when it keeps it (`jbus.thread_of`). The command sends the word
 at once, except to the home that recorded it. For a word said in that home's own thread (`--message`
 whose thread is the home's) or recorded by it (`--from <thread id>`), `keep` records the word as
 sent, with `skipped` saying why. With `--all`, `keep` does so only for the copy of the project whose
@@ -76,8 +76,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import jbus
 import jsettings
-from jbriefs.home import home_of, scopes, thread_of
+from jbriefs.home import home_of, scopes
 from jbus import Config, Project, Refused, acts, locked, outbox, party, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
@@ -244,7 +245,10 @@ def owner(home: Path, words: str, page: str = "", *threads: str) -> str:
     decided = _decided(home, words, page)
     if decided is not None:
         return decided
-    homes = {thread_of(home): "", **{thread_of(scope): scope.name for scope, _, _ in scopes(home)}}
+    homes = {
+        jbus.thread_of(home): "",
+        **{jbus.thread_of(scope): scope.name for scope, _, _ in scopes(home)},
+    }
     homes.pop("", None)
     return next((homes[one] for one in threads if one in homes), "")
 
@@ -301,7 +305,7 @@ def keep(
         for one in load(run.state):
             if one.id == name or (one.words, one.at, one.ref, one.home) == (words, at, ref, whose):
                 return one
-        mine = thread_of(run.home / whose if whose else run.home)
+        mine = jbus.thread_of(run.home / whose if whose else run.home)
         skipped = ""
         if mine and mine == ref.partition("/")[0]:
             skipped = SAID_IN_HOME.format(thread=mine)
@@ -383,7 +387,7 @@ def deliver(run: Pass, client: Client | None) -> None:
     for one in load(run.state):
         if one.sent_at:
             continue
-        thread, name = thread_of(_homes_dir(run, one)), run.project.name
+        thread, name = jbus.thread_of(_homes_dir(run, one)), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
         text = MESSAGE.format(**(asdict(one) | {"by": run.user.user}))
         waits = post(run, client, thread, text, key, row=name, template=KIND)
@@ -487,7 +491,7 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     now = datetime.now(UTC)
     if args.recorder is not None:
         homes = [
-            thread_of(where)
+            jbus.thread_of(where)
             for project in projects
             for home in [Pass(config, project, now, lambda _: None).home]
             for where in (home, *(scope for scope, _, _ in scopes(home)))
