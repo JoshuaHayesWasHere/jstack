@@ -8,11 +8,11 @@ keeps everything it is told under the directory it is given:
     messages.json the messages a drive gives a thread, by thread id, which `t3_thread_read`
                   returns when jbus asks for one by its item id, as `jbus word --message` does
     calls.jsonl   one line for each tool call jbus made, with its arguments
-    wake.jsonl    one line for each wake jbus sent a home thread, with the body it carried
+    wake.jsonl    one line for each wake jbus sent a home thread, with the lines it carried
 
 It answers the tools `jbus.t3.TOOLS` names, and only to the sandbox's token. Any other tool
-is a JSON-RPC error. A wake is a `t3_thread_send` whose request id starts `wake|`, and its body
-is the JSON block of its message.
+is a JSON-RPC error. A wake is a `t3_thread_send` whose request id starts `wakes|`, the one
+list's message (`jbus.wakes`), and its lines are the items the message names.
 """
 
 from __future__ import annotations
@@ -83,9 +83,10 @@ class Fake:
                 return {"thread": found, "recentRuns": [], "items": items}
             return {"thread": by_id[thread], "recentRuns": [], "items": []}
         if name == "t3_thread_send":
-            if given["clientRequestId"].startswith("wake|"):
-                body = given["message"].split("```json\n", 1)[1].split("\n```", 1)[0]
-                self.log("wake.jsonl", {"thread": given["threadId"], "events": json.loads(body)})
+            if given["clientRequestId"].startswith("wakes|"):
+                listed = given["message"].split("\n\n")[1].splitlines()
+                lines = [line.removeprefix("- ") for line in listed]
+                self.log("wake.jsonl", {"thread": given["threadId"], "lines": lines})
             return {"threadId": given["threadId"], "status": "queued"}
         if name == "link_pull_request":
             return {"url": given["url"], "alreadyLinked": False}

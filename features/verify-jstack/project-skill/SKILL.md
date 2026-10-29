@@ -27,7 +27,7 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
 - `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, no pull request for `pr list --base`, nothing for `api --paginate`, a commit's check runs from `gh/checks.json` (none until a drive writes some) and a job's log from `gh/logs/<job id>`. The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
 - `fake_t3.py` is the T3 Code server and takes a token Launch made up and wrote to `config/t3.json`. The real machine signs in with `jbus t3 login`, approved in T3 Code.
 - `fake_t3.py` answers `t3_thread_launch` with a thread id, and makes no worktree and starts no agent. On the real machine T3 Code does both.
-- `fake_t3.py` takes each wake jbus sends the home thread, `mcp:sandbox-home`, and writes its body to `t3/wake.jsonl`.
+- `fake_t3.py` takes each wake jbus sends the home thread, `mcp:sandbox-home`, and writes the lines of its items to `t3/wake.jsonl`.
   On the real machine the wake queues in the project's home thread, which T3 Code can refuse.
 - `notify-send` is a script that appends to `notify.log`. The real machine shows a notification on a desktop session.
 - `fake-systemctl` is `systemctl`. It says the manager reads the sandbox's HOME, makes and removes the links systemd makes on `enable` and `disable` of a linked unit, writes each call to `systemctl.log`, and starts no unit. On the real machine systemd loads the units and the timer runs the pass.
@@ -99,7 +99,7 @@ What a drive sets up and reads, all under `$VERIFY_JSTACK_SANDBOX`:
 | `t3/threads.json` | the threads T3 Code has | edits a thread's `status` or `settled` between passes |
 | `t3/messages.json` | the user's messages, by thread id, that `jbus word --message <thread>/<message>` reads | writes one before a drive keeps the user's word |
 | `t3/calls.jsonl` | every tool call jbus made, with its arguments | reads it |
-| `t3/wake.jsonl` | every wake sent to a home thread, with the thread and the body it carried | reads it |
+| `t3/wake.jsonl` | every wake sent to a home thread, with the thread and the lines it carried | reads it |
 | `machine/proc/loadavg`, `machine/limits` | the load and the plan limits `jgauge room` reads | edits them |
 | `home/.local/state/home/demo/tasks/` | the demo repo's briefs | writes briefs, reads the `Thread:` line jbus adds |
 | `state/` | jbus's queue, outbox, launch records and `status.json` | reads it, never writes it by hand |

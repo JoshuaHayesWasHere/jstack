@@ -50,9 +50,9 @@ A decision wakes the home thread (`home-wake`):
 
 - `decide-queue` raises a decision with `jbus decide` and prints `raised:`.
 - `decide-once` prints `raised already:` for the same decision raised twice.
-- `wake-send` sends the waiting events to the home thread through T3 Code on the next pass.
-- `wake-gap` holds what is queued within five minutes of the last wake.
-- `status` prints the status file: the last pass, the outbox count, failed wakes.
+- `wake-send` tells the home thread the decision through T3 Code on the next pass, one `wakes` message.
+- `wake-once` sends nothing on a pass that finds nothing new for the home.
+- `status` prints the status file: the last pass and the failed wakes.
 
 A red main files the brief for its fix (`main-red`):
 
@@ -167,27 +167,24 @@ Preconditions:
 - **Raise it again.**
   Run the same command.
   It prints `raised already: alpha: may the demo task skip its tests?`.
-- **See it wait.**
-  Run `record home-wake jq -c '.[] | {event, slug}' "$JBUS_STATE_DIR/demo/home-thread/outbox.json"`.
-  It shows one event: `decision`, `alpha`.
-- **Pass with no home thread.**
+- **Pass.**
   Run `record home-wake jbus poll`.
-  It prints `wake waits demo: no home thread, and the config names no home_thread, so its events wait in the outbox`, and the outbox still holds the decision.
-- **Give the home a thread, and pass.**
-  Run `echo mcp:sandbox-home > "$HOME/.local/state/home/demo/home-id"`, then `record home-wake jbus poll`.
-  It prints `woke demo: 1 events`.
+  It prints `wakes demo: told mcp:sandbox-home of decision alpha: may the demo task skip its tests?. Reply: "demo scope: no, keep them"`.
 - **Check the send.**
   Run `record home-wake jq -c 'select(.tool == "t3_thread_send") | .arguments | {threadId, mode, clientRequestId}' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
-  There is one line, to `mcp:sandbox-home`, in `queue` mode, with a `clientRequestId` that begins `wake|demo|`, and its `message` holds the decision's `say` line and the body as JSON.
+  There is one line, to `mcp:sandbox-home`, in `queue` mode, with a `clientRequestId` that begins `wakes|demo|`, and `t3/wake.jsonl` has the decision's line.
 - **Ask whether wakes go.**
   Run `record home-wake jbus wakes`.
   It prints `wakes go: the home thread of demo is not failing`.
-- **Raise another inside the gap.**
+- **Pass with nothing new.**
+  Run `record home-wake jbus poll`.
+  It prints no `wakes` line, and `t3/calls.jsonl` still has one `t3_thread_send`.
+- **Raise another, and pass.**
   Run `record home-wake jbus decide beta --question 'may beta wait a day?' --reply 'scope: yes'`, then `record home-wake jbus poll`.
-  It prints no `woke` line, and `t3/calls.jsonl` still has one `t3_thread_send`.
+  It prints `wakes demo: told mcp:sandbox-home of decision beta: may beta wait a day?. Reply: "demo scope: yes"`, and the new line of `t3/wake.jsonl` names beta alone.
 - **Read the status.**
   Run `record home-wake jbus status`.
-  `projects.demo.outbox` is 1, `failed_wakes` is 0, and `last_pass` is this minute.
+  `projects.demo.failed_wakes` is 0, and `last_pass` is this minute.
 - **Proof.**
   Copy `t3/calls.jsonl` and `$JBUS_STATE_DIR/status.json` into `$VERIFY_JSTACK_EVIDENCE`.
 

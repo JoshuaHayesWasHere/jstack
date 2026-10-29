@@ -288,9 +288,7 @@ def test_the_day_s_jbus_pass_logs_the_stale_lines_of_a_projects_pack_once(kitche
             f"stale old.md: src/upload.py changed since {sha[:7]}\nprune old.md",
         )
     ]
-    assert kitchen.wakes.posts == [] or all(
-        one["event"] != "pack" for post in kitchen.wakes.posts for one in post
-    )
+    assert not [line for line in kitchen.wakes.said if line.startswith("pack ")]
     kitchen.poll(NOW + timedelta(days=1))
     assert len([one for one in logged(kitchen) if one["event"] == "pack"]) == 2
 

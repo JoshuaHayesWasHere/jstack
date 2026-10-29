@@ -73,7 +73,7 @@ def test_remove_takes_the_row_out_logs_it_and_moves_the_stored_brief_aside(kitch
     assert [(one["slug"], one["event"], one["loud"], one["line"]) for one in kitchen.events()] == [
         ("alpha", "queue", "quiet", f"queue demo: removed alpha, {AT} by user")
     ]
-    assert kitchen.wakes.posts == [] and kitchen.t3.messages == {}
+    assert kitchen.wakes.said == [] and kitchen.t3.messages == {}
 
 
 def ended(kitchen, removed):
@@ -112,7 +112,7 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
     assert remove(kitchen, "alpha")[0] == 0
     told = about(kitchen, "alpha")
     assert told[-1] == f"queue demo: removed alpha, {AT} by user"
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     own = kitchen.brief(
         "alpha", RESULT + GATE.format(n="<n>", asked="red?", status="open", slug="-")
     )
@@ -150,9 +150,9 @@ def test_the_waiting_list_drops_a_removed_row_at_once_and_sends_no_event_for_it(
     assert "approve alpha" in kitchen.main("queue", "show")[1]
     assert remove(kitchen, "alpha")[0] == 0
     assert "alpha" not in kitchen.main("queue", "show")[1]
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     kitchen.poll(LATER)
-    assert kitchen.wakes.posts == [] and kitchen.t3.messages == {}
+    assert kitchen.wakes.said == [] and kitchen.t3.messages == {}
     listed, removed = kitchen.lines()
     assert listed == "waiting demo: 1 wait on user, 1 new (approve alpha), 0 gone"
     assert removed == f"queue demo: removed alpha, {AT} by user"
@@ -252,7 +252,7 @@ def test_a_row_that_is_out_merged_or_waited_on_is_refused_and_nothing_changes(ki
     assert (code, said.splitlines()[0][: len(says)]) == (1, says)
     assert (kitchen.state / "queue.json").read_text() == before
     assert (kitchen.state / "briefs" / "alpha.md").exists()
-    assert transitions(kitchen) == [] and kitchen.waiting() == []
+    assert transitions(kitchen) == []
     assert not (kitchen.state / "removed.json").exists()
 
 
@@ -298,7 +298,7 @@ def test_a_batch_with_a_remove_that_is_refused_removes_nothing(kitchen):
     )
     assert (kitchen.state / "queue.json").read_text() == before
     assert (kitchen.state / "briefs" / "alpha.md").exists()
-    assert transitions(kitchen) == [] and kitchen.waiting() == []
+    assert transitions(kitchen) == []
     assert kitchen.main("queue", "apply", stdin="remove alpha --by user\n") == (
         1,
         "refused: line 1: remove needs --at, and nothing in the batch was applied\n",

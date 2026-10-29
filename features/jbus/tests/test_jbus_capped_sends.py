@@ -201,7 +201,7 @@ def test_a_leftover_waits_for_its_home_s_reset_and_is_not_the_users_meanwhile(ki
     for said in until(kitchen, 0, 3):
         assert sent(kitchen, "wakes") == []
         assert len(waits(said, "demo", "its wakes message")) == 1, said
-        assert listed(kitchen) == [] and kitchen.waiting() == []
+        assert listed(kitchen) == []
     until(kitchen, 41, 44)
     assert len(sent(kitchen, "wakes")) == 1
     assert listed(kitchen) == [] and stalls(kitchen) == []

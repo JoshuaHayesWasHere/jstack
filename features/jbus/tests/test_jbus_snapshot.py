@@ -1,5 +1,5 @@
 """`jbus snapshot` commits the homes' state tree and pushes it, twice a day, and a snapshot that did
-not finish alerts once.
+not finish raises its own alert once, for the owner of what failed.
 
 Each test runs the real verb on a real git repo in the kitchen's home tree, and pushes to a bare
 repo beside it. It uses the real gitleaks where the machine has one. On a machine with none, a
@@ -24,12 +24,13 @@ import jbus
 from jbus import snapshot
 from test_jbus_kitchen import NOW, REPO, queued
 
-UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer", "jbus-snapshot-failed.service")
-FAILED = (
-    "alert: snapshot failed 1 times in a row since 11:00 ET: "
-    "the last snapshot of the homes' state tree did not finish "
-    "(see journalctl --user -u jbus-snapshot)"
-)
+UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer")
+
+
+def failed(cause, owner=""):
+    """The alert line of a snapshot that failed for `owner`, a project, or the machine."""
+    key = f"snapshot {owner}" if owner else "snapshot"
+    return f"alert: {key} failed 1 times in a row since 11:00 ET: {snapshot.FAILED}: {cause}"
 
 
 def git(tree, *args):
@@ -38,7 +39,6 @@ def git(tree, *args):
     ).stdout.strip()
 
 
-@pytest.fixture
 def tree(kitchen, monkeypatch):
     """Make the homes' state tree a git repo with one commit, and give git a name to commit as.
 
@@ -62,16 +62,15 @@ def tree(kitchen, monkeypatch):
     return root
 
 
+@pytest.fixture(name="tree")
+def tree_fixture(kitchen, monkeypatch):
+    return tree(kitchen, monkeypatch)
+
+
 def take(now=NOW):
     said = []
     code = snapshot.snapshot(jbus.load(), now, said.append, warn=said.append)
     return code, said
-
-
-def alarm():
-    said = []
-    assert snapshot.alarm(jbus.load(), NOW, said.append) == 0
-    return said
 
 
 def no_remote(tree, done="committed"):
@@ -111,7 +110,7 @@ def test_with_no_remote_nothing_alerts_and_a_remote_set_later_gets_every_commit(
 ):
     (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
     assert take() == (0, [no_remote(tree)])
-    assert kitchen.wakes.posts == [] and kitchen.log("notify") == []
+    assert kitchen.wakes.listed == [] and kitchen.log("notify") == []
     bare = with_origin(tree, tmp_path)
     assert take() == (0, ["snapshot: nothing changed, pushed"])
     assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
@@ -135,8 +134,9 @@ def test_a_commit_is_pushed_to_the_origin(tree, tmp_path):
 def test_a_push_that_fails_is_a_failed_snapshot(tree, tmp_path):
     git(tree, "remote", "add", "origin", str(tmp_path / "gone.git"))
     (tree / "demo" / "notes.md").write_text("# notes\nnowhere\n")
-    code, (said,) = take()
+    code, (said, alerted) = take()
     assert code == 1 and said.startswith("snapshot: git push failed: ")
+    assert alerted.startswith("alert: snapshot failed 1 times in a row")
 
 
 def test_a_commit_whose_push_failed_is_pushed_by_the_next_run_with_nothing_changed(tree, tmp_path):
@@ -147,7 +147,8 @@ def test_a_commit_whose_push_failed_is_pushed_by_the_next_run_with_nothing_chang
     assert code == 1 and said.startswith("snapshot: git push failed: ")
     bare = tmp_path / "gone.git"
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
-    assert take() == (0, ["snapshot: nothing changed, pushed"])
+    recovered = "recovered: snapshot after 2 failures since 11:00 ET"
+    assert take() == (0, ["snapshot: nothing changed, pushed", recovered])
     caught_up = git(tree, "rev-parse", "HEAD")
     assert git(bare, "rev-parse", "main") == caught_up
     assert take() == (0, ["snapshot: nothing changed, pushed"])
@@ -160,37 +161,69 @@ def test_a_staged_secret_is_refused_and_nothing_is_committed_or_left_staged(tree
     made_up = "".join(random.choices(string.ascii_letters + string.digits, k=36))
     (tree / "demo" / "leak.md").write_text(f'token = "ghp_{made_up}"\n')
     (tree / "demo" / "notes.md").write_text("# notes\nfine\n")
-    assert take() == (
-        1,
-        ["snapshot: gitleaks found a secret in the changes, nothing committed"],
-    )
+    why = "gitleaks found a secret in the changes (demo/leak.md), nothing committed"
+    assert take() == (1, [f"snapshot: {why}", failed(why, "demo")])
     assert git(tree, "rev-parse", "HEAD") == before
     assert git(tree, "diff", "--cached", "--name-only") == ""
+
+
+def secret():
+    made_up = "".join(random.choices(string.ascii_letters + string.digits, k=36))
+    return f'token = "ghp_{made_up}"\n'
+
+
+@pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
+def test_an_owner_whose_secret_is_gone_has_its_alert_ended_while_another_still_fails(kitchen, tree):
+    """The second snapshot reads the whole stage and fails for pantry alone, so demo's file is
+    clean and demo's alert ends then, not at a snapshot that fails for nobody."""
+    (tree / "demo" / "leak.md").write_text(secret())
+    assert take()[0] == 1
+    (tree / "demo" / "leak.md").unlink()
+    (tree / "pantry").mkdir()
+    (tree / "pantry" / "leak.md").write_text(secret())
+    code, said = take()
+    why = "gitleaks found a secret in the changes (pantry/leak.md), nothing committed"
+    assert code == 1 and failed(why, "pantry") in said
+    assert any(line.startswith("recovered: snapshot demo after 1 failures") for line in said)
+    assert set(jbus.read_json(kitchen.state_dir / "streaks.json", {})) == {"snapshot pantry"}
+
+
+def test_an_error_no_check_foresaw_is_the_machines_failed_snapshot(tree, monkeypatch):
+    def broken(config):
+        raise PermissionError("gitleaks is not executable")
+
+    monkeypatch.setattr(snapshot, "refusals", broken)
+    why = "PermissionError: gitleaks is not executable"
+    assert take() == (1, [f"snapshot: {why}", failed(why)])
 
 
 def test_with_no_gitleaks_nothing_is_committed(tree, monkeypatch):
     monkeypatch.setattr(snapshot.shutil, "which", lambda _: None)
     before = git(tree, "rev-parse", "HEAD")
     (tree / "demo" / "notes.md").write_text("# notes\nunread\n")
-    assert take() == (1, ["snapshot: no gitleaks to read the changes, nothing committed"])
+    why = "no gitleaks to read the changes, nothing committed"
+    assert take() == (1, [f"snapshot: {why}", failed(why)])
     assert git(tree, "rev-parse", "HEAD") == before
 
 
-def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_logs_it_recovered(
-    kitchen, tree, tmp_path
+def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_ends_it(
+    kitchen, tree, tmp_path, monkeypatch
 ):
     with_origin(tree, tmp_path)
-    assert alarm() == ["snapshot failed", f"demo: {FAILED}", "alert sent: demo"]
-    assert alarm() == ["snapshot failed"]
-    posted = [event for post in kitchen.wakes.posts for event in post]
-    assert [(e["event"], e["line"]) for e in posted] == [("alert", FAILED)]
-    assert kitchen.log("notify") == [f"jbus | {FAILED}"]
+    which = snapshot.shutil.which
+    monkeypatch.setattr(
+        snapshot.shutil, "which", lambda name: None if name == "gitleaks" else which(name)
+    )
+    why = "no gitleaks to read the changes, nothing committed"
+    (tree / "demo" / "notes.md").write_text("# notes\nunread\n")
+    assert take() == (1, [f"snapshot: {why}", failed(why)])
+    assert take() == (1, [f"snapshot: {why}"])
+    assert kitchen.log("notify") == [f"jbus | {failed(why)}"]
+    monkeypatch.setattr(snapshot.shutil, "which", which)
     (tree / "demo" / "notes.md").write_text("# notes\nback\n")
     code, said = take()
     assert (code, said[0]) == (0, "snapshot: committed, pushed")
-    (recovered,) = kitchen.lines("recovered")
-    assert recovered.startswith("recovered: snapshot after 2 failures since 11:00 ET")
-    assert kitchen.log("notify")[1] == f"jbus | {recovered}"
+    assert said[1].startswith("recovered: snapshot after 2 failures since 11:00 ET")
     assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
 
 
@@ -208,12 +241,11 @@ def test_the_timer_runs_the_snapshot_at_half_past_eight_twice_a_day_and_catches_
     timer = read("jbus-snapshot.timer")
     assert timer["Timer"]["Persistent"] == "true"
     assert timer["Install"]["WantedBy"] == "timers.target"
-    service, failed = read("jbus-snapshot.service"), read("jbus-snapshot-failed.service")
-    assert service["Unit"]["OnFailure"] == "jbus-snapshot-failed.service"
-    for unit, words in ((service, ["snapshot"]), (failed, ["snapshot", "--alarm"])):
-        command = shlex.split(unit["Service"]["ExecStart"])
-        assert (Path(command[0]).name, command[1:]) == ("jbus", words)
-        assert unit["Service"]["Type"] == "oneshot"
+    service = read("jbus-snapshot.service")
+    assert "OnFailure" not in service["Unit"]
+    command = shlex.split(service["Service"]["ExecStart"])
+    assert (Path(command[0]).name, command[1:]) == ("jbus", ["snapshot"])
+    assert service["Service"]["Type"] == "oneshot"
     for name in UNITS:
         options = [
             line
@@ -294,8 +326,9 @@ def standing(kitchen, tree, *rules, codes=None, where="demo"):
 
 
 def refused(tree, path, *why, done="nothing changed"):
-    left = f"snapshot: refused, left out: demo: {path} {'; '.join(why)}"
-    return (1, [left, no_remote(tree, done)])
+    line = f"demo: {path} {'; '.join(why)}"
+    left = f"snapshot: refused, left out: {line}"
+    return (1, [left, no_remote(tree, done), failed(f"refused {line}", "demo")])
 
 
 def test_three_rules_each_made_code_by_a_queued_row_are_snapshotted(kitchen, tree):
@@ -337,15 +370,13 @@ def test_a_scoped_homes_standing_md_is_held_to_the_same_cap(kitchen, tree):
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root reads a file with no read bit")
-def test_an_unreadable_standing_md_is_refused_and_the_alarm_still_alerts(kitchen, tree):
+def test_an_unreadable_standing_md_is_refused_and_still_alerts(kitchen, tree):
     path = standing(kitchen, tree, "one")
     path.chmod(0)
     try:
         assert take() == refused(tree, path, "cannot be read: Permission denied")
-        said = alarm()
     finally:
         path.chmod(0o644)
-    assert said[1] == f"demo: {FAILED}: demo: {path} cannot be read: Permission denied"
 
 
 def test_the_verb_says_the_refusal_on_stderr_and_exits_1(kitchen, tree, capsys):
@@ -353,16 +384,8 @@ def test_the_verb_says_the_refusal_on_stderr_and_exits_1(kitchen, tree, capsys):
     assert snapshot.snapshot(jbus.load(), NOW, print) == 1
     out, err = capsys.readouterr()
     why = "rule 1 has no Code: <slug>, the queue row that makes it code"
-    left, done = refused(tree, path, why)[1]
-    assert (out, err) == (f"{done}\n", f"{left}\n")
-
-
-def test_the_alarm_of_a_refused_snapshot_says_which_rule_and_why(kitchen, tree):
-    path = standing(kitchen, tree, "one", codes=[None])
-    assert take()[0] == 1
-    said = alarm()
-    why = f"demo: {path} rule 1 has no Code: <slug>, the queue row that makes it code"
-    assert said[1] == f"demo: {FAILED}: {why}"
+    left, done, alerted = refused(tree, path, why)[1]
+    assert (out, err) == (f"{done}\n{alerted}\n", f"{left}\n")
 
 
 def test_a_refused_standing_md_is_left_out_and_the_rest_of_the_tree_is_committed(kitchen, tree):
@@ -377,12 +400,13 @@ def test_a_refused_standing_md_is_left_out_and_the_rest_of_the_tree_is_committed
     path.write_text(f"{kept}\n1. A rule with no code.\n")
     code, said = take()
     why = f"other: {path} rule 1 has no Code: <slug>, the queue row that makes it code"
-    assert (code, said) == (1, [f"snapshot: refused, left out: {why}", no_remote(tree)])
+    alerted = failed(f"refused {why}", "other")
+    assert (code, said) == (1, [f"snapshot: refused, left out: {why}", no_remote(tree), alerted])
     assert git(tree, "rev-parse", "HEAD~1") == before
     assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/notes.md"
     assert git(tree, "show", "HEAD:other/standing.md") == kept.strip()
     assert git(tree, "status", "--porcelain") == "M other/standing.md"
-    assert f"{FAILED}: {why}" in alarm()[1]
+    assert kitchen.lines("alert") == [] and kitchen.wakes.listed == []
 
 
 def with_origin(tree, tmp_path):
@@ -414,11 +438,6 @@ def test_a_snapshot_with_no_why_says_only_the_time(tree, tmp_path):
     assert git(tree, "log", "-1", "--format=%s") == (
         "snapshot 2026-10-12 11:00 ET: demo standing rule 2 added"
     )
-
-
-def test_why_is_not_taken_with_alarm(kitchen, tree):
-    code, said = kitchen.main("snapshot", "--alarm", "--why", "x")
-    assert code == 2 and "not allowed with argument" in said
 
 
 def undo_section():
@@ -510,9 +529,7 @@ def test_a_snapshot_that_waits_too_long_for_another_fails_and_commits_nothing(tr
     lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
     with lock.open("a") as held:
         fcntl.flock(held, fcntl.LOCK_EX)
-        assert take() == (
-            1,
-            ["snapshot: another snapshot has run for 0.3 s and holds the lock, nothing committed"],
-        )
+        why = "another snapshot has run for 0.3 s and holds the lock, nothing committed"
+        assert take() == (1, [f"snapshot: {why}", failed(why)])
     assert git(tree, "rev-parse", "HEAD") == before
     assert git(tree, "diff", "--cached", "--name-only") == ""

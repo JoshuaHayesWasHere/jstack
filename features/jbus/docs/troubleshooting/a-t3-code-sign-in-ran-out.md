@@ -5,7 +5,7 @@ When the sign-in runs out, `jbus` cannot ask T3 Code, so it launches nothing.
 
 You see one of these:
 
-- `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, <n> days left: run jbus t3 login`, sent to the first project's home thread from 7 days before the end.
+- `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, <n> days left: run jbus t3 login`, on the desk and in the infra home from 7 days before the end.
 - `condition <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login`, on the desktop from 5 days before the end, on Linux only, since macOS has no `notify-send`.
 - `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login`, once after the end.
 - `wait <project>: T3 Code could not be asked (<why>)`, from each pass after the end.
@@ -20,5 +20,5 @@ Sign in again:
 3. Run `jinstall --doctor`.
    Its line is `ok optional jbus sign-in <path>`.
 
-The next pass sends `sign-in: jbus's T3 sign-in was renewed, and now expires <YYYY-MM-DD HH:MM zone>` and launches again.
+The next pass ends the sign-in alert and launches again.
 [The sign-in](../jbus/the-sign-in.md) has when each line comes.

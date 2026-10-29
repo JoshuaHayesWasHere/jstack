@@ -4,7 +4,8 @@ home, and send the one alert for a missed target.
 The report gives every number with how it counts (`Number.how`), the period, and what the
 counts are based on: the jobs, local and hosted apart, and how many jobs were cancelled
 while they waited. jbus sends no alert for a week with every target met, or with no data.
-For a week that missed a target it sends one `alert` event, which names each missed target.
+For a week that missed a target it raises one alert of the project's, which names each missed
+target.
 """
 
 from __future__ import annotations
@@ -94,8 +95,8 @@ def escalate(
     now: datetime,
     say: Any,
 ) -> int:
-    """Alert the project once for the week if it missed a target. The alert's key is the
-    week's report, so a second run on the same day sends no second alert."""
+    """Alert the project once for the week if it missed a target. The alert's key is its line,
+    so a second run on the same day raises no second alert."""
     late = missed(nine)
     if not late:
         say("ci: every target met or without data, no alert")
@@ -103,7 +104,6 @@ def escalate(
     which = "; ".join(f"{one.name} {one.shown} (held to {one.target})" for one in late)
     line = f"ci week {config.user.day(now)}: missed {which}. Report: {path}"
     run = passes.Pass(config, project, now, say)
-    run.box.send("", "alert", line, key=f"ci-week-{config.user.day(now)}")
-    alert.flush(run)
+    alert.deliver(run, line)
     say(f"ci: alert for {len(late)} missed")
     return 0

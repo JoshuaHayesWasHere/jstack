@@ -15,9 +15,9 @@ pressure, the file slots of `/tmp` and the plan's limits. It reads no config of 
 projects are the directories of the state directory that have a `queue.json`, and a
 project's home is the directory of its name. It also reads `leftover.json` where a pass
 wrote one (`jbus.leftover`), and the log of what the outbox sent, `outbox.jsonl`
-(`jbus.outbox`). It never opens the queue of events that waits for the home thread,
-`outbox.json`, or the stored token, and it writes nothing. The one setting it takes is the
-user's time zone (`jsettings`), and it reads a time with no zone as a time in that zone.
+(`jbus.outbox`). It never opens the second target's outbox, `outbox.json`, or the stored
+token, and it writes nothing. The one setting it takes is the user's time zone (`jsettings`),
+and it reads a time with no zone as a time in that zone.
 
 The line is `STEPS`, eleven steps from Queued to Merged. Each open row of the queue is a
 task on one step. The holder of the task is the user, a crewmate, a reviewer, the check
@@ -1608,7 +1608,7 @@ SUMMARY = {
     "unplaced": [None],
     "health": {
         "checks": {"running": None, "waiting": None, "failed": None, "error": None},
-        "bus": {"outbox": None, "failed_wakes": None, "last_error": None},
+        "bus": {"failed_wakes": None, "last_error": None},
         "threads": None,
         "blind": None,
         "unwell": [{"name": None, "state": None}],
@@ -1750,7 +1750,7 @@ def owner(read: Read, one: dict[str, Any]) -> tuple[str, str, str]:
     return USER, "", row
 
 
-_MOMENT = re.compile(r"\s*\b(?:at |until )?(?:[0-9a-f]{7,40}|\d{4}-\S+)\b")
+MOMENT = re.compile(r"\s*\b(?:at |until )?(?:[0-9a-f]{7,40}|\d{4}-\S+)\b")
 """A commit or a time in a cause, which the key of an entry leaves out."""
 
 
@@ -1758,7 +1758,7 @@ def key_of(one: dict[str, Any]) -> str:
     """The outbox's key for the one message that tells an entry's owner of it: its kind, subject
     and reason, with no commit, run or time, so one fault is one key whatever runs show it, and a
     new owner thread a new one."""
-    stands = f"{one['kind']}|{one['subj']}|{_MOMENT.sub('', one['cause'])}"
+    stands = f"{one['kind']}|{one['subj']}|{MOMENT.sub('', one['cause'])}"
     digest = hashlib.sha256(stands.encode()).hexdigest()[:12]
     return f"wrong|{one['kind']}|{digest}|{one['to']}"
 
@@ -1984,7 +1984,7 @@ def broken(wrong: list[dict[str, Any]], bus: dict[str, Any]) -> list[dict[str, s
         elif kind == "ci":
             what = "CI not read" if mine[0]["subj"] == "CI" else f"CI {len(mine)} failed"
         else:
-            what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
+            what = "bus failed to send"
         found.append({"what": what, "open": drawer, "since": since})
     unread = [one for one in wrong if one["kind"] == "source"]
     if unread:
@@ -2037,7 +2037,7 @@ def summary(read: Read) -> dict[str, Any]:
         "last": read.acts[-1] if read.acts else None,
         "health": {
             "checks": failed,
-            "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
+            "bus": {key: bus[key] for key in ("failed_wakes", "last_error")},
             "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
             "blind": len(own),
             "unwell": [{"name": one["name"], "state": one["state"]} for one in unwell],

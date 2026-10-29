@@ -1,7 +1,6 @@
 [Unit]
 Description=jbus snapshot: commit and push the homes' state tree
 Documentation=file:%Y/../docs/jbus/back-up-the-homes-state.md#back-up-the-homes-state
-OnFailure=jbus-snapshot-failed.service
 
 [Service]
 Type=oneshot

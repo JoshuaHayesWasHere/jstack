@@ -3,14 +3,19 @@
 The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
-(`jbus.plan.buildable`) and the deferred lines of a home's plan (`jbus.prose`). An item's key has
-no run and no time in it: a red's failing
-tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes the items
-one home thread owns that are new to it, less those its own thread caused and those whose cause is
-another open item, unless the row is that item's fix.
-An item that leaves the list wakes no one, since a thread's record keeps only open keys.
+(`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`) and the open alerts
+whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
+snapshot that failed, a home that stalled. An item's key has no run and no time in it: a red's
+failing tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes
+the items one home thread owns that are new to it, less those its own thread caused and those whose
+cause is another open item, unless the row is that item's fix.
+An item that leaves the list wakes no one. A thread's record keeps each key it was told with a
+digest of what it said, for `KEEP` after the item leaves the list, so an item told again in that
+time wakes its home only when what it says changed.
 
-A pass sends each home thread at most one `wakes` message through the outbox. `wakes.json` is the
+A pass sends each home thread at most one `wakes` message through the outbox. Its retry key is
+made from each item's key and digest, so an item whose words changed is a new message and not a
+retry of the one before. `wakes.json` is the
 one record of what a home was told, which the view reads too (`state._fixing`). A fault of a row
 that the step working the row tells, as a crew's carry-on, is on the list only as a cause.
 """
@@ -20,12 +25,14 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
 from jbus import (
+    alert,
     blockers,
     clock,
     leftover,
@@ -50,6 +57,7 @@ if TYPE_CHECKING:
     from jbus.poll import Half
 
 UNREAD = "unread"
+KEEP = timedelta(days=1)
 CREW = next(role for role in ROLES if role.name == "crew")
 MESSAGE = (
     "jbus: {count} new for this home in {project}, from the list of what is open:\n\n"
@@ -94,24 +102,46 @@ class Item:
     text: str = ""
 
 
+def words(one: Item) -> str:
+    """The digest of what an item says, its line and its text, with no commit or time in them
+    (`state.MOMENT`), as its key has none: a fault that only moves to a new commit says nothing
+    new."""
+    said = state.MOMENT.sub("", f"{one.line}\n{one.text}")
+    return hashlib.sha256(said.encode()).hexdigest()[:12]
+
+
 def pick(items: list[Item], seen: dict[str, Any], thread: str) -> list[Item]:
     """Return the items the thread owns that are new to it, each key once: not caused by the
-    thread, not folded into another open item, and not among the keys it has seen."""
+    thread, not folded into another open item, and not told to it before with the same words. A
+    key that two items share, as one red on two branches, is told while either says what was told.
+    A record written before the digest was kept counts as the same words."""
     keys = {one.key for one in items}
+    told = {
+        one.key
+        for one in items
+        if one.key in seen and seen[one.key].get("said", words(one)) == words(one)
+    }
     found: dict[str, Item] = {}
     for one in items:
         folded = one.of in keys and one.of != one.key and one.of not in one.fixes
-        if one.to != thread or one.by == thread or folded or one.key in seen:
+        if one.to != thread or one.by == thread or folded or one.key in told:
             continue
         found.setdefault(one.key, one)
     return list(found.values())
 
 
-def kept(items: list[Item], seen: dict[str, Any], told: list[Item], at: str) -> dict[str, Any]:
-    """Return the thread's record after a wake: each open key it had seen, and each told now."""
-    keys = {one.key for one in items}
-    record = {key: one for key, one in seen.items() if key in keys}
-    return record | {one.key: {"at": at, "wrong": one.wrong} for one in told}
+def kept(
+    items: list[Item], seen: dict[str, Any], told: list[Item], now: datetime
+) -> dict[str, Any]:
+    """Return the thread's record after a wake: each open key it had seen, each it was told
+    less than `KEEP` ago, and each told now."""
+    keys, at = {one.key for one in items}, now.isoformat()
+    record = {
+        key: one
+        for key, one in seen.items()
+        if key in keys or now - datetime.fromisoformat(one.get("at") or at) < KEEP
+    }
+    return record | {one.key: {"at": at, "wrong": one.wrong, "said": words(one)} for one in told}
 
 
 @dataclass(frozen=True)
@@ -264,26 +294,34 @@ def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
 
 
 def root_of(run: Pass) -> str:
-    """The root home's thread, or with none the top-level `home_thread` its wakes go to
-    (`alert._thread`)."""
+    """The root home's thread, or with none the top-level `home_thread` its wakes go to."""
     return thread_of(run.home) or run.config.home_thread
 
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that the root home passes on: each item of the list that the user
-    has to decide (`blockers.deciding`), but for a kind in `blockers.UNLISTED`. A row to approve
-    is caused by the home whose brief it is. They wake the root's thread (`root_of`)."""
+    has to decide (`blockers.deciding`). A row to approve is caused by the home whose brief it
+    is. They wake the root's thread (`root_of`)."""
     root, items = root_of(run), []
-    for one, said in blockers.deciding(run, listed):
-        if one["kind"] in blockers.UNLISTED:
-            continue
+    for one, line in blockers.deciding(run, listed):
         brief = run.home / "tasks" / f"{one.get('slug')}.md"
         text = (
             brief.read_text(errors="replace") if one["kind"] == "approve" and brief.exists() else ""
         )
         by = thread_of(homes.home_of(run.home, text)) if text else ""
-        items.append(Item(key=one["key"], to=root, line=said, row=one.get("slug") or "", by=by))
+        items.append(Item(key=one["key"], to=root, line=line, row=one.get("slug") or "", by=by))
     return items
+
+
+def alert_items(run: Pass) -> list[Item]:
+    """The open alerts whose owner is this project (`jbus.Config.owner`), each the item of the
+    root's thread, the machine's for the infra project only."""
+    root = root_of(run)
+    return [
+        Item(key=f"alert|{one.key}", to=root, line=one.line)
+        for one in alert.open_items(run.config.state_dir, run.now)
+        if run.config.owner(one.owner) == run.project
+    ]
 
 
 def left_items(run: Pass) -> list[Item]:
@@ -367,19 +405,22 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         pass
     else:
         items += owed_items(run, record, rows) + brief_items(run, rows)
-    items += prose_items(run, record)
+    items += prose_items(run, record) + alert_items(run)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)
         new = pick(items, seen, thread)
         told = new if new and _send(run, client, thread, new) else []
-        threads[thread] = kept(items, seen, told, run.now.isoformat())
+        threads[thread] = kept(items, seen, told, run.now)
     threads = {thread: seen for thread, seen in threads.items() if seen}
     write_json(run.state / FILE, {"threads": threads, "tests": tests.used})
 
 
 def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:
-    keys = "|".join(sorted(one.key for one in new))
+    """Send the thread its new items in one message, and count the streak of that thread's wakes:
+    the root's is the project's `home thread` streak, and each other thread has its own."""
+    streak = alert.home(run.project.name, "" if thread == root_of(run) else thread)
+    keys = "|".join(sorted(f"{one.key}:{words(one)}" for one in new))
     digest = hashlib.sha256(keys.encode()).hexdigest()[:12]
     text = MESSAGE.format(
         count=len(new),
@@ -401,8 +442,10 @@ def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:
         )
     except T3Error as error:
         run.say(f"wait {run.project.name}: {thread} could not be woken ({error})")
+        alert.count(run, streak, [f"T3 Code did not take the wake: {error}"])
         return False
     if went:
+        alert.count(run, streak, [""])
         said = ", ".join(one.line for one in new)
         run.say(f"{KIND} {run.project.name}: told {thread} of {said}")
     return went

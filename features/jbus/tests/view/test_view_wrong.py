@@ -117,7 +117,7 @@ def test_one_cause_across_four_projects_is_one_entry_naming_them(tmp_path, monke
     (scene.state_dir / "cellar" / "queue.json").write_text("[]")
     status = json.loads((scene.state_dir / "status.json").read_text())
     for name in ("demo", "pantry", "larder", "cellar"):
-        status["projects"][name] = {"failed_wakes": 3, "last_error": DOWN, "outbox": 4}
+        status["projects"][name] = {"failed_wakes": 3, "last_error": DOWN}
     scene.write("status.json", status, scene.state_dir)
     given = stack(scene)
     assert sum(1 for one in given["projects"] if one["broken"]) == 4

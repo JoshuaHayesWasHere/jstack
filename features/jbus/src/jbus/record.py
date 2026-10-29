@@ -205,9 +205,19 @@ def rows(
     return seen
 
 
-def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[str, Any]:
-    """Return what the status file says of one route of a project: its streak, its last
-    error and what waits in its outbox."""
+def _hook(config: Config, key: str) -> dict[str, Any]:
+    """Return what the status file says of the wakes to a project's home thread: its streak and
+    why its last wake failed."""
+    failing = alert.streak(config.state_dir, key)
+    return {
+        "failed_wakes": failing.count if failing else 0,
+        "last_error": failing.why if failing else "",
+    }
+
+
+def _second(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[str, Any]:
+    """Return what the status file says of the second target: its streak, its last error and
+    what waits in its outbox."""
     failing = alert.streak(config.state_dir, key)
     return {
         "failed_wakes": failing.count if failing else 0,
@@ -227,20 +237,20 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
     """Return what the status file holds. Most of it comes back from the files the pass left.
     The rest is the homes not on the bus, which no pass writes (`project.missing`), and each
     scratch home, with the thread in its `home-id` and none of a repo's fields. A project's
-    streak, last error and `outbox` are its home thread's, and the second target, where the config
-    sets one, has its own beside them."""
+    streak and last error are its home thread's, and the second target, where the config sets one,
+    has its own beside them, with its `outbox`."""
     expires = t3.expiry(config.token_path)
     projects = {}
     for one in config.projects:
         box = wake.Box(config.state(one), one, config.blocking)
         projects[one.name] = {
-            **_hook(config, box, box.home, alert.home(one.name)),
+            **_hook(config, alert.home(one.name)),
             "sign_in": signin.expiring(config, now),
             "sweep": box.marks().get("sweep", ""),
         }
         if box.blocking is not None:
             key = alert.blocking(one.name)
-            projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
+            projects[one.name]["blocking"] = _second(config, box, box.blocking, key)
     return {
         "alerts": alerts(config, now),
         "last_pass": config.user.stamp(now),

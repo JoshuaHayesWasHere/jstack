@@ -82,7 +82,7 @@ def paged(kitchen):
 def posted(kitchen):
     """What the home thread got of a retry cap, once a pass has run."""
     kitchen.poll()
-    return [one for sent in kitchen.wakes.said for one in sent if "the retry cap" in one]
+    return [one for one in kitchen.wakes.said if "the retry cap" in one]
 
 
 def test_a_fix_removed_before_it_launched_gives_its_try_back(kitchen):
@@ -224,7 +224,7 @@ def test_2026_10_24_check_mac_room_proc_replayed_through_a_pass_sends_no_page(ki
 
     assert "decision" not in said, said
     assert [one["line"] for one in kitchen.events("decision")] == []
-    assert kitchen.wakes.posts == []
+    assert kitchen.wakes.said == []
     assert counted(kitchen, "check:mac-room-proc") == ["mac-sync-shards"]
 
 

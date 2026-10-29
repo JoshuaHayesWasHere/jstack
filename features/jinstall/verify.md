@@ -35,7 +35,6 @@ Paths:
 - `features/jbus/units/jbus-relay.service`
 - `features/jbus/units/jbus-snapshot.service`
 - `features/jbus/units/jbus-snapshot.timer`
-- `features/jbus/units/jbus-snapshot-failed.service`
 - `features/jbus/units/jbus-view.service`
 Tests: none
 

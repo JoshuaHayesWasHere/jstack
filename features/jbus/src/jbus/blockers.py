@@ -83,6 +83,7 @@ from jbus import (
     Config,
     Project,
     Refused,
+    alert,
     cancelled,
     dispatch,
     locked,
@@ -95,7 +96,6 @@ from jbus import (
     write_json,
 )
 from jbus.passes import Pass
-from jbus.wake import Box
 from jmerge import judgement
 from jsettings import brief as brief_head
 
@@ -121,12 +121,16 @@ def head(text: str, name: str) -> str:
     return "" if said.startswith("<") else said
 
 
-def decide(box: Box, slug: str, key: str, said: str, reply: str, *, listed: bool = False) -> bool:
-    """Raise one decision for the key, and return False when it was raised before. A decision
-    `listed` reaches a home thread from the one list (`jbus.wakes`), and only the log keeps its
-    event."""
-    line = f'{KIND} {slug}: {said}. Reply: "{reply}"'
-    return box.send(slug, KIND, line, key=f"{KIND}|{key}", listed=listed)
+def decide(run: Pass, slug: str, key: str, said: str, reply: str, *, listed: bool = False) -> bool:
+    """Log one decision for the key, and return False when it was logged before. A home thread
+    hears of it from the one list (`jbus.wakes`): a decision `listed` is an item of what waits
+    there already, and any other is the project's alert, which ends after `alert.LASTS`."""
+    line, keyed = f'{KIND} {slug}: {said}. Reply: "{reply}"', f"{KIND}|{key}"
+    sent = run.box.send(slug, KIND, line, key=keyed)
+    if sent and not listed:
+        ends = (run.now + alert.LASTS).isoformat()
+        alert.raise_(run.config, keyed, line, owner=run.project.name, now=run.now, ends=ends)
+    return sent
 
 
 def _count(number: int, noun: str) -> str:
@@ -186,7 +190,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
             f"{key}'s next judgment"
         )
     said, reply = _capped(project, slug, key, had)
-    decide(run.box, slug, f"blocker:{key}", said, reply)
+    decide(run, slug, f"blocker:{key}", said, reply)
     raise Refused(
         f"refused: {said}: raised to {config.user.user} as a decision, and {slug} is not queued"
     )
@@ -408,19 +412,12 @@ def deciding(run: Pass, listed: list[waiting.Item] | None) -> list[tuple[waiting
     return found
 
 
-UNLISTED = frozenset({"config"})
-"""The kinds of need the one list does not carry: a setup jbus lacks may be the sign-in to T3
-Code that the list's message needs, so its decision is an event, whose failing wake alerts."""
-
-
 def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
-    """Raise one decision for each item that the user has to decide (`deciding`). A home thread
-    hears of it from the one list (`jbus.wakes`), and the log keeps this event, but for a kind
-    in `UNLISTED`, which is an event of the home thread."""
+    """Log one decision for each item that the user has to decide (`deciding`). A home thread
+    hears of it from the one list (`jbus.wakes`), and the log keeps this event."""
     for one, said in deciding(run, listed):
         key, slug = _keyed(one)
-        carried = one["kind"] not in UNLISTED
-        decide(run.box, slug, key, said, _reply(run.project, one), listed=carried)
+        decide(run, slug, key, said, _reply(run.project, one), listed=True)
 
 
 def _raise(half: Half) -> None:
@@ -511,7 +508,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
             said.append(f"wait {key}: {merged}, and {slug} has not been judged since")
         elif len(had) >= cap:
             what, reply = _capped(run.project, slug, key, had)
-            decide(run.box, slug, f"blocker:{key}", what, reply)
+            decide(run, slug, f"blocker:{key}", what, reply)
             said.append(f"decision {key}: {what}, raised, it waits on {run.user.user}")
         else:
             said.append(
@@ -543,7 +540,7 @@ def _decide(args: argparse.Namespace, config: Config) -> int:
         raise Refused("refused: a decision needs --question and --reply, each filled in")
     run = Pass(config, project, datetime.now(UTC))
     key = "decide " + hashlib.sha256(f"{args.slug}\n{question}".encode()).hexdigest()[:16]
-    sent = decide(run.box, args.slug, key, question, f"{project.name} {reply}")
+    sent = decide(run, args.slug, key, question, f"{project.name} {reply}")
     print(f"{'raised' if sent else 'raised already'}: {args.slug}: {question}")
     return 0
 

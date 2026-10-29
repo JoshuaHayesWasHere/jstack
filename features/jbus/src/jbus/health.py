@@ -29,12 +29,11 @@ with.
   cap ends by itself at the reset, and its recovered line says that launches on the instance resume.
 
 A reading over its limit is an incident, with the key `health <the reading's key>`, which
-`jbus.alert` keeps as a streak. jbus pages it once when it starts (`alert.opened`), and once
-when a reading under the limit ends it (`alert.closed`). When jbus could not take a reading
-(`over` None), it leaves that reading's incident as it is. When jbus no longer takes an
-incident's reading, because a mount or an instance is gone or the config no longer posts to
-a relay, jbus ends the incident with no line. jbus sends a page to the desk, to the home thread of
-every project, as an event of the machine (`wake.Box.send`).
+`jbus.alert` keeps as an open alert of the machine's: the desk hears of it when it starts
+(`alert.opened`), and the one list carries it to the infra home. A reading under the limit ends it
+(`alert.closed`). When jbus could not take a reading (`over` None), it leaves that reading's
+incident as it is. When jbus no longer takes an incident's reading, because a mount or an instance
+is gone or the config no longer posts to a relay, jbus ends the incident with no line.
 
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
@@ -463,26 +462,22 @@ def look(
 
 
 def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> list[Reading]:
-    """Take a look, and page each incident that starts or ends: see the module."""
+    """Take a look, and open or end each incident: see the module."""
     found = look(config, now, say)
     state = config.state_dir
     taken = {PREFIX + one.key: one for one in found}
-    owed = []
     for key, one in taken.items():
         if one.over:
-            line = alert.opened(state, key, one.line(), now=now)
+            line = alert.opened(config, key, one.line(), now=now)
         elif one.over is False:
-            line = alert.closed(state, key, one.line(recovered=True), user=config.user)
+            line = alert.closed(config, key, one.line(recovered=True))
         else:
             line = None
         if line:
-            owed.append((key, line))
+            say(line)
     for key in alert.streaks(state):
         if key.startswith(PREFIX) and key not in taken:
             alert.retire(state, key)
-    for key, line in owed:
-        page(config, now, say, line)
-        alert.told(state, key)
     return found
 
 
@@ -495,15 +490,6 @@ def first(half: Any) -> None:
         watch(run.config, run.now, run.say)
     except Exception as error:
         run.say(f"health failed: {alert.why(error, run.config)}")
-
-
-def page(config: jbus.Config, now: datetime, say: Callable[[str], None], line: str) -> None:
-    """Say the line, raise it on the desk, and queue it into every project's box, so each home
-    thread gets it."""
-    say(line)
-    wake.notify(line)
-    for project in config.projects:
-        alert.queue(wake.Box(config.state(project), project), line, machine=True)
 
 
 def show(found: list[Reading]) -> list[str]:

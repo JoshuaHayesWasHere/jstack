@@ -13,7 +13,7 @@ import pytest
 import jbus
 import jsettings
 from jbriefs import findings
-from jbus import expedite, merge, wake
+from jbus import expedite, merge
 from jmerge import ready
 from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT, asks
@@ -72,11 +72,10 @@ class Short:
 
     def heard(self, result=""):
         """Run a pass that reads the Result as it is, while the pull request is short of nothing
-        yet. Then clear what the pass sent from the outbox and the home thread."""
+        yet. Then clear what the pass told the home thread."""
         self.out("", result=result)
         self.kitchen.poll(NOW - timedelta(minutes=20 - self.minute))
-        jbus.write_json(self.kitchen.state / wake.HOME / "outbox.json", [])
-        self.kitchen.wakes.posts.clear()
+        self.kitchen.wakes.listed.clear()
 
     def commit(self, message=""):
         if message:
@@ -247,7 +246,7 @@ def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reas
     assert "say" not in event and event["text"] == sends(kitchen)[0]["message"]
     short.passes(6)
     assert len(sends(kitchen)) == 1
-    assert kitchen.wakes.posts == [] and kitchen.lines("stall") == [] and gates(kitchen) == []
+    assert kitchen.wakes.said == [] and kitchen.lines("stall") == [] and gates(kitchen) == []
     assert f"{kind}|alpha|{short.head[:12]}" in jbus.read_json(kitchen.state / "sent.json", [])
 
 
@@ -317,8 +316,7 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     short.passes(9)
     crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
     assert len(crew) == 1
-    posted = [event for post in kitchen.wakes.posts for event in post]
-    assert [event["line"] for event in posted if event["loud"] == "user"] == []
+    assert kitchen.wakes.said == []
     assert kitchen.lines("stall") == [] and gates(kitchen) == []
     short.passes(1)
     stalled = (
@@ -327,8 +325,8 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     )
     assert kitchen.lines("stall") == [stalled]
     (event,) = kitchen.events("stall")
-    assert (event["loud"], event["posted"]) == ("quiet", None)
-    assert not [one for post in kitchen.wakes.posts for one in post if one["event"] == "stall"]
+    assert event["loud"] == "quiet"
+    assert not [one for one in kitchen.wakes.said if one.startswith("stall ")]
     short.passes(12)
     crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
     assert stalled in kitchen.lines("stall") and len(crew) == 1
@@ -527,7 +525,7 @@ def test_drops_a_review_did_not_rule_on_ask_the_crew_for_the_scoped_pass_not_the
     assert sends(kitchen) == [said_to(short, "unruled", reason, sentence)]
     short.passes(6)
     assert len(sends(kitchen)) == 1
-    assert kitchen.wakes.posts == [] and gates(kitchen) == []
+    assert kitchen.wakes.said == [] and gates(kitchen) == []
     assert kitchen.lines("waiting") == [] and kitchen.lines("waiting-on-user") == []
     assert jbus.read_json(kitchen.state / "waiting-on-user.json", []) == []
 
@@ -543,8 +541,8 @@ def test_ten_passes_after_the_message_with_nothing_changed_is_one_stall_in_the_l
     )
     assert kitchen.lines("stall") == [stalled]
     (event,) = kitchen.events("stall")
-    assert (event["slug"], event["loud"], event["posted"]) == ("alpha", "quiet", None)
-    assert not [one for post in kitchen.wakes.posts for one in post if one["event"] == "stall"]
+    assert (event["slug"], event["loud"]) == ("alpha", "quiet")
+    assert not [one for one in kitchen.wakes.said if one.startswith("stall ")]
     short.passes(12)
     assert kitchen.lines("stall") == [stalled] and len(sends(kitchen)) == 1
 
@@ -555,13 +553,13 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
     short.out(short.unruled(), "hold")
     short.passes(12)
     assert kitchen.lines("stall") == []
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     short.passes(1)
     (stalled,) = kitchen.lines("stall")
     assert stalled.endswith(f"{short.unruled()}; its crew's thread is mcp:thread-1")
-    assert kitchen.wakes.posts == []
+    assert kitchen.wakes.said == []
     assert listed(kitchen) == []
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     short.passes(1)
     assert listed(kitchen) == ["#7"]
     assert kitchen.lines("waiting")[-1] == "waiting demo: 1 wait on user, 1 new (hold 7), 0 gone"
@@ -569,7 +567,6 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
     short.passes(12)
     ((told,),) = kitchen.wakes.listed
     assert told.startswith("hold 7 ") and told.endswith("a pull request jmerge holds for your word")
-    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
     (decided,) = kitchen.events("decision")
     assert decided["line"].endswith(
         'a pull request jmerge holds for your word. Reply: "demo #7: merge it"'
@@ -724,7 +721,6 @@ def test_a_gate_a_crew_parks_is_logged_at_once_and_not_posted(short, kitchen):
     assert code == 0
     (event,) = kitchen.events("gate")
     assert event["loud"] == "quiet"
-    assert kitchen.waiting() == []
 
 
 def test_unruled_drops_jbus_cannot_ask_a_crew_about_are_the_user_s_as_before(short, kitchen):
@@ -815,7 +811,7 @@ def test_a_hold_in_hand_before_its_crew_is_told_stays_in_hand_through_a_silent_p
     kitchen.t3.down.clear()
     short.passes(1)
     assert listed(kitchen) == [] and kitchen.lines("waiting") == []
-    assert kitchen.wakes.posts == []
+    assert kitchen.wakes.said == []
 
 
 def test_a_silent_pass_after_the_crew_was_told_puts_no_hold_on_the_user_s_list(short, kitchen):

@@ -9,6 +9,7 @@ the list on the entry's first row. A parked or scouting entry raises nothing, an
 """
 
 import json
+from datetime import timedelta
 
 import pytest
 
@@ -85,7 +86,8 @@ def told(kitchen):
 
 def test_an_entry_whose_builds_on_merged_and_has_no_row_wakes_its_home_once(kitchen):
     """The Proves it of plan-builds-on-fires: `Builds on: a`, row `a` merged, no row for the
-    entry: one wake, then none, and the item leaves the list on the entry's first row."""
+    entry: one wake, then none, and the item leaves the list on the entry's first row and the
+    home's record a day later."""
     thread = home(kitchen)["threadId"]
     planned(kitchen, PLAN)
     queued(kitchen, "a")
@@ -100,6 +102,7 @@ def test_an_entry_whose_builds_on_merged_and_has_no_row_wakes_its_home_once(kitc
     queued(kitchen, "next-1", entry="next", more="Builds on: a: the table a adds\n")
     kitchen.poll(later(10))
     assert len(briefs(kitchen, thread)) == 1
+    kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=11))
     assert told(kitchen) == []
 
 

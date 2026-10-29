@@ -65,7 +65,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "last": None,
         "health": {
             "checks": {"running": 0, "waiting": 0, "failed": 0, "error": "the repo is not known"},
-            "bus": {"outbox": 0, "failed_wakes": 0, "last_error": ""},
+            "bus": {"failed_wakes": 0, "last_error": ""},
             "threads": None,
             "blind": 1,
             "unwell": [{"name": "GitHub", "state": "unreadable"}],
@@ -92,7 +92,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "hold": 1,
     }
     assert (shown["open"], shown["merged"]) == (9, len(demo["merged"]))
-    assert shown["health"]["bus"] == {"outbox": 2, "failed_wakes": 0, "last_error": ""}
+    assert shown["health"]["bus"] == {"failed_wakes": 0, "last_error": ""}
     assert shown["health"]["threads"] == 0
     assert "attic" not in json.dumps(stack)
 

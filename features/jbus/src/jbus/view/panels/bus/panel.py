@@ -1,12 +1,12 @@
-"""The bus: what the outbox and the wakes count, what jbus sent today by kind and loudness, and
-the last events of the log. The panel never opens the outbox itself.
+"""The bus: what the wakes count, what jbus sent today by kind and loudness, and the last events
+of the log.
 
-The outbox counts what waits for the home thread. The last error, the last wake and `since`, when
-the streak of failed wakes began, are the home thread's.
+The failed wakes, the last error and `since`, when the streak of failed wakes began, are the home
+thread's.
 
-`blocking` is the same count for the second target, the address that jbus tells what blocks.
-`blocking` is None where the config sets no second target, and its outbox holds bodies, not
-events."""
+`blocking` is the second target, the address that jbus tells what blocks, with what waits in its
+outbox and its last POST. `blocking` is None where the config sets no second target. The panel
+never opens that outbox itself."""
 
 from __future__ import annotations
 
@@ -15,18 +15,16 @@ from typing import Any
 from jbus import read_json
 from jbus.view.clean import ANY
 from jbus.view.state import EVENTS_FILE, Read, Spot, kept, text, when
-from jbus.wake import BLOCKING, HOME, LOUDNESS
+from jbus.wake import BLOCKING, LOUDNESS
 
 FIRST = True
 SHOWN = 40
 _EVENT = {"at": None, "kind": None, "loud": None, "slug": None, "line": None}
 SHAPE = {
     "bus": {
-        "outbox": None,
         "failed_wakes": None,
         "last_error": None,
         "since": None,
-        "posted": None,
         "sent": None,
         "sent_kinds": {ANY: None},
         "stalls": None,
@@ -55,7 +53,7 @@ SOURCES = (
 
 def build(read: Read) -> dict[str, Any]:
     status = read.panel("pulse")["jbus"]["status"]
-    wake, keys = read.table(f"{HOME}/wake.json") or {}, read.once(sent) or []
+    keys = read.once(sent) or []
     today: dict[str, int] = {}
     for one in read.events:
         if one["at"] >= read.day:
@@ -67,11 +65,9 @@ def build(read: Read) -> dict[str, Any]:
         by_kind[kind] = by_kind.get(kind, 0) + 1
     return {
         "bus": {
-            "outbox": status["outbox"],
             "failed_wakes": status["failed_wakes"],
-            "last_error": text(wake.get("last_error")) or status["last_error"],
+            "last_error": status["last_error"],
             "since": status["since"],
-            "posted": when(wake.get("posted")),
             "sent": len(keys),
             "sent_kinds": by_kind,
             "stalls": len(read.table("stall.json") or {}),

@@ -10,15 +10,18 @@ message each, under the key `reload|<commit 12>|<thread>`, marked in
 `sent.json` once T3 Code took it. Once every one is told, the merge itself is marked,
 `reload|<commit 12>`, and a `merged` line printed again for it adds nothing. So a thread hears
 of a merge once, and a send that got no answer, or that the outbox held, goes on a later pass.
-A thread started after the merge loaded the new text and is not told. A thread whose title
-gives no role (`roles.OTHER`) is the user's own and is not told either.
+A thread started after the merge loaded the new text and is not told. A thread is told only of
+the skills it loaded (`loaded`): the ones its role loads (`LOADS`), and each that its brief's
+`Skills:` line names. A thread whose title gives no role (`roles.OTHER`) is the user's own and is
+not told.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from jbus import outbox, read_json, record, roles, t3, verbs, write_json
+from jbriefs import skills
+from jbus import outbox, queue, read_json, record, roles, t3, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.watch import when
@@ -29,6 +32,12 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 FILE = "reload.json"
+LOADS = {
+    "crew": {"crew"},
+    "reviewer": {"pr-review"},
+    "scout": {"scout"},
+    "home": {"home", "handoff", "new-home"},
+}
 TEMPLATE = "reload"
 TOLD = (
     "jbus: pull request #{number} merged at {commit} and changed these skills: {names}. The "
@@ -67,11 +76,21 @@ def tell(run: Pass, client: Client, said: Iterable[str]) -> None:
     write_json(run.state / FILE, [one for one in kept if not _told(run, client, one, out)])
 
 
+def loaded(run: Pass, role: str, slug: str) -> set[str]:
+    """Return the skills a thread of this role and slug loaded: its role's own, and each that its
+    brief's `Skills:` line names."""
+    text = queue.brief(run.state, slug) or ""
+    for kind in ("tasks", "scouts"):
+        file = run.home / kind / f"{slug}.md"
+        if not text and file.exists():
+            text = file.read_text(errors="replace")
+    return LOADS.get(role, set()) | {one.name for one in skills.named(text)}
+
+
 def _told(run: Pass, client: Client, merge: dict[str, Any], out: list[dict[str, Any]]) -> bool:
-    """Tell each thread of `out` that was out when `merge` landed and has a role, and return
-    whether every one of them is told now."""
+    """Tell each thread of `out` that was out when `merge` landed, has a role and loaded one of
+    its skills, and return whether every one of them is told now."""
     commit, landed = merge["commit"], when(merge["at"])
-    text = TOLD.format(number=merge["number"], commit=commit[:12], names=", ".join(merge["skills"]))
     every = True
     for thread in out:
         at, title = thread["threadId"], str(thread.get("title", ""))
@@ -81,8 +100,11 @@ def _told(run: Pass, client: Client, merge: dict[str, Any], out: list[dict[str, 
         except (KeyError, TypeError, ValueError):
             began = landed
         key = f"{TEMPLATE}|{commit[:12]}|{at}"
-        if role == roles.OTHER or began > landed or key in run.box.sent():
+        wanted = loaded(run, role, slug)
+        names = [name for name in merge["skills"] if name in wanted]
+        if role == roles.OTHER or began > landed or not names or key in run.box.sent():
             continue
+        text = TOLD.format(number=merge["number"], commit=commit[:12], names=", ".join(names))
         try:
             went = outbox.send(
                 run,

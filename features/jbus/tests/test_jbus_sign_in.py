@@ -1,7 +1,7 @@
-"""jbus reminds the user that its sign-in to T3 Code runs out (`jbus.signin`). It queues a `sign-in`
-event for the user on the first pass 7 days out or fewer, then once a day from 3 days out, once more
-when the sign-in has run out, and once when a renewal lands. jbus sends it to the home thread of the
-first project, once for the machine, and not to another project's.
+"""jbus reminds the user that its sign-in to T3 Code runs out (`jbus.signin`). The reminder is one
+open alert of the machine's, `sign-in`: it opens on the first pass 7 days out or fewer, says the
+days left each day from 3 days out, and says when the sign-in has run out. Each new line is told
+once. The machine's alert goes to the desk and the infra home, and to no other project's home.
 
 Every test runs the real pass against the faked T3 Code server of `test_jbus_kitchen`,
 with a fake clock that gives each pass its time. Nothing reaches the network.
@@ -19,13 +19,7 @@ from test_jbus_kitchen import NOW, TOKEN
 EXPIRES = datetime(2026, 10, 20, 21, 8, tzinfo=UTC)
 RENEWED = datetime(2026, 11, 19, 22, 8, tzinfo=UTC)
 STAMP = "2026-10-20 17:08 ET"
-TOP = "sign-in to the home thread of demo"
-
-
-@pytest.fixture
-def first(kitchen):
-    """What the first project's home thread takes as wakes."""
-    return kitchen.wakes
+TOP = "sign-in to the desk and the home of infra"
 
 
 def expiring(kitchen, at):
@@ -39,15 +33,15 @@ def expiring(kitchen, at):
 
 
 @pytest.fixture
-def machine(kitchen):
-    """Set up two projects, each with a home thread of its own."""
-    side = kitchen.second("side")
+def infra(kitchen):
+    """Set up the infra project beside demo, and what its home thread takes."""
+    side = kitchen.second("infra")
     expiring(kitchen, EXPIRES)
-    return side
+    return side.wakes
 
 
-def said(first):
-    return [say for post in first.said for say in post if "sign-in" in say]
+def said(wakes):
+    return [line for line in wakes.said if "sign-in" in line]
 
 
 def at_et(day, hour=9):
@@ -60,29 +54,28 @@ def left(days):
     return f"sign-in: jbus's T3 sign-in expires {STAMP}, {days}: run jbus t3 login"
 
 
+WEEK = left("at most a week left")
 EXPIRED = f"sign-in: jbus's T3 sign-in expired {STAMP}, no days left: run jbus t3 login"
 
 
-def test_the_countdown_says_seven_days_out_then_each_of_the_last_days_and_the_end(
-    kitchen, first, machine
-):
+def test_the_countdown_says_a_week_out_then_each_of_the_last_days_and_the_end(kitchen, infra):
     """The test runs a pass at 9:00 and one at 15:00 ET on each day, from 8 days out to a day
     after the end."""
     told = []
     for day in range(12, 22):
         for hour in (9, 15):
             kitchen.poll(at_et(day, hour))
-            told.append((day, hour, said(first)))
-            first.said.clear()
+            told.append((day, hour, said(infra)))
+            infra.listed.clear()
         if day == 20:
             kitchen.poll(at_et(20, 18))
-            told.append((20, 18, said(first)))
-            first.said.clear()
+            told.append((20, 18, said(infra)))
+            infra.listed.clear()
     nothing = []
     assert told == [
         (12, 9, nothing),
         (12, 15, nothing),
-        (13, 9, [left("7 days left")]),
+        (13, 9, [WEEK]),
         (13, 15, nothing),
         (14, 9, nothing),
         (14, 15, nothing),
@@ -104,67 +97,66 @@ def test_the_countdown_says_seven_days_out_then_each_of_the_last_days_and_the_en
     ]
 
 
-def test_it_is_sent_once_for_the_machine_to_the_first_project_s_home_thread(
-    kitchen, first, machine
-):
+def test_it_goes_to_the_desk_and_the_infra_home_and_no_other(kitchen, infra):
     kitchen.poll(at_et(13))
-    assert said(first) == [left("7 days left")]
-    assert [say for post in machine.wakes.said for say in post if "sign-in" in say] == []
-    (event,) = [one for post in first.posts for one in post if one["event"] == "sign-in"]
-    assert event["loud"] == "user"
+    assert said(infra) == [WEEK]
+    assert said(kitchen.wakes) == []
+    assert kitchen.log("notify") == [f"jbus | {WEEK}"]
 
 
-def test_it_is_in_the_event_log_of_the_first_project(kitchen, first, machine):
+def test_it_is_in_the_event_log_of_the_infra_project(kitchen, infra):
     kitchen.poll(at_et(13))
-    assert kitchen.lines("sign-in") == [left("7 days left")]
-    code, printed = kitchen.main("--project", "demo", "events")
+    assert kitchen.lines("alert") == []
+    code, printed = kitchen.main("--project", "infra", "events")
     assert code == 0
-    assert [json.loads(line)["line"] for line in printed.splitlines()].count(
-        left("7 days left")
-    ) == 1
+    assert [json.loads(line)["line"] for line in printed.splitlines()].count(WEEK) == 1
 
 
-def test_a_first_pass_inside_the_last_days_says_that_day_and_not_the_week(kitchen, first, machine):
+def test_with_no_infra_project_it_goes_to_the_desk_alone(kitchen):
+    expiring(kitchen, EXPIRES)
+    kitchen.poll(at_et(13))
+    assert said(kitchen.wakes) == []
+    assert kitchen.log("notify") == [f"jbus | {WEEK}"]
+
+
+def test_a_first_pass_inside_the_last_days_says_that_day_and_not_the_week(kitchen, infra):
     kitchen.poll(at_et(18))
-    assert said(first) == [left("2 days left")]
+    assert said(infra) == [left("2 days left")]
 
 
-def test_a_renewal_is_said_once_and_the_countdown_starts_over(kitchen, first, machine):
+def test_a_renewal_ends_the_alert_and_the_countdown_starts_over(kitchen, infra):
     kitchen.poll(at_et(17))
-    assert said(first) == [left("3 days left")]
-    first.said.clear()
+    assert said(infra) == [left("3 days left")]
+    infra.listed.clear()
     expiring(kitchen, RENEWED)
     kitchen.poll(at_et(17, 15))
     kitchen.poll(at_et(18))
-    assert said(first) == [
-        "sign-in: jbus's T3 sign-in was renewed, and now expires 2026-11-19 17:08 ET"
-    ]
-    first.said.clear()
+    assert said(infra) == [] and kitchen.status()["streaks"] == {}
     kitchen.poll(datetime(2026, 11, 11, 13, 0, tzinfo=UTC))
-    assert said(first) == []
+    assert said(infra) == []
     kitchen.poll(datetime(2026, 11, 12, 14, 0, tzinfo=UTC))
-    assert said(first) == [
-        "sign-in: jbus's T3 sign-in expires 2026-11-19 17:08 ET, 7 days left: run jbus t3 login"
+    assert said(infra) == [
+        "sign-in: jbus's T3 sign-in expires 2026-11-19 17:08 ET, at most a week left: "
+        "run jbus t3 login"
     ]
 
 
-def test_the_first_expiry_jbus_sees_is_no_renewal(kitchen, first, machine):
+def test_more_than_a_week_out_nothing_is_said(kitchen, infra):
     kitchen.poll(at_et(12))
-    assert said(first) == [] and kitchen.lines("sign-in") == []
+    assert said(infra) == [] and kitchen.log("notify") == []
 
 
-def test_with_no_sign_in_stored_nothing_is_said(kitchen, first, machine):
+def test_with_no_sign_in_stored_nothing_is_said(kitchen, infra):
     (kitchen.config_dir / "t3.json").unlink()
     poll.poll(jbus.load(), at_et(13), lambda _: None)
-    assert said(first) == [] and kitchen.lines("sign-in") == []
+    assert said(infra) == [] and not [line for line in kitchen.log("notify") if "sign-in" in line]
 
 
-def test_status_names_the_reminder_and_keeps_the_sign_in_line(kitchen, first, machine):
+def test_status_names_the_reminder_and_keeps_the_sign_in_line(kitchen, infra):
     kitchen.poll(at_et(12))
     status = kitchen.status()
     assert status["sign_in_reminder"] == (
-        "sign-in to the home thread of demo on 2026-10-13, each day from 2026-10-17, "
-        f"and when it runs out at {STAMP}"
+        f"{TOP} on 2026-10-13, each day from 2026-10-17, and when it runs out at {STAMP}"
     )
     assert status["projects"]["demo"]["sign_in"] == ""
     kitchen.poll(at_et(17))
@@ -177,28 +169,6 @@ def test_status_with_no_sign_in_says_so(kitchen):
     (kitchen.config_dir / "t3.json").unlink()
     config = jbus.load()
     assert record.status(config, NOW)["sign_in_reminder"] == "none: no sign-in is stored"
-
-
-def test_a_project_moved_to_the_top_of_the_config_says_no_mark_again(kitchen, first, machine):
-    kitchen.poll(at_et(13))
-    assert said(first) == [left("7 days left")]
-    first.said.clear()
-    config = kitchen.config_dir / "config.toml"
-    head, *tables = config.read_text().split("[[project]]")
-    config.write_text("[[project]]".join([head, tables[1], tables[0]]))
-    kitchen.poll(at_et(13, 15))
-    kitchen.poll(at_et(14))
-    assert said(first) == [] and said(machine.wakes) == []
-    kitchen.poll(at_et(17))
-    assert said(machine.wakes) == [left("3 days left")] and said(first) == []
-
-
-@pytest.mark.parametrize("kept", ["[1, 2]", '{"expires": "not a time", "said": []}', "{}"])
-def test_a_sign_in_file_that_cannot_be_read_is_no_expiry_seen(kitchen, first, machine, kept):
-    kitchen.state_dir.mkdir(parents=True, exist_ok=True)
-    (kitchen.state_dir / "sign-in.json").write_text(kept)
-    kitchen.poll(at_et(13))
-    assert said(first) == [left("7 days left")]
 
 
 @pytest.mark.parametrize(
@@ -217,6 +187,6 @@ def test_a_sign_in_file_that_cannot_be_read_is_no_expiry_seen(kitchen, first, ma
         (20, 18, f"{TOP}: it ran out at {STAMP}, run jbus t3 login"),
     ],
 )
-def test_status_names_only_the_days_still_ahead(kitchen, first, machine, day, hour, ahead):
+def test_status_names_only_the_days_still_ahead(kitchen, infra, day, hour, ahead):
     kitchen.poll(at_et(day, hour))
     assert kitchen.status()["sign_in_reminder"] == ahead

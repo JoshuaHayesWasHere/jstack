@@ -123,25 +123,22 @@ class Server:
 
 
 class Wakes:
-    """`Wakes` is what one project's home thread took as wakes: each body's events, its chat lines
-    and the body. A wake is a send whose retry key is `wake|<project>|...`, and the body is the
-    JSON block of its message. While `refused` holds a reason, T3 Code refuses the project's wakes
-    with it. `listed` holds the lines of each message of the one list (`jbus.wakes`), a send whose
-    retry key is `wakes|<project>|...`, which carries each decision of the list."""
+    """`Wakes` is what one project's home thread took from the one list (`jbus.wakes`): `listed`
+    holds the lines of each message, a send whose retry key is `wakes|<project>|...`. While
+    `refused` holds a reason, T3 Code refuses the project's wakes with it."""
 
     def __init__(self):
         self.refused = ""
-        self.posts, self.said, self.bodies, self.listed = [], [], [], []
+        self.listed = []
 
     def listing(self, message):
         lines = message.split("\n\n")[1].splitlines()
         self.listed.append([line.removeprefix("- ") for line in lines])
 
-    def took(self, message):
-        body = json.loads(message.split("```json\n", 1)[1].split("\n```", 1)[0])
-        self.bodies.append(body)
-        self.posts.append(body.get("events"))
-        self.said.append(body["say"])
+    @property
+    def said(self):
+        """Each line the home was told, in order, across its messages."""
+        return [line for lines in self.listed for line in lines]
 
 
 class T3(Server):
@@ -153,7 +150,7 @@ class T3(Server):
         self.messages, self.refuse_send, self.lose_send = {}, False, False
         self.status, self.on_list, self.down, self.lose_read = 200, None, set(), False
         self.challenges, self.registered, self.at_work = {}, [], set()
-        self.said, self.forgot, self.wakes, self.woken = {}, set(), {}, {}
+        self.said, self.forgot, self.wakes = {}, set(), {}
         super().__init__()
 
     def thread(
@@ -314,17 +311,13 @@ class T3(Server):
             if given["threadId"] in self.forgot:
                 return gone(given["threadId"], "was not found")
             key = given["clientRequestId"]
-            if key.startswith("wake|"):
+            if key.startswith("wakes|"):
                 woken = self.wakes.setdefault(key.split("|")[1], Wakes())
                 if woken.refused:
                     return {"isError": True, "content": [{"type": "text", "text": woken.refused}]}
-                if key not in self.woken:
-                    woken.took(given["message"])
-                self.woken.setdefault(key, given)
-            else:
-                if key.startswith("wakes|") and key not in self.messages:
-                    self.wakes.setdefault(key.split("|")[1], Wakes()).listing(given["message"])
-                self.messages.setdefault(key, given)
+                if key not in self.messages:
+                    woken.listing(given["message"])
+            self.messages.setdefault(key, given)
             for thread in self.threads:
                 if thread["threadId"] == given["threadId"]:
                     thread["updatedAt"] = iso(datetime.now(UTC))
@@ -853,11 +846,8 @@ class Kitchen:
                 code = stopped.code
         return code, out.getvalue()
 
-    def waiting(self):
-        return jbus.read_json(self.state / wake.HOME / "outbox.json", [])
-
     def marks(self):
-        return jbus.read_json(self.state / wake.HOME / "wake.json", {})
+        return jbus.read_json(self.state / "wake.json", {})
 
     def status(self):
         return json.loads((self.state_dir / "status.json").read_text())
@@ -873,11 +863,10 @@ class Kitchen:
         return [event["line"] for event in self.events(kind)]
 
     def forget(self):
-        """Empty the outbox, the log and what the home thread took, so that `events` gives only
-        what comes after."""
-        jbus.write_json(self.state / wake.HOME / "outbox.json", [])
+        """Empty the log and what the home thread took, so that `events` gives only what comes
+        after."""
         (self.state / wake.LOG).unlink(missing_ok=True)
-        self.wakes.posts.clear()
+        self.wakes.listed.clear()
 
     def quiet(self):
         """Run a first pass, which records what is already so, and keep no event of it."""
@@ -1275,17 +1264,13 @@ def review(verdict="findings", sent="not sent, no home", findings=FOUND):
 
 
 def sends(kitchen):
-    """Each message a pass sent a thread, but for the wakes of a home thread (`Wakes`)."""
-    return [
-        given
-        for tool, given in kitchen.t3.calls
-        if tool == "t3_thread_send" and not given["clientRequestId"].startswith("wake|")
-    ]
+    """Each message a pass sent a thread."""
+    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
 
 
 def asks(kitchen):
-    """Each message a pass sent a thread, but for the wakes of a home thread and the messages of
-    the one list (`jbus.wakes`), which `Wakes.listed` holds."""
+    """Each message a pass sent a thread, but for the messages of the one list (`jbus.wakes`),
+    which `Wakes.listed` holds."""
     return [given for given in sends(kitchen) if not given["clientRequestId"].startswith("wakes|")]
 
 

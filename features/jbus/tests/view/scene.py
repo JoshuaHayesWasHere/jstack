@@ -377,7 +377,6 @@ class Scene:
                 self.name: {
                     "failed_wakes": 0,
                     "last_error": "",
-                    "outbox": 2,
                     "sign_in": "",
                     "sweep": "2026-10-12: 3 to remove",
                 }

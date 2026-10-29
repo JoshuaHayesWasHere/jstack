@@ -217,7 +217,6 @@ _WAITS = {
 _HOOK = {
     "failed_wakes": None,
     "last_error": None,
-    "outbox": None,
     "sign_in": None,
     "sweep": None,
 }

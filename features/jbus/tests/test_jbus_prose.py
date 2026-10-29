@@ -79,8 +79,9 @@ def test_a_root_plan_line_written_after_the_seed_wakes_the_root_once_and_leaves_
     assert prose_wakes(kitchen, scoped) == []
     plan.write_text(plan.read_text().replace(NOTE + "\n", ""))
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert listed(kitchen) == []
     assert len(prose_wakes(kitchen, root)) == 1
+    kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=4))
+    assert listed(kitchen) == []
 
 
 def test_a_reworded_line_leaves_the_list_and_the_new_wording_is_told_if_it_still_defers(homes):
@@ -91,8 +92,9 @@ def test_a_reworded_line_leaves_the_list_and_the_new_wording_is_told_if_it_still
     kitchen.poll(NOW + timedelta(minutes=1))
     plan.write_text(plan.read_text().replace(NOTE, "- 2026-10-28: take X out, row x-out"))
     kitchen.poll(NOW + timedelta(minutes=2))
-    assert listed(kitchen) == []
     assert len(prose_wakes(kitchen, root)) == 1
+    kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=3))
+    assert listed(kitchen) == []
 
 
 def test_a_scope_plan_line_wakes_that_scope_once_and_the_root_once_late(homes):
@@ -111,7 +113,7 @@ def test_a_scope_plan_line_wakes_that_scope_once_and_the_root_once_late(homes):
     assert DECISION in late and scoped in late
     assert len(prose_wakes(kitchen, scoped)) == 1
     plan.write_text(plan.read_text().replace(DECISION + "\n", ""))
-    kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 3))
+    kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=leftover.CLOSE_MINUTES + 3))
     assert listed(kitchen) == []
 
 

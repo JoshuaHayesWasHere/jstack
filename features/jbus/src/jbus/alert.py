@@ -1,20 +1,19 @@
-"""Tell the user once about a failure that repeats, and once about its end. This module is the
-only place that keeps a streak.
+"""The open alerts: each failure that repeats, each incident, and each line jbus raises once, kept
+until it ends. This module is the only place that keeps a streak.
 
 A streak is the failures in a row of one thing, under a key:
 
 - `pass` for a pass that did not finish;
-- `home thread <project>` for a wake of the project's that its home thread did not get;
+- `home thread <project>` for a wake of the project's that its root home thread did not get, and
+  `home thread <project> <thread>` for one another thread of its list did not get;
 - `blocking <project>` for a body of the project's that the second target did not take;
 - `jmerge <project>` for a `jmerge` that did not run;
 - `snapshot` for a snapshot of the homes' state tree that did not finish;
 - `stale` for a look by `jbus alarm --stale` that found no pass ended within its limit;
-- `health <check>` for an incident `jbus.health` found.
-
-`flush` sends a project's wakes to its home thread through T3 Code (`_send`), the one route of
-its events. A wake the outbox holds for a capped home thread waits in the outbox for the reset,
-and counts as no failure of the route. `failing` gives the line of the home thread's streak once
-it alerted, for `jbus status`, the heartbeat and `jbus wakes`.
+- `health <check>` for an incident `jbus.health` found;
+- `sign-in` for jbus's sign-in to T3 Code running out (`jbus.signin`);
+- `home-stall <home>` for a home quiet with work out (`jbus.children`);
+- `once <digest>` for a line raised once, which ends by itself after `LASTS` (`deliver`).
 
 `failed` counts one failure, and returns the alert line once the count has reached the threshold.
 `ok` ends the streak, and returns the recovered line when the streak had alerted. An incident is a
@@ -22,60 +21,62 @@ streak that `opened` starts and `closed` ends, with the line its caller passes. 
 silent: the failures before the threshold, the ones after the alert, and a success with no alert
 before it.
 
-This module returns a line on each count until `told` records that the line is in the queue,
-and only `told` marks the streak. A caller may raise or be killed after it gets the line and
-before it queues it. Then its next count returns the line again. So a line goes out at least
-once, and twice only after such a break.
+A streak that alerted is an open item of the one list (`jbus.wakes`), and that list is how a home
+hears of it. `raise_` opens it with its `owner`: a project's name, or `MACHINE` for what belongs to
+no project. `jbus.Config.owner` turns the owner into the one project whose home gets it: that
+project, or for the machine and for a name no project has, the infra project. An alert of the
+machine's is also raised on the desk when it opens. An alert that ends leaves the list and wakes
+no one. Each line is logged once in the owning project's events, as a quiet event.
 
 The streaks are in `streaks.json`. Only this module writes that file, and it writes under a
-lock, because `jbus alarm` runs outside the pass lock and may count while a pass ends another
-streak. The status file shows a copy, under `streaks`.
+lock, because `jbus alarm` and `jbus snapshot` run outside the pass lock and may count while a pass
+ends another streak. The status file shows a copy, under `streaks`.
 """
 
 from __future__ import annotations
 
 import argparse
-import functools
-import json
+import hashlib
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
 
 import jbus
 import jsettings
-from jbriefs.home import thread_of
-from jbus import locked, outbox, passes, read_json, verbs, wake, write_json
-from jbus.t3 import Client, T3Error
+from jbus import locked, passes, read_json, verbs, wake, write_json
 
 LOCK = "streaks.lock"
-WAKE = """\
-jbus: {count} events for the user, each a decision or a stop that is theirs. End the turn by "How a
-turn ends" in the home skill, with one line for each, keyed `jbus`, as that section says.
-{say}
-
-```json
-{body}
-```"""
-EVENTS = {"alert": "user", "recovered": "quiet"}
+EVENTS = {"alert": "quiet", "recovered": "quiet"}
 RECOVERED = "recovered"
 AFTER = 3
 PASS = "pass"
 SNAPSHOT = "snapshot"
 STALE = "stale"
+MACHINE = ""
+LASTS = timedelta(days=1)
 
 
 @dataclass
 class Streak:
+    """One streak, under its key, with `why` the cause of its last failure. Once `alerted` it is an
+    open item: `line` is what it says, and `owner` whose it is. `ends` is when a line raised once
+    leaves the list by itself."""
+
     key: str
     count: int
     since: str
     alerted: bool
+    owner: str = MACHINE
+    line: str = ""
+    ends: str = ""
+    why: str = ""
 
 
-def home(project: str) -> str:
-    return f"home thread {project}"
+def home(project: str, thread: str = "") -> str:
+    """The key of the streak of wakes to the project's root home thread, or with `thread` to
+    another thread its list reaches, such as a child home's."""
+    return f"home thread {project} {thread}" if thread else f"home thread {project}"
 
 
 def blocking(project: str) -> str:
@@ -122,12 +123,12 @@ def failed(
     now: datetime | None = None,
     user: jsettings.Settings,
 ) -> str | None:
-    """Count one failure. From the count `after` on, return the alert line on each call until
-    `told` records it."""
+    """Count one failure. From the count `after` on, return the alert line on each call until the
+    streak alerted (`raise_`)."""
     now = now or datetime.now(UTC)
     with locked(state, LOCK):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
-        one.count += 1
+        one.count, one.why = one.count + 1, why
         _keep(state, key, one)
     if one.count < after or one.alerted:
         return None
@@ -140,7 +141,7 @@ def _line(one: Streak, why: str, user: jsettings.Settings) -> str:
 
 def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
     """Record a try that succeeded. For a streak that alerted, return the recovered line on
-    each call until `told` records it.
+    each call until the streak ends (`end`).
 
     A streak that had not alerted ends here, with no line.
     """
@@ -153,204 +154,131 @@ def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
     return f"recovered: {key} after {one.count} failures since {_since(one, user)}"
 
 
-def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
-    """Record an incident found under `key`. Return `alert: <line>` on each look, from the look that
-    found the incident until `told` records the line, and nothing after that. So jbus pages the
-    incident once. `line` gives the number and the limit it is against. This function writes the
-    streak when the incident starts and not on each look, so its count stays 1: an incident is not a
-    failure in a row."""
-    with locked(state, LOCK):
-        one = streak(state, key)
-        if one is None:
-            one = Streak(key, 1, now.isoformat(), False)
-            _keep(state, key, one)
-    return None if one.alerted else f"alert: {line}"
-
-
-def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str | None:
-    """Record that a look found the incident under `key` back under its limit. For an
-    incident that jbus paged, return `recovered: <line>` on each look until `told` records the
-    line. Return nothing where there is no incident.
-
-    When the page for an incident's start did not go out, jbus still tells the user that the
-    incident ended. The answer then also says when the incident began, and this function marks
-    the streak as paged. So `told` ends the streak, and if this page does not go out either,
-    the next look sends a plain recovered line."""
-    with locked(state, LOCK):
-        one = streak(state, key)
-        owed = one is not None and not one.alerted
-        if one is not None and owed:
-            one.alerted = True
-            _keep(state, key, one)
-    if one is None:
-        return None
-    began = f" (it began {_since(one, user)}, and that page did not go)" if owed else ""
-    return f"recovered: {line}{began}"
-
-
-def told(state: Path, key: str) -> None:
-    """Mark the streak alerted, or end it, once the line that `failed` or `ok` returned is in
-    the queue."""
-    with locked(state, LOCK):
-        one = streak(state, key)
-        if one is None:
-            return
-        if one.alerted:
-            _keep(state, key, None)
-        else:
-            one.alerted = True
-            _keep(state, key, one)
-
-
-def recovered(
-    config: jbus.Config,
-    runs: list[passes.Pass],
-    guarded: Callable[[str, Callable[[], Any]], Any],
-    raised: dict[str, str],
+def raise_(
+    config: jbus.Config, key: str, line: str, *, owner: str = MACHINE, now: datetime, ends: str = ""
 ) -> None:
-    """After a pass in which nothing raised, end the `PASS` streak and then the `STALE` one.
-    Send each recovered line to every project, and wrap each send in `guarded` with its
-    project's name. When a send raises, this function leaves that streak and the next one
-    open, and the next pass ends them."""
+    """Open the alert under `key` for `owner`, or give an open one this line, and log the line in
+    the owning project's events. Raise it on the desk when it opens and is the machine's: what no
+    project owns. A line raised once ends by itself at `ends`, which `raise_` prunes."""
+    state = config.state_dir
+    with locked(state, LOCK):
+        one = streak(state, key) or Streak(key, 1, now.isoformat(), False)
+        new = not one.alerted or one.line != line
+        one.alerted, one.owner, one.line, one.ends = True, owner, line, ends
+        _keep(state, key, one)
+        for name, kept in streaks(state).items():
+            if kept.get("ends") and datetime.fromisoformat(kept["ends"]) <= now:
+                _keep(state, name, None)
+    if not new:
+        return
+    _log(config, owner, "alert", line)
+    if owner not in {one.name for one in config.projects}:
+        wake.notify(line)
+
+
+def end(config: jbus.Config, key: str, line: str) -> None:
+    """End the alert under `key`, which leaves the list, and log the recovered line."""
+    one = streak(config.state_dir, key)
+    retire(config.state_dir, key)
+    if one is not None:
+        _log(config, one.owner, "recovered", line)
+
+
+def _log(config: jbus.Config, owner: str, kind: str, line: str) -> None:
+    project = config.owner(owner)
+    if project is not None:
+        wake.Box(config.state(project), project).send("", kind, line)
+
+
+def open_items(state: Path, now: datetime) -> list[Streak]:
+    """Every alert that is open now, the items of the one list."""
+    found = [Streak(**one) for one in streaks(state).values()]
+    return [
+        one
+        for one in found
+        if one.alerted and (not one.ends or datetime.fromisoformat(one.ends) > now)
+    ]
+
+
+def opened(config: jbus.Config, key: str, line: str, *, now: datetime) -> str | None:
+    """Open an incident of the machine's under `key`, and return `alert: <line>` when this look
+    found it. A later look leaves the line as it was opened, so a number that moves wakes no
+    one again. An incident is not a failure in a row, so its count stays 1."""
+    if streak(config.state_dir, key) is not None:
+        return None
+    said = f"alert: {line}"
+    raise_(config, key, said, now=now)
+    return said
+
+
+def closed(config: jbus.Config, key: str, line: str) -> str | None:
+    """End the incident under `key`, and return `recovered: <line>`, or nothing where there is
+    none."""
+    if streak(config.state_dir, key) is None:
+        return None
+    said = f"{RECOVERED}: {line}"
+    end(config, key, said)
+    return said
+
+
+def recovered(config: jbus.Config, say: Callable[[str], None]) -> None:
+    """After a pass in which nothing raised, end the `PASS` streak and the `STALE` one."""
     for key in (PASS, STALE):
-        if raised:
-            break
         line = ok(config.state_dir, key, user=config.user)
-        for run in runs:
-            guarded(run.project.name, lambda run=run, line=line: deliver(run, line))
-        if line and not raised:
-            told(config.state_dir, key)
+        if line:
+            end(config, key, line)
+            say(line)
 
 
 def retire(state: Path, key: str) -> None:
-    """End a streak that nothing counts any more, with no line, since what counted it is gone."""
+    """End a streak with no line, since what counted it is gone or its alert ended."""
     with locked(state, LOCK):
         if key in streaks(state):
             _keep(state, key, None)
 
 
-def deliver(run: passes.Pass, line: str | None, *, desk: bool = True) -> None:
-    """Send an alert to the chat, log a recovered line (`queue`), and print either in the
-    journal as `<project>: <line>`. Send nothing when there is no line.
-
-    While the project's home thread is failing, the line would only wait in the outbox, so this
-    function tells the desk as well. `desk=False` is for a caller that has told the desk itself.
-
-    The line goes into the queue with no key. A streak returns its line once. A later streak
-    that starts at the same minute of another day makes the same line, and that line must go
-    out again.
-    """
+def deliver(run: passes.Pass, line: str | None) -> None:
+    """Raise a line of the project's once, an alert that ends by itself after `LASTS`. Its key is
+    the line's, so the same line raised again is the same alert."""
     if not line:
         return
     run.say(f"{run.project.name}: {line}")
-    queue(run.box, line)
-    name, state = run.project.name, run.config.state_dir
-    if desk and streak(state, home(name)):
-        wake.notify(line)
-
-
-def queue(box: wake.Box, line: str, *, machine: bool = False) -> None:
-    """Queue a line of this module. A `recovered` line ends a streak or an incident: it asks
-    nothing of the user and reports no stop, so it is quiet, in the log and the digest and in no
-    outbox. Every other line is an `alert`, for the user."""
-    if line.startswith(f"{RECOVERED}: "):
-        box.send("", RECOVERED, line, machine=machine)
-    else:
-        box.send("", "alert", line, machine=machine)
+    key = f"once {hashlib.sha256(line.encode()).hexdigest()[:12]}"
+    ends = (run.now + LASTS).isoformat()
+    raise_(run.config, key, line, owner=run.project.name, now=run.now, ends=ends)
 
 
 def tell(run: passes.Pass, key: str, line: str | None) -> None:
-    """Deliver the line that a streak of this project returned, and only then mark the streak."""
-    if line:
-        mine = key == home(run.project.name)
-        deliver(run, line, desk=not (mine and line.startswith(RECOVERED)))
-        told(run.config.state_dir, key)
+    """Raise the alert line that a streak of this project returned, or end the alert with the
+    recovered line. A failing route to the project's home thread or its second target is the
+    machine's: that home cannot be told of it."""
+    if not line:
+        return
+    name = run.project.name
+    run.say(f"{name}: {line}")
+    if line.startswith(f"{RECOVERED}: "):
+        end(run.config, key, line)
+        return
+    owner = MACHINE if key in (home(name), blocking(name)) else name
+    raise_(run.config, key, line, owner=owner, now=run.now)
 
 
-def flush(run: passes.Pass, client: Client | None = None) -> int:
-    """Send what waits for the project to its home thread, and count the home thread's streak by
-    how the send went. Return how many events went.
-
-    This function sends to the second target first, with its own streak, so that an alert from
-    that streak goes to the home thread in the same pass. For a second target the config does not
-    have any more, it drops what waited for it, and if the pair comes back later, it gets only what
-    is new.
-    """
+def flush(run: passes.Pass) -> None:
+    """Post what waits for the project's second target, and count its streak by how the post
+    went. For a second target the config does not have any more, drop what waited for it, and if
+    the pair comes back later, it gets only what is new."""
     state, name = run.config.state_dir, run.project.name
     if run.box.blocking is None:
         retire(state, blocking(name))
         run.box.drop(wake.BLOCKING)
-    else:
-        ended: list[str] = []
-        run.box.flush_blocking(run.now, run.say, went=ended.append)
-        _count(run, blocking(name), ended)
-    thread = _thread(run)
-    if not thread:
-        return 0
-    went: list[str] = []
-    try:
-        sent = run.box.flush(
-            run.now, run.say, went=went.append, post=functools.partial(_send, run, client, thread)
-        )
-    except _Held:
-        return 0
-    _count(run, home(name), went)
-    return sent
+        return
+    ended: list[str] = []
+    run.box.flush_blocking(run.now, run.say, went=ended.append)
+    count(run, blocking(name), ended)
 
 
-def _thread(run: passes.Pass) -> str:
-    """Return the thread that gets the project's wakes: its home's, or else the config's
-    `home_thread`. With neither, say so once in the journal, until a thread is found."""
-    thread = thread_of(run.home) or run.config.home_thread
-    folder = run.box.home.folder
-    marks = read_json(folder / "wake.json", {})
-    if bool(thread) == bool(marks.get("no_thread")):
-        folder.mkdir(parents=True, exist_ok=True)
-        write_json(folder / "wake.json", {**marks, "no_thread": not thread})
-        if not thread:
-            run.say(
-                f"wake waits {run.project.name}: no home thread, and the config names no "
-                "home_thread, so its events wait in the outbox"
-            )
-    return thread
-
-
-class _Held(Exception):
-    """The outbox held a wake for a capped home thread: its events wait for the reset, and no send
-    failed, so `flush` counts no streak for it."""
-
-
-def _send(run: passes.Pass, client: Client | None, thread: str, made: dict[str, Any]) -> str:
-    """Send one body of events to the thread through T3 Code, keyed by the body, so that a retry
-    sends the same message. Return why it failed, or nothing. Raise `_Held` where the outbox held
-    it."""
-    try:
-        client = client or Client(run.config.server, run.config.token_path)
-    except jbus.Refused as error:
-        return str(error)
-    text = json.dumps(made, indent=1)
-    message = WAKE.format(count=len(made["events"]), say="\n".join(made["say"]), body=text)
-    retry = f"wake|{run.project.name}|{wake._id(made)}"
-    try:
-        went = outbox.send(
-            run,
-            client,
-            thread=thread,
-            row=run.project.name,
-            key=retry,
-            text=message,
-            template="wake",
-            needs="decide",
-        )
-    except T3Error as error:
-        return f"T3 Code did not take the wake: {error}"
-    if not went:
-        raise _Held
-    return ""
-
-
-def _count(run: passes.Pass, key: str, went: list[str]) -> None:
-    """Count a route's streak by how its flush ended, and tell the line the streak returns."""
+def count(run: passes.Pass, key: str, went: list[str]) -> None:
+    """Count a route's streak by how its sends ended, and tell the line the streak returns."""
     state = run.config.state_dir
     for why in went:
         said = (
@@ -378,56 +306,30 @@ def sound(
     after: int,
     now: datetime,
     say: Callable[[str], None],
-) -> int:
-    """Count one failure of a unit that runs outside the pass, and alert once the alert is due.
-
-    The alert goes to the desk and waits in each project's outbox like any other event. This
-    function flushes what waits each time, so an alert the home thread did not take goes out
-    with the next alarm or with the next pass that ends. It marks the streak alerted only after
-    it has told the desk and the projects. So when something stops an alarm before then, the
-    next alarm alerts again.
-    """
+    owner: str = MACHINE,
+) -> None:
+    """Count one failure of a unit that runs outside the pass, and raise its alert for `owner`
+    once it is due. The next pass carries it to the owner's home."""
     line = failed(config.state_dir, key, cause, after, now=now, user=config.user)
     if line:
-        wake.notify(line)
-    code = 0
-    for one in config.projects:
-        try:
-            run = passes.Pass(config, one, now, say)
-            deliver(run, line, desk=False)
-            flush(run)
-            if line:
-                say(f"alert {'waits' if run.box.waiting() else 'sent'}: {one.name}")
-        except Exception as error:
-            say(f"alarm failed {one.name}: {why(error, config)}")
-            code = 1
-    if line:
-        told(config.state_dir, key)
-    return code
+        say(line)
+        raise_(config, key, line, owner=owner, now=now)
 
 
-def recover(config: jbus.Config, key: str, now: datetime, say: Callable[[str], None]) -> None:
-    """Record that a unit outside the pass succeeded: end its streak. If the streak had
-    alerted, tell each project that the unit recovered."""
+def recover(config: jbus.Config, key: str, say: Callable[[str], None]) -> None:
+    """Record that a unit outside the pass succeeded: end its streak, and its alert if it had
+    one."""
     line = ok(config.state_dir, key, user=config.user)
-    if not line:
-        return
-    wake.notify(line)
-    for one in config.projects:
-        try:
-            deliver(passes.Pass(config, one, now, say), line, desk=False)
-        except Exception as error:
-            say(f"recovered failed {one.name}: {why(error, config)}")
-    told(config.state_dir, key)
+    if line:
+        say(line)
+        end(config, key, line)
 
 
 def failing(run: passes.Pass) -> str | None:
     """Return the alert line of the home thread's streak once it alerted, with the last error the
     home thread gave, or None."""
     one = streak(run.config.state_dir, home(run.project.name))
-    if one is None or one.count < AFTER:
-        return None
-    return _line(one, run.box.marks(run.box.home).get("last_error", ""), run.user)
+    return one.line if one is not None and one.alerted else None
 
 
 def _wakes(args: argparse.Namespace, config: jbus.Config) -> int:

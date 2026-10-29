@@ -26,12 +26,10 @@ from jbus import (
     queue,
     record,
     rotation,
-    signin,
     t3,
     threads,
     verbs,
     waiting,
-    wake,
     watch,
     work,
 )
@@ -111,9 +109,6 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
     name = run.project.name
     half = Half(run, client)
     steps(half, "before-watch")
-    line = signin.expiring(run.config, run.now)
-    if line and run.condition(name, line, key=f"sign-in {run.day}"):
-        wake.notify(f"{name}: {line}")
     half.said = merge.merge(run)
     try:
         half.rows = queue.load(run.state)
@@ -157,9 +152,7 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     steps(half, "derive")
     steps(half, "after-derive")
     steps(half, "close")
-    sent = alert.flush(run, client)
-    if sent:
-        run.say(f"woke {run.project.name}: {sent} events")
+    alert.flush(run)
 
 
 def poll(
@@ -226,7 +219,7 @@ def poll(
         for half in halves:
             guarded(half.run.project.name, lambda half=half: second_half(half, client))
         if not raised:
-            alert.recovered(config, [half.run for half in halves], guarded, raised)
+            guarded(alert.PASS, lambda: alert.recovered(config, say))
         record.write_status(config, now, last, raised, say)
         recorded(lambda: kept.end(record.saw(halves), record.silent(halves)))
     return 1 if raised else 0

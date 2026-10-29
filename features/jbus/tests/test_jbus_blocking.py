@@ -164,7 +164,7 @@ def test_every_body_has_its_kind(kitchen, second):
     for minutes in (1, 16, 60):
         kitchen.poll(later(minutes))
     assert kinds(second) == ["events", "reminder", "refresh"]
-    assert kitchen.wakes.bodies == [] and kitchen.wakes.listed == [HELD_9]
+    assert kitchen.wakes.listed == [HELD_9]
 
 
 def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
@@ -177,7 +177,7 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     asked = gate("may I deploy the site tonight?", "beta")
     assert kitchen.main("gate", "beta", stdin=asked)[0] == 0
     kitchen.poll(later(1))
-    assert kitchen.wakes.said == [] and kitchen.wakes.listed == [
+    assert kitchen.wakes.listed == [
         ["question 2: may I deploy the site tonight, it names touches prod or real users"]
     ]
     (opened,) = second.bodies
@@ -232,20 +232,15 @@ def test_a_failing_second_target_leaves_the_others_alone(kitchen, second):
     for minutes in (1, 7, 13):
         kitchen.poll(later(minutes))
     assert kitchen.wakes.listed == [HELD_9]
-    assert jbus.read_json(kitchen.state / "outbox.json", []) == []
     shown = kitchen.status()["projects"]["demo"]
-    assert (shown["outbox"], shown["last_error"]) == (0, "")
+    assert shown["last_error"] == ""
     assert shown["blocking"] == {
         "outbox": 1,
         "failed_wakes": 3,
         "last_error": "the second target answered 500",
     }
     assert set(kitchen.status()["streaks"]) == {alert.blocking("demo")}
-    alerted = [line for post in kitchen.wakes.said for line in post if "alert" in line]
-    assert alerted == [
-        "demo: alert: blocking demo failed 3 times in a row since "
-        "11:01 ET: the second target answered 500"
-    ]
+    assert [line for line in kitchen.wakes.said if "alert" in line] == []
     second.status = 200
     kitchen.poll(later(16))
     assert kinds(second) == []
@@ -280,7 +275,7 @@ def test_with_no_second_pair_nothing_is_posted_beyond_the_home_s_wake(kitchen):
     hold(kitchen, 9)
     for minutes in (1, 16, 61):
         kitchen.poll(later(minutes))
-    assert kitchen.wakes.bodies == [] and kitchen.wakes.listed == [HELD_9]
+    assert kitchen.wakes.listed == [HELD_9]
     assert not (kitchen.state / "blocking").exists()
     assert not (kitchen.state / waiting.BLOCKS).exists()
     assert "blocking" not in kitchen.status()["projects"]["demo"]
@@ -353,16 +348,15 @@ def test_each_case_of_the_blocking_test(kitchen, second):
     }
 
 
-def test_an_alarm_that_stands_blocks_and_the_second_target_s_own_does_not(kitchen, second):
+def test_an_alarm_of_the_project_s_blocks_and_the_second_target_s_own_does_not(kitchen, second):
     relayed(kitchen, second)
-    state = jbus.load().state_dir
-    user = jbus.load().user
-    for key in (alert.PASS, alert.blocking("demo")):
-        for _ in range(3):
-            alert.failed(state, key, "down", now=NOW, user=user)
-        alert.told(state, key)
+    config = jbus.load()
+    keys = (alert.jmerge("demo"), alert.blocking("demo"), alert.PASS, alert.jmerge("other"))
+    owners = ("demo", "demo", alert.MACHINE, "other")
+    for key, owner in zip(keys, owners, strict=True):
+        alert.raise_(config, key, f"alert: {key} down", owner=owner, now=NOW)
     found = judged(kitchen, [])
-    assert [(one["key"], one["case"]) for one in found] == [("alarm:pass", "d")]
+    assert [(one["key"], one["case"]) for one in found] == [("alarm:jmerge demo", "d")]
 
 
 def test_a_blind_pass_keeps_what_it_had(kitchen, second):

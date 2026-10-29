@@ -189,3 +189,14 @@ def job(at):
 
 def log_of(at):
     return f"FAILED tests/test_grain.py::test_{at}\n"
+
+
+def test_an_item_whose_words_move_only_to_a_new_commit_or_time_is_not_news():
+    """The key of a wrong leaves out its commit and time (`state.key_of`), and so do its words: a
+    main that stays red at a new commit says nothing new, and a red that changed does."""
+    red = wakes.Item(key="wrong|red", to="mcp:root", line="red main: check failed, red at abc1234")
+    seen = {red.key: {"said": wakes.words(red)}}
+    moved = wakes.Item(key=red.key, to=red.to, line="red main: check failed, red at def5678")
+    worse = wakes.Item(key=red.key, to=red.to, line="red main: two checks failed, red at def5678")
+    assert wakes.pick([moved], seen, red.to) == []
+    assert wakes.pick([worse], seen, red.to) == [worse]

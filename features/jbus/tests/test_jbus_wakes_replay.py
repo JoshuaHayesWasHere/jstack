@@ -12,7 +12,7 @@ runs `tell`, which reads the project as the view does (`wrong_items`, `_woken`, 
 The snapshot alert is a home-thread wake the list does not hold, so it stays as the day had it."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -219,11 +219,16 @@ def test_a_stall_folds_into_its_rows_red_unless_the_row_is_that_reds_fix():
     assert wakes.pick([red, mine, circle], {"red|a": {}}, ROOT) == [circle]
 
 
-def test_an_item_that_leaves_the_list_wakes_no_one_and_its_return_is_news():
+def test_an_item_that_leaves_the_list_wakes_no_one_and_its_return_a_day_on_is_news():
     one = wakes.Item(key="main|main|red", to=ROOT, line="main main: red")
-    seen = wakes.kept([one], {}, wakes.pick([one], {}, ROOT), "t1")
+    at = datetime(2026, 10, 27, 12, tzinfo=UTC)
+    seen = wakes.kept([one], {}, wakes.pick([one], {}, ROOT), at)
     assert wakes.pick([], seen, ROOT) == []
-    seen = wakes.kept([], seen, [], "t2")
+    seen = wakes.kept([], seen, [], at + timedelta(hours=1))
+    assert wakes.pick([one], seen, ROOT) == []
+    changed = wakes.Item(key=one.key, to=ROOT, line="main main: red again")
+    assert wakes.pick([changed], seen, ROOT) == [changed]
+    seen = wakes.kept([], seen, [], at + wakes.KEEP)
     assert seen == {} and wakes.pick([one], seen, ROOT) == [one]
 
 

@@ -45,7 +45,7 @@ A systemd unit runs each of these on Linux, and a launchd agent on macOS ([The u
 |---|---|
 | `jbus poll` | Runs one pass over every project. `jbus.service` runs it each minute, and you may run it by hand. |
 | `jbus alarm [--stale <limit>]` | Counts a pass that did not finish. `jbus-failed.service` runs it. With `--stale 2h`, which `jbus-stale.timer` runs, it checks that a pass ended within that time. [When jbus fails](when-jbus-fails.md) says what the count is for. |
-| `jbus snapshot [--alarm \| --why <text>]` | Commits the homes' state tree and pushes it. `--why` puts what changed in the commit message after the time, as a home does after each edit to a `standing.md`. `--alarm` counts a snapshot that did not finish. [Back up the homes' state](back-up-the-homes-state.md) has the rest. |
+| `jbus snapshot [--why <text>]` | Commits the homes' state tree and pushes it. `--why` puts what changed in the commit message after the time, as a home does after each edit to a `standing.md`. A snapshot that did not finish raises its own alert. [Back up the homes' state](back-up-the-homes-state.md) has the rest. |
 | `jbus relay` | Takes what blocks, which jbus posts on 127.0.0.1:4390, spools it, and sends it on to the webhook of a chat bot of your own. It pages you when the chat bot is silent. `jbus-relay.service` runs it, where you set the relay up. [The relay](the-relay.md) has the rest. |
 
 ## The verbs the skills run

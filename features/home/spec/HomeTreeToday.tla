@@ -65,14 +65,14 @@ PrDrops(k) ==
 CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* A gate or an item for Josh goes into the home thread's outbox, once: its key is in sent.json
-\* from then on, so it is never queued again (jbus/wake.py `return False
+\* A gate or an item for Josh is an open item of the one list, raised once: its key is in sent.json
+\* from then on, so it is never raised again (jbus/wake.py `return False
 \* write_json(self.state / "sent.json", [*sent, key])`). A new call is a change in what the child has out, so its spell
 \* ends.
 RaiseCall(c) ==
     /\ c \in Raised
     /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wake.py `waiting = [*self._outbox(), made]`
+    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wakes.py `new = pick(items, seen, thread)`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
     /\ UNCHANGED <<life, work, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
@@ -104,16 +104,16 @@ Answer(c) ==
 \* Josh answers the root's question about a stalled child: he gets it going again, and what it
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
-    /\ watch[k] = "asked"     \* jbus/children.py `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py `why = post(body(some))`
+    /\ watch[k] = "asked"     \* jbus/children.py `line = f"{line}: get it going, or retire it; thread {thread}"`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wakes.py `told = new if new and _send(run, client, thread, new) else []`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
-\* A pass posts what waits in the home thread's outbox, its one route to Josh. Only a post that
-\* goes through takes a call out of the outbox (jbus/wake.py `self._log(**{TOOK: [_id(one) for one in some]})
-\* write_json(outbox, waiting[sent:], mode=0o600)`), so one that fails leaves it there for the next pass.
+\* A pass sends each home thread the items of the one list new to it, its one route to Josh. Only a
+\* send that goes through records them as told (jbus/wakes.py `threads[thread] = kept(items, seen, told, run.now)`),
+\* so one that fails leaves them new for the next pass.
 Deliver(m) ==
-    /\ msg[m] = "home"     \* jbus/alert.py `sent = run.box.flush(`
-    /\ up     \* jbus/wake.py `why = post(body(some)) if why: break`
+    /\ msg[m] = "home"     \* jbus/wakes.py `for thread in sorted(({one.to for one in items} | set(threads)) - {""}):`
+    /\ up     \* jbus/wakes.py `except T3Error as error:`
     /\ msg' = Set(msg, m, "told")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The home thread fails: T3 Code is down, or the thread is gone.
@@ -154,8 +154,8 @@ After(w) ==
       [] w = "nudged1" -> "nudged2"
       [] w = "nudged2" -> "asked"
       [] OTHER -> "asked"
-\* On the first strike of a spell Josh hears of it (jbus/children.py `run.find(name, STALL,
-\* f"{line}; jbus nudged it, thread {thread}", key=f"{since} strike")`), and the root's question
+\* On the first strike of a spell Josh hears of it, an alert of the project's on the one list
+\* (jbus/children.py `line = f"{line}; jbus nudged it, thread {thread}"`), and the root's question
 \* after the nudges is the same notice, sent again (jbus/children.py
 \* `{home} is still quiet after two nudges`).
 Notice(k) ==

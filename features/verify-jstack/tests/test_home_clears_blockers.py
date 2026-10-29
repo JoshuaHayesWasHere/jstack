@@ -67,9 +67,6 @@ def demo(sandbox):
         threads.write_text(json.dumps([one | {"settled": True} for one in kept]))
     assert run(sandbox, "jbus poll").returncode == 0
     assert posted(sandbox) == []
-    wakes = root / "state" / "demo" / "home-thread" / "wake.json"
-    if wakes.exists():
-        wakes.write_text(json.dumps(json.loads(wakes.read_text()) | {"posted": 0}))
     return sandbox
 
 
@@ -81,28 +78,22 @@ def run(sandbox, command, stdin=None):
     )
 
 
-def posted(sandbox):
-    """Every event a wake took to the home thread, in order, but the pages of `jbus health`: those
-    read the host's own state, its disk, which no test sets."""
-    wake = sandbox.parent / "t3" / "wake.jsonl"
-    lines = wake.read_text().splitlines() if wake.exists() else []
-    events = [event for line in lines for event in json.loads(line)["events"]["events"]]
-    return [one for one in events if not one["line"].startswith(f"alert: {PREFIX}")]
-
-
 def listed(sandbox):
-    """The lines of each message of the one list (`jbus.wakes`) that reached a home thread, which
-    carries each decision of the list."""
-    calls = sandbox.parent / "t3" / "calls.jsonl"
-    lines = calls.read_text().splitlines() if calls.exists() else []
-    sent = [json.loads(line)["arguments"] for line in lines if '"t3_thread_send"' in line]
-    told = [one["message"] for one in sent if one["clientRequestId"].startswith("wakes|demo|")]
-    return [[line.removeprefix("- ") for line in one.split("\n\n")[1].splitlines()] for one in told]
+    """The lines of each message of the one list (`jbus.wakes`) that reached a home thread, but
+    the pages of `jbus health`: those read the host's own state, its disk, which no test sets."""
+    wake = sandbox.parent / "t3" / "wake.jsonl"
+    told = (
+        [json.loads(line)["lines"] for line in wake.read_text().splitlines()]
+        if wake.exists()
+        else []
+    )
+    kept = [[one for one in lines if not one.startswith(f"alert: {PREFIX}")] for lines in told]
+    return [lines for lines in kept if lines]
 
 
-def waiting_to_post(sandbox):
-    outbox = sandbox.parent / "state" / "demo" / "home-thread" / "outbox.json"
-    return json.loads(outbox.read_text()) if outbox.exists() else []
+def posted(sandbox):
+    """Every line the one list took to a home thread, in order."""
+    return [line for lines in listed(sandbox) for line in lines]
 
 
 def brief(slug, *head):
@@ -163,7 +154,6 @@ def test_a_gate_the_user_need_not_decide_is_closed_by_the_pass_with_no_event(dem
     assert record["answer"]["closed_by"] == "silence"
     assert not (demo.parent / "home" / ".local" / "state" / "home" / "demo" / "gates.md").exists()
     assert posted(demo) == []
-    assert waiting_to_post(demo) == []
     assert "question 1" not in run(demo, "jbus clear").stdout
 
 
@@ -188,7 +178,6 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
     assert ruled.returncode == 0, ruled.stdout + ruled.stderr
     assert "beta-fix" in run(demo, "jbus queue show").stdout
     assert posted(demo) == []
-    assert waiting_to_post(demo) == []
 
 
 def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_list(demo):
@@ -199,7 +188,6 @@ def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_lis
     run(demo, "jbus gate alpha", HOLDS)
     run(demo, "jbus poll")
 
-    assert posted(demo) == []
     ((line,),) = listed(demo)
     assert line.startswith("question 1: remove the three stale branches, it holds (deletes data)")
     assert "decision question 1" in cleared.stdout
@@ -233,10 +221,9 @@ def test_a_blocker_past_its_cap_stops_and_gives_one_decision_event(demo):
     assert fourth.returncode == 1
     shown = run(demo, "jbus queue show").stdout
     assert "delta-fix-3" not in shown and "delta-fix-4" not in shown
-    (event,) = [one for one in posted(demo) if "check:delta" in one["line"]]
-    assert event["event"] == "decision"
-    assert event["say"].startswith("demo: decision delta-fix-3: check:delta had 2 fixes")
-    assert 'Reply: "demo check:delta: I take it"' in event["say"]
+    (line,) = [one for one in posted(demo) if "check:delta" in one]
+    assert line.startswith("decision delta-fix-3: check:delta had 2 fixes")
+    assert 'Reply: "demo check:delta: I take it"' in line
 
 
 def test_the_cap_is_the_one_jsettings_names(demo):
@@ -320,8 +307,8 @@ def test_a_fix_at_work_is_waited_on_one_removed_unrun_gives_its_try_back_and_a_c
     assert "try 1 of 2" in freed
     assert fifth.returncode == 1
     assert "row:mu had 2 fixes (mu-fix-3, mu-fix-4)" in fifth.stdout + fifth.stderr
-    (event,) = [one for one in posted(demo) if "row:mu had" in one["line"]]
-    assert 'Reply: "demo row:mu: I take it"' in event["say"]
+    (line,) = [one for one in posted(demo) if "row:mu had" in one]
+    assert 'Reply: "demo row:mu: I take it"' in line
 
 
 def test_a_batch_of_fixes_past_the_cap_queues_none_and_counts_none(demo):
@@ -351,10 +338,9 @@ def test_a_scope_change_raised_by_hand_is_one_decision_with_its_reply(demo):
 
     assert first.stdout == "raised: alpha: add a second sign-in to the plan?\n"
     assert again.stdout == "raised already: alpha: add a second sign-in to the plan?\n"
-    (event,) = posted(demo)
-    assert event["say"] == (
-        'demo: decision alpha: add a second sign-in to the plan?. Reply: "demo scope: yes, add it"'
-    )
+    assert posted(demo) == [
+        'decision alpha: add a second sign-in to the plan?. Reply: "demo scope: yes, add it"'
+    ]
 
 
 def test_a_scoped_home_raises_its_own_gates_and_not_the_root_s(demo):
@@ -413,6 +399,5 @@ def test_a_fix_whose_own_check_failed_is_not_at_work_and_the_next_try_then_the_c
     assert second.startswith("fix check:rho: its check failed, brief a fix"), second
     assert "try 2 of 2" in second
     assert capped.startswith("decision check:rho: check:rho had 2 fixes"), capped
-    (event,) = [one for one in posted(demo) if "check:rho had" in one["line"]]
-    assert event["event"] == "decision"
-    assert 'Reply: "demo check:rho: I take it"' in event["say"]
+    (line,) = [one for one in posted(demo) if "check:rho had" in one]
+    assert 'Reply: "demo check:rho: I take it"' in line

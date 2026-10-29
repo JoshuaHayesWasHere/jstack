@@ -31,8 +31,8 @@ def to(kitchen, thread):
 
 
 def loud(kitchen):
-    """Return each event that a pass posted for the user."""
-    return [one["line"] for post in kitchen.wakes.posts for one in post if one["loud"] == "user"]
+    """Return each event a pass raised for the user to decide."""
+    return [one["line"] for one in kitchen.events() if one["loud"] == "user"]
 
 
 def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():

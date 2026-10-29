@@ -7,23 +7,20 @@ Once it runs out, T3 Code refuses jbus and jbus launches nothing.
 
 ## The reminder
 
-jbus reminds you with a `sign-in` event, which is a `user` event of the machine and not of a project.
-jbus sends it once, to the first project's home thread.
-It keeps it in the first project's `jbus events`.
+jbus reminds you with a `sign-in` alert, an open item of the machine's and not of a project.
+It goes to the desk and to the infra home ([Who an item is for](events-and-wakes.md#who-an-item-is-for)), and is logged in the infra project's `jbus events`.
 jbus counts the days by the calendar of your zone, up to the day the sign-in runs out:
 
 | When | The line |
 |---|---|
-| The first pass 7 days out or fewer | `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, 7 days left: run jbus t3 login` |
-| The first pass of each day from 3 days out, the last day included | The same line, with the days left |
-| The first pass after it ran out | `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login` |
-| The first pass after `jbus t3 login` stored a token that runs out later | `sign-in: jbus's T3 sign-in was renewed, and now expires <YYYY-MM-DD HH:MM zone>` |
+| From 7 days out, until 3 days out | `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, at most a week left: run jbus t3 login` |
+| Each day from 3 days out, the last day included | `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, <n> days left: run jbus t3 login` |
+| After it ran out | `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login` |
 
-Each row of the table is a mark.
-A pass sends the line for the mark it is in, and none for a mark already behind it.
-The renewal starts the count over for the new expiry.
-`~/.local/state/jbus/sign-in.json` keeps the expiry jbus saw last and the marks it has sent for it, so a project added or moved in the config sends nothing again.
-`sign_in_reminder` in `jbus status` names where the reminder goes and the days still ahead, or says `none: no sign-in is stored` or `none: the config has no project to carry it`.
+The alert is one item, `sign-in`, and each row is a new line of it, so the infra home hears each line once.
+A home is told the item again only when its line changed.
+`jbus t3 login` with a token that runs out more than 7 days later ends the alert.
+`sign_in_reminder` in `jbus status` names where the reminder goes and the days still ahead, or says `none: no sign-in is stored`.
 
 ## The quiet lines
 

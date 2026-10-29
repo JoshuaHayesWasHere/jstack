@@ -98,10 +98,10 @@ def test_a_raised_row_approved_in_the_next_pass_tells_no_one_it_left(kitchen):
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert len(decisions(kitchen, "alpha")) == 1
-    posts = len(kitchen.wakes.posts)
+    posts = len(kitchen.wakes.listed)
     assert go(kitchen, "alpha")[0] == 0
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(decisions(kitchen, "alpha")) == 1 and len(kitchen.wakes.posts) == posts
+    assert len(decisions(kitchen, "alpha")) == 1 and len(kitchen.wakes.listed) == posts
     built = digest.build(jbus.load(), now=later(41))["projects"]["demo"]
     assert "approve:alpha" not in [one["key"] for one in built["waiting"]]

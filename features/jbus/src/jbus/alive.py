@@ -19,12 +19,13 @@ ALARM = "the last pass did not finish (see journalctl --user -u jbus)"
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a pass that did not finish. On the third in a row, alert every project and the
-    desk, once (`alert.sound`)."""
+    """Count a pass that did not finish. On the third in a row, raise its alert, the machine's:
+    the desk hears of it at once, and the infra home from the one list (`alert.sound`)."""
     now = now or datetime.now(UTC)
     failing = alert.streak(config.state_dir, alert.PASS)
     say(f"pass failed: {failing.count + 1 if failing else 1} in a row")
-    return alert.sound(config, alert.PASS, ALARM, alert.AFTER, now, say)
+    alert.sound(config, alert.PASS, ALARM, alert.AFTER, now, say)
+    return 0
 
 
 SPAN = re.compile(r"([1-9][0-9]*)([mhd])")
@@ -67,7 +68,8 @@ def stale(
     last = kept.get("ended") or kept.get("started")
     if not isinstance(last, str):
         say("no pass: none on record")
-        return alert.sound(config, alert.STALE, "no pass on record", 1, now, say)
+        alert.sound(config, alert.STALE, "no pass on record", 1, now, say)
+        return 0
     ended = datetime.fromisoformat(last)
     if now - ended <= limit:
         say(f"pass seen: last ended {config.user.clock(ended)}")
@@ -75,7 +77,8 @@ def stale(
     at = config.user.stamp(ended)
     say(f"no pass: last ended {at}")
     why = f"no pass ended since {at}, more than {_shown(limit)} ago"
-    return alert.sound(config, alert.STALE, why, 1, now, say)
+    alert.sound(config, alert.STALE, why, 1, now, say)
+    return 0
 
 
 def _stale(shown: argparse.ArgumentParser) -> None:

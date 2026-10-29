@@ -20,8 +20,8 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jbus import t3, wake
-from test_jbus_kitchen import DAY, FIXTURE, NOW, PROJECT, TOKEN
+from jbus import t3
+from test_jbus_kitchen import FIXTURE, NOW, PROJECT, TOKEN
 
 
 def test_the_sign_in_registers_takes_the_approval_and_keeps_the_token_private(kitchen):
@@ -148,77 +148,14 @@ def test_a_send_with_no_thread_line_read_yet_is_refused(kitchen):
     assert kitchen.t3.calls == []
 
 
-THIRTY_DAYS = 30 * 24 * 60 * 60
-
-
-def sign_in(day):
-    return f"T3 sign-in expires {day} ET, run jbus t3 login"
-
-
-def expires(day):
-    return f"condition demo: {sign_in(day)}"
-
-
-@pytest.mark.parametrize(
-    ("ago", "token"),
-    [
-        pytest.param(
-            timedelta(days=24),
-            {},
-            id="a token that does not say how long it lasts is good for thirty days",
-        ),
-        (timedelta(days=24), {"expires_in": THIRTY_DAYS}),
-        (timedelta(days=4), {"expires_in": 10 * 24 * 60 * 60}),
-    ],
-)
-def test_a_sign_in_within_five_days_of_its_end_is_a_gate_on_the_first_pass_of_each_day(
-    kitchen, ago, token
-):
-    """The token runs out six days after the tests' now, at 11:00 AM ET on the 18th."""
-    kitchen.signed_in(ago, **token)
-    kitchen.poll()
-    assert kitchen.lines("condition") == [] and kitchen.log("notify") == []
-    assert kitchen.status()["projects"]["demo"]["sign_in"] == ""
-    kitchen.poll(NOW + DAY)
-    assert kitchen.lines("condition") == [expires("2026-10-18")]
-    assert kitchen.log("notify") == [f"jbus | demo: {sign_in('2026-10-18')}"]
-    assert kitchen.status()["projects"]["demo"]["sign_in"] == sign_in("2026-10-18")
-    kitchen.poll(NOW + DAY + timedelta(minutes=3))
-    kitchen.poll(NOW + DAY + timedelta(hours=8))
-    assert len(kitchen.lines("condition")) == 1 and len(kitchen.log("notify")) == 1
-    kitchen.poll(NOW + 2 * DAY)
-    assert kitchen.lines("condition") == [expires("2026-10-18")] * 2
-    assert len(kitchen.log("notify")) == 2
-    assert (
-        TOKEN not in json.dumps(kitchen.events()) + (kitchen.state_dir / "status.json").read_text()
-    )
-
-
 def test_a_token_that_does_not_say_when_it_was_obtained_counts_from_its_files_date(kitchen):
     stored = kitchen.config_dir / "t3.json"
     kitchen.write(stored, json.dumps({"server": kitchen.t3.url, "token": {"access_token": TOKEN}}))
     written = (NOW - timedelta(days=24)).timestamp()
     os.utime(stored, (written, written))
     kitchen.poll()
-    assert kitchen.lines("condition") == []
     assert kitchen.status()["token_expires"] == "2026-10-18 11:00 ET"
-    kitchen.poll(NOW + DAY)
-    assert kitchen.lines("condition") == [expires("2026-10-18")]
-
-
-def test_the_days_of_warning_are_the_configs(kitchen):
-    kitchen.signed_in(timedelta(days=24))
-    kitchen.config(warn_days=7)
-    kitchen.poll()
-    assert kitchen.lines("condition") == [expires("2026-10-18")]
-
-
-def test_a_desk_with_no_notify_send_still_gets_the_gate(kitchen):
-    kitchen.signed_in(timedelta(days=25))
-    (kitchen.stub / "notify-send").unlink()
-    kitchen.monkeypatch.setattr(wake.shutil, "which", lambda _: None)
-    kitchen.poll()
-    assert kitchen.lines("condition") == [expires("2026-10-17")]
+    assert TOKEN not in (kitchen.state_dir / "status.json").read_text()
 
 
 WAS = {

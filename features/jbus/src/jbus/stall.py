@@ -32,7 +32,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbus import queue, read_json, verbs, waiting, write_json
+from jbus import alert, queue, read_json, verbs, waiting, write_json
 from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
@@ -173,8 +173,8 @@ def tell(
     """Send each root that is due, say which roots cleared, and rewrite `stall.json`. Return the
     roots that are still open, each `{"key", "line", "since", "unblocks"}`.
 
-    `tell` also raises each due root on the desk. `tell` prints the root when the project's first
-    route's last send failed. A pass judges no row when it could not ask T3 Code or GitHub, could
+    `tell` also raises each due root on the desk. `tell` prints the root while the project's home
+    thread's wakes fail. A pass judges no row when it could not ask T3 Code or GitHub, could
     not read the queue, or ran with dispatch off. Such a pass keeps the roots that it had as they
     were, and neither sends nor clears them, except a root that is plainly `done`. `tell` also keeps
     the root of a held pull request as it was when the pull request is still open and `jmerge` said
@@ -191,7 +191,7 @@ def tell(
     found |= config(run, client, rows)
     was: dict[str, Any] = read_json(run.state / "stall.json", {})
     before = {one["key"]: one for one in waiting.read(run.state) or [] if "unblocks" in one}
-    quiet = run.box.marks().get("failed", 0) > 0
+    quiet = alert.streak(run.config.state_dir, alert.home(name)) is not None
     kept: dict[str, Any] = {}
     shown = []
     for key, (action, unblocks) in found.items():

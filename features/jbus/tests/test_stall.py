@@ -12,10 +12,9 @@ from datetime import timedelta
 
 import pytest
 
-import jbus
-from jbus import wake
 from test_jbus_kitchen import KEY, NOW, REFUSED, RESULT, Kitchen
 from test_jbus_queue import add, brief, go, sha12, widened
+from test_jbus_wake_failing import refusing
 
 URL = "https://example.test/pull/286"
 WHY = "needs user, touches skills/crew/SKILL.md"
@@ -308,17 +307,10 @@ def test_with_no_sign_in_the_root_is_to_sign_in_and_it_unblocks_the_rows_that_wa
 
 def test_a_home_thread_whose_last_wake_failed_has_each_root_in_the_journal_each_hour(kitchen):
     held(kitchen)
-    config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo")).send(
-        "alpha", "decision", "decision alpha: which one?"
-    )
-    kitchen.wakes.refused = REFUSED
+    refusing(kitchen)
     said = kitchen.poll()
     assert MERGE not in said
-    assert (
-        f"wake failed demo home thread: T3 Code did not take the wake: t3_thread_send: {REFUSED}"
-        in said
-    )
+    assert [line for line in said if line.startswith("wait demo: ") and REFUSED in line]
     assert MERGE not in kitchen.poll(later(30))
     assert kitchen.poll(later(61)).count(MERGE) == 1
-    assert kitchen.wakes.posts == [] and waits(kitchen) == [MERGE, MERGE]
+    assert kitchen.wakes.said == [] and waits(kitchen) == [MERGE, MERGE]
