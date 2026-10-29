@@ -12,13 +12,27 @@ it each time the rebase stops.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 import jbus
-from jmerge import gate
 
 DEFAULT = "uv.lock -> uv lock"
+
+
+def outside_venv() -> dict[str, str]:
+    """This environment as a shell outside the venv `jmerge` runs in has it: `uv run --project`
+    sets `VIRTUAL_ENV` and puts that venv's bin first on PATH, and both are taken out, so a bare
+    `python3` or `uv` is the one the repo's own shell finds."""
+    env = dict(os.environ)
+    venv = env.pop("VIRTUAL_ENV", "")
+    if venv:
+        bin_dir = os.path.join(venv, "bin")
+        env["PATH"] = os.pathsep.join(
+            one for one in env.get("PATH", "").split(os.pathsep) if one != bin_dir
+        )
+    return env
 
 
 def table(main: Path) -> list[str]:
@@ -77,7 +91,7 @@ def remake() -> list[str]:
             and not subprocess.run(
                 ["sh", "-c", command],
                 cwd=top_dir,
-                env=gate.outside_venv(),
+                env=outside_venv(),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
