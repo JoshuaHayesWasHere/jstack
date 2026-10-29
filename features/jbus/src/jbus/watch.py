@@ -1320,19 +1320,22 @@ def ran_at(one: dict[str, Any]) -> str:
 
 
 def drawn_apart(
-    jobs: list[tuple[str, str, Failed]],
+    jobs: list[tuple[str, str, Failed]], logs: list[str]
 ) -> tuple[list[tuple[str, str, list[str]]], list[tuple[str, str, Failed]]]:
-    """Split the failed jobs of a nightly's run into its shot tests, the shots row's
-    (`shots.drawn`), and the rest, each job with the tests of its part: a job whose failures are
-    all named shot tests is in the rest no longer, and a job that names none is."""
+    """Split the failed jobs of a nightly's run, with each job's log, into its shot tests, the
+    shots row's (`shots.drawn`), and the rest, each job with the tests of its part: a job whose
+    failures are all named shot tests that said a shot moved is in the rest no longer, and a job
+    that names none is. Where fewer of a job's tests said a shot moved (`shots.moved_in`) than
+    shot tests failed, one failed some other way, and its job's shot tests are in the rest too."""
     drawn, rest = [], []
-    for job, url, failed in jobs:
+    for (job, url, failed), log in zip(jobs, logs, strict=True):
         moved = [test for test in failed.tests if shots.drawn(test)]
+        crashed = len(moved) > shots.moved_in(log)
         if moved:
             drawn.append((job, url, moved))
-        if not moved or failed.count > len(moved):
-            others = tuple(test for test in failed.tests if not shots.drawn(test))
-            rest.append((job, url, Failed(others, failed.count - len(moved))))
+        if not moved or crashed or failed.count > len(moved):
+            others = tuple(test for test in failed.tests if crashed or not shots.drawn(test))
+            rest.append((job, url, Failed(others, failed.count - (0 if crashed else len(moved)))))
     return drawn, rest
 
 
@@ -1486,10 +1489,10 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
                 (j.get("name") or "?", j.get("html_url") or "", failed_in(log or ""))
                 for j, log in zip(red, logs, strict=True)
             ]
-            drawn, rest = drawn_apart(jobs)
+            said = [_ESCAPE.sub("", log or "") for log in logs]
+            drawn, rest = drawn_apart(jobs, said)
             fixed = name if rest or not drawn else ""
             if drawn and redrawn in free:
-                said = [_ESCAPE.sub("", log or "") for log in logs]
                 moved = any(shots.BROWSER_MOVED in log for log in said)
                 text = shots.brief(
                     redrawn, day, nightly.run, number, queue.FILED, drawn, ran_at(one), moved

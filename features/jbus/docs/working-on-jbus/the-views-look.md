@@ -38,6 +38,7 @@ Every other browser test judges a pull request as before.
 A CI run on main or on a tag, the nightly and a release, fails each shot that moved, with the line `keep the shots of this run's jbus-view-shots artifact`.
 jbus reads that run and files the shots row of the day, `shots-<day>`, from its failed shot tests, approved by the rule for a row jbus filed from a red run.
 Its other failures, if any, file `browser-red-<day>` as before.
+A job where fewer tests said that line than shot tests failed had a shot test fail some other way, so that job's shot tests are in `browser-red-<day>` too (`jbus.shots.moved_in`).
 A further red run that day folds into the same rows.
 A run whose only failures were shots holds no pull request as a red main in `jmerge`.
 On a day that also has a `browser-red-` row, a shots row's pull request whose own browser run fails waits for that fix as any other pull request does.

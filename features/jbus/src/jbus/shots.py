@@ -15,6 +15,8 @@ loads it by its path."""
 
 from __future__ import annotations
 
+import re
+
 KEPT = "features/jbus/tests/fixtures/jbus-view/shots"
 """The directory of the kept shots and of `browser.txt`, which names the browser that drew them."""
 PREFIX = "shots-"
@@ -37,6 +39,16 @@ moved, its shot is missing or the browser moved."""
 def drawn(test: str) -> bool:
     """Whether the failed test `test`, as pytest names it, is one of the shot tests."""
     return test.split("[")[0] in DRAWN_BY
+
+
+def moved_in(log: str) -> int:
+    """How many tests of a job's log failed saying a shot or the browser moved: the `E` line of
+    each, where pytest prints the whole of what the test failed with, ends with `MOVED`. A shot
+    test that failed any other way, a browser that made no shot or ran out of time, is not."""
+    return len(_MOVED_LINE.findall(log))
+
+
+_MOVED_LINE = re.compile(rf"^(?:\S+Z )?E\s+Failed: .*{re.escape(MOVED)}\s*$", re.M)
 
 
 def kept(path: str) -> bool:
