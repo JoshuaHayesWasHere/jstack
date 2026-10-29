@@ -1,0 +1,1904 @@
+From 0cd40d1a9cc418a548e1f0d4133bcb59204c8eca Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 16:35:44 -0400
+Subject: [PATCH] feat(web): jstack tree rows approve, remove and answer
+ through the task's home, and show the brief jbus keeps
+
+Approve, Remove from queue and Answer on a task row each send the task's own home a user
+message ("approve <slug> (brief sha <sha12>)", "remove <slug>", "answer question <n> (<slug>): <text>"),
+which the home acts on as the user's word; the server runs no jbus write. Open brief reads
+jbus/<repo>/briefs/<slug>.md through a new read-only jbus.readBrief RPC, with the sha jbus checks
+an approval against, and Approve lives in that dialog so a go names the brief the user read.
+A task's open question gets an inline answer row under it. JbusTask's waitsOnUser becomes
+waitsOn: approval, answer or word.
+---
+ apps/server/src/auth/RpcAuthorization.ts      |   1 +
+ apps/server/src/jstack/JbusWork.test.ts       |  51 +++++
+ apps/server/src/jstack/JbusWork.ts            |  27 ++-
+ apps/server/src/jstack/jbusWork.logic.test.ts |  22 +-
+ apps/server/src/jstack/jbusWork.logic.ts      |  30 ++-
+ .../src/observability/RpcInstrumentation.ts   |   1 +
+ apps/server/src/ws.ts                         |   1 +
+ apps/web/src/components/Sidebar.tsx           | 101 +++++++++
+ .../JstackBriefDialog.browser.test.tsx        | 177 ++++++++++++++++
+ .../components/sidebar/JstackBriefDialog.tsx  | 142 +++++++++++++
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 186 +++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx | 200 +++++++++++++++++-
+ .../components/sidebar/jstackHomeActions.ts   |  42 ++--
+ .../sidebar/jstackHomeSends.browser.test.tsx  |  34 +++
+ .../sidebar/jstackTree.logic.test.ts          | 108 +++++++++-
+ .../components/sidebar/jstackTree.logic.ts    | 116 +++++++++-
+ packages/client-runtime/src/state/server.ts   |   5 +
+ packages/contracts/src/jbusWork.ts            |  36 +++-
+ packages/contracts/src/rpc.ts                 |  10 +-
+ 19 files changed, 1235 insertions(+), 55 deletions(-)
+ create mode 100644 apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
+ create mode 100644 apps/web/src/components/sidebar/JstackBriefDialog.tsx
+
+diff --git a/apps/server/src/auth/RpcAuthorization.ts b/apps/server/src/auth/RpcAuthorization.ts
+index 2d61240c30..65477ca730 100644
+--- a/apps/server/src/auth/RpcAuthorization.ts
++++ b/apps/server/src/auth/RpcAuthorization.ts
+@@ -167,6 +167,7 @@ export const RPC_REQUIRED_SCOPES = {
+   [WS_METHODS.worktreeSetupCancel]: AuthOrchestrationOperateScope,
+   [WS_METHODS.subscribeResourceTelemetry]: AuthDiagnosticsReadScope,
+   [WS_METHODS.subscribeJbusWork]: AuthOrchestrationReadScope,
++  [WS_METHODS.jbusReadBrief]: AuthOrchestrationOperateScope,
+   [WS_METHODS.vcsRefreshStatus]: AuthOrchestrationReadScope,
+   [WS_METHODS.gitResolvePullRequest]: AuthOrchestrationReadScope,
+   [WS_METHODS.vcsListRefs]: AuthOrchestrationReadScope,
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+index 37aa4f037d..7582031683 100644
+--- a/apps/server/src/jstack/JbusWork.test.ts
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -140,3 +140,54 @@ it.live("never shows a scope whose home handed off as starting", () =>
+     );
+   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+ );
++
++it.live("reads the brief jbus keeps for a row, with the sha jbus checks an approval against", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const path = yield* Path.Path;
++    const { roots } = yield* seed;
++    const briefs = path.join(roots.jbus, "jstack", "briefs");
++    yield* fs.makeDirectory(briefs, { recursive: true });
++    // The lines a launch adds to the head are not in the sha; below the first ## they are.
++    const text =
++      "# fl-meter: a meter\nHome: flow\nThread: mcp:crew\nSize: S\nTask: read the meter\n" +
++      "## Result\nHome: kept below the head\n";
++    yield* fs.writeFileString(path.join(briefs, "fl-meter.md"), text);
++    // A brief of a folder jbus has but the tree does not show: no home-id beside it.
++    yield* fs.makeDirectory(path.join(roots.jbus, "other", "briefs"), { recursive: true });
++    yield* fs.writeFileString(path.join(roots.jbus, "other", "work.json"), "{}");
++    yield* fs.writeFileString(path.join(roots.jbus, "other", "briefs", "x.md"), "# x\n");
++    const service = yield* JbusWork.make(roots);
++
++    // jmerge.judgement.brief_sha(text)[:12], as `jbus queue approve --sha` takes it.
++    assert.deepEqual(yield* service.readBrief({ repo: "jstack", slug: "fl-meter", kind: "crew" }), {
++      repo: "jstack",
++      slug: "fl-meter",
++      text,
++      sha: "f7de575cc0d0",
++    });
++    assert.deepEqual(yield* service.readBrief({ repo: "jstack", slug: "gone", kind: "crew" }), {
++      repo: "jstack",
++      slug: "gone",
++      text: null,
++      sha: null,
++    });
++    assert.deepEqual(yield* service.readBrief({ repo: "other", slug: "x", kind: "crew" }), {
++      repo: "other",
++      slug: "x",
++      text: null,
++      sha: null,
++    });
++
++    // A scout's brief is the one its home wrote; jbus keeps no copy of it.
++    const scout = "# probe: look at the meter\nSize: S\n";
++    yield* fs.makeDirectory(path.join(roots.home, "jstack", "scouts"), { recursive: true });
++    yield* fs.writeFileString(path.join(roots.home, "jstack", "scouts", "probe.md"), scout);
++    const read = yield* service.readBrief({ repo: "jstack", slug: "probe", kind: "scout" });
++    assert.equal(read.text, scout);
++    assert.deepEqual(
++      (yield* service.readBrief({ repo: "jstack", slug: "probe", kind: "crew" })).text,
++      null,
++    );
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+index 49d279aea1..cd023d437a 100644
+--- a/apps/server/src/jstack/JbusWork.ts
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -1,8 +1,15 @@
++// @effect-diagnostics-next-line nodeBuiltinImport:off -- the sha jbus checks an approval against.
++import * as NodeCrypto from "node:crypto";
+ // @effect-diagnostics-next-line nodeBuiltinImport:off -- watch must register before the first read; see make.
+ import * as NodeFS from "node:fs";
+ import * as NodeOS from "node:os";
+ 
+-import { EMPTY_JBUS_WORK_SNAPSHOT, JbusWorkSnapshot } from "@t3tools/contracts";
++import {
++  EMPTY_JBUS_WORK_SNAPSHOT,
++  type JbusBrief,
++  type JbusReadBriefInput,
++  JbusWorkSnapshot,
++} from "@t3tools/contracts";
+ import * as Clock from "effect/Clock";
+ import * as Context from "effect/Context";
+ import * as Duration from "effect/Duration";
+@@ -23,6 +30,7 @@ import {
+   subscribeBeforeSnapshot,
+ } from "../utils/subscribeBeforeSnapshot.ts";
+ import {
++  briefBody,
+   buildRepoWork,
+   mergeSnapshots,
+   readHomeLine,
+@@ -34,6 +42,8 @@ export class JbusWork extends Context.Service<
+   JbusWork,
+   {
+     readonly subscribe: Effect.Effect<SnapshotSubscription<JbusWorkSnapshot>, never, Scope.Scope>;
++    /** A task's brief in a repo the tree shows, as `JbusBrief` says where; it only reads. */
++    readonly readBrief: (input: JbusReadBriefInput) => Effect.Effect<JbusBrief>;
+   }
+ >()("t3/jstack/JbusWork") {}
+ 
+@@ -214,8 +224,23 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     Effect.forkScoped,
+   );
+ 
++  const readBrief = Effect.fn("JbusWork.readBrief")(function* (input: JbusReadBriefInput) {
++    const missing: JbusBrief = { repo: input.repo, slug: input.slug, text: null, sha: null };
++    // Only a repo the tree shows, so no name reaches a folder jbus does not keep.
++    if (!(yield* repos).includes(input.repo)) return missing;
++    const file =
++      input.kind === "scout"
++        ? path.join(roots.home, input.repo, "scouts", `${input.slug}.md`)
++        : path.join(roots.jbus, input.repo, "briefs", `${input.slug}.md`);
++    const text = yield* fs.readFileString(file).pipe(Effect.orElseSucceed(() => null));
++    if (text === null) return missing;
++    const sha = NodeCrypto.createHash("sha256").update(briefBody(text)).digest("hex").slice(0, 12);
++    return { ...missing, text, sha };
++  });
++
+   return JbusWork.of({
+     subscribe: subscribeBeforeSnapshot(changes, Ref.get(state), mutex),
++    readBrief,
+   });
+ });
+ 
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index e8e189670d..86eeb4c699 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -47,6 +47,7 @@ describe("buildRepoWork", () => {
+         row("a-working", "working", "running"),
+         row("a-quiet", "quiet", "running"),
+         row("a-hung", "hung", "running", { who: "user" }),
++        row("a-asking", "asking", "gate", { who: "user", waits: "your answer" }),
+         row("a-review", "review", "review"),
+         row("a-findings", "findings", "findings", { pr: "#725" }),
+         row("a-check", "check", "check"),
+@@ -58,17 +59,18 @@ describe("buildRepoWork", () => {
+     };
+     const result = buildRepoWork(files({ work }), NOW);
+     expect(
+-      result.tasks.map((task) => [task.slug, task.stage, task.threadId, task.waitsOnUser]),
++      result.tasks.map((task) => [task.slug, task.stage, task.threadId, task.waitsOn]),
+     ).toEqual([
+-      ["a-ready", "ready", null, false],
+-      ["a-behind", "behind", null, false],
+-      ["a-unapproved", "ready", null, true],
+-      ["a-working", "crew", "mcp:a-working", false],
+-      ["a-quiet", "quiet", "mcp:a-quiet", false],
+-      ["a-hung", "crew", "mcp:a-hung", true],
+-      ["a-review", "review", "mcp:a-review", false],
+-      ["a-findings", "review", "mcp:a-findings", false],
+-      ["a-check", "review", "mcp:a-check", false],
++      ["a-ready", "ready", null, null],
++      ["a-behind", "behind", null, null],
++      ["a-unapproved", "ready", null, "approval"],
++      ["a-working", "crew", "mcp:a-working", null],
++      ["a-quiet", "quiet", "mcp:a-quiet", null],
++      ["a-hung", "crew", "mcp:a-hung", "word"],
++      ["a-asking", "crew", "mcp:a-asking", "answer"],
++      ["a-review", "review", "mcp:a-review", null],
++      ["a-findings", "review", "mcp:a-findings", null],
++      ["a-check", "review", "mcp:a-check", null],
+     ]);
+     expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
+     expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 3a93cb3923..0a809071ca 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -4,6 +4,7 @@ import {
+   type JbusHome,
+   type JbusLanded,
+   type JbusTask,
++  type JbusWaitsOn,
+   type JbusWorkSnapshot,
+   type JbusWorkStage,
+ } from "@t3tools/contracts";
+@@ -77,6 +78,31 @@ const placeWorkRow = (value: string, lane: string): Placement | null => {
+   }
+ };
+ 
++/** What a row waits on the user for, from jbus's `value` and `who` (features/jbus/src/jbus/work.py). */
++const waitsOnOf = (value: string, who: unknown): JbusWaitsOn | null => {
++  if (who !== "user") return null;
++  if (value === "unapproved") return "approval";
++  if (value === "asking") return "answer";
++  return "word";
++};
++
++/** The lines of a brief's head that jbus adds as it sends one, which its sha leaves out. */
++const SENT_TO = ["Home:", "Thread:", "Green main:", "Stacked on:"];
++
++/**
++ * The text whose sha256 jbus takes for a brief, as `jmerge.judgement.body` reads it: the brief
++ * with no `SENT_TO` line above its first `## ` heading.
++ */
++export const briefBody = (brief: string): string => {
++  let head = true;
++  return (brief.match(/[^\n]*\n|[^\n]+$/g) ?? [])
++    .filter((line) => {
++      head = head && !line.startsWith("## ");
++      return !(head && SENT_TO.some((prefix) => line.startsWith(prefix)));
++    })
++    .join("");
++};
++
+ /** The first word of a brief's `Home:` line: `root`, a scope, or a home's thread id. */
+ export const homeWord = (line: string): string => {
+   const first = line.trim().split(/\s+/)[0] ?? "";
+@@ -141,7 +167,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       threadId: threadIdOf(row.thread),
+       homeThreadId: homeOfSlug(slug),
+       pullRequest: text(row.pr),
+-      waitsOnUser: row.who === "user",
++      waitsOn: waitsOnOf(text(row.value) ?? "", row.who),
+       waits: text(row.waits) ?? "",
+     });
+   }
+@@ -159,7 +185,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       threadId,
+       homeThreadId: homeOf(slug, scope),
+       pullRequest: null,
+-      waitsOnUser: false,
++      waitsOn: null,
+       waits: "",
+     });
+   }
+diff --git a/apps/server/src/observability/RpcInstrumentation.ts b/apps/server/src/observability/RpcInstrumentation.ts
+index 423f6b3474..eab249713e 100644
+--- a/apps/server/src/observability/RpcInstrumentation.ts
++++ b/apps/server/src/observability/RpcInstrumentation.ts
+@@ -170,6 +170,7 @@ const RPC_AGGREGATES = {
+   [WS_METHODS.worktreeSetupCancel]: "vcs",
+   [WS_METHODS.subscribeResourceTelemetry]: "server",
+   [WS_METHODS.subscribeJbusWork]: "server",
++  [WS_METHODS.jbusReadBrief]: "server",
+   [WS_METHODS.vcsRefreshStatus]: "vcs",
+   [WS_METHODS.vcsPull]: "git",
+   [WS_METHODS.gitRunStackedAction]: "vcs",
+diff --git a/apps/server/src/ws.ts b/apps/server/src/ws.ts
+index ffe26d1283..83f07a2356 100644
+--- a/apps/server/src/ws.ts
++++ b/apps/server/src/ws.ts
+@@ -3241,6 +3241,7 @@ export const layerWsRpc = (
+               Stream.concat(Stream.make(latest), changes),
+             ),
+           ),
++        [WS_METHODS.jbusReadBrief]: (input) => jbusWork.readBrief(input),
+         [WS_METHODS.subscribeJbusWork]: (_input) =>
+           Stream.unwrap(
+             Effect.map(jbusWork.subscribe, ({ latest, changes }) =>
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index e5b36ba422..e12ce665f3 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -266,8 +266,12 @@ import {
+   buildJstackTree,
+   childHomeMessage,
+   HOME_WORK_PROMPT,
++  rowWordMessage,
++  type JstackAnswering,
++  type JstackRowWord,
+   type JstackTree,
+ } from "./sidebar/jstackTree.logic";
++import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
+ import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
+ import { useJbusWork } from "../lib/jbusWorkState";
+@@ -1345,6 +1349,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+   > | null>(null);
+   // The one root whose "New child home" row is open, by its folder's project key.
+   const [jstackChildHomeEditor, setJstackChildHomeEditor] = useState<string | null>(null);
++  // The one jbus question whose answer row is open, and the one brief shown.
++  const [jstackAnswering, setJstackAnswering] = useState<JstackAnswering | null>(null);
++  const jstackBrief = useJstackBrief();
+   // Scopes asked of a root home from here, shown as starting until jbus's home state has them.
+   const [jstackRequestedScopes, setJstackRequestedScopes] = useState<
+     ReadonlyArray<JbusStartingScope>
+@@ -1393,6 +1400,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+         expandedHomes: jstackExpandedHomes,
+         frozenOrder: jstackFrozenOrder,
+         childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
++        answering: jstackAnswering,
+         requestedScopes: jstackRequestedScopes,
+         lastVisitedAt: (thread) =>
+           resolveThreadLastVisitedAt(
+@@ -1411,6 +1419,39 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     }
+   }
+   const jstackOrder = new Map(jstackRoots.flatMap(({ tree }) => [...tree.order]));
++  // A row's approve, remove or answer, told to the task's home as the user's own message.
++  const sendJstackRowWord = async (
++    homeThreadId: ThreadId,
++    homeName: string,
++    word: JstackRowWord,
++  ) => {
++    if (primaryEnvironmentId === null) return false;
++    const thread =
++      threads.find(
++        (each) => each.environmentId === primaryEnvironmentId && each.id === homeThreadId,
++      ) ?? null;
++    const message = rowWordMessage(word);
++    const sent = await jstackHomeSends.sendRowWord(
++      primaryEnvironmentId,
++      homeThreadId,
++      thread,
++      word,
++    );
++    toastManager.add(
++      sent
++        ? {
++            type: "success",
++            title: `Told ${homeName}: ${message}`,
++            description: "The home acts on it as your word, after any turn it is running.",
++          }
++        : {
++            type: "error",
++            title: `Could not reach ${homeName}`,
++            description: `Nothing was sent. Say "${message}" in the home's thread instead.`,
++          },
++    );
++    return sent;
++  };
+   const jstackRowActions: JstackTreeRowActions = {
+     onOpenThread: (threadId) => {
+       if (primaryEnvironmentId !== null) {
+@@ -1486,6 +1527,55 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+       setJstackRequestedScopes((current) =>
+         current.filter((each) => each.repo !== repo || each.scope !== scope),
+       ),
++    onOpenBrief: (row) => {
++      if (primaryEnvironmentId === null) return;
++      jstackBrief.open({
++        environmentId: primaryEnvironmentId,
++        repo: row.repo,
++        kind: row.taskKind,
++        slug: `${row.prefix ?? ""}${row.slug}`,
++        homeThreadId: row.homeThreadId,
++        homeName: row.homeName,
++        approvable: row.approvable,
++      });
++    },
++    onRemoveTask: (row) => {
++      const slug = `${row.prefix ?? ""}${row.slug}`;
++      const api = readLocalApi();
++      if (!api) return;
++      void settlePromise(() =>
++        api.dialogs.confirm(
++          [
++            `Remove ${slug} from jbus's queue?`,
++            `This tells ${row.homeName} "remove ${slug}"; jbus then never launches it.`,
++          ].join("\n"),
++          { variant: "destructive" },
++        ),
++      ).then((confirmed) => {
++        if (confirmed._tag === "Failure" || !confirmed.value) return;
++        void sendJstackRowWord(row.homeThreadId, row.homeName, { kind: "remove", slug });
++      });
++    },
++    onOpenAnswer: (row) => {
++      if (row.gate === null) return;
++      setJstackAnswering({
++        repo: row.repo,
++        slug: `${row.prefix ?? ""}${row.slug}`,
++        number: row.gate.number,
++        question: row.gate.question,
++      });
++    },
++    onCloseAnswer: () => setJstackAnswering(null),
++    onSendAnswer: async (row, text) => {
++      const sent = await sendJstackRowWord(row.homeThreadId, row.homeName, {
++        kind: "answer",
++        slug: row.asked.slug,
++        number: row.asked.number,
++        text,
++      });
++      if (sent) setJstackAnswering(null);
++      return sent;
++    },
+   };
+ 
+   // Ranked across environments as the palette ranks them, so one
+@@ -3765,6 +3855,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+         </SidebarGroup>
+       </SidebarContent>
+       <SidebarChromeFooter />
++      <JstackBriefDialog
++        shown={jstackBrief.shown}
++        onClose={jstackBrief.close}
++        onApprove={(target, sha) =>
++          sendJstackRowWord(target.homeThreadId, target.homeName, {
++            kind: "approve",
++            slug: target.slug,
++            sha,
++          })
++        }
++      />
+     </>
+   );
+ }
+diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
+new file mode 100644
+index 0000000000..f911fac586
+--- /dev/null
++++ b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
+@@ -0,0 +1,177 @@
++import { EnvironmentId, ThreadId, type JbusBrief } from "@t3tools/contracts";
++import axe from "axe-core";
++import { describe, expect, it, vi } from "vite-plus/test";
++import { page, userEvent } from "vite-plus/test/browser";
++
++import "~/index.css";
++import { render } from "../../../test/render";
++import { JstackBriefDialog, useJstackBrief, type JstackBriefTarget } from "./JstackBriefDialog";
++
++// What the server's jbus.readBrief answers, read by the test as the dialog asks for it.
++const server = vi.hoisted(() => ({
++  briefs: new Map<string, { text: string | null; sha: string | null }>(),
++  asked: [] as Array<unknown>,
++}));
++vi.mock("../../state/use-atom-command", () => ({
++  useAtomCommand:
++    () =>
++    async (value: {
++      environmentId: string;
++      input: { repo: string; slug: string; kind: string };
++    }) => {
++      server.asked.push(value);
++      const kept = server.briefs.get(value.input.slug) ?? { text: null, sha: null };
++      const brief: JbusBrief = { repo: value.input.repo, slug: value.input.slug, ...kept };
++      return { _tag: "Success" as const, value: brief };
++    },
++}));
++
++const environmentId = EnvironmentId.make("environment-local");
++const BRIEF = "# fl-meter: a meter\nSize: S\nTask: read the meter\n";
++
++const target = (overrides: Partial<JstackBriefTarget> = {}): JstackBriefTarget => ({
++  environmentId,
++  repo: "jstack",
++  kind: "crew",
++  slug: "fl-meter",
++  homeThreadId: ThreadId.make("flow"),
++  homeName: "the flow home",
++  approvable: true,
++  ...overrides,
++});
++
++/** A button that opens the brief, as a row's menu item does, with the sidebar's dialog. */
++function Opener(props: {
++  target: JstackBriefTarget;
++  onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
++}) {
++  const brief = useJstackBrief();
++  return (
++    <>
++      <button type="button" onClick={() => brief.open(props.target)}>
++        Open brief
++      </button>
++      <JstackBriefDialog shown={brief.shown} onClose={brief.close} onApprove={props.onApprove} />
++    </>
++  );
++}
++
++const audit = async () => {
++  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
++  return result.violations.map((violation) => `${violation.id}: ${violation.help}`);
++};
++
++const openBrief = async () => {
++  await userEvent.click(page.getByRole("button", { name: "Open brief" }));
++};
++
++describe("JstackBriefDialog", () => {
++  it("shows the brief jbus keeps and approves it by its sha, by mouse", async () => {
++    server.briefs.set("fl-meter", { text: BRIEF, sha: "f7de575cc0d0" });
++    server.asked.length = 0;
++    const onApprove = vi.fn(async () => true);
++    await using _screen = await render(<Opener target={target()} onApprove={onApprove} />, {
++      router: false,
++    });
++    await openBrief();
++    const dialog = page.getByRole("dialog", { name: "Brief: fl-meter" });
++    await expect.element(dialog).toBeVisible();
++    const shown = page.getByRole("region", { name: "The brief of fl-meter" });
++    await expect.element(shown).toBeVisible();
++    // The stored copy as it is, the one an approval names.
++    expect(shown.element().textContent).toBe(BRIEF);
++    await expect.element(dialog).toHaveAccessibleDescription(/brief sha f7de575cc0d0/);
++    expect(server.asked).toEqual([
++      { environmentId, input: { repo: "jstack", slug: "fl-meter", kind: "crew" } },
++    ]);
++    expect(await audit()).toEqual([]);
++
++    await userEvent.click(page.getByRole("button", { name: "Approve this brief" }));
++    expect(onApprove).toHaveBeenCalledWith(target(), "f7de575cc0d0");
++    await expect.element(dialog).not.toBeInTheDocument();
++  });
++
++  it("by keyboard alone: closes on Escape with nothing sent, then approves from the footer", async () => {
++    server.briefs.set("fl-meter", { text: BRIEF, sha: "f7de575cc0d0" });
++    const onApprove = vi.fn(async () => true);
++    await using _screen = await render(<Opener target={target()} onApprove={onApprove} />, {
++      router: false,
++    });
++    const opener = page.getByRole("button", { name: "Open brief" });
++    await userEvent.keyboard("{Tab}");
++    await expect.element(opener).toHaveFocus();
++    await userEvent.keyboard("{Enter}");
++    await expect.element(page.getByRole("button", { name: "Approve this brief" })).toBeEnabled();
++    await userEvent.keyboard("{Escape}");
++    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
++    await expect.element(opener).toHaveFocus();
++    expect(onApprove).not.toHaveBeenCalled();
++
++    await userEvent.keyboard("{Enter}");
++    const approve = page.getByRole("button", { name: "Approve this brief" });
++    await expect.element(approve).toBeEnabled();
++    // Tab moves through the dialog's controls to Approve, its last.
++    for (let step = 0; step < 6 && document.activeElement !== approve.element(); step += 1) {
++      await userEvent.keyboard("{Tab}");
++    }
++    await expect.element(approve).toHaveFocus();
++    await userEvent.keyboard("{Enter}");
++    expect(onApprove).toHaveBeenCalledWith(target(), "f7de575cc0d0");
++  });
++
++  it("says when jbus keeps no brief, and offers no approval of one it does not show", async () => {
++    const onApprove = vi.fn(async () => true);
++    await using _screen = await render(
++      <Opener target={target({ slug: "gone" })} onApprove={onApprove} />,
++      { router: false },
++    );
++    await openBrief();
++    await expect
++      .element(page.getByRole("dialog", { name: "Brief: gone" }))
++      .toHaveAccessibleDescription("jbus keeps no brief for this task.");
++    await expect.element(page.getByRole("button", { name: "Approve this brief" })).toBeDisabled();
++    expect(await audit()).toEqual([]);
++  });
++
++  it("shows a crew task's brief with no Approve when jbus waits on none", async () => {
++    server.briefs.set("fl-pump", { text: "# fl-pump\n", sha: "000000000000" });
++    await using _screen = await render(
++      <Opener
++        target={target({ slug: "fl-pump", approvable: false })}
++        onApprove={async () => true}
++      />,
++      { router: false },
++    );
++    await openBrief();
++    await expect.element(page.getByRole("dialog", { name: "Brief: fl-pump" })).toBeVisible();
++    await expect
++      .element(page.getByRole("button", { name: "Approve this brief" }))
++      .not.toBeInTheDocument();
++  });
++
++  it("shows a scout's brief, the one its home wrote, with no sha and no Approve", async () => {
++    server.briefs.set("probe", { text: "# probe: look at the meter\n", sha: "111111111111" });
++    server.asked.length = 0;
++    await using _screen = await render(
++      <Opener
++        target={target({ slug: "probe", kind: "scout", approvable: false })}
++        onApprove={async () => true}
++      />,
++      { router: false },
++    );
++    await openBrief();
++    const dialog = page.getByRole("dialog", { name: "Brief: probe" });
++    await expect
++      .element(dialog)
++      .toHaveAccessibleDescription("The brief its home wrote for this scout.");
++    const shown = page.getByRole("region", { name: "The brief of probe" });
++    await expect.element(shown).toBeVisible();
++    expect(shown.element().textContent).toBe("# probe: look at the meter\n");
++    expect(server.asked).toEqual([
++      { environmentId, input: { repo: "jstack", slug: "probe", kind: "scout" } },
++    ]);
++    await expect
++      .element(page.getByRole("button", { name: "Approve this brief" }))
++      .not.toBeInTheDocument();
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
+new file mode 100644
+index 0000000000..73c01f5eed
+--- /dev/null
++++ b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
+@@ -0,0 +1,142 @@
++import type { EnvironmentId, JbusBrief, ThreadId } from "@t3tools/contracts";
++import { useState } from "react";
++
++import { serverEnvironment } from "../../state/server";
++import { useAtomCommand } from "../../state/use-atom-command";
++import { Button } from "../ui/button";
++import {
++  Dialog,
++  DialogDescription,
++  DialogFooter,
++  DialogHeader,
++  DialogPanel,
++  DialogPopup,
++  DialogTitle,
++} from "../ui/dialog";
++
++// jstack fork: "Open brief" on a tree row. It shows the copy of the brief jbus keeps, which an
++// approval is checked against, and approves that copy by its sha through the task's home.
++
++export interface JstackBriefTarget {
++  readonly environmentId: EnvironmentId;
++  readonly repo: string;
++  readonly kind: "crew" | "scout";
++  /** The task's slug, its home's prefix included. */
++  readonly slug: string;
++  /** The home the brief names, which an approval is sent to. */
++  readonly homeThreadId: ThreadId;
++  readonly homeName: string;
++  /** jbus waits on the user's approval of this brief. */
++  readonly approvable: boolean;
++}
++
++type Read =
++  | { readonly status: "reading" }
++  | { readonly status: "read"; readonly brief: JbusBrief }
++  | { readonly status: "failed" };
++
++interface JstackBriefShown {
++  readonly target: JstackBriefTarget;
++  readonly read: Read;
++}
++
++/**
++ * The brief the sidebar shows, read afresh each time it opens: jbus rewrites a brief when its
++ * home edits it, and nothing watches `briefs/` for that.
++ */
++export function useJstackBrief() {
++  const readBrief = useAtomCommand(serverEnvironment.jbusReadBrief, { reportFailure: false });
++  const [shown, setShown] = useState<JstackBriefShown | null>(null);
++  const open = (target: JstackBriefTarget) => {
++    setShown({ target, read: { status: "reading" } });
++    void readBrief({
++      environmentId: target.environmentId,
++      input: { repo: target.repo, slug: target.slug, kind: target.kind },
++    }).then((result) => {
++      const read: Read =
++        result._tag === "Success" ? { status: "read", brief: result.value } : { status: "failed" };
++      // A read that lands after the user opened another brief, or closed this one, is dropped.
++      setShown((current) => (current?.target === target ? { target, read } : current));
++    });
++  };
++  return { shown, open, close: () => setShown(null) };
++}
++
++function describe(shown: JstackBriefShown): string {
++  const { read, target } = shown;
++  if (read.status === "reading") return "Reading the brief jbus keeps...";
++  if (read.status === "failed") return "The server could not read the brief.";
++  if (read.brief.text === null) return "jbus keeps no brief for this task.";
++  if (target.kind === "scout") return "The brief its home wrote for this scout.";
++  const approve = target.approvable ? ` Approve sends ${target.homeName} your go for it.` : "";
++  return `The copy jbus keeps, brief sha ${read.brief.sha}.${approve}`;
++}
++
++/** Approve, which waits on its send; a new brief draws a new one. */
++function ApproveButton(props: {
++  sha: string | null;
++  onApprove: (sha: string) => Promise<boolean>;
++}) {
++  const [approving, setApproving] = useState(false);
++  const approve = async () => {
++    if (props.sha === null || approving) return;
++    setApproving(true);
++    if (!(await props.onApprove(props.sha))) setApproving(false);
++  };
++  return (
++    <Button disabled={props.sha === null || approving} onClick={() => void approve()}>
++      {approving ? "Sending..." : "Approve this brief"}
++    </Button>
++  );
++}
++
++export function JstackBriefDialog(props: {
++  shown: JstackBriefShown | null;
++  onClose: () => void;
++  /** Sends the task's home its approval of the brief with this sha; true once sent. */
++  onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
++}) {
++  const { shown } = props;
++  const brief = shown?.read.status === "read" ? shown.read.brief : null;
++  const target = shown?.target ?? null;
++
++  return (
++    <Dialog open={shown !== null} onOpenChange={(open) => (open ? undefined : props.onClose())}>
++      <DialogPopup className="max-w-2xl">
++        <DialogHeader>
++          <DialogTitle>Brief: {target?.slug}</DialogTitle>
++          <DialogDescription>{shown === null ? "" : describe(shown)}</DialogDescription>
++        </DialogHeader>
++        <DialogPanel>
++          {brief?.text ? (
++            // A region, so the keyboard can scroll a long brief and a reader names it.
++            <pre
++              role="region"
++              tabIndex={0}
++              aria-label={`The brief of ${target?.slug}`}
++              className="max-h-[60vh] overflow-auto rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++            >
++              {brief.text}
++            </pre>
++          ) : null}
++        </DialogPanel>
++        <DialogFooter>
++          <Button variant="outline" onClick={props.onClose}>
++            Close
++          </Button>
++          {target?.approvable ? (
++            <ApproveButton
++              key={`${target.repo}/${target.slug}`}
++              sha={brief?.sha ?? null}
++              onApprove={async (sha) => {
++                const sent = await props.onApprove(target, sha);
++                if (sent) props.onClose();
++                return sent;
++              }}
++            />
++          ) : null}
++        </DialogFooter>
++      </DialogPopup>
++    </Dialog>
++  );
++}
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index a84dedda02..f9cb5c8b01 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -19,6 +19,7 @@ import { makeThreadFixture } from "../../test-fixtures";
+ import {
+   buildJstackTree,
+   childHomeMessage,
++  type JstackAnswering,
+   type JstackRootRow,
+   type JstackTreeRow,
+ } from "./jstackTree.logic";
+@@ -103,6 +104,14 @@ const worker: JstackTreeRow = {
+   thread: null,
+   pullRequest: null,
+   selected: false,
++  repo: "jstack",
++  taskKind: "crew",
++  homeThreadId: ThreadId.make("flow"),
++  homeName: "the flow home",
++  queued: false,
++  approvable: false,
++  gate: null,
++  answering: false,
+ };
+ 
+ function actions(): JstackTreeRowActions {
+@@ -121,6 +130,11 @@ function actions(): JstackTreeRowActions {
+     onCloseChildHomeEditor: vi.fn(),
+     onSendChildHome: vi.fn(async () => true),
+     onDismissStartingHome: vi.fn(),
++    onOpenBrief: vi.fn(),
++    onRemoveTask: vi.fn(),
++    onOpenAnswer: vi.fn(),
++    onCloseAnswer: vi.fn(),
++    onSendAnswer: vi.fn(async () => true),
+   };
+ }
+ 
+@@ -428,6 +442,10 @@ describe("JstackTreeRowView context menus", () => {
+         row: "fl-pump crew",
+         items: [
+           ["Open thread", ["onOpenThread", ThreadId.make("crew-pump")]],
++          [
++            "Open brief",
++            ["onOpenBrief", expect.objectContaining({ kind: "worker", slug: "pump" })],
++          ],
+           ["Copy slug", ["onCopyName", "fl-pump", "slug"]],
+         ],
+       },
+@@ -435,6 +453,10 @@ describe("JstackTreeRowView context menus", () => {
+         row: "fl-meter ready",
+         items: [
+           ["Open its home", ["onOpenThread", ThreadId.make("flow")]],
++          [
++            "Open brief",
++            ["onOpenBrief", expect.objectContaining({ kind: "worker", slug: "meter" })],
++          ],
+           ["Copy slug", ["onCopyName", "fl-meter", "slug"]],
+         ],
+       },
+@@ -451,6 +473,10 @@ describe("JstackTreeRowView context menus", () => {
+             },
+           ],
+           ["Open gate thread", ["onOpenThread", ThreadId.make("gate")]],
++          [
++            "Open brief",
++            ["onOpenBrief", expect.objectContaining({ kind: "worker", slug: "valve" })],
++          ],
+           ["Copy slug", ["onCopyName", "fl-valve", "slug"]],
+         ],
+       },
+@@ -513,7 +539,7 @@ describe("JstackTreeRowView context menus", () => {
+ 
+     await userEvent.keyboard("{Shift>}{F10}{/Shift}");
+     await expect.element(page.getByRole("menuitem", { name: "Hide what it asks" })).toHaveFocus();
+-    await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{Enter}");
+     expect(spies.onCopyName).toHaveBeenCalledWith("fl-valve", "slug");
+ 
+     await userEvent.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}");
+@@ -558,7 +584,7 @@ const crewTask = (slug: string, home: string) => ({
+   threadId: ThreadId.make(`crew-${slug}`),
+   homeThreadId: ThreadId.make(home),
+   pullRequest: null,
+-  waitsOnUser: false,
++  waitsOn: null,
+   waits: "",
+ });
+ 
+@@ -581,8 +607,10 @@ function LiveTree(props: {
+   snapshot: JbusWorkSnapshot;
+   spies: JstackTreeRowActions;
+   sent: Array<string>;
++  routeThreadId?: ThreadId;
+ }) {
+   const [editor, setEditor] = useState(false);
++  const [answering, setAnswering] = useState<JstackAnswering | null>(null);
+   const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
+   const jstack = group("jstack");
+   const tree = buildJstackTree({
+@@ -597,11 +625,12 @@ function LiveTree(props: {
+     folderThreads: [],
+     hiddenThreads: [],
+     collapsed: false,
+-    routeThreadId: null,
++    routeThreadId: props.routeThreadId ?? null,
+     expandedHomes: new Set(),
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+     childHomeEditor: editor,
++    answering,
+     requestedScopes: requested,
+     nowMs: Date.parse("2026-10-29T12:00:00.000Z"),
+     options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 },
+@@ -627,6 +656,21 @@ function LiveTree(props: {
+       props.spies.onDismissStartingHome(repo, scope);
+       setRequested((current) => current.filter((each) => each.scope !== scope));
+     },
++    onOpenAnswer: (row) => {
++      props.spies.onOpenAnswer(row);
++      if (row.gate === null) return;
++      const slug = `${row.prefix ?? ""}${row.slug}`;
++      setAnswering({ repo: row.repo, slug, ...row.gate });
++    },
++    onCloseAnswer: () => {
++      props.spies.onCloseAnswer();
++      setAnswering(null);
++    },
++    onSendAnswer: async (row, text) => {
++      const sent = await props.spies.onSendAnswer(row, text);
++      if (sent) setAnswering(null);
++      return sent;
++    },
+   };
+   return (
+     <ul
+@@ -811,3 +855,139 @@ describe("JstackTreeRowView home actions", () => {
+     expect(spies.onStartHome).toHaveBeenCalledTimes(2);
+   });
+ });
++
++// The flow home is open, as when its thread is the route, so its tasks show under it.
++const ROW_SNAPSHOT: JbusWorkSnapshot = {
++  ...SNAPSHOT,
++  tasks: [
++    { ...crewTask("tidy", "root"), stage: "behind", threadId: null },
++    {
++      ...crewTask("fl-meter", "flow"),
++      stage: "ready",
++      threadId: null,
++      waitsOn: "approval",
++      waits: "your approval",
++    },
++    { ...crewTask("fl-valve", "flow"), waitsOn: "answer", waits: "your answer" },
++    crewTask("fl-pump", "flow"),
++  ],
++  gates: [
++    {
++      repo: "jstack",
++      number: 7,
++      threadId: ThreadId.make("crew-fl-valve"),
++      slug: "fl-valve",
++      question: "Which valve size?",
++      askedAt: "2026-10-29T11:59:00.000Z",
++    },
++  ],
++};
++
++function rowTree(spies: JstackTreeRowActions) {
++  return render(
++    <LiveTree
++      snapshot={ROW_SNAPSHOT}
++      spies={spies}
++      sent={[]}
++      routeThreadId={ThreadId.make("flow")}
++    />,
++    { router: false },
++  );
++}
++
++describe("JstackTreeRowView row actions", () => {
++  it("by mouse: approves from the brief, removes a queued task and answers a question, each for the task's own home", async () => {
++    const spies = actions();
++    await using screen = await rowTree(spies);
++    const pick = async (row: string, item: string) => {
++      await userEvent.click(screen.getByRole("treeitem", { name: row }), { button: "right" });
++      await userEvent.click(page.getByRole("menuitem", { name: item }));
++      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
++    };
++
++    await pick("fl-meter asks you", "Approve...");
++    expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
++      expect.objectContaining({
++        repo: "jstack",
++        prefix: "fl-",
++        slug: "meter",
++        homeThreadId: ThreadId.make("flow"),
++        approvable: true,
++      }),
++    );
++    await pick("fl-pump crew", "Open brief");
++    expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
++      expect.objectContaining({ slug: "pump", approvable: false }),
++    );
++    await pick("tidy behind", "Remove from queue...");
++    expect(spies.onRemoveTask).toHaveBeenCalledWith(
++      expect.objectContaining({ slug: "tidy", homeThreadId: ThreadId.make("root"), queued: true }),
++    );
++
++    await pick("fl-valve asks you", "Answer...");
++    const field = screen.getByRole("textbox", { name: "Your answer" });
++    await expect.element(field).toHaveFocus();
++    await expect.element(field).toHaveAccessibleDescription(/Which valve size\?/);
++    await expect
++      .element(screen.getByRole("treeitem", { name: "fl-valve asks you" }))
++      .toHaveAttribute("aria-expanded", "true");
++    expect(await audit()).toEqual([]);
++
++    // An empty answer is not sent: the field says why.
++    await userEvent.keyboard("{Enter}");
++    await expect.element(field).toHaveAttribute("aria-invalid", "true");
++    expect(spies.onSendAnswer).not.toHaveBeenCalled();
++
++    await userEvent.type(field, "the 3mm valve{Enter}");
++    expect(spies.onSendAnswer).toHaveBeenCalledWith(
++      expect.objectContaining({
++        kind: "answer",
++        asked: { repo: "jstack", slug: "fl-valve", number: 7, question: "Which valve size?" },
++        homeThreadId: ThreadId.make("flow"),
++        open: true,
++      }),
++      "the 3mm valve",
++    );
++    await expect.element(field).not.toBeInTheDocument();
++    await expect.element(screen.getByRole("treeitem", { name: "fl-valve asks you" })).toHaveFocus();
++  });
++
++  it("by keyboard alone: answers from the row's menu, puts the answer away on Escape, and opens a brief", async () => {
++    const spies = actions();
++    await using screen = await rowTree(spies);
++    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you" });
++
++    // Root, tidy, flow, fl-meter, fl-valve.
++    await userEvent.keyboard("{Tab}");
++    await expect.element(rootItem(screen)).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}");
++    await expect.element(valve).toHaveFocus();
++
++    // Open thread, Open brief, Answer...
++    await userEvent.keyboard("{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Open thread" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
++    const field = screen.getByRole("textbox", { name: "Your answer" });
++    await expect.element(field).toHaveFocus();
++    await userEvent.keyboard("not sent{Escape}");
++    await expect.element(field).not.toBeInTheDocument();
++    await expect.element(valve).toHaveFocus();
++    expect(spies.onCloseAnswer).toHaveBeenCalledTimes(1);
++    expect(spies.onSendAnswer).not.toHaveBeenCalled();
++
++    await userEvent.keyboard("{Shift>}{F10}{/Shift}{ArrowDown}{ArrowDown}{Enter}");
++    await expect.element(screen.getByRole("textbox", { name: "Your answer" })).toHaveFocus();
++    await userEvent.keyboard("a smaller one{Enter}");
++    expect(spies.onSendAnswer).toHaveBeenCalledWith(
++      expect.objectContaining({ homeThreadId: ThreadId.make("flow") }),
++      "a smaller one",
++    );
++    await expect.element(valve).toHaveFocus();
++
++    // Show what it asks, Open its home, Open brief.
++    await userEvent.keyboard("{ArrowUp}{ContextMenu}{ArrowDown}{ArrowDown}{Enter}");
++    expect(spies.onOpenBrief).toHaveBeenCalledWith(
++      expect.objectContaining({ slug: "meter", approvable: true }),
++    );
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 19ab5a4544..138d22a84e 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -31,6 +31,8 @@ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ 
+ type TreeRow = Exclude<JstackTreeRow, { kind: "loose" }>;
+ type NewHomeRow = Extract<JstackTreeRow, { kind: "new-home" }>;
++type WorkerRow = Extract<JstackTreeRow, { kind: "worker" }>;
++type AnswerRow = Extract<JstackTreeRow, { kind: "answer" }>;
+ 
+ export interface JstackTreeRowActions {
+   readonly onOpenThread: (threadId: ThreadId) => void;
+@@ -54,6 +56,15 @@ export interface JstackTreeRowActions {
+   readonly onSendChildHome: (row: NewHomeRow, scope: string, owns: string) => Promise<boolean>;
+   /** Forgets a scope the sidebar asked for that the root home has not made. */
+   readonly onDismissStartingHome: (repo: string, scope: string) => void;
++  /** Shows the brief jbus keeps for a task, with Approve while jbus waits on it. */
++  readonly onOpenBrief: (row: WorkerRow) => void;
++  /** Asks the user, then tells the task's home to remove it from the queue. */
++  readonly onRemoveTask: (row: WorkerRow) => void;
++  /** Opens the answer row under a task with an open question. */
++  readonly onOpenAnswer: (row: WorkerRow) => void;
++  readonly onCloseAnswer: () => void;
++  /** Sends the task's home the answer; true once the message is sent. */
++  readonly onSendAnswer: (row: AnswerRow, text: string) => Promise<boolean>;
+ }
+ 
+ /** Focuses a tree row once React has drawn it, as the tree's own arrow keys would. */
+@@ -315,6 +326,123 @@ const archiveHome = (actions: JstackTreeRowActions, home: ThreadId, name: string
+   run: () => actions.onArchiveHome(home, name),
+ });
+ 
++/**
++ * The answer row under a task jbus asks a question about: the question, and a field whose Enter
++ * sends the answer to the task's home. Escape puts it away. Once jbus closes the question, the
++ * row says so and keeps what was typed, sending nothing.
++ */
++function AnswerRowView(props: {
++  row: AnswerRow;
++  actions: JstackTreeRowActions;
++  onContextMenu: (event: MouseEvent) => void;
++}) {
++  const { row, actions } = props;
++  const [text, setText] = useState("");
++  const [problem, setProblem] = useState<string | null>(null);
++  const [sending, setSending] = useState(false);
++  const fieldRef = useRef<HTMLInputElement>(null);
++  const questionId = useId();
++  const hintId = useId();
++
++  const send = async () => {
++    if (sending || !row.open) return;
++    if (text.trim() === "") {
++      setProblem("Write the answer first.");
++      fieldRef.current?.focus();
++      return;
++    }
++    setProblem(null);
++    setSending(true);
++    if (await actions.onSendAnswer(row, text)) {
++      focusTreeRowSoon(row.parentKey);
++    } else {
++      setSending(false);
++    }
++  };
++  const cancel = () => {
++    actions.onCloseAnswer();
++    focusTreeRowSoon(row.parentKey);
++  };
++  const onFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
++    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
++    if (event.key === "Enter") {
++      event.preventDefault();
++      event.stopPropagation();
++      void send();
++    } else if (event.key === "Escape") {
++      event.preventDefault();
++      event.stopPropagation();
++      cancel();
++    }
++  };
++  const hint = !row.open
++    ? "jbus has closed this question, so nothing is sent. Esc puts the row away."
++    : (problem ??
++      (sending
++        ? `Sending to ${row.homeName}...`
++        : `Enter sends it to ${row.homeName}, Esc cancels.`));
++
++  return (
++    <li className="list-none">
++      <Nest depth={row.depth}>
++        <div
++          role="treeitem"
++          tabIndex={-1}
++          aria-selected={false}
++          data-sidebar-row={row.key}
++          data-sidebar-parent={row.parentKey}
++          onContextMenu={(event) => {
++            // The field keeps its own menu, with cut, copy and paste.
++            if (event.target === event.currentTarget) props.onContextMenu(event);
++          }}
++          onKeyDown={(event) => {
++            // Reached by the tree's arrow keys, the row hands Enter to its field.
++            if (event.target !== event.currentTarget) return;
++            if (event.key === "Enter") {
++              event.preventDefault();
++              fieldRef.current?.focus();
++            } else if (event.key === "Escape") {
++              event.preventDefault();
++              cancel();
++            }
++          }}
++          className="mb-1 ml-2 flex flex-col gap-1 border-l border-warning/50 py-0.5 pr-2 pl-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++        >
++          <span className="text-2xs text-sidebar-muted-foreground">
++            Question {row.asked.number}
++          </span>
++          <p id={questionId} className="text-2xs text-sidebar-foreground/75">
++            {row.asked.question}
++          </p>
++          <input
++            ref={fieldRef}
++            autoFocus
++            value={text}
++            readOnly={sending || !row.open}
++            dir="auto"
++            aria-label="Your answer"
++            aria-describedby={`${questionId} ${hintId}`}
++            aria-invalid={problem !== null}
++            placeholder="your answer"
++            onChange={(event) => setText(event.target.value)}
++            onKeyDown={onFieldKeyDown}
++            className={FIELD}
++          />
++          <p
++            id={hintId}
++            className={cn(
++              "pb-0.5 text-2xs",
++              problem === null ? "text-sidebar-muted-foreground" : "text-destructive-foreground",
++            )}
++          >
++            {hint}
++          </p>
++        </div>
++      </Nest>
++    </li>
++  );
++}
++
+ /** One tree row. Arrow keys reach rows through an untrusted click, which folds instead. */
+ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+   row: TreeRow;
+@@ -507,11 +635,26 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                   run: () => actions.onOpenThread(openThreadId),
+                 },
+               ]),
++        // The brief is what a go names, so approving it is done where it is read.
++        { label: "Open brief", separatorBefore: true, run: () => actions.onOpenBrief(row) },
++        ...(row.approvable ? [{ label: "Approve...", run: () => actions.onOpenBrief(row) }] : []),
++        ...(row.gate === null
++          ? []
++          : [{ label: "Answer...", run: () => actions.onOpenAnswer(row) }]),
+         {
+           label: "Copy slug",
+           separatorBefore: true,
+           run: () => actions.onCopyName(fullSlug, "slug"),
+         },
++        ...(row.queued
++          ? [
++              {
++                label: "Remove from queue...",
++                separatorBefore: true,
++                run: () => actions.onRemoveTask(row),
++              },
++            ]
++          : []),
+       ]);
+       return (
+         <li className="list-none">
+@@ -526,7 +669,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     data-sidebar-row={row.key}
+                     data-sidebar-parent={row.parentKey}
+                     aria-selected={row.selected}
+-                    aria-expanded={row.ask === null ? undefined : unfolded}
++                    aria-expanded={row.answering ? true : row.ask === null ? undefined : unfolded}
+                     onClick={
+                       row.ask === null ? open(row.openThreadId) : () => setUnfolded(!unfolded)
+                     }
+@@ -571,14 +714,37 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             {row.ask !== null && unfolded ? (
+               <div className="mb-1 ml-2 border-l border-warning/50 py-0.5 pr-2 pl-2 text-2xs">
+                 <p className="text-sidebar-foreground/75">{row.ask.what}</p>
+-                <button
+-                  type="button"
+-                  tabIndex={-1}
+-                  onClick={() => actions.onOpenThread(row.openThreadId)}
+-                  className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
+-                >
+-                  {row.ask.askedIn === null ? "open its home" : `asked in ${row.ask.askedIn}`}
+-                </button>
++                <span className="flex gap-2">
++                  <button
++                    type="button"
++                    tabIndex={-1}
++                    onClick={() => actions.onOpenThread(row.openThreadId)}
++                    className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
++                  >
++                    {row.ask.askedIn === null ? "open its home" : `asked in ${row.ask.askedIn}`}
++                  </button>
++                  {/* For the pointer: the row's menu has Answer and Approve for the keyboard. */}
++                  {row.gate !== null && !row.answering ? (
++                    <button
++                      type="button"
++                      tabIndex={-1}
++                      onClick={() => actions.onOpenAnswer(row)}
++                      className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
++                    >
++                      answer
++                    </button>
++                  ) : null}
++                  {row.approvable ? (
++                    <button
++                      type="button"
++                      tabIndex={-1}
++                      onClick={() => actions.onOpenBrief(row)}
++                      className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
++                    >
++                      read and approve
++                    </button>
++                  ) : null}
++                </span>
+               </div>
+             ) : null}
+           </Nest>
+@@ -640,6 +806,22 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+           ])}
+         />
+       );
++    case "answer":
++      return (
++        <AnswerRowView
++          row={row}
++          actions={actions}
++          onContextMenu={rowMenu([
++            {
++              label: "Cancel",
++              run: () => {
++                actions.onCloseAnswer();
++                focusTreeRowSoon(row.parentKey);
++              },
++            },
++          ])}
++        />
++      );
+     case "more":
+       return (
+         <li className="list-none">
+diff --git a/apps/web/src/components/sidebar/jstackHomeActions.ts b/apps/web/src/components/sidebar/jstackHomeActions.ts
+index 5e28e0eeda..a3a364329a 100644
+--- a/apps/web/src/components/sidebar/jstackHomeActions.ts
++++ b/apps/web/src/components/sidebar/jstackHomeActions.ts
+@@ -18,6 +18,7 @@ import { environmentServerConfigsAtom } from "../../state/server";
+ import { threadEnvironment } from "../../state/threads";
+ import { useOrchestrationCommand } from "../../state/use-orchestration-command";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { rowWordMessage, type JstackRowWord } from "./jstackTree.logic";
+ 
+ // jstack fork: what the tree's home actions do. Every write goes through a home as a real user
+ // message, which the home then acts on as the user's word; the T3 server runs no jbus write.
+@@ -51,6 +52,13 @@ export interface JstackHomeSends {
+     thread: EnvironmentThreadShell | null,
+     text: string,
+   ) => Promise<boolean>;
++  /** Tells a task's home the user's approve, remove or answer, as their own message to it. */
++  readonly sendRowWord: (
++    environmentId: EnvironmentId,
++    homeThreadId: ThreadId,
++    home: EnvironmentThreadShell | null,
++    word: JstackRowWord,
++  ) => Promise<boolean>;
+   /**
+    * Starts a project's root home: a new thread in its main checkout that runs `/home`. Its
+    * thread, else `no-model` when no provider can run it, else null when the send failed.
+@@ -60,20 +68,28 @@ export interface JstackHomeSends {
+ 
+ export function useJstackHomeSends(): JstackHomeSends {
+   const startTurn = useOrchestrationCommand(threadEnvironment.startTurn);
++  const sendToHome: JstackHomeSends["sendToHome"] = async (
++    environmentId,
++    threadId,
++    thread,
++    text,
++  ) => {
++    const result = await startTurn({
++      environmentId,
++      input: {
++        threadId,
++        message: { messageId: newMessageId(), role: "user", text, attachments: [] },
++        runtimeMode: thread?.runtimeMode ?? DEFAULT_RUNTIME_MODE,
++        interactionMode: thread?.interactionMode ?? DEFAULT_PROVIDER_INTERACTION_MODE,
++        dispatchMode: "queue",
++      },
++    });
++    return result._tag === "Success";
++  };
+   return {
+-    sendToHome: async (environmentId, threadId, thread, text) => {
+-      const result = await startTurn({
+-        environmentId,
+-        input: {
+-          threadId,
+-          message: { messageId: newMessageId(), role: "user", text, attachments: [] },
+-          runtimeMode: thread?.runtimeMode ?? DEFAULT_RUNTIME_MODE,
+-          interactionMode: thread?.interactionMode ?? DEFAULT_PROVIDER_INTERACTION_MODE,
+-          dispatchMode: "queue",
+-        },
+-      });
+-      return result._tag === "Success";
+-    },
++    sendToHome,
++    sendRowWord: (environmentId, homeThreadId, home, word) =>
++      sendToHome(environmentId, homeThreadId, home, rowWordMessage(word)),
+     startHome: async (group) => {
+       const config = appAtomRegistry.get(environmentServerConfigsAtom).get(group.environmentId);
+       const settings = config?.settings ?? DEFAULT_SERVER_SETTINGS;
+diff --git a/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx b/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx
+index cfaa5ab209..587e404bfe 100644
+--- a/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx
++++ b/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx
+@@ -116,3 +116,37 @@ it("starts a home as a new thread in the project's main checkout whose first mes
+     },
+   });
+ });
++
++it("tells a task's home approve, remove and answer as user messages to that home's thread, and runs nothing else", async () => {
++  commands.startTurn.mockClear();
++  const flow = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
++  await withSends(async (sends) => {
++    const words = [
++      { kind: "approve", slug: "fl-meter", sha: "f7de575cc0d0" },
++      { kind: "remove", slug: "fl-meter" },
++      { kind: "answer", slug: "fl-valve", number: 7, text: "the 3mm valve" },
++    ] as const;
++    for (const word of words) {
++      expect(await sends.sendRowWord(environmentId, flow.id, flow, word)).toBe(true);
++    }
++  });
++  expect(commands.startTurn.mock.calls.map(([sent]) => sent)).toEqual(
++    [
++      "approve fl-meter (brief sha f7de575cc0d0)",
++      "remove fl-meter",
++      "answer question 7 (fl-valve): the 3mm valve",
++    ].map((text) =>
++      expect.objectContaining({
++        environmentId,
++        input: expect.objectContaining({
++          threadId: "flow",
++          message: expect.objectContaining({ role: "user", text, attachments: [] }),
++          dispatchMode: "queue",
++        }),
++      }),
++    ),
++  );
++  for (const [sent] of commands.startTurn.mock.calls) {
++    expect(sent).not.toHaveProperty("input.bootstrap");
++  }
++});
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index e92908c53d..e6ec2c9ec1 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -14,6 +14,7 @@ import {
+   arrangeJstackRoots,
+   buildJstackTree,
+   childHomeMessage,
++  rowWordMessage,
+   scopeNameProblem,
+   type JstackTreeInput,
+   type JstackTreeRow,
+@@ -42,7 +43,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+   threadId: ThreadId.make(`crew-${slug}`),
+   homeThreadId: ThreadId.make("root"),
+   pullRequest: null,
+-  waitsOnUser: false,
++  waitsOn: null,
+   waits: "",
+   ...overrides,
+ });
+@@ -83,6 +84,7 @@ function build(
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+     childHomeEditor: false,
++    answering: null,
+     requestedScopes: [],
+     nowMs: NOW,
+     options: { attention: "gates-and-quiet", landedCount: true, quietMinutes: 20, rowCap: 8 },
+@@ -170,7 +172,7 @@ describe("buildJstackTree", () => {
+       task("asked", {
+         stage: "ready",
+         threadId: null,
+-        waitsOnUser: true,
++        waitsOn: "approval",
+         waits: "your approval",
+       }),
+       task("gated", { stage: "ready", threadId: null }),
+@@ -222,7 +224,7 @@ describe("buildJstackTree", () => {
+     expect(workers(first.rows)).toEqual(["b:crew", "a:review"]);
+     const frozen = new Map([[ThreadId.make("root"), ["jstack-task:jstack/a"]]]);
+     const next = build(
+-      { tasks: [...tasks, task("c", { waitsOnUser: true })] },
++      { tasks: [...tasks, task("c", { waitsOn: "word" })] },
+       { frozenOrder: frozen },
+     );
+     expect(workers(next.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
+@@ -240,7 +242,7 @@ describe("buildJstackTree", () => {
+ 
+   it("opens a domain only while it or one of its tasks is selected", () => {
+     const tasks = [
+-      task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true }),
++      task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOn: "word" }),
+       task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
+     ];
+     const closed = build({ tasks });
+@@ -262,7 +264,7 @@ describe("buildJstackTree", () => {
+ 
+   it("rolls everything inside up to the project row when folded", () => {
+     const tree = build(
+-      { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true })] },
++      { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOn: "word" })] },
+       { collapsed: true },
+     );
+     expect(tree.rows).toHaveLength(1);
+@@ -480,3 +482,99 @@ describe("scopeNameProblem", () => {
+     expect(scopeNameProblem("flow", ["flow"])).toBe("flow is already a scope of this repo.");
+   });
+ });
++
++describe("row actions: approve, remove, answer and the brief", () => {
++  const meter = task("fl-meter", {
++    homeThreadId: ThreadId.make("flow"),
++    stage: "ready",
++    threadId: null,
++    waitsOn: "approval",
++    waits: "your approval",
++  });
++  const valve = task("fl-valve", {
++    homeThreadId: ThreadId.make("flow"),
++    stage: "crew",
++    waitsOn: "answer",
++    waits: "your answer",
++  });
++  const tidy = task("tidy", { stage: "behind", threadId: null });
++  const pump = task("pump");
++  const gate = {
++    repo: "jstack",
++    number: 7,
++    threadId: ThreadId.make("crew-fl-valve"),
++    slug: null,
++    question: "Which valve size?",
++    askedAt: minutesAgo(1),
++  };
++  const snapshot = { tasks: [meter, valve, tidy, pump], gates: [gate] };
++  const worker = (rows: ReadonlyArray<JstackTreeRow>, slug: string) => {
++    const found = rows.find((row) => row.kind === "worker" && row.slug === slug);
++    if (found?.kind !== "worker") throw new Error(`no row ${slug}`);
++    return found;
++  };
++
++  it("gives each task row the home its brief names, what it waits on, and its open question", () => {
++    const rows = build(snapshot, { routeThreadId: ThreadId.make("flow") }).rows;
++    expect(worker(rows, "meter")).toMatchObject({
++      homeThreadId: "flow",
++      homeName: "the flow home",
++      queued: true,
++      approvable: true,
++      gate: null,
++    });
++    // Its question was asked in its own thread, with no slug on it.
++    expect(worker(rows, "valve")).toMatchObject({
++      homeThreadId: "flow",
++      queued: false,
++      approvable: false,
++      gate: { number: 7, question: "Which valve size?" },
++      tone: "asks",
++    });
++    expect(worker(rows, "tidy")).toMatchObject({
++      homeThreadId: "root",
++      homeName: "the root home",
++      queued: true,
++      approvable: false,
++    });
++    expect(worker(rows, "pump")).toMatchObject({ queued: false, approvable: false, gate: null });
++  });
++
++  it("opens the answer row right under its task, and keeps it, closed, once jbus closes the question", () => {
++    const answering = {
++      repo: "jstack",
++      slug: "fl-valve",
++      number: 7,
++      question: "Which valve size?",
++    };
++    const rows = build(snapshot, { routeThreadId: ThreadId.make("flow"), answering }).rows;
++    const at = rows.findIndex((row) => row.kind === "worker" && row.slug === "valve");
++    expect(rows[at]).toMatchObject({ answering: true });
++    expect(rows[at + 1]).toMatchObject({
++      kind: "answer",
++      parentKey: "jstack-task:jstack/fl-valve",
++      depth: 2,
++      asked: answering,
++      homeThreadId: "flow",
++      homeName: "the flow home",
++      open: true,
++    });
++    expect(rows.filter((row) => row.kind === "answer")).toHaveLength(1);
++
++    const closed = build(
++      { ...snapshot, gates: [] },
++      { routeThreadId: ThreadId.make("flow"), answering },
++    ).rows;
++    expect(closed.find((row) => row.kind === "answer")).toMatchObject({ open: false });
++  });
++
++  it("words each as the user's message to the home: approve by the brief's sha, remove, and answer by question number", () => {
++    expect(rowWordMessage({ kind: "approve", slug: "fl-meter", sha: "f7de575cc0d0" })).toBe(
++      "approve fl-meter (brief sha f7de575cc0d0)",
++    );
++    expect(rowWordMessage({ kind: "remove", slug: "tidy" })).toBe("remove tidy");
++    expect(
++      rowWordMessage({ kind: "answer", slug: "fl-valve", number: 7, text: "  the 3mm\n valve " }),
++    ).toBe("answer question 7 (fl-valve): the 3mm valve");
++  });
++});
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index c915f21f25..b2808a1496 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -23,6 +23,21 @@ export interface JstackAsk {
+   readonly askedIn: string | null;
+ }
+ 
++/** The jbus question a task waits on, which its row's Answer replies to. */
++export interface JstackGate {
++  readonly number: number;
++  readonly question: string;
++}
++
++/** The question the sidebar's answer row is open for, kept as asked so a closed one still shows. */
++export interface JstackAnswering {
++  readonly repo: string;
++  /** The task's slug, its home's prefix included. */
++  readonly slug: string;
++  readonly number: number;
++  readonly question: string;
++}
++
+ export type JstackTreeAttention = "gates" | "gates-and-quiet";
+ 
+ export interface JstackTreeOptions {
+@@ -85,6 +100,8 @@ export type JstackTreeRow =
+       readonly key: string;
+       readonly parentKey: string;
+       readonly depth: 1 | 2;
++      readonly repo: string;
++      readonly taskKind: "crew" | "scout";
+       readonly slug: string;
+       /** The home's slug prefix, drawn faint, when the slug carries it. */
+       readonly prefix: string | null;
+@@ -101,6 +118,31 @@ export type JstackTreeRow =
+       readonly thread: EnvironmentThreadShell | null;
+       readonly pullRequest: string | null;
+       readonly selected: boolean;
++      /** The home the task's brief names, which approve, remove and answer are sent to. */
++      readonly homeThreadId: ThreadId;
++      /** That home as a sentence names it, such as `the flow home`. */
++      readonly homeName: string;
++      /** In jbus's queue and not launched, so it can be removed. */
++      readonly queued: boolean;
++      /** jbus waits on the user's approval of its brief. */
++      readonly approvable: boolean;
++      /** The open jbus question about the task, or null. */
++      readonly gate: JstackGate | null;
++      /** The answer row is open under it. */
++      readonly answering: boolean;
++    }
++  | {
++      /** The inline row under a task that answers its jbus question. */
++      readonly kind: "answer";
++      readonly key: string;
++      /** The task's row. */
++      readonly parentKey: string;
++      readonly depth: 1 | 2;
++      readonly asked: JstackAnswering;
++      readonly homeThreadId: ThreadId;
++      readonly homeName: string;
++      /** jbus still has the question open; once it closes, the row only keeps the text. */
++      readonly open: boolean;
+     }
+   | {
+       readonly kind: "more";
+@@ -161,6 +203,8 @@ export interface JstackTreeInput {
+   readonly lastVisitedAt: (thread: EnvironmentThreadShell) => string | null;
+   /** The root home's "New child home" row is open. */
+   readonly childHomeEditor: boolean;
++  /** The question whose answer row is open, of any repo. */
++  readonly answering: JstackAnswering | null;
+   /** Scopes the sidebar asked a root home for, of every repo; jbus's home state has the rest. */
+   readonly requestedScopes: ReadonlyArray<JbusStartingScope>;
+   readonly nowMs: number;
+@@ -206,16 +250,15 @@ const toWorker = (
+   home: JbusHome,
+   parentKey: string,
+   depth: 1 | 2,
+-  gateThreads: ReadonlySet<string>,
++  gateThreads: ReadonlyMap<string, JbusGate>,
+   gateSlugs: ReadonlyMap<string, JbusGate>,
+ ): Worker => {
+   const thread = task.threadId === null ? null : (input.threadsById.get(task.threadId) ?? null);
+   const gate = gateSlugs.get(`${task.repo}/${task.slug}`);
+-  const asks =
+-    task.waitsOnUser ||
+-    gate !== undefined ||
+-    (task.threadId !== null && gateThreads.has(task.threadId)) ||
+-    waitsOnUser(thread);
++  // The question to answer: one about the task, else one its own thread asked.
++  const question =
++    gate ?? (task.threadId === null ? undefined : gateThreads.get(task.threadId)) ?? null;
++  const asks = task.waitsOn !== null || question !== null || waitsOnUser(thread);
+   const quietMinutes =
+     thread === null ? 0 : Math.floor((input.nowMs - Date.parse(thread.updatedAt)) / MINUTE_MS);
+   const quietShown =
+@@ -250,6 +293,8 @@ const toWorker = (
+       key: `jstack-task:${task.repo}/${task.slug}`,
+       parentKey,
+       depth,
++      repo: task.repo,
++      taskKind: task.kind,
+       slug: prefix === null ? task.slug : task.slug.slice(prefix.length),
+       prefix,
+       word,
+@@ -264,6 +309,15 @@ const toWorker = (
+       thread,
+       pullRequest: task.pullRequest,
+       selected: task.threadId !== null && task.threadId === input.routeThreadId,
++      homeThreadId: home.threadId,
++      homeName: home.scope === null ? "the root home" : `the ${home.scope} home`,
++      queued: task.threadId === null && (task.stage === "ready" || task.stage === "behind"),
++      approvable: task.waitsOn === "approval",
++      gate: question === null ? null : { number: question.number, question: question.question },
++      answering:
++        input.answering !== null &&
++        input.answering.repo === task.repo &&
++        input.answering.slug === task.slug,
+     },
+   };
+ };
+@@ -351,8 +405,8 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+   const domains = snapshot.homes.filter((home) => home.repo === root.repo && home.scope !== null);
+   const homeIds = new Set([root.threadId, ...domains.map((home) => home.threadId)]);
+   const gates = snapshot.gates.filter((gate) => gate.repo === root.repo);
+-  const gateThreads = new Set(
+-    gates.flatMap((gate) => (gate.threadId === null ? [] : [gate.threadId])),
++  const gateThreads = new Map(
++    gates.flatMap((gate) => (gate.threadId === null ? [] : [[gate.threadId, gate] as const])),
+   );
+   const gateSlugs = new Map(
+     gates.flatMap((gate) =>
+@@ -396,7 +450,9 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     depth: 1 | 2,
+   ): ReadonlyArray<JstackTreeRow> => {
+     const limit = input.expandedHomes.has(homeKey) ? workers.length : options.rowCap;
+-    const shown: Array<JstackTreeRow> = workers.slice(0, limit).map((worker) => worker.row);
++    const shown: Array<JstackTreeRow> = workers
++      .slice(0, limit)
++      .flatMap(({ row }) => (row.answering ? [row, answerRow(row)] : [row]));
+     if (workers.length > limit) {
+       shown.push({
+         kind: "more",
+@@ -410,6 +466,21 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     return shown;
+   };
+ 
++  // The answer row stays while its task does, saying so once jbus closes the question.
++  const answerRow = (worker: Extract<JstackTreeRow, { kind: "worker" }>): JstackTreeRow => {
++    const asked = input.answering!;
++    return {
++      kind: "answer",
++      key: `jstack-answer:${asked.repo}/${asked.number}`,
++      parentKey: worker.key,
++      depth: worker.depth,
++      asked,
++      homeThreadId: worker.homeThreadId,
++      homeName: worker.homeName,
++      open: gates.some((gate) => gate.number === asked.number),
++    };
++  };
++
+   const rootWorkers = workersOf(root, projectKey, 1);
+   const domainRows: Array<JstackTreeRow> = [];
+   let innerAsks = rootWorkers.some((worker) => worker.row.tone === "asks");
+@@ -579,3 +650,30 @@ export const HOME_WORK_PROMPT = {
+   crew: "New crew task: ",
+   scout: "New scout: ",
+ } as const;
++
++/**
++ * What the user tells a task's home from its row. The home acts on it as the user's own word,
++ * checked by jbus against the message; the T3 server runs no jbus write.
++ */
++export type JstackRowWord =
++  /** `sha` names the brief the user read, which jbus refuses to approve once it changed. */
++  | { readonly kind: "approve"; readonly slug: string; readonly sha: string }
++  | { readonly kind: "remove"; readonly slug: string }
++  | {
++      readonly kind: "answer";
++      readonly slug: string;
++      readonly number: number;
++      readonly text: string;
++    };
++
++/** The user message a row's word is sent to its home as. */
++export function rowWordMessage(word: JstackRowWord): string {
++  switch (word.kind) {
++    case "approve":
++      return `approve ${word.slug} (brief sha ${word.sha})`;
++    case "remove":
++      return `remove ${word.slug}`;
++    case "answer":
++      return `answer question ${word.number} (${word.slug}): ${word.text.replace(/\s+/g, " ").trim()}`;
++  }
++}
+diff --git a/packages/client-runtime/src/state/server.ts b/packages/client-runtime/src/state/server.ts
+index 9082768574..ea3481d802 100644
+--- a/packages/client-runtime/src/state/server.ts
++++ b/packages/client-runtime/src/state/server.ts
+@@ -1166,6 +1166,11 @@ export function createServerEnvironmentAtoms<R, E>(
+       tag: WS_METHODS.serverRunStorageCleanup,
+       concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
+     }),
++    // A one-shot read, fetched each time the brief opens: nothing watches briefs/ for changes.
++    jbusReadBrief: createEnvironmentRpcCommand(runtime, {
++      label: "environment-data:server:jbus-read-brief",
++      tag: WS_METHODS.jbusReadBrief,
++    }),
+     prepareTriage: createEnvironmentRpcCommand(runtime, {
+       label: "environment-data:server:prepare-triage",
+       tag: WS_METHODS.serverPrepareTriage,
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index 7213d5a42a..786b16ee36 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -9,6 +9,10 @@ import { IsoDateTime, ThreadId, TrimmedNonEmptyString } from "./baseSchemas.ts";
+ export const JbusWorkStage = Schema.Literals(["ready", "behind", "crew", "quiet", "review"]);
+ export type JbusWorkStage = typeof JbusWorkStage.Type;
+ 
++/** What a task waits on the user for, from jbus's row value (features/jbus/src/jbus/work.py). */
++export const JbusWaitsOn = Schema.Literals(["approval", "answer", "word"]);
++export type JbusWaitsOn = typeof JbusWaitsOn.Type;
++
+ export const JbusHome = Schema.Struct({
+   repo: TrimmedNonEmptyString,
+   /** null for the repo's root home. */
+@@ -28,8 +32,11 @@ export const JbusTask = Schema.Struct({
+   threadId: Schema.NullOr(ThreadId),
+   homeThreadId: ThreadId,
+   pullRequest: Schema.NullOr(TrimmedNonEmptyString),
+-  /** jbus waits on the user's word: a gate, an approval, a hung or lost thread. */
+-  waitsOnUser: Schema.Boolean,
++  /**
++   * What jbus waits on the user for, null for nothing: `approval` of a queued row's brief, an
++   * `answer` to its open question, or a `word` on a hung, lost or held thread.
++   */
++  waitsOn: Schema.NullOr(JbusWaitsOn),
+   /** What jbus waits on, in its words, such as `your approval`; empty for a scout. */
+   waits: Schema.String,
+ });
+@@ -78,3 +85,28 @@ export const EMPTY_JBUS_WORK_SNAPSHOT: JbusWorkSnapshot = {
+   gates: [],
+   landed: [],
+ };
++
++/** A repo or slug as jbus names one: a single path segment, never `.` or `..`. */
++const JbusName = TrimmedNonEmptyString.check(Schema.isPattern(/^[A-Za-z0-9_][A-Za-z0-9._-]*$/));
++
++export const JbusReadBriefInput = Schema.Struct({
++  repo: JbusName,
++  slug: JbusName,
++  /** A crew task's brief is jbus's copy; a scout's is the one its home wrote. */
++  kind: Schema.Literals(["crew", "scout"]),
++});
++export type JbusReadBriefInput = typeof JbusReadBriefInput.Type;
++
++/**
++ * A task's brief: for a crew task the copy jbus keeps, `jbus/<repo>/briefs/<slug>.md`, which
++ * approvals check; for a scout the one its home wrote, `home/<repo>/scouts/<slug>.md`.
++ */
++export const JbusBrief = Schema.Struct({
++  repo: TrimmedNonEmptyString,
++  slug: TrimmedNonEmptyString,
++  /** null when jbus keeps no brief for the slug. */
++  text: Schema.NullOr(Schema.String),
++  /** The first 12 of the brief's sha256 as jbus takes it for `approve --sha`; null with no text. */
++  sha: Schema.NullOr(TrimmedNonEmptyString),
++});
++export type JbusBrief = typeof JbusBrief.Type;
+diff --git a/packages/contracts/src/rpc.ts b/packages/contracts/src/rpc.ts
+index 7403252133..6de9a997c4 100644
+--- a/packages/contracts/src/rpc.ts
++++ b/packages/contracts/src/rpc.ts
+@@ -339,7 +339,7 @@ import {
+   ResourceTelemetryRetryResult,
+   ResourceTelemetrySnapshot,
+ } from "./resourceTelemetry.ts";
+-import { JbusWorkSnapshot } from "./jbusWork.ts";
++import { JbusBrief, JbusReadBriefInput, JbusWorkSnapshot } from "./jbusWork.ts";
+ import {
+   UsageLimitSourceError,
+   ProviderConsumeResetCreditInput,
+@@ -602,6 +602,7 @@ export const WS_METHODS = {
+   subscribeAuthAccess: "subscribeAuthAccess",
+   subscribeResourceTelemetry: "subscribeResourceTelemetry",
+   subscribeJbusWork: "subscribeJbusWork",
++  jbusReadBrief: "jbus.readBrief",
+ } as const;
+ 
+ const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
+@@ -1936,6 +1937,12 @@ const WsSubscribeJbusWorkRpc = Rpc.make(WS_METHODS.subscribeJbusWork, {
+   stream: true,
+ });
+ 
++const WsJbusReadBriefRpc = Rpc.make(WS_METHODS.jbusReadBrief, {
++  payload: JbusReadBriefInput,
++  success: JbusBrief,
++  error: EnvironmentAuthorizationError,
++});
++
+ export class RpcScopeAuthorization extends RpcMiddleware.Service<RpcScopeAuthorization>()(
+   "t3/contracts/RpcScopeAuthorization",
+   { error: EnvironmentAuthorizationError },
+@@ -2129,6 +2136,7 @@ export const WsRpcGroup = RpcGroup.make(
+   WsSubscribeAuthAccessRpc,
+   WsSubscribeResourceTelemetryRpc,
+   WsSubscribeJbusWorkRpc,
++  WsJbusReadBriefRpc,
+   WsOrchestrationV2DispatchCommandRpc,
+   WsOrchestrationV2GetWorkflowScriptRpc,
+   WsOrchestrationV2StopWorkflowRpc,
+-- 
+2.56.0
+
