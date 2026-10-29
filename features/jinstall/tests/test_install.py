@@ -38,6 +38,16 @@ PACKAGES = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]
 PACKAGE_ROOTS = sorted(
     {str(Path(package).parent) for package in PACKAGES["targets"]["wheel"]["packages"]}
 )
+PROJECT = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]
+POINTS = {
+    "console_scripts": PROJECT["scripts"],
+    **PROJECT.get("entry-points", {}),
+}
+ENTRY_POINTS = "".join(
+    f"[{group}]\n" + "".join(f"{name} = {value}\n" for name, value in points.items()) + "\n"
+    for group, points in POINTS.items()
+)
+"""The entry_points.txt that uv writes when it installs this checkout."""
 UNITS = [
     "jbus-ci.service",
     "jbus-ci.timer",
@@ -177,6 +187,9 @@ case "$1 $2" in
   mkdir -p "$site" "$bin"
   printf '{"url": "file://%s", "dir_info": {"editable": true}}' "$4" > "$site/direct_url.json"
   for root in PACKAGE_ROOTS; do echo "$4/$root"; done > "$site/../_editable_impl_jstack.pth"
+  cat > "$site/entry_points.txt" << 'ENTRY_POINTS_END'
+ENTRY_POINTS
+ENTRY_POINTS_END
   for name in NAMES; do echo "#!/bin/sh" > "$bin/$name"; done
   echo "NAMES" > "$tools/jstack/names"
   ;;
@@ -188,6 +201,7 @@ case "$1 $2" in
 *) exit 2 ;;
 esac
 """.replace("NAMES", " ".join(NAMES)).replace("PACKAGE_ROOTS", " ".join(PACKAGE_ROOTS))
+UV = UV.replace("ENTRY_POINTS\n", ENTRY_POINTS)
 
 
 class User:
@@ -340,13 +354,14 @@ class User:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(value if isinstance(value, str) else json.dumps(value))
 
-    def tool(self, name, source, names, roots=PACKAGE_ROOTS):
+    def tool(self, name, source, names, roots=PACKAGE_ROOTS, points=ENTRY_POINTS):
         """A tool as uv leaves one. It has its PEP 610 record, a path in its .pth file for
-        each root in `roots`, and its commands in the bin directory."""
+        each root in `roots`, its entry_points.txt, and its commands in the bin directory."""
         site = self.tools / name / "lib" / "python3" / "site-packages" / f"{name}-0.1.0.dist-info"
         self.write(
             site / "direct_url.json", {"url": f"file://{source}", "dir_info": {"editable": True}}
         )
+        self.write(site / "entry_points.txt", points)
         self.write(self.tools / name / "names", " ".join(names))
         self.write(
             site.parent / f"_editable_impl_{name}.pth",

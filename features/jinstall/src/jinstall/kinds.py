@@ -606,11 +606,17 @@ class Commands:
     ok: `machine.tool_source(tool)` is this checkout, each name is in `machine.tool_bin()`,
       and typing each name runs that file or the one in <checkout>/.venv/bin.
     old: `lacks jdrift jroles` (an install from before the repo added them);
-      `tool jgauge, from before the rename`; `an install of <other path>`; or
-      `stale: its editable paths lack <root>`.
-      The last one names a package root that pyproject.toml lists
+      `tool jgauge, from before the rename`; `an install of <other path>`;
+      `stale: its editable paths lack <root>`; or
+      `stale: its entry points differ from pyproject.toml in <group>`.
+      The first stale one names a package root that pyproject.toml lists
       (`[tool.hatch.build.targets.wheel].packages`) and the install's `.pth` lacks. The
       package moved after uv built the install.
+      The second names each group whose entry points in the install's entry_points.txt are
+      not the checkout's: `console_scripts` for `[project.scripts]`, `gui_scripts` for
+      `[project.gui-scripts]`, and each group of `[project.entry-points]`. pyproject.toml
+      gained or changed one after uv built the install, and an editable install picks that up
+      only when it is installed again.
     foreign, since no put repairs it: `<name> is shadowed by <path>`, `<name> is not on PATH`.
     missing: there is no tool of either name.
     foreign: a tool of either name that is not an editable install of a checkout (a release,
@@ -651,6 +657,23 @@ class Commands:
         roots = sorted({checkout / Path(package).parent for package in listed})
         paths = machine.tool_paths(self.tool)
         return [str(root) for root in roots if root not in paths]
+
+    def _points(self, machine: Machine, checkout: Path) -> list[str]:
+        """Each group of entry points that the checkout's pyproject.toml and the tool's
+        entry_points.txt do not agree on."""
+        try:
+            project = tomllib.loads((checkout / "pyproject.toml").read_text())["project"]
+            wanted = {
+                "console_scripts": project.get("scripts", {}),
+                "gui_scripts": project.get("gui-scripts", {}),
+                **project.get("entry-points", {}),
+            }
+        except (OSError, ValueError, KeyError, TypeError):
+            return []
+        have = machine.tool_entry_points(self.tool)
+        return sorted(
+            group for group in {*wanted, *have} if wanted.get(group, {}) != have.get(group, {})
+        )
 
     def _typed(self, machine: Machine, *also: Path) -> Found:
         """The probe answers ok when typing each name runs the file in `tool_bin()` or in one
@@ -698,6 +721,9 @@ class Commands:
             return Found.old(f"{renamed}, is still installed")
         if lacking := self._stale(machine, machine.checkout):
             return Found.old(f"stale: its editable paths lack {' '.join(lacking)}")
+        if differ := self._points(machine, machine.checkout):
+            why = f"stale: its entry points differ from pyproject.toml in {' '.join(differ)}"
+            return Found.old(why)
         if self._lacks(machine):
             return Found.old(self._lacks(machine))
         return self._typed(machine, machine.checkout / ".venv" / "bin")
