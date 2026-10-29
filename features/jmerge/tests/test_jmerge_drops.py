@@ -179,7 +179,7 @@ def test_the_command_holds_a_drop_the_review_ruled_against(notes):
         "Finding: not fixed, the drop in n.txt, because ours replaces main's line\n"
         "Fixed: none needed, the drop is on purpose\n"
     )
-    brief(notes, was, head, ack + handled + ruled)
+    brief(notes, was, head, ack + ruled + handled)
     held = (
         f"hold 7 {url(7)}: needs user, the review did not uphold the drop in n.txt: "
         "main's line is still needed"

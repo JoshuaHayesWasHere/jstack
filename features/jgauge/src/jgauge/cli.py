@@ -61,16 +61,17 @@ def _interval(asked: str) -> float:
 
 def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, str]) -> int:
     """Run `room` until it prints `go` or the time limit passes, and run it a last time at the
-    limit itself. Print what the last run printed, with its notes. Exit with code 0 on `go`,
-    and with the code `NO_ROOM` otherwise."""
+    limit itself: a run that began before the limit is never the last, even when it ends after
+    it. Print what the last run printed, with its notes. Exit with code 0 on `go`, and with the
+    code `NO_ROOM` otherwise."""
     until = time.monotonic() + limit
     while True:
+        began = time.monotonic()
         looked = subprocess.run(look, capture_output=True, text=True, env=env)
         said = (looked.stdout.splitlines() or ["wait: the room check said nothing"])[-1]
-        left = until - time.monotonic()
-        if said == "go" or left <= 0:
+        if said == "go" or began >= until:
             break
-        time.sleep(min(every, left))
+        time.sleep(max(0.0, min(every, until - time.monotonic())))
     sys.stderr.write(looked.stderr)
     print(said)
     return 0 if said == "go" else NO_ROOM
