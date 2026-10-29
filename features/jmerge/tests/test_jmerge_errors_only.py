@@ -129,8 +129,8 @@ def test_a_cleanup_row_fixes_its_errors_and_gets_no_review_after_that():
     assert ready.short_of(pushed, FIX) == ready.UNANSWERED.format(ids="F1")
     answered = cleanup((ERROR, WARNING), f"Finding F1: fixed, the retry\nFixed: {FIX}\n")
     assert ready.short_of(answered, FIX) == ""
-    assert ready.to_range_diff(None, answered, FIX) is None
-    assert ready.under_fix(None, answered, FIX) == ""
+    assert ready.to_range_diff(answered, FIX) is None
+    assert ready.under_fix(answered, FIX) == ""
     declined = cleanup(
         (ERROR,), "Finding F1: not fixed, the retry, because a.py:41 stops it\nFixed: none needed\n"
     )

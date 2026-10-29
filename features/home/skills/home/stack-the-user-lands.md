@@ -45,8 +45,12 @@ The rest of a launch is as "Handing a task to a crewmate" has it: the brief on d
 2. Write its `Stack:` line again, with the default branch after `on`. Its place stays.
 3. Send its crewmate one line with `t3_thread_send`, to the id on its brief's `Thread:` line: `<slug>: <the branch it sat on> is merged, and your pull request is now based on <default branch>. Read "A link that moved" in the crew skill again, from the file, and run its block with <the branch it sat on>`.
 
-The crewmate rebases its own branch, writes its `Rebase:` line, pushes, and sends `fixed and green` at the new head. The home rebases and pushes nothing. Run no sweep between the merge and that push: the sweep removes the kept branch once nothing is based on it, and the crewmate's rebase starts from it.
+The crewmate rebases its own branch, pushes, and sends `fixed and green` at the new head.
+The home rebases and pushes nothing.
+Run no sweep between the merge and that push: the sweep removes the kept branch once nothing is based on it, and the crewmate's rebase starts from it.
 
 **A link with a conflict** is rebased on the same line, and never by its crewmate alone: its branch holds the commits of the links under it, and only the branch it sits on tells them apart. On its crewmate's line that it has a conflict, send it the line of step 3 with the branch its `Stack:` line names after `on`, the default branch for the bottom link and for one that has moved. If the base of its pull request was changed and that line not yet sent, send that one. When a link was rebased while others sit on it, each of those conflicts in turn: send them their lines from the bottom up, each after the one under it has pushed.
 
-A crewmate that answers `not found` could not tell its own commits from the ones under them: the kept branch is gone, as after the sweep of a home that started meanwhile, or it was rewritten and git kept no record. Send it the commit its branch started from, to run the same block with in place of the branch. It is in the brief of the link under it: the `before` commit of that brief's `Rebase:` line when that link moved or was rebased after this one was launched, and otherwise the head its `Fixed:` line or its review names.
+A crewmate that answers `not found` could not tell its own commits from the ones under them: the kept branch is gone, as after the sweep of a home that started meanwhile, or it was rewritten and git kept no record.
+Send it the commit its branch started from, to run the same block with in place of the branch.
+When the link under it moved or was rebased after this one was launched, that commit is the oldest head that link's crewmate kept since then under `refs/jstack/pre-rebase/<that link's slug>/`, and otherwise the head that link's `Fixed:` line or its review names.

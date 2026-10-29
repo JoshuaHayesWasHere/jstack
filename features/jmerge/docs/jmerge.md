@@ -129,7 +129,7 @@ The section "Protected paths" describes one more hold.
   `jmerge` asks for no `## Review`, verdict, `Fixed:` line or answered finding.
   A review written while the pull request is open does not change its wait reason (`ready.after`).
   Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that jbus approves by the follow-up rule, when it is queued or on the next pass, where `<slug>`'s go holds.
-  The pull request merges once its required checks pass, and its `Skills run:`, `Rebase:` and `Dropped on rebase:` lines meet their rules.
+  The pull request merges once its required checks pass, and its `Skills run:` and `Dropped on rebase:` lines meet their rules.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
   It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
   The second review's findings block no merge, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`).
@@ -417,9 +417,8 @@ A crewmate writes nothing about its rebase.
 `jmerge` compares the head it finds with the commit the review covers.
 That commit is the `Fixed:` commit, or, when the Result has no `Fixed:` line, the head the last `## Review` saw.
 `jmerge` reads the files that either patch changes.
-A brief from before this rule may still say what its rebase did, with `Rebase: patch unchanged, before <commit>, head <commit>` or `Rebase: patch changed in <files>, before <commit>, head <commit>`.
-`jmerge` still reads such a line.
-For `patch unchanged`, it works out both patch-ids again from the two commits.
+A brief from before this rule may still have a `Rebase:` line, in any shape, true or not.
+`jmerge` reads it as no line, so such a brief is judged as the same brief with the line removed, and no `Rebase:` line holds a pull request.
 
 For a patch that changed, `jmerge` counts the lines main added to those files and the lines the pull request added before the rebase, and looks for each line in the head.
 If no line is lost, `git range-diff` between the head the review saw and the rebased head decides whether the review still counts:

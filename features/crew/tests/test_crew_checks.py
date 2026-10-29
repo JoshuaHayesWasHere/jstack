@@ -165,4 +165,4 @@ def test_the_ci_fix_line_the_skill_asks_for_is_one_jmerge_reads():
     filled = re.sub(r"<[^>]+>", "{}", line).format(head, reviewed)
     brief = merge.brief(merge.review("clean", reviewed), filled + "\n")
     assert ready.short_of(brief, head) == ""
-    assert ready.to_range_diff(ready.rebase_of(brief, head), brief, head) == reviewed
+    assert ready.to_range_diff(brief, head) == reviewed

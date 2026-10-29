@@ -403,7 +403,7 @@ def result(lines):
         ("findings", "", merge.PUSHED),
         ("findings", f"Fixed: {merge.PUSHED}\n", merge.REVIEWED),
         ("clean", "", merge.REVIEWED),
-        ("clean", f"Rebase: range-diff empty, head {merge.PUSHED}\n", merge.PUSHED),
+        ("clean", "", merge.PUSHED),
         ("", "", merge.REVIEWED),
     ],
 )

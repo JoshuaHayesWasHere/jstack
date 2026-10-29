@@ -10,7 +10,6 @@ from jmerge import ready
 from test_jmerge_fresh import Kitchen, url
 
 HEAD = "c" * 40
-REBASE = f"Rebase: patch changed in a.py b.py, before {'a' * 40}, head {HEAD}\n"
 LOST = (ready.Drop("a.py", 2, 1), ready.Drop("b.py", 0, 3))
 ACKS = (
     "Dropped on rebase: a.py, 2 of main's, 1 of its own, at cccccccccccc: the task replaces them\n"
@@ -32,9 +31,9 @@ def test_a_drop_with_no_line_at_the_head_waits_on_the_crew():
         "the rebase dropped 2 of main's lines in a.py and 1 of its own in a.py and 3 of its "
         "own in b.py with no Dropped on rebase line at cccccccccccc"
     )
-    assert ready.drops(LOST, REBASE, HEAD, user=jsettings.DEFAULTS) == ("wait", every)
+    assert ready.drops(LOST, "", HEAD, user=jsettings.DEFAULTS) == ("wait", every)
     older = ACKS.replace("cccccccccccc", "bbbbbbbbbbbb")
-    assert ready.drops(LOST, REBASE + older, HEAD, user=jsettings.DEFAULTS) == ("wait", every)
+    assert ready.drops(LOST, older, HEAD, user=jsettings.DEFAULTS) == ("wait", every)
     assert ready.drops(
         LOST, "Dropped on rebase: a.py, on purpose\n", HEAD, user=jsettings.DEFAULTS
     ) == ("wait", every)
@@ -56,7 +55,7 @@ def test_an_explained_drop_waits_on_the_scoped_review_of_the_range_diff():
         "wait",
         f"the scoped review has not ruled on the drops in a.py, b.py; scoped review of {RANGES}",
     )
-    said = REBASE + ACKS
+    said = ACKS
     assert ready.drops(LOST, said, HEAD, user=jsettings.DEFAULTS, command=RANGES) == unruled
     said += review("a" * 40, "Drops: upheld a.py, b.py\n")
     assert ready.drops(LOST, said, HEAD, user=jsettings.DEFAULTS, command=RANGES) == unruled
@@ -67,11 +66,11 @@ def test_a_drop_a_review_of_the_head_said_nothing_of_is_the_users():
     will rule on it, so the drop goes to the user. The review may be a full review written
     at the rebased head, or a scoped one that left a file out."""
     half = review(drops="Drops: upheld a.py\n")
-    assert ready.drops(LOST, REBASE + ACKS + half, HEAD, user=jsettings.DEFAULTS) == (
+    assert ready.drops(LOST, ACKS + half, HEAD, user=jsettings.DEFAULTS) == (
         "hold",
         "needs user, the review of cccccccccccc did not rule on the drops in b.py",
     )
-    assert ready.drops(LOST, REBASE + ACKS + review(), HEAD, user=jsettings.DEFAULTS) == (
+    assert ready.drops(LOST, ACKS + review(), HEAD, user=jsettings.DEFAULTS) == (
         "hold",
         "needs user, the review of cccccccccccc did not rule on the drops in a.py, b.py",
     )
@@ -79,14 +78,12 @@ def test_a_drop_a_review_of_the_head_said_nothing_of_is_the_users():
 
 def test_a_later_review_of_the_head_that_says_nothing_of_the_drops_takes_no_ruling_away():
     ruled = review(drops="Drops: upheld a.py, b.py\n")
-    assert ready.drops(LOST, REBASE + ACKS + ruled + review(), HEAD, user=jsettings.DEFAULTS) == (
+    assert ready.drops(LOST, ACKS + ruled + review(), HEAD, user=jsettings.DEFAULTS) == (
         "",
         "",
     )
     again = review(drops="Drops: not upheld b.py: the task needs them\n")
-    assert ready.drops(
-        LOST, REBASE + ACKS + ruled + again + review(), HEAD, user=jsettings.DEFAULTS
-    ) == (
+    assert ready.drops(LOST, ACKS + ruled + again + review(), HEAD, user=jsettings.DEFAULTS) == (
         "hold",
         "needs user, the review did not uphold the drop in b.py: the task needs them",
     )
@@ -94,7 +91,7 @@ def test_a_later_review_of_the_head_that_says_nothing_of_the_drops_takes_no_ruli
 
 def test_a_drop_the_review_did_not_uphold_is_the_users():
     ruled = review(drops="Drops: upheld a.py\nDrops: not upheld b.py: the task needs them\n")
-    assert ready.drops(LOST, REBASE + ACKS + ruled, HEAD, user=jsettings.DEFAULTS) == (
+    assert ready.drops(LOST, ACKS + ruled, HEAD, user=jsettings.DEFAULTS) == (
         "hold",
         "needs user, the review did not uphold the drop in b.py: the task needs them",
     )
@@ -102,24 +99,24 @@ def test_a_drop_the_review_did_not_uphold_is_the_users():
 
 def test_drops_explained_and_upheld_keep_nothing_from_the_merge():
     ruled = review(drops="Drops: upheld a.py, b.py\n")
-    assert ready.acks(REBASE + ACKS, HEAD) == {
+    assert ready.acks(ACKS, HEAD) == {
         "a.py": (2, 1, "the task replaces them"),
         "b.py": (0, 3, "main's change, see #7"),
     }
-    assert ready.upheld(REBASE + ACKS + ruled, HEAD) == {"a.py", "b.py"}
-    assert ready.drops(LOST, REBASE + ACKS + ruled, HEAD, user=jsettings.DEFAULTS) == ("", "")
+    assert ready.upheld(ACKS + ruled, HEAD) == {"a.py", "b.py"}
+    assert ready.drops(LOST, ACKS + ruled, HEAD, user=jsettings.DEFAULTS) == ("", "")
 
 
 def test_a_ruling_stands_for_a_fix_pushed_after_it_once_the_crew_says_so_at_the_new_head():
-    """The scoped review saw the head that the rebase ended on. A fix moved the head, so the
-    crew explains the drop again at the new head, and `jmerge` does not ask for the ruling on
-    the file twice."""
+    """The scoped review saw the head that the rebase ended on. A fix moved the head, and the
+    `Fixed:` line names it, so the crew explains the drop again at the new head, and `jmerge`
+    does not ask for the ruling on the file twice."""
     fixed = "d" * 40
-    ruled = review(drops="Drops: upheld a.py, b.py\n")
-    silent, _ = ready.drops(LOST, REBASE + ACKS + ruled, fixed, user=jsettings.DEFAULTS)
+    ruled = review(drops="Drops: upheld a.py, b.py\n") + f"Fixed: {fixed}\n"
+    silent, _ = ready.drops(LOST, ACKS + ruled, fixed, user=jsettings.DEFAULTS)
     assert silent == "wait"
     again = ACKS.replace("cccccccccccc", "dddddddddddd")
-    assert ready.drops(LOST, REBASE + ACKS + again + ruled, fixed, user=jsettings.DEFAULTS) == (
+    assert ready.drops(LOST, ACKS + again + ruled, fixed, user=jsettings.DEFAULTS) == (
         "",
         "",
     )
@@ -144,8 +141,7 @@ def dropped(notes):
 def brief(notes, was, head, more):
     """What the pull request's crewmate and the scoped reviewer added to the brief since the
     rebase."""
-    line = f"Rebase: patch changed in n.txt, before {was}, head {head}\n"
-    notes.brief("two", was, line)
+    notes.brief("two", was, "")
     with (notes.home.tasks / "two.md").open("a") as file:
         file.write(more)
 

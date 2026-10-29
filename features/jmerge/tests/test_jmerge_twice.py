@@ -55,8 +55,8 @@ def test_a_second_review_with_a_warning_lets_it_merge_and_its_findings_need_no_a
     text = twice(review(FIX, (WARNING, INFO)))
     assert ready.short_of(text, FIX) == ""
     assert ready.declines(text, user=jsettings.DEFAULTS) == ("", "")
-    assert ready.to_range_diff(None, text, FIX) is None
-    assert ready.under_fix(None, text, FIX) == ""
+    assert ready.to_range_diff(text, FIX) is None
+    assert ready.under_fix(text, FIX) == ""
     review_mode = text.replace("Review: twice", "Review: review")
     assert ready.short_of(review_mode, FIX) == ""
 

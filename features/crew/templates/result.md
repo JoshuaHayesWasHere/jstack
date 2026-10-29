@@ -12,7 +12,6 @@ Skills run:   <one item for each name on the brief's Skills: line, or none when 
 - <the name, as `jbriefs --skills` printed it>: <its artifact, as `templates/skill-artifacts.md` says, its further lines indented by two spaces>
 Unrun: at <the pushed head, in full>, no check ran   <this line only where the block of the crew skill's "The checks" says `unrun`: the pull request is not green, and a gate is parked>
 Rerun: at <the pushed head, in full>, workflow run <id> was run again whole   <this line only where the block of the crew skill's "A failed check" started one: the block writes it>
-Rebase: patch <unchanged, or changed in <files>>, before <the commit the branch was at before the rebase, in full>, head <the commit the rebase ended on, in full>   <this line only after a rebase, as the second block of the crew skill's "A conflict" prints it>
 Finding F<n>: fixed, <the finding in a few words> | not fixed, <the finding in a few words>, because <the reason in one line: for an Act on finding, one that cites a path:line, a command in backticks or question <n>>   <one such line for each finding `jbriefs --findings` lists as Act on or Consider, by its id, only once the review's findings are back>
 Second pass: <none, or needed since <the head the review saw>>, <why>   <this line only once the findings are handled, as the block of the crew skill's "A second pass" prints it>
 Fixed: <the head commit pushed for the review's findings, in full, or none needed and the reason; this line only once the findings are handled>

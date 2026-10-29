@@ -17,9 +17,6 @@ from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _RANKS = {"clean": 0, "findings": 1}
-_REBASE = re.compile(
-    r"Rebase: patch (unchanged|changed in (.+)), before ([0-9a-f]{40}), head ([0-9a-f]{40})"
-)
 _ACK = re.compile(
     r"Dropped on rebase: (.+?), (\d+) of main's, (\d+) of its own, at ([0-9a-f]{12}): (.+)"
 )
@@ -174,16 +171,9 @@ RISK_UNASKED = Reason(
     "findings",
     "its findings are not handled: {ids} on {risks} declined with no gate question",
 )
-FIXED_NO_COMMIT = Reason("findings", "its Fixed line names no commit")
-REBASE_UNSAID = Reason("rebase", "its Rebase line does not say what the rebase did to the patch")
-REBASE_UNTRUE = Reason(
-    "rebase",
-    "its Rebase line says the patch is unchanged, and the rebase changed it",
-)
 CANNOT_CHECK = Reason(
     "rebase",
-    "its Rebase line cannot be checked: "
-    "the patch of {commit} cannot be worked out in the main checkout",
+    "its rebase cannot be checked: the patch of {commit} cannot be worked out in the main checkout",
 )
 DROPPED = Reason("rebase", "the rebase dropped {lost} with no Dropped on rebase line at {head}")
 NOT_UPHELD = Reason("hold", "needs {user}, the review did not uphold the drop in {refused}")
@@ -583,7 +573,6 @@ class Said:
     ran: int = 0
     reviewed: str = ""
     fixed: str = ""
-    rebased: str = ""
     pushed: str = ""
     saw: str = ""
     wider: bool = False
@@ -614,8 +603,9 @@ def said_of(text: str) -> Said:
     sent = [one for one in triage.findings if one.blocks]
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     for at, line in enumerate(text.splitlines()):
-        if line.startswith("Fixed:"):
-            said.fixed = _second(line)
+        fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
+        if _COMMIT.fullmatch(fixed) or fixed == "none":
+            said.fixed = fixed
         if line.startswith("Second pass:"):
             fields = _fields(line)
             said.wider = fields[2:3] == ["needed"]
@@ -627,8 +617,6 @@ def said_of(text: str) -> Said:
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
-        if line.startswith("Rebase:"):
-            said.rebased = _fields(line)[-1]
         if line.startswith("CI fix:"):
             named = _CI_FIX.fullmatch(line.strip())
             said.pushed, said.saw = (named[1], named[2]) if named else ("", "")
@@ -697,8 +685,6 @@ def _twice(said: Said, text: str) -> str:
     if said.fixed == first:
         return NOT_PUSHED
     pushed = bool(_COMMIT.fullmatch(said.fixed))
-    if said.fixed != "none" and not pushed:
-        return FIXED_NO_COMMIT
     short = unanswered(said)
     if short:
         return short
@@ -721,8 +707,6 @@ def _cleanup(said: Said) -> str:
         return NO_FIXED
     if said.fixed == said.reviewed:
         return NOT_PUSHED
-    if said.fixed != "none" and not _COMMIT.fullmatch(said.fixed):
-        return FIXED_NO_COMMIT
     return unanswered(said)
 
 
@@ -793,8 +777,6 @@ def short_of(text: str, head: str) -> str:
         return SECOND_UNWRITTEN
     if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
-    if fixed not in ("", "none") and not _COMMIT.fullmatch(fixed):
-        return FIXED_NO_COMMIT
     if said.owes and _COMMIT.fullmatch(fixed) and head != fixed:
         if head == reviewed:
             return NOT_PUSHED
@@ -844,10 +826,10 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
 
 def _named(said: Said, head: str) -> bool:
     if said.mode in (TWICE, CLEANUP):
-        return head in (said.reviewed, said.fixed, said.rebased)
+        return head in (said.reviewed, said.fixed)
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
-    return head in (said.reviewed, _ci_fix(said)[0], said.rebased)
+    return head in (said.reviewed, _ci_fix(said)[0])
 
 
 def _covered(said: Said) -> str:
@@ -856,75 +838,35 @@ def _covered(said: Said) -> str:
     return said.reviewed
 
 
-def under_fix(rebase: Rebase | None, text: str, head: str) -> str:
+def under_fix(text: str, head: str) -> str:
     said = said_of(text)
     reviewed = said.reviewed
     if said.mode in (TWICE, CLEANUP):
         return ""
-    if rebase is None and said.fixed == head != reviewed and _COMMIT.fullmatch(reviewed):
+    if said.fixed == head != reviewed and _COMMIT.fullmatch(reviewed):
         return reviewed if _COMMIT.fullmatch(head) else ""
     return ""
 
 
-def _seen(text: str) -> set[str]:
-    heads = set()
-    review = False
-    for line in text.splitlines():
-        if line.startswith("## "):
-            review = line == "## Review"
-        elif review and line.startswith("Head:"):
-            heads.add(_second(line))
-    return heads
-
-
 @dataclass(frozen=True)
 class Rebase:
-    did: str
+    """A move of the patch from the head `before` to the head `head`, and the files either
+    patch changes. `jmerge` works each one out from git (`cli.Repo.rebase_since_review`): a
+    crew writes nothing about its rebase, and a `Rebase:` line in a brief is read as no line.
+    The one a brief names is a `CI fix:` push after the review, whose files git gives too."""
+
     files: tuple[str, ...]
     before: str
     head: str
 
 
 def _told(text: str) -> Rebase | None:
-    found = None
-    for line in text.splitlines():
-        if line.startswith("Rebase: patch "):
-            said = _REBASE.fullmatch(line.strip())
-            if not said:
-                found = Rebase("", (), "", "")
-            elif said[2]:
-                found = Rebase("changed", tuple(said[2].split()), said[3], said[4])
-            else:
-                found = Rebase("unchanged", (), said[3], said[4])
-        elif line.startswith("Rebase:"):
-            found = None
     pushed, saw = _ci_fix(said_of(text))
-    if found is None and pushed:
-        return Rebase("changed", (), saw, pushed)
-    return found
+    return Rebase((), saw, pushed) if pushed else None
 
 
 def rebase_of(text: str, head: str) -> Rebase | None:
     return _told(text) if _named(said_of(text), head) else None
-
-
-def to_compare(rebase: Rebase | None) -> tuple[str, ...]:
-    if rebase is None or rebase.did != "unchanged":
-        return ()
-    return (rebase.before, rebase.head)
-
-
-def short_on_rebase(rebase: Rebase | None, patches: list[str | None]) -> str:
-    if rebase is None:
-        return ""
-    if not rebase.did:
-        return REBASE_UNSAID
-    for commit, patch in zip(to_compare(rebase), patches, strict=True):
-        if patch is None:
-            return cannot_check(commit)
-    if len(set(patches)) > 1:
-        return REBASE_UNTRUE
-    return ""
 
 
 def cannot_check(commit: str) -> str:
@@ -982,8 +924,11 @@ def answered(text: str, head: str) -> tuple[Drop, ...]:
 
 
 def _rulings(text: str, head: str) -> tuple[set[str], dict[str, str]] | None:
-    rebase = _told(text)
-    heads = {head, rebase.head} if rebase and rebase.head else {head}
+    """The drops ruled on by a review of `head`, or of the head a push after the review left:
+    the reviewed head where the `Fixed:` line names `head`, or the one a `CI fix:` line names.
+    None where no such review is written."""
+    told = said_of(text)
+    heads = {head, told.reviewed if told.fixed == head else _ci_fix(told)[0]} - {""}
     found = None
     review = covers = False
     ruled: dict[str, str | None] = {}
@@ -1041,25 +986,20 @@ def drops(
     return "", ""
 
 
-def to_range_diff(rebase: Rebase | None, text: str, head: str) -> str | None:
+def to_range_diff(text: str, head: str) -> str | None:
+    """The commit the review covers, which `jmerge` compares `head` with, or None where the
+    review is of `head` itself. That commit is the reviewed head for a `CI fix:` push, and
+    otherwise the `Fixed:` commit or the head the last review saw (`_covered`). An empty string
+    is a review that names no commit to compare with."""
     said = said_of(text)
     if said.mode in (AFTER, TWICE, CLEANUP):
         return None
-    fixed = bool(_COMMIT.fullmatch(said.fixed))
     if _ci_fix(said)[0] == head:
         return said.reviewed
-    if rebase is None:
-        if _named(said, head) or head == said.reviewed:
-            return None
-        covered, told = _covered(said), _told(text)
-        if fixed and told and told.did and told.head == covered and covered not in _seen(text):
-            covered = told.before
-        return covered if _COMMIT.fullmatch(covered) else ""
-    if not rebase.did or {rebase.head, head} & _seen(text):
+    if _named(said, head) or head == said.reviewed:
         return None
-    if fixed:
-        return rebase.before if rebase.did == "changed" else None
-    return said.reviewed if _COMMIT.fullmatch(said.reviewed) else ""
+    covered = _covered(said)
+    return covered if _COMMIT.fullmatch(covered) else ""
 
 
 def _short(commits: str) -> str:

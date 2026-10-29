@@ -260,7 +260,7 @@ def covers(main, brief, head):
     covers, and whether that review carries over to the head. `jmerge` decides with a
     range-diff, which it runs in the main checkout after the checkout has fetched."""
     assert ready.short_of(brief, head) == ""
-    covered = ready.to_range_diff(ready.rebase_of(brief, head), brief, head)
+    covered = ready.to_range_diff(brief, head)
     git(main, "fetch", "-q", "origin")
     return covered, rangediff.verdict(main, covered, head, "main").clean
 

@@ -42,7 +42,7 @@ def test_a_conflicts_rebase_keeps_the_head_before_it_under_a_ref(tmp_path):
     assert stays(pr, "mergeable") == ["rebased onto origin/main"]
     assert pr.head() != before
     assert kept_at(pr, before) == before
-    assert cli.patch_id(tmp_path / "main", "main", before) is not None
+    assert git(tmp_path / "main", "cat-file", "-t", before) == "commit"
 
 
 def test_a_links_move_keeps_the_head_before_it_under_a_ref(tmp_path):
@@ -208,7 +208,7 @@ def test_a_rebase_is_looked_through_for_lines_it_dropped_as_jmerge_looks(case, t
     head = pr.head()
     repo = cli.Repo(pr.main, tmp_path / "home", None, False, user=jsettings.DEFAULTS)
     rebase = repo.rebase_since_review("main", before, head)
-    assert rebase == ready.Rebase("changed", ("mine.txt", "shared.txt"), before, head)
+    assert rebase == ready.Rebase(("mine.txt", "shared.txt"), before, head)
     lost = repo.dropped("main", rebase, head)
     held = ready.drops(lost, "", head, user=jsettings.DEFAULTS)
     if says.startswith("Kept:"):
