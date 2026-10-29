@@ -11,13 +11,6 @@
     ".pl-d { display: block; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
     ".pl-l { font: inherit; font-family: var(--mono); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }" +
     ".pl-hm { display: none; font-size: 15px; color: var(--ink); align-self: center; }" +
-    ".pl-strip { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }" +
-    ".pl-st { min-width: 0; display: grid; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); padding: 4px 6px 5px; }" +
-    ".pl-st.hot { border-color: var(--due); box-shadow: inset 0 0 0 1px var(--due); }" +
-    ".pl-k, .pl-o, .pl-x { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    ".pl-n { font-size: 22px; font-weight: 800; line-height: 1.1; }" +
-    ".pl-bar { display: block; height: 5px; margin: 3px 0 2px; background: var(--sunk); border-radius: 3px; overflow: hidden; }" +
-    ".pl-bar i { display: block; height: 100%; background: var(--due); }" +
     ".pl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }" +
     ".pl-chips button { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; cursor: pointer; }" +
     ".pl-chips button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }" +
@@ -44,8 +37,8 @@
     ".pl-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 10px 0 0; padding: 4px 4px 4px 12px; border: 1.5px solid var(--focus); border-radius: 8px; background: var(--surface); font-size: 15px; font-weight: 700; scroll-margin-top: 12px; overflow-wrap: anywhere; }" +
     ".pl-show button { font: inherit; min-width: 44px; min-height: 36px; color: var(--ink); background: none; border: 0; border-radius: 6px; cursor: pointer; }" +
     ".pl-unpl { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    "@media (max-width: 1180px) { .pl-strip, .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
-    "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-strip { display: none; } .pl-board { gap: 6px; }" +
+    "@media (max-width: 1180px) { .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
+    "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-board { gap: 6px; }" +
     " .pl-chips button, .pl-hm { min-height: 44px; } .pl-hm { display: inline-flex; align-items: center; padding: 0 6px; } .pl-c { min-height: 44px; font-size: 15px; } }" +
     "@media (min-width: 641px) and (max-width: 1024px) { #homes { display: none; } } @media (max-width: 1024px) { .pl-hm { display: inline-flex; align-items: center; } }";
   document.head.appendChild(css);
@@ -221,15 +214,6 @@ function boardStages(view) {
 
 function boardCols(stages) { return stages.map(function (s) { return "minmax(0, " + (s.count ? "1fr" : ".5fr") + ")"; }).join(" "); }
 
-function boardStrip(stages, hot) {
-  return '<ol class="pl-strip" data-role="strip" aria-label="Rows in each stage" style="grid-template-columns: ' + boardCols(stages) + '">' + stages.map(function (s) {
-    var age = s.key === "merged" ? "today" : s.oldest ? "oldest " + boardAge(s.oldest.since) : "";
-    return '<li class="pl-st' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><span class="pl-k">' + esc(s.name) + '</span> <span class="pl-n">' + s.count + '</span>' +
-      (age ? ' <span class="pl-o">' + age + '</span>' : "") +
-      (s.count && s.key !== "merged" ? '<span class="pl-bar"><i style="width:' + Math.round(100 * s.still / s.count) + '%"></i></span>' + (s.still ? '<span class="pl-x">' + s.still + ' not moving</span>' : "") : "") + '</li>';
-  }).join("") + '</ol>';
-}
-
 function boardChips(view) {
   var homes = {}, said = {}, still = 0, mine = boardOf(view.home);
   boardRows().forEach(function (r) {
@@ -306,7 +290,7 @@ function boardLinks() {
   svg.innerHTML = paths.join("");
 }
 
-function boardOwns(el) { return $("pipeline").contains(el) || $("matrix").contains(el); }
+function boardOwns(el) { return !$("pipeline").hidden && $("pipeline").contains(el) || !$("stack").hidden && $("matrix").contains(el); }
 
 function boardWhere(el) {
   if (!el || !el.getAttribute || !boardOwns(el)) return "";
@@ -335,20 +319,20 @@ function boardTab() {
 
 function boardDraw() {
   boardTab();
-  var el = $("pipeline");
-  if (el.hidden) return;
+  var el = $("pipeline"), mx = $("matrix"), homes = !$("stack").hidden;
+  if (!homes) put(mx, "");
+  if (el.hidden && !homes) return;
   if (!BOARD_ASKING && (!BOARD || Date.now() - BOARD_ASKED >= POLL_MS)) boardAsk();
   if (!BOARD) {
-    put($("matrix"), "");
-    put(el, BOARD_FAILED ? '<p class="calm">The board could not be read: ' + esc(BOARD_FAILED) + '. <a href="#/homes">Open the homes map</a></p>' : '<p class="calm">Asking the server for the board</p>');
+    put(mx, "");
+    if (!el.hidden) put(el, BOARD_FAILED ? '<p class="calm">The board could not be read: ' + esc(BOARD_FAILED) + '. <a href="#/homes">Open the homes map</a></p>' : '<p class="calm">Asking the server for the board</p>');
     return;
   }
-  var view = boardView(), picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "";
-  var stages = boardStages(view), had = boardWhere(document.activeElement);
-  var matrix = boardMatrix(view), html = boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
-  if (el.__drawn !== html || $("matrix").__drawn !== matrix) {
+  var view = boardView(), had = boardWhere(document.activeElement);
+  var matrix = homes ? boardMatrix(view) : "", html = el.hidden ? el.__drawn : boardBoard(view);
+  if (el.__drawn !== html || mx.__drawn !== matrix) {
     put(el, html);
-    put($("matrix"), matrix);
+    put(mx, matrix);
     var back = had && document.querySelector(had);
     if (back) back.focus({ preventScroll: true });
   }
@@ -356,6 +340,11 @@ function boardDraw() {
   BOARD_SCROLL = false;
   if (bar) { bar.scrollIntoView({ block: "start" }); bar.focus({ preventScroll: true }); }
   setTimeout(boardLinks, 0);
+}
+
+function boardBoard(view) {
+  var picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "", stages = boardStages(view);
+  return boardHeads() + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
 }
 
 function boardSet(change) {
@@ -367,11 +356,11 @@ function boardSet(change) {
 }
 
 document.addEventListener("click", function (e) {
-  var el = $("pipeline");
-  if (el.hidden || !e.target.closest || !boardOwns(e.target)) return;
+  if (!e.target.closest || !boardOwns(e.target)) return;
   var b = e.target.closest("[data-bpick]");
   if (b) {
     var slug = b.getAttribute("data-bpick"), project = b.getAttribute("data-bproj");
+    if ($("pipeline").hidden) { BOARD_PROJECT = project; enter("pushState", { layers: [], back: false }, board(slug, "")); return; }
     var again = b.classList.contains("pl-c") && boardView().pick === slug && BOARD_PROJECT === project;
     BOARD_PROJECT = again ? "" : project;
     boardSet({ pick: again ? "" : slug });
@@ -384,9 +373,8 @@ document.addEventListener("click", function (e) {
   var cell = e.target.closest("[data-bcell]");
   if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     e.preventDefault();
-    var over = !!boardView().stage;
     BOARD_SCROLL = true;
-    enter(over ? "replaceState" : "pushState", { layers: [], back: false, cell: over ? !!(history.state && history.state.cell) : true }, cell.getAttribute("href"));
+    enter("pushState", { layers: [], back: false, cell: true }, cell.getAttribute("href"));
   }
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }

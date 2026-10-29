@@ -40,8 +40,10 @@ window.addEventListener("load", function () {
     }).map(function (el) { return el.getAttribute("data-part").split(":")[0]; }).filter(function (name, n, all) { return all.indexOf(name) === n; }),
     wrong: all("[data-wrong]").filter(seen).map(function (el) { return el.getAttribute("data-wrong"); }),
     groups: all("#prog .pgg .pgh").map(text),
-    words: ["header", "main"].map(function (q) { return (text(document.querySelector(q)).match(/\S+/g) || []).length; }).reduce(function (a, b) { return a + b; }, 0),
-    high: document.documentElement.scrollHeight, line: (function (one) { return one ? one.getBoundingClientRect().height : 0; })(document.querySelector("#map-ql li")) };
+    /* The map's words and the page's height as they would be with no matrix over the map: the
+       matrix is the board's, and a page no taller than the screen is the screen's height. */
+    words: ["header", "main"].map(function (q) { return (text(document.querySelector(q)).match(/\S+/g) || []).length; }).reduce(function (a, b) { return a + b; }, 0) - (text(document.getElementById("matrix")).match(/\S+/g) || []).length,
+    high: Math.max(document.documentElement.clientHeight, document.documentElement.scrollHeight - (function (m) { var mx = m.firstElementChild, high = m.getBoundingClientRect().height; return high ? Math.round(high + parseFloat(getComputedStyle(mx).marginBottom)) : 0; })(document.getElementById("matrix"))), line: (function (one) { return one ? one.getBoundingClientRect().height : 0; })(document.querySelector("#map-ql li")) };
   var pre = document.createElement("pre");
   pre.id = "probe";
   pre.textContent = JSON.stringify(out);

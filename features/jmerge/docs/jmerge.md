@@ -88,8 +88,12 @@ The section "Protected paths" describes one more hold.
   A brief's Result has the pull request on its `Branch:` line.
   jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.
   A home's own run, with `--home`, merges nothing, and a brief of another home of the repo is `another home's` to it alone.
-- **Its base is the default branch.**
-  `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
+- **Its base is the default branch, or a merge base its project names.**
+  A project of jbus's names merge bases besides the default branch with `jbus project bases <project> --add <branch>`, and `jbus project bases <project>` prints them: jstack names `t3code-jstack`, the branch the sidebar's pull requests go on.
+  `jmerge` merges a pull request into a named base on the rules of one into the default branch: its review written and answered, its required checks green, and not a draft.
+  Main's red holds no pull request into a named base, since main's red says nothing of that branch and no fix of main merges there.
+  `jmerge` never merges a pull request based on a branch that is neither (`its base is <base>, not <default>`), nor one into a named base where jbus's config does not load.
+  The sweep keeps a brief's branch that is a merge base (`it is a merge base of the project`).
   A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
   Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
 - **The review is done.**

@@ -1,0 +1,8 @@
+usage: jbus project bases [-h] [--add BRANCH] name
+
+positional arguments:
+  name          the project's name in the config
+
+options:
+  -h, --help    show this help message and exit
+  --add BRANCH  name one more branch, beside the others

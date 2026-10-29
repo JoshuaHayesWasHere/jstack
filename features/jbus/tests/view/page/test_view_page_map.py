@@ -133,9 +133,9 @@ def test_on_a_phone_every_target_of_the_map_takes_a_thumb_and_nothing_is_cut(sce
 @pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
 def test_no_panel_card_is_drawn_over_the_homes_map(scene, tmp_path, screen):
     """The panels' parts of the desk, the glance band and its tiles, what needs you, what slows
-    us, the matrix (on a phone, a line for every home), what landed since the user looked, merges
-    per day and the nearest milestone, are the overview's: `#/` draws each of them, and `#/homes`
-    draws none, only the map."""
+    us, on a phone a line for every home, what landed since the user looked, merges per day and
+    the nearest milestone, are the overview's: `#/` draws each of them, and `#/homes` draws none,
+    only its map and the matrix above it."""
     SCENES["busy"](scene)
     looked = f"window.__looked = {int((NOW - timedelta(hours=2)).timestamp() * 1000)};"
     served = Served(scene)
@@ -149,8 +149,9 @@ def test_no_panel_card_is_drawn_over_the_homes_map(scene, tmp_path, screen):
     finally:
         served.close()
     assert [one["errors"] for one in seen.values()] == [[], []]
-    drawn = ["glance", "milestones", "pipeline", "since", "slow", "throughput", "you"]
-    assert sorted(seen["#/"]["panels"]) == drawn
+    drawn = ["glance", "milestones", "since", "slow", "throughput", "you"]
+    drawn += ["pipeline"] if screen == PHONE else []
+    assert sorted(seen["#/"]["panels"]) == sorted(drawn)
     assert seen["#/homes"]["map"] and seen["#/homes"]["cards"]
     assert seen["#/homes"]["panels"] == []
 
@@ -173,8 +174,9 @@ def test_a_home_whose_thread_hung_or_went_quiet_says_so_with_its_age_as_a_wrong_
     scene, tmp_path
 ):
     """A home's own thread that hung or went quiet is its health word, with how long since it
-    wrote, and that word is the line of its wrong fact: no other line repeats it."""
-    seen, stack = browser.mapped(scene, tmp_path, troubled_homes)
+    wrote, and that word is the line of its wrong fact: no other line repeats it. The screen is
+    tall enough to show the map's lines under the matrix."""
+    seen, stack = browser.mapped(scene, tmp_path, troubled_homes, screen=(DESK[0], 1800))
     assert seen["errors"] == []
     root, docs, ui = seen["cards"][0]["homes"]
     assert (root["health"], docs["health"], ui["health"]) == (

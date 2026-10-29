@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbus import Refused, acts, asks, item, party, passes, questions, queue, t3, wake
+from jbus import Refused, acts, asks, item, party, passes, questions, queue, t3, wake, word
 from jbus.view import state
 from jbus.view.clean import clean
 from jbus.view.state import Sources
@@ -281,9 +281,10 @@ class Writes:
         return said(status, clean(answer, (state.repo(self.sources, name),)))
 
     def act(self, name: str, body: bytes, authorization: str) -> Answer:
-        """`POST /act`, the bot's own route: a go or an answer, taken by `jbus.acts.act` as the
-        bot, on the bot's word from its chat. Only a request with the bot's key is the bot's
-        (`acts.is_bot`), wherever it comes from."""
+        """`POST /act`, the bot's own route: a go, an answer or a word, taken as the bot, on the
+        bot's word from its chat. Only a request with the bot's key is the bot's
+        (`acts.is_bot`), wherever it comes from. A go and an answer go by `jbus.acts.act`, and a
+        word by `jbus.word.keep`, as `jbus word` keeps one, and is sent at once to its home."""
         if not acts.is_bot(self.sources.state_dir, authorization):
             return said(401, {"error": "this route is the bot's, and takes the bot's key"})
         try:
@@ -293,21 +294,25 @@ class Writes:
             if verb == "go":
                 subject, pre = asked["slug"], asked["sha12"]
                 shaped = isinstance(subject, str) and isinstance(pre, str) and len(pre) == 12
+            elif verb == "word":
+                subject, pre = "", ""
+                shaped = isinstance(asked.get("words"), str) and bool(words)
             else:
                 number, pre = asked["number"], ""
                 shaped = verb == "answer" and isinstance(number, int) and bool(words)
                 subject = str(number)
                 shaped = shaped and isinstance(asked.get("keeps", False), bool)
             shaped = shaped and isinstance(seen, str) and isinstance(given, str)
-            evidence = party.evidence(given) if shaped else None
+            evidence = party.chat(given) if shaped else None
         except (ValueError, TypeError, KeyError, AttributeError):
             shaped, evidence = False, None
-        if not shaped or evidence is None or evidence.source != "bot-chat":
+        if not shaped or evidence is None:
             return said(
                 400,
                 {
-                    "error": "an act is {action: go, slug, sha12} or {action: answer, number, "
-                    "words, keeps}, with evidence bot-chat:<address>/<device> and an optional seen"
+                    "error": "an act is {action: go, slug, sha12}, {action: answer, number, "
+                    "words, keeps} or {action: word, words}, with evidence "
+                    f"{party.CHAT} and an optional seen"
                 },
             )
         now = self.clock()
@@ -322,6 +327,8 @@ class Writes:
         )
         project = config.project(name)
         run = passes.Pass(config, project, now, say=lambda line: None)
+        if verb == "word":
+            return self._word(run, heard)
         action = party.Action(verb, subject, pre, seen)
         try:
             made = acts.act(
@@ -339,3 +346,24 @@ class Writes:
             last = kept[-1] if kept else None
             return said(409, {"error": str(error), "act": last})
         return said(200, {"act": asdict(made)})
+
+    def _word(self, run: passes.Pass, heard: party.Evidence) -> Answer:
+        """Keep the bot's word for the project's home, as the bot's act, and send it at once to
+        the home's thread, as `jbus word` does. A word that cannot go yet waits for the next
+        pass (`word.deliver`), and the act says what became of it."""
+        try:
+            kept = word.keep(run, party.BOT, heard)
+        except Refused as error:
+            return said(409, {"error": str(error)})
+        try:
+            client: t3.Client | None = t3.Client(
+                run.config.server, run.config.token_path, timeout=SEND
+            )
+        except Refused:
+            client = None
+        try:
+            word.deliver(run, client)
+        except Refused as error:
+            print(f"jbus view: a word of the bot's waits: {error}", file=sys.stderr)
+        made = next(one for one in acts.read(run.state) if one["id"] == kept.id)
+        return said(200, {"act": made, "say": word.line(run, kept)})

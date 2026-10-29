@@ -168,8 +168,9 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     """The overview has the machine as one word, one bar of what waits on the user across the
     projects, and a card for each project. larder's CI could not be read, so it is first, and
     demo and pantry have what waits on the user. The bar draws no list of what waits: it opens
-    the triage tab. The page asks `/stack.json` and nothing else, once a poll. After a poll
-    that changed nothing, the page draws nothing again."""
+    the triage tab. The page asks `/stack.json` once a poll, and `/panel/pipeline.json` for the
+    matrix above the map, and nothing else. After a poll that changed nothing, the page draws
+    nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/homes", at=33000, budget=40000)
     assert clean(seen) == set()
@@ -195,7 +196,8 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert [row["href"] for row in stack["rows"]] == ["#/larder", "#/demo", "#/pantry"]
     assert seen["words"] <= EVERY, seen["words"]
     polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico", "/font.woff2")]
-    assert len(polls) == 9 and set(polls) == {"/stack.json"}
+    assert polls.count("/stack.json") == 9
+    assert set(polls) == {"/stack.json", "/panel/pipeline.json"}
     drawn = [change["at"] for change in seen["changes"] if change["part"].startswith("map-c:")]
     assert drawn and [one for one in seen["changes"] if one["at"] > max(drawn) + 1000] == []
     assert seen["marked"] == 1
@@ -374,16 +376,16 @@ OVERVIEW = (Path(__file__).parent / "overview.js").read_text()
 
 QUESTIONS = {
     "are we stalled, and why": ("glance:band", "slow:rail", "glance:act"),
-    "where is all the work, every stage, every home": ("pipeline:matrix", "glance:open"),
+    "where is all the work, every stage, every home": ("glance:open",),
     "what needs me right now": ("you:tile", "you:rail"),
-    "what is blocking what": ("chains",),
     "how close are we to a milestone": ("milestones:nearest",),
     "how much got done today, or this week": ("glance:merged", "throughput:perday"),
     "what landed since I last looked": ("since:landed",),
     "why are N items sitting in check or review": ("slow:tile", "slow:rail"),
 }
 """Each ranked question of `reports/jv-glance/ranking.md`, in its order, and the parts of the desk
-overview that answer it. `chains` is the Chains line under the matrix."""
+overview that answer it. "What is blocking what" is not among them: the Chains line is under the
+matrix, on the Homes page."""
 
 
 def planned(scene):
@@ -419,7 +421,7 @@ def test_at_a_desk_every_ranked_question_is_answered_above_the_fold_of_the_t_mom
     DAYS["t"](scene)
     planned(scene)
     seen = desk(scene, tmp_path)
-    parts = {one["name"]: one for one in seen["parts"]} | {"chains": seen["chains"]}
+    parts = {one["name"]: one for one in seen["parts"]}
     for question, answers in QUESTIONS.items():
         for name in answers:
             part = parts.get(name)

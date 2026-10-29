@@ -19,7 +19,6 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   One with no known fix is nothing.
 - No home asks another what it has out.
   `jmerge --claims` prints it.
-- A user's word about another home's work, a page that home opened, a row with its `Home:` line or a slug of its prefix, is that home's alone: forward it with the one `jbus word --from "$ME"` line of "A word this home records", which carries it there, and brief nothing of it.
 
 A scoped home gives each brief and request a slug that starts with its prefix, the one line of `$M/prefix`.
 
@@ -41,7 +40,7 @@ A stop whose own row merges or is removed closes itself, with no message.
 
 A `decision` the scope cannot make alone, one the user must make, is no stop: park it as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
 Nothing else reaches the root, and never by a `t3_thread_send` of this home's own or a line in `$H/standing.md`.
-`features/home/hooks/agent-sends.sh` refuses a home's own `t3_thread_send` to any home of this repo, or to a crew of another home's brief, and its line names the jbus verb that carries the message instead.
+`features/home/hooks/agent-sends.sh` refuses a home's own `t3_thread_send` to any home of this repo or of another repo, or to a crew of another home's brief, and its line names the jbus verb that carries the message instead.
 
 **Answering a stop** is the root home's.
 jbus's message names the scope and the row; answer it once, in the same call as the block that finds this home and the block that reads jbus:

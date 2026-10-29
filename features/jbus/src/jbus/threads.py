@@ -44,7 +44,7 @@ from jbus.live import Facts, judge
 from jbus.passes import Pass
 from jbus.roles import PREFIXES, SCOUT, role_of, slug_in
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import ENDED, STARTING, World, after_merge, unfinished, when
+from jbus.watch import ENDED, STARTING, World, after_merge, at_work, owes_pull, unfinished, when
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -57,6 +57,12 @@ CARRY_ON = (
     "from where you stopped: read `tasks/{slug}.md` and your worktree's `git status` and "
     "`git log` first, keep what is committed, and do not start over. This is carry-on {k} of "
     "{most}."
+)
+OWES_PULL = (
+    "jbus: this thread ended ({status}) with a Result that says `Status: done` and names no pull "
+    "request, while its brief asks for one, so its row is not done. Open the pull request from "
+    'what your worktree has committed, as the crew skill\'s "Do the task" says, and write a '
+    "follow-up Result that names it: read `tasks/{slug}.md` first. jbus says this once."
 )
 CARRY_ONS = 2
 STOPPED = (
@@ -222,7 +228,12 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
     tasks = set(world.merged) - set(world.open)
     for slug, text in briefs.items():
         result = mirror.last_result(text)
-        if result and not unfinished(result) and slug not in world.open:
+        if (
+            result
+            and not unfinished(result)
+            and not owes_pull(run, slug, text, result)
+            and slug not in world.open
+        ):
             tasks.add(slug)
     ended = shut(world, briefs)
     reviewed = set()
@@ -417,7 +428,9 @@ def settle(run: Pass, client: Client, world: World) -> None:
 
 
 def resume(run: Pass, client: Client, world: World) -> None:
-    """Tell each crew whose thread ended with no Result to carry on, once per ended run.
+    """Tell each crew whose thread ended with no Result to carry on, once per ended run, and each
+    crew whose turn ended on a Result that still owes its pull request (`owes_pull`) to open it,
+    once for the thread.
 
     `resume` tells only the one thread of a slug that jbus launched and that the brief names on its
     `Thread:` line, and only while the slug has no pull request. `resume` counts a thread's
@@ -436,21 +449,24 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         if slug in run.limited:
             continue
-        if status not in ENDED or not ended or thread.get("settled") or thread.get("snoozed"):
+        result = mirror.last_result(brief)
+        owes = owes_pull(run, slug, brief, result)
+        over = not at_work([thread]) if owes else status in ENDED
+        if not over or not ended or thread.get("settled") or thread.get("snoozed"):
             continue
-        if not dispatch.launched(run, slug) or mirror.last_result(brief):
+        if not dispatch.launched(run, slug) or (result and not owes):
             continue
         if thread_of(run.home, slug) != at or world.awaits(thread):
             continue
-        key = f"resume|{slug}|{at}|{ended}"
+        key = f"owes-pull|{slug}|{at}" if owes else f"resume|{slug}|{at}|{ended}"
         if key in sent:
             continue
         had = sum(one.startswith(f"resume|{slug}|{at}|") for one in sent)
-        if had >= CARRY_ONS:
+        if not owes and had >= CARRY_ONS:
             _stopped(run, client, slug, (at, ended), status, brief)
             continue
         message = resume_message(
-            CARRY_ON,
+            OWES_PULL if owes else CARRY_ON,
             str(thread.get("title", "")),
             run.home,
             status=status,
@@ -478,7 +494,9 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         if not went:
             continue
-        line = f"resume {slug}: told the crew to carry on ({status}, {had + 1} of {CARRY_ONS})"
+        told = "open the pull request its brief asks for" if owes else "carry on"
+        count = "once" if owes else f"{had + 1} of {CARRY_ONS}"
+        line = f"resume {slug}: told the crew to {told} ({status}, {count})"
         run.find(slug, "resume", line, key=f"{at} {ended}")
         run.box.mark(key)
         run.say(line)

@@ -471,9 +471,6 @@ def unforeseen(facts: Facts) -> State:
     return _state(UNKNOWN, facts, True)
 
 
-AT_WORK = (Thread.STARTING, Thread.MOVING, Thread.QUIET)
-
-
 @dataclass(frozen=True)
 class Holder:
     """A `Holder` names who holds a state, the one thing it waits for, and the lane on which
@@ -484,15 +481,15 @@ class Holder:
     lane: str
 
 
-def holder(state: State, role: str = "", home: bool = False, after: bool = False) -> Holder:
+def holder(state: State, role: str = "", home: bool = False, busy: bool = False) -> Holder:
     """Return who holds a state, which is its pattern's holder except in three cases.
 
     `role` is the role of a thread that belongs to no row. When such a thread is at work, the
     holder is that role, not a crewmate, and the state is on no lane of the line. A leftover or
     a closed pull request is the user's, with two exceptions. When `leftover.json` says that the
-    pull request's home has it (`home`), the home holds the state. When a merged pull request's
-    `Left:` line is for after the merge (`after`) and a thread is at work on it, the crewmate
-    holds the state. Either holder is on the lane of work that is running.
+    pull request's home has it (`home`), the home holds the state. When its record says a thread
+    is at work on the leftover (`busy`), the crewmate holds the state. Either holder is on the lane
+    of work that is running.
 
     A role's holder is in `roles.ROLES`.
     """
@@ -505,8 +502,7 @@ def holder(state: State, role: str = "", home: bool = False, after: bool = False
         return Holder(held, waits, "")
     if state.value not in ("leftover", "closed"):
         return Holder(state.who, state.waits, pattern.lane)
-    merged = state.facts.pull == Pull.MERGED
-    if after and merged and state.value == "leftover" and state.facts.thread in AT_WORK:
+    if busy and state.value == "leftover":
         return Holder("crew", "its crewmate", "running")
     if home:
         return Holder("home", "its home", "running")

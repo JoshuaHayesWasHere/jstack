@@ -7,7 +7,8 @@ library, so it runs before `uv sync`.
 
 A changed module selects the test files that import it, directly or through any chain of modules. So
 the script also selects a test file that imports a module that imports the changed module. The
-module may be in `src/`, a feature's `features/<name>/src/`, the tests or `testing/`. The tests are
+module may be in `src/`, a feature's `features/<name>/src/`, the tests, `testing/`, a package of
+`scripts/` or a folder a test puts on `sys.path` (`PATHS`). The tests are
 in `testing/tests/` and in each feature's own folder of tests, `features/<name>/tests/`. A test file
 may sit in a folder below one of those, as `features/jbus/tests/view/test_view_bus.py` does. The
 script counts such a file as importing the `conftest.py` of each folder it is in below that
@@ -112,6 +113,10 @@ TEST = re.compile(TESTS.pattern + r"(\w+/)*test_\w+\.py")
 FIXTURES = re.compile(TESTS.pattern + "fixtures/")
 SHARED = "testing/"
 SHARED_TESTS = "testing/tests"
+SCRIPTS = "scripts"
+PATHS = ("features/*/spec", "features/skill-library/skills/statechart/scripts")
+"""The folders a test puts on `sys.path` and imports from by name. A test that loads a file by
+its path, as the skill-cut eval's test does, puts no folder here."""
 EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
 DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
@@ -213,17 +218,29 @@ def modules():
     such as `view.scene`. Such a folder is a package, so pytest does not mistake its `conftest.py`
     for the `conftest.py` of a root. `testing/` is a package at the root, so its modules are
     `testing.<name>`. Its `tests/` is the exception: it is a folder of tests, so its modules take
-    their names from that folder. The fixtures' folders hold no module."""
+    their names from that folder. The fixtures' folders hold no module. A test may put `scripts/`
+    on `sys.path`, so each package there, as `scripts/jtrees/`, takes its name from that folder.
+    A lone script there is no module: a test loads it from its path. Each folder of `PATHS` is a
+    root too, and a file there whose name is no identifier, as `FlowToday.map.py`, is no module."""
     roots = [
         ROOT / "src",
         *sorted(ROOT.glob("features/*/src")),
         ROOT / SHARED_TESTS,
         *sorted(ROOT.glob("features/*/tests")),
+        ROOT / SCRIPTS,
+        *sorted(folder for pattern in PATHS for folder in ROOT.glob(pattern)),
         ROOT,
     ]
     found = {}
     for root in roots:
-        files = (root / SHARED).rglob("*.py") if root == ROOT else root.rglob("*.py")
+        if root == ROOT:
+            files = (root / SHARED).rglob("*.py")
+        elif root == ROOT / SCRIPTS:
+            files = (
+                one for init in root.glob("*/__init__.py") for one in init.parent.rglob("*.py")
+            )
+        else:
+            files = root.rglob("*.py")
         for path in sorted(files):
             named = path.relative_to(ROOT).as_posix()
             if root == ROOT and not plumbing(named):
@@ -231,6 +248,8 @@ def modules():
             parts = list(path.relative_to(root).with_suffix("").parts)
             if parts[-1] == "__init__":
                 parts.pop()
+            if not all(part.isidentifier() for part in parts):
+                continue
             if not FIXTURES.match(named):
                 found[".".join(parts)] = named
     return found
@@ -944,6 +963,18 @@ def summary(tests, why, changed):
     )
 
 
+def unmapped(changed):
+    """The changed `.py` files of this tree that are in no module set, so that no import of one
+    selects a test, sorted. A path every test rests on, as the root `conftest.py`, selects
+    them all."""
+    known = set(modules().values()) | set(EVERYTHING)
+    return sorted(
+        one
+        for one in changed
+        if one.endswith(".py") and one not in known and (ROOT / one).is_file()
+    )
+
+
 def main(argv):
     listed = None
     if argv[:1] == ["--within"] and len(argv) == 4:
@@ -977,7 +1008,12 @@ def main(argv):
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
-            file.write(summary(tests, why, changed) + "\n\n")
+            file.write(summary(tests, why, changed) + "\n")
+            for one in unmapped(changed):
+                file.write(
+                    f"warning: {one} is in no module set, so no import of it selects a test\n"
+                )
+            file.write("\n")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as file:
             file.write(f"selection={'all' if tests == ['all'] else 'some'}\n")

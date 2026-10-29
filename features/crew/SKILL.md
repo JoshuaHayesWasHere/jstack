@@ -94,6 +94,7 @@ Before you start the task, and the first time a step names this section: read `$
 ## End
 
 1. Read `$T/result.md` now. Append it, filled in, to `$H/tasks/<slug>.md`.
+   Where the brief asks for a pull request, the Result is written only once it is open, and its `Pull request:` line names it: jbus keeps a row not yet done running when its Result says `Status: done` and names none while its branch has a commit of its own, on neither main nor the commit the branch was made from, and tells its thread once.
 2. See whether the home is told.
    Run this in one call with the block at the top.
    It is the only check:

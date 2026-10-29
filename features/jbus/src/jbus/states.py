@@ -15,7 +15,6 @@ from jbus import (
     dispatch,
     leftover,
     merge,
-    mirror,
     queue,
     stall,
     threads,
@@ -102,11 +101,11 @@ def keep_work(half: Half) -> None:
         state = states.of(row, dispatch.launched(run, slug, queue.role(row)))
         record = held.get(slug)
         home = bool(record and not record.busy and not leftover.his(record, run.now))
-        after = watch.after_merge(mirror.last_result(watch.brief_of(run, slug)))
+        busy = bool(record and record.busy)
         role = "scout" if queue.role(row) == queue.SCOUT else ""
         line = work.entry(
             state,
-            work.holder(state, role=role, home=home, after=after),
+            work.holder(state, role=role, home=home, busy=busy),
             key=slug,
             kind="row",
             slug=slug,

@@ -1,6 +1,6 @@
-"""Check the home tree's rules with TLC: each rule holds in the design in every scene, each canary
-(the design with one guard taken out) breaks the rule that rests on that guard, and each rule holds
-in today's code in every scene. Run it from the repo root:
+"""Check the home tree's rules with TLC: each rule holds in today's code in every scene, and each
+canary (today's code with one guard taken out) breaks the rule that rests on that guard. Run it
+from the repo root:
 
     python3 features/home/spec/canaries.py
 
@@ -42,7 +42,7 @@ INVARIANTS = [
 PROPERTIES = ["CallsReachJosh", "AsksAfterTwo", "ReadyMerges"]
 RULES = INVARIANTS + PROPERTIES
 
-# Each guard of the design, the rule that rests on it, and the scene that shows it.
+# Each guard, the rule that rests on it, and the scene that shows it.
 CANARIES = {
     "retire-guard": ("NoRetireWithOpen", "a"),
     "keep-on-fail": ("CallsReachJosh", "a"),
@@ -73,7 +73,7 @@ TODAY_MODES = '{"jbus", "home"}'
 SCENE_ALONE = ["    Kids <- Made", "    Calls <- Raised", "    Notices <- SceneNotices"]
 
 
-def config(scene, rules, modes, drop=None):
+def config(scene, rules, modes, drop="none"):
     made, raised, may_fail = SCENES[scene]
     alone = any(rule in PROPERTIES for rule in rules)
     lines = [
@@ -84,7 +84,7 @@ def config(scene, rules, modes, drop=None):
         f"    Made = {made}",
         f"    Raised = {raised}",
         f"    MayFail = {may_fail}",
-        *([f'    Drop = "{drop}"'] if drop is not None else []),
+        f'    Drop = "{drop}"',
         *(SCENE_ALONE if alone else []),
         "SPECIFICATION Spec",
         "INVARIANT TypeOK",
@@ -174,13 +174,9 @@ def runs():
     # TLC walks a scene's whole state graph again for each property, so a run of every rule takes
     # as long as its runs one property at a time: one run for the invariants and one for each
     # property is the same check in pieces a test can take one by one.
-    for scene in SCENES:
-        for name, rules in [("every invariant", INVARIANTS), *((p, [p]) for p in PROPERTIES)]:
-            cfg = config(scene, rules, '{"jbus"}', "none")
-            yield f"design, scene {scene}: {name}", "HomeTreeDesign", cfg, None, "holds"
     for guard, (rule, scene) in CANARIES.items():
         cfg = config(scene, [rule], '{"jbus"}', guard)
-        yield f"canary {guard}, scene {scene}: {rule}", "HomeTreeDesign", cfg, rule, "breaks"
+        yield f"canary {guard}, scene {scene}: {rule}", "HomeTreeToday", cfg, rule, "breaks"
     for scene in SCENES:
         for name, rules in [("every invariant", INVARIANTS), *((p, [p]) for p in PROPERTIES)]:
             cfg = config(scene, rules, TODAY_MODES)

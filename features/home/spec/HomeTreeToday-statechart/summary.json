@@ -1,14 +1,5 @@
 {
   "view": "customer",
-  "second": {
-    "role": "against",
-    "label": "the design",
-    "lacks": [],
-    "listed": {
-      "spec": "HomeTreeDesign.tla",
-      "breaks": {}
-    }
-  },
   "modelStates": 1334,
   "modelTransitions": 5972,
   "chartStates": 55,
@@ -45,8 +36,5 @@
     }
   },
   "classes": [],
-  "codeLike": [],
-  "uncited": {
-    "HomeTreeToday.tla": []
-  }
+  "codeLike": []
 }

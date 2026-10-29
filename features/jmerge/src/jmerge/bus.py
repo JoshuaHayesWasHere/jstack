@@ -34,11 +34,13 @@ class Migrations:
 
 @dataclass(frozen=True)
 class Place:
-    """The project of a checkout as jbus's config has it."""
+    """The project of a checkout as jbus's config has it. `bases` names each branch besides the
+    default one that `jmerge` merges into, on the default branch's rules."""
 
     state: Path
     migrations: Migrations | None
     generated: tuple[str, ...]
+    bases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

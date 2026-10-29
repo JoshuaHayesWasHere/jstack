@@ -8,7 +8,7 @@ has two child homes, and one of them has a row that stalled (`browser.child_home
 the same with sixteen projects. A third scene, `calm`, has nothing wrong in it.
 
 The first screen, `#/`, is the board, and its budget is in `test_view_page_pipeline.py`: its
-headlines and its strip of the stages are `WORDS` words at most, and its cards are counted apart.
+headlines are `WORDS` words at most, and its cards are counted apart.
 
 The homes map, at `#/homes`, has budgets of its own, read by its probe (`browser.mapped`): the
 busy map fits a phone whole, a quiet project or child home adds one line at most, sixteen

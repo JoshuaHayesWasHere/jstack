@@ -1,4 +1,4 @@
-# Chart labels for HomeTreeToday and HomeTreeDesign: what Josh sees of the root and its children.
+# Chart labels for HomeTreeToday: what Josh sees of the root and its children.
 reader_actions = ["Answer", "Retire", "Steps"]
 
 LIFE = {"working": "working", "stuck": "stuck", "retired": "retired"}
@@ -33,7 +33,7 @@ def children(v):
     )
 
 
-# K and Rhythm of the chart's scene, in HomeTreeToday.cfg and HomeTreeDesign.cfg.
+# K and Rhythm of the chart's scene, in HomeTreeToday.cfg.
 PATIENCE = 1
 
 
@@ -124,8 +124,8 @@ def step(action, before, after):
         "Retire": f"you retire child {k}",
         "Steps": f"you get child {k} going again",
         "Deliver": "a call reaches you",
-        # Lost is a step of the design only with its keep-on-fail guard out (canaries.py's
-        # canary for CallsReachJosh): the chart of today's code never draws it, a chart of that
+        # Lost is a step only with its keep-on-fail guard out (canaries.py's
+        # canary for CallsReachJosh): the chart never draws it, a chart of that
         # canary does.
         "Lost": "a failed post takes a call out of the outbox",
         "RouteFails": "the home thread fails",

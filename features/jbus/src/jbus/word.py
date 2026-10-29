@@ -285,6 +285,10 @@ def keep(
     the home that `owner` names. When it was said in that home's thread, or recorded by that
     thread, `keep` records the word as sent to that thread and posts it to nobody (`skipped`).
 
+    A word from the bot's chat (`bot-chat`) has no time of its own, only the time jbus kept it,
+    and its address names the message, so its id hashes no time: the bot sending the same message
+    again later is the same word.
+
     With `scope`, the word is for that scoped home and no other, and its id hashes the scope too.
     A home that already holds the same word, kept by any path, gets no second act: `keep`
     returns the one it holds.
@@ -295,6 +299,8 @@ def keep(
     words, at, ref = said(heard.words), heard.said_at, heard.ref
     extra = [*([ref] if ref else []), *([f"scope:{scope}"] if scope is not None else [])]
     named = json.dumps([run.project.name, words, run.user.user, at, *extra])
+    if heard.source == queue.BOT_CHAT:
+        named = json.dumps([run.project.name, words, run.user.user, *extra])
     name = hashlib.sha256(named.encode()).hexdigest()[:12]
     heard = replace(heard, words=words)
     with locked(run.state, acts.LOCK):
@@ -448,11 +454,51 @@ TYPED = (
 )
 
 
+EVIDENCE = (
+    "refused: --evidence is bot-chat:<address>/<device> or t3-message:<thread>/<message>, "
+    "not {given}"
+)
+BOTH = "refused: a word is one message: --message or --evidence, not both"
+CHAT_WORDS = "refused: --evidence bot-chat takes the user's words with --words"
+SCOPE_CHECKED = "refused: --scope takes only the user's own message, --message <thread>/<message>"
+WORDS_ALONE = "refused: --words goes with --evidence bot-chat:<address>/<device>"
+
+
 def _evidence(heard: queue.Said) -> party.Evidence:
     """The user's message that jbus read, as the evidence of the word's act."""
     return party.Evidence(
         "t3-message", heard.ref, heard.words, heard.said_at, heard.said_in, heard.checked
     )
+
+
+def _heard(args: argparse.Namespace, config: Config, now: datetime) -> party.Evidence:
+    """The words a word rests on: the user's message in T3 Code, which jbus reads, named with
+    `--message` or `--evidence t3-message:<thread>/<message>`; or the user's words in the bot's
+    chat, `--evidence bot-chat:<address>/<device>` with `--words`, as the bot's route takes them
+    (`party.chat`). jbus cannot read the bot's chat, so those words are not checked."""
+    given, words = getattr(args, "evidence", None), args.words
+    if given and args.message is not None:
+        raise Refused(BOTH)
+    if given and given.startswith("t3-message:"):
+        args.message = given.removeprefix("t3-message:")
+    elif given:
+        try:
+            chat = party.chat(given)
+        except ValueError:
+            raise Refused(EVIDENCE.format(given=given)) from None
+        if words is None:
+            raise Refused(CHAT_WORDS)
+        return replace(
+            chat,
+            words=said(words),
+            said_at=config.user.stamp(now),
+            said_in=f"bot-chat {chat.ref}",
+        )
+    if words is not None:
+        raise Refused(WORDS_ALONE)
+    if args.message is None:
+        raise Refused(TYPED)
+    return _evidence(heard_in(config, args.message))
 
 
 def _word(args: argparse.Namespace, config: Config) -> int:
@@ -479,15 +525,13 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     exits 1.
     """
     projects = config.projects if args.all else (config.addressee(args.to),)
-    if args.message is None:
-        raise Refused(TYPED)
-    heard = _evidence(heard_in(config, args.message))
+    now = datetime.now(UTC)
+    heard = _heard(args, config, now)
     who = acts.cli_party(args, heard)
     try:
         client = Client(config.server, config.token_path)
     except Refused:
         client = None
-    now = datetime.now(UTC)
     if args.recorder is not None:
         homes = [
             thread_of(where)
@@ -527,6 +571,8 @@ def _scoped(
     already."""
     if args.all:
         raise Refused("refused: --scope names the scoped homes of the project --to names")
+    if not heard.checked:
+        raise Refused(SCOPE_CHECKED)
     (project,) = projects
     run = Pass(config, project, now, lambda _: None)
     known = [scope.name for scope, _, _ in scopes(run.home)]
@@ -564,6 +610,18 @@ def _down(down: argparse.ArgumentParser) -> None:
         "--message",
         metavar="THREAD/MESSAGE",
         help="the user's own message in T3 Code, which jbus reads for the words and the time",
+    )
+    down.add_argument(
+        "--evidence",
+        default=argparse.SUPPRESS,
+        metavar="SOURCE:REF",
+        help="the words the word rests on, in place of --message: t3-message:<thread>/<message>, "
+        "or bot-chat:<address>/<device>, the user's words in the bot's chat, given with --words",
+    )
+    down.add_argument(
+        "--words",
+        metavar="WORDS",
+        help="the user's words in the bot's chat, with --evidence bot-chat:<address>/<device>",
     )
     down.add_argument(
         "--from",

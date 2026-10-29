@@ -494,6 +494,28 @@ def test_a_runs_temporary_directory_goes_when_it_lets_its_slot_go(slots, stand_i
     assert list(stand_in.iterdir()) == []
 
 
+def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_under_tmp(
+    slots, tmp_path
+):
+    """A path with a hidden directory in it, such as `~/.local`, makes asar unpack no native
+    binaries, so a slot's `TMPDIR` is under `/tmp` (`TMPFS`) and has none. A second HOME on the
+    same `/tmp`, as a sandbox has, takes slots of its own and so a directory of its own."""
+    says = f'echo "$TMPDIR" > "$D/tmpdir.$1"; {RUNS_UNTIL_RELEASED}'
+    other = {"HOME": str(tmp_path / "other")}
+    full, short = ["--slots", "2"], ["--short"]
+    runs = (("a", full, {}), ("b", full, {}), ("c", short, {}), ("d", full, other))
+    for name, lane, more in runs:
+        slots(*lane, command=["sh", "-c", says, "sh", name], **more)
+        assert slots.waits(lambda name=name: name in slots.started())
+    own = {Path((slots.state / f"tmpdir.{n}").read_text().strip()) for n in "abcd"}
+    assert len(own) == 4
+    for path in own:
+        assert path.is_dir() and path.is_relative_to(slots.tmpfs)
+        assert not any(part.startswith(".") for part in path.relative_to(slots.tmpfs).parts)
+    for name in "abcd":
+        slots.release(name)
+
+
 def test_twenty_pytest_runs_at_once_under_slots_leave_nothing_in_pytests_default(
     slots, tmp_path, stand_in
 ):

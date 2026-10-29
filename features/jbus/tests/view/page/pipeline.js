@@ -15,7 +15,6 @@ window.addEventListener("load", function () { setTimeout(function () {
       hash: location.hash, shown: seen(board), map: seen(document.getElementById("stack")),
       layout: board.querySelector(".pl-col") ? "columns" : board.querySelector("details.pl-det") ? "details" : "",
       heads: heads.map(function (h) { var b = h.getBoundingClientRect(); return { key: h.getAttribute("data-head"), text: text(h), value: text(h.querySelector(".pl-v")), top: Math.round(b.top), left: Math.round(b.left) }; }),
-      strip: all("[data-role=strip] [data-stage]", board).filter(seen).map(function (s) { return { key: s.getAttribute("data-stage"), text: text(s), hot: s.classList.contains("hot") }; }),
       chips: all("[data-role=chips] button", board).map(function (b) { return { text: text(b), pressed: b.getAttribute("aria-pressed") }; }),
       stages: cols.map(function (c) { return { key: c.getAttribute("data-stage"), hot: c.classList.contains("hot"), open: c.tagName === "DETAILS" ? c.open : null, head: text(c.querySelector("h3, summary")), cards: all(".pl-c", c).map(card) }; }),
       marked: marks.map(function (c) { return c.getAttribute("data-bpick"); }).sort(),
@@ -23,7 +22,7 @@ window.addEventListener("load", function () { setTimeout(function () {
       dimmed: all(".pl-c.dim", board).length,
       links: all("svg.pl-links path", board).length,
       unplaced: text(board.querySelector(".pl-unpl")),
-      words: { heads: words(board.querySelector("[data-role=heads]")), strip: words(board.querySelector("[data-role=strip]")) },
+      words: { heads: words(board.querySelector("[data-role=heads]")) },
       wide: { width: window.innerWidth, page: document.documentElement.scrollWidth, board: board.scrollWidth, inside: board.clientWidth },
       homes: (function (t) { return t ? { hidden: t.hidden, current: t.getAttribute("aria-current") || "" } : null; })(document.getElementById("homes")),
       header: Math.round(document.querySelector("header").getBoundingClientRect().height)

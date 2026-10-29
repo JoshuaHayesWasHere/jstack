@@ -52,3 +52,23 @@ It refuses, and writes nothing, in these cases:
 
 The command takes `--checkout` or `--scratch`, one of the two.
 With both or neither, it prints its usage, exits 2, and writes nothing.
+
+## Merge bases
+
+`jbus project bases <name> --add <branch>` names one more branch that `jmerge` merges the project's pull requests into, beside the default branch.
+jstack names `t3code-jstack`, the branch the sidebar's pull requests go on.
+A pull request into a merge base merges on the rules of one into the default branch ([jmerge](../../../jmerge/docs/jmerge.md)).
+The command writes the project's `merge_bases` key, in that project's table alone, and you do not edit it by hand.
+It copies the config to `config.toml.<time>.bak` first, and both files are mode 600.
+It prints `added: one merge base to the project's table, the file as it was is <backup>: the next pass works it, restart no unit`.
+
+`jbus project bases <name>` prints each merge base the project names, one a line, and nothing where it names none.
+
+It refuses, and writes nothing, in these cases:
+
+| Line | Why |
+|---|---|
+| `refused: the project already names that merge base` | A second run changes nothing. |
+| `refused: the config has no project of that name` | No `[[project]]` table has that name. |
+| `refused: a merge base is a branch name, with no space and no ..` | The branch is not a name git takes for a branch. |
+| `refused: the project's table could not be written with that one key changed` | The table has a shape the command does not write over, such as a line like the key's inside a string. |

@@ -20,7 +20,12 @@ PULL = "https://example.test/pull/9"
 
 
 def result(left="none", status="done"):
-    return f"\n## Result\nStatus: {status}\nBranch: alpha   Pull request: none\nLeft: {left}\n"
+    """Return a Result that ends its row with no pull request. Its brief asks for one, so only a
+    follow-up does: here the home's close (`watch.owes_pull`)."""
+    return (
+        f"\n## Result, follow-up (2026-10-17, nothing more wanted)\nStatus: {status}\n"
+        f"Branch: alpha   Pull request: none\nLeft: {left}\n"
+    )
 
 
 @pytest.fixture

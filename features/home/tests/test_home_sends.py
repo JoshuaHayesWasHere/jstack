@@ -1,11 +1,13 @@
 """The hook that refuses a home's or a reviewer's own `t3_thread_send` to a thread of its repo's
-homes and crews, and names the jbus verb that carries what it meant to send.
+homes and crews, and a home's to another repo's home, and names the jbus verb that carries what it
+meant to send.
 
 Each test feeds `features/home/hooks/agent-sends.sh` what Claude Code gives a `PreToolUse` hook,
 in a home of the test's own: `HOME` is a temporary folder with T3 Code's store in it, which maps
 each Claude session to its thread, the homes' state of a repo named `jstack`, and a checkout of
 it. The homes are as they stood on 2026-10-27, so the two sends of that day the census counted
-are replayed between the homes they were made between. No test touches the machine's own files.
+are replayed between the homes they were made between, as are the sends of 2026-10-29 from
+the infra home to the jstack home. No test touches the machine's own files.
 """
 
 import json
@@ -200,7 +202,6 @@ def test_a_reviewer_in_its_crews_worktree_is_refused_as_from_the_checkout(home):
         (FLOW, FLOW_CREW),
         (ROOT, SCOUT),
         (FLOW, SCOUT),
-        (ROOT, INFRA),
         (ROOT, STRANGER),
         (ROOT_CREW, ROOT),
         (FLOW_CREW, FLOW),
@@ -213,8 +214,24 @@ def test_a_steer_to_its_own_crew_and_any_send_of_no_home_or_reviewer_passes(home
     assert send(home, sender, to) == (0, "")
 
 
-def test_another_repos_home_sending_to_a_jstack_home_passes(home):
-    assert send(home, INFRA, ROOT, cwd=home / "repos" / "infra") == (0, "")
+@pytest.mark.parametrize(
+    ("sender", "to", "repo", "other"),
+    [
+        (INFRA, ROOT, "infra", "jstack"),
+        (INFRA, ROOT_WAS, "infra", "jstack"),
+        (INFRA, FLOW, "infra", "jstack"),
+        (ROOT, INFRA, "jstack", "infra"),
+        (FLOW, INFRA, "jstack", "infra"),
+    ],
+)
+def test_a_homes_send_to_another_repos_home_is_refused(home, sender, to, repo, other):
+    said = refused(home, sender, to, cwd=home / "repos" / repo)
+    assert f"the {other} home, another repo's" in said, said
+    assert "send nothing" in said, said
+
+
+def test_a_thread_of_another_repo_that_is_no_home_sending_to_a_jstack_home_passes(home):
+    assert send(home, STRANGER, ROOT, cwd=home / "repos" / "infra") == (0, "")
 
 
 def test_a_session_t3_does_not_know_passes(home):

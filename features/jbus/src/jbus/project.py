@@ -20,6 +20,13 @@ even a value the caller gave, so a line of this command is safe in any log.
 checks its name as it checks a repo's, against every project and every scratch home of the
 config.
 
+`jbus project bases <name> --add <branch>` names one more branch that `jmerge` merges the
+project's pull requests into, beside the default branch: it writes the project's `merge_bases`
+(`jbus.Project`) in that project's table alone, with the same copy and mode as `add`, and refuses a
+write that would change any other key or table. `jbus project bases <name>` prints each branch the
+table names, one a line, and nothing where it names none: the one way to read the key without
+opening the file.
+
 Each pass is a new `jbus poll` that loads the config, so the pass after `add` covers the new
 project, and nobody restarts a unit.
 
@@ -34,6 +41,7 @@ and `missing` never names it. A folder that is a link to a project's home counts
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -53,6 +61,16 @@ ADDED = (
     "added: one [[project]] table, the file as it was is {backup}: "
     "the next pass works it, restart no unit"
 )
+BASE_ADDED = (
+    "added: one merge base to the project's table, the file as it was is {backup}: "
+    "the next pass works it, restart no unit"
+)
+BASE_HAS = "refused: the project already names that merge base"
+NO_PROJECT = "refused: the config has no project of that name"
+BASES = "merge_bases"
+_HEADER = re.compile(r"\[")
+_PROJECT = re.compile(r"\[\[\s*project\s*\]\]\s*(#.*)?$")
+_BASES = re.compile(rf"{BASES}\s*=")
 
 
 def _same(one: Path, other: Path) -> bool:
@@ -120,6 +138,69 @@ def add(config_path: Path, name: str, checkout: str | None, project_id: str) -> 
     return ADDED.format(backup=backup)
 
 
+def _project(config: jbus.Config, name: str) -> jbus.Project:
+    found = next((one for one in config.projects if one.name == name), None)
+    if found is None:
+        raise jbus.Refused(NO_PROJECT)
+    return found
+
+
+def _with_bases(text: str, index: int, bases: tuple[str, ...]) -> str:
+    """Return `text` with the `merge_bases` line of its `index`-th `[[project]]` table, put in
+    place of the one it has, or after the table's last line that is not blank or a comment."""
+    lines = text.splitlines(keepends=True)
+    heads = [at for at, line in enumerate(lines) if _HEADER.match(line)]
+    tables = [at for at in heads if _PROJECT.match(lines[at].rstrip("\n"))]
+    start = tables[index]
+    end = next((at for at in heads if at > start), len(lines))
+    line = f"{BASES} = {json.dumps(list(bases))}\n"
+    for at in range(start + 1, end):
+        if _BASES.match(lines[at]):
+            return "".join([*lines[:at], line, *lines[at + 1 :]])
+    last = max(
+        (at for at in range(start, end) if lines[at].strip() and not lines[at].startswith("#")),
+    )
+    if not lines[last].endswith("\n"):
+        lines[last] += "\n"
+    return "".join([*lines[: last + 1], line, *lines[last + 1 :]])
+
+
+def add_base(config_path: Path, name: str, branch: str) -> str:
+    """Name `branch` as one more merge base of the project `name`, in that project's table of
+    the config at `config_path`. Return the answer, which is one line."""
+    if config_path.name != "config.toml":
+        raise jbus.Refused(f"refused: {config_path} is not a config.toml")
+    one = _project(jbus.load(config_path.parent), name)
+    if not jbus.branch(branch):
+        raise jbus.Refused("refused: a merge base is a branch name, with no space and no ..")
+    if branch in one.merge_bases:
+        raise jbus.Refused(BASE_HAS)
+    was = config_path.read_text()
+    before = tomllib.loads(was)
+    index = next(at for at, table in enumerate(before["project"]) if table["name"] == name)
+    bases = (*one.merge_bases, branch)
+    want = copy.deepcopy(before)
+    want["project"][index][BASES] = list(bases)
+    try:
+        now = _with_bases(was, index, bases)
+        written = tomllib.loads(now)
+    except (IndexError, ValueError, tomllib.TOMLDecodeError):
+        written = None
+    if written != want:
+        raise jbus.Refused(
+            "refused: the project's table could not be written with that one key changed"
+        )
+    backup = config_path.with_name(f"{config_path.name}.{datetime.now():%Y%m%d-%H%M%S-%f}.bak")
+    _private(backup, was)
+    _private(config_path, now)
+    return BASE_ADDED.format(backup=backup)
+
+
+def bases(config: jbus.Config, name: str) -> tuple[str, ...]:
+    """The merge bases the project `name` names, besides the default branch."""
+    return _project(config, name).merge_bases
+
+
 def missing(config: jbus.Config) -> list[str]:
     """Return the folders under the homes' state root that have a `home-id` and no project,
     by name."""
@@ -143,7 +224,14 @@ def missing(config: jbus.Config) -> list[str]:
 
 
 def _add(args: argparse.Namespace, _: jbus.Config) -> int:
-    print(add(jbus.config_dir() / "config.toml", args.name, args.checkout, args.project_id))
+    path = jbus.config_dir() / "config.toml"
+    if args.verb == "bases" and args.add is not None:
+        print(add_base(path, args.name, args.add))
+    elif args.verb == "bases":
+        for one in bases(jbus.load(path.parent), args.name):
+            print(one)
+    else:
+        print(add(path, args.name, args.checkout, args.project_id))
     return 0
 
 
@@ -164,6 +252,14 @@ def _listed(listed: argparse.ArgumentParser) -> None:
         help="a scratch home with no repo, in place of --checkout",
     )
     added.add_argument("--project-id", required=True, help="the T3 Code project's id")
+    based = listed_verbs.add_parser(
+        "bases",
+        help="print each branch besides the default one that jmerge merges the project into, "
+        "or name one more with --add",
+        allow_abbrev=False,
+    )
+    based.add_argument("name", help="the project's name in the config")
+    based.add_argument("--add", metavar="BRANCH", help="name one more branch, beside the others")
 
 
 VERBS = (verbs.Verb("project", "the projects of the config", _listed, _add, config=False),)

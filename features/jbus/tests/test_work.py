@@ -14,6 +14,7 @@ from jbus import queue, work
 from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_queue import add, rows
+from test_jbus_row_ends import branched
 
 PULL = "https://example.test/pull/9"
 AT = "2026-10-12 10:00 ET"
@@ -201,6 +202,21 @@ def test_a_row_removed_leaves_its_thread_removed(kitchen):
     assert "alpha" not in rows(kitchen)
 
 
+@pytest.mark.parametrize(("asked", "written"), [("open one when done", "none"), ("none", None)])
+def test_a_crew_thread_with_no_row_has_written_nothing_while_its_result_owes_its_pull_request(
+    kitchen, asked, written
+):
+    """A crew thread out with no row is judged while it owes its pull request, and drops out of
+    the list once its Result ends the task."""
+    branched(kitchen, "alpha")
+    kitchen.brief("alpha", f"Pull request: {asked}\n" + result())
+    thread = kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    kept = json.loads((kitchen.state / work.NAME).read_text())["work"]
+    lines = [one["facts"]["written"] for one in kept if one["key"] == thread["threadId"]]
+    assert lines == ([written] if written else [])
+
+
 def test_a_hung_turn(kitchen):
     add(kitchen, "alpha")
     kitchen.t3.thread("alpha", "running", idle=timedelta(minutes=25))
@@ -283,8 +299,8 @@ def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_threa
     for facts in work.every():
         state = work.judge(facts)
         for home in (False, True):
-            for after in (False, True):
-                held = work.holder(state, home=home, after=after)
+            for busy in (False, True):
+                held = work.holder(state, home=home, busy=busy)
                 assert held.who in holders
                 if state.value not in ("leftover", "closed"):
                     assert held == work.Holder(state.who, state.waits, state.pattern.lane)

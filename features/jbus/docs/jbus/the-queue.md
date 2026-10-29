@@ -295,12 +295,16 @@ A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is r
 
 #### The bot's route
 
-The bot gives a go or an answer with `POST /act?project=<name>` on `jbus view`, with a JSON body, and an address with no known project gets 404:
+The bot gives a go, an answer or a word with `POST /act?project=<name>` on `jbus view`, with a JSON body, and an address with no known project gets 404:
 
 ```
 {"action": "go", "slug": "alpha", "sha12": "52e43397dc8c", "evidence": "bot-chat:<address>/<device>", "seen": "<event id>"}
 {"action": "answer", "number": 3, "words": "tea", "keeps": true, "evidence": "bot-chat:<address>/<device>"}
+{"action": "word", "words": "read vision.md", "evidence": "bot-chat:<address>/<device>"}
 ```
+
+The evidence of each is `bot-chat:<address>/<device>` with both parts named, and any other, `voice:` included, answers 400.
+A word is kept for the project's home and sent to its thread at once, as `jbus word` sends one ([Your word to a home](your-word-to-a-home.md)), and answers 200 with the act and `say`, the line `jbus word` prints for it.
 
 `seen` may be left out, and so may `keeps`, which is false then.
 The route takes the bot's key, `Authorization: Bearer <key>`, and refuses any request without the right one with 401, from loopback or any other peer, whatever its `X-Forwarded-For` says.

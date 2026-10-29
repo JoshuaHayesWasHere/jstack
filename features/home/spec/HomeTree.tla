@@ -7,9 +7,8 @@
 \* home thread, until a post to it goes through. The home thread can fail and mend. Time is
 \* counted in the root's checks, one per jbus pass.
 \*
-\* This module holds what both models share: the variables, the start, and the rules.
-\* HomeTreeToday.tla models today's code and HomeTreeDesign.tla the design; each extends this
-\* module with its own steps. README.md says how to check them.
+\* This module holds the variables, the start, and the rules. HomeTreeToday.tla extends it with
+\* the steps of today's code, which has each guard of the design. README.md says how to check it.
 EXTENDS Naturals
 
 \* A child with work out is flagged within K checks of observable quiet; a routine is flagged
