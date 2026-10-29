@@ -1,24 +1,22 @@
-From fc20f15e32fc616cb119d364ac02738f8f917f0e Mon Sep 17 00:00:00 2001
+From 355ea631df19ca00ccfdd882d511034a1adfb51b Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:30:56 -0400
 Subject: [PATCH] fix(web): a jstack "asks you" row opens what it asks
 
 A task with no thread that waits on the user opened its home, which is
 often the thread already open, so the click did nothing. It now unfolds
-the ask with the gate's default and the task's brief.
-
-A launched row whose thread T3 does not list yet is lost to jbus for a
-pass; the tree no longer says it asks you. A held row shows in review.
+the ask with the gate's default and the task's brief. A held row shows
+in review, where it was dropped from the tree.
 ---
  apps/server/src/jstack/JbusWork.ts            |   8 +-
- apps/server/src/jstack/jbusWork.logic.test.ts |  60 +++++++
- apps/server/src/jstack/jbusWork.logic.ts      |  28 +++-
+ apps/server/src/jstack/jbusWork.logic.test.ts |  62 +++++++
+ apps/server/src/jstack/jbusWork.logic.ts      |  12 ++
  .../sidebar/JstackTreeRows.browser.test.tsx   | 153 +++++++++++++++++-
  .../src/components/sidebar/JstackTreeRows.tsx |   6 +
  .../sidebar/jstackTree.logic.test.ts          |  19 ++-
  .../components/sidebar/jstackTree.logic.ts    |  11 +-
  packages/contracts/src/jbusWork.ts            |   6 +-
- 8 files changed, 284 insertions(+), 7 deletions(-)
+ 8 files changed, 271 insertions(+), 6 deletions(-)
 
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
 index 49d279aea1..f3c1ebb1f2 100644
@@ -57,7 +55,7 @@ index 49d279aea1..f3c1ebb1f2 100644
        nowMs,
      );
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index e8e189670d..a51897f2f3 100644
+index e8e189670d..b9c4ac8d0d 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
 @@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
@@ -76,11 +74,11 @@ index e8e189670d..a51897f2f3 100644
    ...overrides,
  });
  
-@@ -74,6 +76,63 @@ describe("buildRepoWork", () => {
+@@ -74,6 +76,65 @@ describe("buildRepoWork", () => {
      expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
    });
  
-+  it("waits on the user only for what jbus holds for them, not for a thread that is not live yet", () => {
++  it("waits on the user for what jbus holds for them, and not for a thread that is still starting", () => {
 +    const lost = (slug: string, thread: string) =>
 +      row(slug, "lost", "running", {
 +        who: "user",
@@ -92,9 +90,11 @@ index e8e189670d..a51897f2f3 100644
 +        row("asking", "asking", "gate", { who: "user", waits: "your answer" }),
 +        row("unapproved", "unapproved", "queued", { thread: "", who: "user" }),
 +        row("held", "hold", "hold", { who: "user", waits: "your word" }),
++        // jbus reads a launched thread T3 does not list yet as starting, held by the crew.
 +        row("launching", "launching", "running", { facts: { thread: "starting" } }),
-+        lost("not-up", "none"),
-+        lost("not-listed", "missing"),
++        // Gone with nothing written: jbus holds these for the user.
++        lost("gone", "none"),
++        lost("unknown", "missing"),
 +        lost("ended", "completed"),
 +      ],
 +    };
@@ -104,8 +104,8 @@ index e8e189670d..a51897f2f3 100644
 +      ["unapproved", true],
 +      ["held", true],
 +      ["launching", false],
-+      ["not-up", false],
-+      ["not-listed", false],
++      ["gone", true],
++      ["unknown", true],
 +      ["ended", true],
 +    ]);
 +  });
@@ -140,7 +140,7 @@ index e8e189670d..a51897f2f3 100644
    it("nests each task under the home its brief names", () => {
      const work = {
        work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
-@@ -140,6 +199,7 @@ describe("buildRepoWork", () => {
+@@ -140,6 +201,7 @@ describe("buildRepoWork", () => {
          threadId: "mcp:x",
          slug: "x",
          question: "keep it?",
@@ -149,7 +149,7 @@ index e8e189670d..a51897f2f3 100644
        },
      ]);
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
-index 3a93cb3923..f3a67eb7b6 100644
+index 3a93cb3923..8c6668fc4d 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.ts
 @@ -26,6 +26,8 @@ export interface JbusRepoFiles {
@@ -169,7 +169,7 @@ index 3a93cb3923..f3a67eb7b6 100644
        return { stage: "review" };
      default:
        return null;
-@@ -83,6 +86,26 @@ export const homeWord = (line: string): string => {
+@@ -83,6 +86,12 @@ export const homeWord = (line: string): string => {
    return first.replace(/[.,;:)]+$/, "");
  };
  
@@ -179,35 +179,18 @@ index 3a93cb3923..f3a67eb7b6 100644
 +  return match ? (match[1] ?? "").trim() || null : null;
 +};
 +
-+/** jbus's facet of a row's thread, such as `none` before T3 lists it. */
-+const threadFacet = (row: Record<string, unknown>): string | null =>
-+  isRecord(row.facts) ? text(row.facts.thread) : null;
-+
-+/**
-+ * jbus waits on the user for this row. A launched row whose thread T3 does not list yet is
-+ * `lost` to jbus for a pass, which is no question for the user: the thread is not live yet.
-+ */
-+const waitsOnUser = (row: Record<string, unknown>): boolean => {
-+  if (row.who !== "user") return false;
-+  const facet = threadFacet(row);
-+  return !(row.value === "lost" && (facet === "none" || facet === "missing"));
-+};
-+
  export const readHomeLine = (brief: string): string | null => {
    const match = /^Home:\s*(.*)$/m.exec(brief);
    return match ? (match[1] ?? "").trim() : null;
-@@ -141,8 +164,9 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
-       threadId: threadIdOf(row.thread),
-       homeThreadId: homeOfSlug(slug),
+@@ -143,6 +152,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
        pullRequest: text(row.pr),
--      waitsOnUser: row.who === "user",
-+      waitsOnUser: waitsOnUser(row),
+       waitsOnUser: row.who === "user",
        waits: text(row.waits) ?? "",
 +      brief: files.briefTitles.get(slug) ?? null,
      });
    }
    for (const scout of records(files.scouts)) {
-@@ -161,6 +185,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+@@ -161,6 +171,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
        pullRequest: null,
        waitsOnUser: false,
        waits: "",
@@ -215,7 +198,7 @@ index 3a93cb3923..f3a67eb7b6 100644
      });
    }
  
-@@ -175,6 +200,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+@@ -175,6 +186,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
        threadId: threadIdOf(question.thread),
        slug: text(question.slug),
        question: text(question.question) ?? "",
