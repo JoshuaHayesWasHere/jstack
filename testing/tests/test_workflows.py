@@ -122,13 +122,15 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_and_by_hand():
-    """A pull request into any other branch, such as a parent row's branch, starts no run: its
-    work is checked once it reaches main's gate. Of a pull request into main, a push, a reopen
-    and the mark that it is ready start one."""
+def test_the_check_runs_on_a_pull_request_into_a_merge_base_on_each_push_to_main_and_by_hand():
+    """A pull request into main, or into `t3code-jstack`, the merge base jstack's project names
+    for the sidebar, gets a run, so jmerge can merge it there on a green check. A pull request
+    into any other branch, such as a parent row's branch, starts none: its work is checked once
+    it reaches one of those gates. Of a pull request, a push, a reopen and the mark that it is
+    ready start one."""
     assert block("on") == {
         "pull_request": {
-            "branches": ["main"],
+            "branches": ["main", "t3code-jstack"],
             "types": ["opened", "synchronize", "reopened", "ready_for_review"],
         },
         "push": {"branches": ["main"]},
