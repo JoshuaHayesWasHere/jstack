@@ -6,8 +6,8 @@ def _kind(v, p):
     if v["st"][p] == "merged":
         return "merged"
     if v["st"][p] == "queued":
-        return "waiting to launch" if v.get("go", {}).get(p, True) else "its row held"
-    if v.get("rv", {}).get(p) == "draft":
+        return "its row held" if "go" in v and not v["go"][p] else "waiting to launch"
+    if "rv" in v and v["rv"][p] == "draft":
         return "a draft, " + ("waiting on your word" if v["needs"][p] else "its review first")
     ci = v["ci"][p]
     if ci == "none":
@@ -17,9 +17,9 @@ def _kind(v, p):
     if ci == "pass" and v["fixes"][p]:
         proved = v["proved"][p]
         return "passed, holds main's fix, " + ("proved" if proved else "not proved")
-    if ci == "pass" and not v.get("go", {}).get(p, True):
+    if ci == "pass" and "go" in v and not v["go"][p]:
         return "passed, its row held"
-    if ci == "pass" and v.get("needs", {}).get(p, False):
+    if ci == "pass" and "needs" in v and v["needs"][p]:
         return "passed, waiting on your word"
     if ci == "pass":
         return "passed, " + _waits(v, p)
@@ -156,7 +156,7 @@ def cause(v, facts, invariant):
                 "an idle process a crew left fills the machine, "
                 "so even an approved fix for main cannot start"
             )
-        if any(v["fixes"][p] and v.get("rv", {}).get(p) == "draft" for p in ("a", "b")):
+        if any(v["fixes"][p] and ("rv" in v and v["rv"][p] == "draft") for p in ("a", "b")):
             return (
                 "main's fix row closed with its fix in an open draft, which jmerge never marks "
                 "ready while main is red, so its check never runs to prove the fix"
