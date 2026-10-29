@@ -21,7 +21,8 @@ from view.page.browser import (
     look,
     walked,
 )
-from view.scene import REQUEST, Served, ago, iso, item, row, said_by_him, stacked
+from view.scene import REQUEST, Served, ago, iso, item, said_by_him, stacked
+from view.scene import row as queued
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -767,9 +768,9 @@ MERGED_TODAY = re.compile(r"merged today\W*(\d+)|(\d+) merged today", re.I)
 def merged_and_done(scene):
     """A day with 21 rows merged and 2 rows done, each with a work item done today: jam-jar's row
     says done, and oat-milk's the pass judged done while its row still says running."""
-    rows = [row(f"rye-{n}", "merged", pr=f"#{n + 1}") for n in range(21)]
-    rows.append(row("jam-jar", "done", thread="mcp:jam-jar"))
-    rows.append(row("oat-milk", "running", thread="mcp:oat-milk", value="done"))
+    rows = [queued(f"rye-{n}", "merged", pr=f"#{n + 1}") for n in range(21)]
+    rows.append(queued("jam-jar", "done", thread="mcp:jam-jar"))
+    rows.append(queued("oat-milk", "running", thread="mcp:oat-milk", value="done"))
     scene.queue(rows)
     scene.moves(*((f"rye-{n}", "pr", "merged", 3 + 11 * n) for n in range(21)))
     lines = []
