@@ -25,7 +25,8 @@ When the patches do not apply to a tag, setup writes the tag and the series to `
 While the newest nightly refuses the patches, the doctor reads `ok` with `<tag> does not take jstack's patches: rebase them`, and the build stays on the last nightly that took them.
 Any other failure stops the build and names its log.
 
-To build by hand, without jinstall, run the command below. `T3CODE_JSTACK_TAG` picks the tag, and the PKGBUILD's tag is the default.
+To build by hand, without jinstall, run the command below.
+`T3CODE_JSTACK_TAG` picks the tag, and the PKGBUILD's tag is the default.
 
 ```sh
 env BUILDDIR=~/.cache/t3code-jstack PKGDEST=~/.cache/t3code-jstack SRCDEST=~/.cache/t3code-jstack \
