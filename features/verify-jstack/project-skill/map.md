@@ -116,6 +116,7 @@ Cross-cutting:
 - `testing/tests/test_daemons.py`
 - `features/repo-guards/tests/test_docs_true.py`
 - `features/repo-guards/tests/test_docs_tree.py`
+- `features/repo-guards/tests/test_bash32.py`
 - `features/jdrift/tests/test_drift.py`
 - `features/home/tests/test_flow_doc.py`
 - `features/home/tests/test_home_merge.py`

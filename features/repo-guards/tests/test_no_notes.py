@@ -14,6 +14,7 @@ import subprocess
 
 from testing.paths import REPO
 
+READ_SET = ("features/",)
 NAME = "notes.md"
 
 

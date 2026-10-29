@@ -11,9 +11,11 @@ tests that import the module that declares it.
 A test reads the real tree when it calls `glob`, `rglob`, `iterdir`, `walk`, `listdir` or
 `scandir` on a path built from `REPO`, `ROOT`, `__file__` or `assembled()` (this checkout placed
 as a layout), when it iterates what `sources()`, `skills()` or `playbooks()` of `testing.paths`
-found there, or when it runs `git ls-files` with `REPO`. A path the test builds from `tmp_path`
-is no read of the tree. Nor is a helper whose result the test only looks one name up in, such as
-`skills()["home"]`: the test spells the name, and the script follows it.
+found there, or when it runs `git ls-files` in a folder built so. A path reaches a function's
+parameter through its default (`repo=REPO`) or through a call of it in the module
+(`listed(REPO)`). A path the test builds from `tmp_path` is no read of the tree. Nor is a helper
+whose result the test only looks one name up in, such as `skills()["home"]`: the test spells the
+name, and the script follows it.
 """
 
 import ast
@@ -41,8 +43,13 @@ class Reader:
     def __init__(self, source):
         self.tree = ast.parse(source)
         self.bound = {}
+        functions = {
+            node.name: node.args
+            for node in ast.walk(self.tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
         for node in ast.walk(self.tree):
-            for name, value in bindings(node):
+            for name, value in bindings(node) + given(node, functions):
                 self.bound.setdefault(name, []).append(value)
         self.keyed = {id(node.value) for node in ast.walk(self.tree) if is_key(node)}
         self.looked_up = self.lookups()
@@ -120,8 +127,8 @@ class Reader:
         if isinstance(function, ast.Name) and function.id in HELPERS:
             return id(node) not in self.looked_up and all(self.real(one) for one in node.args)
         words = {one.value for one in ast.walk(node) if isinstance(one, ast.Constant)}
-        named = {one.id for one in ast.walk(node) if isinstance(one, ast.Name)}
-        return "ls-files" in words and "REPO" in named
+        named = [one for one in ast.walk(node) if isinstance(one, ast.Name)]
+        return "ls-files" in words and any(self.real(one) for one in named)
 
 
 def bindings(node):
@@ -133,6 +140,39 @@ def bindings(node):
     if isinstance(node, (ast.For, ast.comprehension)):
         return [(one.id, node.iter) for one in ast.walk(node.target) if isinstance(one, ast.Name)]
     return []
+
+
+def given(node, functions):
+    """`(name, value)` for each parameter a default or a call of the module's own function gives
+    a value: `repo=REPO` in a signature, or `listed(REPO)` for `def listed(root)`."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        arguments = node.args
+        positional = arguments.posonlyargs + arguments.args
+        found = list(
+            zip(
+                positional[len(positional) - len(arguments.defaults) :],
+                arguments.defaults,
+                strict=True,
+            )
+        )
+        found += [
+            (one, value)
+            for one, value in zip(arguments.kwonlyargs, arguments.kw_defaults, strict=True)
+            if value
+        ]
+        return [(one.arg, value) for one, value in found]
+    if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+        return []
+    arguments = functions.get(node.func.id)
+    if arguments is None:
+        return []
+    positional = arguments.posonlyargs + arguments.args
+    found = [
+        (one.arg, value)
+        for one, value in zip(positional, node.args, strict=False)
+        if not isinstance(value, ast.Starred)
+    ]
+    return found + [(one.arg, one.value) for one in node.keywords if one.arg]
 
 
 def is_key(node):
