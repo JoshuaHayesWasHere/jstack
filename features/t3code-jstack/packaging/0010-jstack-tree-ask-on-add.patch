@@ -1,0 +1,449 @@
+From 685fa0d8daf4f94e1c56911d96897d9af46e1b95 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 16:50:03 -0400
+Subject: [PATCH] feat(web): a project added to T3 asks once whether to start a
+ jstack home for it
+
+Once every project and thread has loaded, a project added with no jbus home shows "Start a
+jstack home for <project>?" with Yes and Not now. Yes starts a home as its root row's "Start a
+home" does; Not now, or closing the toast, leaves that action on the row.
+
+The client keeps the projects it has seen in localStorage, so a project is asked about once,
+ever. The first load counts every project there as seen and asks about none, and a project
+added with a home is seen without an ask.
+---
+ apps/web/src/components/Sidebar.tsx           |  42 ++++--
+ .../sidebar/jstackAskOnAdd.browser.test.tsx   | 141 ++++++++++++++++++
+ .../components/sidebar/jstackAskOnAdd.test.ts |  66 ++++++++
+ .../src/components/sidebar/jstackAskOnAdd.ts  | 117 +++++++++++++++
+ 4 files changed, 353 insertions(+), 13 deletions(-)
+ create mode 100644 apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+ create mode 100644 apps/web/src/components/sidebar/jstackAskOnAdd.test.ts
+ create mode 100644 apps/web/src/components/sidebar/jstackAskOnAdd.ts
+
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index e12ce665f3..36e2c6fb44 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -143,6 +143,7 @@ import {
+ import {
+   readThreadShell,
+   useAllEnvironmentProjectSnapshotsReady,
++  useAllEnvironmentShellsBootstrapped,
+   useDelegatedUnderParent,
+   useProjects,
+   useServerConfigs,
+@@ -273,6 +274,7 @@ import {
+ } from "./sidebar/jstackTree.logic";
+ import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
+ import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
++import { useJstackAskOnAdd } from "./sidebar/jstackAskOnAdd";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
+ import { useJbusWork } from "../lib/jbusWorkState";
+ import {
+@@ -1419,6 +1421,20 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     }
+   }
+   const jstackOrder = new Map(jstackRoots.flatMap(({ tree }) => [...tree.order]));
++  // A project's home, started from its row's "Start a home" or from the ask when it was added.
++  const startJstackHome = (group: SidebarProjectSnapshot) => {
++    void jstackHomeSends.startHome(group).then((started) => {
++      if (started === "no-model") {
++        toastManager.add({
++          type: "error",
++          title: "Could not start a home",
++          description: `No provider is ready for ${group.displayName}. Set one up in Settings.`,
++        });
++      } else if (started !== null) {
++        void navigateToThread(scopeThreadRef(group.environmentId, started));
++      }
++    });
++  };
+   // A row's approve, remove or answer, told to the task's home as the user's own message.
+   const sendJstackRowWord = async (
+     homeThreadId: ThreadId,
+@@ -1487,19 +1503,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+           });
+         });
+     },
+-    onStartHome: (group) => {
+-      void jstackHomeSends.startHome(group).then((started) => {
+-        if (started === "no-model") {
+-          toastManager.add({
+-            type: "error",
+-            title: "Could not start a home",
+-            description: `No provider is ready for ${group.displayName}. Set one up in Settings.`,
+-          });
+-        } else if (started !== null) {
+-          void navigateToThread(scopeThreadRef(group.environmentId, started));
+-        }
+-      });
+-    },
++    onStartHome: startJstackHome,
+     onOpenChildHomeEditor: (group) => {
+       const root = jstackRoots.find((one) => one.folder.group.projectKey === group.projectKey);
+       if (root?.folder.collapsed) toggleProjectFolder(group);
+@@ -1682,6 +1686,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     });
+   };
+ 
++  // Only once every project and thread has loaded, so a home not drawn yet is not taken for none.
++  const jstackShellsBootstrapped = useAllEnvironmentShellsBootstrapped();
++  useJstackAskOnAdd(
++    jstackTreeOn && allProjectSnapshotsReady && jstackShellsBootstrapped
++      ? jstackRoots.map(({ folder, tree }) => ({
++          group: folder.group,
++          askable: !tree.root.noProject && tree.root.main === null,
++        }))
++      : null,
++    startJstackHome,
++  );
++
+   const handleThreadFileDrop = async (threadRef: ScopedThreadRef, files: File[]) => {
+     const dropId = queuePendingFileDrop({ threadRef, files });
+     const landedBefore =
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+new file mode 100644
+index 0000000000..908f9872cb
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+@@ -0,0 +1,141 @@
++import { EnvironmentId, ProjectId } from "@t3tools/contracts";
++import { expect, it, vi } from "vite-plus/test";
++import { page, userEvent } from "vite-plus/test/browser";
++
++import { render } from "../../../test/render";
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { ToastProvider } from "../ui/toast";
++import {
++  JSTACK_SEEN_PROJECTS_KEY,
++  useJstackAskOnAdd,
++  type JstackAskCandidate,
++} from "./jstackAskOnAdd";
++
++const environmentId = EnvironmentId.make("environment-local");
++
++function project(name: string): SidebarProjectSnapshot {
++  const projectId = ProjectId.make(`project-${name}`);
++  return {
++    id: projectId,
++    environmentId,
++    title: name,
++    workspaceRoot: `/repos/${name}`,
++    defaultModelSelection: null,
++    scripts: [],
++    projectIcon: { kind: "monogram", text: name[0]!, color: "pink" },
++    createdAt: "2026-10-29T00:00:00.000Z",
++    updatedAt: "2026-10-29T00:00:00.000Z",
++    projectKey: name,
++    displayName: name,
++    memberProjects: [],
++    memberProjectRefs: [{ environmentId, projectId }],
++    groupedProjectCount: 1,
++    environmentPresence: "local-only",
++    allRemoteMembersAreDesktopLocal: false,
++    allRemoteMembersAreWsl: false,
++    remoteEnvironmentLabels: [],
++  };
++}
++
++const jstack: JstackAskCandidate = { group: project("jstack"), askable: false };
++const winnifred: JstackAskCandidate = { group: project("Winnifred"), askable: true };
++
++function Asker(props: {
++  candidates: ReadonlyArray<JstackAskCandidate> | null;
++  startHome: (group: SidebarProjectSnapshot) => void;
++}) {
++  useJstackAskOnAdd(props.candidates, props.startHome);
++  return null;
++}
++
++/** The sidebar as the ask sees it: the client's projects over time, one render each. */
++async function sidebar(startHome: (group: SidebarProjectSnapshot) => void) {
++  const screen = await render(
++    <ToastProvider>
++      <Asker candidates={null} startHome={startHome} />
++    </ToastProvider>,
++  );
++  return {
++    screen,
++    show: (candidates: ReadonlyArray<JstackAskCandidate> | null) =>
++      screen.rerender(
++        <ToastProvider>
++          <Asker candidates={candidates} startHome={startHome} />
++        </ToastProvider>,
++      ),
++  };
++}
++
++const ask = () => page.getByText("Start a jstack home for Winnifred?");
++
++/** A client that has seen no project yet, as before the tree first loaded. */
++function freshClient(): Disposable {
++  window.localStorage.removeItem(JSTACK_SEEN_PROJECTS_KEY);
++  return { [Symbol.dispose]: () => window.localStorage.removeItem(JSTACK_SEEN_PROJECTS_KEY) };
++}
++
++it("asks once when a project is added, and Yes starts its home as Start a home does", async () => {
++  using _client = freshClient();
++  const startHome = vi.fn();
++  const { screen, show } = await sidebar(startHome);
++  await using _screen = screen;
++  // The tree's first load seeds what is there; nothing is asked.
++  await show([jstack]);
++  await expect.element(page.getByText(/Start a jstack home/)).not.toBeInTheDocument();
++
++  await show([jstack, winnifred]);
++  await expect.element(ask()).toBeVisible();
++  await page.getByRole("button", { name: "Yes" }).click();
++  expect(startHome).toHaveBeenCalledTimes(1);
++  expect(startHome).toHaveBeenCalledWith(winnifred.group);
++  await expect.element(ask()).not.toBeInTheDocument();
++});
++
++it("Not now closes the ask and starts nothing, and a project seen once is never asked again", async () => {
++  using _client = freshClient();
++  const startHome = vi.fn();
++  {
++    const { screen, show } = await sidebar(startHome);
++    await using _screen = screen;
++    await show([jstack]);
++    await show([jstack, winnifred]);
++    await expect.element(ask()).toBeVisible();
++    // By keyboard: Enter on the focused button.
++    page.getByRole("button", { name: "Not now" }).element().focus();
++    await userEvent.keyboard("{Enter}");
++    await expect.element(ask()).not.toBeInTheDocument();
++    await show([jstack, winnifred]);
++  }
++  // A new window or a restart reads what this client has seen.
++  const { screen, show } = await sidebar(startHome);
++  await using _screen = screen;
++  await show([jstack, winnifred]);
++  await show([winnifred, jstack]);
++  await expect.element(page.getByText(/Start a jstack home/)).not.toBeInTheDocument();
++  expect(startHome).not.toHaveBeenCalled();
++});
++
++it("closes the ask once the project has a home from anywhere else, so no Yes starts a second", async () => {
++  using _client = freshClient();
++  const startHome = vi.fn();
++  const { screen, show } = await sidebar(startHome);
++  await using _screen = screen;
++  await show([jstack]);
++  await show([jstack, winnifred]);
++  await expect.element(ask()).toBeVisible();
++  // Its row's "Start a home" ran, and the home has drawn.
++  await show([jstack, { ...winnifred, askable: false }]);
++  await expect.element(ask()).not.toBeInTheDocument();
++  expect(startHome).not.toHaveBeenCalled();
++});
++
++it("waits for every project and thread to load before it seeds or asks", async () => {
++  using _client = freshClient();
++  const startHome = vi.fn();
++  const { screen, show } = await sidebar(startHome);
++  await using _screen = screen;
++  await show(null);
++  expect(window.localStorage.getItem(JSTACK_SEEN_PROJECTS_KEY)).toBeNull();
++  await show([jstack, winnifred]);
++  await expect.element(page.getByText(/Start a jstack home/)).not.toBeInTheDocument();
++});
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.test.ts b/apps/web/src/components/sidebar/jstackAskOnAdd.test.ts
+new file mode 100644
+index 0000000000..7e74f40c29
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.test.ts
+@@ -0,0 +1,66 @@
++import { EnvironmentId, ProjectId } from "@t3tools/contracts";
++import { describe, expect, it } from "vite-plus/test";
++
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { projectsToAsk, type JstackAskCandidate } from "./jstackAskOnAdd";
++
++const environmentId = EnvironmentId.make("environment-local");
++
++function project(name: string): SidebarProjectSnapshot {
++  const projectId = ProjectId.make(`project-${name}`);
++  return {
++    id: projectId,
++    environmentId,
++    title: name,
++    workspaceRoot: `/repos/${name}`,
++    defaultModelSelection: null,
++    scripts: [],
++    projectIcon: { kind: "monogram", text: name[0]!, color: "pink" },
++    createdAt: "2026-10-29T00:00:00.000Z",
++    updatedAt: "2026-10-29T00:00:00.000Z",
++    projectKey: name,
++    displayName: name,
++    memberProjects: [],
++    memberProjectRefs: [{ environmentId, projectId }],
++    groupedProjectCount: 1,
++    environmentPresence: "local-only",
++    allRemoteMembersAreDesktopLocal: false,
++    allRemoteMembersAreWsl: false,
++    remoteEnvironmentLabels: [],
++  };
++}
++
++const homeless = (name: string): JstackAskCandidate => ({ group: project(name), askable: true });
++const homed = (name: string): JstackAskCandidate => ({ group: project(name), askable: false });
++const names = (asked: ReadonlyArray<SidebarProjectSnapshot>) => asked.map((each) => each.title);
++
++describe("projectsToAsk", () => {
++  it("asks about none of the projects there when the tree first loads, and counts them all as seen", () => {
++    const first = projectsToAsk(null, [homeless("winnifred"), homed("jstack")]);
++    expect(first.ask).toEqual([]);
++    expect(projectsToAsk(first.seen, [homeless("winnifred"), homed("jstack")]).ask).toEqual([]);
++  });
++
++  it("asks about a project added with no home once, and never again", () => {
++    const first = projectsToAsk(null, [homed("jstack")]);
++    const added = projectsToAsk(first.seen, [homed("jstack"), homeless("winnifred")]);
++    expect(names(added.ask)).toEqual(["winnifred"]);
++    // Every later pass, whether the user said Yes, Not now or nothing, asks nothing more.
++    const later = projectsToAsk(added.seen, [homed("jstack"), homeless("winnifred")]);
++    expect(later.ask).toEqual([]);
++    expect(projectsToAsk(later.seen, [homeless("winnifred")]).ask).toEqual([]);
++  });
++
++  it("never asks about a project added with a home, nor once its home has gone", () => {
++    const first = projectsToAsk(null, []);
++    const added = projectsToAsk(first.seen, [homed("winnifred")]);
++    expect(added.ask).toEqual([]);
++    expect(projectsToAsk(added.seen, [homeless("winnifred")]).ask).toEqual([]);
++  });
++
++  it("asks nothing for a root with no member projects, such as No project", () => {
++    const noProject = { group: { ...project("none"), memberProjectRefs: [] }, askable: true };
++    const first = projectsToAsk(null, []);
++    expect(projectsToAsk(first.seen, [noProject]).ask).toEqual([]);
++  });
++});
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.ts b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
+new file mode 100644
+index 0000000000..6fa083c76e
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
+@@ -0,0 +1,117 @@
++import type { ScopedProjectRef } from "@t3tools/contracts";
++import { useEffect, useRef } from "react";
++
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { toastManager } from "../ui/toast";
++
++// jstack fork: a project added to T3 asks once whether to start a jstack home for it. The
++// projects this client has seen are kept, so a project is asked about at most once, ever.
++
++export const JSTACK_SEEN_PROJECTS_KEY = "t3code:jstack-seen-projects:v1";
++
++/** A root row of the tree, as the ask reads it. */
++export interface JstackAskCandidate {
++  readonly group: SidebarProjectSnapshot;
++  /** A project with no jbus home that is not "No project": the one kind that is asked. */
++  readonly askable: boolean;
++}
++
++function projectKey(ref: ScopedProjectRef): string {
++  return `${ref.environmentId}:${ref.projectId}`;
++}
++
++/**
++ * The projects to ask about and the seen set that follows. With no seen set yet, every project
++ * there is counts as seen and none is asked: only a project added after that is new. A project
++ * is seen once any of its members is, and every member of a root counts as seen from then on,
++ * whether it was asked about or already had a home.
++ */
++export function projectsToAsk(
++  seen: ReadonlySet<string> | null,
++  candidates: ReadonlyArray<JstackAskCandidate>,
++): { readonly seen: ReadonlySet<string>; readonly ask: ReadonlyArray<SidebarProjectSnapshot> } {
++  const next = new Set(seen ?? []);
++  const ask: Array<SidebarProjectSnapshot> = [];
++  for (const { group, askable } of candidates) {
++    const keys = group.memberProjectRefs.map(projectKey);
++    if (keys.length === 0) continue;
++    if (seen !== null && askable && !keys.some((key) => seen.has(key))) ask.push(group);
++    for (const key of keys) next.add(key);
++  }
++  return { seen: next, ask };
++}
++
++function readSeenProjects(): ReadonlySet<string> | null {
++  try {
++    const raw = window.localStorage.getItem(JSTACK_SEEN_PROJECTS_KEY);
++    if (raw === null) return null;
++    const parsed: unknown = JSON.parse(raw);
++    if (!Array.isArray(parsed)) return null;
++    return new Set(parsed.filter((each): each is string => typeof each === "string"));
++  } catch {
++    return null;
++  }
++}
++
++function writeSeenProjects(seen: ReadonlySet<string>): void {
++  try {
++    window.localStorage.setItem(JSTACK_SEEN_PROJECTS_KEY, JSON.stringify([...seen]));
++  } catch {}
++}
++
++/**
++ * Asks "Start a jstack home for <project>?" once for each project added after the first load.
++ * Yes starts a home as the row's "Start a home" does; Not now leaves that action on the row.
++ * An ask still open when its project gets a home closes, so its Yes never starts a second.
++ * `candidates` is null until every project and thread has loaded.
++ */
++export function useJstackAskOnAdd(
++  candidates: ReadonlyArray<JstackAskCandidate> | null,
++  startHome: (group: SidebarProjectSnapshot) => void,
++): void {
++  // Read from localStorage once, then kept here: the sidebar renders often.
++  const seenRef = useRef<ReadonlySet<string> | null | undefined>(undefined);
++  // The asks still open, by the root's project key.
++  const openRef = useRef(new Map<string, ReturnType<typeof toastManager.add>>());
++  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- keeps the seen projects in localStorage and opens imperative toastManager toasts for new ones
++  useEffect(() => {
++    if (candidates === null) return;
++    const open = openRef.current;
++    const close = (key: string) => {
++      const toastId = open.get(key);
++      if (toastId === undefined) return;
++      open.delete(key);
++      toastManager.close(toastId);
++    };
++    for (const { group, askable } of candidates) if (!askable) close(group.projectKey);
++    if (seenRef.current === undefined) seenRef.current = readSeenProjects();
++    const before = seenRef.current;
++    const { seen, ask } = projectsToAsk(before, candidates);
++    seenRef.current = seen;
++    if (before === null || seen.size !== before.size) writeSeenProjects(seen);
++    for (const group of ask) {
++      const key = group.projectKey;
++      const toastId = toastManager.add({
++        type: "info",
++        title: `Start a jstack home for ${group.displayName}?`,
++        description: "A home plans and runs its work. Not now leaves Start a home on its row.",
++        timeout: 0,
++        actionProps: {
++          children: "Yes",
++          onClick: () => {
++            close(key);
++            startHome(group);
++          },
++        },
++        data: {
++          hideCopyButton: true,
++          secondaryActionProps: {
++            children: "Not now",
++            onClick: () => close(key),
++          },
++        },
++      });
++      open.set(key, toastId);
++    }
++  }, [candidates, startHome]);
++}
+-- 
+2.56.0
+
