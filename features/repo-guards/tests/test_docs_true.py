@@ -165,10 +165,15 @@ def code(text, spans=True):
 
 
 def words_of(piece):
-    try:
-        return shlex.split(piece)
-    except ValueError:
-        return piece.split()
+    """The words a shell reads in a piece. A piece that leaves a quote open, as the first line of
+    a block that goes on below it does, is read with the quote closed, so a quoted word stays one
+    word."""
+    for close in ("", "'", '"'):
+        try:
+            return shlex.split(piece + close)
+        except ValueError:
+            pass
+    return piece.split()
 
 
 def is_word(word):
@@ -357,7 +362,8 @@ def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):
 
 @pytest.mark.parametrize("path", PAGES, ids=lambda path: path.name)
 def test_a_page_names_no_verb_and_no_flag_that_the_help_does_not_have(trees, path):
-    own = next((name for name in (path.stem, path.parent.name) if name in SCRIPTS), None)
+    folder = path.parent.name if path.parent != REPO else ""
+    own = next((name for name in (path.stem, folder) if name in SCRIPTS), None)
     assert gone(trees, path.read_text(), own) == []
 
 
@@ -384,6 +390,9 @@ def test_a_verb_or_a_flag_that_is_gone_is_found_in_a_span_and_in_a_block(trees):
     assert gone(trees, "`--land-all` lands them.", own="jmerge") == [
         "jmerge: --land-all, in `--land-all`"
     ]
+    opened = 'uv run --project "${T:?the templates of jstack are not found}/../source" python -c \''
+    assert gone(trees, f"```sh\n{opened}\n```\n") == []
+    assert gone(trees, f"```sh\n{opened} jstack nope\n```\n") == []
 
 
 @pytest.mark.parametrize("path", SKILLS, ids=lambda path: str(path.relative_to(REPO)))
