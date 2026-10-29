@@ -15,6 +15,7 @@ import time
 
 from statechart.lib import (
     BROKEN_PROPERTY,
+    FIRST_ONLY,
     PRIMES_OR_UNCHANGED,
     ChartError,
     join_and,
@@ -254,6 +255,9 @@ class TlcStopped(CannotFinish):
     pass
 
 
+LOST_FINGERPRINT = re.compile(r"Failed to recover the \S+ state from its fingerprint\.")
+
+
 class NotPublished(CannotFinish):
     pass
 
@@ -428,7 +432,7 @@ def run_in_own_group(command, cwd):
     return subprocess.CompletedProcess(command, child.returncode, stdout, stderr)
 
 
-def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
+def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
     with open(f"{base}.cfg", "w", encoding="utf-8") as handle:
         handle.write(cfg)
     metadir = tempfile.mkdtemp(prefix="tlc-")
@@ -449,7 +453,7 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
         "-metadir",
         metadir,
         "-deadlock",
-        "-continue",
+        *([] if first_only else ["-continue"]),
         *(["-dump", "dot,actionlabels", os.path.abspath(dump)] if dump else []),
         "-config",
         os.path.abspath(f"{base}.cfg"),
@@ -465,10 +469,12 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
     could_not_start = re.search(rf"^test-slot: {re.escape(tools.java)}: (.*)$", r.stderr, re.M)
     if r.returncode in (126, 127) and could_not_start:
         raise CannotFinish(f"cannot run TLC: {could_not_start[1]}")
+    stdout = f"{FIRST_ONLY}{r.stdout}" if first_only else r.stdout
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
-        handle.write(r.stdout)
+        handle.write(stdout)
     try:
-        return {"stdout": r.stdout, "warning": tlc_output_warning(r.stdout, f"{base}.out")}
+        warning = tlc_output_warning(stdout, f"{base}.out")
+        return {"stdout": stdout, "warning": warning, "firstOnly": first_only}
     except ChartError as e:
         raise TlcStopped(str(e)) from e
 
@@ -574,15 +580,25 @@ def check(tools, model, work, out, expected):
     def shown(file):
         return rel(os.path.join(out, "tlc", os.path.basename(file)))
 
+    def run_rule(rule, file, **options):
+        try:
+            return run(f"{cfg_without_rules}INVARIANT {rule}\nCONSTRAINT {rule}\n", file, **options)
+        except TlcStopped as e:
+            if not LOST_FINGERPRINT.search(str(e)):
+                raise
+        # With -continue and the rule as a CONSTRAINT, TLC can fail to rebuild a broken path from
+        # its fingerprints on a large model. Plain TLC stops at the first state that breaks the
+        # rule, and one worker makes that path the shortest.
+        return run(f"{cfg_without_rules}INVARIANT {rule}\n", file, first_only=True)
+
     traces = []
     for rule in rules:
         file = os.path.join(tlc_dir, f"{name}-{rule}")
-        cfg = f"{cfg_without_rules}INVARIANT {rule}\nCONSTRAINT {rule}\n"
-        result = run(cfg, file, workers=workers())
+        result = run_rule(rule, file, workers=workers())
         # Several workers can reach a bad state by a longer path first. One worker searches breadth
         # first in a fixed order, so the chart's bug paths are the shortest, and the same every run.
-        if re.search(r"^Error: Invariant ", result["stdout"], re.M):
-            result = run(cfg, file)
+        if re.search(r"^Error: Invariant ", result["stdout"], re.M) and not result["firstOnly"]:
+            result = run_rule(rule, file)
         broken = bool(re.search(r"^Error: Invariant ", result["stdout"], re.M))
         print(said(rule, broken))
         if result["warning"]:

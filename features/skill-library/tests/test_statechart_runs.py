@@ -624,6 +624,47 @@ exit $s
 
 
 @needs_tlc
+def test_a_rule_whose_run_loses_a_fingerprint_is_checked_again_without_continue(tmp_path):
+    """a rule whose -continue run stops on TLC's fingerprint error is checked again with plain
+    TLC, which breaks it, and the run draws its path from that run"""
+    write(tmp_path / "Pay.tla", pay("Pay", CHARGE_AGAIN))
+    write(tmp_path / "Pay.cfg", "SPECIFICATION Spec\nINVARIANT NoDoubleCharge\n")
+    write(tmp_path / "Pay.map.py", PAY_MAP)
+    java = tmp_path / "java"
+    write(
+        java,
+        """#!/bin/sh
+for a in "$@"; do
+  case $a in -continue) keep=1 ;; *.cfg) cfg=$a ;; esac
+done
+if grep -q '^CONSTRAINT NoDoubleCharge' "$cfg"; then
+  echo "rule keep=${keep:-0}" >> "$LOG"
+  if [ -n "$keep" ]; then
+    echo 'Error: Failed to recover the initial state from its fingerprint.'
+    echo 'Error: This is probably a TLC bug(2 -1623057622339334076).'
+    exit 75
+  fi
+elif grep -q '^INVARIANT NoDoubleCharge' "$cfg"; then
+  echo "plain keep=${keep:-0}" >> "$LOG"
+fi
+exec "$REAL_JAVA" "$@"
+""",
+        0o755,
+    )
+    log = tmp_path / "runs.log"
+    r = node(
+        "statechart",
+        ["from-spec", "Pay.tla", "--expect-broken", "NoDoubleCharge"],
+        tmp_path,
+        {"JAVA": str(java), "TLA2TOOLS": TOOLS.jar, "REAL_JAVA": TOOLS.java, "LOG": str(log)},
+    )
+    assert r.returncode == 0, r.stderr
+    assert read(log) == "rule keep=1\nplain keep=0\n"
+    assert re.search(r"^ {2}NoDoubleCharge is broken \(expected\)\.$", r.stdout, re.M)
+    assert re.search(r"^## 1\. Paying, charged twice$", r.stdout, re.M)
+
+
+@needs_tlc
 def test_each_tlc_run_writes_the_standard_modules_in_its_own_temp_folder(tmp_path):
     """each TLC run writes the standard modules in its own temp folder, so overlapping runs
     cannot rewrite them under each other"""
