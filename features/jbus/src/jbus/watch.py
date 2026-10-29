@@ -7,9 +7,9 @@ out of its answer, so no pass finds such a thread stale or tells it to carry on.
 requests stay in the answer. When only GitHub was silent, the answer from `look` still gives how
 many crews are out. The machine has one such count: `jbus poll` adds it up over every project.
 `watch` sends a line for what a home would have seen: a merge; a thread that ran past its
-timebox, waits on a request, or ended with no Result; a main branch whose check failed after a
-merge; a red run of a nightly workflow (`NIGHTLIES`); and a revert. `watch` names no cause and
-changes nothing.
+timebox, waits on a request, or ended with no Result and on no wait that jbus owns
+(`World.awaits`); a main branch whose check failed after a merge; a red run of a nightly workflow
+(`NIGHTLIES`); and a revert. `watch` names no cause and changes nothing.
 A finding that no rule covers becomes a gate. `status` gives the table's derived column for a slug.
 `why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull request,
 what stopped the slug's launch, or what the slug's Result leaves.
@@ -23,9 +23,10 @@ that belongs to no row are `thread_facts`. A row's status, one of `queue.STATUSE
 projection of the row's state (`work.status`): `gate`, `pr`, `merged`, `done`, `left`, `launched`,
 `running`, `waiting`, `stale`, `failed` or `queued`. For a row that merged, ended or left
 something, the row's `why` is what its Result leaves. A row is stale when its thread ended or hung
-and wrote nothing. Until `UNWRITTEN_MINUTES` after the thread last wrote, jbus keeps resuming the
-row's crew. After that, the row is `left` (`unwritten`), its `why` says so, and the slug's home
-closes the row (`leftover`).
+and wrote nothing, but for a thread whose turn ended on a wait that jbus owns: such a row is
+running, since jbus wakes its thread (`World.awaits`). Until `UNWRITTEN_MINUTES` after the thread
+last wrote, jbus keeps resuming the row's crew. After that, the row is `left` (`unwritten`), its
+`why` says so, and the slug's home closes the row (`leftover`).
 """
 
 from __future__ import annotations
@@ -105,6 +106,11 @@ class World:
     wait on a test slot and are not woken yet (`jgauge.waiters`), and `holding` the threads whose
     own run holds a test slot now, or ended with its wake not yet sent (`jgauge.holders`), which
     jbus reads once a pass.
+
+    `results` holds each row's last Result as `look` read it, after T3 Code's list and before
+    GitHub's, so a pass judges one world. A crew opens its pull request and then writes the Result
+    that names it, so a Result in `results` names no pull request GitHub's lists could miss, and a
+    thread T3 Code listed as ended wrote its Result before `look` read it.
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -116,12 +122,27 @@ class World:
     merged: dict[str, dict[str, Any]] = field(default_factory=dict)
     waiting: set[str] = field(default_factory=set)
     holding: set[str] = field(default_factory=set)
+    results: dict[str, str] = field(default_factory=dict)
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
         if live:
             return live[0] if len(live) == 1 else None
         return self.settled.get(slug) or self.archived.get(slug)
+
+    def awaits(self, thread: dict[str, Any] | None) -> bool:
+        """Say whether the thread's turn ended on a wait that jbus owns, so that jbus wakes it: it
+        waits on a test slot, or its own run holds one (`slotwait`). A review or a check of its
+        pull request is such a wait too, and the row is `pr` while it lasts."""
+        at = jsettings.thread_id(str((thread or {}).get("threadId", "")))
+        return bool(at) and at in self.waiting | self.holding
+
+    def result(self, run: Pass, slug: str) -> str:
+        """The slug's last Result as `look` read it, or as the brief has it now for a slug that
+        is no row's."""
+        if slug in self.results:
+            return self.results[slug]
+        return last_result(brief_of(run, slug))
 
     def live(self) -> tuple[str, ...]:
         """The slug of each crew thread at work, once for each such thread."""
@@ -300,12 +321,13 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
         waiting={one.thread for one in waiters.read(locks) if not one.woken},
         holding={one.thread for one in holders.read(locks) if one.ended or holders.running(one)},
     )
-    slug_of = tied(run)
-    url_of = {slug: url for url, slug in slug_of.items()}
     try:
         listed = crew_threads(client, run.project.project_id)
     except T3Error as error:
         return replace(_silent(run, str(error)), held=held, spent=spent)
+    slug_of = tied(run)
+    url_of = {slug: url for url, slug in slug_of.items()}
+    world.results = {row["slug"]: last_result(brief_of(run, row["slug"])) for row in rows}
     for thread in sorted(listed, key=lambda t: t.get("createdAt", "")):
         slug = thread["title"][len(TITLE) :].strip()
         if thread.get("settled"):
@@ -400,7 +422,7 @@ def brief_of(run: Pass, slug: str) -> str:
     return ""
 
 
-def _stale(run: Pass, slug: str, thread: dict[str, Any]) -> str:
+def _stale(run: Pass, world: World, slug: str, thread: dict[str, Any]) -> str:
     status, text = thread["status"], brief_of(run, slug)
     if status == "running":
         limit = _TIMEBOX.search(text)
@@ -411,8 +433,9 @@ def _stale(run: Pass, slug: str, thread: dict[str, Any]) -> str:
         minutes = (run.now - when(thread["updatedAt"])).total_seconds() / 60
         if minutes >= WAITING_MINUTES:
             return f"stale {slug}: waiting on a request {int(minutes)} min"
-    elif status in (*ENDED, "completed") and not last_result(text):
-        return f"stale {slug}: thread {status} with no Result"
+    elif status in (*ENDED, "completed") and not world.result(run, slug):
+        if not world.awaits(thread):
+            return f"stale {slug}: thread {status} with no Result"
     return ""
 
 
@@ -473,7 +496,7 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
         return None
     if thread is None or at_work([thread]):
         return None
-    result = last_result(brief_of(run, slug))
+    result = world.result(run, slug)
     if not result:
         return None
     short = unfinished(result)
@@ -632,15 +655,19 @@ def facts(
     does not know. The row's launch record names the thread `launched`, or none. With no
     world, the thread is the one in the list of threads out, and jbus does not know what
     GitHub would say: its facet is `none`, and `judge` passes over every pattern that
-    narrows it."""
+    narrows it. A thread whose turn ended on a wait that jbus owns (`World.awaits`) is `quiet`,
+    since jbus wakes it, so its row is running and nobody is told it ended."""
     slug = row["slug"]
     if queue.role(row) == queue.SCOUT:
         return _scouted(run, world, row, seen, launched, last)
-    result = last_result(brief_of(run, slug))
     if world is not None:
+        result = world.result(run, slug)
         found = world.thread(slug)
         said = thread(found, seen.live((found or {}).get("threadId", "")))
+        if said in OVER and world.awaits(found):
+            said = work.Thread.QUIET
     else:
+        result = last_result(brief_of(run, slug))
         found = seen.crew(slug)
         said = thread(found, str((found or {}).get("live", "")))
     answered = seen.answered
@@ -802,9 +829,7 @@ def judged(
     return found
 
 
-def unwritten(
-    run: Pass, thread: dict[str, Any] | None, state: work.State, slotted: set[str]
-) -> str:
+def unwritten(run: Pass, world: World, thread: dict[str, Any] | None, state: work.State) -> str:
     """Return why a `stale` row has nobody on it, or nothing while its crew is still on it.
 
     A thread that ended or hung with nothing written is `stale` for as long as jbus keeps
@@ -813,14 +838,15 @@ def unwritten(
     to the slug's home to close (`leftover`). The row stays `left` until the home ends it, the
     thread goes on, or the row leaves the queue.
 
-    If a thread ended its turn to wait on a test slot, or its own run holds one, so that it is
-    one of `slotted`, its row is never `left`, however long the thread is quiet: jbus wakes the
-    thread when a slot is free, or when its run ends (`slotwait`). After that, the rule above
-    counts again from the thread's last write.
+    A thread whose turn ended on a wait that jbus owns is never `stale` (`facts`). If its turn
+    hung while it waits on a test slot or its own run holds one (`World.awaits`), its row is never
+    `left` either, however long the thread is quiet: jbus wakes the thread when a slot is free, or
+    when its run ends (`slotwait`). After that, the rule above counts again from the thread's last
+    write.
     """
     if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:
         return ""
-    if thread is not None and jsettings.thread_id(str(thread.get("threadId", ""))) in slotted:
+    if world.awaits(thread):
         return ""
     if state.value == "hung":
         return "its turn hung with nothing written"
@@ -845,10 +871,10 @@ def status(
     pull = world.open.get(slug) or world.merged.get(slug)
     word = work.status(state)
     reason = ""
-    if word == "stale" and (why := unwritten(run, found, state, world.waiting | world.holding)):
+    if word == "stale" and (why := unwritten(run, world, found, state)):
         word, reason = "left", why
     elif word in ("merged", "left", "done"):
-        result = last_result(brief_of(run, slug))
+        result = world.result(run, slug)
         reason = (left(result) if word == "merged" else unfinished(result)) if result else ""
     return {
         "thread": (found or {}).get("threadId") or launched,
@@ -945,7 +971,7 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     for slug, live in world.threads.items():
         if slug in run.gated:
             continue
-        thread, line = live[0], _stale(run, slug, live[0])
+        thread, line = live[0], _stale(run, world, slug, live[0])
         if line:
             fact = thread["updatedAt"] if thread["status"] == "waiting" else thread["status"]
             run.find(slug, "stale", line, key=f"{thread['threadId']} {fact}")

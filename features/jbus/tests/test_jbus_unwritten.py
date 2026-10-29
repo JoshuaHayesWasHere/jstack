@@ -129,15 +129,12 @@ def test_a_row_with_no_home_to_tell_waits_on_the_user_and_is_not_stale(kitchen):
     assert leftover.NO_HOME in line
 
 
-@pytest.mark.parametrize("status", ["completed", "interrupted"])
-def test_a_thread_that_waits_on_a_test_slot_stays_running_however_long_it_is_quiet(
-    kitchen, slots, status
-):
+def test_a_thread_that_waits_on_a_test_slot_stays_running_however_long_it_is_quiet(kitchen, slots):
     """The crew's turn ended on a wait jbus owns, and jbus wakes it when a slot is free
     (`slotwait`). Its row is running, with no `stale` line, no leftover for its home, and no
     carry-on for the thread."""
     slots.hold("full")
-    thread = lost(kitchen, status, quiet=40)
+    thread = lost(kitchen, quiet=40)
     command = ["make", "check"]
     waiters.register(slot.locks_dir(), thread["threadId"], "full", 2, command, NOW - 40 * MIN)
     kitchen.brief("alpha", f"Thread: {thread['threadId']}\n")

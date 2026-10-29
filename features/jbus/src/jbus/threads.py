@@ -24,7 +24,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import jsettings
 from jbriefs import findings, parse, skills
 from jbus import (
     END_TURN,
@@ -423,9 +422,9 @@ def resume(run: Pass, client: Client, world: World) -> None:
     `Thread:` line, and only while the slug has no pull request. `resume` counts a thread's
     carry-ons by the keys that `resume` wrote for them. When the count reaches `CARRY_ONS`, the
     thread's next end goes to the brief's home in one line, or is a gate where the brief has no
-    home (`_stopped`). A new thread for the slug starts again from zero. A thread whose own run
-    holds a test slot (`World.holding`) is at work, and gets no carry-on: jbus wakes it when the
-    run ends (`slotwait.wake_ended`).
+    home (`_stopped`). A new thread for the slug starts again from zero. A thread whose turn ended
+    on a wait that jbus owns (`World.awaits`), a test slot or its own run that holds one, gets no
+    carry-on: jbus wakes it when a slot is free or the run ends (`slotwait`).
     """
     briefs = _briefs(run)
     sent = run.box.sent()
@@ -440,7 +439,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         if not dispatch.launched(run, slug) or mirror.last_result(brief):
             continue
-        if parse.thread_of(brief) != at or jsettings.thread_id(at) in world.holding:
+        if parse.thread_of(brief) != at or world.awaits(thread):
             continue
         key = f"resume|{slug}|{at}|{ended}"
         if key in sent:
