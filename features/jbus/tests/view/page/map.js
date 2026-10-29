@@ -43,7 +43,7 @@ window.addEventListener("load", function () {
     /* The map's words and the page's height as they would be with no matrix over the map: the
        matrix is the board's, and a page no taller than the screen is the screen's height. */
     words: ["header", "main"].map(function (q) { return (text(document.querySelector(q)).match(/\S+/g) || []).length; }).reduce(function (a, b) { return a + b; }, 0) - (text(document.getElementById("matrix")).match(/\S+/g) || []).length,
-    high: Math.max(document.documentElement.clientHeight, document.documentElement.scrollHeight - (function (m) { var mx = m.firstElementChild; return Math.round(m.getBoundingClientRect().height + (mx ? parseFloat(getComputedStyle(mx).marginBottom) : 0)); })(document.getElementById("matrix"))), line: (function (one) { return one ? one.getBoundingClientRect().height : 0; })(document.querySelector("#map-ql li")) };
+    high: Math.max(document.documentElement.clientHeight, document.documentElement.scrollHeight - (function (m) { var mx = m.firstElementChild, high = m.getBoundingClientRect().height; return high ? Math.round(high + parseFloat(getComputedStyle(mx).marginBottom)) : 0; })(document.getElementById("matrix"))), line: (function (one) { return one ? one.getBoundingClientRect().height : 0; })(document.querySelector("#map-ql li")) };
   var pre = document.createElement("pre");
   pre.id = "probe";
   pre.textContent = JSON.stringify(out);
