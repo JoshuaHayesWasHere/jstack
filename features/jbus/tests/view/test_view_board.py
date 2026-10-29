@@ -268,3 +268,24 @@ def test_what_merged_today_is_at_the_foot_of_its_homes_card(tmp_path, monkeypatc
     ]
     assert all(one["stage"] != "merged" for card in cards.values() for one in card["workers"])
     assert cards[SHELF]["merged"] == cards[RACK]["merged"] == []
+
+
+def test_a_row_merged_today_before_its_row_says_so_is_merged_and_done_work_is_apart(scene):
+    """oat-milk's row still says pr, and `merge.log` says jbus merged #13 5 minutes ago: it is
+    at the foot with what merged today, and on no stage. pea-pod is done and merged nothing
+    today: it is with the done work, and not with what merged. Only these two rows are read."""
+    scene.queue([row("oat-milk", "pr", pr="#13"), row("pea-pod", "running", value="done")])
+    scene.merge_log(logged(5, "merged", 13, "squashed"))
+    said = board(scene)
+    part = {
+        name: [
+            (one["kind"], one["slug"], one["stage"])
+            for home in said["homes"]
+            for one in home[name]
+            if one["slug"] in ("oat-milk", "pea-pod")
+        ]
+        for name in ("workers", "merged", "done")
+    }
+    assert part["merged"] == [("crew", "oat-milk", "merged")]
+    assert part["done"] == [("crew", "pea-pod", "merged")]
+    assert part["workers"] == []
