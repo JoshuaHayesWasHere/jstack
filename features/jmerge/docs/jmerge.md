@@ -487,8 +487,9 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 `jmerge --accept <number> --check` says what it would do.
 
 A held draft is marked ready by its accept, in place of the merge, since CI runs no check on a draft.
-The accept is kept in `accepted.json` in the state directory at that head, so a later run merges it once its check passed, with no second accept.
-A push drops it, as it drops the hold.
+The accept is kept in `accepted.json` in the state directory at that head, with the codes of the holds it lifted, so a later run merges it once its check passed, with no second accept.
+A hold of another code that comes after the accept at that head still holds it.
+A push drops the accept, as it drops the hold, and so do the merge and a close.
 
 Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).
 `--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.
