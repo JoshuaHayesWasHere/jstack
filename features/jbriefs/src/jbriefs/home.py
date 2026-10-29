@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from jbriefs import parse
 from jsettings.brief import head
 from jsettings.paths import homes_dir as homes_dir
 
@@ -72,8 +73,20 @@ def home_of(state: Path, brief: str) -> Path:
     return state
 
 
-def thread_of(directory: Path) -> str:
-    """The thread that the home of this directory is now. It is an empty string when the
-    directory has no `home-id`, or when the id there belongs to the home that handed off."""
-    now, was = ids(directory)
-    return "" if was == now else now
+def thread_of(home: Path, slug: str = "") -> str:
+    """The one lookup of whom jbus sends to: the thread an owner is now, read again on each call.
+    A home's directory, the root's or a scope's, is its home's thread: an empty string when the
+    directory has no `home-id`, or when the id there belongs to the home that handed off. A slug is
+    the thread on the `Thread:` line of its brief under `tasks/`, or else of its request under
+    `scouts/`. It is an empty string where there is none."""
+    if not slug:
+        now, was = ids(home)
+        return "" if was == now else now
+    for kind in ("tasks", "scouts"):
+        try:
+            text = (home / kind / f"{slug}.md").read_text(errors="replace")
+        except OSError:
+            text = ""
+        if found := parse.thread_of(text):
+            return found
+    return ""

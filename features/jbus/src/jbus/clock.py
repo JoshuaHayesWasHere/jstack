@@ -64,9 +64,8 @@ import string
 from datetime import datetime
 from typing import Any
 
-import jbus
 from jbriefs import below, findings
-from jbriefs.home import home_of
+from jbriefs.home import home_of, thread_of
 from jbus import (
     dispatch,
     expedite,
@@ -172,17 +171,17 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
     """Return the thread a wait is on and the line jbus sends it: the reviewer's line, or nothing
     where the crew is the one to carry on."""
     if kind == "result":
-        return jbus.thread_of(run.home, slug), ""
+        return thread_of(run.home, slug), ""
     named = reviewer(brief, kind, reason, head)
     if not named and kind == "review" and expedite.no_reviewer_by_rule(brief, head):
         return "", ""
     if not named:
-        return jbus.thread_of(run.home, slug), ""
+        return thread_of(run.home, slug), ""
     if kind == "review":
         return named, expedite.AGAIN.format(slug=slug)
     found = expedite.ranges(run, slug, head, "fix" if matches(reason, FIXES) else "rebase")
     if not found:
-        return jbus.thread_of(run.home, slug), ""
+        return thread_of(run.home, slug), ""
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
 
 
@@ -233,7 +232,7 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     number, reason, line = wait["number"], wait["reason"], wait["line"]
     key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     thread, did = wait["thread"], "relaunched its reviewer" if line else "carried its crew on"
-    crew = jbus.thread_of(run.home, slug)
+    crew = thread_of(run.home, slug)
     if wait["kind"] == "scoped" and line and crew and rebase.worktree(client, thread) is None:
         there = rebase.where(client, crew)
         line = ROOTED.format(reviewer=thread, number=number, worktree=there, line=line)
@@ -265,8 +264,8 @@ def _home(run: Pass, slug: str, wait: dict[str, Any], brief: str) -> None:
     one list, which takes it to the brief's home, or to the root home where it has none
     (`jbus.wakes`)."""
     did = wait.get("did") or ("relaunched its reviewer" if wait["line"] else "carried its crew on")
-    crew = jbus.thread_of(run.home, slug) or "not known"
-    home = jbus.thread_of(home_of(run.home, brief))
+    crew = thread_of(run.home, slug) or "not known"
+    home = thread_of(home_of(run.home, brief))
     why = "it is its home's from here" if home else "it has no home to tell"
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     line = f"{STALL} {slug}: #{wait['number']} waited {wait['passes']} passes after jbus {did}"
@@ -309,7 +308,7 @@ def tick(
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
         wait |= {"number": pull["number"], "reason": reason}
         kept[slug] = wait
-        busy = {live.get(thread), live.get(jbus.thread_of(run.home, slug))} & set(AT_WORK)
+        busy = {live.get(thread), live.get(thread_of(run.home, slug))} & set(AT_WORK)
         if wait["home"] or busy or slug in reviewing:
             continue
         nudges = _nudges(run, slug, head)
@@ -385,7 +384,7 @@ def held(
         pairs = zip(hold["rows"], hold["numbers"], strict=True)
         rows = ", ".join(f"{slug} (#{number})" for slug, number in pairs)
         text = HELD_HOME.format(rows=rows, minutes=minutes, reason=hold["reason"])
-        at = jbus.thread_of(run.home / hold["home"])
+        at = thread_of(run.home / hold["home"])
         sending = f"{HELD}|{key}|{hold['since']}"
         went = _send(run, client, at, text, sending, rows, needs="decide") if at else "no home"
         if not went:

@@ -66,11 +66,11 @@ from jbus import (
     record,
     redact,
     stop,
-    t3,
     verbs,
     waiting,
 )
 from jbus.wake import Box
+from jsettings import t3
 
 DAY = timedelta(days=1)
 COLUMNS = (

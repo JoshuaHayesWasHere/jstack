@@ -57,8 +57,8 @@ from typing import Any
 
 import jsettings
 from jbriefs import below
-from jbriefs.home import home_of
-from jbus import mirror, questions, queue, read_json, thread_of, verbs, write_json
+from jbriefs.home import home_of, thread_of
+from jbus import mirror, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.told import FILE as TOLD
 from jbus.told import told_to

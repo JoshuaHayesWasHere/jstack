@@ -73,7 +73,7 @@ def test_only_at_work_tests_a_thread_against_live():
 
 @pytest.mark.parametrize(
     ("name", "home"),
-    [("task_brief", "watch.py"), ("locked", None), ("thread_of", "__init__.py")],
+    [("task_brief", "watch.py"), ("locked", None), ("thread_of", None)],
 )
 def test_each_shared_job_has_one_definition(name, home):
     """A job of jbus's own is defined in its one module, and one the core holds in none."""

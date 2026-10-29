@@ -37,9 +37,11 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbus import Config, alert, passes, project, read_json, signin, t3, thread_of, wake, write_json
+from jbriefs.home import thread_of
+from jbus import Config, alert, passes, project, read_json, signin, wake, write_json
 from jbus.queue import Row
 from jbus.watch import NEVER, World, checks
+from jsettings import t3
 
 if TYPE_CHECKING:
     from jbus.poll import Half

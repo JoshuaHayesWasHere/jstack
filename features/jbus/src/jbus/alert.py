@@ -45,6 +45,7 @@ from typing import Any
 
 import jbus
 import jsettings
+from jbriefs.home import thread_of
 from jbus import locked, outbox, passes, read_json, verbs, wake, write_json
 from jbus.t3 import Client, T3Error
 
@@ -300,7 +301,7 @@ def flush(run: passes.Pass, client: Client | None = None) -> int:
 def _thread(run: passes.Pass) -> str:
     """Return the thread that gets the project's wakes: its home's, or else the config's
     `home_thread`. With neither, say so once in the journal, until a thread is found."""
-    thread = jbus.thread_of(run.home) or run.config.home_thread
+    thread = thread_of(run.home) or run.config.home_thread
     folder = run.box.home.folder
     marks = read_json(folder / "wake.json", {})
     if bool(thread) == bool(marks.get("no_thread")):

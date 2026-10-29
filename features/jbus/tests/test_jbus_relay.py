@@ -968,7 +968,7 @@ def test_an_older_beat_is_never_the_heartbeat_left_behind(tmp_path, monkeypatch)
 
 
 def test_the_target_has_neutral_names_and_the_older_grok_names_still_set_it(tmp_path):
-    from jbus import relay as relaying
+    from jbus import relayenv
 
     owner = env_for_lane()
     neutral = {
@@ -978,21 +978,27 @@ def test_the_target_has_neutral_names_and_the_older_grok_names_still_set_it(tmp_
     }
     both = {**owner, "RELAY_WEBHOOK_URL": "http://127.0.0.1:8/"}
     for env, url in ((owner, owner["GROK_WEBHOOK_URL"]), (neutral, owner["GROK_WEBHOOK_URL"])):
-        (target,) = relaying.settings(env).targets.values()
+        (target,) = relayenv.settings(env).targets.values()
         assert (target.name, target.url, target.key) == ("webhook", url, SOUS_CHEF_KEY)
-    assert relaying.settings(both).targets["webhook"].url == "http://127.0.0.1:8/"
+    assert relayenv.settings(both).targets["webhook"].url == "http://127.0.0.1:8/"
 
 
 def test_the_env_file_is_read_as_systemd_reads_it(tmp_path):
     """systemd's EnvironmentFile= skips an `export KEY=value` line, so the relay never sees it.
     With systemd 262, `systemd-run --user -p EnvironmentFile=<file>` left an exported key
     unset and set the plain one."""
-    from jbus import relay as relaying
+    from jbus import relayenv
 
     path = tmp_path / "env"
     path.write_text(
         "# a comment\nexport RELAY_PORT=4391\nRELAY_STATE='/a b'\n"
         "RELAY_SILENT_MINUTES=\nno-equals\n"
     )
-    assert relaying.env_file(path) == {"RELAY_STATE": "/a b", "RELAY_SILENT_MINUTES": ""}
-    assert relaying.env_file(tmp_path / "none") == {}
+    assert relayenv.env_file(path) == {"RELAY_STATE": "/a b", "RELAY_SILENT_MINUTES": ""}
+    assert relayenv.env_file(tmp_path / "none") == {}
+
+
+def test_the_relay_counts_silence_from_half_an_hour_past_the_hourly_refresh():
+    from jbus import leftover, relayenv
+
+    assert relayenv.SILENT_MINUTES == leftover.REFRESH_MINUTES + 30

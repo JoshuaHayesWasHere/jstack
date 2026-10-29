@@ -61,8 +61,7 @@ from typing import Any
 import jbus
 import jroles
 import jsettings
-from jbus import alert, launchd, read_json, verbs, wake
-from jbus import relay as relaying
+from jbus import alert, launchd, read_json, relayenv, verbs, wake
 from jroles import ledger, pool
 
 FULL = 80
@@ -237,7 +236,7 @@ def relay_setting(name: str, default: str) -> str:
     """Read one of the relay's settings as the relay reads it: the line of its env file, else
     this process's environment, else the relay's default. It keeps no other line of the file,
     since the file holds the relay's keys."""
-    return relaying.env_file(relay_env()).get(name) or os.environ.get(name) or default
+    return relayenv.env_file(relay_env()).get(name) or os.environ.get(name) or default
 
 
 def relay_state() -> Path:

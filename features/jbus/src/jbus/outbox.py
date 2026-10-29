@@ -49,7 +49,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 
 import jsettings
-from jbus import review, thread_of
+from jbriefs.home import thread_of
+from jbus import review
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import slot, waiters

@@ -3,7 +3,8 @@
 `post` sends one request and `get_json` reads one page, and each says why it failed with no
 URL beyond its path in the message (`T3Error`, `T3Refused`, `T3Dropped`). `Session` is one MCP
 session at `<server>/mcp` with the bearer token that `jbus t3 login` keeps. What a command may
-call through it is that command's own: jbus's `jbus.t3.Client` allows its eight tools.
+call through it is that command's own: jbus's `jbus.t3.Client` allows its eight tools. `expiry`
+says when the token that `jbus t3 login` keeps runs out.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,7 @@ from jsettings import Refused
 from jsettings.store import read_json
 
 PROTOCOL = "2025-06-18"
+LIFETIME = 30 * 24 * 60 * 60
 
 
 class T3Error(Exception):
@@ -119,3 +122,29 @@ class Session:
                 },
             )
             self._rpc("notifications/initialized", None, notify=True)
+
+
+def _seconds(value: Any) -> float | None:
+    real = isinstance(value, int | float) and not isinstance(value, bool)
+    return float(value) if real and value > 0 else None
+
+
+def expiry(token_path: Path) -> datetime | None:
+    """Return when the stored token runs out, or None when no token is stored.
+
+    The token was obtained at `obtained_at`. For a token stored before jbus recorded that time,
+    `expiry` takes the time that the token's file was last written. The token lasts its own
+    `expires_in` seconds, or `LIFETIME` when it has no `expires_in`. `expiry` does not read the
+    token itself.
+    """
+    stored = read_json(token_path, {})
+    token = stored.get("token") if isinstance(stored, dict) else None
+    if not isinstance(token, dict) or not token.get("access_token"):
+        return None
+    obtained = _seconds(stored.get("obtained_at"))
+    if obtained is None:
+        try:
+            obtained = token_path.stat().st_mtime
+        except OSError:
+            return None
+    return datetime.fromtimestamp(obtained + (_seconds(token.get("expires_in")) or LIFETIME), UTC)
