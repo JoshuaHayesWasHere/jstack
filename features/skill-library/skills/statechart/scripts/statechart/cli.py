@@ -391,6 +391,41 @@ def split_rules(cfg):
     }
 
 
+def stop_group(child):
+    """Stops the process group that `child` leads: SIGTERM, which `jgauge test-slot` passes on to
+    TLC, then SIGKILL to what is left once `child` ends or after a grace period. A group with no
+    process left is no fault."""
+    for number in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(child.pid, number)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            child.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def run_in_own_group(command, cwd):
+    """Runs `command` in a process group of its own, as subprocess.run does, and on an error, an
+    interrupt or SIGTERM stops the whole group, so a TLC under `jgauge test-slot` does not outlive
+    the run whose folders it writes in."""
+    child = subprocess.Popen(
+        command,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = child.communicate()
+    except BaseException:
+        stop_group(child)
+        raise
+    return subprocess.CompletedProcess(command, child.returncode, stdout, stderr)
+
+
 def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
     with open(f"{base}.cfg", "w", encoding="utf-8") as handle:
         handle.write(cfg)
@@ -419,12 +454,7 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
         os.path.basename(spec),
     ]
     try:
-        r = subprocess.run(
-            in_test_slot(command),
-            cwd=os.path.dirname(os.path.abspath(spec)),
-            capture_output=True,
-            text=True,
-        )
+        r = run_in_own_group(in_test_slot(command), os.path.dirname(os.path.abspath(spec)))
     except OSError as e:
         raise CannotFinish(f"cannot run TLC: {e.strerror or e}") from e
     finally:

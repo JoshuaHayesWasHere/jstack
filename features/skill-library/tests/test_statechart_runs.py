@@ -356,14 +356,20 @@ def test_a_rerun_without_png_removes_the_chart_png_of_an_earlier_run(tmp_path):
 
 @needs_tlc
 @pytest.mark.timeout(300)
+@pytest.mark.parametrize("slot", ["held", "taken"])
 def test_a_run_whose_python_is_killed_mid_tlc_leaves_the_output_folder_and_a_rerun_charts(
-    tmp_path,
+    tmp_path, slot
 ):
-    """a run whose Node is killed mid-TLC leaves the output folder as it was, and a rerun charts
-    its own spec"""
+    """a run whose Node is killed mid-TLC leaves the output folder as it was, stops TLC, also
+    under a `jgauge test-slot` of its own, removes its folders, and a rerun charts its own spec"""
     out = write_slow_pay(tmp_path, 60000)
     tmp = own_tmp(tmp_path, "tmp")
-    first = Run(tmp_path, env={"TMPDIR": str(tmp)})
+    env = {"TMPDIR": str(tmp)}
+    if slot == "taken":
+        bin_dir = own_tmp(tmp_path, "bin")
+        write(bin_dir / "jgauge", '#!/bin/sh\nshift 2\n"$@"\nexit $?\n', 0o755)
+        env = {**env, "JGAUGE_TEST_SLOT": "", "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+    first = Run(tmp_path, env=env)
     try:
         until(lambda: tlc_started(tmp))
         time.sleep(0.3)
@@ -371,6 +377,10 @@ def test_a_run_whose_python_is_killed_mid_tlc_leaves_the_output_folder_and_a_rer
         first.done()
         assert first.child.returncode == 128 + signal.SIGTERM
         assert left_work(tmp) == []
+        until(
+            lambda: subprocess.run(["pgrep", "-f", f"java.io.tmpdir={tmp}"]).returncode == 1,
+            seconds=10,
+        )
         assert not out.exists()
 
         write_slow_pay(tmp_path, 200, "Receipt")

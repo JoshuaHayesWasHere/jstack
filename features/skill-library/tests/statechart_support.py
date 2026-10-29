@@ -227,13 +227,13 @@ SWITCH_LAMP = """stateDiagram-v2
 FROM_SPEC_USAGE = (
     "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE] |"
     " --against AGREED.tla [--against-config FILE]] [--label TEXT] [--map FILE] [--expect-broken"
-    " RULE]... [--title TEXT] [--out DIR] [--png]"
+    " RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
 )
 
 
 FROM_CHART_USAGE = (
     "statechart from-chart CHART.mmd [--module NAME] [--expect-broken RULE]... [--title TEXT]"
-    " [--out DIR] [--png]"
+    " [--out DIR] [--png] [--keep-work]"
 )
 
 
