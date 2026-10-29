@@ -1,7 +1,8 @@
 """Check the merge flow's rules with TLC: today's code breaks the rules it breaks today, the design
 holds all four, and each canary (the design with one fix taken out) breaks the rule that rests on
 that fix. Two controls run today's code with an earlier gap of jbus.strays, the code before #427
-and the code before #416, and each breaks all four rules. Run it from the repo root:
+and the code before #416, and each breaks all four rules. A third marks ready a draft that waits
+on your word, and holds FlowsWhenGreen while your word lifts a hold. Run it from the repo root:
 
     python3 features/jmerge/spec/flow_canaries.py
 
@@ -35,13 +36,15 @@ CANARIES = {
     "NoProof": ["MainFixWaitsOnlyOnYou"],
 }
 
-# Today's code breaks two rules. A check that selects a test reading the whole tree only by
-# chance merges a change that breaks it. And once main's fix row closed with its fix in an open
+# Today's code breaks three rules. A check that selects a test reading the whole tree only by
+# chance merges a change that breaks it. Once main's fix row closed with its fix in an open
 # pull request, that fix merges only when its own check proves it, which it does only when it
 # selected the tests main failed and the red run's logs name them: otherwise nothing can merge.
+# And a draft that waits on your word stays a draft: jmerge marks a draft ready only when the
+# draft is all it waits on, and judges your word first, while jmerge --accept refuses a draft.
 # Since #427 jbus.strays stops what a crew left, busy or idle, once its turn ended, so no
 # leftover keeps the machine full.
-TODAY_BREAKS = ["NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
+TODAY_BREAKS = ["FlowsWhenGreen", "NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
 
 # What jbus.strays stops of an idle process a finished turn left (FlowToday.tla's `Gap`), and
 # the rules the code breaks with it. Before #427 an idle one is stopped only once its row ended,
@@ -54,8 +57,25 @@ CONTROLS = {
 }
 
 
-def config(rules, gap=None):
-    lines = ["SPECIFICATION Spec", *([f'CONSTANT Gap = "{gap}"'] if gap else [])]
+# FlowToday.tla's `Draft`: today a draft that waits on your word stays a draft. The control that
+# marks it ready holds FlowsWhenGreen, so that draft is the rule's only break today, and breaks
+# its NoLift probe, so your word lifts a hold there.
+DRAFT = "held"
+PROBES = ["NoLift"]
+READIED = {
+    "today, a draft held for your word marked ready": (
+        "readied",
+        ["NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"],
+        PROBES,
+    ),
+}
+
+
+def config(rules, gap=None, draft=DRAFT):
+    lines = [
+        "SPECIFICATION Spec",
+        *([f'CONSTANT Gap = "{gap}"', f'CONSTANT Draft = "{draft}"'] if gap else []),
+    ]
     lines += ["INVARIANT TypeOK", *(f"INVARIANT {rule}" for rule in rules)]
     return "\n".join(lines) + "\n"
 
@@ -120,7 +140,7 @@ def verdict(out, rule=None):
 def finished(out):
     """Whether TLC ran to its verdict, so its output is kept: it found no error or broke a rule,
     and did not fail or stop short."""
-    return any(verdict(out, rule) != "error" for rule in [None, *RULES])
+    return any(verdict(out, rule) != "error" for rule in [None, *RULES, *PROBES])
 
 
 def states(out):
@@ -138,6 +158,10 @@ def runs():
         for rule in RULES:
             want = "breaks" if rule in breaks else "holds"
             yield f"{label}: {rule}", "FlowToday", config([rule], gap), rule, want
+    for label, (draft, breaks, probes) in READIED.items():
+        for rule in [*RULES, *probes]:
+            want = "breaks" if rule in [*breaks, *probes] else "holds"
+            yield f"{label}: {rule}", "FlowToday", config([rule], TODAY, draft), rule, want
 
 
 def main():

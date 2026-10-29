@@ -8,6 +8,8 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
   It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416, #426 and #427 since and cut down to what the four rules read.
   Since #583 and #584 it has main's fix as `jmerge.rows.red` takes it: the `main-red-` row, or a pull request whose own check proved the fix, and the row's crew may end with no pull request, its fix in an open one.
   Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red, which holds it as main's red while the fix jbus filed for that run is open.
+  Since cut 11 of the simplify pass it has a row's go, which jbus asks at launch and jmerge at merge (`rows.py` `ROW_HELD`, `NO_GO`), and a hold for your word, as a change that touches a protected path has (`ready.py` `TOUCHES`).
+  A crew opens its pull request as a draft, and the draft's check waits on its review: jmerge marks it ready only once the draft is all it waits on.
 - `FlowDesign.tla` models the design: cross-cutting-guard (`Check`), rejudge-red-prs (`Rejudge`) and crew-leftover-procs (`Sweep`), with today's fix path.
 - `canary/` holds the design with each fix taken out: `NoGuard`, `NoRejudge`, `NoSweep` and `NoProof`, which has `rows.red` as it was before #583.
 - `flow_canaries.py` runs TLC on all of it, and `FlowToday.map.py` labels the chart in `FlowToday-statechart/`.
@@ -21,7 +23,13 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 ```
 
 Run it from the repo root.
-Today's code breaks two rules, `NoMergeTurnsMainRed` and `MainFixWaitsOnlyOnYou`, and holds the other two.
+Today's code breaks three rules, `FlowsWhenGreen`, `NoMergeTurnsMainRed` and `MainFixWaitsOnlyOnYou`, and holds `MachineNotLeftFull`.
+`FlowsWhenGreen` says work settles merged or waiting on your word: your approval of a row, or `jmerge --accept` of a hold.
+It breaks on a draft that touches a protected path.
+`Repo.judged` returns the hold before it reaches `if one.draft:`, and jmerge marks a draft ready only when its reason is the draft (`READY_ON`), so the draft stays one.
+`jmerge --accept` lifts the hold, finds the draft's wait under it, and refuses, so your word cannot move it either.
+A control sets `FlowToday.tla`'s constant `Draft` to `readied`, which marks such a draft ready, and `FlowToday.cfg` sets it to `held`, the code.
+The control holds `FlowsWhenGreen`, so that draft is its only break, and breaks the probe `NoLift`, so your word lifts a hold there.
 It breaks `NoMergeTurnsMainRed` because a check can still miss a test that reads the changed path.
 `scripts/select_tests.py` runs every test no rule owns (#397), and each test whose `READ_SET` matches the changed path (#426).
 `testing/tests/test_cross_cutting.py` makes a test that globs or walks the tree declare a read set, but it sees only the reads it knows.
@@ -29,8 +37,10 @@ A test that reads the path another way, or past its read set, is selected by cha
 It breaks `MainFixWaitsOnlyOnYou` once main's fix row has closed with its fix in an open pull request, whose check proves the fix only when it ran each test main failed.
 `scripts/select_tests.py` selects by the diff and not by `main.json`'s `failed`, so a fix's check runs those tests by the same chance, and a red whose logs name no failed test is proved by nothing.
 Then nothing can merge, and no row is left for you to approve, as on 2026-10-27.
+When that pull request is still a draft its check never runs at all: jmerge judges main's red before the draft, so it never marks it ready while main is red.
+`MainFixWaitsOnlyOnYou` counts your word for a pull request too, so a fix that waits on your `--accept` waits on you.
 It breaks the same rule when the pull request that carries the fix also breaks a test of its own: its check fails over the red main, its crew reads the failure as main's, and jmerge judges it again only once main is green.
-The design holds all four: its check runs every test that reads the tree, and the crew of a fix reads a failure over the red it fixes as its own.
+The design holds all four, in the words they had before the holds: its check runs every test that reads the tree, and the crew of a fix reads a failure over the red it fixes as its own.
 `NoGuard` breaks `NoMergeTurnsMainRed`, `NoRejudge` breaks `FlowsWhenGreen`, and `NoSweep` breaks `FlowsWhenGreen` and `MachineNotLeftFull`.
 `NoProof` breaks `MainFixWaitsOnlyOnYou`: the main-red row ends with its fix in an open pull request, whose check proves the fix, and `rows.red` before #583 holds it all the same.
 Two controls run the model with an earlier `Gap`, `FlowToday.tla`'s constant, which `FlowToday.cfg` sets to `turn`, the code since #427.
@@ -48,7 +58,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowD
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
     statechart from-spec FlowToday.tla --against FlowDesign.tla --label "the design" \
     --title "Does work keep flowing?" --out out --png \
-    --expect-broken NoMergeTurnsMainRed --expect-broken MainFixWaitsOnlyOnYou)
+    --expect-broken FlowsWhenGreen --expect-broken NoMergeTurnsMainRed --expect-broken MainFixWaitsOnlyOnYou)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
@@ -58,13 +68,15 @@ The design starts with both pull requests open, so each story says the design st
 
 `FlowToday.tla` has only the variables the four rules read, and the scout's `FlowNow.tla` has the rest.
 
-- The queue before a row's go: the home's brief, your approval, a brief edited after it (#399), and which home a word goes to (#402).
-- The review, its clock and your nudge, a conflict and its rebase, and what reaches you.
+- The queue before a row's go: the home's brief and which home a word goes to (#402); each row starts with your go, and a brief edited after it (#399) is a hold you lift by approving it again.
+- The review as more than one step: its findings, its clock and your nudge, a conflict and its rebase, and what reaches you.
+- Holds for your word other than a protected path (a dropped line, a decline, a gate), each one `needs`, and a merge gate, which only a passing gate lifts.
+- A brief that says `Review: none`, whose draft jmerge marks ready at once and which waits on your word.
 - A crew at work: a crew's turn is one step, so `Gap = "turn"` stops every idle process.
 - A process that holds a test slot, which jbus.strays leaves running since #427: the model takes it to end with its check.
 - A row that ends other than by merging: done, left, or its worktree gone.
 - The account caps, GitHub's API budget, cancelled checks, the nightlies other than browser.yml's, and those of integration branches.
-- A draft, whose browser run is waived as its failed checks are: the model's pull requests are past their review.
+- A draft's browser run, which is waived as its failed checks are: a draft in the model has run no check.
 - A pull request whose own browser run proves the fix of main's browser red: the browser-red row is main's only fix there.
 - A fix row that ends with no fix anywhere, which leaves main red with nothing to merge until you queue another.
 - A fix row that launched and is left to its crew once main is green: the model's fix row is queued until you approve it, and the approval is the whole of its work.

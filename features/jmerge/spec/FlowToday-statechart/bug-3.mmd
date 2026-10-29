@@ -9,6 +9,7 @@ stateDiagram-v2
   %% second model (against): the design
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1 fill:#e8eef9,stroke:#74777d,color:#1b2631
+  classDef group1Wrong fill:#e8eef9,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1Path fill:#e8eef9,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
     state "Moving" as legendGroup1
@@ -16,26 +17,20 @@ stateDiagram-v2
   }
   class legendGroup1 group1
   class legendWrong plainWrong
-  state "Main green" as g0 {
-    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s0
+  state "Main green, machine full" as g0 {
+    state "1 a draft, its review<br/>first, 1 waiting to launch" as s0
     state "1 passed, waiting to<br/>merge, 1 waiting to launch" as s1
     state "1 waiting for a check, 1<br/>waiting to launch" as s2
-    state "2 waiting to launch" as s3
   }
-  state "Main red from outside" as g1 {
-    state "1 holds main's fix, red<br/>from its own break, 1<br/>passed, waiting to merge" as s4
-    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s5
-  }
+  state "Main green: 2 waiting to<br/>launch" as s3
+  state "Main red from a merge,<br/>machine full: 1 merged, 1<br/>waiting to launch" as s4
   [*] --> s3
-  s3 --> s2 : 1. jbus launches its crew,<br/>which opens its pull request
-  s2 --> s1 : 2. its check runs
-  s1 --> s0 : 3. jbus launches its crew,<br/>which opens its pull request
-  s0 --> s5 : 4. something outside breaks<br/>main
-  s5 --> s4 : 6. its check runs
-  s5 --> s5 : 5. you approve main's fix, and<br/>its crew puts it in an open<br/>pull request
+  s3 --> s0 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  s0 --> s2 : 2. its review is written and<br/>fixed, and jmerge marks it<br/>ready
+  s2 --> s1 : 3. its check runs
+  s1 --> s4 : 4. it merges
   class s0 group1Path
   class s1 group1Path
   class s2 group1Path
   class s3 group1Path
-  class s4 plainWrong
-  class s5 group1Path
+  class s4 group1Wrong
