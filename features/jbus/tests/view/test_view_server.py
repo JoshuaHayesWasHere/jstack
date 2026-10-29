@@ -351,6 +351,64 @@ def test_a_request_that_comes_while_a_build_runs_gets_a_build_begun_after_it(ser
     assert began[1] > asked
 
 
+@pytest.mark.parametrize(
+    ("path", "name"),
+    [
+        ("/stack.json", "stack"),
+        ("/feed?project=demo", "needs"),
+        ("/state.json?project=demo", "Read"),
+    ],
+)
+def test_a_build_that_does_not_end_behind_a_finished_one_serves_the_finished_answer(
+    served, monkeypatch, path, name
+):
+    finished = served.ask(path)
+    assert finished[0] == 200
+    served.doors.app.patience = 0.5
+    let, started = _stuck(monkeypatch, name)
+    try:
+        answers = []
+        threads = [
+            threading.Thread(target=lambda: answers.append(served.ask(path))) for _ in range(4)
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert [(status, body) for status, _, body in answers] == [(200, finished[2])] * 4
+        assert len(started) == 1
+    finally:
+        let.set()
+
+
+def test_builds_of_many_answers_at_once_never_run_more_than_the_cap():
+    shared, lock, running, most = view.Shared(builds=2), threading.Lock(), [0], [0]
+
+    def build(key):
+        def one():
+            with lock:
+                running[0] += 1
+                most[0] = max(most[0], running[0])
+            time.sleep(0.3)
+            with lock:
+                running[0] -= 1
+            return key
+
+        return one
+
+    answers = []
+    threads = [
+        threading.Thread(target=lambda key=key: answers.append(shared.get(key, build(key), 10)))
+        for key in ("one", "two", "three", "four")
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert sorted(answers) == ["four", "one", "three", "two"]
+    assert most[0] == 2
+
+
 def test_a_build_that_fails_fails_its_requests_and_the_next_request_builds_again(
     served, monkeypatch
 ):
