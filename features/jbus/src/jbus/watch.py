@@ -84,7 +84,7 @@ OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusChec
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does."""
-MERGED = "number,url,title,headRefName,headRefOid,mergeCommit,mergedAt"
+MERGED = "number,url,title,headRefName,headRefOid,baseRefName,mergeCommit,mergedAt"
 GATED = "a gate the Chef has"
 OFF, STOP, UNREAD = "dispatch is off", "the stop file is there", "not read in this pass"
 AFTER_MERGE = "after the merge"
@@ -1571,8 +1571,9 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
 
     A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
     only a second cancelled run, or a run GitHub would not start again. It reports a red main
-    once for each commit. `_retro` files and queues a brief for the fix once, and only for
-    main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
+    once for each commit. A merge into another branch than main, a merge base's, did not land on
+    main, so it takes no blame for it. `_retro` files and queues a brief for the fix once, and
+    only for main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
     is no longer main, so there is nothing to fix. Once main's tip is green at a later commit
     than the one a fix row was filed for, the red is gone: `_withdraw` takes out a row that never
     launched, and reports once a row that did, which its crew and pull request keep. With no
@@ -1588,9 +1589,13 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     ]
     if not slugs and not fixes and not mainjson.read(run.state).red:
         return
-    merges = [world.merged[slug] for slug in slugs]
-    slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
     branch = _default_branch(run)
+    merges = [
+        world.merged[slug]
+        for slug in slugs
+        if world.merged[slug].get("baseRefName", branch) in (branch, None, "")
+    ]
+    slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
     commits = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
     if not isinstance(commits, list):
         return
