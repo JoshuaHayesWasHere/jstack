@@ -18,7 +18,9 @@
    | `Review: review` | the user asks for a review whose findings are answered before the merge: the crewmate answers each finding of the first review, and after it a later review's `error` and `warning` findings are fixed in the pull request too, and its `info` findings are dropped |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
 
-   A brief with no line, or with any other word, an old `after` included, counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
+   A brief with no line, or with any other word, an old `after` included, counts as `review`.
+   With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word.
+   No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
 
    A brief is checked when it is queued, not when it launches.
    `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, where the brief has one, that names the design or says `none, <why>`; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
