@@ -13,6 +13,7 @@ commit's message."""
 
 import pytest
 
+from jleak import trailers as jleak_trailers
 from jmerge import trailers
 from test_jmerge_fresh import LINES, Kitchen, git, url
 from test_jmerge_integration import BRANCH, allows, integration
@@ -91,6 +92,23 @@ def test_only_the_ai_lines_go_and_a_human_co_author_stays_where_it_was():
     message = f"fix: two\n\n{HUMAN}\n{CLAUDE}\n\n{AI[-2]}\n"
     assert trailers.found(message) == [(4, CLAUDE), (6, AI[-2])]
     assert trailers.strip(message) == f"fix: two\n\n{HUMAN}"
+
+
+# The lines the two readers once told apart: jleak's `=` and spaced trailers and its footer that
+# goes on after "Claude Code", which jmerge let through, and an address that only starts with
+# anthropic.com, which jmerge alone took out.
+APART = [
+    "Co-authored-by= Claude <noreply@anthropic.com>",
+    "Co-authored-by : Codex <codex@example.com>",
+    "Generated with Claude Code, by hand",
+    "Co-authored-by: Ada Lovelace <ada@anthropic.company>",
+]
+
+
+@pytest.mark.parametrize("line", [*APART, *AI, HUMAN])
+def test_jmerge_and_jleak_take_out_the_same_lines(line):
+    message = f"feat: a change\n\n{line}\n"
+    assert bool(trailers.found(message)) == bool(jleak_trailers.strip(message)[1])
 
 
 @pytest.fixture

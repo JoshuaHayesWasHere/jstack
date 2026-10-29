@@ -78,6 +78,8 @@ from jbus.watch import (
     _log_failed,
     _withdraw,
     brief_of,
+    fix_brief,
+    ran_at,
     tests_said,
     when,
 )
@@ -202,66 +204,6 @@ def merged_row(table: list[dict[str, Any]], one: dict[str, Any]) -> str:
     return next((row["slug"] for row in table if row.get("pr") == f"#{found.group(1)}"), "")
 
 
-def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]], follows: str = "") -> str:
-    """Return the brief for the fix of `red`, in the shape of `features/jbriefs/templates/brief.md`.
-    `jobs` is each failed job's name, URL and failed tests, of the newest red run. `follows` is
-    the row whose merge turned it red, or nothing."""
-    tests = [test for _, _, failed in jobs for test in failed.tests]
-    where = ", ".join(
-        f"`{file}`" for file in dict.fromkeys([red.path, *(t.split("::")[0] for t in tests)])
-    )
-    runs = len(red.runs)
-    if red.kind == NOT_RUN:
-        done = [
-            f"- GitHub runs a job of {red.file} on main again: its file is one GitHub can read, "
-            "or, where nothing needs the workflow, it is removed (it is a candidate for "
-            "removal, and jbus removes no workflow)",
-            "- the Result says which, and why GitHub could not run the file",
-        ]
-        said = f"GitHub started no job in {runs} runs on main since {day}"
-    else:
-        done = [
-            f"- each failed job named under Read passes in a run of {red.file} on main",
-            "- the Result names the cause: the merge that broke it, or a flake with its evidence",
-        ]
-        said = f"{runs} runs failed on main since {day}, {tests_said(jobs)}"
-    read = [
-        f"- the job `{job}`, {url or 'with no URL'}: "
-        + (
-            ", ".join(f"`{test}`" for test in failed.tests)
-            or "its log names no failed test, read it"
-        )
-        for job, url, failed in jobs
-    ]
-    read += [
-        f"- the run {one.get('html_url') or one.get('id')}, from {one.get('event') or 'an event'}, "
-        f"at {one.get('head_sha')}"
-        for one in red.runs
-    ]
-    return "\n".join(
-        [
-            f"# {red.name}: {red.file} is red on main since {day}",
-            f'Task: "{red.file}: {said}" (jbus, from {red.path})',
-            "Done when:",
-            *done,
-            f"Proves it: `gh run list --workflow {red.file} --branch main` shows a run that "
-            "passed after the fix merged, or the workflow is gone from main",
-            "Size: S",
-            f"Where: {where}",
-            "Do not touch: the ruleset",
-            f"Decisions: {queue.FILED}workflow on main and the user has not seen it",
-            "Design: none, a fix to what the red runs name",
-            "Pull request: open one when done",
-            "Review: review",
-            "Playbook: bug-fix",
-            *([f"Follows: {follows}"] if follows else []),
-            "Read:",
-            *read,
-            "",
-        ]
-    )
-
-
 def _jobs(run: Pass, red: Red) -> list[tuple[str, str, Failed]]:
     """Return each failed job of the newest red run, with its URL and the tests its log names."""
     if red.kind == NOT_RUN:
@@ -342,7 +284,35 @@ def owe(run: Pass) -> None:
         ):
             day = run.user.day(when(red.first["created_at"]))
             jobs = _jobs(run, red)
-            text = brief(red, day, jobs, merged_row(queue.load(run.state), red.first))
+            if red.kind == NOT_RUN:
+                said = f"GitHub started no job in {len(red.runs)} runs on main since {day}"
+                done = [
+                    f"- GitHub runs a job of {red.file} on main again: its file is one GitHub can "
+                    "read, or, where nothing needs the workflow, it is removed (it is a candidate "
+                    "for removal, and jbus removes no workflow)",
+                    "- the Result says which, and why GitHub could not run the file",
+                ]
+            else:
+                said = f"{len(red.runs)} runs failed on main since {day}, {tests_said(jobs)}"
+                done = [
+                    f"- each failed job named under Read passes in a run of {red.file} on main",
+                    "- the Result names the cause: the merge that broke it, or a flake with its "
+                    "evidence",
+                ]
+            text = fix_brief(
+                f"{red.name}: {red.file} is red on main since {day}",
+                f'"{red.file}: {said}" (jbus, from {red.path})',
+                done,
+                f"`gh run list --workflow {red.file} --branch main` shows a run that passed after "
+                "the fix merged, or the workflow is gone from main",
+                "workflow on main",
+                [(job, url, failed.tests) for job, url, failed in jobs],
+                [ran_at(one) for one in red.runs],
+                files=[red.path],
+                untouched="the ruleset",
+                design="the red runs name",
+                follows=merged_row(queue.load(run.state), red.first),
+            )
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)
             (run.home / "tasks" / f"{red.name}.md").write_text(text)
             try:
@@ -363,57 +333,6 @@ def owe(run: Pass) -> None:
 
 INTEGRATION = "integration"
 RED_TOLD = "integration-red|{slug}|{thread}"
-
-
-def red_branch_brief(
-    name: str,
-    branch: str,
-    sha: str,
-    scope: str,
-    numbers: list[int],
-    jobs: list[tuple],
-    follows: str = "",
-) -> str:
-    """Return the brief for the fix of a red integration branch, in the shape of
-    `watch.red_brief`. `jobs` is each failed check's name, URL and failed tests, `numbers` the pull
-    requests it holds, and `follows` the row whose work the fix is a follow-up of, or nothing."""
-    tests = [test for _, _, failed in jobs for test in failed]
-    files = list(dict.fromkeys(test.split("::")[0] for test in tests))
-    where = ", ".join(f"`{file}`" for file in files) or (
-        f"`.` (the whole repo: the failed check's log names no test, read it on {branch})"
-    )
-    held = ", ".join(f"#{number}" for number in numbers) or "no pull request"
-    read = [
-        f"- the job `{job}`, {url or 'with no URL'}: "
-        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
-        for job, url, failed in jobs
-    ]
-    return "\n".join(
-        [
-            f"# {name}: {branch}'s check failed at {sha[:12]}",
-            f'Task: "{branch} check failed at {sha[:12]}, and jmerge holds {held} on it" '
-            f"(jbus, from {branch}'s tip)",
-            "Done when:",
-            f"- each failed test named under Read passes on {branch}, and the failed job passes "
-            "at the commit that merges the fix",
-            f"- the Result names the cause: the merge that broke {branch}, or a flake with its "
-            "evidence",
-            f"Proves it: CI's check on {branch} passes at the commit that merges the fix",
-            "Size: S",
-            f"Where: {where}",
-            "Do not touch: .github/workflows/, the ruleset",
-            f"Decisions: {queue.FILED}integration branch and the user has not seen it",
-            "Design: none, a fix to what the failed run names",
-            f"Pull request: open one against {branch} when done",
-            "Review: review",
-            "Playbook: bug-fix",
-            *([f"Home: {scope}"] if scope else []),
-            *([f"Follows: {follows}"] if follows else []),
-            "Read:",
-            *read,
-            "",
-        ]
-    )
 
 
 def _read(path: Path) -> str:
@@ -490,8 +409,7 @@ def integration_branches(
             continue
         homes = [home_of(run.home, text) for _, slug, _ in pulls if (text := brief_of(run, slug))]
         home = max(sorted(set(homes)), key=homes.count) if homes else run.home
-        numbers = [number for number, _, into in pulls if into]
-        held = ", ".join(f"#{number}" for number in numbers) or "no pull request"
+        held = ", ".join(f"#{number}" for number, _, into in pulls if into) or "no pull request"
         sha = str(failed[0].get("head_sha") or "")
         name = jmerge_rows.integration_fix(branch, sha)
         if not own and not run.first and sha and name not in run.removed:
@@ -502,7 +420,25 @@ def integration_branches(
                 ]
                 scope = "" if home == run.home else home.name
                 first = [slug for _, slug, into in pulls if into] or [slug for _, slug, _ in pulls]
-                text = red_branch_brief(name, branch, sha, scope, numbers, jobs, first[0])
+                text = fix_brief(
+                    f"{name}: {branch}'s check failed at {sha[:12]}",
+                    f'"{branch} check failed at {sha[:12]}, and jmerge holds {held} on it" '
+                    f"(jbus, from {branch}'s tip)",
+                    [
+                        f"- each failed test named under Read passes on {branch}, and the failed "
+                        "job passes at the commit that merges the fix",
+                        f"- the Result names the cause: the merge that broke {branch}, or a flake "
+                        "with its evidence",
+                    ],
+                    f"CI's check on {branch} passes at the commit that merges the fix",
+                    "integration branch",
+                    jobs,
+                    nowhere=f"`.` (the whole repo: the failed check's log names no test, read it "
+                    f"on {branch})",
+                    pull=f"open one against {branch} when done",
+                    home=scope,
+                    follows=first[0],
+                )
                 (run.home / "tasks").mkdir(parents=True, exist_ok=True)
                 (run.home / "tasks" / f"{name}.md").write_text(text)
                 try:
