@@ -955,6 +955,25 @@ def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
     assert why["imports"] > 0
 
 
+STATECHART_TESTS = {
+    "features/jmerge/tests/test_flow_spec.py",
+    "features/home/tests/test_home_tree_spec.py",
+    "features/skill-library/tests/test_statechart_charts.py",
+    "features/skill-library/tests/test_statechart_runs.py",
+    "features/skill-library/tests/test_statechart_specs.py",
+    "features/skill-library/tests/test_statechart_tlc_bounds.py",
+    "features/skill-library/tests/test_statechart_tlc_cache.py",
+}
+
+
+def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_on_the_path():
+    script = "features/skill-library/skills/statechart/scripts/statechart/lib.py"
+
+    for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
+        assert STATECHART_TESTS <= set(selected)
+        assert why["imports"] >= len(STATECHART_TESTS)
+
+
 MERGED = {
     "#330": (
         [
@@ -1189,9 +1208,10 @@ ORACLE = """
 import builtins, importlib, json, sys
 from pathlib import Path
 
-tests, *folders = sys.argv[1:]
-sys.path[:0] = [tests, *folders]
-seen, failed = set(), []
+at = sys.argv.index("--")
+tests, folders = sys.argv[1:at], sys.argv[at + 1 :]
+sys.path[:0] = [*tests, *folders]
+seen, named, failed = set(), set(), []
 real = builtins.__import__
 
 
@@ -1204,13 +1224,19 @@ def hook(name, globals=None, locals=None, fromlist=(), level=0):
     return module
 
 
+def by_name(name, package=None):
+    named.add(name)
+    return load(name, package)
+
+
 builtins.__import__ = hook
-for path in sorted(Path(tests).rglob("*.py")):
-    name = ".".join(path.relative_to(tests).with_suffix("").parts).removesuffix(".__init__")
+load, importlib.import_module = importlib.import_module, by_name
+for folder, path in sorted((one, path) for one in tests for path in Path(one).rglob("*.py")):
+    name = ".".join(path.relative_to(folder).with_suffix("").parts).removesuffix(".__init__")
     if name.startswith("fixtures."):
         continue
     try:
-        importlib.import_module(name)
+        load(name)
     except BaseException as error:
         failed.append(f"{name}: {error!r}")
 files = {
@@ -1218,7 +1244,7 @@ files = {
     for name, module in sorted(sys.modules.items())
     if getattr(module, "__file__", None)
 }
-print(json.dumps({"seen": sorted(seen), "failed": failed, "files": files}))
+print(json.dumps({"seen": sorted(seen), "named": sorted(named), "failed": failed, "files": files}))
 """
 
 
@@ -1230,6 +1256,7 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
             ORACLE,
             str(REPO / "testing" / "tests"),
             *map(str, sorted(REPO.glob("features/*/tests"))),
+            "--",
             *map(str, sources()),
         ],
         cwd=REPO,
@@ -1246,14 +1273,15 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
         for reached in sorted(select.parents(name) & select.modules().keys())
         if reached != importer and reached not in graph[importer]
     ]
-    scripts = REPO / "scripts"
-    imported = {name for _, name in found["seen"]}
+    imported = {name for _, name in found["seen"]} | set(found["named"])
     unread = [
         f"{name} from {Path(file).relative_to(REPO)}"
         for name, file in found["files"].items()
         if name in imported
-        and Path(file).is_relative_to(scripts)
-        and select.modules().get(name) != Path(file).relative_to(REPO).as_posix()
+        and Path(file).is_relative_to(REPO)
+        and not Path(file).is_relative_to(REPO / ".venv")
+        and select.modules().get(name.removesuffix(".__init__"))
+        != Path(file).relative_to(REPO).as_posix()
     ]
     assert (missing, found["failed"], unread) == ([], [], [])
 
