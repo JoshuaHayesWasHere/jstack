@@ -7,8 +7,9 @@ finds in another home's work is no message at all: it is a row of the queue, `jb
 (`templates/a-fault-outside.md`). A send of the agent's own skips the outbox's rules,
 so it is refused when the sender is a home or a reviewer of the repo and the thread is one of the
 repo's homes, now or before a handoff, or the crew on a brief's `Thread:` line. A home's send to
-a crew of its own briefs is a steer, and it goes. So does any send to a scout, to another repo's
-thread, and any send by a thread that is no home and no reviewer.
+another repo's home is refused too: jbus carries each repo's events to that repo's home alone. A
+home's send to a crew of its own briefs is a steer, and it goes. So does any send to a scout, a
+reviewer's to another repo's thread, and any send by a thread that is no home and no reviewer.
 
 The sender's thread is the one T3 Code's store runs this Claude session in. A session the store
 does not know, a store that cannot be read, or a repo with no homes' state is let through: what
@@ -130,6 +131,15 @@ def _row(name: str) -> str:
     )
 
 
+def _elsewhere(state: Path, to: str) -> str:
+    """The name of the other repo whose home `to` is, now or before a handoff, or an empty
+    string."""
+    for other in sorted(one for one in state.parent.iterdir() if one.is_dir() and one != state):
+        if any(one.holds(to) for one in homes(other)):
+            return other.name
+    return ""
+
+
 def _handed_off(to: Home) -> str:
     if to.live():
         return f"it is the {to.name} home that handed off, the {to.name} home is {to.live()} now"
@@ -155,6 +165,12 @@ def refusal(state: Path, sender: str, to: str) -> str:
         if stale and to != sender:
             return f"{_handed_off(to_home)}, and {what}"
         return what
+    if from_home is not None and (other := _elsewhere(state, to)):
+        return (
+            f"it is the {other} home, another repo's: send nothing, jbus carries each repo's"
+            f" events to its own home, and a fault in {other}'s work with a known fix is a row of"
+            " its queue, as templates/a-fault-outside.md says"
+        )
     crew = next((one for one in briefs if one.thread == to), None)
     if crew is None:
         return ""
