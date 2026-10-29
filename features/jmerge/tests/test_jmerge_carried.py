@@ -125,15 +125,6 @@ def test_a_head_that_cannot_be_read_waits_rather_than_merge_what_it_may_carry(bu
     assert built_on.run("--check")[0] == f"wait 7 {merge.URL}: {unknown}"
 
 
-def test_a_link_of_a_stack_keeps_the_stacks_own_rule(built_on):
-    brief_of(built_on.home, "alpha", merge.URL, built_on.head, more="Stack: pair 2 on beta\n")
-    queue_of(built_on.home, rows())
-    listing(built_on, 7, 8)
-    in_stack = ready.IN_STACK.format(stack="pair")
-    assert built_on.run("--check")[0] == f"wait 7 {merge.URL}: {in_stack}"
-    assert built_on.run("--check", "--land", "pair")[0].startswith("ready 7 ")
-
-
 @pytest.mark.parametrize(
     "reason",
     [

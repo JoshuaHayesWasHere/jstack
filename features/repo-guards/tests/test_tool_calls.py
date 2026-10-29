@@ -25,7 +25,6 @@ FILLED = {
     "<default branch>": "main",
     "<that worktree>": "/home/someone/trees/fix-login",
     "<the pull request's branch>": "fix-login",
-    "<the parent's branch>": "add-schema",
     "<repo>": "demo",
     "<the checkout>": "/home/someone/repos/demo",
     "<the T3 project id>": "a1b2c3d4-0000-4000-8000-000000000000",
@@ -157,7 +156,7 @@ def misspelt(given):
 
 def test_the_skills_have_calls_to_check():
     assert len(CALLS) >= 21
-    assert len(LAUNCHES) >= 11
+    assert len(LAUNCHES) >= 10
     assert len(LAUNCHES) == 2 * len(TWINS)
     of_a_crewmate = [call.tool for call in CALLS if call.where.startswith("crew:")]
     assert of_a_crewmate == ["t3_thread_organize", "link_pull_request"]
@@ -181,25 +180,13 @@ def test_the_skills_have_calls_to_check():
             "branch": FILLED["<slug>"],
         }
     ]
-    on_another_tasks_branch = [
-        call.given["workspaceStrategy"]
+    launch, twin = (
+        call.given
         for call in LAUNCHES
-        if call.given["workspaceStrategy"].get("startFromOrigin") is False
-    ]
-    assert on_another_tasks_branch == 2 * [
-        {
-            "type": "worktree",
-            "baseRef": FILLED["<the parent's branch>"],
-            "branch": FILLED["<slug>"],
-            "startFromOrigin": False,
-        }
-    ]
-    for some in (
-        lambda call: call.given["workspaceStrategy"]["type"] == "existing_worktree",
-        lambda call: call.given["workspaceStrategy"].get("startFromOrigin") is False,
-    ):
-        launch, twin = (call.given for call in LAUNCHES if call.where[:5] == "home:" and some(call))
-        assert twin == {**launch, "modelSelection": json.loads(FILLED["<model selection>"])}
+        if call.where[:5] == "home:"
+        and call.given["workspaceStrategy"]["type"] == "existing_worktree"
+    )
+    assert twin == {**launch, "modelSelection": json.loads(FILLED["<model selection>"])}
 
 
 def test_no_skill_names_a_tool_the_way_only_claude_code_does():

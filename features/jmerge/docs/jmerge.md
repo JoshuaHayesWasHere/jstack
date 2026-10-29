@@ -91,8 +91,7 @@ The section "Protected paths" describes one more hold.
   A home's own run, with `--home`, merges nothing, and a brief of another home of the repo is `another home's` to it alone.
 - **Its base is the default branch or an integration branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
-  It merges a pull request whose brief has a `Stack:` line only when you pass `--land <stack>`.
-  A link jbus stacked, whose brief has a `Stacked on:` line, is no such hold: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
+  A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
   Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
   An integration branch is one the project's `integration` file names ("Integration branches").
 - **The review is done.**
@@ -165,7 +164,6 @@ The section "Protected paths" describes one more hold.
   So when its head contains the head of another open pull request, and its base does not, it waits on that one's `merge_after` as on its own: `carries <slug>'s commits (#<n>), which merges after <slug> (#<n>), not merged yet`.
   That holds while the carried row is not `merged` or `done`, and also for a pull request whose brief has no queue row.
   When either head cannot be read, even from `refs/pull/<n>/head`, it waits as `its head or <slug>'s (#<n>) cannot be read to see whether it carries it`.
-  A link of a stack, whose brief has a `Stack:` line, keeps the stack's own rule instead.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
@@ -512,7 +510,6 @@ Any other party's accept on a door, a home's or one on typed words, parks a gate
 | `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
 | `--remake` | Merges nothing. While a rebase is stopped in this worktree it prints the files to resolve by hand, under `resolve these by hand and git add them, then run this again:`. Once only generated files are left, it makes each one again: it takes the base's version and runs the command the `generated` key of the repo's `[[project]]` in jbus's config gives it (`generated = ["<file> -> <command>", ...]`), `uv lock` for `uv.lock` when the key names none or the config cannot be read, and prints `made again: <file>, by <command> over the base's version`, or `not made: ...` where the command did not write it. With no rebase stopped it prints `no rebase is stopped here: nothing to make again`, and with nothing left `nothing is left to resolve: git rebase --continue`. The crew skill's "A conflict" runs it each time the rebase stops. |
 | `--home <id>` | The home that is asking: says what `jmerge` would do of that home's pull requests, as `--check` does, and merges nothing. |
-| `--land <stack>` | Merges the pull requests of a stack you said to land, each once its base is the default branch. |
 
 `jmerge` stops most of the `git` and `gh` commands it runs after 120 seconds, or after `JMERGE_TIMEOUT` seconds when that variable is set, and counts such a command as failed.
 The commands of a `git range-diff` get 60 seconds each, whatever the variable says.

@@ -46,6 +46,7 @@ Never done here, and who does it:
 - **A rebase, a fix or a push from the home.** The crewmate that owns the pull request does, on its own wakes.
 - **A watch loop, or a schedule.**
   Nobody does: jbus's pass watches every home.
-- **A stack.** Nobody does here: a dependent entry waits for the merge. Entries the user wants to review as one chain and land themselves are `playbooks/autopilot-stack.md`, landed by `playbooks/shipping.md`.
+- **A stack.**
+  Nobody does here: a dependent entry waits for the merge, or jbus stacks it on its `Builds on:` row's open pull request.
 
 **Hand over:** in this thread, to the user, only when asked: catch the user up per `skills/ketchup/SKILL.md`, then this account, uncut: each entry with its crewmate's link, its state and its pull request; what merged, with the commit; each stuck thread and what was done; and the open gates.

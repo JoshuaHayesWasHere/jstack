@@ -258,7 +258,7 @@ def repo(proven_merged, monkeypatch):
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
     monkeypatch.setenv("LOG", str(home.state / "merge.log"))
-    return cli.Repo(home.main, home.state, merge.ME, False, None, (), CI, user=ET)
+    return cli.Repo(home.main, home.state, merge.ME, False, (), CI, user=ET)
 
 
 def test_a_main_that_moved_while_it_was_judged_has_it_judged_again_before_the_merge(

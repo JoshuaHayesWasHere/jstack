@@ -23,4 +23,4 @@ Anything a run leaves behind, such as a lock, a temporary file, a half-written r
 
 If any answer is "it depends on what state was left behind," the operation needs a reconciliation step.
 
-<!-- card: Keep moving with nobody watching | 4 | An operation reaches the same end state however many times it runs and wherever the last run stopped. | `pause-safely`; `session-pickup`; `shipping` -->
+<!-- card: Keep moving with nobody watching | 4 | An operation reaches the same end state however many times it runs and wherever the last run stopped. | `pause-safely`; `session-pickup` -->

@@ -1087,7 +1087,7 @@ def test_a_repo_with_no_merge_off_file_is_merged_as_ever(merged):
     assert merged.run() == [merged_line(merged.on_main()[0])]
 
 
-@pytest.mark.parametrize("flags", [(), ("--land", "demo"), ("--home", OTHER)])
+@pytest.mark.parametrize("flags", [(), ("--home", OTHER)])
 def test_a_merge_off_file_merges_nothing_whoever_runs_it(merged, flags):
     merged.home.nohome("/nohome merge")
     assert (merged.home.state / "merge-off").is_file()
@@ -1120,17 +1120,16 @@ def readied(merged):
     return [call for call in asked if call.startswith("pr ready")]
 
 
-@pytest.mark.parametrize("flags", [(), ("--land", "demo")])
-def test_a_draft_that_is_otherwise_ready_is_never_merged(merged, flags):
+def test_a_draft_that_is_otherwise_ready_is_never_merged(merged):
     merged.home.open_pull_request(merged.head, draft=True)
-    assert merged.run("--check", *flags) == [DRAFT]
+    assert merged.run("--check") == [DRAFT]
     assert readied(merged) == []
-    assert merged.run(*flags) == [READIED + merged.head]
+    assert merged.run() == [READIED + merged.head]
     assert merged.untouched()
     asked = (merged.home.stub / "calls").read_text().splitlines()
     assert not [call for call in asked if call.startswith("pr merge")]
     merged.home.open_pull_request(merged.head)
-    assert merged.run(*flags) == [merged_line(merged.on_main()[0])]
+    assert merged.run() == [merged_line(merged.on_main()[0])]
 
 
 PLACED_AS_A_DRAFT = {
@@ -1275,8 +1274,6 @@ def test_a_gh_that_fails_is_logged(home):
     )
 
 
-STACK = "Stack: demo (link 2 of 3)\n"
-IN_A_STACK = f"wait 7 {URL}: it is in the stack demo, which the user lands"
 ON_A_BRANCH = f"wait 7 {URL}: its base is beta, not main"
 
 
@@ -1300,47 +1297,6 @@ def test_a_default_branch_github_does_not_give_merges_nothing(merged):
     ]
     assert merged.home.code == 1
     assert merged.untouched()
-
-
-def test_a_pull_request_in_a_stack_waits_for_the_user_to_land_it(merged):
-    (merged.home.tasks / "alpha.md").write_text(brief(review("clean", merged.head), field=STACK))
-    assert merged.run("--check") == [IN_A_STACK]
-    assert merged.run() == [IN_A_STACK]
-    assert merged.run("--land", "another") == [IN_A_STACK]
-    assert merged.untouched()
-
-
-def test_a_stack_the_user_lands_merges_its_link_on_the_default_branch(merged):
-    (merged.home.tasks / "alpha.md").write_text(brief(review("clean", merged.head), field=STACK))
-    assert merged.run("--check", "--land", "demo") == [f"ready 7 {merged.head} alpha alpha"]
-    said = merged.run("--land", "demo")
-    commit, pulled = merged.on_main()
-    assert said == [merged_line(commit)]
-    assert commit != merged.start and pulled == commit
-
-
-def test_a_link_of_a_landed_stack_still_waits_on_its_base(merged):
-    (merged.home.tasks / "alpha.md").write_text(brief(review("clean", merged.head), field=STACK))
-    merged.home.open_pull_request(merged.head, base="beta")
-    assert merged.run("--land", "demo") == [ON_A_BRANCH]
-    assert merged.untouched()
-
-
-def test_a_stack_line_with_no_name_is_held_and_no_word_lands_it(merged):
-    (merged.home.tasks / "alpha.md").write_text(
-        brief(review("clean", merged.head), field="Stack:\n")
-    )
-    line = f"wait 7 {URL}: it is in a stack its brief does not name, which the user lands"
-    assert merged.run() == [line]
-    assert merged.run("--land", "''") == [line]
-    assert merged.untouched()
-
-
-def test_only_a_stack_line_in_the_head_of_the_brief_counts(home):
-    said = "Noticed: this could be one link of a stack\nStack: demo\n"
-    (home.tasks / "alpha.md").write_text(brief(review("clean"), said))
-    home.open_pull_request(REVIEWED)
-    assert home.ready() == [f"ready 7 {REVIEWED} alpha alpha"]
 
 
 BASED_ON = "the open pull request 8 is based on it"

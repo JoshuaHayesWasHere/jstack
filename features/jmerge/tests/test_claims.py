@@ -362,11 +362,13 @@ def test_scope_goes_by_the_branch_the_last_result_names(claims, scope):
     assert scope.run() == (["outside: docs/a.md"], 0, "")
 
 
-def test_scope_compares_a_link_of_a_stack_with_the_branch_it_sits_on(claims, scope):
+def test_scope_compares_a_stacked_link_with_the_branch_it_sits_on(claims, scope):
     claims.write("alpha", where="`src/`")
     claims.write("beta", where="`src/`")
     (claims.home.tasks / "beta.md").write_text(
-        (claims.home.tasks / "beta.md").read_text().replace("Where:", "Stack: s 2 on alpha\nWhere:")
+        (claims.home.tasks / "beta.md")
+        .read_text()
+        .replace("Where:", "Stacked on: alpha alpha\nWhere:")
     )
     scope.branch("alpha", "docs/a.md")
     scope.branch("beta", "src/b.py", base="alpha")

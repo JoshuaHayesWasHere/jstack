@@ -263,23 +263,6 @@ def test_an_open_pull_request_is_the_home_of_the_brief_whose_branch_line_ends_on
 OWN, THEIRS = MERGED.replace("beta", "gamma"), MERGED.replace("beta", "delta")
 
 
-PLAYBOOKS = SKILLS.parent / "playbooks"
-LANDING = re.compile(
-    r"`(uv run --project \"\$T/\.\./source\" jmerge --home '<threadId>' --land <name>)`"
-)
-
-
-@pytest.mark.parametrize(("playbook", "times"), [("autopilot-stack", 1), ("shipping", 1)])
-def test_a_playbooks_look_at_a_landing_merges_nothing(repo, playbook, times):
-    """The command a playbook gives to see what would land names this home, so `jmerge` merges
-    nothing: the landing is the user's own run."""
-    given = LANDING.findall((PLAYBOOKS / f"{playbook}.md").read_text())
-    assert len(given) == times
-    for line in given:
-        assert repo.sh(*first(HOME), line.replace("<name>", "demo")) == []
-    assert repo.calls() == [f"--home {ME} --land demo"] * times
-
-
 def test_two_briefs_of_one_pull_request_are_told_apart_as_jmerge_does(repo, monkeypatch):
     monkeypatch.setenv("LC_ALL", "en_US.UTF-8")
     scope = repo.state / "billing"

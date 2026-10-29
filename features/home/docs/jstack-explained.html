@@ -435,7 +435,7 @@
 </div></div>
 <div class="tile"><b>Distrust the change</b><div class="names">
 <!-- built: skill links, Distrust the change -->
-<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a><a href="#skill-create-formal-verification-skill">create-formal-verification-skill</a><a href="#skill-create-verification-skill">create-verification-skill</a><a href="#skill-maintain-verification-skill">maintain-verification-skill</a>
+<a href="#skill-blast-radius">blast-radius</a><a href="#skill-interrogate">interrogate</a><a href="#skill-tdd">tdd</a><a href="#skill-benchmark-checklist">benchmark-checklist</a><a href="#skill-create-formal-verification-skill">create-formal-verification-skill</a><a href="#skill-create-verification-skill">create-verification-skill</a><a href="#skill-maintain-verification-skill">maintain-verification-skill</a><a href="#skill-maintain-formal-verification-skill">maintain-formal-verification-skill</a><a href="#skill-statechart">statechart</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Catch up and keep track</b><div class="names">
@@ -496,6 +496,8 @@
 <article class="card" id="skill-create-formal-verification-skill"><h4>/create-formal-verification-skill</h4><p>Finds the part of the code where a bug costs the most and tests reach the least, verifies one property of it with the tool that fits, and leaves a project-local skill that rechecks it on every change.</p><p class="when">Reach for it when a race, a retry, a state machine, a parser or unsafe code needs more than tests.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-create-verification-skill"><h4>/create-verification-skill</h4><p>Writes the repo's verify skill in <code>.claude/skills/verify-&lt;app&gt;/</code>: how to launch the app, check it, drive each feature the way a user does, keep the evidence and clean up, with a map of the features. It runs the skill once end to end before it hands it over.</p><p class="when">Reach for it when a repo has no scripted way to prove a change works in the real app.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a brief with the <code>authoring-a-skill</code> playbook</span></div></article>
 <article class="card" id="skill-maintain-verification-skill"><h4>/maintain-verification-skill</h4><p>Keeps the repo's verify skill honest: one scout per feature file reads the feature from source and reports the drift, then one crewmate drives every feature live and ships at most one pull request of proven corrections.</p><p class="when">Reach for it, in the home, when the app has changed since the verify skill was written or last checked.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
+<article class="card" id="skill-maintain-formal-verification-skill"><h4>/maintain-formal-verification-skill</h4><p>Brings a formal verify skill back in line with the code: reads every change to covered code since the sync commit, updates the model or harness from the code, reruns, and says of each failure whether it is drift or a bug.</p><p class="when">Reach for it after merges or refactors touched verified code without rechecking it.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-statechart"><h4>/statechart</h4><p>Draws what an app's user sees as a Mermaid statechart from a TLA+ model checked by TLC, with each bug a numbered path, or turns a chart the PM agreed to into a TLA+ skeleton.</p><p class="when">Reach for it when a product call rests on a state machine, or a bug TLC found has to be shown to someone who does not read TLA+.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Catch up and keep track <small>For the operator after time away.</small></h3><div class="cards">
@@ -535,7 +537,7 @@
 </div>
 <small>Work a queue unattended</small><div class="names">
 <!-- built: playbook links, Work a queue unattended -->
-<a href="#playbook-autopilot-full">autopilot-full</a><a href="#playbook-autopilot-stack">autopilot-stack</a><a href="#playbook-orchestrate">orchestrate</a>
+<a href="#playbook-autopilot-full">autopilot-full</a><a href="#playbook-orchestrate">orchestrate</a>
 <!-- built: end -->
 </div>
 <small>Fan out to threads</small><div class="names">
@@ -545,7 +547,7 @@
 </div>
 <small>Land and resume</small><div class="names">
 <!-- built: playbook links, Land and resume -->
-<a href="#playbook-shipping">shipping</a><a href="#playbook-session-pickup">session-pickup</a>
+<a href="#playbook-session-pickup">session-pickup</a>
 <!-- built: end -->
 </div>
 </div>
@@ -607,7 +609,6 @@
 <div class="cards">
 <!-- built: playbook cards, Work a queue unattended -->
 <article class="card" id="playbook-autopilot-full"><h4>autopilot-full</h4><p>For: A queue of approved plan entries worked to its end with no word from the operator, each pull request owned by one crewmate from first commit to green.</p></article>
-<article class="card" id="playbook-autopilot-stack"><h4>autopilot-stack</h4><p>For: A queue of approved entries that each need the one before, built as one linear stack of pull requests that the operator reviews and lands.</p></article>
 <article class="card" id="playbook-orchestrate"><h4>orchestrate</h4><p>For: A standing program: many entries toward one goal that outlives a single home, worked to a predicate that can be counted.</p></article>
 <!-- built: end -->
 </div>
@@ -621,7 +622,6 @@
 <p class="sub">Land and resume</p>
 <div class="cards">
 <!-- built: playbook cards, Land and resume -->
-<article class="card" id="playbook-shipping"><h4>shipping</h4><p>For: Landing a stack that <code>autopilot-stack</code> built, on the operator's word, bottom link first and one link at a time.</p></article>
 <article class="card" id="playbook-session-pickup"><h4>session-pickup</h4><p>For: A thread that stopped with its task unfinished: a cancelled turn, a failed turn, a stuck thread. It is resumed, not started over.</p></article>
 <!-- built: end -->
 </div>
@@ -759,9 +759,9 @@
 <div class="group"><h3>Keep moving with nobody watching</h3><div class="principles">
 <!-- built: principle cards, Keep moving with nobody watching -->
 <div id="principle-principle-never-block-on-the-human"><b>principle-never-block-on-the-human</b><small>On reversible work, proceed and then present. A wrong decision costs less than waiting.</small><div class="leans"><code>autopilot-full</code><code>autonomous-run</code><code>multi-phase-plan</code></div></div>
-<div id="principle-principle-sequence-verifiable-units"><b>principle-sequence-verifiable-units</b><small>Order work as small units that each end in a state you can check, and do not advance on red.</small><div class="leans"><code>opening-a-pr</code><code>multi-phase-plan</code><code>autopilot-stack</code></div></div>
-<div id="principle-principle-outcome-oriented-execution"><b>principle-outcome-oriented-execution</b><small>Converge on the target end state. Do not keep every intermediate step smooth with throwaway compatibility code.</small><div class="leans"><code>orchestrate</code><code>shipping</code><code>swarm</code></div></div>
-<div id="principle-principle-make-operations-idempotent"><b>principle-make-operations-idempotent</b><small>An operation reaches the same end state however many times it runs and wherever the last run stopped.</small><div class="leans"><code>pause-safely</code><code>session-pickup</code><code>shipping</code></div></div>
+<div id="principle-principle-sequence-verifiable-units"><b>principle-sequence-verifiable-units</b><small>Order work as small units that each end in a state you can check, and do not advance on red.</small><div class="leans"><code>opening-a-pr</code><code>multi-phase-plan</code></div></div>
+<div id="principle-principle-outcome-oriented-execution"><b>principle-outcome-oriented-execution</b><small>Converge on the target end state. Do not keep every intermediate step smooth with throwaway compatibility code.</small><div class="leans"><code>orchestrate</code><code>swarm</code></div></div>
+<div id="principle-principle-make-operations-idempotent"><b>principle-make-operations-idempotent</b><small>An operation reaches the same end state however many times it runs and wherever the last run stopped.</small><div class="leans"><code>pause-safely</code><code>session-pickup</code></div></div>
 <div id="principle-principle-guard-the-context-window"><b>principle-guard-the-context-window</b><small>Route bulk to subagents and keep summaries, not raw payloads, in the main thread.</small><div class="leans"><code>investigation</code><code>swarm</code><code>orchestrate</code></div></div>
 <!-- built: end -->
 </div></div>

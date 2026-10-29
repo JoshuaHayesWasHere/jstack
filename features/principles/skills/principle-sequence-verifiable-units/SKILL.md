@@ -18,4 +18,4 @@ Order work as a sequence of small units, each ending in a state you can check, a
 
 The sequencing complement to [Prove It Works](../principle-prove-it-works/SKILL.md), which keeps each check real, and [Build the Lever](../principle-build-the-lever/SKILL.md), which makes the per-unit check cheap.
 
-<!-- card: Keep moving with nobody watching | 2 | Order work as small units that each end in a state you can check, and do not advance on red. | `opening-a-pr`; `multi-phase-plan`; `autopilot-stack` -->
+<!-- card: Keep moving with nobody watching | 2 | Order work as small units that each end in a state you can check, and do not advance on red. | `opening-a-pr`; `multi-phase-plan` -->

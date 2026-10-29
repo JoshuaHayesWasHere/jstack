@@ -124,8 +124,6 @@ FRESH_CONFLICT = Reason("rebase", "it conflicts with today's main")
 NO_HEAD = Reason("second", "its review names no head to compare its rebase with")
 
 BASE = Reason("hold", "its base is {base}, not {default}")
-IN_STACK = Reason("hold", "it is in the stack {stack}, which the user lands")
-IN_UNNAMED_STACK = Reason("hold", "it is in a stack its brief does not name, which the user lands")
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
 READY_ON = (DRAFT, REVIEW_NONE)
 NO_REVIEW = Reason("review", "it has no review yet")
@@ -474,15 +472,6 @@ def brief_of(url: str, tasks: Path) -> Path | None:
     return None
 
 
-def stack_of(text: str) -> str | None:
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("Stack:"):
-            return "".join(line.removeprefix("Stack:").split()[:1])
-    return None
-
-
 def integration_of(text: str) -> tuple[str, ...]:
     """The integration branches that a project's `integration` file names, one to a line."""
     return tuple(dict.fromkeys(line.strip() for line in text.splitlines() if line.strip()))
@@ -491,19 +480,15 @@ def integration_of(text: str) -> tuple[str, ...]:
 def held(
     one: PullRequest,
     default: str,
-    stack: str | None,
-    land: str | None,
     integration: tuple[str, ...] = (),
     stacked: Stacked | None = None,
 ) -> str:
-    """Why a pull request is held by its base or its stack, or nothing. A link jbus stacked sits
+    """Why a pull request is held by its base, or nothing. A link jbus stacked sits
     on its base's branch until that row merged: it is not held for it, and waits (`on_stack`)."""
     on_base = stacked is not None and one.base == stacked.branch
     if one.base != default and one.base not in integration and not on_base:
         return BASE.format(base=one.base, default=default)
-    if stack is None or (stack and stack == land):
-        return ""
-    return IN_STACK.format(stack=stack) if stack else IN_UNNAMED_STACK
+    return ""
 
 
 def migrations(one: PullRequest, directory: str) -> tuple[str, ...]:
