@@ -40,17 +40,31 @@ def commit(tree, name, text, message=""):
 class Stack:
     """The git history of the stack, and what GitHub lists of it."""
 
-    def __init__(self, kitchen, conflict=False, fixed=False, into="main"):
+    def __init__(self, kitchen, conflict=False, fixed=False, rewritten="", into="main"):
+        """`one` is pushed before `two` is stacked on it, so the checkout's reflog of
+        `origin/one` records the head `two` sits on. Then `one` takes a `fixed` commit, or is
+        `rewritten`: its one commit `amended` to new content, or a second commit `reworded` to
+        the same content or `changed` to new content."""
         self.kitchen, tree = kitchen, kitchen.checkout
         self.start = git(tree, "rev-parse", "main")
         git(tree, "switch", "-q", "-c", "one")
         self.last = commit(tree, "one.txt", "one\n")
+        if rewritten in ("reworded", "changed"):
+            self.last = commit(tree, "one-more.txt", "more\n")
+        git(tree, "push", "-q", "origin", "one")
         git(tree, "switch", "-q", "-c", "two")
         self.head = commit(tree, "two.txt", "two\n")
+        git(tree, "switch", "-q", "one")
         if fixed:
-            git(tree, "switch", "-q", "one")
             self.last = commit(tree, "fix.txt", "fix\n")
-        git(tree, "push", "-q", "origin", "one", "two")
+        if rewritten:
+            if rewritten == "amended":
+                (tree / "one.txt").write_text("one, rewritten\n")
+            if rewritten == "changed":
+                (tree / "one-more.txt").write_text("more\nand other lines\n")
+            git(tree, "commit", "-q", "-a", "--amend", "-m", f"{rewritten} one")
+            self.last = git(tree, "rev-parse", "HEAD")
+        git(tree, "push", "-q", "-f", "origin", "one", "two")
         git(tree, "switch", "-q", "main")
         if into != "main":
             git(tree, "switch", "-q", "-c", into)
@@ -112,23 +126,6 @@ def test_a_merged_base_moves_its_link_onto_main_in_the_same_pass_with_no_send(st
     assert sends(kitchen) == []
     kitchen.poll(NOW + timedelta(minutes=3))
     assert sends(kitchen) == [] and stack.origin("two") == moved
-
-
-def test_a_base_merged_into_a_merge_base_moves_its_link_onto_that_base(stacked, monkeypatch):
-    """The sidebar's rows merge into `t3code-jstack`, a merge base of the project: a link on a
-    row that merged there is moved onto it, and jmerge then merges it there as it would one on
-    main."""
-    signed(monkeypatch)
-    stack = Stack(stacked, into="t3code-jstack")
-    kitchen = stack.kitchen
-    stack.kitchen.poll(NOW)
-    moved = stack.origin("two")
-    assert edits(kitchen) == ["pr edit 11 --base t3code-jstack"]
-    assert git(kitchen.origin, "rev-parse", f"{moved}^") == stack.merge
-    assert head_line(kitchen) == stacks.Stacked("one", "t3code-jstack", stack.merge)
-    assert stack.origin("main") == stack.start
-    assert unmoved(kitchen, moved, "t3code-jstack", ("t3code-jstack",)) == ""
-    assert sends(kitchen) == []
 
 
 def test_the_crews_own_worktree_follows_the_move(stack):
@@ -244,12 +241,52 @@ def test_a_crew_worktree_that_cannot_follow_the_move_is_said(stack):
     assert sends(kitchen) == []
 
 
-def test_a_link_whose_base_moved_while_open_is_told_once_when_it_merged(stacked, monkeypatch):
+def test_a_base_merged_into_a_merge_base_moves_its_link_onto_that_base(stacked, monkeypatch):
+    """The sidebar's rows merge into `t3code-jstack`, a merge base of the project: a link on a
+    row that merged there is moved onto it, and jmerge then merges it there as it would one on
+    main."""
+    signed(monkeypatch)
+    stack = Stack(stacked, into="t3code-jstack")
+    kitchen = stack.kitchen
+    stack.kitchen.poll(NOW)
+    moved = stack.origin("two")
+    assert edits(kitchen) == ["pr edit 11 --base t3code-jstack"]
+    assert git(kitchen.origin, "rev-parse", f"{moved}^") == stack.merge
+    assert head_line(kitchen) == stacks.Stacked("one", "t3code-jstack", stack.merge)
+    assert stack.origin("main") == stack.start
+    assert unmoved(kitchen, moved, "t3code-jstack", ("t3code-jstack",)) == ""
+    assert sends(kitchen) == []
+
+
+def test_a_link_whose_base_took_commits_while_open_is_moved_from_the_fork_with_no_send(
+    stacked, monkeypatch
+):
     """`one` took a review fix after `two` was stacked on it, and `two` was not told of it, so its
-    head does not hold `one`'s last head: jbus leaves the branch as it was and tells the crew
-    once, in the pass that sees the merge."""
+    head does not hold `one`'s last head. `one` only grew, so jbus moves `two`'s own commit, the
+    one above where it left `one`, onto main in the pass that sees the merge, and sends nothing."""
     signed(monkeypatch)
     stack = Stack(stacked, fixed=True)
+    stacked.poll(NOW)
+    moved = stack.origin("two")
+    assert git(stacked.origin, "rev-parse", f"{moved}^") == stack.merge
+    assert git(stacked.origin, "show", f"{moved}:two.txt") == "two"
+    assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
+    assert unmoved(stacked, moved) == ""
+    stacked.poll(NOW + timedelta(minutes=3))
+    assert sends(stacked) == [] and stack.origin("two") == moved
+
+
+@pytest.mark.parametrize("rewritten", ["amended", "reworded", "changed"])
+def test_a_link_whose_base_was_rewritten_is_left_and_told_once_when_it_merged(
+    stacked, monkeypatch, rewritten
+):
+    """`one` was rewritten after `two` was stacked on it, so `two` holds a commit `one` no longer
+    has: its only commit amended, or its top commit reworded or changed to new lines above a
+    commit it kept. The reflog of `origin/one` records the head `two` sits on, which `one`'s last
+    head does not hold, so jbus leaves the branch as it was and tells the crew once, in the pass
+    that sees the merge."""
+    signed(monkeypatch)
+    stack = Stack(stacked, rewritten=rewritten)
     said = stacked.poll(NOW)
     assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
     assert stack.origin("two") == stack.head
@@ -257,4 +294,17 @@ def test_a_link_whose_base_moved_while_open_is_told_once_when_it_merged(stacked,
     assert "one merged as" in told and f"with {stack.last} as the branch it sat on" in told
     assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
     stacked.poll(NOW + timedelta(minutes=3))
+    assert len(sends(stacked)) == 1
+
+
+def test_a_link_whose_base_left_no_record_is_left_and_told_once(stacked, monkeypatch):
+    """`one` only grew, but no reflog of this machine records the head `two` was stacked on, so
+    nothing tells a base that grew from one that was rewritten: jbus leaves the branch as it was
+    and tells the crew once."""
+    signed(monkeypatch)
+    stack = Stack(stacked, fixed=True)
+    git(stacked.checkout, "update-ref", "-d", "refs/remotes/origin/one")
+    said = stacked.poll(NOW)
+    assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
+    assert stack.origin("two") == stack.head
     assert len(sends(stacked)) == 1

@@ -19,12 +19,16 @@ line and has not moved yet, and whose base merged:
   worktree of its own, never the crew's, and a push with `--force-with-lease` at the head it read.
   The crew's worktree, where it has one on the branch, is moved to the pushed head with
   `git reset --keep`.
+  A link whose head does not hold the base's last head, since the base took commits after it was
+  stacked, is moved from the fork instead (`_fork`), where the base only grew: every head of the
+  base that this machine's reflogs record under the link's head is under the base's last head.
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
   reviewer the crew launched has written no review (`review.reviewing`), since a move would change
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
-  finished); a rebase that conflicts or a push the lease refuses leaves the branch as it was.
+  finished); a rebase that conflicts, a push the lease refuses, or a base that was rewritten or
+  that no reflog records, leaves the branch as it was.
 - For each of those, jbus tells the crew to move its own commits instead, from the base's last
   head, under the key `restack|<slug>|<head 12>|<merge 12>`. Only once the link moved or that
   message went does the line say `Stacked on: <slug> <branch> at <merge>`, so a message held for a
@@ -108,7 +112,7 @@ def _moved(
     if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")
-    moved = _carry(run, slug, pull, last, merge, onto) if last else ""
+    moved = _carry(run, slug, pull, stacked.branch, last, merge, onto) if last else ""
     if moved:
         run.box.mark(key)
         line = (
@@ -145,10 +149,12 @@ def _moved(
     _rewrite(run, slug, replace(stacked, branch=onto, at=merge))
 
 
-def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, onto: str) -> str:
-    """Move the link's own commits, those above `last`, onto `origin/<onto>`, and push them over
-    the head the pass read. Return the head the branch is at now, or nothing when it was left as
-    it was, with the reason said."""
+def _carry(
+    run: Pass, slug: str, pull: dict[str, Any], base: str, last: str, merge: str, onto: str
+) -> str:
+    """Move the link's own commits, those above `last`, the head its `base` branch merged at, onto
+    `origin/<onto>`, and push them over the head the pass read. Return the head the branch is at
+    now, or nothing when it was left as it was, with the reason said."""
     head, number = str(pull["headRefOid"]), pull["number"]
     branch = str(pull.get("headRefName") or slug)
     if review.reviewing(task_brief(run, slug)):
@@ -165,7 +171,10 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     if not run.run("git", "merge-base", "--is-ancestor", merge, head).returncode:
         return head
     if run.run("git", "merge-base", "--is-ancestor", last, head).returncode:
-        return _left(run, slug, f"its head does not hold {last[:12]} here")
+        fork = _fork(run, base, last, head)
+        if not fork:
+            return _left(run, slug, f"its head does not hold {last[:12]} here")
+        last = fork
     scratch = Path(tempfile.mkdtemp(prefix=f"jbus-move-{slug}-"))
     tree = scratch / "tree"
     try:
@@ -187,6 +196,27 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     if crew and run.run("git", "-C", str(crew), "reset", "-q", "--keep", new).returncode:
         run.say(f"wait {slug}: its worktree {crew} could not follow the move to {new[:12]}")
     return new
+
+
+def _fork(run: Pass, base: str, last: str, head: str) -> str:
+    """Where the link left its `base` branch, when the base only grew after the link was stacked
+    on it: the fork of the base's `last` head and the link's `head`. The heads the base had are
+    read from this machine's record of them, the reflogs of its local and remote-tracking branch,
+    and the base only grew when one of them is under the link's head and every one under it is
+    under `last` too. Nothing when the base dropped a head the link holds, as an amend or a rebase
+    does, or when no record is left to say."""
+    heads: set[str] = set()
+    for ref in (f"refs/heads/{base}", f"refs/remotes/origin/{base}"):
+        said = run.run("git", "reflog", "show", "--format=%H", ref, "--")
+        heads.update(said.stdout.split() if not said.returncode else ())
+    under = [one for one in heads if _holds(run, head, one)]
+    if not under or not all(_holds(run, last, one) for one in under):
+        return ""
+    return run.run("git", "merge-base", last, head).stdout.strip()
+
+
+def _holds(run: Pass, head: str, commit: str) -> bool:
+    return not run.run("git", "merge-base", "--is-ancestor", commit, head).returncode
 
 
 def _left(run: Pass, slug: str, why: str) -> str:
