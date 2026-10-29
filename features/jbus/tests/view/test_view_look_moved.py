@@ -4,6 +4,8 @@ place of a browser and images made here in place of its shots: a CI run on main 
 with the line that names the shots to keep, and any other run skips, since the kept shots are
 main's and only the shots row redraws them (`jbus.shots`)."""
 
+import importlib
+
 import pytest
 from PIL import Image
 
@@ -12,6 +14,7 @@ from view.page import test_view_page_look as look
 from view.page.test_view_page_look import compare, drawn_by
 
 KEPT = "Google Chrome 155.0.8059.39"
+TESTS = "features/jbus/tests/"
 THIS = "Google Chrome 156.0.8078.47"
 MOVED = f"the shots were drawn by {KEPT}, and this is {THIS}"
 MAIN = [
@@ -126,3 +129,13 @@ def test_a_shot_that_is_missing_skips_off_main_and_fails_on_main(drawn, tmp_path
 def test_a_shot_that_did_not_move_passes_on_any_run(drawn, monkeypatch, event, ref):
     on(monkeypatch, event, ref)
     assert compare(drawn, Image.new("RGB", (40, 40), "white"), drawn.parent / "new.png") is None
+
+
+@pytest.mark.parametrize("test", shots.DRAWN_BY)
+def test_each_shot_test_jbus_names_is_a_test_of_the_repo(test):
+    """A shot test renamed or moved under `shots.DRAWN_BY` would file each moved shot as the fix
+    row's again: each id it names is the file and the test pytest names in a failed run."""
+    path, name = test.split("::")
+    assert name in vars(
+        importlib.import_module(path.removeprefix(TESTS).removesuffix(".py").replace("/", "."))
+    )
