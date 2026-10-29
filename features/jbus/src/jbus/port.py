@@ -72,7 +72,7 @@ class Port:
         config, one = found
         numbered = one.migration_names == jbus.NUMBERED
         migrations = bus.Migrations(one.migrations, numbered) if one.migrations else None
-        return bus.Place(config.state(one), migrations, tuple(one.generated))
+        return bus.Place(config.state(one), migrations, tuple(one.generated), one.merge_bases)
 
     def rows(self, state: Path) -> list[bus.Row] | None:
         try:

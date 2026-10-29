@@ -187,6 +187,10 @@ class Repo:
         return rows.main(self.main)
 
     @functools.cached_property
+    def bases(self) -> tuple[str, ...]:
+        return rows.bases(self.main)
+
+    @functools.cached_property
     def migrations(self) -> bus.Migrations | None:
         return rows.migrations(self.main)
 
@@ -738,7 +742,7 @@ class Repo:
         self.lifts = []
         lifted = self.lifted(one)
         stacked = stacks.of(text)
-        short = self.lift(ready.held(one, default, stacked), lifted)
+        short = self.lift(ready.held(one, default, stacked, self.bases), lifted)
         short = short or self.on_stack(one, default, stacked)
         short = short or self.lift(ready.short_of(text, one.head), lifted)
         rebase: ready.Rebase | None = None
@@ -784,7 +788,7 @@ class Repo:
         short = (
             rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
             or rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
-            or self.red(one, default, brief.stem)
+            or (self.red(one, default, brief.stem) if one.base == default else "")
             or self.short_on_migrations(one, one.base)
         )
         if short:
@@ -825,7 +829,9 @@ class Repo:
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
-        """The red hold on a pull request into main: main's hold, and its browser run's."""
+        """The red hold on a pull request into main: main's hold, and its browser run's. A pull
+        request into another merge base has neither: main's red says nothing of that branch, and
+        no fix of main can merge into it."""
         main, ran = self.main_state, rows.UNPROVED
         if main.red and main.failed and not mainjson.fix_of(slug):
             ran = self.proved(one, main.red, main.failed)
@@ -1385,7 +1391,7 @@ class Sweep:
             try:
                 said = json.loads(asked.stdout)
                 state = "" if asked.returncode else str(said["state"])
-                if state == "MERGED" and said["baseRefName"] == self.default:
+                if state == "MERGED" and said["baseRefName"] in (self.default, *self.repo.bases):
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
                 state = ""
@@ -1482,6 +1488,8 @@ class Sweep:
                 why = f"{first.source} and {more[0].source} both name it"
             elif branch == self.default:
                 why = "it is the default branch"
+            elif branch in self.repo.bases:
+                why = "it is a merge base of the project"
             else:
                 why = sweep.kept(first, self.found(first, left))
             if why:
