@@ -1204,6 +1204,14 @@ _WORD = re.compile(r"[\w'-]+")
 _RUN = 8
 
 
+def shared_doc(text: str) -> str:
+    """The first shared doc that `text` names, or nothing: the README, a Markdown file named in
+    capitals (`CONTRIBUTING.md`, not a `SKILL.md`) with no folder before it, or a page under a
+    top-level `docs/` in backticks. A brief outside a docs sweep may not claim one (`conduct`)."""
+    said = _SHARED.search(text)
+    return said[0] if said else ""
+
+
 def _head(text: str) -> list[tuple[str, list[str]]]:
     """The fields of a brief's head, the lines above its first `## `, less its title."""
     return [
@@ -1261,10 +1269,10 @@ def conduct(text: str) -> list[str]:
     title = next((lines[0] for label, lines in briefs.fields(text) if label == briefs.TITLE), "")
     if not _SWEEP.search(title):
         for label, lines in head:
-            said = _SHARED.search(" ".join(lines)) if label in ("Done when", "Where") else None
+            said = shared_doc(" ".join(lines)) if label in ("Done when", "Where") else ""
             if said:
                 found.append(
-                    f"brief's {label}: line claims a shared doc ({said[0]}): docs go to a "
+                    f"brief's {label}: line claims a shared doc ({said}): docs go to a "
                     "docs sweep, a row whose title names docs"
                 )
     told = _runs(

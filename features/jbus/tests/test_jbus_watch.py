@@ -185,6 +185,20 @@ def main_red(kitchen):
     return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("main-red-")]
 
 
+def test_a_red_main_whose_merge_touched_shared_docs_is_still_queued(kitchen):
+    """A merge that changed the README and a root doc still gets its fix row: the brief leaves
+    the shared docs off its Where line, which a fix brief may not claim, and keeps the rest."""
+    main_after_alpha(kitchen, "failure")
+    kitchen.set(
+        "commit-files.json",
+        {"d" * 40: ["README.md", "src/alpha/a.py", "AGENTS.md", "docs/guide.md"]},
+    )
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert "\nWhere: `src/alpha/a.py`, `tests/test_a.py`, `tests/test_b.py`\n" in text
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+
+
 def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitchen):
     main_after_alpha(kitchen, "failure")
     kitchen.poll()
