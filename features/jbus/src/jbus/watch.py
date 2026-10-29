@@ -92,6 +92,7 @@ UNRESOLVED = "Could not resolve to a"
 WORDS = 100
 _PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
 _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
+_ASKS = re.compile(r"^Pull request:[ \t]*open one\b", re.M)
 
 
 @dataclass
@@ -459,6 +460,18 @@ def unfinished(result: str) -> str:
     return ""
 
 
+def owes_pull(brief: str, result: str) -> bool:
+    """Say whether a crew's Result that would end its task clean still owes the pull request its
+    brief asks for (`Pull request: open one ...`): its `Branch:` line names none. Such a task is not
+    done, whatever its `Status:` says: its row runs, and its thread is told once to open it
+    (`threads.resume`). A brief whose `Pull request:` line says none, a scout's or a report's, owes
+    nothing. Neither does a follow-up Result, a later round: the home's close of a row nothing more
+    is wanted of (`leftover`), or the crew's answer once it was told."""
+    if not result.startswith("## Result\n") or unfinished(result):
+        return False
+    return bool(_ASKS.search(brief.split("\n## ")[0]))
+
+
 def after_merge(result: str) -> bool:
     """Return whether a Result leaves work for after its merge. The pass tells the thread
     about that work."""
@@ -479,7 +492,8 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
 
     The slug's thread has ended when the thread is settled or no longer `LIVE`. If T3 Code lists no
     thread for a slug, the slug has not started, or this pass launched it. A slug with a pull
-    request that is open or merged takes its status from that pull request.
+    request that is open or merged takes its status from that pull request. A Result that still
+    owes its pull request (`owes_pull`) has not ended the slug.
     """
     thread = world.thread(slug)
     if slug in world.open or slug in world.merged:
@@ -487,7 +501,7 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
     if thread is None or at_work([thread]):
         return None
     result = world.result(run, slug)
-    if not result:
+    if not result or owes_pull(brief_of(run, slug), result):
         return None
     short = unfinished(result)
     return End("left", short) if short else End("done")
@@ -646,7 +660,9 @@ def facts(
     world, the thread is the one in the list of threads out, and jbus does not know what
     GitHub would say: its facet is `none`, and `judge` passes over every pattern that
     narrows it. A thread whose turn ended on a wait that jbus owns (`World.awaits`) is `quiet`,
-    since jbus wakes it, so its row is running and nobody is told it ended."""
+    since jbus wakes it, so its row is running and nobody is told it ended. So is one whose Result
+    still owes its pull request (`owes_pull`), which counts as nothing written: `threads.resume`
+    tells it once."""
     slug = row["slug"]
     if queue.role(row) == queue.SCOUT:
         return _scouted(run, world, row, seen, launched, last)
@@ -660,6 +676,9 @@ def facts(
         result = last_result(brief_of(run, slug))
         found = seen.crew(slug)
         said = thread(found, str((found or {}).get("live", "")))
+    owes = owes_pull(brief_of(run, slug), result)
+    if owes and said in OVER:
+        said = work.Thread.QUIET
     answered = seen.answered
     if world is not None and found is None and launched:
         if slug in world.missing:
@@ -674,7 +693,7 @@ def facts(
         thread=said or work.Thread.NONE,
         seen="" if said else str((found or {}).get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,
-        written=written(result),
+        written=work.Written.NONE if owes else written(result),
         pull=pull(world, slug, result, seen.said.get(number, "")) if world else work.Pull.NONE,
         question=work.Question.OPEN if slug in run.gated else work.Question.NONE,
         answered=answered,
@@ -761,7 +780,9 @@ def owed(run: Pass, role: str, slug: str) -> work.Written:
         ]
         return work.Written.CLEAN if any(verdicts) else work.Written.NONE
     if role == "crew":
-        return written(last_result(brief_of(run, slug)))
+        brief = brief_of(run, slug)
+        result = last_result(brief)
+        return work.Written.NONE if owes_pull(brief, result) else written(result)
     return work.Written.CLEAN
 
 
