@@ -1,0 +1,688 @@
+From dbfc5eee79d4046a127f7f9ac385fc9ee3427012 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 18:23:50 -0400
+Subject: [PATCH 12/12] feat(web): a jstack home with no live work is one line, which
+ unfolds to what it merged lately
+
+The idle line under a child home is gone. A home with nothing live shows its name and its age,
+and when jbus merged some of its tasks lately its chevron, its arrow keys and its menu unfold
+them, newest first. A home with live work keeps its tally and opens as before.
+---
+ apps/web/src/components/Sidebar.tsx           |  10 +
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 188 +++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx | 120 +++++++++--
+ .../sidebar/jstackRootOrder.browser.test.tsx  |   1 +
+ .../sidebar/jstackTree.logic.test.ts          |  54 ++++-
+ .../components/sidebar/jstackTree.logic.ts    |  64 +++++-
+ 6 files changed, 410 insertions(+), 27 deletions(-)
+
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index 78ab0c2fb5..b00baebdca 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -1347,6 +1347,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+   const [jstackExpandedHomes, setJstackExpandedHomes] = useState<ReadonlySet<string>>(
+     () => new Set(),
+   );
++  const [jstackUnfoldedHomes, setJstackUnfoldedHomes] = useState<ReadonlySet<string>>(
++    () => new Set(),
++  );
+   // Rows keep their order while the pointer is in the sidebar, so a row never moves under it.
+   const [jstackFrozenOrder, setJstackFrozenOrder] = useState<ReadonlyMap<
+     string,
+@@ -1403,6 +1406,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+         routeThreadId:
+           routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null,
+         expandedHomes: jstackExpandedHomes,
++        unfoldedHomes: jstackUnfoldedHomes,
+         frozenOrder: jstackFrozenOrder,
+         childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
+         answering: jstackAnswering,
+@@ -1488,6 +1492,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     },
+     onToggleProject: toggleProjectFolder,
+     onExpandHome: (homeKey) => setJstackExpandedHomes((current) => new Set(current).add(homeKey)),
++    onToggleHome: (homeThreadId) =>
++      setJstackUnfoldedHomes((current) => {
++        const next = new Set(current);
++        if (!next.delete(homeThreadId)) next.add(homeThreadId);
++        return next;
++      }),
+     onNewThread: startThreadInProjectFolder,
+     onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
+     onOpenProjectSettings: openProjectSettings,
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index abc2134341..49743f8716 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -84,7 +84,7 @@ const home: JstackTreeRow = {
+   open: true,
+   asksYou: false,
+   dot: false,
+-  tally: { queue: 0, crew: 1, review: 0 },
++  work: { kind: "live", tally: { queue: 0, crew: 1, review: 0 } },
+   faded: false,
+   selected: false,
+ };
+@@ -120,6 +120,7 @@ function actions(): JstackTreeRowActions {
+     onOpenThread: vi.fn(),
+     onToggleProject: vi.fn(),
+     onExpandHome: vi.fn(),
++    onToggleHome: vi.fn(),
+     onNewThread: vi.fn(),
+     onCopyPath: vi.fn(),
+     onOpenProjectSettings: vi.fn(),
+@@ -594,6 +595,12 @@ describe("JstackTreeRowView context menus", () => {
+ 
+ const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
+ const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
++const jviewThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("jview") });
++const dictationThread = makeThreadFixture({
++  environmentId,
++  projectId,
++  id: ThreadId.make("dictation"),
++});
+ 
+ const crewTask = (slug: string, home: string) => ({
+   repo: "jstack",
+@@ -632,6 +639,7 @@ function LiveTree(props: {
+   const [editor, setEditor] = useState(false);
+   const [answering, setAnswering] = useState<JstackAnswering | null>(null);
+   const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
++  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
+   const jstack = group("jstack");
+   const tree = buildJstackTree({
+     environmentId,
+@@ -640,13 +648,16 @@ function LiveTree(props: {
+     memberProjectRefs: [{ environmentId, projectId }],
+     snapshot: props.snapshot,
+     threadsById: new Map(
+-      [rootThread, flowThread, opsThread].map((thread) => [thread.id, thread] as const),
++      [rootThread, flowThread, opsThread, jviewThread, dictationThread].map(
++        (thread) => [thread.id, thread] as const,
++      ),
+     ),
+     folderThreads: [],
+     hiddenThreads: [],
+     collapsed: false,
+     routeThreadId: props.routeThreadId ?? null,
+     expandedHomes: new Set(),
++    unfoldedHomes: unfolded,
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+     childHomeEditor: editor,
+@@ -657,6 +668,14 @@ function LiveTree(props: {
+   });
+   const live: JstackTreeRowActions = {
+     ...props.spies,
++    onToggleHome: (homeThreadId) => {
++      props.spies.onToggleHome(homeThreadId);
++      setUnfolded((current) => {
++        const next = new Set(current);
++        if (!next.delete(homeThreadId)) next.add(homeThreadId);
++        return next;
++      });
++    },
+     onOpenChildHomeEditor: (opened) => {
+       props.spies.onOpenChildHomeEditor(opened);
+       setEditor(true);
+@@ -772,7 +791,7 @@ describe("JstackTreeRowView home actions", () => {
+         sent={sent}
+       />,
+     );
+-    await expect.element(screen.getByRole("treeitem", { name: /^ops .*home$/ })).toBeVisible();
++    await expect.element(screen.getByRole("treeitem", { name: /^ops .*home/ })).toBeVisible();
+     await expect.element(screen.getByText("starting...")).not.toBeInTheDocument();
+   });
+ 
+@@ -1087,6 +1106,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+     routeThreadId: sidebarHome,
+     answering: null,
+     expandedHomes: new Set(),
++    unfoldedHomes: new Set(),
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+     childHomeEditor: false,
+@@ -1184,3 +1204,165 @@ describe("JstackTreeRowView asks you", () => {
+     }
+   });
+ });
++
++// flow has a task running; jview has nothing live and merged two lately; dictation has neither.
++const IDLE_SNAPSHOT: JbusWorkSnapshot = {
++  ...SNAPSHOT,
++  homes: [
++    ...SNAPSHOT.homes,
++    { repo: "jstack", scope: "jview", threadId: ThreadId.make("jview"), prefix: "jv-" },
++    { repo: "jstack", scope: "dictation", threadId: ThreadId.make("dictation"), prefix: "di-" },
++  ],
++  landed: [
++    {
++      repo: "jstack",
++      slug: "jv-graph",
++      homeThreadId: ThreadId.make("jview"),
++      mergedAt: "2026-10-29T09:00:00.000Z",
++    },
++    {
++      repo: "jstack",
++      slug: "jv-legend",
++      homeThreadId: ThreadId.make("jview"),
++      mergedAt: "2026-10-29T11:40:00.000Z",
++    },
++  ],
++};
++
++function idleTree(spies: JstackTreeRowActions) {
++  return render(<LiveTree snapshot={IDLE_SNAPSHOT} spies={spies} sent={[]} />, { router: false });
++}
++
++/**
++ * The audit, less contrast: an idle home draws at half ink, as idle roots do, which axe counts
++ * against it whatever this change does.
++ */
++const auditIdle = async () =>
++  (await audit()).filter((violation) => !violation.startsWith("color-contrast:"));
++
++const homeItem = (screen: Screen, scope: string) =>
++  screen.getByRole("treeitem", { name: new RegExp(`^${scope} .*home`) });
++
++/** The chevron the pointer folds a home by; the tree holds treeitems alone, so it is unseen. */
++const chevron = (screen: Screen, label: string) =>
++  screen.container.querySelector<HTMLElement>(`[aria-label="${label}"]`);
++
++/** What a line shows the eye: its text, less what only a screen reader says. */
++const shownText = (line: Element) => {
++  const copy = line.cloneNode(true) as Element;
++  for (const unseen of copy.querySelectorAll(".sr-only")) unseen.remove();
++  return copy.textContent;
++};
++
++/** The home's own list item, which holds its line and, for a live home, its tally. */
++const homeLine = (screen: Screen, scope: string) =>
++  homeItem(screen, scope).element().closest("li")!;
++
++describe("JstackTreeRowView idle homes", () => {
++  it("draws a home with no live work as its one line, name and age, and a live one with its tally", async () => {
++    await using screen = await idleTree(actions());
++    for (const scope of ["jview", "dictation"]) {
++      const line = homeLine(screen, scope);
++      // One 28px line: the row itself, with nothing drawn under it.
++      expect(line.getBoundingClientRect().height).toBe(28);
++      expect(shownText(line)).not.toMatch(/idle/);
++      // Its age, at the row's end.
++      expect(line.querySelector(".tabular-nums")?.textContent).not.toBe("");
++    }
++    // dictation finished nothing lately, so it has nothing to unfold.
++    expect(homeItem(screen, "dictation").element().hasAttribute("aria-expanded")).toBe(false);
++    await expect.element(homeItem(screen, "jview")).toHaveAttribute("aria-expanded", "false");
++
++    // The live home is as it was: a tally line under its row, and no fold of its own.
++    const flow = homeLine(screen, "flow");
++    expect(flow.getBoundingClientRect().height).toBeGreaterThan(28);
++    expect(shownText(flow)).toMatch(/crew 1/);
++    await expect.element(homeItem(screen, "flow")).toHaveAttribute("aria-expanded", "false");
++    expect(chevron(screen, "Unfold flow")).toBeNull();
++    expect(chevron(screen, "Unfold dictation")).toBeNull();
++    expect(await auditIdle()).toEqual([]);
++  });
++
++  it("by mouse: unfolds an idle home to what it merged, newest first, folds it again, and opens it from its name", async () => {
++    const spies = actions();
++    await using screen = await idleTree(spies);
++    await userEvent.click(chevron(screen, "Unfold jview")!);
++    await expect.element(homeItem(screen, "jview")).toHaveAttribute("aria-expanded", "true");
++    const legend = screen.getByRole("treeitem", { name: "jv-legend merged 20m" });
++    await expect.element(legend).toBeVisible();
++    await expect
++      .element(screen.getByRole("treeitem", { name: "jv-graph merged 3h" }))
++      .toBeVisible();
++    expect(
++      [...document.querySelectorAll("[data-sidebar-row^='jstack-finished:']")].map(
++        (row) => row.textContent,
++      ),
++    ).toEqual(["jv-legend merged 20m", "jv-graph merged 3h"]);
++    expect(await auditIdle()).toEqual([]);
++
++    await userEvent.click(legend);
++    expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("jview"));
++    await userEvent.click(chevron(screen, "Fold jview")!);
++    await expect.element(legend).not.toBeInTheDocument();
++    await expect.element(homeItem(screen, "jview")).toHaveAttribute("aria-expanded", "false");
++    expect(homeLine(screen, "jview").getBoundingClientRect().height).toBe(28);
++
++    // A click on the name still opens the home, and folds nothing.
++    await userEvent.click(homeItem(screen, "jview"));
++    expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("jview"));
++    await expect.element(homeItem(screen, "jview")).toHaveAttribute("aria-expanded", "false");
++    expect(spies.onToggleHome).toHaveBeenCalledTimes(2);
++  });
++
++  it("by keyboard alone: unfolds and folds an idle home with the arrow keys and its menu, and steps into what it merged", async () => {
++    const spies = actions();
++    await using screen = await idleTree(spies);
++    const jview = homeItem(screen, "jview");
++
++    // Root, tidy, flow, jview.
++    await userEvent.keyboard("{Tab}");
++    await expect.element(rootItem(screen)).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
++    await expect.element(jview).toHaveFocus();
++
++    await userEvent.keyboard("{ArrowRight}");
++    await expect.element(jview).toHaveAttribute("aria-expanded", "true");
++    await expect.element(jview).toHaveFocus();
++    await userEvent.keyboard("{ArrowRight}");
++    await expect
++      .element(screen.getByRole("treeitem", { name: "jv-legend merged 20m" }))
++      .toHaveFocus();
++    await userEvent.keyboard("{ArrowLeft}");
++    await expect.element(jview).toHaveFocus();
++    await userEvent.keyboard("{ArrowLeft}");
++    await expect.element(jview).toHaveAttribute("aria-expanded", "false");
++    await expect
++      .element(screen.getByRole("treeitem", { name: "jv-legend merged 20m" }))
++      .not.toBeInTheDocument();
++    expect(spies.onOpenThread).not.toHaveBeenCalled();
++
++    // Open home, Unfold; then Open home, Fold.
++    await userEvent.keyboard("{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{Enter}");
++    await expect.element(jview).toHaveAttribute("aria-expanded", "true");
++    await expect.element(jview).toHaveFocus();
++    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
++    await expect.element(page.getByRole("menuitem", { name: "Fold" })).toBeVisible();
++    await userEvent.keyboard("{ArrowDown}{Enter}");
++    await expect.element(jview).toHaveAttribute("aria-expanded", "false");
++
++    // Enter opens the home; dictation, with nothing to unfold, takes no arrow to fold.
++    await userEvent.keyboard("{Enter}");
++    expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("jview"));
++    const dictation = homeItem(screen, "dictation");
++    await userEvent.keyboard("{ArrowDown}{ArrowRight}");
++    await expect.element(dictation).toHaveFocus();
++    expect(dictation.element().hasAttribute("aria-expanded")).toBe(false);
++    expect(spies.onToggleHome).toHaveBeenCalledTimes(4);
++
++    // The live home is unchanged: its arrow opens it, as before.
++    await userEvent.keyboard("{ArrowUp}{ArrowUp}{ArrowRight}");
++    expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("flow"));
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 892d3b413b..fd4c118c1c 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -29,6 +29,7 @@ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ // jstack fork: the tree sidebar's rows. Amber is the only colour, and only for what waits on you.
+ // Each level is a size step down (option A): a root row is 36px at 15/650 with 10px above it,
+ // a home 28px at 13/450 and 90% ink, a worker 24px at 12/400 and 70% ink.
++// A home with no live work is its one line, which unfolds to what it finished, if anything.
+ 
+ type TreeRow = Exclude<JstackTreeRow, { kind: "loose" }>;
+ type NewHomeRow = Extract<JstackTreeRow, { kind: "new-home" }>;
+@@ -39,6 +40,8 @@ export interface JstackTreeRowActions {
+   readonly onOpenThread: (threadId: ThreadId) => void;
+   readonly onToggleProject: (group: SidebarProjectSnapshot) => void;
+   readonly onExpandHome: (homeKey: string) => void;
++  /** Folds or unfolds an idle home's finished rows. */
++  readonly onToggleHome: (homeThreadId: ThreadId) => void;
+   readonly onNewThread: (group: SidebarProjectSnapshot) => void;
+   readonly onCopyPath: (group: SidebarProjectSnapshot) => void;
+   readonly onOpenProjectSettings: (group: SidebarProjectSnapshot) => void;
+@@ -139,15 +142,11 @@ function Tally(props: { tally: JstackTally }) {
+   const parts = (["crew", "review", "queue"] as const).filter((stage) => props.tally[stage] > 0);
+   return (
+     <div className="flex gap-2.5 px-2 pb-1 text-2xs text-sidebar-muted-foreground">
+-      {parts.length === 0 ? (
+-        <span>idle</span>
+-      ) : (
+-        parts.map((stage) => (
+-          <span key={stage}>
+-            {stage} <b className="font-semibold text-sidebar-foreground/75">{props.tally[stage]}</b>
+-          </span>
+-        ))
+-      )}
++      {parts.map((stage) => (
++        <span key={stage}>
++          {stage} <b className="font-semibold text-sidebar-foreground/75">{props.tally[stage]}</b>
++        </span>
++      ))}
+     </div>
+   );
+ }
+@@ -635,8 +634,14 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+       );
+     }
+     case "domain": {
++      const work = row.work;
++      // An idle home folds and unfolds what it finished; arrow keys reach it by an untrusted click.
++      const foldable = work.kind === "idle" && work.finished > 0;
++      const toggle = () => actions.onToggleHome(row.threadId);
+       const onContextMenu = rowMenu([
+         { label: "Open home", run: () => actions.onOpenThread(row.threadId) },
++        // An idle home unfolds to what it finished; a live one opens with its thread.
++        ...(foldable ? [{ label: work.unfolded ? "Fold" : "Unfold", run: toggle }] : []),
+         ...homeWork(actions, row.threadId),
+         {
+           label: "Copy scope name",
+@@ -648,26 +653,101 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+       return (
+         <li className={cn("list-none", row.faded && "opacity-50")}>
+           <Nest depth={1}>
++            <div className="relative">
++              <button
++                type="button"
++                role="treeitem"
++                tabIndex={-1}
++                data-sidebar-row={row.key}
++                data-sidebar-parent={row.parentKey}
++                aria-expanded={
++                  work.kind === "live" ? row.open : foldable ? work.unfolded : undefined
++                }
++                aria-selected={row.selected}
++                onClick={(event) => {
++                  if (foldable && !event.nativeEvent.isTrusted) toggle();
++                  else actions.onOpenThread(row.threadId);
++                }}
++                onContextMenu={onContextMenu}
++                className={cn(
++                  ROW_BUTTON,
++                  "h-7",
++                  foldable && "pr-8",
++                  row.selected && "bg-sidebar-row-selected",
++                )}
++              >
++                <span className="min-w-0 flex-1 truncate text-tree-home text-sidebar-foreground/90">
++                  {row.scope}
++                </span>{" "}
++                {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}{" "}
++                <TimeLabel thread={row.thread} />
++                <SaidLast
++                  parts={[
++                    "home",
++                    work.kind === "idle" && "idle",
++                    row.dot && "something inside asks you",
++                  ]}
++                />
++              </button>
++              {/* For the pointer only, as on a root row: the arrow keys and the menu fold it too. */}
++              {foldable ? (
++                <span aria-hidden className="absolute inset-y-0 right-1 flex items-center">
++                  <button
++                    type="button"
++                    tabIndex={-1}
++                    aria-label={work.unfolded ? `Fold ${row.scope}` : `Unfold ${row.scope}`}
++                    onClick={toggle}
++                    className="flex size-6 items-center justify-center rounded-(--control-radius) text-sidebar-muted-foreground outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++                  >
++                    <ChevronDownIcon
++                      aria-hidden
++                      className={cn(
++                        "size-3.5 transition-transform",
++                        !work.unfolded && "-rotate-90",
++                      )}
++                    />
++                  </button>
++                </span>
++              ) : null}
++            </div>
++            {work.kind === "live" && !row.open ? <Tally tally={work.tally} /> : null}
++          </Nest>
++        </li>
++      );
++    }
++    case "finished": {
++      const fullSlug = `${row.prefix ?? ""}${row.slug}`;
++      return (
++        <li className="list-none">
++          <Nest depth={2}>
+             <button
+               type="button"
+               role="treeitem"
+               tabIndex={-1}
+               data-sidebar-row={row.key}
+               data-sidebar-parent={row.parentKey}
+-              aria-expanded={row.open}
+-              aria-selected={row.selected}
+-              onClick={open(row.threadId)}
+-              onContextMenu={onContextMenu}
+-              className={cn(ROW_BUTTON, "h-7", row.selected && "bg-sidebar-row-selected")}
++              aria-selected={false}
++              onClick={() => actions.onOpenThread(row.homeThreadId)}
++              onContextMenu={rowMenu([
++                { label: "Open home", run: () => actions.onOpenThread(row.homeThreadId) },
++                {
++                  label: "Copy slug",
++                  separatorBefore: true,
++                  run: () => actions.onCopyName(fullSlug, "slug"),
++                },
++              ])}
++              className={cn(ROW_BUTTON, "h-6 text-xs font-normal")}
+             >
+-              <span className="min-w-0 flex-1 truncate text-tree-home text-sidebar-foreground/90">
+-                {row.scope}
++              <span className="min-w-0 flex-1 truncate text-sidebar-foreground/70">
++                {row.prefix ? (
++                  <span className="text-sidebar-muted-foreground">{row.prefix}</span>
++                ) : null}
++                {row.slug}
+               </span>{" "}
+-              {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}{" "}
+-              <TimeLabel thread={row.thread} />
+-              <SaidLast parts={["home", row.dot && "something inside asks you"]} />
++              <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
++                merged {row.age}
++              </span>
+             </button>
+-            {row.open ? null : <Tally tally={row.tally} />}
+           </Nest>
+         </li>
+       );
+diff --git a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
+index e29c0fa630..65ab552620 100644
+--- a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
++++ b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
+@@ -83,6 +83,7 @@ const actions = (order: ReturnType<typeof useJstackRootOrder<Root>>): JstackTree
+   onOpenThread: noop,
+   onToggleProject: noop,
+   onExpandHome: noop,
++  onToggleHome: noop,
+   onNewThread: noop,
+   onCopyPath: noop,
+   onOpenProjectSettings: noop,
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 1d899e870c..d5c5acb067 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -87,6 +87,7 @@ function build(
+     collapsed: false,
+     routeThreadId: null,
+     expandedHomes: new Set(),
++    unfoldedHomes: new Set(),
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+     childHomeEditor: false,
+@@ -269,7 +270,7 @@ describe("buildJstackTree", () => {
+     expect(closed.rows.find((row) => row.kind === "domain")).toMatchObject({
+       open: false,
+       dot: true,
+-      tally: { queue: 1, crew: 1, review: 0 },
++      work: { kind: "live", tally: { queue: 1, crew: 1, review: 0 } },
+     });
+     expect(workers(closed.rows)).toEqual([]);
+ 
+@@ -282,6 +283,57 @@ describe("buildJstackTree", () => {
+     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
+   });
+ 
++  it("draws a home with no live work as one line that unfolds to what it merged, newest first", () => {
++    const merged = (slug: string, home: string, minutes: number) => ({
++      repo: "jstack",
++      slug,
++      homeThreadId: ThreadId.make(home),
++      mergedAt: minutesAgo(minutes),
++    });
++    const landed = [
++      merged("fl-old", "flow", 300),
++      merged("fl-new", "flow", 20),
++      merged("tidy", "root", 5),
++      { ...merged("fl-else", "flow", 5), repo: "infra" },
++    ];
++    const finished = (rows: ReadonlyArray<JstackTreeRow>) =>
++      rows.flatMap((row) =>
++        row.kind === "finished" ? [`${row.parentKey}>${row.prefix}${row.slug} ${row.age}`] : [],
++      );
++    const folded = build({ landed });
++    expect(folded.rows.find((row) => row.kind === "domain")).toMatchObject({
++      work: { kind: "idle", finished: 2, unfolded: false },
++      faded: true,
++    });
++    expect(finished(folded.rows)).toEqual([]);
++
++    const unfolded = build({ landed }, { unfoldedHomes: new Set(["flow"]) });
++    expect(unfolded.rows.find((row) => row.kind === "domain")).toMatchObject({
++      work: { kind: "idle", finished: 2, unfolded: true },
++    });
++    expect(finished(unfolded.rows)).toEqual([
++      "jstack-home:flow>fl-new 20m",
++      "jstack-home:flow>fl-old 5h",
++    ]);
++
++    // With nothing merged lately there is nothing to unfold.
++    expect(
++      build({}, { unfoldedHomes: new Set(["flow"]) }).rows.find((row) => row.kind === "domain"),
++    ).toMatchObject({ work: { kind: "idle", finished: 0, unfolded: false } });
++
++    // A home with live work keeps its tally and shows no finished rows, unfolded or not.
++    const live = build(
++      { landed, tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow") })] },
++      { unfoldedHomes: new Set(["flow"]), routeThreadId: ThreadId.make("flow") },
++    );
++    expect(live.rows.find((row) => row.kind === "domain")).toMatchObject({
++      open: true,
++      work: { kind: "live", tally: { queue: 0, crew: 1, review: 0 } },
++    });
++    expect(finished(live.rows)).toEqual([]);
++    expect(workers(live.rows)).toEqual(["pump:crew"]);
++  });
++
+   it("rolls everything inside up to the project row when folded", () => {
+     const tree = build(
+       { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOn: "word" })] },
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index a7ad8c9f81..177ca94a6b 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -64,6 +64,19 @@ export interface JstackTally {
+   readonly review: number;
+ }
+ 
++/**
++ * What a child home has under it: live work, tallied on a line of its own while the home is
++ * closed, or none, when the home is one line that unfolds to what it finished, if anything.
++ */
++export type JstackHomeWork =
++  | { readonly kind: "live"; readonly tally: JstackTally }
++  | {
++      readonly kind: "idle";
++      /** Its tasks jbus merged lately, which its unfolded row shows. */
++      readonly finished: number;
++      readonly unfolded: boolean;
++    };
++
+ export type JstackTreeRow =
+   | {
+       readonly kind: "project";
+@@ -95,7 +108,7 @@ export type JstackTreeRow =
+       readonly open: boolean;
+       readonly asksYou: boolean;
+       readonly dot: boolean;
+-      readonly tally: JstackTally;
++      readonly work: JstackHomeWork;
+       readonly faded: boolean;
+       readonly selected: boolean;
+     }
+@@ -148,6 +161,17 @@ export type JstackTreeRow =
+       /** jbus still has the question open; once it closes, the row only keeps the text. */
+       readonly open: boolean;
+     }
++  | {
++      /** A task of an unfolded idle home that jbus merged lately. */
++      readonly kind: "finished";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly slug: string;
++      readonly prefix: string | null;
++      /** How long ago it merged, such as `3h`. */
++      readonly age: string;
++      readonly homeThreadId: ThreadId;
++    }
+   | {
+       readonly kind: "more";
+       readonly key: string;
+@@ -202,6 +226,8 @@ export interface JstackTreeInput {
+   readonly routeThreadId: ThreadId | null;
+   /** Homes whose "+N" row the user opened. */
+   readonly expandedHomes: ReadonlySet<string>;
++  /** Idle homes the user unfolded to what they finished. */
++  readonly unfoldedHomes: ReadonlySet<string>;
+   /** Worker order per home to keep while the pointer is in the sidebar; null re-sorts. */
+   readonly frozenOrder: ReadonlyMap<string, ReadonlyArray<string>> | null;
+   readonly lastVisitedAt: (thread: EnvironmentThreadShell) => string | null;
+@@ -502,6 +528,17 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     innerAsks ||= asksYou || workerAsks;
+     const selected = home.threadId === input.routeThreadId;
+     const open = selected || workers.some((worker) => worker.row.selected);
++    const finished = snapshot.landed
++      .filter((merge) => merge.repo === root.repo && merge.homeThreadId === home.threadId)
++      .toSorted((a, b) => Date.parse(b.mergedAt) - Date.parse(a.mergedAt));
++    const work: JstackHomeWork =
++      workers.length > 0
++        ? { kind: "live", tally: tallyOf(workers) }
++        : {
++            kind: "idle",
++            finished: finished.length,
++            unfolded: finished.length > 0 && input.unfoldedHomes.has(home.threadId),
++          };
+     domainRows.push({
+       kind: "domain",
+       key,
+@@ -512,11 +549,32 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+       open,
+       asksYou,
+       dot: !open && workerAsks,
+-      tally: tallyOf(workers),
++      work,
+       faded: workers.length === 0 && !asksYou && (thread === null || !isThreadWorking(thread)),
+       selected,
+     });
+-    if (open) domainRows.push(...capped(workers, home.threadId, key, 2));
++    if (work.kind === "live" && open) domainRows.push(...capped(workers, home.threadId, key, 2));
++    if (work.kind === "idle" && work.unfolded) {
++      domainRows.push(
++        ...finished.map((merge): JstackTreeRow => {
++          const prefix =
++            home.prefix !== null && merge.slug.startsWith(home.prefix) && merge.slug !== home.prefix
++              ? home.prefix
++              : null;
++          return {
++            kind: "finished",
++            key: `jstack-finished:${merge.repo}/${merge.slug}`,
++            parentKey: key,
++            slug: prefix === null ? merge.slug : merge.slug.slice(prefix.length),
++            prefix,
++            age: formatQuietAge(
++              Math.max(0, Math.floor((input.nowMs - Date.parse(merge.mergedAt)) / MINUTE_MS)),
++            ),
++            homeThreadId: home.threadId,
++          };
++        }),
++      );
++    }
+   }
+ 
+   const lastVisitedAt = input.lastVisitedAt(rootThread);
+-- 
+2.56.0
+
