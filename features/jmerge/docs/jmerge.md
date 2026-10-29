@@ -386,6 +386,8 @@ A project with no `integration` file has no integration branches.
 A crewmate writes nothing about its rebase.
 `jmerge` compares the head it finds with the commit the review covers.
 That commit is the `Fixed:` commit, or, when the Result has no `Fixed:` line, the head the last `## Review` saw.
+A `Fixed:` line written above a later review round is read as no line for that round, so `jmerge` reads the line that round is owed from its `Checked:` line, as `features/jmerge/src/jmerge/ready.py` says of it: "Such a line is read as no line for the last round, so `unwritten_fixed` reads the one that round is owed".
+A `Fixed:` commit that a later rebase made is compared from the head the crew kept before that rebase, as `features/jmerge/src/jmerge/cli.py` says of `before_rebase`: "Where a rebase made it, so it leaves `base` elsewhere than `reviewed` does, that is the head the crew kept before the rebase (`kept_fix`), else `reviewed`, as for a `Fixed:` line read from git".
 `jmerge` reads the files that either patch changes.
 A brief from before this rule may still have a `Rebase:` line, in any shape, true or not.
 `jmerge` reads it as no line, so such a brief is judged as the same brief with the line removed, and no `Rebase:` line holds a pull request.

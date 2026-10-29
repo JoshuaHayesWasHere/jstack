@@ -35,6 +35,14 @@ list of threads every home has `unknown`.
 A scope is made by the root home's block, which writes its `plan.md` with a first line and
 then `Goal (<day>, ...)`. That day is `started`. The root, a plan with no such line before its
 first entry, and a scope with no plan have none.
+
+Each home has a `colour`, 1 to `COLOURS`, the page's `--cat-<colour>` swatch beside its name.
+It is the home's place in the order the homes were made, counted round past `COLOURS`: the
+root is 1, then each scope by its `started` day, a scope with none first, then by the time of
+its `prefix`, which the block writes once as it makes the scope, and by name among equals. A
+scope made later, which the block dates and gives its prefix, comes after every scope there
+is, so it takes the next colour and moves no other home's, whatever its name and on the same
+day too. A home that is no scope now has none.
 """
 
 from __future__ import annotations
@@ -53,6 +61,7 @@ GROUP = {
     "name": None,
     "open": None,
     "waits": None,
+    "colour": None,
     "in_check": checked.SHAPE,
     "health": None,
     "since": None,
@@ -60,6 +69,7 @@ GROUP = {
     "last": {"at": None, "what": None},
 }
 SINCE = ("quiet", "hung")
+COLOURS = 8
 _GOAL = re.compile(r"^Goal \((\d{4}-\d\d-\d\d)\b", re.M)
 
 
@@ -68,6 +78,15 @@ def _read(path: Path) -> str | None:
         return path.read_text(errors="replace")
     except OSError:
         return None
+
+
+def _made(scope: Path) -> float:
+    """When the block made the scope: the time of its `prefix`, which it writes once, or 0
+    where it has none."""
+    try:
+        return (scope / "prefix").stat().st_mtime
+    except OSError:
+        return 0.0
 
 
 @dataclass(frozen=True)
@@ -162,6 +181,14 @@ class Homes:
         found = _GOAL.search(plan.split("\n## ", 1)[0]) if plan else None
         return found[1] if found else None
 
+    @cached_property
+    def colours(self) -> dict[str, int]:
+        """Each home's colour, by its name: the root's, then each scope's in the order they
+        were made."""
+        made = sorted(self.scopes, key=lambda one: (self.started(one[0]) or "", _made(one[0])))
+        names = [ROOT, *(one.name for one, _, _ in made)]
+        return {name: place % COLOURS + 1 for place, name in enumerate(names)}
+
     def group(
         self,
         tasks: list[dict[str, Any]],
@@ -171,8 +198,8 @@ class Homes:
     ) -> list[Any]:
         """The project's homes, the root first and then each scope by name, each with how many
         open tasks and needs are its own, its health from `threads`, the threads the last pass
-        listed with each one's home, its rows in check by what their check did, the day its scope
-        was made, and its newest act of `acts`, which are oldest first."""
+        listed with each one's home, its colour, its rows in check by what their check did, the day
+        its scope was made, and its newest act of `acts`, which are oldest first."""
         last = {one["home"]: {"at": one["at"], "what": one["what"]} for one in acts or []}
         own = [one for one in threads or [] if one["role"] == "home"]
         found = []
@@ -189,6 +216,7 @@ class Homes:
                     "name": name,
                     "open": len(rows),
                     "waits": sum(1 for need in needs if need["home"] == name),
+                    "colour": self.colours[name],
                     "in_check": checked.count(rows),
                     "health": health,
                     "since": thread["updated"] if thread and health in SINCE else None,

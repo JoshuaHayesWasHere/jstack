@@ -236,9 +236,14 @@ def red_pull() -> dict[str, Any]:
 
 @contextmanager
 def stubbed() -> Iterator[None]:
-    """Put in the five stubs and nothing else: GitHub's two answers, the launch record, the
-    brief's thread, and a crew whose turn has ended."""
+    """Put in the six stubs and nothing else: GitHub's two answers, the launch record, the
+    brief's thread, a crew whose turn has ended, and an `fsync` that returns at once. A walk
+    writes some 14,000 files, and each `fsync` waits behind every other writer of the
+    filesystem: in full suites run side by side a walk took 20 to 42 s instead of 2, and 49 s
+    beside twelve writers of `/tmp`, against the test's bound of 120 s. The walk checks what
+    `tell` writes, not that it reaches the disk."""
     with (
+        mock.patch("os.fsync", lambda fd: None),
         mock.patch.object(mainmoved, "main_check", lambda run, at, **_: run.checks[at]),
         mock.patch.object(mainmoved, "failed_at", lambda run, at: [failing(int(at[0]))]),
         mock.patch.object(dispatch, "launched", lambda run, slug: THREAD if slug == RED_PR else ""),
