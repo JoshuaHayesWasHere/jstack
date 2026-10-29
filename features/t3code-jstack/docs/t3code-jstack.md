@@ -3,6 +3,7 @@
 T3 Code's sidebar lists threads.
 jstack's tree sidebar draws a jstack project from jbus's state instead: one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
 Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
+Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
 A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.
 Upstream T3 Code knows nothing of jbus, so the tree is a patch series that this feature keeps, and `t3code-jstack` is T3 Code nightly built with it.
 It is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doctor` lists it only where T3 Code is a nightly build.
