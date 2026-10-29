@@ -618,12 +618,18 @@ _REPORTED = re.compile(
 )
 
 
+# The first line of the output of a TLC run with no -continue, which stops at the first state
+# that breaks the rule and so does not print that it completed.
+FIRST_ONLY = "statechart: TLC ran with no -continue, so it stopped at the first broken state.\n"
+
+
 def tlc_output_warning(text, file):
     """None for TLC output whose counterexamples are all there, a warning for output where TLC
     found a rule broken and then failed with a Java exception, and ChartError for any other
     output of a run that stopped early or on an error. With -continue, TLC prints "Model
     checking completed" even after broken invariants, and not when it stopped early. An error
-    in the rule's formula throws one of TLC's own exceptions in place of java.*."""
+    in the rule's formula throws one of TLC's own exceptions in place of java.*. Output that
+    starts with FIRST_ONLY is all there once it has a broken rule."""
     lines = text.split("\n")
 
     def named(pattern):
@@ -660,6 +666,8 @@ def tlc_output_warning(text, file):
             f" states that break {rules}. The failure is in TLC, not in the rule. Do not weaken"
             f" {rules} because of it. A smaller constant can let TLC finish."
         )
+    if broken and text.startswith(FIRST_ONLY):
+        return None
     # TLC stops at the first broken temporal property, and at an initial state that breaks a
     # PROPERTY, and then does not print that it completed.
     if not re.search(
