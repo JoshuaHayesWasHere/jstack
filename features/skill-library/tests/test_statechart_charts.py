@@ -151,6 +151,19 @@ Next == Tick \\/ Pay \\/ Fill
     ]
 
 
+def test_a_condition_cited_by_its_file_and_a_quote_needs_no_line():
+    """a comment that names the file and quotes the code cites the condition, with no line"""
+    found = uncited_conditions("""---- MODULE Pay ----
+VARIABLES sent, paid
+Pay ==
+  /\\ sent > 0     \\* pay.ts `if (sent > 0)`
+  /\\ sent < 3     \\* pay.ts, no quote
+  /\\ paid' = TRUE
+  /\\ UNCHANGED sent
+====""")
+    assert found == [{"line": 5, "action": "Pay", "condition": "sent < 3"}]
+
+
 def test_the_legend_is_not_part_of_the_machine():
     """the legend is not part of the machine"""
     regions = parse_mermaid("""stateDiagram-v2

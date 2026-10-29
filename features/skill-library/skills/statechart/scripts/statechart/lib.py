@@ -297,7 +297,7 @@ def split_comments_keeping_offsets(text):
 
 
 IDENTIFIER = re.compile(r"(?<![\\.\w])[A-Za-z_]\w*(?!\w)(?!\s*\|->)", A)
-CITATION = re.compile(r"[\w./-]+\.[A-Za-z]\w*:\d+|#L\d+", A)
+CITATION = re.compile(r"[\w./-]+\.[A-Za-z]\w*(?::\d+|\s*`)|#L\d+", A)
 DEPTH = {"(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1}
 LOOSER_THAN_AND = re.compile(r"(\\/|=>|<=>|~>|-\+->|\\equiv\b)", A)
 RUNS_TO_END = re.compile(r"(\\[EA]|IF|LET|CASE|CHOOSE)\b", A)
@@ -359,9 +359,10 @@ def conjuncts(bare, start, to, line_start):
 
 
 def uncited_conditions(text, shared=()):
-    """Each condition of an action that no comment ties to code by a file and line: a conjunct
-    that changes nothing and reads a variable that the action does not change. `shared` names
-    the variables of the modules that the text extends."""
+    """Each condition of an action that no comment ties to code, by a file and line or by a file
+    and the code it quotes in backticks: a conjunct that changes nothing and reads a variable that
+    the action does not change. `shared` names the variables of the modules that the text
+    extends."""
     code, notes = split_comments_keeping_offsets(text)
     bare = re.sub(r'"(?:[^"\\\n]|\\.)*"', lambda m: " " * len(m.group()), code)
     variables = set(tla_variables(bare)) | set(shared)
