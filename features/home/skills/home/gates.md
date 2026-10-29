@@ -70,7 +70,12 @@ else
 fi
 ```
 
-It prints nothing. `$P` is this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, read from the record jbus keeps of them, `questions.json` in the project's state directory: it is as it is now, with no pass between. This block only reads it: `jbus gate` and `jbus answer` are the two that write it. A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one. One that no brief, no request and no home asked, as an expert's finding is, is the root home's. `$WHY` says why nothing could be read.
+It prints nothing.
+`$P` is this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, read from the record jbus keeps of them, `questions.json` in the project's state directory: it is as it is now, with no pass between.
+This block only reads it: `jbus gate` and `jbus answer` are the two that write it.
+A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one.
+One that no brief, no request and no home asked, as an expert's finding is, is the root home's.
+`$WHY` says why nothing could be read.
 
 **Ask one** when the question is this home's own. Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and act on it only once the user answers. Fill in the lines of `$T/gates.md` (read it first), its `<n>` left as it is, with the `Holds:` and `Fail-safe:` lines under `Undo:` for a gate that holds, and carry on. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. With the entry in place of the line in angle brackets, and `own` left as it is:
 
@@ -132,7 +137,11 @@ else
 fi
 ```
 
-On `no open questions`, say nothing about gates. On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read. One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it. For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe. Ask for nothing more than the answer.
+On `no open questions`, say nothing about gates.
+On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read.
+One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it.
+For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe.
+Ask for nothing more than the answer.
 
 Two or more open questions are one round of the grill page, wherever the grilling skill's "On a page" (`$T/../skills/grilling/SKILL.md`, read it now) puts a round on a page. Each set of open questions has a page of its own: do its step 1 with `gates-<n>` as the `<slug>`, `<n>` being the highest number among them, and for a scoped home `gates-<scope>-<n>`. Then run this in place of its step 2:
 
