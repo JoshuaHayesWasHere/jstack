@@ -171,7 +171,7 @@ function boardMatrix(view) {
   }).join("");
   var body = homes.map(function (h) {
     var last = h.last && h.last.at ? "last act " + boardAge(h.last.at) : "no act kept";
-    var label = (many ? esc(h.project) + "\u00b7" : "") + '<b>' + esc(h.name) + '</b> ' + h.open;
+    var label = swatch(h) + (many ? esc(h.project) + "\u00b7" : "") + '<b>' + esc(h.name) + '</b> ' + h.open;
     var key = homeKey(h.project, h.name), said = homeLabel(h.project, h.name);
     return '<tr data-home="' + esc(key) + '"><th scope="row">' + label + '<span class="mx-la"' + (h.last && h.last.what ? ' title="' + esc(h.last.what) + '"' : "") + '>' + last + '</span></th>' + keys.map(function (s) {
       var c = mxCell(h, s.key);

@@ -57,6 +57,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
                 "name": "",
                 "open": 0,
                 "waits": 0,
+                "colour": 1,
                 "in_check": {"failing": 0, "waiting": 0, "passed": 0, "stacked": 0},
                 "health": "unknown",
                 "since": None,

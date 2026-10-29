@@ -199,3 +199,53 @@ def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_pas
         SHELF: {"failing": 2, "waiting": 0, "passed": 1, "stacked": 0},
     }
     assert state["summary"]["homes"] == project["homes"]
+
+
+def colours(scene):
+    """Each home's colour, by its name, as /stack.json, the pipeline board's matrix and the
+    Homes drawer give it, which must agree."""
+    stack, _ = answers(scene)
+    (project,) = stack["projects"]
+    got = {one["name"]: one["colour"] for one in project["homes"]}
+    found = sources(scene)
+    read = built.Read(found, scene.name, NOW, runs)
+    matrix = read.asked("pipeline")["data"]["homes"]
+    assert {("" if one["name"] == "root" else one["name"]): one["colour"] for one in matrix} == got
+    assert {one["name"]: one["colour"] for one in read.asked("board")["data"]["homes"]} == got
+    return got
+
+
+def test_each_home_has_a_colour_by_the_order_its_scope_was_made(tmp_path, monkeypatch):
+    """The root is 1, and the two child homes, made with no goal day kept, follow by name."""
+    scene = Scene(tmp_path, monkeypatch)
+    homed(scene)
+    assert colours(scene) == {ROOT: 1, SHELF: 2, RACK: 3}
+
+
+def test_a_home_made_last_takes_the_next_colour_and_moves_no_other_whatever_its_name(
+    tmp_path, monkeypatch
+):
+    """`apple-crate` sorts first by name, and its plan's goal day says it was made last: it
+    takes 4, and the root and the two child homes keep theirs."""
+    scene = Scene(tmp_path, monkeypatch)
+    homed(scene)
+    before = colours(scene)
+    crate = scene.home / "apple-crate"
+    crate.mkdir()
+    (crate / "home-id").write_text("mcp:crate\n")
+    (crate / "plan.md").write_text("# apple-crate home: plan\nGoal (2026-10-28, x): crates\n")
+    assert colours(scene) == before | {"apple-crate": 4}
+
+
+def test_past_eight_homes_the_colours_count_round_from_1(tmp_path, monkeypatch):
+    """The page has eight swatches: the ninth home made shares the root's."""
+    scene = Scene(tmp_path, monkeypatch)
+    homed(scene)
+    for day in range(1, 7):
+        made = scene.home / f"bin-{day}"
+        made.mkdir()
+        (made / "home-id").write_text(f"mcp:bin-{day}\n")
+        (made / "plan.md").write_text(f"# bin home: plan\nGoal (2026-10-0{day}, x): bins\n")
+    got = colours(scene)
+    assert [got[name] for name in (ROOT, SHELF, RACK)] == [1, 2, 3]
+    assert [got[f"bin-{day}"] for day in range(1, 7)] == [4, 5, 6, 7, 8, 1]

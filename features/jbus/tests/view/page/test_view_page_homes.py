@@ -96,3 +96,44 @@ def test_a_home_whose_rows_in_check_are_stacked_counts_them_on_the_homes_map(sce
     clean(seen, DESK)
     said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
     assert "check: 0 failing, 0 running or queued, 1 passed, 2 stacked" in said, said
+
+
+SWATCHES = """window.__errs = [];
+window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
+window.addEventListener("load", function () { setTimeout(function () {
+  var all = function (sel) { return [].slice.call(document.querySelectorAll(sel)); };
+  var out = { errors: window.__errs, swatches: all(WHERE + " .hsw").map(function (s) {
+    var name = s.nextSibling;
+    return { colour: s.className.replace("hsw c", ""), bg: getComputedStyle(s).backgroundColor,
+      name: name && name.textContent.trim() };
+  }) };
+  var pre = document.createElement("pre");
+  pre.id = "probe";
+  pre.textContent = JSON.stringify(out);
+  (window.top === window ? document : window.top.document).body.appendChild(pre);
+}, window.__at); });
+"""
+
+
+@pytest.mark.parametrize(
+    "route, where, names",
+    [
+        ("#/homes", ".hm", ["demo", f"demo › {SHELF}", f"demo › {RACK}"]),
+        ("#/demo/board", ".bd-h", ["root", SHELF, RACK]),
+        ("#/", "tr[data-home]", ["root", SHELF, RACK]),
+    ],
+    ids=["homes-page", "homes-drawer", "matrix"],
+)
+def test_each_home_is_drawn_with_its_colour_beside_its_name(scene, tmp_path, route, where, names):
+    """The Homes page, the Homes drawer and the matrix each draw a home's swatch in its own
+    categorical colour, the root's 1 and the child homes' 2 and 3, and its name right after it,
+    so no home is told by its colour alone."""
+    homed(scene)
+    asks(scene)
+    script = SWATCHES.replace("WHERE", repr(where))
+    seen = look(scene, tmp_path, route=route, screen=DESK, script=script)
+    assert seen["errors"] == []
+    got = [(one["colour"], one["name"]) for one in seen["swatches"]]
+    assert got == list(zip(["1", "2", "3"], names, strict=True)), got
+    assert len({one["bg"] for one in seen["swatches"]}) == 3
+    assert "rgba(0, 0, 0, 0)" not in {one["bg"] for one in seen["swatches"]}
