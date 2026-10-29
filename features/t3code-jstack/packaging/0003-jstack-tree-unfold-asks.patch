@@ -1,0 +1,257 @@
+From 51da4373c5aba3d5ebd1a4ff63884b037883b894 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 14:08:49 -0400
+Subject: [PATCH 3/3] fix(web): a jstack task that asks before it has a thread
+ unfolds what it asks
+
+---
+ apps/server/src/jstack/jbusWork.logic.test.ts |  7 ++++-
+ apps/server/src/jstack/jbusWork.logic.ts      |  2 ++
+ .../src/components/sidebar/JstackTreeRows.tsx | 22 +++++++++++++--
+ .../sidebar/jstackTree.logic.test.ts          | 16 +++++++++--
+ .../components/sidebar/jstackTree.logic.ts    | 28 ++++++++++++++++---
+ packages/contracts/src/jbusWork.ts            |  2 ++
+ 6 files changed, 68 insertions(+), 9 deletions(-)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 0800ea860a..c9067961fc 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -38,7 +38,11 @@ describe("buildRepoWork", () => {
+       work: [
+         row("a-ready", "ready", "queued", { thread: "" }),
+         row("a-behind", "behind", "queued", { thread: "" }),
+-        row("a-unapproved", "unapproved", "queued", { thread: "", who: "user" }),
++        row("a-unapproved", "unapproved", "queued", {
++          thread: "",
++          who: "user",
++          waits: "your approval",
++        }),
+         row("a-working", "working", "running"),
+         row("a-quiet", "quiet", "running"),
+         row("a-hung", "hung", "running", { who: "user" }),
+@@ -66,6 +70,7 @@ describe("buildRepoWork", () => {
+       ["a-check", "review", "mcp:a-check", false],
+     ]);
+     expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
++    expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
+   });
+ 
+   it("nests each task under the home its brief names", () => {
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 43e838a2f0..fc7d7ebc46 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -140,6 +140,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       homeThreadId: homeOfSlug(slug),
+       pullRequest: text(row.pr),
+       waitsOnUser: row.who === "user",
++      waits: text(row.waits) ?? "",
+     });
+   }
+   for (const scout of records(files.scouts)) {
+@@ -157,6 +158,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       homeThreadId: homeOf(slug, scope),
+       pullRequest: null,
+       waitsOnUser: false,
++      waits: "",
+     });
+   }
+ 
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 119f3f4a56..e495cff074 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -1,7 +1,7 @@
+ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
+ import type { ThreadId } from "@t3tools/contracts";
+ import { ChevronDownIcon, SquarePenIcon } from "lucide-react";
+-import { memo, type MouseEvent, type ReactNode } from "react";
++import { memo, type MouseEvent, type ReactNode, useState } from "react";
+ 
+ import { cn } from "~/lib/utils";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+@@ -104,6 +104,8 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+   actions: JstackTreeRowActions;
+ }) {
+   const { row, group, actions } = props;
++  // A task that asks before it has a thread unfolds what it asks, since its home may be open.
++  const [unfolded, setUnfolded] = useState(false);
+   const open = (threadId: ThreadId | null) => (event: MouseEvent) => {
+     if (row.kind === "project" && !event.nativeEvent.isTrusted) {
+       actions.onToggleProject(group);
+@@ -208,7 +210,10 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     data-sidebar-parent={row.parentKey}
+                     aria-selected={row.selected}
+                     aria-label={`${fullSlug}, ${row.word}${row.ticks === null ? "" : " stage"}`}
+-                    onClick={open(row.openThreadId)}
++                    aria-expanded={row.ask === null ? undefined : unfolded}
++                    onClick={
++                      row.ask === null ? open(row.openThreadId) : () => setUnfolded(!unfolded)
++                    }
+                     className={cn(
+                       ROW_BUTTON,
+                       "h-6 text-xs",
+@@ -244,6 +249,19 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                 {[fullSlug, row.pullRequest, row.word].filter(Boolean).join(" · ")}
+               </TooltipPopup>
+             </Tooltip>
++            {row.ask !== null && unfolded ? (
++              <div className="mb-1 ml-2 border-l border-warning/50 py-0.5 pr-2 pl-2 text-2xs">
++                <p className="text-sidebar-foreground/75">{row.ask.what}</p>
++                <button
++                  type="button"
++                  tabIndex={-1}
++                  onClick={() => actions.onOpenThread(row.openThreadId)}
++                  className="text-sidebar-muted-foreground underline-offset-2 hover:text-sidebar-foreground hover:underline"
++                >
++                  {row.ask.askedIn === null ? "open its home" : `asked in ${row.ask.askedIn}`}
++                </button>
++              </div>
++            ) : null}
+           </Nest>
+         </li>
+       );
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index cc07a375bd..035af702da 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -36,6 +36,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+   homeThreadId: ThreadId.make("root"),
+   pullRequest: null,
+   waitsOnUser: false,
++  waits: "",
+   ...overrides,
+ });
+ 
+@@ -120,9 +121,14 @@ describe("buildJstackTree", () => {
+     ]);
+   });
+ 
+-  it("opens a task with no thread at the thread that asks about it, else at its home", () => {
++  it("opens a task with no thread at the thread that asks about it, else at its home, and says what it asks", () => {
+     const tasks = [
+-      task("asked", { stage: "ready", threadId: null, waitsOnUser: true }),
++      task("asked", {
++        stage: "ready",
++        threadId: null,
++        waitsOnUser: true,
++        waits: "your approval",
++      }),
+       task("gated", { stage: "ready", threadId: null }),
+       task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
+     ];
+@@ -141,6 +147,12 @@ describe("buildJstackTree", () => {
+       row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
+     );
+     expect(opens).toEqual(["asked>root", "gated>asking", "ready>flow"]);
++    const asks = rows.flatMap((row) => (row.kind === "worker" ? [[row.slug, row.ask]] : []));
++    expect(asks).toEqual([
++      ["asked", { what: "waits on your approval", askedIn: "root" }],
++      ["gated", { what: "Approve?", askedIn: null }],
++      ["ready", null],
++    ]);
+   });
+ 
+   it("reads a quiet task as crew under its threshold or with gates-only attention", () => {
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 7fb9dde99f..54e5250f65 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -2,6 +2,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/model
+ import { isThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
+ import type {
+   EnvironmentId,
++  JbusGate,
+   JbusHome,
+   JbusTask,
+   JbusWorkSnapshot,
+@@ -11,6 +12,13 @@ import type {
+ 
+ // jstack fork: the tree sidebar's rows, from jbus's snapshot joined to T3's threads by id.
+ 
++export interface JstackAsk {
++  /** The question, else what jbus waits on, such as `waits on your approval`. */
++  readonly what: string;
++  /** The title of the thread it was asked in, which `openThreadId` opens. */
++  readonly askedIn: string | null;
++}
++
+ export type JstackTreeAttention = "gates" | "gates-and-quiet";
+ 
+ export interface JstackTreeOptions {
+@@ -79,6 +87,8 @@ export type JstackTreeRow =
+       readonly threadId: ThreadId | null;
+       /** What a click opens: the task's thread, else the thread that asks about it, else its home. */
+       readonly openThreadId: ThreadId;
++      /** What a task with no thread asks the user, which a click unfolds under the row. */
++      readonly ask: JstackAsk | null;
+       readonly thread: EnvironmentThreadShell | null;
+       readonly pullRequest: string | null;
+       readonly selected: boolean;
+@@ -154,12 +164,13 @@ const toWorker = (
+   parentKey: string,
+   depth: 1 | 2,
+   gateThreads: ReadonlySet<string>,
+-  gateSlugs: ReadonlyMap<string, ThreadId | null>,
++  gateSlugs: ReadonlyMap<string, JbusGate>,
+ ): Worker => {
+   const thread = task.threadId === null ? null : (input.threadsById.get(task.threadId) ?? null);
++  const gate = gateSlugs.get(`${task.repo}/${task.slug}`);
+   const asks =
+     task.waitsOnUser ||
+-    gateSlugs.has(`${task.repo}/${task.slug}`) ||
++    gate !== undefined ||
+     (task.threadId !== null && gateThreads.has(task.threadId)) ||
+     waitsOnUser(thread);
+   const quietMinutes =
+@@ -183,6 +194,11 @@ const toWorker = (
+     home.prefix !== null && task.slug.startsWith(home.prefix) && task.slug !== home.prefix
+       ? home.prefix
+       : null;
++  const openThreadId = task.threadId ?? gate?.threadId ?? home.threadId;
++  const what =
++    gate !== undefined && gate.question !== ""
++      ? gate.question
++      : `waits on ${task.waits === "" ? "you" : task.waits}`;
+   return {
+     rank,
+     stage: step === 0 ? "queue" : step === 1 ? "crew" : "review",
+@@ -197,7 +213,11 @@ const toWorker = (
+       tone: asks ? "asks" : "plain",
+       ticks: scout ? null : { step, hollow: step === 0 || quietShown, asks },
+       threadId: task.threadId,
+-      openThreadId: task.threadId ?? gateSlugs.get(`${task.repo}/${task.slug}`) ?? home.threadId,
++      openThreadId,
++      ask:
++        asks && task.threadId === null
++          ? { what, askedIn: input.threadsById.get(openThreadId)?.title ?? null }
++          : null,
+       thread,
+       pullRequest: task.pullRequest,
+       selected: task.threadId !== null && task.threadId === input.routeThreadId,
+@@ -252,7 +272,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree | null {
+   );
+   const gateSlugs = new Map(
+     gates.flatMap((gate) =>
+-      gate.slug === null ? [] : [[`${gate.repo}/${gate.slug}`, gate.threadId] as const],
++      gate.slug === null ? [] : [[`${gate.repo}/${gate.slug}`, gate] as const],
+     ),
+   );
+   const tasks = snapshot.tasks.filter((task) => {
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index 4a1dda396a..b61771c150 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -30,6 +30,8 @@ export const JbusTask = Schema.Struct({
+   pullRequest: Schema.NullOr(TrimmedNonEmptyString),
+   /** jbus waits on the user's word: a gate, an approval, a hung or lost thread. */
+   waitsOnUser: Schema.Boolean,
++  /** What jbus waits on, in its words, such as `your approval`; empty for a scout. */
++  waits: Schema.String,
+ });
+ export type JbusTask = typeof JbusTask.Type;
+ 
+-- 
+2.56.0
+
