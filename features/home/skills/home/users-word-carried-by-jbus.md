@@ -47,7 +47,6 @@ It prints `kept: <project>, not posted, ..., word <id>`.
 `jbus queue approve --word` takes that id.
 jbus carries each word to the one home that owns its subject: the home whose page it was given on (`--page <file>`), else the home of the briefs, requests and rows its words name by slug, else the home it was said in (`--message`) or recorded by (`--from`), else the root home.
 So a word with no slug that this home records with `--from "$ME"` stays here.
-So a word about a scoped home's work, recorded here, prints `sent: <project>, to the <scope> home at <thread>, word <id>`: that is the one line that forwards it, and this home briefs, queues and approves nothing of it.
 The root carries the user's word to scoped homes it names with `--scope <scope>`, given again for each or once as `--scope every`, in place of `--from`, and only with `--message`: it writes no words of its own into a scope.
 That prints `sent: <project>, to the <scope> home at <thread>, word <id>` for each scope it reached, or `held: ...` for a scope that holds the word already, which gets nothing again.
 A fault found in another home's work is no word: it is a queued row of that home's ("Scoped homes").
