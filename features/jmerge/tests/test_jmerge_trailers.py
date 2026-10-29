@@ -94,9 +94,6 @@ def test_only_the_ai_lines_go_and_a_human_co_author_stays_where_it_was():
     assert trailers.strip(message) == f"fix: two\n\n{HUMAN}"
 
 
-# The lines the two readers once told apart: jleak's `=` and spaced trailers and its footer that
-# goes on after "Claude Code", which jmerge let through, and an address that only starts with
-# anthropic.com, which jmerge alone took out.
 APART = [
     "Co-authored-by= Claude <noreply@anthropic.com>",
     "Co-authored-by : Codex <codex@example.com>",
@@ -107,6 +104,9 @@ APART = [
 
 @pytest.mark.parametrize("line", [*APART, *AI, HUMAN])
 def test_jmerge_and_jleak_take_out_the_same_lines(line):
+    """`APART` is the lines the two readers once told apart: jleak's `=` and spaced trailers and
+    its footer that goes on after "Claude Code", which jmerge let through, and an address that only
+    starts with anthropic.com, which jmerge alone took out."""
     message = f"feat: a change\n\n{line}\n"
     assert bool(trailers.found(message)) == bool(jleak_trailers.strip(message)[1])
 
