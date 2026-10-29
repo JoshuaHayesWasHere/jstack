@@ -57,25 +57,10 @@ The one thing a reviewer runs is a targeted proof of the fact the change is safe
 
 A review covers the lines the pull request changes, and reads them the way a tech lead would: not only "does this work", but whether it is the right change, whole, and no wider than it had to be.
 
-- A finding is about a changed line, or about something a changed line breaks. In the second case it is written against the changed line that does the breaking, and says what breaks.
-- A bug or weakness in code the pull request did not change is not fixed, not sent to the crewmate and not written in `## Review`, however real it is. Those are handled by other paths. Only their count is kept.
-- The review asks for nothing beyond what the brief needed.
+- A bug or weakness in code the pull request did not change is not sent to the crewmate and not written in `## Review`: only its count is kept ("Outside the diff").
 - New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
 
-The questions a review answers, each about the changed code only:
-
-| The question | Answered by |
-|---|---|
-| Does it meet the brief, the `Done when` lines above all? | the reviewer |
-| Is it tested properly? A test must execute something: a new or changed test that only matches wording is a warning, and the remedy to name is a test that executes, not deleting it. | the reviewer |
-| Does it do what the user wanted, not only what the brief's words say? | the reviewer |
-| Is it correct? Six things to look for go with it: a change that is run twice or crashes halfway, shared state kept in step by structure or only by convention, a rule in prose that should be a check, an old path kept beside a new one, a check that reads a proxy and not the thing, a bug fix with no test. | the reviewer |
-| Could it be done more simply or cheaply? Five things to look for go with it: a restructuring that makes whole branches or layers disappear, a file pushed past 1,000 lines, ad-hoc branches in an existing flow, thin wrappers, logic outside its canonical layer. | the reviewer, and "Wider than the brief" for one whose remedy is outside `Where` |
-| Does it leave everything it did not mean to change unaffected? Two things to look for go with it: a changed line that does not trace to the task, and a removal of code the change did not orphan. | the reviewer |
-| Is the diff wider than the brief's `Where`? A file outside it is a finding. | `jmerge --scope`, in "Wider than the brief" |
-| Does it collide with work in flight? | the reviewer, by "In flight" |
-
-The first seven are asked at the end of the intent, in the prompt the reviewer reads: the `SCOPE` text in "The review" is the one copy of them. The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only. The last is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
+The questions a review answers are the `SCOPE` text in "The review", the one copy of them, and the reviewer adds "Wider than the brief" and "In flight". The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only. The last is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
 
 ## Launching
 
@@ -109,10 +94,8 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    echo "By: ${by:-inherit} #$n"
    ```
 
-   Each provider's effort is its own option, `effort`, `reasoningEffort` or `reasoning_effort`, and the line gives its value.
    The number is the message's, the line of the role map's review list this reviewer was launched for, and 1 for a message with none: a scoped pass and a second pass are the first line's.
    So the two reviewers of one pull request have two `By:` lines, also on one model: `By: claudeAgent claude-sonnet-5-5 high #1` and `By: claudeAgent claude-sonnet-5-5 high #2`, and `jmerge` counts them by the number.
-   Only a session with no `t3_thread_configuration` falls back on the line of the role map's review list the message's number names, as `jroles review` prints it now, and on `By: inherit` where it prints none.
    Then decide whether this message may start a review, with this, with the same message and that `By:` line in place of the words in angle brackets:
 
    ```sh
@@ -141,13 +124,8 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    esac
    ```
 
-   A section is the line `## Review` alone: a `Review:` or `Reviewer:` line, or those words inside another line, is none.
-   A message that ends in a number is one reviewer of several, launched on that line of the role map's review list: it writes its own section beside the others', at the same head, and it is refused only where a section with its own `By:` line is there.
    On `stop`, say what it printed, the line it would accept included, and end: no review, no section.
    On `go`, go on.
-   `$T/rerun.md` is the one statement of when a re-run needs `again`: jbus's nudge to a crewmate and the crew skill read the same file, so a re-run line they send always works.
-   The message of a first launch is `/pr-review run <slug> <n>`, numbered also where the map lists one reviewer; the plain `/pr-review run <slug>` is reviewer 1's.
-   - Read the brief's `Review:` line as above. If it is `none`, say that its brief asks for no review, and stop: no review, no message to the crewmate, no section.
 2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is read in step 3 of "The review". Open a file only to judge a finding, or to find and prove the safety fact.
 3. Check the ground, and stop with the reason if any line fails:
    - `git status -sb`: this checkout is on the pull request's branch and has nothing uncommitted.

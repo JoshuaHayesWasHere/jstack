@@ -2,7 +2,7 @@
 
 The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
 
-pstack's two reviewers are one reading here, so that a pull request has one review thread and nothing under it. It is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
+The review is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
 
 **1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
 
@@ -104,28 +104,21 @@ echo "$D/prompt.md"
 
 - Send the block whole, as it is, with only the slug and the pull request's url filled in, and with the block at the top, which sets `H` and `T`.
 - First it asks the machine for room.
-  `jgauge room` is the home skill's check before a launch, the one copy of it, in `features/jgauge/src/jgauge/room.sh` of the repo this skill lives in: the one-minute load against the core count, the available memory, the memory pressure, the file slots of `/tmp`, and the share of the plan's five-hour and weekly limit already used.
-  Its thresholds are the first lines of that file: change one there.
-  A review asks with `--light`, which skips the load: a review is about 2% of one core, since its time is the model's, and its one heavy step, the proof, runs in the short test lane, which bounds it.
-  Memory, memory pressure, `/tmp` and the plan still hold a review.
   It prints `go`, or `wait: ` and the first reading with no room.
   A `note: ` line says a limit is not known, and the review goes on all the same.
 - The wait for room is this call, and nothing else. With `--wait 540` the check looks again every 15 seconds until it says `go` or nine minutes have passed. On `go` the block goes on by itself. So send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command. When the nine minutes pass with no room, the block prints the last `wait: ` line, builds nothing and exits 75: start no reviewer, and send the same block again at once, in this same turn. A call that was cut off before it printed anything is sent again the same way. A check that did not run is a `wait` too, and exits 75 at once.
 - Never end the turn to wait for room, and never leave a check, a loop or a timer in the background to wait in your place: nothing wakes a reviewer when the machine has room, and the pull request would wait for a review that nobody runs. The block counts its own sends for this slug and head, in a file beside the directories it builds, a send that was cut off included, and forgets them on `go`. The sixth send with no room, about an hour in, prints the last answer and exits 69: give up as "No room" below says, and send the block no more.
 - A brief with `Review: none` gets exit code 78 and nothing built: say that its brief asks for no review, and stop.
-- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask.
-  The scope is the pull request's diff, `gh pr diff <url>`.
-  The intent is the brief from `Task:` to the end of `Decisions:`, word for word, then, where the brief has a `Skills:` line that is not `none`, that line with what each named skill owes and the artifact the Results hold for each, as `jbriefs --skills-run` prints it with `jmerge`'s own reading, then, where the brief names a playbook run by a crewmate, its name and the "Apply when" paragraph of each principle it cites, read from the playbook's own `principles/<name>.md` citations, and after it the `SCOPE` text.
+- Then it does steps 1 and 2 of the interrogate skill with nothing left to ask: the scope is the pull request's diff, and the intent is the brief's, then the `SCOPE` text.
   A scoped pass puts the earlier findings and the crew's answers, as `jbriefs --findings` prints them, right above the `SCOPE` text ("A scoped pass", step 3).
-  A cleanup row, a brief that says `Review: cleanup`, has a few sentences more right above the `SCOPE` text: its review reads its own diff alone, and only an error of it goes to its crewmate.
   That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
-- Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff is in it as GitHub sent it, not retyped by this thread. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
+- Last it fills the interrogate skill's `references/reviewer-prompt.md` and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
 - Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
   Nothing was reviewed: send the block once more.
   If it fails again, write a section with `Verdict: not run` and the reason, and stop without settling.
   It tells nobody, since jbus reads the section.
 
-**3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
+**3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Write the list down, or "no findings", before step 4: that list is what the lead judges.
 
 **4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge the list of step 3 as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
 
