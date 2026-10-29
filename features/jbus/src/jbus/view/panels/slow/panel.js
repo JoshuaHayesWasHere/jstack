@@ -76,7 +76,7 @@ function slowRail() {
   return '<section class="ovc" data-role="slowed" aria-labelledby="ovc-slow"><h2 class="ovc-h" id="ovc-slow"><span class="tag" data-gloss="card:slowed">Slowed by</span></h2>' +
     (v.groups.length ? '<ul class="clean">' + v.groups.slice(0, SLOW_GROUPS).map(function (g) {
       var since = ms(g.since);
-      return '<li class="gr' + (g.kind === "failing" ? " failing" : "") + '"><span title="' + esc(g.text + (g.head ? ", the first: " + g.head : "") + (since == null ? "" : ", the oldest for " + short(NOW - since))) + '">' + esc(g.text) + '</span><i><u style="width:' + Math.max(4, Math.round(100 * g.count / top)) + '%"></u></i><b>' + g.count + '</b></li>';
+      return '<li class="gr" data-kind="' + esc(g.kind) + '"><span title="' + esc(g.text + (g.head ? ", the first: " + g.head : "") + (since == null ? "" : ", the oldest for " + short(NOW - since))) + '">' + esc(g.text) + '</span><i><u style="width:' + Math.max(4, Math.round(100 * g.count / top)) + '%"></u></i><b>' + g.count + '</b></li>';
     }).join("") + '</ul>' : '<p class="ovc-s">Nothing holds the work back.</p>') +
     (v.groups.length > SLOW_GROUPS ? '<p class="ovc-s">and ' + plural(v.groups.length - SLOW_GROUPS, "smaller group", "smaller groups") + ': ' + esc(v.groups.slice(SLOW_GROUPS).map(function (g) { return g.text + " " + g.count; }).join(", ")) + '</p>' : "") +
     '<p class="ovc-f">CI: ' + (one ? '<a href="' + esc(href(one, "checks")) + '">' + line + '</a>' : line) + '</p></section>';

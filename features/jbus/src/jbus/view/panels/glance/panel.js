@@ -6,7 +6,7 @@ var GLANCE_TIER = { wrong: "Wrong", yours: "Waits on you" };
     ".gl { margin-top: 10px; border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 6px 14px 8px; }" +
     ".gl-h { font-size: 18px; font-weight: 400; line-height: 1.35; margin: 0 0 2px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }" +
     ".gl-word { display: block; font-size: 30px; font-weight: 800; letter-spacing: .04em; line-height: 1.15; color: var(--ink); }" +
-    ".gl-word.wrong { color: var(--missed); } .gl-word.yours, .gl-word.stalled { color: var(--due); }" +
+    ".gl-word.wrong { color: var(--missed); } .gl-word.yours, .gl-word.stalled { color: var(--due); } .gl-word.moving { color: var(--ok); } .gl-word.rest { color: var(--ink-2); }" +
     ".gl-cause { display: block; overflow-wrap: anywhere; }" +
     ".gl-sub { margin: 2px 0 0; font-size: 15px; color: var(--ink-2); } .gl-sub b { color: var(--ink); }" +
     ".gl-v { flex: 1 1 320px; min-width: 0; } .gl-v b { font-weight: 800; }" +
@@ -26,7 +26,7 @@ var GLANCE_TIER = { wrong: "Wrong", yours: "Waits on you" };
     ".gl-more { margin: 2px 0 0; font-size: 15px; } .gl-more a { color: var(--ink-2); font-weight: 700; }" +
     ".gl-m { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); }" +
     ".gl-m b, .gl-calm b { color: var(--ink); }" +
-    ".gl.calm { border-left: 5px solid var(--brand); }" +
+    ".gl.calm { border-left: 5px solid var(--brand); } .gl.moving { border-left: 5px solid var(--ok); } .gl.yours, .gl.stalled { border-left: 5px solid var(--due); } .gl.wrong { border-left: 5px solid var(--missed); }" +
     ".gl-calm { margin: 2px 0; font-size: 17px; }" +
     "@media (max-width: 640px) { .gl { padding: 6px 10px 8px; } .gl-r .btn { min-height: 44px; } .gl-s { font-size: 16px; } .gl-word { font-size: 24px; } }";
   document.head.appendChild(css);
@@ -56,9 +56,10 @@ var GLANCE_WORD = {
   "CANNOT SEE": ["wrong", "verdict-cannot-see"],
   "HELD BY YOU": ["yours", "verdict-held"],
   "STALLED": ["stalled", "verdict-stalled"],
-  "MOVING": ["", "verdict-moving"],
-  "AT REST": ["", "verdict-rest"]
+  "MOVING": ["moving", "verdict-moving"],
+  "AT REST": ["rest", "verdict-rest"]
 };
+function glanceTone(v) { return (GLANCE_WORD[v.word] || [""])[0]; }
 function glanceWord(v) {
   var w = GLANCE_WORD[v.word] || ["", ""];
   return '<span class="gl-word ' + w[0] + '" data-role="verdict-word" data-word="' + esc(v.word) + '" data-gloss="card:' + w[1] + '">' + esc(v.word) + '</span>';
@@ -93,12 +94,12 @@ function glanceCard() {
   var g = STACK && STACK.glance;
   if (!g) return "";
   var moving = g.items.filter(function (it) { return it.tier === "moving"; })[0], since = glanceSince(g);
-  if (g.calm) return '<section class="gl calm" data-role="glance" aria-label="At a glance"><h2 class="gl-h">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</h2>' + glanceSub(g.verdict) +
+  if (g.calm) return '<section class="gl calm ' + glanceTone(g.verdict) + '" data-role="glance" aria-label="At a glance"><h2 class="gl-h">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</h2>' + glanceSub(g.verdict) +
     '<p class="gl-calm" data-role="calm"><b>All clear:</b> nothing wrong, nothing waits on you. ' + (moving ? glanceMoving(moving) : "") +
     (since && since.merged ? ' &middot; ' + plural(since.merged, "merge", "merges") + ' since you looked' : "") + '</p></section>';
   var wrong = g.items.filter(function (it) { return it.tier === "wrong"; });
   var counts = wrong.length ? '<span class="gl-cw"><b>' + wrong.length + '</b> wrong</span>' : "";
-  return '<section class="gl" data-role="glance" aria-labelledby="gl-h"><h2 class="gl-h" id="gl-h"><span class="gl-v">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</span> <span class="gl-c">' + counts + '</span></h2>' + glanceSub(g.verdict) +
+  return '<section class="gl ' + glanceTone(g.verdict) + '" data-role="glance" aria-labelledby="gl-h"><h2 class="gl-h" id="gl-h"><span class="gl-v">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</span> <span class="gl-c">' + counts + '</span></h2>' + glanceSub(g.verdict) +
     (since ? '<p class="gl-since">Since you looked ' + esc(since.ago) + ' ago: ' + esc(since.said) + '.</p>' : "") +
     glanceTier("wrong", wrong) + '</section>';
 }
