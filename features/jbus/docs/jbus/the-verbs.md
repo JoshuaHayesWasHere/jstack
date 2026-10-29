@@ -29,6 +29,7 @@ Each verb that jbus's help lists is in one of the three tables below.
 | `jbus out --scope <scope>` | Prints what a scoped home still has out, one line for each: a queue row of its briefs that is not over, a crew or reviewer thread of theirs that is not settled, a question jbus holds for it, an open gate of its `gates.md`. It prints nothing when nothing is out, and the handoff closes the scope only then. It prints `unknown:` and ends 1 when jbus's last pass is over 10 minutes old. |
 | `jbus decide <slug> --question <what> --reply <reply>` | Raises one decision for you by hand, such as a scope change, with the reply you can send as it is. |
 | `jbus project add <name> --checkout <path> --project-id <id>` | Adds one project's table to the config. [Add a project](add-a-project.md) has the rest. |
+| `jbus project bases <name> [--add <branch>]` | Names one more branch that `jmerge` merges the project's pull requests into, or prints those it names. [Merge bases](add-a-project.md#merge-bases) has the rest. |
 | `jbus bot key` | The bot's key: makes the bot a new key, prints it once, and keeps only its hash. |
 | `jbus wakes` | Says whether the wakes of this repo's project are failing. |
 | `jbus t3 login [--wait <seconds>]` | Signs jbus in to the T3 Code server. `--wait` is how long it waits for your approval, 600 seconds when it is not given. |
@@ -69,5 +70,5 @@ A time with no zone is in your time zone.
 In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`.
 `jbus` refuses any other word.
 
-`jbus poll`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus budget`, `jbus view`, `jbus view-shot`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus forget`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
+`jbus poll`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus budget`, `jbus view`, `jbus view-shot`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus forget`, `jbus project add`, `jbus project bases` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
 `jbus gate`, `jbus done`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
