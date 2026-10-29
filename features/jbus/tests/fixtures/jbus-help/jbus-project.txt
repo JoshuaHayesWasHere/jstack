@@ -1,8 +1,10 @@
-usage: jbus project [-h] {add} ...
+usage: jbus project [-h] {add,bases} ...
 
 positional arguments:
-  {add}
-    add       add a project's table to the config
+  {add,bases}
+    add        add a project's table to the config
+    bases      print each branch besides the default one that jmerge merges
+               the project into, or name one more with --add
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help   show this help message and exit

@@ -186,6 +186,19 @@ def main_red(kitchen):
     return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("main-red-")]
 
 
+def test_a_merge_into_another_branch_than_main_takes_no_blame_for_a_red_main(kitchen):
+    """A pull request merged into a merge base, such as the sidebar's `t3code-jstack`, did not
+    land on main, so a red main in the day after it is filed under its fix row, not under that
+    merge."""
+    main_after_alpha(kitchen, "failure")
+    kitchen.brief("side", RESULT)
+    side = kitchen.merged("side", 8, "e" * 40, ago=timedelta(minutes=40))
+    kitchen.set("merged.json", [{**side, "baseRefName": "t3code-jstack"}])
+    kitchen.poll()
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    assert [line for line in kitchen.lines("retro") if line.startswith("retro side")] == []
+
+
 def test_a_red_main_whose_merge_touched_shared_docs_is_still_queued(kitchen):
     """A merge that changed the README and a root doc still gets its fix row: the brief leaves
     the shared docs off its Where line, which a fix brief may not claim, and keeps the rest."""

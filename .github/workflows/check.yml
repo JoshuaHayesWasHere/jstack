@@ -2,12 +2,14 @@ name: check
 
 on:
   pull_request:
-    # A pull request's check runs once, at main's gate: on a pull request into main that is not a
-    # draft. A crew opens its pull request as a draft and jmerge marks it ready once it is
-    # reviewed and fixed, so `ready_for_review` runs the check on the head that goes to the
-    # merge, and a push of work in progress runs none (the jobs' `if` skips a draft). Work into
-    # any other branch, such as a parent row's branch, is checked when it lands on main.
-    branches: [main]
+    # A pull request's check runs once, at the gate of the branch it merges into: on a pull
+    # request into main, or into a merge base jstack's project names (`jbus project bases
+    # jstack`), that is not a draft. A crew opens its pull request as a draft and jmerge marks it
+    # ready once it is reviewed and fixed, so `ready_for_review` runs the check on the head that
+    # goes to the merge, and a push of work in progress runs none (the jobs' `if` skips a draft).
+    # Work into any other branch, such as a parent row's branch, is checked when it lands on one
+    # of these. `t3code-jstack` is the sidebar's branch, which draft #739 takes to main.
+    branches: [main, t3code-jstack]
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
