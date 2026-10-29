@@ -44,12 +44,12 @@ def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_pe
     assert "bad" in demo["tone"]
     root, docs, ui = demo["homes"]
     assert (root["home"], docs["home"], ui["home"]) == ("", "docs", "ui")
-    assert root["health"] == "moving"
+    assert root["health"] == "Working"
     assert "26 open" in root["text"] and "4 wait on you" in root["text"]
     assert "6 on default" in root["text"]
     assert "project last act " in root["text"] and " ago root " in root["text"]
     assert docs["text"] == "demo › docs 0 open no act kept 2d old"
-    assert ui["text"].startswith("demo › ui home not running 1 open")
+    assert ui["text"].startswith("demo › ui Idle, work open 1 open")
     assert (ui["flags"], ui["age"]) == ([], "3d old")
     assert demo["wrong"] == ["tea-saucer check failed 30m"]
     bakery = seen["cards"][1]
@@ -85,7 +85,7 @@ def test_a_home_that_is_not_running_with_work_open_lifts_its_project_out_of_the_
     assert "cellar" not in [one["project"] for one in seen["quiet"]]
     (cellar,) = [one for one in seen["cards"] if one["project"] == "cellar"]
     assert cellar["tone"] == "card op"
-    assert cellar["homes"][0]["health"] == "home not running"
+    assert cellar["homes"][0]["health"] == "Idle, work open"
 
 
 def test_the_bar_counts_what_waits_on_the_user_and_opens_the_triage_tab(scene, tmp_path):
@@ -178,9 +178,9 @@ def test_a_home_whose_thread_hung_or_went_quiet_says_so_with_its_age_as_a_wrong_
     assert seen["errors"] == []
     root, docs, ui = seen["cards"][0]["homes"]
     assert (root["health"], docs["health"], ui["health"]) == (
-        "waits on a request",
-        "quiet 12m",
-        "hung 40m",
+        "Waiting on you",
+        "Quiet 12m",
+        "Hung 40m",
     )
     own = {
         f"{one['kind']}/{one['subj']}/{one['cause']}"

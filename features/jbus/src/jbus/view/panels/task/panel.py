@@ -6,7 +6,10 @@ says who fixes it and when jbus told them (`fixing`, from `state.fixing`).
 A task's `now` is the newest of two words with their times: the last line jmerge logged of its
 pull request in `merge.log`, and, for a task on the check step, the checks word of its row as
 the last pass saw it. It is kept only for a state whose say is jmerge's reason. The drawer
-leads with it, so no older reading stands as the current one."""
+leads with it, so no older reading stands as the current one.
+
+A task's `stage` is the one stage of the process `state.stages` puts it on, the stage every
+screen draws it on, and an ended task's is `merged`."""
 
 from __future__ import annotations
 
@@ -24,6 +27,7 @@ from jbus.view.state import (
     WORK_FILE,
     Read,
     fixing,
+    stages,
     when,
 )
 
@@ -73,6 +77,7 @@ _TASK = {
     "retired": None,
     "fixing": {"owner": None, "told": None},
     "now": {"at": None, "by": None, "say": None},
+    "stage": None,
 }
 SHAPE = {"tasks": [_TASK], "ended": [_TASK]}
 SOURCES = (PASS_FILE, WORK_FILE, QUEUE_FILE, WAITING_FILE, MOVES_FILE, EVENTS_FILE, MERGE_LOG)
@@ -92,10 +97,16 @@ def now(task: dict[str, Any], passed: str | None) -> dict[str, Any] | None:
 
 
 def build(read: Read) -> dict[str, Any]:
-    owned, passed = read.once(fixing), when(read.mine.get("seen"))
+    owned, passed, placed = read.once(fixing), when(read.mine.get("seen")), read.once(stages)
     return {
         key: [
-            task | {"fixing": owned.get(task["slug"]), "now": now(task, passed)} for task in found
+            task
+            | {
+                "fixing": owned.get(task["slug"]),
+                "now": now(task, passed),
+                "stage": placed.get(task["slug"], "merged"),
+            }
+            for task in found
         ]
         for key, found in (("tasks", read.tasks), ("ended", read.ended))
     }

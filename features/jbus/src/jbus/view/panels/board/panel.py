@@ -5,27 +5,25 @@ A worker is a crew, which is a task of the queue or a row that merged today, a r
 scout, each in the home `homes.Homes` gives it. A home's own thread is the card's head, as the
 summary has it (`homes.Homes.group`), and a thread of no home's is on no card.
 
-`STAGES` are the seven stages, in the order of the process. The current stage is the one in
-progress: a pull request at `check` is on green, working toward it, and one at `hold` is green
-and waits for the user's word. A crew's stage is that of the step the last pass gave its task
-(`STAGE_OF_STEP`). A gate, a hung or waiting turn, a leftover and a closed pull request are on
-a step that says nothing of the pull request, so for those the stage is that of the pull
-request, where it has one (`STAGE_OF_PULL`). A task the pass did not judge is on the stage of
-its row's status (`STAGE_OF_STATUS`). So no worker is ever on an unknown stage, and the tables
-are checked against every step, facet and status when the module loads.
+Its stages are `state.STAGES`, the one table every screen names them from, in the order of the
+process. A crew is on the stage `state.stages` puts its task on, the same stage the pipeline and
+the project page draw it on, and on none where the view cannot place its task. A crew whose
+task the pass judged merged or done, and a row that merged today, is merged.
 
-A reviewer at work is in review. Once its turn ended, it is where its task is, for as long as
-its task has been there, and it is off the board once that task merged or is gone, since the
-crew stands for the work. A scout is
-running until its request has a Report that is done, and green from then until its home
-settles its thread. `tone` says what asks: `bad` for what is broken, `ask` for what waits on
-the user, as `state.RANK` groups it. A crew whose row has a fault that an agent owns says who
-fixes it and when jbus told them (`fixing`, from `state.fixing`): the band leaves it out.
+A reviewer at work is on re-review where its task is, and else in review. Once its
+turn ended, it is where its task is, for as long as its task has been there, and it is off the
+board once that task merged or is gone, since the crew stands for the work. A scout is on its
+task's stage where it has a task, and else on scout until its home settles its thread, with
+what its request says: researching, reported, blocked, not done, or no request. `tone` says
+what asks: `bad` for what is broken, `ask` for what waits on the user, as `state.RANK` groups
+it. A crew whose row has a fault that an agent owns says who fixes it and when jbus told them
+(`fixing`, from `state.fixing`): the band leaves it out.
 
 `since` is when the worker came to its stage. For a pull request it is the first line of the
-run of `jmerge`'s lines, last first, whose steps are all on that stage, so review and its
-second pass count as one stay in review. A card keeps what is merged apart from its other
-workers, under `merged`: what merged today and what the pass judged merged or done.
+run of `jmerge`'s lines, last first, whose steps are all on that stage
+(`state.STAGE_OF_STEP`), so waiting on a Result and the review count as one stay in review. A
+card keeps what is merged apart from its other workers, under `merged`: what merged today and
+what the pass judged merged or done.
 
 A card also has its home's goal and the chain toward it, from the home's `plan.md` as
 `jbus plan` reads it (`plan.entries`). The goal is the plan's `Goal (<day>, <who>): <goal>` line
@@ -42,7 +40,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from jbus import plan, queue, work
+from jbus import plan, queue
 from jbus.view.homes import GROUP
 from jbus.view.state import (
     ASKS,
@@ -51,58 +49,18 @@ from jbus.view.state import (
     MOVES_FILE,
     PASS_FILE,
     QUEUE_FILE,
-    STEP,
-    UNKNOWN,
+    STAGE_OF_STEP,
+    STAGES,
     WORK_FILE,
     Read,
     Source,
     _mtime,
     fixing,
+    said_stages,
+    stages,
     text,
 )
 
-STAGES = (
-    ("briefed", "Briefed"),
-    ("running", "Running"),
-    ("pr", "PR open"),
-    ("review", "In review"),
-    ("fixing", "Fixing"),
-    ("green", "Green"),
-    ("merged", "Merged"),
-)
-STAGE_OF_STEP = {
-    "queued": "briefed",
-    "running": "running",
-    "gate": "running",
-    "result": "pr",
-    "review": "review",
-    "second": "review",
-    "findings": "fixing",
-    "rebase": "fixing",
-    "check": "green",
-    "hold": "green",
-    "merged": "merged",
-}
-STAGE_OF_PULL = {
-    work.Pull.MERGED: "merged",
-    work.Pull.CLOSED: "pr",
-    work.Pull.OTHER: "pr",
-    **{pull: STAGE_OF_STEP[str(pull)] for pull in work.STEPPED},
-}
-STAGE_OF_STATUS = {
-    "queued": "briefed",
-    "launched": "running",
-    "running": "running",
-    "waiting": "running",
-    "failed": "running",
-    "stale": "running",
-    "gate": "running",
-    "left": "running",
-    "pr": "pr",
-    "merged": "merged",
-    "done": "merged",
-}
-PLACED_BY_PULL = ("gate", "running")
 TONE = {BROKEN: "bad", ASKS: "ask"}
 LIVE_WORD = {
     "moving": "Working",
@@ -113,22 +71,12 @@ LIVE_WORD = {
     "unknown": "Not known",
 }
 SCOUT = {
-    "researching": ("running", "Researching", ""),
-    "reported": ("green", "Reported", ""),
-    "blocked": ("running", "Blocked", "ask"),
-    "not done": ("running", "Not done", "ask"),
-    "missing": ("running", "No request", "ask"),
+    "researching": ("Researching", ""),
+    "reported": ("Reported", ""),
+    "blocked": ("Blocked", "ask"),
+    "not done": ("Not done", "ask"),
+    "missing": ("No request", "ask"),
 }
-_KEYS = {key for key, _ in STAGES}
-for table, over in (
-    (STAGE_OF_STEP, set(STEP) - {UNKNOWN.key}),
-    (STAGE_OF_PULL, set(work.Pull) - {work.Pull.NONE}),
-    (STAGE_OF_STATUS, set(queue.STATUSES)),
-):
-    if missed := over - set(table):
-        raise ValueError(f"no stage for {sorted(missed)}: add each to its table")
-    if wrong := set(table.values()) - _KEYS:
-        raise ValueError(f"{sorted(wrong)} are no stage of STAGES")
 
 WORKER = {
     "kind": None,
@@ -143,7 +91,7 @@ WORKER = {
 }
 STEP_SHAPE = {"slug": None, "line": None, "mark": None, "prs": [None]}
 SHAPE = {
-    "stages": [{"key": None, "name": None}],
+    "stages": [{"key": None, "name": None, "note": None}],
     "homes": [
         GROUP | {"goal": None, "chain": [STEP_SHAPE], "workers": [WORKER], "merged": [WORKER]}
     ],
@@ -162,16 +110,6 @@ _GOAL = re.compile(r"^Goal \([^)]*\): *(.+)$", re.M)
 _SCOPE = re.compile(r"^Scope: *(.+)$", re.M)
 
 
-def stage_of(task: dict[str, Any], pull: str) -> str:
-    """The stage of a task: its step's, or its pull request's for a step that says nothing of
-    one, or its row's status's where the pass did not judge it."""
-    if task["step"] == UNKNOWN.key:
-        return STAGE_OF_STATUS.get(task["status"], "briefed")
-    if task["step"] in PLACED_BY_PULL and pull in STAGE_OF_PULL:
-        return STAGE_OF_PULL[work.Pull(pull)]
-    return STAGE_OF_STEP[task["step"]]
-
-
 def _since(task: dict[str, Any], stage: str) -> str | None:
     at = task["since"]
     for one in reversed(task["history"]):
@@ -181,11 +119,8 @@ def _since(task: dict[str, Any], stage: str) -> str | None:
     return at
 
 
-def _crew(read: Read, task: dict[str, Any]) -> dict[str, Any]:
+def _crew(read: Read, task: dict[str, Any], stage: str | None) -> dict[str, Any]:
     """A crew's worker, with the fault an agent fixes on its row, where one stands."""
-    facts = read.judged.get(task["slug"], {}).get("facts")
-    pull = facts.get("pull", "") if isinstance(facts, dict) else ""
-    stage = stage_of(task, pull)
     return {
         "kind": "crew",
         "slug": task["slug"],
@@ -205,16 +140,19 @@ def _thread(thread: dict[str, Any], crews: dict[str, dict[str, Any]]) -> dict[st
     if role == "reviewer":
         state = LIVE_WORD[thread["live"]]
         if thread["out"]:
-            stage, since = "review", thread["created"]
+            again = slug in crews and crews[slug]["stage"] == "review2"
+            stage, since = ("review2" if again else "review"), thread["created"]
         elif slug in crews and crews[slug]["stage"] != "merged":
             stage, since = crews[slug]["stage"], crews[slug]["since"]
         else:
             return None
     elif role == "scout":
         said = (thread.get("request") or {}).get("state", "missing")
-        stage, state, asks = SCOUT[said]
+        state, asks = SCOUT[said]
         tone = tone or asks
-        since = thread["updated"] if stage == "green" else thread["created"]
+        stage, since = "scout", thread["created"]
+        if slug in crews and crews[slug]["stage"] != "merged":
+            stage, since = crews[slug]["stage"], crews[slug]["since"]
     else:
         return None
     return {
@@ -257,8 +195,10 @@ def _plan(home: Path, rows: list[queue.Row]) -> tuple[str, list[dict[str, Any]]]
 
 
 def build(read: Read) -> dict[str, Any]:
-    order = {key: at for at, (key, _) in enumerate(STAGES)}
-    crews = [_crew(read, task) for task in read.tasks + read.ended]
+    order = {one.key: at for at, one in enumerate(STAGES)}
+    placed = read.once(stages)
+    crews = [_crew(read, task, placed[task["slug"]]) for task in read.tasks]
+    crews += [_crew(read, task, "merged") for task in read.ended]
     by_slug = {one["slug"]: one for one in crews}
     homes = {task["slug"]: task["home"] for task in read.tasks + read.ended}
     for one in read.panel("merged")["merged"]:
@@ -286,8 +226,8 @@ def build(read: Read) -> dict[str, Any]:
     cards = read.homes.group(read.tasks, read.panel("you")["needs"], read.out, read.acts)
     for card in cards:
         mine = [one for home, one in placed if home == card["name"]]
-        mine.sort(key=lambda one: (order[one["stage"]], one["since"] or "~", one["slug"]))
+        mine.sort(key=lambda one: (order.get(one["stage"], -1), one["since"] or "~", one["slug"]))
         card["workers"] = [one for one in mine if one["stage"] != "merged"]
         card["merged"] = [one for one in mine if one["stage"] == "merged"]
         card["goal"], card["chain"] = _plan(read.home / card["name"], read.rows)
-    return {"stages": [{"key": key, "name": name} for key, name in STAGES], "homes": cards}
+    return {"stages": said_stages(), "homes": cards}

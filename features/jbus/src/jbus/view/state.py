@@ -29,6 +29,12 @@ writes the words for a state itself: the reason `jmerge` gave, the rows in front
 task, the line of its gate, the whole note a Result leaves, and since when its home has a
 leftover.
 
+A row is drawn on a stage, not a step: `STAGES`, the eleven stages of the process from Scout
+to Merged. Each screen, the board, the project page, the Homes drawer and help, takes its
+names from that one table, which `/state.json` and `/stack.json` give under `process`. A step
+is one of a stage's parts, and `stages` puts each open task on its one stage, so a row is on
+the same stage on every screen.
+
 The view does not guess what the pass could not work out, and the pass did not guess
 either. A value is `unknown` for a set of facts that no state covers, and a row that
 `work.json` does not have is `unknown` too. An unknown task is on no step of the line. Its
@@ -124,7 +130,7 @@ from jbus.threads import REPORT
 from jbus.told import FILE as TOLD
 from jbus.told import KIND as TOLD_KIND
 from jbus.told import told_to
-from jbus.view import panels
+from jbus.view import checked, panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
@@ -139,7 +145,18 @@ NO_REVIEW = "no review yet"
 WHOLE = NOTE + 2 * LINE
 WORDS = 600
 ITEM_LINES, ENDED = 5, 20
-FRAME = ("at", "project", "projects", "repo", "sources", "summary", "kinds", "roles", "items")
+FRAME = (
+    "at",
+    "project",
+    "projects",
+    "repo",
+    "sources",
+    "summary",
+    "kinds",
+    "roles",
+    "items",
+    "process",
+)
 _PULL = re.compile(rf"https://{re.escape(HOST)}/([\w.-]+/[\w.-]+)/pull/\d+")
 _LOGGED = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d) (.+)$")
 _STAMP = re.compile(r"(\d{4}-\d\d-\d\d \d\d:\d\d)(?: \S+)?")
@@ -255,6 +272,54 @@ STEPS = (
 )
 UNKNOWN = Step("unknown", "Unknown", "unknown", "the view cannot work out its state")
 STEP = {step.key: step for step in (*STEPS, UNKNOWN)}
+
+
+@dataclass(frozen=True)
+class Stage:
+    """One stage of the process, as every screen names it: its key, its name and what a row
+    on it waits for."""
+
+    key: str
+    name: str
+    note: str
+
+
+STAGES = (
+    Stage("scout", "Scout", "a scout researches it, and its request has no Report yet"),
+    Stage("queued", "Queued", "not approved, behind another row, or ready to launch"),
+    Stage("crew", "Crew", "a crewmate works on it, a gate that goes ahead on its default too"),
+    Stage("you", "Needs you", "only you can move it: a gate, an approval or a merge held"),
+    Stage("review", "Review", "its pull request waits on its Result, or a reviewer reads it"),
+    Stage("fix", "Fix", "the crewmate handles the review's findings"),
+    Stage("review2", "Re-review", "a reviewer reads again what moved past its review"),
+    Stage("check", "Check", "its check failed, runs or waits for a runner, or passed"),
+    Stage("stacked", "Stacked", "its check passed, and it merges after the row it is stacked on"),
+    Stage("merge", "Merge", "jmerge has it: a rebase, or a hold that is not yours"),
+    Stage("merged", "Merged", "merged today"),
+)
+STAGE_OF_STEP = {
+    "queued": "queued",
+    "running": "crew",
+    "gate": "crew",
+    "hold": "merge",
+    "result": "review",
+    "review": "review",
+    "findings": "fix",
+    "second": "review2",
+    "check": "check",
+    "rebase": "merge",
+    "merged": "merged",
+}
+RUNNING_BY_WHO = {"rev": "review"}
+if missed := set(STEP) - {UNKNOWN.key} - set(STAGE_OF_STEP):
+    raise ValueError(f"no stage for the steps {sorted(missed)}: add each to STAGE_OF_STEP")
+if wrong := {*STAGE_OF_STEP.values(), *RUNNING_BY_WHO.values()} - {one.key for one in STAGES}:
+    raise ValueError(f"{sorted(wrong)} are no stage of STAGES")
+
+
+def said_stages() -> list[dict[str, str]]:
+    """`STAGES` as the page reads them, in order: the names every screen and help use."""
+    return [{"key": one.key, "name": one.name, "note": one.note} for one in STAGES]
 
 
 @dataclass(frozen=True)
@@ -832,6 +897,35 @@ def request(home: Path, slug: str) -> dict[str, str]:
     blocked = word.rstrip(",.:;") == "blocked"
     state = "reported" if word == "done" else "blocked" if blocked else "not done"
     return {"state": state, "status": status, "asks": asks}
+
+
+def stages(read: Read) -> dict[str, str | None]:
+    """The stage of each open task, by its slug: the one place a row is put on a stage, so it
+    is on the same stage on every screen. A task is on `you` while it is a need of the You
+    panel. A scout's row is on `scout` from its launch until its request has a Report. A task
+    on the step `running` is where who holds it says (`RUNNING_BY_WHO`), one on the step
+    `check` that merges after its parent (`checked.outcome`) is on `stacked`, and any other is
+    on its step's stage (`STAGE_OF_STEP`). A task on a step the view does not know is on none."""
+    needs = {one["slug"] for one in read.panel("you")["needs"] if one["slug"]}
+    rows = {row["slug"]: row for row in read.rows}
+    found: dict[str, str | None] = {}
+    for task in read.tasks:
+        slug, step, row = task["slug"], task["step"], rows.get(task["slug"], {})
+        if slug in needs:
+            found[slug] = "you"
+        elif (
+            queue.role(row) == queue.SCOUT
+            and row.get("thread")
+            and (request(read.home, slug)["state"] == "researching")
+        ):
+            found[slug] = "scout"
+        elif step == "running":
+            found[slug] = RUNNING_BY_WHO.get(task["who"], STAGE_OF_STEP[step])
+        elif step == checked.STEP and checked.outcome(task) == checked.STACKED:
+            found[slug] = "stacked"
+        else:
+            found[slug] = STAGE_OF_STEP.get(step)
+    return found
 
 
 def _threads(
@@ -1419,6 +1513,7 @@ class Read:
             "kinds": waiting.shown(),
             "roles": shown_roles(),
             "items": items(self.sources.state(self.name)),
+            "process": said_stages(),
         }
         for panel in self.panels:
             if panel.first:
@@ -1977,7 +2072,7 @@ def stack(
 ) -> dict[str, Any]:
     """What `/stack.json` holds.
 
-    It has the machine once, the steps of the line and the roles of a thread
+    It has the machine once, the stages (`STAGES`) and the roles of a thread
     (`roles.ROLES`). It has a summary of each project of `names`, or of each project the
     state directory has. It has the user's two queues across the projects: `needs`, oldest
     first, and `proceeds`, the soonest to go ahead first. It has `wrong`, what is wrong across
@@ -2028,7 +2123,6 @@ def stack(
         (one for each in queues for one in keep(each["proceeds"], shape["proceeds"])),
         key=lambda one: (one["due"] or "~", one["project"], one["key"]),
     )
-    line = [{"key": one.key, "name": one.name, "who": one.who} for one in (*STEPS, UNKNOWN)]
     machine_wrong = [
         {
             "kind": "source",
@@ -2045,7 +2139,7 @@ def stack(
     answer = {
         "at": iso(now),
         "machine": machine,
-        "steps": line,
+        "process": said_stages(),
         "roles": shown_roles(),
         "projects": every,
         "needs": needs,

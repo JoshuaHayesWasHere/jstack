@@ -187,7 +187,7 @@ window.addEventListener("load", function () { setTimeout(function () {
         filled: all("button.fill, a.fill").filter(seen).length, focus: document.activeElement ? document.activeElement.id || document.activeElement.tagName : "" };
     })(document.getElementById("needs")),
     /* The line of one project: each row of In progress, the Merged list and the Health line. */
-    prog: all("#prog li").map(function (r) { return { key: r.getAttribute("data-key"), seen: seen(r), slug: text(r.querySelector(".pgs")), state: text(r.querySelector(".pgw b")), who: text(r.querySelector(".pgw")), chips: all(".chip", r).map(text), age: text(r.querySelector(".pga")), open: r.querySelector(".pgs").getAttribute("data-open"), box: box(r) }; }),
+    prog: all("#prog li").map(function (r) { return { key: r.getAttribute("data-key"), seen: seen(r), slug: text(r.querySelector(".pgs")), state: text(r.querySelector(".pgw b")), named: r.querySelector(".pgw b").getAttribute("title") || text(r.querySelector(".pgw b")), who: text(r.querySelector(".pgw")), chips: all(".chip", r).map(text), age: text(r.querySelector(".pga")), open: r.querySelector(".pgs").getAttribute("data-open"), box: box(r) }; }),
     merged: { shown: seen(document.getElementById("merged-d")), head: text(document.getElementById("merged-s")), open: document.getElementById("merged-d").open },
     health: { shown: seen(document.getElementById("health")), text: text(document.getElementById("health")), links: all("#health [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open")]; }), unplaced: text(document.getElementById("unplaced")) },
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),

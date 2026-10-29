@@ -5,12 +5,13 @@ scroll. At a phone's size each card fits in one screen, so one scroll brings eac
 
 import pytest
 
+from jbus.view.state import STAGES as THE_STAGES
 from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, look
 from view.scene import PULL, RACK, SHELF, homed
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
-STAGES = {"Briefed", "Running", "PR open", "In review", "Fixing", "Green", "Merged"}
+STAGES = {one.name for one in THE_STAGES}
 
 
 BOARD = """window.__errs = [];
