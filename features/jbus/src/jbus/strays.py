@@ -52,7 +52,6 @@ import json
 import os
 import re
 import signal
-import subprocess
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -63,6 +62,7 @@ from jbus import queue, read_json, threads, verbs, write_json
 from jbus.passes import Pass
 from jbus.watch import at_work
 from jgauge import slot
+from jsettings import proc
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -116,18 +116,7 @@ class Task:
 
 def _run(*argv: str) -> str:
     """What a command prints, in the C locale, or nothing when it cannot be run."""
-    try:
-        said = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            errors="replace",
-            env={**os.environ, "LC_ALL": "C"},
-            timeout=30,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return ""
-    return said.stdout
+    return proc.run(*argv, errors="replace", env={**os.environ, "LC_ALL": "C"}, timeout=30).stdout
 
 
 def _ticks(text: str) -> int:

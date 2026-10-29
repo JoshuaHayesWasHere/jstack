@@ -39,6 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jgauge import slot
+from jsettings import proc
 
 WAIT_SECONDS = 540.0
 LOOK_EVERY_SECONDS = 0.2
@@ -147,9 +148,10 @@ class Run:
 
 
 def git(*args: str, env: dict[str, str] | None = None) -> str:
-    return subprocess.run(
-        ["git", *args], capture_output=True, text=True, check=True, env=env
-    ).stdout.strip()
+    done = proc.run("git", *args, env=env)
+    if done.returncode:
+        raise subprocess.CalledProcessError(done.returncode, done.args, done.stdout, done.stderr)
+    return done.stdout.strip()
 
 
 def worktree_tree() -> str:

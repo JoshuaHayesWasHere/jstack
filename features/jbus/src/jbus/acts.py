@@ -60,6 +60,7 @@ from jbus import (
 from jbus.party import Act, Action, Evidence, Party
 from jbus.passes import Pass
 from jbus.t3 import typed
+from jsettings import store
 
 LOG = "acts.jsonl"
 LOCK = "acts.lock"
@@ -100,12 +101,7 @@ def read(state: Path) -> list[dict[str, Any]]:
 
 
 def _write(state: Path, made: Act) -> None:
-    line = json.dumps(asdict(made), sort_keys=True) + "\n"
-    handle = os.open(path(state), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-    try:
-        os.write(handle, line.encode())
-    finally:
-        os.close(handle)
+    store.append_jsonl(path(state), [asdict(made)], mode=0o600, sort_keys=True)
 
 
 @dataclass(frozen=True)

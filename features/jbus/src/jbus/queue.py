@@ -112,7 +112,6 @@ is a batch of one.
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
 import os
@@ -130,6 +129,7 @@ from jbriefs import chains, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbus import Refused, party, verbs, write_json
+from jsettings import store
 
 EVENTS = {"queue": "quiet"}
 CHEF = ("slug", "priority", "depends", "merge_after", "approved", "brief_sha", "entry")
@@ -567,9 +567,7 @@ def current(state: Path, slug: str) -> tuple[Row | None, str | None]:
     """Return the row and its stored brief as they are now, both read under the lock that the
     verbs hold while they write the table and the briefs. A batch writes both under it, so the
     two are of one moment: a row is never judged against a brief that a later `add` wrote."""
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "queue.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with store.locked(state, "queue.lock"):
         try:
             row = next((row for row in load(state) if row["slug"] == slug), None)
         except Unparsable:
@@ -596,9 +594,7 @@ def load(state: Path) -> list[Row]:
 
 @contextmanager
 def _changing(state: Path) -> Iterator[list[Row]]:
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "queue.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with store.locked(state, "queue.lock"):
         try:
             rows = load(state)
         except Unparsable as error:
@@ -1962,8 +1958,7 @@ def _run(
             kept.parent.mkdir(parents=True, exist_ok=True)
             kept.write_text(text)
         if batch.moves:
-            with open(transitions_path(state), "a") as log:
-                log.writelines(json.dumps(move) + "\n" for move in batch.moves)
+            store.append_jsonl(transitions_path(state), batch.moves)
         if any(isinstance(verb, Rename) for _, verb in verbs):
             for slug, text in batch.briefs.items():
                 if text is not None:
@@ -2256,8 +2251,7 @@ def derive(
             if row.get("why", "") != new["why"]:
                 row.update(why=new["why"], since=stamp if new["why"] else "")
         if moved:
-            with open(transitions_path(state), "a") as log:
-                log.writelines(json.dumps(move) + "\n" for move in moved)
+            store.append_jsonl(transitions_path(state), moved)
     return rows, changed
 
 

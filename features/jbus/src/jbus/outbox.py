@@ -43,7 +43,6 @@ that waits for the home thread's wake (`jbus.wake`).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -57,6 +56,7 @@ from jbus.watch import at_work, task_brief
 from jgauge import slot, waiters
 from jmerge import ready
 from jroles import ledger
+from jsettings import store
 
 if TYPE_CHECKING:
     from jbus.passes import Pass
@@ -227,6 +227,4 @@ def _log(
         "went": went,
         "rule": rule,
     }
-    run.state.mkdir(parents=True, exist_ok=True)
-    with (run.state / FILE).open("a") as kept:
-        kept.write(json.dumps(line) + "\n")
+    store.append_jsonl(run.state / FILE, [line])

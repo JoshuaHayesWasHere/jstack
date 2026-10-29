@@ -37,6 +37,7 @@ from urllib.parse import quote
 
 from jbus.view.state import iso, text, when
 from jsettings import budget as allowance
+from jsettings import proc
 
 RUNS, RUNS_KEPT, PULL_KEPT, MERGED_KEPT, LANDED_KEPT = 40, 60, 30, 300, 300
 MERGED_MOST, FROM_MOST = 1000, 100
@@ -53,7 +54,7 @@ class Limited(Exception):
 
 
 def _run(*command: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, timeout=TIMEOUT)
+    return proc.run(*command, timeout=TIMEOUT)
 
 
 def _ask(*said: str) -> Any:

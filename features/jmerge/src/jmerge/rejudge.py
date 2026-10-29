@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 from jmerge import ready
-from jsettings import store
+from jsettings import proc, store
 
 NAME = "base-merges.json"
 SHA = 12
@@ -198,11 +198,10 @@ class Repeated:
         return None if log is None else frozenset(FAILED.findall(log))
 
     def gh(self, *args: str) -> str | None:
-        ran = subprocess.run(
-            ["gh", *args],
+        ran = proc.run(
+            "gh",
+            *args,
             cwd=self.main,
-            capture_output=True,
-            text=True,
             env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
         )
         return None if ran.returncode else ran.stdout

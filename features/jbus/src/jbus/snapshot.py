@@ -39,6 +39,7 @@ from typing import IO
 import jbus
 import jsettings
 from jbus import alert, queue, verbs
+from jsettings import proc
 
 AFTER = 1
 CAP = 3
@@ -57,7 +58,7 @@ class Failed(Exception):
 
 
 def _git(tree: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", "-C", str(tree), *args], capture_output=True, text=True)
+    return proc.git(tree, *args)
 
 
 def _must(ran: subprocess.CompletedProcess[str], what: str) -> None:

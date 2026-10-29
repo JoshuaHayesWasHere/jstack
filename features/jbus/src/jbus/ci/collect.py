@@ -41,6 +41,7 @@ import jsettings
 from jbus import locked
 from jbus.ci import ledger
 from jsettings import budget as allowance
+from jsettings import proc
 
 TITLE = "jstack-ci"
 PAGE = 100
@@ -82,10 +83,10 @@ class Gh(Protocol):
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(command, capture_output=True, text=True, timeout=120)
-    except (OSError, subprocess.SubprocessError) as error:
-        raise Unavailable(str(error)[:200]) from error
+    done = proc.run(*command, timeout=120)
+    if isinstance(done, proc.Unrun):
+        raise Unavailable(done.stderr[:200])
+    return done
 
 
 def _listed(page: Any, key: str | None) -> list[dict[str, Any]]:

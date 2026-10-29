@@ -31,6 +31,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from jsettings import store
+
 JOBS, PULLS, LOCK = "ci.jsonl", "ci-prs.jsonl", "ci.lock"
 TELEMETRY = (
     "full",
@@ -72,10 +74,7 @@ def add(path: Path, rows: Iterable[dict[str, Any]]) -> int:
         if row["job"] not in seen:
             seen.add(row["job"])
             new.append(row)
-    if new:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a") as handle:
-            handle.write("".join(json.dumps(one, sort_keys=True) + "\n" for one in new))
+    store.append_jsonl(path, new, sort_keys=True)
     return len(new)
 
 

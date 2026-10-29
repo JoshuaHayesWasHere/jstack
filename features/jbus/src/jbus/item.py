@@ -32,7 +32,6 @@ with nothing new writes nothing. Only `work.py` judges the row.
 from __future__ import annotations
 
 import json
-import os
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -55,6 +54,7 @@ from jbus import (
     work,
     write_json,
 )
+from jsettings import store
 
 EVENTS = {
     "item.proposed": "quiet",
@@ -397,11 +397,7 @@ def _put(
         **more,
     }
     advance(current, made)
-    handle = os.open(path(state), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-    try:
-        os.write(handle, (json.dumps(made, sort_keys=True) + "\n").encode())
-    finally:
-        os.close(handle)
+    store.append_jsonl(path(state), [made], mode=0o600, sort_keys=True)
     if verb is Verb.PROPOSE:
         count = read_json(state / COUNTER, {}).get("next")
         if not isinstance(count, int) or count <= _number(name):

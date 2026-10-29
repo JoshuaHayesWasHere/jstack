@@ -1,10 +1,11 @@
 """The one runner of a command, `git` and `gh` included, for every command of jstack.
 
 `run` never raises for the command: a program that is missing, or that runs past its `timeout`,
-fails like any other, with exit 127 and the error as what it said on stderr. A run past its
-`timeout` is a `TimedOut`, for a caller that says so in words of its own. `ask` is a read: it
-gives what the command printed, or None where it failed. `git` runs git in a directory. What is
-left of GitHub's API allowance, and the floor jbus keeps under it, is `jsettings.budget`.
+fails like any other, with exit 127 and the error as what it said on stderr. Such a run is an
+`Unrun`, and one past its `timeout` a `TimedOut`, for a caller that says so in words of its own.
+`ask` is a read: it gives what the command printed, or None where it failed. `git` runs git in a
+directory. What is left of GitHub's API allowance, and the floor jbus keeps under it, is
+`jsettings.budget`.
 """
 
 from __future__ import annotations
@@ -17,7 +18,11 @@ TIMEOUT = 30
 """The seconds `ask` waits for a read before it counts the read as failed."""
 
 
-class TimedOut(subprocess.CompletedProcess[str]):
+class Unrun(subprocess.CompletedProcess[str]):
+    """A run that never ran to its end: the program could not be started, or it was stopped."""
+
+
+class TimedOut(Unrun):
     """A run that went past its timeout and was stopped."""
 
 
@@ -27,8 +32,10 @@ def run(
     timeout: float | None = None,
     stdin: str | None = None,
     env: Mapping[str, str] | None = None,
+    errors: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run the command in `cwd` and return what it did, its output as text."""
+    """Run the command in `cwd` and return what it did, its output as text, decoded with
+    `errors` as `open` takes it."""
     try:
         return subprocess.run(
             command,
@@ -38,11 +45,12 @@ def run(
             input=stdin,
             timeout=timeout,
             env=None if env is None else dict(env),
+            errors=errors,
         )
     except subprocess.TimeoutExpired as error:
         return TimedOut(command, 127, "", str(error))
     except OSError as error:
-        return subprocess.CompletedProcess(command, 127, "", str(error))
+        return Unrun(command, 127, "", str(error))
 
 
 def ask(
