@@ -45,9 +45,6 @@ reason with its sentence:
   the migration and the ones after it, consecutively.
 - `browser`, `its browser run failed at <head12>`: the pull request's own browser run failed, and
   main's last one did not. Fix the failed tests and push.
-- `gate`, a `hold` that says `its merge gate failed`, `could not start` or `ran over`: run the
-  repo's merge gate at the head, fix what it names or make what it asks for, and push where a
-  file changed. Only a gate that passes lifts the hold.
 
 `tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
 thread is at work (`watch.at_work`: starting, `running` or `waiting`), since the line may be
@@ -68,7 +65,7 @@ request, the reason and the crew's thread, once, and only of a crew that did not
 Long work does not delay the stall forever. The `REVIEWING`th pass after the message
 also sends that stall, and where somebody is at work in that pass, the stall says so.
 
-A `hold` is the user's, except for `unruled` and `gate`. `tell` returns the pull requests whose hold
+A `hold` is the user's, except for `unruled`. `tell` returns the pull requests whose hold
 it has in hand, and a pass shows those to the user as a `wait`. A hold that is not in hand is an
 item of the user's list (`waiting`), and the user learns of it when it appears on that list. Such a
 hold always has an owner. A hold that `tell` cannot take on goes to the user at once: a hold whose
@@ -327,18 +324,6 @@ TABLE = (
         "check-browser` in your worktree, and push. Leave the kept shots of the view as main "
         "has them: a moved shot fails no pull request's run, and only the shots row redraws "
         "them. `jmerge` merges once the browser run of the new head passes.",
-    ),
-    Short(
-        "gate",
-        "hold",
-        ready.GATE_HELD,
-        "The repo's merge gate did not pass at your pull request's head: `jmerge` ran the "
-        "command in the `merge-gate` file of the repo's state, and `merge.log` there keeps its "
-        "whole output under the hold line. Run the same command in your worktree, with the merge "
-        "base and the head as its last two arguments, the way the pr-review skill's \"The merge "
-        'gate" block runs it. Fix what it names or make what it asks for, run the check command, '
-        "and push where a file changed. `jmerge` runs the gate again on its next run, and only a "
-        "gate that passes lifts the hold: `--accept` does not.",
     ),
 )
 

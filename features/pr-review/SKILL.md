@@ -229,25 +229,6 @@ Such a finding is kept, sent and recorded like any other, with these words at th
 It asks the crewmate for no fix: the crewmate queues it as a row of its own, as `templates/a-fault-outside.md` says, or leaves it.
 A finding whose remedy stays inside `Where` is an ordinary finding.
 
-### The merge gate
-
-A repo may name a merge gate: a `merge-gate` file in its state directory, beside `fresh-check`, whose one line is a command.
-`jmerge` runs it before every merge and holds the pull request on a non-zero exit (`features/jmerge/docs/jmerge.md`, "Merge gate").
-The reviewer runs the same command on the head it reviews, so that the crewmate hears of a failing gate with the review and not only at the merge.
-Run this in this worktree, with the block at the top and the head kept at the start in place of the words in angle brackets:
-
-```sh
-uv run --project "$T/../source" jmerge --gate '<the head kept at the start>' --pr <url>
-```
-
-Send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
-It stops the gate after 9 minutes, so that the call ends inside that limit with an answer.
-It prints nothing for a repo with no gate, or for a gate that passes.
-On a gate that fails it prints one finding, an `error` at `-`, since what the change lacks is what the gate asks for, and it quotes the gate's first line: keep it as printed, with the rest.
-A gate that ran over the 9 minutes is that finding too, and it says the gate ran over and was stopped, as `jmerge` does at its own limit.
-The gate's arguments are the ones `jmerge` gives it: where the pull request left its base, and the head.
-Exit code 1 means that base could not be worked out, and the line above it says so: say in the section that the gate was not run.
-
 ### In flight
 
 ```sh

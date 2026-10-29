@@ -11,8 +11,8 @@ and `watch` read the `Line` that `parse` returns, not the text. `rebase` still r
 `wait` line on its own. `step` goes by a reason's code where `merge.log` wrote one. `parse`, `step`
 and `Said` are in `jbus.judged`, below `jbus.watch`, which reads them too.
 
-A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`, and a merge gate
-that did not pass). `expedite` asks the crew to lift those first. This module sends the user
+A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`). `expedite` asks the
+crew to lift those first. This module sends the user
 no line: `waiting` lists the holds that are the user's.
 
 A sweep is `jmerge`'s job too, and jbus only asks what a sweep would remove. The one command

@@ -112,8 +112,6 @@ HOLD_MINUTES = 30
 home and lists the hold on what waits on the user."""
 HELD_FILE = "held.json"
 RUNNER = (
-    ready.GATE_BUSY,
-    ready.GATE_LOCKED,
     ready.MAIN_MOVED,
     ready.UNDECIDED,
     ready.NOT_PASSED,

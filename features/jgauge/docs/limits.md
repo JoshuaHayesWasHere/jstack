@@ -145,7 +145,7 @@ This page records the pool numbers and changes none of them.
 | A thread ended with nothing written | `features/jbus/src/jbus/watch.py:65` | `UNWRITTEN_MINUTES = 15` | #86 | Its home hears of it | Design choice | Kept |
 | A wake's quiet gap | `features/jbus/src/jbus/wake.py:76` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
 | A pass's command | `features/jbus/src/jbus/wake.py:78` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
-| jmerge in a pass | `features/jbus/src/jbus/wake.py:79` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
+| jmerge in a pass | `features/jbus/src/jbus/wake.py:80` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the longest thing `jmerge` runs | Kept |
 | jmerge's judge | `features/jmerge/src/jmerge/cli.py:60` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
 | Judged again | `features/jmerge/src/jmerge/cli.py:55` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
 | A failover's items | `features/jbus/src/jbus/failover.py:85` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
