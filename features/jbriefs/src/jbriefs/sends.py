@@ -168,8 +168,7 @@ def refusal(state: Path, sender: str, to: str) -> str:
     if from_home is not None and (other := _elsewhere(state, to)):
         return (
             f"it is the {other} home, another repo's: send nothing, jbus carries each repo's"
-            f" events to its own home, and a fault in {other}'s work with a known fix is a row of"
-            " its queue, as templates/a-fault-outside.md says"
+            " events to its own home"
         )
     crew = next((one for one in briefs if one.thread == to), None)
     if crew is None:
