@@ -25,6 +25,7 @@ window.addEventListener("load", function () { setTimeout(function () {
       above: !!(box && top && box.bottom <= top),
       legend: !!(legend && table && legend.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING),
       stages: all("[data-stage]", cols).map(function (c) { return { key: c.getAttribute("data-stage"), slugs: all(".pl-c", c).map(function (b) { return b.getAttribute("data-bpick"); }) }; }),
+      picked: all(".pl-c.pk", cols).map(function (b) { return b.getAttribute("data-bpick"); }),
       cards: all(".pl-c", cols).map(function (b) { return { slug: b.getAttribute("data-bpick"), meta: text(b.querySelector(".pl-m")) }; }),
       chips: all("[data-role=chips] button", board).map(function (b) { return { text: text(b), pressed: b.getAttribute("aria-pressed") === "true" }; }),
       bar: text(bar),
@@ -32,14 +33,12 @@ window.addEventListener("load", function () { setTimeout(function () {
     });
   }
   // Each step: "cell:<project>/<home>/<stage>" clicks that matrix cell, "chip:<project>/<home>" that
-  // home chip, "esc" presses Escape, "clear" clicks the bar's ✕, "back" goes back, "help" opens the
+  // home chip, "chain:<slug>" that slug of the Chains line, "esc" presses Escape, "clear" clicks the bar's ✕, "back" goes back, "help" opens the
   // help drawer and "shut" closes it. The page is read before each step and after the last.
-  var steps = window.__cells || [
-    "cell:demo/jview/check", "cell:demo/root/stacked", "esc", "cell:demo/root/stacked", "cell:demo/root/stacked", "back",
-    "cell:demo/jview/check", "help", "shut", "cell:demo/root/stacked", "esc", "chip:demo/jview", "cell:demo/jview/check", "esc"
-  ];
+  var steps = window.__cells;
   function act(step) {
-    if (step.indexOf("cell:") === 0) { var c = board.querySelector('[data-bcell="' + step.slice(5) + '"]'); if (c) c.click(); }
+    if (step.indexOf("cell:") === 0) board.querySelector('[data-bcell="' + step.slice(5) + '"]').click();
+    else if (step.indexOf("chain:") === 0) board.querySelector('[data-role=chains] [data-bpick="' + step.slice(6) + '"]').click();
     else if (step === "esc") document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     else if (step === "clear") board.querySelector("[data-role=showing] [data-bclear]").click();
     else if (step === "back") history.back();

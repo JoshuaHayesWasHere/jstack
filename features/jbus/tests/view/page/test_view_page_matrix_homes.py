@@ -1,6 +1,7 @@
 """Every stage, every home, the stage grid, is drawn on the Homes page, `#/homes`, at its top
 above the homes map, and not on the bare front page, `#/`. A cell of it lists that cell's rows on
-the board, and Esc comes back to the Homes page.
+the board, and Esc comes back to the Homes page. A slug of its Chains line opens the board with
+that row picked.
 """
 
 import pytest
@@ -15,7 +16,8 @@ pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + 2 * BROWSES * 
 def test_the_grid_is_on_the_homes_page_above_the_map_and_not_on_the_front_page(tmp_path):
     """Over the T moment `#/` draws no grid. `#/homes` draws one, above the map, and its jview
     Check cell opens `#/?home=demo/jview&stage=check`, which lists jview's rows in Check alone
-    under "Showing jview, Check ✕"; Esc goes back to `#/homes` and its grid."""
+    under "Showing jview, Check ✕"; Esc goes back to `#/homes` and its grid, and the Chains
+    line's head, fig-saucer, opens `#/?pick=fig-saucer` with fig-saucer picked on the board."""
     from view.days import t_moment
 
     scene = Scene(tmp_path / "scene", pytest.MonkeyPatch())
@@ -30,7 +32,7 @@ def test_the_grid_is_on_the_homes_page_above_the_map_and_not_on_the_front_page(t
             script="window.__cells = [];\n" + MATRIX,
             at=2000,
         )
-        walk = 'window.__cells = ["cell:demo/jview/check", "esc"];\n'
+        walk = 'window.__cells = ["cell:demo/jview/check", "esc", "chain:fig-saucer"];\n'
         homes = look(
             scene,
             tmp_path,
@@ -46,7 +48,7 @@ def test_the_grid_is_on_the_homes_page_above_the_map_and_not_on_the_front_page(t
     assert front["errors"] == homes["errors"] == []
     (bare,) = front["seen"]
     assert bare["drawn"] == 0, bare
-    first, cell, back = homes["seen"]
+    first, cell, back, chain = homes["seen"]
     assert first["hash"] == "#/homes"
     assert first["drawn"] == 1 and first["overMap"], first
     mine = sorted(
@@ -59,3 +61,6 @@ def test_the_grid_is_on_the_homes_page_above_the_map_and_not_on_the_front_page(t
     assert cell["drawn"] == 0
     assert back["hash"] == "#/homes"
     assert back["drawn"] == 1 and back["overMap"], back
+    assert chain["hash"] == "#/?pick=fig-saucer"
+    assert chain["drawn"] == 0
+    assert chain["picked"] == ["fig-saucer"], chain
