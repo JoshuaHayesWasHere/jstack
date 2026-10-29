@@ -1052,6 +1052,15 @@ def test_a_changed_python_file_in_no_module_set_is_named_under_the_summary_line(
     ]
 
 
+def test_a_changed_path_every_test_rests_on_gets_no_warning(repo, tmp_path):
+    head = repo.change(["conftest.py"])
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    assert lines == [lines[0]]
+
+
 def test_an_unread_map_says_so_in_the_summary(repo, tmp_path):
     head = repo.change(["src/alpha/a.py"])
     shutil.rmtree(repo.root / "features" / "jmerge" / "src" / "jmerge")
