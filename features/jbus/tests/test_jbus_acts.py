@@ -130,12 +130,15 @@ def _gate(question, context):
 
 
 def test_a_slug_that_holds_a_door_word_does_not_make_its_gate_hold():
-    assert _gate(
-        "When the cleanup row route goes, should `Review: after` go too?",
-        "token-one-findings-route is queued that way; "
-        "~/.local/state/home/jstack/tasks/token-no-cleanup-rows.md, its Result\n"
-        "Asked by: token-no-cleanup-rows, thread mcp:a-thread",
-    ) == ""
+    assert (
+        _gate(
+            "When the cleanup row route goes, should `Review: after` go too?",
+            "token-one-findings-route is queued that way; "
+            "~/.local/state/home/jstack/tasks/token-no-cleanup-rows.md, its Result\n"
+            "Asked by: token-no-cleanup-rows, thread mcp:a-thread",
+        )
+        == ""
+    )
     assert waiting.paused("Asked by: scout-token-review, thread mcp:a-thread") == ""
 
 
