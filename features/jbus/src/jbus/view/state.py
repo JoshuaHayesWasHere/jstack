@@ -134,8 +134,8 @@ from jbus.view import checked, panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
-from jmerge import budget as allowance
 from jmerge import mainjson
+from jsettings import budget as allowance
 
 APPROVAL = 400
 HISTORY, TASK_EVENTS, LINE, NOTE = 40, 8, 300, 4000

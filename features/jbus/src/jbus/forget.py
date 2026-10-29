@@ -16,12 +16,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 import jbus
 from jbus import verbs
+from jsettings import proc
 
 REFUSED = 2
 
@@ -35,13 +35,8 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
 
 def roots() -> list[Path]:
     """The homes' state, and the git directories of the repo this runs in, resolved."""
-    home = os.environ.get("JBUS_HOME_DIR") or Path.home() / ".local" / "state" / "home"
-    found = [Path(os.path.realpath(home))]
-    asked = subprocess.run(
-        ["git", "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"],
-        capture_output=True,
-        text=True,
-    )
+    found = [Path(os.path.realpath(jbus.homes_dir()))]
+    asked = proc.git(None, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
     if asked.returncode == 0:
         found += [Path(os.path.realpath(line)) for line in asked.stdout.splitlines() if line]
     return found

@@ -21,12 +21,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from jbriefs import below, home, parse
+from jsettings import paths
 
 TABLE = "orchestration_v2_projection_provider_threads"
 STORE = Path(".t3") / "userdata" / "statev2.sqlite"
@@ -79,17 +79,7 @@ def thread_of_session(session: str, store: Path) -> str:
 
 def repo_of(cwd: str) -> str:
     """The name of the repo the session runs in, its main checkout's, from a worktree too."""
-    try:
-        said = subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            cwd=cwd or None,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return ""
-    return Path(said).parent.name if said else ""
+    return paths.repo_name(cwd or None)
 
 
 def homes(state: Path) -> list[Home]:

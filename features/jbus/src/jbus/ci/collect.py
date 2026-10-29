@@ -40,7 +40,7 @@ from typing import Any, Protocol
 import jsettings
 from jbus import locked
 from jbus.ci import ledger
-from jmerge import budget as allowance
+from jsettings import budget as allowance
 
 TITLE = "jstack-ci"
 PAGE = 100

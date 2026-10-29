@@ -30,7 +30,7 @@ Each pass rewrites the list. An item is one thing only the user can do,
   clears or a thread takes it up;
 - `config`: no sign-in to T3 Code;
 - `github`: GitHub's API allowance is spent, one item for the project whatever the calls it
-  refused, with the line that names the window and when it starts again (`jmerge.budget`). The
+  refused, with the line that names the window and when it starts again (`jsettings.budget`). The
   pass's own reading says so (`watch.Look.spent`): a window that `gh api rate_limit` says has no
   call left, or a call GitHub refused for its rate limit. It leaves the list on the first pass
   that reads calls left again, and a pass that could not read the allowance keeps it as it was.

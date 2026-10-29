@@ -33,12 +33,12 @@ thread of another repo that moves its shell into infra's checkout is still refus
 import json
 import os
 import re
-import subprocess
 import sys
 from itertools import takewhile
 from pathlib import Path
 
 from jleak import sources
+from jsettings import paths
 
 INFRA = "infra"
 SEND = "send the infra home the lines to change, and it makes the change"
@@ -251,13 +251,7 @@ def _command(guarded: Guarded, typed: str, cwd: Path) -> None:
 
 def infra_home(project: Path) -> bool:
     """Whether the project's checkout is one of the infra repo, a worktree of it included."""
-    done = subprocess.run(
-        ["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return done.returncode == 0 and Path(done.stdout.strip()).parent.name == INFRA
+    return paths.repo_name(project) == INFRA
 
 
 def refuse(given: str) -> int:

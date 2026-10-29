@@ -16,7 +16,7 @@ named fields, never a title, a body, a diff or a log.
 When GitHub does not answer, the server keeps that failure for as long as it would keep an
 answer that did come. So it does not ask GitHub on every request while GitHub is down. A call
 GitHub refused for its rate limit is kept as the line that names the window and when it starts
-again (`jmerge.budget`), in place of `DOWN`.
+again (`jsettings.budget`), in place of `DOWN`.
 
 No request waits on GitHub for more than `PATIENCE` seconds. The server runs `gh` in a
 thread of its own, one at a time for each question. A request still waiting after that time
@@ -36,7 +36,7 @@ from typing import Any
 from urllib.parse import quote
 
 from jbus.view.state import iso, text, when
-from jmerge import budget as allowance
+from jsettings import budget as allowance
 
 RUNS, RUNS_KEPT, PULL_KEPT, MERGED_KEPT, LANDED_KEPT = 40, 60, 30, 300, 300
 MERGED_MOST, FROM_MOST = 1000, 100

@@ -10,8 +10,12 @@ When GitHub refuses a call for its rate limit, `gh` exits non-zero with a 403 or
 `API rate limit exceeded`, or `secondary rate limit` for a burst, on stderr (`refused`). Such a
 failure is not GitHub that cannot be read: `named` says the window, what is left of it, and when
 it starts again, from `gh api rate_limit`. A secondary limit leaves the windows full, so `named`
-says what it read and claims nothing about it being spent. jbus keeps its floor above this
-(`jbus.budget`).
+says what it read and claims nothing about it being spent.
+
+The budget is held when either window has `FLOOR` calls or fewer left, and when GitHub gave no
+answer, since then nobody can tell (`held`). What is under the floor is kept for what must be
+asked: `jmerge`'s merge and the reads it makes. `read` asks for it through the one runner
+(`jsettings.proc`), and `jbus budget` is the verb a thread runs before a loop of `gh` calls.
 """
 
 from __future__ import annotations
@@ -19,8 +23,11 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+
+from jsettings import proc
 
 WINDOWS = ("core", "graphql")
 ASK = ["gh", "api", "rate_limit"]
@@ -29,6 +36,12 @@ SPENT = "GitHub's API allowance is spent"
 """`REFUSED` starts the line for a call GitHub refused (`named`), and `SPENT` the line for a
 window `gh api rate_limit` says has no call left (`spent`). A reader of a kept line tells either
 by its start (`is_named`)."""
+
+FLOOR = 1000
+"""The calls kept in each window for what must be asked: a fifth of the 5,000 an hour that GitHub
+gives a signed-in user."""
+
+Ask = Callable[[list[str]], "str | None"]
 
 _LIMITED = re.compile(r"\brate limit\b|\bHTTP 429\b|\babuse detection\b", re.IGNORECASE)
 
@@ -116,3 +129,24 @@ def spent(budget: Budget) -> str:
 def is_named(text: str) -> bool:
     """Whether a line is one `named` or `spent` gave."""
     return text.startswith((REFUSED, SPENT))
+
+
+def read(asked: Ask = proc.ask) -> Budget | None:
+    """Ask GitHub what is left of the budget. None is no answer."""
+    said = asked(ASK)
+    return parse(said) if said is not None else None
+
+
+def held(budget: Budget | None, calls: int = 0) -> str:
+    """Return why `calls` more calls must wait, or nothing when the budget leaves them more than
+    `FLOOR` in every window."""
+    if budget is None:
+        return "GitHub did not say what is left of its API budget"
+    low = budget.low
+    if low.remaining - calls > FLOOR:
+        return ""
+    more = f", and {calls} calls would take it to {low.remaining - calls}" if calls else ""
+    return (
+        f"GitHub's {low.name} budget has {low.remaining} of {low.limit} calls left{more}, "
+        f"at or under the floor of {FLOOR} kept for merges, until {at(low.reset)}"
+    )
