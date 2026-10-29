@@ -48,8 +48,8 @@ queued follow-up down the chain from it.
 jbus gives that go itself, to a row that the follow-up rule names a follow-up (`follow_up`, the rule
 as jbus applies it is `FOLLOW_UP`), at the end of a batch (`_followers`, `_by_rule`): a row the
 batch queued new, or queued again where its go was by rule, and a waiting row whose parent the batch
-approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting row of a
-follow-up's kind (`KINDS`): a `cleanup-P` and a fix row jbus filed (`filed`). A filer queues its row
+approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting fix row jbus
+filed (`filed`). A filer queues its row
 as jbus's pass (`PASS`, kept as the row's `queued_by`) with no approval, and the batch or the pass
 approves it. So no home approves a follow-up, and
 nothing of it reaches the user. A fix jbus filed from a red check that no row's merge turned red
@@ -175,15 +175,14 @@ BY_RULE = "--follows <parent slug>"
 FOLLOW_RULE = "a follow-up of approved work needs no new approval"
 FOLLOW_REF = "follow-up"
 FOLLOWED = "a follow-up approved by rule has no go without its parent's"
-CLEANUP = "cleanup-"
-FILED = "none, jbus filed this from a red "
+RED_DECIDED = "none, jbus filed this from a red "
 FROM_RED = "jbus filed it from the red run "
 FOLLOW_UP = (
     "a row is a follow-up of the row P, and jbus approves it by the follow-up rule "
     f"({FOLLOW_RULE}) when it is queued and on each pass, when it names P (its brief's head has a "
-    "line `Follows: P`, or its slug is `cleanup-P`), when it is of a follow-up's kind (its slug "
-    "is `cleanup-P`; or it is a fix jbus filed, a row jbus's pass queued whose brief's Decisions: "
-    f"line begins `{FILED}`; or, when it is queued, its --entry is P's plan entry), and when "
+    "line `Follows: P`), when it is a fix jbus filed (a row jbus's pass queued whose brief's "
+    f"Decisions: line begins `{RED_DECIDED}`) or, when it is queued, its --entry is P's plan "
+    "entry, and when "
     "P's go holds (P is a row of the queue, or went as merged, and its go is the user's word or "
     "this rule's); a fix jbus filed that names no parent is approved by the same rule on the red "
     "run its brief's Task: line quotes; any other row waits for the user's go"
@@ -843,12 +842,10 @@ def _parent_row(batch: _Batch, slug: str, follows: str) -> tuple[Row, bool]:
 
 
 def named_parent(slug: str, text: str) -> str:
-    """Return the parent a row names: the first `Follows:` line of its brief's head, or else, for a
-    row a review filed, the slug after `cleanup-`. Return nothing for a row that names none."""
+    """Return the parent a row names: the first `Follows:` line of its brief's head, or nothing for
+    a row that names none."""
     named = [lines[0].strip() for label, lines in briefs.fields(text) if label == "Follows"]
-    if named:
-        return named[0]
-    return slug.removeprefix(CLEANUP) if slug.startswith(CLEANUP) else ""
+    return named[0] if named else ""
 
 
 def _parents_entry(
@@ -896,11 +893,12 @@ def _ruled(row: Row) -> bool:
 
 def filed(row: Row, text: str) -> bool:
     """Return whether jbus filed the row from a red check: jbus's pass queued its brief (`PASS`),
-    and the brief's `Decisions:` line says so (`FILED`). Who queued it is the record `add` keeps,
-    so a filer needs no slug of its own here, and the same brief queued by a home is not one."""
+    and the brief's `Decisions:` line says so (`RED_DECIDED`). Who queued it is the record `add`
+    keeps, so a filer needs no slug of its own here, and the same brief queued by a home is not
+    one."""
     decided = [" ".join(lines) for label, lines in briefs.fields(text) if label == "Decisions"]
     by = row.get("queued_by") or {}
-    return by.get("by") == PASS["by"] and bool(decided) and decided[0].startswith(FILED)
+    return by.get("by") == PASS["by"] and bool(decided) and decided[0].startswith(RED_DECIDED)
 
 
 def red_run(text: str) -> str:
@@ -910,26 +908,12 @@ def red_run(text: str) -> str:
     return found.group(1) if found else task.strip()
 
 
-def kind(row: Row, text: str) -> str:
-    """Return the follow-up's kind that the row is (`KINDS`), or nothing: a `cleanup-P` is
-    `cleanup`, and a fix row jbus filed is `fix` (`filed`). The row and its brief say."""
-    slug = row["slug"]
-    if slug.startswith(CLEANUP):
-        return "cleanup"
-    if filed(row, text):
-        return "fix"
-    return ""
-
-
-KINDS = ("cleanup", "fix")
-
-
 def follow_up(batch: _Batch, slug: str, units: bool = True) -> str:
     """Return the parent that the row `slug` follows up by the follow-up rule, nothing for a fix
     jbus filed from a red check that names no parent (`filed`), or refuse with why the row is not
     a follow-up. The rule is `FOLLOW_UP`, and it reads the row, its brief and the
-    parent's row, never a judgment. A row of a follow-up's kind (`kind`) is one, and so, where
-    `units` is set, is a row that does work for its parent's plan entry. The parent's go must
+    parent's row, never a judgment. A fix jbus filed is one, and so, where `units` is set, is a
+    row that does work for its parent's plan entry. The parent's go must
     hold (`_parent`). A row whose go an edit voided is one only where it names the parent its go
     named, and a row the user's word approved is never one: the user approves it again."""
     text = batch.brief(slug) or ""
@@ -945,16 +929,16 @@ def follow_up(batch: _Batch, slug: str, units: bool = True) -> str:
             raise Refused(f"refused: {slug}'s go followed {made.follows}, and its brief names none")
         return ""
     if not named:
-        raise Refused(f"refused: {slug} names no parent: no Follows: line, and no cleanup- slug")
+        raise Refused(f"refused: {slug} names no parent: no Follows: line")
     parent, _ = _parent_row(batch, slug, named)
     if made and made.basis == RULE and made.follows != named:
         raise Refused(
             f"refused: {slug}'s go followed {made.follows}, and its brief now follows {named}"
         )
     unit = units and given_entry(row) == given_entry(parent)
-    if not kind(row, text) and not unit:
+    if not filed(row, text) and not unit:
         raise Refused(
-            f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed) "
+            f"refused: {slug} is no fix jbus filed "
             f"and does not do work for {named}'s plan entry "
             f"{given_entry(parent)}: its entry is {given_entry(row)}"
         )
@@ -1703,8 +1687,8 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     """Move an unlaunched row to the slug `new`, with its columns and its go. The brief's head
     line is rewritten, and the rest of it is the brief the go was given for, so a go that held
     is bound to the renamed brief. A row that was its own plan entry keeps the old slug as its
-    entry. A row that did work for its parent's entry keeps doing it where a `Follows:` line names
-    the parent, and not where only its `cleanup-` slug did. A parent whose follow-ups count for its
+    entry. A row that did work for its parent's entry keeps doing it, since a `Follows:` line names
+    the parent. A parent whose follow-ups count for its
     entry (`parent_entry`) keeps its slug, since they name it. The old slug goes into
     `removed.json`, so the pass drops its item and no add brings it back; the row gets its item
     anew from the pass."""
@@ -1964,11 +1948,11 @@ def go(
 
 
 def follow_ups(state: Path, user: jsettings.Settings) -> list[str]:
-    """Approve by the follow-up rule each waiting row of a follow-up's kind (`KINDS`) whose
-    parent's go holds, as jbus's pass (`PASS`), and return the line of each go. A row approved here
-    may be the parent of another, so the rows are asked again until a round approves none. A row
-    that is no follow-up is left to the user, and nothing is said of it: each pass asks it
-    again. First it keeps each row's `parent_entry` (`_inherit`): a parent queued after its
+    """Approve by the follow-up rule each waiting fix row jbus filed (`filed`) whose parent's go
+    holds, or that names no parent, as jbus's pass (`PASS`), and return the line of each go. A row
+    approved here may be the parent of another, so the rows are asked again until a round approves
+    none. A row that is no follow-up is left to the user, and nothing is said of it: each pass asks
+    it again. First it keeps each row's `parent_entry` (`_inherit`): a parent queued after its
     follow-up, or given an entry since, is taken in there."""
     said: list[str] = []
     with _changing(state) as rows:
@@ -1982,7 +1966,7 @@ def follow_ups(state: Path, user: jsettings.Settings) -> list[str]:
             lines = [
                 line
                 for row in sorted(rows, key=order)
-                if kind(row, batch.brief(row["slug"]) or "")
+                if filed(row, batch.brief(row["slug"]) or "")
                 for line in [_by_rule(batch, row["slug"], user, False, PASS)]
                 if line.startswith("approved ")
             ]

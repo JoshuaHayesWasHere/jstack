@@ -10,7 +10,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from jbriefs import findings, skills
-from jbriefs.findings import AFTER, CLEANUP, NONE, REVIEW, TWICE
+from jbriefs.findings import NONE, REVIEW, TWICE
 from jmerge.rangediff import Verdict
 from jmerge.stacked import Stacked
 from jsettings import Settings
@@ -598,18 +598,11 @@ def _owes(said: Said) -> bool:
     )
 
 
-def after(text: str) -> bool:
-    """Whether the brief says `Review: after`. Such a brief merges once its check passes, and
-    its review's findings go to a cleanup row (`jbus cleanup`), so no review holds it."""
-    return said_of(text).mode == AFTER
-
-
 def asks_no_ruling(text: str) -> bool:
-    """Whether the brief's mode needs no ruling from any review after the first. A brief in
-    `after` mode merges once its check passes, `twice` merges once its second review is
-    written, and a cleanup row gets one review. So none of them asks for a scoped review of
-    the fix, a ruling on a decline or a drop, or a range-diff review after a rebase."""
-    return said_of(text).mode in (AFTER, TWICE, CLEANUP)
+    """Whether the brief's mode needs no ruling from any review after the first: a `twice`
+    brief has two reviews and no more, so it asks for no scoped review of the fix, no ruling on
+    a decline or a drop, and no range-diff review after a rebase."""
+    return said_of(text).mode == TWICE
 
 
 def _first_head(said: Said) -> str:
@@ -620,9 +613,7 @@ def _first_head(said: Said) -> str:
 
 def second_review(text: str) -> tuple[str, ...]:
     """The heads of a brief's reviews after the first: the heads a later section ran at
-    (`findings.Section.later`). For a `twice` brief they are the heads that the fix pushed.
-    `jbus cleanup` files the warnings of such a review as a cleanup row, and of a `twice`
-    brief its errors too."""
+    (`findings.Section.later`). For a `twice` brief they are the heads that the fix pushed."""
     ran = (one.head for one in findings.triage(text).sections if one.ran and one.later)
     return tuple(dict.fromkeys(ran))
 
@@ -630,8 +621,9 @@ def second_review(text: str) -> tuple[str, ...]:
 def _twice(said: Said, text: str) -> str:
     """What a `twice` brief still lacks. It needs the first review, then one fix round in which
     the crew answers that review's findings and pushes the fix, then a second review of a
-    later head. A clean first review, or a round that declined every finding and pushed
-    nothing, needs no second review, because nothing changed after the first review."""
+    later head, whose errors and warnings the crew answers too, by id and with a push after it,
+    and no third review follows. A clean first review, or a round that declined every finding
+    and pushed nothing, needs no second review, because nothing changed after the first review."""
     if not said.written:
         return NO_REVIEW
     first = _first_head(said)
@@ -646,30 +638,17 @@ def _twice(said: Said, text: str) -> str:
         return NO_FIXED
     if said.fixed == first:
         return NOT_PUSHED
-    pushed = bool(_COMMIT.fullmatch(said.fixed))
+    second = second_review(text)
+    if second and said.verdict not in ("clean", "findings"):
+        return NO_VERDICT
+    if second and said.owes and said.fixed == said.reviewed:
+        return NOT_PUSHED
     short = unanswered(said)
-    if short:
+    if short or second:
         return short
-    if pushed and not second_review(text):
+    if _COMMIT.fullmatch(said.fixed):
         return TWICE_UNWRITTEN.format(head=said.fixed[:12])
     return ""
-
-
-def _cleanup(said: Said) -> str:
-    """What a cleanup row still lacks. It gets one review, and only that review's errors go
-    to the crew, so it waits on a `Fixed:` line, a push and an answer by id only for an
-    error. No scoped review follows the fix and no pass rules on a decline."""
-    if not said.written:
-        return NO_REVIEW
-    if said.verdict not in ("clean", "findings"):
-        return NO_VERDICT
-    if not said.owes:
-        return ""
-    if not said.fixed:
-        return NO_FIXED
-    if said.fixed == said.reviewed:
-        return NOT_PUSHED
-    return unanswered(said)
 
 
 def unanswered(said: Said) -> str:
@@ -715,12 +694,8 @@ def short_of(text: str, head: str) -> str:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.mode == NONE:
         return REVIEW_NONE
-    if said.mode == AFTER:
-        return ""
     if said.mode == TWICE:
         return _twice(said, text)
-    if said.mode == CLEANUP:
-        return _cleanup(said)
     if not said.written:
         return NO_REVIEW
     if verdict not in ("clean", "findings"):
@@ -759,7 +734,7 @@ def unwritten_fixed(text: str, head: str) -> Unwritten | None:
     line says the check command exited 0 at `head`, and, in `review` mode, a `Second pass:` or
     `Scoped review:` line says whether the fix is owed a review."""
     said = said_of(text)
-    if said.mode in (NONE, AFTER) or not said.owes or said.fixed:
+    if said.mode == NONE or not said.owes or said.fixed:
         return None
     if said.checked.get(head) != "0" or (said.mode == REVIEW and not said.decided):
         return None
@@ -814,7 +789,7 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
 
 
 def _named(said: Said, head: str) -> bool:
-    if said.mode in (TWICE, CLEANUP):
+    if said.mode == TWICE:
         return head in (said.reviewed, said.fixed)
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
@@ -834,7 +809,7 @@ def under_fix(text: str, head: str) -> str:
     rebase, as for a `Fixed:` line it reads from git (`cli.Repo.kept_fix`)."""
     said = said_of(text)
     reviewed, fixed = said.reviewed, said.fixed
-    if said.mode in (TWICE, CLEANUP) or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
+    if said.mode == TWICE or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
         return ""
     if fixed == head:
         return reviewed if _COMMIT.fullmatch(head) else ""
@@ -976,7 +951,7 @@ def to_range_diff(text: str, head: str) -> str | None:
     saw (`_covered`), also for a push for a failed check that no line names. An empty string is
     a review that names no commit to compare with."""
     said = said_of(text)
-    if said.mode in (AFTER, TWICE, CLEANUP):
+    if said.mode == TWICE:
         return None
     if _named(said, head) or head == said.reviewed:
         return None

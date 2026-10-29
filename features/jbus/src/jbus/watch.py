@@ -39,7 +39,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import jsettings
-from jbriefs import below, findings
+from jbriefs import below
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse
 from jbus.launches import records
@@ -152,11 +152,8 @@ class World:
         one row it still waits on, once that row's pull request is open. A stack sits on one
         branch, so a row that waits on two or more rows launches on none, and nor does a row
         whose `brief` goes on another branch than that row's (`against`): it waits for that row
-        to merge. Nor does a cleanup
-        row (`Review: cleanup`): its brief says it launches once the row it cleans up merged."""
+        to merge."""
         if len(unmet) != 1 or unmet[0] not in self.open:
-            return None
-        if findings.mode_of(brief) == findings.CLEANUP:
             return None
         if against(queue.brief(run.state, unmet[0]) or "") != against(brief):
             return None
@@ -1167,7 +1164,7 @@ def fix_brief(
             "Size: S",
             f"Where: {', '.join(f'`{file}`' for file in where) or nowhere}",
             "Do not touch: .github/workflows/, the ruleset",
-            f"Decisions: {queue.FILED}{filed} and the user has not seen it",
+            f"Decisions: {queue.RED_DECIDED}{filed} and the user has not seen it",
             "Design: none, a fix to what the failed run names",
             f"Pull request: {pull}",
             "Review: review",
@@ -1463,7 +1460,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
             if drawn and redrawn in free:
                 moved = any(shots.BROWSER_MOVED in log for log in said)
                 text = shots.brief(
-                    redrawn, day, nightly.run, number, queue.FILED, drawn, ran_at(one), moved
+                    redrawn, day, nightly.run, number, queue.RED_DECIDED, drawn, ran_at(one), moved
                 )
                 if not _filed(run, nightly, redrawn, text, number, f"{day}, {shots.said(drawn)}"):
                     continue

@@ -405,7 +405,7 @@ def test_each_value_the_brief_template_offers_is_one_the_review_knows(reviewer):
     for value in line.removeprefix("Review:").split("|"):
         reviewer.brief.write_text(BRIEF + f"Review: {value.strip()}\n")
         ends[value.strip()] = reviewer()[1]
-    assert ends == {"twice": 0, "review": 0, "none": 78, "after": 0}
+    assert ends == {"twice": 0, "review": 0, "none": 78}
 
 
 @pytest.mark.parametrize(
@@ -497,17 +497,6 @@ def test_a_playbook_that_is_not_a_crewmates_is_said_and_no_principle_follows(rev
     reviewer.brief.write_text(BRIEF + f"Playbook: {name}\n")
     said = f"not a crewmate's: playbooks/{name}.md is for {by}: the crewmate worked with none"
     assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
-
-
-def test_a_cleanup_rows_review_is_told_it_reads_its_own_diff_and_only_an_error_goes_on(reviewer):
-    reviewer.brief.write_text(BRIEF + "Review: cleanup\n")
-    said = intent(reviewer)
-    assert said.startswith(f"{INTENT}\n") and said.endswith(f"\n\n{scope()}\n")
-    told = said.removeprefix(f"{INTENT}\n").removesuffix(f"\n\n{scope()}\n")
-    assert "This is a cleanup row" in told and "Read its own diff alone." in told
-    assert "Only an error this review finds goes to its crewmate" in told
-    reviewer.brief.write_text(BRIEF + "Review: review\n")
-    assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
 
 
 def test_a_brief_whose_playbook_is_none_gives_the_reviewers_the_brief_alone(reviewer):

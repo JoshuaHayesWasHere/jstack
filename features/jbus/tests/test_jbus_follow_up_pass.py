@@ -1,15 +1,13 @@
 """A pass approves a follow-up of approved work by itself: no home approves it, and nothing of it
 reaches the user.
 
-A follow-up is a row that names its parent P and is one of two kinds (`queue.KINDS`): a
-`cleanup-P`, or a fix row that jbus's pass filed from a red check (its brief says so, whatever its
-slug). Its ground is P's go, which holds, and the record names P and P's go. A fix jbus filed from a
-red check that no row's merge turned red names no parent, and its ground is the red run. The
-follow-up rule is known
-by what it says, never by its number in a home's `standing.md`, so these tests keep a `follow-rule`
-file whose number no standing rule has, and no `standing.md` at all. Every row here is queued as a
-filer queues it, with `queue.add` as jbus's pass and no approval, and the real pass runs against the
-kitchen's fakes."""
+A follow-up the pass approves is a row that names its parent P and is a fix row that jbus's pass
+filed from a red check (its brief says so, whatever its slug). Its ground is P's go, which holds,
+and the record names P and P's go. A fix jbus filed from a red check that no row's merge turned red
+names no parent, and its ground is the red run. The follow-up rule is known by what it says, never
+by its number in a home's `standing.md`, so these tests keep a `follow-rule` file whose number no
+standing rule has, and no `standing.md` at all. Every row here is queued as a filer queues it, with
+`queue.add` as jbus's pass and no approval, and the real pass runs against the kitchen's fakes."""
 
 import pytest
 
@@ -37,7 +35,7 @@ def text(slug, parent="", wider=False):
     `wider`."""
     made = brief(slug, f"Follows: {parent}\n" if parent else "")
     if slug in FIXED:
-        filing = f"Decisions: {queue.FILED}main and the user has not seen it\n"
+        filing = f"Decisions: {queue.RED_DECIDED}main and the user has not seen it\n"
         made = made.replace('Decisions: "review it once", the user\'s word in a test\n', filing)
     return made.replace("- it is done\n", "- it is done\n- and more\n") if wider else made
 
@@ -72,10 +70,10 @@ def test_each_kind_of_follow_up_is_approved_on_a_pass_and_nothing_reaches_the_us
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
     filed(kitchen, "unsaid")
-    kinds = {"cleanup-alpha": "", RED: "alpha", OTHER_RED: "alpha"}
+    kinds = {RED: "alpha", OTHER_RED: "alpha"}
     for slug, parent in kinds.items():
         filed(kitchen, slug, parent)
-    left = {"cleanup-unsaid": "", "delta": "", "beta": "alpha"}
+    left = {"delta": "", "beta": "alpha"}
     for slug, parent in left.items():
         filed(kitchen, slug, parent)
     assert all(went(kitchen, slug) == () for slug in kinds)
@@ -90,32 +88,32 @@ def test_each_kind_of_follow_up_is_approved_on_a_pass_and_nothing_reaches_the_us
     assert all(went(kitchen, slug) == () for slug in left)
     kitchen.poll()
     assert not asked_the_user(kitchen) & set(kinds)
-    assert asked_the_user(kitchen) >= set(left) - {"cleanup-unsaid"}
+    assert asked_the_user(kitchen) >= set(left)
 
 
 def test_a_follow_up_of_a_follow_up_is_approved_on_the_same_pass(kitchen):
-    """A red main's fix follows the merge that turned main red, and its cleanup follows the fix. A
-    chain goes back to the user's word one go at a time."""
+    """A red main's fix follows the merge that turned main red, and a second fix follows the first.
+    A chain goes back to the user's word one go at a time."""
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
     filed(kitchen, RED, "alpha")
-    filed(kitchen, f"cleanup-{RED}")
+    filed(kitchen, OTHER_RED, RED)
     kitchen.quiet()
     assert went(kitchen, RED) == ("alpha", queue.RULE)
-    assert went(kitchen, f"cleanup-{RED}") == (RED, queue.RULE)
+    assert went(kitchen, OTHER_RED) == (RED, queue.RULE)
 
 
 def test_a_hold_of_the_root_takes_back_the_whole_chain(kitchen):
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
     filed(kitchen, RED, "alpha")
-    filed(kitchen, f"cleanup-{RED}")
+    filed(kitchen, OTHER_RED, RED)
     kitchen.quiet()
     code, said = kitchen.main("queue", "hold", "alpha")
     assert code == 0, said
-    assert said.splitlines()[0].startswith(f"held alpha, and cleanup-{RED}, {RED} with it")
+    assert said.splitlines()[0].startswith(f"held alpha, and {RED}, {OTHER_RED} with it")
     kitchen.poll()
-    assert (went(kitchen, RED), went(kitchen, f"cleanup-{RED}")) == ((), ())
+    assert (went(kitchen, RED), went(kitchen, OTHER_RED)) == ((), ())
 
 
 def test_an_edit_voids_the_go_and_the_pass_approves_the_new_brief_only_for_the_same_parent(
@@ -141,12 +139,12 @@ def test_an_edit_voids_the_go_and_the_pass_approves_the_new_brief_only_for_the_s
 def test_a_row_the_users_word_approved_waits_for_the_user_after_an_edit_voids_it(kitchen):
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
-    filed(kitchen, "cleanup-alpha")
-    approve(kitchen, "cleanup-alpha")
-    wider = text("cleanup-alpha", wider=True)
-    queue.add(kitchen.state, "cleanup-alpha", 0, [], wider)
+    filed(kitchen, "beta", "alpha")
+    approve(kitchen, "beta")
+    wider = text("beta", "alpha", wider=True)
+    queue.add(kitchen.state, "beta", 0, [], wider)
     kitchen.quiet()
-    assert not judgement.approved_text(rows(kitchen)["cleanup-alpha"], wider)
+    assert not judgement.approved_text(rows(kitchen)["beta"], wider)
 
 
 def test_queue_add_approves_a_follow_up_whatever_number_the_follow_rule_file_holds(kitchen):
@@ -154,11 +152,11 @@ def test_queue_add_approves_a_follow_up_whatever_number_the_follow_rule_file_hol
     standing.md is gone. The follow-up is approved all the same, in the write that queues it."""
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
-    argv = ("queue", "add", "cleanup-alpha", "--priority", "1")
-    code, said = kitchen.main(*argv, stdin=brief("cleanup-alpha"))
+    argv = ("queue", "add", "alpha-2", "--priority", "1", "--entry", "alpha")
+    code, said = kitchen.main(*argv, stdin=text("alpha-2", "alpha"))
     assert code == 0, said
-    assert said.startswith("approved cleanup-alpha: brief ")
-    assert went(kitchen, "cleanup-alpha") == ("alpha", queue.RULE)
+    assert said.startswith("approved alpha-2: brief ")
+    assert went(kitchen, "alpha-2") == ("alpha", queue.RULE)
 
 
 def kept_brief(kind):

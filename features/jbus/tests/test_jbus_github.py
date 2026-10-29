@@ -342,20 +342,10 @@ REVIEWED = (
 """A review its reviewer sent the crew itself, so `jbus.reviewed` sends no notice of it."""
 
 
-@pytest.mark.parametrize("mode", ["fixed", "after"])
-def test_no_green_line_is_owed_after_a_fix_or_for_review_after_whatever_the_switch_holds(
-    launched, mode
-):
+def test_no_green_line_is_owed_after_a_fix_whatever_the_switch_holds(launched):
     """jbus is the only merger, so no home waits to hear that a pull request is green: a fixed
-    pull request, or one whose brief says `Review: after`, owes no line on green, also with an id
-    in `home-thread`."""
-    brief = launched.home / "tasks" / "alpha.md"
-    if mode == "after":
-        brief.write_text(brief.read_text().replace("Review: review\n", "Review: after\n"))
-        result(launched, "Reviewer: mcp:reviewer\n")
-        launched.set("jmerge.txt", "")
-    else:
-        result(launched, f"Reviewer: mcp:reviewer\nFixed: {HEAD}\n" + REVIEWED)
+    pull request owes no line on green, also with an id in `home-thread`."""
+    result(launched, f"Reviewer: mcp:reviewer\nFixed: {HEAD}\n" + REVIEWED)
     (launched.home / "home-thread").write_text("mcp:home\n")
     launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)

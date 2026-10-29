@@ -138,8 +138,8 @@ SAYS = {
         "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
         'the way the crew skill\'s "The review" says, with the message `/pr-review run alpha '
         "again`, and add `Second reviewer: <threadId>` to the Result, in place of a `Second "
-        "reviewer:` line whose thread wrote no `## Review`. Fix nothing it finds: its findings "
-        "go to a cleanup row."
+        "reviewer:` line whose thread wrote no `## Review`. Its errors and warnings come to this "
+        "thread: answer each by id and push the fix, and no third review follows."
     ),
     "fix": (
         "Launch ONE scoped reviewer of the fix now, not a full review, the way the crew skill's "
