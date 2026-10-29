@@ -14,7 +14,7 @@ one `State`. The facets are:
   the thread's role owes: a scout owes its Report, a reviewer its Review, and a home or another
   thread nothing.
 - `Pull`: the work's pull request. For an open pull request, the facet is the step that jmerge's
-  reason names (`merge.step`), or `other` for a reason that no rule names.
+  reason names (`jmerge.judgement.step`), or `other` for a reason that no rule names.
 - `Question`: whether jbus has a gate open for the work this pass.
 - `Answered`: which of T3 Code and GitHub answered this pass.
 

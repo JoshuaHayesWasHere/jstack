@@ -16,7 +16,6 @@ import json
 import pytest
 
 import test_home_merge as merge
-from jbus import merge as jbus_merge
 from jmerge import judgement, ready
 
 BETA_URL = "https://example.test/pull/8"
@@ -175,7 +174,7 @@ def test_a_queue_file_the_filesystem_will_not_give_merges_nothing(two):
     ],
 )
 def test_each_wait_the_queue_gives_lands_on_its_step_and_not_in_unknown(reason, step):
-    assert jbus_merge.step(f"wait: {reason}") == step
+    assert judgement.step(f"wait: {reason}") == step
 
 
 DIRECTORY = 'migrations = "db/migrations"\n'
@@ -389,7 +388,7 @@ TAKEN = ready.MIGRATION_TAKEN.format(name="0005_x", number="0005", default="main
     ],
 )
 def test_each_wait_a_migration_gives_lands_on_its_step_and_not_in_unknown(reason, step):
-    assert jbus_merge.step(f"wait: {reason}") == step
+    assert judgement.step(f"wait: {reason}") == step
 
 
 def mark(home, number, **fields):
@@ -523,4 +522,4 @@ def test_a_main_the_state_cannot_name_is_no_red_main(fix_and_other):
 
 
 def test_the_red_main_wait_lands_on_the_check_step_and_not_in_unknown():
-    assert jbus_merge.step(f"wait: {ready.MAIN_RED.format(sha='cccccccccccc')}") == "check"
+    assert judgement.step(f"wait: {ready.MAIN_RED.format(sha='cccccccccccc')}") == "check"

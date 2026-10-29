@@ -14,8 +14,7 @@ import json
 import pytest
 
 import test_home_merge as merge
-from jbus import merge as jbus_merge
-from jmerge import ready
+from jmerge import judgement, ready
 from test_jmerge_order import BETA_URL, merged_numbers, queue_of, row
 
 DELTA_URL = "https://example.test/pull/10"
@@ -133,4 +132,4 @@ def test_a_head_that_cannot_be_read_waits_rather_than_merge_what_it_may_carry(bu
     ],
 )
 def test_each_carried_wait_lands_on_the_check_step_and_not_in_unknown(reason):
-    assert jbus_merge.step(f"wait: {reason}") == "check"
+    assert judgement.step(f"wait: {reason}") == "check"
