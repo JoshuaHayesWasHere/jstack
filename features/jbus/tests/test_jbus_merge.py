@@ -520,3 +520,35 @@ def test_a_skill_note_whose_pass_stops_partway_is_kept_for_the_next(kitchen, mon
     kitchen.set("jmerge.txt", "")
     kitchen.poll(NOW + timedelta(minutes=1))
     assert [one["threadId"] for one in sends(kitchen)] == [crew["threadId"]]
+
+
+@pytest.mark.parametrize(
+    ("skill", "role"),
+    [("home", "home"), ("handoff", "home"), ("crew", "crew"), ("pr-review", "review")],
+)
+def test_a_merge_tells_only_the_role_that_loads_its_skill(kitchen, skill, role):
+    """scout-token-review: three merges that changed only the home or handoff skill went to 56
+    threads, most of them crews. A home skill tells no crew or reviewer, and a crew skill no
+    home."""
+    threads = {
+        "crew": kitchen.t3.thread("alpha"),
+        "review": kitchen.t3.thread("beta", "completed", idle=timedelta(1), title="review: beta"),
+        "home": kitchen.t3.thread("demo", "completed", idle=timedelta(1), title="home: demo"),
+    }
+    kitchen.set("jmerge.txt", CHANGED.replace("crew home", skill))
+    kitchen.poll()
+    assert [one["threadId"] for one in sends(kitchen)] == [threads[role]["threadId"]]
+
+
+def test_merges_that_land_within_one_pass_are_one_tell_a_thread(kitchen):
+    crew = kitchen.t3.thread("alpha")
+    later = CHANGED.replace("merged 7", "merged 8").replace("abc1234def5", "fed4321cba9")
+    kitchen.set("jmerge.txt", CHANGED + later)
+    kitchen.poll()
+    (told,) = sends(kitchen)
+    assert told["threadId"] == crew["threadId"] and "skills: crew." in told["message"]
+    assert "#7 at abc1234def5, #8 at fed4321cba9" in told["message"]
+    kitchen.set("jmerge.txt", CHANGED + later)
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert len(sends(kitchen)) == 1
+    assert (kitchen.state / "reload.json").read_text().strip() == "[]"

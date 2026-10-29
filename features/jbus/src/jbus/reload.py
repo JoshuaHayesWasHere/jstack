@@ -6,8 +6,8 @@ after a merge that changed a skill, a thread out runs the old text. `jmerge` nam
 
 `tell` keeps each such merge in `reload.json`, written before any send so a pass that stops
 partway loses none, until every thread that was out when the merge landed is told: one
-message each, under the key `reload|<commit 12>|<thread>`, marked in
-`sent.json` once T3 Code took it. Once every one is told, the merge itself is marked,
+message a thread for every merge kept, under the key `reload|<commit 12>...|<thread>`, and each
+`reload|<commit 12>|<thread>` marked in `sent.json` once T3 Code took it. Once every one is told, the merge itself is marked,
 `reload|<commit 12>`, and a `merged` line printed again for it adds nothing. So a thread hears
 of a merge once, and a send that got no answer, or that the outbox held, goes on a later pass.
 A thread started after the merge loaded the new text and is not told. A thread is told only of
@@ -40,8 +40,8 @@ LOADS = {
 }
 TEMPLATE = "reload"
 TOLD = (
-    "jbus: pull request #{number} merged at {commit} and changed these skills: {names}. The "
-    "text of them you loaded before then is old: read each one's SKILL.md again from the file "
+    "jbus: pull request {merges} merged and changed these skills: {names}. The text of them"
+    " you loaded before then is old: read each one's SKILL.md again from the file "
     "before you next follow it."
 )
 
@@ -73,7 +73,7 @@ def tell(run: Pass, client: Client, said: Iterable[str]) -> None:
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads out could not be told of a skill ({error})")
         return
-    write_json(run.state / FILE, [one for one in kept if not _told(run, client, one, out)])
+    write_json(run.state / FILE, _told(run, client, kept, out))
 
 
 def loaded(run: Pass, role: str, slug: str) -> set[str]:
@@ -87,45 +87,53 @@ def loaded(run: Pass, role: str, slug: str) -> set[str]:
     return LOADS.get(role, set()) | {one.name for one in skills.named(text)}
 
 
-def _told(run: Pass, client: Client, merge: dict[str, Any], out: list[dict[str, Any]]) -> bool:
-    """Tell each thread of `out` that was out when `merge` landed, has a role and loaded one of
-    its skills, and return whether every one of them is told now."""
-    commit, landed = merge["commit"], when(merge["at"])
-    every = True
+def _told(
+    run: Pass, client: Client, kept: list[dict[str, Any]], out: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Tell each thread of `out` that has a role, in one message, of every merge of `kept` that
+    landed while it was out and changed a skill it loaded, and return the merges still owed."""
+    left: set[str] = set()
     for thread in out:
         at, title = thread["threadId"], str(thread.get("title", ""))
         role, slug = roles.role_of(title)
         try:
             began = when(thread["createdAt"])
         except (KeyError, TypeError, ValueError):
-            began = landed
-        key = f"{TEMPLATE}|{commit[:12]}|{at}"
-        wanted = loaded(run, role, slug)
-        names = [name for name in merge["skills"] if name in wanted]
-        if role == roles.OTHER or began > landed or not names or key in run.box.sent():
-            continue
-        text = TOLD.format(number=merge["number"], commit=commit[:12], names=", ".join(names))
+            began = None
+        wanted = set() if role == roles.OTHER else loaded(run, role, slug)
+        due = [
+            one
+            for one in kept
+            if set(one["skills"]) & wanted
+            and (began is None or began <= when(one["at"]))
+            and f"{TEMPLATE}|{one['commit'][:12]}|{at}" not in run.box.sent()
+        ]
+        commits = [one["commit"][:12] for one in due]
+        names = ", ".join(dict.fromkeys(n for one in due for n in one["skills"] if n in wanted))
+        merges = ", ".join(f"#{one['number']} at {one['commit'][:12]}" for one in due)
         try:
-            went = outbox.send(
+            went = bool(due) and outbox.send(
                 run,
                 client,
                 thread=at,
                 row=slug or title,
-                key=key,
-                text=text,
+                key="|".join([TEMPLATE, *commits, at]),
+                text=TOLD.format(merges=merges, names=names),
                 template=TEMPLATE,
                 needs="decide",
             )
         except T3Error as error:
             run.say(f"wait {slug or title}: its thread could not be told of a skill ({error})")
             went = False
-        if went:
-            run.box.mark(key)
-        every = every and went
-    if every:
-        run.box.mark(f"{TEMPLATE}|{commit[:12]}")
+        for commit in commits:
+            if went:
+                run.box.mark(f"{TEMPLATE}|{commit}|{at}")
+            else:
+                left.add(commit)
+    for merge in (one for one in kept if one["commit"][:12] not in left):
+        run.box.mark(f"{TEMPLATE}|{merge['commit'][:12]}")
         run.say(f"told {run.project.name}: #{merge['number']} changed {', '.join(merge['skills'])}")
-    return every
+    return [one for one in kept if one["commit"][:12] in left]
 
 
 STEPS = (
