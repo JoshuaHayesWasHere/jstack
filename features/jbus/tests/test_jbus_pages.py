@@ -1,7 +1,7 @@
 """These tests check the built part of `features/jbus/docs/jbus/`, and the length of every docs
-page.
+page, each page under a `features/<name>/docs/`.
 
-`LONG` names each page over the cap, by its path under docs/, until somebody splits the page. The
+`LONG` names each page over the cap, by its path in the repo, until somebody splits the page. The
 list only shrinks."""
 
 import shutil
@@ -14,16 +14,24 @@ import pytest
 from jbus import pages, wake
 from testing.paths import REPO
 
+READ_SET = ("features/*/docs/",)
+
 CAP = 300
-LONG = frozenset()
+LONG = frozenset(
+    {
+        "features/jbus/docs/jbus/the-queue.md",
+        "features/jinstall/docs/configuration.md",
+        "features/jmerge/docs/jmerge.md",
+    }
+)
 
 
 def over(root, allowed):
-    """Return the pages under `root/docs` that are over the cap and that `allowed` lacks, and the
-    pages that `allowed` lists that are no longer over the cap."""
+    """Return the pages under each `root/features/<name>/docs` that are over the cap and that
+    `allowed` lacks, and the pages that `allowed` lists that are no longer over the cap."""
     lengths = {
-        str(path.relative_to(root / "docs")): len(path.read_text().splitlines())
-        for path in (root / "docs").glob("**/*.md")
+        str(path.relative_to(root)): len(path.read_text().splitlines())
+        for path in root.glob("features/*/docs/**/*.md")
     }
     long = {name for name, lines in lengths.items() if lines > CAP}
     return [f"{name}: {lengths[name]} lines" for name in sorted(long - allowed)] + [
@@ -65,10 +73,13 @@ def test_no_docs_page_is_over_the_cap_unless_listed_and_a_listed_one_is():
 
 
 def test_a_page_over_the_cap_and_a_listed_page_under_it_are_found(tmp_path):
-    (tmp_path / "docs" / "deep").mkdir(parents=True)
-    (tmp_path / "docs" / "long.md").write_text("line\n" * (CAP + 1))
-    (tmp_path / "docs" / "deep" / "short.md").write_text("line\n" * CAP)
-    assert over(tmp_path, frozenset()) == [f"long.md: {CAP + 1} lines"]
-    assert over(tmp_path, frozenset({"long.md", "deep/short.md"})) == [
-        f"deep/short.md: under {CAP}, take it off the list"
+    docs = tmp_path / "features" / "a-feature" / "docs"
+    (docs / "deep").mkdir(parents=True)
+    (docs / "long.md").write_text("line\n" * (CAP + 1))
+    (docs / "deep" / "short.md").write_text("line\n" * CAP)
+    long = "features/a-feature/docs/long.md"
+    short = "features/a-feature/docs/deep/short.md"
+    assert over(tmp_path, frozenset()) == [f"{long}: {CAP + 1} lines"]
+    assert over(tmp_path, frozenset({long, short})) == [
+        f"{short}: under {CAP}, take it off the list"
     ]
