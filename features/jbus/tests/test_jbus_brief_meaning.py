@@ -231,15 +231,12 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
     code, said = add(kitchen, text)
     assert code == 1
     assert said.splitlines() == [
-        "refused: alpha's brief has 7 faults, and nothing is queued",
+        "refused: alpha's brief has 6 faults, and nothing is queued",
         "- brief's Task: line is the template's own text",
         "- brief's Done when: line is empty",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
         "- brief's Size: line says medium (S, M or L)",
-        "- brief's Review: line says after with no Decisions: line giving the user's words for "
-        "it: write Review: twice, the default, review, or none for text-only or throwaway work, "
-        "or put the user's words on a Decisions: line",
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
         f"- {parse.NO_DESIGN}",

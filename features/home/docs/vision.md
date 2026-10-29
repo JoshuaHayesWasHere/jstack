@@ -13,7 +13,7 @@ On pstack, jstack is "a combo of upstream shaped and borrow then diverge. jstack
 So a home does not hold a jstack-only part back to match pstack, and does not realign one on its own: realigning is Josh's loop.
 
 Speed comes before safety: "Full speed, fix later" (2026-10-20).
-Work merges on green CI, and what a review finds beyond its fix round goes to a cleanup queue instead of holding the merge.
+Work merges on green CI, and what a review finds goes to the row's own crewmate before the merge, never to a row of its own.
 How many review rounds a pull request gets is the brief's `Review:` line.
 
 ## Features in folders

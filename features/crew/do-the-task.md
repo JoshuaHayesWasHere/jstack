@@ -104,6 +104,7 @@
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop.
   Do not go looking for more to improve.
+  A leftover of the task inside the brief's **Where**, a review's finding included, is cleared in this pull request before the Result: no row is filed for it.
   A fault you find outside the task stays out of the diff: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
 - If the brief says to open a pull request, open it once the checks pass, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
 

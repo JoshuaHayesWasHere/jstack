@@ -255,7 +255,7 @@ def test_a_plan_asked_for_in_a_repo_the_config_does_not_name_is_refused(kitchen,
 
 
 def test_a_follow_up_that_names_no_entry_is_counted_for_its_parents(kitchen):
-    """A `cleanup-P`, a row with a `Follows: P` line and a fix jbus filed for P do work for P's
+    """A row with a `Follows: P` line and a fix jbus filed for P do work for P's
     entry, and so does a follow-up of one of them. A row given its own entry keeps it."""
     assert (
         kitchen.main(
@@ -263,11 +263,16 @@ def test_a_follow_up_that_names_no_entry_is_counted_for_its_parents(kitchen):
         )[0]
         == 0
     )
-    add(kitchen, "cleanup-part-1", approve=False)
-    add(kitchen, "cleanup-cleanup-part-1", approve=False)
+    add(kitchen, "cleanup-part-1", approve=False, text=brief("cleanup-part-1", "Follows: part-1\n"))
+    add(
+        kitchen,
+        "cleanup-cleanup-part-1",
+        approve=False,
+        text=brief("cleanup-cleanup-part-1", "Follows: cleanup-part-1\n"),
+    )
     add(kitchen, "beta", approve=False, text=brief("beta", "Follows: part-1\n"))
     fix = brief("main-red-a", "Follows: part-1\n").replace(
-        'Decisions: "review it once"', f"Decisions: {queue.FILED}main"
+        'Decisions: "review it once"', f"Decisions: {queue.RED_DECIDED}main"
     )
     queue.add(kitchen.state, "main-red-a", 0, [], fix, ran_by=queue.PASS)
     code, said = kitchen.main(
@@ -292,7 +297,7 @@ def test_a_follow_up_that_names_no_entry_is_counted_for_its_parents(kitchen):
 
 
 def test_a_row_queued_before_its_parent_or_before_the_column_is_counted_after_a_pass(kitchen):
-    add(kitchen, "cleanup-part-2", approve=False)
+    add(kitchen, "cleanup-part-2", approve=False, text=brief("cleanup-part-2", "Follows: part-2\n"))
     assert plan(kitchen)[0] == "epic | one path for each fact | planned"
     assert (
         kitchen.main(
@@ -340,7 +345,12 @@ def test_a_parent_whose_follow_ups_count_for_its_entry_keeps_its_slug(kitchen, g
     argv = ("--entry", given) if given else ()
     add_ = ("queue", "add", slug, "--priority", "1", *argv)
     assert kitchen.main(*add_, stdin=brief(slug))[0] == 0
-    add(kitchen, f"cleanup-{slug}", approve=False)
+    add(
+        kitchen,
+        f"cleanup-{slug}",
+        approve=False,
+        text=brief(f"cleanup-{slug}", f"Follows: {slug}\n"),
+    )
     add(kitchen, "beta", approve=False, text=brief("beta", f"Follows: {slug}\n"))
     counted = "epic | one path for each fact | 0 of 3 merged, 3 queued not approved"
     assert plan(kitchen)[0] == counted
@@ -360,7 +370,7 @@ def test_a_follow_up_given_its_own_slug_as_entry_takes_none_from_its_parent(kitc
         == 0
     )
     argv = ("queue", "add", "cleanup-part-1", "--priority", "1", "--entry", "cleanup-part-1")
-    assert kitchen.main(*argv, stdin=brief("cleanup-part-1"))[0] == 0
+    assert kitchen.main(*argv, stdin=brief("cleanup-part-1", "Follows: part-1\n"))[0] == 0
     assert "parent_entry" not in rows(kitchen)["cleanup-part-1"]
     kitchen.poll()
     assert "parent_entry" not in rows(kitchen)["cleanup-part-1"]

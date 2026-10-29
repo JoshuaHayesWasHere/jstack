@@ -335,7 +335,7 @@ def test_under_silence_the_users_answer_that_keeps_a_go_gates_default_starts_its
     assert "crew: alpha" in [launch["title"] for launch in kitchen.t3.launches]
 
 
-def test_under_silence_a_cleanup_of_a_row_silence_started_is_approved_by_the_follow_up_rule(
+def test_under_silence_a_unit_of_a_row_silence_started_is_approved_by_the_follow_up_rule(
     kitchen,
 ):
     silence(kitchen)
@@ -343,8 +343,8 @@ def test_under_silence_a_cleanup_of_a_row_silence_started_is_approved_by_the_fol
     gate(kitchen, "alpha")
     kitchen.poll(NOW + timedelta(minutes=31))
     assert basis(kitchen, "alpha")[0] == queue.ANSWER
-    queued(kitchen, "cleanup-alpha", entry=None, text=brief("cleanup-alpha", "Follows: alpha\n"))
-    assert basis(kitchen, "cleanup-alpha") == (queue.RULE, queue.FOLLOW_REF)
+    queued(kitchen, "alpha-2", entry="alpha", text=brief("alpha-2", "Follows: alpha\n"))
+    assert basis(kitchen, "alpha-2") == (queue.RULE, queue.FOLLOW_REF)
 
 
 def gate_lines(kitchen):
@@ -396,13 +396,11 @@ def test_under_silence_a_follow_up_two_hops_from_silences_go_waits_when_silence_
     queued(kitchen, "alpha", entry=None)
     gate(kitchen, "alpha")
     kitchen.poll(NOW + timedelta(minutes=31))
-    queued(kitchen, "cleanup-alpha", entry=None, text=brief("cleanup-alpha", "Follows: alpha\n"))
-    assert basis(kitchen, "cleanup-alpha") == (queue.RULE, queue.FOLLOW_REF)
-    big = brief("cleanup-cleanup-alpha", "Follows: cleanup-alpha\n").replace(
-        "Size: S\n", "Size: L\n"
-    )
-    queued(kitchen, "cleanup-cleanup-alpha", entry=None, text=big)
-    assert basis(kitchen, "cleanup-cleanup-alpha") == ()
+    queued(kitchen, "alpha-2", entry="alpha", text=brief("alpha-2", "Follows: alpha\n"))
+    assert basis(kitchen, "alpha-2") == (queue.RULE, queue.FOLLOW_REF)
+    big = brief("alpha-3", "Follows: alpha-2\n").replace("Size: S\n", "Size: L\n")
+    queued(kitchen, "alpha-3", entry="alpha", text=big)
+    assert basis(kitchen, "alpha-3") == ()
 
 
 def test_an_entry_a_follow_up_takes_from_its_parent_approves_nothing(kitchen):

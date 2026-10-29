@@ -1,10 +1,10 @@
-"""After a pull request's first review, only an `error` is fixed in it. A `Review: review` brief
-answers its first review as before, and pushes its fix. The review after that, the scoped pass of
-the fix, routes each finding by the severity it wrote, whatever its bucket or tag: an error waits
-on its answer by id and a push, a warning goes to the cleanup row (`jbus cleanup`), and an info
-is dropped. A cleanup row, `Review: cleanup`, gets one review read the same way, and nothing
-after it. The tests drive it through `ready.short_of`, the function `jmerge` calls before a merge,
-and through `jbriefs --findings --left`, the crew's count."""
+"""After a pull request's first review, its errors and warnings are fixed in it. A `Review: review`
+brief answers its first review as before, and pushes its fix. The review after that, the scoped
+pass of the fix, routes each finding by the severity it wrote, whatever its bucket or tag: an
+error or a warning waits on its answer by id and a push, and an info is dropped. No finding goes
+to another row. A brief that still says `after` is read as `review`. The tests drive it through
+`ready.short_of`, the function `jmerge` calls before a merge, and through `jbriefs --findings
+--left`, the crew's count."""
 
 import subprocess
 import sys
@@ -64,37 +64,39 @@ def left(tmp_path, text):
     return ran.stdout.strip()
 
 
-def test_a_second_review_with_errors_and_warnings_waits_on_its_errors_alone(tmp_path):
+def test_a_second_review_with_errors_and_warnings_waits_on_both(tmp_path):
     text = fixed((ERROR, WARNING, INFO))
     assert ready.short_of(text, FIX) == ready.NOT_PUSHED
-    assert left(tmp_path, text) == "not yet: 1 of 2 findings have no Finding: line: F2"
+    assert left(tmp_path, text) == "not yet: 2 of 3 findings have no Finding: line: F2, F3"
     pushed = fixed((ERROR, WARNING, INFO), f"Fixed: {AGAIN}\n")
-    assert ready.short_of(pushed, AGAIN) == ready.UNANSWERED.format(ids="F2")
-    answered = fixed((ERROR, WARNING, INFO), f"Finding F2: fixed, the retry\nFixed: {AGAIN}\n")
-    assert ready.short_of(answered, AGAIN) == "", "the warning F3 holds nothing"
+    assert ready.short_of(pushed, AGAIN) == ready.UNANSWERED.format(ids="F2, F3")
+    one = fixed((ERROR, WARNING, INFO), f"Finding F2: fixed, the retry\nFixed: {AGAIN}\n")
+    assert ready.short_of(one, AGAIN) == ready.UNANSWERED.format(ids="F3")
+    answered = one.replace("Fixed: ", "Finding F3: fixed, the test\nFixed: ")
+    assert ready.short_of(answered, AGAIN) == ""
     assert ready.declines(answered, user=jsettings.DEFAULTS) == ("", "")
     routes = {one.id: one.route for one in findings.triage(answered).findings}
     assert routes == {
         "F1": findings.HOLDS,
         "F2": findings.HOLDS,
-        "F3": findings.FILED,
+        "F3": findings.HOLDS,
         "F4": findings.DROPPED,
     }
 
 
-def test_a_second_review_of_warnings_alone_owes_no_fix_push_and_merges(tmp_path):
-    text = fixed((WARNING, INFO))
+def test_a_second_review_of_infos_alone_owes_no_fix_push_and_merges(tmp_path):
+    text = fixed((INFO,))
     assert ready.short_of(text, FIX) == ""
     assert left(tmp_path, text).startswith("write nothing:")
     assert ready.short_of(fixed(()), FIX) == ""
 
 
 @pytest.mark.parametrize("found", [WARNING, RISKY])
-def test_no_bucket_or_tag_pulls_a_second_reviews_warning_into_the_pull_request(found):
+def test_a_second_reviews_warning_holds_the_merge_whatever_its_bucket_or_tag(found):
     text = fixed((found,))
-    assert ready.short_of(text, FIX) == ""
+    assert ready.short_of(text, FIX) == ready.NOT_PUSHED
     (one,) = [one for one in findings.triage(text).findings if one.lead.head == FIX]
-    assert (one.bucket, one.route) == ("Act on", findings.FILED)
+    assert (one.bucket, one.route) == ("Act on", findings.HOLDS)
 
 
 def test_the_first_review_still_goes_to_the_crew_whatever_its_severity():
@@ -112,30 +114,11 @@ def test_a_seat_that_writes_its_first_review_late_is_still_a_first_review():
     assert [one.route for one in findings.triage(text).findings] == [findings.HOLDS] * 2
 
 
-def cleanup(found, result=""):
-    return brief(result, mode="cleanup") + review(HEAD, found)
-
-
-def test_a_cleanup_row_drops_every_finding_that_is_not_an_error(tmp_path):
-    text = cleanup((WARNING, RISKY, INFO))
-    assert ready.short_of(text, HEAD) == ""
-    assert {one.route for one in findings.triage(text).findings} == {findings.DROPPED}
-    assert left(tmp_path, text).startswith("write nothing:")
-
-
-def test_a_cleanup_row_fixes_its_errors_and_gets_no_review_after_that():
-    assert ready.short_of(cleanup((ERROR, WARNING)), HEAD) == ready.NO_FIXED
-    pushed = cleanup((ERROR, WARNING), f"Fixed: {FIX}\n")
-    assert ready.short_of(pushed, FIX) == ready.UNANSWERED.format(ids="F1")
-    answered = cleanup((ERROR, WARNING), f"Finding F1: fixed, the retry\nFixed: {FIX}\n")
-    assert ready.short_of(answered, FIX) == ""
-    assert ready.to_range_diff(answered, FIX) is None
-    assert ready.under_fix(answered, FIX) == ""
-    declined = cleanup(
-        (ERROR,), "Finding F1: not fixed, the retry, because a.py:41 stops it\nFixed: none needed\n"
-    )
-    assert ready.short_of(declined, HEAD) == "", "no scoped pass is owed to rule on the decline"
-    assert ready.asks_no_ruling(declined)
+@pytest.mark.parametrize("mode", ["after", "cleanup"])
+def test_a_brief_that_still_says_an_old_mode_is_read_as_review(mode):
+    assert ready.short_of(brief(mode=mode), HEAD) == ready.NO_REVIEW
+    assert ready.short_of(brief(mode=mode) + review(HEAD, (FIRST,)), HEAD) == ready.NO_FIXED
+    assert not ready.asks_no_ruling(brief(mode=mode))
 
 
 @pytest.mark.parametrize(
@@ -149,8 +132,8 @@ def test_a_cleanup_row_fixes_its_errors_and_gets_no_review_after_that():
         fixed((WARNING, INFO)),
         fixed((ERROR,), "Finding F2: fixed, the retry\n"),
         fixed((ERROR,), "Finding F2: not fixed, the retry, because a.py:41 stops it\n"),
-        cleanup((WARNING, INFO)),
-        cleanup((ERROR,), "Finding F1: fixed, the retry\n"),
+        fixed((INFO,)),
+        fixed((WARNING,), "Finding F2: fixed, the test\n"),
     ],
 )
 def test_the_fixed_line_the_crew_is_asked_for_is_the_one_jmerge_writes(text):
@@ -166,9 +149,9 @@ def test_the_fixed_line_the_crew_is_asked_for_is_the_one_jmerge_writes(text):
         assert line == f"write Fixed: {named}{why}"
 
 
-def test_a_clean_late_first_review_beside_a_warnings_only_pass_owes_nothing(tmp_path):
+def test_a_clean_late_first_review_beside_an_infos_only_pass_owes_nothing(tmp_path):
     late = review(FIX, ()).replace("#1", "#2")
-    text = fixed((WARNING,)).replace(
+    text = fixed((INFO,)).replace(
         "Reviewer: mcp:9 #1\n", "Reviewer: mcp:9 #1\nReviewer: mcp:11 #2\n"
     )
     text += late

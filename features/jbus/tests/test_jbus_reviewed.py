@@ -70,9 +70,9 @@ def test_a_findings_review_tells_the_crew_once_by_the_outbox_naming_the_section_
     assert kitchen.lines("reviewed") == [f"reviewed alpha: told mcp:crew of #7 at {HEAD[:12]}"]
 
 
-def test_a_twice_brief_s_second_review_filed_to_cleanup_sends_nobody_anything(kitchen):
-    """The crew answered the first review and pushed its fix. The second review's reviewer files
-    what it found as `cleanup-alpha`, and jmerge merges on it, so the crew owes nothing."""
+def test_a_twice_brief_s_second_review_goes_to_its_own_crew(kitchen):
+    """The crew answered the first review and pushed its fix. The second review's warning goes to
+    the same crew, which owes it an answer and a push before the merge."""
     first = section(head="d" * 40)
     answered = "\n## Result\nFinding F1: fixed, the sum\nFixed: " + HEAD + "\n"
     second = section(findings="- warning src/alpha/b.py:9 a second thing")
@@ -80,7 +80,10 @@ def test_a_twice_brief_s_second_review_filed_to_cleanup_sends_nobody_anything(ki
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     for minutes in (0, 3):
         kitchen.poll(NOW + timedelta(minutes=minutes))
-    assert sends(kitchen) == [] and noticed(kitchen) == []
+    (given,) = sends(kitchen)
+    assert given["threadId"] == "mcp:crew"
+    assert "nothing was pushed after them" in given["message"]
+    assert "F2 [Act on] warning src/alpha/b.py:9 a second thing" in given["message"]
 
 
 def test_a_findings_review_of_a_brief_with_no_thread_line_goes_to_its_home(kitchen):
@@ -144,12 +147,11 @@ def test_a_section_its_reviewer_sent_itself_is_not_told_again(kitchen, sent):
 @pytest.mark.parametrize(
     ("brief", "pull"),
     [
-        ("Review: after\n" + section(), "open"),
         (section("not run"), "open"),
         (section(), "merged"),
         ("", "open"),
     ],
-    ids=["after", "not run", "merged", "no review"],
+    ids=["not run", "merged", "no review"],
 )
 def test_nothing_is_told_where_jmerge_says_the_crew_owes_no_line(kitchen, brief, pull):
     kitchen.brief("alpha", "Thread: mcp:crew\n" + brief)

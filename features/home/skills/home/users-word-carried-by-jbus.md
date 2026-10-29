@@ -129,8 +129,8 @@ In two cases a row launches on no word of the user's for it: a follow-up of appr
 The rule is known by what it says, in code: jbus reads no number for it from `standing.md` or a `follow-rule` file.
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
 
-- the row names its parent P, by a line `Follows: P` in its brief's head, or by its slug `cleanup-P`, the row a review files with `jbus cleanup`;
-- the row is of a follow-up's kind: `cleanup-P`; a fix row jbus filed, which is a row jbus's own pass queued whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, and which carries the `Follows:` line itself where a row's merge turned the check red; or, when it is queued, a row that does work for P's plan entry (`--entry`), as a second unit of that entry does;
+- the row names its parent P, by a line `Follows: P` in its brief's head;
+- the row is of a follow-up's kind: a fix row jbus filed, which is a row jbus's own pass queued whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, and which carries the `Follows:` line itself where a row's merge turned the check red; or, when it is queued, a row that does work for P's plan entry (`--entry`), as a second unit of that entry does;
 - P's go still holds: P is a row of this queue, or one that was removed as merged, and the user's word or this rule approved it.
 
 Each pass approves a waiting row of the first two kinds by itself, before any launch, so neither the home nor the user is asked.

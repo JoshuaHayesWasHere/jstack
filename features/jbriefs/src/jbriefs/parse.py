@@ -596,7 +596,6 @@ CHECKS = (
     ("Playbook", playbook),
     ("Where", wheres),
     ("Builds on", lambda text: standing.layered(fields(text))),
-    ("Review", lambda text: standing.review(fields(text), _filled(text, "Decisions"))),
     ("Load", lambda text: standing.load(one for one in fields(text) if one[0] != REST)),
 )
 _SAYS_MISSING = ("Design", "Size", "Skills", "Builds on", "Load")

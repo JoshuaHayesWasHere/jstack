@@ -110,8 +110,8 @@ The section "Protected paths" describes one more hold.
   In a first review, three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
   A `Consider` finding there does not block, and a finding's severity does not change whether it blocks.
   In a review after the first, a scoped pass or a second pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
-  An `error` blocks, a `warning` goes to the cleanup row `cleanup-<slug>` that its reviewer files (`jbus cleanup`), and an `info` is dropped.
-  So a second review with warnings and no error owes no fix push and merges on its checks.
+  An `error` or a `warning` blocks until the crew answers it, and an `info` is dropped.
+  So a second review with only `info` findings owes no fix push and merges on its checks.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).
   It also counts only if no other finding was declined for the same reason.
@@ -125,20 +125,12 @@ The section "Protected paths" describes one more hold.
   A decline that says `because .` is not an answer.
   jbus's `expedite` tells the crew about each of these waits, with the ids.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
-- A brief that says `Review: after` skips the review's gates.
-  `jmerge` asks for no `## Review`, verdict, `Fixed:` line or answered finding.
-  A review written while the pull request is open does not change its wait reason (`ready.after`).
-  Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that jbus approves by the follow-up rule, when it is queued or on the next pass, where `<slug>`'s go holds.
-  The pull request merges once its required checks pass, and its `Skills run:` and `Dropped on rebase:` lines meet their rules.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
   It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
-  The second review's findings block no merge, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`).
+  The second review's `warning` and `error` findings then wait for an answer by id, and for a `Fixed:` line pushed after that review where it sent any.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
   A brief whose first review was clean, or whose Result says `Fixed: none needed`, needs no second review.
-- A brief that says `Review: cleanup` is a cleanup row that `jbus cleanup` filed.
-  It gets one review, and only that review's `error` findings block: each waits for an answer by id, a `Fixed:` line and a push.
-  Every other finding is dropped, and a review with no error merges on its checks.
-  `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
+- A brief whose `Review:` line says anything else, an old `after` included, is read as `review`.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
   A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check`.

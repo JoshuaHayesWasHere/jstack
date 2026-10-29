@@ -157,8 +157,8 @@ LAUNCHED = "Reviewer: mcp:codex\nReviewer: mcp:cursor\n"
             + by("cursor grok-4.7 xhigh", TWO[1:])
             + by("codex gpt-6-sol xhigh", TWO[1:], head="b" * 40),
             "write nothing: the last review sends this thread no finding, since only an error "
-            "of a later review comes here, and the Fixed: line stays as it is",
-            id="a review after the pair is the last review, and sends no warning to the crew",
+            "or a warning of a later review comes here, and the Fixed: line stays as it is",
+            id="a review after the pair is the last review, and sends no info to the crew",
         ),
     ],
 )
