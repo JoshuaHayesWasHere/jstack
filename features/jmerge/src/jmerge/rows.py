@@ -93,6 +93,13 @@ def read(checkout: Path) -> list[queue.Row] | None:
         return None
 
 
+def stored(checkout: Path, slug: str) -> str | None:
+    """The brief of `slug` as jbus stores it for the project of `checkout`, the text its go is
+    judged against (`queue.has_go`), or nothing."""
+    state = _state(checkout)
+    return queue.brief(state, slug) if isinstance(state, Path) else None
+
+
 def main(checkout: Path) -> mainjson.Main:
     state = _state(checkout)
     return mainjson.read(state) if isinstance(state, Path) else mainjson.Main()
@@ -231,12 +238,18 @@ def ordered(rows: list[queue.Row] | None) -> set[str]:
 
 
 def short(
-    rows: list[queue.Row] | None, slug: str, carries: Sequence[tuple[str, int, bool]] = ()
+    rows: list[queue.Row] | None,
+    slug: str,
+    carries: Sequence[tuple[str, int, bool]] = (),
+    *,
+    brief: str | None,
 ) -> str:
-    """Why the pull request of `slug` waits on the queue, or nothing. `carries` holds the open
-    pull requests that a merge of this one may land, each as its slug, its number and whether
-    its head could be read: one whose commits this head contains and its base does not. This
-    one waits on their rows' `merge_after` as on its own, and on one it could not read."""
+    """Why the pull request of `slug` waits on the queue, or nothing. `brief` is the row's brief
+    as jbus stores it (`stored`): a row waits on the user's go unless its go holds for that brief,
+    as jbus's launch asks (`queue.has_go`). `carries` holds the open pull requests that a merge of
+    this one may land, each as its slug, its number and whether its head could be read: one whose
+    commits this head contains and its base does not. This one waits on their rows' `merge_after`
+    as on its own, and on one it could not read."""
     if rows is None:
         return ready.QUEUE_UNREADABLE
     table = {row["slug"]: row for row in rows}
@@ -245,7 +258,7 @@ def short(
         return ""
     if row.get("held"):
         return ready.ROW_HELD
-    if row and not row.get("approved"):
+    if row and not queue.has_go(row, brief):
         return ready.NO_GO
     for other in row.get("merge_after", []):
         ahead = table.get(other)

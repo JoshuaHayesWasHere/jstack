@@ -17,6 +17,7 @@ import pytest
 
 import test_home_merge as merge
 from jbus import merge as jbus_merge
+from jbus import queue
 from jmerge import ready
 
 BETA_URL = "https://example.test/pull/8"
@@ -46,8 +47,20 @@ def queue_of(home, rows, more=""):
     (config / "config.toml").chmod(0o600)
     state = home.user / ".local" / "state" / "jbus" / "demo"
     state.mkdir(parents=True, exist_ok=True)
-    (state / "queue.json").write_text(json.dumps(rows))
+    (state / "queue.json").write_text(json.dumps(given(state, rows)))
     return state / "queue.json"
+
+
+def given(state, rows):
+    """`rows`, each approved one with the brief its go was given for stored in `state`, as jbus
+    stores it, so its go holds (`jbus.queue.has_go`)."""
+    for one in rows:
+        if one.get("approved") and "brief_sha" not in one:
+            text = f"# {one['slug']}: the task\n"
+            (state / "briefs").mkdir(exist_ok=True)
+            (state / "briefs" / f"{one['slug']}.md").write_text(text)
+            one["brief_sha"] = queue.brief_sha(text)
+    return rows
 
 
 @pytest.fixture

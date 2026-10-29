@@ -19,6 +19,7 @@ import json
 import pytest
 
 import test_home_merge as merge
+import test_jmerge_order as order
 from jbus import queue, watch
 from jmerge import ready, rows
 from test_jmerge_fresh import url
@@ -73,7 +74,7 @@ def filed(replay, *runs, status="with crewmate", slug="browser-red-2026-10-27"):
     (state / watch.BROWSER.seen).write_text(json.dumps({str(run): slug for run in runs}))
     go = f'{queue.FOLLOW_RULE}; {queue.FROM_RED}"browser"'
     (state / "queue.json").write_text(
-        json.dumps([{"slug": slug, "status": status, "approved": go}])
+        json.dumps(order.given(state, [{"slug": slug, "status": status, "approved": go}]))
     )
 
 
