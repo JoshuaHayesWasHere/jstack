@@ -164,6 +164,21 @@ def evidence(given: str) -> Evidence:
     return Evidence(source, ref)  # type: ignore[arg-type]
 
 
+CHAT = "bot-chat:<address>/<device>"
+
+
+def chat(given: str) -> Evidence:
+    """Read the bot's evidence, `bot-chat:<address>/<device>`: the message's address in the
+    bot's chat and the device it came from, both named. Any other source, such as `voice`, and
+    a chat with no address or no device, is refused. The bot's go, answer and word, and a home's
+    `jbus word --evidence`, are each read by this one check."""
+    source, _, ref = given.partition(":")
+    address, _, device = ref.partition("/")
+    if source != "bot-chat" or not address.strip() or not device.strip():
+        raise ValueError(f"evidence is {CHAT}, not {given}")
+    return Evidence(source, ref)
+
+
 @dataclass(frozen=True)
 class Action:
     """One verb on its subject: a go for the row `subject` whose brief's sha starts with `pre`,

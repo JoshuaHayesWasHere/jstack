@@ -1,5 +1,6 @@
 usage: jbus word [-h] (--to PROJECT | --all) [--message THREAD/MESSAGE]
-                 [--from THREAD] [--page FILE] [--scope SCOPE]
+                 [--evidence SOURCE:REF] [--words WORDS] [--from THREAD]
+                 [--page FILE] [--scope SCOPE]
 
 options:
   -h, --help            show this help message and exit
@@ -8,6 +9,13 @@ options:
   --message THREAD/MESSAGE
                         the user's own message in T3 Code, which jbus reads
                         for the words and the time
+  --evidence SOURCE:REF
+                        the words the word rests on, in place of --message:
+                        t3-message:<thread>/<message>, or bot-
+                        chat:<address>/<device>, the user's words in the bot's
+                        chat, given with --words
+  --words WORDS         the user's words in the bot's chat, with --evidence
+                        bot-chat:<address>/<device>
   --from THREAD         the thread running this: a word recorded by a
                         project's home is not posted to it
   --page FILE           the page the word was given on: the word goes to the

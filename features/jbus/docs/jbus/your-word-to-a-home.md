@@ -7,6 +7,12 @@ A message that is not your own is refused, `refused: message <ref> is not <user>
 What an agent or jbus sent into a thread is such a message, though T3 Code lists it as a user message.
 Without `--message` the command refuses, with `refused: a word is the user's own message, --message <thread id>/<message id>, which jbus reads from T3 Code: a word typed with --by and --at is not taken`.
 
+Your words in the bot's chat are a word too, with `jbus word --to <project> --evidence bot-chat:<address>/<device> --words "<your words>"`, or with the bot's own `{"action": "word", "words": "<your words>", "evidence": "bot-chat:<address>/<device>"}` on `POST /act` ([The bot's route](the-queue.md#the-bots-route)).
+jbus cannot read the bot's chat, so their evidence is `bot-chat` with `checked: false`, their time is when jbus kept them, and the party is the home on the command line or the bot on its route.
+The evidence is checked as a bot's go is, by `party.chat`: `voice:` or any other source, and a chat with no address or no device, is refused with `refused: --evidence is bot-chat:<address>/<device> or t3-message:<thread>/<message>, not <given>`.
+`--words` goes only with `bot-chat` evidence, `--as user` is refused for it since jbus did not read the words, and so is `--scope`, which takes only your own message.
+`--evidence t3-message:<thread id>/<message id>` is the same as `--message`.
+
 A word is an act ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)), one line of `~/.local/state/jbus/<project>/acts.jsonl` whose verb is `word`.
 Its subject is the scope of the home the word is for, empty for the root home.
 Its id is the first 12 characters of a hash of the project, the words, you, the time and the message, so the same message for the same project is the same word, and a second run sends nothing again.
