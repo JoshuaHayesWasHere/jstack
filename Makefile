@@ -38,38 +38,37 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n"
 # four jobs side by side, one for each part.
 PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
 
-.PHONY: check
-check:
+# The lint of `check` and `check-fast`: features/writing/scripts/comment_lint.py warns on the
+# mechanical unslop rules in the comments and docstrings of the files changed since BASE and fails
+# nothing, scripts/generate-jstack-trees.py fails a generated file stale against features/, and
+# scripts/check-jstack-docs.py a page of the README or docs that says what the tree does not have.
+BASE ?= origin/main
+
+.PHONY: lint
+lint:
 	git diff -z --name-only --diff-filter=d '$(BASE)...HEAD' -- 2> /dev/null | xargs -0 -r python3 features/writing/scripts/comment_lint.py || true
 	python3 scripts/generate-jstack-trees.py --check
 	python3 scripts/check-jstack-docs.py
 	uv run ruff check .
 	uv run ruff format --check .
-	$(PYTEST)
 
-# The check of a change: the same lint, and only the test files its diff from BASE to HEAD
-# reaches, as scripts/select_tests.py names them. Where the script says `all`, it is
-# `make check`. A pull request's CI runs it with BASE=HEAD^1, which on GitHub's merge of the
-# pull request is the tip of main; a desk takes origin/main. The full suite runs on main
-# after the merge. Before the tests, features/writing/scripts/prose_lint.py holds each prose
-# line the diff adds to one sentence, features/writing/scripts/comment_lint.py warns on the
-# mechanical unslop rules in the comments and docstrings of the files the diff changes and
-# fails nothing, scripts/generate-jstack-trees.py fails a generated file that is stale against
-# features/, and scripts/check-jstack-docs.py fails a page of the README or the docs that says
-# what the tree does not have (`make check` runs the last three itself where the selection is
-# `all`).
-BASE ?= origin/main
+.PHONY: test
+test:
+	$(PYTEST)$(if $(TESTS), $(TESTS))
 
+.PHONY: check
+check: lint test
+
+# The check of a change: features/writing/scripts/prose_lint.py holds each prose line the diff
+# from BASE adds to one sentence, then the lint and `make test TESTS=<files>`, the files that
+# scripts/select_tests.py names for the diff, or `make check` where it says `all`. A pull
+# request's CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge; a desk, origin/main.
 .PHONY: check-fast
 check-fast:
 	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
 	python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
-	git diff -z --name-only --diff-filter=d '$(BASE)...HEAD' -- | xargs -0 -r python3 features/writing/scripts/comment_lint.py; \
-	python3 scripts/generate-jstack-trees.py --check || exit; \
-	python3 scripts/check-jstack-docs.py || exit; \
-	set -x; \
-	uv run ruff check . && uv run ruff format --check . && $(PYTEST) $$tests
+	$(MAKE) --no-print-directory lint && exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"
 
 # This checkout's `jbus view`, to show a branch's page before it merges: on VIEW_PORT, beside the
 # live view on 4388, with the JBUS_VIEW_* variables of the live jbus-view.service (the drop-in
