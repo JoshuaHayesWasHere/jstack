@@ -5,7 +5,8 @@ Child a is short-lived and does one feature, and child b is a routine with a dec
 Each child has a pull request, a crew thread and two calls to Josh, and a call reaches Josh through the root's home thread, which can fail.
 
 - `HomeTree.tla` holds what both models share: the variables, the start, and the rules, each with its sentence.
-- `HomeTreeToday.tla` models today's code, and each of its conditions names the file and line that checks it.
+- `HomeTreeToday.tla` models today's code, and each of its conditions names the file that checks it and quotes the code, with no line number.
+  `test_home_tree_spec.py` finds the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
 - `HomeTreeDesign.tla` models the design, and its constant `Drop` takes out one of its guards.
 - `canaries.py` runs TLC on all of it, and `HomeTreeToday.map.py` labels the chart.
 

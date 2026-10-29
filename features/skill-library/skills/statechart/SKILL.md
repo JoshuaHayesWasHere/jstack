@@ -42,7 +42,8 @@ Check it with the config that its authors say it passes, and pass that config as
 One mapping labels both models, so label states and steps only from variables that both have.
 In a code model or a new spec, tie every variable and action to code that a reviewer can open, and take its name from that code.
 Make each action one indivisible step in the code.
-Put the file and line of the code that checks each condition of an action in a comment on that condition, as in `\* pay.ts:120`.
+Put the file of the code that checks each condition of an action in a comment on that condition, with the code it quotes in backticks, as in ``\* pay.ts `if (sent > 0)` ``.
+A file and line, as in `\* pay.ts:120`, cites it too, but a quote needs no edit when the lines above it move.
 
 ## Spec to chart
 
@@ -89,7 +90,7 @@ Put the file and line of the code that checks each condition of an action in a c
 Give the PM the PNG and the Mermaid source of each chart.
 Add one line per bug with the rule it breaks, its steps as the chart numbers them, whether it reproduced, and whether the open fix fixes it.
 With `--against`, also say whether the spec already lists it: in the configs that `stories.md` names, in the spec's notes on what the model leaves out, or not at all.
-Do not report that a rule holds while the command lists conditions with no file and line.
+Do not report that a rule holds while the command lists conditions with no file and quote or line.
 Take every count you quote from `summary.json`.
 Attach `stories.md` and the command that regenerates everything.
 Say what the model leaves out.
