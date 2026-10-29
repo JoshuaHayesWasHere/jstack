@@ -275,7 +275,7 @@ class Scene:
         self.moves(("rye-loaf", "pr", "merged", 40), ("jam-jar", "launched", "running", 35))
         self.events(
             ("merged", "user", "rye-loaf", "merged 9 rye-loaf", 40),
-            ("result", "chef", "jam-jar", "result jam-jar: Status: done", 30),
+            ("result", "quiet", "jam-jar", "result jam-jar: Status: done", 30),
             ("queue", "quiet", "", "queue demo: the table changed", 1),
         )
         self.merge_log(
@@ -754,7 +754,7 @@ def kinds(scene):
         ]
     )
     scene.merge_log(logged(40, "wait", 32, "it has no review yet"))
-    scene.events(("jmerge", "chef", "fig-pip", "merged 21 fig-pip", 30))
+    scene.events(("jmerge", "quiet", "fig-pip", "merged 21 fig-pip", 30))
     record = json.loads((scene.state_dir / "pass.json").read_text())
     record["projects"][scene.name]["threads"] = [out("review: fig-review")]
     scene.write("pass.json", record, scene.state_dir)
@@ -997,7 +997,7 @@ def rounded(scene, slug="oat-milk"):
                 "event": "review",
                 "id": "00000000000000aa",
                 "line": f"review {slug}: findings",
-                "loud": "chef",
+                "loud": "quiet",
                 "slug": slug,
                 "text": "## Review" + review,
             }

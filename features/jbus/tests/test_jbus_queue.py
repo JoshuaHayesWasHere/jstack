@@ -1238,10 +1238,10 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
     kitchen,
 ):
     """The sha once covered every line of the brief, the `Home:` and `Thread:` lines included. A
-    row that the user approved in that time holds the sha of the whole text, and its first `add`
-    binds it to the meaning, so only a change to what the brief asks for voids it."""
+    row that the user approved in that time holds the sha of the whole text, and its go holds
+    while the stored brief is that text, line for line."""
     kitchen.config(max_running=6)
-    for slug in ("alpha", "beta", "gamma"):
+    for slug in ("alpha", "beta"):
         add(kitchen, slug)
     table = json.loads((kitchen.state / "queue.json").read_text())
     for row in table:
@@ -1250,14 +1250,8 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
             row["approval"].pop(column)
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     add(kitchen, "beta", approve=False, text=readdressed("beta"))
-    assert rows(kitchen)["beta"]["brief_sha"] == queue.brief_sha(brief("beta"))
-    wider = readdressed("gamma").replace("- it is done\n", "- it is done\n- One more line.\n")
-    add(kitchen, "gamma", approve=False, text=wider)
     kitchen.poll()
-    assert sorted(given["title"] for given in kitchen.t3.launches) == ["crew: alpha", "crew: beta"]
-    assert gates(kitchen) == [
-        "condition gamma: brief changed after approval: Done when: One more line."
-    ]
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
 
 
 def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):

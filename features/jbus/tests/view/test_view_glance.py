@@ -193,7 +193,7 @@ def stalled(scene):
     why = "wait: check has not passed"
     scene.queue([row("oat-spoon", "pr", pr="#12", checks="failed", why=why)])
     scene.moves(("rye-loaf", "pr", "merged", 200))
-    scene.events(("result", "chef", "oat-spoon", "result oat-spoon: Status: done", 45))
+    scene.events(("result", "quiet", "oat-spoon", "result oat-spoon: Status: done", 45))
     scene.merge_log(logged(50, "wait", 12, "check has not passed"))
 
 
@@ -361,7 +361,7 @@ def test_no_merge_in_3_hours_and_no_act_in_30_minutes_is_stalled(scene):
 
 def test_an_act_in_the_last_30_minutes_keeps_it_moving(scene):
     stalled(scene)
-    scene.events(("result", "chef", "oat-spoon", "result oat-spoon: Status: done", 10))
+    scene.events(("result", "quiet", "oat-spoon", "result oat-spoon: Status: done", 10))
     verdict = stack(scene)["glance"]["verdict"]
     assert (verdict["word"], verdict["quiet_since"]) == ("MOVING", None)
     assert verdict["cause"] == "slowed by 1 failing check"
