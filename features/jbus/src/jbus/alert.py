@@ -4,7 +4,8 @@ until it ends. This module is the only place that keeps a streak.
 A streak is the failures in a row of one thing, under a key:
 
 - `pass` for a pass that did not finish;
-- `home thread <project>` for a wake of the project's that its home thread did not get;
+- `home thread <project>` for a wake of the project's that its root home thread did not get, and
+  `home thread <project> <thread>` for one another thread of its list did not get;
 - `blocking <project>` for a body of the project's that the second target did not take;
 - `jmerge <project>` for a `jmerge` that did not run;
 - `snapshot` for a snapshot of the homes' state tree that did not finish;
@@ -72,8 +73,10 @@ class Streak:
     why: str = ""
 
 
-def home(project: str) -> str:
-    return f"home thread {project}"
+def home(project: str, thread: str = "") -> str:
+    """The key of the streak of wakes to the project's root home thread, or with `thread` to
+    another thread its list reaches, such as a child home's."""
+    return f"home thread {project} {thread}" if thread else f"home thread {project}"
 
 
 def blocking(project: str) -> str:

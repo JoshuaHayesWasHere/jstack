@@ -1750,7 +1750,7 @@ def owner(read: Read, one: dict[str, Any]) -> tuple[str, str, str]:
     return USER, "", row
 
 
-_MOMENT = re.compile(r"\s*\b(?:at |until )?(?:[0-9a-f]{7,40}|\d{4}-\S+)\b")
+MOMENT = re.compile(r"\s*\b(?:at |until )?(?:[0-9a-f]{7,40}|\d{4}-\S+)\b")
 """A commit or a time in a cause, which the key of an entry leaves out."""
 
 
@@ -1758,7 +1758,7 @@ def key_of(one: dict[str, Any]) -> str:
     """The outbox's key for the one message that tells an entry's owner of it: its kind, subject
     and reason, with no commit, run or time, so one fault is one key whatever runs show it, and a
     new owner thread a new one."""
-    stands = f"{one['kind']}|{one['subj']}|{_MOMENT.sub('', one['cause'])}"
+    stands = f"{one['kind']}|{one['subj']}|{MOMENT.sub('', one['cause'])}"
     digest = hashlib.sha256(stands.encode()).hexdigest()[:12]
     return f"wrong|{one['kind']}|{digest}|{one['to']}"
 

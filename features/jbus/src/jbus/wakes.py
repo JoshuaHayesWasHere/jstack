@@ -103,8 +103,11 @@ class Item:
 
 
 def words(one: Item) -> str:
-    """The digest of what an item says, its line and its text."""
-    return hashlib.sha256(f"{one.line}\n{one.text}".encode()).hexdigest()[:12]
+    """The digest of what an item says, its line and its text, with no commit or time in them
+    (`state.MOMENT`), as its key has none: a fault that only moves to a new commit says nothing
+    new."""
+    said = state.MOMENT.sub("", f"{one.line}\n{one.text}")
+    return hashlib.sha256(said.encode()).hexdigest()[:12]
 
 
 def pick(items: list[Item], seen: dict[str, Any], thread: str) -> list[Item]:
@@ -414,6 +417,9 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
 
 
 def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:
+    """Send the thread its new items in one message, and count the streak of that thread's wakes:
+    the root's is the project's `home thread` streak, and each other thread has its own."""
+    streak = alert.home(run.project.name, "" if thread == root_of(run) else thread)
     keys = "|".join(sorted(f"{one.key}:{words(one)}" for one in new))
     digest = hashlib.sha256(keys.encode()).hexdigest()[:12]
     text = MESSAGE.format(
@@ -436,10 +442,10 @@ def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:
         )
     except T3Error as error:
         run.say(f"wait {run.project.name}: {thread} could not be woken ({error})")
-        alert.count(run, alert.home(run.project.name), [f"T3 Code did not take the wake: {error}"])
+        alert.count(run, streak, [f"T3 Code did not take the wake: {error}"])
         return False
     if went:
-        alert.count(run, alert.home(run.project.name), [""])
+        alert.count(run, streak, [""])
         said = ", ".join(one.line for one in new)
         run.say(f"{KIND} {run.project.name}: told {thread} of {said}")
     return went

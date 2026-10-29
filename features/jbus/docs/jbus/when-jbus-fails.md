@@ -4,6 +4,7 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 
 - `pass`, a pass that did not finish. `jbus.service` has `OnFailure=jbus-failed.service`, which runs `jbus alarm` to count it.
 - `home thread <project>`, a wake of the project's that T3 Code did not take for its home thread ([Where wakes go](events-and-wakes.md#where-wakes-go)).
+- `home thread <project> <thread>`, a wake that T3 Code did not take for another thread of the project's list, such as a child home's, which goes to the project's own home.
 - `blocking <project>`, a body of the project's that the second target did not take.
 - `jmerge <project>`, a `jmerge` that did not run. When it stopped because it could not ask GitHub, the alert's `<why>` is its line, `wait: could not ask GitHub: gh exited <code>: <what gh said>`; a run of such passes is one streak whatever the text of each says. A pass of jbus that cannot ask GitHub says the same, `wait <project>: could not ask GitHub: gh exited <code>: <what gh said>`.
 - `snapshot <project>`, a snapshot of the homes' state that gitleaks refused for a file under that project's home, the first path segment of each file it names.

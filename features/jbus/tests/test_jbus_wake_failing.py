@@ -15,6 +15,8 @@ from datetime import timedelta
 
 import jbus
 from jbus import alert as alerts
+from jbus import passes, wakes
+from jsettings.t3 import T3Error
 from test_jbus_kitchen import NOW, REFUSED
 
 WHY = f"T3 Code did not take the wake: t3_thread_send: {REFUSED}"
@@ -90,3 +92,23 @@ def test_with_no_home_thread_no_wake_fails(kitchen):
     said = fail(kitchen, 3)
     assert not [line for line in said if "alert:" in line]
     assert kitchen.main("wakes")[0] == 0
+
+
+def test_a_wake_another_thread_refuses_counts_that_threads_own_streak(kitchen, monkeypatch):
+    """A project's list reaches its root home and other threads, such as a child home's. Each has
+    its own streak, so the root's success does not end a child's alert, and the child's failure
+    is not the root's."""
+    config = jbus.load()
+    run = passes.Pass(config, config.project("demo"), NOW)
+    root, child = wakes.root_of(run), "mcp:a-child-home"
+
+    def send(run, client, *, thread, **_):
+        if thread == child:
+            raise T3Error(REFUSED)
+        return True
+
+    monkeypatch.setattr(wakes.outbox, "send", send)
+    for to in (child, root) * 3:
+        wakes._send(run, None, to, [wakes.Item(key="k", to=to, line="a line")])
+    assert root and set(alerts.streaks(kitchen.state_dir)) == {alerts.home("demo", child)}
+    assert alerts.streak(kitchen.state_dir, alerts.home("demo", child)).alerted

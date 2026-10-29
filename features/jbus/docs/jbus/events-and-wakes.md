@@ -9,6 +9,7 @@ A config that still has `wake`, `webhook_url` or `webhook_key`, at the top or in
 A wake is one `wakes` message, a `t3_thread_send` to the thread in the home's `home-id`, in queue mode.
 A project whose home has no thread sends its wakes to the thread in a top-level `home_thread = "<thread id>"`, where the config has one.
 A send that T3 Code does not take (T3 Code is down, or the thread is gone) counts the `home thread <project>` streak, which alerts at the third failure in a row, and the next pass tries again.
+A send to another thread of the project's list, as a child home's, counts that thread's own streak, `home thread <project> <thread>`, so one thread's success does not end another's alert.
 `jbus wakes` prints `wakes fail: <the alert line>` and exits 1 while that streak alerts, and `wakes go: the home thread of <project> is not failing` otherwise.
 
 ## Who an item is for
