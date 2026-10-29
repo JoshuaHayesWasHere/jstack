@@ -11,6 +11,7 @@ from jbus import queue
 from jmerge import mainjson, ready
 from jmerge.checks import NOT_RED
 from jsettings import brief as brief_head
+from jsettings import store
 
 NO_PULL = "no pull request yet"
 
@@ -391,6 +392,6 @@ def browser_fixing(checkout: Path, rows: list[queue.Row] | None) -> set[str]:
     """The ids of main's red browser runs whose fix is open: the row jbus filed for the run
     (`BROWSER_SEEN`) is in `rows`, the queue, and is not over."""
     state = _state(checkout)
-    seen = jbus.read_dict(state / BROWSER_SEEN) if isinstance(state, Path) else {}
+    seen = store.read_dict(state / BROWSER_SEEN) if isinstance(state, Path) else {}
     fixing = {row["slug"] for row in rows or [] if row.get("status") not in queue.FINAL}
     return {str(run) for run, slug in seen.items() if slug and slug in fixing}

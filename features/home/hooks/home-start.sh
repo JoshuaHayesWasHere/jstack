@@ -22,7 +22,7 @@ common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) 
 [ -z "$(git rev-parse --show-superproject-working-tree 2>/dev/null)" ] || exit 0
 
 repo=$(basename "$(dirname "$common_dir")")
-home_dir=$HOME/.local/state/home/$repo
+home_dir=${JBUS_HOME_DIR:-$HOME/.local/state/home}/$repo
 [ ! -e "$home_dir/off" ] || exit 0
 first=
 [ -f "$home_dir/plan.md" ] || first=1

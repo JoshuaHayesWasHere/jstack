@@ -22,6 +22,7 @@ CHECKOUT = REPO.resolve() / "features" / "home"
 HOOK = CHECKOUT / "hooks" / "home-gauge.sh"
 HANDOFF = CHECKOUT / "skills" / "handoff" / "SKILL.md"
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
+HOMES = "JBUS_HOME_DIR"
 SESSION = "22222222-2222-4222-8222-222222222222"
 OVER = (
     "context: {count} tokens, over this home's limit of {limit}."
@@ -93,13 +94,18 @@ class Scene:
         self.transcript = transcript(tmp_path, call("m1", 4, 250000, 50000))
         self.count = 300004
 
-    def gauge(self, root=None, *, cwd=None, t3=T3[0], event="PostToolUse", path=None, **more):
+    def gauge(
+        self, root=None, *, cwd=None, t3=T3[0], event="PostToolUse", path=None, homes=None, **more
+    ):
         """Run the hook as the harness does after a tool call in a thread opened in `root`. At
         the time of the call, the thread's shell is in `cwd`. `t3` is the variable T3 Code sets
-        for the thread, or None outside T3 Code."""
+        for the thread, or None outside T3 Code. `homes` is the `JBUS_HOME_DIR` the thread has,
+        or None for none."""
         root = root or self.main
-        env = {key: value for key, value in os.environ.items() if key not in T3}
+        env = {key: value for key, value in os.environ.items() if key not in (*T3, HOMES)}
         env.update(HOME=str(self.user), CLAUDE_PROJECT_DIR=str(root))
+        if homes:
+            env[HOMES] = str(homes)
         if path:
             env["PATH"] = path
         if t3:
@@ -159,6 +165,15 @@ def test_a_home_at_the_limit_of_300000_is_told_its_count_in_one_line(scene):
     assert told(scene.gauge()) == OVER.format(count=300004, limit=300000)
     scene.transcript.write_text(json.dumps(call("m1", 0, 250000, 50000)) + "\n")
     assert told(scene.gauge()) == OVER.format(count=300000, limit=300000)
+
+
+def test_the_homes_state_is_jbus_home_dir_where_it_is_set(scene, tmp_path):
+    homes = tmp_path / "homes"
+    scene.home_dir = homes / "demo"
+    scene.limit("400000\n")
+    assert scene.gauge(homes=homes) == ""
+    assert scene.record().startswith("300004")
+    assert not (scene.user / ".local" / "state" / "home").exists()
 
 
 def test_a_home_under_the_limit_is_told_nothing(scene):

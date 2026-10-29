@@ -45,6 +45,11 @@ import jsettings
 from jbus import Config, Refused, queue, read_json, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
+from jsettings.t3 import PROTOCOL as PROTOCOL
+from jsettings.t3 import Session, get_json, post
+from jsettings.t3 import T3Dropped as T3Dropped
+from jsettings.t3 import T3Error as T3Error
+from jsettings.t3 import T3Refused as T3Refused
 
 TOOLS = (
     "t3_thread_configuration",
@@ -57,54 +62,11 @@ TOOLS = (
     "t3_thread_organize",
 )
 SCOPE = "orchestration:read orchestration:operate"
-PROTOCOL = "2025-06-18"
 LIFETIME = 30 * 24 * 60 * 60
 CHARS = 50000
 GONE = re.compile(
     r"not[ _]found|no longer available|no such|unknown thread|does not exist|no thread", re.I
 )
-
-
-class T3Error(Exception):
-    """The server gave no answer: jbus could not reach it, or its reply was lost."""
-
-
-class T3Refused(T3Error):
-    """The server answered no, and made nothing."""
-
-
-class T3Dropped(T3Error):
-    """The connection dropped (ECONNRESET) before the server gave any reply."""
-
-
-def _at(url: str) -> str:
-    """Name the server by its path only, since no message from jbus carries a URL."""
-    return f"T3 Code at {urllib.parse.urlsplit(url).path}"
-
-
-def _post(url: str, body: bytes, headers: dict[str, str], timeout: float) -> tuple[Any, Any]:
-    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as reply:
-            return reply.headers, reply.read()
-    except urllib.error.HTTPError as error:
-        said = error.read().decode(errors="replace")[:200]
-        kind = T3Refused if 400 <= error.code < 500 else T3Error
-        raise kind(f"{_at(url)} answered {error.code}: {said}") from error
-    except (OSError, ValueError) as error:
-        reset = isinstance(error, ConnectionResetError) or isinstance(
-            getattr(error, "reason", None), ConnectionResetError
-        )
-        kind = T3Dropped if reset else T3Error
-        raise kind(f"{_at(url)} could not be reached: {error}") from error
-
-
-def _get_json(url: str, timeout: float = 8) -> dict[str, Any]:
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as reply:
-            return json.loads(reply.read())
-    except (OSError, ValueError) as error:
-        raise T3Error(f"{_at(url)} could not be read: {error}") from error
 
 
 class Listener(NoLookup, http.server.HTTPServer):
@@ -115,7 +77,7 @@ class Listener(NoLookup, http.server.HTTPServer):
 def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dict[str, Any]:
     """Sign in once. The user approves in the browser, and `login` stores the token and never
     prints it."""
-    meta = _get_json(f"{server}/.well-known/oauth-authorization-server")
+    meta = get_json(f"{server}/.well-known/oauth-authorization-server")
     verifier = secrets.token_urlsafe(48)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
     state = secrets.token_urlsafe(16)
@@ -137,7 +99,7 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
     listener = Listener(("127.0.0.1", 0), Callback)
     try:
         redirect = f"http://127.0.0.1:{listener.server_address[1]}/callback"
-        _, said = _post(
+        _, said = post(
             meta.get("registration_endpoint") or f"{server}/oauth/mcp/register",
             json.dumps(
                 {
@@ -178,7 +140,7 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
         listener.server_close()
     if got.get("error") or got.get("state") != state:
         raise Refused(f"refused: the approval came back as {got.get('error') or 'a wrong state'}")
-    _, said = _post(
+    _, said = post(
         meta["token_endpoint"],
         urllib.parse.urlencode(
             {
@@ -248,64 +210,14 @@ class Message:
         return self.kind == "user_message" and self.by == "user"
 
 
-class Client:
-    """A `Client` is one MCP session at `<server>/mcp`. `call` is the only way jbus reaches a
-    tool."""
+class Client(Session):
+    """A `Client` is one MCP session at `<server>/mcp` (`jsettings.t3.Session`). `call` is the
+    only way jbus reaches a tool."""
 
     def __init__(self, server: str, token_path: Path, *, timeout: float = 60) -> None:
-        self.url = f"{server}/mcp"
-        stored = read_json(token_path, {})
-        self._bearer = (stored.get("token") or {}).get("access_token")
-        if not self._bearer:
-            raise Refused(f"refused: no token in {token_path}: run `jbus t3 login`")
-        self._timeout = timeout
-        self._session: str | None = None
-        self._ids = 0
+        super().__init__(server, token_path, timeout=timeout)
         self.recipients: frozenset[str] = frozenset()
         self.moves: dict[str, tuple[dict[str, Any], tuple[str, ...]]] = {}
-
-    def _rpc(self, method: str, params: dict[str, Any] | None, *, notify: bool = False) -> Any:
-        self._ids += 1
-        body: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
-        if params is not None:
-            body["params"] = params
-        if not notify:
-            body["id"] = self._ids
-        headers = {
-            "content-type": "application/json",
-            "accept": "application/json, text/event-stream",
-            "authorization": f"Bearer {self._bearer}",
-        }
-        if self._session:
-            headers["mcp-session-id"] = self._session
-            headers["mcp-protocol-version"] = PROTOCOL
-        got, said = _post(self.url, json.dumps(body).encode(), headers, self._timeout)
-        self._session = got.get("mcp-session-id") or self._session
-        if notify:
-            return None
-        text = said.decode()
-        if "text/event-stream" in (got.get("content-type") or ""):
-            replies = [json.loads(line[5:]) for line in text.splitlines() if line[:5] == "data:"]
-        else:
-            replies = [json.loads(text)] if text.strip() else []
-        for reply in replies:
-            if isinstance(reply, dict) and reply.get("id") == body["id"]:
-                if "error" in reply:
-                    raise T3Refused(f"{method}: {reply['error'].get('message', reply['error'])}")
-                return reply.get("result")
-        raise T3Error(f"{method}: the reply was lost")
-
-    def _open(self) -> None:
-        if self._session is None and self._ids == 0:
-            self._rpc(
-                "initialize",
-                {
-                    "protocolVersion": PROTOCOL,
-                    "capabilities": {},
-                    "clientInfo": {"name": "jbus", "version": "0.1.0"},
-                },
-            )
-            self._rpc("notifications/initialized", None, notify=True)
 
     def tools(self) -> list[dict[str, Any]]:
         self._open()
