@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-import jbus
 from jbriefs.home import home_of
 from jbriefs.parse import thread_of
 from jbus import children
+from jmerge import judgement
 from test_jbus_kitchen import NOW, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 
@@ -247,12 +247,12 @@ def test_a_launch_keeps_the_home_its_queued_brief_names_in_the_brief_it_writes(k
     brief = kitchen.home / "tasks/alpha.md"
     if copied:
         brief.parent.mkdir(parents=True, exist_ok=True)
-        brief.write_text(jbus.queue.body(stored))
+        brief.write_text(judgement.body(stored))
     kitchen.poll()
     copy = brief.read_text()
     assert [line for line in copy.splitlines() if line.startswith("Home:")] == ["Home: flow"]
     assert home_of(kitchen.home, copy) == flow
-    assert jbus.queue.brief_sha(copy) == jbus.queue.brief_sha(stored)
+    assert judgement.brief_sha(copy) == judgement.brief_sha(stored)
     assert "Home: flow\n" in kitchen.t3.launches[0]["message"]
     assert "out alpha: row launched" in children.out(kitchen.home, flow, kitchen.state, [])
     assert kitchen.lines("gate") == []

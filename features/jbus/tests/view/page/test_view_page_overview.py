@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from jbus import alert, queue
+from jmerge import judgement
 from view.days import DAYS, TODAY, lineup
 from view.page.browser import (
     BROWSES,
@@ -645,7 +646,7 @@ def one_to_approve(scene):
     brief = queue.brief_path(scene.state, "tea-kettle")
     brief.parent.mkdir(exist_ok=True)
     brief.write_text(REQUEST.format(slug="tea-kettle"))
-    return queue.brief_sha(brief.read_text())[:12]
+    return judgement.brief_sha(brief.read_text())[:12]
 
 
 COUNTED = 24

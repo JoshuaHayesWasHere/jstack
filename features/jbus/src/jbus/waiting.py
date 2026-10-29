@@ -109,6 +109,7 @@ from jbus import (
 )
 from jbus.passes import CONDITION, Pass, Slot
 from jbus.watch import World, at_work
+from jmerge import judgement
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -268,7 +269,7 @@ def unapproved(run: Pass, rows: list[queue.Row]) -> list[Item]:
     for row in sorted(rows, key=queue.order):
         slug = row["slug"]
         if row.get("status", "queued") == "queued" and not row.get("approved"):
-            sha = queue.brief_sha(queue.brief(run.state, slug) or "")[:12]
+            sha = judgement.brief_sha(queue.brief(run.state, slug) or "")[:12]
             line = f"approve {slug}: {approve(run.project.name, slug, sha, run.user)}"
             found.append({"kind": "approve", "key": f"approve:{slug}", "line": line, "slug": slug})
     return found

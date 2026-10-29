@@ -1,5 +1,5 @@
-"""What `jmerge` judged of each pull request in a pass: the lines it printed (`Said`), and the
-step each line puts its pull request on (`step`, which `jmerge.judgement` makes for both).
+"""What `jmerge` judged of each pull request in a pass: the lines it printed (`Said`). The step
+each line puts its pull request on is `jmerge.judgement.step`, which both read.
 
 `jbus.merge` runs `jmerge` and keeps its lines, and `jbus.watch` reads them. They are here, below
 both, since `jbus.merge` sends through the outbox, and the outbox reads `jbus.watch`.
@@ -7,7 +7,6 @@ both, since `jbus.merge` sends through the outbox, and the outbox reads `jbus.wa
 
 from __future__ import annotations
 
-from jmerge.judgement import step as step
 from jmerge.lines import one as parse
 
 

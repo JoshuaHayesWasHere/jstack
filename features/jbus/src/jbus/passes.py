@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import jbus
 from jbus import Config, Project, queue, read_json, verbs
 from jbus.wake import COMMAND_TIMEOUT, Box
+from jmerge import judgement
 from jsettings import proc
 
 if TYPE_CHECKING:
@@ -150,7 +151,7 @@ def _done(args: argparse.Namespace, config: Config) -> int:
     if not text:
         raise jbus.Refused("refused: no lines on stdin")
     line = f"result {args.slug}: {text.splitlines()[0]}"
-    new = run.find(args.slug, "result", line, text, key=f"piped {queue.sha(text)[:16]}")
+    new = run.find(args.slug, "result", line, text, key=f"piped {judgement.sha(text)[:16]}")
     print("queued" if new else "already sent")
     return 0
 

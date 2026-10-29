@@ -9,6 +9,7 @@ import pytest
 
 from jbriefs import meaning, parse
 from jbus import dispatch, queue
+from jmerge import judgement
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import gates, go, rows
 from testing.paths import REPO
@@ -114,7 +115,7 @@ def test_an_approved_brief_edited_outside_its_meaning_stays_approved_and_launche
     assert gates(kitchen) == []
     (launch,) = kitchen.t3.launches
     assert launch["title"] == "crew: alpha"
-    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(queue.body(again), again)}"
+    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(judgement.body(again), again)}"
 
 
 def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
@@ -304,7 +305,7 @@ def test_verify_prints_the_record_and_whether_the_go_holds_for_a_brief(kitchen, 
     shown = json.loads(said)
     row = rows(kitchen)["alpha"]
     record = row["approval"]
-    stored = queue.brief_sha(APPROVED)
+    stored = judgement.brief_sha(APPROVED)
     assert (shown["slug"], shown["holds"], shown["brief_sha"]) == ("alpha", True, stored)
     assert shown["approval"] == record
     assert (record["basis"], record["ref"], record["brief_sha"]) == ("word", "said-by-user", stored)
@@ -316,7 +317,7 @@ def test_verify_prints_the_record_and_whether_the_go_holds_for_a_brief(kitchen, 
     code, said = kitchen.main("queue", "verify", "alpha", "--brief", str(held))
     shown = json.loads(said)
     assert (code, shown["holds"], shown["approval"]) == (0, True, record)
-    assert shown["brief"]["brief_sha"] == queue.brief_sha(REWORDED) != stored
+    assert shown["brief"]["brief_sha"] == judgement.brief_sha(REWORDED) != stored
 
     held.write_text(APPROVED.replace("Size: M", "Size: L"))
     code, said = kitchen.main("queue", "verify", "alpha", "--brief", str(held))
@@ -331,7 +332,7 @@ def old_go(kitchen):
     table = json.loads((kitchen.state / "queue.json").read_text())
     for column in ("brief_sha", "scope", "meaning"):
         table[0]["approval"].pop(column)
-    table[0]["brief_sha"] = queue.sha(APPROVED)
+    table[0]["brief_sha"] = judgement.sha(APPROVED)
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     code, said = kitchen.main("queue", "verify", "alpha")
     assert (code, json.loads(said)["holds"]) == (0, True)
@@ -531,7 +532,9 @@ def test_a_go_given_again_while_a_pass_runs_is_judged_with_the_brief_it_binds(ki
     assert kitchen.lines("waiting-on-user") == []
     assert gates(kitchen) == []
     (launch,) = kitchen.t3.launches
-    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(queue.body(APPROVED), APPROVED)}"
+    assert (
+        launch["message"] == f"/crew alpha\n\n{dispatch.homed(judgement.body(APPROVED), APPROVED)}"
+    )
 
 
 def test_the_lines_a_launch_writes_keep_the_go(kitchen):
@@ -542,12 +545,12 @@ def test_the_lines_a_launch_writes_keep_the_go(kitchen):
     again = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-launched-thread")
     code, said = add(kitchen, again)
     assert code == 0 and "does not hold" not in said, said
-    assert queue.brief_sha(again) == queue.brief_sha(APPROVED)
-    assert queue.approved_text(rows(kitchen)["alpha"], again)
+    assert judgement.brief_sha(again) == judgement.brief_sha(APPROVED)
+    assert judgement.approved_text(rows(kitchen)["alpha"], again)
     kitchen.poll()
     assert gates(kitchen) == [] and kitchen.lines("waiting-on-user") == []
     (launch,) = kitchen.t3.launches
-    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(queue.body(APPROVED), again)}"
+    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(judgement.body(APPROVED), again)}"
 
 
 @pytest.mark.parametrize("held_again", ["approved again", "the brief changed back"])
@@ -561,7 +564,7 @@ def test_a_brief_changed_gate_clears_the_pass_its_go_holds_again_with_no_hold(ki
     kitchen.poll()
     assert gates(kitchen) == ["condition alpha: brief changed after approval: Size: L"]
     (page,) = kitchen.lines("waiting-on-user")
-    now, was = queue.brief_sha(changed)[:12], queue.brief_sha(APPROVED)[:12]
+    now, was = judgement.brief_sha(changed)[:12], judgement.brief_sha(APPROVED)[:12]
     assert f"(brief now {now}, approved {was}; changed: Size: L)" in page
     if held_again == "approved again":
         assert go(kitchen, "alpha")[0] == 0

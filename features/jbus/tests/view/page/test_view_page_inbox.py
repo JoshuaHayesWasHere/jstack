@@ -5,6 +5,7 @@ the user writes about has in their place."""
 import pytest
 
 from jbus import queue
+from jmerge import judgement
 from test_jbus_kitchen import complete
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, PROBE, look
 from view.scene import GATE, Served
@@ -25,7 +26,7 @@ def test_approve_and_its_undo_reach_jbus_and_a_gate_links_to_its_home(tmp_path, 
     )
     assert code == 0, said
     counter.passes(1)
-    sha = queue.brief_sha(queue.brief(counter.state, "oat-milk"))[:12]
+    sha = judgement.brief_sha(queue.brief(counter.state, "oat-milk"))[:12]
     (counter.kitchen.home / "gates.md").write_text(
         GATE.format(n=40, asked="which jar?", status="open", default="")
     )
@@ -78,7 +79,7 @@ def test_the_drawer_of_what_waits_approves_a_row_in_place_and_hands_over_no_cli_
     )
     assert code == 0, said
     counter.passes(1)
-    sha = queue.brief_sha(queue.brief(counter.state, "oat-milk"))[:12]
+    sha = judgement.brief_sha(queue.brief(counter.state, "oat-milk"))[:12]
     served = Served(counter)
     try:
         seen = look(

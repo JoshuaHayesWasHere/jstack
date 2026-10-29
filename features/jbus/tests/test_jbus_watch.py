@@ -12,6 +12,7 @@ import pytest
 import jbus
 import jbus.queue
 from jbus import poll
+from jmerge import judgement
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
 
@@ -216,7 +217,7 @@ def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitche
         assert said in text
     assert "feat: older (#6)" not in text
     filed_as(text, "main")
-    assert jbus.queue.brief_sha(text) == jbus.queue.brief_sha(
+    assert judgement.brief_sha(text) == judgement.brief_sha(
         (kitchen.state / "briefs" / "main-red-dddddddddddd.md").read_text()
     )
     assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [
@@ -623,7 +624,7 @@ def test_a_red_browser_run_files_one_brief_approved_by_rule_naming_its_failed_te
     assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
     run = 'the red run "the browser run 88 failed on 2026-10-12, 2 tests named"'
     assert run in browser_red(kitchen)[0]["approved"]
-    assert jbus.queue.brief_sha(text) == jbus.queue.brief_sha(
+    assert judgement.brief_sha(text) == judgement.brief_sha(
         (kitchen.state / "briefs" / "browser-red-2026-10-12.md").read_text()
     )
     line = "retro browser-red-2026-10-12: the browser run 88 failed on 2026-10-12, 2 tests named"

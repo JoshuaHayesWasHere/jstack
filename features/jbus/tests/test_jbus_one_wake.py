@@ -17,6 +17,7 @@ import pytest
 
 import jbus
 from jbus import alert, alive, blockers, mirror, questions, queue, wake
+from jmerge import judgement
 from test_jbus_kitchen import (
     ASK,
     KEY,
@@ -64,7 +65,7 @@ def logged(kitchen):
 def approving(slug):
     """Return the decision line of a row that waits for the user's approval of its brief."""
     state = jbus.load().state(jbus.load().project("demo"))
-    sha = queue.brief_sha(queue.brief(state, slug))[:12]
+    sha = judgement.brief_sha(queue.brief(state, slug))[:12]
     command = f"jbus --project demo queue approve {slug} --sha {sha} with {queue.BASIS}"
     reply = f'Reply: "demo approve {slug}: go"'
     return f"decision {slug}: approve {slug}: {command}, {WHY_APPROVE}. {reply}"

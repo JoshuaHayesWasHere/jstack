@@ -37,6 +37,7 @@ import repo_template
 from jbriefs import meaning
 from jbus import acts, cli, live, party, poll, queue, t3, verbs, wake, word
 from jgauge import slot, waiters
+from jmerge import judgement
 from jroles import ledger
 from repo_template import IDENTITY
 from test_room import BIN, FRESH, IDLE, machine
@@ -1158,9 +1159,9 @@ def complete(slug, more=""):
 def bound(kitchen, slug, project="demo"):
     """Return what an approval record holds of the brief stored now: its sha and its fingerprint."""
     text = (kitchen.state_dir / project / "briefs" / f"{slug}.md").read_text()
-    made = jbus.queue.fingerprint(text)
+    made = judgement.fingerprint(text)
     return {
-        "brief_sha": jbus.queue.brief_sha(text),
+        "brief_sha": judgement.brief_sha(text),
         "scope": meaning.fingerprint(made),
         "meaning": made,
     }
@@ -1262,7 +1263,7 @@ def queued(kitchen, slug, text=None):
     """Add a row of the queue, approved, as the Chef adds one."""
     text = text or complete(slug)
     assert kitchen.main("queue", "add", slug, "--priority", "1", stdin=text)[0] == 0
-    sha = jbus.queue.brief_sha(text)[:12]
+    sha = judgement.brief_sha(text)[:12]
     go = ["queue", "approve", slug, "--word", kitchen.word(), "--sha", sha]
     assert kitchen.main(*go)[0] == 0
 

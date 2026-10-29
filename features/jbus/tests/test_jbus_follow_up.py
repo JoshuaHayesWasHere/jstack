@@ -15,6 +15,7 @@ import pytest
 
 import jbus
 from jbus import blockers, queue
+from jmerge import judgement
 from test_jbus_kitchen import NOW, RAN, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
@@ -241,7 +242,7 @@ def test_a_follow_up_whose_brief_changed_meaning_is_approved_by_rule_again(kitch
     said = add(kitchen, "cleanup-alpha", text=wider)
     line = BY_RULE.format(parent="alpha", ran=RAN)
     assert said[-1] == f"approved cleanup-alpha: brief {sha12(wider)}, {line}"
-    assert queue.approved_text(rows(kitchen)["cleanup-alpha"], wider)
+    assert judgement.approved_text(rows(kitchen)["cleanup-alpha"], wider)
 
 
 def test_queue_add_help_gives_the_follow_up_rule_by_what_it_says(kitchen):

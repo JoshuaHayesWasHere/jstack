@@ -39,6 +39,7 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
 from jbus.wake import notify
 from jbus.watch import World, task_brief
+from jmerge import judgement
 from jmerge import stacked as stacks
 from jmerge.lines import READY
 from jsettings import store
@@ -128,7 +129,7 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
                 found |= roots(other, seen)
             return found
         if reason is None and row and not row.get("approved"):
-            sha = queue.brief_sha(queue.brief(run.state, slug) or "")[:12]
+            sha = judgement.brief_sha(queue.brief(run.state, slug) or "")[:12]
             return {f"approve:{slug}": f"approve {slug}: {waiting.approve(name, slug, sha, user)}"}
         return {}
 
@@ -159,7 +160,7 @@ def done(run: Pass, world: World | None, rows: list[queue.Row] | None, key: str)
     row = next((row for row in rows if row["slug"] == slug), None)
     if row is None or kind == "approve":
         return row is None or bool(row.get("approved"))
-    return queue.approved_text(row, queue.brief(run.state, slug) or "")
+    return judgement.approved_text(row, queue.brief(run.state, slug) or "")
 
 
 def tell(

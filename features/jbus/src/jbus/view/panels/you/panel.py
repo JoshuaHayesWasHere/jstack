@@ -64,6 +64,7 @@ from jbus.view.state import (
     when,
 )
 from jbus.view.writes import SEND, VIEW, Answer, said
+from jmerge import judgement
 
 FIRST = True
 _WAITS = {
@@ -460,7 +461,7 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
         row["slug"]
         for row in read.rows
         if row.get("approved")
-        and queue.approved_text(row, queue.brief(read.state, row["slug"]) or "")
+        and judgement.approved_text(row, queue.brief(read.state, row["slug"]) or "")
     }
     queues: dict[str, list[dict[str, Any]]] = {NEEDS: [], PROCEEDS: []}
     for one in waits:
@@ -490,7 +491,7 @@ def _acted(read: Read, one: dict[str, Any]) -> dict[str, Any]:
     act = ACTS.get(kind) or (ANSWERS if kind == "gate" and one["answerable"] else THREADS)
     sha, written = "", None
     if kind == "approve" and _SLUG.fullmatch(one["slug"]):
-        sha = queue.brief_sha(queue.brief(read.state, one["slug"]) or "")[:12]
+        sha = judgement.brief_sha(queue.brief(read.state, one["slug"]) or "")[:12]
         written = _mtime(queue.brief_path(read.state, one["slug"]))
     return one | {
         "act": act,
@@ -582,7 +583,7 @@ def _approve(app: Any, name: str, body: bytes) -> Answer:
     row = queue.fresh(state, slug)
     if row is None or row.get("approved") or row.get("status", "queued") != "queued":
         return _refused(409, f"{slug} is no row that waits for a go, and nothing changed.")
-    now_is = queue.brief_sha(queue.brief(state, slug) or "")[:12]
+    now_is = judgement.brief_sha(queue.brief(state, slug) or "")[:12]
     if now_is != sha:
         say = f"{slug}'s brief is {now_is} now, not the {sha} you saw: read it, then approve it."
         return _refused(409, say)
