@@ -59,8 +59,8 @@ _LOOSE = (
 _SPAN = re.compile(r"`([^`\n]+)`")
 _PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
 
-SIZES = ("S", "M", "L", "XL")
-_SIZES = "(S, M, L or XL)"
+SIZES = ("S", "M", "L")
+_SIZES = "(S, M or L)"
 _PLAYBOOK = "(name a file in playbooks/, without its .md, or none)"
 
 
@@ -300,7 +300,7 @@ def playbook(text: str) -> str:
     return f"brief's Playbook: line {fault} {_PLAYBOOK}"
 
 
-NO_DESIGN = "brief has no Design: line (run /architect or say none, <why>)"
+NO_DESIGN = "brief's Design: line gives no design call (run /architect or say none, <why>)"
 _NONE = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
 _DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
 
@@ -309,13 +309,13 @@ def designed(text: str) -> str:
     """Why a brief has no design call, as one line. It is an empty string when it has one.
 
     The first `Design:` line of its head gives the call: the path of the design the brief
-    was written from, a file with its extension, or `none, <why>`. A `none` with no reason
-    gives no call. Neither does a word that names no file (`TBD`, `n/a`), or the template's
-    own line left unchanged.
+    was written from, a file with its extension, or `none, <why>`. A brief with no such line
+    needs no design, as `none` would say. A `none` with no reason gives no call. Neither does
+    a word that names no file (`TBD`, `n/a`), or the template's own line left unchanged.
     """
     said = head(text, "Design:")
     if said is None:
-        return NO_DESIGN
+        return ""
     named = not said.startswith("<") and _DESIGN.search(said)
     return "" if _NONE.match(said) or named else NO_DESIGN
 
@@ -616,9 +616,9 @@ def faults(text: str) -> list[str]:
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
     filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills`, `Builds on` and `Load` to their
-    own checks. Those checks report a missing line, for `Skills` the check reports instead that a
-    brief with no line names no skill, and `Builds on` and `Load` need no line. A brief with no
-    fault is complete. This check runs when a row is first queued and does not
+    own checks. `Size`'s reports a missing line, while a brief with no `Design:` or `Skills:` line
+    needs no design and names no skill, as `none` would say, and `Builds on` and `Load` need no
+    line. A brief with no fault is complete. This check runs when a row is first queued and does not
     run again at a launch, so a brief that already has a go launches without being checked
     again (`jbus.queue`).
     """

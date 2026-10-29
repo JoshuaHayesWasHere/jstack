@@ -201,7 +201,7 @@ def test_an_approved_brief_whose_goal_or_scope_changed_asks_again_and_names_the_
 @pytest.mark.parametrize(
     "line, fault",
     [
-        ("Size: M\n", "brief has no Size: line (S, M, L or XL)"),
+        ("Size: M\n", "brief has no Size: line (S, M or L)"),
         (
             "Playbook: feature\n",
             "brief has no Playbook: line",
@@ -224,7 +224,7 @@ def test_queue_add_refuses_a_brief_missing_a_field_and_queues_nothing(kitchen, l
 def test_queue_add_says_every_fault_one_line_each(kitchen):
     text = (
         "# alpha: a brief\nTask: <the request>\nDone when:\nProves it: the crewmate reviews it\n"
-        "Size: medium\nWhere: `src/`\nPull request: open one when done\nReview: review\n"
+        "Size: medium\nWhere: `src/`\nPull request: open one when done\nReview: after\n"
         "Playbook: autopilot-full\nDesign: TBD\n"
     )
     code, said = add(kitchen, text)
@@ -235,13 +235,13 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
         "- brief's Done when: line is empty",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
-        "- brief's Size: line says medium (S, M, L or XL)",
-        "- brief's Review: line says review with no Decisions: line giving the user's words for "
-        "it: write Review: twice, the default, or none for text-only or throwaway work, or put "
-        "the user's words on a Decisions: line",
+        "- brief's Size: line says medium (S, M or L)",
+        "- brief's Review: line says after with no Decisions: line giving the user's words for "
+        "it: write Review: twice, the default, review, or none for text-only or throwaway work, "
+        "or put the user's words on a Decisions: line",
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
-        "- brief has no Design: line (run /architect or say none, <why>)",
+        f"- {parse.NO_DESIGN}",
     ]
     assert not queue.brief_path(kitchen.state, "alpha").exists()
 
@@ -291,7 +291,7 @@ def test_a_batch_whose_add_has_a_faulty_brief_applies_nothing(kitchen):
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert code == 1
     assert said.startswith(
-        "refused: line 2: beta's brief has 9 faults, and nothing is queued, and nothing in the "
+        "refused: line 2: beta's brief has 8 faults, and nothing is queued, and nothing in the "
         "batch was applied\n- brief has no Task: line\n"
     ), said
     assert (kitchen.state / "queue.json").read_text() == before

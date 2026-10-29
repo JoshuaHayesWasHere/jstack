@@ -116,7 +116,7 @@ These five lines must also hold the right kind of value, and `add` makes more ch
 
 ```text
 refused: alpha's brief has 2 faults, and nothing is queued
-- brief has no Size: line (S, M, L or XL)
+- brief has no Size: line (S, M or L)
 - brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a file in playbooks/, without its .md, or none)
 ```
 

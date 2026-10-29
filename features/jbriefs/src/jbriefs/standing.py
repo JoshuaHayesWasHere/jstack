@@ -1,9 +1,9 @@
 """Three of the user's standing rules, as checks of a brief's fields (`jbriefs.parse.fields`).
 
 `parse.faults` runs all three when a row is first queued. One holds a brief to `Review: twice`
-unless the user's word says otherwise, one holds its CPU load to a bounded one, and one keeps its
-`Builds on:` line from stacking it by plan layer. Each takes the fields and returns why the brief
-breaks the rule as one line, or an empty string.
+or `review` unless the user's word says otherwise, one holds its CPU load to a bounded one, and
+one keeps its `Builds on:` line from stacking it by plan layer. Each takes the fields and returns
+why the brief breaks the rule as one line, or an empty string.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from collections.abc import Iterable
 
 Fields = Iterable[tuple[str, list[str]]]
 
-_ASKED_REVIEW = ("review", "after", "cleanup")
+_ASKED_REVIEW = ("after", "cleanup")
 _MARKER = re.compile(r"^[\s\"'*+-]+")
 _NONE = re.compile(r"none\b", re.I)
 _NONE_WHY = re.compile(r"none[ \t]*,[ \t]*\S", re.I)
@@ -28,11 +28,11 @@ def review(fields: Fields, unfilled: str) -> str:
     its `Decisions:` field is not filled in (`parse._filled`), or an empty string.
 
     `twice` is the default (the user, 2026-10-21: "from now on do one round of addressing fixes
-    and then another round of review"), and `none` is for text-only or throwaway work. A brief
-    that asks for `review`, `after` or `cleanup` says why on its `Decisions:` line: the user's
-    words, or `none, <why>` where jbus files the brief itself, as `jbus cleanup` files each
-    `cleanup` row. A line that is missing, the template's own
-    text, or a `none` with no reason after a comma (`none`, `none yet`) gives no word.
+    and then another round of review"), `review` is one round as the template offers it, and
+    `none` is for text-only or throwaway work. A brief that asks for `after` or `cleanup` says
+    why on its `Decisions:` line: the user's words, or `none, <why>` where jbus files the brief
+    itself, as `jbus cleanup` files each `cleanup` row. A line that is missing, the template's
+    own text, or a `none` with no reason after a comma (`none`, `none yet`) gives no word.
     """
     fields = list(fields)
     said = (_first(fields, "Review") or [""])[0].split()
@@ -44,8 +44,8 @@ def review(fields: Fields, unfilled: str) -> str:
         return ""
     return (
         f"brief's Review: line says {mode} with no Decisions: line giving the user's words "
-        "for it: write Review: twice, the default, or none for text-only or throwaway work, "
-        "or put the user's words on a Decisions: line"
+        "for it: write Review: twice, the default, review, or none for text-only or throwaway "
+        "work, or put the user's words on a Decisions: line"
     )
 
 
