@@ -78,9 +78,11 @@ One feature, start to finish: a row of the jbus queue from `add` to a launched t
 The other features are in each `features/<name>/verify.md`, and the shared test tooling's in [`testing/verify/`](../../../testing/verify/).
 
 ```sh
-printf '# alpha: a demo task\nWhere: `src/alpha/`\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1
+printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1
+printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
+word=$(record queue-row jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
 sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)
-record queue-row jbus queue approve alpha --by user --at "2026-10-12 00:30 $(perl -MPOSIX -e 'print strftime("%Z", localtime(mktime(0, 30, 0, 12, 9, 126, 0, 0, -1)))')" --sha "$sha"
+record queue-row jbus queue approve alpha --sha "$sha" --word "$word"
 record queue-row jbus poll
 record queue-row jbus queue show
 record queue-row jbus status
