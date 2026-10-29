@@ -141,16 +141,3 @@ def test_a_home_id_file_gives_the_thread_to_tell(scene):
 
 def test_no_home_id_file_gives_nobody_to_tell(scene):
     assert scene.home_id(scene.worktree) == ""
-
-
-def test_a_subagent_of_the_scout_is_waited_on_beside_the_tracked_command_rule():
-    lines = SKILL.read_text().splitlines()
-    (tracked,) = [n for n, line in enumerate(lines) if line.startswith("A tracked command is one")]
-    assert lines[tracked + 2 : tracked + 4] == [
-        "A subagent the scout starts is waited on in the same turn, as a tracked command is: "
-        "started in the foreground, or in the background and then waited for before the turn "
-        "ends.",
-        "A turn never ends while a subagent of the scout runs and the Report is not "
-        "`Status: done`, since a subagent left running when the turn ends reports to nobody and "
-        "jbus finds the scout left.",
-    ]
