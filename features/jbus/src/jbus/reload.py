@@ -5,15 +5,15 @@ after a merge that changed a skill, a thread out runs the old text. `jmerge` nam
 `merged` line each skill whose `SKILL.md` the merge changed (`jmerge.lines.skills_of`).
 
 `tell` keeps each such merge in `reload.json`, written before any send so a pass that stops
-partway loses none, until every thread that was out when the merge landed is told: one
-message a thread for every merge kept, under the key `reload|<commit 12>...|<thread>`, and each
-`reload|<commit 12>|<thread>` marked in `sent.json` once T3 Code took it. Once every one is told, the merge itself is marked,
-`reload|<commit 12>`, and a `merged` line printed again for it adds nothing. So a thread hears
-of a merge once, and a send that got no answer, or that the outbox held, goes on a later pass.
-A thread started after the merge loaded the new text and is not told. A thread is told only of
-the skills it loaded (`loaded`): the ones its role loads (`LOADS`), and each that its brief's
-`Skills:` line names. A thread whose title gives no role (`roles.OTHER`) is the user's own and is
-not told.
+partway loses none, until every thread that was out when the merge landed is told: one message a
+thread for every merge kept, under the key `reload|<commit 12>...|<thread>`, and each
+`reload|<commit 12>|<thread>` marked in `sent.json` once T3 Code took it. Once every one is
+told, the merge itself is marked, `reload|<commit 12>`, and a `merged` line printed again for it
+adds nothing. So a thread hears of a merge once, and a send that got no answer, or that the
+outbox held, goes on a later pass. A thread started after the merge loaded the new text and is
+not told. A thread is told only of the skills it loaded (`loaded`): the ones its role loads
+(`LOADS`), and each that its brief's `Skills:` line names. A thread whose title gives no role
+(`roles.OTHER`) is the user's own and is not told.
 """
 
 from __future__ import annotations
