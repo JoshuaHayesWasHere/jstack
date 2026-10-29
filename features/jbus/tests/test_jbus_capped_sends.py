@@ -22,7 +22,7 @@ from test_jbus_main_moved import checks, move, tip
 from test_jbus_main_moved import pull as red
 from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import listed
-from test_jbus_stack import LINK
+from test_jbus_stack import LINK, MERGE
 from test_jbus_stack import pulls as stack
 
 RESETS = NOW + timedelta(minutes=40)
@@ -96,7 +96,7 @@ def test_a_failed_check_message_waits_for_the_reset(kitchen):
 
 def test_a_restack_message_waits_for_the_reset(kitchen):
     """`two` builds on `one` (#10) and is stacked on its branch, as `test_jbus_stack` sets it up,
-    and the head of `one` moved."""
+    and `one` merged."""
     kitchen.word()
     kitchen.config(max_running=8)
     assert queue_add(kitchen, "one")[0] == 0 and go(kitchen, "one")[0] == 0
@@ -109,10 +109,10 @@ def test_a_restack_message_waits_for_the_reset(kitchen):
     for thread in kitchen.t3.threads:
         thread["status"] = "completed"
     stacked = kitchen
-    stack(stacked, base="e" * 40)
+    stack(stacked, merged=True)
     cap("claudeAgent")
     holds_then_sends_once(stacked, "restack", "two", "its restack message")
-    assert sent(stacked, "restack") == [f"restack|two|{LINK[:12]}|{'e' * 12}"]
+    assert sent(stacked, "restack") == [f"restack|two|{LINK[:12]}|{MERGE[:12]}"]
 
 
 def test_a_main_moved_message_waits_for_the_reset(kitchen):

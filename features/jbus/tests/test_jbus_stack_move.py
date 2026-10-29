@@ -40,13 +40,16 @@ def commit(tree, name, text, message=""):
 class Stack:
     """The git history of the stack, and what GitHub lists of it."""
 
-    def __init__(self, kitchen, conflict=False):
+    def __init__(self, kitchen, conflict=False, fixed=False):
         self.kitchen, tree = kitchen, kitchen.checkout
         self.start = git(tree, "rev-parse", "main")
         git(tree, "switch", "-q", "-c", "one")
         self.last = commit(tree, "one.txt", "one\n")
         git(tree, "switch", "-q", "-c", "two")
         self.head = commit(tree, "two.txt", "two\n")
+        if fixed:
+            git(tree, "switch", "-q", "one")
+            self.last = commit(tree, "fix.txt", "fix\n")
         git(tree, "push", "-q", "origin", "one", "two")
         git(tree, "switch", "-q", "main")
         self.merge = commit(tree, "one.txt", "one\n", "one (#10)")
@@ -221,3 +224,19 @@ def test_a_crew_worktree_that_cannot_follow_the_move_is_said(stack):
     assert any(f"could not follow the move to {moved[:12]}" in line for line in said)
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
     assert sends(kitchen) == []
+
+
+def test_a_link_whose_base_moved_while_open_is_told_once_when_it_merged(stacked, monkeypatch):
+    """`one` took a review fix after `two` was stacked on it, and `two` was not told of it, so its
+    head does not hold `one`'s last head: jbus leaves the branch as it was and tells the crew
+    once, in the pass that sees the merge."""
+    signed(monkeypatch)
+    stack = Stack(stacked, fixed=True)
+    said = stacked.poll(NOW)
+    assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
+    assert stack.origin("two") == stack.head
+    (told,) = [given["message"] for given in sends(stacked)]
+    assert "one merged as" in told and f"with {stack.last} as the branch it sat on" in told
+    assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
+    stacked.poll(NOW + timedelta(minutes=3))
+    assert len(sends(stacked)) == 1
