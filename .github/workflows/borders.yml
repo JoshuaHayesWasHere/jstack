@@ -35,3 +35,9 @@ jobs:
         env:
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: python3 scripts/lint-borders.py --hard --base HEAD^1 --labels "$LABELS"
+      # Fails, with an annotation for each, on a diff that changes a kept shot of the view and
+      # any other file: only the shots row redraws them, in a pull request of its own
+      # (features/jbus/src/jbus/shots.py). It runs after a failed lint too, so both say their say.
+      - name: kept shots
+        if: ${{ !cancelled() }}
+        run: python3 features/jbus/scripts/kept_shots.py --base HEAD^1
