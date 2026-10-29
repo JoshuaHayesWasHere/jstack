@@ -80,7 +80,7 @@ def _judged(brief: str, head: str) -> str:
     one would hide the findings it owes an answer: the review is judged as if the brief named no
     skill."""
     said = ready.short_of(brief, head)
-    if not re.fullmatch(ready.SKILLS_UNRUN.pattern, said):
+    if ready.code_of(said) != ready.SKILLS_UNRUN.code:
         return said
     return ready.short_of(_SKILLS.sub("Skills: none", brief, count=1), head)
 
@@ -94,7 +94,7 @@ def due(brief: str, head: str) -> Notice | None:
         return None
     reviewed = ran[-1].head
     reason = _judged(brief, head)
-    row = next((one for one in TABLE if one.reason.fullmatch(reason)), None)
+    row = next((one for one in TABLE if one.reason.code == ready.code_of(reason)), None)
     if row is None or row.kind not in OWED:
         return None
     at = [

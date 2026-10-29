@@ -173,7 +173,7 @@ def test_the_replay_every_pull_request_red_only_on_its_base_merges_and_none_runs
     assert all(", review carried over: range-diff " in line for line in carried), carried
     assert sorted(replay.updated()) == ["333", "339", "340", "341"]
     assert all(len(replay.journal(number)) == 1 for number in (333, 339, 340, 341))
-    assert replay.said[-1] == f"wait 339 {url(339)}: check has not passed"
+    assert replay.said[-1] == f"wait 339 {url(339)}: check has failed"
     assert replay.told == []
     assert replay.kitchen.at_main("one.txt") == "ours"
     assert not (replay.kitchen.home.state / "fresh.json").exists()
@@ -252,7 +252,7 @@ def test_a_failed_check_over_a_base_that_has_not_moved_since_is_the_pull_request
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     replay.main_at({"c.txt": "theirs\n"}, "2026-10-23T12:30:00Z", "green")
     replay.crew("one", 333, {"one.txt": "ours\n"})
-    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+    assert replay.run() == [f"wait 333 {url(333)}: check has failed"]
     assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
 
 
@@ -318,7 +318,7 @@ def test_a_failed_check_at_the_updated_head_holds_it(moved):
     replay.run()
     replay.github(FAILED_AFTER)
     for _ in range(2):
-        assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+        assert replay.run() == [f"wait 333 {url(333)}: check has failed"]
     assert replay.updated() == ["333"]
     assert not replay.slot.exists()
 
@@ -404,7 +404,7 @@ def test_a_pull_request_red_twice_on_the_same_test_of_its_own_is_not_given_main_
         assert said == [f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}"]
         assert replay.updated() == ["333"]
     else:
-        assert said == [f"wait 333 {url(333)}: {check} has not passed"]
+        assert said == [f"wait 333 {url(333)}: {check} has failed"]
         assert replay.updated() == []
         assert replay.run() == said and replay.updated() == []
 

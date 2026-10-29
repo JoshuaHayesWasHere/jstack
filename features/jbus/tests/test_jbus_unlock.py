@@ -13,7 +13,7 @@ from test_jbus_kitchen import NOW, asks, complete, sends
 from test_jbus_queue import add, gates
 
 URL = "https://example.test/pull/7"
-CHANGED = "main changed src/jbus/cli.py after its check started"
+CHANGED = "main changed src/jbus/cli.py after its check started at 07:00 ET; it needs a fresh check"
 
 
 def task(slug, *paths):
@@ -31,7 +31,7 @@ def test_a_row_whose_file_a_running_crew_names_is_launched(kitchen):
     assert "launched alpha: mcp:thread-2" in said and gates(kitchen) == []
 
 
-def out(kitchen, head="c" * 40, reason=CHANGED + ": it needs a rebase", word="wait"):
+def out(kitchen, head="c" * 40, reason=CHANGED, word="wait"):
     kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "headRefOid": head}])
     kitchen.set("jmerge.txt", f"{word} 7 {URL}: {reason}\n")
 
@@ -49,11 +49,10 @@ def launched(kitchen):
 @pytest.mark.parametrize(
     "reason",
     [
-        CHANGED + ": it needs a fresh check",
-        "its check fails on cccccccccccc over today's main",
+        CHANGED,
         "it conflicts with its base",
     ],
-    ids=["fresh", "fails over main", "conflict"],
+    ids=["fresh", "conflict"],
 )
 def test_a_stale_pull_request_tells_its_crew_to_rebase_with_a_backup_ref_and_a_lease(
     launched, reason
@@ -98,7 +97,7 @@ def test_a_head_is_told_once_and_a_new_head_that_is_stale_again_is_a_gate_not_a_
 
 @pytest.mark.parametrize(
     "first",
-    [CHANGED + ": it needs a rebase", "it conflicts with its base"],
+    [CHANGED, "it conflicts with its base"],
     ids=["stale then conflict", "conflict then conflict"],
 )
 def test_a_new_head_that_conflicts_again_is_told_to_rebase_again_not_gated(launched, first):
@@ -116,11 +115,8 @@ def test_a_new_head_that_conflicts_again_is_told_to_rebase_again_not_gated(launc
 
 @pytest.mark.parametrize(
     "reason",
-    [
-        "make check fails on cccccccccccc over today's main bbbbbbbbbbbb",
-        "it conflicts with its base",
-    ],
-    ids=["fails over main", "conflict"],
+    ["it conflicts with its base"],
+    ids=["conflict"],
 )
 def test_a_real_conflict_or_failure_tells_the_crew_to_rebase(launched, reason):
     out(launched, reason=reason)
@@ -152,7 +148,7 @@ def test_a_row_its_home_launched_by_hand_is_told_to_rebase_once_on_a_fresh_check
     kitchen.poll(NOW - timedelta(minutes=30))
     assert kitchen.t3.launches == []
     kitchen.t3.threads[0]["status"] = "completed"
-    out(kitchen, reason=CHANGED + ": it needs a fresh check")
+    out(kitchen, reason=CHANGED)
     for minutes in (0, 3, 6):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     (given,) = sends(kitchen)
@@ -217,15 +213,6 @@ def test_a_rebase_message_with_no_answer_waits_and_is_tried_again(launched):
         json.loads((launched.state / "sent.json").read_text()).count("rebase|alpha|cccccccccccc")
         == 1
     )
-
-
-def test_a_reason_that_names_a_head_the_crew_has_pushed_past_waits_for_the_next_pass(launched):
-    out(launched, head="d" * 40, reason="its check fails on cccccccccccc over today's main")
-    launched.poll()
-    assert sends(launched) == [] and launched.lines("rebase") == []
-    out(launched, head="d" * 40, reason="its check fails on dddddddddddd over today's main")
-    launched.poll(NOW + timedelta(minutes=3))
-    assert [given["clientRequestId"] for given in sends(launched)] == ["rebase|alpha|dddddddddddd"]
 
 
 def test_a_default_branch_that_is_not_known_sends_no_message_and_is_tried_again(launched):

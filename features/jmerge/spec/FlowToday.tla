@@ -168,7 +168,7 @@ CrewFix(p) ==
 \* jbus filed for it is over. jbus tells its crew, which fixes its change, and its checks run again.
 BrowserFix(p) ==
     /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py `world.open.items()`, open ones only
-    /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py `ready.BROWSER_RED.pattern`, its browser run failed
+    /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py `ready.BROWSER_RED`, its browser run failed
     /\ ~brHold                              \* features/jmerge/src/jmerge/rows.py `if red and not proves(red, failed, ran):`
     /\ brBreaks' = [brBreaks EXCEPT ![p] = FALSE]
     /\ brFail' = [brFail EXCEPT ![p] = FALSE]

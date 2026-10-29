@@ -33,8 +33,7 @@ class Reason(str):
     puts the pull request on, and its code. The code is the fixed name a `wait` or `hold` line
     carries beside the text (`lines.waits`), the constant's name in kebab case, so a reader
     tells one reason from another without reading the text. `format` keeps the step and the
-    code, so a filled-in reason still says which one it is: `NOT_PASSED` and `CHECK_FAILED`
-    read alike and differ only in their code."""
+    code, so a filled-in reason still says which one it is."""
 
     step: str
     code: str = ""
@@ -66,20 +65,13 @@ def reasons() -> dict[str, Reason]:
 UNKNOWN = "unknown"
 """The code of a reason that no rule of `rules` names: the view shows it in its Unknown lane."""
 ELSEWHERE = (
-    ("no-proof", "proof", r"no proven safety fact"),
-    ("patch-changed", "second", r"the rebase changed the patch after"),
-    ("needs-rebase", "rebase", r"needs a rebase"),
-    ("check-unfinished", "check", r"check has not finished"),
-    ("fresh-check", "check", r"fresh check"),
+    ("fresh-check", "check", r"^a fresh check "),
     ("unfetched", "check", r"could not be fetched"),
-    ("rules-behind", "check", r"jmerge's own rules"),
-    ("head-moved", "findings", r"^its head moved after"),
-    ("findings-unended", "findings", r"^\d+ of its \d+ findings have no Finding line"),
 )
 """The code, step and pattern of each reason `jmerge` writes as plain text, from outside
-`Reason` (its run, its proof and its range-diff), and of the reasons an older `jmerge` wrote,
-which a log may still have."""
-_GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
+`Reason` (its range-diff and its fetch of the base), and of the fresh check an older `jmerge`
+queued, which the last week of a log still has. The fresh check's pattern holds to the start of
+the text, so that `MAIN_CHANGED`, which also ends `a fresh check`, keeps its own code."""
 
 
 def rules() -> tuple[tuple[str, str, str], ...]:
@@ -92,13 +84,11 @@ def rules() -> tuple[tuple[str, str, str], ...]:
 
 def code_of(why: str) -> str:
     """The code of a reason: a `Reason`'s own, and for plain text the code of the first rule of
-    `rules` whose pattern matches it, past a `guarded (touches <path>), ` before it, which an
-    older `jmerge` wrote. A line from before the codes is read this way too. `UNKNOWN` where no
-    rule names it."""
+    `rules` whose pattern matches it. A line from before the codes is read this way too.
+    `UNKNOWN` where no rule names it."""
     if isinstance(why, Reason) and why.code:
         return why.code
-    reason = _GUARDED.sub("", why)
-    return next((code for code, _, pattern in rules() if re.search(pattern, reason)), UNKNOWN)
+    return next((code for code, _, pattern in rules() if re.search(pattern, why)), UNKNOWN)
 
 
 def codes() -> frozenset[str]:
@@ -190,7 +180,7 @@ CONTENT_CHANGED = Reason(
     "the rebase changed the content after its review; scoped review of {command}",
 )
 NOT_PASSED = Reason("check", "{check} has not passed")
-CHECK_FAILED = Reason("check", "{check} has not passed")
+CHECK_FAILED = Reason("check", "{check} has failed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
 LIVE_RUN = Reason("check", "{check}'s run at {head} is {state}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")

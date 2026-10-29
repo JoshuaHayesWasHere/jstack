@@ -161,7 +161,7 @@ BEFORE = {
         "threads.out stall.hung watch.gone rebase.tell expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
         [
-            ("jmerge", f"wait 7 {URL}: {CHANGED}: it needs a rebase"),
+            ("jmerge", f"wait 7 {URL}: {CHANGED}"),
             ("result", "result alpha: done"),
             ("review", "review alpha: findings"),
             ("rebase", "rebase alpha: told the crew (#7, <head>)"),

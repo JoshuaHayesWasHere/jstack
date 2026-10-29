@@ -78,7 +78,7 @@ def test_a_row_waits_for_what_a_wait_or_a_hold_line_gives_as_its_reason(tmp_path
     ("printed", "short"),
     [
         ([REFUSED], "it is not held"),
-        ([f"wait 12 {URL}/12: a check has not finished"], "a check has not finished"),
+        ([f"wait 12 {URL}/12: check has not passed"], "check has not passed"),
         ([f"hold 12 {URL}/12: needs user"], "needs user"),
         ([f"refused 13 {URL}/13: another pull request", REFUSED], "it is not held"),
         (["refused 12: no open pull request has that number"], ""),

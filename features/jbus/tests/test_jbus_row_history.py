@@ -43,12 +43,12 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
     thread["status"] = "completed"
     kitchen.brief("beta", RESULT)
     kitchen.set("open.json", [kitchen.opened("alpha", 8), kitchen.opened("beta", 9, "")])
-    pending = "wait 9 https://example.test/pull/9: a check has not finished\n"
+    pending = "wait 9 https://example.test/pull/9: check has not passed\n"
     kitchen.set("jmerge.txt", NO_REVIEW + pending)
     kitchen.poll(LATER)
     assert waits(kitchen) == {
         "alpha": ("wait: it has no review yet", FIRST),
-        "beta": ("wait: a check has not finished", SECOND),
+        "beta": ("wait: check has not passed", SECOND),
         "gamma": ("depends on beta, alpha", FIRST),
     }
     assert transitions(kitchen) == [
@@ -62,7 +62,7 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
         f"| pr |  | #8 | passed | {FIRST} | wait: it has no review yet | {FIRST} |  |"
     )
     assert shown[3].endswith(
-        f"| pr | mcp:thread-1 | #9 | pending | {SECOND} | wait: a check has not finished "
+        f"| pr | mcp:thread-1 | #9 | pending | {SECOND} | wait: check has not passed "
         f"| {SECOND} |  |"
     )
     assert shown[4].endswith(f"| queued |  |  |  |  | depends on beta, alpha | {FIRST} |  |")
@@ -157,7 +157,7 @@ def test_a_jmerge_that_dies_after_one_line_keeps_the_reason_of_the_row_it_did_no
         add(kitchen, slug, approve=False)
         kitchen.brief(slug, RESULT)
     kitchen.set("open.json", [kitchen.opened("alpha", 8), kitchen.opened("beta", 9)])
-    pending = "wait 9 https://example.test/pull/9: a check has not finished\n"
+    pending = "wait 9 https://example.test/pull/9: check has not passed\n"
     kitchen.set("jmerge.txt", NO_REVIEW + pending)
     kitchen.poll()
     kitchen.set("jmerge.txt", "hold 8 alpha: needs a rebase\n")
@@ -166,7 +166,7 @@ def test_a_jmerge_that_dies_after_one_line_keeps_the_reason_of_the_row_it_did_no
     assert "wait demo: jmerge stopped after 1 lines (jmerge: gh stopped answering)" in said
     assert waits(kitchen) == {
         "alpha": ("hold: needs a rebase", SECOND),
-        "beta": ("wait: a check has not finished", FIRST),
+        "beta": ("wait: check has not passed", FIRST),
     }
 
 

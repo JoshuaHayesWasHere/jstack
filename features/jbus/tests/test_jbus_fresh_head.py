@@ -81,7 +81,7 @@ class Due:
     def at(self, head, mergeable="MERGEABLE"):
         kitchen, red = self.kitchen, self.kind == "mainmoved"
         says = {
-            "rebase": f"{CHANGED}: it needs a rebase",
+            "rebase": CHANGED,
             "rereview": waits(head),
             "drops": unsaid(head),
         }
@@ -143,7 +143,7 @@ def stale(kitchen, state="SUCCESS", mergeable="CONFLICTING", says=CONFLICT):
     return due
 
 
-RED = {"state": "FAILURE", "mergeable": "MERGEABLE", "says": f"{CHANGED}: it needs a rebase"}
+RED = {"state": "FAILURE", "mergeable": "MERGEABLE", "says": CHANGED}
 
 
 @pytest.mark.parametrize("first", ["rebase", "mainmoved"])

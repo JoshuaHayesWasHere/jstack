@@ -101,4 +101,4 @@ def test_a_review_that_lands_while_it_is_open_leaves_its_reasons_as_they_were(tm
     after(kitchen, "alpha")
     before = kitchen.run("--check")
     after(kitchen, "alpha", review(head=head))
-    assert kitchen.run("--check") == before == [f"wait 7 {url(7)}: {merge.NOT_PASSED}"]
+    assert kitchen.run("--check") == before == [f"wait 7 {url(7)}: {merge.CHECK_FAILED}"]

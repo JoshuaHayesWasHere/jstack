@@ -172,7 +172,7 @@ def lineup(scene, counts, merged=30, gates=6):
                     checked.append(slug)
                 if at % 2:
                     log.append(logged(90 + at, word, number, reason))
-                    log.append(logged(80 + at, "wait", number, "a check has not finished"))
+                    log.append(logged(80 + at, "wait", number, "check has not passed"))
                 log.append(logged(10 + 25 * at, word, number, reason))
                 if kind == "hold":
                     listed.append(

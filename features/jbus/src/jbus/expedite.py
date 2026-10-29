@@ -126,17 +126,19 @@ MESSAGE = (
 
 @dataclass(frozen=True)
 class Short:
-    """A `Short` holds one thing a crew can fix: the word, the reason that `jmerge` gives for it,
-    and the sentence that tells the crew what to do. `reviewed` marks a reason that a review clears.
-    `tell` does not send such a reason while a reviewer is at work. `unless` reads the brief for a
-    head, and says when the crew cannot fix the thing after all. `sends` is the line that the
+    """A `Short` holds one thing a crew can fix: the word, the `Reason` that `jmerge` gives for it,
+    and the sentence that tells the crew what to do. A line is the row's when its reason has that
+    `Reason`'s code.
+    `reviewed` marks a reason that a review clears. `tell` does not send such a reason while a
+    reviewer is at work. `unless` reads the brief for a head, and says when the crew cannot fix
+    the thing after all. `sends` is the line that the
     sentence asks the crew to send to a reviewer. The event repeats that line as the crew sent it.
     `rerun` adds the statement in `features/crew/templates/rerun.md`, the one place that says when a
     re-run needs `again`. The reviewer's Start 1 prints that statement when it refuses a message."""
 
     kind: str
     word: str
-    reason: re.Pattern[str]
+    reason: ready.Reason
     sentence: str
     reviewed: bool = False
     unless: Callable[[str, str], bool] | None = None
@@ -160,7 +162,7 @@ TABLE = (
     Short(
         "unfixed",
         "wait",
-        re.compile(re.escape(ready.NO_FIXED)),
+        ready.NO_FIXED,
         f"Write one line in the Result for each finding, {findings.ANSWER}, and then the `Fixed:` "
         "line: `Fixed: <the head you pushed>` where you pushed a fix, or `Fixed: none needed, "
         "<reason>` when every finding is declined. Push nothing for a `Fixed: none needed`.",
@@ -168,7 +170,7 @@ TABLE = (
     Short(
         "unpushed",
         "wait",
-        re.compile(re.escape(ready.NOT_PUSHED)),
+        ready.NOT_PUSHED,
         "The `Fixed:` line names the head the review saw, so no fix is at the head. Push the "
         "fix and set `Fixed:` to the head you pushed. Or, when every finding is declined, write "
         f"{findings.ANSWER} for each and `Fixed: none needed, <reason>`, and push nothing for "
@@ -177,9 +179,7 @@ TABLE = (
     Short(
         "unended",
         "wait",
-        re.compile(
-            re.escape(ready.UNENDED).replace(r"\{left\}", r"\d+").replace(r"\{found\}", r"\d+")
-        ),
+        ready.UNENDED,
         "Write the lines that are missing, one for each finding of both passes, "
         f"{findings.ANSWER}. Set `Fixed:` to the head you pushed where you push for them, and "
         "push nothing where you decline them.",
@@ -187,28 +187,28 @@ TABLE = (
     Short(
         "unanswered",
         "wait",
-        re.compile(ready.UNANSWERED.pattern),
+        ready.UNANSWERED,
         f"Answer each finding the reason names by its id, {findings.ANSWER}: `jbriefs --findings "
         "<the brief>` lists them. An answer with no id answers none of them.",
     ),
     Short(
         "uncited",
         "wait",
-        re.compile(ready.UNCITED.pattern),
+        ready.UNCITED,
         "Give the decline of each finding the reason names a reason that cites a path:line, a "
         f"command in backticks, or the gate it is parked on, {findings.ANSWER}, or fix it.",
     ),
     Short(
         "repeated",
         "wait",
-        re.compile(ready.REPEATED.pattern),
+        ready.REPEATED,
         "A reason given for one finding does not decline another: give the decline of each "
         f"finding the reason names a reason of its own, {findings.ANSWER}, or fix it.",
     ),
     Short(
         "risky",
         "wait",
-        re.compile(ready.RISK_UNASKED.pattern),
+        ready.RISK_UNASKED,
         "A finding on security, auth, billing, data, migrations or concurrency is not declined "
         'by the crew alone: park it as a gate (the crew skill, "Do the task") with the default '
         "that it is fixed, fix it, and answer it `Finding F<n>: fixed, ...`; where the user "
@@ -218,7 +218,7 @@ TABLE = (
     Short(
         "second",
         "wait",
-        re.compile(re.escape(ready.SECOND_UNWRITTEN)),
+        ready.SECOND_UNWRITTEN,
         'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
         f"the message `{AGAIN}`, and add `Second reviewer: <threadId>` to the "
         "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
@@ -229,7 +229,7 @@ TABLE = (
     Short(
         "twice",
         "wait",
-        re.compile(ready.TWICE_UNWRITTEN.pattern),
+        ready.TWICE_UNWRITTEN,
         "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
         f'the way the crew skill\'s "The review" says, with the message `{AGAIN}`, and add '
         "`Second reviewer: <threadId>` to the Result, in place of a `Second reviewer:` line "
@@ -241,7 +241,7 @@ TABLE = (
     Short(
         "fix",
         "wait",
-        re.compile(re.escape(ready.FIX_UNREVIEWED)),
+        ready.FIX_UNREVIEWED,
         "Launch ONE scoped reviewer of the fix now, not a full review, the way the crew skill's "
         f'"The review" launches a reviewer, with the message `{SCOPED}`, '
         "and add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
@@ -253,7 +253,7 @@ TABLE = (
     Short(
         "unruled",
         "hold",
-        merge.UNRULED,
+        ready.UNRULED_DROPS,
         'Launch ONE scoped reviewer over the rebase, the way the crew skill\'s "The review" '
         f"launches a reviewer, with the message `{SCOPED}`, and "
         "add `Scoped reviewer: <threadId>, of {head}` to the Result. Push nothing and do not "
@@ -265,7 +265,7 @@ TABLE = (
     Short(
         "unreviewed",
         "wait",
-        re.compile(re.escape(ready.NO_REVIEW)),
+        ready.NO_REVIEW,
         "No thread titled `review: {slug}` is at work, and the brief has no `## Review`. Run "
         'the block of the crew skill\'s "The checks" and then the blocks of "The review", and '
         "do what they print. Where they say `launch a reviewer`, launch it and add `Reviewer: "
@@ -282,7 +282,7 @@ TABLE = (
     Short(
         "declines",
         "wait",
-        re.compile(ready.DECLINES_UNRULED.pattern),
+        ready.DECLINES_UNRULED,
         'Run the block of the crew skill\'s "A second pass" in your worktree and do what it '
         "prints: each blocking decline is ruled on by one scoped pass, also where nothing was "
         "pushed, and the block writes the `Scoped review:` line and gives the launch.",
@@ -291,7 +291,7 @@ TABLE = (
     Short(
         "overruled",
         "wait",
-        re.compile(ready.DECLINES_OVERRULED.pattern),
+        ready.DECLINES_OVERRULED,
         "The scoped pass did not uphold the decline of the findings the reason names. Fix each, "
         "push, and answer it `Finding F<n>: fixed, ...`: declining it again does not lift the "
         'ruling. Where you still hold a decline, send the home one line ("Telling the home"), '
@@ -301,13 +301,7 @@ TABLE = (
     Short(
         "renumber",
         "wait",
-        re.compile(
-            re.escape(ready.MIGRATION_TAKEN)
-            .replace(r"\{name\}", r"\S+")
-            .replace(r"\{number\}", r"\d+")
-            .replace(r"\{default\}", r"\S+")
-            .replace(r"\{free\}", r"\d+")
-        ),
+        ready.MIGRATION_TAKEN,
         'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '
         "`stale`. Then renumber the migration the reason "
         "names to the number it gives, and each migration of yours after it to the numbers that "
@@ -317,7 +311,7 @@ TABLE = (
     Short(
         "browser",
         "wait",
-        re.compile(ready.BROWSER_RED.pattern),
+        ready.BROWSER_RED,
         "Your pull request's own browser run (browser.yml) failed at its head, and main's last "
         "browser run did not: the red is yours. Read its failed tests with `gh run view <run> "
         "--log-failed`, the run `gh pr checks` names for `browser`, fix them, run `make "
@@ -329,10 +323,11 @@ TABLE = (
 
 
 def short_of(said: merge.Line) -> Short | None:
-    """Return the row of `TABLE` that a line of `jmerge` matches, or nothing for a line no
-    crew can fix."""
-    rows = (row for row in TABLE if row.word == said.word and row.reason.fullmatch(said.reason))
-    return next(rows, None)
+    """Return the row of `TABLE` that a line of `jmerge` is about, by its reason's code, or
+    nothing for a line no crew can fix. A line as `jmerge` prints it has no code, and takes the
+    one its text gives (`ready.code_of`)."""
+    code = said.code or ready.code_of(said.reason)
+    return next((row for row in TABLE if row.word == said.word and row.reason.code == code), None)
 
 
 def _kept(run: Pass, slug: str) -> str:

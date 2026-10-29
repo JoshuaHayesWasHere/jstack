@@ -507,7 +507,7 @@ def test_accept_lifts_nothing_but_a_hold(proven_merged):
     proven_merged.home.open_pull_request(
         proven_merged.head, checks=(merge.FAILED,), files=["a.txt", SECRET]
     )
-    assert accept(proven_merged) == (1, [f"wait 7 {merge.URL}: {merge.NOT_PASSED}"])
+    assert accept(proven_merged) == (1, [f"wait 7 {merge.URL}: {merge.CHECK_FAILED}"])
     proven_merged.home.open_pull_request(proven_merged.head)
     refused = f"refused 7 {merge.URL}: it is not held, jmerge merges it by itself"
     assert accept(proven_merged) == (1, [refused])
