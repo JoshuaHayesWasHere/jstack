@@ -2,7 +2,7 @@
 (`jmerge.mainjson`) and the lines that `jmerge` prints (`jmerge.lines`).
 
 1. Each formatter's line parses back to the fields it was given, for every reason that
-   `ready` names, and `merge.step` puts each reason on the step that declares it.
+   `ready` names, and `judgement.step` puts each reason on the step that declares it.
 2. A table of records gives the `Main` that a reader acts on. Over every order of events
    that the red-main model enumerates, every record that the real `mainmoved.tell` writes is a
    `Record`.
@@ -18,8 +18,8 @@ from unittest import mock
 
 import pytest
 
-from jbus import mainmoved, merge, write_json
-from jmerge import lines, mainjson, ready
+from jbus import mainmoved, write_json
+from jmerge import judgement, lines, mainjson, ready
 from main_red_model import Options, walk
 from test_gh_said import BAD_GATEWAY, real_jmerge_line
 from testing.paths import sources
@@ -46,7 +46,7 @@ def test_a_waiting_line_parses_back_to_its_fields_and_its_reason_is_on_its_step(
     said = lines.waits(word, 7, URL, reason)
     assert lines.parse(said) == [lines.Line(word, 7, URL, reason)]
     (line,) = lines.parse(said)
-    assert merge.step(f"{line.word}: {line.reason}") == ("hold" if word == "hold" else step)
+    assert judgement.step(f"{line.word}: {line.reason}") == ("hold" if word == "hold" else step)
 
 
 def test_a_merged_line_parses_back_to_its_number_and_slug_and_says_how_to_revert_it():

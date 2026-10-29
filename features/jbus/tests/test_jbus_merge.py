@@ -13,9 +13,8 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import jsettings
-from jbus import merge
 from jbus.view import state as view_state
-from jmerge import ready
+from jmerge import judgement, ready
 from test_jbus_kitchen import DAY, NOW, PASS, QUARTER_PAST_FIVE
 from test_jbus_leftover import loud
 from test_jbus_queue import add
@@ -220,16 +219,16 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     assert named - WORDS == set(STEPS)
     assert (STEPS["OTHER_HOME"], STEPS["DRAFT"]) == ("", "findings")
     reasons = {name: _filled(getattr(ready, name)) for name in STEPS}
-    assert {name: merge.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
+    assert {name: judgement.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
 
 
 def test_a_reason_declared_in_ready_is_placed_on_its_step_with_no_other_edit(monkeypatch):
-    """A new reason is one declaration in `ready`. `merge.step` places it on the step it names,
+    """A new reason is one declaration in `ready`. `judgement.step` places it on the step it names,
     and a reason that no declaration names is on no step."""
     said = "wait: its frobnicator {name} is not wound"
-    assert merge.step(said.format(name="x1")) == ""
+    assert judgement.step(said.format(name="x1")) == ""
     monkeypatch.setattr(ready, "NOT_WOUND", ready.Reason("findings", said[6:]), raising=False)
-    assert merge.step(said.format(name="x1")) == "findings"
+    assert judgement.step(said.format(name="x1")) == "findings"
 
 
 @pytest.mark.parametrize(
@@ -243,7 +242,7 @@ def test_a_wait_on_skills_artifacts_is_on_the_crew_s_result_step_whatever_it_lis
     """Winnifred #150 and #151: the one rule places the wait on its step whatever skills the wait
     names."""
     said = f"wait: {ready.SKILLS_UNRUN.format(names=names)}"
-    assert merge.step(said) == "result"
+    assert judgement.step(said) == "result"
 
 
 BARE = {"", "wait", "hold", ", ", " and ", ".."}
@@ -336,7 +335,7 @@ def test_every_reason_ready_returns_is_one_of_its_constants():
     ],
 )
 def test_a_reason_of_jmerge_is_on_the_step_its_first_rule_names(said, step):
-    assert merge.step(said) == step
+    assert judgement.step(said) == step
 
 
 UNPLACED = "a reason nobody has printed before"

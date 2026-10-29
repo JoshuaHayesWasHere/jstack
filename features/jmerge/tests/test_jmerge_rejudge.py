@@ -16,9 +16,8 @@ import pytest
 
 import test_home_merge as merge
 import test_jmerge_order as order
-from jbus import merge as jbus_merge
 from jbus import rebase
-from jmerge import mainjson, ready
+from jmerge import judgement, mainjson, ready
 from test_jmerge_fresh import GH, LINES, Kitchen, git, url, write
 
 BROKE = "2026-10-23T12:00:00Z"
@@ -270,7 +269,7 @@ def test_each_line_of_a_judgement_again_is_on_the_check_step_and_tells_no_crew()
     reasons = (ready.BASE_MERGE_ASKED, ready.BASE_MERGE_REFUSED, ready.BASE_MERGE_DUE)
     for reason in (*reasons, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE, ready.UNMERGED):
         filled = reason.format(base="main", tip="0123456789ab", why="it said no")
-        assert jbus_merge.step(f"wait: {filled}") == "check"
+        assert judgement.step(f"wait: {filled}") == "check"
         assert rebase.asks(f"wait 333 {url(333)}: {filled}") is None
 
 

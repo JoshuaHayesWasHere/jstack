@@ -178,12 +178,12 @@ def test_a_scoped_pass_at_the_first_reviews_head_by_the_same_model_keeps_its_fin
 
 
 def test_every_new_wait_is_a_reason_the_view_places_on_the_findings_step():
-    from jbus import merge
+    from jmerge import judgement
 
     for reason in (ready.UNANSWERED, ready.UNCITED, ready.REPEATED, ready.RISK_UNASKED):
         assert reason.step == "findings"
         said = "wait: " + reason.format(ids="F1", first="F1", risks="auth")
-        assert merge.step(said) == "findings"
+        assert judgement.step(said) == "findings"
 
 
 def test_a_scoped_pass_written_again_at_one_head_is_the_whole_word_on_the_declines():

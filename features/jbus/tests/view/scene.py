@@ -28,10 +28,10 @@ from urllib.parse import quote
 
 import daemons
 import jsettings
-from jbus import acts, leftover, merge, party, questions, queue, view, word, work
+from jbus import acts, leftover, party, questions, queue, view, word, work
 from jbus.view import state as built
+from jmerge import judgement, ready
 from jmerge import lines as jlines
-from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
 from testing.paths import REPO, sources
 
@@ -130,7 +130,7 @@ def value_of(one):
             return "unapproved"
         return "behind" if one.get("depends") else "ready"
     if status == "pr":
-        return merge.step(why) or "unknown"
+        return judgement.step(why) or "unknown"
     if status == "left":
         return "closed" if "is not open and not merged" in why else "leftover"
     if status == "merged":

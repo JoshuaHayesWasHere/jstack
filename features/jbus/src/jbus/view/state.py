@@ -134,7 +134,7 @@ from jbus.view import checked, panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
-from jmerge import mainjson
+from jmerge import judgement, mainjson
 from jsettings import budget as allowance
 
 APPROVAL = 400
@@ -464,7 +464,7 @@ def _table(path: Path) -> dict[str, Any] | None:
 def _history(lines: list[str], user: jsettings.Settings) -> dict[int, list[dict[str, str]]]:
     """What `jmerge` logged of each pull request, oldest first: the time, the word, the step
     and the reason's code of each line. A line from before the codes has an empty code, and
-    its step comes from its reason's text (`merge.step`)."""
+    its step comes from its reason's text (`jmerge.judgement.step`)."""
     found: dict[int, list[dict[str, str]]] = {}
     for logged in lines:
         stamped = _LOGGED.match(logged)
@@ -475,7 +475,7 @@ def _history(lines: list[str], user: jsettings.Settings) -> dict[int, list[dict[
         if line.word == "merged":
             step, reason = "merged", ""
         else:
-            step = merge.step(f"{line.word}: {line.reason}", line.code)
+            step = judgement.step(f"{line.word}: {line.reason}", line.code)
             reason = line.reason if step else f"jmerge said: {line.reason}"
             step = step or UNKNOWN.key
         found.setdefault(line.number, []).append(

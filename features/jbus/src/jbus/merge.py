@@ -8,8 +8,9 @@ main's tip to its merge, so a hand run of the user's never merges between them e
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text, and `rebase` and `expedite` go by
-its reason's code. `step` goes by a reason's code where `merge.log` wrote one. `parse`, `step`
-and `Said` are in `jbus.judged`, below `jbus.watch`, which reads them too.
+its reason's code. `step`, which is `jmerge.judgement.step`, goes by a reason's code where
+`merge.log` wrote one. `parse` and `Said` are in `jbus.judged`, below `jbus.watch`, which reads
+them too.
 
 A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`). `expedite` asks the
 crew to lift those first. This module sends the user
@@ -40,7 +41,7 @@ from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
 from jmerge import ready
-from jmerge.judgement import step as step
+from jmerge.judgement import step
 from jmerge.lines import Line as Line
 
 if TYPE_CHECKING:
