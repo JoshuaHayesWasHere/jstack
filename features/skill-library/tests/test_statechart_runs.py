@@ -31,6 +31,7 @@ from statechart_support import (
     Run,
     changed_mid_run,
     compiled,
+    left_work,
     needs_tlc,
     node,
     notify,
@@ -368,7 +369,8 @@ def test_a_run_whose_python_is_killed_mid_tlc_leaves_the_output_folder_and_a_rer
         time.sleep(0.3)
         first.child.send_signal(signal.SIGTERM)
         first.done()
-        os.killpg(first.child.pid, 0)
+        assert first.child.returncode == 128 + signal.SIGTERM
+        assert left_work(tmp) == []
         assert not out.exists()
 
         write_slow_pay(tmp_path, 200, "Receipt")
@@ -431,11 +433,12 @@ def test_a_file_put_in_the_output_folder_during_a_run_stays_and_the_run_exits_2(
     assert status == 2
     assert re.fullmatch(
         r"Pay-statechart has a file that this command did not write: notes\.md\. A run puts its"
-        r" files in place of the whole output folder, so pass --out with a new folder\. The files"
-        r" that this run wrote are in tmp\/statechart-\w+\.\n",
+        r" files in place of the whole output folder, so pass --out with a new folder\. The command"
+        r" removed this run's files: pass --keep-work to keep them\.\n",
         stderr,
     ), stderr
     assert os.listdir(out) == ["notes.md"]
+    assert left_work(tmp) == []
     assert staged(tmp_path) == []
 
 
@@ -468,7 +471,7 @@ def test_a_run_whose_rename_fails_after_it_moves_the_folder_aside_puts_it_back_o
     def run(fails):
         return node(
             "statechart",
-            args,
+            [*args, "--keep-work"],
             directory,
             {**env, "LD_PRELOAD": failing_renames, "RENAME_FAILS": fails},
         )
@@ -537,7 +540,7 @@ def test_a_run_whose_input_changes_before_png_renders_stops_before_it_and_keeps_
     tmp = own_tmp(tmp_path, "tmp")
     run = Run(
         tmp_path,
-        args=("from-spec", "Pay.tla", "--png"),
+        args=("from-spec", "Pay.tla", "--png", "--keep-work"),
         env={"TMPDIR": str(tmp), "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"},
     )
     try:
@@ -655,8 +658,9 @@ exit $s
 
 
 @needs_tlc
-def test_a_run_that_tlc_stops_on_an_error_keeps_tlcs_output_and_writes_no_output_folder(tmp_path):
-    """a run that TLC stops on an error keeps TLC's output and writes no output folder"""
+def test_a_run_that_tlc_stops_on_an_error_names_tlcs_output_and_writes_no_output_folder(tmp_path):
+    """a run that TLC stops on an error names TLC's output, removes it unless --keep-work keeps
+    it, and writes no output folder"""
     write(
         tmp_path / "Pay.tla",
         "---- MODULE Pay ----\nVARIABLE x\nASSUME FALSE\nInit == x = 0\n"
@@ -665,18 +669,53 @@ def test_a_run_that_tlc_stops_on_an_error_keeps_tlcs_output_and_writes_no_output
     write(tmp_path / "Pay.cfg", "SPECIFICATION Spec\n")
     write(tmp_path / "Pay.map.py", 'def state():\n    return "Cart"\n')
     tmp = own_tmp(tmp_path, "tmp")
+    stopped = (
+        r"(\S+\/tlc\/Pay\.out): TLC stopped on an error that is not a broken rule: Assumption .*"
+        r" is false\."
+    )
     r = node("statechart", ["from-spec", "Pay.tla"], tmp_path, {"TMPDIR": str(tmp)})
     assert r.returncode == 2
-    m = re.fullmatch(
-        r"(\S+\/tlc\/Pay\.out): TLC stopped on an error that is not a broken rule: Assumption .*"
-        r" is false\.\n",
+    assert re.fullmatch(
+        rf"{stopped} The command removed this run's files: pass --keep-work to keep them\.\n",
         r.stderr,
-    )
+    ), r.stderr
+    assert left_work(tmp) == []
+    r = node("statechart", ["from-spec", "Pay.tla", "--keep-work"], tmp_path, {"TMPDIR": str(tmp)})
+    assert r.returncode == 2
+    m = re.fullmatch(rf"{stopped} The files that this run wrote are in (\S+)\.\n", r.stderr)
     assert m, r.stderr
     file = m[1]
     assert file.startswith(str(tmp)), file
+    assert os.path.dirname(os.path.dirname(file)) == str(tmp_path / m[2])
     assert re.search(r"Assumption .* is false", read(file))
+    assert [f for f in left_work(tmp) if f.startswith("tlc-")] == []
     assert not (tmp_path / "Pay-statechart").exists()
+
+
+@needs_tlc
+@pytest.mark.timeout(600)
+def test_a_run_of_the_worked_example_leaves_no_work_folder_unless_keep_work_keeps_it(tmp_path):
+    """a from-spec run of the worked example removes its work folder when it ends, and
+    --keep-work keeps it and prints its path"""
+    spec = str(SCRIPTS / "model" / "OutputFolder.tla")
+    tmp = own_tmp(tmp_path, "tmp")
+    env = {"TMPDIR": str(tmp)}
+    r = node("statechart", ["from-spec", spec, "--out", str(tmp_path / "out")], tmp_path, env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert left_work(tmp) == []
+    r = node(
+        "statechart",
+        ["from-spec", spec, "--out", str(tmp_path / "kept"), "--keep-work"],
+        tmp_path,
+        env,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    m = re.search(r"^The files that this run wrote are in (\S+)\.$", r.stderr, re.M)
+    assert m, r.stderr
+    kept = [f for f in left_work(tmp) if f.startswith("statechart-")]
+    assert left_work(tmp) == kept and len(kept) == 1
+    assert tmp_path / m[1] == tmp / kept[0]
+    assert (tmp / kept[0] / "tlc" / "OutputFolder.dot").exists()
 
 
 @needs_tlc

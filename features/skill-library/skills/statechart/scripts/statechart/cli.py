@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -30,11 +31,11 @@ USAGE = {
     "from-spec": (
         "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE]"
         " | --against AGREED.tla [--against-config FILE]] [--label TEXT] [--map FILE]"
-        " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png]"
+        " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
     ),
     "from-chart": (
         "statechart from-chart CHART.mmd [--module NAME] [--expect-broken RULE]... [--title TEXT]"
-        " [--out DIR] [--png]"
+        " [--out DIR] [--png] [--keep-work]"
     ),
 }
 
@@ -121,6 +122,10 @@ COMMON = f"""Both commands
                      it did not write. On a filesystem that cannot rename, the command copies the
                      files into place, and overlapping runs can mix their files.
   --png              Also render each chart to PNG with npx {MERMAID_CLI}, a pinned version.
+  --keep-work        Keep the temporary folder that the run writes its files and TLC's output in,
+                     and print its path, for a look at what TLC did. Without it, the command
+                     removes that folder when it ends: when it finishes, when it stops on an error,
+                     and when it is interrupted or sent SIGTERM.
   -h, --help         Print this help, and exit 0.
 
 Output
@@ -210,10 +215,11 @@ Exit codes
      or a chart that --png cannot render. When a chart does not render, the command keeps the
      files it wrote and exits 2, whatever the rules give. Otherwise, exit 2 does not change the
      output folder, unless the command moved it aside and cannot put it back. Then the message
-     names the folder's new path. When TLC stops on an error, the message names TLC's output, in a
-     temporary folder that the command keeps. When the command cannot put its files in the output
-     folder, it keeps them in a temporary folder, and the message names it. The command checks
-     its input files again before --png renders, so a changed input stops the run before that."""
+     names the folder's new path. When TLC stops on an error, the message names TLC's output, and
+     when the command cannot put its files in the output folder, the message says so. Both times
+     the command removes its temporary folder, unless --keep-work keeps it, and then the message
+     names the folder. The command checks its input files again before --png renders, so a
+     changed input stops the run before that."""
 
 HELP = {
     "": f"""{usage([*USAGE.values(), "statechart [from-spec|from-chart] --help"])}
@@ -282,6 +288,8 @@ def parse_args(argv):
             return {"help": HELP[command]}
         if a == "--png":
             flags["png"] = True
+        elif a == "--keep-work":
+            flags["keep-work"] = True
         elif a in FLAGS[command]:
             if i + 1 == len(rest):
                 raise CannotFinish(f"{a} needs a value. {more(command)}")
@@ -886,21 +894,42 @@ def snapshot(files, inputs=None):
     return inputs
 
 
-def in_work_folder(body):
+class Terminated(BaseException):
+    pass
+
+
+def terminated(signum, frame):
+    raise Terminated()
+
+
+def in_work_folder(body, keep):
+    """Runs `body` in a new temporary folder, and removes the folder when it ends, also on an
+    error, an interrupt or SIGTERM, unless `keep`. Then it names the folder."""
     work = tempfile.mkdtemp(prefix="statechart-")
-    os.mkdir(os.path.join(work, "tlc"))
-    keep = False
+    kept = f"The files that this run wrote are in {rel(work)}."
+    was = signal.signal(signal.SIGTERM, terminated)
+    named = False
     try:
+        os.mkdir(os.path.join(work, "tlc"))
         return body(work)
-    except NotPublished as e:
-        keep = True
-        raise NotPublished(f"{e} The files that this run wrote are in {rel(work)}.") from e
-    except TlcStopped:
-        keep = True
-        raise
+    except CannotFinish as e:
+        if not keep:
+            if isinstance(e, (TlcStopped, NotPublished)):
+                raise type(e)(
+                    f"{e} The command removed this run's files: pass --keep-work to keep them."
+                ) from e
+            raise
+        named = True
+        raise type(e)(f"{e} {kept}") from e
+    except Terminated:
+        sys.exit(128 + signal.SIGTERM)
     finally:
+        signal.signal(signal.SIGTERM, was)
         if not keep:
             shutil.rmtree(work, ignore_errors=True)
+        elif not named:
+            sys.stdout.flush()
+            print(kept, file=sys.stderr)
 
 
 def moved(source, target, *missed):
@@ -1137,7 +1166,7 @@ def from_spec(given, flags):
             work, out, inputs, drawn, rules_as_expected(now, other, expected), flags.get("png")
         )
 
-    return in_work_folder(body)
+    return in_work_folder(body, flags.get("keep-work"))
 
 
 def from_chart(given, flags):
@@ -1175,7 +1204,7 @@ def from_chart(given, flags):
         ok = rules_as_expected(now, None, expected) and compared.returncode == 0
         return finish(work, out, inputs, drawn, ok, flags.get("png"))
 
-    return in_work_folder(body)
+    return in_work_folder(body, flags.get("keep-work"))
 
 
 def main(argv=None):
