@@ -133,6 +133,16 @@ def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is
     }
 
 
+def test_a_red_pull_request_into_another_base_is_not_told_to_rebase_onto_main(launched):
+    into_main = pull(launched, "alpha", 7, "FAILURE")
+    into_a_merge_base = {**pull(launched, "beta", 8, "FAILURE"), "baseRefName": "t3code-jstack"}
+    launched.set("open.json", [into_main, into_a_merge_base])
+    main = move(launched)
+    launched.poll()
+    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
+    assert sends(launched)[0]["message"] == message("alpha", 7, main, RED)
+
+
 def test_a_kept_red_at_a_tip_whose_push_run_passed_beside_a_failed_browser_run_clears(launched):
     """jstack's main.json at d1e3bd5: `checks.json` kept `failed` from three browser runs
     dispatched at main's tip, and main's push run there had passed. The next pass reads main
