@@ -67,7 +67,7 @@ add alpha --priority 1 --depends beta,gamma --merge-after delta
 # alpha: the brief, as it will be launched
 --- end
 approve alpha --word 0a1b2c3d4e5f --sha 1a2b3c4d5e6f
-approve epsilon --follows alpha --sha 6f5e4d3c2b1a
+approve epsilon --follows alpha
 hold delta
 ```
 
@@ -160,8 +160,9 @@ A row with no go is held by `jmerge` too: it leaves the row's pull request unmer
 A pull request that no row names is judged as any other.
 
 An approval names its brief.
-`--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown.
+`--sha` is required with a basis of your word, and it is the first 12 characters of the sha256 of the brief you were shown.
 If the stored brief has another sha, `approve` prints `refused: <slug>'s brief is <sha12>, not <given>`.
+With no `--sha`, it prints `refused: approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief they were shown; a go by --follows needs none`.
 
 ### The bases
 
@@ -184,11 +185,12 @@ A follow-up of approved work needs no new approval: that is the follow-up rule, 
 A home can approve a follow-up by naming the approved row it follows:
 
 ```sh
-jbus queue approve <slug> --sha <sha12> --follows <parent slug>
+jbus queue approve <slug> --follows <parent slug>
 ```
 
 `--follows` goes with none of the bases above.
-A `--rule <n>` beside it, from the days when jbus read the rule out of `standing.md`, is taken and not read, so `jbus queue approve <slug> --sha <sha12> --rule 6 --follows <parent slug>` still approves, and a home that renumbers its standing rules breaks nothing.
+It takes no `--sha`, since nobody read the brief's sha for a follow-up, and a `--sha` beside it is taken and not read: the go is for the brief jbus stores.
+A `--rule <n>` beside it, from the days when jbus read the rule out of `standing.md`, is taken and not read, so `jbus queue approve <slug> --rule 6 --follows <parent slug>` still approves, and a home that renumbers its standing rules breaks nothing.
 Any other mix gets the refusal above.
 jbus checks the parent and judges nothing else.
 The home decides whether the brief is really a follow-up, and you audit that call through the mark on the row and the count in the digest.
@@ -222,7 +224,7 @@ The row's `approval` field records the approval:
 | `follows` | By rule only: the slug of the parent row. |
 | `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
-| `brief_sha` | The sha256 of the brief at the go, as `--sha` named it. |
+| `brief_sha` | The sha256 of the stored brief at the go, which `--sha` named for a go on your word. |
 | `meaning`, `scope` | The brief's meaning fingerprint at the go, and the sha256 of it. The go holds for any brief that means the same (below). |
 
 `jbus queue show` prints it in the `approved` column as `your word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false.

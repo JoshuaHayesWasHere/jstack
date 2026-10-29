@@ -466,7 +466,7 @@ def go(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
     unread, follows = queue.basis(given)
     said = read_evidence(asks, unread)
     who = cli_party(args, said)
-    action = Action("go", args.slug, args.sha, args.seen or "")
+    action = Action("go", args.slug, args.sha or "", args.seen or "")
     return act(run, who, action, said, asks=asks, follows=follows)
 
 
