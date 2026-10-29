@@ -14,6 +14,7 @@ from jbus import queue, work
 from jmerge import ready
 from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_queue import add, rows
+from test_jbus_row_ends import branched
 
 PULL = "https://example.test/pull/9"
 AT = "2026-10-12 10:00 ET"
@@ -207,6 +208,7 @@ def test_a_crew_thread_with_no_row_has_written_nothing_while_its_result_owes_its
 ):
     """A crew thread out with no row is judged while it owes its pull request, and drops out of
     the list once its Result ends the task."""
+    branched(kitchen, "alpha")
     kitchen.brief("alpha", f"Pull request: {asked}\n" + result())
     thread = kitchen.t3.thread("alpha", "completed")
     kitchen.poll()
