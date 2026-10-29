@@ -1,4 +1,4 @@
-"""What the server asks GitHub. It asks four things, read-only, through `gh`, and keeps
+"""What the server asks GitHub. It asks three things, read-only, through `gh`, and keeps
 each answer a while.
 
 `runs` asks for the repo's last `RUNS` workflow runs, for the Checks card, and keeps them
@@ -7,10 +7,7 @@ task's drawer opens, and keeps them `PULL_KEPT` seconds. Each of those calls is 
 with a path under `repos/<owner>/<name>/` and nothing more: no method, no field and no body, so
 a call cannot write. `merged` asks `gh pr list` for the pull requests merged since a day, with
 their numbers and merge times, when the Throughput drawer opens, and keeps them `MERGED_KEPT`
-seconds: `pr list` only lists. `landed` asks, for each integration branch of a project, for the
-pull requests whose head is that branch, when the Milestones drawer opens, and keeps the answer
-`LANDED_KEPT` seconds: a branch has landed once one of them merged into the repo's default branch
-and none is still open. The token stays inside `gh`. Of an answer the server takes only
+seconds: `pr list` only lists. The token stays inside `gh`. Of an answer the server takes only
 named fields, never a title, a body, a diff or a log.
 
 When GitHub does not answer, the server keeps that failure for as long as it would keep an
@@ -33,14 +30,13 @@ import threading
 from collections.abc import Callable
 from datetime import date, datetime
 from typing import Any
-from urllib.parse import quote
 
 from jbus.view.state import iso, text, when
 from jsettings import budget as allowance
 from jsettings import proc
 
-RUNS, RUNS_KEPT, PULL_KEPT, MERGED_KEPT, LANDED_KEPT = 40, 60, 30, 300, 300
-MERGED_MOST, FROM_MOST = 1000, 100
+RUNS, RUNS_KEPT, PULL_KEPT, MERGED_KEPT = 40, 60, 30, 300
+MERGED_MOST = 1000
 TIMEOUT = 10
 PATIENCE = 2.0
 DOWN = "GitHub did not answer"
@@ -222,38 +218,3 @@ class GitHub:
 
         key = ("merged", repo, since.toordinal())
         return self._held(key, MERGED_KEPT, ask, {"merged": [], "at": None})
-
-    def landed(self, repo: str, branches: tuple[str, ...]) -> dict[str, Any]:
-        """`{"landed", "at", "error"}`: the branches of `branches` that have landed on the
-        repo's default branch. One thread asks for every branch, so the panel waits on GitHub
-        once, not once for each branch. A branch GitHub did not answer for is not landed, and
-        `error` says so."""
-
-        def ask() -> dict[str, Any]:
-            owner = repo.partition("/")[0]
-            landed, missed = [], []
-            for branch in branches:
-                head = quote(f"{owner}:{branch}", safe="")
-                path = f"repos/{repo}/pulls?state=all&head={head}&per_page={FROM_MOST}"
-                said = _ask("api", path)
-                if not isinstance(said, list):
-                    missed.append(branch)
-                    continue
-                pulls = [one for one in said if isinstance(one, dict)]
-                if _merged_home(pulls) and not any(one.get("state") == "open" for one in pulls):
-                    landed.append(branch)
-            return {"landed": landed, "at": iso(self.clock()), "error": DOWN if missed else ""}
-
-        key = ("landed", repo, branches)
-        return self._held(key, LANDED_KEPT, ask, {"landed": [], "at": None})
-
-
-def _merged_home(pulls: list[dict[str, Any]]) -> bool:
-    """Whether one of `pulls`, as GitHub lists pull requests, merged into its repo's default
-    branch."""
-    for one in pulls:
-        base = one.get("base") if isinstance(one.get("base"), dict) else {}
-        home = base.get("repo") if isinstance(base.get("repo"), dict) else {}
-        if one.get("merged_at") and base.get("ref") and base["ref"] == home.get("default_branch"):
-            return True
-    return False

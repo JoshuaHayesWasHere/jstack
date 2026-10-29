@@ -48,13 +48,8 @@ LIST = (
 PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
 CI_PATHS = PACKAGE / "ci-paths.txt"
-INTEGRATION = "integration"
 REQUIRED_CHECKS = "required-checks"
 JUDGED_AGAIN_AT_MOST = 2
-LANDED = {
-    "--merge": "landed with a merge commit",
-    "--squash": "landed as a squash: each unit's pull request into {branch} is its own record",
-}
 TIMEOUT_SECONDS = 120
 
 
@@ -167,7 +162,6 @@ class Repo:
         self.order: list[int] = []
         self.rebasing: set[int] = set()
         self.numbers_on: dict[str, set[int]] = {}
-        self.integration = ready.integration_of(_read(state / INTEGRATION))
         self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
         self.trunk = ""
         self.reds: dict[str, list[dict]] = {}
@@ -262,8 +256,8 @@ class Repo:
         branch, whatever base GitHub gives it now: GitHub bases it on the default branch by
         itself when the base's branch is deleted on its merge, and its head still holds the
         base's commits then. Once jbus wrote the commit that merged its base and the branch it
-        merged into, the default or an integration one, it waits until it is based on that
-        branch and its head holds that commit: its crew rebased its own commits onto it."""
+        merged into, it waits until it is based on that branch and its head holds that commit:
+        its crew rebased its own commits onto it."""
         if stacked is None:
             return ""
         onto = stacked.branch if stacked.at else default
@@ -744,7 +738,7 @@ class Repo:
         self.lifts = []
         lifted = self.lifted(one)
         stacked = stacks.of(text)
-        short = self.lift(ready.held(one, default, self.integration, stacked), lifted)
+        short = self.lift(ready.held(one, default, stacked), lifted)
         short = short or self.on_stack(one, default, stacked)
         short = short or self.lift(ready.short_of(text, one.head), lifted)
         rebase: ready.Rebase | None = None
@@ -790,7 +784,7 @@ class Repo:
         short = (
             rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
             or rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
-            or self.red(one, default, brief.stem, text)
+            or self.red(one, default, brief.stem)
             or self.short_on_migrations(one, one.base)
         )
         if short:
@@ -830,31 +824,12 @@ class Repo:
         judged = ready.Judged(tip, fresh)
         return Judgement(brief.stem, "", "", note, judged)
 
-    def red(self, one: ready.PullRequest, default: str, slug: str, text: str) -> str:
-        """The red hold on a pull request. For a pull request into main it is main's hold, and
-        for a pull request into an integration branch it is that branch's hold. It reads the
-        latest checks of the branch's tip, and asks GitHub once per run. When GitHub gives no
-        answer for a branch, the branch is not known to be red, as with a main that jbus never
-        judged."""
-        if one.base == default:
-            main, ran = self.main_state, rows.UNPROVED
-            if main.red and main.failed and not mainjson.fix_of(slug):
-                ran = self.proved(one, main.red, main.failed)
-            return rows.red(main, slug, ran) or browser_red(self, one, default, slug)
-        if one.base not in self.reds:
-            asked = subprocess.run(
-                ["gh", "api", f"repos/{{owner}}/{{repo}}/commits/{one.base}/check-runs"],
-                cwd=self.main,
-                capture_output=True,
-                text=True,
-                env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
-            )
-            try:
-                runs = [] if asked.returncode else json.loads(asked.stdout)["check_runs"]
-            except (ValueError, KeyError, TypeError):
-                runs = []
-            self.reds[one.base] = runs if isinstance(runs, list) else []
-        return rows.base_red(one.base, self.reds[one.base], slug, text)
+    def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
+        """The red hold on a pull request into main: main's hold, and its browser run's."""
+        main, ran = self.main_state, rows.UNPROVED
+        if main.red and main.failed and not mainjson.fix_of(slug):
+            ran = self.proved(one, main.red, main.failed)
+        return rows.red(main, slug, ran) or browser_red(self, one, default, slug)
 
     def proved(self, one: ready.PullRequest, red: str, failed: tuple[str, ...]) -> rows.Ran:
         """What the pull request's own check proved of the red tip `red` (`rows.Ran`), once a
@@ -1162,36 +1137,6 @@ class Repo:
             return None
         return [message.strip() for message in ran.stdout.split("\0") if message.strip()]
 
-    @functools.cached_property
-    def landing(self) -> tuple[str, str]:
-        """The flag of `gh pr merge` that lands an integration branch, read once a run from what
-        the repo allows: a merge commit where it allows one, else a squash. With neither, or
-        when GitHub does not say, the flag is empty and the reason says why:
-        https://docs.github.com/en/rest/repos/repos#get-a-repository"""
-        ran = subprocess.run(
-            ["gh", "api", "repos/{owner}/{repo}"],
-            cwd=self.main,
-            capture_output=True,
-            text=True,
-            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
-        )
-        if ran.returncode:
-            return "", f"{ready.NO_SETTINGS}: {lines.said(ran)}"
-        try:
-            said = json.loads(ran.stdout)
-        except ValueError:
-            said = None
-        if not isinstance(said, dict):
-            return "", f"{ready.NO_SETTINGS}: GitHub's answer is not a repo"
-        if not {"allow_merge_commit", "allow_squash_merge"} <= said.keys():
-            return "", f"{ready.NO_SETTINGS}: GitHub gives them to a token with push access only"
-        if said.get("allow_merge_commit") is True:
-            return "--merge", ""
-        if said.get("allow_squash_merge") is True:
-            return "--squash", ""
-        allowed = "rebase merges" if said.get("allow_rebase_merge") is True else "no merge method"
-        return "", ready.LANDING_UNALLOWED.format(allowed=allowed)
-
     def merge(
         self,
         one: ready.PullRequest,
@@ -1234,28 +1179,21 @@ class Repo:
             rebase, judged = again_judged.note, again_judged.judged
         else:
             return lines.waits("wait", number, one.url, ready.MERGING)
-        landing = one.base == self.trunk and one.branch in self.integration
-        method, why = self.landing if landing else ("--squash", "")
-        if not method:
-            return lines.waits("wait", number, one.url, why)
-        if method == "--merge":
-            subject, body = (), one.title
-        else:
-            messages = self.messages(one)
-            if messages is None:
-                return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
-            subject = ("--subject", f"{one.title} (#{number})")
-            body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
+        messages = self.messages(one)
+        if messages is None:
+            return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
+        body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
         ran = _run(
             self.main,
             "gh",
             "pr",
             "merge",
             number,
-            method,
+            "--squash",
             "--match-head-commit",
             one.head,
-            *subject,
+            "--subject",
+            f"{one.title} (#{number})",
             "--body-file",
             "-",
             *self.about,
@@ -1264,10 +1202,6 @@ class Repo:
         if ran.returncode:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
         notes = [rebase] if rebase else []
-        if self.trunk and one.base != self.trunk:
-            notes.insert(0, f"into {one.base}")
-        if landing:
-            notes.insert(0, LANDED[method].format(branch=one.branch))
         asked = _run(
             self.main,
             "gh",
@@ -1293,11 +1227,7 @@ class Repo:
             from jmerge.follow import follow
 
             notes += follow(_run, self.main, before)
-        kept = (
-            f"{one.branch} is an integration branch"
-            if one.branch in self.integration
-            else self.clear_up(one.branch, one.head)
-        )
+        kept = self.clear_up(one.branch, one.head)
         if kept:
             notes.append(f"kept: {kept}")
         if judged.fresh:
@@ -1455,8 +1385,7 @@ class Sweep:
             try:
                 said = json.loads(asked.stdout)
                 state = "" if asked.returncode else str(said["state"])
-                into = (self.default, *self.repo.integration)
-                if state == "MERGED" and said["baseRefName"] in into:
+                if state == "MERGED" and said["baseRefName"] == self.default:
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
                 state = ""
@@ -1553,8 +1482,6 @@ class Sweep:
                 why = f"{first.source} and {more[0].source} both name it"
             elif branch == self.default:
                 why = "it is the default branch"
-            elif branch in self.repo.integration:
-                why = "it is an integration branch"
             else:
                 why = sweep.kept(first, self.found(first, left))
             if why:
@@ -1615,11 +1542,8 @@ def parser() -> argparse.ArgumentParser:
         prog="jmerge",
         description="Merge this repo's pull requests that are reviewed, fixed and green, pull "
         "the main checkout, and remove each one's worktree and branches. Prints one line per "
-        "open pull request. A pull request based on a branch that is neither the default "
-        "branch nor one the integration file in the repo's state names is never merged. "
-        "One into an integration branch is judged against that branch, and the one that "
-        "lands it on the default branch merges with a merge commit where the repo allows one, "
-        "else as a squash. "
+        "open pull request. A pull request based on a branch other than the default branch "
+        "is never merged. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
         "(features/jmerge/src/jmerge/ci-paths.txt) waits for a fresh check: where the "
@@ -1817,7 +1741,7 @@ def main(argv: list[str] | None = None) -> int:
     if silent:
         say(f"wait: could not ask GitHub{silent}")
         return 1
-    listed = [ready.unchecked_into(repo.in_full(one), repo.integration) for one in listed]
+    listed = [repo.in_full(one) for one in listed]
     repo.open = listed
     if not args.check:
         repo.open_accepts(listed)

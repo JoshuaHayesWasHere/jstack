@@ -127,6 +127,5 @@ class Built:
             self.code.said(),
             self.panels,
             merged=self.github.merged,
-            landed=self.github.landed,
         )
         return read.asked(panel) if panel else read.answer()

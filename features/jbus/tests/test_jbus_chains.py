@@ -314,8 +314,8 @@ def on_branch(text):
 def test_a_row_that_builds_on_a_main_row_launches_on_its_branch_once_that_row_merged(kitchen):
     """The macos home's #456: a row on `release/x` that builds on a row on main is no link of its
     stack, since a stack sits on one branch and the two go on different ones. While that row's
-    pull request is open the row waits, and once it merged the row launches on its integration
-    branch with no `Stacked on:` line."""
+    pull request is open the row waits, and once it merged the row launches on its own branch
+    with no `Stacked on:` line."""
     kitchen.config(max_running=8)
     assert queue_add(kitchen, "one")[0] == 0
     assert go(kitchen, "one")[0] == 0

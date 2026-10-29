@@ -75,7 +75,7 @@ The design starts with both pull requests open, so each story says the design st
 - A crew at work: a crew's turn is one step, so `Gap = "turn"` stops every idle process.
 - A process that holds a test slot, which jbus.strays leaves running since #427: the model takes it to end with its check.
 - A row that ends other than by merging: done, left, or its worktree gone.
-- The account caps, GitHub's API budget, cancelled checks, the nightlies other than browser.yml's, and those of integration branches.
+- The account caps, GitHub's API budget, cancelled checks, and the nightlies other than browser.yml's.
 - A draft's browser run, which is waived as its failed checks are: a draft in the model has run no check.
 - A pull request whose own browser run proves the fix of main's browser red: the browser-red row is main's only fix there.
 - A fix row that ends with no fix anywhere, which leaves main red with nothing to merge until you queue another.
@@ -91,6 +91,6 @@ The design also has both pull requests open from the start, so it has no launch 
   The code also judges again a check that failed over a base that was green and moved since, and a change broken on its own then fails again at the updated head as its own.
 - The model judges again any red pull request, and the code only one whose single shortfall is the failed check: a pull request short of a review, a queue row or anything else keeps `check has failed` (`Repo.judge`).
 - The model's `told[p]` is one flag that the crew's fix clears, and the code asks once for a head and a base tip, in `base-merges.json`, while jbus tells a crew once for a head.
-- The model has one main, and the code reads each pull request's own base, main or an integration branch.
+- The model has one main, and the code reads each pull request's own base (`baseRefName`).
 - The model leaves out a GitHub that refuses the update.
 - The code checks no room before it judges again: GitHub runs the check at the updated head and nothing runs on this machine, so the model's `Rejudge` has no `~full`.

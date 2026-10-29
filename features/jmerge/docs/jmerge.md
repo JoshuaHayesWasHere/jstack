@@ -40,7 +40,6 @@ The section "Accept a held pull request" lists what `jmerge` checks before it me
 ## What a merge does
 
 For each ready pull request, `jmerge` runs `gh pr merge <number> --squash --match-head-commit <head>`, then `git pull --ff-only` in the main checkout.
-The landing of an integration branch is a merge commit or a squash, as the repo allows ("Integration branches").
 `jmerge` writes the squash commit's message itself.
 The subject is the pull request's title and ` (#<number>)`.
 The body lists the branch's commit messages as GitHub's default does.
@@ -89,11 +88,10 @@ The section "Protected paths" describes one more hold.
   A brief's Result has the pull request on its `Branch:` line.
   jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.
   A home's own run, with `--home`, merges nothing, and a brief of another home of the repo is `another home's` to it alone.
-- **Its base is the default branch or an integration branch.**
+- **Its base is the default branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
   A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
   Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
-  An integration branch is one the project's `integration` file names ("Integration branches").
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
   If the review had findings, the Result has a `Fixed:` line that names the head or says `none needed`.
@@ -143,15 +141,13 @@ The section "Protected paths" describes one more hold.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
-  A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check` and `integration`.
+  A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check`.
   The file has one check name per line, and `jmerge` ignores blank lines and the spaces around a name.
   With no such file, or one that names no check, the only required check is `check` (`ready.REQUIRED`).
   A check that the repo's workflows never run then blocks no merge.
   For example, jstack's own state directory names `check` (the suite), `borders` (the border lint) and `macos` (the macOS job), so its pull requests wait for all three.
   A pull request waits with `<check> has failed` for the first required check that has not passed where its latest run failed, with `<check> has not passed` where it has not, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
-  A pull request into an integration branch does not wait on `check`: CI runs that check on a pull request into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
-  It still waits on every other check the `required-checks` file names.
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
   It looks up the row whose slug is the brief's slug.
@@ -191,8 +187,6 @@ The section "Protected paths" describes one more hold.
   After the fix merges and the check of main's new tip passes, the other pull requests stop waiting on the next run.
   A repo with no jbus config, no project or no `main.json` has no such wait.
   If `jmerge` cannot read the file, nothing is known of main, and no pull request waits on a red main.
-  `jmerge` checks main's state only for a pull request into main.
-  A pull request into an integration branch waits when that branch's tip is red instead, unless it is the fix of that red ("Integration branches").
   jbus checks every commit that was main's tip since jbus's last pass.
   So jbus counts a failed tip as red even while the check of a newer tip is still running.
   A tip's check is its push run's: the check runs of the workflow runs a push to main started (`jbus.watch._check`).
@@ -223,7 +217,6 @@ The section "Protected paths" describes one more hold.
 
 Before a merge, when the start of the pull request's check is known, `jmerge` runs `git ls-remote` to see whether main is still the commit it judged against.
 If main moved, `jmerge` judges the pull request again, at most twice, before it prints `main moved while it was judged`.
-For a pull request into an integration branch it checks that branch instead, and the line names it: `<branch> moved while it was judged`.
 
 ## Migrations
 
@@ -306,7 +299,7 @@ Nothing writes `fresh.json` or `fresh.lock` in the state directory any more, and
 
 A pull request's check runs on its merge with the base as the base was then, and a rerun runs on that same merge.
 So a check that failed while the base was red stays red after the base is fixed, though the pull request owes no change (`features/jmerge/src/jmerge/rejudge.py`).
-`jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`, main or an integration branch) has moved since the check started.
+`jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`) has moved since the check started.
 That holds for every required check the `required-checks` file names, `macos` as much as `check`.
 It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has failed`, a red base included.
 So a crew is asked for what its pull request is short of, such as a scoped review of a push after its review, and its base is merged in once that is done (#529, 2026-10-27: ten hours on `macos has not passed` while it was short of a scoped review that nobody was asked for).
@@ -334,50 +327,6 @@ With the base unmoved, the line stays `<check> has no run at <head12>`: that is 
 A check that waits on other jobs of its workflow, as `check` waits on its four shards, is not listed at the head until they end.
 While GitHub runs a job of the workflow of the check's name there, the line is `<check>'s run at <head12> is running`, or `is queued` while they all wait, and not `has no run`.
 That is a wait on the merge runner, and no base merge is asked for it (merge-wait-1, 2026-10-28: #610 read `check has no run at ebd54cb4de4e` while its shards ran).
-
-## Integration branches
-
-A series of pull requests can merge into one branch of its own, and that branch lands on the default branch once, when the work is done.
-A project names such branches in an `integration` file in its state directory, beside `fresh-check`.
-The file has one branch name per line, and `jmerge` ignores blank lines and the spaces around a name.
-`jmerge` merges a pull request based on one of them the same way it merges one into the default branch.
-Every review, check and hold applies, and the merge is a squash.
-For such a pull request, read that branch wherever this page says main.
-`jmerge` judges its staleness, its fresh check, its rebase and its migration numbers against the branch.
-The `merged` line names the base after the title, `merged <number> <slug> <commit> "<title>", into <branch>, ...`, and jbus reads and sends it like any other merge.
-A merge into the default branch prints no such note.
-
-`jmerge` does not read main's red record (`main.json`) for such a pull request.
-Instead, it holds the pull request when the latest run of a check on that branch's tip ended without passing.
-The line is `<branch> is red at <sha12>: its latest check failed` (`BASE_RED`, on the `check` step).
-`jmerge` asks GitHub for the check runs of the tip once per run (`gh api repos/{owner}/{repo}/commits/<branch>/check-runs`).
-As on main, none of these holds the pull request: a cancelled run, a run still going, a tip with no run, or no answer from GitHub.
-This hold never applies to the fix of a red main, nor to the fix of this branch's red at its tip.
-That fix is the row jbus files for the red, `integration-red-<branch>-<sha12>` (`INTEGRATION_FIX`, `jbus.sidered.integration_branches`), whose `<branch>` is the branch's name in lower case, with each run of other characters than letters, digits, `.`, `_` and `-` made one `-`.
-It is also any row whose brief says so in its head, above its first `## ` heading, with one line: `Fixes red: <branch> at <sha>`, where `<sha>` is the red tip, its first 12 characters or more (`FIXES`).
-A main sync that brings the fix of a test the branch fails on is such a row.
-The exemption holds only for the red it names.
-A fix row or a `Fixes red:` line for another branch, or for an older red tip of this one, is held as every other pull request into the branch is.
-Once the tip is green, every pull request into the branch is judged again, its fix's included.
-If a repo's CI runs only on pushes to the default branch, an integration branch's tip has no check run, and this hold never applies.
-jstack's own check workflow runs on each push to a branch under `integration/`, so a branch of its `integration` file is named that way.
-
-The landing is the pull request whose head is an integration branch and whose base is the default branch.
-It needs a brief whose Result names it, and `jmerge` judges it like any other pull request.
-It lands the way the repo allows merges, which `jmerge` reads once per run (`gh api repos/{owner}/{repo}`, its `allow_merge_commit` and `allow_squash_merge`).
-Where the repo allows merge commits, `jmerge` merges with one, `gh pr merge <number> --merge --match-head-commit <head>`.
-The branch's commits then keep their history on main, and the `merged` line says `landed with a merge commit`.
-Where the repo allows only squashes, `jmerge` squashes, `gh pr merge <number> --squash --match-head-commit <head>`, with the subject and the cleaned body of any squash ("What a merge does").
-Main then gets one commit for the whole branch, and each unit's pull request into the branch stays its own record.
-The `merged` line then says `landed as a squash: each unit's pull request into <branch> is its own record`.
-A repo that allows neither makes the landing wait with `the repo allows rebase merges only, not a merge commit or a squash` (`LANDING_UNALLOWED`, on the `check` step: no word of yours lifts it, only the repo's settings).
-When GitHub does not give the settings, the landing waits too, with `the repo's merge settings could not be read: <what gh said>` (`NO_SETTINGS`, on the `check` step).
-`jmerge` never removes its branch, whichever way it landed.
-The `merged` line says `kept: <branch> is an integration branch`, and `--sweep` keeps it with the same reason.
-If the repo's GitHub settings delete a head branch after its merge, GitHub still deletes the branch, and that setting is the repo's, not `jmerge`'s.
-
-`--sweep` counts a pull request merged into an integration branch as merged.
-A project with no `integration` file has no integration branches.
 
 ## After a rebase
 

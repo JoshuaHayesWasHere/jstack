@@ -24,7 +24,6 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
-from urllib.parse import quote
 
 import daemons
 import jsettings
@@ -223,8 +222,6 @@ class Scene:
             f"*actions/runs*) cat {root}/runs.json ;;\n"
             f"*check-runs*) cat {root}/check-runs.json ;;\n"
             f"*pulls/*) cat {root}/pull.json ;;\n"
-            '*"pulls?"*) branch=${2##*head=*%3A}; branch=${branch%%&*}\n'
-            f'  cat "{root}/pulls-$branch.json" 2>/dev/null || echo "[]" ;;\n'
             f"list) cat {root}/merged.json ;;\n"
             "*) exit 1 ;;\nesac\n",
         )
@@ -482,22 +479,6 @@ class Scene:
         each time, numbered from 100, as `gh` gives `--json number,mergedAt`."""
         made = [{"number": 100 + at, "mergedAt": iso(one)} for at, one in enumerate(times)]
         self.write("merged.json", made, self.root)
-
-    def pulls_from(self, branch, *pulls):
-        """What the stand-in `gh` answers for the pull requests whose head is `branch`: one for
-        each `(state, base, merged)`, numbered from 200, as GitHub's list of pull requests gives
-        them. `merged` is whether it merged, and the repo's default branch is `main`."""
-        made = [
-            {
-                "number": 200 + at,
-                "state": state,
-                "merged_at": iso(ago(days=2)) if merged else None,
-                "base": {"ref": base, "repo": {"default_branch": "main"}},
-                "head": {"ref": branch},
-            }
-            for at, (state, base, merged) in enumerate(pulls)
-        ]
-        self.write(f"pulls-{quote(branch, safe='')}.json", made, self.root)
 
     def asked(self):
         """Each call of the stand-in `gh`, as its arguments."""
@@ -1152,10 +1133,10 @@ def stamp(minutes):
 def piped(scene):
     """Two projects and three homes. `demo` has the root and `jview`: a chain of three, from
     tea-pot through tea-cup to tea-saucer, whose brief names no home; ux-look-pr in check with
-    cleanup-ux-look-pr stacked on it, a brief with no home; oat-lid at a gate; mac-a merged
-    today into the integration branch `release/mac`, which has not landed; rye-loaf merged
-    today; bad-row in no state the view knows; and the scout `look` of jview, out with no Report.
-    `pantry` has the root alone, with fig-jam running and fig-tart at a gate. jbus lists each gate
+    cleanup-ux-look-pr stacked on it, a brief with no home; oat-lid at a gate; mac-a merged today
+    into the branch `release/mac`, not main; rye-loaf merged today; bad-row in no state the view
+    knows; and the scout `look` of jview, out with no Report. `pantry` has the root alone, with
+    fig-jam running and fig-tart at a gate. jbus lists each gate
     as waiting on the user."""
     scene.queue(
         [
@@ -1192,7 +1173,6 @@ def piped(scene):
     (scene.home / "tasks" / "mac-a.md").write_text(
         "# mac-a: a made-up task\nPull request: open one against release/mac when done\n"
     )
-    (scene.home / "integration").write_text("release/mac\n")
     requested(scene, look=REQUEST.format(slug="look") + "Home: jview\n")
     (scene.state / "briefs").mkdir(exist_ok=True)
     (scene.state / "briefs" / "look.md").write_text(REQUEST.format(slug="look") + "Home: jview\n")

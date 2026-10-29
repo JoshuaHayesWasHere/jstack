@@ -78,7 +78,7 @@ Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `def judge(`, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py `def red_only`, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py `moved = None if one.started is None else self.moved(one.base, one.started) if ( moved is None`, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem, text)`, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem)`, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full, fixRow, fixes, proved>>

@@ -1,12 +1,11 @@
 """A pass approves a follow-up of approved work by itself: no home approves it, and nothing of it
 reaches the user.
 
-A follow-up is a row that names its parent P and is one of three kinds (`queue.KINDS`): a
-`cleanup-P`, a fix row that jbus's pass filed from a red check (its brief says so, whatever its
-slug), or a sync of an integration branch that the home's `integration` file names (its slug says
-`sync-main`, its pull request goes against the branch, and it has a `Follows: P` line). Its ground
-is P's go, which holds, and the record names P and P's go. A fix jbus filed from a red check that no
-row's merge turned red names no parent, and its ground is the red run. The follow-up rule is known
+A follow-up is a row that names its parent P and is one of two kinds (`queue.KINDS`): a
+`cleanup-P`, or a fix row that jbus's pass filed from a red check (its brief says so, whatever its
+slug). Its ground is P's go, which holds, and the record names P and P's go. A fix jbus filed from a
+red check that no row's merge turned red names no parent, and its ground is the red run. The
+follow-up rule is known
 by what it says, never by its number in a home's `standing.md`, so these tests keep a `follow-rule`
 file whose number no standing rule has, and no `standing.md` at all. Every row here is queued as a
 filer queues it, with `queue.add` as jbus's pass and no approval, and the real pass runs against the
@@ -15,46 +14,37 @@ kitchen's fakes."""
 import pytest
 
 import jbus
-from jbus import queue, sidered
+from jbus import queue
 from jmerge import judgement
 from test_jbus_kitchen import FIX_BRIEFS, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
-BRANCH = "release/demo"
-RED, BRANCH_RED, SIDE_RED = (
-    "main-red-" + "a" * 12,
-    "integration-red-release-demo-" + "b" * 12,
-    "workflow-red-x-c",
-)
-SYNC = "demo-sync-main-1"
-FIXED = (RED, BRANCH_RED, SIDE_RED)
+RED, OTHER_RED = "main-red-" + "a" * 12, "main-red-" + "b" * 12
+FIXED = (RED, OTHER_RED)
 
 
 @pytest.fixture
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     (made.home / "follow-rule").write_text("9\n")
-    (made.home / "integration").write_text(f"{BRANCH}\n")
     made.word()
     yield made
     made.close()
 
 
-def text(slug, parent="", against="", wider=False):
-    """Return a brief that follows `parent`, whose pull request goes against `against`, and that
-    asks for one thing more where it is `wider`."""
+def text(slug, parent="", wider=False):
+    """Return a brief that follows `parent`, and that asks for one thing more where it is
+    `wider`."""
     made = brief(slug, f"Follows: {parent}\n" if parent else "")
     if slug in FIXED:
         filing = f"Decisions: {queue.FILED}main and the user has not seen it\n"
         made = made.replace('Decisions: "review it once", the user\'s word in a test\n', filing)
-    if against:
-        made = made.replace("open one when done", f"open one against {against} when done")
     return made.replace("- it is done\n", "- it is done\n- and more\n") if wider else made
 
 
-def filed(kitchen, slug, parent="", against="", wider=False):
+def filed(kitchen, slug, parent="", wider=False):
     """Queue a row as a filer does: as jbus's pass, with no approval, and no home in the loop."""
-    queue.add(kitchen.state, slug, 0, [], text(slug, parent, against, wider), ran_by=queue.PASS)
+    queue.add(kitchen.state, slug, 0, [], text(slug, parent, wider), ran_by=queue.PASS)
 
 
 def approve(kitchen, slug):
@@ -82,23 +72,12 @@ def test_each_kind_of_follow_up_is_approved_on_a_pass_and_nothing_reaches_the_us
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
     filed(kitchen, "unsaid")
-    kinds = {
-        "cleanup-alpha": ("", ""),
-        RED: ("alpha", ""),
-        BRANCH_RED: ("alpha", ""),
-        SIDE_RED: ("alpha", ""),
-        SYNC: ("alpha", BRANCH),
-    }
-    for slug, (parent, against) in kinds.items():
-        filed(kitchen, slug, parent, against)
-    left = {
-        "cleanup-unsaid": ("", ""),
-        "delta": ("", ""),
-        "beta": ("alpha", ""),
-        "other-sync-main-2": ("alpha", "elsewhere"),
-    }
-    for slug, (parent, against) in left.items():
-        filed(kitchen, slug, parent, against)
+    kinds = {"cleanup-alpha": "", RED: "alpha", OTHER_RED: "alpha"}
+    for slug, parent in kinds.items():
+        filed(kitchen, slug, parent)
+    left = {"cleanup-unsaid": "", "delta": "", "beta": "alpha"}
+    for slug, parent in left.items():
+        filed(kitchen, slug, parent)
     assert all(went(kitchen, slug) == () for slug in kinds)
     kitchen.quiet()
     for slug in kinds:
@@ -115,31 +94,28 @@ def test_each_kind_of_follow_up_is_approved_on_a_pass_and_nothing_reaches_the_us
 
 
 def test_a_follow_up_of_a_follow_up_is_approved_on_the_same_pass(kitchen):
-    """The integration branch's sync after a red main's fix: the fix follows the merge that
-    turned main red, and the sync follows the fix. A chain goes back to the user's word one go at
-    a time."""
+    """A red main's fix follows the merge that turned main red, and its cleanup follows the fix. A
+    chain goes back to the user's word one go at a time."""
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
     filed(kitchen, RED, "alpha")
-    filed(kitchen, SYNC, RED, BRANCH)
-    filed(kitchen, f"cleanup-{SYNC}")
+    filed(kitchen, f"cleanup-{RED}")
     kitchen.quiet()
     assert went(kitchen, RED) == ("alpha", queue.RULE)
-    assert went(kitchen, SYNC) == (RED, queue.RULE)
-    assert went(kitchen, f"cleanup-{SYNC}") == (SYNC, queue.RULE)
+    assert went(kitchen, f"cleanup-{RED}") == (RED, queue.RULE)
 
 
 def test_a_hold_of_the_root_takes_back_the_whole_chain(kitchen):
     filed(kitchen, "alpha")
     approve(kitchen, "alpha")
     filed(kitchen, RED, "alpha")
-    filed(kitchen, SYNC, RED, BRANCH)
+    filed(kitchen, f"cleanup-{RED}")
     kitchen.quiet()
     code, said = kitchen.main("queue", "hold", "alpha")
     assert code == 0, said
-    assert said.splitlines()[0].startswith(f"held alpha, and {SYNC}, {RED} with it")
+    assert said.splitlines()[0].startswith(f"held alpha, and cleanup-{RED}, {RED} with it")
     kitchen.poll()
-    assert (went(kitchen, RED), went(kitchen, SYNC)) == ((), ())
+    assert (went(kitchen, RED), went(kitchen, f"cleanup-{RED}")) == ((), ())
 
 
 def test_an_edit_voids_the_go_and_the_pass_approves_the_new_brief_only_for_the_same_parent(
@@ -149,17 +125,17 @@ def test_an_edit_voids_the_go_and_the_pass_approves_the_new_brief_only_for_the_s
         filed(kitchen, parent)
         approve(kitchen, parent)
     filed(kitchen, RED, "alpha")
-    filed(kitchen, BRANCH_RED, "alpha")
+    filed(kitchen, OTHER_RED, "alpha")
     kitchen.quiet()
     filed(kitchen, RED, "alpha", wider=True)
-    moved = text(BRANCH_RED, "gamma", wider=True)
-    queue.add(kitchen.state, BRANCH_RED, 0, [], moved, ran_by=queue.PASS)
+    moved = text(OTHER_RED, "gamma", wider=True)
+    queue.add(kitchen.state, OTHER_RED, 0, [], moved, ran_by=queue.PASS)
     stored = queue.brief(kitchen.state, RED)
     assert not judgement.approved_text(rows(kitchen)[RED], stored)
     kitchen.poll()
     assert went(kitchen, RED) == ("alpha", queue.RULE)
     assert judgement.approved_text(rows(kitchen)[RED], stored)
-    assert not judgement.approved_text(rows(kitchen)[BRANCH_RED], moved)
+    assert not judgement.approved_text(rows(kitchen)[OTHER_RED], moved)
 
 
 def test_a_row_the_users_word_approved_waits_for_the_user_after_an_edit_voids_it(kitchen):
@@ -196,9 +172,6 @@ def red_briefs():
     slug it files it under: none names a parent."""
     made = [
         kept_brief("main-quiet"),
-        kept_brief("integration").replace("Follows: one\n", ""),
-        kept_brief("workflow-failed"),
-        kept_brief("workflow-not-run"),
         kept_brief("browser"),
         kept_brief("macos"),
     ]
@@ -270,16 +243,6 @@ def test_a_row_jbus_queued_whose_brief_does_not_say_it_was_filed_from_a_red_chec
 
 
 def test_the_fix_rows_jbus_files_name_the_row_they_follow():
-    """A red main names the briefed merge before it, a red integration branch the first pull
-    request it holds, and a red workflow the row whose pull request its run's commit merged."""
+    """A red main names the briefed merge before it."""
     assert queue.named_parent("main-red-" + "d" * 12, kept_brief("main")) == "alpha"
     assert queue.named_parent(RED, red_briefs()[RED]) == ""
-    red = kept_brief("integration")
-    assert queue.named_parent("integration-red-release-demo-" + "1" * 12, red) == "one"
-    table = [
-        {"slug": "beta", "pr": "#6"},
-        {"slug": "alpha", "pr": "#7"},
-    ]
-    assert sidered.merged_row(table, {"display_title": "feat: alpha (#7)"}) == "alpha"
-    assert sidered.merged_row(table, {"head_commit": {"message": "feat: x (#8)\n\nbody"}}) == ""
-    assert sidered.merged_row(table, {"display_title": "nightly"}) == ""

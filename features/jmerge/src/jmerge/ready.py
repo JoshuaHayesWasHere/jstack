@@ -117,10 +117,6 @@ GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
 MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
 NO_MESSAGES = Reason("check", "its commit messages could not be read for the squash")
-NO_SETTINGS = Reason("check", "the repo's merge settings could not be read")
-LANDING_UNALLOWED = Reason(
-    "check", "the repo allows {allowed} only, not a merge commit or a squash"
-)
 KEPT = "every line kept"
 FRESH_CONFLICT = Reason("rebase", "it conflicts with today's main")
 NO_HEAD = Reason("second", "its review names no head to compare its rebase with")
@@ -235,7 +231,6 @@ MIGRATION_REBASING = Reason(
     "it adds a migration, and #{number}, which merges before it, is being rebased",
 )
 MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
-BASE_RED = Reason("check", "{base} is red at {sha}: its latest check failed")
 BASE_MERGE_ASKED = Reason(
     "check",
     "GitHub was asked to merge {base} at {tip} into it: its check failed before {base} moved",
@@ -425,20 +420,6 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
     )
 
 
-def unchecked_into(one: PullRequest, integration: tuple[str, ...]) -> PullRequest:
-    """`one` with no wait on the pull request's own check where its base is an integration
-    branch. check.yml runs that check on a pull request into main alone: work into an
-    integration branch is checked on each push to the branch, whose red hold stands for it, and
-    at main's gate when the branch lands."""
-    if one.base not in integration:
-        return one
-    return replace(
-        one,
-        waiting=tuple(name for name in one.waiting if name not in REQUIRED),
-        failed=tuple(name for name in one.failed if name not in REQUIRED),
-    )
-
-
 def listed_in_full(one: PullRequest, every: list[dict]) -> PullRequest:
     """`one` with the files of GitHub's files endpoint, which pages through up to 3000 of them,
     where `gh pr list` lists the first 100. Its `status` is the change type in lower case."""
@@ -474,21 +455,15 @@ def brief_of(url: str, tasks: Path) -> Path | None:
     return None
 
 
-def integration_of(text: str) -> tuple[str, ...]:
-    """The integration branches that a project's `integration` file names, one to a line."""
-    return tuple(dict.fromkeys(line.strip() for line in text.splitlines() if line.strip()))
-
-
 def held(
     one: PullRequest,
     default: str,
-    integration: tuple[str, ...] = (),
     stacked: Stacked | None = None,
 ) -> str:
     """Why a pull request is held by its base, or nothing. A link jbus stacked sits
     on its base's branch until that row merged: it is not held for it, and waits (`on_stack`)."""
     on_base = stacked is not None and one.base == stacked.branch
-    if one.base != default and one.base not in integration and not on_base:
+    if one.base != default and not on_base:
         return BASE.format(base=one.base, default=default)
     return ""
 

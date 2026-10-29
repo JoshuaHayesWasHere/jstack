@@ -49,9 +49,9 @@ jbus gives that go itself, to a row that the follow-up rule names a follow-up (`
 as jbus applies it is `FOLLOW_UP`), at the end of a batch (`_followers`, `_by_rule`): a row the
 batch queued new, or queued again where its go was by rule, and a waiting row whose parent the batch
 approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting row of a
-follow-up's kind (`KINDS`): a `cleanup-P`, a fix row jbus filed (`filed`), and a sync of an
-integration branch. A filer queues its row as jbus's pass (`PASS`, kept as the row's `queued_by`)
-with no approval, and the batch or the pass approves it. So no home approves a follow-up, and
+follow-up's kind (`KINDS`): a `cleanup-P` and a fix row jbus filed (`filed`). A filer queues its row
+as jbus's pass (`PASS`, kept as the row's `queued_by`) with no approval, and the batch or the pass
+approves it. So no home approves a follow-up, and
 nothing of it reaches the user. A fix jbus filed from a red check that no row's merge turned red
 names no parent: its ground is the red run its brief names (`red_run`), and its record has no
 `follows`.
@@ -178,18 +178,15 @@ FOLLOWED = "a follow-up approved by rule has no go without its parent's"
 CLEANUP = "cleanup-"
 FILED = "none, jbus filed this from a red "
 FROM_RED = "jbus filed it from the red run "
-SYNC = "sync-main"
 FOLLOW_UP = (
     "a row is a follow-up of the row P, and jbus approves it by the follow-up rule "
     f"({FOLLOW_RULE}) when it is queued and on each pass, when it names P (its brief's head has a "
     "line `Follows: P`, or its slug is `cleanup-P`), when it is of a follow-up's kind (its slug "
     "is `cleanup-P`; or it is a fix jbus filed, a row jbus's pass queued whose brief's Decisions: "
-    f"line begins `{FILED}`; or it is a sync of an integration branch, its slug says `sync-main` "
-    "and its pull request goes against a branch the home's integration file names; or, when it is "
-    "queued, its --entry is P's plan entry), and when P's go holds (P is a row of the queue, or "
-    "went as merged, and its go is the user's word or this rule's); a fix jbus filed that names "
-    "no parent is approved by the same rule on the red run its brief's Task: line quotes; any "
-    "other row waits for the user's go"
+    f"line begins `{FILED}`; or, when it is queued, its --entry is P's plan entry), and when "
+    "P's go holds (P is a row of the queue, or went as merged, and its go is the user's word or "
+    "this rule's); a fix jbus filed that names no parent is approved by the same rule on the red "
+    "run its brief's Task: line quotes; any other row waits for the user's go"
 )
 SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
@@ -691,9 +688,6 @@ class Asks:
     reference name or the text of the standing rule, or refuses. It may ask T3 Code, so jbus also
     calls it before it locks the table.
 
-    `integration` is the branches that the home's `integration` file names: a sync of one of
-    them is a follow-up's kind (`KINDS`).
-
     `entry_go` gets a brief and its plan entry, and returns the user's go for that entry where it
     holds, with the message on `ref`, or None (`jbus.plan.holding`).
     """
@@ -702,7 +696,6 @@ class Asks:
     launched: Callable[[str], str]
     told: Callable[[dict[str, Any]], None]
     said: Callable[[str, str], Said] | None = None
-    integration: tuple[str, ...] = ()
     entry_go: EntryGo | None = None
 
 
@@ -901,16 +894,6 @@ def _ruled(row: Row) -> bool:
     return made is not None and made.basis == RULE
 
 
-def _against(text: str) -> str:
-    """Return the branch that the brief's `Pull request:` line opens its pull request against, or
-    nothing where it names none."""
-    for label, lines in briefs.fields(text):
-        if label == "Pull request":
-            found = re.search(r"\bagainst (\S+)", " ".join(lines))
-            return found.group(1).rstrip(".,;") if found else ""
-    return ""
-
-
 def filed(row: Row, text: str) -> bool:
     """Return whether jbus filed the row from a red check: jbus's pass queued its brief (`PASS`),
     and the brief's `Decisions:` line says so (`FILED`). Who queued it is the record `add` keeps,
@@ -927,25 +910,21 @@ def red_run(text: str) -> str:
     return found.group(1) if found else task.strip()
 
 
-def kind(row: Row, text: str, branches: tuple[str, ...]) -> str:
+def kind(row: Row, text: str) -> str:
     """Return the follow-up's kind that the row is (`KINDS`), or nothing: a `cleanup-P` is
-    `cleanup`, a fix row jbus filed is `fix` (`filed`), and a row whose slug says `sync-main` and
-    whose pull request goes against a branch that `branches` names is `sync`. The row and its brief
-    say."""
+    `cleanup`, and a fix row jbus filed is `fix` (`filed`). The row and its brief say."""
     slug = row["slug"]
     if slug.startswith(CLEANUP):
         return "cleanup"
     if filed(row, text):
         return "fix"
-    if SYNC in slug and _against(text) in branches:
-        return "sync"
     return ""
 
 
-KINDS = ("cleanup", "fix", "sync")
+KINDS = ("cleanup", "fix")
 
 
-def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: bool = True) -> str:
+def follow_up(batch: _Batch, slug: str, units: bool = True) -> str:
     """Return the parent that the row `slug` follows up by the follow-up rule, nothing for a fix
     jbus filed from a red check that names no parent (`filed`), or refuse with why the row is not
     a follow-up. The rule is `FOLLOW_UP`, and it reads the row, its brief and the
@@ -973,10 +952,10 @@ def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: b
             f"refused: {slug}'s go followed {made.follows}, and its brief now follows {named}"
         )
     unit = units and given_entry(row) == given_entry(parent)
-    if not kind(row, text, branches) and not unit:
+    if not kind(row, text) and not unit:
         raise Refused(
-            f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed, an integration "
-            f"branch's sync) and does not do work for {named}'s plan entry "
+            f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed) "
+            f"and does not do work for {named}'s plan entry "
             f"{given_entry(parent)}: its entry is {given_entry(row)}"
         )
     _parent(batch, slug, named)
@@ -987,7 +966,6 @@ def _by_rule(
     batch: _Batch,
     slug: str,
     user: jsettings.Settings | None,
-    branches: tuple[str, ...],
     units: bool = True,
     ran_by: dict[str, str] | None = None,
 ) -> str:
@@ -1001,7 +979,7 @@ def _by_rule(
     if row.get("approved") and judgement.approved_text(row, text):
         return ""
     try:
-        parent = follow_up(batch, slug, branches, units)
+        parent = follow_up(batch, slug, units)
         verb = Approve(slug, RULE, FOLLOW_REF, "", parent)
         return _do(verb, batch, user, None, {}, {}, ran_by)
     except Refused as error:
@@ -1900,7 +1878,7 @@ def _run(
                     said.append(line)
         if user is not None and (asks is not None or ran_by is not None):
             for slug in _followers(batch):
-                line = _by_rule(batch, slug, user, asks.integration if asks else (), ran_by=ran_by)
+                line = _by_rule(batch, slug, user, ran_by=ran_by)
                 if line:
                     said.append(line)
         _inherit(batch)
@@ -1985,7 +1963,7 @@ def go(
     return _run(state, [(0, verb)], user, asks, ran_by)
 
 
-def follow_ups(state: Path, branches: tuple[str, ...], user: jsettings.Settings) -> list[str]:
+def follow_ups(state: Path, user: jsettings.Settings) -> list[str]:
     """Approve by the follow-up rule each waiting row of a follow-up's kind (`KINDS`) whose
     parent's go holds, as jbus's pass (`PASS`), and return the line of each go. A row approved here
     may be the parent of another, so the rows are asked again until a round approves none. A row
@@ -2004,8 +1982,8 @@ def follow_ups(state: Path, branches: tuple[str, ...], user: jsettings.Settings)
             lines = [
                 line
                 for row in sorted(rows, key=order)
-                if kind(row, batch.brief(row["slug"]) or "", branches)
-                for line in [_by_rule(batch, row["slug"], user, branches, False, PASS)]
+                if kind(row, batch.brief(row["slug"]) or "")
+                for line in [_by_rule(batch, row["slug"], user, False, PASS)]
                 if line.startswith("approved ")
             ]
             said += lines
@@ -2018,17 +1996,12 @@ def _follow_ups(half: Any) -> None:
     follow-up a filer queued last pass launches on this one."""
     run = half.run
     try:
-        branches = tuple((run.home / INTEGRATION).read_text().split())
-    except OSError:
-        branches = ()
-    try:
-        for line in follow_ups(run.state, branches, run.user):
+        for line in follow_ups(run.state, run.user):
             run.say(f"queue {run.project.name}: {line}")
     except Refused:
         return
 
 
-INTEGRATION = "integration"
 STEPS = (verbs.Step("before-watch", 8, "queue.follow_ups", _follow_ups),)
 
 

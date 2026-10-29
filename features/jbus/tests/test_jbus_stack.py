@@ -5,7 +5,7 @@ move:
 - When the base's head moves (review fixes, a rebase), the link is told to rebase onto the base's
   branch, once for that head, unless its head already holds the base's.
 - When the base merged, jbus bases the link's pull request on the branch the base merged into
-  (main, or an integration branch), or on the one its brief opens it against, tells its crew to move
+  (main, or another branch), or on the one its brief opens it against, tells its crew to move
   its own commits onto that branch, and writes where it sits now on the brief's `Stacked on:` line.
 - A link that still sits on its base gets no message to rebase onto main: its branch holds its
   base's commits, which only "A link that moved" leaves out.
@@ -128,7 +128,7 @@ def test_a_base_that_merged_moves_its_link_onto_main_once(stacked, on):
 
 @pytest.mark.parametrize("on", ["one", "release/x"])
 def test_a_base_that_merged_into_a_branch_moves_its_link_onto_the_branch(stacked, on):
-    """A base that merged into an integration branch, not the default, leaves its link on that
+    """A base that merged into another branch than the default leaves its link on that
     branch: a rebase onto main would carry the branch's commits to main. A link GitHub already
     based on the branch is not edited."""
     pulls(stacked, merged=True, on=on, into="release/x")

@@ -1,14 +1,8 @@
 """How close each milestone is to done, drawn as a chain of steps toward its outcome.
 
-A milestone is an entry of a home's plan or an integration branch. An entry is a
-`## <slug>: <one line>` section of a home's `plan.md`, the root's first and then each scope's by
-name, and its one line is the outcome it names. A scope with no plan has no entries. An
-integration branch is a branch that the home's `integration` file names, as `jmerge` reads it
-(`ready.integration_of`), and its outcome is that the branch lands on the default branch. Its
-rows are the rows whose brief's `Pull request:` line opens the pull request against it, as
-`jbus.watch.against` reads the line. A branch that has landed, one of its own pull requests
-merged into the default branch and none is open (`github.GitHub.landed`), is no milestone and
-holds no row. Where GitHub was not asked or did not answer, the branch is listed.
+A milestone is an entry of a home's plan: a `## <slug>: <one line>` section of a home's
+`plan.md`, the root's first and then each scope's by name, and its one line is the outcome it
+names. A scope with no plan has no entries.
 
 The panel counts a milestone's rows with `jbus plan`'s own count (`plan.progress`), and gives an
 entry the line `jbus plan` prints for it (`plan.status`), so the bar and the words are one count.
@@ -23,12 +17,10 @@ state is.
 
 `holder` is the step that holds the chain: the first stuck or needs-you step, else the first
 blocked one, with what the last pass said of it. `waits_on` is each other milestone that a step
-of this chain waits on, by a row of it that is not over. A row's milestone is its integration
-branch or its plan entry, an entry's chain naming the entry first and a branch's the branch, and
-nothing where it is in neither. `to_go` is the branch's rows that have not merged into it yet.
+of this chain waits on, by a row of it that is not over. A row's milestone is its plan entry,
+and nothing where it is in none.
 
-The panel reads the plans, the briefs and the integration file each time it is asked, and
-writes nothing.
+The panel reads the plans and the queue each time it is asked, and writes nothing.
 """
 
 from __future__ import annotations
@@ -38,7 +30,6 @@ from typing import Any
 
 from jbus import plan, queue
 from jbus.view.state import (
-    _SLUG,
     ASKS,
     BROKEN,
     OVER,
@@ -51,8 +42,6 @@ from jbus.view.state import (
     Read,
     text,
 )
-from jbus.watch import against
-from jmerge import ready
 
 FIRST = False
 _COUNT = {"word": None, "count": None}
@@ -82,10 +71,8 @@ _CHAIN = {
 }
 _ENTRY = {"slug": None, "line": None, "status": None} | _CHAIN
 _HOME = {"name": None, "plan": None, "entries": [_ENTRY]}
-_BRANCH = {"branch": None, "to_go": None} | _CHAIN
-SHAPE = {"milestones": {"homes": [_HOME], "integration": [_BRANCH]}}
+SHAPE = {"milestones": {"homes": [_HOME]}}
 SOURCES = (QUEUE_FILE,)
-INTEGRATION = "integration"
 MARK = {
     BROKEN: "stuck",
     ASKS: "needs you",
@@ -197,33 +184,13 @@ def _entry_of(read: Read) -> dict[str, str]:
     return {row["slug"]: queue.entry(row) for row in read.rows if queue.entry(row) in slugs}
 
 
-def _branches(read: Read) -> list[str]:
-    """The integration branches of the home's `integration` file that have not landed, as far
-    as GitHub says."""
-    named = ready.integration_of(_read(read.home / INTEGRATION) or "")
-    if not named or not read.where or read.landed is None:
-        return named
-    landed = read.landed(read.where, tuple(named))["landed"]
-    return [branch for branch in named if branch not in landed]
-
-
-def _branch_of(read: Read) -> dict[str, str]:
-    """The integration branch of each row of the queue whose brief opens its pull request
-    against one that has not landed."""
-    branches = read.once(_branches)
-    if not branches:
-        return {}
-    by = {row["slug"]: _target(read, row["slug"]) for row in read.rows}
-    return {slug: branch for slug, branch in by.items() if branch in branches}
-
-
 def _home(read: Read, name: str, where: Path) -> dict[str, Any]:
     """The entries of one home's plan, or none, with `plan` saying whether it has one."""
     said = _read(where / "plan.md")
     if said is None:
         gone = not (where / "plan.md").exists()
         return {"name": name, "plan": "missing" if gone else "unreadable", "entries": []}
-    owner = read.once(_branch_of) | read.once(_entry_of)
+    owner = read.once(_entry_of)
     entries = []
     for one in plan.entries(said):
         rows = plan.rows_of(one.slug, read.rows)
@@ -234,28 +201,6 @@ def _home(read: Read, name: str, where: Path) -> dict[str, Any]:
     return {"name": name, "plan": "read", "entries": entries}
 
 
-def _target(read: Read, slug: str) -> str:
-    """The branch the slug's brief opens its pull request against, as jbus reads it, or nothing."""
-    if not _SLUG.fullmatch(slug):
-        return ""
-    for path in (read.home / "tasks" / f"{slug}.md", read.state / "briefs" / f"{slug}.md"):
-        said = _read(path)
-        if said is not None:
-            return against(said)
-    return ""
-
-
-def _integration(read: Read) -> list[dict[str, Any]]:
-    branch_of = read.once(_branch_of)
-    owner = read.once(_entry_of) | branch_of
-    found = []
-    for branch in read.once(_branches):
-        rows = [row for row in read.rows if branch_of.get(row["slug"]) == branch]
-        chain = _chain(read, branch, rows, owner)
-        found.append({"branch": text(branch, 80), "to_go": chain["total"] - chain["over"]} | chain)
-    return found
-
-
 def build(read: Read) -> dict[str, Any]:
     homes = [_home(read, name, where) for name, where in _wheres(read)]
-    return {"milestones": {"homes": homes, "integration": _integration(read)}}
+    return {"milestones": {"homes": homes}}
