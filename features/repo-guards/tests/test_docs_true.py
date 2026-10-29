@@ -20,9 +20,9 @@ test does not read that name as a command. On a command's own page, a code span 
 name first, as `git push --no-verify`.
 
 The test reads the fenced blocks of every other Markdown file under `features/`, the skills and
-their templates but not the recorded eval runs, the same way, so a skill teaches no verb or flag
-that is gone. It reads no inline span there, since a skill's spans quote the lines its blocks
-print, as `jbus is not installed`.
+their templates but not the tests' fixtures or the recorded eval runs, the same way, so a skill
+teaches no verb or flag that is gone. It reads no inline span there, since a skill's spans quote
+the lines its blocks print, as `jbus is not installed`.
 
 The README's count of skills must match the tree, and so must each count of commands that
 the README or a page gives.
@@ -48,7 +48,7 @@ RUNS = REPO / "features/evals/evals"
 SKILLS = tuple(
     path
     for path in sorted(REPO.glob("features/*/**/*.md"))
-    if "docs" not in path.relative_to(REPO).parts and not path.is_relative_to(RUNS)
+    if not {"docs", "tests"} & set(path.relative_to(REPO).parts) and not path.is_relative_to(RUNS)
 )
 SCRIPTS = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"]
 WIDTH = "200"
@@ -187,13 +187,24 @@ def gone(trees, text, own=None, spans=True):
                 flag in at.flags for at in trees[own].walk()
             ):
                 found.append(f"{own}: {flag}, in `{piece}`")
-        for part in re.split(r"\$\(", piece):
+        for part in commands(piece):
             words = words_of(part)
             for start, word in enumerate(words):
                 if word in trees and (start == 0 or words[start - 1] in STARTS or words[0] == "uv"):
                     after = strays(trees[word], words[start + 1 :])
                     found += [f"{line}, in `{piece}`" for line in after]
     return found
+
+
+def commands(piece):
+    """The command a piece of code runs, and each command inside a `$(...)` of it, up to its `)`."""
+    outer, *parts = piece.split("$(")
+    inner = []
+    for part in parts:
+        own, _, rest = part.partition(")")
+        inner.append(own)
+        outer += f" {rest}"
+    return (outer, *inner)
 
 
 def strays(at, words):
@@ -205,7 +216,7 @@ def strays(at, words):
         elif word in ENDS or word in SCRIPTS:
             break
         elif word.startswith("--"):
-            flag = word.partition("=")[0].rstrip(");")
+            flag = word.partition("=")[0]
             if "$" in flag:
                 continue
             if flag not in at.flags:
@@ -397,7 +408,15 @@ def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(tr
         "jbus queue: the verb list, in `jbus queue list`",
     ]
     assert gone(trees, "On `jbus is not installed`, say so.", spans=False) == []
-    told = '```sh\nn=$(jbriefs --findings "$B" --rounds)\njbus answer 3 "--$which" -- yes\n```\n'
+    told = "\n".join(
+        (
+            "```sh",
+            'n=$(jbriefs --findings "$B" --rounds)',
+            'jbus answer 3 "--$which" -- yes',
+            'jbus answer 3 "$(jmerge --scope x)" --default yes',
+            "```",
+        )
+    )
     assert gone(trees, told, spans=False) == []
 
 
