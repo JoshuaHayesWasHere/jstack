@@ -539,10 +539,13 @@ def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_
     assert errors == [] and seen and set(seen) == {True}
 
 
-def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path):
+def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path, monkeypatch):
+    """The second write comes a second after the first, as one does on a loaded machine."""
     machine(tmp_path, **IDLE)
     names = ("stub/df", "stub/nproc", "stub/tmp/df", "proc/loadavg", "limits")
     before = {name: (tmp_path / name).stat() for name in names}
+    later = time.time() + 1
+    monkeypatch.setattr(time, "time", lambda: later)
     machine(tmp_path, **IDLE)
     after = {name: (tmp_path / name).stat() for name in names}
     assert {name: (one.st_ino, one.st_mtime_ns) for name, one in after.items()} == {
