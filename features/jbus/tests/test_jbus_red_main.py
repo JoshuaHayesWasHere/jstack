@@ -681,3 +681,18 @@ def test_a_push_run_that_is_not_rerun_is_red_at_once(kitchen, attempt, refused):
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
     assert set(reruns(kitchen)) == (set() if attempt > 1 else {"run rerun --failed 501"})
+
+
+def test_a_failed_push_run_at_a_new_tip_is_rerun_while_a_fix_row_is_open(kitchen):
+    """The merge of a fix is the likeliest tip to flake: an open fix row has `_retro` ask about
+    main's tip first, and that ask reruns it too, so no second row is filed."""
+    old = failed_once(kitchen, attempt=2)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{old[:12]}"]
+    new = landed(kitchen, 2, "failure")
+    pushed(kitchen, new, "failure", 1)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert reruns(kitchen) == ["run rerun --failed 501"]
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{old[:12]}"]

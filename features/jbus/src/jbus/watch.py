@@ -67,11 +67,12 @@ UNWRITTEN_MINUTES = 15
 RETRO = timedelta(hours=24)
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
 NO_JOB = "nojob"
+"""What `_check` answers for a commit on main whose failed check runs started no job."""
 RERUNS = "reruns.json"
 """The push runs on main whose failed jobs jbus asked GitHub to rerun, by id: when it asked,
 and whether GitHub took the rerun."""
 RERUN_WAIT = timedelta(minutes=30)
-"""What `_check` answers for a commit on main whose failed check runs started no job."""
+"""How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")
 NIGHTLY_WINDOW = timedelta(days=3)
 NIGHTLY_GRACE = timedelta(hours=1)
@@ -1539,7 +1540,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         return
     known: dict[str, str] = read_json(run.state / "checks.json", {})
     tip = commits[0]["sha"] if commits else ""
-    if fixes and _check(run, known, tip) == "green":
+    if fixes and _check(run, known, tip, rerun=True) == "green":
         _withdraw(run, fixes, tip)
     by_commit = {(p.get("mergeCommit") or {}).get("oid"): p for p in merges}
     for place, commit in enumerate(commits):
