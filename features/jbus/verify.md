@@ -64,7 +64,7 @@ A red main files the brief for its fix (`main-red`):
 ## How to get to it (user POV)
 
 - Run `jbus queue add <slug> --priority <n>` with the brief on stdin.
-- Run `jbus queue approve <slug> --by <who> --at "<YYYY-MM-DD HH:MM ZONE>" --sha <12 characters>`.
+- Run `jbus word --to <project> --message <thread id>/<message id>` to keep the user's word, then `jbus queue approve <slug> --sha <12 characters> --word <id>`.
 - Run `jbus queue hold <slug>`.
 - Run `jbus queue show` to read the table.
 - Run `jbus poll` for one pass.
@@ -93,13 +93,16 @@ Preconditions:
 - You are in a new sandbox, `env.sh` is sourced, and the doctor prints `doctor: ok`.
 - No `jbus poll` has run in it, and `jbus queue show` has no rows.
 
-- **Add the row.** Pipe a brief in. Run `printf '# alpha: a demo task\nWhere: `src/alpha/`\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1`. The table has one row, `alpha`, priority 1, status `queued`, with `approved` and `brief_sha` empty.
+- **Add the row.**
+  Pipe a brief in.
+  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1`.
+  The table has one row, `alpha`, priority 1, status `queued`, with `approved` and `brief_sha` empty.
 - **Try a derived column.** Run `record queue-row jbus queue add gamma --priority 2 --status launched`. It prints `refused: status is derived from T3 Code and GitHub, and no command writes it` and exits 2. No `gamma` row is added.
-- **Approve it.**
-  Run `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)`, then `record queue-row jbus queue approve alpha --by user --at "2026-10-12 00:30 $(perl -MPOSIX -e 'print strftime("%Z", localtime(mktime(0, 30, 0, 12, 9, 126, 0, 0, -1)))')" --sha "$sha"`.
-  The sandbox has no config of jstack's own, so the name is `user`.
-  The word after the time is the abbreviation of the machine's zone at that time, and perl's `strftime` prints it.
-  The row's `approved` reads `2026-10-12 00:30 <that word> by user` and its `brief_sha` is the 12 characters.
+- **Keep a word, and approve it.**
+  Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`.
+  Run `record queue-row jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id.
+  Then run `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)` and `record queue-row jbus queue approve alpha --sha "$sha" --word <the id>`.
+  The row's `approved` reads `your word, ...` and its `brief_sha` is the 12 characters.
 - **Hold it, and pass.** Run `record queue-row jbus queue hold alpha`, then `record queue-row jbus poll`. The row's `approved` is empty again, the pass prints no `launched` line, and `$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl` has no `t3_thread_launch`.
 - **Approve again, and pass.** Run the approve command again, then `record queue-row jbus poll`. It prints `launched alpha: mcp:sandbox-thread-1`.
 - **Read the table.** Run `record queue-row jbus queue show`. The row's `status` is `launched` and its `thread` is `mcp:sandbox-thread-1`.
