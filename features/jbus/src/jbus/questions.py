@@ -123,9 +123,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import jbus
 import jsettings
 from jbriefs import below, skills
+from jbriefs.home import thread_of
 from jbus import END_TURN, Config, Refused, locked, mirror, outbox, queue, t3, verbs, write_json
 from jbus.party import CASES, Evidence, Party
 from jbus.passes import Pass
@@ -441,7 +441,7 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
         count, records = _kept(state)
         key = mirror.gate_key(slug, asked)
         said = {
-            "thread": jbus.thread_of(home, slug) or (named[1] if named else ""),
+            "thread": thread_of(home, slug) or (named[1] if named else ""),
             "default": default,
             "built_on": below.line(lines, "Built on it:"),
             "undo": below.line(lines, "Undo:"),
@@ -784,7 +784,7 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
         return Carried()
     form = (GO if one.answer.keeps else HELD) if one.holds else MESSAGE
     message = form.format(user=run.user.user, **asdict(one), **asdict(one.answer))
-    thread = jbus.thread_of(run.home, slug)
+    thread = thread_of(run.home, slug)
     if not thread:
         return Carried(message)
     key = f"answer|{slug}|{number}"
@@ -878,7 +878,7 @@ def propose(run: Pass, client: Client) -> None:
         key = f"options|{one.slug}|{one.number}"
         if one.answer or one.options or one.proposed or one.slug in gone:
             continue
-        thread = jbus.thread_of(run.home, one.slug)
+        thread = thread_of(run.home, one.slug)
         if thread:
             owed.append((one, key, thread))
         else:

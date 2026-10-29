@@ -87,7 +87,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import below, findings, skills
-from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, thread_of, verbs, write_json
+from jbriefs.home import thread_of
+from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error

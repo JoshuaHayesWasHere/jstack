@@ -70,7 +70,7 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 
 from __future__ import annotations
 
-import jbus
+from jbriefs.home import thread_of
 from jbus import Refused, dispatch, outbox, questions, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -268,7 +268,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
             brief = ""
         if stacks.unmoved(brief):
             continue
-        thread = jbus.thread_of(run.home, slug)
+        thread = thread_of(run.home, slug)
         if not thread:
             run.gate(slug, NO_THREAD, f"#{number}: {why}", key=f"{NO_THREAD} {fixed[:12]}")
             continue

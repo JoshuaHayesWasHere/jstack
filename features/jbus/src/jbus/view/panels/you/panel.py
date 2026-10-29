@@ -49,6 +49,7 @@ import jbus
 import jsettings
 from jbriefs import below
 from jbriefs import home as jbriefs
+from jbriefs.home import thread_of
 from jbus import acts, asks, dispatch, mirror, party, passes, questions, queue, t3, waiting, word
 from jbus.view.state import (
     _SLUG,
@@ -176,7 +177,7 @@ def retired(home: Path) -> set[str]:
             closed = CLOSED.search((scope / "handoff.md").read_text(errors="replace"))
         except OSError:
             closed = None
-        if closed and not jbus.thread_of(scope):
+        if closed and not thread_of(scope):
             found.add(scope.name)
     return found
 
@@ -479,7 +480,7 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
 def _thread(read: Read, home: str) -> str:
     """The link to the thread of the home by its name, the root's for none, or nothing where it
     has none."""
-    found = jbus.thread_of(read.home / home if home else read.home)
+    found = thread_of(read.home / home if home else read.home)
     return THREAD.format(found) if found else ""
 
 

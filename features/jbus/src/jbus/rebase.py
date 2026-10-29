@@ -78,7 +78,8 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from jbriefs import below
-from jbus import END_TURN, cancelled, dispatch, outbox, queue, review, thread_of, verbs
+from jbriefs.home import thread_of
+from jbus import END_TURN, cancelled, dispatch, outbox, queue, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import (

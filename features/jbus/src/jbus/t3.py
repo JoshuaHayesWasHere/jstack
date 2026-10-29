@@ -1,9 +1,9 @@
 """jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
 
 `login` registers jbus with the server, sends the user to the server's approval page, keeps the
-token that the server issues, and records when the server issued it. `expiry` says when that token
-runs out. `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test
-scans this package for any other tool name.
+token that the server issues, and records when the server issued it (`jsettings.t3.expiry` says
+when that token runs out). `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no
+other tool: a test scans this package for any other tool name.
 
 Three of the eight tools change a thread, and `Client.call` allows each of them in one form
 only (`_held`):
@@ -42,7 +42,7 @@ from typing import Any
 
 import jroles
 import jsettings
-from jbus import Config, Refused, queue, read_json, verbs, write_json
+from jbus import Config, Refused, queue, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
 from jsettings.t3 import PROTOCOL as PROTOCOL
@@ -62,7 +62,6 @@ TOOLS = (
     "t3_thread_organize",
 )
 SCOPE = "orchestration:read orchestration:operate"
-LIFETIME = 30 * 24 * 60 * 60
 CHARS = 50000
 GONE = re.compile(
     r"not[ _]found|no longer available|no such|unknown thread|does not exist|no thread", re.I
@@ -161,32 +160,6 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
     stored = {"server": server, "client": client, "token": token, "obtained_at": time.time()}
     write_json(token_path, stored, mode=0o600)
     return token
-
-
-def _seconds(value: Any) -> float | None:
-    real = isinstance(value, int | float) and not isinstance(value, bool)
-    return float(value) if real and value > 0 else None
-
-
-def expiry(token_path: Path) -> datetime | None:
-    """Return when the stored token runs out, or None when no token is stored.
-
-    The token was obtained at `obtained_at`. For a token stored before jbus recorded that time,
-    `expiry` takes the time that the token's file was last written. The token lasts its own
-    `expires_in` seconds, or `LIFETIME` when it has no `expires_in`. `expiry` does not read the
-    token itself.
-    """
-    stored = read_json(token_path, {})
-    token = stored.get("token") if isinstance(stored, dict) else None
-    if not isinstance(token, dict) or not token.get("access_token"):
-        return None
-    obtained = _seconds(stored.get("obtained_at"))
-    if obtained is None:
-        try:
-            obtained = token_path.stat().st_mtime
-        except OSError:
-            return None
-    return datetime.fromtimestamp(obtained + (_seconds(token.get("expires_in")) or LIFETIME), UTC)
 
 
 @dataclass(frozen=True)

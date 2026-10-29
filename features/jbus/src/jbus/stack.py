@@ -48,7 +48,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from jbus import END_TURN, dispatch, rebase, review, thread_of, verbs
+from jbriefs.home import thread_of
+from jbus import END_TURN, dispatch, rebase, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
 from jbus.watch import World, against, task_brief

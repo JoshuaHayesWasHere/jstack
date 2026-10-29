@@ -73,7 +73,7 @@ from typing import Any
 import jbus
 import jroles
 import jsettings
-from jbriefs.home import ids, scopes
+from jbriefs.home import ids, scopes, thread_of
 from jbus import dispatch, outbox, roles, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -140,7 +140,7 @@ def _named(run: Pass) -> dict[str, str]:
     """Return each thread a brief names on its `Thread:` line, with the slug of that brief."""
     found = {}
     for path in sorted((run.home / "tasks").glob("*.md")):
-        if thread := jbus.thread_of(run.home, path.stem):
+        if thread := thread_of(run.home, path.stem):
             found[thread] = path.stem
     return found
 

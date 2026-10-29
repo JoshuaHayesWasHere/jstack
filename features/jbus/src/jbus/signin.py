@@ -3,7 +3,7 @@ run out, jbus launches nothing until `jbus t3 login` signs in again. So jbus war
 beforehand, with a `sign-in` event.
 
 jbus counts the days left by the calendar of the user's zone, from the day of the pass to the
-day the stored token runs out (`t3.expiry`). Each reminder gives the expiry and the days
+day the stored token runs out (`jsettings.t3.expiry`). Each reminder gives the expiry and the days
 left. jbus sends it:
 
 - once, on the first pass `WEEK` days out or fewer;
@@ -33,7 +33,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import jsettings
-from jbus import Config, read_json, t3, verbs, wake, write_json
+from jbus import Config, read_json, verbs, wake, write_json
+from jsettings import t3
 
 EVENTS = {"sign-in": "user"}
 WEEK = 7

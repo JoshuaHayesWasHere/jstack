@@ -37,11 +37,12 @@ import jbus
 import jleak
 import jroles
 import jsettings
-from jbus import relay, t3
+from jbus import relayenv
 from jgauge import limits
 from jinstall.harnesses import HARNESSES
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
 from jroles.inventory import BUILT_IN, Instance, declared, instances
+from jsettings import t3
 
 
 class State(Enum):
@@ -1332,8 +1333,8 @@ class RelayKeys:
         if not self.path.is_file():
             return Found.missing("no env file, so the relay is off")
         try:
-            relay.settings(relay.env_file(self.path))
-        except relay.Refused as error:
+            relayenv.settings(relayenv.env_file(self.path))
+        except relayenv.Refused as error:
             return Found.old(f"the relay would not start: {error}")
         return Found.ok()
 

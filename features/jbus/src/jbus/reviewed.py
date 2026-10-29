@@ -31,8 +31,8 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from jbriefs import findings
-from jbriefs.home import home_of
-from jbus import END_TURN, mirror, outbox, rebase, thread_of, verbs
+from jbriefs.home import home_of, thread_of
+from jbus import END_TURN, mirror, outbox, rebase, verbs
 from jbus.expedite import ANSWERED, TABLE, Short
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused

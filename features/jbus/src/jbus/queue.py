@@ -128,7 +128,8 @@ import jsettings
 from jbriefs import chains, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
-from jbus import Refused, party, thread_of, verbs, write_json
+from jbriefs.home import thread_of
+from jbus import Refused, party, verbs, write_json
 from jmerge import judgement
 from jmerge.judgement import bound
 from jsettings import store

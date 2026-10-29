@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import relay
+from jbus import relayenv
 from jbus.launchd import STARTED, TIMED_OUT, label
 from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
@@ -424,11 +424,11 @@ def test_the_relay_gets_each_line_of_its_env_file_as_the_relay_reads_it_and_runs
         "  RELAY_PORT = '4999'  \n"
         '# a comment=1\nexport SKIPPED=1\nQUOTED="x y"\nBACK=a\\tb\n'
     )
-    names = " ".join(relay.env_file(env))
+    names = " ".join(relayenv.env_file(env))
     line = f'for n in {names} SKIPPED; do printf "%s=[%s]\\n" "$n" "$(printenv "$n")"; done'
     code, out, asked = agent_runs(tmp_path, "jbus-relay.service", {"jbus": f"{line}; exit 0"})
     said = [one for one in out.splitlines() if "=[" in one]
-    assert said == [f"{k}=[{v}]" for k, v in relay.env_file(env).items()] + ["SKIPPED=[]"]
+    assert said == [f"{k}=[{v}]" for k, v in relayenv.env_file(env).items()] + ["SKIPPED=[]"]
     assert (code, asked) == (0, ["jbus relay"])
 
 

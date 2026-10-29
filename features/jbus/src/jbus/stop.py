@@ -17,7 +17,7 @@ unless:
 
 `stops.json` in the project's jbus state holds two lists, `stops` of `Stop` and `answers` of
 `Answer` (`Kept`): each record is one message and what became of it. A taken stop goes at once, as
-one message that needs `decide`, to the root's thread: `jbus.thread_of`, read when the
+one message that needs `decide`, to the root's thread: `jbriefs.home.thread_of`, read when the
 message goes and never kept, so a stop never reaches a thread that handed off. A stop that cannot
 go (no root home is running, or its thread is capped, or T3 Code gave no answer) waits in the file,
 and each pass tries it again (`deliver`). The message's retry key is the stop's key and the time it
@@ -48,7 +48,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
-from jbus import Config, Refused, locked, outbox, queue, thread_of, verbs, write_json
+from jbriefs.home import thread_of
+from jbus import Config, Refused, locked, outbox, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 

@@ -141,7 +141,7 @@ ENVIRONMENT_FILE = r"""{
     gsub("^[\"" q "]+|[\"" q "]+$", "", value)
     print key "\t" value
 }"""
-"""The awk that reads an `EnvironmentFile=` as systemd and `jbus.relay.env_file` read it: one
+"""The awk that reads an `EnvironmentFile=` as systemd and `jbus.relayenv.env_file` read it: one
 `KEY=value` a line, the key a variable name, the value trimmed and with its quotes left out. It
 prints `KEY<tab>value`, and the shell exports each value as it is, so no line of the file runs."""
 
