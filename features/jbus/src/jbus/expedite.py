@@ -233,8 +233,8 @@ TABLE = (
         "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
         f'the way the crew skill\'s "The review" says, with the message `{AGAIN}`, and add '
         "`Second reviewer: <threadId>` to the Result, in place of a `Second reviewer:` line "
-        "whose thread wrote no `## Review`. Fix nothing it finds: its findings go to a cleanup "
-        "row.",
+        "whose thread wrote no `## Review`. Its errors and warnings come to this thread: answer "
+        "each by id and push the fix, and no third review follows.",
         reviewed=True,
         sends=AGAIN,
     ),

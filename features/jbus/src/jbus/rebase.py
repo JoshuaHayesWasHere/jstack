@@ -333,7 +333,7 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew writes the `Reviewer: none`
     line when it sends its message. Each of the other three lines comes with a gate or a message
     that already tells of the pull request. jbus alone merges, so no home waits to hear of a fix
-    on green, and a brief that says `Review: after` owes no line.
+    on green.
     """
     if "".join(below.line(brief, "Review:").split()[:1]) != "none":
         return False

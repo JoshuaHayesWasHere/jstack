@@ -88,29 +88,24 @@ _UPHELD = "Declines: upheld "
 _NOT_UPHELD = "Declines: not upheld "
 _ID = re.compile(r"F\d+")
 OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", "overruled"
-REVIEW, NONE, AFTER, TWICE, CLEANUP = "review", "none", "after", "twice", "cleanup"
-MODES = (NONE, AFTER, TWICE, CLEANUP)
-HOLDS, ASKS, FILED, DROPPED, UNSENT = "holds", "asks", "filed", "dropped", "unsent"
-ROUTES = (HOLDS, ASKS, FILED, DROPPED, UNSENT)
+REVIEW, NONE, TWICE = "review", "none", "twice"
+MODES = (NONE, TWICE)
+HOLDS, ASKS, DROPPED, UNSENT = "holds", "asks", "dropped", "unsent"
+ROUTES = (HOLDS, ASKS, DROPPED, UNSENT)
 """Where a finding goes: to the crew, holding the merge until it has an answer that counts
-(`HOLDS`), to the crew, holding nothing (`ASKS`), to the brief's cleanup row (`FILED`), nowhere
-(`DROPPED`), or never sent, as a Noted, Dismissed or superseded finding (`UNSENT`)."""
-_LATER = {
-    REVIEW: {"error": HOLDS, "warning": FILED},
-    TWICE: {"error": FILED, "warning": FILED},
-    CLEANUP: {"error": HOLDS},
-}
-"""The route of a later review's finding, by the brief's mode and the finding's severity: the
-severity is trusted as the review wrote it, and any other severity is `DROPPED`. A `review`
-brief fixes its second review's errors in the pull request and files its warnings, a `twice`
-brief files both, and a cleanup row fixes its errors and files nothing, so no follow-up of a
-follow-up is queued. A cleanup row's one review routes by this table too."""
+(`HOLDS`), to the crew, holding nothing (`ASKS`), nowhere (`DROPPED`), or never sent, as a
+Noted, Dismissed or superseded finding (`UNSENT`). Every finding that goes anywhere goes to the
+row's own crew while its pull request is open: no finding is left for another row."""
+_LATER = ("error", "warning")
+"""The severities of a later review's findings that hold the merge: the severity is trusted as
+the review wrote it, and any other severity is `DROPPED`. A `review` brief and a `twice` brief
+both fix them in the pull request."""
 
 
 def mode_of(text: str) -> str:
-    """A brief's review mode, from its first `Review:` line: `none`, `after`, `twice`,
-    `cleanup`, or `review`. Any other word reads as `review`, and so does a brief with no such
-    line. Older briefs, written before the reviewer stopped running tests, use other words."""
+    """A brief's review mode, from its first `Review:` line: `none`, `twice`, or `review`. Any
+    other word reads as `review`, and so does a brief with no such line. Older briefs use other
+    words, such as `after`, which went with the rows that held a review's leftover findings."""
     line = next((one for one in text.splitlines() if one.startswith("Review:")), "")
     said = "".join(line.split()[1:2])
     return said if said in MODES else REVIEW
@@ -593,14 +588,12 @@ def _later(sections: list[Section]) -> list[Section]:
     return marked
 
 
-def _route(mode: str, later: bool, one: Finding) -> str:
+def _route(later: bool, one: Finding) -> str:
     """Where one finding goes, by `ROUTES`."""
     if one.superseded or one.bucket == DISMISSED:
         return UNSENT
-    if mode == AFTER:
-        return FILED if one.bucket in SENT else UNSENT
-    if later or mode == CLEANUP:
-        return _LATER.get(mode, _LATER[REVIEW]).get(one.severity, DROPPED)
+    if later:
+        return HOLDS if one.severity in _LATER else DROPPED
     if one.bucket not in SENT:
         return UNSENT
     return HOLDS if one.bucket == ACT_ON or one.risk else ASKS
@@ -635,7 +628,7 @@ def triage(text: str) -> Triage:
         ]
         one.contradicts = min(near, key=lambda pair: (pair[0], int(pair[1][1:])))[1] if near else ""
     for one in findings:
-        one.route = _route(mode, sections[one.lead.section].later, one)
+        one.route = _route(sections[one.lead.section].later, one)
     answers, old = _answers(text)
     unnumbered = iter(old)
     for one in findings:
@@ -688,8 +681,6 @@ def _shown(one: Finding) -> list[str]:
         lines.append(f"  dismissed: {lead.reason or 'no reason given'}")
     elif one.superseded:
         lines.append("  superseded: its reviewer wrote this head's section again")
-    elif one.route == FILED:
-        lines.append("  goes to: the cleanup row, and this thread answers nothing for it")
     elif one.route == DROPPED:
         lines.append("  goes to: nowhere, dropped, and this thread answers nothing for it")
     elif one.answer is not None:
@@ -737,7 +728,7 @@ def left(said: Triage) -> str:
     if shape is None:
         return (
             "write nothing: the last review sends this thread no finding, since only an error "
-            "of a later review comes here, and the Fixed: line stays as it is"
+            "or a warning of a later review comes here, and the Fixed: line stays as it is"
         )
     pushed, why = shape
     return f"write Fixed: {'<the head you pushed>, ' if pushed else 'none needed, <reason>: '}{why}"
@@ -751,7 +742,7 @@ def fixed_shape(said: Triage) -> tuple[bool, str] | None:
     last = _last_round(said) if said.sections else set()
     if not last or said.roster.owed(said.sections) or any(not one.ended for one in sent):
         return None
-    if not owes(said, last) and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
+    if not owes(said, last) and any(said.sections[n].later for n in last):
         return None
     recent = [one for one in sent if one.lead.section in last]
     if (
@@ -767,11 +758,9 @@ def fixed_shape(said: Triage) -> tuple[bool, str] | None:
 
 def owes(said: Triage, last: set[int]) -> bool:
     """Whether the round of the sections `last` owes the crew a line. A first review in it
-    owes one on `Verdict: findings`, whatever it sent. A later review, and every review of a
-    cleanup row, owes one only for a finding it sends the crew, which is an error (`_route`)."""
-    first = said.mode != CLEANUP and any(
-        not said.sections[n].later and said.sections[n].verdict == "findings" for n in last
-    )
+    owes one on `Verdict: findings`, whatever it sent. A later review owes one only for a
+    finding it sends the crew, an error or a warning (`_route`)."""
+    first = any(not said.sections[n].later and said.sections[n].verdict == "findings" for n in last)
     return first or any(one.sent and one.lead.section in last for one in said.findings)
 
 

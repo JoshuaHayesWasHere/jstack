@@ -11,7 +11,7 @@ jbus plan stop <entry>
 ```
 
 `jbus plan` prints one line for each entry of the root home's plan, and with `--scope` of that scoped home's: the slug, its one line and its status, as `<slug> | <one line> | <status>`. The one line is cut at 56 characters and the status at 60. A row counts for the entry `add` was given as `--entry`, and for the entry of its own slug with none.
-A follow-up with no `--entry`, a row that names its parent P on a `Follows: P` line or by the slug `cleanup-P`, counts for P's entry instead, up a chain of follow-ups.
+A follow-up with no `--entry`, a row that names its parent P on a `Follows: P` line, counts for P's entry instead, up a chain of follow-ups.
 jbus keeps that entry in the row's `parent_entry`, writes it on each `queue add` and on each pass, and `jbus queue show` prints it as `<entry> (its parent's)`.
 An entry a row takes from its parent counts in `jbus plan` and approves nothing: a go by entry or by the follow-up rule reads only the `--entry` the home gave.
 

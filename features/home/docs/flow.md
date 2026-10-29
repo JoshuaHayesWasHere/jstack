@@ -58,12 +58,10 @@ Without asking you, the threads do everything else that is reversible.
 | One of the six doors | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
-A brief that says `Review: after` merges once its check passes, and its review's findings become a cleanup row, `cleanup-<slug>`.
-Where the reviewed row's go still holds, jbus approves that row by the follow-up rule when it is queued, or on the next pass; otherwise it waits for your go.
 A brief that says `Review: twice`, the home's default, gets one review and one fix round.
 Then a second review reads the head the fix round pushed, unless that round changed nothing and wrote `Fixed: none needed`.
-The pull request merges once the second review is written.
-The second review's `warning` and `error` findings come to you as the same kind of cleanup row, and its `info` findings are dropped.
+The second review's `warning` and `error` findings go to the same crewmate, which answers them before the merge, and its `info` findings are dropped.
+Every finding a review sends goes to the row's own crewmate while its pull request is open: none becomes a row of its own.
 A brief that says `Review: review` has every finding answered before the merge.
 There, a fix that changes a file outside `tests/` gets one more review, of the fix alone, and that review is the last.
 A fix that changes only files under `tests/` gets no second review, and the pull request's checks stand behind it.

@@ -14,7 +14,7 @@ step `check` waits on, the outcome `checked.outcome` gives it (`failing`, `waiti
 `stacked`, or None where it has none), in `check`, in `stacked` and in `you` alike, so a stacked
 row the user holds still counts as stacked, and None for a row on any other step. Its
 `home` is its brief's, as `homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names
-no home, as a cleanup brief names none, is the root's, `root`, whatever rows it links to.
+no home is the root's, `root`, whatever rows it links to.
 
 A row waits on each row its `depends` and `merge_after` name that is still open: a task of its
 project, so not merged, done or judged through. `waited_by` is the reverse, among the rows the

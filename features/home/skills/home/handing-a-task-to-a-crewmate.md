@@ -14,20 +14,20 @@
 
    | Write | When |
    |---|---|
-   | `Review: twice` | always, unless one below holds or the user says otherwise: the user, 2026-10-21, "from now on do one round of addressing fixes and then another round of review. on the second review file any findings medium or above in severity as follow ups, ignore the rest." It gets one review and one fix round, then a second review whose `warning` and `error` findings become a cleanup row and whose `info` findings are dropped, and it merges once that second review is written |
-   | `Review: review` | the user asks for a review whose findings are answered before the merge: the crewmate answers each finding of the first review, and after it only an `error` is fixed in the pull request, while a later review's `warning` findings become a cleanup row and its `info` findings are dropped |
-   | `Review: after` | the user's standing rule is speed first: it merges once its check passes, and its review's findings become a cleanup row, a follow-up that jbus approves by the follow-up rule where the row's go holds |
+   | `Review: twice` | always, unless one below holds or the user says otherwise: the user, 2026-10-21, "from now on do one round of addressing fixes and then another round of review. on the second review file any findings medium or above in severity as follow ups, ignore the rest." Josh, 2026-10-29, replaced its second half: every finding goes to the row's own crewmate before the merge. It gets one review and one fix round, then a second review whose `warning` and `error` findings the crewmate answers and whose `info` findings are dropped, and it merges once those are answered |
+   | `Review: review` | the user asks for a review whose findings are answered before the merge: the crewmate answers each finding of the first review, and after it a later review's `error` and `warning` findings are fixed in the pull request too, and its `info` findings are dropped |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
-   | `Review: cleanup` | never by the home: `jbus cleanup` writes it on each cleanup row it files, which gets one review of its own diff, in which only an `error` is fixed and no finding files a cleanup row of its own |
 
-   A brief with no line counts as `review`. With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word. No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
+   A brief with no line, or with any other word, an old `after` included, counts as `review`.
+   With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word.
+   No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
 
    A brief is checked when it is queued, not when it launches.
    `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, where the brief has one, that names the design or says `none, <why>`; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
    It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again.
    Nothing is queued, so the user is never asked to approve a brief that cannot launch.
    A launch checks the same again.
-   It also refuses a `Review: after` with no `Decisions:` line that gives the user's words for it, and a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`.
+   It also refuses a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`.
 
    Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's code in hand when it starts, code it changes, calls or imports?
    Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.

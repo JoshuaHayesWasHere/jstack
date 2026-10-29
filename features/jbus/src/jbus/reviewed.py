@@ -8,9 +8,8 @@ judge, `ready.short_of`, what the pull request is short of at its head. Only whe
 line the crew owes (`OWED`: findings to answer, or a `Fixed:` line) does it send the crew one
 message, through `jbus.outbox`, with needs `act`, under the key `review|<slug>|<head 12>` of the
 head the sections reviewed. The message names the sections by their `By:` lines and the findings
-of that head by their ids. A clean verdict, the second review of a `Review: twice` brief that its
-reviewer filed as `cleanup-<slug>`, a `Review: after` brief and a review whose other seats have not
-written yet all owe no line, so nothing is sent and `outbox.jsonl` has no line for them.
+of that head by their ids. A clean verdict and a review whose other seats have not written yet owe
+no line, so nothing is sent and `outbox.jsonl` has no line for them.
 
 A brief with no `Thread:` line names no crew, so its home is sent the notice in its place. With no
 home either, the findings are a gate, once for the head. A section whose `Sent to:` line starts

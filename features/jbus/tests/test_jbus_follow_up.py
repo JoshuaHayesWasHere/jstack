@@ -1,11 +1,10 @@
 """A follow-up of an approved row is approved by the follow-up rule when it is queued.
 
-The rule (`queue.FOLLOW_UP`) reads the row, its brief and the parent's row: the row names its
-parent P (a `Follows: P` line, or the slug `cleanup-P`), the row is P's (its slug is `cleanup-P`,
-or its entry is P's), and P's go holds. jbus knows the rule by what it says, and reads no file of
-the home for it. A row of new work waits for the user's go, and only its decision reaches the
-user. Every test runs the real `jbus queue add` and `approve`, and a pass, against the kitchen's
-fakes. The pass's own approvals are in `test_jbus_follow_up_pass.py`.
+The rule (`queue.FOLLOW_UP`) reads the row, its brief and the parent's row: the row names its parent
+P (a `Follows: P` line), the row is P's (its entry is P's), and P's go holds. jbus knows the rule by
+what it says, and reads no file of the home for it. A row of new work waits for the user's go, and
+only its decision reaches the user. Every test runs the real `jbus queue add` and `approve`, and a
+pass, against the kitchen's fakes. The pass's own approvals are in `test_jbus_follow_up_pass.py`.
 """
 
 import json
@@ -51,15 +50,20 @@ def follows(parent):
     return f"Follows: {parent}\n"
 
 
+def unit(kitchen, slug, parent):
+    """Queue `slug` as a unit of alpha's entry that follows `parent`."""
+    return add(kitchen, slug, "--entry", "alpha", text=brief(slug, follows(parent)))
+
+
 def decided(kitchen):
     return [line.split(":")[0] for line in kitchen.lines("decision")]
 
 
 def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision_is_sent(kitchen):
     """The replay: an approved entry, alpha, merged in the evening. Overnight, with the owner away,
-    a review files cleanup-alpha and the home queues the entry's second and third units and one row
-    of new work. The three follow-ups are approved by rule and launch that night, and the one
-    decision sent asks for the new row."""
+    the home queues the entry's second, third and fourth units, the fourth building on alpha's
+    code, and one row of new work. The three follow-ups are approved by rule and launch that
+    night, and the one decision sent asks for the new row."""
     kitchen.config(max_running=6)
     assert add(kitchen, "alpha") == []
     assert go(kitchen, "alpha")[0] == 0
@@ -70,13 +74,17 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     assert rows(kitchen)["alpha"]["status"] == "merged"
     kitchen.forget()
     queued = [
-        ("cleanup-alpha", ("--depends", "alpha"), brief("cleanup-alpha", BUILDS_ON)),
+        (
+            "alpha-4",
+            ("--entry", "alpha", "--depends", "alpha"),
+            brief("alpha-4", follows("alpha") + BUILDS_ON),
+        ),
         ("alpha-2", ("--entry", "alpha"), brief("alpha-2", follows("alpha"))),
         ("alpha-3", ("--entry", "alpha"), brief("alpha-3", follows("alpha"))),
         ("delta", (), brief("delta")),
     ]
     said = {slug: add(kitchen, slug, *more, text=text) for slug, more, text in queued}
-    for slug in ("cleanup-alpha", "alpha-2", "alpha-3"):
+    for slug in ("alpha-4", "alpha-2", "alpha-3"):
         line = BY_RULE.format(parent="alpha", ran=RAN)
         assert said[slug] == [f"approved {slug}: brief {sha12(brief_of(kitchen, slug))}, {line}"]
         made = rows(kitchen)[slug]["approval"]
@@ -89,7 +97,7 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     for hour in range(4):
         kitchen.poll(NIGHT + timedelta(hours=hour))
     launched = sorted(one["title"] for one in kitchen.t3.launches)
-    assert launched == ["crew: alpha-2", "crew: alpha-3", "crew: cleanup-alpha"]
+    assert launched == ["crew: alpha-2", "crew: alpha-3", "crew: alpha-4"]
     assert decided(kitchen) == ["decision delta"]
     waits = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert [one["key"] for one in waits] == ["approve:delta"]
@@ -105,16 +113,10 @@ def brief_of(kitchen, slug):
     ("slug", "more", "text", "why"),
     [
         (
-            "cleanup-nope",
+            "beta",
             (),
-            None,
-            "cleanup-nope cannot follow nope: the queue has no row nope",
-        ),
-        (
-            "cleanup-unsaid",
-            (),
-            None,
-            "cleanup-unsaid cannot follow unsaid: unsaid has no approval",
+            brief("beta", follows("nope")),
+            "beta cannot follow nope: the queue has no row nope",
         ),
         (
             "beta",
@@ -126,20 +128,19 @@ def brief_of(kitchen, slug):
             "beta",
             (),
             brief("beta", follows("alpha")),
-            "beta is no follow-up's kind (cleanup-, a fix jbus filed) and does not do work for "
-            "alpha's plan entry alpha: its entry is beta",
+            "beta is no fix jbus filed and does not do work for alpha's plan entry alpha: its "
+            "entry is beta",
         ),
         (
-            "cleanup-gone",
+            "beta",
             (),
-            None,
-            "cleanup-gone cannot follow gone: gone was removed 2026-10-12 10:00 ET by user, and "
-            "its row did not go as merged",
+            brief("beta", follows("gone")),
+            "beta cannot follow gone: gone was removed 2026-10-12 10:00 ET by user, and its row "
+            "did not go as merged",
         ),
     ],
     ids=[
         "no parent row",
-        "a parent never approved",
         "a second unit of an unapproved row",
         "a Follows line with no entry of the parent's",
         "a parent removed unmerged",
@@ -173,11 +174,11 @@ def test_a_row_that_names_no_parent_waits_and_add_says_nothing_of_the_rule(kitch
 def test_a_follow_up_of_a_follow_up_is_approved_on_its_parents_go(kitchen):
     add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
-    add(kitchen, "cleanup-alpha")
-    said = add(kitchen, "cleanup-cleanup-alpha")
-    line = BY_RULE.format(parent="cleanup-alpha", ran=RAN)
-    text = brief_of(kitchen, "cleanup-cleanup-alpha")
-    assert said == [f"approved cleanup-cleanup-alpha: brief {sha12(text)}, {line}"]
+    unit(kitchen, "alpha-2", "alpha")
+    said = unit(kitchen, "alpha-3", "alpha-2")
+    line = BY_RULE.format(parent="alpha-2", ran=RAN)
+    text = brief_of(kitchen, "alpha-3")
+    assert said == [f"approved alpha-3: brief {sha12(text)}, {line}"]
 
 
 def test_a_batch_approves_a_follow_up_whose_parent_gets_its_go_later_in_the_batch(kitchen):
@@ -196,16 +197,15 @@ def test_a_batch_approves_a_follow_up_whose_parent_gets_its_go_later_in_the_batc
 
 def test_the_users_go_for_a_parent_approves_its_waiting_follow_ups(kitchen):
     add(kitchen, "alpha")
-    assert add(kitchen, "cleanup-alpha") == [
-        "cleanup-alpha waits for the user's go, not a follow-up: cleanup-alpha cannot follow "
-        "alpha: alpha has no approval"
+    assert unit(kitchen, "alpha-2", "alpha") == [
+        "alpha-2 waits for the user's go, not a follow-up: alpha-2 cannot follow alpha: alpha has "
+        "no approval"
     ]
     code, said = go(kitchen, "alpha")
     line = BY_RULE.format(parent="alpha", ran=RAN)
     assert code == 0
-    assert said.splitlines()[0] == (
-        f"approved cleanup-alpha: brief {sha12(brief('cleanup-alpha'))}, {line}"
-    )
+    text = brief("alpha-2", follows("alpha"))
+    assert said.splitlines()[0] == f"approved alpha-2: brief {sha12(text)}, {line}"
 
 
 def test_a_row_the_user_left_waiting_is_not_approved_by_adding_it_again(kitchen):
@@ -219,16 +219,16 @@ def test_a_row_the_user_left_waiting_is_not_approved_by_adding_it_again(kitchen)
 def test_a_hold_of_the_parent_holds_its_follow_ups_and_adding_one_again_keeps_the_hold(kitchen):
     add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
-    add(kitchen, "cleanup-alpha")
-    add(kitchen, "alpha-2", "--entry", "alpha", text=brief("alpha-2", follows("alpha")))
+    unit(kitchen, "alpha-3", "alpha")
+    unit(kitchen, "alpha-2", "alpha")
     code, said = kitchen.main("queue", "hold", "alpha")
     assert code == 0 and said.splitlines()[0] == (
-        "held alpha, and alpha-2, cleanup-alpha with it: a follow-up approved by rule has no go "
+        "held alpha, and alpha-2, alpha-3 with it: a follow-up approved by rule has no go "
         "without its parent's"
     )
-    again = brief("cleanup-alpha", "One more note.\n")
-    assert add(kitchen, "cleanup-alpha", text=again) == []
-    assert (rows(kitchen)["cleanup-alpha"]["approved"], rows(kitchen)["alpha-2"]["approved"]) == (
+    again = brief("alpha-3", follows("alpha") + "One more note.\n")
+    assert add(kitchen, "alpha-3", "--entry", "alpha", text=again) == []
+    assert (rows(kitchen)["alpha-3"]["approved"], rows(kitchen)["alpha-2"]["approved"]) == (
         "",
         "",
     )
@@ -237,12 +237,14 @@ def test_a_hold_of_the_parent_holds_its_follow_ups_and_adding_one_again_keeps_th
 def test_a_follow_up_whose_brief_changed_meaning_is_approved_by_rule_again(kitchen):
     add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
-    add(kitchen, "cleanup-alpha")
-    wider = brief("cleanup-alpha").replace("- it is done\n", "- it is done\n- and more\n")
-    said = add(kitchen, "cleanup-alpha", text=wider)
+    unit(kitchen, "alpha-2", "alpha")
+    wider = brief("alpha-2", follows("alpha")).replace(
+        "- it is done\n", "- it is done\n- and more\n"
+    )
+    said = add(kitchen, "alpha-2", "--entry", "alpha", text=wider)
     line = BY_RULE.format(parent="alpha", ran=RAN)
-    assert said[-1] == f"approved cleanup-alpha: brief {sha12(wider)}, {line}"
-    assert judgement.approved_text(rows(kitchen)["cleanup-alpha"], wider)
+    assert said[-1] == f"approved alpha-2: brief {sha12(wider)}, {line}"
+    assert judgement.approved_text(rows(kitchen)["alpha-2"], wider)
 
 
 def test_queue_add_help_gives_the_follow_up_rule_by_what_it_says(kitchen):
@@ -257,34 +259,33 @@ def test_a_held_follow_up_queued_again_with_a_new_brief_is_not_approved_by_rule(
     waits for the user."""
     add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
-    add(kitchen, "cleanup-alpha")
-    assert rows(kitchen)["cleanup-alpha"]["approved"]
-    assert kitchen.main("queue", "hold", "cleanup-alpha")[0] == 0
-    assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
-    redirected = brief("cleanup-alpha", "Redirected.\n")
-    assert add(kitchen, "cleanup-alpha", text=redirected) == []
-    assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
+    unit(kitchen, "alpha-2", "alpha")
+    assert rows(kitchen)["alpha-2"]["approved"]
+    assert kitchen.main("queue", "hold", "alpha-2")[0] == 0
+    assert rows(kitchen)["alpha-2"]["approved"] == ""
+    redirected = brief("alpha-2", follows("alpha") + "Redirected.\n")
+    assert add(kitchen, "alpha-2", "--entry", "alpha", text=redirected) == []
+    assert rows(kitchen)["alpha-2"]["approved"] == ""
     kitchen.quiet()
     kitchen.poll()
-    assert "decision cleanup-alpha" in decided(kitchen)
+    assert "decision alpha-2" in decided(kitchen)
 
 
 def test_an_entry_the_parent_only_inherited_makes_no_follow_up_unit(kitchen):
-    """`cleanup-alpha` counts for alpha's entry `epic` without being filed under it, so a row
-    given `--entry epic` that follows it is no unit of it, and a row given `--entry cleanup-alpha`
-    still is: the rule compares the entries the home gave."""
+    """`beta` counts for alpha's entry `epic` without being filed under it, so a row given
+    `--entry epic` that follows it is no unit of it, and a row given `--entry beta` still is: the
+    rule compares the entries the home gave."""
     add(kitchen, "alpha", "--entry", "epic")
     assert go(kitchen, "alpha")[0] == 0
-    add(kitchen, "cleanup-alpha")
-    assert rows(kitchen)["cleanup-alpha"]["approval"]["basis"] == queue.RULE
-    assert rows(kitchen)["cleanup-alpha"]["parent_entry"] == "epic"
-    said = add(kitchen, "gamma", "--entry", "epic", text=brief("gamma", follows("cleanup-alpha")))
+    add(kitchen, "beta", text=brief("beta", follows("alpha")))
+    assert go(kitchen, "beta")[0] == 0
+    assert rows(kitchen)["beta"]["parent_entry"] == "epic"
+    said = add(kitchen, "gamma", "--entry", "epic", text=brief("gamma", follows("beta")))
     assert said == [
-        "gamma waits for the user's go, not a follow-up: gamma is no follow-up's kind (cleanup-, "
-        "a fix jbus filed) and does not do work for cleanup-alpha's plan entry cleanup-alpha: "
-        "its entry is epic"
+        "gamma waits for the user's go, not a follow-up: gamma is no fix jbus filed and does not "
+        "do work for beta's plan entry beta: its entry is epic"
     ]
     assert rows(kitchen)["gamma"]["approved"] == ""
-    text = brief("delta", follows("cleanup-alpha"))
-    add(kitchen, "delta", "--entry", "cleanup-alpha", text=text)
-    assert rows(kitchen)["delta"]["approval"]["follows"] == "cleanup-alpha"
+    text = brief("delta", follows("beta"))
+    add(kitchen, "delta", "--entry", "beta", text=text)
+    assert rows(kitchen)["delta"]["approval"]["follows"] == "beta"
