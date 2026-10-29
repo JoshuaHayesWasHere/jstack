@@ -1,0 +1,463 @@
+From ad4abd410dd3f8283b0d02634e756333adb0c8ff Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 13:30:58 -0400
+Subject: [PATCH 2/2] fix(web): jstack tree opens queued rows at their asking
+ thread; other projects use the tree's rows
+
+---
+ apps/web/src/components/Sidebar.tsx           | 76 ++++++++++++--
+ .../src/components/sidebar/JstackTreeRows.tsx | 98 ++++++++++++++++++-
+ .../components/sidebar/SidebarThreadRow.tsx   | 71 +++++++++-----
+ .../sidebar/jstackTree.logic.test.ts          | 23 +++++
+ .../components/sidebar/jstackTree.logic.ts    | 11 ++-
+ 5 files changed, 241 insertions(+), 38 deletions(-)
+
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index 2768d204dc..092b833e17 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -258,7 +258,12 @@ import {
+   sidebarFolderRowId,
+ } from "./sidebar/SidebarProjectFolderHeader";
+ import { buildJstackTree, type JstackTree } from "./sidebar/jstackTree.logic";
+-import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
++import {
++  JstackFolderRow,
++  JstackTreeRowView,
++  jstackFolderIdle,
++  type JstackTreeRowActions,
++} from "./sidebar/JstackTreeRows";
+ import { useJbusWork } from "../lib/jbusWorkState";
+ import {
+   SidebarDragBoundary,
+@@ -3264,18 +3269,22 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+                         // The tree row of the project folder this row sits in.
+                         folderRow?: string,
+                       ) => {
++                        // jstack fork: in the tree sidebar, a folder's rows take the tree's sizes.
++                        const inTree = folderRow !== undefined && jstackTrees.size > 0;
+                         const threadKey = scopedThreadKey(
+                           scopeThreadRef(thread.environmentId, thread.id),
+                         );
+                         const isCard =
+                           section === "active" || section === "pinned" || section === "working";
+-                        const rowVariant = folderRow
+-                          ? folderRowsMultiline
+-                            ? "folder-multiline"
+-                            : "folder"
+-                          : isCard
+-                            ? "card"
+-                            : "slim";
++                        const rowVariant = inTree
++                          ? "tree"
++                          : folderRow
++                            ? folderRowsMultiline
++                              ? "folder-multiline"
++                              : "folder"
++                            : isCard
++                              ? "card"
++                              : "slim";
+                         return (
+                           <SortableThreadRow
+                             key={threadKey}
+@@ -3398,7 +3407,31 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+                           continue;
+                         }
+                         if (projectFolders !== null && item.marker === "active-placeholder") {
+-                          for (const folder of projectFolders) {
++                          // jstack fork: the tree sidebar puts idle projects below one divider.
++                          const idle = (folder: (typeof projectFolders)[number]) => {
++                            const tree = jstackTrees.get(folder.group.projectKey);
++                            const head = tree?.rows[0];
++                            if (head?.kind === "project") return head.faded;
++                            return jstackFolderIdle([...folder.threads, ...folder.hiddenThreads]);
++                          };
++                          const folders =
++                            jstackTrees.size === 0
++                              ? projectFolders
++                              : [
++                                  ...projectFolders.filter((folder) => !idle(folder)),
++                                  ...projectFolders.filter(idle),
++                                ];
++                          const firstIdle = jstackTrees.size === 0 ? undefined : folders.find(idle);
++                          for (const folder of folders) {
++                            if (folder === firstIdle && folder !== folders[0]) {
++                              items.push(
++                                <li
++                                  key="jstack-tree-divider"
++                                  aria-hidden
++                                  className="mx-2 my-2 list-none border-t border-sidebar-border/70"
++                                />,
++                              );
++                            }
+                             const tree = jstackTrees.get(folder.group.projectKey);
+                             if (tree !== undefined) {
+                               for (const row of tree.rows) {
+@@ -3417,6 +3450,31 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+                               }
+                               continue;
+                             }
++                            if (jstackTrees.size > 0) {
++                              items.push(
++                                <JstackFolderRow
++                                  key={`project-folder:${folder.group.projectKey}`}
++                                  group={folder.group}
++                                  rowId={sidebarFolderRowId(folder.group.projectKey)}
++                                  collapsed={folder.collapsed}
++                                  threads={folder.threads}
++                                  hiddenThreads={folder.hiddenThreads}
++                                  onToggle={toggleProjectFolder}
++                                  onNewThread={startThreadInProjectFolder}
++                                  onContextMenu={handleProjectFolderContextMenu}
++                                />,
++                              );
++                              for (const thread of folder.threads) {
++                                items.push(
++                                  renderThreadRow(
++                                    thread,
++                                    "active",
++                                    sidebarFolderRowId(folder.group.projectKey),
++                                  ),
++                                );
++                              }
++                              continue;
++                            }
+                             items.push(
+                               <SidebarProjectFolderHeader
+                                 key={`project-folder:${folder.group.projectKey}`}
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 936a72ff86..119f3f4a56 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -1,11 +1,13 @@
+ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
+ import type { ThreadId } from "@t3tools/contracts";
+-import { ChevronDownIcon } from "lucide-react";
++import { ChevronDownIcon, SquarePenIcon } from "lucide-react";
+ import { memo, type MouseEvent, type ReactNode } from "react";
+ 
+ import { cn } from "~/lib/utils";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { ProjectFavicon } from "../ProjectFavicon";
++import { resolveSidebarThreadStatus } from "../Sidebar.logic";
++import { Button } from "../ui/button";
+ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+ import type { JstackTally, JstackTicks, JstackTreeRow } from "./jstackTree.logic";
+ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+@@ -205,13 +207,11 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     data-sidebar-row={row.key}
+                     data-sidebar-parent={row.parentKey}
+                     aria-selected={row.selected}
+-                    aria-disabled={row.threadId === null}
+                     aria-label={`${fullSlug}, ${row.word}${row.ticks === null ? "" : " stage"}`}
+-                    onClick={open(row.threadId)}
++                    onClick={open(row.openThreadId)}
+                     className={cn(
+                       ROW_BUTTON,
+                       "h-6 text-xs",
+-                      row.threadId === null && "cursor-default hover:bg-transparent",
+                       row.selected && "bg-sidebar-row-selected",
+                     )}
+                   >
+@@ -268,3 +268,93 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+       );
+   }
+ });
++
++const ASKS_STATUSES = new Set(["approval", "input", "request"]);
++
++/** Whether a folder has nothing running or waiting on you, so it fades below the divider. */
++export function jstackFolderIdle(threads: readonly EnvironmentThreadShell[]): boolean {
++  return threads.every((thread) => {
++    const status = resolveSidebarThreadStatus(thread);
++    return status !== "working" && !ASKS_STATUSES.has(status);
++  });
++}
++
++/**
++ * A project with no jstack home, in the tree's project-row style: its name folds it, since it
++ * has no main thread to open, and amber marks only a thread that waits on you.
++ */
++export const JstackFolderRow = memo(function JstackFolderRow(props: {
++  group: SidebarProjectSnapshot;
++  rowId: string;
++  collapsed: boolean;
++  threads: readonly EnvironmentThreadShell[];
++  hiddenThreads: readonly EnvironmentThreadShell[];
++  onToggle: (group: SidebarProjectSnapshot) => void;
++  onNewThread: (group: SidebarProjectSnapshot) => void;
++  onContextMenu: (group: SidebarProjectSnapshot, position: { x: number; y: number }) => void;
++}) {
++  const { group, collapsed, hiddenThreads } = props;
++  const asks = hiddenThreads.some((thread) =>
++    ASKS_STATUSES.has(resolveSidebarThreadStatus(thread)),
++  );
++  return (
++    <li
++      data-testid="jstack-tree-folder"
++      className={cn(
++        "group/project-folder relative mt-2 list-none first:mt-0",
++        jstackFolderIdle([...props.threads, ...hiddenThreads]) && "opacity-50",
++      )}
++    >
++      <button
++        type="button"
++        role="treeitem"
++        tabIndex={-1}
++        data-sidebar-row={props.rowId}
++        aria-expanded={!collapsed}
++        aria-label={`${group.displayName}${asks ? ", asks you" : ""}`}
++        onClick={() => props.onToggle(group)}
++        onContextMenu={(event) => {
++          event.preventDefault();
++          props.onContextMenu(group, { x: event.clientX, y: event.clientY });
++        }}
++        className={cn(ROW_BUTTON, "h-8 pr-14")}
++      >
++        <ProjectFavicon project={group} className="size-4 shrink-0" />
++        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground">
++          {group.displayName}
++        </span>
++        {asks ? <GateDot /> : null}
++        {collapsed && hiddenThreads.length > 0 ? (
++          <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
++            {hiddenThreads.length}
++          </span>
++        ) : null}
++      </button>
++      <span className="absolute inset-y-0 right-1 flex items-center gap-0.5">
++        <span className="opacity-0 focus-within:opacity-100 group-hover/project-folder:opacity-100 pointer-coarse:opacity-100">
++          <Button
++            data-sidebar-action-for={props.rowId}
++            size="icon-xs"
++            variant="ghost-muted"
++            aria-label={`New thread in ${group.displayName}`}
++            onClick={() => props.onNewThread(group)}
++          >
++            <SquarePenIcon aria-hidden />
++          </Button>
++        </span>
++        <button
++          type="button"
++          tabIndex={-1}
++          aria-label={collapsed ? `Unfold ${group.displayName}` : `Fold ${group.displayName}`}
++          onClick={() => props.onToggle(group)}
++          className="flex size-6 items-center justify-center rounded-(--control-radius) text-sidebar-muted-foreground outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++        >
++          <ChevronDownIcon
++            aria-hidden
++            className={cn("size-3.5 transition-transform", collapsed && "-rotate-90")}
++          />
++        </button>
++      </span>
++    </li>
++  );
++});
+diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
+index 5e9ea0d588..225efeba17 100644
+--- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx
++++ b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
+@@ -535,7 +535,8 @@ type SidebarThreadRowProps = {
+   thread: SidebarThreadSummary;
+   // "folder" is a one-line row inside a boring sidebar project folder;
+   // "folder-multiline" adds the card's branch and PR line under it.
+-  variant: "card" | "slim" | "folder" | "folder-multiline";
++  // jstack fork: "tree" is a one-line row nested in the tree sidebar, at its sizes.
++  variant: "card" | "slim" | "folder" | "folder-multiline" | "tree";
+   navigationParent?: string | undefined;
+   variantAction: SidebarSweepAction;
+   settlementSupported: boolean;
+@@ -1014,26 +1015,33 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+       aria-hidden
+       className={cn(
+         "min-w-0 flex-1 text-start text-sm transition-opacity motion-reduce:transition-none",
+-        shouldRecede ? "font-normal" : "font-medium",
+-        variant !== "slim"
++        shouldRecede || variant === "tree" ? "font-normal" : "font-medium",
++        variant === "tree"
+           ? cn(
+               "truncate",
+-              shouldRecede
+-                ? "text-foreground/75 group-hover/sidebar-row:text-foreground group-focus-visible/sidebar-row:text-foreground"
+-                : status === "failed" && !isUnread && !isWoke
+-                  ? "text-foreground/95"
+-                  : "text-foreground",
++              props.isActive || isSelected
++                ? "text-sidebar-foreground"
++                : "text-sidebar-foreground/75 group-hover/sidebar-row:text-sidebar-foreground",
+             )
+-          : cn(
+-              "truncate group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
+-              shouldRecede
+-                ? "text-secondary-label"
+-                : props.isActive || isWoke || status === "input" || status === "request"
+-                  ? "text-foreground"
+-                  : isUnread
+-                    ? "text-muted-foreground"
+-                    : "text-secondary-label/70",
+-            ),
++          : variant !== "slim"
++            ? cn(
++                "truncate",
++                shouldRecede
++                  ? "text-foreground/75 group-hover/sidebar-row:text-foreground group-focus-visible/sidebar-row:text-foreground"
++                  : status === "failed" && !isUnread && !isWoke
++                    ? "text-foreground/95"
++                    : "text-foreground",
++              )
++            : cn(
++                "truncate group-focus-within/sidebar-row:text-foreground group-hover/sidebar-row:text-foreground",
++                shouldRecede
++                  ? "text-secondary-label"
++                  : props.isActive || isWoke || status === "input" || status === "request"
++                    ? "text-foreground"
++                    : isUnread
++                      ? "text-muted-foreground"
++                      : "text-secondary-label/70",
++              ),
+         isRegeneratingTitle && "opacity-55",
+       )}
+       dir={textDirection(thread.title)}
+@@ -1191,7 +1199,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+ 
+   if (variant !== "card") {
+     const multiline = variant === "folder-multiline";
+-    const inFolder = variant === "folder" || multiline;
++    const tree = variant === "tree";
++    const inFolder = variant === "folder" || multiline || tree;
++    const treeAsks =
++      topStatus?.icon === "approval" ||
++      topStatus?.icon === "input" ||
++      topStatus?.icon === "request";
+     return (
+       <li
+         data-thread-item={threadKey}
+@@ -1200,6 +1213,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+         className={cn(
+           "list-none [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
+           metaLine !== null && multiline && "[contain-intrinsic-size:auto_54px]",
++          // The tree's nest: a 16px indent and its rule, as JstackTreeRows draws them.
++          tree && "ms-4 border-s border-sidebar-border/70 ps-2 [contain-intrinsic-size:auto_28px]",
+           sortable?.isDragging && "relative z-20",
+         )}
+       >
+@@ -1220,9 +1235,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+                   rowSurfaceClassName,
+                   multiline
+                     ? "flex flex-col justify-center px-2.5 py-1.5"
+-                    : "flex h-9 items-center gap-2.5 px-2.5",
++                    : tree
++                      ? "flex h-7 items-center gap-2 px-2"
++                      : "flex h-9 items-center gap-2.5 px-2.5",
+                   // Lines titles up with the folder name, past its chevron and icon.
+-                  inFolder && "ps-9",
++                  inFolder && !tree && "ps-9",
+                 )}
+                 onClick={handleClick}
+                 onDoubleClick={handleDoubleClick}
+@@ -1295,6 +1312,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+                         />
+                         <TooltipPopup side="top">Dismiss Woke notification</TooltipPopup>
+                       </Tooltip>
++                    ) : tree && topStatus && topStatus.icon !== "done" ? (
++                      // The tree's one colour is amber, for what waits on you.
++                      <span
++                        className={cn(
++                          "text-2xs",
++                          treeAsks ? "text-warning" : "text-sidebar-muted-foreground",
++                        )}
++                      >
++                        {treeAsks ? "asks you" : topStatus.label.toLowerCase()}
++                      </span>
+                     ) : inFolder && topStatus ? (
+                       // Folder rows have no status line, so the status takes the time slot.
+                       <span
+@@ -1307,7 +1334,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+                         {topStatus.label}
+                       </span>
+                     ) : (
+-                      <span className="text-xs">
++                      <span className={tree ? "text-2xs text-sidebar-muted-foreground" : "text-xs"}>
+                         <RelativeTimeLabel
+                           timestamp={
+                             variantAction === "unsettle"
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 634306be6a..cc07a375bd 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -120,6 +120,29 @@ describe("buildJstackTree", () => {
+     ]);
+   });
+ 
++  it("opens a task with no thread at the thread that asks about it, else at its home", () => {
++    const tasks = [
++      task("asked", { stage: "ready", threadId: null, waitsOnUser: true }),
++      task("gated", { stage: "ready", threadId: null }),
++      task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
++    ];
++    const gates = [
++      {
++        repo: "jstack",
++        number: 2,
++        threadId: ThreadId.make("asking"),
++        slug: "gated",
++        question: "Approve?",
++        askedAt: minutesAgo(1),
++      },
++    ];
++    const rows = build({ tasks, gates }, { routeThreadId: ThreadId.make("flow") })?.rows ?? [];
++    const opens = rows.flatMap((row) =>
++      row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
++    );
++    expect(opens).toEqual(["asked>root", "gated>asking", "ready>flow"]);
++  });
++
+   it("reads a quiet task as crew under its threshold or with gates-only attention", () => {
+     const threads = [thread("crew-silent", { updatedAt: minutesAgo(10) })];
+     const tasks = [task("silent", { stage: "quiet" })];
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index bdd92721e2..7fb9dde99f 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -77,6 +77,8 @@ export type JstackTreeRow =
+       readonly ticks: JstackTicks | null;
+       /** null until jbus launches the task. */
+       readonly threadId: ThreadId | null;
++      /** What a click opens: the task's thread, else the thread that asks about it, else its home. */
++      readonly openThreadId: ThreadId;
+       readonly thread: EnvironmentThreadShell | null;
+       readonly pullRequest: string | null;
+       readonly selected: boolean;
+@@ -152,7 +154,7 @@ const toWorker = (
+   parentKey: string,
+   depth: 1 | 2,
+   gateThreads: ReadonlySet<string>,
+-  gateSlugs: ReadonlySet<string>,
++  gateSlugs: ReadonlyMap<string, ThreadId | null>,
+ ): Worker => {
+   const thread = task.threadId === null ? null : (input.threadsById.get(task.threadId) ?? null);
+   const asks =
+@@ -195,6 +197,7 @@ const toWorker = (
+       tone: asks ? "asks" : "plain",
+       ticks: scout ? null : { step, hollow: step === 0 || quietShown, asks },
+       threadId: task.threadId,
++      openThreadId: task.threadId ?? gateSlugs.get(`${task.repo}/${task.slug}`) ?? home.threadId,
+       thread,
+       pullRequest: task.pullRequest,
+       selected: task.threadId !== null && task.threadId === input.routeThreadId,
+@@ -247,8 +250,10 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree | null {
+   const gateThreads = new Set(
+     gates.flatMap((gate) => (gate.threadId === null ? [] : [gate.threadId])),
+   );
+-  const gateSlugs = new Set(
+-    gates.flatMap((gate) => (gate.slug === null ? [] : [`${gate.repo}/${gate.slug}`])),
++  const gateSlugs = new Map(
++    gates.flatMap((gate) =>
++      gate.slug === null ? [] : [[`${gate.repo}/${gate.slug}`, gate.threadId] as const],
++    ),
+   );
+   const tasks = snapshot.tasks.filter((task) => {
+     if (task.repo !== root.repo || !homeIds.has(task.homeThreadId)) return false;
+-- 
+2.56.0
+
