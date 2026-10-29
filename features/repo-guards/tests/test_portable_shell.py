@@ -21,6 +21,7 @@ import pytest
 
 from testing.paths import REPO
 
+READ_SET = ("*.md", "*.sh", "features/*/project-skill/scripts/")
 PERL_TIMEOUT = "`perl -e 'alarm shift; exec @ARGV' <seconds> <command>`"
 
 GNU_ONLY = [
