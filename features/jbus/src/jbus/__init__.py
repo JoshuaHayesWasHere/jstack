@@ -34,21 +34,24 @@ in the turn, whenever the run started.
 
 from __future__ import annotations
 
-import fcntl
-import json
 import os
-import pwd
 import tomllib
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import jsettings
-from jbriefs.home import homes_dir
 from jgauge import sizes
+from jsettings import Refused as Refused
+from jsettings.paths import RealDir as RealDir
+from jsettings.paths import homes_dir
+from jsettings.paths import jbus_config_dir as config_dir
+from jsettings.paths import jbus_state_dir as state_dir
+from jsettings.store import locked as locked
+from jsettings.store import read_dict as read_dict
+from jsettings.store import read_json as read_json
+from jsettings.store import write_json as write_json
 
 Loud = Literal["user", "quiet"]
 LEVELS: tuple[Loud, ...] = ("user", "quiet")
@@ -63,11 +66,6 @@ END_TURN = (
     "End your turn only once no check or proof you started runs in your worktree: wait for "
     "one that runs, in this turn."
 )
-
-
-class Refused(Exception):
-    """`Refused` means jbus will not start, or will not run a verb. The message is the one line
-    to print."""
 
 
 @dataclass(frozen=True)
@@ -246,38 +244,6 @@ class Config:
         return self.home_dir / project.state
 
 
-class RealDir(RuntimeError):
-    """`RealDir` means a test reached the machine's own jbus config or state: one that set
-    neither `JBUS_CONFIG_DIR` nor `JBUS_STATE_DIR`, or set one to the real directory."""
-
-
-def _own(name: str, under: str) -> Path:
-    """Return the directory `name` names, else `under` the home, and refuse the machine's own
-    while a test runs (pytest sets `PYTEST_CURRENT_TEST`, and a process a test starts inherits
-    it). The machine's own is under the account's home in the password database, which a test
-    that points `HOME` at a home of its own does not change. Outside a test it is never asked
-    for, so a uid with no entry there still gets its directory."""
-    path = Path(os.environ.get(name) or Path.home() / under)
-    test = os.environ.get("PYTEST_CURRENT_TEST", "").rsplit(" ", 1)[0]
-    if not test:
-        return path
-    real = Path(pwd.getpwuid(os.getuid()).pw_dir) / under
-    if path.expanduser().resolve() == real.resolve():
-        raise RealDir(
-            f"refused: the test {test} reached the real {real}: point {name} at the test's own"
-            " directory, as the autouse fixture in testing/jstack_fixtures.py does"
-        )
-    return path
-
-
-def config_dir() -> Path:
-    return _own("JBUS_CONFIG_DIR", ".config/jbus")
-
-
-def state_dir() -> Path:
-    return _own("JBUS_STATE_DIR", ".local/state/jbus")
-
-
 def private(path: Path) -> None:
     """Refuse a file that holds a key or a token and that group or others can read."""
     mode = path.stat().st_mode & 0o777
@@ -426,31 +392,6 @@ def load(directory: Path | None = None) -> Config:
     )
 
 
-@contextmanager
-def locked(state: Path, name: str, wait: bool = True) -> Iterator[None]:
-    """Hold the lock file `name` under `state` from a state file's read to its write, so that no
-    other pass or verb writes the file between the two. With `wait` False, a lock another holds
-    raises `BlockingIOError` at once."""
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / name, "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX if wait else fcntl.LOCK_EX | fcntl.LOCK_NB)
-        yield
-
-
-def read_json(path: Path, default: Any) -> Any:
-    try:
-        return json.loads(path.read_text())
-    except (OSError, ValueError):
-        return default
-
-
-def read_dict(path: Path) -> dict:
-    """The JSON object in the file, or an empty one when the file is missing, unreadable or holds
-    something else."""
-    found = read_json(path, {})
-    return found if isinstance(found, dict) else {}
-
-
 def secrets(*found: Hook | Any, part: int = URL_PART) -> tuple[str, ...]:
     """Return the secret strings of each pair of an address and its key, and of each other string
     given, the longest first.
@@ -485,22 +426,3 @@ def redact(value: Any, secret: tuple[str, ...], mark: str = REDACTED) -> Any:
     if isinstance(value, dict):
         return {key: redact(one, secret, mark) for key, one in value.items()}
     return value
-
-
-def write_json(path: Path, value: Any, *, mode: int = 0o644) -> None:
-    """Write the file whole: a temp file of this process's own, then a rename, so a reader or
-    a second writer never sees half of it, and a write that fails leaves no temp behind."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
-    try:
-        try:
-            os.write(handle, (json.dumps(value, indent=2, sort_keys=True) + "\n").encode())
-            os.fsync(handle)
-        finally:
-            os.close(handle)
-        os.chmod(temporary, mode)
-        os.replace(temporary, path)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise

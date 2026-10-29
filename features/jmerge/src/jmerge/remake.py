@@ -17,6 +17,7 @@ import subprocess
 from pathlib import Path
 
 import jbus
+from jsettings import paths, proc
 
 DEFAULT = "uv.lock -> uv lock"
 
@@ -58,7 +59,7 @@ def made_by(lines: list[str], file: str) -> str | None:
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    return proc.git(cwd, *args)
 
 
 def remake() -> list[str]:
@@ -74,8 +75,7 @@ def remake() -> list[str]:
     if top.returncode:
         return ["could not go to the top of the worktree: nothing made again"]
     top_dir = Path(top.stdout.strip())
-    common = _git(here, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    lines = table(Path(common.stdout.strip()).parent)
+    lines = table(paths.main_checkout(here) or Path())
     diff = _git(top_dir, "-c", "core.quotePath=false", "diff", "--name-only", "--diff-filter=U")
     stopped = [one for one in diff.stdout.splitlines() if one]
     by_hand = [one for one in stopped if made_by(lines, one) is None]

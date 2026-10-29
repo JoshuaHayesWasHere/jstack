@@ -20,6 +20,7 @@ NAME = "demo"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 T3 = ("T3_CODE_MCP_AUTHORIZATION", "T3_MCP_BEARER_TOKEN")
+HOMES = "JBUS_HOME_DIR"
 MARK = "$first"
 FIRST, USUAL, *REST = (
     (assembled() / "templates" / "hook-message.md").read_text().splitlines(keepends=True)
@@ -65,11 +66,14 @@ class Scene:
         self.main.mkdir(parents=True)
         git(self.main, "init", "-q")
 
-    def start(self, cwd=None, *, source="startup", t3=T3[0], **more):
+    def start(self, cwd=None, *, source="startup", t3=T3[0], homes=None, **more):
         """Run the session-start hook as the harness does for a thread opened in `cwd`. `t3`
-        is the variable T3 Code sets for the thread, or None outside T3 Code."""
-        env = {key: value for key, value in os.environ.items() if key not in T3}
+        is the variable T3 Code sets for the thread, or None outside T3 Code. `homes` is the
+        `JBUS_HOME_DIR` the thread has, or None for none."""
+        env = {key: value for key, value in os.environ.items() if key not in (*T3, HOMES)}
         env["HOME"] = str(self.user)
+        if homes:
+            env[HOMES] = str(homes)
         if t3:
             env[t3] = "x"
         stdin = json.dumps({"source": source, "cwd": str(cwd or self.main), **more})
@@ -120,6 +124,16 @@ def test_a_state_directory_no_home_has_started_in_is_still_a_first_home(scene):
     (scene.home_dir / "tasks").mkdir(parents=True)
     (scene.home_dir / "standing.md").write_text("- a standing rule\n")
     assert scene.start() == scene.said(first=True)
+
+
+def test_the_homes_state_is_jbus_home_dir_where_it_is_set(scene, tmp_path):
+    homes = tmp_path / "homes"
+    scene.home_dir = homes / NAME
+    scene.home_dir.mkdir(parents=True)
+    (scene.home_dir / "plan.md").write_text("# plan\n")
+    assert scene.start(homes=homes) == scene.said(first=False)
+    (scene.home_dir / "off").write_text("")
+    assert scene.start(homes=homes) == ""
 
 
 def test_the_template_marks_the_line_for_a_first_home_and_no_other(scene):

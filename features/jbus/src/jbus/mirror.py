@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from jbriefs import below
 from jbriefs import parse as briefs
 from jbus import queue, read_json, verbs, write_json
+from jsettings.brief import page as page
 
 if TYPE_CHECKING:
     from jbus.passes import Pass
@@ -75,19 +76,6 @@ def last_result(text: str) -> str:
     whole = sections(text)
     results = [f"{h}\n{b}" for h, b in whole if h.startswith("## Result")]
     return results[-1] if results else ""
-
-
-def page(report: str) -> str:
-    """Return what a scout's Report says after its last `Page:`, or nothing when the Report names
-    no page.
-
-    `Page: none` names no page, and neither does `Page: none, <why>`. `jmerge --sweep` and the
-    scout skill's own settle block read the line the same way.
-    """
-    named = [
-        line.split("Page:", 1)[1].strip(" \t") for line in report.splitlines() if "Page:" in line
-    ]
-    return "" if not named or re.match(r"none(,|$)", named[-1]) else named[-1]
 
 
 def delivered(text: str) -> bool:

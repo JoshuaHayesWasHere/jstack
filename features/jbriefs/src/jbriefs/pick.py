@@ -16,6 +16,7 @@ from pathlib import Path
 
 from jbriefs.skills import listed
 from jbriefs.skills import root as checkout
+from jsettings import brief as brief_head
 
 TIPS = 3
 _FRONT = re.compile(r"\A---\n(.*?)^---$", re.M | re.S)
@@ -128,12 +129,7 @@ def skills(root: Path | None = None) -> dict[str, Skill]:
 
 def head(text: str) -> list[str]:
     """The lines of a brief above its first `## `: what the home wrote, with no result."""
-    lines = []
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        lines.append(line)
-    return lines
+    return brief_head.head_lines(text)
 
 
 def said(lines: list[str], label: str) -> str | None:

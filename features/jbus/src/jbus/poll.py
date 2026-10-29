@@ -9,8 +9,8 @@ to gather those steps and the chores, so only `jbus poll` and `jbus steps` impor
 
 from __future__ import annotations
 
-import fcntl
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
@@ -35,6 +35,7 @@ from jbus import (
     watch,
     work,
 )
+from jsettings import store
 
 LAUNCH = "the launch"
 
@@ -177,10 +178,9 @@ def poll(
 
     The pass ends by writing the status file (`record.write_status`).
     """
-    config.state_dir.mkdir(parents=True, exist_ok=True)
-    with open(config.lock_path, "w") as lock:
+    with ExitStack() as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock.enter_context(store.locked(config.state_dir, config.lock_path.name, wait=False))
         except BlockingIOError:
             say("busy")
             return 0

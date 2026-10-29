@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import jbus
 from jbus import Config, Project, queue, read_json, verbs
 from jbus.wake import COMMAND_TIMEOUT, Box
+from jsettings import proc
 
 if TYPE_CHECKING:
     from jbus.watch import World
@@ -111,12 +112,7 @@ class Pass:
         runs past `timeout` seconds, fails like any other. `JMERGE_TIMEOUT` is jmerge's: above
         the fresh check's own limit and below the unit's TimeoutStartSec
         (`features/jbus/tests/test_jbus.py`)."""
-        try:
-            return subprocess.run(
-                command, cwd=self.project.checkout, capture_output=True, text=True, timeout=timeout
-            )
-        except (OSError, subprocess.TimeoutExpired) as error:
-            return subprocess.CompletedProcess(command, 127, "", str(error))
+        return proc.run(*command, cwd=self.project.checkout, timeout=timeout)
 
     @property
     def removed(self) -> frozenset[str]:

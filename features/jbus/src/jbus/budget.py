@@ -1,13 +1,6 @@
-"""`budget` is the floor jbus keeps under GitHub's API budget, which jbus and every thread share:
-they all call GitHub with the one token `gh` holds, and GitHub gives that token so many calls an
-hour.
-
-`gh api rate_limit` says what is left, and asking it spends nothing. GitHub keeps two windows
-that jbus spends: `core`, the REST calls of `gh api`, and `graphql`, the calls of `gh pr list`
-and `gh pr view`. `jmerge.budget` is the one reading of that answer, which `jmerge` shares to
-name a call GitHub refused for its rate limit. The budget is held when either window has `FLOOR`
-calls or fewer left, and when GitHub gave no answer, since then nobody can tell. What is under
-the floor is kept for what must be asked: `jmerge`'s merge and the reads it makes.
+"""`jbus budget`: whether a thread may call GitHub now. GitHub's API allowance, which jbus,
+`jmerge` and every thread share, and the floor jbus keeps under it are `jsettings.budget`, read
+through the one runner (`jsettings.proc`); this module re-exports them under their old names.
 
 A pass of jbus reads the budget before it asks GitHub for its world (`jbus.watch.look`). When it
 is held, the pass asks GitHub nothing and has no world, as when GitHub is silent, so no row
@@ -20,52 +13,22 @@ skills name each loop.
 from __future__ import annotations
 
 import argparse
-import subprocess
 import time
-from collections.abc import Callable
 
 import jbus
 from jbus import verbs
-from jmerge.budget import ASK, Budget, at, parse
+from jsettings.budget import ASK as ASK
+from jsettings.budget import FLOOR as FLOOR
+from jsettings.budget import Ask as Ask
+from jsettings.budget import Budget as Budget
+from jsettings.budget import at as at
+from jsettings.budget import held, read
+from jsettings.budget import parse as parse
+from jsettings.proc import TIMEOUT as TIMEOUT
+from jsettings.proc import ask as ask
 
-FLOOR = 1000
-"""The calls kept in each window for what must be asked: a fifth of the 5,000 an hour that GitHub
-gives a signed-in user."""
 TEMPFAIL = 75
-TIMEOUT = 30
 AGAIN = 30
-
-Ask = Callable[[list[str]], "str | None"]
-
-
-def ask(command: list[str]) -> str | None:
-    """Run a command and return what it printed, or None where it failed."""
-    try:
-        done = subprocess.run(command, capture_output=True, text=True, timeout=TIMEOUT)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return done.stdout if done.returncode == 0 else None
-
-
-def read(asked: Ask = ask) -> Budget | None:
-    """Ask GitHub what is left of the budget. None is no answer."""
-    said = asked(ASK)
-    return parse(said) if said is not None else None
-
-
-def held(budget: Budget | None, calls: int = 0) -> str:
-    """Return why `calls` more calls must wait, or nothing when the budget leaves them more than
-    `FLOOR` in every window."""
-    if budget is None:
-        return "GitHub did not say what is left of its API budget"
-    low = budget.low
-    if low.remaining - calls > FLOOR:
-        return ""
-    more = f", and {calls} calls would take it to {low.remaining - calls}" if calls else ""
-    return (
-        f"GitHub's {low.name} budget has {low.remaining} of {low.limit} calls left{more}, "
-        f"at or under the floor of {FLOOR} kept for merges, until {at(low.reset)}"
-    )
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:

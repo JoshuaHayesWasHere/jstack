@@ -725,14 +725,13 @@ def origin(text: str) -> str:
 
 def _sources() -> Sources:
     """The state directories `jbus` itself uses, and the user of jstack's settings."""
-    home = Path.home()
     try:
         user = jsettings.load()
     except jsettings.Invalid as error:
         raise Refused(f"refused: {error}") from error
     return Sources(
         state_dir=jbus.state_dir(),
-        home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
+        home_dir=jbus.homes_dir(),
         user=user,
     )
 

@@ -13,25 +13,20 @@ handed off has no thread until the next home's start writes its own id there. An
 to the one on its handoff's `Was home:` line counts as none (`thread_of`). A `Was home:`
 line with no id on it counts as no line.
 
-`homes_dir` is where every repo's state is. `jbus home` asks this module for the skills,
-`jbus.leftover` and `jbus.word` ask it for what jbus sends, and `jmerge` asks it whose a pull
-request is. No other copy of the rule
-exists.
+`homes_dir`, from `jsettings.paths`, is where every repo's state is. `jbus home` asks this
+module for the skills, `jbus.leftover` and `jbus.word` ask it for what jbus sends, and `jmerge`
+asks it whose a pull request is. No other copy of the rule exists.
 """
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
+from jsettings.brief import head
+from jsettings.paths import homes_dir as homes_dir
+
 WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
-
-
-def homes_dir() -> Path:
-    """The homes' state, one directory per repo: `JBUS_HOME_DIR`, or `~/.local/state/home`. jbus,
-    `jmerge` and `jbriefs` all find it here."""
-    return Path(os.environ.get("JBUS_HOME_DIR") or Path.home() / ".local" / "state" / "home")
 
 
 def _read(file: Path) -> str:
@@ -51,12 +46,7 @@ def ids(directory: Path) -> tuple[str, str]:
 def named(brief: str) -> str:
     """The first word of the brief's first `Home:` line in its head, or an empty string when the
     head has no such line."""
-    for line in brief.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("Home:"):
-            return "".join(line.removeprefix("Home:").split()[:1])
-    return ""
+    return "".join((head(brief, "Home:") or "").split()[:1])
 
 
 def scopes(state: Path) -> list[tuple[Path, str, str]]:

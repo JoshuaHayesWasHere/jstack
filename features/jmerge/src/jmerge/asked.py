@@ -1,6 +1,6 @@
 """How `jmerge` and jbus say that `gh` gave no answer: its exit code and the first line of its
 stderr, with tokens and URL queries cut out, or, for a call GitHub refused for its rate limit,
-the window and when it starts again (`jmerge.budget`)."""
+the window and when it starts again (`jsettings.budget`)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import re
 import subprocess
 from collections.abc import Callable
 
-from jmerge import budget
+from jsettings import budget
 
 LIMIT = 160
 NOTHING = "it said nothing"

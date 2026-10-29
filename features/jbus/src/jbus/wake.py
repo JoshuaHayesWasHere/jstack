@@ -65,6 +65,7 @@ from typing import Any
 import jbus
 import jsettings
 from jbus import LEVELS, Loud, Project, locked, read_json, refusal, sources, write_json
+from jsettings import store
 
 LOCK = "outbox.lock"
 CAP = 8_000
@@ -289,13 +290,8 @@ class Box:
         """
         record = {"at": _at(self.clock()), **record}
         waiting = read_json(self.state / UNLOGGED, [])
-        lines = [json.dumps(one, sort_keys=True) + "\n" for one in [*waiting, record]]
         try:
-            handle = os.open(self.state / LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-            try:
-                os.write(handle, "".join(lines).encode())
-            finally:
-                os.close(handle)
+            store.append_jsonl(self.state / LOG, [*waiting, record], mode=0o600, sort_keys=True)
         except OSError:
             if owed:
                 write_json(self.state / UNLOGGED, [*waiting, record], mode=0o600)

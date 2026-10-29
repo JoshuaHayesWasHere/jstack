@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, NotRequired, TypedDict
 
-import jbus
+from jsettings import store
 
 NAME = "main.json"
 FIX = "main-red-"
@@ -98,7 +98,7 @@ def of(record: object) -> Main:
 
 
 def _raw(state: Path) -> object:
-    return jbus.read_json(state / NAME, None)
+    return store.read_json(state / NAME, None)
 
 
 def read(state: Path) -> Main:
@@ -169,7 +169,7 @@ def fix_of(slug: str) -> bool:
 
 def failures(jobs: Sequence[tuple[str, tuple[str, ...], int]]) -> list[str]:
     """The tests a red run failed, from each failed job's name, the tests its log names and how
-    many it counts (`jbus.joblog.failed_in`). A job whose name another failed job's starts with,
+    many it counts (`jmerge.joblog.failed_in`). A job whose name another failed job's starts with,
     as `full` is to `full 1 of 4`, gathers its parts and names nothing of its own. Any other job
     that counts no failed test, or more than it names, failed for something no test names: the
     timeout of a part, a lint, a step before the tests. Then the run is not known by its tests,

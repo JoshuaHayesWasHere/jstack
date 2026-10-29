@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
@@ -33,6 +32,7 @@ from typing import Any
 import jsettings
 from jbus import budget
 from jmerge import lines
+from jsettings import proc
 
 ZONES = {"EDT": timezone(timedelta(hours=-4)), "EST": timezone(timedelta(hours=-5))}
 STAMP = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (EDT|EST)")
@@ -329,11 +329,7 @@ JOB_TIMES = ("created_at", "started_at", "completed_at")
 
 def ask(command: list[str], cwd: Path | None = None) -> str | None:
     """Run a command that reads and return what it printed, or None where it failed."""
-    try:
-        done = subprocess.run(command, capture_output=True, text=True, cwd=cwd, timeout=TIMEOUT)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return done.stdout if done.returncode == 0 else None
+    return proc.ask(command, cwd, TIMEOUT)
 
 
 def repo_of(checkout: Path) -> str | None:

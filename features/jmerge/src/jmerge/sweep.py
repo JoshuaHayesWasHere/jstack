@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 from jbriefs import below, parse
-from jbus import mirror
 from jmerge import green
+from jsettings import brief as brief_head
 
 WORKTREE = "the worktree"
 LOCAL = "the local branch"
@@ -88,7 +88,7 @@ def of_request(slug: str, text: str) -> Record:
         short = f"not done, {source} has no Report"
     else:
         short = _status(report, "Report", only=False)
-        if not short and mirror.page("\n".join(report)):
+        if not short and brief_head.page("\n".join(report)):
             short = "its Report has a page, which may wait on the user"
     return Record(source, f"scout-{slug}", parse.thread_of(text), short, False, "")
 

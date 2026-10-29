@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jbriefs import asks, below, skills, standing
+from jsettings.brief import head as head
 
 NO_RESULT = "no result yet"
 DONE = "done"
@@ -206,16 +207,6 @@ def proof(said: str) -> Proof:
         if re.search(pattern, said, re.I):
             return Proof(said, kind=kind)
     return Proof(said, fault="names nothing outside the agent")
-
-
-def head(text: str, label: str) -> str | None:
-    """What the first `<label>` line of a brief's head says, or None for a head with none."""
-    for one in text.splitlines():
-        if one.startswith("## "):
-            break
-        if one.startswith(label):
-            return one.removeprefix(label).strip()
-    return None
 
 
 def thread_of(text: str) -> str:

@@ -44,16 +44,15 @@ import ast
 import importlib
 import pkgutil
 import re
-import subprocess
 import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
 from jbus import party, sources
+from jsettings import paths
 
 if TYPE_CHECKING:
     import jsettings
@@ -266,12 +265,7 @@ def project(config: jbus.Config, name: str | None) -> jbus.Project:
     """Return the named project, the only project, or the one whose repo contains this
     directory."""
     if name is None and len(config.projects) > 1:
-        asked = subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            capture_output=True,
-            text=True,
-        )
-        repo = Path(asked.stdout.strip()).parent.name if asked.returncode == 0 else ""
+        repo = paths.repo_name()
         for one in config.projects:
             if one.state == repo:
                 return one
@@ -286,12 +280,7 @@ def here(config: jbus.Config, name: str | None) -> jbus.Project:
     """
     if name is not None:
         return config.project(name)
-    asked = subprocess.run(
-        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-        capture_output=True,
-        text=True,
-    )
-    repo = Path(asked.stdout.strip()).parent.name if asked.returncode == 0 else ""
+    repo = paths.repo_name()
     for one in config.projects:
         if one.state == repo:
             return one

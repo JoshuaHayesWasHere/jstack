@@ -17,11 +17,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-import jbus
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
-from jbus.joblog import failed_in
 from jmerge import (
     checks,
     claims,
@@ -38,6 +36,8 @@ from jmerge import (
 )
 from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
+from jmerge.joblog import failed_in
+from jsettings import paths, proc, store
 
 if TYPE_CHECKING:
     from jmerge.accepts import Acting
@@ -61,13 +61,11 @@ TIMEOUT_SECONDS = 120
 
 def _run(cwd: Path, *command: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     limit = float(os.environ.get("JMERGE_TIMEOUT") or TIMEOUT_SECONDS)
-    try:
-        return subprocess.run(
-            command, cwd=cwd, input=stdin, capture_output=True, text=True, timeout=limit
-        )
-    except subprocess.TimeoutExpired:
+    done = proc.run(*command, cwd=cwd, timeout=limit, stdin=stdin)
+    if isinstance(done, proc.TimedOut):
         said = f"timed out after {limit:g} s: {shlex.join(command)}"
         return subprocess.CompletedProcess(command, 124, "", said)
+    return done
 
 
 def _why(cwd: Path, asked: subprocess.CompletedProcess[str], said: str = "") -> str:
@@ -979,7 +977,7 @@ class Repo:
         return None if own.returncode else own.stdout.strip()
 
     def holds(self) -> dict[str, str]:
-        return jbus.read_dict(self.state / "holds.json")
+        return store.read_dict(self.state / "holds.json")
 
     def readied(self, one: ready.PullRequest, found: Judgement) -> Judgement:
         """Mark ready a draft whose review is written and whose fix is pushed, so CI runs its one
@@ -997,7 +995,7 @@ class Repo:
 
     def holds_are(self, holds: dict[str, str]) -> None:
         if holds != self.holds() and self.state.is_dir():
-            jbus.write_json(self.state / "holds.json", holds)
+            store.write_json(self.state / "holds.json", holds)
 
     def accept(
         self,
@@ -1048,14 +1046,14 @@ class Repo:
             said = self.merge(one, found.slug, found.note, found.judged)
             say(said)
             if not said.startswith("merged "):
-                raise jbus.Refused(said)
+                raise jsettings.Refused(said)
             self.holds_are({n: head for n, head in self.holds().items() if n != str(one.number)})
             return said
 
         if acting is None:
             try:
                 does()
-            except jbus.Refused:
+            except jsettings.Refused:
                 return 1
             return 0
         from jmerge import accepts
@@ -1564,7 +1562,7 @@ def said_of_checks(pull: str) -> str:
 def homes_state(main_checkout: Path) -> Path:
     """The repo's state in the homes' state, the directory named for its main checkout. The homes'
     state is `JBUS_HOME_DIR`, as jbus reads it, or `~/.local/state/home`."""
-    return home_rule.homes_dir() / main_checkout.name
+    return paths.homes_dir() / main_checkout.name
 
 
 def parser() -> argparse.ArgumentParser:
@@ -1720,12 +1718,11 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"jmerge: only {user.user} accepts a hold, not {args.by or 'nobody'}")
     if said and not args.message and not user.takes(args.at or ""):
         raise SystemExit(f'jmerge: --at is "{user.form(args.at or "")}"')
-    here = _run(Path.cwd(), "git", "rev-parse", "--path-format=absolute", "--git-common-dir")
-    if here.returncode:
+    main_checkout = paths.main_checkout(Path.cwd())
+    if main_checkout is None:
         raise SystemExit("jmerge: not in a git repository")
     if not shutil.which("gh"):
         raise SystemExit("jmerge: gh is not installed")
-    main_checkout = Path(here.stdout.strip()).parent
     state = homes_state(main_checkout)
     if args.claims:
         return Repo(main_checkout, state, args.home, not args.home, user=user).claimed()
@@ -1752,14 +1749,14 @@ def main(argv: list[str] | None = None) -> int:
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
             kept = lines.logged(line)
             if waits:
-                last = jbus.read_dict(state / "merge.log.last")
+                last = store.read_dict(state / "merge.log.last")
                 if last.get(waits) == kept:
                     return
                 last[waits] = kept
             with (state / "merge.log").open("a", encoding="utf-8") as log:
                 log.write(f"{now:%Y-%m-%d %H:%M} {kept}\n")
             if waits:
-                jbus.write_json(state / "merge.log.last", last)
+                store.write_json(state / "merge.log.last", last)
 
     if args.sweep:
         return Sweep(repo).run(say, args.check)
@@ -1789,7 +1786,7 @@ def main(argv: list[str] | None = None) -> int:
 
             try:
                 acting = accepts.acting(main_checkout, args.message, args.at, args.as_, user)
-            except jbus.Refused as error:
+            except jsettings.Refused as error:
                 say(f"refused {args.accept}: {str(error).removeprefix('refused: ')}")
                 return 1
             if acting is None and args.message:

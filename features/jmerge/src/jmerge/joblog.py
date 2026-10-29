@@ -1,8 +1,8 @@
 """What a CI job's log says failed: `failed_in` reads the failed tests off the log's text, and
 `plain` takes the log's colour out.
 
-`jbus.watch` fetches the log and `jmerge` reads its own, and both read it here. This module imports
-nothing of jbus, so `jmerge` reads a log without loading jbus's pass.
+`jbus.watch` fetches the log and `jmerge` reads its own, and both read it here. jbus imports it
+from `jmerge`, which imports nothing of jbus.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 [ -n "$T3_CODE_MCP_AUTHORIZATION$T3_MCP_BEARER_TOKEN" ] || exit 0
 
-state=$HOME/.local/state/home
+state=${JBUS_HOME_DIR:-$HOME/.local/state/home}
 checkout=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd -P)
 fields=$(jq -r --arg state "$state/" --arg checkout "${checkout:-/nowhere}/" '
   def t3: IN("t3_thread_configuration", "list_scheduled_tasks", "update_scheduled_task",

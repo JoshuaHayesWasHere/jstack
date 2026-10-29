@@ -66,6 +66,7 @@ from jinstall.project import ProjectLink, StrayProjectLink, stray
 from jinstall.repos import GitHook, checkouts
 from jroles import ledger
 from jroles.inventory import claude_instances
+from jsettings import paths
 
 T3_FLOOR = "0.1.2-nightly.20261022.3526"
 UV_FLOOR: tuple[int, ...] | None = None
@@ -370,8 +371,7 @@ def _jbus_config(machine: Machine) -> Path:
 
 def _state_tree(machine: Machine) -> Path:
     """The homes' state tree, as `jbus.load` finds its `home_dir`."""
-    named = machine.env.get("JBUS_HOME_DIR")
-    return Path(named) if named else machine.home / ".local" / "state" / "home"
+    return paths.homes_dir(machine.env, machine.home)
 
 
 def _limits(machine: Machine) -> Path:

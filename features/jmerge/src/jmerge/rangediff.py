@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+
+from jsettings import proc
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _PAIR = re.compile(r" {0,3}(?:-|\d+): +\S+ ([=!<>]) +(?:-|\d+): +\S+( .*)?")
@@ -29,13 +30,13 @@ class _Failed(Exception):
 
 def _git(repo: Path, *args: str) -> str:
     try:
-        ran = subprocess.run(
-            ["git", *args], cwd=repo, capture_output=True, text=True, timeout=TIMEOUT
-        )
-    except subprocess.TimeoutExpired:
-        raise _Failed(f"git {args[0]} took more than {TIMEOUT} seconds") from None
-    except (OSError, UnicodeDecodeError) as error:
+        ran = proc.git(repo, *args, timeout=TIMEOUT)
+    except UnicodeDecodeError as error:
         raise _Failed(f"git {args[0]} could not be run ({error})") from None
+    if isinstance(ran, proc.TimedOut):
+        raise _Failed(f"git {args[0]} took more than {TIMEOUT} seconds")
+    if isinstance(ran, proc.Unrun):
+        raise _Failed(f"git {args[0]} could not be run ({ran.stderr})")
     if ran.returncode:
         lines = (ran.stderr or ran.stdout).strip().splitlines()
         fatal = [line for line in lines if line.startswith(("fatal: ", "error: "))]

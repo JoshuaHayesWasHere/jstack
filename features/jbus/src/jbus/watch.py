@@ -41,7 +41,6 @@ import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
-from jbus.joblog import Failed, failed_in, plain
 from jbus.judged import Said, parse, step
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -49,13 +48,14 @@ from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import holders, slot, waiters
-from jmerge import budget as allowance
 from jmerge import checks as reading
 from jmerge import mainjson
 from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 from jmerge.checks import NOT_RED
+from jmerge.joblog import Failed, failed_in, plain
+from jsettings import budget as allowance
 
 EVENTS = {"merged": "quiet", "stale": "quiet", "retro": "quiet"}
 TITLE = "crew: "
@@ -163,7 +163,7 @@ class Look:
     (`dispatch.Caps`). `why` is the reason T3 Code did not answer. `held` is why the pass asked
     GitHub nothing to save its API budget, or why it could not tell what is left of it.
     `spent` is the line that says GitHub's API allowance is spent: a window with no call left,
-    or a call GitHub refused for its rate limit (`jmerge.budget`). It is empty where neither,
+    or a call GitHub refused for its rate limit (`jsettings.budget`). It is empty where neither,
     and None where the pass could not tell, since GitHub did not say what is left.
     """
 

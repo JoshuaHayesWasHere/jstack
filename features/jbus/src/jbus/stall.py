@@ -28,7 +28,6 @@ someone interrupted it, or it ended. jbus interrupts nothing and sends the threa
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +41,7 @@ from jbus.wake import notify
 from jbus.watch import World, task_brief
 from jmerge import stacked as stacks
 from jmerge.lines import READY
+from jsettings import store
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -319,11 +319,7 @@ def _keep(run: Pass, line: dict[str, Any]) -> bool:
     """Add one line to `hung.jsonl`. When `_keep` cannot write the line, it says so, and the pass
     goes on."""
     try:
-        handle = os.open(run.state / HUNG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
-        try:
-            os.write(handle, (json.dumps(line) + "\n").encode())
-        finally:
-            os.close(handle)
+        store.append_jsonl(run.state / HUNG, [line], mode=0o600)
     except OSError as error:
         run.say(f"wait {run.project.name}: {HUNG} could not be written ({error})")
         return False
