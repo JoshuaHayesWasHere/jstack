@@ -306,7 +306,7 @@ function boardLinks() {
   svg.innerHTML = paths.join("");
 }
 
-function boardOwns(el) { return $("pipeline").contains(el) || $("matrix").contains(el); }
+function boardOwns(el) { return !$("pipeline").hidden && $("pipeline").contains(el) || !$("stack").hidden && $("matrix").contains(el); }
 
 function boardWhere(el) {
   if (!el || !el.getAttribute || !boardOwns(el)) return "";
@@ -335,20 +335,20 @@ function boardTab() {
 
 function boardDraw() {
   boardTab();
-  var el = $("pipeline");
-  if (el.hidden) return;
+  var el = $("pipeline"), mx = $("matrix"), homes = !$("stack").hidden;
+  if (!homes) put(mx, "");
+  if (el.hidden && !homes) return;
   if (!BOARD_ASKING && (!BOARD || Date.now() - BOARD_ASKED >= POLL_MS)) boardAsk();
   if (!BOARD) {
-    put($("matrix"), "");
-    put(el, BOARD_FAILED ? '<p class="calm">The board could not be read: ' + esc(BOARD_FAILED) + '. <a href="#/homes">Open the homes map</a></p>' : '<p class="calm">Asking the server for the board</p>');
+    put(mx, "");
+    if (!el.hidden) put(el, BOARD_FAILED ? '<p class="calm">The board could not be read: ' + esc(BOARD_FAILED) + '. <a href="#/homes">Open the homes map</a></p>' : '<p class="calm">Asking the server for the board</p>');
     return;
   }
-  var view = boardView(), picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "";
-  var stages = boardStages(view), had = boardWhere(document.activeElement);
-  var matrix = boardMatrix(view), html = boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
-  if (el.__drawn !== html || $("matrix").__drawn !== matrix) {
+  var view = boardView(), had = boardWhere(document.activeElement);
+  var matrix = homes ? boardMatrix(view) : "", html = el.hidden ? el.__drawn : boardBoard(view);
+  if (el.__drawn !== html || mx.__drawn !== matrix) {
     put(el, html);
-    put($("matrix"), matrix);
+    put(mx, matrix);
     var back = had && document.querySelector(had);
     if (back) back.focus({ preventScroll: true });
   }
@@ -356,6 +356,11 @@ function boardDraw() {
   BOARD_SCROLL = false;
   if (bar) { bar.scrollIntoView({ block: "start" }); bar.focus({ preventScroll: true }); }
   setTimeout(boardLinks, 0);
+}
+
+function boardBoard(view) {
+  var picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "", stages = boardStages(view);
+  return boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
 }
 
 function boardSet(change) {
@@ -367,11 +372,11 @@ function boardSet(change) {
 }
 
 document.addEventListener("click", function (e) {
-  var el = $("pipeline");
-  if (el.hidden || !e.target.closest || !boardOwns(e.target)) return;
+  if (!e.target.closest || !boardOwns(e.target)) return;
   var b = e.target.closest("[data-bpick]");
   if (b) {
     var slug = b.getAttribute("data-bpick"), project = b.getAttribute("data-bproj");
+    if ($("pipeline").hidden) { BOARD_PROJECT = project; enter("pushState", { layers: [], back: false }, board(slug, "")); return; }
     var again = b.classList.contains("pl-c") && boardView().pick === slug && BOARD_PROJECT === project;
     BOARD_PROJECT = again ? "" : project;
     boardSet({ pick: again ? "" : slug });
@@ -384,9 +389,8 @@ document.addEventListener("click", function (e) {
   var cell = e.target.closest("[data-bcell]");
   if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     e.preventDefault();
-    var over = !!boardView().stage;
     BOARD_SCROLL = true;
-    enter(over ? "replaceState" : "pushState", { layers: [], back: false, cell: over ? !!(history.state && history.state.cell) : true }, cell.getAttribute("href"));
+    enter("pushState", { layers: [], back: false, cell: true }, cell.getAttribute("href"));
   }
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }

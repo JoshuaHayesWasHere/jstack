@@ -398,13 +398,12 @@
   .mx-ar { color: var(--ink-2); }
   .mx-cs { flex-basis: 100%; font-size: var(--text-sm); color: var(--ink-2); }
   @media (max-width: 640px) { .mx { display: none; } }
-  .desk:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto auto 1fr; grid-template-areas: "band band" "kpis kpis" "matrix rail" "strip rail"; gap: var(--space-5) var(--space-8); align-items: start; }
+  .desk:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto 1fr; grid-template-areas: "band band" "kpis kpis" "strip rail"; gap: var(--space-5) var(--space-8); align-items: start; }
   .desk > #cards { grid-area: band; min-width: 0; }
   #cards .gl { margin: 0; display: flow-root; padding: var(--space-6) var(--space-8); } #cards .gl-h, #cards .gl-v { display: block; }
   #cards .gl-word { float: left; font-size: var(--text-2xl); line-height: 1; margin: var(--space-2) var(--space-12) var(--space-2) 0; } #cards .gl-c { margin-left: var(--space-6); } #cards .gl-c:empty { display: none; } #cards .gl-t { clear: both; }
-  #cards .gl-sub { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; } .desk > .ov-kpis { grid-area: kpis; } .desk > #matrix { grid-area: matrix; min-width: 0; }
+  #cards .gl-sub { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; } .desk > .ov-kpis { grid-area: kpis; }
   .desk > .ov-rail { grid-area: rail; display: grid; gap: var(--space-5); min-width: 0; } .desk > .ov-strip { grid-area: strip; }
-  #matrix .mx { margin-bottom: 0; }
   .ov-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-5); align-items: stretch; }
   .ov-strip { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; gap: var(--space-5); align-items: start; }
   .ov-strip > [data-part="since:landed"] { grid-column: 1; grid-row: 1 / span 2; } .ov-strip > [data-part="throughput:perday"] { grid-column: 2; grid-row: 1 / span 2; }
@@ -450,7 +449,7 @@
   .ring { flex: none; } .ring circle { fill: none; stroke-width: 5; } .ring .rt { stroke: var(--hair); } .ring .rv { stroke: var(--ok); }
   .msr { display: flex; gap: var(--space-5); align-items: center; color: var(--ink); text-decoration: none; }
   @media (max-width: 1180px) {
-    .desk:not([hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "band" "kpis" "matrix" "rail" "strip"; }
+    .desk:not([hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "band" "kpis" "rail" "strip"; }
     .ov-kpis { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
   }
   .ov-top:empty, .ov-tail:empty { display: none; }
@@ -464,7 +463,7 @@
   .ehl-k .norun { background: repeating-linear-gradient(135deg, var(--line) 0 2px, transparent 2px 5px); }
   :is(.ehl .seg-bar, .ehl-k) .other { background: radial-gradient(circle, var(--ink-3) 1px, transparent 1.5px) 0 0 / 4px 4px; }
   @media (max-width: 640px) {
-    .desk:not([hidden]) { display: flex; flex-direction: column; } .desk > #matrix { display: none; }
+    .desk:not([hidden]) { display: flex; flex-direction: column; }
     #cards .gl { padding: var(--space-5) var(--space-6); } .ovc { padding: var(--space-4) var(--space-6); }
     .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } #cards .gl-top { display: none; }
     #cards .gl-sub, .rl-w { display: block; -webkit-line-clamp: none; overflow: visible; } .gr span { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
@@ -496,7 +495,6 @@
     <div id="cards" data-region="band"></div>
     <div class="ov-top" id="ov-top" data-region="top"></div>
     <div class="ov-kpis" id="ov-kpis" data-region="kpis" role="group" aria-label="The work in numbers"></div>
-    <div id="matrix" data-region="matrix"></div>
     <aside class="ov-rail" id="ov-rail" data-region="rail" aria-label="What needs you and what slows the work"></aside>
     <div class="ov-strip" id="ov-strip" data-region="strip"></div>
   </div>
@@ -515,6 +513,7 @@
     <p class="calm" data-role="calm" id="tri-calm"></p>
   </div>
   <div class="map" id="stack" hidden>
+    <div id="matrix" data-region="matrix"></div>
     <div id="map-m"></div>
     <div class="grid" id="map-c"></div>
     <section id="map-q" aria-labelledby="map-qh" hidden><h2 class="sec" id="map-qh"></h2><ul class="ql clean" id="map-ql"></ul></section>

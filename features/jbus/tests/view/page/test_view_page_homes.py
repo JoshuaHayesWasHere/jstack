@@ -120,7 +120,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     [
         ("#/homes", ".hm", ["demo", f"demo › {SHELF}", f"demo › {RACK}"]),
         ("#/demo/board", ".bd-h", ["root", SHELF, RACK]),
-        ("#/", "tr[data-home]", ["root", SHELF, RACK]),
+        ("#/homes", "tr[data-home]", ["root", SHELF, RACK]),
     ],
     ids=["homes-page", "homes-drawer", "matrix"],
 )
