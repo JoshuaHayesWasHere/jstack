@@ -10,53 +10,19 @@ NOBODY = ""
 NOT_LAUNCHED = "not launched"
 OUT = "out"
 NO_WHERE = "no Where line"
-DIFF = " Diff: "
 
 
 @dataclass(frozen=True)
 class Claim:
-    """A brief that still holds files. `diff` is what its open pull request changes, and its
-    last Result's `Wider:` paths, that its `Where:` line does not cover."""
+    """A brief that still holds files."""
 
     slug: str
     state: str
     home: str
     where: str
-    diff: tuple[str, ...] = ()
 
     def line(self) -> str:
-        beyond = f"{DIFF}{', '.join(f'`{path}`' for path in self.diff)}" if self.diff else ""
-        return f"{self.slug} {self.state} {self.home} {self.where}{beyond}"
-
-
-@dataclass(frozen=True)
-class Held:
-    """The paths one line of `jmerge --claims` holds: its `Where:` paths and its diff's."""
-
-    slug: str
-    where: tuple[str, ...]
-    diff: tuple[str, ...]
-
-
-def held(line: str) -> Held | None:
-    """Read back a line `Claim.line` wrote. A brief not launched holds nothing yet, so it
-    is None."""
-    slug, _, rest = line.partition(" ")
-    if not slug or rest.startswith(f"{NOT_LAUNCHED} "):
-        return None
-    head, cut, diff = rest.rpartition(DIFF)
-    if not cut:
-        head, diff = rest, ""
-    where = parse.where(head[head.index("Where:") :]) if "Where:" in head else ()
-    return Held(slug, where, _paths(diff))
-
-
-def _paths(diff: str) -> tuple[str, ...]:
-    """Read back the paths `Claim.line` wrote after `Diff:`, each whole: a changed file is no
-    prose, so a `(app)` or a space in it is part of the path. A directory loses its closing
-    `/`, as `jbriefs.parse.where` drops it."""
-    inner = diff.strip().removeprefix("`").removesuffix("`")
-    return tuple(path.rstrip("/") for path in inner.split("`, `") if path) if inner else ()
+        return f"{self.slug} {self.state} {self.home} {self.where}"
 
 
 def _where(text: str) -> str:
@@ -64,16 +30,6 @@ def _where(text: str) -> str:
         if line.startswith("Where:"):
             return line.strip()
     return NO_WHERE
-
-
-def _wider(text: str) -> dict[str, str]:
-    found: dict[str, str] = {}
-    for line in below.last(text, "## Result") or []:
-        path, _, why = line.removeprefix("Wider:").partition(":")
-        path = path.strip().strip("`")
-        if line.startswith("Wider:") and path and not path.startswith("<") and why.strip():
-            found[path] = why.strip()
-    return found
 
 
 def branch_of(slug: str, text: str) -> tuple[str, str]:
@@ -86,23 +42,12 @@ def branch_of(slug: str, text: str) -> tuple[str, str]:
 
 
 def scope(text: str, changed: list[str]) -> list[str]:
-    inside, wider = parse.where(text), _wider(text)
-    return [
-        f"wider: {path}: {wider[path]}" if path in wider else f"outside: {path}"
-        for path in changed
-        if not parse.covers(inside, path)
-    ]
+    inside = parse.where(text)
+    return [f"outside: {path}" for path in changed if not parse.covers(inside, path)]
 
 
 def home_of(text: str, homes: dict[str, str]) -> str:
     return homes.get(home.named(text), ROOT)
-
-
-def beyond(text: str, changed: list[str]) -> tuple[str, ...]:
-    """The changed files and `Wider:` paths that the brief's `Where:` line does not cover."""
-    inside = parse.where(text)
-    named = set(changed) | set(_wider(text))
-    return tuple(sorted(path for path in named if not parse.covers(inside, path)))
 
 
 def of_brief(
@@ -110,20 +55,16 @@ def of_brief(
     text: str,
     open_pulls: dict[str, int],
     homes: dict[str, str],
-    files: dict[str, list[str]] | None = None,
 ) -> Claim | None:
-    """`files` is what each open pull request changes, by its url."""
     record = sweep.of_brief(slug, text)
-    diff: tuple[str, ...] = ()
     if not any(line.startswith("## Result") for line in text.splitlines()):
         state = OUT if record.thread else NOT_LAUNCHED
     elif record.pull in open_pulls:
         state = f"pull request {open_pulls[record.pull]}"
         if record.paused:
             state = f"{sweep.PAUSED} {state}"
-        diff = beyond(text, (files or {}).get(record.pull, []))
     elif record.paused and not record.pull:
         state = sweep.PAUSED
     else:
         return None
-    return Claim(slug, state, home_of(text, homes), _where(text), diff)
+    return Claim(slug, state, home_of(text, homes), _where(text))

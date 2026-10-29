@@ -36,16 +36,9 @@ class Claims:
         (home.state / "home-id").write_text(f"{ME}\n")
         self.open()
 
-    def open(self, *numbers, files=None):
-        """The pull requests that GitHub lists as open, and the files each one changes."""
-        listed = [
-            {
-                "number": number,
-                "url": PULLS.format(number),
-                "files": [{"path": path} for path in (files or {}).get(number, [])],
-            }
-            for number in numbers
-        ]
+    def open(self, *numbers):
+        """The pull requests that GitHub lists as open."""
+        listed = [{"number": number, "url": PULLS.format(number)} for number in numbers]
         (self.home.stub / "list.json").write_text(json.dumps(listed))
 
     def write(self, slug, **said):
@@ -86,44 +79,15 @@ def test_the_last_result_is_the_one_that_counts(claims):
     assert claims.run() == []
 
 
-def test_a_pull_request_whose_diff_leaves_its_where_is_claimed_on_its_diff(claims):
-    claims.write("alpha", result=result(PULLS.format(12)))
-    claims.write("beta", result=result(PULLS.format(7)))
-    changed = ["src/alpha/one.py", "src/beta/two.py", "docs/how.md"]
-    claims.open(7, 12, files={12: changed, 7: ["src/alpha/three.py"]})
-    assert claims.run() == [
-        f"alpha pull request 12 root Where: {WHERE} Diff: `docs/how.md`, `src/beta/two.py`",
-        f"beta pull request 7 root Where: {WHERE}",
-    ]
-
-
-def test_a_wider_line_is_claimed_beside_the_diff_and_a_brief_with_no_pull_has_no_diff(claims):
+def test_an_old_results_wider_line_claims_nothing_beside_the_where(claims):
     wider = "Wider: `features/x/test_x.py`: a test the change breaks\n"
     claims.write("alpha", result=result(PULLS.format(12)) + wider)
     claims.write("beta", result="\n## Result\nStatus: paused\n" + wider)
-    claims.open(12, files={12: ["src/beta/two.py"]})
+    claims.open(12)
     assert claims.run() == [
-        f"alpha pull request 12 root Where: {WHERE} "
-        "Diff: `features/x/test_x.py`, `src/beta/two.py`",
+        f"alpha pull request 12 root Where: {WHERE}",
         f"beta paused root Where: {WHERE}",
     ]
-
-
-def test_a_claims_line_reads_back_as_the_paths_it_holds(claims):
-    claims.write("alpha", result=result(PULLS.format(12)))
-    claims.write("beta", thread=False)
-    claims.open(12, files={12: ["src/beta/two.py"]})
-    alpha, beta = (rules.held(line) for line in claims.run())
-    assert alpha == rules.Held("alpha", ("src/alpha",), ("src/beta/two.py",))
-    assert beta is None
-
-
-def test_a_diff_path_with_parentheses_or_a_space_reads_back_whole(claims):
-    claims.write("alpha", result=result(PULLS.format(12)))
-    changed = ["client/src/routes/(app)/calendar/+page.svelte", "docs/a file.md"]
-    claims.open(12, files={12: changed})
-    (line,) = claims.run()
-    assert rules.held(line).diff == tuple(changed)
 
 
 def test_a_brief_whose_pull_request_is_no_longer_open_claims_nothing(claims):
@@ -270,7 +234,7 @@ def test_it_asks_github_once_and_merges_removes_and_logs_nothing(claims):
     assert len(claims.run()) == 2
     assert claims.home.code == 0
     calls = (claims.home.stub / "calls").read_text().splitlines()
-    assert calls == ["pr list --state open --limit 1000 --json number,url,files"]
+    assert calls == ["pr list --state open --limit 1000 --json number,url"]
     after = {path: path.read_bytes() for path in kept(claims.home.state)}
     assert after == before
 
@@ -283,28 +247,12 @@ def test_when_github_cannot_be_asked_it_waits(claims):
     assert not (claims.home.state / "merge.log").exists()
 
 
-def test_a_file_the_where_does_not_cover_is_outside_and_one_a_wider_line_covers_is_wider():
+def test_a_file_the_where_does_not_cover_is_outside_and_an_old_wider_line_covers_nothing():
     text = brief("alpha", where="`src/alpha/`, `tests/test_a.py`")
     text += result() + "Wider: tests/test_b.py: the new test needs its fixture\n"
     changed = ["src/alpha/a.py", "tests/test_a.py", "tests/test_b.py", "docs/a.md"]
-    assert rules.scope(text, changed) == [
-        "wider: tests/test_b.py: the new test needs its fixture",
-        "outside: docs/a.md",
-    ]
+    assert rules.scope(text, changed) == ["outside: tests/test_b.py", "outside: docs/a.md"]
     assert rules.scope(text, changed[:2]) == []
-
-
-def test_only_the_last_results_wider_lines_count():
-    text = brief("alpha", where="`src/`") + result() + "Wider: docs/a.md: once\n" + result()
-    assert rules.scope(text, ["docs/a.md"]) == ["outside: docs/a.md"]
-    assert rules.scope(text + "Wider: `docs/a.md`: twice\n", ["docs/a.md"]) == [
-        "wider: docs/a.md: twice"
-    ]
-
-
-def test_the_templates_own_wider_line_covers_nothing():
-    text = brief("alpha", where="`src/`") + result() + "Wider: <path>: <why>\n"
-    assert rules.scope(text, ["<path>", "docs/a.md"]) == ["outside: <path>", "outside: docs/a.md"]
 
 
 class Scope:
@@ -345,14 +293,6 @@ def test_scope_prints_each_changed_file_the_where_does_not_cover(claims, scope):
     claims.write("alpha", where="`src/alpha/`")
     scope.branch("alpha", "src/alpha/a.py", "tests/test_a.py", "docs/a.md")
     assert scope.run() == (["outside: docs/a.md", "outside: tests/test_a.py"], 0, "")
-
-
-def test_scope_says_wider_of_a_file_the_last_result_gives_a_reason_for(claims, scope):
-    claims.write(
-        "alpha", where="`src/alpha/`", result=result() + "Wider: docs/a.md: a test reads it\n"
-    )
-    scope.branch("alpha", "src/alpha/a.py", "tests/test_a.py", "docs/a.md")
-    assert scope.run() == (["wider: docs/a.md: a test reads it", "outside: tests/test_a.py"], 0, "")
 
 
 def test_scope_goes_by_the_branch_the_last_result_names(claims, scope):

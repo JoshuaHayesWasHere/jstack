@@ -215,10 +215,9 @@ When step 2 of "After the review" drops what is outside the diff, and whenever a
 uv run --project "$T/../source" jmerge --scope <slug>
 ```
 
-It asks `jmerge` which changed files the brief's `Where:` does not cover, with the one parser of that line (`jbriefs.parse.where`), and prints nothing when all are inside.
-A file it prints as `outside: <path>` has no `Wider:` line in the last Result, and each is a finding, a warning with no line: the pull request is wider than its brief.
+It compares the diff with the brief's `Where:`: it asks `jmerge` which changed files that line does not cover, with the one parser of that line (`jbriefs.parse.where`), and prints nothing when all are inside.
+Each file it prints as `outside: <path>` is a finding, a warning with no line: the pull request is wider than its brief.
 If the reading already raised the same file, keep one.
-A file it prints as `wider: <path>: <why>` is one the crewmate gave a reason for: it is no finding by itself, and is one only if the reason is false for the diff.
 Do not judge the width by reading the diff: the command's answer is the answer.
 A command that exits with something other than 0 (the brief's `Where:` names no path, or neither the branch nor the pull request can be read) printed why on stderr: say so in the section, not that the pull request is no wider.
 

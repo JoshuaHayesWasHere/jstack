@@ -52,6 +52,7 @@ ALIAS = "principle-"
 DEFAULT = "default"
 LABEL = "Skills:"
 RUN = "Skills run:"
+_GONE = frozenset({"Wider"})
 _NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _SPLIT = re.compile(r"[,\s]+")
 _ITEM = re.compile(r"^[-*] +`?(?P<name>[^`:\s]+)`?:[ \t]*(?P<artifact>.*)$")
@@ -259,9 +260,10 @@ def owed(name: str, table: dict[str, str] | None = None) -> str:
 
 def _ends() -> frozenset[str]:
     """The labels that end a `Skills run:` section, read from the templates of the Result and of
-    the scout's report. They are all the other fields of those two templates, so an artifact may
-    contain a line of its own such as `Candidate A: ...`."""
-    return frozenset(
+    the scout's report, and the ones older Results still carry (`_GONE`). They are all the other
+    fields of those templates, so an artifact may contain a line of its own such as
+    `Candidate A: ...`."""
+    return _GONE | frozenset(
         found["label"]
         for name in ("result.md", "scout-report.md")
         for line in where("template", name).read_text().splitlines()

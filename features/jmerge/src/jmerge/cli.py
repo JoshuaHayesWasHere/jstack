@@ -351,24 +351,19 @@ class Repo:
             "--limit",
             "1000",
             "--json",
-            "number,url,files",
+            "number,url",
             *self.about,
         )
         try:
-            listed = json.loads(asked.stdout)
-            open_pulls = {str(one["url"]): int(one["number"]) for one in listed}
-            files = {
-                str(one["url"]): [str(each["path"]) for each in one.get("files") or []]
-                for one in listed
-            }
+            open_pulls = {str(one["url"]): int(one["number"]) for one in json.loads(asked.stdout)}
         except (ValueError, KeyError, TypeError, AttributeError):
-            open_pulls, files = None, {}
+            open_pulls = None
         if asked.returncode or open_pulls is None:
             print(f"wait: could not ask GitHub{_why(self.main, asked)}", flush=True)
             return 1
         homes = self.homes.known
         for brief in sorted((self.state / "tasks").glob("*.md")):
-            claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes, files)
+            claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes)
             if claim:
                 print(claim.line(), flush=True)
         return 0
@@ -1668,8 +1663,8 @@ def parser() -> argparse.ArgumentParser:
         "--scope",
         metavar="SLUG",
         help="print each file the brief's branch changes that its Where: line does not cover, "
-        "as 'outside: <path>', or 'wider: <path>: <why>' where the last Result's Wider: line "
-        "gives a reason; nothing is printed when all are inside; merge, remove and log nothing",
+        "as 'outside: <path>'; nothing is printed when all are inside; merge, remove and log "
+        "nothing",
     )
     instead.add_argument(
         "--checks",

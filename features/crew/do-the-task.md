@@ -109,35 +109,6 @@
 - When every **Done when** line holds, stop.
   Do not go looking for more to improve.
   A fault you find outside the task stays out of the diff: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
-- Before the pull request opens, with the work committed, ask which changed files the brief's **Where** does not cover.
-  Ask again after each push for a review's findings ("The review"), and before each push for a failed check ("The checks"), so a reviewer launched on that push finds the line, since a fix can add a file outside **Where** after the `Wider:` lines were written.
-  Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
-
-  ```sh
-  if ! said=$(uv run --project "$T/../source" jmerge --scope <slug>); then
-      echo "not known: jmerge --scope failed, so no file is known to be inside Where"
-  else
-      printf '%s\n' "$said" | awk '
-          /^outside: / {
-              path = substr($(0), 10)
-              print
-              print "  ask: Wider: " path ": <why it had to change>, or take " path " out of the diff"
-              asked++
-          }
-          END {if (!asked) print "nothing new: every changed file outside Where has its Wider: line"}'
-  fi
-  ```
-
-  It prints `nothing new` when every changed file is inside **Where** or has its reason on the last Result's `Wider:` line.
-  It prints `outside: <path>` for a file that has neither, with an `ask:` line under it.
-  Do not reason about it from the diff: this is the answer.
-  For each `outside:` line, take the file out of the diff when the task does not need it.
-  When it does, a test the change breaks, a page tied to a changed `--help`, write one line for each file, `Wider: <path>: <why it had to change>`.
-  Before the pull request opens, it goes in the Result "End" writes, and not in a `## Result` of its own before it: the command reads the last Result, and asks for the file no more from then on.
-  Once the pull request is open, it goes in the last Result, beside the line that says what the push was for.
-  The pull request opens either way.
-  A file left `outside:` with no `Wider:` line is a finding of the review.
-
 - If the brief says to open a pull request, open it once the checks pass, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
 
   ```sh
