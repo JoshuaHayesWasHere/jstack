@@ -571,14 +571,19 @@ def test_a_wait_for_room_that_never_comes_ends_at_its_limit_with_the_last_reason
 
 
 def test_the_reason_a_wait_ends_with_is_the_one_of_its_last_look(tmp_path):
+    """The first look reads a busy load, then its `df` turns the machine into one short of
+    memory and runs past the limit, as a look does on a loaded machine. A look that began
+    before the limit is not the last: the wait looks again and ends with the memory."""
     env = machine(tmp_path, **{**IDLE, "load": "24.00"})
-    short = threading.Timer(0.3, machine, [tmp_path], {**IDLE, "memory": 2 * KB_PER_GB})
-    short.start()
-    try:
-        assert waited(env, "1.5") == (["wait: 2.0 GB of memory available, under 6"], 75)
-    finally:
-        short.cancel()
-        short.join()
+    machine(tmp_path / "after", **{**IDLE, "memory": 2 * KB_PER_GB})
+    proc, after = tmp_path / "proc", tmp_path / "after" / "proc"
+    put(
+        tmp_path / "stub" / "df",
+        f'#!/bin/sh\nif [ ! -e "{tmp_path}/changed" ]; then\n  touch "{tmp_path}/changed"\n'
+        f'  cp "{after}/loadavg" "{after}/meminfo" "{proc}/"\n  sleep 1.5\nfi\ncat "$2/df"\n',
+        0o755,
+    )
+    assert waited(env, "1") == (["wait: 2.0 GB of memory available, under 6"], 75)
 
 
 def test_a_wait_of_no_seconds_looks_once_and_still_tells_go_from_wait(tmp_path):
