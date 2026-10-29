@@ -53,7 +53,7 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 NAME = "stops.json"
 LOCK = "stops.lock"

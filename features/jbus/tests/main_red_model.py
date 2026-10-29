@@ -36,8 +36,8 @@ request that jbus launched (`alpha`). The first tip, M0, is green and is there f
 Each kind of step matches the code as follows:
 
 - **pass**: one run of `tell` under the pass lock (`fcntl.flock` in
-  `features/jbus/src/jbus/cli.py`). No two passes overlap, so a pass is one indivisible step. In a
-  pass, jmerge reads `main.json` before `tell` writes it: `features/jbus/src/jbus/cli.py` runs
+  `features/jbus/src/jbus/poll.py`). No two passes overlap, so a pass is one indivisible step. In a
+  pass, jmerge reads `main.json` before `tell` writes it: `features/jbus/src/jbus/poll.py` runs
   `merge.merge`, and `tell` runs later, in the `after-expedite` slot
   (`features/jbus/src/jbus/mainmoved.py`). So the model writes a merge in a pass as the event
   `lands, jmerge merges` followed by the event `pass`. That merge reads the record the last pass

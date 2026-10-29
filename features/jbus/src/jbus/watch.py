@@ -41,6 +41,7 @@ import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
+from jbus.joblog import Failed, failed_in, plain
 from jbus.judged import Said, parse, step
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -78,13 +79,6 @@ NIGHTLY_WINDOW = timedelta(days=3)
 NIGHTLY_GRACE = timedelta(hours=1)
 GREEN = "passed"
 """What a nightly's `seen` keeps for a run of it that passed on its `branch`."""
-_FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
-_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-_STAMP = r"^(?:\S+Z )?"
-_STEP_COUNT = re.compile(_STAMP + r"(?:##\[warning\]|::warning::).*?\b(\d+) tests? failed\b", re.M)
-_STEP_TEST = re.compile(_STAMP + r"FAILED (\S.*?)\s*$", re.M)
-_SUMMARY = re.compile(_STAMP + r"=+ (.*\bin [0-9.]+s\b.*?) =+\s*$", re.M)
-_SUMMARY_COUNT = re.compile(r"(\d+) (?:failed|errors?)\b")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,isDraft"
 NEVER = "neverStarted"
@@ -1082,32 +1076,6 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
     return [r for r in runs if (r.get("check_suite") or {}).get("id") not in other], pushed
 
 
-@dataclass(frozen=True)
-class Failed:
-    """The tests a job's log reports as failed: `tests` their ids, in order, and `count` how many
-    failed, more than the ids where the log counts failures it does not name."""
-
-    tests: tuple[str, ...] = ()
-    count: int = 0
-
-
-def failed_in(log: str) -> Failed:
-    """Return the failed tests a job's log reports. A step that prints a warning `<n> tests
-    failed` and then a `FAILED <id>` line for each (macos-nightly.yml's "failed tests") names them
-    whole. Where it names none, the ids are pytest's summary lines. The count is the largest of
-    the step's, the ids' and pytest's last line's failed plus errors."""
-    log = _ESCAPE.sub("", log)
-    steps = list(_STEP_COUNT.finditer(log))
-    tests = _STEP_TEST.findall(log, steps[-1].end()) if steps else []
-    count = int(steps[-1][1]) if steps else 0
-    tests = tests or _FAILED_TEST.findall(log)
-    summaries = _SUMMARY.findall(log)
-    if summaries:
-        count = max(count, sum(int(n) for n in _SUMMARY_COUNT.findall(summaries[-1])))
-    named = tuple(dict.fromkeys(tests))
-    return Failed(named, max(count, len(named)))
-
-
 def job_log(run: Pass, repo: str, job: object) -> str | None:
     """Return a job's log, or None where GitHub did not give it. GitHub's log has escape
     sequences in it, which gh 2.102 gives only when asked to."""
@@ -1489,7 +1457,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
                 (j.get("name") or "?", j.get("html_url") or "", failed_in(log or ""))
                 for j, log in zip(red, logs, strict=True)
             ]
-            said = [_ESCAPE.sub("", log or "") for log in logs]
+            said = [plain(log or "") for log in logs]
             drawn, rest = drawn_apart(jobs, said)
             fixed = name if rest or not drawn else ""
             if drawn and redrawn in free:

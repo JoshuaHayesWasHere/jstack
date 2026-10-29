@@ -65,7 +65,7 @@ from jbus.watch import at_work
 from jgauge import slot
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 ROOT = Path("/proc")
 WORKTREES = Path.home() / ".t3" / "worktrees"

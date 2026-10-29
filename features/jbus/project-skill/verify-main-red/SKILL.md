@@ -1,6 +1,6 @@
 ---
 name: verify-main-red
-description: Rerun the exhaustive check of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jmerge.mainjson` reads for jmerge's red wait ("main is red at <sha12>, its fix merges first"), and read what it finds. Use on any change to mainmoved, mainjson, `jmerge.rows.red`, the pass order in `jbus.cli`, `watch._check`'s answers or the "Main is not red" rule in features/jmerge/docs/jmerge.md, and on any move of the modules it names.
+description: Rerun the exhaustive check of main.json's red-main contract, the record `jbus.mainmoved.tell` writes and `jmerge.mainjson` reads for jmerge's red wait ("main is red at <sha12>, its fix merges first"), and read what it finds. Use on any change to mainmoved, mainjson, `jmerge.rows.red`, the pass order in `jbus.poll`, `watch._check`'s answers or the "Main is not red" rule in features/jmerge/docs/jmerge.md, and on any move of the modules it names.
 ---
 
 # verify-main-red
@@ -31,7 +31,7 @@ Rerun it when the diff touches any of these:
 - `features/jbus/src/jbus/mainmoved.py` (`tell`, `main_check`, `failed_at`, `SETTLED`, the `STEPS` slot);
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`, `failures`);
 - `features/jmerge/src/jmerge/rows.py` (`main`, `red`, `Ran`, `proves`, `browser_red`, `main_browser_run`);
-- `features/jbus/src/jbus/cli.py` where a pass runs `merge.merge` (`half.said = merge.merge(run)`) before the `after-expedite` slot, or the pass lock (`fcntl.flock`), and `features/jbus/src/jbus/merge.py`;
+- `features/jbus/src/jbus/poll.py` where a pass runs `merge.merge` (`half.said = merge.merge(run)`) before the `after-expedite` slot, or the pass lock (`fcntl.flock`), and `features/jbus/src/jbus/merge.py`;
 - `features/jbus/src/jbus/watch.py` `_check` and `_judged`, the answers a tip's check can have;
 - `write_json` in `features/jbus/src/jbus/__init__.py`: the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
@@ -122,8 +122,8 @@ Check every step against this table; a step no line backs is a modeling error, a
 
 | Step | Backed by |
 |---|---|
-| `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/cli.py`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py` |
-| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/cli.py` |
+| `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/poll.py`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py` |
+| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/poll.py` |
 | `Mn lands: another merge` | a merge that asks no `rows.red`, or that `rows.red` lets through as a fix (S3's `fl-fix`), a merge by hand, `jmerge --accept` |
 | `jmerge holds fl-fix ...` / `jmerge lets fl-fix merge ...` | the last line of an S3 or S1 trace: `rows.red` and `rows.browser_red` over what `jmerge.cli`'s `Repo.proved` and `Repo.proved_browser` read of the pull request's check, which the model's `proof` stands for |
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py`; `pending` is a check not ended |

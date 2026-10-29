@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from jbus import Config, dispatch, read_json, write_json
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 
 def path(config: Config) -> Path:

@@ -44,7 +44,7 @@ from jmerge import ready
 from jmerge.lines import Line as Line
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
 _NO_LIST = re.compile(

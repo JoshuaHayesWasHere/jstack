@@ -104,7 +104,7 @@ from jbus.passes import Pass
 from jbus.wake import Box
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 LOCK = "blockers.lock"
 EVENTS = {"decision": "user"}

@@ -6,11 +6,17 @@ feature declared a verb outside `jbus.cli`, at 80 columns and with no colour. `j
 --help` with the verbs there were then, `verbs.FIRST`, so a verb added since does not change it.
 `jbus-queue-add.txt` is `jbus queue add --help`. The tests run the real command and hold it to those
 files, byte for byte.
+
+`jbus` reads its verbs off the sources and imports only the module of the verb that runs. A test
+holds what `jbus --help` and the `--help` of every verb, and of every verb under one, print to what
+the parser prints when every verb takes its arguments, as when `jbus` imported every verb.
 """
 
 import argparse
 import contextlib
+import importlib
 import io
+import pkgutil
 import re
 import subprocess
 import sys
@@ -22,7 +28,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import cli, t3, verbs
+from jbus import cli, poll, t3, verbs
 from test_jbus_kitchen import GATE
 
 HELP = Path(__file__).parent / "fixtures" / "jbus-help"
@@ -39,7 +45,7 @@ def unwrapped(text):
 def helped(page, monkeypatch):
     """Return what `--help` prints for a page, with only the verbs of `verbs.FIRST`.
     `jbus-queue-add` is the page of `jbus queue add --help`."""
-    monkeypatch.setattr(cli, "DECLARED", {name: cli.DECLARED[name] for name in verbs.FIRST})
+    monkeypatch.setattr(cli, "LISTED", {name: cli.LISTED[name] for name in verbs.FIRST})
     monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("NO_COLOR", "1")
     out = io.StringIO()
@@ -133,17 +139,99 @@ def test_a_refusal_or_a_t3_error_is_printed_and_the_answer_is_1(error, said, mon
         raise error
 
     verb = verbs.Verb("status", "", verbs.nothing, refuses, config=False)
-    monkeypatch.setitem(cli.DECLARED, "status", verb)
+    monkeypatch.setattr(verbs, "load_verb", lambda one: verb)
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
         assert cli.main(["status"]) == 1
     assert out.getvalue() == said
 
 
-def test_cli_runs_the_pass_s_one_verb_and_no_feature_s():
-    mine = [name for name, verb in cli.DECLARED.items() if verb.run.__module__ == cli.__name__]
-    assert mine == ["poll"]
-    assert not [name for name in vars(cli) if name.startswith("_") and name[1:] in cli.DECLARED]
+def test_the_pass_s_one_verb_is_in_poll_and_cli_runs_no_verb():
+    assert [name for name, one in cli.LISTED.items() if one.module == poll.__name__] == ["poll"]
+    assert not [one.name for one in cli.LISTED.values() if one.module == cli.__name__]
+    assert not [name for name in vars(cli) if name.startswith("_") and name[1:] in cli.LISTED]
+
+
+def walked(parser, typed):
+    """Return what is typed for the help page of `parser` and of each verb under it."""
+    found = [typed]
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for name, under in action.choices.items():
+                found += walked(under, [*typed, name])
+    return found
+
+
+def printed(parse, argv):
+    """Return what `parse(argv)` prints before it exits 0."""
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out), pytest.raises(SystemExit) as stopped:
+        parse(argv)
+    assert stopped.value.code == 0, argv
+    return out.getvalue()
+
+
+def test_every_help_prints_what_the_parser_of_every_verb_prints(monkeypatch):
+    monkeypatch.setenv("COLUMNS", "80")
+    monkeypatch.setenv("NO_COLOR", "1")
+    every = [verbs.load_verb(one) for one in cli.LISTED.values()]
+    eager = verbs.parser(cli.LISTED, cli.__doc__, every)
+    pages = walked(eager, [])
+    assert len(pages) > len(every)
+    for typed in pages:
+        assert printed(cli.main, [*typed, "--help"]) == printed(
+            eager.parse_args, [*typed, "--help"]
+        )
+
+
+def loaded_by(argv):
+    """Return the modules of jbus that a fresh Python has loaded once `cli.main(argv)` ends."""
+    run = (
+        "import contextlib, io, sys\nfrom jbus import cli\n"
+        "with contextlib.suppress(SystemExit), contextlib.redirect_stdout(io.StringIO()):\n"
+        f"    cli.main({argv!r})\n"
+        "print(*sorted(name for name in sys.modules if name.startswith('jbus')))"
+    )
+    ran = subprocess.run([sys.executable, "-c", run], capture_output=True, text=True)
+    assert ran.returncode == 0, ran.stderr
+    return set(ran.stdout.split())
+
+
+def test_help_imports_the_module_of_no_verb_and_a_verb_s_help_imports_its_own():
+    modules = {one.module for one in cli.LISTED.values()} - {cli.__name__, verbs.__name__}
+    assert loaded_by(["--help"]) & modules == set()
+    assert loaded_by(["--help"]) <= {"jbus", "jbus.cli", "jbus.party", "jbus.sources", "jbus.verbs"}
+    assert "jbus.digest" in loaded_by(["status", "--help"])
+    assert "jbus.poll" not in loaded_by(["status", "--help"])
+
+
+def test_what_the_sources_list_is_what_the_modules_declare_once_imported():
+    imported = {
+        verb.name: (verb.help, module.name)
+        for module in pkgutil.iter_modules(jbus.__path__, "jbus.")
+        if not module.name.endswith(".__main__")
+        for verb in getattr(importlib.import_module(module.name), "VERBS", ())
+    }
+    assert {one.name: (one.help, one.module) for one in cli.LISTED.values()} == imported
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        'HELP = "said"\nVERBS = (verbs.Verb("shout", HELP, verbs.nothing, print),)',
+        'VERBS = (verbs.Verb("shout", "say" + " it", verbs.nothing, print),)',
+        'VERBS = [verbs.Verb("shout", "say it", verbs.nothing, print)]',
+        "VERBS = (*OTHER,)",
+        "VERBS: tuple",
+    ],
+)
+def test_a_verbs_whose_name_and_help_are_not_written_out_fails_at_import(tmp_path, written):
+    ran = fresh(tmp_path, "import jbus.cli", odd="from jbus import verbs\n" + written + "\n")
+    assert ran.returncode != 0
+    assert ran.stderr.splitlines()[-1] == (
+        "ValueError: jbus.odd: VERBS is not a tuple of Verb(<name>, <help>, ...) with the name "
+        "and the help written out"
+    ), ran.stderr
 
 
 SHORT = {

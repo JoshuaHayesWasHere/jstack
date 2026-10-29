@@ -11,7 +11,7 @@ import pytest
 
 import jbus
 import jbus.queue
-from jbus import cli
+from jbus import poll
 from test_jbus_kitchen import NOW, RESULT, TOKEN, iso
 from test_jbus_queue import add, rows
 
@@ -238,7 +238,7 @@ def test_a_pass_that_stopped_before_the_row_was_added_files_it_on_the_next(kitch
     kitchen.t3.write(NOW)
     said = []
     try:
-        assert cli.poll(jbus.load(), NOW, said.append) == 1
+        assert poll.poll(jbus.load(), NOW, said.append) == 1
     finally:
         tasks.chmod(0o700)
     assert "pass failed demo: PermissionError" in said[0]
