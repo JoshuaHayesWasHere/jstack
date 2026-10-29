@@ -227,6 +227,13 @@ def test_a_pick_approves_each_row_it_names_one_command_at_a_time(kitchen, tmp_pa
         (
             {QUESTION: ["alpha (S)"]},
             "resolved",
+            ("cli:a-command",),
+            f"question box {REF} is not user's own answer: command cli:a-command answered it, "
+            "and it is not T3 Code's app",
+        ),
+        (
+            {QUESTION: ["alpha (S)"]},
+            "resolved",
             (),
             f"question box {REF} is not user's own answer: T3 Code's store holds no command "
             "that answered it",
