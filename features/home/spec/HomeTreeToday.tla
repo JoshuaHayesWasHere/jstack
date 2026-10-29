@@ -121,11 +121,11 @@ Deliver(m) ==
     /\ up     \* jbus/wakes.py `except T3Error as error:`
     /\ msg' = Set(msg, m, "told")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* Without that guard a failed post takes the call out all the same, and it never reaches Josh.
+\* Without that guard a failed send records them as told all the same, and they never reach Josh.
 Lost(m) ==
     /\ ~Kept("keep-on-fail")
-    /\ msg[m] = "home"     \* jbus/alert.py `sent = run.box.flush(`
-    /\ ~up     \* jbus/wake.py `why = post(body(some)) if why: break`
+    /\ msg[m] = "home"     \* jbus/wakes.py `for thread in sorted(({one.to for one in items} | set(threads)) - {""}):`
+    /\ ~up     \* jbus/wakes.py `except T3Error as error:`
     /\ msg' = Set(msg, m, "none")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The home thread fails: T3 Code is down, or the thread is gone.
