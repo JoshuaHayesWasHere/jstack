@@ -23,6 +23,8 @@ ARTIFACT = "jbus-view-shots"
 """The artifact of a failed browser run, with every shot as that run drew it (browser.yml)."""
 MOVED = f"keep the shots of this run's {ARTIFACT} artifact"
 """What a shot test says where it fails on main: the run's shots are the ones to keep."""
+BROWSER_MOVED = "the shots were drawn by"
+"""How a shot test starts to say that the browser that drew the kept shots is not this one."""
 DRAWN_BY = (
     "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot",
     "features/jbus/tests/view/page/test_view_page_days.py::"
@@ -61,10 +63,10 @@ def brief(
     moved: bool,
 ) -> str:
     """Return the shots row's brief, in the shape of `features/jbriefs/templates/brief.md`: keep
-    the shots that the run `number` of browser.yml drew over main. `run` names that workflow's run,
-    `filed` is the start of the `Decisions:` line of a row jbus filed, `jobs` each failed job's name,
-    URL and failed shot tests, `read` the line that names the run, and `moved` whether its log says
-    the browser that draws them moved."""
+    the shots that the run `number` of browser.yml drew over main. `run` names that workflow's
+    run, `filed` is the start of the `Decisions:` line of a row jbus filed, `jobs` each failed
+    job's name, URL and failed shot tests, `read` the line that names the run, and `moved` whether
+    its log says the browser that draws them moved."""
     tests = [test for _, _, failed in jobs for test in failed]
     said = f"{len(tests)} shot{'' if len(tests) == 1 else 's'} moved"
     why = "the browser that draws them moved" if moved else "a merge changed the look of main"

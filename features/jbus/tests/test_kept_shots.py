@@ -62,7 +62,10 @@ def test_a_feature_that_changes_a_kept_shot_fails_with_a_line_for_each_other_fil
     ran = pull(repo, {SHOT: "new shot", CODE: "new code", "README.md": "more"})
     assert ran.returncode == 1
     errors = [line for line in ran.stdout.splitlines() if line.startswith("::error ")]
-    assert [line.split("::")[1] for line in errors] == ["error file=README.md", f"error file={CODE}"]
+    assert [line.split("::")[1] for line in errors] == [
+        "error file=README.md",
+        f"error file={CODE}",
+    ]
     assert all("the shots row redraws them" in line for line in errors)
 
 
@@ -96,7 +99,6 @@ def test_a_feature_that_leaves_the_shots_as_main_has_them_passes(repo):
 
 
 def test_a_base_git_cannot_read_ends_2(repo):
-    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x")
     ran = subprocess.run(
         [sys.executable, "-I", repo / SCRIPT, "--base", "no-such-commit"],
         capture_output=True,
