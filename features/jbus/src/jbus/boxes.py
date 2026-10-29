@@ -1,10 +1,10 @@
 """Read the user's answer to a question box in a T3 Code thread, the basis `--pick` of an approval.
 
-A question box is what Claude Code's AskUserQuestion shows in T3 Code: a thread's item of the
+A question box is what an agent's AskUserQuestion shows in T3 Code: a thread's item of the
 type `user_input_request`, by an id `turn-item:runtime-request:<the request's id>`, which holds
 the questions and the labels each offers. jbus reads the item with `t3_thread_read`, as it
 reads a message (`Client.item`). The item does not say who answered it, nor what: an agent may
-answer a box with `t3_pending_request`, and T3 Code shows that answer as it shows the user's. So
+answer a box with T3 Code's pending-request tool, and T3 Code shows that answer as the user's. So
 jbus reads the rest in T3 Code's own store, `$T3CODE_HOME/userdata/statev2.sqlite` (`~/.t3` by
 default), read only, as `jbriefs.sends` does: the request's row, with its answers and when it
 was resolved, and the command that resolved it. T3 Code gives a command that an MCP client sent
@@ -91,8 +91,8 @@ def answered(where: Path, thread: str, request: str) -> Answered | None:
 
 
 def by_user(commands: tuple[str, ...]) -> str:
-    """Return why the commands are not the user's own answer, or nothing when every one came
-    from T3 Code's app."""
+    """Return why the commands are not the user's own answer, or nothing when T3 Code's app
+    sent every one of them."""
     if not commands:
         return "T3 Code's store holds no command that answered it"
     for one in commands:

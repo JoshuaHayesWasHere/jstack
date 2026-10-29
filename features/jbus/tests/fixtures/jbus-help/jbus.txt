@@ -66,9 +66,10 @@ options:
   --project PROJECT     the project's name in the config, when it has several
   --as PARTY            who acts in a go or an answer: home, the default, or
                         user, on the user's own words that jbus reads
-                        (--message or --page); the bot acts only over POST
-                        /act
+                        (--message, --pick or --page); the bot acts only over
+                        POST /act
   --evidence SOURCE:REF
                         the words a go or an answer rests on, as
                         <source>:<ref>, in place of its basis option:
-                        t3-message, lavish-page, typed (a word's id) or answer
+                        t3-message, t3-pick, lavish-page, typed (a word's id)
+                        or answer
