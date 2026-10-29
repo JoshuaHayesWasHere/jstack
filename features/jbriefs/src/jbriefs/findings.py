@@ -733,20 +733,20 @@ def left(said: Triage) -> str:
             if not one.legacy
         ]
         return line + (": " + ", ".join(named) if named else "")
-    last = _last_round(said)
-    if not owes(said, last) and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
+    shape = fixed_shape(said)
+    if shape is None:
         return (
             "write nothing: the last review sends this thread no finding, since only an error "
             "of a later review comes here, and the Fixed: line stays as it is"
         )
-    pushed, why = fixed_shape(said) or (False, "")
+    pushed, why = shape
     return f"write Fixed: {'<the head you pushed>, ' if pushed else 'none needed, <reason>: '}{why}"
 
 
 def fixed_shape(said: Triage) -> tuple[bool, str] | None:
     """The `Fixed:` line `left` asks for once every finding has its ending, or None: whether it
-    names the head pushed for a fix, which is where a finding is fixed (of the last review, once
-    there are more), and why."""
+    names the head pushed for a fix (where a finding of the last review is fixed), and why. It
+    alone decides whether a `Fixed:` line is owed: past `left`'s waits, None is "write nothing"."""
     sent = said.sent()
     last = _last_round(said) if said.sections else set()
     if not last or said.roster.owed(said.sections) or any(not one.ended for one in sent):
