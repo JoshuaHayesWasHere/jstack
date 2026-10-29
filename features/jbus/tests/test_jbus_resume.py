@@ -218,7 +218,7 @@ def test_a_thread_that_did_not_fail_is_sent_nothing(kitchen, status):
 def test_a_thread_whose_brief_has_a_result_is_sent_nothing(kitchen):
     crew(kitchen)
     path = kitchen.home / "tasks" / "alpha.md"
-    path.write_text(path.read_text() + RESULT)
+    path.write_text(path.read_text() + RESULT.replace("Left: none", "Left: the user's word"))
     kitchen.poll()
     assert sends(kitchen) == [] and resumes(kitchen) == []
 

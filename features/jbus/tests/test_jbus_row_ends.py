@@ -149,7 +149,7 @@ def test_the_item_is_told_once_and_goes_when_the_result_leaves_nothing(kitchen):
     kitchen.poll()
     kitchen.poll()
     assert kitchen.lines("waiting") == ["waiting demo: 2 wait on user, 1 new (left alpha), 0 gone"]
-    path.write_text(launched + result())
+    path.write_text(launched.replace("open one when done", "none, a report") + result())
     kitchen.poll()
     assert column(kitchen) == ("done", "", "") and listed(kitchen) == []
 
