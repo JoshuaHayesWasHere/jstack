@@ -24,6 +24,11 @@ push that failed or an error no check foresaw, is the machine's. Each alert goes
 home alone. A snapshot that did not fail for the machine read the whole stage, so it ends the
 alert of each owner it did not fail for (`alert.recover`); one that failed for the machine ends
 none, since it may not have read an owner's files.
+
+A snapshot that is killed, as systemd kills one at the unit's `TimeoutStartSec`, never gets to
+raise its alert, so each run leaves a mark of its own in the state dir's `RUNS`, holds a lock on it
+while it runs, and removes it at its end. A pass that finds a mark nobody holds counts it as a
+snapshot of the machine's that did not finish, and removes it (`unfinished`).
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -50,6 +56,11 @@ from jsettings import proc
 AFTER = 1
 CAP = 3
 FAILED = "the snapshot of the homes' state tree did not finish"
+KILLED = (
+    "it was stopped before its end, as the unit's timeout stops one "
+    "(journalctl --user -u jbus-snapshot)"
+)
+RUNS = "snapshot-runs"
 _RULE = re.compile(r"(\d+)\. ")
 _CODE = re.compile(r"\bCode: ([\w.-]*\w)")
 WAIT = 60.0
@@ -229,11 +240,50 @@ def snapshot(
     why: str | None = None,
     warn: Callable[[str], None] = _stderr,
 ) -> int:
+    """Take a snapshot (`_snapshot`) under a mark of the run that only its end removes, so that a
+    run killed before it is seen by the next pass (`unfinished`). The mark is written under a
+    name that starts with a dot, which a pass passes over, and renamed once it is locked."""
+    now = now or datetime.now(UTC)
+    runs = config.state_dir / RUNS
+    runs.mkdir(parents=True, exist_ok=True)
+    fd, made = tempfile.mkstemp(prefix=".", dir=runs)
+    with os.fdopen(fd, "w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        mark = runs / Path(made).name.removeprefix(".")
+        os.rename(made, mark)
+        code = _snapshot(config, now, say, why, warn)
+        mark.unlink()
+    return code
+
+
+def unfinished(config: jbus.Config, _: object, now: datetime, say: Callable[[str], None]) -> None:
+    """Count each snapshot whose mark no run holds, one that was killed before its end, as a
+    failed snapshot of the machine's, and remove its mark. A mark whose run ended between the
+    look and the lock is gone from its path by then, and is passed over."""
+    runs = config.state_dir / RUNS
+    for mark in sorted(runs.glob("[!.]*")) if runs.is_dir() else ():
+        try:
+            with mark.open() as read:
+                fcntl.flock(read, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if os.stat(mark).st_ino != os.fstat(read.fileno()).st_ino:
+                    continue
+                mark.unlink()
+        except (BlockingIOError, FileNotFoundError):
+            continue
+        alert.sound(config, alert.SNAPSHOT, f"{FAILED}: {KILLED}", AFTER, now, say)
+
+
+def _snapshot(
+    config: jbus.Config,
+    now: datetime,
+    say: Callable[[str], None],
+    why: str | None,
+    warn: Callable[[str], None],
+) -> int:
     """Take a snapshot of `config.home_dir`, with each refused `standing.md` (`refusals`) left
     out of it and named to `warn`. A snapshot that refused none and succeeds ends the alerts of
     failed ones. One that fails says why to `warn`, and raises an alert for each owner of what
     failed: see the module."""
-    now = now or datetime.now(UTC)
     refused: dict[Path, str] = {}
     failed: dict[str, str] = {}
     try:
@@ -281,3 +331,4 @@ VERBS = (
         lambda args, config: snapshot(config, why=args.why),
     ),
 )
+CHORES = (verbs.Chore(30, "the snapshots that did not reach their end", unfinished),)
