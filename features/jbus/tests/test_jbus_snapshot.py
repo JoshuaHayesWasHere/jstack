@@ -13,15 +13,18 @@ import os
 import random
 import shlex
 import shutil
+import signal
 import string
 import subprocess
+import sys
 import threading
+import time
 from pathlib import Path
 
 import pytest
 
 import jbus
-from jbus import snapshot
+from jbus import alert, snapshot
 from test_jbus_kitchen import NOW, REPO, queued
 
 UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer")
@@ -224,6 +227,69 @@ def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_ends_it(
     code, said = take()
     assert (code, said[0]) == (0, "snapshot: committed, pushed")
     assert said[1].startswith("recovered: snapshot after 2 failures since 11:00 ET")
+    assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
+
+
+def killed(kitchen, tree):
+    """Run the verb as the unit does, in a process of its own, and stop it as systemd stops a run
+    at its `TimeoutStartSec`: a SIGTERM while gitleaks still reads the changes."""
+    slow = kitchen.root / "slow-gitleaks"
+    slow.mkdir(exist_ok=True)
+    reading = kitchen.root / "gitleaks-reading"
+    (slow / "gitleaks").write_text(f"#!/bin/sh\ntouch {shlex.quote(str(reading))}\nexec sleep 30\n")
+    (slow / "gitleaks").chmod(0o755)
+    env = {**os.environ, "PATH": f"{slow}{os.pathsep}{os.environ['PATH']}"}
+    (tree / "demo" / "notes.md").write_text("# notes\nkilled\n")
+    run = subprocess.Popen([sys.executable, "-m", "jbus", "snapshot"], env=env, start_new_session=True)
+    for _ in range(300):
+        if reading.exists() or run.poll() is not None:
+            break
+        time.sleep(0.05)
+    assert reading.exists(), "the snapshot never reached gitleaks"
+    os.killpg(run.pid, signal.SIGTERM)
+    assert run.wait(10) == -signal.SIGTERM
+    reading.unlink()
+
+
+def test_a_snapshot_its_timeout_killed_is_raised_once_for_the_machine_by_the_next_pass(
+    kitchen, tree
+):
+    """A kill leaves the run no chance to raise its item, so the next pass sees the run that
+    never reached its end and raises it, once for the streak, as the machine's."""
+    killed(kitchen, tree)
+    assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
+    kitchen.poll()
+    item = jbus.read_json(kitchen.state_dir / "streaks.json", {})["snapshot"]
+    assert item["alerted"] and item["owner"] == ""
+    assert item["line"].startswith("alert: snapshot failed 1 times in a row since 11:00 ET: ")
+    assert snapshot.FAILED in item["line"]
+    assert [one.key for one in alert.open_items(kitchen.state_dir, NOW)] == ["snapshot"]
+    assert kitchen.log("notify") == [f"jbus | {item['line']}"]
+    kitchen.poll()
+    killed(kitchen, tree)
+    kitchen.poll()
+    assert kitchen.log("notify") == [f"jbus | {item['line']}"]
+    code, said = take()
+    assert code == 0 and said[-1].startswith("recovered: snapshot after 2 failures")
+    kitchen.poll()
+    assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
+
+
+def test_a_snapshot_still_running_is_not_raised_by_a_pass(kitchen, tree):
+    """A pass that runs while a snapshot waits on gitleaks or on the lock raises nothing."""
+    lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
+    said = []
+    with lock.open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        running = threading.Thread(target=lambda: said.append(take()))
+        running.start()
+        running.join(1)
+        assert running.is_alive()
+        kitchen.poll()
+        assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
+    running.join(10)
+    assert said and said[0][0] == 0
+    kitchen.poll()
     assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}
 
 
