@@ -1,0 +1,309 @@
+From ae0cc65cbf12a0a7541ae901423f5bcaf4c7c7e7 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 18:34:02 -0400
+Subject: [PATCH] feat(web): a jstack task in review says which part: review 1,
+ fixing, review 2, checks or rebase, and its ticks step with it
+
+---
+ apps/server/src/jstack/jbusWork.logic.test.ts | 10 +++--
+ apps/server/src/jstack/jbusWork.logic.ts      |  4 +-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 45 +++++++++++++++++++
+ .../src/components/sidebar/JstackTreeRows.tsx |  7 +--
+ .../sidebar/jstackTree.logic.test.ts          |  6 +--
+ .../components/sidebar/jstackTree.logic.ts    | 45 +++++++++++++++----
+ packages/contracts/src/jbusWork.ts            | 17 ++++++-
+ 7 files changed, 114 insertions(+), 20 deletions(-)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 635aad5877..66c6cabb61 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -36,7 +36,7 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+ });
+ 
+ describe("buildRepoWork", () => {
+-  it("places each jbus lane on one stage word and hides finished rows", () => {
++  it("places each jbus lane on its stage, each part of a review its own, and hides finished rows", () => {
+     const work = {
+       work: [
+         row("a-ready", "ready", "queued", { thread: "" }),
+@@ -52,7 +52,9 @@ describe("buildRepoWork", () => {
+         row("a-asking", "asking", "gate", { who: "user", waits: "your answer" }),
+         row("a-review", "review", "review"),
+         row("a-findings", "findings", "findings", { pr: "#725" }),
++        row("a-second", "second", "second"),
+         row("a-check", "check", "check"),
++        row("a-rebase", "rebase", "rebase"),
+         row("a-merged", "merged", "merged"),
+         row("a-done", "done", "merged"),
+         row("a-removed", "removed", ""),
+@@ -71,8 +73,10 @@ describe("buildRepoWork", () => {
+       ["a-hung", "crew", "mcp:a-hung", null],
+       ["a-asking", "crew", "mcp:a-asking", "answer"],
+       ["a-review", "review", "mcp:a-review", null],
+-      ["a-findings", "review", "mcp:a-findings", null],
+-      ["a-check", "review", "mcp:a-check", null],
++      ["a-findings", "findings", "mcp:a-findings", null],
++      ["a-second", "second", "mcp:a-second", null],
++      ["a-check", "check", "mcp:a-check", null],
++      ["a-rebase", "rebase", "mcp:a-rebase", null],
+     ]);
+     expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
+     expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 81a8cf9db0..631265888e 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -70,10 +70,12 @@ const placeWorkRow = (value: string, lane: string): Placement | null => {
+     case "gate":
+       return { stage: "crew" };
+     case "review":
++    case "findings":
+     case "second":
+     case "check":
+-    case "findings":
+     case "rebase":
++      return { stage: lane };
++    // A held pull request waits on the user's word, which its row says in place of a stage.
+     case "hold":
+       return { stage: "review" };
+     default:
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 49743f8716..5ce8d06ffe 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -1366,3 +1366,48 @@ describe("JstackTreeRowView idle homes", () => {
+     expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("flow"));
+   });
+ });
++
++// One task in each part of its pull request's review, each as jbus's row value names it.
++const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
++  ...SNAPSHOT,
++  tasks: [
++    { ...crewTask("first", "root"), stage: "review" },
++    { ...crewTask("fixes", "root"), stage: "findings" },
++    { ...crewTask("again", "root"), stage: "second" },
++    { ...crewTask("green", "root"), stage: "check" },
++    { ...crewTask("onto", "root"), stage: "rebase" },
++    crewTask("tidy", "root"),
++    crewTask("fl-pump", "flow"),
++  ],
++};
++
++/** The tick a row's ticks stand at: the one drawn at full ink, every tick before it fainter. */
++const tickAt = (row: Element) => {
++  const ticks = [...row.querySelectorAll("i")];
++  const ink = ticks.map((tick) => alphaOf(getComputedStyle(tick).backgroundColor));
++  return { count: ticks.length, at: ink.indexOf(Math.max(...ink)) };
++};
++
++describe("JstackTreeRowView review parts", () => {
++  it("says which part of its review a task is in, and steps its ticks with it", async () => {
++    await using screen = await render(
++      <LiveTree snapshot={REVIEW_SNAPSHOT} spies={actions()} sent={[]} />,
++      { router: false },
++    );
++    const parts = [
++      ["tidy", "crew", 1],
++      ["first", "review 1", 2],
++      ["fixes", "fixing", 3],
++      ["again", "review 2", 4],
++      ["green", "checks", 5],
++      ["onto", "rebase", 5],
++    ] as const;
++    for (const [slug, word, step] of parts) {
++      const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
++      await expect.element(row).toBeVisible();
++      expect(shownText(row.element())).toBe(`${slug} ${word}`);
++      expect(tickAt(row.element())).toEqual({ count: 7, at: step });
++    }
++    expect(await audit()).toEqual([]);
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index fd4c118c1c..958dde2074 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -22,6 +22,7 @@ import {
+   type JstackRootPlace,
+   type JstackTally,
+   type JstackTicks,
++  TICKS,
+   type JstackTreeRow,
+ } from "./jstackTree.logic";
+ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+@@ -99,11 +100,11 @@ function Ticks(props: { ticks: JstackTicks }) {
+   const { step, hollow, asks } = props.ticks;
+   return (
+     <span aria-hidden className="flex shrink-0 gap-0.5">
+-      {[0, 1, 2, 3].map((index) => (
++      {Array.from({ length: TICKS }, (_, index) => (
+         <i
+           key={index}
+           className={cn(
+-            "block h-[3px] w-[7px] rounded-full",
++            "block h-[3px] w-1 rounded-full",
+             index < step && "bg-sidebar-foreground/60",
+             index > step && "bg-sidebar-muted-foreground/35",
+             index === step &&
+@@ -834,7 +835,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     {row.ticks === null ? (
+                       <span
+                         aria-hidden
+-                        className="mx-[13px] size-1.5 shrink-0 rounded-full bg-sidebar-muted-foreground/60"
++                        className="mx-[17px] size-1.5 shrink-0 rounded-full bg-sidebar-muted-foreground/60"
+                       />
+                     ) : (
+                       <Ticks ticks={row.ticks} />
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index d5c5acb067..f8c060f967 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -170,7 +170,7 @@ describe("buildJstackTree", () => {
+       "gated:asks you",
+       "silent:quiet 45m",
+       "working:crew",
+-      "reviewing:review",
++      "reviewing:review 1",
+       "queued:ready",
+     ]);
+   });
+@@ -242,13 +242,13 @@ describe("buildJstackTree", () => {
+   it("keeps the frozen order and appends new tasks", () => {
+     const tasks = [task("a", { stage: "review" }), task("b")];
+     const first = build({ tasks });
+-    expect(workers(first.rows)).toEqual(["b:crew", "a:review"]);
++    expect(workers(first.rows)).toEqual(["b:crew", "a:review 1"]);
+     const frozen = new Map([[ThreadId.make("root"), ["jstack-task:jstack/a"]]]);
+     const next = build(
+       { tasks: [...tasks, task("c", { waitsOn: "word" })] },
+       { frozenOrder: frozen },
+     );
+-    expect(workers(next.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
++    expect(workers(next.rows)).toEqual(["a:review 1", "c:asks you", "b:crew"]);
+   });
+ 
+   it("caps a home's rows behind a +N row until it is expanded", () => {
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 177ca94a6b..310bd5f220 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -7,6 +7,7 @@ import type {
+   JbusStartingScope,
+   JbusTask,
+   JbusWorkSnapshot,
++  JbusWorkStage,
+   ScopedProjectRef,
+   ThreadId,
+ } from "@t3tools/contracts";
+@@ -51,9 +52,13 @@ export interface JstackTreeOptions {
+   readonly rowCap: number;
+ }
+ 
+-/** Ticks for queue, crew, review and merge. A hollow tick is queued work or a quiet crew. */
++/**
++ * One tick for each step a task takes to merge, `TICKS` of them: queue, crew, the first review,
++ * fixing its findings, the second review, checks, and merge. A hollow tick is queued work or a
++ * quiet crew.
++ */
+ export interface JstackTicks {
+-  readonly step: 0 | 1 | 2 | 3;
++  readonly step: number;
+   readonly hollow: boolean;
+   readonly asks: boolean;
+ }
+@@ -272,7 +277,32 @@ interface Worker {
+   readonly stage: "queue" | "crew" | "review";
+ }
+ 
+-const STEP = { ready: 0, behind: 0, crew: 1, quiet: 1, review: 2 } as const;
++type JstackGroup = Worker["stage"];
++
++/** What a row shows for each stage: its word, its tick, its tally's group and its rank. */
++const STAGES: Record<
++  JbusWorkStage,
++  {
++    readonly word: string;
++    readonly step: number;
++    readonly group: JstackGroup;
++    readonly rank: number;
++  }
++> = {
++  ready: { word: "ready", step: 0, group: "queue", rank: 4 },
++  behind: { word: "behind", step: 0, group: "queue", rank: 5 },
++  crew: { word: "crew", step: 1, group: "crew", rank: 2 },
++  quiet: { word: "crew", step: 1, group: "crew", rank: 2 },
++  review: { word: "review 1", step: 2, group: "review", rank: 3 },
++  findings: { word: "fixing", step: 3, group: "review", rank: 3 },
++  second: { word: "review 2", step: 4, group: "review", rank: 3 },
++  check: { word: "checks", step: 5, group: "review", rank: 3 },
++  // A rebase is the last thing between a pull request and its merge, as its checks are.
++  rebase: { word: "rebase", step: 5, group: "review", rank: 3 },
++};
++
++/** How many ticks a task's row draws: one for each step, and the merge. */
++export const TICKS = 7;
+ 
+ const toWorker = (
+   input: JstackTreeInput,
+@@ -296,16 +326,15 @@ const toWorker = (
+     task.stage === "quiet" &&
+     quietMinutes >= input.options.quietMinutes;
+   const scout = task.kind === "scout";
++  const stage = STAGES[task.stage];
+   const [word, rank] = asks
+     ? ["asks you", 0]
+     : scout
+       ? ["scout", 2]
+       : quietShown
+         ? [`quiet ${formatQuietAge(quietMinutes)}`, 1]
+-        : task.stage === "quiet"
+-          ? ["crew", 2]
+-          : ([task.stage, { ready: 4, behind: 5, crew: 2, review: 3 }[task.stage]] as const);
+-  const step = STEP[task.stage];
++        : [stage.word, stage.rank];
++  const step = stage.step;
+   const prefix =
+     home.prefix !== null && task.slug.startsWith(home.prefix) && task.slug !== home.prefix
+       ? home.prefix
+@@ -317,7 +346,7 @@ const toWorker = (
+       : `waits on ${task.waits === "" ? "you" : task.waits}`;
+   return {
+     rank,
+-    stage: step === 0 ? "queue" : step === 1 ? "crew" : "review",
++    stage: stage.group,
+     row: {
+       kind: "worker",
+       key: `jstack-task:${task.repo}/${task.slug}`,
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index 06cbfce644..d3a47adda8 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -5,8 +5,21 @@ import { IsoDateTime, ThreadId, TrimmedNonEmptyString } from "./baseSchemas.ts";
+ // jstack fork: what jbus (~/.local/state/jbus) and jstack homes (~/.local/state/home) say about
+ // each thread, read by the server so remote clients see the same tree.
+ 
+-/** One word, as the tree sidebar prints it. */
+-export const JbusWorkStage = Schema.Literals(["ready", "behind", "crew", "quiet", "review"]);
++/**
++ * Where a task stands. A pull request's stages are jbus's own row values: its first `review`,
++ * the crewmate fixing its `findings`, the `second` review, its `check` runs, and a `rebase`.
++ */
++export const JbusWorkStage = Schema.Literals([
++  "ready",
++  "behind",
++  "crew",
++  "quiet",
++  "review",
++  "findings",
++  "second",
++  "check",
++  "rebase",
++]);
+ export type JbusWorkStage = typeof JbusWorkStage.Type;
+ 
+ /** What a task waits on the user for, from jbus's row value (features/jbus/src/jbus/work.py). */
+-- 
+2.56.0
+
