@@ -140,11 +140,7 @@ def _named(run: Pass) -> dict[str, str]:
     """Return each thread a brief names on its `Thread:` line, with the slug of that brief."""
     found = {}
     for path in sorted((run.home / "tasks").glob("*.md")):
-        try:
-            thread = jbus.thread_of(run.home, path.stem)
-        except OSError:
-            continue
-        if thread:
+        if thread := jbus.thread_of(run.home, path.stem):
             found[thread] = path.stem
     return found
 

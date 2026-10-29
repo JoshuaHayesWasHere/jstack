@@ -4,7 +4,6 @@ with work out.
 A child home is a scope of the repo's home: a directory of the state with a `home-id` or a
 `Was home:` line. The root home, the state directory itself, is watched as a child is, under the
 key `/` in `children.json`, which no scope's name can be. What a home has out (`out`) is read
-import jbus
 from jbus's own records, never from the home: each queue row of a brief of its that is not over,
 each entry of its plan whose go holds with no live row (`plan.owed`), each crew or reviewer
 thread of such a brief that the last pass found unsettled, each question jbus holds for it, and
