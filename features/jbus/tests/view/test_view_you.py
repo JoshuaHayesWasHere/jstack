@@ -171,21 +171,18 @@ def test_the_roles_are_in_state_json_and_stack_json_and_an_added_role_with_them(
     assert work.holder(next(crews), role="chef").who == "home"
 
 
-def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_needs_you(
+def test_thirteen_waiting_and_one_with_no_default_path_is_the_only_one_that_needs_you(
     tmp_path, monkeypatch
 ):
-    """The scene has eleven questions that go ahead on their default, and a link's conflict,
-    whose question goes to its home. It also has a gate of a home's file with a default, and an
-    approval, of the one row of the queue, which is the user's to approve. The page's count is
-    one.
+    """The scene has eleven questions that go ahead on their default. It also has a gate of a
+    home's file with a default, and an approval, of the one row of the queue, which is the
+    user's to approve. The page's count is one.
     Each one is due when it was asked, since the first pass that sees it closes it."""
     scene = Scene(tmp_path, monkeypatch)
     asked = [ago(minutes=10 * at) for at in range(11)]
     for at, when_asked in enumerate(asked):
         lines = PIPED.format(n="<n>", asked=f"which tin {at}?", status="open", slug="jam-jar")
         questions.ask(scene.state, scene.home, "jam-jar", lines, when_asked)
-    link = PIPED.format(n="<n>", asked=f"oat-honey {questions.LINK}", status="open", slug="oat")
-    questions.ask(scene.state, scene.home, "oat-honey", link, ago(hours=1))
     (scene.home / "gates.md").write_text(
         GATE.format(n=40, asked="a lump?", status="open", default="one")
     )
@@ -197,12 +194,11 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
         demo = served.json("/state.json?project=demo")
     finally:
         served.close()
-    assert len(demo["waiting"]) == 14
+    assert len(demo["waiting"]) == 13
     assert [one["kind"] for one in stack["needs"]] == ["approve"]
     assert [one["waits"] for one in stack["projects"] if one["name"] == "demo"] == [1]
     answerable = [one for one in stack["proceeds"] if one["answerable"]]
     assert len(stack["proceeds"]) == 12 and len(answerable) == 11
-    assert not any(questions.LINK in one["what"] for one in stack["proceeds"])
     assert sorted(one["due"] for one in answerable) == sorted(
         iso(when_asked + questions.QUIET) for when_asked in asked
     )

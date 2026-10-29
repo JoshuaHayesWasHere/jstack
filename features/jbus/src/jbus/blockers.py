@@ -293,7 +293,7 @@ def pending(
 
 def needs(one: waiting.Item, context: str = "") -> str:
     """Say why the user has to decide an item of the list of what waits, or nothing when the
-    home clears it. A question about a link's conflict asks its home, not the user."""
+    home clears it."""
     kind = one["kind"]
     if kind == "hold":
         return "a pull request jmerge holds for your word"
@@ -301,7 +301,7 @@ def needs(one: waiting.Item, context: str = "") -> str:
         return "a row with no approval of its brief"
     if kind == "config":
         return "jbus lacks a setup only you can give"
-    if kind != "gate" or str(one.get("question", "")).endswith(questions.LINK):
+    if kind != "gate":
         return ""
     if one.get("holds"):
         return f"it holds ({one['holds']}) for your answer"

@@ -236,13 +236,6 @@ def test_a_plain_gate_answered_with_its_default_sends_nothing(kitchen):
     assert kitchen.t3.messages == {}
 
 
-def test_a_links_conflict_asks_its_home_and_is_never_closed_by_silence(kitchen):
-    asked = "alpha: https://example.test/pull/7 has a conflict, and it is a link of a stack"
-    gate(kitchen, (LINES + OPTIONS).replace("tea or coffee?", asked))
-    kitchen.poll(NOW + timedelta(hours=48))
-    assert record(kitchen)["answer"] is None
-
-
 def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kitchen):
     gate(kitchen)
     held = LINES.replace("tea or coffee?", "drop the branches?") + "Holds: deletes data\n"
