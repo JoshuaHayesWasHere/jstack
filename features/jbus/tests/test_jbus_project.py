@@ -202,8 +202,10 @@ def test_a_merge_base_named_again_or_not_a_branch_or_of_no_project_is_refused(
 def test_a_table_the_writer_cannot_change_by_one_key_alone_is_refused(kitchen):
     """A table written by hand in a shape the writer does not read, here a multi-line string with
     a line like the key's in it, is refused rather than written over."""
-    text = config(kitchen).read_text().replace(
-        'name = "demo"', 'name = "demo"\nnote = """\nmerge_bases = 1\n"""'
+    text = (
+        config(kitchen)
+        .read_text()
+        .replace('name = "demo"', 'name = "demo"\nnote = """\nmerge_bases = 1\n"""')
     )
     kitchen.write(config(kitchen), text)
     assert add_base(kitchen, "demo", "one") == (
