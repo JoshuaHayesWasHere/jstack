@@ -50,7 +50,8 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     assert "by rule" not in drawers["task:nut-shell"]
     rows = {row["slug"]: row for row in seen["prog"]}
     assert {"fig-pip", "fig-tree", "nut-oil"} & set(rows) == {"nut-oil"}
-    assert (rows["nut-shell"]["state"], rows["nut-shell"]["open"]) == ("Findings", "task:nut-shell")
+    assert (rows["nut-shell"]["state"], rows["nut-shell"]["named"]) == ("Fix", "Findings")
+    assert rows["nut-shell"]["open"] == "task:nut-shell"
     assert rows["nut-meat"]["chips"] == ["behind nut-shell"]
     assert rows["fig-sap"]["chips"] == ["behind fig-tart"]
     now = {one["target"].removeprefix("task:"): one["now"] for one in seen["opened"]}

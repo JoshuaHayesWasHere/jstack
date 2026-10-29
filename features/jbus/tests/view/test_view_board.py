@@ -1,11 +1,10 @@
 """The board: each home of a project as one card, with its crews, reviewers and scouts, each on
-one of seven stages with how long it has been on it, under the home's goal and its chain of plan
-entries, and with what merged today apart at the foot.
+a stage of the process with how long it has been on it, under the home's goal and its chain of
+plan entries, and with what merged today apart at the foot.
 
-A stage is where a worker is along the process: briefed, running, PR open, in review, fixing,
-green, merged. The current stage is the one in progress, so a pull request at `check` is on
-green, working toward it. Each stage comes from what jbus judged, and no worker shows as
-unknown: a row that `work.json` does not have takes its stage from its row's status.
+The stages are `state.STAGES`, the eleven the pipeline names, and a crew is on the stage the
+pipeline puts its row on: the Homes drawer and the board never disagree on where a row is. A
+row the view cannot place is on no stage in either.
 """
 
 import dataclasses
@@ -29,7 +28,7 @@ from view.scene import (
 )
 from view.walk import runs, sources
 
-STAGES = ["briefed", "running", "pr", "review", "fixing", "green", "merged"]
+STAGES = [one.key for one in built.STAGES]
 
 
 def board(scene):
@@ -46,61 +45,49 @@ def workers(said):
     }
 
 
-def test_the_board_names_the_seven_stages_in_the_order_of_the_process(scene):
+def pipeline(scene):
+    found = dataclasses.replace(sources(scene), user=jsettings.load())
+    said = built.Read(found, scene.name, NOW, runs).asked("pipeline")["data"]
+    return {one["slug"]: one["stage"] for one in said["rows"]}
+
+
+def test_the_board_names_the_eleven_stages_of_the_one_table(scene):
     said = board(scene)
-    assert [one["key"] for one in said["stages"]] == STAGES
-    assert [one["name"] for one in said["stages"]] == [
-        "Briefed",
-        "Running",
-        "PR open",
-        "In review",
-        "Fixing",
-        "Green",
-        "Merged",
+    assert [one["key"] for one in said["stages"]] == [
+        "scout",
+        "queued",
+        "crew",
+        "you",
+        "review",
+        "fix",
+        "review2",
+        "check",
+        "stacked",
+        "merge",
+        "merged",
     ]
+    assert [one["name"] for one in said["stages"]] == [one.name for one in built.STAGES]
 
 
-def test_each_state_jbus_judges_puts_its_crew_on_one_stage(scene):
-    """A row of every value jbus judges, from `kinds`. A gate, a hung turn or a leftover sits
-    where its pull request is, and with none it is still running. A row jbus judged merged
-    while the queue does not count it as over is merged."""
+def test_each_state_jbus_judges_puts_its_crew_on_the_pipelines_stage(scene):
+    """A row of every value jbus judges, from `kinds`: each crew is on the stage the pipeline
+    puts its row on. A row jbus judged merged while the queue does not count it as over is
+    merged, and off the pipeline."""
     judged = kinds(scene)
     got = {slug: one["stage"] for (kind, slug), one in workers(board(scene)).items()}
-    want = {
-        "fig-seed": "briefed",
-        "fig-leaf": "briefed",
-        "fig-jam": "briefed",
-        "fig-husk": "briefed",
-        "fig-stem": "briefed",
-        "fig-sap": "briefed",
-        "fig-fly": "briefed",
-        "fig-bud": "running",
-        "fig-tart": "running",
-        "fig-dew": "running",
-        "fig-wasp": "running",
-        "fig-moth": "running",
-        "fig-stalk": "running",
-        "fig-root": "running",
-        "fig-twig": "running",
-        "fig-vine": "running",
-        "fig-burr": "running",
-        "fig-result": "pr",
-        "fig-review": "review",
-        "fig-second": "review",
-        "fig-findings": "fixing",
-        "fig-rebase": "fixing",
-        "fig-check": "green",
-        "fig-hold": "green",
-        "fig-pip": "merged",
-        "fig-rind": "merged",
+    placed = pipeline(scene)
+    assert {slug: got[slug] for slug in judged if slug in placed} == {
+        slug: placed[slug] for slug in judged if slug in placed
     }
-    assert {slug: got[slug] for slug in judged} == {slug: want[slug] for slug in judged}
-    assert {slug: stage for slug, stage in got.items() if slug.startswith("fig-")} == want
+    assert {slug for slug in judged if slug not in placed} == {"fig-pip"}
+    assert got["fig-pip"] == "merged"
+    assert {got[slug] for slug in judged} == set(STAGES) - {"scout", "stacked"}
 
 
-def test_a_hung_turn_on_an_open_pull_request_stays_on_its_pull_requests_stage(scene):
+def test_a_hung_turn_on_an_open_pull_request_is_on_its_rows_one_stage(scene):
     """The step jbus gives a hung or waiting thread is running, whatever its pull request
-    does: the board puts it where its pull request is, and says it is hung."""
+    does: the crewmate has it, so the board puts it on crew, as the pipeline does, and says it
+    is hung."""
     scene.queue(
         [
             row("oat-milk", "pr", pr="#13", value="hung", facts={"pull": "review"}),
@@ -109,39 +96,37 @@ def test_a_hung_turn_on_an_open_pull_request_stays_on_its_pull_requests_stage(sc
         ]
     )
     got = workers(board(scene))
-    assert (got["crew", "oat-milk"]["stage"], got["crew", "oat-milk"]["state"]) == (
-        "review",
-        "Hung",
-    )
+    placed = pipeline(scene)
+    assert (got["crew", "oat-milk"]["stage"], got["crew", "oat-milk"]["state"]) == ("crew", "Hung")
     assert got["crew", "oat-milk"]["tone"] == "bad"
-    assert (got["crew", "oat-bowl"]["stage"], got["crew", "oat-bowl"]["state"]) == ("pr", "Closed")
-    assert got["crew", "oat-lid"]["stage"] == "fixing"
+    assert {slug: got["crew", slug]["stage"] for slug in placed} == placed
 
 
-def test_a_row_jbus_has_not_judged_takes_its_stage_from_its_status(scene):
-    """Every status a row can have puts it on a stage: none is unknown. A merged or done row
-    with no judgment is over, and off the board."""
+def test_a_row_jbus_has_not_judged_is_on_no_stage_as_on_the_pipeline(scene):
+    """A row that `work.json` does not have is on no step the view knows: the pipeline lists
+    it as unplaced, and the board puts it on no stage either. A merged or done row with no
+    judgment is over, and off the board."""
     scene.queue([row(f"bun-{status}", status, pr="#40") for status in queue.STATUSES], judged=False)
     got = {slug: one for (_, slug), one in workers(board(scene)).items()}
-    stages = {slug: one["stage"] for slug, one in got.items()}
-    assert stages == {
-        "bun-queued": "briefed",
-        "bun-launched": "running",
-        "bun-running": "running",
-        "bun-waiting": "running",
-        "bun-failed": "running",
-        "bun-stale": "running",
-        "bun-gate": "running",
-        "bun-left": "running",
-        "bun-pr": "pr",
-    } | {slug: stages[slug] for slug in stages if not slug.startswith("bun-")}
-    assert all(one["stage"] in STAGES for one in got.values())
+    assert {slug for slug in got if slug.startswith("bun-")} == {
+        "bun-queued",
+        "bun-launched",
+        "bun-running",
+        "bun-waiting",
+        "bun-failed",
+        "bun-stale",
+        "bun-gate",
+        "bun-left",
+        "bun-pr",
+    }
+    assert all(one["stage"] is None for slug, one in got.items() if slug.startswith("bun-"))
+    assert not {slug for slug in pipeline(scene) if slug.startswith("bun-")}
     assert got["bun-pr"]["state"] == "Unknown"
 
 
 def test_each_home_is_one_card_with_its_crews_reviewers_and_scouts(tmp_path, monkeypatch):
     """The root first, then each child home by name, each with the workers that are its own.
-    A reviewer at work is in review, and a scout that has not reported is running."""
+    A reviewer at work is in review, and a scout that has not reported is on scout."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
     said = board(scene)
@@ -154,33 +139,33 @@ def test_each_home_is_one_card_with_its_crews_reviewers_and_scouts(tmp_path, mon
     }
     assert got == {
         ROOT: [
-            ("crew", "oat-bowl", "fixing"),
-            ("crew", "oat-spoon", "review"),
+            ("crew", "oat-bowl", "merge"),
+            ("crew", "oat-spoon", "review2"),
             ("crew", "rye-loaf", "merged"),
-            ("crew", "tea-cups", "briefed"),
-            ("crew", "tea-kettle", "briefed"),
-            ("crew", "tea-tray", "briefed"),
+            ("crew", "tea-cups", "queued"),
+            ("crew", "tea-kettle", "you"),
+            ("crew", "tea-tray", "queued"),
         ],
-        SHELF: [("crew", "jam-jar", "running"), ("crew", "jam-lid", "running")],
+        SHELF: [("crew", "jam-jar", "crew"), ("crew", "jam-lid", "you")],
         RACK: [
-            ("crew", "oat-honey", "green"),
-            ("crew", "oat-milk", "green"),
+            ("crew", "oat-honey", "you"),
+            ("crew", "oat-milk", "check"),
             ("reviewer", "oat-milk", "review"),
-            ("scout", "look", "running"),
+            ("scout", "look", "scout"),
         ],
     }
     heads = {one["name"]: (one["open"], one["waits"], one["health"]) for one in said["homes"]}
     assert heads == {ROOT: (5, 1, "moving"), SHELF: (2, 1, "moving"), RACK: (2, 2, "none")}
 
 
-def test_a_scout_that_reported_is_green_until_its_home_settles_it(scene):
+def test_a_scout_with_no_row_is_on_scout_until_its_home_settles_it(scene):
     (scene.home / "scouts").mkdir()
     (scene.home / "scouts" / "look.md").write_text("# look: x\n\n## Report\nStatus: done\n")
     (scene.home / "scouts" / "peek.md").write_text("# peek: x\n\n## Report\nStatus: blocked\n")
     scene.passed(20, threads=[out("scout: look", "ended", "idle"), out("scout: peek", "ended")])
     got = workers(board(scene))
-    assert (got["scout", "look"]["stage"], got["scout", "look"]["state"]) == ("green", "Reported")
-    assert (got["scout", "peek"]["stage"], got["scout", "peek"]["tone"]) == ("running", "ask")
+    assert (got["scout", "look"]["stage"], got["scout", "look"]["state"]) == ("scout", "Reported")
+    assert (got["scout", "peek"]["stage"], got["scout", "peek"]["tone"]) == ("scout", "ask")
 
 
 def test_a_reviewer_whose_turn_ended_is_where_its_task_is_and_leaves_with_it(scene):
@@ -215,10 +200,9 @@ def test_a_reviewer_whose_turn_ended_is_where_its_task_is_and_leaves_with_it(sce
     assert merged == [("crew", "rye-loaf")]
 
 
-def test_the_time_on_a_stage_spans_the_steps_inside_it(scene):
-    """oat-milk came to review 30 minutes ago and to its second pass 10 minutes ago: both are
-    in review, so it has been in review for 30 minutes. A step outside the stage before that
-    does not count."""
+def test_the_time_on_a_stage_starts_when_the_row_came_to_that_stage(scene):
+    """oat-milk came to review 30 minutes ago and to its second pass 10 minutes ago: the second
+    pass is a stage of its own, so it has been on it for 10 minutes."""
     second = "the rebase changed the content after its review; scoped review of a..b c..d"
     scene.queue([row("oat-milk", "pr", pr="#13", why=f"wait: {second}")])
     scene.merge_log(
@@ -227,7 +211,7 @@ def test_the_time_on_a_stage_spans_the_steps_inside_it(scene):
         logged(10, "wait", 13, second),
     )
     got = workers(board(scene))["crew", "oat-milk"]
-    assert (got["stage"], got["since"]) == ("review", iso(ago(minutes=30)))
+    assert (got["stage"], got["since"]) == ("review2", iso(ago(minutes=10)))
 
 
 PLAN = """# demo: plan

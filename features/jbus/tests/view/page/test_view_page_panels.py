@@ -83,7 +83,6 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         "/panel/",
         "/panel/milestones.json?project=",
         "/panel/pipeline.json",
-        "/panel/steps.json?project=",
         "/panel/throughput.json?project=",
         "/panel/you/approve",
         "/panel/you/hold?project=",
@@ -260,7 +259,7 @@ def test_a_homes_drawer_names_its_scope_and_an_idle_home_is_a_row_in_progress(sc
     assert "1 open task of its own now" in second
     assert "The root home of demo: " in root
     rows = {one["slug"]: one for one in seen["prog"]}
-    assert rows["demo second"]["state"] == "Idle"
+    assert rows["demo second"]["state"] == "Idle, work open"
     assert rows["demo"]["state"] == "Working"
 
 

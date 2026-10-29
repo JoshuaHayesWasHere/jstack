@@ -2,12 +2,11 @@
 text and the chips `SURFACES` names, for a pass that T3 Code did not answer.
 
 The test opens the project's page and the overview of every project once each. It checks each
-entry of `SURFACES` that only the page can show: a row of In progress with its state's name, a
-chip on it, a row for a thread out with no task, and what the project's card on the overview
-says. A task that is in Needs you is drawn there only, so In progress has no row for it. The
-entries
-that today's page gets wrong are the ones `walk.KNOWN` marks for the page, and the test fails
-when that set changes, so a fix removes its mark.
+entry of `SURFACES` that only the page can show: a row of In progress on its stage, with its
+state's name on it, a chip on it, a row for a thread out with no task, and what the project's
+card on the overview says. A task that is in Needs you is drawn there only, so In progress has
+no row for it. The entries that today's page gets wrong are the ones `walk.KNOWN` marks for the
+page, and the test fails when that set changes, so a fix removes its mark.
 """
 
 import pytest
@@ -27,6 +26,7 @@ def faults(key, made, answer, rows, overview):
     kind, name = key
     want = walk.SURFACES[key]
     tasks = {one["slug"]: one for one in answer["tasks"]}
+    stage = {one["key"]: one["name"] for one in answer["process"]}
     asked = {one["slug"] for one in answer["needs"]}
     found = []
     if kind == "value":
@@ -37,8 +37,10 @@ def faults(key, made, answer, rows, overview):
             drawn = slug in rows
             if drawn != (want.row and slug not in asked):
                 found.append(f"{slug}: a row of In progress is {drawn}")
-            elif drawn and rows[slug]["state"] != task["state"]["name"]:
-                found.append(f"{slug}: reads {rows[slug]['state']!r}")
+            elif drawn and rows[slug]["named"] != task["state"]["name"]:
+                found.append(f"{slug}: reads {rows[slug]['named']!r}")
+            elif drawn and rows[slug]["state"] != stage.get(task["stage"], "Not placed"):
+                found.append(f"{slug}: is on {rows[slug]['state']!r}")
         unplaced = [
             slug for (value, _), slug in made.rows.items() if value == name and slug in tasks
         ]

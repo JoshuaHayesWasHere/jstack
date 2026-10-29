@@ -389,7 +389,7 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
         "Needs you 4",
         "Review 0",
         "Fix 0",
-        "Review 2 2",
+        "Re-review 2",
         "Check 28",
         "Stacked 6",
         "Merge 0",

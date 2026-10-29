@@ -628,21 +628,21 @@
     ["lv-hung", "Mark", "Its thread has written nothing for longer, or a run waits behind it."]
   ];
   var GLOSS = {
-    "sign:hd": ["Health", "The project is well: its checks, its bus and every source were read with nothing amiss."],
-    "sign:hd-op": ["Health", "Something in this project wants a look: hover its name for what."],
-    "sign:dot": ["Health", "Well: running, passing or calm."],
-    "sign:dot-off": ["Health", "Stopped: jbus has not passed."],
-    "sign:dot-missed": ["Health", "A failed wake: a send of the bus that did not go out."],
-    "sign:sd": ["Health", "An event in the outbox, not sent yet."],
-    "count:lane": ["Count", "How many open tasks are on this step."],
-    "count:waits": ["Count", "How many things need you: in this project, or in every project for All. A gate that goes ahead on its default is not counted."],
-    "count:held": ["Count", "How many open tasks this holder has. A tap shows only theirs on the line."],
-    "count:all": ["Count", "How many open tasks this project has. A tap shows every one on the line."],
-    "count:threads": ["Count", "How many threads of this role are out."],
-    "count:question": ["Count", "The question's number: jbus numbers each question of a project, and an answer names it."],
-    "count:step": ["Count", "The step's place on the line, top to bottom."],
-    "count:wave": ["Count", "The wave: how deep in the queue these rows are. Wave 0 is ready, wave 1 waits on wave 0, and so on."],
-    "term:waits": ["Needs you", "What only you can move: gates that hold, rows to approve, merges held for your word, and setup jbus lacks. A gate with a default goes ahead on it and is listed apart."],
+    "sign:hd": ["Health: project well", "The project is well: its checks, its bus and every source were read with nothing amiss."],
+    "sign:hd-op": ["Health: project wants a look", "Something in this project wants a look: hover its name for what."],
+    "sign:dot": ["Health: well", "Well: running, passing or calm."],
+    "sign:dot-off": ["Health: stopped", "Stopped: jbus has not passed."],
+    "sign:dot-missed": ["Health: failed wake", "A failed wake: a send of the bus that did not go out."],
+    "sign:sd": ["Health: not sent yet", "An event in the outbox, not sent yet."],
+    "count:lane": ["Count: tasks on a step", "How many open tasks are on this step."],
+    "count:waits": ["Count: what needs you", "How many things need you: in this project, or in every project for All. A gate that goes ahead on its default is not counted."],
+    "count:held": ["Count: a holder's tasks", "How many open tasks this holder has. A tap shows only theirs on the line."],
+    "count:all": ["Count: open tasks", "How many open tasks this project has. A tap shows every one on the line."],
+    "count:threads": ["Count: threads out", "How many threads of this role are out."],
+    "count:question": ["Question number", "The question's number: jbus numbers each question of a project, and an answer names it."],
+    "count:stage": ["Stage number", "The stage's place in the process, first to last."],
+    "count:wave": ["Wave", "The wave: how deep in the queue these rows are. Wave 0 is ready, wave 1 waits on wave 0, and so on."],
+    "term:waits": ["What needs you", "What only you can move: gates that hold, rows to approve, merges held for your word, and setup jbus lacks. A gate with a default goes ahead on it and is listed apart."],
     "term:threads": ["Threads", "Every thread the last pass saw for this project, by role, those out first. Out is a turn under way, or one that waits. Ended threads are dimmed, and each opens what it works on."],
     "term:line": ["The line", "Every open task, each on the one step it is on, in the shape of who holds it now. A step that holds no task is folded into one line of its name."],
     "term:project": ["Project", "One repo jbus runs a queue for, with its own state. Every task, gate and outbox is one project's. A retired project is not shown."]
@@ -651,14 +651,7 @@
   function roles(list) { list.forEach(function (r) { ROLE[r.name] = r; if (SHAPES[r.holder]) SHAPES[r.holder][2] = r.says; }); shapes(); var box = $("hshapes"); if (box) put(box, shapeList()); }
   shapes();
   MARKS.forEach(function (m) { GLOSS["mark:" + m[0]] = [m[1], m[2]]; });
-  var NOTES = {};
-  function stepGloss(key) {
-    var s = STEP[key] || (STACK ? STACK.steps.filter(function (x) { return x.key === key; })[0] : null), all = (S ? S.steps : STACK ? STACK.steps : []).filter(function (x) { return x.key !== "unknown"; });
-    if (!s) return null;
-    var at = all.map(function (x) { return x.key; }).indexOf(key), note = s.note || NOTES[key];
-    return [s.name, (at < 0 ? "Not a step of the line" : "Step " + (at + 1) + " of " + all.length) + (note ? ": " + note : "") + ". " + (s.who === "ok" ? "It is done." : s.who === "unknown" ? "Who holds it is not known." : s.who ? "Held by " + WHO[s.who] + "." : "Who holds it depends on the row: its shape says.")];
-  }
-  function gloss(key) { return key.indexOf("step:") === 0 ? stepGloss(key.slice(5)) : GLOSS[key] || null; }
+  function gloss(key) { return GLOSS[key] || null; }
   function tipHtml(g) { return '<b>' + (g[2] ? '<span class="w-' + esc(g[2]) + '"><i class="sh"></i></span> ' : "") + esc(g[0]) + '</b>' + esc(g[1]); }
   function threadAt(t) { return "thread:" + t.role + ":" + (t.slug || "-"); }
   function asked(t) { var q = t.request; return !q ? "" : q.state === "researching" && !t.out ? "no Report" : q.state; }
@@ -750,7 +743,8 @@
   }
   function brokeSince(b) { var at = ms(b.since); return b.what + (at == null ? ", since not known" : " since " + day(at)); }
   function passWord(end) { var j = jb(); return j && j.failed ? plural(j.failed, "pass", "passes") + " failed" : end == null ? "" : "last pass " + hm(end); }
-  var HEALTH = { moving: ["moving", ""], waiting: ["waits on a request", "op"], quiet: ["quiet", "op"], hung: ["hung", "bad"], ended: ["home not running", "op"], rest: ["at rest", ""] };
+  var HOME_STATE = { moving: ["Working", ""], quiet: ["Quiet", "ask"], hung: ["Hung", "bad"], waiting: ["Waiting on you", "ask"], ended: ["Idle, work open", "ask"], rest: ["At rest", ""], none: ["No home thread", ""], unknown: ["Not known", ""] };
+  function homeState(health) { return HOME_STATE[health] || [health, ""]; }
   var FLAG = { stall: "stalled", idle: "idle" };
   function wrongKey(w) { return w.kind + "/" + w.subj + "/" + w.cause; }
   function wrongLine(w, where) { return '<a class="wl" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(w.where.length ? linkOf(w.where[0].open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span><code>' + esc(w.subj) + '</code> ' + esc(w.cause) + (where ? " &middot; " + esc(where) : "") + (ms(w.since) == null ? "" : ' <span class="wa">' + esc(ago(w.since)) + '</span>') + '</span></a>'; }
@@ -773,10 +767,10 @@
     STACK.projects.forEach(function (p) {
       var m = by[p.name], bad = false, op = false;
       p.homes.forEach(function (h) {
-        var tone = (HEALTH[h.health] || [])[1];
+        var tone = homeState(h.health)[1];
         if (m.lines[h.name].length || m.flags[h.name].length || m.said[h.name] || tone === "bad") bad = true;
         if (h.name === "" && p.unplaced.length) bad = true;
-        if (h.waits || tone === "op") op = true;
+        if (h.waits || tone === "ask") op = true;
       });
       m.tone = bad ? "bad" : op ? "op" : "";
       (m.tone ? cards : quiet).push(m);
@@ -789,13 +783,13 @@
     return '<span class="ct"' + (l && l.what ? ' title="' + esc(l.what) + '"' : "") + '>' + esc((who ? who + " " : "") + when) + '</span>';
   }
   function homeLine(m, h) {
-    var root = h.name === "", hs = HEALTH[h.health], said = m.said[h.name], counts = [h.open + " open"];
+    var root = h.name === "", hs = h.health === "none" || h.health === "unknown" ? null : HOME_STATE[h.health], said = m.said[h.name], counts = [h.open + " open"];
     if (h.waits) counts.push(plural(h.waits, "waits", "wait") + " on you");
     var c = h.in_check;
     if (c && c.failing + c.waiting + c.passed + c.stacked) counts.push("check: " + c.failing + " failing, " + c.waiting + " running or queued, " + c.passed + " passed" + (c.stacked ? ", " + c.stacked + " stacked" : ""));
     if (root && m.asks) counts.push(m.asks + " on default");
     var bits = [root ? '<a class="cn" href="' + esc(href(m.p.name)) + '">' + swatch(h) + esc(m.p.name) + '</a>' : '<span class="hp">' + swatch(h) + esc(homePath(m.p.name, h.name)) + '</span>'];
-    if (hs) bits.push('<span class="hh' + (hs[1] ? " " + hs[1] : "") + '"' + (said ? ' data-wrong="' + esc(wrongKey(said)) + '"' : "") + '>' + esc(hs[0] + (h.since ? " " + ago(h.since) : "")) + '</span>');
+    if (hs) bits.push('<span class="hh' + (hs[1] ? " " + (hs[1] === "ask" ? "op" : hs[1]) : "") + '"' + (said ? ' data-wrong="' + esc(wrongKey(said)) + '"' : "") + '>' + esc(hs[0] + (h.since ? " " + ago(h.since) : "")) + '</span>');
     bits.push('<span class="ct">' + counts.join(" &middot; ") + '</span>');
     if (root) bits.push(lastAct(m.p.last, "project"));
     bits.push(lastAct(h.last, root ? "root" : ""));
@@ -912,12 +906,14 @@
     return out.join(" ");
   }
   var ITEM_WORD = { proposed: "Proposed", approved: "Approved", queued: "Queued", running: "Running", waiting_on_you: "Needs you", held: "Held", done: "Done", dropped: "Dropped" };
+  var ITEM_STAGE = { approved: "queued", queued: "queued", running: "crew", waiting_on_you: "you", held: "queued" };
+  function stageName(key) { var s = (S ? S.process : STACK ? STACK.process : []).filter(function (x) { return x.key === key; })[0]; return s ? s.name : "Not placed"; }
   var ITEM_ROWS = { approved: 1, queued: 1, running: 1, waiting_on_you: 1, held: 1 };
   function itemLink(it) { return '<a class="ilk" href="' + esc(href(PROJECT, "item:" + it.id)) + '" aria-label="Work item ' + esc(it.id) + ': open it">' + esc(it.id) + '</a>'; }
   function itemAt(it) { var l = it.lines[it.lines.length - 1]; return l ? ms(l.at) : null; }
   function progRow(r) {
     var tone = r.rank === 0 ? " bad" : r.rank === 1 ? " ask" : "";
-    return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button>' + (r.item ? " " + itemLink(r.item) : "") + '</span><span class="pgw' + tone + '"><b>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
+    return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button>' + (r.item ? " " + itemLink(r.item) : "") + '</span><span class="pgw' + tone + '"><b' + (r.detail && r.detail !== r.state ? ' title="' + esc(r.detail) + '"' : "") + '>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
   }
   function needed() {
     var out = {};
@@ -928,15 +924,15 @@
     var you = needed();
     var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key && !you[t.slug]; }).map(function (t) {
       var it = ITEM_OF[t.slug], held = it && it.state === "held" ? ' <span class="chip held">held</span>' : "";
-      return { key: t.slug, slug: t.slug, home: t.home, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
+      return { key: t.slug, slug: t.slug, home: t.home, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: stageName(t.stage), detail: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
     });
     S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && (you[it.slug] || TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key)); }).forEach(function (it) {
       var at = itemAt(it);
-      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : "", open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : "", open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: stageName(ITEM_STAGE[it.state]), detail: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     (S.threads || []).filter(function (t) { return (t.out || idle(t)) && !(t.slug && known(t.slug)); }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: t.role === "home" ? homeState(t.health)[0] : idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }
@@ -1150,30 +1146,20 @@
     return ORDER.filter(function (p) { return p.adds && p.adds[to]; }).map(function (p) { return { from: p.name, said: p.adds[to](arg) }; }).filter(function (a) { return a.said; });
   }
   PANEL_SCRIPTS;
-  function stepList() {
-    var steps = S ? S.steps.concat([S.unknown]) : STACK ? STACK.steps : [];
-    if (!steps.length) return '<p class="src">Asking the server.</p>';
-    return '<dl class="gloss">' + steps.map(function (s, i) { var g = stepGloss(s.key); return '<dt><span class="n' + (s.key === "unknown" ? " zero" : "") + '"' + (s.key === "unknown" ? "" : ' data-gloss="count:step"') + '>' + (s.key === "unknown" ? "?" : i + 1) + '</span>' + esc(s.name) + '</dt><dd>' + esc(g ? g[1] : "") + '</dd>'; }).join("") + '</dl>';
+  function stageList() {
+    var stages = S ? S.process : STACK ? STACK.process : [];
+    if (!stages.length) return '<p class="src">Asking the server.</p>';
+    return '<dl class="gloss" data-stages>' + stages.map(function (s, i) { return '<dt><span class="n" data-gloss="count:stage">' + (i + 1) + '</span><span class="sn">' + esc(s.name) + '</span></dt><dd>' + esc(s.note) + '.</dd>'; }).join("") + '</dl>';
   }
-  function fillSteps() { var box = $("hsteps"); if (box) put(box, stepList()); }
+  function fillStages() { var box = $("hstages"); if (box) put(box, stageList()); }
   function shapeList() { return '<dl class="gloss">' + Object.keys(SHAPES).map(function (w) { return '<dt class="w-' + w + '"><span class="gw"><i class="sh"></i></span>' + esc(SHAPES[w][0]) + ' <span class="src">' + esc(SHAPES[w][1]) + '</span></dt><dd>' + esc(SHAPES[w][2]) + '</dd>'; }).join("") + '</dl>'; }
-  var noting = false;
-  function notes() {
-    if (S || NOTES.queued || noting || gone || !STACK || !STACK.projects.length) return;
-    noting = true;
-    ask("/panel/steps.json?project=" + encodeURIComponent(STACK.projects[0].name)).then(function (a) {
-      noting = false;
-      a.data.steps.concat([a.data.unknown]).forEach(function (s) { NOTES[s.key] = s.note; });
-      fillSteps();
-    }, function () { noting = false; });
-  }
   function glossList(kind, shape) {
     return '<dl class="gloss">' + Object.keys(GLOSS).filter(function (k) { return k.indexOf(kind + ":") === 0; }).map(function (k) { var g = GLOSS[k]; return '<dt>' + (shape ? shape(k.slice(kind.length + 1)) : "") + esc(g[0]) + '</dt><dd>' + esc(g[1]) + '</dd>'; }).join("") + '</dl>';
   }
   function dHelp() {
     var h = head("Help", "Every term on the page");
     h += '<p class="src" style="margin-top:var(--space-8)">Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
-    h += '<h3>The steps of the line, top to bottom</h3><div id="hsteps">' + stepList() + '</div>';
+    h += '<h3>The stages, in the order of the process</h3><p class="src">Every screen puts a row on one of these, the same one on each.</p><div id="hstages">' + stageList() + '</div>';
     h += '<h3>Who holds a task, or what a thread is: its shape</h3><div id="hshapes">' + shapeList() + '</div>';
     h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--ink-2)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
@@ -1181,7 +1167,7 @@
     h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it</dd><dt><kbd>Esc</kbd></dt><dd>goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
     return h;
   }
-  panels("help", true)({ title: "Every term on the page", free: true, drawer: function () { var h = dHelp(); setTimeout(notes); return h; } });
+  panels("help", true)({ title: "Every term on the page", free: true, drawer: dHelp });
   function free(target) { var p = PANELS[target.split(":")[0]]; return !!(p && p.free); }
   function glossary() { if (top().split(":")[0] !== "help") go("help", drawer.open); }
   var drawer = $("drawer"), turn = 0, ours = 0;
@@ -1375,7 +1361,7 @@
     }).finally(function () { clearTimeout(timer); });
   }
   function heard() { lastAnswer = Date.now(); missed = 0; gone = false; }
-  function tookStack(stack) { STACK = stack; roles(STACK.roles); NOW = ms(STACK.at) || Date.now(); heard(); render(); fillSteps(); if ($("hsteps")) notes(); }
+  function tookStack(stack) { STACK = stack; roles(STACK.roles); NOW = ms(STACK.at) || Date.now(); heard(); render(); fillStages(); }
   function took(state) {
     S = state; NOW = ms(S.at) || Date.now(); heard(); NOSUCH = ""; roles(S.roles);
     STEP = {}; S.steps.forEach(function (s) { STEP[s.key] = s; }); UNKNOWN = S.unknown; STEP[UNKNOWN.key] = UNKNOWN;
@@ -1383,8 +1369,7 @@
     ENDED = {}; S.ended.forEach(function (t) { ENDED[t.slug] = t; });
     DONE = {}; S.merged.forEach(function (m) { DONE[m.slug] = m; });
     ITEMS = {}; ITEM_OF = {}; S.items.forEach(function (it) { ITEMS[it.id] = it; if (it.slug) ITEM_OF[it.slug] = it; });
-    S.steps.concat([S.unknown]).forEach(function (s) { NOTES[s.key] = s.note; });
-    render(); fillSteps();
+    render(); fillStages();
   }
   function lost() {
     missed += 1;

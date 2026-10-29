@@ -1,5 +1,4 @@
 var BOARD_KIND = { crew: ["C", "crewmate"], reviewer: ["R", "reviewer"], scout: ["S", "scout"] };
-var BOARD_HEALTH = { moving: ["Working", ""], quiet: ["Quiet", "ask"], hung: ["Hung", "bad"], waiting: ["Waiting on you", "ask"], ended: ["Idle, with work open", "ask"], rest: ["At rest", ""], none: ["No home thread", ""], unknown: ["Not known", ""] };
 var BOARD_STYLE = '<style>' +
   '.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 12.5px; margin-top: 12.5px; }' +
   '.bd-card { min-width: 0; border: 1.5px solid var(--hair); border-top: 5px solid var(--ink-3); border-radius: 10px; background: var(--surface); padding: 6px 12px 8px; }' +
@@ -40,14 +39,14 @@ function fixingLine(f) {
   return "fixing: " + f.owner + ", " + (at == null ? "not told yet" : "told " + hm(at));
 }
 function boardWorker(w, stages) {
-  var at = 0, k = BOARD_KIND[w.kind] || ["?", w.kind], v = ms(w.since), tone = w.tone ? " " + w.tone : "";
+  var at = -1, k = BOARD_KIND[w.kind] || ["?", w.kind], v = ms(w.since), tone = w.tone ? " " + w.tone : "";
   stages.forEach(function (s, n) { if (s.key === w.stage) at = n; });
-  var name = stages[at].name;
+  var name = at < 0 ? "Not placed" : stages[at].name;
   var dots = stages.map(function (s, n) { return '<i class="' + (n < at ? "bd-was" : n === at ? "bd-at" : "") + '"></i>'; }).join("");
   return '<li class="bd-w" data-stage="' + esc(w.stage) + '" data-kind="' + esc(w.kind) + '">' +
     '<span class="bd-k" title="' + esc(k[1]) + '" aria-label="' + esc(k[1]) + '">' + k[0] + '</span>' +
     '<button type="button" class="bd-s" data-open="' + esc(w.open) + '" title="' + esc(w.slug) + '">' + esc(w.slug) + (w.pr ? ' <span class="src">' + esc(w.pr) + '</span>' : "") + '</button>' +
-    '<span class="bd-st"><span class="bd-dots' + tone + '" role="img" aria-label="stage ' + (at + 1) + ' of ' + stages.length + ': ' + esc(name) + '">' + dots + '</span>' +
+    '<span class="bd-st"><span class="bd-dots' + tone + '" role="img" aria-label="' + (at < 0 ? "on no stage" : "stage " + (at + 1) + " of " + stages.length) + ': ' + esc(name) + '">' + dots + '</span>' +
     '<span><b class="' + esc(w.tone) + '">' + esc(name) + '</b>' + (w.state && w.state !== name ? ' <span class="bd-sw">&middot; ' + esc(w.state) + '</span>' : "") + '</span>' + (w.fixing ? '<span class="bd-sw">' + esc(fixingLine(w.fixing)) + '</span>' : "") + '</span>' +
     '<span class="bd-a" title="' + (v == null ? "no time kept" : "on this stage since " + esc(day(v))) + '">' + (v == null ? "&ndash;" : short(NOW - v)) + '</span></li>';
 }
@@ -57,7 +56,7 @@ function boardStep(c) {
   return '<li class="' + esc(c.mark) + '" title="' + esc(c.slug + ": " + c.line + " (" + said + ")") + '"><i class="bd-m ' + esc(c.mark) + '" role="img" aria-label="' + esc(said) + '"></i><span class="bd-cs">' + esc(c.line) + '</span>' + (c.prs.length ? ' <span class="src">' + esc(c.prs.join(" ")) + '</span>' : "") + '</li>';
 }
 function boardCard(h, stages) {
-  var health = BOARD_HEALTH[h.health] || [h.health, ""], tone = h.workers.some(function (w) { return w.tone === "bad"; }) || health[1] === "bad" ? "bad" : h.waits || health[1] === "ask" ? "ask" : "";
+  var health = homeState(h.health), tone = h.workers.some(function (w) { return w.tone === "bad"; }) || health[1] === "bad" ? "bad" : h.waits || health[1] === "ask" ? "ask" : "";
   var count = {};
   h.workers.forEach(function (w) { count[w.stage] = (count[w.stage] || 0) + 1; });
   var sum = stages.filter(function (s) { return count[s.key]; }).map(function (s) { return '<span><b>' + count[s.key] + '</b> ' + esc(s.name.toLowerCase()) + '</span>'; }).join("");
@@ -81,5 +80,5 @@ panel({
   title: "Every home and its workers",
   wide: true,
   drawer: dBoard,
-  gloss: { board: ["Homes", "Each home of the project as one card: its crews (C), reviewers (R) and scouts (S), each on one of seven stages, briefed, running, PR open, in review, fixing, green and merged, with how long it has been on it."] }
+  gloss: { board: ["Every home and its workers", "Each home of the project as one card: its crews (C), reviewers (R) and scouts (S), each on its stage of the process, the same stage every screen gives its row, with how long it has been on it."] }
 });

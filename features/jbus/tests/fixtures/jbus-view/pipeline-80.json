@@ -69,7 +69,7 @@
   },
   {
    "key": "review2",
-   "name": "Review 2",
+   "name": "Re-review",
    "count": 4,
    "still": 1,
    "oldest": {
@@ -257,7 +257,7 @@
    "home": "flow",
    "stage": "queued",
    "since": "2026-10-26T11:14:00Z",
-   "cause": "behind sage-whisk (Review 2)",
+   "cause": "behind sage-whisk (Re-review)",
    "cause_since": "2026-10-26T11:15:00Z",
    "moving": false,
    "waits_on": [
