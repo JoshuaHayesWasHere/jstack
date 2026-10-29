@@ -472,7 +472,7 @@ def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
     if value == "hold":
         return Risk.REVIEW
     for gate in gates:
-        if gate.holds or SECRET.search(f"{gate.question} {gate.context}"):
+        if gate.holds or SECRET.search(party.prose(f"{gate.question} {gate.context}")):
             return Risk.REVIEW
     return Risk.ROUTINE
 

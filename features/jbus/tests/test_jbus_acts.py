@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import acts, item, party, questions, queue, waiting, wake
+from jbus import acts, blockers, item, party, questions, queue, waiting, wake
 from jbus import view as jview
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, SAID, Kitchen
@@ -121,6 +121,52 @@ def test_the_door_table_names_what_pauses_and_what_is_a_review():
     assert item.risk("", [asked]) is item.Risk.REVIEW
     edit = questions.Question(2, "alpha", "", "edit the config?", "", "", "", "", "")
     assert (item.risk("", [edit]), waiting.paused("edit the config")) == (item.Risk.REVIEW, "")
+
+
+def _gate(question, context):
+    slug = "token-no-cleanup-rows"
+    asked = questions.Question(128, slug, "", question, "yes", "", "", "", None, context)
+    return blockers.needs(questions.item(asked), context)
+
+
+def test_a_slug_that_holds_a_door_word_does_not_make_its_gate_hold():
+    assert (
+        _gate(
+            "When the cleanup row route goes, should `Review: after` go too?",
+            "token-one-findings-route is queued that way; "
+            "~/.local/state/home/jstack/tasks/token-no-cleanup-rows.md, its Result\n"
+            "Asked by: token-no-cleanup-rows, thread mcp:a-thread",
+        )
+        == ""
+    )
+    assert waiting.paused("Asked by: scout-token-review, thread mcp:a-thread") == ""
+
+
+def test_a_gate_whose_prose_names_a_token_still_holds():
+    asked = "Should the crew rotate the API token?"
+    assert _gate(asked, "token-no-cleanup-rows asked it") == "it names changes access or secrets"
+    assert waiting.paused("then force-push main, and e-mail the api-key") == "rewrites history"
+    assert waiting.paused("e-mail the api-key") == "changes access or secrets"
+
+
+@pytest.mark.parametrize(
+    "words, case",
+    [
+        ("rotate the API-token", "changes access or secrets"),
+        ("renew the refresh-token", "changes access or secrets"),
+        ("set the db-password", "changes access or secrets"),
+        ("send a one-time-password", "changes access or secrets"),
+        ("re-deploy the site", "touches prod or real users"),
+        ("hard-delete the data rows", "deletes data"),
+    ],
+)
+def test_a_door_word_that_ends_a_hyphenated_compound_still_holds(words, case):
+    assert waiting.paused(words) == case
+
+
+def test_a_hyphenated_config_word_still_makes_a_review():
+    edit = questions.Question(2, "alpha", "", "edit the config-file?", "", "", "", "")
+    assert item.risk("", [edit]) is item.Risk.REVIEW
 
 
 def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen):
