@@ -1,9 +1,6 @@
 """A row that builds on an open pull request launches stacked on its branch (`test_jbus_chains`).
-Each pass after that keeps the link on its base, and tells its crew to move it, once for each
-move:
+While the base is open, its crew is told nothing, however the base's head moves. Once:
 
-- When the base's head moves (review fixes, a rebase), the link is told to rebase onto the base's
-  branch, once for that head, unless its head already holds the base's.
 - When the base merged, jbus bases the link's pull request on the branch the base merged into
   (main, or another branch), or on the one its brief opens it against, tells its crew to move
   its own commits onto that branch, and writes where it sits now on the brief's `Stacked on:` line.
@@ -63,11 +60,6 @@ def pulls(
         kitchen.set("open.json", [{**kitchen.opened("one", 10), "headRefOid": base}, two])
 
 
-def holds(kitchen, *pairs):
-    """Say that the link's head holds the base's head, for each (base head, link head)."""
-    kitchen.set("compare.json", {f"{base}...{link}": "ahead" for base, link in pairs})
-
-
 def passes(kitchen, *minutes):
     for minute in minutes:
         kitchen.poll(NOW + timedelta(minutes=minute))
@@ -82,33 +74,21 @@ def edits(kitchen):
     return [line for line in kitchen.log("gh") if line.startswith("pr edit")]
 
 
-def test_a_link_whose_head_holds_its_bases_head_is_told_nothing(stacked):
-    pulls(stacked)
-    holds(stacked, (BASE, LINK))
-    passes(stacked, 0, 3)
-    assert sends(stacked) == []
-
-
-def test_a_base_whose_head_moved_tells_its_link_once_for_that_head(stacked):
-    moved = "e" * 40
-    pulls(stacked, base=moved)
-    passes(stacked, 0, 3, 6)
-    assert keys(stacked) == [f"restack|two|{LINK[:12]}|{moved[:12]}"]
-    (said,) = [given["message"] for given in sends(stacked)]
-    assert "moved to eeeeeeeeeeee" in said and "#11" in said
-    assert '"A link that moved"' in said and "with one as the branch it sat on" in said
-
-    again = "f" * 40
-    pulls(stacked, base=again)
-    passes(stacked, 9, 12)
-    assert keys(stacked)[1:] == [f"restack|two|{LINK[:12]}|{again[:12]}"]
-
-    rebased = "9" * 40
-    pulls(stacked, base=again, link=rebased)
-    holds(stacked, (again, rebased))
-    passes(stacked, 15, 18)
-    assert len(sends(stacked)) == 2
+def test_a_link_whose_base_is_open_is_told_nothing_however_the_base_moves(stacked):
+    """The base's head moves under its link (review fixes, a rebase), and the link's own head
+    moves too: none of it is the crew's to hear while the base is open. Once the base merged,
+    the crew hears of it once."""
+    for minute, (base, link) in enumerate([(BASE, LINK), ("e" * 40, LINK), ("f" * 40, "9" * 40)]):
+        pulls(stacked, base=base, link=link)
+        passes(stacked, 3 * minute)
+    assert sends(stacked) == [] and keys(stacked) == []
+    assert not [line for line in stacked.log("gh") if "/compare/" in line]
     assert head_line(stacked) == stacks.Stacked("one", "one")
+
+    pulls(stacked, merged=True)
+    passes(stacked, 9, 12)
+    assert keys(stacked) == [f"restack|two|{LINK[:12]}|{MERGE[:12]}"]
+    assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
 
 
 @pytest.mark.parametrize("on", ["one", "main"])
@@ -184,7 +164,6 @@ def test_a_link_whose_thread_is_at_work_is_moved_on_a_later_pass(stacked):
 
 def test_a_link_that_sits_on_its_base_is_not_told_to_rebase_onto_main_for_a_conflict(stacked):
     pulls(stacked, mergeable="CONFLICTING")
-    holds(stacked, (BASE, LINK))
     passes(stacked, 0, 3)
     assert sends(stacked) == []
 

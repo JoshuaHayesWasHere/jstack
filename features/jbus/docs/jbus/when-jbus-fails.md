@@ -9,7 +9,7 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 - `jmerge <project>`, a `jmerge` that did not run. When it stopped because it could not ask GitHub, the alert's `<why>` is its line, `wait: could not ask GitHub: gh exited <code>: <what gh said>`; a run of such passes is one streak whatever the text of each says. A pass of jbus that cannot ask GitHub says the same, `wait <project>: could not ask GitHub: gh exited <code>: <what gh said>`.
 - `snapshot <project>`, a snapshot of the homes' state that gitleaks refused for a file under that project's home, the first path segment of each file it names.
   `snapshot` alone is one that did not finish for any other cause.
-  `jbus snapshot` counts it itself.
+  `jbus snapshot` counts it itself, and a pass counts one that was stopped before its end, as the unit's timeout stops one.
 - `stale`, a look that found no pass ended in the last 2 hours.
   `jbus-stale.timer` runs `jbus alarm --stale 2h` every 15 minutes, from 2 hours after boot or install on Linux and from 15 minutes after the agent loads on macOS, apart from `jbus.timer`, so a `jbus.timer` that is stopped or disabled, or a `jbus.service` that never starts, is caught: `jbus-failed.service` runs only when a pass fails, and a timer that is stopped fails nothing.
   The look reads the end of the last pass from `~/.local/state/jbus/pass.json`, or its start while a pass runs or after one that died, and with no `pass.json` at all it counts too.

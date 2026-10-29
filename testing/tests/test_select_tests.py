@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -926,6 +927,53 @@ def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(pane
     assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
 
 
+SCRIPTS = {
+    "scripts/kit/__init__.py": "",
+    "scripts/kit/walk.py": "def walk():\n    pass\n",
+    "testing/tests/test_walk.py": (
+        "import sys\n\nsys.path.insert(0, 'scripts')\nfrom kit.walk import walk\n\n\n"
+        "def test_walk():\n    walk()\n"
+    ),
+}
+
+
+def test_a_change_to_a_package_of_scripts_selects_the_tests_that_put_it_on_the_path(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **SCRIPTS})
+
+    assert "testing/tests/test_walk.py" not in repo.selected(repo.change(["src/gamma/g.py"]))
+    assert "testing/tests/test_walk.py" in repo.selected(repo.change(["scripts/kit/walk.py"]))
+
+
+def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
+    selected, why = select.selection(["scripts/jtrees/crawl.py"])
+
+    assert {
+        "testing/tests/test_jtrees.py",
+        "testing/tests/test_jtrees_one_feature.py",
+        "features/jinstall/tests/test_docs_hooks.py",
+    } <= set(selected)
+    assert why["imports"] > 0
+
+
+STATECHART_TESTS = {
+    "features/jmerge/tests/test_flow_spec.py",
+    "features/home/tests/test_home_tree_spec.py",
+    "features/skill-library/tests/test_statechart_charts.py",
+    "features/skill-library/tests/test_statechart_runs.py",
+    "features/skill-library/tests/test_statechart_specs.py",
+    "features/skill-library/tests/test_statechart_tlc_bounds.py",
+    "features/skill-library/tests/test_statechart_tlc_cache.py",
+}
+
+
+def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_on_the_path():
+    script = "features/skill-library/skills/statechart/scripts/statechart/lib.py"
+
+    for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
+        assert STATECHART_TESTS <= set(selected)
+        assert why["imports"] >= len(STATECHART_TESTS)
+
+
 MERGED = {
     "#330": (
         [
@@ -1010,6 +1058,26 @@ def test_an_all_says_which_path_forced_it(repo, tmp_path):
     assert found, lines[0]
     assert (found["selection"], int(found["files"]), int(found["of"])) == ("all", total, total)
     assert found["forced"] == "pyproject.toml"
+
+
+def test_a_changed_python_file_in_no_module_set_is_named_under_the_summary_line(repo, tmp_path):
+    head = repo.change(["tools/loose.py", "src/alpha/util.py"])
+
+    _, lines = summary(repo, head, tmp_path)
+
+    assert SUMMARY.fullmatch(lines[0])
+    assert lines[1:] == [
+        "warning: tools/loose.py is in no module set, so no import of it selects a test"
+    ]
+
+
+def test_a_changed_path_every_test_rests_on_gets_no_warning(repo, tmp_path):
+    head = repo.change(["conftest.py"])
+
+    printed, lines = summary(repo, head, tmp_path)
+
+    assert printed == ["all"]
+    assert lines == [lines[0]]
 
 
 def test_an_unread_map_says_so_in_the_summary(repo, tmp_path):
@@ -1140,9 +1208,10 @@ ORACLE = """
 import builtins, importlib, json, sys
 from pathlib import Path
 
-tests, *folders = sys.argv[1:]
-sys.path[:0] = [tests, *folders]
-seen, failed = set(), []
+at = sys.argv.index("--")
+tests, folders = sys.argv[1:at], sys.argv[at + 1 :]
+sys.path[:0] = [*tests, *folders]
+seen, named, failed = set(), set(), []
 real = builtins.__import__
 
 
@@ -1155,16 +1224,27 @@ def hook(name, globals=None, locals=None, fromlist=(), level=0):
     return module
 
 
+def by_name(name, package=None):
+    named.add(name)
+    return load(name, package)
+
+
 builtins.__import__ = hook
-for path in sorted(Path(tests).rglob("*.py")):
-    name = ".".join(path.relative_to(tests).with_suffix("").parts).removesuffix(".__init__")
+load, importlib.import_module = importlib.import_module, by_name
+for folder, path in sorted((one, path) for one in tests for path in Path(one).rglob("*.py")):
+    name = ".".join(path.relative_to(folder).with_suffix("").parts).removesuffix(".__init__")
     if name.startswith("fixtures."):
         continue
     try:
-        importlib.import_module(name)
+        load(name)
     except BaseException as error:
         failed.append(f"{name}: {error!r}")
-print(json.dumps({"seen": sorted(seen), "failed": failed}))
+files = {
+    name: module.__file__
+    for name, module in sorted(sys.modules.items())
+    if getattr(module, "__file__", None)
+}
+print(json.dumps({"seen": sorted(seen), "named": sorted(named), "failed": failed, "files": files}))
 """
 
 
@@ -1176,6 +1256,7 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
             ORACLE,
             str(REPO / "testing" / "tests"),
             *map(str, sorted(REPO.glob("features/*/tests"))),
+            "--",
             *map(str, sources()),
         ],
         cwd=REPO,
@@ -1192,7 +1273,17 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
         for reached in sorted(select.parents(name) & select.modules().keys())
         if reached != importer and reached not in graph[importer]
     ]
-    assert (missing, found["failed"]) == ([], [])
+    imported = {name for _, name in found["seen"]} | set(found["named"])
+    unread = [
+        f"{name} from {Path(file).relative_to(REPO)}"
+        for name, file in found["files"].items()
+        if name in imported
+        and Path(file).is_relative_to(REPO)
+        and not Path(file).is_relative_to(REPO / ".venv")
+        and select.modules().get(name.removesuffix(".__init__"))
+        != Path(file).relative_to(REPO).as_posix()
+    ]
+    assert (missing, found["failed"], unread) == ([], [], [])
 
 
 BROWSER_MODULE = "import pytest\n\npytestmark = [pytest.mark.timeout(9), pytest.mark.browser]\n"

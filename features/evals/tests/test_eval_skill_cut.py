@@ -18,10 +18,10 @@ from testing.paths import REPO
 EVAL = REPO / "features" / "evals" / "evals" / "skill-cut"
 
 
-def load(name):
+def load(path):
     sys.path.insert(0, str(EVAL))
     try:
-        spec = importlib.util.spec_from_file_location(f"skill_cut_{name}", EVAL / f"{name}.py")
+        spec = importlib.util.spec_from_file_location(f"skill_cut_{path.stem}", path)
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
@@ -30,8 +30,8 @@ def load(name):
         sys.path.remove(str(EVAL))
 
 
-score = load("score")
-run = load("eval")
+score = load(EVAL / "score.py")
+run = load(EVAL / "eval.py")
 
 
 def test_the_committed_lead_fixture_scores_seven_of_nine():

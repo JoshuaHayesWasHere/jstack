@@ -42,7 +42,7 @@ A snapshot that did not finish fails the unit and raises its own alert.
 When gitleaks found a secret, the alert is for the project whose home holds the file, the first path segment of each file gitleaks names, and only that project's home hears of it.
 Any other failure is the machine's, and goes to the desk and the infra home.
 The first failure alerts at once, and the later ones in the same run of failures do not alert ([When jbus fails](when-jbus-fails.md)).
-A snapshot that the unit's timeout stops raises nothing, and the next one that runs says why it failed.
+A snapshot that is stopped before its end, as the unit's timeout stops one, cannot raise its alert itself, so the next pass of jbus raises it, as the machine's.
 The first snapshot that finishes after them says it recovered.
 A snapshot that fails only for other projects ends the alert of a project whose files it read clean.
 `systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs on Linux, and `git -C ~/.local/state/home log -1` shows the last one.
