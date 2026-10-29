@@ -6,13 +6,13 @@ usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
 Queue a row, with its brief on stdin. A follow-up: a row is a follow-up of the
 row P, and jbus approves it by the follow-up rule (a follow-up of approved
 work needs no new approval) when it is queued and on each pass, when it names
-P (its brief's head has a line `Follows: P`), when it is a fix jbus filed (a
-row jbus's pass queued whose brief's Decisions: line begins `none, jbus filed
-this from a red `) or, when it is queued, its --entry is P's plan entry, and
-when P's go holds (P is a row of the queue, or went as merged, and its go is
-the user's word or this rule's); a fix jbus filed that names no parent is
-approved by the same rule on the red run its brief's Task: line quotes; any
-other row waits for the user's go.
+P (its brief's head has a line `Follows: P`), when it is of a follow-up's kind
+(a fix jbus filed, a row jbus's pass queued whose brief's Decisions: line
+begins `none, jbus filed this from a red `; or, when it is queued, a row whose
+--entry is P's plan entry), and when P's go holds (P is a row of the queue, or
+went as merged, and its go is the user's word or this rule's); a fix jbus
+filed that names no parent is approved by the same rule on the red run its
+brief's Task: line quotes; any other row waits for the user's go.
 
 positional arguments:
   slug
