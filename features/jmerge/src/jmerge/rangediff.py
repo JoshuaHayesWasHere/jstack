@@ -99,6 +99,20 @@ def _same_changes(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> str
     return ""
 
 
+def _past_held(repo: Path, base_old: str, reviewed: str, base_new: str) -> str:
+    """Where the reviewed range starts once it leaves out the commits the new base holds: a
+    commit of main's that sat in the old range, as a squash merge of the link under a stacked
+    one does, is in neither patch and pairs with nothing. `base_old` where git cannot say."""
+    try:
+        forks = _git(repo, "merge-base", "--all", reviewed, base_new).split()
+        if len(forks) != 1 or forks[0] == base_old:
+            return base_old
+        _git(repo, "merge-base", "--is-ancestor", base_old, forks[0])
+    except _Failed:
+        return base_old
+    return forks[0]
+
+
 def verdict(repo: Path, reviewed: str, head: str, default: str, since: str = "") -> Verdict:
     """Whether `head` carries `reviewed`'s patch. Each head's commits are counted from its fork
     from `default`, the reviewed one's from `since` where the caller knows better."""
@@ -111,6 +125,7 @@ def verdict(repo: Path, reviewed: str, head: str, default: str, since: str = "")
             _have(repo, commit)
         base_old = since or _git(repo, "merge-base", reviewed, f"origin/{default}").strip()
         base_new = _git(repo, "merge-base", head, f"origin/{default}").strip()
+        base_old = _past_held(repo, base_old, reviewed, base_new)
         old, new = f"{base_old}..{reviewed}", f"{base_new}..{head}"
         command = f"git range-diff --no-color {old} {new}"
         line, unpaired = content_change(_git(repo, "range-diff", "--no-color", old, new))
