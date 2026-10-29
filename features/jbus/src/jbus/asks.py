@@ -323,7 +323,11 @@ def _table(table: argparse.ArgumentParser) -> None:
     )
     approve.add_argument("--by", help=argparse.SUPPRESS)
     approve.add_argument("--at", help=argparse.SUPPRESS)
-    approve.add_argument("--sha", required=True, help="the first 12 of that brief's sha256")
+    approve.add_argument(
+        "--sha",
+        help="the first 12 of the sha256 of the brief the user was shown: needed with the "
+        "user's word, and taken and not read beside --follows",
+    )
     approve.add_argument(
         "--seen",
         metavar="EVENT",

@@ -18,8 +18,9 @@ or at a launch. Only a fault that an edit brings refuses it. `show` names the gr
 jbus keeps the brief that came with a row's `add` beside the table, in `briefs/<slug>.md`, and
 `approve` records the brief's sha256 and its meaning fingerprint (`jbriefs.meaning`). The go holds
 for a brief whose title, Task, Done when, Where, Do not touch and Size are what they were, whatever
-else changed, and not for one whose goal or scope changed. `approve` also takes the sha of the brief
-the user was shown, and refuses when the stored brief differs from it.
+else changed, and not for one whose goal or scope changed. `approve` on the user's word also takes
+the sha of the brief the user was shown, and refuses when the stored brief differs from it. A go by
+a rule, the follow-up rule's or an entry's, is pinned to no sha, since no user read one.
 
 An approval is based on the user's words, which another store holds, and `approve` names them: a
 word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, the
@@ -194,6 +195,10 @@ SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
 ALREADY = "already approved"
 GO_VOID = ", its go does not hold for it: approve it again"
+NO_SHA = (
+    "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
+    "they were shown; a go by --follows needs none"
+)
 
 Row = dict[str, Any]
 
@@ -621,8 +626,9 @@ class Add:
 @dataclass(frozen=True)
 class Approve:
     """`Approve` is the verb that records the user's go for the brief whose sha256 starts with
-    `given`, on the words that `ref` names. For a go by a rule, `ref` is the rule's number and
-    `follows` is the parent row's slug. `heard` is those words where the caller read them
+    `given`, on the words that `ref` names. For a go by a rule, `ref` is the rule's number,
+    `follows` is the parent row's slug, and `given` is not read: no user read the brief's sha,
+    so the go is pinned to none. `heard` is those words where the caller read them
     already (`jbus.acts`), and the batch then asks nothing for them."""
 
     slug: str
@@ -702,7 +708,7 @@ class Asks:
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "add": (("priority",), ("depends", "merge-after", "entry")),
-    "approve": (("sha",), (*BASES, RULE, "follows", "by", "at")),
+    "approve": ((), ("sha", *BASES, RULE, "follows", "by", "at")),
     "hold": ((), ()),
     "remove": (("by", "at"), ()),
 }
@@ -712,9 +718,10 @@ _BRIEF, _END = "--- brief ", "--- end"
 def basis(given: Mapping[str, Any]) -> tuple[party.Evidence, str]:
     """Return the evidence that an `approve` was given, not yet read, and the parent that a
     follow-up names. Each basis is one `party.Evidence.source` (`party.SOURCE`). A `--follows`
-    is the follow-up rule's basis, `RULE` with `FOLLOW_REF`, and a `--rule <n>` beside it is
-    taken and not read: the rule is known by what it says. `basis` refuses no basis or more
-    than one, a `--rule` with no parent, and a name or a time beside the basis."""
+    is the follow-up rule's basis, `RULE` with `FOLLOW_REF`, and a `--rule <n>` or a `--sha`
+    beside it is taken and not read: the rule is known by what it says, and no user read the
+    brief's sha. `basis` refuses no basis or more than one, a `--rule` with no parent, a name or
+    a time beside the basis, and the user's word with no `--sha`."""
     named = [(name, str(given[name])) for name in BASES if given.get(name) not in (None, "")]
     follows = str(given.get("follows") or "")
     ruled = given.get(RULE) not in (None, "")
@@ -726,6 +733,8 @@ def basis(given: Mapping[str, Any]) -> tuple[party.Evidence, str]:
             f"refused: approve takes one basis, {BASIS}, or {BY_RULE}, and no --by and no "
             "--at: jbus writes who ran it and when"
         )
+    if not follows and given.get("sha") in (None, ""):
+        raise Refused(f"refused: {NO_SHA}")
     name, ref = named[0]
     return party.Evidence(party.SOURCE[name], ref), follows  # type: ignore[arg-type]
 
@@ -993,7 +1002,7 @@ def _by_rule(
         return ""
     try:
         parent = follow_up(batch, slug, branches, units)
-        verb = Approve(slug, RULE, FOLLOW_REF, judgement.brief_sha(text)[:12], parent)
+        verb = Approve(slug, RULE, FOLLOW_REF, "", parent)
         return _do(verb, batch, user, None, {}, {}, ran_by)
     except Refused as error:
         if not named_parent(slug, text):
@@ -1440,7 +1449,7 @@ def _do(
         if text is None:
             raise Refused(f"refused: {verb.slug} has no brief, add it again")
         stored = judgement.brief_sha(text)
-        if stored[:12] != verb.given:
+        if not ruled and stored[:12] != verb.given:
             raise Refused(f"refused: {verb.slug}'s brief is {stored[:12]}, not {verb.given}")
         again = row.get("approved") and judgement.approved_text(row, text) and not row.get("held")
         if verb.heard is not None and again and not _ruled(row):
@@ -2082,8 +2091,8 @@ def parse(text: str) -> list[tuple[int, Verb]]:
     - `add <slug> --priority N [--depends a,b] [--merge-after a,b] [--entry <plan entry>]`;
     - `approve <slug> --sha <12>` with one of `--word <id>`, `--answer <number>`,
       `--message <thread id>/<message id>`, `--pick <thread id>/<item id>` and
-      `--page <session key>/<entry id>`, or with
-      `--follows <parent slug>` (a `--rule <n>` beside it is taken and not read);
+      `--page <session key>/<entry id>`, or `approve <slug>` with
+      `--follows <parent slug>` (a `--rule <n>` or a `--sha` beside it is taken and not read);
     - `hold <slug>`;
     - `remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM ZONE>"`.
 
@@ -2111,7 +2120,8 @@ def parse(text: str) -> list[tuple[int, Verb]]:
                 verbs.append((number, Hold(slug)))
             elif verb == "approve":
                 said, follows = basis(given)
-                verbs.append((number, Approve(slug, said.basis, said.ref, given["sha"], follows)))
+                pin = given.get("sha", "")
+                verbs.append((number, Approve(slug, said.basis, said.ref, pin, follows)))
             elif verb == "remove":
                 verbs.append((number, Remove(slug, given["by"], given["at"])))
             else:

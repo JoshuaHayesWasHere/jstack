@@ -16,6 +16,7 @@ import pytest
 import jbus
 from jbus import digest, queue
 from jbus.view import state as view_state
+from jmerge import judgement
 from test_home_thread import as_read
 from test_jbus_kitchen import NOW, RAN, SAID, SESSION, Kitchen, bound
 from test_jbus_queue import NO_BASIS, add, brief, rows, sha12, widened
@@ -108,6 +109,24 @@ def test_an_approval_by_rule_is_a_record_of_the_rule_and_the_parent_and_the_row_
         "crew: alpha",
         "crew: beta",
     ]
+
+
+@pytest.mark.parametrize("pinned", [False, True])
+def test_a_follow_up_needs_no_sha_and_one_beside_it_is_not_read(kitchen, pinned):
+    """No user read a follow-up's brief, so its go pins no sha: the rule rests on the parent's
+    go and the row's kind, which jbus asks of the brief as it is stored. A sha the home read
+    before the brief changed is taken and not read."""
+    kitchen.config(max_running=6)
+    add(kitchen, "alpha")
+    add(kitchen, "beta", approve=False)
+    shown = sha12(brief("beta"))
+    add(kitchen, "beta", approve=False, text=widened("beta"))
+    pin = ("--sha", shown) if pinned else ()
+    code, said = kitchen.main("queue", "approve", "beta", "--follows", "alpha", *pin)
+    assert (code, cell(kitchen, "beta")) == (0, BY_RULE), said
+    assert rows(kitchen)["beta"]["brief_sha"] == judgement.brief_sha(widened("beta"))
+    kitchen.poll()
+    assert "crew: beta" in [launch["title"] for launch in kitchen.t3.launches]
 
 
 @pytest.mark.parametrize(

@@ -124,6 +124,17 @@ def test_an_entry_go_approves_each_row_filed_under_it_and_an_edit_with_no_second
     ]
 
 
+def test_a_row_whose_brief_changed_after_it_was_queued_launches_on_the_entry_go(kitchen):
+    """No user read the row's brief, so the entry's go pins no sha: an edit is approved again
+    by the entry's go and launches with no word of the user's."""
+    queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
+    queued(kitchen, "alpha", text=widened("alpha"))
+    kitchen.poll()
+    assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
+    assert "One more line." in kitchen.t3.launches[0]["message"]
+
+
 def test_a_row_queued_before_the_go_is_approved_on_the_next_pass(kitchen):
     queued(kitchen, "alpha")
     assert basis(kitchen, "alpha") == ()

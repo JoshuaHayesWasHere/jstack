@@ -30,6 +30,10 @@ NO_BASIS = (
     "slug>, and "
     "no --by and no --at: jbus writes who ran it and when"
 )
+NO_SHA = (
+    "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
+    "they were shown; a go by --follows needs none"
+)
 
 
 @pytest.fixture
@@ -263,10 +267,10 @@ def test_an_approval_is_refused_unless_it_names_the_sha_of_the_stored_brief(kitc
     assert rows(kitchen)["alpha"]["brief_sha"] == judgement.brief_sha(brief("alpha"))
 
 
-def test_an_approval_with_no_sha_is_not_run(kitchen):
+def test_an_approval_on_the_users_word_with_no_sha_is_refused(kitchen):
     add(kitchen, "alpha", approve=False)
-    code, said = kitchen.main("queue", "approve", "alpha", "--by", "user", "--at", AT)
-    assert code == 2 and "the following arguments are required: --sha" in said
+    code, said = kitchen.main("queue", "approve", "alpha", "--word", kitchen.word())
+    assert (code, said) == (1, f"refused: {NO_SHA}\n")
     assert rows(kitchen)["alpha"]["approved"] == ""
 
 
@@ -366,7 +370,7 @@ def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(k
         (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 18: {NO_BASIS}"),
         ("approve alpha --sha 0\n", f"line 18: {NO_BASIS}"),
         ("approve alpha --word nope --sha 0\n", "line 18: alpha's brief is"),
-        (f"approve alpha --word {SAID}\n", "line 18: approve needs --sha"),
+        (f"approve alpha --word {SAID}\n", f"line 18: {NO_SHA}"),
         ("add gamma --priority 1\nhold alpha\n", "line 18: add gamma has no --- brief gamma"),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n",
