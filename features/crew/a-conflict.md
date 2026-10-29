@@ -8,7 +8,11 @@ A default branch that moved on this pull request's files or on any other is no r
 Only where `jmerge` can run no fresh check (a repo with no `fresh-check`) does a message say `main changed <files> after its check started`, because a new check at the rebased head is then the only test of the combined tree.
 The rebase is told once for a pull request: a failure after it is not rebased for again, and jbus parks a gate with the default that the pull request waits.
 
-Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on that message. It rebases onto the pull request's base, the default branch. On a conflict it does so when GitHub reports `CONFLICTING`, and does nothing on any other answer. On `stale` it does so whatever GitHub reports, `MERGEABLE` included. It never rebases a link jbus stacked, a brief with a `Stacked on:` line in its head, `stale` or not, until its line says the commit its base merged as and the head holds it: until then its branch holds its base's commits too, and this rebase would replay them ("A link that moved").
+Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on that message.
+It rebases onto the pull request's base, the default branch.
+On a conflict it does so when GitHub reports `CONFLICTING`, and does nothing on any other answer.
+On `stale` it does so whatever GitHub reports, `MERGEABLE` included.
+It never rebases a link jbus stacked, a brief with a `Stacked on:` line in its head, `stale` or not, until its line says the commit its base merged as and the head holds it: until then its branch holds its base's commits too, and this rebase would replay them ("A link that moved").
 
 Every rebase goes on, a third after fixed and green and any after it included: where it changed the reviewed content, `jmerge` waits on a scoped review of the changed range, as the end of this section says.
 
