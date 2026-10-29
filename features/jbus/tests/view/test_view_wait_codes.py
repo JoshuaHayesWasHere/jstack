@@ -92,3 +92,13 @@ def test_a_failed_check_and_one_still_running_have_their_own_texts_and_codes():
     assert [lines.one(lines.logged(line)).code for line in said] == ["check-failed", "not-passed"]
     assert [ready.code_of(str(why)) for why in (red, running)] == ["check-failed", "not-passed"]
     assert lines.one(said[0]) == lines.Line("wait", 7, PULL.format(7), red)
+
+
+def test_a_reason_whose_free_text_names_a_red_check_is_read_as_its_own_not_the_check():
+    """A reason that starts with a field matches the start of any text, so it is tried last: a
+    refused merge carries GitHub's error, which may say a check has failed, and is the refusal's."""
+    said = ready.BASE_MERGE_REFUSED.format(
+        base="main", tip="a" * 12, why=ready.CHECK_FAILED.format(check="the required check")
+    )
+    assert str(said).endswith("into it: the required check has failed")
+    assert ready.code_of(str(said)) == ready.BASE_MERGE_REFUSED.code

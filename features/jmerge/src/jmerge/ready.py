@@ -76,10 +76,14 @@ the text, so that `MAIN_CHANGED`, which also ends `a fresh check`, keeps its own
 
 def rules() -> tuple[tuple[str, str, str], ...]:
     """The `(code, step, pattern)` of each reason `jmerge` writes, in the order `code_of` tries
-    them: `ELSEWHERE` first, then each `Reason` in the order this module declares it. Each
-    pattern matches from the start of the reason. `ELSEWHERE` comes first so that the plain
-    text of a reason no `Reason` made is on its own step."""
-    return ELSEWHERE + tuple((one.code, one.step, "^" + one.pattern) for one in reasons().values())
+    them: `ELSEWHERE` first, then each `Reason` in the order this module declares it, those whose
+    text starts with a field (`<check> has failed`) after the rest. Each pattern matches from the
+    start of the reason. `ELSEWHERE` comes first so that the plain text of a reason no `Reason`
+    made is on its own step, and a field comes last since it matches the start of any text: a
+    refused merge whose error says `the required check has failed` is `BASE_MERGE_REFUSED`'s,
+    not `CHECK_FAILED`'s."""
+    named = sorted(reasons().values(), key=lambda one: one.pattern.startswith(_VALUE))
+    return ELSEWHERE + tuple((one.code, one.step, "^" + one.pattern) for one in named)
 
 
 def code_of(why: str) -> str:
