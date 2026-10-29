@@ -240,7 +240,9 @@ def killed(kitchen, tree):
     (slow / "gitleaks").chmod(0o755)
     env = {**os.environ, "PATH": f"{slow}{os.pathsep}{os.environ['PATH']}"}
     (tree / "demo" / "notes.md").write_text("# notes\nkilled\n")
-    run = subprocess.Popen([sys.executable, "-m", "jbus", "snapshot"], env=env, start_new_session=True)
+    run = subprocess.Popen(
+        [sys.executable, "-m", "jbus", "snapshot"], env=env, start_new_session=True
+    )
     for _ in range(300):
         if reading.exists() or run.poll() is not None:
             break
