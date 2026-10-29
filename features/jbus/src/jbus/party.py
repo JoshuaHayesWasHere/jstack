@@ -103,10 +103,11 @@ def door(case: str) -> Door:
 
 def prose(words: str) -> str:
     """A gate's words as the door table reads them: with its `Asked by:` line left out, and each
-    run of words joined by hyphens read as one word. A slug such as token-no-cleanup-rows then
-    names no door, while force-push, e-mail and api-key still do."""
+    slug, a run of three or more words joined by hyphens, read as its last word alone. A slug
+    such as token-no-cleanup-rows then names no door, while API-token, force-push and
+    one-time-password still do."""
     words = re.sub(r"^\s*Asked by:.*$", "", words, flags=re.M | re.I)
-    return re.sub(r"(?<=\w)-(?=\w)", "", words)
+    return re.sub(r"\b\w+(?:-\w+){2,}\b", lambda slug: slug[0].rsplit("-", 1)[1], words)
 
 
 SOURCE = {
