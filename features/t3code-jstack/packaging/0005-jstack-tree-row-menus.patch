@@ -1,0 +1,704 @@
+From 1cbfd72e01b3b4af769b4df744006866e31f1f97 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 15:39:20 -0400
+Subject: [PATCH] feat(web): every jstack tree row opens a context menu, by
+ right-click, the ContextMenu key and Shift+F10
+
+Project, home, worker, queued and asking rows each open their own menu
+through readLocalApi().contextMenu.show, from one table per row kind
+(jstackRowMenu). Each row is named by its own text so an axe check passes:
+row names hold every word the row shows, the hover buttons are for the
+pointer only (the menu and the arrow keys reach them), and amber text uses
+the warning-foreground token.
+---
+ apps/web/package.json                         |   1 +
+ apps/web/src/components/Sidebar.tsx           |  25 ++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 181 ++++++++++++++++--
+ .../src/components/sidebar/JstackTreeRows.tsx | 143 ++++++++++----
+ .../components/sidebar/jstackTree.logic.ts    |  60 ++++++
+ pnpm-lock.yaml                                |  15 +-
+ 6 files changed, 367 insertions(+), 58 deletions(-)
+
+diff --git a/apps/web/package.json b/apps/web/package.json
+index c35aadeef5..1e6026139c 100644
+--- a/apps/web/package.json
++++ b/apps/web/package.json
+@@ -98,6 +98,7 @@
+     "@vercel/config": "^0.3.0",
+     "@vitejs/plugin-react": "^6.1.2",
+     "@vitest/browser-playwright": "5.0.5",
++    "axe-core": "^4.14.0",
+     "compression": "^1.8.2",
+     "oxc-transform-react": "~0.152.0",
+     "playwright": "1.60.0",
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index f85cdbe877..bbd3afb10b 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -933,6 +933,27 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+       );
+     },
+   });
++  const { copyToClipboard: copyJstackNameToClipboard } = useCopyToClipboard<{
++    name: string;
++    what: string;
++  }>({
++    onCopy: ({ name, what }) => {
++      toastManager.add({
++        type: "success",
++        title: `${what.charAt(0).toUpperCase()}${what.slice(1)} copied`,
++        description: name,
++      });
++    },
++    onError: (error, { what }) => {
++      toastManager.add(
++        stackedThreadToast({
++          type: "error",
++          title: `Failed to copy ${what}`,
++          description: error instanceof Error ? error.message : "An error occurred.",
++        }),
++      );
++    },
++  });
+   const { copyToClipboard: copyBranchToClipboard } = useCopyToClipboard<{ branch: string }>({
+     target: "branch name",
+     onCopy: ({ branch }) => {
+@@ -1364,7 +1385,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     onToggleProject: toggleProjectFolder,
+     onExpandHome: (homeKey) => setJstackExpandedHomes((current) => new Set(current).add(homeKey)),
+     onNewThread: startThreadInProjectFolder,
+-    onProjectContextMenu: handleProjectFolderContextMenu,
++    onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
++    onOpenProjectSettings: openProjectSettings,
++    onCopyName: (name, what) => copyJstackNameToClipboard(name, { name, what }),
+   };
+ 
+   // Ranked across environments as the palette ranks them, so one
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 70eb602349..d1295751e9 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -1,9 +1,11 @@
+ import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
++import axe from "axe-core";
+ import { describe, expect, it, vi } from "vite-plus/test";
+-import { userEvent } from "vite-plus/test/browser";
++import { page, userEvent } from "vite-plus/test/browser";
+ 
+ import "~/index.css";
+ import { render } from "../../../test/render";
++import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+ import type { JstackRootRow, JstackTreeRow } from "./jstackTree.logic";
+@@ -96,7 +98,9 @@ function actions(): JstackTreeRowActions {
+     onToggleProject: vi.fn(),
+     onExpandHome: vi.fn(),
+     onNewThread: vi.fn(),
+-    onProjectContextMenu: vi.fn(),
++    onCopyPath: vi.fn(),
++    onOpenProjectSettings: vi.fn(),
++    onCopyName: vi.fn(),
+   };
+ }
+ 
+@@ -105,7 +109,11 @@ function Tree(props: {
+   actions: JstackTreeRowActions;
+ }) {
+   return (
+-    <ul role="tree" className="flex w-[300px] flex-col gap-px bg-sidebar">
++    <ul
++      {...SIDEBAR_TREE_PROPS}
++      ref={attachSidebarTree}
++      className="flex w-[300px] flex-col gap-px bg-sidebar"
++    >
+       {props.rows.map(([row, rowGroup]) =>
+         row.kind === "loose" ? null : (
+           <JstackTreeRowView key={row.key} row={row} group={rowGroup} actions={props.actions} />
+@@ -187,12 +195,12 @@ describe("JstackTreeRowView root rows", () => {
+     await using screen = await render(<Tree actions={spies} rows={[[root(), group("jstack")]]} />, {
+       router: false,
+     });
+-    await userEvent.click(screen.getByRole("treeitem", { name: "jstack main thread" }));
++    await userEvent.click(screen.getByRole("treeitem", { name: /^jstack .*main thread$/ }));
+     expect(spies.onOpenThread).toHaveBeenCalledWith(ThreadId.make("root"));
+     expect(spies.onToggleProject).not.toHaveBeenCalled();
+-    // Its fold chevron stays in the tab order, since the row's own click opens a thread.
+-    const fold = screen.getByRole("button", { name: "Fold jstack" }).element() as HTMLElement;
+-    expect(fold.tabIndex).toBe(0);
++    // Its fold chevron is the pointer's: the keyboard folds from the row's menu or its arrows.
++    const fold = screen.container.querySelector<HTMLElement>('[aria-label="Fold jstack"]')!;
++    expect(fold.tabIndex).toBe(-1);
+   });
+ 
+   it("folds a project with no home from its name, and offers a new thread in it", async () => {
+@@ -205,10 +213,10 @@ describe("JstackTreeRowView root rows", () => {
+     await userEvent.click(screen.getByRole("treeitem", { name: "Winnifred" }));
+     expect(spies.onToggleProject).toHaveBeenCalledWith(winnifred);
+     expect(spies.onOpenThread).not.toHaveBeenCalled();
+-    // The row itself folds, so its chevron stays out of the tab order.
+-    const fold = screen.getByRole("button", { name: "Fold Winnifred" }).element() as HTMLElement;
+-    expect(fold.tabIndex).toBe(-1);
+-    await userEvent.click(screen.getByRole("button", { name: "New thread in Winnifred" }));
++    // The pointer's shortcut; the keyboard and assistive tech reach it through the row's menu.
++    await userEvent.click(
++      screen.container.querySelector<HTMLElement>('[aria-label="New thread in Winnifred"]')!,
++    );
+     expect(spies.onNewThread).toHaveBeenCalledWith(winnifred);
+   });
+ 
+@@ -232,9 +240,158 @@ describe("JstackTreeRowView root rows", () => {
+       />,
+       { router: false },
+     );
+-    const row = screen.getByRole("treeitem", { name: "No project" }).element() as HTMLElement;
++    const row = screen
++      .getByRole("treeitem", { name: "No project 2 threads" })
++      .element() as HTMLElement;
+     expect(measure(row, "No project")).toMatchObject({ height: 36, fontSize: "15px" });
+     expect(row.textContent).toContain("2 threads");
+     expect(getComputedStyle(row.closest("li")!).opacity).toBe("0.5");
+   });
+ });
++
++const queued: JstackTreeRow = {
++  ...worker,
++  key: "jstack-task:jstack/fl-meter",
++  slug: "meter",
++  word: "ready",
++  ticks: { step: 0, hollow: true, asks: false },
++  threadId: null,
++  openThreadId: ThreadId.make("flow"),
++};
++
++const asking: JstackTreeRow = {
++  ...worker,
++  key: "jstack-task:jstack/fl-valve",
++  slug: "valve",
++  word: "asks you",
++  tone: "asks",
++  ticks: { step: 0, hollow: true, asks: true },
++  threadId: null,
++  openThreadId: ThreadId.make("gate"),
++  ask: { what: "Which valve size?", askedIn: "gate thread" },
++};
++
++const menuItems = () =>
++  [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) =>
++    item.textContent?.trim(),
++  );
++
++/** Every row kind the tree draws, under one root, as the sidebar draws them. */
++function everyRow(spies: JstackTreeRowActions) {
++  const jstack = group("jstack");
++  return render(
++    <Tree
++      actions={spies}
++      rows={[
++        [root(), jstack],
++        [home, jstack],
++        [worker, jstack],
++        [queued, jstack],
++        [asking, jstack],
++      ]}
++    />,
++    { router: false },
++  );
++}
++
++describe("JstackTreeRowView context menus", () => {
++  it("opens each row's own menu on right-click and runs what the mouse picks", async () => {
++    const spies = actions();
++    await using screen = await everyRow(spies);
++    const cases = [
++      {
++        name: /^jstack .*main thread$/,
++        items: ["Open home", "Fold", "New thread", "Copy path", "Project settings"],
++        pick: "Copy path",
++        ran: () => expect(spies.onCopyPath).toHaveBeenCalledWith(group("jstack")),
++      },
++      {
++        name: "flow home",
++        items: ["Open home", "Copy scope name"],
++        pick: "Open home",
++        ran: () => expect(spies.onOpenThread).toHaveBeenCalledWith(ThreadId.make("flow")),
++      },
++      {
++        name: "fl-pump crew",
++        items: ["Open thread", "Copy slug"],
++        pick: "Copy slug",
++        ran: () => expect(spies.onCopyName).toHaveBeenCalledWith("fl-pump", "slug"),
++      },
++      {
++        name: "fl-meter ready",
++        items: ["Open its home", "Copy slug"],
++        pick: "Open its home",
++        ran: () => expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("flow")),
++      },
++      {
++        name: "fl-valve asks you",
++        items: ["Show what it asks", "Open gate thread", "Copy slug"],
++        pick: "Open gate thread",
++        ran: () => expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("gate")),
++      },
++    ];
++    for (const one of cases) {
++      await userEvent.click(screen.getByRole("treeitem", { name: one.name }), { button: "right" });
++      await expect.element(page.getByRole("menu")).toBeVisible();
++      expect(menuItems()).toEqual(one.items);
++      await userEvent.click(page.getByRole("menuitem", { name: one.pick }));
++      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
++      one.ran();
++    }
++  });
++
++  it("opens the focused row's menu from the keyboard alone, on the ContextMenu key and on Shift+F10", async () => {
++    const spies = actions();
++    await using screen = await everyRow(spies);
++    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you" });
++
++    // Tab into the tree, then walk down to the asking row: root, home, crew, queued, asking.
++    await userEvent.keyboard("{Tab}");
++    await expect
++      .element(screen.getByRole("treeitem", { name: /^jstack .*main thread$/ }))
++      .toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}");
++    await expect.element(valve).toHaveFocus();
++
++    await userEvent.keyboard("{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Show what it asks" })).toHaveFocus();
++    await userEvent.keyboard("{Enter}");
++    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
++    await expect.element(valve).toHaveFocus();
++    await expect.element(screen.getByText("Which valve size?")).toBeVisible();
++
++    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
++    await expect.element(page.getByRole("menuitem", { name: "Hide what it asks" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
++    expect(spies.onCopyName).toHaveBeenCalledWith("fl-valve", "slug");
++
++    await userEvent.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}");
++    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
++    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{Enter}");
++    expect(spies.onToggleProject).toHaveBeenCalledWith(group("jstack"));
++
++    await userEvent.keyboard("{ArrowDown}{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
++    await userEvent.keyboard("{Escape}");
++    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
++    await expect.element(screen.getByRole("treeitem", { name: "flow home" })).toHaveFocus();
++    expect(spies.onOpenThread).not.toHaveBeenCalled();
++  });
++
++  it("passes an axe check, with a row's menu open and with it closed", async () => {
++    await using screen = await everyRow(actions());
++    const audit = async () => {
++      // A bare render has no landmark around it; in the app the sidebar's own nav is one.
++      const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
++      return result.violations.map((violation) => `${violation.id}: ${violation.help}`);
++    };
++    expect(await audit()).toEqual([]);
++    await userEvent.click(screen.getByRole("treeitem", { name: "flow home" }), {
++      button: "right",
++    });
++    await expect.element(page.getByRole("menu")).toBeVisible();
++    expect(await audit()).toEqual([]);
++    await userEvent.keyboard("{Escape}");
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 3e7f933b25..326ba7bc05 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -4,11 +4,17 @@ import { ChevronDownIcon, SquarePenIcon } from "lucide-react";
+ import { memo, type MouseEvent, type ReactNode, useState } from "react";
+ 
+ import { cn } from "~/lib/utils";
++import { readLocalApi } from "../../localApi";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { ProjectFavicon } from "../ProjectFavicon";
+ import { Button } from "../ui/button";
+ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+-import type { JstackTally, JstackTicks, JstackTreeRow } from "./jstackTree.logic";
++import {
++  jstackRowMenu,
++  type JstackTally,
++  type JstackTicks,
++  type JstackTreeRow,
++} from "./jstackTree.logic";
+ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ 
+ // jstack fork: the tree sidebar's rows. Amber is the only colour, and only for what waits on you.
+@@ -22,10 +28,10 @@ export interface JstackTreeRowActions {
+   readonly onToggleProject: (group: SidebarProjectSnapshot) => void;
+   readonly onExpandHome: (homeKey: string) => void;
+   readonly onNewThread: (group: SidebarProjectSnapshot) => void;
+-  readonly onProjectContextMenu: (
+-    group: SidebarProjectSnapshot,
+-    position: { x: number; y: number },
+-  ) => void;
++  readonly onCopyPath: (group: SidebarProjectSnapshot) => void;
++  readonly onOpenProjectSettings: (group: SidebarProjectSnapshot) => void;
++  /** Copies a row's name, such as a task's slug, and says what it copied. */
++  readonly onCopyName: (name: string, what: "scope name" | "slug") => void;
+ }
+ 
+ const ROW_BUTTON =
+@@ -66,17 +72,24 @@ function Ticks(props: { ticks: JstackTicks }) {
+ }
+ 
+ function AsksYou() {
+-  return <span className="shrink-0 text-2xs text-warning">asks you</span>;
++  return <span className="shrink-0 text-2xs text-warning-foreground">asks you</span>;
+ }
+ 
+ function GateDot() {
+-  return (
+-    <span className="size-1.5 shrink-0 rounded-full bg-warning">
+-      <span className="sr-only">, something inside asks you</span>
+-    </span>
+-  );
++  return <span className="size-1.5 shrink-0 rounded-full bg-warning" />;
+ }
+ 
++/**
++ * A row's name is its own text, so it holds every word the row shows, in order, as voice
++ * control needs (WCAG 2.5.3). What the eye gets from shape alone is said last, unseen.
++ */
++function SaidLast(props: { parts: ReadonlyArray<string | false> }) {
++  const said = props.parts.filter(Boolean);
++  return said.length === 0 ? null : <span className="sr-only">{said.join(", ")}</span>;
++}
++
++const plural = (count: number, unit: string) => `${count} ${unit}${count === 1 ? "" : "s"}`;
++
+ function Tally(props: { tally: JstackTally }) {
+   const parts = (["crew", "review", "queue"] as const).filter((stage) => props.tally[stage] > 0);
+   return (
+@@ -112,6 +125,55 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+   const { row, group, actions } = props;
+   // A task that asks before it has a thread unfolds what it asks, since its home may be open.
+   const [unfolded, setUnfolded] = useState(false);
++  // Every row opens its menu here, and sidebarTree.ts turns ContextMenu and Shift+F10 into this.
++  const onContextMenu = (event: MouseEvent) => {
++    event.preventDefault();
++    const api = readLocalApi();
++    if (!api) return;
++    void api.contextMenu
++      .show(jstackRowMenu(row, { askShown: unfolded }), { x: event.clientX, y: event.clientY })
++      .then((picked) => {
++        switch (picked) {
++          case null:
++            return;
++          case "open-home":
++            if (row.kind === "project" && row.main !== null) actions.onOpenThread(row.main.id);
++            if (row.kind === "domain") actions.onOpenThread(row.threadId);
++            return;
++          case "open-thread":
++            if (row.kind === "worker" && row.threadId !== null) actions.onOpenThread(row.threadId);
++            return;
++          case "open-asked-in":
++            if (row.kind === "worker") actions.onOpenThread(row.openThreadId);
++            return;
++          case "toggle-ask":
++            setUnfolded(!unfolded);
++            return;
++          case "fold":
++            actions.onToggleProject(group);
++            return;
++          case "show-more":
++            if (row.kind === "more") actions.onExpandHome(row.homeKey);
++            return;
++          case "new-thread":
++            actions.onNewThread(group);
++            return;
++          case "copy-path":
++            actions.onCopyPath(group);
++            return;
++          case "project-settings":
++            actions.onOpenProjectSettings(group);
++            return;
++          case "copy-scope":
++            if (row.kind === "domain") actions.onCopyName(row.scope, "scope name");
++            return;
++          case "copy-slug":
++            if (row.kind === "worker") actions.onCopyName(`${row.prefix ?? ""}${row.slug}`, "slug");
++            return;
++        }
++      })
++      .catch(() => undefined);
++  };
+   const open = (threadId: ThreadId | null) => (event: MouseEvent) => {
+     if (row.kind === "project" && !event.nativeEvent.isTrusted) {
+       actions.onToggleProject(group);
+@@ -139,47 +201,47 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             data-sidebar-row={row.key}
+             aria-expanded={!row.collapsed}
+             aria-selected={row.selected}
+-            aria-label={`${group.displayName}${main === null ? "" : " main thread"}${row.asksYou || row.dot ? ", asks you" : ""}`}
+             onClick={main === null ? toggle : open(main.id)}
+-            onContextMenu={
+-              main === null
+-                ? (event) => {
+-                    event.preventDefault();
+-                    actions.onProjectContextMenu(group, { x: event.clientX, y: event.clientY });
+-                  }
+-                : undefined
+-            }
++            onContextMenu={onContextMenu}
+             className={cn(
+               ROW_BUTTON,
+-              "h-9",
++              "h-9 pl-8",
+               main === null ? "pr-14" : "pr-8",
+               row.selected && "bg-sidebar-row-selected",
+             )}
+           >
+-            <ProjectFavicon project={group} className="size-4 shrink-0" />
+             <span className="min-w-0 flex-1 truncate text-tree-root text-sidebar-foreground">
+               {group.displayName}
+-            </span>
++            </span>{" "}
+             {row.landed > 0 ? (
+               <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
+                 {row.landed} merged
+               </span>
+-            ) : null}
+-            {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}
++            ) : null}{" "}
++            {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}{" "}
+             {row.collapsed && row.folded.count > 0 ? (
+               <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
+-                {row.folded.count} {row.folded.unit}
+-                {row.folded.count === 1 ? "" : "s"}
++                {plural(row.folded.count, row.folded.unit)}
+               </span>
+             ) : (
+               <TimeLabel thread={main} />
+             )}
++            <SaidLast
++              parts={[main !== null && "main thread", row.dot && "something inside asks you"]}
++            />
+           </button>
+-          <span className="absolute inset-y-0 right-1 flex items-center gap-0.5">
++          {/* Outside the row, since a monogram's letters are text that is not the row's name. */}
++          <ProjectFavicon
++            project={group}
++            className="pointer-events-none absolute top-2.5 left-2 size-4"
++          />
++          {/* For the pointer only: the row's menu and its arrow keys reach both, so the tree
++              holds treeitems alone and Tab stays one stop. */}
++          <span aria-hidden className="absolute inset-y-0 right-1 flex items-center gap-0.5">
+             {main === null ? (
+-              <span className="opacity-0 focus-within:opacity-100 group-hover/project-folder:opacity-100 pointer-coarse:opacity-100">
++              <span className="opacity-0 group-hover/project-folder:opacity-100 pointer-coarse:opacity-100">
+                 <Button
+-                  data-sidebar-action-for={row.key}
++                  tabIndex={-1}
+                   size="icon-xs"
+                   variant="ghost-muted"
+                   aria-label={`New thread in ${group.displayName}`}
+@@ -191,8 +253,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             ) : null}
+             <button
+               type="button"
+-              tabIndex={main === null ? -1 : undefined}
+-              data-sidebar-action-for={main === null ? undefined : row.key}
++              tabIndex={-1}
+               aria-label={
+                 row.collapsed ? `Unfold ${group.displayName}` : `Fold ${group.displayName}`
+               }
+@@ -220,15 +281,16 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+               data-sidebar-parent={row.parentKey}
+               aria-expanded={row.open}
+               aria-selected={row.selected}
+-              aria-label={`${row.scope} home${row.asksYou || row.dot ? ", asks you" : ""}`}
+               onClick={open(row.threadId)}
++              onContextMenu={onContextMenu}
+               className={cn(ROW_BUTTON, "h-7", row.selected && "bg-sidebar-row-selected")}
+             >
+               <span className="min-w-0 flex-1 truncate text-tree-home text-sidebar-foreground/90">
+                 {row.scope}
+-              </span>
+-              {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}
++              </span>{" "}
++              {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}{" "}
+               <TimeLabel thread={row.thread} />
++              <SaidLast parts={["home", row.dot && "something inside asks you"]} />
+             </button>
+             {row.open ? null : <Tally tally={row.tally} />}
+           </Nest>
+@@ -249,11 +311,11 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     data-sidebar-row={row.key}
+                     data-sidebar-parent={row.parentKey}
+                     aria-selected={row.selected}
+-                    aria-label={`${fullSlug}, ${row.word}${row.ticks === null ? "" : " stage"}`}
+                     aria-expanded={row.ask === null ? undefined : unfolded}
+                     onClick={
+                       row.ask === null ? open(row.openThreadId) : () => setUnfolded(!unfolded)
+                     }
++                    onContextMenu={onContextMenu}
+                     className={cn(
+                       ROW_BUTTON,
+                       "h-6 text-xs font-normal",
+@@ -262,14 +324,16 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                   >
+                     <span className="min-w-0 flex-1 truncate text-sidebar-foreground/70">
+                       {row.prefix ? (
+-                        <span className="text-sidebar-muted-foreground/60">{row.prefix}</span>
++                        <span className="text-sidebar-muted-foreground">{row.prefix}</span>
+                       ) : null}
+                       {row.slug}
+-                    </span>
++                    </span>{" "}
+                     <span
+                       className={cn(
+                         "shrink-0 text-2xs",
+-                        row.tone === "asks" ? "text-warning" : "text-sidebar-muted-foreground",
++                        row.tone === "asks"
++                          ? "text-warning-foreground"
++                          : "text-sidebar-muted-foreground",
+                       )}
+                     >
+                       {row.word}
+@@ -317,6 +381,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+               data-sidebar-row={row.key}
+               data-sidebar-parent={row.parentKey}
+               onClick={() => actions.onExpandHome(row.homeKey)}
++              onContextMenu={onContextMenu}
+               className={cn(ROW_BUTTON, "h-6 text-2xs text-sidebar-muted-foreground")}
+             >
+               +{row.count} more
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 65593538b9..f9491ec9f9 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -1,6 +1,7 @@
+ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
+ import { isThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
+ import type {
++  ContextMenuItem,
+   EnvironmentId,
+   JbusGate,
+   JbusHome,
+@@ -473,3 +474,62 @@ export function arrangeJstackRoots<T>(
+     dividerBefore: firstIdle === undefined || firstIdle === arranged[0] ? null : firstIdle,
+   };
+ }
++
++/** What a tree row's context menu can do; `JstackTreeRowView` runs the one picked. */
++export type JstackRowMenuId =
++  | "open-home"
++  | "open-thread"
++  | "open-asked-in"
++  | "toggle-ask"
++  | "fold"
++  | "show-more"
++  | "new-thread"
++  | "copy-path"
++  | "project-settings"
++  | "copy-scope"
++  | "copy-slug";
++
++/**
++ * A tree row's context menu, one table per kind. Every row has one, so right-click, the
++ * ContextMenu key and Shift+F10 reach the same actions as the row's own click and buttons.
++ */
++export function jstackRowMenu(
++  row: Exclude<JstackTreeRow, { kind: "loose" }>,
++  state: { readonly askShown: boolean },
++): ReadonlyArray<ContextMenuItem<JstackRowMenuId>> {
++  switch (row.kind) {
++    case "project":
++      return [
++        ...(row.main === null ? [] : [{ id: "open-home" as const, label: "Open home" }]),
++        { id: "fold", label: row.collapsed ? "Unfold" : "Fold" },
++        { id: "new-thread", label: "New thread", separatorBefore: true },
++        { id: "copy-path", label: "Copy path" },
++        { id: "project-settings", label: "Project settings", icon: "settings" },
++      ];
++    case "domain":
++      return [
++        { id: "open-home", label: "Open home" },
++        { id: "copy-scope", label: "Copy scope name", separatorBefore: true },
++      ];
++    case "worker":
++      return [
++        ...(row.threadId !== null
++          ? [{ id: "open-thread" as const, label: "Open thread" }]
++          : row.ask === null
++            ? [{ id: "open-asked-in" as const, label: "Open its home" }]
++            : [
++                {
++                  id: "toggle-ask" as const,
++                  label: state.askShown ? "Hide what it asks" : "Show what it asks",
++                },
++                {
++                  id: "open-asked-in" as const,
++                  label: row.ask.askedIn === null ? "Open its home" : `Open ${row.ask.askedIn}`,
++                },
++              ]),
++        { id: "copy-slug", label: "Copy slug", separatorBefore: true },
++      ];
++    case "more":
++      return [{ id: "show-more", label: `Show ${row.count} more` }];
++  }
++}
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 087858aeab..b992808afa 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -1244,6 +1244,9 @@ importers:
+       '@vitest/browser-playwright':
+         specifier: 5.0.5
+         version: 5.0.5(@tsc-rs/typescript@0.8.0)(@types/node@24.12.4)(@volar/typescript@2.4.28(@tsc-rs/typescript@0.8.0))(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.60.0)(terser@5.48.0)(unrun@0.2.39)(utf-8-validate@6.0.6)(vitest@5.0.5)(yaml@2.9.0)
++      axe-core:
++        specifier: ^4.14.0
++        version: 4.14.0
+       compression:
+         specifier: ^1.8.2
+         version: 1.8.2(supports-color@8.1.1)
+@@ -5864,10 +5867,6 @@ packages:
+   '@pierre/highlights@0.2.0':
+     resolution: {integrity: sha512-hTpcOU1EzDAP4bYtEhxmMu2jwMvtkUydRUBUpWMSHTs3dw0IaC3Ld5ansMy18L0GE3b6Vfl2OGkLK+pWWpnBmw==}
+ 
+-  '@pierre/theme@1.1.0':
+-    resolution: {integrity: sha512-GC2OWTAfTIIWWYhPCygwG8t2EtePQkRfON4MI2rwIkJylmiyqIttJID2dCL8sUD8cNdEvYkEyfEHHKMeCiDLoQ==}
+-    engines: {vscode: ^1.0.0}
+-
+   '@pierre/theme@2.0.0':
+     resolution: {integrity: sha512-yNDd9GYLQl1mEUJR8AneJ5e4ohLIHQd/wZLWr4fagt78vS2RwwZNW530vVgHqXFAyFVcFlRmGUD5ramXH46OXw==}
+     engines: {vscode: ^1.0.0}
+@@ -7562,6 +7561,10 @@ packages:
+   aws4fetch@1.0.20:
+     resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
+ 
++  axe-core@4.14.0:
++    resolution: {integrity: sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==}
++    engines: {node: '>=4'}
++
+   axobject-query@4.1.0:
+     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
+     engines: {node: '>= 0.4'}
+@@ -15444,8 +15447,6 @@ snapshots:
+ 
+   '@pierre/highlights@0.2.0': {}
+ 
+-  '@pierre/theme@1.1.0': {}
+-
+   '@pierre/theme@2.0.0': {}
+ 
+   '@pierre/theming@1.0.0(@pierre/theme@2.0.0)(@shikijs/themes@4.2.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(shiki@4.2.0)':
+@@ -17224,6 +17225,8 @@ snapshots:
+ 
+   aws4fetch@1.0.20: {}
+ 
++  axe-core@4.14.0: {}
++
+   axobject-query@4.1.0: {}
+ 
+   babel-dead-code-elimination@1.0.12(supports-color@8.1.1):
+-- 
+2.56.0
+
