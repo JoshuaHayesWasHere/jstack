@@ -81,7 +81,9 @@ FROM_SPEC = """from-spec SPEC.tla
                      runs TLC. Its comments say what each function gets.
 
   With --fixed or --against, SPEC.tla (and FIXED.tla) models the code, and the command finds each
-  condition of an action that no comment ties to code with a file and line, as in \\* pay.ts:120.
+  condition of an action that no comment ties to code. A comment cites the code by its file and
+  the code it quotes in backticks, as in \\* pay.ts `if (sent > 0)`, or by a file and line, as in
+  \\* pay.ts:120, but a quote needs no edit when the lines above it move.
   A condition is a conjunct of the action that changes nothing and reads a variable that the
   action does not change. A rule can hold only because the model waits for a condition that the
   code does not check, so the command prints these conditions when a rule holds.
@@ -136,9 +138,9 @@ Output
   stories.md         One entry per bug: the rule, why it breaks, the shortest path in reader
                      steps, and what the --fixed or --against model does instead.
   summary.json       The counts behind the chart. With --fixed or --against, uncited has the
-                     conditions with no file and line for each code model. With --against,
-                     second.listed has what each config beside AGREED.tla expects, and each bug
-                     has the configs that list it.
+                     conditions with no cite for each code model. With --against, second.listed
+                     has what each config beside AGREED.tla expects, and each bug has the
+                     configs that list it.
   tlc/               The config and the TLC output of each run. When the overview has regions,
                      from-spec also writes tlc/regions-all.mmd, the regions with every arrow, and
                      tlc/regions-proof.mmd, every state and step of TLC's graph in one region.
