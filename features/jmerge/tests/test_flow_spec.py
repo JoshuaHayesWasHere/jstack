@@ -2,7 +2,7 @@
 rules, the design holds all four, each canary, the design with one fix taken out, breaks the rule
 on that fix, and each control of today's code with another gap breaks the rules it should. The
 run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's conditions, and
-the design's `Rejudge`, each name a file and line."""
+the design's `Rejudge`, each name a file and the code it quotes."""
 
 import importlib
 import os
@@ -26,75 +26,45 @@ tools = importlib.import_module("statechart.tools")
 find_java = tools.find_java
 
 
-def test_every_condition_of_the_code_model_names_its_file_and_line():
+def test_every_condition_of_the_code_model_quotes_its_file():
     today = SPEC / "FlowToday.tla"
     assert lib.uncited_conditions(today.read_text(), lib.shared_variables(today)) == []
 
 
-CITE = re.compile(r"((?:features|scripts|\.github)/[\w./-]+):(\d+(?:-\d+)?(?:,\d+)*)")
-
-CITED = {
-    ".github/workflows/check.yml:4": "pull_request:",
-    ".github/workflows/browser.yml:22-23": "schedule:",
-    "features/jbus/src/jbus/expedite.py:323": "ready.BROWSER_RED.pattern",
-    "features/jbus/src/jbus/expedite.py:434": "world.open.items()",
-    "scripts/select_tests.py:884-893,597": "lone = unowned()",
-    "features/crew/the-checks.md:84-89": "`jmerge` judges a red pull request again by itself",
-    "features/jbus/src/jbus/dispatch.py:332-364": "no room",
-    "features/jbus/src/jbus/dispatch.py:515-517": "on = world.stack_on(run, unmerged, brief)",
-    "features/jbus/src/jbus/rebase.py:263": "world.open.items()",
-    "features/jbus/src/jbus/stack.py:83": "world.open.items()",
-    "features/jbus/src/jbus/stack.py:89-90": "world.merged.get(stacked.slug)",
-    "features/jbus/src/jbus/strays.py:491": 'if not slug or ("crew", slug) in busy:',
-    "features/jbus/src/jbus/strays.py:508-509,517": "burning = (taken |",
-    "features/jbus/src/jbus/watch.py:1213-1240": "ran_by=queue.PASS",
-    "features/jbus/src/jbus/watch.py:1221-1223": "queue.fresh(run.state, name) is not None",
-    "features/jbus/src/jbus/watch.py:1286-1289": 'prefix="browser-red-"',
-    "features/jbus/src/jbus/watch.py:1533,1576,1580,1583": "no briefed merge came in",
-    "features/jbus/src/jbus/watch.py:1582-1583": "_file(run, slug, sha,",
-    "features/jmerge/src/jmerge/rows.py:250-253": 'row.get("merge_after", [])',
-    "features/jmerge/src/jmerge/cli.py:369-377": "ready.STACKED_UNMOVED.format(",
-    "features/jmerge/src/jmerge/ready.py:1086-1088": "NOT_PASSED",
-    "features/jmerge/src/jmerge/ready.py:398-401": "def red_only",
-    "features/jmerge/src/jmerge/rows.py:139": (
-        "if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):"
-    ),
-    "features/jmerge/src/jmerge/rows.py:132": "ran.over == red and bool(failed)",
-    "features/jmerge/src/jmerge/rows.py:339-342": "if red and not proves(red, failed, ran):",
-    "features/jmerge/src/jmerge/rows.py:368": (
-        'if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:'
-    ),
-    "features/jmerge/src/jmerge/rows.py:383-384": 'row.get("status") not in queue.FINAL',
-    "features/jmerge/src/jmerge/cli.py:1958": "if state != ready.BROWSER_FAILED:",
-    "features/jmerge/src/jmerge/rejudge.py:93": 'was.get("tip")',
-    "features/jmerge/src/jmerge/cli.py:742": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:771": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:845": "or self.red(one, default, brief.stem, text)",
-    "features/jmerge/src/jmerge/rejudge.py:73": "self.ask(one)",
-}
+PATH = r"(?:features|scripts|\.github)/[\w./-]+\.\w+"
+QUOTE = re.compile(rf"({PATH})\s*`([^`]+)`")
+"""A cite of the models: the file and the text it quotes, as `features/jmerge/src/jmerge/rows.py
+`ran.over == red``, with no line number, so a line that only moves needs no edit."""
+MODELS = [SPEC / "FlowToday.tla", SPEC / "FlowDesign.tla"]
+MODELS += [SPEC / "canary" / f"{name}.tla" for name in flow.CANARIES]
 
 
-def lines_of(path, spans):
-    text = (REPO / path).read_text().splitlines()
-    found = []
-    for span in spans.split(","):
-        first, _, last = span.partition("-")
-        found += text[int(first) - 1 : int(last or first)]
-    return "\n".join(found)
+def flat(model):
+    """The model's text with each line break of a comment taken out, so a quote can wrap."""
+    return re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", model.read_text())
 
 
-def test_each_line_a_model_cites_holds_the_condition_it_names():
-    """Every cite in the models is in `CITED`, and its lines hold the text pinned there, so a cite
-    that drifts off its condition fails here, also where no Java runs TLC."""
-    models = [SPEC / "FlowToday.tla", SPEC / "FlowDesign.tla"]
-    models += [SPEC / "canary" / f"{name}.tla" for name in flow.CANARIES]
-    cites = {
-        f"{path}:{spans}" for model in models for path, spans in CITE.findall(model.read_text())
-    }
-    assert cites == set(CITED)
-    for cite, text in CITED.items():
-        path, _, spans = cite.rpartition(":")
-        assert text in lines_of(path, spans), cite
+def cites():
+    """Each cite of the models, once: its file and quote."""
+    return sorted({cite for model in MODELS for cite in QUOTE.findall(flat(model))})
+
+
+def test_the_models_cite_by_quote_and_never_by_line_number():
+    for model in MODELS:
+        assert not re.search(rf"{PATH}:\d", flat(model)), model.name
+    assert len(cites()) > 30
+
+
+def test_each_quote_a_model_cites_stands_once_in_its_file():
+    """Each quote stands in its file once, so the cite finds its line, and a quote the code moved
+    off its block, changed or copied fails here, also where no Java runs TLC. A line shift alone
+    changes nothing a cite says."""
+    wrong = []
+    for path, quote in cites():
+        found = lib.located((REPO / path).read_text().splitlines(), quote)
+        if len(found) != 1:
+            wrong.append(f"{path} `{quote}`: {len(found)} times")
+    assert wrong == []
 
 
 STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
@@ -106,25 +76,28 @@ def disjuncts(code):
     return len(OR.findall(STRING.sub("", code)))
 
 
-def test_a_cite_of_one_python_line_quotes_each_or_on_it():
-    """A cite of one line of Python names a condition, and its quote holds every `or` that line
-    holds, so a disjunct the code gains, as `rows.red` gained the proof of a fix in #583, fails
-    here until the model takes it in. A span cites a block, and its quote names the block."""
+def test_a_quote_of_one_python_line_holds_each_or_on_it():
+    """A quote that stands on one line of Python names a condition, and holds every `or` that
+    line holds, so a disjunct the code gains, as `rows.red` gained the proof of a fix in #583,
+    fails here until the model takes it in. A quote over several lines names a block, and one
+    that does not stand once is the test above's."""
     checked = []
-    for cite, text in CITED.items():
-        path, _, line = cite.rpartition(":")
-        if path.endswith(".py") and line.isdigit():
-            checked.append(cite)
-            assert disjuncts(text) == disjuncts(lines_of(path, line)), cite
-    assert "features/jmerge/src/jmerge/rows.py:139" in checked
+    for path, quote in cites():
+        lines = (REPO / path).read_text().splitlines()
+        found = lib.located(lines, quote)
+        if path.endswith(".py") and len(found) == 1 and found[0][0] == found[0][1]:
+            first = found[0][0]
+            checked.append(quote)
+            assert disjuncts(quote) == disjuncts(lines[first - 1]), f"{path} `{quote}`"
+    assert "ran.over == red and bool(failed)" in checked
 
 
-def test_each_condition_of_the_design_s_rejudge_names_a_file_and_line():
+def test_each_condition_of_the_design_s_rejudge_quotes_its_file():
     text = (SPEC / "FlowDesign.tla").read_text()
     rejudge = text[text.index("Rejudge(p) ==") : text.index("\\* crew-leftover-procs")]
     conditions = [line for line in rejudge.splitlines() if line.lstrip().startswith("/\\ ")]
     assert len(conditions) == 7
-    assert all(CITE.search(line) for line in conditions[:6]), conditions
+    assert all(QUOTE.search(line) for line in conditions[:6]), conditions
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")

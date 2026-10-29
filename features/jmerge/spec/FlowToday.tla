@@ -77,10 +77,10 @@ Leaves(p) ==
 \* A jbus pass launches the row's crew, which opens its pull request, and its turn ends.
 Launch(p) ==
     /\ st[p] = "queued"
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     \* A row that builds on an open one launches stacked on its branch (#411), and one that builds
     \* on a row with no pull request yet waits; merge_after is read only by jmerge.
-    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:515-517
+    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py `on = world.stack_on(run, unmerged, brief)`
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
     /\ Leaves(p)
@@ -88,9 +88,9 @@ Launch(p) ==
 
 \* GitHub runs the pull request's check over the base as it is now.
 Check(p) ==
-    /\ st[p] = "open"                       \* .github/workflows/check.yml:4, a pull request's check
+    /\ st[p] = "open"                       \* .github/workflows/check.yml `pull_request:`, a pull request's check
     /\ ci[p] = "none"
-    \* scripts/select_tests.py:884-893,597: the rules' tests, every test no rule owns (#397), and
+    \* scripts/select_tests.py `lone = unowned()`, scripts/select_tests.py `if owns(patterns, path)`: the rules' tests, every test no rule owns (#397), and
     \* each test whose READ_SET matches the changed path (#426). A test that reads the tree through
     \* a glob or a walk needs a read set, but that guard sees only the reads it knows, so a test
     \* that reads the changed path another way, or past its read set, is selected by chance.
@@ -99,7 +99,7 @@ Check(p) ==
     /\ \E sel \in BOOLEAN :
         /\ ci' = [ci EXCEPT ![p] =
                 IF sel /\ ((mainRed /\ ~fixes[p]) \/ breaks[p]) THEN "fail" ELSE "pass"]
-        \* features/jmerge/src/jmerge/rows.py:132, the head holds the red tip and ran each failed test
+        \* features/jmerge/src/jmerge/rows.py `ran.over == red and bool(failed)`, the head holds the red tip and ran each failed test
         /\ proved' = [proved EXCEPT ![p] = sel /\ mainRed /\ fixes[p] /\ ~breaks[p] /\ named]
     /\ ranRed' = [ranRed EXCEPT ![p] = mainRed]
     \* browser.yml runs every browser test, so its run fails exactly when one fails.
@@ -110,22 +110,22 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1086-1088
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
     \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
-    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:139
+    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py `if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):`
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
-    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:1958
+    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py `if state != ready.BROWSER_FAILED:`
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:369-377
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py `ready.STACKED_UNMOVED.format(`
     \* A merge_after row merges after its row.
-    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:250-253
+    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `row.get("merge_after", [])`
     /\ st' = [st EXCEPT ![p] = "merged"]
     \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1582-1583: main's red tip after a briefed merge is filed.
-    \* A green tip withdraws a fix row that never launched (watch.py:1543-1544), and in this model
+    \* features/jbus/src/jbus/watch.py `_file(run, slug, sha,`: main's red tip after a briefed merge is filed.
+    \* A green tip withdraws a fix row that never launched (features/jbus/src/jbus/watch.py `_withdraw(run, fixes, tip)`), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
     /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~proved[p]) THEN BOOLEAN ELSE {named}
@@ -138,9 +138,9 @@ Merge(p) ==
 \* Its base merged: jbus moves the stacked pull request onto main and rebases its own commits
 \* onto main itself, or tells its crew to ("A link that moved"), and its check runs again.
 Restack(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:83, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py `world.open.items()`, open ones only
     /\ on[p] # "main"
-    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:89-90, its base merged
+    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py `world.merged.get(stacked.slug)`, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
@@ -151,12 +151,12 @@ Restack(p) ==
 \* crew's own thread once its turn ends, so no room is asked for, and its turn may leave a
 \* process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:263, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py `sent = run.box.sent() for slug, pull in world.open.items():`, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
     \* message, which jbus sends it.
-    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:84-89
+    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md `judges a red pull request again by itself`
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ told' = [told EXCEPT ![p] = FALSE]
@@ -167,9 +167,9 @@ CrewFix(p) ==
 \* Its own browser run failed, and the red is its own: main's last browser run passed, or the fix
 \* jbus filed for it is over. jbus tells its crew, which fixes its change, and its checks run again.
 BrowserFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py:434, open ones only
-    /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py:323, its browser run failed
-    /\ ~brHold                              \* features/jmerge/src/jmerge/rows.py:339-342
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py `world.open.items()`, open ones only
+    /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py `ready.BROWSER_RED.pattern`, its browser run failed
+    /\ ~brHold                              \* features/jmerge/src/jmerge/rows.py `if red and not proves(red, failed, ran):`
     /\ brBreaks' = [brBreaks EXCEPT ![p] = FALSE]
     /\ brFail' = [brFail EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
@@ -183,17 +183,17 @@ BrowserFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:771, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:398-401, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:742, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:845, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
-    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `def judge(`, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py `def red_only`, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py `moved = None if one.started is None else self.moved(one.base, one.started) if ( moved is None`, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem, text)`, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
+    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
                    Fix, Browser>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
-\* (features/jbus/src/jbus/strays.py:491), and in this model a crew's turn is one step.
+\* (features/jbus/src/jbus/strays.py `if not slug or ("crew", slug) in busy:`), and in this model a crew's turn is one step.
 Stoppable(p) ==
     CASE Gap = "busy" -> FALSE
       [] Gap = "ended" -> st[p] = "merged"
@@ -202,7 +202,7 @@ Stoppable(p) ==
 \* jbus.strays stops what a finished turn left (#351, #363, #416, #427): a busy process, and an
 \* idle one only as Gap says.
 Sweep ==
-    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:508-509,517
+    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py `taken = {one.pid for found in claimed.values() for one in found}`, features/jbus/src/jbus/strays.py `burning = (taken |`
     /\ busy' = FALSE
     /\ idle' = [p \in PRs |-> idle[p] /\ ~Stoppable(p)]
     /\ full' = (\E p \in PRs : idle'[p])
@@ -212,11 +212,11 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew either fixes main in its own pull request,
 \* which merges by its slug, or ends with no pull request, its fix in an open one, as on
 \* 2026-10-27, when two flow rows held the fix. Either way the row is over, and jbus files no other
-\* for the same red tip (features/jbus/src/jbus/watch.py:1221-1223).
+\* for the same red tip (features/jbus/src/jbus/watch.py `if name in run.removed or queue.fresh(run.state, name) is not None:`).
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1213-1240, queued with no approval
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py `queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)`, queued with no approval
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
@@ -231,21 +231,21 @@ ApproveMainFix ==
           /\ UNCHANGED <<mainRed, redBy>>
     /\ UNCHANGED <<st, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser>>
 
-\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1286-1289),
+\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py `prefix="browser-red-"`),
 \* whose run then holds as main's red each pull request whose own browser run failed.
 \* browser.yml runs on main only nightly, so the hold starts with its next run.
 Nightly ==
-    /\ viewBroken                           \* .github/workflows/browser.yml:22-23, its nightly run
+    /\ viewBroken                           \* .github/workflows/browser.yml `schedule:`, its nightly run
     /\ ~brHold
-    /\ brHold' = TRUE                       \* features/jmerge/src/jmerge/rows.py:368, red and its fix open
+    /\ brHold' = TRUE                       \* features/jmerge/src/jmerge/rows.py `if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:`, red and its fix open
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
                    Machine, Fix, brBreaks, brFail, viewBroken>>
 
 \* You approve the browser-red row, and its crew fixes main's view. Its row is over, so main's
-\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py:383-384).
+\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if row.get("status") not in queue.FINAL}`).
 ApproveBrowserFix ==
     /\ brHold
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     /\ viewBroken' = FALSE
     /\ brHold' = FALSE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
@@ -259,7 +259,7 @@ OutsideBreak ==
     /\ \/ /\ ~mainRed
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
-          \* features/jbus/src/jbus/watch.py:1533,1576,1580,1583: since #392 the fix row is filed for a
+          \* features/jbus/src/jbus/watch.py `if not slugs and not fixes and not mainjson.read(run.state).red:`, features/jbus/src/jbus/watch.py `no briefed merge came in`: since #392 the fix row is filed for a
           \* red tip with no briefed merge in the day before it too, under the row's own name.
           /\ fixRow' = TRUE
           /\ named' \in BOOLEAN

@@ -35,21 +35,22 @@ request that jbus launched (`alpha`). The first tip, M0, is green and is there f
 
 Each kind of step matches the code as follows:
 
-- **pass**: one run of `tell` under the pass lock (`features/jbus/src/jbus/cli.py:218-222`). No two
-  passes overlap, so a pass is one indivisible step. In a pass, jmerge reads `main.json` before
-  `tell` writes it: `features/jbus/src/jbus/cli.py:149` runs `merge.merge`, and `tell` runs later,
-  in the `after-expedite` slot (`features/jbus/src/jbus/mainmoved.py:229-237`). So the model writes
-  a merge in a pass as the event `lands, jmerge merges` followed by the event `pass`. That merge
-  reads the record the last pass wrote, as a merge between passes does.
+- **pass**: one run of `tell` under the pass lock (`fcntl.flock` in
+  `features/jbus/src/jbus/cli.py`). No two passes overlap, so a pass is one indivisible step. In a
+  pass, jmerge reads `main.json` before `tell` writes it: `features/jbus/src/jbus/cli.py` runs
+  `merge.merge`, and `tell` runs later, in the `after-expedite` slot
+  (`features/jbus/src/jbus/mainmoved.py`). So the model writes a merge in a pass as the event
+  `lands, jmerge merges` followed by the event `pass`. That merge reads the record the last pass
+  wrote, as a merge between passes does.
 - **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`. This event
   may come between any two passes. The merge always reads a whole record, never a half-written one,
   because `write_json` writes a temporary file and `os.replace`s it
-  (`features/jbus/src/jbus/__init__.py:501-514`). The model allows it only where
+  (`write_json` in `features/jbus/src/jbus/__init__.py`). The model allows it only where
   `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py`, `red`).
 - **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
-  (`features/jbus/src/jbus/watch.py:982-1043`): `green`, `failed`, `cancelled` (a later attempt that
+  (`features/jbus/src/jbus/watch.py`): `green`, `failed`, `cancelled` (a later attempt that
   was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
   run's job ran no step, `watch.NO_JOB`). `main_check` asks without `again`
   (`features/jbus/src/jbus/mainmoved.py`). So `cancelled` and `refused` reach `tell` only
@@ -59,8 +60,8 @@ Each kind of step matches the code as follows:
   rerun ends: `failed` here is the answer once the rerun failed too, or one that ran no rerun.
 - **rerun passes**: the newest tip's check failed, and a rerun of that check on the same tip passes
   with no new commit. From then on, that tip's check is `green`.
-- Each pass also chooses T3 Code's answer to a send. T3 Code answers it, loses it (`T3Error`,
-  `features/jbus/src/jbus/mainmoved.py:201-204`) or refuses it (`T3Refused`, 196-200).
+- Each pass also chooses T3 Code's answer to a send. T3 Code answers it, loses it (`T3Error`
+  in `tell`, `features/jbus/src/jbus/mainmoved.py`) or refuses it (`T3Refused`).
 
 The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
 model, where the real one would ask GitHub. `mainmoved.failed_at` returns the one test that failed

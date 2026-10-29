@@ -16,7 +16,7 @@ EXTENDS Naturals
 \* once it misses its beat, Rhythm checks after the last one.
 CONSTANTS K, Rhythm
 \* Who runs jmerge: "jbus" when the root home's home-thread file is empty, "home" when it names
-\* a thread (merging-a-pull-request-that-is-ready.md:15).
+\* a thread (merging-a-pull-request-that-is-ready.md `the home sweeps while the file holds an id`).
 CONSTANT Modes
 \* The scene of one run of TLC: the children the root makes, and the calls they raise. Two
 \* siblings that both raise calls are too many states for one run, so canaries.py checks each

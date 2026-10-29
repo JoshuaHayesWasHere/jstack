@@ -3,7 +3,8 @@
 Two rows, a main that can go red from a merge or from outside, and a machine that a crew can leave full.
 The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and it came in with rejudge-red-prs.
 
-- `FlowToday.tla` models the code as of main 859203e0, and each of its conditions names the file and line that checks it.
+- `FlowToday.tla` models the code as of main 859203e0, and each of its conditions names the file that checks it and quotes the code, with no line number.
+  `test_flow_spec.py` finds the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
   It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416, #426 and #427 since and cut down to what the four rules read.
   Since #583 and #584 it has main's fix as `jmerge.rows.red` takes it: the `main-red-` row, or a pull request whose own check proved the fix, and the row's crew may end with no pull request, its fix in an open one.
   Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red, which holds it as main's red while the fix jbus filed for that run is open.

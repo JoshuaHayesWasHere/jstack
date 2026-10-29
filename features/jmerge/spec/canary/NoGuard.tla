@@ -46,8 +46,8 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1086-1088
-    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:139
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
+    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py `if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):`
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
@@ -65,7 +65,7 @@ CrewFix(p) ==
     \* pull request that carries main's fix reads a failure over that red as its own, since main
     \* goes green only once it merges: a step the code lacks (FlowToday.tla's CrewFix).
     /\ (~ranRed[p] \/ told[p] \/ fixes[p])
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ full' \in BOOLEAN                    \* a turn may leave processes running
@@ -77,12 +77,12 @@ CrewFix(p) ==
 \* started and is green now, is checked again over today's base: GitHub merges the base into
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:771, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:398-401, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:742, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:845, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
-    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `def judge(`, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py `def red_only`, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py `moved = None if one.started is None else self.moved(one.base, one.started) if ( moved is None`, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem, text)`, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
+    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full, fixRow, fixes, proved>>
 
 \* crew-leftover-procs: when a turn ends, what it left running is stopped.
@@ -96,7 +96,7 @@ Sweep ==
 ApproveMainFix ==
     /\ mainRed
     /\ fixRow
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"

@@ -2,6 +2,7 @@
 a Mermaid stateDiagram-v2 read into regions, the machine that regions make together, and the
 chart's colors."""
 
+import bisect
 import inspect
 import json
 import os
@@ -297,7 +298,7 @@ def split_comments_keeping_offsets(text):
 
 
 IDENTIFIER = re.compile(r"(?<![\\.\w])[A-Za-z_]\w*(?!\w)(?!\s*\|->)", A)
-CITATION = re.compile(r"[\w./-]+\.[A-Za-z]\w*:\d+|#L\d+", A)
+CITATION = re.compile(r"[\w./-]+\.[A-Za-z]\w*(?::\d+|\s*`)|#L\d+", A)
 DEPTH = {"(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1}
 LOOSER_THAN_AND = re.compile(r"(\\/|=>|<=>|~>|-\+->|\\equiv\b)", A)
 RUNS_TO_END = re.compile(r"(\\[EA]|IF|LET|CASE|CHOOSE)\b", A)
@@ -359,9 +360,10 @@ def conjuncts(bare, start, to, line_start):
 
 
 def uncited_conditions(text, shared=()):
-    """Each condition of an action that no comment ties to code by a file and line: a conjunct
-    that changes nothing and reads a variable that the action does not change. `shared` names
-    the variables of the modules that the text extends."""
+    """Each condition of an action that no comment ties to code, by a file and line or by a file
+    and the code it quotes in backticks: a conjunct that changes nothing and reads a variable that
+    the action does not change. `shared` names the variables of the modules that the text
+    extends."""
     code, notes = split_comments_keeping_offsets(text)
     bare = re.sub(r'"(?:[^"\\\n]|\\.)*"', lambda m: " " * len(m.group()), code)
     variables = set(tla_variables(bare)) | set(shared)
@@ -463,6 +465,27 @@ def uncited_conditions(text, shared=()):
                     "condition": re.sub(r"\s+", " ", code[a:b]).strip(),
                 }
             )
+    return found
+
+
+def located(lines, quote):
+    """Each span of lines, first and last from 1, that holds the quote, white space aside: the
+    place a cite by file and quote stands, so the cite needs no line number."""
+    words, line_of = [], []
+    for number, line in enumerate(lines, 1):
+        for word in line.split():
+            words.append(word)
+            line_of.append(number)
+    text, want = " ".join(words), " ".join(quote.split())
+    starts = [0]
+    for word in words[:-1]:
+        starts.append(starts[-1] + len(word) + 1)
+    found, at = [], text.find(want)
+    while at >= 0:
+        first = bisect.bisect_right(starts, at) - 1
+        last = bisect.bisect_right(starts, at + len(want) - 1) - 1
+        found.append((line_of[first], line_of[last]))
+        at = text.find(want, at + 1)
     return found
 
 
