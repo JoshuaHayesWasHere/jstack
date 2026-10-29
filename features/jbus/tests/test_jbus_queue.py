@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbus import cli, passes, queue, wake
+from jbus import passes, poll, queue, wake
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
@@ -935,15 +935,15 @@ def test_a_key_with_a_thread_is_never_launched_again(kitchen):
 
 def reasons(kitchen, now=NOW):
     """Run one pass, and return what it recorded on `Pass.reasons`."""
-    seen, second_half = {}, cli.second_half
+    seen, second_half = {}, poll.second_half
 
     def kept(half, client):
         second_half(half, client)
         seen.update(half.run.reasons)
 
-    kitchen.monkeypatch.setattr(cli, "second_half", kept)
+    kitchen.monkeypatch.setattr(poll, "second_half", kept)
     kitchen.poll(now)
-    kitchen.monkeypatch.setattr(cli, "second_half", second_half)
+    kitchen.monkeypatch.setattr(poll, "second_half", second_half)
     return seen
 
 

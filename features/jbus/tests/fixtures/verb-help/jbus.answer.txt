@@ -1,0 +1,20 @@
+usage: jbus answer [-h] [--by BY] [--at AT] [--message THREAD/MESSAGE]
+                   (--default | --differs)
+                   number [words ...]
+
+positional arguments:
+  number                the question's number
+  words                 the user's words, with --by and --at
+
+options:
+  -h, --help            show this help message and exit
+  --by BY               the user's name, with --at, for words that were typed
+  --at AT               "<YYYY-MM-DD HH:MM ZONE>", the zone as jstack's config
+                        words it
+  --message THREAD/MESSAGE
+                        the user's own message in T3 Code, in place of --by,
+                        --at and the words
+  --default             the answer is the default the thread took: nothing is
+                        sent to it, or a go-ahead for a gate that holds
+  --differs             the answer is not the default, so the next pass tells
+                        the thread that asked

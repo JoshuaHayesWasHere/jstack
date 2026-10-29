@@ -1,0 +1,23 @@
+usage: jbus flow asks [-h] [--title TITLE] [--store STORE] [--json]
+                      since until
+
+Definition: an ask is a message from Josh, in any thread, that asks for a
+status, a visual update or a look at the queue, the plan or the machine, by
+the jobs of the jview-asks Report: J1 is work moving or why it stalled, J2
+where we are and the queue, J3 what needs him, J4 the machine, CI and runners,
+J5 whether a thing landed, J6 why he is asked, J7 the plan and how close a
+milestone is, J8 every home at once, J9 how much got done, VW the view itself.
+One message can ask for more than one job. A slash command, an approval with
+no question and new work are not asks.
+
+positional arguments:
+  since          from this time, the user's zone with none
+  until          to this time, as since
+
+options:
+  -h, --help     show this help message and exit
+  --title TITLE  threads whose title is like this, as SQL's like (default:
+                 '%', every thread)
+  --store STORE  T3 Code's store, opened read-only
+  --json         print the counts and list as JSON, as jbus flow --json does
+                 before asks

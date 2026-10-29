@@ -99,7 +99,7 @@ from jbus.watch import World, at_work, task_brief
 from jmerge import ready
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 EVENTS = {"expedite": "quiet"}
 EXPEDITE = "expedite"

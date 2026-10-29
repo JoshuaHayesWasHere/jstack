@@ -1,0 +1,10 @@
+usage: jbus home [-h] [--directory] [--keep DIRECTORY] [brief]
+
+positional arguments:
+  brief             the brief or the request, <state>/tasks/<slug>.md
+
+options:
+  -h, --help        show this help message and exit
+  --directory       print the home's directory, not its thread
+  --keep DIRECTORY  read lines of <brief>\t<text> and print the text of those
+                    whose home is DIRECTORY

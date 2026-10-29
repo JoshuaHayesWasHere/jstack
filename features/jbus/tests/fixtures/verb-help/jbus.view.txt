@@ -1,0 +1,12 @@
+usage: jbus view [-h] [--port PORT] [--since SINCE] [{usage,pace}]
+
+positional arguments:
+  {usage,pace}   with usage, count each event the page kept; with pace, give
+                 the median seconds from page load to each first action, this
+                 week against last
+
+options:
+  -h, --help     show this help message and exit
+  --port PORT    the one port it listens on
+  --since SINCE  count from this time, the user's zone with none (default: 7
+                 days ago)

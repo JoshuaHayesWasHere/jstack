@@ -1,0 +1,13 @@
+usage: jbus item drop [-h] --by BY [--where {chat,view,cli}] [--words WORDS]
+                      [--seen SEEN]
+                      id
+
+positional arguments:
+  id
+
+options:
+  -h, --help            show this help message and exit
+  --by BY
+  --where {chat,view,cli}
+  --words WORDS         what was said, as it was said
+  --seen SEEN           the last line of the item its writer saw

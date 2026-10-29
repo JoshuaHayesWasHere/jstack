@@ -1,0 +1,23 @@
+usage: jbus flow [-h] [--since SINCE] [--until UNTIL] [--json] [--rows]
+                 [--journal JOURNAL] [--no-github] [--jobs] [--no-journal]
+                 {nudges,asks} ...
+
+positional arguments:
+  {nudges,asks}
+    nudges           the owner's nudges in the home threads, from T3 Code's
+                     store
+    asks             the owner's status asks per job and per day, from T3
+                     Code's store
+
+options:
+  -h, --help         show this help message and exit
+  --since SINCE      from this time, the user's zone with none (default: 7
+                     days)
+  --until UNTIL      to this time, the user's zone with none, as --since
+                     (default: now)
+  --json             print the measure as JSON
+  --rows             every merged row, each span with its record
+  --journal JOURNAL  read jbus's journal lines from this file, not journalctl
+  --no-github        ask GitHub nothing
+  --jobs             ask each run's jobs for queue time: a call per run
+  --no-journal       read no journal

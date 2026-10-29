@@ -1,0 +1,16 @@
+usage: jbus word [-h] (--to PROJECT | --all) [--message THREAD/MESSAGE]
+                 [--from THREAD] [--page FILE] [--scope SCOPE]
+
+options:
+  -h, --help            show this help message and exit
+  --to PROJECT          the project or the scratch home whose home it is for
+  --all                 the home of every project
+  --message THREAD/MESSAGE
+                        the user's own message in T3 Code, which jbus reads
+                        for the words and the time
+  --from THREAD         the thread running this: a word recorded by a
+                        project's home is not posted to it
+  --page FILE           the page the word was given on: the word goes to the
+                        home whose page it is
+  --scope SCOPE         a scoped home the user's message goes to, given again
+                        for each, or every

@@ -17,7 +17,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import alert, alive, cli, item, passes, wake
+from jbus import alert, alive, item, passes, poll, wake
 from test_jbus_kitchen import ASK, NOW, REFUSED
 from test_jbus_kitchen import HOME as HOME_THREAD
 
@@ -357,7 +357,7 @@ def test_a_recovered_line_that_could_not_be_queued_is_owed_to_the_next_pass(kitc
     with monkeypatch.context() as broken:
         broken.setattr(alert, "deliver", lambda *_, **__: (_ for _ in ()).throw(OSError("full")))
         said = []
-        assert cli.poll(jbus.load(), later(10), said.append) == 1
+        assert poll.poll(jbus.load(), later(10), said.append) == 1
     assert "pass failed demo: OSError: full" in said
     assert kitchen.status()["last_pass"] == "2026-10-12 11:10 ET"
     assert kitchen.status()["streaks"]["pass"]["alerted"] is True

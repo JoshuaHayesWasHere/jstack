@@ -39,7 +39,7 @@ from jbus.watch import World, home_thread, task_brief
 from jmerge import ready
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 EVENTS = {"reviewed": "quiet"}
 TEMPLATE = "reviewed"

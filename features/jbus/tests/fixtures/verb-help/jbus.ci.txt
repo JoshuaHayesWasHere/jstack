@@ -1,0 +1,14 @@
+usage: jbus ci [-h] [--days DAYS] [--report] [--each] [--notice]
+               [field=value ...]
+
+positional arguments:
+  field=value  the fields of --notice
+
+options:
+  -h, --help   show this help message and exit
+  --days DAYS  days to collect and count (14)
+  --report     write the week's report and alert
+  --each       every project whose config says ci_report = true, and none when
+               no project does
+  --notice     print the annotation that gives the collector a job's
+               telemetry, and read no config

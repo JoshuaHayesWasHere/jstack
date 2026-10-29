@@ -36,7 +36,7 @@ from jbus import verbs
 from jbus.ci import collect, ledger, notice, numbers, report
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 DAYS = 14
 WEEK = 7

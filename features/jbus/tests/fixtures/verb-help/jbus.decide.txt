@@ -1,0 +1,9 @@
+usage: jbus decide [-h] --question QUESTION --reply REPLY slug
+
+positional arguments:
+  slug
+
+options:
+  -h, --help           show this help message and exit
+  --question QUESTION  what the user has to decide
+  --reply REPLY        the reply the user can send as it is

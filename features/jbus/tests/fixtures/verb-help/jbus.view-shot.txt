@@ -1,0 +1,15 @@
+usage: jbus view-shot [-h] --out OUT [--width {1440,390}] [--home HOME]
+                      [--port PORT]
+                      route
+
+positional arguments:
+  route               the page's route, as '#/' or '#/<project>'
+
+options:
+  -h, --help          show this help message and exit
+  --out OUT           the PNG to write, a bare name in $XDG_RUNTIME_DIR or
+                      /tmp
+  --width {1440,390}
+  --home HOME         the home the page shows, as <project>/<home> or a home
+                      of this project
+  --port PORT         the port of jbus view, its own by default

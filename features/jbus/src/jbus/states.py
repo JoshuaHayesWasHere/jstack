@@ -24,7 +24,7 @@ from jbus import (
 )
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 
 def judged(half: Half) -> None:

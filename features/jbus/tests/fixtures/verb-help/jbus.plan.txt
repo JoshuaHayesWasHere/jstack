@@ -1,0 +1,15 @@
+usage: jbus plan [-h] [--message THREAD/MESSAGE] [--scope SCOPE]
+                 [{close,go,stop}] [entry]
+
+positional arguments:
+  {close,go,stop}       close: move a finished entry out; go: keep the user's
+                        go for an entry, and every row filed under it is
+                        approved by it; stop: stop that go
+  entry                 the entry, by its slug
+
+options:
+  -h, --help            show this help message and exit
+  --message THREAD/MESSAGE
+                        with go: the user's own message in T3 Code that gives
+                        the entry its go
+  --scope SCOPE         a scoped home's plan, in place of the root home's

@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 import jbus
 import jmerge.cli
 import jmerge.lines
-from jbus import alive, cli, wake
+from jbus import alive, poll, wake
 from test_jbus_kitchen import KEY, NOW, PROJECT, REFUSED
 from test_jbus_wake_failing import alert, fail, refusing
 
@@ -48,7 +48,7 @@ def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_wri
     kitchen.write(path, top + "\n".join(broken) + "\n[[project]]" + demo)
     (kitchen.state_dir / "broken").write_text("a file where the state directory goes\n")
     said = []
-    assert cli.poll(jbus.load(), NOW, said.append) == 1
+    assert poll.poll(jbus.load(), NOW, said.append) == 1
     (failed,) = [line for line in said if line.startswith("pass failed")]
     assert failed.startswith("pass failed broken: FileExistsError: ")
     assert "woke demo: 1 events" in said
@@ -61,7 +61,7 @@ def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_wri
 
 
 def test_a_pass_where_nothing_raised_exits_zero(kitchen):
-    assert cli.poll(jbus.load(), NOW, lambda _: None) == 0
+    assert poll.poll(jbus.load(), NOW, lambda _: None) == 0
     assert kitchen.main("poll")[0] == 0
 
 

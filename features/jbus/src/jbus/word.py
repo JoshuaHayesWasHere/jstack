@@ -84,7 +84,7 @@ from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.t3 import heard as heard_in
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 LOCK = "word-sends.lock"
 NAME = "word-sends.json"
@@ -607,7 +607,7 @@ def scratch(
     config: Config, client: Client | None, now: datetime, say: Callable[[str], None]
 ) -> None:
     """For each scratch home, send the home's waiting words to the home's thread. That is all
-    the work a scratch home gets from jbus, and `jbus.cli.poll` runs `scratch` once a pass as
+    the work a scratch home gets from jbus, and `jbus.poll.poll` runs `scratch` once a pass as
     a chore. A scratch home is not one of the projects that a pass works through
     (`jbus.load`), so `scratch` cannot be one of a project's steps. When a scratch home's
     `word-sends.json` does not parse, `scratch` says so and raises no gate, since a scratch home

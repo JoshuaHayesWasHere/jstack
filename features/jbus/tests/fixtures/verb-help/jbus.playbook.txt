@@ -1,0 +1,13 @@
+usage: jbus playbook [-h] [--name NAME] [--named]
+                     {crewmate,scout,reviewer,home,expert} [brief]
+
+positional arguments:
+  {crewmate,scout,reviewer,home,expert}
+                        who opens it
+  brief                 the brief, request or plan whose Playbook: line names
+                        it
+
+options:
+  -h, --help            show this help message and exit
+  --name NAME           the playbook's name, in place of the line's
+  --named               print the name the line gives, and open nothing

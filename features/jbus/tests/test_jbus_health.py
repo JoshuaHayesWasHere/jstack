@@ -13,7 +13,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import cli, health, merge, wake
+from jbus import health, merge, poll, wake
 from jroles import ledger
 from test_jbus_blocking import Second
 from test_jbus_kitchen import KEY, NOW, approved
@@ -369,7 +369,7 @@ def test_a_pass_in_which_a_project_raises_still_looks_at_the_machine_and_pages(
     senses.disks["/home"] = (85 * GIB, 15 * GIB, 0, 0)
     kitchen.t3.write(NOW)
     said = []
-    assert cli.poll(jbus.load(), NOW, said.append) == 1
+    assert poll.poll(jbus.load(), NOW, said.append) == 1
     line = "alert: health disk /home: 85% of its space used (85.0 of 100.0 GiB), alerts at 80%"
     assert line in said and pages(kitchen) == [line]
     assert [one for one in kitchen.log("notify") if "health" in one] == [f"jbus | {line}"]

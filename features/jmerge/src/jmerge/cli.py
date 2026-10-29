@@ -16,18 +16,16 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import jbus
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
-from jbus.watch import failed_in
+from jbus.joblog import failed_in
 from jmerge import (
-    accepts,
     checks,
     claims,
-    follow,
     lines,
     mainjson,
     proof,
@@ -42,6 +40,9 @@ from jmerge import (
 from jmerge import gate as merge_gate
 from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
+
+if TYPE_CHECKING:
+    from jmerge.accepts import Acting
 
 LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
@@ -1091,7 +1092,7 @@ class Repo:
         when: str | None,
         say: Callable[[str], None],
         check: bool,
-        acting: accepts.Acting | None = None,
+        acting: Acting | None = None,
     ) -> int:
         """Lift the hold of `one` and merge it, the user's hand-merge. With `acting`, the accept
         is an act of jbus's (`jmerge.accepts`): a door the party may not open parks a gate and
@@ -1145,6 +1146,8 @@ class Repo:
             except jbus.Refused:
                 return 1
             return 0
+        from jmerge import accepts
+
         touched = bool(ready.protected_path(one, self.protected, self.left(one) or ()))
         held = accepts.doors(text, touched)
         outcome, line = accepts.accept(acting, one.number, found.slug, one.head, held, does)
@@ -1332,7 +1335,9 @@ class Repo:
         if pulled.returncode:
             notes.append(lines.not_pulled(lines.said(pulled)))
         else:
-            notes += follow.follow(_run, self.main, before)
+            from jmerge.follow import follow
+
+            notes += follow(_run, self.main, before)
         kept = (
             f"{one.branch} is an integration branch"
             if one.branch in self.integration
@@ -1921,6 +1926,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         acting = None
         if said and not args.check:
+            from jmerge import accepts
+
             try:
                 acting = accepts.acting(main_checkout, args.message, args.at, args.as_, user)
             except jbus.Refused as error:
