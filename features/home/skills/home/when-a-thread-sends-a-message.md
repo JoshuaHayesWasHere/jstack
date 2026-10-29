@@ -65,7 +65,10 @@ grep -E '^(decision|stop) local ' "${M:?run the block that finds this home first
 The root home then runs the block of "Scoped homes" that reads the scopes.
 Do not read a crewmate's timeline unless the user asks what it is doing.
 
-Once a week the root home's status also says where changes collide. Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines) and stamps the run, and otherwise it prints nothing. Show what it prints. A file high in all three is one to split, and never a reason to hold a launch.
+Once a week the root home's status also says where changes collide.
+Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines) and stamps the run, and otherwise it prints nothing.
+Show what it prints.
+A file high in all three is one to split, and never a reason to hold a launch.
 
 ```sh
 if [ -z "$(find "$H/hot-files.stamp" -mtime -7 2> /dev/null)" ]; then
