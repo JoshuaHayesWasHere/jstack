@@ -138,11 +138,13 @@ window.addEventListener("load", function () { setTimeout(function () {
   /* Each shown element of `root` that paints due or missed: as its background, a border, an SVG
      fill or stroke, or the colour of its own words. With it, the words it holds, which are what
      say the state to someone who does not see the colour. A swatch of a legend, `.key`, is told
-     by the words of its entry, and is marked `key`: it names a colour and claims no state. */
+     by the words of its entry, and is marked `key`: it names a colour and claims no state. The
+     matrix, `#matrix`, is the board's and is left out: each of its dots is told by its cell's
+     label and the legend over it. */
   function paints(root) {
     var inside = drawer.contains(root);
     return all("*", root).filter(function (el) {
-      return (inside || !drawer.contains(el)) && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && el.getBoundingClientRect().width > 0;
+      return (inside || !drawer.contains(el)) && !el.closest("#matrix") && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && el.getBoundingClientRect().width > 0;
     }).map(function (el) {
       var cs = getComputedStyle(el), own = Array.prototype.some.call(el.childNodes, function (n) { return n.nodeType === 3 && /\S/.test(n.textContent); });
       var hues = [cs.backgroundColor, cs.fill, cs.stroke, own ? cs.color : ""];
