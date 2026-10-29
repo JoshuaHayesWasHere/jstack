@@ -252,6 +252,19 @@ def test_a_conflict_after_the_review_gets_the_rebase_message_and_no_other(launch
     assert launched.lines("conflict") == []
 
 
+def test_a_conflict_on_a_pull_request_into_a_merge_base_is_rebased_onto_that_base(launched):
+    """A pull request into a merge base, such as the sidebar's `t3code-jstack`, is rebased onto
+    its own base: a rebase onto main would carry that branch's commits into it."""
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
+    side = {**pull(launched, mergeable="CONFLICTING"), "baseRefName": "t3code-jstack"}
+    launched.set("open.json", [side])
+    passes(launched, 0, 3)
+    (sent,) = [one["message"] for one in sends(launched)]
+    assert sent.startswith("jbus: t3code-jstack moved under your pull request #7 (")
+    assert "rebase onto origin/t3code-jstack, the check command" in sent
+    assert "origin/main" not in sent
+
+
 def test_a_head_told_of_its_conflict_before_the_review_gets_the_rebase_message_after_it(
     launched,
 ):

@@ -113,7 +113,7 @@ NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
 SECOND = "stale again after its one rebase"
 MESSAGE = (
-    "jbus: main moved under your pull request #{number} ({reason}). Rebase it in your own "
+    "jbus: {default} moved under your pull request #{number} ({reason}). Rebase it in your own "
     "worktree now, even if GitHub says MERGEABLE: run `git update-ref "
     'refs/jstack/pre-rebase/{slug}/{short} {head}` first, then "A conflict"\'s rebase onto '
     "origin/{default}, the check command, and push with `git push "
@@ -500,6 +500,8 @@ def post(
         return None
     default = ""
     if ask.default:
+        default = str(world.open[slug].get("baseRefName") or "")
+    if ask.default and not default:
         asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
         default = asked.stdout.strip().removeprefix("origin/")
     if ask.default and not default:
