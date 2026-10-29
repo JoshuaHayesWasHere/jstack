@@ -49,8 +49,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 
 import jsettings
-from jbriefs import parse as briefs
-from jbus import review
+from jbus import review, thread_of
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import slot, waiters
@@ -133,7 +132,7 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     if not head:
         return False
     brief = task_brief(run, row)
-    if jsettings.thread_id(thread) != jsettings.thread_id(briefs.thread_of(brief)):
+    if jsettings.thread_id(thread) != jsettings.thread_id(thread_of(run.home, row)):
         return False
     unwritten = review.class_of(ready.short_of(brief, head)) in ("review", "scoped")
     return unwritten and review.reviewing(brief)

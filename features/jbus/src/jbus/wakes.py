@@ -23,8 +23,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import jbus
 from jbriefs import home as homes
-from jbriefs.home import thread_of
 from jbus import (
     blockers,
     clock,
@@ -266,7 +266,7 @@ def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
 def root_of(run: Pass) -> str:
     """The root home's thread, or with none the top-level `home_thread` its wakes go to
     (`alert._thread`)."""
-    return thread_of(run.home) or run.config.home_thread
+    return jbus.thread_of(run.home) or run.config.home_thread
 
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
@@ -281,7 +281,7 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
         text = (
             brief.read_text(errors="replace") if one["kind"] == "approve" and brief.exists() else ""
         )
-        by = thread_of(homes.home_of(run.home, text)) if text else ""
+        by = jbus.thread_of(homes.home_of(run.home, text)) if text else ""
         items.append(Item(key=one["key"], to=root, line=said, row=one.get("slug") or "", by=by))
     return items
 
@@ -310,7 +310,7 @@ def owed_items(run: Pass, record: dict[str, Any], rows: list[queue.Row]) -> list
     for made in plan.owed(run.state, run.home, rows):
         key = plan.owed_key(made)
         line = f"{key}: go holds, no live row"
-        thread = thread_of(run.home / made.scope) or root
+        thread = jbus.thread_of(run.home / made.scope) or root
         where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
         flag = f" --scope {made.scope}" if made.scope else ""
         text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
@@ -326,7 +326,7 @@ def brief_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
         where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
         text = BRIEF.format(entry=made.entry, plan=where, merged=merged)
         line = f"{made.key()}: {merged} merged"
-        thread = thread_of(run.home / made.scope) or root
+        thread = jbus.thread_of(run.home / made.scope) or root
         items.append(Item(key=made.key(), to=thread, line=line, row=made.entry, text=text))
     return items
 
@@ -339,7 +339,7 @@ def prose_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     for key, one in (prose.read(run.state) or {}).items():
         if one.seeded:
             continue
-        thread = (thread_of(run.home / one.scope) if one.scope else "") or root
+        thread = (jbus.thread_of(run.home / one.scope) if one.scope else "") or root
         line, text = f"{key}: {one.text}", PROSE.format(file=one.file)
         items += _with_late(run, record, root, Item(key, thread, line, text=text))
     return items

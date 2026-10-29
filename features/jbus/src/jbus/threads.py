@@ -24,7 +24,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jbriefs import findings, parse, skills
+import jbus
+from jbriefs import findings, skills
+from jbriefs.home import home_of
 from jbus import (
     END_TURN,
     dispatch,
@@ -439,7 +441,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         if not dispatch.launched(run, slug) or mirror.last_result(brief):
             continue
-        if parse.thread_of(brief) != at or world.awaits(thread):
+        if jbus.thread_of(run.home, slug) != at or world.awaits(thread):
             continue
         key = f"resume|{slug}|{at}|{ended}"
         if key in sent:
@@ -492,7 +494,7 @@ def _stopped(
     is a gate once for the thread. A line that got no answer is sent again on the next pass."""
     at, ended = run_of
     what = f"thread ended {status} after two carry-ons"
-    home = watch.home_thread(run, brief)
+    home = jbus.thread_of(home_of(run.home, brief))
     key = f"stopped|{slug}|{at}"
     if home and key in run.box.sent():
         return
@@ -540,7 +542,7 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
             continue
         key = f"merged-left|{slug}|#{pull['number']}"
         listed = (world.thread(slug) or {}).get("threadId", "")
-        at = parse.thread_of(brief) or dispatch.launched(run, slug) or listed
+        at = jbus.thread_of(run.home, slug) or dispatch.launched(run, slug) or listed
         if not at or _done(run, key):
             continue
         message = resume_message(

@@ -40,6 +40,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import jbus
 import jsettings
 from jbriefs import below
 from jbriefs import home as homes
@@ -227,7 +228,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}
     for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
-        thread = homes.thread_of(scope)
+        thread = jbus.thread_of(scope)
         lines = out(run.home, scope, run.state, threads)
         if scope == run.home:
             lines = [line for line in lines if not line.startswith(USERS)]
