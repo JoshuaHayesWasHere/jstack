@@ -5,8 +5,10 @@ pull request has none, and `rebase.tell` finds nothing in it to act on. The pull
 has ended its turn, and a fix to main wakes nobody.
 
 `tell` records the default branch's commit from pass to pass. When main goes from red to
-green, it sends one message to the crew of each open pull request that is red, but a stacked
-link still on its base's branch, whose move is `stack`'s to tell. When main
+green, it sends one message to the crew of each open pull request into main that is red, but
+a stacked link still on its base's branch, whose move is `stack`'s to tell. A pull request into
+any other base, such as a merge base its project names, gets none: main's commits are not its
+base's, and a rebase onto main would carry them into it. When main
 moves while green, a branch has no reason to move.
 
 `main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for a launch
@@ -252,7 +254,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
         if not head or not dispatch.launched(run, slug):
             continue
         mergeable = pull.get("mergeable")
-        if not why:
+        if not why or pull.get("baseRefName") not in (None, "", default):
             continue
         if key in sent:
             continue
