@@ -65,10 +65,13 @@ def test_no_docs_page_is_over_the_cap_unless_listed_and_a_listed_one_is():
 
 
 def test_a_page_over_the_cap_and_a_listed_page_under_it_are_found(tmp_path):
-    (tmp_path / "docs" / "deep").mkdir(parents=True)
-    (tmp_path / "docs" / "long.md").write_text("line\n" * (CAP + 1))
-    (tmp_path / "docs" / "deep" / "short.md").write_text("line\n" * CAP)
-    assert over(tmp_path, frozenset()) == [f"long.md: {CAP + 1} lines"]
-    assert over(tmp_path, frozenset({"long.md", "deep/short.md"})) == [
-        f"deep/short.md: under {CAP}, take it off the list"
+    docs = tmp_path / "features" / "a-feature" / "docs"
+    (docs / "deep").mkdir(parents=True)
+    (docs / "long.md").write_text("line\n" * (CAP + 1))
+    (docs / "deep" / "short.md").write_text("line\n" * CAP)
+    long = "features/a-feature/docs/long.md"
+    short = "features/a-feature/docs/deep/short.md"
+    assert over(tmp_path, frozenset()) == [f"{long}: {CAP + 1} lines"]
+    assert over(tmp_path, frozenset({long, short})) == [
+        f"{short}: under {CAP}, take it off the list"
     ]
