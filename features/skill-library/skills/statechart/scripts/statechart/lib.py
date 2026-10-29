@@ -2,6 +2,7 @@
 a Mermaid stateDiagram-v2 read into regions, the machine that regions make together, and the
 chart's colors."""
 
+import bisect
 import inspect
 import json
 import os
@@ -464,6 +465,27 @@ def uncited_conditions(text, shared=()):
                     "condition": re.sub(r"\s+", " ", code[a:b]).strip(),
                 }
             )
+    return found
+
+
+def located(lines, quote):
+    """Each span of lines, first and last from 1, that holds the quote, white space aside: the
+    place a cite by file and quote stands, so the cite needs no line number."""
+    words, line_of = [], []
+    for number, line in enumerate(lines, 1):
+        for word in line.split():
+            words.append(word)
+            line_of.append(number)
+    text, want = " ".join(words), " ".join(quote.split())
+    starts = [0]
+    for word in words[:-1]:
+        starts.append(starts[-1] + len(word) + 1)
+    found, at = [], text.find(want)
+    while at >= 0:
+        first = bisect.bisect_right(starts, at) - 1
+        last = bisect.bisect_right(starts, at + len(want) - 1) - 1
+        found.append((line_of[first], line_of[last]))
+        at = text.find(want, at + 1)
     return found
 
 

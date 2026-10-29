@@ -4,7 +4,6 @@ on that fix, and each control of today's code with another gap breaks the rules 
 run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's conditions, and
 the design's `Rejudge`, each name a file and the code it quotes."""
 
-import bisect
 import importlib
 import os
 import re
@@ -45,26 +44,6 @@ def flat(model):
     return re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", model.read_text())
 
 
-def located(lines, quote):
-    """Each span of lines, first and last from 1, that holds the quote, white space aside."""
-    words, line_of = [], []
-    for number, line in enumerate(lines, 1):
-        for word in line.split():
-            words.append(word)
-            line_of.append(number)
-    text, want = " ".join(words), " ".join(quote.split())
-    starts = [0]
-    for word in words[:-1]:
-        starts.append(starts[-1] + len(word) + 1)
-    found, at = [], text.find(want)
-    while at >= 0:
-        first = bisect.bisect_right(starts, at) - 1
-        last = bisect.bisect_right(starts, at + len(want) - 1) - 1
-        found.append((line_of[first], line_of[last]))
-        at = text.find(want, at + 1)
-    return found
-
-
 def cites():
     """Each cite of the models, once: its file and quote."""
     return sorted({cite for model in MODELS for cite in QUOTE.findall(flat(model))})
@@ -82,19 +61,10 @@ def test_each_quote_a_model_cites_stands_once_in_its_file():
     changes nothing a cite says."""
     wrong = []
     for path, quote in cites():
-        found = located((REPO / path).read_text().splitlines(), quote)
+        found = lib.located((REPO / path).read_text().splitlines(), quote)
         if len(found) != 1:
             wrong.append(f"{path} `{quote}`: {len(found)} times")
     assert wrong == []
-
-
-def test_a_quote_finds_its_lines_after_a_shift_and_not_once_its_block_is_split():
-    lines = ["def red(main):", "    if not main.red or fix:", "        return []"]
-    assert located(lines, "if not main.red or fix: return []") == [(2, 3)]
-    assert located(["", "", *lines], "if not main.red or fix: return []") == [(4, 5)]
-    assert located([*lines[:2], "    x = 1", lines[2]], "if not main.red or fix: return []") == []
-    assert located([*lines, *lines], "def red(main):") == [(1, 1), (4, 4)]
-    assert located(lines, "def blue(") == []
 
 
 STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
@@ -109,12 +79,14 @@ def disjuncts(code):
 def test_a_quote_of_one_python_line_holds_each_or_on_it():
     """A quote that stands on one line of Python names a condition, and holds every `or` that
     line holds, so a disjunct the code gains, as `rows.red` gained the proof of a fix in #583,
-    fails here until the model takes it in. A quote over several lines names a block."""
+    fails here until the model takes it in. A quote over several lines names a block, and one
+    that does not stand once is the test above's."""
     checked = []
     for path, quote in cites():
         lines = (REPO / path).read_text().splitlines()
-        [(first, last)] = located(lines, quote) or [(0, -1)]
-        if path.endswith(".py") and first == last:
+        found = lib.located(lines, quote)
+        if path.endswith(".py") and len(found) == 1 and found[0][0] == found[0][1]:
+            first = found[0][0]
             checked.append(quote)
             assert disjuncts(quote) == disjuncts(lines[first - 1]), f"{path} `{quote}`"
     assert "ran.over == red and bool(failed)" in checked

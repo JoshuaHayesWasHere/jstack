@@ -31,9 +31,9 @@ Rerun it when the diff touches any of these:
 - `features/jbus/src/jbus/mainmoved.py` (`tell`, `main_check`, `failed_at`, `SETTLED`, the `STEPS` slot);
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`, `failures`);
 - `features/jmerge/src/jmerge/rows.py` (`main`, `red`, `Ran`, `proves`, `browser_red`, `main_browser_run`);
-- `features/jbus/src/jbus/cli.py` where a pass runs `merge.merge` (line 146) before the `after-expedite` slot, or the pass lock (215-219), and `features/jbus/src/jbus/merge.py`;
-- `features/jbus/src/jbus/watch.py` `_check` (919-963) and `_judged`, the answers a tip's check can have;
-- `write_json` in `features/jbus/src/jbus/__init__.py` (434-444): the model takes a read to see a whole record, which `os.replace` gives;
+- `features/jbus/src/jbus/cli.py` where a pass runs `merge.merge` (`half.said = merge.merge(run)`) before the `after-expedite` slot, or the pass lock (`fcntl.flock`), and `features/jbus/src/jbus/merge.py`;
+- `features/jbus/src/jbus/watch.py` `_check` and `_judged`, the answers a tip's check can have;
+- `write_json` in `features/jbus/src/jbus/__init__.py`: the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
 - a move of any of these modules: the model imports them and stubs by module attribute, so a move changes its imports and its stubs, and the check is rerun on the moved code (unit 6 moved `jbus.mainstate` to `jmerge.mainjson` with the same counts).
 
@@ -84,9 +84,9 @@ The line numbers below are of the code before the fix (`fa810ec`).
 
 - **F1 (S2).**
   After a red tip M1, a green M2 whose send T3 Code loses writes only `fixed` (`mainmoved.py`) and keeps `broken: M1`.
-  The next pass, at a tip M3 whose check is pending, writes `broken: M1` again (164-165, `check != "green"`) and drops `fixed`: `mainstate.of` (now `mainjson.of`) read `red=M1` with `green=M2`.
+  The next pass, at a tip M3 whose check is pending, writes `broken: M1` again (`check != "green"`) and drops `fixed`: `mainstate.of` (now `mainjson.of`) read `red=M1` with `green=M2`.
 - **F2 (S1).**
-  A tip that fails and is followed by another before a pass looks at it is never kept as `broken`: `broken` comes from the newest tip's own check (97-99).
+  A tip that fails and is followed by another before a pass looks at it is never kept as `broken`: `broken` comes from the newest tip's own check.
   With the newest pending, `rows.red` is empty and jmerge merges onto the red main.
 - **F3 (S2).**
   The mirror of F2: while main is red jmerge merges only the fix, so a second tip lands by another merge (a second fix, a merge by hand, `--accept`), and a green tip it follows before a pass looks at it is never seen: `broken` stays while the newest tip is pending.

@@ -1,8 +1,8 @@
 ---- MODULE HomeTreeToday ----
 \* Today's code, as of main 859203e0 (2026-10-27): the branch hometree-rules gave main 64859143 the
 \* four guards of the design, and its cites follow the code since. A child home is a scoped home (home/scoped-homes.md), the root is the repo's root
-\* home, and jbus's pass is the root's check. Each condition of a step names the file and line
-\* that checks it, and quotes the code there in backticks: jbus/ is features/jbus/src/jbus/,
+\* home, and jbus's pass is the root's check. Each condition of a step names the file that
+\* checks it, and quotes the code there in backticks, with no line number: jbus/ is features/jbus/src/jbus/,
 \* jmerge/ is features/jmerge/src/jmerge/, jbriefs/ is features/jbriefs/src/jbriefs/, and home/
 \* and handoff/ are the skills in features/home/skills/. Its steps are the design's, guard for
 \* guard, since the code now has each of the design's guards: the retire guard, the watch of a

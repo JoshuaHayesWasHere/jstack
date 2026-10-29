@@ -1,10 +1,9 @@
 """The home tree's TLA+ spec in `features/home/spec/`: TLC checks the design, and each rule holds
 in every scene while each canary, the design with one guard taken out, breaks its rule. Each run
 of `canaries.py` is a test of its own, so the workers share them out, and those tests skip where
-no Java runs TLC. The code model's conditions each name a file and line, as the statechart tool
-checks."""
+no Java runs TLC. The code model's conditions each name a file and quote its code, as the statechart
+tool checks."""
 
-import bisect
 import importlib
 import os
 import re
@@ -41,7 +40,7 @@ PATIENCE = timedelta(hours=1)
 """How long a child with work out may be quiet before the root flags it."""
 
 
-def test_every_condition_of_the_code_model_names_its_file_and_line():
+def test_every_condition_of_the_code_model_quotes_its_file():
     """The statechart tool lists no condition of HomeTreeToday.tla that no comment ties to code."""
     today = SPEC / "HomeTreeToday.tla"
     shared = lib.shared_variables(today)
@@ -52,26 +51,6 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
 QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
 """A citation of HomeTreeToday.tla with the code it quotes, and no line number:
 `jbus/children.py `beat = _rhythm(scope)``, so a line that only moves needs no edit."""
-
-
-def located(lines, quote):
-    """Each span of lines, first and last from 1, that holds the quote, white space aside."""
-    words, line_of = [], []
-    for number, line in enumerate(lines, 1):
-        for word in line.split():
-            words.append(word)
-            line_of.append(number)
-    text, want = " ".join(words), " ".join(quote.split())
-    starts = [0]
-    for word in words[:-1]:
-        starts.append(starts[-1] + len(word) + 1)
-    found, at = [], text.find(want)
-    while at >= 0:
-        first = bisect.bisect_right(starts, at) - 1
-        last = bisect.bisect_right(starts, at + len(want) - 1) - 1
-        found.append((line_of[first], line_of[last]))
-        at = text.find(want, at + 1)
-    return found
 
 
 def quoted():
@@ -86,7 +65,7 @@ def quoted():
     for path, quote in QUOTE.findall(flat):
         (found,) = [one for one in files if one.endswith(f"/{path}")]
         lines = (REPO / found).read_text().splitlines()
-        yield path, quote, lines, located(lines, quote)
+        yield path, quote, lines, lib.located(lines, quote)
 
 
 def test_each_quote_of_the_code_model_stands_once_in_its_file():
@@ -97,14 +76,6 @@ def test_each_quote_of_the_code_model_stands_once_in_its_file():
     assert len(quotes) > 40
     wrong = [f"{path} `{quote}`: {len(at)} times" for path, quote, _, at in quotes if len(at) != 1]
     assert wrong == []
-
-
-def test_a_quote_finds_its_lines_after_a_shift_and_not_once_its_block_is_split():
-    lines = ["if why:", "    break"]
-    assert located(lines, "if why: break") == [(1, 2)]
-    assert located(["", *lines], "if why: break") == [(2, 3)]
-    assert located([lines[0], "    sent += 1", lines[1]], "if why: break") == []
-    assert located([*lines, *lines], "if why:") == [(1, 1), (3, 3)]
 
 
 STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")

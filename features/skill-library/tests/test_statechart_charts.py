@@ -22,6 +22,7 @@ from statechart_support import (
     edges,
     fixture,
     flat_door,
+    lib,
     no_tlc,
     node,
     parse_dot,
@@ -162,6 +163,18 @@ Pay ==
   /\\ UNCHANGED sent
 ====""")
     assert found == [{"line": 5, "action": "Pay", "condition": "sent < 3"}]
+
+
+def test_a_quote_finds_its_lines_after_a_shift_and_not_once_its_block_is_split():
+    """a quote stands where its words are, wherever the lines moved, and nowhere once a line
+    comes between them"""
+    lines = ["def red(main):", "    if not main.red or fix:", "        return []"]
+    assert lib.located(lines, "if not main.red or fix: return []") == [(2, 3)]
+    assert lib.located(["", "", *lines], "if not main.red or fix: return []") == [(4, 5)]
+    split = [*lines[:2], "    x = 1", lines[2]]
+    assert lib.located(split, "if not main.red or fix: return []") == []
+    assert lib.located([*lines, *lines], "def red(main):") == [(1, 1), (4, 4)]
+    assert lib.located(lines, "def blue(") == []
 
 
 def test_the_legend_is_not_part_of_the_machine():
