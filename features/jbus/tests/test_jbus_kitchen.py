@@ -521,15 +521,10 @@ def fake_jmerge(stub, args, cwd):
     `jmerge-dies` ends it the way a `SystemExit` with a message ends the real command: the line on
     stderr, and exit 1. `jmerge-says` ends it the way the real command ends when it cannot ask
     GitHub: the line on stdout, and exit 1. An accept of a held pull request does nothing where the
-    test wrote no `accept.txt`. Each pass reads `--claims`, which changes nothing, so its runs go
-    in `claims.log` and `jmerge.log` keeps the runs that may merge.
+    test wrote no `accept.txt`.
     """
-    with open(stub / ("claims.log" if args == ["--claims"] else "jmerge.log"), "a") as log:
+    with open(stub / "jmerge.log", "a") as log:
         log.write(" ".join(args) + "\n")
-    if args == ["--claims"]:
-        if (stub / "claims-fail").exists():
-            return 1, "", ""
-        return 0, (stub / "claims.txt").read_text(), ""
     if (stub / "jmerge-dies").exists():
         return 1, "", (stub / "jmerge-dies").read_text() + "\n"
     if (stub / "jmerge-says").exists():
@@ -641,7 +636,6 @@ class Kitchen:
             ("merged.json", "[]"),
             ("commits.json", "[]"),
             ("check-runs.json", "{}"),
-            ("claims.txt", ""),
             ("jmerge.txt", ""),
             ("sweep.txt", ""),
             ("jmerge-sleep", "0"),
@@ -927,8 +921,6 @@ class Kitchen:
         (["gh", "something", "else"], {}),
         (["jmerge"], {"jmerge.txt": "wait 7 a line\n"}),
         (["jmerge"], {"jmerge.txt": "wait 7 a line\n", "jmerge-dies-late": "it ended"}),
-        (["jmerge", "--claims"], {"claims.txt": "alpha src/a.py\n"}),
-        (["jmerge", "--claims"], {"claims-fail": ""}),
         (["jmerge", "--sweep", "--check"], {"sweep.txt": "removable alpha\n"}),
         (["jmerge", "--sweep", "--check"], {"jmerge-dies": "jmerge: it broke"}),
         (["jmerge", "--accept", "7", "--check"], {}),
@@ -955,8 +947,7 @@ def test_a_fake_says_the_same_called_here_and_started_as_a_command(kitchen, comm
         there.stdout,
         there.stderr.splitlines()[-1:],
     )
-    name = "claims" if command == ["jmerge", "--claims"] else command[0].removesuffix("-send")
-    log = kitchen.log(name)
+    log = kitchen.log(command[0].removesuffix("-send"))
     assert len(log) == 2 and log[0] == log[1]
 
 

@@ -316,7 +316,6 @@ TABLE = {
     "queue": "quiet",
     "sweep": "quiet",
     "reviewed": "quiet",
-    "overlap": "quiet",
     "note": "quiet",
     "unplaced": "quiet",
     "item.proposed": "quiet",

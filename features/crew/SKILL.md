@@ -87,6 +87,8 @@ Each is a gate that holds, parked as "Do the task" says: the action is its defau
 What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other acts at once on the default that it is not done.
 When in doubt, act and write down what you did.
 A command you write yourself deletes nothing whose target is a variable or a glob, clears scratch with `uv run --project "$T/../source" jbus forget <path>` or leaves it in `/tmp`, and uses only bash expansions, never a zsh one such as `${(s:,:)…}`, since Claude Code stops the thread to ask the user before it runs any of those.
+A subagent the crew starts, such as a playbook's read-only `Explore` read, is waited on in the same turn: started in the foreground, or in the background and then waited for before the turn ends.
+A turn never ends while a subagent of the crew runs, since a subagent left running when the turn ends reports to nobody.
 
 ## Do the task
 
