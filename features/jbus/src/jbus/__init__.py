@@ -37,6 +37,7 @@ in the turn, whenever the run started.
 from __future__ import annotations
 
 import os
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -84,7 +85,11 @@ class Project:
 
     `generated` names each file of the repo that a command writes, as `<file> -> <command>`, for
     `jmerge --remake`. It is empty where the table names none, and `jmerge` then makes `uv.lock`
-    by `uv lock`."""
+    by `uv lock`.
+
+    `merge_bases` names each branch besides the default one that `jmerge` merges a pull request
+    into, on the rules of a pull request into the default branch. It is empty where the table
+    names none, and `jbus project add-base` is the one writer of it."""
 
     name: str
     checkout: Path
@@ -94,6 +99,7 @@ class Project:
     migration_names: str = NUMBERED
     ci_report: bool = False
     generated: tuple[str, ...] = ()
+    merge_bases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -286,6 +292,33 @@ def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
     return "/".join(parts), str(names)
 
 
+BRANCH = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
+"""A branch name a project's `merge_bases` may hold: no space, no `..`, nothing git refuses in a
+ref, and no leading dash a command would read as a flag."""
+
+
+def merge_bases(name: str, bases: object) -> tuple[str, ...]:
+    """Return the branches of a project's `merge_bases`, or refuse a value that is not a list of
+    branch names, each named once."""
+    if bases is None:
+        return ()
+    if (
+        not isinstance(bases, list)
+        or not all(isinstance(one, str) and branch(one) for one in bases)
+        or len(set(bases)) != len(bases)
+    ):
+        raise Refused(
+            f"refused: project {name} has a merge_bases that is not a list of branch names, "
+            "each named once"
+        )
+    return tuple(bases)
+
+
+def branch(name: str) -> bool:
+    """Whether `name` is a branch name a project's `merge_bases` may hold (`BRANCH`)."""
+    return bool(BRANCH.fullmatch(name)) and ".." not in name and not name.endswith((".lock", "/"))
+
+
 BLOCKING = ("blocking_url", "blocking_key")
 
 
@@ -372,6 +405,7 @@ def load(directory: Path | None = None) -> Config:
                     migration_names=names,
                     ci_report=entry.get("ci_report", False),
                     generated=tuple(generated),
+                    merge_bases=merge_bases(name, entry.get("merge_bases")),
                 )
             )
         server = str(raw["server"]).rstrip("/")

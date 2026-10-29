@@ -1,5 +1,6 @@
 """`jbus project add` adds one project's table to the config, and the next pass works on that
-project.
+project. `jbus project add-base` names one more branch `jmerge` merges a project's pull requests
+into, in that project's table alone, and `jbus project bases` reads them back.
 
 Every test runs the real command on the made-up config of `test_jbus_kitchen`, and reads the file,
 its mode and the copy that jbus keeps of it. The pass is the real one, against the faked T3 Code
@@ -137,6 +138,81 @@ def test_a_config_a_pass_would_refuse_is_refused_and_not_written(kitchen, added,
     assert (config(kitchen).read_text(), backups(kitchen)) == (text, [])
 
 
+def add_base(kitchen, name, branch):
+    return kitchen.main("project", "add-base", name, branch)
+
+
+def bases_of(kitchen, name):
+    return kitchen.main("project", "bases", name)
+
+
+def test_a_merge_base_is_one_line_in_its_projects_table_and_reads_back(kitchen, added):
+    add(kitchen, "added", added)
+    assert bases_of(kitchen, "demo") == (0, "")
+    was = config(kitchen).read_text()
+    code, out = add_base(kitchen, "demo", "t3code-jstack")
+    backup = backups(kitchen)[-1]
+    assert (code, out) == (
+        0,
+        "added: one merge base to the project's table, the file as it was is "
+        f"{backup}: the next pass works it, restart no unit\n",
+    )
+    assert backup.read_text() == was
+    assert (mode(config(kitchen)), mode(backup)) == (0o600, 0o600)
+    now = config(kitchen).read_text()
+    assert [line for line in now.splitlines() if line not in was.splitlines()] == [
+        'merge_bases = ["t3code-jstack"]'
+    ]
+    before, after = tomllib.loads(was), tomllib.loads(now)
+    demo = next(at for at, one in enumerate(after["project"]) if one["name"] == "demo")
+    assert after["project"][demo].pop("merge_bases") == ["t3code-jstack"]
+    assert after == before
+    assert jbus.load().project("demo").merge_bases == ("t3code-jstack",)
+    assert jbus.load().project("added").merge_bases == ()
+    assert bases_of(kitchen, "demo") == (0, "t3code-jstack\n")
+
+
+def test_a_second_merge_base_is_written_on_the_same_line_after_the_first(kitchen):
+    add_base(kitchen, "demo", "one")
+    add_base(kitchen, "demo", "two/side")
+    assert config(kitchen).read_text().count("merge_bases") == 1
+    assert jbus.load().project("demo").merge_bases == ("one", "two/side")
+    assert bases_of(kitchen, "demo") == (0, "one\ntwo/side\n")
+
+
+@pytest.mark.parametrize(
+    ("name", "branch", "why"),
+    [
+        ("demo", "one", "refused: the project already names that merge base"),
+        ("nobody", "two", "refused: the config has no project of that name"),
+        ("demo", "x.lock", "refused: a merge base is a branch name, with no space and no .."),
+        ("demo", "a..b", "refused: a merge base is a branch name, with no space and no .."),
+        ("demo", "a b", "refused: a merge base is a branch name, with no space and no .."),
+    ],
+)
+def test_a_merge_base_named_again_or_not_a_branch_or_of_no_project_is_refused(
+    kitchen, name, branch, why
+):
+    add_base(kitchen, "demo", "one")
+    was, kept = config(kitchen).read_bytes(), backups(kitchen)
+    assert add_base(kitchen, name, branch) == (1, why + "\n")
+    assert (config(kitchen).read_bytes(), backups(kitchen)) == (was, kept)
+
+
+def test_a_table_the_writer_cannot_change_by_one_key_alone_is_refused(kitchen):
+    """A table written by hand in a shape the writer does not read, here a multi-line string with
+    a line like the key's in it, is refused rather than written over."""
+    text = config(kitchen).read_text().replace(
+        'name = "demo"', 'name = "demo"\nnote = """\nmerge_bases = 1\n"""'
+    )
+    kitchen.write(config(kitchen), text)
+    assert add_base(kitchen, "demo", "one") == (
+        1,
+        "refused: the project's table could not be written with that one key changed\n",
+    )
+    assert (config(kitchen).read_text(), backups(kitchen)) == (text, [])
+
+
 def settings(tmp_path, lines):
     path = tmp_path / "config.toml"
     path.write_text(
@@ -226,4 +302,28 @@ def test_the_view_table_gives_the_views_address_names_and_origins_or_none(tmp_pa
 )
 def test_a_view_table_with_another_key_or_shape_is_refused(tmp_path, lines):
     with pytest.raises(jbus.Refused, match=r"refused: .* has a \[view\] that is not"):
+        settings(tmp_path, lines)
+
+
+@pytest.mark.parametrize(
+    ("lines", "want"),
+    [("", ()), ('merge_bases = ["t3code-jstack", "release/1"]\n', ("t3code-jstack", "release/1"))],
+)
+def test_a_project_names_its_merge_bases_or_none(tmp_path, lines, want):
+    (project,) = settings(tmp_path, lines).projects
+    assert project.merge_bases == want
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        'merge_bases = "t3code-jstack"\n',
+        "merge_bases = [1]\n",
+        'merge_bases = ["a", "a"]\n',
+        'merge_bases = ["a b"]\n',
+        'merge_bases = [""]\n',
+    ],
+)
+def test_merge_bases_that_are_not_a_list_of_branch_names_are_refused(tmp_path, lines):
+    with pytest.raises(jbus.Refused, match="refused: project demo has a merge_bases that is not"):
         settings(tmp_path, lines)
