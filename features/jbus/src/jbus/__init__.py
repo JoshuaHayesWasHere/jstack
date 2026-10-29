@@ -113,9 +113,10 @@ class Scratch:
 
 
 MAX_PER_HOME, MAX_PER_PROJECT = 6, 24
-INFRA = "infra"
 """The crews a pass lets one home and one project have out, where the config sets no
 `max_per_home` or `max_per_project`. `max_running` is the third cap, for the whole machine."""
+INFRA = "infra"
+"""The project whose home gets what the machine owns, where the config sets no `infra`."""
 
 
 def _cap(raw: dict[str, Any], key: str, default: int, path: Path) -> int:

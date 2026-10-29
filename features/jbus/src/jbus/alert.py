@@ -120,8 +120,8 @@ def failed(
     now: datetime | None = None,
     user: jsettings.Settings,
 ) -> str | None:
-    """Count one failure. From the count `after` on, return the alert line on each call until
-    `told` records it."""
+    """Count one failure. From the count `after` on, return the alert line on each call until the
+    streak alerted (`raise_`)."""
     now = now or datetime.now(UTC)
     with locked(state, LOCK):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
@@ -138,7 +138,7 @@ def _line(one: Streak, why: str, user: jsettings.Settings) -> str:
 
 def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
     """Record a try that succeeded. For a streak that alerted, return the recovered line on
-    each call until `told` records it.
+    each call until the streak ends (`end`).
 
     A streak that had not alerted ends here, with no line.
     """

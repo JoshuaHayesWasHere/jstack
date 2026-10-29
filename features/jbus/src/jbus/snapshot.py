@@ -20,8 +20,10 @@ says on stderr which file, project, rule and why, and fails.
 A snapshot that did not finish raises its alert itself (`alert.sound`), one for each owner: the
 first path segment of each file gitleaks names in its report, or of each refused `standing.md`,
 which is a home's directory and so its project (`owners`). A failure that names no file, such as a
-push that failed, is the machine's. Each alert goes to its owner's home alone, and the next
-snapshot that succeeds ends them all (`alert.recover`).
+push that failed or an error no check foresaw, is the machine's. Each alert goes to its owner's
+home alone. A snapshot that did not fail for the machine read the whole stage, so it ends the
+alert of each owner it did not fail for (`alert.recover`); one that failed for the machine ends
+none, since it may not have read an owner's files.
 """
 
 from __future__ import annotations
@@ -232,28 +234,39 @@ def snapshot(
     failed ones. One that fails says why to `warn`, and raises an alert for each owner of what
     failed: see the module."""
     now = now or datetime.now(UTC)
-    refused = refusals(config)
-    for line in refused.values():
-        warn(f"snapshot: refused, left out: {line}")
+    refused: dict[Path, str] = {}
     failed: dict[str, str] = {}
     try:
+        refused = refusals(config)
+        for line in refused.values():
+            warn(f"snapshot: refused, left out: {line}")
         say(take(config.home_dir, now, config.user, why, refused))
     except Failed as error:
         warn(f"snapshot: {error}")
         for owner in owners(config, error.files) or [alert.MACHINE]:
             failed[owner] = str(error)
+    except Exception as error:
+        warn(f"snapshot: {alert.why(error, config)}")
+        failed[alert.MACHINE] = alert.why(error, config)
     for path, line in refused.items():
         owner = owners(config, [str(path.relative_to(config.home_dir))])[0]
         failed[owner] = "; ".join(filter(None, (failed.get(owner), f"refused {line}")))
-    if not failed:
+    if alert.MACHINE not in failed:
         for key in alert.streaks(config.state_dir):
-            if key == alert.SNAPSHOT or key.startswith(f"{alert.SNAPSHOT} "):
+            if _owner(key) not in (None, *failed):
                 alert.recover(config, key, say)
-        return 0
     for owner, cause in failed.items():
         key = f"{alert.SNAPSHOT} {owner}" if owner else alert.SNAPSHOT
         alert.sound(config, key, f"{FAILED}: {cause}", AFTER, now, say, owner=owner)
-    return 1
+    return 1 if failed else 0
+
+
+def _owner(key: str) -> str | None:
+    """Return the owner of a snapshot alert's key, `MACHINE` for `snapshot` alone, or None for a
+    key that is no snapshot's."""
+    if key == alert.SNAPSHOT:
+        return alert.MACHINE
+    return key.removeprefix(f"{alert.SNAPSHOT} ") if key.startswith(f"{alert.SNAPSHOT} ") else None
 
 
 def _arguments(shown: argparse.ArgumentParser) -> None:

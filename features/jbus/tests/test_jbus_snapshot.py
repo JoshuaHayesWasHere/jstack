@@ -167,6 +167,36 @@ def test_a_staged_secret_is_refused_and_nothing_is_committed_or_left_staged(tree
     assert git(tree, "diff", "--cached", "--name-only") == ""
 
 
+def secret():
+    made_up = "".join(random.choices(string.ascii_letters + string.digits, k=36))
+    return f'token = "ghp_{made_up}"\n'
+
+
+@pytest.mark.skipif(not shutil.which("gitleaks"), reason="gitleaks is not installed")
+def test_an_owner_whose_secret_is_gone_has_its_alert_ended_while_another_still_fails(kitchen, tree):
+    """The second snapshot reads the whole stage and fails for pantry alone, so demo's file is
+    clean and demo's alert ends then, not at a snapshot that fails for nobody."""
+    (tree / "demo" / "leak.md").write_text(secret())
+    assert take()[0] == 1
+    (tree / "demo" / "leak.md").unlink()
+    (tree / "pantry").mkdir()
+    (tree / "pantry" / "leak.md").write_text(secret())
+    code, said = take()
+    why = "gitleaks found a secret in the changes (pantry/leak.md), nothing committed"
+    assert code == 1 and failed(why, "pantry") in said
+    assert any(line.startswith("recovered: snapshot demo after 1 failures") for line in said)
+    assert set(jbus.read_json(kitchen.state_dir / "streaks.json", {})) == {"snapshot pantry"}
+
+
+def test_an_error_no_check_foresaw_is_the_machines_failed_snapshot(tree, monkeypatch):
+    def broken(config):
+        raise PermissionError("gitleaks is not executable")
+
+    monkeypatch.setattr(snapshot, "refusals", broken)
+    why = "PermissionError: gitleaks is not executable"
+    assert take() == (1, [f"snapshot: {why}", failed(why)])
+
+
 def test_with_no_gitleaks_nothing_is_committed(tree, monkeypatch):
     monkeypatch.setattr(snapshot.shutil, "which", lambda _: None)
     before = git(tree, "rev-parse", "HEAD")

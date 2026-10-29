@@ -100,7 +100,8 @@ def _told(run: Pass, client: Client, merge: dict[str, Any], out: list[dict[str, 
         except (KeyError, TypeError, ValueError):
             began = landed
         key = f"{TEMPLATE}|{commit[:12]}|{at}"
-        names = [name for name in merge["skills"] if name in loaded(run, role, slug)]
+        wanted = loaded(run, role, slug)
+        names = [name for name in merge["skills"] if name in wanted]
         if role == roles.OTHER or began > landed or not names or key in run.box.sent():
             continue
         text = TOLD.format(number=merge["number"], commit=commit[:12], names=", ".join(names))
