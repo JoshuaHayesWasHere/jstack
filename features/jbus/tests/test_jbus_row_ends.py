@@ -23,7 +23,7 @@ def result(left="none", status="done", pull="none"):
 
 
 def branched(kitchen, branch="a-branch", start="main", commits=1):
-    """Make a crew's branch as T3 Code makes its worktree, from `start`, with `commits` of its own."""
+    """Make a crew's branch as T3 Code makes a worktree, from `start`, with `commits` of its own."""
     tree = kitchen.root / "worktrees" / branch
     kitchen.git("worktree", "add", "-q", "-b", branch, str(tree), start)
     for n in range(commits):
@@ -109,7 +109,7 @@ def test_a_done_result_naming_no_pull_request_its_brief_asks_for_leaves_the_row_
 @pytest.mark.parametrize("made", ["no branch", "from main", "from its base"])
 def test_a_done_result_naming_no_pull_request_with_no_commit_of_its_own_is_done(kitchen, made):
     """A crew that found nothing to change ends with no pull request, whatever its brief asks for.
-    A branch made from the link it was stacked on holds that link's commits, none of them its own."""
+    A branch made from the link it was stacked on holds that link's commits, none its own."""
     if made == "from its base":
         branched(kitchen, "base", commits=2)
         branched(kitchen, start="base", commits=0)

@@ -120,7 +120,9 @@ class Pass:
     def done(self) -> frozenset[str]:
         """The slugs of the rows the table had at done when the pass first asked, before its
         `derive` moved any (`watch.owes_pull`)."""
-        return frozenset(row["slug"] for row in queue.load(self.state) if row.get("status") == "done")
+        return frozenset(
+            row["slug"] for row in queue.load(self.state) if row.get("status") == "done"
+        )
 
     @property
     def removed(self) -> frozenset[str]:
