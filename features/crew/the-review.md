@@ -136,7 +136,6 @@ Fix what you agree with and say here why for the rest, each by its severity as b
 Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again.
 Handling the findings sends the home nothing.
 A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
-After that push, run the block of "Do the task" that asks `jmerge --scope` again, and give each `outside:` file it prints a `Wider:` line in the last Result, or take the file back out and push again.
 
 Every finding ends one of two ways, and none is left unanswered. The findings have ids, `F1`, `F2`, ..., which no reviewer writes: two reviewers' findings of one place are one id, and this lists them, merged and triaged, each with its bucket, its reviewers and the answer it has so far. Run it with the block at the top:
 

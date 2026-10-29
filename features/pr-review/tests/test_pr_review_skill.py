@@ -1342,7 +1342,7 @@ def test_a_file_outside_the_brief_where_is_listed(reviewer):
     ]
 
 
-def test_a_file_the_result_gives_a_reason_for_is_wider_and_not_outside(reviewer):
+def test_an_old_results_wider_line_leaves_its_file_outside(reviewer):
     branch_of_the_task(
         reviewer,
         "`src/a.py`",
@@ -1352,7 +1352,7 @@ def test_a_file_the_result_gives_a_reason_for_is_wider_and_not_outside(reviewer)
         result="\n## Result\nWider: README.md: a test reads it\n",
     )
     assert reviewer.output("### Wider than the brief") == [
-        "wider: README.md: a test reads it",
+        "outside: README.md",
         "outside: hooks/x.sh",
     ]
 

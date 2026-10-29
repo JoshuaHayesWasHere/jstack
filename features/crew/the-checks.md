@@ -85,7 +85,6 @@ After each but `held`, end your turn.
   Then go by what has reviewed the pull request.
   Where the block of "The review" prints `launch a reviewer`, launch it now, on the push.
   Where the brief has a `## Review` section, write no line about the push: `jmerge` compares the head the review covers with the one you pushed by `git range-diff`, and the review carries over or one scoped review is asked for ("A conflict").
-  Before that push, with the fix committed, run the block of "Do the task" that asks `jmerge --scope` again, and give each `outside:` file it prints a `Wider:` line in the last Result, or take the file back out, so a reviewer launched on the push finds the line there.
 - `stale`: the change passes here, and its base moved under it.
   CI tests the merge with the base, so no commit of yours and no fresh run repairs it, and a base that moved is by itself no reason to rebase ("A conflict").
   If the Result has no `Stale base:` line for this head, add `Stale base: at <head>, <the check that failed>`, park no gate, and end your turn.
