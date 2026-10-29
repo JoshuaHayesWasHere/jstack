@@ -23,8 +23,8 @@ HOLD = f"hold 286 {URL}: {WHY}\n"
 ROWS = ["jbus-a", "jbus-b", "jbus-c", "jbus-d"]
 STAMP = '--by user --at "<YYYY-MM-DD HH:MM ET>"'
 BASES = (
-    "with --word <id>, --answer <number>, --message <thread id>/<message id> or --page "
-    "<session key>/<entry id>"
+    "with --word <id>, --answer <number>, --message <thread id>/<message id>, --pick "
+    "<thread id>/<item id> or --page <session key>/<entry id>"
 )
 HEAD = "c" * 40
 SAFE = f"safe because 41 passed (proven at {HEAD[:12]})"

@@ -70,7 +70,13 @@ BOT_KEY_SESSION = (
     "in a shell of their own, and the stored key is as it was"
 )
 KEY = "bot-key.json"
-GO_OPTIONS = {"t3-message": "message", "lavish-page": "page", "typed": "word", "answer": "answer"}
+GO_OPTIONS = {
+    "t3-message": "message",
+    "t3-pick": "pick",
+    "lavish-page": "page",
+    "typed": "word",
+    "answer": "answer",
+}
 """The option of `jbus queue approve` that each source `--evidence` may spell is."""
 GO_GATE = "may {slug} go? Its brief holds for {case}"
 _GO_GATE_HOLDS = "keeps the go of {slug}, whose brief holds for {cases}"
@@ -437,6 +443,7 @@ def read_evidence(asks: queue.Asks, given: Evidence) -> Evidence:
         said_at=heard.said_at,
         said_in=heard.said_in,
         checked=heard.checked,
+        picks=heard.picks,
     )
 
 

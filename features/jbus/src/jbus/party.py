@@ -10,7 +10,8 @@ that acted, the `Action` it took, the `Evidence` it acted on, and what came of i
   the six cases a gate's `Holds:` line names (`CASES`), each with the words that name it in
   prose, which `jbus.waiting` and `jbus.item` read.
 - `Evidence`: the user's words an act rests on, and where jbus read them. `checked` says jbus
-  read the words and their time itself, in T3 Code or on a Lavish page; anything typed or
+  read the words and their time itself, in T3 Code (a message, or the answer to a question box)
+  or on a Lavish page; anything typed or
   carried by the bot is not checked. Each basis of an approval (`jbus.queue.BASES`, `RULE`
   and `ENTRY`) is one `source` (`SOURCE`).
 - `Action`: what the party did (`Verb`) to what, with what it was given to check against: the
@@ -32,7 +33,15 @@ from jbriefs import parse as briefs
 Kind = Literal["user", "bot", "home", "jbus"]
 Route = Literal["cli", "view", "bot"]
 Source = Literal[
-    "t3-message", "lavish-page", "bot-chat", "typed", "answer", "rule", "plan-entry", "view"
+    "t3-message",
+    "t3-pick",
+    "lavish-page",
+    "bot-chat",
+    "typed",
+    "answer",
+    "rule",
+    "plan-entry",
+    "view",
 ]
 Verb = Literal["go", "answer", "hold", "remove", "withdraw", "accept", "word", "item"]
 Outcome = Literal["done", "gated", "refused", "noop"]
@@ -95,6 +104,7 @@ SOURCE = {
     "word": "typed",
     "answer": "answer",
     "message": "t3-message",
+    "pick": "t3-pick",
     "page": "lavish-page",
     "rule": "rule",
     "entry": "plan-entry",
@@ -105,13 +115,24 @@ A source no basis has, such as `bot-chat`, is its own basis in the approval reco
 
 
 @dataclass(frozen=True)
+class Pick:
+    """One label the user picked in a question box of T3 Code, and the question it answers."""
+
+    question: str
+    label: str
+
+
+@dataclass(frozen=True)
 class Evidence:
+    """`picks` are the labels of a question box (`t3-pick`), and no other source has any."""
+
     source: Source
     ref: str
     words: str = ""
     said_at: str = ""
     said_in: str = ""
     checked: bool = False
+    picks: tuple[Pick, ...] = ()
 
     @property
     def basis(self) -> str:

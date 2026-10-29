@@ -22,8 +22,11 @@ else changed, and not for one whose goal or scope changed. `approve` also takes 
 the user was shown, and refuses when the stored brief differs from it.
 
 An approval is based on the user's words, which another store holds, and `approve` names them: a
-word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, or a
-pick the user sent with a Lavish page (`PAGE`), which jbus reads in Lavish's own state file.
+word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, the
+user's answer to a question box of a T3 Code thread (`PICK`), or a pick the user sent with a
+Lavish page (`PAGE`), which jbus reads in Lavish's own state file. One answer to a question box
+approves each row that a label it picked names (`picked`), so a box of three rows picked at
+once is one go for the three.
 `approve` takes no name and no time. The row's `approval` is the record (`Approval`). The record
 holds the basis and its reference, the words, and when and where the user said them. It also says
 whether jbus read the words out of T3 Code or Lavish, and who ran the command and when, which jbus
@@ -156,11 +159,13 @@ WITHDRAWN_BY = "jbus"
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 _SENT_TO = ("Home:", "Thread:", "Green main:", "Stacked on:")
 PAGE = "page"
-BASES = ("word", "answer", "message", PAGE)
+PICK = "pick"
+BASES = ("word", "answer", "message", PICK, PAGE)
 BASIS = (
-    "--word <id>, --answer <number>, --message <thread id>/<message id> or --page "
-    "<session key>/<entry id>"
+    "--word <id>, --answer <number>, --message <thread id>/<message id>, --pick "
+    "<thread id>/<item id> or --page <session key>/<entry id>"
 )
+_SLUG_IN = r"(?<![a-z0-9._-]){}(?![a-z0-9_-]|\.[a-z0-9])"
 RULE = "rule"
 ENTRY = "entry"
 ANSWER = "answer"
@@ -321,22 +326,26 @@ def who(ran_by: dict[str, str]) -> str:
 class Said:
     """`Said` holds the user's words as their store recorded them: when and where the user said
     them, and whether jbus read the words and the time in T3 Code or Lavish (`checked`) or
-    someone typed them. `ref` is the `<thread id>/<message id>` or `<session key>/<entry id>`
-    in which jbus read them, or nothing."""
+    someone typed them. `ref` is the `<thread id>/<message id>`, `<thread id>/<item id>` or
+    `<session key>/<entry id>` in which jbus read them, or nothing. `picks` are the labels the
+    user picked in a question box (`PICK`), each with its question."""
 
     words: str
     said_at: str
     said_in: str
     checked: bool
     ref: str = ""
+    picks: tuple[party.Pick, ...] = ()
 
 
 @dataclass(frozen=True)
 class Approval:
     """An `Approval` is the record of a row's go. `basis` is one of `BASES`, and `ref` names the
-    record of that basis: a word's id, a question's number, `<thread id>/<message id>`, or, for
-    `PAGE`, `<session key>/<entry id>`, whose `said_in` is the page's file. `ran_by` is `runner` and
-    `ran_at` is the clock, both as jbus found them: no option gives either.
+    record of that basis: a word's id, a question's number, `<thread id>/<message id>`, for
+    `PICK` `<thread id>/<item id>`, whose `words` are the one label that names the row and its
+    question, or, for `PAGE`, `<session key>/<entry id>`, whose `said_in` is the page's file.
+    `ran_by` is `runner` and `ran_at` is the clock, both as jbus found them: no option gives
+    either.
 
     With the basis `RULE`, `ref` is `FOLLOW_REF`, `words` is the follow-up rule (`FOLLOW_RULE`)
     and the line of the parent's go, which is its ground, and `follows` is the slug of the parent
@@ -388,6 +397,9 @@ class Approval:
             return f"{parent}; {ran}; you did not speak of this row"
         if self.basis == PAGE:
             return f"your pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
+        if self.basis == PICK:
+            where = f", in {self.said_in}" if self.said_in else ""
+            return f"your pick in a question box, {self.said_at}{where}: {self.words}; {ran}"
         if self.basis == BOT_CHAT:
             return f"the bot's go for you, {self.said_at}, from {self.said_in}; {ran}"
         typed = "" if self.checked else " (time typed)"
@@ -1512,6 +1524,8 @@ def _do(
             rests = said[verb.basis, verb.ref]
         if isinstance(rests, Refused):
             raise rests
+        if verb.basis == PICK:
+            rests = picked(rests, verb.slug)
         ref = FOLLOW_REF if ruled else verb.ref
         return _grant(
             batch, row, text, verb.basis, ref, rests, user, ran_by, verb.follows, ground=ground
@@ -1574,6 +1588,23 @@ def _grant(
     row.pop("rebound", None)
     row.update(approved=made.line(), approval=held(made), brief_sha=stored)
     return f"approved {row['slug']}: brief {stored[:12]}, {made.line()}"
+
+
+def names(label: str, slug: str) -> bool:
+    """Say whether a label names the slug: the slug stands in it as a word of its own, so
+    `cite-renumber (M)` names `cite-renumber` and not `cite`."""
+    return re.search(_SLUG_IN.format(re.escape(slug)), label.lower()) is not None
+
+
+def picked(said: Said, slug: str) -> Said:
+    """Return the answer to a question box as the go for one row: its words become the first
+    label that names the slug and the question it answers. Refuse an answer none of whose
+    labels names the slug."""
+    for one in said.picks:
+        if names(one.label, slug):
+            return replace(said, words=f'"{one.label}", for "{one.question}"', picks=(one,))
+    chosen = ", ".join(f'"{one.label}"' for one in said.picks) or "no label"
+    raise Refused(f"refused: the pick {said.ref} does not name {slug}: it picked {chosen}")
 
 
 def case(text: str) -> str:
@@ -2006,7 +2037,7 @@ def go(
     and its line starts `ALREADY`. `ran_by` is who ran it, `runner` where none is given."""
     heard = None
     if said.source != "rule":
-        heard = Said(said.words, said.said_at, said.said_in, said.checked, said.ref)
+        heard = Said(said.words, said.said_at, said.said_in, said.checked, said.ref, said.picks)
     verb = Approve(slug, said.basis, said.ref, given, follows, heard)
     return _run(state, [(0, verb)], user, asks, ran_by)
 
@@ -2116,7 +2147,8 @@ def parse(text: str) -> list[tuple[int, Verb]]:
 
     - `add <slug> --priority N [--depends a,b] [--merge-after a,b] [--entry <plan entry>]`;
     - `approve <slug> --sha <12>` with one of `--word <id>`, `--answer <number>`,
-      `--message <thread id>/<message id>` and `--page <session key>/<entry id>`, or with
+      `--message <thread id>/<message id>`, `--pick <thread id>/<item id>` and
+      `--page <session key>/<entry id>`, or with
       `--follows <parent slug>` (a `--rule <n>` beside it is taken and not read);
     - `hold <slug>`;
     - `remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM ZONE>"`.

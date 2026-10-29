@@ -21,6 +21,7 @@ from jbriefs import parse as briefs
 from jbus import (
     acts,
     blockers,
+    boxes,
     dispatch,
     item,
     lavish,
@@ -44,8 +45,9 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     sends.
 
     `said` returns the words an approval names: a word of the project's `acts.jsonl`, the
-    answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
-    read from Lavish's state file. `integration` is the branches of the home's
+    answer of a closed question of its `questions.json`, a message read from T3 Code, the
+    user's answer to a question box read from T3 Code and its store, a pick read from Lavish's
+    state file. `integration` is the branches of the home's
     `integration` file, whose syncs are follow-ups (`queue.KINDS`). A follow-up's go reads no
     file of the home: jbus knows the rule by what it says. `entry_go` reads the go of a row's plan
     entry (`plan.holding`).
@@ -111,6 +113,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     def said(basis: str, ref: str) -> queue.Said:
         if basis == "message":
             return t3.heard(config, ref)
+        if basis == queue.PICK:
+            return boxes.picked(config, ref)
         if basis == queue.PAGE:
             return lavish.picked(config.user, ref)
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
@@ -297,6 +301,12 @@ def _table(table: argparse.ArgumentParser) -> None:
     approve.add_argument("--answer", metavar="NUMBER", help="the answer that closed a question")
     approve.add_argument(
         "--message", metavar="THREAD/MESSAGE", help="the user's own message in T3 Code"
+    )
+    approve.add_argument(
+        "--pick",
+        metavar="THREAD/ITEM",
+        help="the user's own answer to a question box in T3 Code, by its thread and its "
+        "user_input_request item: it approves the row a picked label names",
     )
     approve.add_argument(
         "--page", metavar="SESSION/ENTRY", help="the user's own send from a Lavish page"
