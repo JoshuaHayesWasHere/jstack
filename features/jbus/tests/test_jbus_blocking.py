@@ -24,7 +24,7 @@ import pytest
 
 import jbus
 from jbus import alert, leftover, passes, waiting, wake
-from test_jbus_kitchen import KEY, NOW, RESULT, Server
+from test_jbus_kitchen import KEY, NOW, RESULT, Server, complete
 from test_jbus_questions import gate
 
 SECOND_KEY = "blocking-key-0123456789"
@@ -184,6 +184,31 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     assert keys(opened) == ["gate:q2"]
     assert opened["items"][0]["why"] == "always-pause: touches prod or real users"
     assert not any("result alpha" in line for body in second.bodies for line in body["say"])
+
+
+def test_a_slug_the_queue_knows_names_no_door_in_a_pass_in_clear_or_in_a_risk(kitchen, second):
+    relayed(kitchen, second)
+    for slug in ("beta", "drop-old-tables", "token-one-findings-route"):
+        said = kitchen.main("queue", "add", slug, "--priority", "1", stdin=complete(slug))
+        assert said[0] == 0, said
+    kitchen.brief("beta", "Thread: mcp:crew-beta\n")
+    known = gate("may drop-old-tables and token-one-findings-route merge first?", "beta")
+    assert kitchen.main("gate", "beta", stdin=known)[0] == 0
+    assert (
+        kitchen.main("gate", "beta", stdin=gate("may I drop-and-recreate the tables?", "beta"))[0]
+        == 0
+    )
+    kitchen.poll(later(1))
+    assert kitchen.wakes.listed == [
+        ["question 2: may I drop-and-recreate the tables, it names deletes data"]
+    ]
+    (opened,) = second.bodies
+    assert [key for key in keys(opened) if key.startswith("gate:")] == ["gate:q2"]
+    code, cleared = kitchen.main("--project", "demo", "clear")
+    assert code == 0, cleared
+    assert "decision question 2: it names deletes data" in cleared
+    assert "decision question 1" not in cleared
+    assert "risk: routine" in kitchen.main("item", "show", "w1")[1].splitlines()
 
 
 def test_a_defaulted_gate_whose_slug_goes_silent_becomes_a_stall(kitchen, second):

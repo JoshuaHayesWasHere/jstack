@@ -288,9 +288,10 @@ def pending(
     return f"{last['slug']} {last['status']} at {last.get('updated') or 'a time not stamped'}"
 
 
-def needs(one: waiting.Item, context: str = "") -> str:
+def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozenset()) -> str:
     """Say why the user has to decide an item of the list of what waits, or nothing when the
-    home clears it."""
+    home clears it. `known` are the slugs the queue knows (`queue.known`), which the gate's words
+    may name with no door meant, as they may its own."""
     kind = one["kind"]
     if kind == "hold":
         return "a pull request jmerge holds for your word"
@@ -304,7 +305,7 @@ def needs(one: waiting.Item, context: str = "") -> str:
         return f"it holds ({one['holds']}) for your answer"
     if not str(one.get("default") or "").strip():
         return "a gate with no default"
-    named = waiting.paused(f"{one.get('question', '')} {context}")
+    named = waiting.paused(f"{one.get('question', '')} {context}", known | {one.get("slug") or ""})
     return f"it names {named}" if named else ""
 
 
@@ -397,9 +398,9 @@ def deciding(run: Pass, listed: list[waiting.Item] | None) -> list[tuple[waiting
     if run.first or listed is None:
         return []
     context = {questions.item(one)["key"]: one.context for one in questions.load(run.state)}
-    ground, found = _Ground(run), []
+    ground, found, known = _Ground(run), [], queue.known(run.state)
     for one in listed:
-        why = needs(one, context.get(one["key"], ""))
+        why = needs(one, context.get(one["key"], ""), known)
         if not why or _early(run, one) or not ground.stands(one):
             continue
         asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
@@ -457,10 +458,11 @@ def _gates(run: Pass, home: Directory) -> list[str]:
     (`questions.silent`), so the home has nothing to clear."""
     said = []
     silence = questions.waits(run.state, run.user)
+    known = queue.known(run.state)
     for one in questions.load(run.state):
         if one.answer is not None or not home.has(one.slug):
             continue
-        why = needs(questions.item(one, silence(one)), one.context)
+        why = needs(questions.item(one, silence(one)), one.context, known)
         if why:
             said.append(f"decision question {one.number}: {why}, it waits on {run.user.user}")
     return said

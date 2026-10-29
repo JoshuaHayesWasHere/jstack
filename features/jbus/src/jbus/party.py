@@ -26,6 +26,7 @@ evidence. Everything else the bot or a home may do as the user would.
 from __future__ import annotations
 
 import re
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Literal, get_args
 
@@ -101,13 +102,16 @@ def door(case: str) -> Door:
     return next(one for one in DOORS if one.case == case)
 
 
-def prose(words: str) -> str:
-    """A gate's words as the door table reads them: with its `Asked by:` line left out, and each
-    slug, a run of three or more words joined by hyphens, read as its last word alone. A slug
-    such as token-no-cleanup-rows then names no door, while API-token, force-push and
-    one-time-password still do."""
+def prose(words: str, slugs: Collection[str] = ()) -> str:
+    """A gate's words as the door table reads them: with its `Asked by:` line and each of the
+    `slugs` jbus knows left out, but for a slug of one word, which is also the word itself. A
+    known slug such as token-no-cleanup-rows then names no door, while a row named deploy does.
+    A hyphenated run that is no known slug is read whole, since its shape cannot tell a slug from
+    prose: drop-and-recreate, force-push-with-lease and one-time-password still name theirs."""
     words = re.sub(r"^\s*Asked by:.*$", "", words, flags=re.M | re.I)
-    return re.sub(r"\b\w+(?:-\w+){2,}\b", lambda slug: slug[0].rsplit("-", 1)[1], words)
+    for slug in sorted((one for one in slugs if "-" in one), key=len, reverse=True):
+        words = re.sub(rf"(?<![\w-]){re.escape(slug)}(?![\w-])", " ", words)
+    return words
 
 
 SOURCE = {

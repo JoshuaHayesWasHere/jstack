@@ -464,15 +464,19 @@ def approve(
     return made
 
 
-def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
+def risk(
+    value: str, gates: Iterable[questions.Question], known: frozenset[str] = frozenset()
+) -> Risk:
     """Return `review` for a merge `jmerge` holds (the value `hold`), and for an item with an
     open gate that has a `Holds:` line or words that name a secret or the config. A wait on
     the config shows up only as such a gate, since the `config` items of what waits on the
-    user name no row. Return `routine` for anything else."""
+    user name no row. `known` are the slugs the queue knows, which the words may name with no
+    secret meant, as they may the gate's own. Return `routine` for anything else."""
     if value == "hold":
         return Risk.REVIEW
     for gate in gates:
-        if gate.holds or SECRET.search(party.prose(f"{gate.question} {gate.context}")):
+        words = party.prose(f"{gate.question} {gate.context}", known | {gate.slug})
+        if gate.holds or SECRET.search(words):
             return Risk.REVIEW
     return Risk.ROUTINE
 
@@ -483,7 +487,7 @@ def judged(state: Path, item: Item) -> Item:
         return item
     value = work.last(state).get(item.slug, "")
     gates = [one for one in questions.load(state) if one.slug == item.slug and not one.answer]
-    return replace(item, risk=risk(value, gates))
+    return replace(item, risk=risk(value, gates, queue.known(state)))
 
 
 def planned(item: Item | None, go: bool, value: str | None) -> list[Verb]:

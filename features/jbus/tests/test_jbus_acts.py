@@ -15,7 +15,7 @@ import jsettings
 from jbus import acts, blockers, item, party, questions, queue, waiting, wake
 from jbus import view as jview
 from jbus.view import state as view_state
-from test_jbus_kitchen import ASK, SAID, Kitchen
+from test_jbus_kitchen import ASK, RAN, SAID, Kitchen
 from test_jbus_queue import add, adds, approves, batch, brief, rows, sha12
 from view.scene import free_port
 
@@ -123,10 +123,10 @@ def test_the_door_table_names_what_pauses_and_what_is_a_review():
     assert (item.risk("", [edit]), waiting.paused("edit the config")) == (item.Risk.REVIEW, "")
 
 
-def _gate(question, context):
+def _gate(question, context, known=("token-one-findings-route",)):
     slug = "token-no-cleanup-rows"
     asked = questions.Question(128, slug, "", question, "yes", "", "", "", None, context)
-    return blockers.needs(questions.item(asked), context)
+    return blockers.needs(questions.item(asked), context, frozenset(known))
 
 
 def test_a_slug_that_holds_a_door_word_does_not_make_its_gate_hold():
@@ -162,6 +162,36 @@ def test_a_gate_whose_prose_names_a_token_still_holds():
 )
 def test_a_door_word_that_ends_a_hyphenated_compound_still_holds(words, case):
     assert waiting.paused(words) == case
+
+
+@pytest.mark.parametrize(
+    "words, case",
+    [
+        ("drop-and-recreate the tables", "deletes data"),
+        ("wipe-and-reload the database", "deletes data"),
+        ("we force-push-with-lease to main", "rewrites history"),
+    ],
+)
+def test_a_door_word_that_leads_a_hyphenated_compound_still_holds(words, case):
+    assert waiting.paused(words) == case
+
+
+def test_only_a_slug_the_queue_knows_is_left_out_of_the_door_match(kitchen):
+    add(kitchen, "token-one-findings-route")
+    add(kitchen, "drop-old-tables")
+    code, said = kitchen.main("queue", "remove", "drop-old-tables", "--by", "user", "--at", RAN)
+    assert code == 0, said
+    known = queue.known(kitchen.state)
+    assert {"token-one-findings-route", "drop-old-tables"} <= known
+    asked = questions.Question(
+        3, "alpha", "", "token-one-findings-route waits, go on?", "", "", "", ""
+    )
+    assert item.risk("", [asked], known) is item.Risk.ROUTINE
+    assert waiting.paused("drop-old-tables is gone, so go on", known) == ""
+    assert waiting.paused("drop-old-tables is gone, so go on") == "deletes data"
+    assert waiting.paused("deploy the site", known | {"deploy"}) == "touches prod or real users"
+    unknown = "the cleanup-token-rows-fix row"
+    assert _gate(unknown, "", known) == "it names changes access or secrets"
 
 
 def test_a_hyphenated_config_word_still_makes_a_review():

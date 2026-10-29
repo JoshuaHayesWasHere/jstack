@@ -246,6 +246,17 @@ def removed(state: Path) -> dict[str, dict[str, str]]:
     return kept
 
 
+def known(state: Path) -> frozenset[str]:
+    """Return every slug the queue knows, its rows' and the removed ones', which a gate's words
+    may name with no door meant (`party.prose`). Where the table does not parse, it returns the
+    removed ones alone, so a gate's words read whole and hold where they name a door."""
+    try:
+        rows = load(state)
+    except Unparsable:
+        rows = []
+    return frozenset(row["slug"] for row in rows) | removed_slugs(state)
+
+
 def removed_slugs(state: Path) -> frozenset[str]:
     """Return the removed slugs, for callers that only leave them out. Where the file does not
     parse, it returns none: `load` reports that, and a pass then sends a gate for the file."""
