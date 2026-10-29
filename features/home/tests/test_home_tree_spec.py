@@ -1,5 +1,5 @@
-"""The home tree's TLA+ spec in `features/home/spec/`: TLC checks the design, and each rule holds
-in every scene while each canary, the design with one guard taken out, breaks its rule. Each run
+"""The home tree's TLA+ spec in `features/home/spec/`: TLC checks today's code, and each rule holds
+in every scene while each canary, the code with one guard taken out, breaks its rule. Each run
 of `canaries.py` is a test of its own, so the workers share them out, and those tests skip where
 no Java runs TLC. The code model's conditions each name a file and quote its code, as the statechart
 tool checks."""
@@ -21,9 +21,7 @@ SPEC = REPO / "features" / "home" / "spec"
 FILES = (
     SPEC / "HomeTree.tla",
     SPEC / "HomeTreeToday.tla",
-    SPEC / "HomeTreeDesign.tla",
     SPEC / "HomeTreeToday.cfg",
-    SPEC / "HomeTreeDesign.cfg",
     SPEC / "HomeTreeToday.map.py",
     SPEC / "canaries.py",
 )
@@ -102,18 +100,14 @@ def test_a_quote_of_one_python_line_holds_each_or_on_it():
     assert short == []
 
 
-def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
-    """canaries.py runs the design in each scene once for its invariants and once for each
-    property, each canary once, and today's code in each scene as the design, and the canaries
-    between them break every rule."""
+def test_the_runs_are_every_canary_and_every_rule_in_every_scene_of_today():
+    """canaries.py runs each canary once, and today's code in each scene once for its invariants
+    and once for each property, and the canaries between them break every rule."""
     assert all(path.is_file() for path in FILES)
+    assert not (SPEC / "HomeTreeDesign.tla").exists()
+    assert {module for _, module, *_ in RUNS} == {"HomeTreeToday"}
     labels = [label for label, *_ in RUNS]
     assert labels == [
-        *(
-            f"design, scene {scene}: {name}"
-            for scene in canaries.SCENES
-            for name in ["every invariant", *canaries.PROPERTIES]
-        ),
         *(
             f"canary {guard}, scene {scene}: {rule}"
             for guard, (rule, scene) in canaries.CANARIES.items()
@@ -125,6 +119,16 @@ def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_t
         ),
     ]
     assert {rule for rule, _ in canaries.CANARIES.values()} == set(canaries.RULES)
+
+
+def test_the_failed_route_steps_in_the_scenes_a_and_b():
+    """The home thread can fail in the scenes a and b, where the calls are, and never in the
+    siblings' scene or the chart's. The keep-on-fail canary, which breaks only after a post fails,
+    runs in scene a, so RouteFails and RouteMends step in a run the check makes."""
+    can_fail = {scene for scene, (*_, may_fail) in canaries.SCENES.items() if may_fail == "TRUE"}
+    assert can_fail == {"a", "b"}
+    assert canaries.CANARIES["keep-on-fail"] == ("CallsReachJosh", "a")
+    assert "    MayFail = FALSE\n" in (SPEC / "HomeTreeToday.cfg").read_text()
 
 
 def test_canaries_py_prints_a_line_for_each_run_and_ends_0_when_each_says_what_it_should(
@@ -153,18 +157,14 @@ def test_canaries_py_prints_a_line_for_each_run_and_ends_0_when_each_says_what_i
 def test_a_property_runs_on_its_scene_alone_and_every_invariant_shows_nothing_else_moves():
     """Each run of a property gives TLC only the scene's children, calls and notices, and each
     run of every invariant checks on the whole model that nothing outside the scene moves, in
-    each scene of the design and of today's code."""
+    each scene of today's code."""
     alone = [label for label, _, cfg, *_ in RUNS if "    Kids <- Made\n" in cfg]
     still = [label for label, _, cfg, *_ in RUNS if "INVARIANT SceneStill\n" in cfg]
     for label, _, cfg, *_ in RUNS:
         assert ("PROPERTY " in cfg) == (label in alone), label
         if label in alone:
             assert "    Calls <- Raised\n    Notices <- SceneNotices\n" in cfg, label
-    assert still == [
-        f"{model}, scene {scene}: every invariant"
-        for model in ["design", "today"]
-        for scene in canaries.SCENES
-    ]
+    assert still == [f"today, scene {scene}: every invariant" for scene in canaries.SCENES]
 
 
 @pytest.fixture(scope="module")
@@ -180,8 +180,8 @@ def tlc():
     ids=[re.sub(r"[^\w-]+", "-", label) for label, *_ in RUNS],
 )
 def test_the_run_says_what_it_should(tlc, module, cfg, rule, want):
-    """TLC says each rule holds in the design's scene, the canary breaks the rule on its guard,
-    and each rule holds in today's code in each scene."""
+    """TLC says each canary breaks the rule on its guard, and each rule holds in today's code in
+    each scene."""
     out = canaries.tlc(tlc, module, cfg)
     assert canaries.verdict(out, rule) == want, out[-4000:]
 
