@@ -175,8 +175,7 @@ def poll(
     ends the `pass` streak that `jbus alarm` counts, and the `stale` streak that
     `jbus alarm --stale` counts. A pass that cannot write its record says so and runs as usual.
 
-    When the config still has a key that nothing reads, each pass says so in one line until the
-    user removes the key. The pass ends by writing the status file (`record.write_status`).
+    The pass ends by writing the status file (`record.write_status`).
     """
     config.state_dir.mkdir(parents=True, exist_ok=True)
     with open(config.lock_path, "w") as lock:
