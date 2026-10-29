@@ -299,8 +299,8 @@ def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_threa
     for facts in work.every():
         state = work.judge(facts)
         for home in (False, True):
-            for after in (False, True):
-                held = work.holder(state, home=home, after=after)
+            for busy in (False, True):
+                held = work.holder(state, home=home, busy=busy)
                 assert held.who in holders
                 if state.value not in ("leftover", "closed"):
                     assert held == work.Holder(state.who, state.waits, state.pattern.lane)
