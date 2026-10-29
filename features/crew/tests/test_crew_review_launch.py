@@ -162,7 +162,7 @@ TWO = (
 
 def test_each_reviewer_is_launched_in_the_crews_own_worktree_and_branch(tmp_path):
     """Reviewers launched with no `workspaceStrategy` opened in the main checkout and refused to
-    run (cleanup-ux-inbox-pr, 2026-10-26): every call the block prints carries it."""
+    run (the ux-inbox-pr follow-up row, 2026-10-26): every call the block prints carries it."""
     work, calls = launched(tmp_path, TWO, "first")
     assert [call["title"] for call in calls] == ["review: alpha, 1", "review: alpha, 2"]
     assert [call["message"] for call in calls] == [
