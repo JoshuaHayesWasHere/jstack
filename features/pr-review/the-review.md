@@ -2,7 +2,8 @@
 
 The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
 
-The review is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there. Nothing in the worktree changes, and nothing goes to `origin`.
+The review is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there.
+Nothing in the worktree changes, and nothing goes to `origin`.
 
 **1. Room, and 2. Scope and intent.** One block does both, so that nothing is built on a machine with no room:
 
@@ -112,13 +113,14 @@ echo "$D/prompt.md"
 - Then it does steps 1 and 2 of the interrogate skill with nothing left to ask: the scope is the pull request's diff, and the intent is the brief's, then the `SCOPE` text.
   A scoped pass puts the earlier findings and the crew's answers, as `jbriefs --findings` prints them, right above the `SCOPE` text ("A scoped pass", step 3).
   That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
-- Last it fills the interrogate skill's `references/reviewer-prompt.md` and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
+- Last it fills the interrogate skill's `references/reviewer-prompt.md` and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`.
+  Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
 - Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
   Nothing was reviewed: send the block once more.
   If it fails again, write a section with `Verdict: not run` and the reason, and stop without settling.
   It tells nobody, since jbus reads the section.
 
-**3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Write the list down, or "no findings", before step 4: that list is what the lead judges.
+**3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
 
 **4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge the list of step 3 as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
 

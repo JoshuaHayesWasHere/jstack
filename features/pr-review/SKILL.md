@@ -60,7 +60,9 @@ A review covers the lines the pull request changes, and reads them the way a tec
 - A bug or weakness in code the pull request did not change is not sent to the crewmate and not written in `## Review`: only its count is kept ("Outside the diff").
 - New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
 
-The questions a review answers are the `SCOPE` text in "The review", the one copy of them, and the reviewer adds "Wider than the brief" and "In flight". The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only. The last is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
+The questions a review answers are the `SCOPE` text in "The review", the one copy of them, and the reviewer adds "Wider than the brief" and "In flight".
+The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only.
+"In flight" is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
 
 ## Launching
 
