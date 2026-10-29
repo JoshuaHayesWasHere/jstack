@@ -75,6 +75,35 @@ def test_a_thread_that_ended_done_with_nothing_left_and_no_pull_request_is_done(
     assert [(json.loads(m)["from"], json.loads(m)["to"]) for m in moves] == [("queued", "done")]
 
 
+def test_a_done_result_naming_no_pull_request_its_brief_asks_for_leaves_the_row_running(kitchen):
+    """A crew that wrote `Status: done` before it opened the pull request its brief asks for has not
+    finished: its row runs, and once its thread ends that way it is told once to open it."""
+    add(kitchen, "alpha")
+    kitchen.poll(NOW - timedelta(minutes=3))
+    (thread,) = kitchen.t3.threads
+    path = kitchen.home / "tasks" / "alpha.md"
+    assert "Pull request: open one when done" in path.read_text()
+    path.write_text(path.read_text() + result())
+    thread["status"] = "running"
+    kitchen.poll()
+    assert column(kitchen) == ("running", "", "")
+    thread.update(status="completed", latestRunId="run-1")
+    for minutes in (3, 6, 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert column(kitchen) == ("running", "", "")
+    told = [one for one in sends(kitchen) if one["threadId"] == thread["threadId"]]
+    assert len(told) == 1 and "names no pull request" in told[0]["message"]
+    assert kitchen.lines("gate") == [] and len(kitchen.t3.launches) == 1
+
+
+def test_a_done_result_whose_brief_asks_for_no_pull_request_is_done(kitchen):
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", "Pull request: none, a report\n" + result())
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    assert column(kitchen) == ("done", "", "") and sends(kitchen) == []
+
+
 def test_a_row_launched_from_a_brief_that_holds_a_result_is_launched_not_done(kitchen):
     text = brief("alpha") + result()
     add(kitchen, "alpha", text=text)
