@@ -124,7 +124,9 @@ Deliver(m) ==
 \* Without that guard a failed post takes the call out all the same, and it never reaches Josh.
 Lost(m) ==
     /\ ~Kept("keep-on-fail")
-    /\ msg[m] = "home" /\ ~up /\ msg' = Set(msg, m, "none")
+    /\ msg[m] = "home"     \* jbus/alert.py `sent = run.box.flush(`
+    /\ ~up     \* jbus/wake.py `why = post(body(some)) if why: break`
+    /\ msg' = Set(msg, m, "none")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The home thread fails: T3 Code is down, or the thread is gone.
 RouteFails ==
