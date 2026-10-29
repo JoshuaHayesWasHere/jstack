@@ -258,6 +258,24 @@ def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_n
     assert [one["outcome"] for one in logged(kitchen)] == ["gated", "gated", "done"]
 
 
+def test_a_follow_up_on_a_door_parks_a_gate_whose_command_names_the_stored_briefs_sha(kitchen):
+    """A go by --follows takes no sha, so the gate it parks names the sha the user is shown: the
+    command its Undo line gives the user is one `approve` takes."""
+    add(kitchen, "alpha")
+    add(kitchen, "beta", approve=False, text=brief("beta", HOLDS))
+    code, said = kitchen.main("queue", "approve", "beta", "--follows", "alpha")
+    assert code == 0 and said.startswith("gated beta: its brief holds for rewrites history")
+    (asked,) = questions.read(kitchen.state)
+    sha = sha12(stored(kitchen, "beta"))
+    assert f"queue approve beta --sha {sha} --message <thread>/<message>" in asked.undo
+    kitchen.t3.says(HOME, MESSAGE, "yes, rewrite it")
+    code, said = kitchen.main(
+        "--as", "user", "queue", "approve", "beta", "--message", REF, "--sha", sha
+    )
+    assert code == 0, said
+    assert rows(kitchen)["beta"]["approval"]["checked"] is True
+
+
 def test_a_fail_safe_line_under_holds_is_its_own_field_so_the_go_names_only_its_door(
     kitchen, route
 ):

@@ -60,6 +60,7 @@ from jbus import (
 from jbus.party import Act, Action, Evidence, Party
 from jbus.passes import Pass
 from jbus.t3 import typed
+from jmerge import judgement
 from jsettings import store
 
 LOG = "acts.jsonl"
@@ -242,7 +243,7 @@ def _go(
     _, text = queue.current(run.state, slug)
     action = replace(action, doors=party.doors(text or ""))
     if action.doors and not party.opens(who, said):
-        number = _park(run, who, action, said)
+        number = _park(run, who, action, said, text or "")
         line = (
             f"gated {slug}: its brief holds for {', '.join(action.doors)}, so it waits for "
             f"{run.user.user}'s own word: question {number}"
@@ -322,10 +323,12 @@ def _stale(run: Pass, slug: str, seen: str) -> str:
     return ""
 
 
-def _park(run: Pass, who: Party, action: Action, said: Evidence) -> int:
+def _park(run: Pass, who: Party, action: Action, said: Evidence, text: str) -> int:
     """Park the gate a go on a door waits on, and return its number. A gate holds for one case,
-    so it names the first, and its context names the rest."""
+    so it names the first, and its context names the rest. Its command names the sha of the
+    stored brief `text`, since a go by rule is given none."""
     slug, user = action.subject, run.user.user
+    shown = judgement.brief_sha(text)[:12]
     case, *rest = action.doors
     also = f"; it holds for {', '.join(rest)} too" if rest else ""
     lines = "\n".join(
@@ -336,7 +339,7 @@ def _park(run: Pass, who: Party, action: Action, said: Evidence) -> int:
             f"Default: {slug} waits, with no go and no launch",
             "Built on it: nothing, since no thread launched",
             f"Undo: nothing to undo; {user} gives the go in T3 Code, and jbus --as user queue "
-            f"approve {slug} --sha {action.pre} --message <thread>/<message> records it",
+            f"approve {slug} --sha {shown} --message <thread>/<message> records it",
             f"Holds: {case}",
             f"Fail-safe: the brief, stored at {queue.brief_path(run.state, slug)}, unlaunched",
             f"Context: the {who.kind} gave the go on {said.source} {said.ref}, and a door "
