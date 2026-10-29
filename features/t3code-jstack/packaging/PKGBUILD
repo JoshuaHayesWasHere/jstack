@@ -60,6 +60,8 @@ source=("t3code-${_tag#v}.tar.gz::https://github.com/pingdotgg/t3code/archive/re
         "${_patches[@]}")
 sha256sums=('SKIP'
             'SKIP')
+# prepare() unpacks the tag itself, so that a rebuild patches a fresh tree and not the last one.
+noextract=("t3code-${_tag#v}.tar.gz")
 
 _tree="t3code-${_tag#v}"
 
@@ -68,6 +70,8 @@ prepare() {
     echo 'vp is not on PATH: yay -S vite-plus-bin' >&2
     return 1
   }
+  rm -rf "$srcdir/$_tree"
+  bsdtar -xf "$srcdir/t3code-${_tag#v}.tar.gz" -C "$srcdir"
   cd "$srcdir/$_tree"
   local one
   for one in "${_patches[@]}"; do
