@@ -57,10 +57,11 @@ options=('!debug' '!strip')
 _patches=(0001-jstack-tree-sidebar.patch 0002-jstack-tree-asking-and-projects.patch 0003-jstack-tree-unfold-asks.patch
           0004-jstack-tree-root-rows.patch 0005-jstack-tree-row-menus.patch 0006-jstack-tree-menu-actions.patch
           0007-jstack-tree-home-actions.patch
-          0008-jstack-tree-row-actions.patch)
+          0008-jstack-tree-row-actions.patch 0009-jstack-tree-asking-click.patch)
 source=("t3code-${_tag#v}.tar.gz::https://github.com/pingdotgg/t3code/archive/refs/tags/${_tag}.tar.gz"
         "${_patches[@]}")
 sha256sums=('SKIP'
+            'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
