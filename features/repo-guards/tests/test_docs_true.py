@@ -414,6 +414,7 @@ def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(tr
             'n=$(jbriefs --findings "$B" --rounds)',
             'jbus answer 3 "--$which" -- yes',
             'jbus answer 3 "$(jmerge --scope x)" --default yes',
+            "if jgauge room --light; then echo hi; fi",
             "```",
         )
     )
