@@ -290,6 +290,16 @@ def test_an_artifact_may_hold_a_line_that_looks_like_a_field_and_the_next_item_s
     assert "principle-model-the-domain" not in have
 
 
+def test_an_old_results_wider_line_still_ends_the_skills_run_section():
+    """Results written before the template dropped `Wider:` put that line after the last
+    item, once the pull request was open, and it is no part of the artifact above it."""
+    result = (
+        "Skills run:\n- prove-it-works: make check, exit 0\nWider: docs/a.md: a test reads it\n"
+    )
+    text = merge.brief("", result, "Skills: prove-it-works\n")
+    assert skills.run(text) == {"principle-prove-it-works": "make check, exit 0"}
+
+
 def test_a_name_that_resolves_to_nothing_owes_no_artifact_at_the_merge():
     """The queue refuses such a name and the launch gates it, so `jmerge` does not report it
     again at the merge."""
