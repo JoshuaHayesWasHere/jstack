@@ -69,7 +69,7 @@ def test_a_link_rebased_onto_its_bases_merge_on_a_branch_merges_as_any_other(bui
 
 def squash_rebased(built_on, rebase):
     """Squash beta into `release/x`, move alpha's own commit onto it and let `rebase` change the
-    moved head; what jmerge says of alpha with `Rebase: patch unchanged` on its brief."""
+    moved head; what jmerge says of alpha, whose brief says nothing of the rebase."""
     home, tree, old = built_on.home, built_on.tree, built_on.head
     merge.git(tree, "switch", "-q", "--detach", built_on.start)
     merge.git(tree, "restore", "--source", built_on.beta, "--", ".")
@@ -85,7 +85,7 @@ def squash_rebased(built_on, rebase):
     (home.stub / "head").write_text(f"{new}\n")
     text = merge.brief(
         merge.review("clean", old),
-        f"Rebase: patch unchanged, before {old}, head {new}\n",
+        "",
         f"Stacked on: beta release/x at {squash}\n",
     )
     (home.tasks / "alpha.md").write_text(text)
@@ -99,8 +99,8 @@ def squash_rebased(built_on, rebase):
 
 def test_a_link_rebased_over_its_bases_squash_on_a_branch_with_its_patch_unchanged_merges(built_on):
     """A base squash-merged into a branch leaves the link's old head forking from the branch before
-    the base, so that head's diff from the fork holds the base's commits too. The patch the
-    `Rebase:` line speaks of is the link's own commits, and those the rebase left as they were."""
+    the base, so that head's diff from the fork holds the base's commits too. The patch jmerge
+    compares is the link's own commits, and those the rebase left as they were."""
     said = squash_rebased(built_on, lambda tree: None)
     assert said.startswith("ready 7 "), said
 
@@ -121,9 +121,10 @@ def test_a_link_rebased_over_its_bases_squash_on_a_branch_that_changed_its_patch
     built_on, rebase
 ):
     """The old head's own commits are cut by a count, and a rebase that changed them, in content
-    or in number, is still a changed patch: no cut may make the two sides equal."""
+    or in number, is still a changed patch, which waits on its crew or its scoped review: no cut
+    may make the two sides equal."""
     said = squash_rebased(built_on, rebase)
-    assert said == f"wait 7 {merge.URL}: {ready.REBASE_UNTRUE}"
+    assert said.startswith(f"wait 7 {merge.URL}: the rebase "), said
 
 
 @pytest.mark.parametrize(

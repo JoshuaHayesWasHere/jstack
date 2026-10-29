@@ -51,7 +51,7 @@ def test_findings_that_land_on_an_after_brief_change_nothing_jmerge_reads():
         assert ready.short_of(text, HEAD) == ""
         assert ready.short_of(text, FIX) == ""
         assert ready.declines(text, user=jsettings.DEFAULTS) == ("", "")
-        assert ready.to_range_diff(None, text, FIX) is None
+        assert ready.to_range_diff(text, FIX) is None
     assert ready.short_of(found.replace("Review: after", "Review: review"), HEAD) == ready.NO_FIXED
 
 

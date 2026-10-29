@@ -99,6 +99,10 @@ The section "Protected paths" describes one more hold.
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
   If the review had findings, the Result has a `Fixed:` line that names the head or says `none needed`.
+  The crewmate writes that line, and the crew's check block writes the `Checked: <command> exit <code> at <head>` line each time the check command ends on a committed head.
+  Where the crewmate wrote no `Fixed:` line, `jmerge` reads one from the brief and git (`ready.unwritten_fixed`): `jbriefs --findings --left` says `write Fixed:`, a `Checked:` line says exit 0 at the head, and in `review` mode a `Second pass:` or `Scoped review:` line follows the review.
+  That line names the head, or the newest head kept under `refs/jstack/pre-rebase/<slug>/` that holds the fix, or says `none needed` where every finding was declined.
+  `jmerge` judges the brief with it and writes nothing to the brief.
   A review after the first owes that line, and a push after it, only where it has an `error` finding.
   A `Second pass: needed since <head>` line makes the pull request wait for a review of a later head.
 - **Every blocking finding is answered.**
@@ -129,7 +133,7 @@ The section "Protected paths" describes one more hold.
   `jmerge` asks for no `## Review`, verdict, `Fixed:` line or answered finding.
   A review written while the pull request is open does not change its wait reason (`ready.after`).
   Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that jbus approves by the follow-up rule, when it is queued or on the next pass, where `<slug>`'s go holds.
-  The pull request merges once its required checks pass, and its `Skills run:`, `Rebase:` and `Dropped on rebase:` lines meet their rules.
+  The pull request merges once its required checks pass, and its `Skills run:` and `Dropped on rebase:` lines meet their rules.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
   It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
   The second review's findings block no merge, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`).
@@ -417,9 +421,8 @@ A crewmate writes nothing about its rebase.
 `jmerge` compares the head it finds with the commit the review covers.
 That commit is the `Fixed:` commit, or, when the Result has no `Fixed:` line, the head the last `## Review` saw.
 `jmerge` reads the files that either patch changes.
-A brief from before this rule may still say what its rebase did, with `Rebase: patch unchanged, before <commit>, head <commit>` or `Rebase: patch changed in <files>, before <commit>, head <commit>`.
-`jmerge` still reads such a line.
-For `patch unchanged`, it works out both patch-ids again from the two commits.
+A brief from before this rule may still have a `Rebase:` line, in any shape, true or not.
+`jmerge` reads it as no line, so such a brief is judged as the same brief with the line removed, and no `Rebase:` line holds a pull request.
 
 For a patch that changed, `jmerge` counts the lines main added to those files and the lines the pull request added before the rebase, and looks for each line in the head.
 If no line is lost, `git range-diff` between the head the review saw and the rebased head decides whether the review still counts:
@@ -446,7 +449,8 @@ When the review does not uphold a drop, the line is `hold <number> <url>: needs 
 When a review of that head does not rule on a file's drops, the line is `hold <number> <url>: needs <user>, the review of <head12> did not rule on the drops in <files>`.
 
 `jmerge` treats the same way a push, made after the review, that fixes a failed check.
-The crewmate adds `CI fix: <new head>, after the review of <reviewed head>` to its Result, and `jmerge` compares the two heads by `git range-diff`.
+The crewmate writes no line about it: `jmerge` compares the head the review covers with the pushed head by `git range-diff`.
+A `CI fix:` line that a brief from before this rule still has is read as no line.
 
 ## Protected paths
 
@@ -508,7 +512,7 @@ It refuses a pull request that is not held, one whose head is not the head on re
 At the commit it saw, the review proved the one fact that makes the change safe.
 That proof is the `Proof:` line of the `## Review` section, a command that ended `exit 0`.
 The last review's proof carries over to a later head whose range-diff from the review's head is clean, in every review mode.
-That head can be a rebase, a `CI fix:` push, or a merge of the base into the branch, such as the one `jmerge` asks GitHub for when the base moved after the check started.
+That head can be a rebase, a push for a failed check, or a merge of the base into the branch, such as the one `jmerge` asks GitHub for when the base moved after the check started.
 It does not carry over a fix pushed for the review's findings, nor a merge of the base that changes the patch, since the range-diff of either is not clean.
 Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, review step 5)`.
 

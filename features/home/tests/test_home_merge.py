@@ -356,17 +356,19 @@ def test_a_pull_request_with_a_clean_review_is_ready_at_the_reviewed_head(home):
     "result",
     [
         f"Rebase: range-diff empty, head {PUSHED}\n",
-        f"Rebase: changed a.py b.py, head {PUSHED}\nFixed: none needed, the review was clean\n",
-        pytest.param(
-            f"Rebase: range-diff empty, head {'c' * 40}\nRebase: range-diff empty, head {PUSHED}\n",
-            id="of two Rebase lines the last one counts",
-        ),
+        f"Rebase: changed a.py b.py, head {PUSHED}\n",
+        f"Rebase: range-diff empty, head {'c' * 40}\nRebase: range-diff empty, head {PUSHED}\n",
     ],
+    ids=["range-diff empty", "changed", "two lines"],
 )
-def test_a_clean_review_stands_after_a_rebase_the_result_records(home, result):
-    (home.tasks / "alpha.md").write_text(brief(review("clean"), result))
+def test_a_rebase_line_in_an_older_shape_is_read_as_no_line(home, result):
+    """A head the review did not see is compared with the reviewed one by git, whatever a
+    `Rebase:` line says of it."""
     home.open_pull_request(PUSHED)
-    assert home.ready() == [f"ready 7 {PUSHED} alpha alpha"]
+    (home.tasks / "alpha.md").write_text(brief(review("clean")))
+    without = home.ready()
+    (home.tasks / "alpha.md").write_text(brief(review("clean"), result))
+    assert home.ready() == without != [f"ready 7 {PUSHED} alpha alpha"]
 
 
 def test_a_rebase_hold_an_older_crew_wrote_holds_nothing(home):
@@ -739,8 +741,7 @@ def test_a_head_no_line_names_is_compared_with_the_commit_its_review_covers(case
     head = listed["head"]
     covered = PUSHED if f"Fixed: {PUSHED}" in text else REVIEWED
     assert ready.short_of(text, head) == ""
-    assert ready.rebase_of(text, head) is None
-    assert ready.to_range_diff(None, text, head) == covered
+    assert ready.to_range_diff(text, head) == covered
 
 
 def test_a_gh_that_fails_prints_nothing_as_ready(home):
@@ -1406,17 +1407,15 @@ class Rebased:
         merged.home.open_pull_request(self.head)
 
     def says(self, line, *flags, reviewed="clean", more="", saw=None):
-        """What `jmerge` prints for a Result with this `Rebase:` line. The brief has a review
-        of the head before the rebase, unless the test says which head the review saw."""
-        result = f"Rebase: {line}\n{more}".format(before=self.before, head=self.head)
+        """What `jmerge` prints for a Result with this `Rebase:` line, or with none where `line`
+        is None. The brief has a review of the head before the rebase, unless the test says
+        which head the review saw."""
+        told = "" if line is None else f"Rebase: {line}\n"
+        result = f"{told}{more}".format(before=self.before, head=self.head)
         text = brief(review(reviewed, saw or self.before), result)
         (self.merged.home.tasks / "alpha.md").write_text(text)
         (said,) = self.merged.run(*flags)
         return said
-
-
-UNCHANGED = "patch unchanged, before {before}, head {head}"
-CHANGED = "patch changed in a.txt, before {before}, head {head}"
 
 
 def scoped(merged, rebased):
@@ -1430,64 +1429,43 @@ def scoped(merged, rebased):
     )
 
 
-def test_a_rebase_that_left_the_patch_as_it_was_is_ready(merged):
+def test_a_rebase_that_left_the_patch_as_it_was_carries_the_review_over(merged):
     rebased = Rebased(merged, "b.txt")
-    assert rebased.says(UNCHANGED, "--check") == f"ready 7 {rebased.head} alpha alpha"
-    said = rebased.says(UNCHANGED)
-    assert said == merged_line(merged.on_main()[0])
+    said = rebased.says(None, "--check")
+    assert said.startswith(f"ready 7 {rebased.head} alpha alpha, review carried over: "), said
+    assert rebased.says(None).startswith("merged 7 alpha ")
 
 
-def test_a_rebase_that_changed_the_content_and_says_so_waits_for_a_scoped_review(merged):
+def test_a_rebase_that_changed_the_content_waits_for_a_scoped_review(merged):
     rebased = Rebased(merged, "a.txt")
-    assert rebased.says(CHANGED, "--check") == scoped(merged, rebased)
-    assert rebased.says(CHANGED) == scoped(merged, rebased)
+    assert rebased.says(None, "--check") == scoped(merged, rebased)
+    assert rebased.says(None) == scoped(merged, rebased)
     assert merged.tree.exists() and (merged.home.main / "a.txt").read_text() == "theirs\n"
 
 
 def test_a_review_of_the_rebased_head_saw_what_the_rebase_changed(merged):
     rebased = Rebased(merged, "a.txt")
-    said = rebased.says(CHANGED, "--check", saw=rebased.head)
+    said = rebased.says(None, "--check", saw=rebased.head)
     assert said == f"ready 7 {rebased.head} alpha alpha"
 
 
-def test_a_rebase_that_changed_the_patch_and_says_it_did_not_waits(merged):
-    rebased = Rebased(merged, "a.txt")
-    why = "its Rebase line says the patch is unchanged, and the rebase changed it"
-    assert rebased.says(UNCHANGED) == f"wait 7 {URL}: {why}"
-    fixed = f"{ENDED}Fixed: {rebased.head}\n"
-    assert rebased.says(UNCHANGED, reviewed="findings", more=fixed) == f"wait 7 {URL}: {why}"
-    assert rebased.says(CHANGED, "--check", reviewed="findings", more=fixed) == (
-        scoped(merged, rebased)
-    )
-
-
-@pytest.mark.parametrize("gone", ["before", "head"])
-def test_a_rebase_between_commits_the_main_checkout_does_not_have_waits(merged, gone):
-    rebased = Rebased(merged, "b.txt")
-    missing = "c" * 40
-    line = UNCHANGED.replace(f"{{{gone}}}", missing)
-    more = f"{ENDED}Fixed: {rebased.head}\n" if gone == "head" else ""
-    assert rebased.says(line, more=more, reviewed="findings" if more else "clean") == (
-        f"wait 7 {URL}: its Rebase line cannot be checked: "
-        f"the patch of {missing} cannot be worked out in the main checkout"
-    )
-
-
+@pytest.mark.parametrize("theirs", ["a.txt", "b.txt"], ids=["changed", "unchanged"])
 @pytest.mark.parametrize(
     "line",
     [
+        "patch unchanged, before {before}, head {head}",
+        "patch changed in a.txt, before {before}, head {head}",
+        "patch unchanged, before {before}, head " + "c" * 40,
+        "patch unchanged, before " + "c" * 40 + ", head {head}",
         "patch unchanged, head {head}",
         "patch changed, before {before}, head {head}",
         "patch unchanged, before 0123abc, head {head}",
+        "range-diff empty, head {head}",
+        "changed a.txt, head {head}",
     ],
 )
-def test_a_new_rebase_line_that_does_not_say_what_the_rebase_did_waits(merged, line):
-    rebased = Rebased(merged, "a.txt")
-    why = "its Rebase line does not say what the rebase did to the patch"
-    assert rebased.says(line) == f"wait 7 {URL}: {why}"
-
-
-@pytest.mark.parametrize("line", ["range-diff empty, head {head}", "changed a.txt, head {head}"])
-def test_a_rebase_line_in_the_older_shape_is_read_for_its_head_alone(merged, line):
-    rebased = Rebased(merged, "a.txt")
-    assert rebased.says(line, "--check") == f"ready 7 {rebased.head} alpha alpha"
+def test_a_rebase_line_of_any_shape_is_judged_as_the_brief_with_no_line(merged, theirs, line):
+    """The shapes `jmerge` read once, true or untrue, a commit the main checkout lacks, and the
+    ones it held as unsaid: none of them changes what the brief with no line gets."""
+    rebased = Rebased(merged, theirs)
+    assert rebased.says(line, "--check") == rebased.says(None, "--check")

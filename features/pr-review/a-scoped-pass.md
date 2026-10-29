@@ -41,22 +41,26 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    The reading, the lead's judgment and the verdict are as they are for a first pass.
    The safety fact of step 5 is the one fact the rebased or fixed patch is still safe because of, proven at this head: it is never left out.
    A finding is about one of those lines, or about something it breaks.
-4. Rule on the lines the rebase dropped on purpose. Run this in this worktree, with the block at the top. It prints one line for each `Dropped on rebase:` line the brief has at this head, and for each the diff of that file from the head before the rebase, which the crewmate kept under `refs/jstack/pre-rebase/<slug>/<its first 12 characters>`, to this one. The `Rebase:` line, where the brief has one, names that head; the crew's keep step writes the ref and no such line, so with none the block takes the newest ref of the slug, by commit date, which is the head before the last rebase:
+4. Rule on the lines the rebase dropped on purpose.
+   Run this in this worktree, with the block at the top and the old range of the message in place of the words in angle brackets.
+   It prints one line for each `Dropped on rebase:` line the brief has at this head, and for each the diff of that file from the head before the rebase to this one.
+   That head is the one the old range ends on, which `jmerge` named in its `scoped review of git range-diff` line, when it is a commit here; otherwise it is the newest head the crewmate kept under `refs/jstack/pre-rebase/<slug>/`, by commit date, which is the head before the last rebase.
+   No line of the brief names it:
 
    ```sh
    B="$H/tasks/<slug>.md"
+   old='<old range>'
    head=$(git rev-parse HEAD)
    short=$(printf %s "$head" | cut -c1-12)
-   before=$(sed -n 's/^Rebase: patch .*, before \([0-9a-f]\{12\}\)[0-9a-f]\{28\}, head [0-9a-f]\{40\}$/\1/p' "$B" | tail -n 1)
-   kept="refs/jstack/pre-rebase/<slug>/$before"
-   if [ -z "$before" ]; then
+   kept=${old##*..}
+   if ! git rev-parse -q --verify "$kept^{commit}" > /dev/null; then
        kept=$(git for-each-ref --sort=-committerdate --count=1 --format='%(refname)' "refs/jstack/pre-rebase/<slug>/")
    fi
    said=$(sed -n "s/^Dropped on rebase: \(.*\), [0-9]* of main's, [0-9]* of its own, at $short: ..*/\1/p" "$B" | sort -u)
    if [ -z "$said" ]; then
        echo "no drops: the brief has no Dropped on rebase line at $head"
    elif [ -z "$kept" ] || ! git rev-parse -q --verify "$kept^{commit}" > /dev/null; then
-       echo "not upheld: the head before the rebase is not kept under refs/jstack/pre-rebase/<slug>, so no drop can be read"
+       echo "not upheld: the head before the rebase is not a commit here, nor kept under refs/jstack/pre-rebase/<slug>, so no drop can be read"
        printf '%s\n' "$said" | sed 's/^/drop: /'
    else
        printf '%s\n' "$said" | while IFS= read -r file; do

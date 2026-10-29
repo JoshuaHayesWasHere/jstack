@@ -154,10 +154,10 @@ class Kitchen:
         git(main, "push", "-q")
         return git(main, "rev-parse", "HEAD")
 
-    def rebase(self, slug, theirs, resolved, before=None):
+    def rebase(self, slug, theirs, resolved, line=""):
         """Main changes after the pull request's check, and its crewmate rebases onto main,
-        resolves the conflict this way, pushes, and says that the patch changed in those
-        files. The check ran again on the rebased head."""
+        resolves the conflict this way and pushes, writing `line` and nothing else about the
+        rebase. The check ran again on the rebased head."""
         was = self.pulls[slug]["headRefOid"]
         tree = self.tmp / "trees" / slug
         self.on_main(theirs)
@@ -172,8 +172,7 @@ class Kitchen:
         git(tree, "push", "-q", "--force-with-lease", "origin", slug)
         head = git(tree, "rev-parse", "HEAD")
         self.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": merge.rollup([AFTER])}
-        line = f"Rebase: patch changed in {' '.join(resolved)}, before {before or was}, head {head}"
-        self.brief(slug, was, f"{line}\n")
+        self.brief(slug, was, line.format(was=was, head=head))
         return head
 
     def run(self, *flags):
@@ -427,19 +426,28 @@ def test_a_line_the_pull_request_deletes_is_not_one_the_rebase_dropped(notes):
     assert notes.at_main("n.txt") == "one\nthree"
 
 
-def test_a_rebase_from_a_commit_the_main_checkout_does_not_have_waits(notes):
+@pytest.mark.parametrize(
+    "line",
+    [
+        "",
+        f"Rebase: patch changed in n.txt, before {'c' * 40}, head {{head}}\n",
+        "Rebase: patch unchanged, before {was:.7} (local, unpushed), head {head:.7}\n",
+        "Rebase: patch unchanged, onto origin/main after it gained 1 commit, before the push\n",
+    ],
+    ids=["none", "a commit the checkout lacks", "short commits", "no commit"],
+)
+def test_a_rebase_line_a_crew_wrote_is_read_as_no_line(notes, line):
+    """`jmerge` works out the rebase from git, the head the review saw to the head, so a
+    `Rebase:` line, true or not, well formed or not, changes nothing of what it says."""
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
-    gone = "c" * 40
     notes.rebase(
         "two",
         {"n.txt": "one\ntwo\nthree\ntheirs\n"},
         {"n.txt": "one\ntwo\nthree\ntheirs\nours\n"},
-        before=gone,
+        line,
     )
-    assert notes.run() == [
-        f"wait 7 {url(7)}: its Rebase line cannot be checked: "
-        f"the patch of {gone} cannot be worked out in the main checkout"
-    ]
+    (said,) = notes.run("--check")
+    assert said.startswith("ready 7 ") and said.endswith(", every line kept"), said
 
 
 def test_main_is_fetched_before_its_lines_are_looked_for(notes):
@@ -456,7 +464,7 @@ def test_main_is_fetched_before_its_lines_are_looked_for(notes):
     ]
 
 
-def fix(notes, was, rebased, text):
+def fix(notes, was, text):
     """The crewmate commits again after the rebase, for a finding, and says so."""
     tree = notes.tmp / "trees" / "two"
     write(tree, {"n.txt": text})
@@ -464,22 +472,19 @@ def fix(notes, was, rebased, text):
     git(tree, "push", "-q")
     fixed = git(tree, "rev-parse", "HEAD")
     notes.pulls["two"]["headRefOid"] = fixed
-    result = (
-        f"Rebase: patch changed in n.txt, before {was}, head {rebased}\n"
-        f"Finding: fixed, it is wrong\nFixed: {fixed}\n"
-    )
+    result = f"Finding: fixed, it is wrong\nFixed: {fixed}\n"
     notes.brief("two", was, result, verdict="findings")
 
 
 def test_a_line_the_rebase_dropped_and_a_fix_put_back_is_kept(notes):
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     was = notes.pulls["two"]["headRefOid"]
-    rebased = notes.rebase(
+    notes.rebase(
         "two", {"n.txt": "one\ntwo\nthree\ntheirs\n"}, {"n.txt": "one\ntwo\nthree\nours\n"}
     )
     held = f"wait 7 {url(7)}: the rebase dropped 1 of main's lines in n.txt {unsaid(notes)}"
     assert notes.run("--check") == [held]
-    fix(notes, was, rebased, "one\ntwo\nthree\ntheirs\nours\n")
+    fix(notes, was, "one\ntwo\nthree\ntheirs\nours\n")
     (said,) = notes.run()
     assert said.startswith("merged 7 two ") and ", every line kept, revert: " in said
     assert notes.at_main("n.txt") == "one\ntwo\nthree\ntheirs\nours"
@@ -490,12 +495,12 @@ def test_a_fix_pushed_after_the_rebase_is_not_a_line_the_rebase_dropped(notes):
     change, in the pull request's own diff, and not the rebase's."""
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     was = notes.pulls["two"]["headRefOid"]
-    rebased = notes.rebase(
+    notes.rebase(
         "two",
         {"n.txt": "one\ntwo\nthree\ntheirs\n"},
         {"n.txt": "one\ntwo\nthree\ntheirs\nours\n"},
     )
-    fix(notes, was, rebased, "one\ntwo\nthree\ntheirs\nours, as the review asked\n")
+    fix(notes, was, "one\ntwo\nthree\ntheirs\nours, as the review asked\n")
     (said,) = notes.run()
     assert said.startswith(
         f"wait 7 {url(7)}: the rebase changed the content after its review; scoped review of "

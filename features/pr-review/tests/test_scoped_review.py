@@ -40,7 +40,7 @@ def asked(number, command):
 
 def scoped(tree, old, new):
     """Run the section's block in a worktree, with the two ranges of the message."""
-    (block,) = [body for body in FENCED.findall(SECTION) if "<old range>" in body]
+    (block,) = [body for body in FENCED.findall(SECTION) if "<new range>" in body]
     script = textwrap.dedent(block).replace("<old range>", old).replace("<new range>", new)
     assert "<" not in script.replace("<<", "")
     ran = subprocess.run(["sh", "-c", script], cwd=tree, capture_output=True, text=True)

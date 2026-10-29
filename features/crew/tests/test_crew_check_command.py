@@ -519,3 +519,47 @@ def test_the_check_block_runs_jstacks_jgauge_from_a_worktree_whose_venv_has_an_o
         0,
         ["usage: jgauge check [-h] [--thread ID] [--wait SECONDS]"],
     ), ran.stderr
+
+
+@pytest.mark.parametrize(
+    ("brief", "dirty", "written"),
+    [
+        pytest.param("# a-task: a task\n\n## Result\nStatus: done\n", False, True, id="a Result"),
+        pytest.param("# a-task: a task\n", False, False, id="no Result yet"),
+        pytest.param("# a-task: a task\n\n## Result\n", True, False, id="uncommitted work"),
+    ],
+)
+def test_the_block_adds_the_checked_line_for_a_check_of_a_committed_head(
+    tmp_path, brief, dirty, written
+):
+    """Once the brief has a Result, the block writes the `Checked:` line `jmerge` reads, for a
+    check that ran to its end on the head as it is committed, and on no other."""
+    repo = stubbed(tmp_path, "print('all')")
+    if dirty:
+        (repo / "page.md").write_text("An edit not committed.\n")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text(brief)
+    said, code, ran, base = selected(tmp_path, repo)
+    head = git(repo, "rev-parse", "HEAD")
+    line = f"Checked: make check-fast BASE={base} PYTEST=: exit 0 at {head}\n"
+    assert code == 0 and len(ran) == 1
+    assert (tasks / "a-task.md").read_text() == brief + (line if written else "")
+
+
+def test_the_block_names_the_exit_of_jgauge_check_on_the_checked_line(tmp_path):
+    """`checked` gives every `jgauge check` of the block its `--wait`, the name on the line
+    too."""
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "file").write_text("one\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the file")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text("# a-task: a task\n\n## Result\n")
+    said, code, _ = checked(tmp_path, "exit 3")
+    head = git(repo, "rev-parse", "HEAD")
+    assert (said[-1], code) == ("done: the check exited 3", 3)
+    named = f"\nChecked: jgauge check --wait 60 exit 3 at {head}\n"
+    assert (tasks / "a-task.md").read_text().endswith(named)

@@ -464,11 +464,17 @@ def test_the_shipped_list_guards_no_path_so_a_fix_to_a_skill_is_asked_no_scoped_
 @pytest.mark.parametrize(
     "moved",
     [
+        "",
         "CI fix: {fixed}, after the review of {saw}\n",
         "Rebase: patch unchanged, before {saw}, head {fixed}\n",
         "Rebase: patch changed in a.py, before {saw}, head {fixed}\n",
     ],
-    ids=["a push for a failed check", "a rebase", "a rebase that changed the patch"],
+    ids=[
+        "no line",
+        "an older brief's line for a failed check",
+        "an older brief's line for a rebase",
+        "an older brief's line for a rebase that changed the patch",
+    ],
 )
 def test_a_head_jmerge_compares_by_range_diff_is_asked_no_scoped_review_here(moved, tmp_path):
     fix = opened(tmp_path, GUARDED)

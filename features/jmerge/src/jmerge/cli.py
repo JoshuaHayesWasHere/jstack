@@ -81,26 +81,16 @@ def _text(cwd: Path, *command: str) -> str | None:
     return None if ran.returncode else ran.stdout.decode(errors="replace")
 
 
+def _line_after(text: str, line: str) -> str:
+    """`line` as it goes at the end of `text`, on a line of its own."""
+    return ("" if not text or text.endswith("\n") else "\n") + line + "\n"
+
+
 def _read(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return ""
-
-
-def patch_id(cwd: Path, base: str, commit: str, since: str = "") -> str | None:
-    fork = _run(cwd, "git", "merge-base", since or f"origin/{base}", commit)
-    if fork.returncode:
-        return None
-    diff = subprocess.run(
-        ["git", "diff", fork.stdout.strip(), commit], cwd=cwd, capture_output=True
-    )
-    if diff.returncode:
-        return None
-    summed = subprocess.run(
-        ["git", "patch-id", "--stable"], cwd=cwd, input=diff.stdout, capture_output=True
-    )
-    return None if summed.returncode else b"".join(summed.stdout.split()[:1]).decode()
 
 
 def _first_word(text: str) -> str:
@@ -646,6 +636,46 @@ class Repo:
         since = self.own_fork(default, reviewed, head, stacked) if stacked else None
         return rangediff.verdict(self.main, reviewed, head, default, since or "")
 
+    def as_fixed(self, slug: str, text: str, one: ready.PullRequest) -> str:
+        """The brief's text as `jmerge` judges it: with the `Fixed:` line a crew did not write
+        (`ready.unwritten_fixed`), where git gives the commit it names, the newest of the head
+        and the heads kept before a rebase that holds the fix (`kept_fix`). The line is read and
+        never written to the brief."""
+        unwritten = ready.unwritten_fixed(text, one.head)
+        if unwritten is None:
+            return text
+        commit = (
+            "" if unwritten.reason else self.kept_fix(slug, one.base, unwritten.reviewed, one.head)
+        )
+        if not (unwritten.reason or commit):
+            return text
+        word = f"none needed, {unwritten.reason}" if unwritten.reason else commit
+        return text + _line_after(text, f"Fixed: {word}")
+
+    def kept_fix(self, slug: str, base: str, reviewed: str, *first: str) -> str:
+        """The newest of `first`, then of the heads the crew kept under
+        `refs/jstack/pre-rebase/<slug>/` before each rebase, that holds a fix pushed after
+        `reviewed`: one with `reviewed` in its history that leaves `base` where `reviewed` does,
+        so no rebase moved it since. Empty where git names none, or where that head is
+        `reviewed` itself, so nothing was pushed before the rebase."""
+        if not self.fetched:
+            self.fetched = True
+            _run(self.main, "git", "fetch", "-q", "origin")
+        fork = _run(self.main, "git", "merge-base", f"origin/{base}", reviewed)
+        refs = ("git", "for-each-ref", "--sort=-committerdate", "--format=%(objectname)")
+        kept = _run(self.main, *refs, f"refs/jstack/pre-rebase/{slug}/")
+        if fork.returncode or kept.returncode:
+            return ""
+        for commit in (*first, *kept.stdout.split()):
+            holds = _run(self.main, "git", "merge-base", "--is-ancestor", reviewed, commit)
+            if holds.returncode:
+                continue
+            moved = _run(self.main, "git", "merge-base", f"origin/{base}", commit)
+            if moved.returncode or moved.stdout != fork.stdout:
+                continue
+            return "" if commit == reviewed else commit
+        return ""
+
     def rebase_since_review(self, base: str, covered: str, head: str) -> ready.Rebase | None:
         forks = []
         for commit in (covered, head):
@@ -663,7 +693,7 @@ class Repo:
         if None in patches:
             return None
         files = sorted({file for patch in patches for file in patch.splitlines()})
-        return ready.Rebase("changed", tuple(files), covered, head)
+        return ready.Rebase(tuple(files), covered, head)
 
     def left_main_elsewhere(self, base: str, under: str, head: str) -> bool:
         for _ in range(2):
@@ -751,8 +781,9 @@ class Repo:
     def proven_at(self, one: ready.PullRequest, text: str) -> str:
         """The head whose review proved the safety fact that holds at `one`'s head: that head's
         own, else the last review's where the range-diff from its head to this one is clean, as
-        over a rebase, a `CI fix:` push or a merge of the base. A fix for the findings changes
-        the content, so no proof carries over it. The rule is the same in every review mode."""
+        over a rebase, a push for a failed check or a merge of the base. A fix for the findings
+        changes the content, so no proof carries over it. The rule is the same in every review
+        mode."""
         last = ready.said_of(text).reviewed
         if proof.fact(text, one.head) or not last or proof.fact(text, last) is None:
             return one.head
@@ -786,7 +817,7 @@ class Repo:
         brief = ready.brief_of(one.url, self.state / "tasks")
         if brief is None:
             return Judgement("", "wait", ready.DRAFT if one.draft else ready.NO_BRIEF, "", None)
-        text = _read(brief)
+        text = self.as_fixed(brief.stem, _read(brief), one)
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
@@ -794,17 +825,14 @@ class Repo:
         short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
         short = short or self.on_stack(one, default, stacked)
         short = short or ready.short_of(text, one.head)
-        rebase = ready.rebase_of(text, one.head)
-        covered = ready.to_range_diff(rebase, text, one.head)
+        rebase: ready.Rebase | None = None
+        covered = ready.to_range_diff(text, one.head)
         lost: tuple[ready.Drop, ...] = ()
-        if not short:
-            patches = self.patches(one.base, ready.to_compare(rebase), stacked)
-            short = ready.short_on_rebase(rebase, patches)
-        if not short and (covered if rebase is None else rebase.did == "changed"):
+        if not short and covered:
             if _run(self.main, "git", "fetch", "-q", "origin").returncode:
                 short = f"{one.base} could not be fetched to see what its rebase kept"
-            elif covered and (rebase is None or not rebase.files):
-                rebase = self.rebase_since_review(one.base, covered, one.head) or rebase
+            else:
+                rebase = self.rebase_since_review(one.base, covered, one.head)
             found = () if short or rebase is None else self.dropped(one.base, rebase, one.head)
             if isinstance(found, ready.NoPatch):
                 short = ready.cannot_check(found.commit)
@@ -817,14 +845,14 @@ class Repo:
         )
         note = ""
         silent = ready.unexplained(lost, text, one.head)
-        under = ready.under_fix(rebase, text, one.head)
+        under = ready.under_fix(text, one.head)
         if (
             under
             and covered is None
             and not short
             and self.left_main_elsewhere(one.base, under, one.head)
         ):
-            covered = under
+            covered = self.kept_fix(brief.stem, one.base, under) or under
         reviewed = None if short or silent else covered
         verdict: rangediff.Verdict | None = None
         if reviewed == "":
@@ -832,7 +860,7 @@ class Repo:
         elif reviewed:
             verdict = self.range_diff(reviewed, one.head, one.base, stacked)
             short = ready.short_on_content(verdict)
-            note = ready.rebase_note(verdict) if rebase is None or rebase.did == "changed" else ""
+            note = ready.rebase_note(verdict)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         short = (
@@ -1009,19 +1037,6 @@ class Repo:
             )
             self.logs[job] = None if asked.returncode else asked.stdout
         return self.logs[job]
-
-    def patches(
-        self, base: str, compared: tuple[str, ...], stacked: stacks.Stacked | None
-    ) -> list[str | None]:
-        """The patch of each head a `Rebase:` line compares, the old one over its own commits
-        (`own_fork`)."""
-        if len(compared) != 2:
-            return [patch_id(self.main, base, each) for each in compared]
-        before, head = compared
-        own = self.own_fork(base, before, head, stacked)
-        if own is None:
-            return [None, patch_id(self.main, base, head)]
-        return [patch_id(self.main, base, before, own), patch_id(self.main, base, head)]
 
     def own_fork(
         self, base: str, before: str, head: str, stacked: stacks.Stacked | None

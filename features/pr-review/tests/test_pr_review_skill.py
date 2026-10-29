@@ -1761,11 +1761,10 @@ def test_a_home_with_no_slug_is_told_of_the_briefs_that_are_not_of_the_past(tmp_
     assert launcher.says("*") == []
 
 
-def rebased(reviewer, why="the task replaces it", line=True):
+def rebased(reviewer, why="the task replaces it"):
     """A worktree whose rebase took main's line out of n.txt, and a brief in which the crewmate
     says why, at the rebased head. The worktree keeps the head from before the rebase in the ref
-    where the crew skill keeps it. The crew skill's rebase writes no `Rebase:` line, so the brief
-    that `line=False` makes is the one a crewmate writes."""
+    where the crew skill keeps it, and the brief says nothing else of the rebase."""
     work = reviewer.work
 
     def commit(text):
@@ -1778,13 +1777,14 @@ def rebased(reviewer, why="the task replaces it", line=True):
     crew.git(work, "update-ref", f"refs/jstack/pre-rebase/a-task/{before[:12]}", before)
     head = commit("one\nours\n")
     said = f"Dropped on rebase: n.txt, 1 of main's, 0 of its own, at {head[:12]}: {why}"
-    told = f"Rebase: patch changed in n.txt, before {before}, head {head}\n" if line else ""
-    reviewer.brief.write_text(BRIEF + DONE + f"{told}{said}\n")
+    reviewer.brief.write_text(BRIEF + DONE + f"{said}\n")
     return before, head, said
 
 
-def drops(reviewer):
-    return reviewer.output("### A scoped pass", "Dropped on rebase")
+def drops(reviewer, old="<old range>"):
+    """What step 4 prints, with `old` as the old range of the message, which by default is no
+    range at all, as when the block is run with its words in angle brackets left in."""
+    return reviewer.output("### A scoped pass", "Dropped on rebase", fill={"<old range>": old})
 
 
 def test_a_scoped_pass_reads_each_drop_the_crew_explained_at_the_head(reviewer):
@@ -1810,16 +1810,20 @@ def test_a_scoped_pass_reads_each_drop_the_crew_explained_at_the_head(reviewer):
     )
 
 
-def test_a_drop_is_read_from_the_ref_the_crew_kept_when_the_brief_has_no_rebase_line(reviewer):
-    before, head, said = rebased(reviewer, line=False)
-    first, line, *diff = drops(reviewer)
+def test_a_drop_is_read_from_the_head_the_old_range_ends_on_with_no_ref_kept(reviewer):
+    """The old range of the message, the one `jmerge` named in its `scoped review of git
+    range-diff` line, ends on the head before the rebase, so the pass needs no ref and no line of
+    the brief to find it."""
+    before, head, said = rebased(reviewer)
+    crew.git(reviewer.work, "update-ref", "-d", f"refs/jstack/pre-rebase/a-task/{before[:12]}")
+    first, line, *diff = drops(reviewer, f"{'0' * 40}..{before}")
     assert (first, line) == ("drop: n.txt", said)
     assert [each for each in diff if each[:1] in "+-" and each[:2] not in ("++", "--")] == [
         "-theirs"
     ]
 
 
-def test_with_no_rebase_line_the_newest_kept_head_is_the_one_before_the_last_rebase(reviewer):
+def test_with_no_old_range_the_newest_kept_head_is_the_one_before_the_last_rebase(reviewer):
     work = reviewer.work
 
     def commit(text, when):
@@ -1857,7 +1861,7 @@ def test_a_drop_whose_head_before_the_rebase_is_not_kept_is_not_upheld(reviewer)
     before, _, _ = rebased(reviewer)
     crew.git(reviewer.work, "update-ref", "-d", f"refs/jstack/pre-rebase/a-task/{before[:12]}")
     assert drops(reviewer) == [
-        "not upheld: the head before the rebase is not kept under "
+        "not upheld: the head before the rebase is not a commit here, nor kept under "
         "refs/jstack/pre-rebase/a-task, so no drop can be read",
         "drop: n.txt",
     ]
