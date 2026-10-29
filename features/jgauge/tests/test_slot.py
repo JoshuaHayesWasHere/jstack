@@ -557,7 +557,7 @@ def test_a_run_with_a_thread_is_its_threads_holder_until_it_ends(slots):
     """A run with `--thread` is on record as its thread's holder, so jbus can tell that the thread
     is at work while its turn has ended, and wake it when the run ends."""
     run = slots("--slots", "1", "--thread", THREAD, name="a")
-    assert slots.waits(lambda: slots.started() == ["a"])
+    assert slots.waits(lambda: slots.started() == ["a"] and held(slots))
     (one,) = held(slots)
     assert (one.thread, one.lane, one.ended, one.code) == (THREAD, "full", "", None)
     assert one.command == ("sh", "-c", RUNS_UNTIL_RELEASED, "sh", "a")

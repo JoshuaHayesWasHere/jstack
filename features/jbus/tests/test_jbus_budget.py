@@ -8,7 +8,9 @@ in `test_jbus_flow.py`.
 """
 
 import json
+import time
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -132,7 +134,7 @@ def test_jbus_budget_waits_until_the_budget_is_back_above_the_floor(kitchen, mon
         slept.append(seconds)
         kitchen.set("rate-limit.json", rate_limit(5000))
 
-    monkeypatch.setattr(budget.time, "sleep", sleep)
+    monkeypatch.setattr(budget, "time", SimpleNamespace(monotonic=time.monotonic, sleep=sleep))
     assert kitchen.main("budget", "--wait", "540")[0] == 0 and slept == [budget.AGAIN]
 
 
