@@ -279,6 +279,16 @@ def _stuck(monkeypatch, name):
     return let, started
 
 
+def _ended(served, path):
+    """Wait until every build of `path` the test began has ended, at the server's own patience.
+
+    A request gets a build begun after it, so its answer comes once those have ended. A build
+    left running would outlive the test, and the builds of `/stack.json` and the feed make a
+    `state.Read`, which the next test may have made `_stuck`."""
+    served.doors.app.patience = view.shared.PATIENCE
+    assert served.ask(path)[0] == 200
+
+
 def _at_once(served, path, times):
     """Ask `path` `times` times at once, and give each status with the seconds it took."""
     answers = []
@@ -322,6 +332,7 @@ def test_a_build_that_does_not_end_holds_no_later_request(served, monkeypatch, p
     while served.ask(path)[0] != 200:
         assert time.monotonic() < deadline
         time.sleep(0.05)
+    _ended(served, path)
 
 
 def test_a_request_that_comes_while_a_build_runs_gets_a_build_begun_after_it(served, monkeypatch):
@@ -379,6 +390,7 @@ def test_a_build_that_does_not_end_behind_a_finished_one_serves_the_finished_ans
         assert len(started) == 1
     finally:
         let.set()
+    _ended(served, path)
 
 
 def test_builds_of_many_answers_at_once_never_run_more_than_the_cap():
