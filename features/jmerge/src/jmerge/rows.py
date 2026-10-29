@@ -10,7 +10,6 @@ import jsettings
 from jmerge import bus, judgement, mainjson, ready
 from jmerge.bus import Migrations, Row
 from jmerge.checks import NOT_RED
-from jsettings import brief as brief_head
 from jsettings import store
 
 NO_PULL = "no pull request yet"
@@ -178,24 +177,6 @@ def ran_in(log: str, mark: str) -> Ran | None:
     return Ran(every=not paths, paths=frozenset(paths))
 
 
-def base_red(base: str, runs: list[dict], slug: str, text: str = "") -> str:
-    """The red hold of a pull request into an integration branch. It holds when a check of the
-    branch's tip ended without passing on its latest run, as GitHub's check runs list them
-    (`failed`). A cancelled run is no failed check, as on main (`jmerge.checks.NOT_RED`).
-
-    It does not hold a fix of a red main, as `red` does not, nor the fix of this branch's red at
-    its tip: the row jbus files for it (`integration_fix`, `jbus.sidered.integration_branches`),
-    or a row whose brief `text` names that red (`fixes`). A fix of another red is held. `failed`,
-    `latest`, `integration_fix` and `fixes` are at the end of this module.
-    """
-    red = failed(runs)
-    sha = str(red[0].get("head_sha"))[: mainjson.SHA] if red else ""
-    fix = mainjson.fix_of(slug) or slug == integration_fix(base, sha) or fixes(text) == (base, sha)
-    if not red or fix:
-        return ""
-    return ready.BASE_RED.format(base=base, sha=sha)
-
-
 def ordered(rows: list[Row] | None) -> set[str]:
     """The slugs of the rows that are not over and name a row they merge after: the only rows
     whose commits, carried by another pull request, can hold that one back."""
@@ -247,52 +228,6 @@ def short(
                 carried=carried, number=number, slug=other, open=ahead.get("pr") or NO_PULL
             )
     return ""
-
-
-INTEGRATION_FIX = "integration-red-"
-"""The start of the slug of a fix row jbus files for a red integration branch
-(`jbus.sidered.integration_branches`)."""
-FIXES = "Fixes red:"
-"""The head line of a brief whose row fixes a red integration branch, `Fixes red: <branch> at
-<sha>`, with at least the first 12 characters of the red tip."""
-_KEPT = frozenset("abcdefghijklmnopqrstuvwxyz0123456789._-")
-
-
-def integration_fix(branch: str, sha: str) -> str:
-    """The slug of the fix row for the red of `branch` at `sha`, or with no `sha` the start that
-    every fix row of the branch shares."""
-    kept = "".join(one if one in _KEPT else " " for one in branch.lower())
-    stem = "-".join(kept.split()).strip("-.") or "branch"
-    return f"{INTEGRATION_FIX}{stem}-{sha[: mainjson.SHA]}"
-
-
-def fixes(text: str) -> tuple[str, str] | None:
-    """The branch and the red tip, to 12 characters, that the brief's `FIXES` line names in its
-    head, or nothing."""
-    for line in brief_head.head_lines(text):
-        if line.startswith(FIXES):
-            words = line.removeprefix(FIXES).split()
-            if len(words) == 3 and words[1] == "at" and len(words[2]) >= mainjson.SHA:
-                return words[0], words[2][: mainjson.SHA]
-    return None
-
-
-def latest(runs: list[dict]) -> list[dict]:
-    """The latest run of each check, as GitHub's check runs of a commit list them."""
-    found: dict[str, dict] = {}
-    for one in sorted(runs, key=lambda run: str(run.get("started_at") or "")):
-        found[str(one.get("name"))] = one
-    return list(found.values())
-
-
-def failed(runs: list[dict]) -> list[dict]:
-    """The checks whose latest run ended without passing. A cancelled run is no failed check,
-    as on main (`jmerge.checks.NOT_RED`)."""
-    return [
-        one
-        for one in latest(runs)
-        if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
-    ]
 
 
 BROWSER_FIX = "browser-red-"

@@ -41,9 +41,7 @@ FIRST, REVIEWS, FIXES, SENDS, HOMES, SCOUTS, CAPPED = KINDS = (
 )
 
 TRIGGERS = {
-    **dict.fromkeys(
-        "failed refailed integration-red rereview unreviewed unfixed remark".split(), FIXES
-    ),
+    **dict.fromkeys("failed refailed rereview unreviewed unfixed remark".split(), FIXES),
     **dict.fromkeys(
         (
             "restack rebase mainmoved conflict drops limit-resume failover slot-wake wake"

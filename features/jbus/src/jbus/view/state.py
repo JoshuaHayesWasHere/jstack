@@ -1236,9 +1236,8 @@ class Read:
     A panel's `build` gets it as its argument. What more than one panel reads is a property
     here, and its source is one of the six above. A panel calls `panel` to get what another
     panel works out. `once` keeps what a panel works out for its own functions. `merged` asks
-    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and
-    `landed` for the integration branches that landed on the default branch, as
-    `github.GitHub.landed` does. Each is None where no server asks.
+    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and is None
+    where no server asks.
     """
 
     def __init__(
@@ -1251,10 +1250,9 @@ class Read:
         found: tuple[panels.Panel, ...] | None = None,
         shared: dict[Any, Any] | None = None,
         merged: Callable[[str, date], dict[str, Any]] | None = None,
-        landed: Callable[[str, tuple[str, ...]], dict[str, Any]] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
-        self.merged, self.landed = merged, landed
+        self.merged = merged
         self.code = code or {}
         self.user = sources.user
         self.state, self.home = sources.state(name), sources.home(name)

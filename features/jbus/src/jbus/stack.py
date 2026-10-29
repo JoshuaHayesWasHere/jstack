@@ -16,12 +16,13 @@ Each pass reads every open pull request whose brief has the line and has not mov
   `stacked|<slug>|<head 12>|<base head 12>` so it is asked once.
 - Once the base merged, jbus bases the link's pull request on the branch the base merged into,
   or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done so
-  itself on deleting the base's branch. A base merged into an integration branch leaves its link on
-  that branch: a rebase onto the default branch would carry the branch's commits there. Then jbus
-  moves the link's own commits onto that branch itself, in the same pass and with no turn of its
-  crew (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of
-  its own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
-  worktree, where it has one on the branch, is moved to the pushed head with `git reset --keep`.
+  itself on deleting the base's branch. A base merged into another branch than the default
+  leaves its link on that branch: a rebase onto the default branch would carry the branch's
+  commits there. Then jbus moves the link's own commits onto that branch itself, in the same
+  pass and with no turn of its crew (`_carry`): `git rebase --onto origin/<branch> <base's last
+  head>` in a scratch worktree of its own, never the crew's, and a push with `--force-with-lease` at
+  the head it read. The crew's worktree, where it has one on the branch, is moved to the pushed head
+  with `git reset --keep`.
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a

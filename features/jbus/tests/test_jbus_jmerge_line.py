@@ -59,13 +59,6 @@ def test_merge_sends_each_line_about_a_pull_request_and_gives_them_back(tmp_path
     ]
 
 
-def test_a_merge_into_an_integration_branch_is_sent_as_any_merge(tmp_path):
-    into = 'merged 7 alpha abc1234 "the task", into migration, revert: gh pr revert x'
-    sent = []
-    assert merge.merge(a_pass(tmp_path, [into], sent)) == [into]
-    assert sent == [("alpha", "jmerge", into, f"7 {into}")]
-
-
 def test_a_row_waits_for_what_a_wait_or_a_hold_line_gives_as_its_reason(tmp_path):
     run = a_pass(tmp_path, PRINTED)
     assert watch.waits(merge.merge(run)).said == {

@@ -69,11 +69,6 @@ function msHome(h, held) {
     (shown.length ? '<ul class="clean">' + shown.map(one).join("") + '</ul>' : "") +
     (done.length ? '<details class="msd"><summary class="src" style="min-height:44px;display:flex;align-items:center;cursor:pointer">' + plural(done.length, "entry has", "entries have") + ' every row finished: <code style="margin-left:6px">jbus plan close</code></summary><ul class="clean">' + done.map(one).join("") + '</ul></details>' : "") + '</section>';
 }
-function msBranch(t, held) {
-  var said = t.over + " of " + t.total + " merged into " + t.branch + ", " + plural(t.to_go, "row", "rows") + " to go before it lands";
-  return '<li class="mst" data-branch="' + esc(t.branch) + '" style="' + MS_ITEM + '"><div style="display:flex;gap:8px;align-items:baseline;justify-content:space-between;min-width:0"><span style="min-width:0;overflow-wrap:anywhere"><code>' + esc(t.branch) + '</code> lands on the default branch</span>' + msFrac(t.over, t.total) + '</div>' +
-    msBar(t, said) + msChain(t, t.branch + " lands", false) + '<div class="src" style="margin-top:6px">' + esc(t.to_go ? plural(t.to_go, "row", "rows") + " to go before it lands" : "every row is in: it lands when its own pull request merges into the default branch, and then it leaves this list") + '</div>' + msWhy(t, held[t.key] || []) + '</li>';
-}
 function msKey() {
   return '<p class="src" style="display:flex;flex-wrap:wrap;gap:6px 12px;margin:12.5px 0 0;align-items:center">' + MS_ORDER.map(function (k) { var m = MS_MARK[k]; return '<span style="display:inline-flex;align-items:center;gap:5px"><i style="display:inline-block;width:14px;height:10px;border:1.5px solid;border-radius:3px;' + m[1] + '"></i>' + esc(m[0]) + '</span>'; }).join("") + '</p>';
 }
@@ -85,18 +80,14 @@ function msHeld(chains) {
 function dMilestones(arg, data) {
   var m = data.milestones, entries = [], rowsOver = 0, rows = 0;
   m.homes.forEach(function (h) { h.entries.forEach(function (e) { entries.push(e); rowsOver += e.over; rows += e.total; }); });
-  var chains = entries.concat(m.integration), held = msHeld(chains);
-  var stuck = chains.filter(function (c) { return c.holder && c.over < c.total; }), done = entries.filter(function (e) { return e.total && e.over === e.total; }).length;
+  var held = msHeld(entries);
+  var stuck = entries.filter(function (c) { return c.holder && c.over < c.total; }), done = entries.filter(function (e) { return e.total && e.over === e.total; }).length;
   var h = head("Progress", "Milestones");
   h += '<div class="now"><span class="tag">Now</span><span class="big">' + (stuck.length ? plural(stuck.length, "milestone is", "milestones are") + ' held, ' : "No milestone held, ") + rowsOver + ' of ' + rows + ' rows merged</span>' +
     '<span class="src">' + plural(entries.length, "plan entry", "plan entries") + ' in ' + plural(m.homes.length, "home", "homes") + ', ' + plural(done, "has", "have") + ' every row finished.' +
     (stuck.length ? ' Held: ' + stuck.slice(0, 4).map(function (c) { return '<b>' + esc(c.key) + '</b> at <code>' + esc(c.holder.slug) + '</code>'; }).join(", ") + (stuck.length > 4 ? " and " + (stuck.length - 4) + " more" : "") + '.' : "") + '</span></div>' + msKey();
   h += m.homes.map(function (x) { return msHome(x, held); }).join("");
-  var branches = m.integration.filter(function (t) { return t.total; }), empty = m.integration.filter(function (t) { return !t.total; });
-  if (m.integration.length) h += '<section class="mstr"><h3>Integration branches <span class="cnt" style="text-transform:none;letter-spacing:0">' + plural(m.integration.length, "branch", "branches") + '</span></h3>' +
-    (branches.length ? '<ul class="clean">' + branches.map(function (t) { return msBranch(t, held); }).join("") + '</ul>' : "") +
-    (empty.length ? '<p class="src">No brief opens its pull request against ' + esc(empty.map(function (t) { return t.branch; }).join(", ")) + '.</p>' : "") + '</section>';
-  return h + '<p class="src" style="margin-top:15px">Each chain is a milestone\'s rows in the order their dependencies give, toward its outcome. A mark is the state the last pass judged for the row. The count and its line are <code>jbus plan</code>\'s own. An integration branch is a branch of the home\'s <code>integration</code> file, and its rows are the briefs whose <code>Pull request:</code> line opens against it. A branch whose own pull request merged into the default branch has landed, and is not listed.</p>';
+  return h + '<p class="src" style="margin-top:15px">Each chain is a milestone\'s rows in the order their dependencies give, toward its outcome. A mark is the state the last pass judged for the row. The count and its line are <code>jbus plan</code>\'s own.</p>';
 }
 var MS_ASKED = null;
 function msAsk() {
@@ -131,4 +122,4 @@ function msNearest() {
 }
 panel({ title: "Milestones", drawer: dMilestones, wide: true, reads: "server", parts: { nearest: msNearest }, gloss: {
   nearest: ["Nearest milestone", "The card under the matrix: the plan entry with rows still to merge that is nearest done, as a share of its rows merged, with the row that holds it, if one does. Open it for every milestone."],
-  milestones: ["Milestones", "Each plan entry of each home and each integration branch as a chain of its rows toward its outcome, each row marked merged, working, waiting, queued, needs you, stuck or blocked, with the step that holds it and what it waits on."] } });
+  milestones: ["Milestones", "Each plan entry of each home as a chain of its rows toward its outcome, each row marked merged, working, waiting, queued, needs you, stuck or blocked, with the step that holds it and what it waits on."] } });

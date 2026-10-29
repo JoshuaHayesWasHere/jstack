@@ -420,7 +420,6 @@ class App(Writes, Built):
             state.Read(
                 *(self.sources, one, now, runs, code, self.panels, shared),
                 merged=self.github.merged,
-                landed=self.github.landed,
             )
             for one in names
         ]

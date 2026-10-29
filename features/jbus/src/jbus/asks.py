@@ -47,10 +47,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     `said` returns the words an approval names: a word of the project's `acts.jsonl`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, the
     user's answer to a question box read from T3 Code and its store, a pick read from Lavish's
-    state file. `integration` is the branches of the home's
-    `integration` file, whose syncs are follow-ups (`queue.KINDS`). A follow-up's go reads no
-    file of the home: jbus knows the rule by what it says. `entry_go` reads the go of a row's plan
-    entry (`plan.holding`).
+    state file. A follow-up's go reads no file of the home: jbus knows the rule by what it says.
+    `entry_go` reads the go of a row's plan entry (`plan.holding`).
 
     `out` asks T3 Code and GitHub now for a thread that is at work, `crew: <slug>` or
     `scout: <slug>`, an open pull request, or a merged one. A thread that ended or settled is
@@ -119,12 +117,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
             return lavish.picked(config.user, ref)
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
 
-    try:
-        integration = tuple((config.home(project) / queue.INTEGRATION).read_text().split())
-    except OSError:
-        integration = ()
     goes = plan.entry_go(run.state, config.home(project))
-    return queue.Asks(out, launched, told, said, integration, goes)
+    return queue.Asks(out, launched, told, said, goes)
 
 
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:

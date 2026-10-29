@@ -178,10 +178,10 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     }
 
 
-def test_a_row_merged_into_an_integration_branch_is_done_and_has_no_card(scene):
-    """mac-a merged into `release/mac`, which has not landed on main: for the queue it is done
-    as rye-loaf, merged into main, is. Neither has a card, the board has no stage for an
-    integration branch, and both count in today's merges."""
+def test_a_row_merged_into_another_branch_than_main_is_done_and_has_no_card(scene):
+    """mac-a merged into `release/mac`, not main: for the queue it is done as rye-loaf, merged
+    into main, is. Neither has a card, the board has no stage for another branch, and both count
+    in today's merges."""
     piped(scene)
     got = board(scene)["data"]
     keys = [one["key"] for one in got["stages"]]

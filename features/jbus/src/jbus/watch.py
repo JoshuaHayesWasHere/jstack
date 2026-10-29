@@ -152,8 +152,8 @@ class World:
         """The open pull request a row whose depends `unmet` are not over launches stacked on: the
         one row it still waits on, once that row's pull request is open. A stack sits on one
         branch, so a row that waits on two or more rows launches on none, and nor does a row
-        whose `brief` goes on another branch than that row's (`against`): a row for an
-        integration branch that builds on a row for main waits for it to merge. Nor does a cleanup
+        whose `brief` goes on another branch than that row's (`against`): it waits for that row
+        to merge. Nor does a cleanup
         row (`Review: cleanup`): its brief says it launches once the row it cleans up merged."""
         if len(unmet) != 1 or unmet[0] not in self.open:
             return None
@@ -613,8 +613,8 @@ def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
 
 
 def against(brief: str) -> str:
-    """The branch a brief's `Pull request:` line opens its pull request against, an integration
-    branch, or empty for the default branch."""
+    """The branch a brief's `Pull request:` line opens its pull request against, or empty for the
+    default branch."""
     named = _AGAINST.search(brief.split("\n## ", 1)[0])
     return named["branch"] if named else ""
 
@@ -1146,18 +1146,15 @@ def fix_brief(
     *,
     files: Sequence[str] = (),
     nowhere: str = "",
-    untouched: str = ".github/workflows/, the ruleset",
-    design: str = "the failed run names",
     pull: str = "open one when done",
     home: str = "",
     follows: str = "",
 ) -> str:
     """Return the brief for the fix of a red check that jbus files, in the shape of
-    `features/jbriefs/templates/brief.md`: of a red main (`_file`), a red nightly run
-    (`_nightly_red`), a red side workflow (`sidered.owe`) or a red integration branch
-    (`sidered.integration_branches`). `jobs` is each failed job's name, URL and failed tests,
-    which `Read` names before the lines of `read`. `Where` names `files`, then the file of each
-    failed test, less any shared doc a fix brief may not claim (`queue.shared_doc`), or says
+    `features/jbriefs/templates/brief.md`: of a red main (`_file`) or a red nightly run
+    (`_nightly_red`). `jobs` is each failed job's name, URL and failed tests, which `Read` names
+    before the lines of `read`. `Where` names `files`, then the file of each failed test, less any
+    shared doc a fix brief may not claim (`queue.shared_doc`), or says
     `nowhere` where there are none. `filed` is what jbus filed it from, and
     `follows` the row whose work the fix is a follow-up of: a pass approves it on that row's go
     (`queue.follow_ups`)."""
@@ -1176,9 +1173,9 @@ def fix_brief(
             f"Proves it: {proves}",
             "Size: S",
             f"Where: {', '.join(f'`{file}`' for file in where) or nowhere}",
-            f"Do not touch: {untouched}",
+            "Do not touch: .github/workflows/, the ruleset",
             f"Decisions: {queue.FILED}{filed} and the user has not seen it",
-            f"Design: none, a fix to what {design}",
+            "Design: none, a fix to what the failed run names",
             f"Pull request: {pull}",
             "Review: review",
             "Playbook: bug-fix",
@@ -1286,8 +1283,8 @@ class Nightly:
     `home` the scoped home it is filed under, or an empty string for the root home. `title`,
     where it is set, is the title of the runs jbus files for: a run of the workflow with any
     other title checked out another ref, and is that ref's concern. `branch`, where it is set, is
-    the integration branch those runs check out: until one run of it there has passed, its red
-    runs are that branch's known work, which its home's plan holds, and file no row.
+    the branch those runs check out: until one run of it there has passed, its red runs are that
+    branch's known work, which its home's plan holds, and file no row.
     """
 
     file: str
@@ -1502,39 +1499,39 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
     write_json(run.state / nightly.seen, seen)
 
 
-def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = "main") -> None:
-    """Withdraw each fix row filed for a red (its slug ends in the red's commit) that the tip of
-    `branch`, main or an integration branch, `green`, has since passed: a fix for a problem already
-    gone is no decision. A row that never launched is taken out (`queue.withdraw`), with why in its
-    record. A row that launched is left to its crew and its pull request, since its fix may still be
-    needed for a test that turned green by chance, and the home hears of it once. The line that says
-    a row is withdrawn is sent once the row is out, and a withdrawn row is never one of `fixes`
-    again. A row filed for `green` itself, whose check passed on a rerun, is left as it is, and the
+def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
+    """Withdraw each fix row filed for a red (its slug ends in the red's commit) that main's tip,
+    `green`, has since passed: a fix for a problem already gone is no decision. A row that never
+    launched is taken out (`queue.withdraw`), with why in its record. A row that launched is left
+    to its crew and its pull request, since its fix may still be needed for a test that turned green
+    by chance, and the home hears of it once. The line that says a row is withdrawn is sent once the
+    row is out, and a withdrawn row is never one of `fixes` again. A row filed for `green` itself,
+    whose check passed on a rerun, is left as it is, and the
     home hears of that once too. A row with a launch record (`jbus.launches`) is left for the pass
     that reads T3 Code's answer."""
     for row in fixes:
         name = row["slug"]
         if green.startswith(name.rsplit("-", 1)[-1]):
-            line = f"retro {name}: {branch} is green again at {green[:12]}, and its row is left"
+            line = f"retro {name}: main is green again at {green[:12]}, and its row is left"
             line += " as it is"
             run.find(name, "retro", line, key=f"green {name}", past=True)
             continue
         if row.get("thread") or row.get("status") not in queue.UNLAUNCHED:
             line = (
-                f"retro {name}: {branch} is green again at {green[:12]}, and its row launched, so "
+                f"retro {name}: main is green again at {green[:12]}, and its row launched, so "
                 "it is left to its crew and its pull request"
             )
             run.find(name, "retro", line, key=f"launched {name}", past=True)
             continue
         if records(run, name):
             continue
-        why = f"{branch} is green at {green[:12]}, a later commit than the red it was filed for"
+        why = f"main is green at {green[:12]}, a later commit than the red it was filed for"
         try:
             said = queue.withdraw(run.state, name, why, run.user.stamp(run.now))
         except (Refused, queue.Unparsable) as refused:
             run.condition(name, f"its row was not withdrawn: {refused}")
             continue
-        line = f"retro {name}: {branch} is green again at {green[:12]}, and its row is withdrawn"
+        line = f"retro {name}: main is green again at {green[:12]}, and its row is withdrawn"
         run.box.send(name, "retro", line)
         run.box.send(name, "queue", f"queue {run.project.name}: {said}", queue.render([row]))
         run.say(said)

@@ -1,4 +1,4 @@
-"""The Milestones drawer on the page: a bar for each plan entry and each integration branch."""
+"""The Milestones drawer on the page: a bar for each plan entry."""
 
 import html
 import re
@@ -50,24 +50,3 @@ def test_the_drawer_draws_four_of_seven_as_a_chain_and_marks_what_holds_it(scene
     assert "tea-cosy a cosy for the pot proposed" in said, said
     assert said.index("tea-pot a pot") < said.index("tea-cosy") < said.index("finished: jbus plan")
     assert "1 entry has every row finished: jbus plan close rye-loaf a loaf of rye 1 of 1" in said
-    assert "Integration branches 2 branches release/tea lands" in said, said
-    tea = "release/tea lands on the default branch 1 of 3 tea-1 #1 → tea-5 Check #5 → tea-6"
-    assert tea in said, said
-    assert "→ release/tea lands not yet 2 rows to go before it lands" in said, said
-    assert "No brief opens its pull request against migration." in said, said
-
-
-def test_a_branch_behind_a_plan_entry_names_it_and_the_entry_says_the_branch_waits_on_it(
-    scene, tmp_path
-):
-    sandbox(scene, behind_pot=True)
-    served = Served(scene)
-    try:
-        said = drawn(served.port, tmp_path)
-    finally:
-        served.close()
-    pot = said.partition("tea-pot a pot to pour from 0 of 2")[2]
-    assert "Waits on tea-set ( tea-6 , working) release/tea waits on this" in pot, said
-    branch = said.partition("release/tea lands on the default branch")[2]
-    assert "Waits on tea-pot ( pot-2 , stuck)" in branch, said
-    assert "no milestone" not in said, said

@@ -5,8 +5,7 @@ with the chains its rows make and what holds the line.
 screen names them from, and `state.stages` puts each task on its one stage. `you` counts every
 need of the You panel, a need that names no row too, so it is the one count every Needs-you
 widget gives. A task on no step the view knows is `unplaced`. `merged` is a count of what
-merged today, into the default branch or an integration branch alike, and has no rows: a row
-merged is done as far as the queue goes, whatever branch it merged into. A scout's row on
+merged today, and has no rows: a row merged is done as far as the queue goes. A scout's row on
 `scout` says it researches and has no Report yet.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its

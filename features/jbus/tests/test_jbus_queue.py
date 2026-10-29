@@ -682,8 +682,8 @@ def test_a_row_waits_silently_until_what_it_depends_on_opens_its_pull_request(ki
     assert kitchen.t3.launches[0]["workspaceStrategy"]["baseRef"] == "alpha"
 
 
-def test_a_dependency_merged_into_an_integration_branch_counts_as_merged(kitchen):
-    """A unit merges into its integration branch, not main. GitHub lists that merge with every
+def test_a_dependency_merged_into_another_branch_than_main_counts_as_merged(kitchen):
+    """A row merges into another branch than main. GitHub lists that merge with every
     other merge, and jbus launches the row that depends on it as it does after any merge."""
     add(kitchen, "beta", depends="alpha")
     kitchen.brief("alpha", RESULT)

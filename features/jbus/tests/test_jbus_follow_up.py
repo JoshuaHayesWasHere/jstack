@@ -126,8 +126,8 @@ def brief_of(kitchen, slug):
             "beta",
             (),
             brief("beta", follows("alpha")),
-            "beta is no follow-up's kind (cleanup-, a fix jbus filed, an integration branch's "
-            "sync) and does not do work for alpha's plan entry alpha: its entry is beta",
+            "beta is no follow-up's kind (cleanup-, a fix jbus filed) and does not do work for "
+            "alpha's plan entry alpha: its entry is beta",
         ),
         (
             "cleanup-gone",
@@ -281,8 +281,8 @@ def test_an_entry_the_parent_only_inherited_makes_no_follow_up_unit(kitchen):
     said = add(kitchen, "gamma", "--entry", "epic", text=brief("gamma", follows("cleanup-alpha")))
     assert said == [
         "gamma waits for the user's go, not a follow-up: gamma is no follow-up's kind (cleanup-, "
-        "a fix jbus filed, an integration branch's sync) and does not do work for "
-        "cleanup-alpha's plan entry cleanup-alpha: its entry is epic"
+        "a fix jbus filed) and does not do work for cleanup-alpha's plan entry cleanup-alpha: "
+        "its entry is epic"
     ]
     assert rows(kitchen)["gamma"]["approved"] == ""
     text = brief("delta", follows("cleanup-alpha"))
