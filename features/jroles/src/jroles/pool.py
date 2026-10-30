@@ -10,22 +10,21 @@ cap, and a thread stays on the account it started on until that account is cappe
 rotates through the pool. When every instance is full, the choice names no instance, and gives
 the time when the first instance resets.
 
-To grow the pool, add a line to the provider inventory (`~/.config/jstack/providers.json`, T3
-Code's `providerInstances`) and one more id to the role line. `jroles` refuses a line with an id
-that the inventory does not declare under the line's provider, so a Claude pool never names a
-Codex or a Cursor instance. When there is no inventory, `jroles` takes the line as the user
-wrote it.
+To grow the pool, add the instance in T3 Code's settings (`providerInstances`, which
+`jroles.inventory` reads) and one more id to the role line. `jroles` refuses a line with an id
+that T3 does not list under the line's provider, so a Claude pool never names a Codex or a
+Cursor instance. When T3 has no settings file, `jroles` takes the line as the user wrote it.
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 import jsettings
-from jroles import Refused, Selection, ledger, read_map
+from jroles import Refused, Selection, inventory, ledger, read_map
 
 WAIT = 75
 
@@ -78,30 +77,16 @@ def choose(
     return Choice(None, f"{listed} are {every} capped until {first.isoformat()}", first)
 
 
-def declared(text: str) -> dict[str, str]:
-    """Each instance that the inventory declares, with its driver. The function refuses an
-    inventory that is not in T3's `providerInstances` shape."""
-    try:
-        found = json.loads(text)
-    except ValueError as error:
-        raise Refused(f"refused: providers.json is not JSON ({error})") from error
-    if not isinstance(found, dict) or not all(
-        isinstance(entry, dict) and isinstance(entry.get("driver"), str) for entry in found.values()
-    ):
-        raise Refused("refused: providers.json is not an object of instances with a driver")
-    return {str(name): entry["driver"] for name, entry in found.items()}
-
-
 def check(role: str, selection: Selection, drivers: dict[str, str] | None) -> None:
-    """Refuse a pool that names an instance the inventory does not declare under the line's
-    provider. The provider's built-in instance needs no line in the inventory. An inventory of
-    None means there is no inventory."""
+    """Refuse a pool that names an instance T3 does not list under the line's provider. The
+    provider's built-in instance needs no line in T3's list. `drivers` of None means T3 has no
+    settings file."""
     if drivers is None:
         return
     for instance in selection.pool:
         if instance != selection.provider and drivers.get(instance) != selection.provider:
             raise Refused(
-                f"refused {role}: {instance} is no {selection.provider} instance of providers.json"
+                f"refused {role}: {instance} is no {selection.provider} instance of T3's settings"
             )
 
 
@@ -120,7 +105,7 @@ class Route:
 def selections(role: str) -> tuple[Selection, ...]:
     """The role's lines of the map, in order, with each pool checked against the inventory,
     or none when the role inherits. Only `review` has more than one line. The function refuses
-    a map or an inventory that it cannot use."""
+    a map or T3 settings that it cannot use."""
     where = jsettings.config_home()
     try:
         text = (where / "roles").read_text()
@@ -132,12 +117,11 @@ def selections(role: str) -> tuple[Selection, ...]:
     chosen = read_map(text, role)
     if not chosen:
         return ()
-    try:
-        drivers = declared((where / "providers.json").read_text())
-    except FileNotFoundError:
-        drivers = None
-    except (OSError, UnicodeDecodeError) as error:
-        raise Refused(f"refused {role}: providers.json cannot be read ({error})") from error
+    settings = inventory.path()
+    listed = inventory.declared(settings, Path.home()) if settings.exists() else None
+    if isinstance(listed, str):
+        raise Refused(f"refused {role}: {settings}: {listed}")
+    drivers = None if listed is None else {name: each.driver for name, each in listed.items()}
     for one in chosen:
         check(role, one, drivers)
     return chosen

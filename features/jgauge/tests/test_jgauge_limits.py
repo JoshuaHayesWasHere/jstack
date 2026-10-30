@@ -76,7 +76,9 @@ class Machine:
             PRIME: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
             "codex": {"driver": "codex", "enabled": True},
         }
-        (self.config / "jstack" / "providers.json").write_text(json.dumps(inventory))
+        self.t3_settings = self.home / ".t3" / "userdata" / "settings.json"
+        self.t3_settings.parent.mkdir(parents=True)
+        self.t3_settings.write_text(json.dumps({"providerInstances": inventory}))
         self.homes = {
             "claudeAgent": (self.home / ".claude", self.home / ".claude.json", MAIN_ACCOUNT),
             PRIME: (
@@ -129,7 +131,7 @@ class Machine:
         env = {
             key: value
             for key, value in os.environ.items()
-            if not key.startswith(("XDG_", "LIMITS", "JGAUGE_"))
+            if not key.startswith(("XDG_", "LIMITS", "JGAUGE_", "T3CODE_HOME"))
         }
         env |= {
             "HOME": str(self.home),
@@ -275,7 +277,7 @@ def test_the_check_names_a_declared_instance_with_no_file(machine):
 
 
 def test_with_no_inventory_the_built_in_home_alone_is_read(machine):
-    (machine.config / "jstack" / "providers.json").unlink()
+    machine.t3_settings.unlink()
     machine.answer("claudeAgent", usage(10.0, 20.0))
     code, out, _ = machine.run()
     assert code == 0 and len(out.splitlines()) == 1

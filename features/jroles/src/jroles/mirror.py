@@ -1,14 +1,14 @@
 """`jroles mirror`: make every extra Claude home a mirror of `~/.claude`, except for its login.
 
 T3 Code runs a second Claude account as an instance of its own, in a home of its own. That
-home is the `config.homePath` of a `claudeAgent` instance of `~/.config/jstack/providers.json`,
-such as `~/.claude_prime`. A thread on that instance should have the memory, the transcripts,
-the skills, the settings and the instructions of the main home, `~/.claude`, and only the
-login of its own. So each entry of `~/.claude` is a symlink in the mirror, except the entries
-that belong to a login or to one process (`KEEP`). `<home>/.claude.json` stays the mirror's own
-file. The run keeps the mirror's values for its account keys (`ACCOUNT_KEYS`), and copies every
-other key from the main file. The run merges `projects` project by project, and where the two
-files differ, it keeps the main file's value.
+home is the `config.homePath` of a `claudeAgent` instance in T3's `providerInstances`
+(`jroles.inventory`), such as `~/.claude_prime`. A thread on that instance should have the
+memory, the transcripts, the skills, the settings and the instructions of the main home,
+`~/.claude`, and only the login of its own. So each entry of `~/.claude` is a symlink in the
+mirror, except the entries that belong to a login or to one process (`KEEP`).
+`<home>/.claude.json` stays the mirror's own file. The run keeps the mirror's values for its
+account keys (`ACCOUNT_KEYS`), and copies every other key from the main file. The run merges
+`projects` project by project, and where the two files differ, it keeps the main file's value.
 
 `plan` reads a mirror and returns what differs, one `Step` for each entry, and does nothing
 else. So `--check` and a run read the mirror the same way. A run applies the steps under a
@@ -54,7 +54,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from jroles import Refused, inventory, pool
+from jroles import Refused, inventory
 
 KEEP = frozenset(
     {
@@ -137,39 +137,27 @@ class Step:
         }[self.kind]
 
 
-def mirrors(text: str, user: Path) -> tuple[Mirror, ...]:
-    """Each `claudeAgent` instance of providers.json `text` whose home is not `~/.claude`.
-    A home is `config.homePath`. The function reads `~` as `user` and drops the slash at the
-    end, as `features/jgauge/hooks/limits.sh` does. The function refuses a file that is not in
-    T3's shape."""
-    pool.declared(text)
+def mirrors(listed: dict[str, inventory.Instance], user: Path) -> tuple[Mirror, ...]:
+    """Each `claudeAgent` instance T3 lists whose home, its `config.homePath`, is not
+    `~/.claude`."""
     main = os.path.realpath(user / ".claude")
-    found = []
-    for name, entry in json.loads(text).items():
-        config = entry.get("config")
-        path = config.get("homePath") if isinstance(config, dict) else None
-        if entry["driver"] != "claudeAgent" or not isinstance(path, str) or not path:
-            continue
-        if path == "~" or path.startswith("~/"):
-            path = str(user) + path[1:]
-        home = Path(path.rstrip("/") or "/")
-        if not home.is_absolute():
-            raise Refused(f"refused: {name}'s homePath {path} is not absolute")
-        if os.path.realpath(home) != main:
-            found.append(Mirror(str(name), home))
-    return tuple(found)
+    return tuple(
+        Mirror(name, each.home)
+        for name, each in listed.items()
+        if each.driver == inventory.BUILT_IN
+        and each.home is not None
+        and os.path.realpath(each.home) != main
+    )
 
 
 def declared(user: Path) -> tuple[Mirror, ...]:
-    """The mirrors that this machine's providers.json declares, or none when there is no
+    """The mirrors that this machine's T3 settings list, or none when T3 has no settings
     file."""
-    try:
-        text = inventory.path().read_text()
-    except FileNotFoundError:
-        return ()
-    except (OSError, UnicodeDecodeError) as error:
-        raise Refused(f"refused: providers.json cannot be read ({error})") from error
-    return mirrors(text, user)
+    settings = inventory.path()
+    listed = inventory.declared(settings, user)
+    if isinstance(listed, str):
+        raise Refused(f"refused: {settings}: {listed}")
+    return mirrors(listed, user)
 
 
 def _entries(directory: Path) -> list[str]:
@@ -418,7 +406,7 @@ def review(
 
 def check(main: Main, mirror: Mirror) -> list[str]:
     """What `--check` finds wrong with one mirror: a line for each entry that differs. The
-    function compares the mirror with the pool of every home that providers.json declares,
+    function compares the mirror with the pool of every home that T3's settings list,
     as `jroles mirror --check` reads it."""
     try:
         homes = [one.home for one in declared(main.config.parent) if one.home.is_dir()]
@@ -461,7 +449,7 @@ def pool_main(main: Main, usage: dict) -> list[str]:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="jroles mirror",
-        description="Make each extra Claude home of providers.json a mirror of ~/.claude.",
+        description="Make each extra Claude home of T3's settings a mirror of ~/.claude.",
     )
     parser.add_argument(
         "--check", action="store_true", help="change nothing; exit 1 if anything differs"
@@ -477,7 +465,7 @@ def main(argv: list[str]) -> int:
     if args.instance:
         chosen = tuple(one for one in chosen if one.instance == args.instance)
         if not chosen:
-            print(f"jroles mirror: {args.instance} is no mirror of providers.json", file=sys.stderr)
+            print(f"jroles mirror: {args.instance} is no mirror of T3's settings", file=sys.stderr)
             return BROKEN
     home, code = Main.of(user), 0
     if not home.home.is_dir():

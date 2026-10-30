@@ -1,5 +1,5 @@
 [Unit]
-Description=jroles mirror: each extra Claude home of providers.json a mirror of ~/.claude
+Description=jroles mirror: each extra Claude home of T3's settings a mirror of ~/.claude
 Documentation=file:%Y/../docs/jroles.md#mirrors
 
 [Service]

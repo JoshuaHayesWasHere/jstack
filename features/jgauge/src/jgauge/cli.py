@@ -335,7 +335,7 @@ def parser() -> argparse.ArgumentParser:
     read = commands.add_parser(
         "limits",
         help="read each Claude account's five-hour and weekly use into the ledger, ahead of time",
-        description="For each Claude home of ~/.config/jstack/providers.json, and ~/.claude"
+        description="For each Claude home of T3 Code's providerInstances, and ~/.claude"
         " where it names none, read the account's five-hour and weekly use from the usage"
         " endpoint with the home's own token while it has not expired, else from the answer"
         " Claude Code cached in its .claude.json while that is under 15 min old, and merge it"

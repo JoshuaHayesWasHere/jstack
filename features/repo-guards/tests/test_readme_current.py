@@ -36,7 +36,7 @@ import jsettings
 from jbus import alert, wake
 from jgauge import sizes
 from jinstall import needs as listed
-from jinstall.kinds import HomeSkills, HookGroup, Program, ProviderInstance, StatusLine
+from jinstall.kinds import HomeSkills, HookGroup, Program, StatusLine
 from jinstall.machine import Machine
 from test_doctor import PROGRAMS, Doctored
 from test_install import line_for
@@ -384,7 +384,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     found = {}
     for need in listed.needs(Machine.here(REPO)):
         name = " ".join(word for word in need.name.split() if not word.startswith("/"))
-        declared = isinstance(need.kind, (ProviderInstance, HomeSkills))
+        declared = isinstance(need.kind, HomeSkills)
         if not name.startswith(("hook", "commands", "attribution")) and name and not declared:
             found[name] = need
     for name in ("git", "jq"):
@@ -579,7 +579,7 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
     tmp_path,
 ):
     """The status line runs as the built-in account's, `~/.claude` in a scratch home. The session's
-    own `CLAUDE_CONFIG_DIR` and providers.json would send limits.sh to another instance's file."""
+    own `CLAUDE_CONFIG_DIR` and T3's settings would send limits.sh to another instance's file."""
     (script,) = blocks(section(page("configuration.md"), "The limits file"), "sh")
     layout = tmp_path / "data" / "jstack" / "harness" / "claude-code" / "hooks"
     layout.mkdir(parents=True)

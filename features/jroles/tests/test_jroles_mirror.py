@@ -1,4 +1,4 @@
-"""For each extra Claude home that providers.json declares, `jroles mirror` keeps that home a
+"""For each extra Claude home that T3's settings list, `jroles mirror` keeps that home a
 mirror of `~/.claude`, except for its login. The tests run the command in a throwaway HOME with
 a fake `~/.claude` and two mirror homes. A second account has used one of them for a while, and
 the other is new."""
@@ -22,7 +22,7 @@ def write(path, text):
 
 
 @pytest.fixture
-def home(tmp_path, monkeypatch, jstack_config):
+def home(tmp_path, monkeypatch, t3_settings):
     """A HOME with three Claude homes. Its `~/.claude` has memory, transcripts, skills,
     settings and a login. A prime home has its own projects, history and login. A third home
     has only a login."""
@@ -75,17 +75,20 @@ def home(tmp_path, monkeypatch, jstack_config):
     third = user / ".claude_third"
     write(third / ".claude.json", json.dumps({"oauthAccount": {"accountUuid": "third"}}))
     write(
-        jstack_config.parent / "providers.json",
+        t3_settings,
         json.dumps(
             {
-                "claudeAgent": {"driver": "claudeAgent", "enabled": True},
-                PRIME: {
-                    "driver": "claudeAgent",
-                    "enabled": True,
-                    "config": {"homePath": "~/.claude_prime"},
+                "providerInstances": {
+                    "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+                    PRIME: {
+                        "driver": "claudeAgent",
+                        "enabled": True,
+                        "config": {"homePath": "~/.claude_prime"},
+                    },
+                    THIRD: {"driver": "claudeAgent", "config": {"homePath": f"{third}/"}},
+                    "codex": {"driver": "codex", "config": {"homePath": "~/.codex"}},
                 },
-                THIRD: {"driver": "claudeAgent", "config": {"homePath": f"{third}/"}},
-                "codex": {"driver": "codex", "config": {"homePath": "~/.codex"}},
+                "enableAssistantStreaming": True,
             }
         ),
     )
@@ -221,8 +224,8 @@ def test_a_mirror_home_that_is_missing_is_drift_and_a_run_refuses_it(home, capsy
     assert code == 2 and "is missing" in err
 
 
-def test_no_providers_json_mirrors_nothing(home, capsys, jstack_config):
-    (jstack_config.parent / "providers.json").unlink()
+def test_no_t3_settings_mirror_nothing(home, capsys, t3_settings):
+    t3_settings.unlink()
     assert mirror(capsys) == (0, [], "")
     assert not (home / ".claude_prime" / "skills").exists()
 

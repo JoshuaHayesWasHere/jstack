@@ -86,7 +86,7 @@ RELAY_KEYS = (
     "PAGER_HA_TOKEN=a-token\n"
     "PAGER_HA_SERVICE=mobile_app_phone\n"
 )
-SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
+SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS", "T3CODE_HOME")
 MAC = sys.platform == "darwin"
 """Whether the tests run on a Mac. `install.sh` runs jinstall in a Python of its own, which
 takes its platform from the machine the test runs on, and no test can set it there. So a test of
@@ -220,7 +220,7 @@ class User:
         self.bin = self.home / ".local" / "bin"
         self.units = self.home / UNITS_DIR
         self.patterns = self.home / ".config" / "jstack" / "outbound.toml"
-        self.providers = self.home / ".config" / "jstack" / "providers.json"
+        self.t3_settings = self.home / ".t3" / "userdata" / "settings.json"
         self.cursor = self.home / ".cursor" / "cli-config.json"
         self.layout = laid(self.home)
         self.START = group("home-start.sh", self.home)
@@ -1346,10 +1346,12 @@ def test_uninstall_takes_out_only_the_attribution_the_install_set(user):
 
 def declare(user, home):
     user.write(
-        user.providers,
+        user.t3_settings,
         {
-            "claudeAgent": {"driver": "claudeAgent", "enabled": True},
-            "prime": {"driver": "claudeAgent", "enabled": True, "config": {"homePath": home}},
+            "providerInstances": {
+                "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+                "prime": {"driver": "claudeAgent", "enabled": True, "config": {"homePath": home}},
+            }
         },
     )
 

@@ -299,7 +299,7 @@ INVENTORY = {
 
 
 @pytest.fixture
-def pooled(tmp_path, monkeypatch, capsys):
+def pooled(tmp_path, monkeypatch, capsys, t3_settings):
     """Run `jroles <role>` over a map of pools, the inventory, and a ledger, at a given time,
     and return its exit code and what it printed."""
     from datetime import UTC, datetime
@@ -308,13 +308,14 @@ def pooled(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("LIMITS", str(tmp_path / "state" / "limits"))
     (tmp_path / "config" / "jstack").mkdir(parents=True)
     (tmp_path / "config" / "jstack" / "roles").write_text(POOL_MAP)
-    (tmp_path / "config" / "jstack" / "providers.json").write_text(json.dumps(INVENTORY))
+    t3_settings.write_text(json.dumps({"providerInstances": INVENTORY, "other": 1}))
 
     def ask(role, at=datetime(2026, 10, 17, 19, 45, tzinfo=UTC)):
         code = main([role], now=at)
         return code, *capsys.readouterr()
 
     ask.config = tmp_path / "config" / "jstack"
+    ask.t3 = t3_settings
     return ask
 
 
@@ -388,9 +389,10 @@ def test_one_capped_review_line_holds_the_whole_list_and_the_other_launches_noth
     )
 
 
-def test_a_pool_grows_by_an_inventory_line_and_an_id_on_the_role_line(pooled):
-    """`jroles` refuses a line with an id that the inventory does not declare under the line's
-    provider, and one more line in the inventory makes the line valid."""
+def test_a_pool_grows_by_an_instance_added_in_t3_and_an_id_on_the_role_line(pooled):
+    """`jroles` refuses a line with an id that T3's settings do not list under the line's
+    provider. An instance added in T3's `providerInstances` makes the line valid, with no
+    jstack file to edit, and `jroles` writes nothing to T3's settings."""
     third = "claudeAgent_claude_third"
     (pooled.config / "roles").write_text(
         f"crew: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME},{third}\n"
@@ -398,13 +400,16 @@ def test_a_pool_grows_by_an_inventory_line_and_an_id_on_the_role_line(pooled):
     assert pooled("crew") == (
         0,
         "",
-        f"refused crew: {third} is no claudeAgent instance of providers.json\n",
+        f"refused crew: {third} is no claudeAgent instance of T3's settings\n",
     )
     grown = {**INVENTORY, third: {"driver": "claudeAgent", "config": {"homePath": "~/.c3"}}}
-    (pooled.config / "providers.json").write_text(json.dumps(grown))
+    pooled.t3.write_text(json.dumps({"providerInstances": grown, "other": 1}))
+    written = pooled.t3.read_bytes()
     cap("claudeAgent", WEEKLY)
     cap(PRIME, WEEKLY)
     assert json.loads(pooled("crew")[1])["instanceId"] == third
+    assert pooled.t3.read_bytes() == written
+    assert not (pooled.config / "providers.json").exists()
 
 
 def test_a_claude_pool_never_names_a_codex_or_cursor_instance(pooled):
@@ -412,12 +417,21 @@ def test_a_claude_pool_never_names_a_codex_or_cursor_instance(pooled):
     assert pooled("crew") == (
         0,
         "",
-        "refused crew: codex is no claudeAgent instance of providers.json\n",
+        "refused crew: codex is no claudeAgent instance of T3's settings\n",
     )
 
 
-def test_with_no_inventory_the_pool_is_taken_as_written(pooled):
-    (pooled.config / "providers.json").unlink()
+def test_t3_settings_whose_provider_instances_are_not_t3s_shape_refuse_the_pool(pooled):
+    pooled.t3.write_text(json.dumps({"providerInstances": ["claudeAgent"]}))
+    assert pooled("crew") == (
+        0,
+        "",
+        f"refused crew: {pooled.t3}: providerInstances is not an object of provider instances\n",
+    )
+
+
+def test_with_no_t3_settings_the_pool_is_taken_as_written(pooled):
+    pooled.t3.unlink()
     assert json.loads(pooled("review")[1])["instanceId"] == PRIME
 
 

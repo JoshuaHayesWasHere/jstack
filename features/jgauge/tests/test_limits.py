@@ -243,19 +243,22 @@ PRIME = "claudeAgent_claude_prime"
 
 
 def inventory(tmp_path, env, prime_home):
-    """The provider inventory under the environment's config directory, with prime's home."""
-    config = tmp_path / "xdg"
-    (config / "jstack").mkdir(parents=True, exist_ok=True)
-    (config / "jstack" / "providers.json").write_text(
+    """The provider inventory, T3's settings under the environment's T3 home, with prime's
+    home."""
+    t3 = tmp_path / "t3"
+    (t3 / "userdata").mkdir(parents=True, exist_ok=True)
+    (t3 / "userdata" / "settings.json").write_text(
         json.dumps(
             {
-                "claudeAgent": {"driver": "claudeAgent", "enabled": True},
-                PRIME: {"driver": "claudeAgent", "config": {"homePath": prime_home}},
-                "codex": {"driver": "codex"},
+                "providerInstances": {
+                    "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+                    PRIME: {"driver": "claudeAgent", "config": {"homePath": prime_home}},
+                    "codex": {"driver": "codex"},
+                }
             }
         )
     )
-    return {**env, "XDG_CONFIG_HOME": str(config)}
+    return {**env, "T3CODE_HOME": str(t3)}
 
 
 @pytest.mark.parametrize("prime_home", ["~/.claude_prime", "{home}/.claude_prime/"])
@@ -283,7 +286,7 @@ def test_an_account_the_inventory_does_not_declare_writes_nothing(tmp_path, env)
     assert sorted(path.name for path in Path(env["LIMITS"]).parent.iterdir()) == [
         "proc",
         "stub",
-        "xdg",
+        "t3",
     ]
 
 

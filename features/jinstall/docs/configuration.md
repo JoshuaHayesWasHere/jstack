@@ -4,7 +4,7 @@ jstack runs without any of these files.
 Each one changes a default or switches on an optional layer.
 This page lists every file you write, each key in it, the default, and the command or script that reads it.
 
-`jinstall --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found.
+`jinstall --doctor` reads the jstack config, the `jbus` config, the provider instances of T3's settings, the hook entries, the limits file and the state tree's remote, and says what it found.
 [Troubleshooting](troubleshooting/the-doctor.md) has each line the doctor prints for a file it refuses.
 
 | File | Sets | Written by |
@@ -13,7 +13,6 @@ This page lists every file you write, each key in it, the default, and the comma
 | `~/.config/jstack/roles` | The model for each role | You, or `jinstall --setup` once |
 | `~/.config/jstack/machine.toml` | The full and short test slots, where you do not want the counts derived from the machine | You |
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `jinstall --setup` once |
-| `~/.config/jstack/providers.json` | The provider instances this machine runs | You |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `jinstall` |
 | `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `jgauge limits`, jgauge's `limits.sh` in the status line, `jbus` |
 | `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
@@ -65,7 +64,7 @@ The file is the one source of every launch's model.
 `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
 The instances a line names are the role's pool, in order.
 A launch goes to the first of them with headroom in the ledger.
-To grow a pool by one instance, add one line to `providers.json` and one more id to the role's line ([pools](../../jroles/docs/jroles.md#pools)).
+To grow a pool by one instance, add the instance in T3 Code's settings and one more id to the role's line ([pools](../../jroles/docs/jroles.md#pools)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -167,47 +166,42 @@ Two more paths change what `jbus` does:
 
 ## Provider instances
 
-`~/.config/jstack/providers.json` declares the provider instances this machine runs, such as a second Claude subscription in a home of its own.
-You write the file.
-jstack never writes it, and `jroles`, `jgauge limits` and `jinstall --doctor` only read it.
-With no file, each provider has only its built-in instance, such as `claudeAgent` for Claude, and nothing is wrong.
-On a machine where another tool manages the file, that tool writes it, and jstack reads it the same way.
+The provider instances this machine runs are the ones T3 Code lists in `providerInstances`, in its settings, `~/.t3/userdata/settings.json` (`$T3CODE_HOME/userdata/settings.json` where that is set).
+A second Claude subscription in a home of its own is one of them.
+You add an instance in T3 Code's settings, and jstack sees it from its next read, with no file of its own to edit.
+jstack never writes T3's settings, and `jroles`, `jgauge limits` and `jinstall --doctor` only read them.
+With no settings file, each provider has only its built-in instance, such as `claudeAgent` for Claude, and nothing is wrong.
 
-The file has the shape of T3 Code's own `providerInstances`, in `~/.t3/userdata/settings.json`: one JSON object, keyed by instance id.
-This example declares the built-in Claude instance and a second Claude account in `~/.claude-work`:
+`providerInstances` is one JSON object, keyed by instance id.
+This example lists the built-in Claude instance and a second Claude account in `~/.claude-work`:
 
 ```json
 {
-  "claudeAgent": {"driver": "claudeAgent", "enabled": true},
-  "claudeAgent_work": {"driver": "claudeAgent", "enabled": true, "config": {"homePath": "~/.claude-work"}}
+  "providerInstances": {
+    "claudeAgent": {"driver": "claudeAgent", "enabled": true},
+    "claudeAgent_work": {"driver": "claudeAgent", "enabled": true, "config": {"homePath": "~/.claude-work"}}
+  }
 }
 ```
 
 | Key | Default | What it sets |
 |---|---|---|
-| The instance id | None, required | The name a role line of `~/.config/jstack/roles` gives the instance in its pool ([Roles](#roles)), and the name of its limits file, `limits.<instanceId>`. It is the id T3 Code gives the same instance. |
+| The instance id | None, required | The name a role line of `~/.config/jstack/roles` gives the instance in its pool ([Roles](#roles)), and the name of its limits file, `limits.<instanceId>`. |
 | `driver` | None, required | The provider: `claudeAgent`, `codex`, `cursor` or `grok`. A role line names only instances of its own provider. |
-| `enabled` | `true` | Whether T3 Code runs the instance. The doctor checks that T3 says the same. |
+| `enabled` | `true` | Whether T3 Code runs the instance. |
 | `config.homePath` | `~/.claude` for a Claude instance | The instance's home. A leading `~` is your home directory, and the path must be absolute after that. Each Claude home is one account, with its own login. |
 
-The loader refuses a file that does not parse, or an instance with no `driver`, and the doctor's `provider inventory` line says why.
-`jroles` refuses it too, with a `refused:` line that names `providers.json`, and the role inherits the model of the thread that launches it.
-
-Each instance the file declares must also be an instance of T3 Code, with the same id, driver, `enabled` and `homePath`.
-You add it in T3 Code's settings, which T3 keeps in `~/.t3/userdata/settings.json`.
+jstack refuses settings that do not parse, or an instance with no `driver`, and the doctor's `provider inventory` line says why.
+`jroles` refuses them too, with a `refused:` line that names T3's settings file, and the role inherits the model of the thread that launches it.
 A new Claude home needs its login once: run `CLAUDE_CONFIG_DIR=~/.claude-work claude` and sign in to that account.
 
-The doctor compares each declared instance with what T3's settings list, and reads those settings only.
-It prints these lines:
+The doctor prints these lines:
 
 | Line | Meaning |
 |---|---|
-| `missing optional provider inventory -> <path>` | There is no inventory, so it declares no instance. The doctor does not fail on it. |
-| `old optional provider inventory -> <why>` | The file is not in T3's shape. The doctor checks no instance. |
-| `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` even when T3 does not list it, if the inventory declares it with no other home. |
-| `missing hard provider <id> -> T3 does not list it` | T3's settings do not have the instance yet. |
-| `old hard provider <id> -> <why>` | T3 lists it disabled, or with another driver or `homePath`. |
-| `ok hard skills <home>` | A declared Claude home uses the central jstack skills. Its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` when the instance has no `config.homePath`. |
+| `missing optional provider inventory -> <path>` | T3 has no settings file, so it lists no instance. The doctor does not fail on it. |
+| `old optional provider inventory -> <why>` | The settings or their `providerInstances` are not in T3's shape. The doctor checks no instance. |
+| `ok hard skills <home>` | A listed Claude home uses the central jstack skills. Its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` when the instance has no `config.homePath`. |
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
 
@@ -250,10 +244,10 @@ The crew cap is `max_running` in jbus's config ([jbus](#jbus)).
 The limits files are the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
 `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_work`.
 `jgauge limits` writes them ahead of time, and `jgauge-limits.timer` runs it every two minutes.
-It reads every Claude account of `providers.json`, and it reads `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](../../jgauge/docs/jgauge.md)).
+It reads every Claude account of T3's `providerInstances`, and it reads `~/.claude` as `claudeAgent` where T3 lists no instance there ([jgauge](../../jgauge/docs/jgauge.md)).
 jgauge's `limits.sh`, which the status line runs, writes the file of the account whose status line it runs in.
-That account is the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
-For an account the inventory does not declare, `limits.sh` writes nothing.
+That account is the instance of T3's `providerInstances` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+For an account T3 does not list, `limits.sh` writes nothing.
 When a turn ends on an instance's usage limit, `jbus` writes that instance's file at 100% until the reset.
 All three writers merge their readings by the ledger's rule, so a reading that fails or comes late never lowers the share already recorded for a window.
 `jgauge room` reads the file of each instance of the role's pool ([jroles](../../jroles/docs/jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.

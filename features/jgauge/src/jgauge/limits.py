@@ -69,7 +69,7 @@ class Stale(Exception):
 
 
 def homes(home: Path | None = None) -> list[Home]:
-    """Each Claude home of the inventory, or the built-in one where the inventory declares
+    """Each Claude home of the inventory, or the built-in one where the inventory lists
     none. Raises `Stale` with the reason when the inventory cannot be read."""
     home = home or Path.home()
     found = inventory.declared(inventory.path(), home)

@@ -12,7 +12,7 @@ The slots stop many threads at once from overloading the machine or using up the
 - `jgauge room` reads `/proc`, `df`, your role map and the ledger files of your plan's limits.
   On macOS it reads `sysctl` and `vm_stat` in place of `/proc`, and no `df`.
 - `jgauge limits` reads your Claude OAuth access token and calls Anthropic's usage API with it.
-  The Claude homes are `~/.claude` and each home that `~/.config/jstack/providers.json` declares.
+  The Claude homes are `~/.claude` and each home that T3 Code's `providerInstances` lists.
   For each home, it reads the token from `<home>/.credentials.json`.
   It then calls `GET https://api.anthropic.com/api/oauth/usage`, which is the call Claude Code makes for its usage command.
   Where the token has expired, it reads the usage response that Claude Code cached in that home's `.claude.json` instead.
@@ -122,7 +122,7 @@ On macOS `jgauge room` and `jgauge test-slot` also skip their sweep of stale pyt
 ### jgauge limits
 
 `jgauge limits` reads each Claude account's five-hour and weekly use and writes it to the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger)), before the account reaches a cap.
-The accounts are the Claude instances of `~/.config/jstack/providers.json`, each at its `config.homePath`.
+The accounts are the Claude instances of T3 Code's `providerInstances`, in `~/.t3/userdata/settings.json`, each at its `config.homePath`.
 When no instance of the file has `~/.claude` as its home, the accounts also include `claudeAgent` at `~/.claude`.
 For each account, it calls `GET https://api.anthropic.com/api/oauth/usage` with the home's own access token from `<home>/.credentials.json`, while the token has not expired.
 When the token has expired, it reads `cachedUsageUtilization`, the answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`).
@@ -216,7 +216,7 @@ A subagent's last call often has no finished line in its own transcript, so its 
 The other two are `jgauge limits`, which writes the ledger ahead of time every two minutes, and `jbus`, which writes it when an account reaches a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
 Claude Code pipes its status JSON to the script.
 The script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
-That account is the instance of `~/.config/jstack/providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`.
+That account is the instance of T3 Code's `providerInstances` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`.
 For a session in `~/.claude`, the account is `claudeAgent`.
 `claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`.
 Another instance's file is `<that path>.<instanceId>`.
