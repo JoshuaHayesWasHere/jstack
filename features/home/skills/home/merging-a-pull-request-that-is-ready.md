@@ -152,7 +152,7 @@ else
 fi
 ```
 
-On `sweep off`, nothing was run and there are no lists to act on, and a start that the user began by typing `/home` says the line in its summary.
+On `sweep off`, nothing was run and there are no lists to act on.
 Otherwise it looks at each branch a brief in `$H/tasks` or a request in `$H/scouts` names, a crewmate's `<slug>` and a scout's `scout-<slug>`, with its worktree under `~/.t3/worktrees/<repo>`, and at every other worktree there.
 It prints two lists, the first one removed, and appends the same lines, dated, to `$H/merge.log`:
 
