@@ -352,6 +352,9 @@ def test_a_fresh_repo_gets_its_check_workflow_on_a_branch_and_its_fresh_check(ma
     ]
     assert machine.scaffold() == filled("make check")
     assert machine.sha("jstack-check^") == machine.sha("wip")
+    pinned = re.compile(r"^\s*- uses: (actions/checkout@\S+)", re.M)
+    ours = set(pinned.findall((REPO / ".github/workflows/check.yml").read_text()))
+    assert set(pinned.findall(machine.scaffold())) == ours != set()
     assert (machine.state / "fresh-check").read_text() == "make check\n"
     assert not (machine.repo / ".github").exists()
     assert (
@@ -461,12 +464,6 @@ def test_with_the_skill_not_installed_the_line_says_to_install_it(machine):
         "template check.yml of new-home is not installed"
     )
     assert machine.sha("refs/heads/jstack-check") == ""
-
-
-def test_the_template_checks_out_with_the_action_the_repos_own_check_pins():
-    pinned = re.compile(r"^\s*- uses: (actions/checkout@\S+)", re.M)
-    ours = (REPO / ".github/workflows/check.yml").read_text()
-    assert set(pinned.findall(TEMPLATE.read_text())) == set(pinned.findall(ours)) != set()
 
 
 @pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
