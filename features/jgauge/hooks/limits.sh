@@ -11,12 +11,12 @@ seen=$(jq -r '
 
 home=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
 while [ "${home%/}" != "$home" ]; do home=${home%/}; done
-inventory=${XDG_CONFIG_HOME:-$HOME/.config}/jstack/providers.json
+settings=${T3CODE_HOME:-$HOME/.t3}/userdata/settings.json
 instance=$(jq -r --arg home "$home" --arg user "$HOME" '
   def plain: (if . == "~" then $user elif startswith("~/") then $user + .[1:] else . end) | sub("/+$"; "");
-  [to_entries[] | select(.value.driver == "claudeAgent")
+  [.providerInstances | objects | to_entries[] | select(.value.driver == "claudeAgent")
     | select((.value.config.homePath // ($user + "/.claude") | plain) == $home) | .key] | first // empty
-' "$inventory" 2>/dev/null)
+' "$settings" 2>/dev/null)
 if [ -z "$instance" ] && [ "$home" = "$HOME/.claude" ]; then instance=claudeAgent; fi
 case $instance in
 claudeAgent) ;;

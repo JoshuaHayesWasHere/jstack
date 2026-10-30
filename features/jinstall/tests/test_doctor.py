@@ -52,8 +52,6 @@ class Doctored(User):
         self.limits = self.home / ".local" / "state" / "claude" / "limits"
         self.config = self.home / ".config" / "jstack" / "config.toml"
         self.token = self.jbus / "t3.json"
-        self.providers = self.home / ".config" / "jstack" / "providers.json"
-        self.t3_settings = self.home / ".t3" / "userdata" / "settings.json"
         self.state = self.home / ".local" / "state" / "home"
 
     def program(self, name, line):
@@ -115,7 +113,7 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         f"missing optional ci report {user.jbus / 'config.toml'}"
         " -> no jbus config, so no project asks for it",
         f"missing optional relay {user.relay_env} -> no env file, so the relay is off",
-        f"missing optional provider inventory -> {user.providers}",
+        f"missing optional provider inventory -> {user.t3_settings}",
         f"missing optional limits {user.limits} -> jgauge limits writes it, every 2 min",
     ]
     assert said[18:-1] == user.every("ok")
@@ -475,31 +473,33 @@ def prime(home="~/.claude_prime", **more):
     return {"driver": "claudeAgent", "enabled": True, "config": {"homePath": home}} | more
 
 
-def declared(user, listed, inventory=None):
-    """An installed HOME whose inventory declares the two instances T3 has today: the
-    built-in Claude one and the second Claude home. Its T3 settings list `listed`."""
+def declared(user, listed):
+    """An installed HOME with a second Claude home, whose T3 settings list `listed`."""
     user.run()
     (user.home / ".claude_prime").mkdir()
     (user.home / ".claude_prime" / "skills").symlink_to(user.home / ".claude" / "skills")
-    inventory = inventory or {
-        "claudeAgent": {"driver": "claudeAgent", "enabled": True},
-        PRIME: prime(),
-        "codex": CODEX,
-    }
-    user.write(user.providers, inventory)
-    user.write(user.t3_settings, {"providerInstances": listed, "other": 1})
+    claude = {"claudeAgent": {"driver": "claudeAgent", "enabled": True}}
+    user.write(user.t3_settings, {"providerInstances": claude | listed, "other": 1})
 
 
-def test_a_declared_instance_t3_does_not_list_is_missing_and_hard(user):
+def test_each_instance_t3_lists_is_the_inventory_and_its_claude_homes_are_probed(user):
+    """The doctor reads the instances from T3's settings alone: one added there is probed with
+    no jstack file to edit, and the doctor writes nothing to T3's settings."""
     declared(user, {"codex": CODEX, "cursor": CURSOR})
+    assert line_for(user.doctor()[1], "provider") == ["ok optional provider inventory -> 3 listed"]
+    assert line_for(user.doctor()[1], "skills") == [f"ok hard skills {user.home / '.claude'}"]
+    grown = {"claudeAgent": {"driver": "claudeAgent"}, "codex": CODEX, PRIME: prime()}
+    user.write(user.t3_settings, {"providerInstances": grown})
+    written = user.t3_settings.read_bytes()
     code, said = user.doctor()
-    assert (code, said[-1]) == (1, "doctor: not ok, 1 hard")
-    assert line_for(said, "provider") == [
-        "ok optional provider inventory -> 3 declared",
-        "ok hard provider claudeAgent -> T3's built-in instance",
-        f"missing hard provider {PRIME} -> T3 does not list it",
-        "ok hard provider codex",
+    assert (code, said[-1]) == (0, "doctor: ok")
+    assert line_for(said, "provider") == ["ok optional provider inventory -> 3 listed"]
+    assert line_for(said, "skills") == [
+        f"ok hard skills {user.home / '.claude'}",
+        f"ok hard skills {user.home / '.claude_prime'}",
     ]
+    assert user.t3_settings.read_bytes() == written
+    assert not (user.home / ".config" / "jstack" / "providers.json").exists()
 
 
 def test_a_declared_instance_t3_lists_with_its_home_is_ok(user):
@@ -507,7 +507,6 @@ def test_a_declared_instance_t3_lists_with_its_home_is_ok(user):
     declared(user, listed)
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
-    assert f"ok hard provider {PRIME}" in said
     assert line_for(said, "skills") == [
         f"ok hard skills {user.home / '.claude'}",
         f"ok hard skills {user.home / '.claude_prime'}",
@@ -529,48 +528,23 @@ def test_a_second_claude_home_is_old_until_jroles_mirror_makes_it_a_mirror(user)
 
 
 @pytest.mark.parametrize(
-    ("listed", "why"),
+    ("settings", "why"),
     [
-        (prime(enabled=False), "T3 lists it disabled"),
-        (prime("~/.claude_other"), "T3's homePath is ~/.claude_other, declared ~/.claude_prime"),
+        ("{not json", "it cannot be read as JSON"),
+        (["claudeAgent"], "it is not an object of settings"),
         (
-            {"driver": "codex", "enabled": True},
-            "T3's driver is codex, declared claudeAgent",
+            {"providerInstances": ["claudeAgent"]},
+            "providerInstances is not an object of provider instances",
         ),
+        ({"providerInstances": {"cursor": {"enabled": True}}}, "cursor has no driver"),
     ],
 )
-def test_a_declared_instance_t3_lists_otherwise_is_old(user, listed, why):
-    declared(user, {"codex": CODEX, PRIME: listed})
+def test_t3_settings_not_in_t3s_shape_are_old_and_list_nothing(user, settings, why):
+    user.run()
+    user.write(user.t3_settings, settings)
     code, said = user.doctor()
-    assert code == 1
-    assert line_for(said, f"provider {PRIME}") == [f"old hard provider {PRIME} -> {why}"]
-
-
-def test_another_instance_t3_lists_in_a_shape_the_doctor_refuses_changes_no_line(user):
-    declared(user, {"cursor": {"enabled": True}, "codex": CODEX})
-    assert line_for(user.doctor()[1], "provider") == [
-        "ok optional provider inventory -> 3 declared",
-        "ok hard provider claudeAgent -> T3's built-in instance",
-        f"missing hard provider {PRIME} -> T3 does not list it",
-        "ok hard provider codex",
-    ]
-
-
-def test_t3_settings_that_cannot_be_read_make_each_declared_instance_old(user):
-    declared(user, {})
-    user.write(user.t3_settings, "{not json")
-    said = user.doctor()[1]
-    assert line_for(said, f"provider {PRIME}") == [
-        f"old hard provider {PRIME} -> T3's settings cannot be read: {user.t3_settings}"
-    ]
-
-
-def test_an_inventory_that_is_not_an_object_of_instances_is_old_and_declares_nothing(user):
-    user.write(user.providers, ["claudeAgent"])
-    code, said = user.doctor()
-    assert line_for(said, "provider") == [
-        "old optional provider inventory -> it is not an object of provider instances"
-    ]
+    assert line_for(said, "provider") == [f"old optional provider inventory -> {why}"]
+    assert line_for(said, "skills") == []
 
 
 def test_a_claude_home_whose_skills_point_outside_the_checkout_is_old(user, tmp_path):

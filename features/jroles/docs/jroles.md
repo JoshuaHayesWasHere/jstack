@@ -121,7 +121,7 @@ It does not ask T3 Code whether the model exists.
 ## Pools
 
 The instances a line names are the line's pool, in order.
-In this example, `claudeAgent_work` is a second Claude account that `providers.json` declares:
+In this example, `claudeAgent_work` is a second Claude account that T3 Code's settings list:
 
 ```
 crew: claudeAgent claude-opus-5-5 claudeAgent,claudeAgent_work effort=medium
@@ -170,11 +170,11 @@ While every instance of the pool is capped, `jroles` prints nothing on stdout an
 On stderr it prints a line such as `jroles: crew waits: claudeAgent and claudeAgent_work are both capped until ...`.
 The launch waits for the first reset.
 
-To add an instance to a pool, first add one line for it to the provider inventory, `~/.config/jstack/providers.json` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
+To add an instance to a pool, first add it in T3 Code's settings, whose `providerInstances` is the provider inventory ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
 Then add its id to the role line.
-Each id must be the provider's built-in instance or one the inventory declares under the line's provider.
+Each id must be the provider's built-in instance or one T3 lists under the line's provider.
 `jroles` refuses a line that names any other id, so a Claude pool never names a Codex or a Cursor instance.
-With no inventory, `jroles` takes the line as written.
+With no T3 settings file, `jroles` takes the line as written.
 `jroles` also refuses a line that names an id twice or has an empty id, such as `claudeAgent,`.
 
 ## The ledger
@@ -216,7 +216,7 @@ For a role with no pool, `jgauge room` reads the file that `LIMITS` names.
 ## Mirrors
 
 You need `jroles mirror` only when you run a second Claude account.
-Each extra account is a `claudeAgent` instance in `~/.config/jstack/providers.json`.
+Each extra account is a `claudeAgent` instance in T3 Code's `providerInstances`.
 It has its own Claude home at its `config.homePath`, such as `~/.claude_work` for an instance `claudeAgent_work` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
 `jroles mirror` makes each such home a mirror of `~/.claude`.
 It replaces every entry of the extra home with a symlink into `~/.claude`, except the login's own files.
@@ -227,7 +227,7 @@ It changes `~/.claude` too.
 `jroles mirror` moves an entry that only the extra home has into `~/.claude`, and puts a link to it in the mirror.
 `jroles mirror` also combines the skill use of every home into `~/.claude.json`.
 The install (`jinstall`) runs `jroles mirror` every 5 minutes: on Linux through `jroles-mirror.timer`, and on macOS through a launchd agent made from it.
-When `providers.json` has no extra Claude home, `jroles mirror` has nothing to mirror and changes nothing.
+When T3's settings list no extra Claude home, `jroles mirror` has nothing to mirror and changes nothing.
 
 The mirror shares every entry of `~/.claude` as a symlink: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `settings.json`, `CLAUDE.md`, and any entry that `~/.claude` gains later, from the next run on.
 `jroles mirror` never links the entries that belong to one login, and each mirror keeps its own copy of them: `.credentials.json`, `.claude.json`, `sessions`, `session-env`, `shell-snapshots`, `cache`, `backups`, `debug`, `statsig`, `telemetry`, `ide`, `stats-cache.json`, `.last-cleanup` and `.last-update-result.json`.

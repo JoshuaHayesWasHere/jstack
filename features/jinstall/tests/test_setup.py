@@ -82,7 +82,7 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         f" -> ci_report = true in a [[project]] of {user.jbus_config}",
         f"missing optional relay {user.relay_env}"
         f" -> write the relay's keys to {user.relay_env}, as the relay's page says",
-        "missing optional provider inventory -> run infra's install",
+        "missing optional provider inventory -> add the instances in T3 Code's settings",
         f"missing optional limits {user.limits} -> jgauge limits",
     ]
     parts = [*user.parts(), f"optional units {user.units}"]

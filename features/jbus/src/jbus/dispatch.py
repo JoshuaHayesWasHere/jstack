@@ -29,7 +29,7 @@ the brief's `Design:`, `Proves it:`, `Skills:`, `Size:` or `Playbook:` line says
 lists such rows. jbus refuses a launch only when the approval no longer covers the brief
 (`jbriefs.meaning`).
 
-Before a launch puts a thread on a mirror instance (`jroles.mirror`, a home of providers.json that
+Before a launch puts a thread on a mirror instance (`jroles.mirror`, a home of T3's settings that
 is not the main one), `mirrored` asks `jroles mirror --check` about that instance. On drift,
 `mirrored` runs the mirror once and asks again. When the instance is still not mirrored, the pool
 skips it for the rest of the pass: the launch goes to the next instance with headroom, or waits.
@@ -232,7 +232,7 @@ def settle_lost(run: Pass, client: Client) -> None:
 
 def mirrored(run: Pass, slug: str, instance: str, checked: dict[str, bool]) -> bool:
     """Say whether a thread may go on `instance`. It may when the instance is not a mirror in
-    providers.json, or when `jroles mirror --check` finds it mirrored, at once or after one run
+    T3's settings, or when `jroles mirror --check` finds it mirrored, at once or after one run
     of the mirror. The function keeps the answer in `checked` for the pass. When the function
     refuses an instance for a slug, it says once for that slug that the instance is not mirrored."""
     if instance not in checked:

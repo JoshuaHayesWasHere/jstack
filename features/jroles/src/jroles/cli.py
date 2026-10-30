@@ -17,7 +17,7 @@ pass of `jbus poll` after it wakes the thread once. A run with `--thread` that f
 the thread out of the waiters.
 
 `jroles mirror [--check] [--instance <id>]` is not a role. For each extra Claude home that
-providers.json declares, it makes that home a mirror of `~/.claude` (`jroles.mirror`).
+T3's settings list, it makes that home a mirror of `~/.claude` (`jroles.mirror`).
 """
 
 from __future__ import annotations

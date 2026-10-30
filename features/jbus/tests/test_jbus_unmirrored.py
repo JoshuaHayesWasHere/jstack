@@ -15,18 +15,23 @@ from test_jbus_resume import crew
 
 
 @pytest.fixture(autouse=True)
-def pools(kitchen, jstack_config, tmp_path):
-    """Make the crew's pool claudeAgent first and prime second, and have providers.json make
+def pools(kitchen, jstack_config, t3_settings, tmp_path):
+    """Make the crew's pool claudeAgent first and prime second, and have T3's settings make
     prime a mirror."""
     kitchen.machine(plan=None)
     (jstack_config.parent / "roles").write_text(
         f"crew: claudeAgent claude-sonnet-5-5 {POOL}\nhome: claudeAgent claude-opus-5-5 {POOL}\n"
     )
-    (jstack_config.parent / "providers.json").write_text(
+    t3_settings.write_text(
         json.dumps(
             {
-                "claudeAgent": {"driver": "claudeAgent"},
-                PRIME: {"driver": "claudeAgent", "config": {"homePath": str(tmp_path / "prime")}},
+                "providerInstances": {
+                    "claudeAgent": {"driver": "claudeAgent"},
+                    PRIME: {
+                        "driver": "claudeAgent",
+                        "config": {"homePath": str(tmp_path / "prime")},
+                    },
+                }
             }
         )
     )

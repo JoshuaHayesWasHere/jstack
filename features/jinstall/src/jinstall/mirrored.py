@@ -1,7 +1,7 @@
 """The doctor's probe of each mirror home, which makes the check that `jroles mirror --check`
 makes, without running the command.
 
-A mirror is an extra Claude home that providers.json declares, and `jroles-mirror.timer` keeps
+A mirror is an extra Claude home that T3's settings list, and `jroles-mirror.timer` keeps
 it as a mirror of `~/.claude` (`jroles.mirror`). The probe reads it through the same `plan` that
 the command uses, so the doctor and `jroles mirror --check` cannot disagree. The doctor only
 probes a mirror. The timer, or `jroles mirror` run by hand, repairs it.
@@ -12,20 +12,10 @@ probes a mirror. The timer, or `jroles mirror` run by hand, repairs it.
 """
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from jinstall.kinds import Found
 from jinstall.machine import Machine
 from jroles import Refused, mirror
-
-
-def declared(inventory: Path, home: Path) -> tuple[mirror.Mirror, ...]:
-    """The mirrors the inventory declares, or none when the function cannot read the inventory. The
-    inventory's own line says why."""
-    try:
-        return mirror.mirrors(inventory.read_text(), home)
-    except (OSError, UnicodeDecodeError, Refused):
-        return ()
 
 
 @dataclass(frozen=True)

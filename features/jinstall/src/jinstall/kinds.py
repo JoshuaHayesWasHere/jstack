@@ -43,7 +43,7 @@ from jbus import relayenv
 from jgauge import limits
 from jinstall.harnesses import HARNESSES
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
-from jroles.inventory import BUILT_IN, Instance, declared, instances
+from jroles.inventory import BUILT_IN, Instance, declared
 from jsettings import t3
 
 
@@ -1703,17 +1703,16 @@ def claude_homes(declared: dict[str, Instance], home: Path) -> list[Path]:
 
 @dataclass(frozen=True)
 class ProviderInventory:
-    """${XDG_CONFIG_HOME:-~/.config}/jstack/providers.json, the provider instances that this
-    machine should run, in T3's `providerInstances` shape. infra's install links the file
-    there, and jstack only reads it.
-    missing: there is no file, so the machine declares no instance.
-    old: the file does not have that shape."""
+    """The provider instances that this machine runs, T3 Code's `providerInstances` in its
+    settings, which jstack only reads (`jroles.inventory`).
+    missing: T3 has no settings file, so it runs only its built-in instances.
+    old: the file or its `providerInstances` is not T3's shape."""
 
     path: Path
 
     def ask(self, machine: Machine) -> str:
-        """infra declares the instances, and its install links the file here."""
-        return "run infra's install"
+        """T3 owns the list: an instance is added in T3 Code's settings."""
+        return "add the instances in T3 Code's settings"
 
     def probe(self, machine: Machine) -> Found:
         if not self.path.exists():
@@ -1721,58 +1720,7 @@ class ProviderInventory:
         found = declared(self.path, machine.home)
         if isinstance(found, str):
             return Found.old(found)
-        return Found.ok(f"{len(found)} declared")
-
-
-@dataclass(frozen=True)
-class ProviderInstance:
-    """One declared instance, compared with T3's own settings, which the probe only reads.
-    ok: T3 lists the instance with the declared driver, enabled and homePath. Or it is T3's
-      built-in `claudeAgent`, declared with no other home, and T3 does not list it.
-    missing: T3 does not list the instance.
-    old: T3 lists it otherwise, or the probe cannot read T3's settings."""
-
-    name: str
-    instance: Instance
-    settings: Path
-
-    def probe(self, machine: Machine) -> Found:
-        try:
-            listed = json.loads(self.settings.read_text()).get("providerInstances", {})
-        except FileNotFoundError:
-            listed = {}
-        except (OSError, UnicodeDecodeError, ValueError, AttributeError):
-            return Found.old(f"T3's settings cannot be read: {self.settings}")
-        if not isinstance(listed, dict):
-            return Found.old("T3's settings: providerInstances is not an object")
-        found = instances(
-            {self.name: listed[self.name]} if self.name in listed else {}, machine.home
-        )
-        if isinstance(found, str):
-            return Found.old(f"T3's settings: {found}")
-        want = self.instance
-        if self.name not in found:
-            central = want.home in (None, machine.home / ".claude")
-            if self.name == BUILT_IN and want.driver == BUILT_IN and want.enabled and central:
-                return Found.ok("T3's built-in instance")
-            return Found.missing("T3 does not list it")
-        there = found[self.name]
-        if there.driver != want.driver:
-            return Found.old(f"T3's driver is {there.driver}, declared {want.driver}")
-        if there.enabled != want.enabled:
-            return Found.old(f"T3 lists it {'enabled' if there.enabled else 'disabled'}")
-        if there.home != want.home:
-            said, meant = _short(there.home, machine), _short(want.home, machine)
-            return Found.old(f"T3's homePath is {said}, declared {meant}")
-        return Found.ok()
-
-
-def _short(path: Path | None, machine: Machine) -> str:
-    if path is None:
-        return "none"
-    if path.is_relative_to(machine.home):
-        return f"~/{path.relative_to(machine.home)}"
-    return str(path)
+        return Found.ok(f"{len(found)} listed")
 
 
 @dataclass(frozen=True)

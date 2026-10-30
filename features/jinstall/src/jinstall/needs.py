@@ -37,7 +37,6 @@ from jinstall.kinds import (
     Patterns,
     Platform,
     Program,
-    ProviderInstance,
     ProviderInventory,
     RelayKeys,
     RetiredHook,
@@ -49,7 +48,6 @@ from jinstall.kinds import (
     Units,
     claude_homes,
     dead,
-    declared,
     retired,
     templates,
 )
@@ -64,11 +62,11 @@ from jinstall.layout import (
 )
 from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
-from jinstall.mirrored import declared as mirrors
 from jinstall.project import ProjectLink, StrayProjectLink, stray
 from jinstall.repos import GitHook, checkouts
-from jroles import ledger
+from jroles import inventory, ledger
 from jroles.inventory import claude_instances
+from jroles.mirror import mirrors
 from jsettings import paths
 
 T3_FLOOR = "0.1.2-nightly.20261022.3526"
@@ -125,8 +123,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  state repo <path>             StateRepo, the backup
       optional  ci report <path>              CiReport, of the jbus config
       optional  relay <path>                  RelayKeys, the relay's env file
-      optional  provider inventory            ProviderInventory
-      hard      provider <id>                 ProviderInstance, for each declared instance
+      optional  provider inventory            ProviderInventory, T3's providerInstances
       hard      skills <home>                 HomeSkills, for each declared Claude home
       optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
@@ -209,18 +206,13 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"ci report {jbus}", Level.OPTIONAL, CiReport(jbus)),
         Need(f"relay {relay}", Level.OPTIONAL, RelayKeys(relay)),
     ]
-    inventory = machine.config_home() / "jstack" / "providers.json"
-    providers = declared(inventory, home)
+    settings = inventory.path(machine.env, home)
+    providers = inventory.declared(settings, home)
     providers = {} if isinstance(providers, str) else providers
-    t3 = home / ".t3" / "userdata" / "settings.json"
-    found.append(Need("provider inventory", Level.OPTIONAL, ProviderInventory(inventory)))
+    found.append(Need("provider inventory", Level.OPTIONAL, ProviderInventory(settings)))
     found += [
         Need(f"limits {file}", Level.OPTIONAL, Limits(file))
         for file in (ledger.file_of(name, limits) for name in claude_instances(providers, home))
-    ]
-    found += [
-        Need(f"provider {name}", Level.HARD, ProviderInstance(name, instance, t3))
-        for name, instance in providers.items()
     ]
     found += [
         Need(
@@ -232,7 +224,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     ]
     found += [
         Need(f"mirror {each.home}", Level.OPTIONAL, Mirrored(each))
-        for each in mirrors(inventory, home)
+        for each in mirrors(providers, home)
     ]
     if repo is not None:
         found.append(Need("generated files are current", Level.HARD, Generated()))

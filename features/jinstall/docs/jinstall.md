@@ -71,7 +71,7 @@ A path that starts with `~` is under your home directory.
 | `~/.claude/settings.json` | The hook entries, the status line, and the keys that turn off the AI co-author trailer | Always. A status line of your own stays. |
 | `~/.codex/hooks.json` | Codex's hook entries | Always |
 | `~/.cursor/cli-config.json` | The keys that turn off Cursor's AI co-author trailer | Once Cursor's CLI has made the file |
-| `settings.json` of each Claude home that `~/.config/jstack/providers.json` declares | The keys that turn off the AI co-author trailer | Once the home has the file |
+| `settings.json` of each Claude home that T3 Code's `providerInstances` lists | The keys that turn off the AI co-author trailer | Once the home has the file |
 | `~/.config/jstack/outbound.toml` | jleak's private patterns file, made once from jleak's example, for you to fill in ([jleak](../../jleak/docs/jleak.md#the-private-patterns)) | Where there is none |
 | `~/.config/systemd/user/<unit>` | A link for each unit of `jbus`, `jgauge` and `jroles`. The install enables the timers, and the CI report, relay and backup units only where their config asks for them. | Once the `jbus` config is there |
 | `~/Library/LaunchAgents/jstack.<unit>.plist`, on macOS in place of the line above | A launchd agent for each timer, and for the relay, made from the same units ([On macOS](#on-macos)). The install loads each into launchd with `launchctl bootstrap`, and the CI report, relay and backup agents only where their config asks for them. | Once the `jbus` config is there |
@@ -163,7 +163,7 @@ The install turns off each harness's own AI co-author trailer, and touches no ot
 
 | Harness | File | Keys |
 |---|---|---|
-| Claude Code | `settings.json` of `~/.claude` and of each Claude home that `~/.config/jstack/providers.json` declares | `"attribution": {"commit": "", "pr": ""}` and the older `"includeCoAuthoredBy": false` |
+| Claude Code | `settings.json` of `~/.claude` and of each Claude home that T3 Code's `providerInstances` lists | `"attribution": {"commit": "", "pr": ""}` and the older `"includeCoAuthoredBy": false` |
 | Cursor | `~/.cursor/cli-config.json`, once Cursor's CLI has made it | `"attribution": {"attributeCommitsToAgent": false, "attributePRsToAgent": false}` |
 | Codex | none | codex-cli 0.163.0 ignores `commit_attribution` as an unrecognized setting: its trailer is a flag of the account's workspace |
 
