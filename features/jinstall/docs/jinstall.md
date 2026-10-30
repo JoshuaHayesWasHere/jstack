@@ -1,31 +1,35 @@
 # jinstall
 
 `jinstall` installs, checks and removes jstack on a machine.
-A release installs `jinstall` as a command that works on the source in the release's wheel, so it needs no checkout.
+The install below puts `jinstall` as a command that works on the source in its own tool, built from `main` or from a release's wheel, so it needs no checkout.
 To work on jstack itself from a checkout, see [Working on jstack](#working-on-jstack).
 
 ## Install
 
-Install from a release with only `curl` and a shell:
+Install with only `curl` and a shell:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh
+```
+
+The script installs `uv` when it is missing, runs `uv tool install` on jstack's `main` from git, and then runs `jinstall --setup`.
+`JSTACK_GIT_URL` names another `git+` source in place of `main`, as a sandbox does with `git+file://<a clone>@main`.
+With `uv` already installed, you can do the same by hand:
+
+```sh
+uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@main
+jinstall --setup
+```
+
+Once a release exists, its own `install.sh` installs that release's wheel in the same way:
 
 ```sh
 curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
 ```
 
-The script installs `uv` when it is missing, runs `uv tool install` on that release's wheel, and then runs `jinstall --setup`.
-With `uv` already installed, you can do the same by hand:
-
-```sh
-uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@v<version>
-jinstall --setup
-```
-
 ### Install from a clone
 
-Where the repo has no release, the `curl` line fails with a 404 and the `uv tool install` line finds no tag.
-Then install from a clone of the repo.
-Install `uv` first, from [Installing uv](https://docs.astral.sh/uv/getting-started/installation/), because in a clone the script does not install it.
-Then clone the repo and set it up from the clone:
+To work on jstack itself, install `uv` first, then clone the repo and set it up from the clone:
 
 ```sh
 git clone https://github.com/JoshuaHayesWasHere/jstack
