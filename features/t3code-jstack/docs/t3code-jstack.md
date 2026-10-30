@@ -5,8 +5,12 @@ jstack's tree sidebar draws a jstack project from jbus's state instead: one row 
 A domain home with no live work is one line, its name and its age, with nothing to unfold.
 A home lists only its open rows: a task leaves the tree once it merges or is done, and the project row counts what merged since you last opened its root home.
 A task in review says which part it is in, "review 1", "fixing", "review 2", "checks" or "rebase".
-A task's row draws its stage as three segments, crew, review and merge: the current one at full ink, amber when it asks you, the done ones fainter and those ahead fainter still.
-The tree keeps to two type sizes and two weights: every name is 13px and every word beside it 11px, all at 400 but a project's name at 500, and its levels step by ink and row height.
+A crew task's row draws its stage as one ring filled by thirds, crew, review and merge, empty while it is queued.
+A scout's row draws a diamond, hollow while queued, half filled while it scouts and filled once its report is in, beside the word "queued", "scouting" or "report in", which it reads from jbus's `work.json`.
+One colour, sky, marks live work only: a ring or diamond at work, and the badge of a project with live work under it.
+Live is a launched task that does not ask you, is not quiet, stalled or held, and is not a scout whose report is in.
+Amber marks what asks you, and every other mark and badge is neutral.
+The tree keeps to two type sizes and one weight: every name is 13px and every word beside it 11px, all at 400, and its levels step by ink and row height.
 A task whose crew sits idle past the quiet threshold while its pull request waits says "stalled" and for how long, beside its stage, and one jmerge or jbus holds is shown with "held" and for how long, its reason on hover and at the head of its menu.
 Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
 A project added to T3 is a root row at once, before it has a thread, and asks once whether to start a jstack home for it.
