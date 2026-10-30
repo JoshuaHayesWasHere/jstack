@@ -367,10 +367,12 @@ def test_a_start_marks_a_finished_heading_read_without_showing_it_and_says_how_m
     bus.kitchen.brief("not-merged", finished)
     bus.kitchen.brief("left-some", "\n## Result\nStatus: done\nLeft: a follow-up row\n")
     bus.kitchen.brief("not-done", "\n## Result\nStatus: paused\nLeft: none\n")
+    quoted = "\n## Result\nStatus: done\nLeft: a row\n\n## Review\nStatus: done\nLeft: none\n"
+    bus.kitchen.brief("quoted", quoted)
     (bus.dir / "merge.log").write_text(
         "".join(
             f'2026-10-13 17:0{n} merged {n} {slug} abc "a title", revert: gh pr revert x\n'
-            for n, slug in enumerate(("landed", "landed-too", "left-some", "not-done"))
+            for n, slug in enumerate(("landed", "landed-too", "left-some", "not-done", "quoted"))
         )
     )
 
@@ -379,13 +381,14 @@ def test_a_start_marks_a_finished_heading_read_without_showing_it_and_says_how_m
         "tasks/left-some.md: ## Result",
         "tasks/not-done.md: ## Result",
         "tasks/not-merged.md: ## Result",
+        "tasks/quoted.md: ## Result",
         "marked read and not shown: 2 finished headings, each done with Left: none and merged",
     ]
     assert sorted((bus.dir / "read-seen").read_text().splitlines()) == [
         "tasks/landed-too.md: ## Result",
         "tasks/landed.md: ## Result",
     ]
-    assert parts(bus.home(START))["to read"] == said[:3]
+    assert parts(bus.home(START))["to read"] == said[:4]
 
 
 def test_however_much_is_there_a_start_prints_under_6000_characters(bus):

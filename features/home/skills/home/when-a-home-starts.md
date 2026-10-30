@@ -185,6 +185,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
        printf '%s\n' "$unread" | grep . | while IFS= read -r said; do
            f=${said%%: ## *}
            if printf '%s\n' "$merged" | grep -qxF -e "$f" && awk '
+               /^## / {result = 0}
                /^## Result/ {done = left = 0; result = 1}
                result && $(1) == "Status:" {done = (NF == 2 && $(2) == "done")}
                result && $(1) == "Left:" {left = (NF == 2 && $(2) == "none")}
