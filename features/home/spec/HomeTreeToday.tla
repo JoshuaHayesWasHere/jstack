@@ -142,7 +142,7 @@ RouteMends ==
 \* ---- the root's check, one jbus pass
 
 \* What the root reads to know a child has work out, from jbus's own records and never from the
-\* child: its launched rows, its crew threads, its questions and gates (jbus/children.py
+\* child: its launched rows and its crew threads (jbus/children.py
 \* `launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]`).
 \* A routine, a scope with a `rhythm` file, owes its next beat whatever it has out
 \* (jbus/children.py `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
@@ -151,7 +151,7 @@ RouteMends ==
 Sees(k) ==
     /\ life[k] \in {"working", "stuck", "handed"}     \* jbus/children.py `if not thread or not (launched or beat):`
     /\ \/ Kept("beat") /\ Kind[k] = "routine" /\ life[k] # "handed"     \* jbus/children.py `patience = beat or PATIENCE`
-       \/ work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
+       \/ CrewOut(k)
 \* The root acts on a child it sees each time the child has been quiet for its patience again
 \* since its last step (jbus/children.py `if step != "asked" and run.now - start >=
 \* timedelta(minutes=patience):`): it nudges it, at most twice in one spell, and then asks Josh.

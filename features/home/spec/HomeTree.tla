@@ -12,8 +12,8 @@
 \* the steps of today's code, which has each guard of the design. README.md says how to check it.
 EXTENDS Naturals
 
-\* A child with work out is flagged within K checks of observable quiet; a routine is flagged
-\* once it misses its beat, Rhythm checks after the last one.
+\* A child with a crew or pull request out is flagged within K checks of observable quiet; a
+\* routine is flagged once it misses its beat, Rhythm checks after the last one.
 CONSTANTS K, Rhythm
 \* Who runs jmerge: "jbus" when the root home's home-thread file is empty, "home" when it names
 \* a thread (merging-a-pull-request-that-is-ready.md `the home sweeps while the file holds an id`).
@@ -54,7 +54,8 @@ VARIABLES
                 \* it), done
     msg,        \* each call: none, waiting in the home thread's outbox, or told to Josh
     quiet,      \* each child: the checks since it last did something the root can see, while
-                \* it has work out or, for a routine, always; a nudge does not reset it
+                \* it has a crew or pull request out or, for a routine, always; a nudge does
+                \* not reset it
     watch,      \* each child: the root's quiet spell for it, calm, nudged once, twice or three
                 \* times, or asked (the root has asked Josh)
     up,         \* whether a post to the home thread goes through
@@ -95,13 +96,17 @@ Init ==
 Queued(m) == msg[m] = "home"
 Open(m) == msg[m] \in {"home", "told"}
 \* What a child has out: a crew thread, a pull request not yet merged, or a call not answered.
+\* Its crews and pull requests are its own to move, and a call waits on Josh.
 Ready(k) == work[k] \in {"ready", "back"}
-WorkOut(k) == work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
-\* A child the root must watch: one with work out, or a routine, which always owes its next beat.
+CrewOut(k) == work[k] \in {"crew", "open", "ready", "again", "back", "merged"}
+WorkOut(k) == CrewOut(k) \/ \E c \in CallsOf(k) : Open(c)
+\* A child the root must watch: one with a crew or pull request out, or a routine, which always
+\* owes its next beat.
+\* A call waits on Josh and not on the child, so it is no reason to watch the child.
 \* What a handed child had out is the root's own, and the root is watched for it as for its own.
 Watched(k) ==
-    \/ life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ WorkOut(k))
-    \/ life[k] = "handed" /\ WorkOut(k)
+    \/ life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ CrewOut(k))
+    \/ life[k] = "handed" /\ CrewOut(k)
 \* What one check does to each child's count of quiet checks.
 Ticked == [k \in Kids |-> IF Watched(k) THEN Up(quiet[k], 3 * Patience(k) + 1) ELSE 0]
 
@@ -130,10 +135,10 @@ RetireHandsOver ==
 \* strands none.
 CallsReachJosh == \A m \in Msgs : Queued(m) ~> msg[m] = "told"
 
-\* The root flags a child within K checks of observable quiet with work out, and a routine on
-\* a missed beat, from signals the child does not send. jbus watches the root home's own quiet by
-\* the same loop (children.watch), as one more home that never retires, so a feature child here
-\* stands for it: the root needs no state of its own in Kids.
+\* The root flags a child within K checks of observable quiet with a crew or pull request out,
+\* and a routine on a missed beat, from signals the child does not send. jbus watches the root
+\* home's own quiet by the same loop (children.watch), as one more home that never retires, so a
+\* feature child here stands for it: the root needs no state of its own in Kids.
 StallFlagged == \A k \in Kids : (Watched(k) /\ quiet[k] >= Patience(k)) => watch[k] # "calm"
 
 \* A stall reaches Josh on the first strike.
