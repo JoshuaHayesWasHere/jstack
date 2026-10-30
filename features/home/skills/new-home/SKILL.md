@@ -12,7 +12,7 @@ card: "Run the pipeline | 8 | Sets up a repo's first home in five steps: its sta
 A repo's first home needs five things, and a first home has no thread to type `/home` in until the second is there. This skill does the five in order, each once. For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`. Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
 
 This thread does not become the home.
-It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, the git hooks are linked by `jinstall --repo`, and the four switches of a repo are the user's.
+It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1 and the two of step 4, a branch with the repo's check workflow and its `fresh-check`: jbus's config is written by `jbus project add`, the git hooks are linked by `jinstall --repo`, and the three other switches of a repo are the user's.
 
 ## 1. The repo and its state directory
 
@@ -131,66 +131,159 @@ It never writes `home-thread`, here or at a home's start: a repo it adds is one 
 
 ## 4. What the repo lacks for a merge
 
-This step reads and changes nothing. Run it with the `checkout:` line of step 1 in place of the words in angle brackets:
+jmerge merges a pull request once a check named `check` has passed on it, and reads the repo's check command from `fresh-check`.
+This step writes either one that is missing, and names what only the user can do.
+Run it with the `checkout:` line of step 1 in place of `<the checkout>`, and the repo's check command in place of `<the check command>`: the one the repo's own instructions name (its `README`, `CLAUDE.md` or `AGENTS.md`, its `package.json`'s `test` script), or `none` where it names none.
+Where its `Makefile` has a `check` target, the block takes `make check` itself, so leave the placeholder as it is there:
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
+T=$(realpath ~/.claude/skills/new-home/../../templates 2> /dev/null)
 C='<the checkout>'
+the_command() {
+    cat << 'THE_COMMAND_ENDS_HERE'
+<the check command>
+THE_COMMAND_ENDS_HERE
+}
+K=$(the_command | awk 'NF {print; exit}')
+if grep -qs '^check:' "$C/Makefile"; then K='make check'; fi
 case $C in
 '' | *'<'* | *'>'*)
     echo "not filled in: put the checkout step 1 printed in place of the placeholder" ;;
 *)
+    case $K in
+    '' | '<the check '*)
+        echo "not filled in: put the repo's check command in place of the placeholder in the_command, or none where the repo names none" ;;
+    *)
     H=~/.local/state/home/${C##*/}
     lacks=0
+    told=0
     need() {
         lacks=$((lacks + 1))
-        echo "4 to merge: needs you: ${1}"
+        printf '4 to merge: needs you: %s\n' "${1}"
     }
+    say() {
+        told=$((told + 1))
+        printf '4 to merge: %s\n' "${1}"
+    }
+    unnamed=
+    nameless() {
+        if [ -z "$unnamed" ]; then
+            unnamed=yes
+            need "the repo names no check command: give it one, such as a check target in its Makefile, then type /new-home again"
+        fi
+    }
+    reports() {
+        grep -qsE 'pull_request([^_]|$)' "${1}" && awk '
+            function close_job() {
+                if (id != "" && !matrix && (name == "check" || (name == "" && id == "check"))) found = 1
+                id = ""
+            }
+            /^jobs:[[:space:]]*$/ {jobs = 1; at = -1; next}
+            jobs && /^[^[:space:]#]/ {close_job(); jobs = 0}
+            jobs && NF && $(1) !~ /^#/ {
+                match($(0), /^ */)
+                if (at < 0) at = RLENGTH
+                if (RLENGTH == at) {close_job(); id = $(1); sub(/:.*/, "", id); name = ""; matrix = 0; next}
+                if (RLENGTH == at + 2 && $(1) == "name:") {
+                    name = $(0); sub(/^[^:]*:[[:space:]]*/, "", name); sub(/[[:space:]]+#.*$/, "", name)
+                    gsub(/["\047]/, "", name); sub(/[[:space:]]+$/, "", name)
+                }
+                if ($(1) == "matrix:") matrix = 1
+            }
+            END {close_job(); exit !found}' "${1}"
+    }
+    default=
+    sha=
     if ! git -C "$C" remote get-url origin > /dev/null 2>&1; then
-        need "git -C $C remote add origin <the repo's address at GitHub>, it has no remote named origin"
-    elif ! git -C "$C" ls-remote --symref origin HEAD 2> /dev/null | grep -q '^ref: refs/heads/'; then
-        need "git -C $C push -u origin <the default branch>, origin names no default branch yet or could not be asked"
+        need "git -C $C remote add origin <the repo's address at GitHub>, it has no remote named origin, then type /new-home again for the check workflow"
+    else
+        asked=$(git -C "$C" ls-remote --symref origin HEAD 2> /dev/null)
+        default=$(printf '%s\n' "$asked" | awk '$(1) == "ref:" && $(3) == "HEAD" {sub(/^refs\/heads\//, "", $(2)); print $(2); exit}')
+        sha=$(printf '%s\n' "$asked" | awk '$(1) != "ref:" && $(2) == "HEAD" {print $(1); exit}')
+        if [ -z "$default" ] || [ -z "$sha" ]; then
+            need "git -C $C push -u origin <the default branch>, origin names no default branch yet or could not be asked, then type /new-home again for the check workflow"
+        fi
     fi
-    checked=$(grep -lsE 'pull_request([^_]|$)' "$C"/.github/workflows/*.yml "$C"/.github/workflows/*.yaml 2> /dev/null |
-        while IFS= read -r flow; do
-            if awk '
-                function close_job() {
-                    if (id != "" && !matrix && (name == "check" || (name == "" && id == "check"))) found = 1
-                    id = ""
-                }
-                /^jobs:[[:space:]]*$/ {jobs = 1; at = -1; next}
-                jobs && /^[^[:space:]#]/ {close_job(); jobs = 0}
-                jobs && NF && $(1) !~ /^#/ {
-                    match($(0), /^ */)
-                    if (at < 0) at = RLENGTH
-                    if (RLENGTH == at) {close_job(); id = $(1); sub(/:.*/, "", id); name = ""; matrix = 0; next}
-                    if (RLENGTH == at + 2 && $(1) == "name:") {
-                        name = $(0); sub(/^[^:]*:[[:space:]]*/, "", name); sub(/[[:space:]]+#.*$/, "", name)
-                        gsub(/["\047]/, "", name); sub(/[[:space:]]+$/, "", name)
-                    }
-                    if ($(1) == "matrix:") matrix = 1
-                }
-                END {close_job(); exit !found}' "$flow"; then echo "$flow"; fi
-        done | head -n 1)
-    if [ -z "$checked" ]; then
-        need "a workflow in $C/.github/workflows that runs on pull_request and has a job named check: jmerge merges on that check alone"
+    checked=
+    for flow in "$C"/.github/workflows/*.yml "$C"/.github/workflows/*.yaml; do
+        if [ -f "$flow" ] && reports "$flow"; then checked=$flow; break; fi
+    done
+    flow=.github/workflows/check.yml
+    if [ -z "$checked" ] && [ -n "$sha" ]; then
+        tmp=$(mktemp -d)
+        if ! git -C "$C" cat-file -e "$sha^{commit}" 2> /dev/null; then
+            need "git -C $C fetch origin, then type /new-home again: $default's tip is not in the checkout, and the check workflow is built on it"
+        else
+            git -C "$C" ls-tree --name-only "$sha" .github/workflows/ | grep -E '\.ya?ml$' > "$tmp/names"
+            while IFS= read -r one; do
+                if git -C "$C" show "$sha:$one" > "$tmp/flow" 2> /dev/null && reports "$tmp/flow"; then checked=$default:$one; break; fi
+            done < "$tmp/names"
+        fi
+        if [ -n "$checked" ] || [ "$lacks" -gt 0 ]; then
+            :
+        elif [ "$K" = none ]; then
+            nameless
+        elif git -C "$C" rev-parse -q --verify refs/heads/jstack-check > /dev/null; then
+            if git -C "$C" cat-file -e "refs/heads/jstack-check:$flow" 2> /dev/null; then
+                say "already, branch jstack-check adds $flow: push it and merge it as the repo's first pull request"
+            else
+                need "the branch jstack-check is not this skill's, it has no $flow: rename it, then type /new-home again"
+            fi
+        elif git -C "$C" cat-file -e "$sha:$flow" 2> /dev/null; then
+            need "$default's $flow has no job that reports a check named check: give it one, as the template $T/check.yml does"
+        elif [ ! -f "$T/check.yml" ]; then
+            need "sh install.sh in the checkout that holds this skill, the template check.yml of new-home is not installed"
+        else
+            t=$(cat "$T/check.yml")
+            mark=$(printf '<%s>' 'the check command')
+            printf '%s\n' "${t%%"$mark"*}$K${t#*"$mark"}" > "$tmp/check.yml"
+            if blob=$(git -C "$C" hash-object -w "$tmp/check.yml" 2> "$tmp/said") &&
+                GIT_INDEX_FILE="$tmp/index" git -C "$C" read-tree "$sha" 2>> "$tmp/said" &&
+                GIT_INDEX_FILE="$tmp/index" git -C "$C" update-index --add --cacheinfo "100644,$blob,$flow" 2>> "$tmp/said" &&
+                tree=$(GIT_INDEX_FILE="$tmp/index" git -C "$C" write-tree 2>> "$tmp/said") &&
+                made=$(git -C "$C" commit-tree --no-gpg-sign -p "$sha" -m "ci: add the check workflow jmerge merges on" "$tree" 2>> "$tmp/said") &&
+                git -C "$C" update-ref -m "new-home: the check workflow" refs/heads/jstack-check "$made" "" 2>> "$tmp/said"; then
+                say "done, branch jstack-check adds $flow over $default, a job named check that runs $K: push it and merge it as the repo's first pull request"
+            else
+                need "git could not commit $flow on a branch jstack-check: $(awk 'NF {print; exit}' "$tmp/said")"
+            fi
+        fi
     fi
-    if [ ! -s "$H/fresh-check" ]; then
-        line='<the check command, on one line>'
-        if grep -qs '^check:' "$C/Makefile"; then line='make check'; fi
-        need "echo '$line' > $H/fresh-check, the one line jmerge runs as the repo's local check"
+    if [ -s "$H/fresh-check" ]; then
+        :
+    elif [ "$K" = none ]; then
+        nameless
+    elif [ -d "$H" ] && printf '%s\n' "$K" 2> /dev/null > "$H/fresh-check"; then
+        say "done, wrote $K to $H/fresh-check, the repo's check command, which also has jmerge prove each pull request over today's main"
+    else
+        need "echo '$K' > $H/fresh-check, the one line jmerge runs as the repo's local check"
     fi
-    if [ "$lacks" -eq 0 ]; then
+    if [ "$lacks" -eq 0 ] && [ "$told" -eq 0 ]; then
         echo "4 to merge: already, it has origin, a default branch, a workflow with a check named check, and fresh-check"
     fi
     there() { if [ -e "$H/${1}" ]; then echo there; else echo absent; fi; }
     holds=empty
     if [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then holds='an id'; fi
     echo "switches, the user's alone: off is $(there off) (/nohome repo), merge-off is $(there merge-off) (/nohome merge), home-thread holds $holds (a home's thread id on one line of $H/home-thread, written by hand)" ;;
+    esac ;;
 esac
 ```
 
-Each `needs you` line is something only the user does: tell it as printed and do none of it. The default branch is asked of origin itself, as `jmerge` asks it, so this step needs the network. A workflow counts when it runs on `pull_request` and one of its jobs reports a check named exactly `check`, as `jmerge` waits for: a job whose `name:` is `check`, or a job with the id `check` and no `name:`, and no `matrix:`, which adds the matrix values to the name. The workflow is read in the checkout as it is, on whatever branch is checked out there. `fresh-check`, `off`, `merge-off` and `home-thread` are the user's four switches for a repo: the lines name what to write, and this skill writes none of them.
+Each `needs you` line is something only the user does: tell it as printed and do none of it.
+The default branch and its tip are asked of origin itself, as `jmerge` asks them, so this step needs the network.
+A workflow counts when it runs on `pull_request` and one of its jobs reports a check named exactly `check`, as `jmerge` waits for: a job whose `name:` is `check`, or a job with the id `check` and no `name:`, and no `matrix:`, which adds the matrix values to the name.
+The workflow is read in the checkout as it is, on whatever branch is checked out there, and then on the tip of origin's default branch.
+
+Where neither has one, the block commits `.github/workflows/check.yml`, made from `$T/check.yml` with the check command in it, on a new branch `jstack-check` over that tip.
+It commits with git's plumbing and a scratch index, so the checkout's files, its index and the branch checked out there stay as they were, and it signs nothing.
+It pushes nothing: the user pushes the branch and merges its pull request, the repo's first, and the check runs on that pull request already.
+A runner that lacks the toolchain the command needs fails that check: the template's head says where a setup step goes.
+A branch `jstack-check` that is there already is never written over.
+
+Where `fresh-check` is missing or empty, the block writes the check command there, and never changes one that has a line.
+With that file `jmerge` also proves a pull request over today's main on GitHub ("Fresh against main" in `features/jmerge/docs/jmerge.md`).
+`off`, `merge-off` and `home-thread` are the user's three switches for a repo: the line names them, and this skill writes none of them.
 
 ## 5. The home's thread
 

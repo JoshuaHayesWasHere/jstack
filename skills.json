@@ -647,6 +647,12 @@
       "source": "jstack"
     },
     {
+      "name": "check.yml",
+      "kind": "template",
+      "path": "features/home/templates/check.yml",
+      "source": "jstack"
+    },
+    {
       "name": "context/INDEX.md",
       "kind": "template",
       "path": "features/jpack/templates/context/INDEX.md",

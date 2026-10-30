@@ -15,7 +15,8 @@ This page lists every file you write, each key in it, the default, and the comma
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `jinstall --setup` once |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `jinstall` |
 | `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `jgauge limits`, jgauge's `limits.sh` in the status line, `jbus` |
-| `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread`, `fresh-check` | Four switches for one repo | `/nohome`, or you |
+| `~/.local/state/home/<repo>/off`, `merge-off`, `home-thread` | Three switches for one repo | `/nohome`, or you |
+| `~/.local/state/home/<repo>/fresh-check` | The repo's check command | `/new-home` once, or you |
 | `origin` of the git repo `~/.local/state/home` | Where `jbus snapshot` pushes the homes' state | You |
 
 The commands read `~/.config/jstack/` under `$XDG_CONFIG_HOME` when that variable is set. `jbus` reads its own directory from `JBUS_CONFIG_DIR`.
