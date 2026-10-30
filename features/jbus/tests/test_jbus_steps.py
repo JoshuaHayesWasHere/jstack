@@ -13,7 +13,9 @@ the tellers slot, beside `expedite.tell`.
 steps. `EVENING` is the same for a pass late enough in the day to send the snapshot and to run the
 sweep that is still owed. None of the second half's calls moved. A `queue.load` after the questions
 are read, in `waiting.keep` and in `wakes.tell`, is a step added since: `queue.known`, the slugs a
-gate's words may name with no door meant.
+gate's words may name with no door meant. So is the `queue.load` and `questions.read` before
+`wakes.tell`, of `stale.hourly`, a step added since: the hourly count of what is stale.
+Over a queue that does not parse, it stops at its `queue.load` (`UNREAD`).
 """
 
 import importlib
@@ -103,6 +105,7 @@ ORDER = [
     "close 10 stall.tell",
     "close 20 waiting.keep (sight)",
     "close 25 blockers.raise_listed",
+    "close 26 stale.hourly (sight, client, world, budget)",
     "close 27 wakes.tell (sight, client, world, budget)",
     "close 30 waiting.cadence",
     "close 40 chores.began (world)",
@@ -226,10 +229,11 @@ BEFORE = {
 DERIVED = "queue.derive queue.load leftover.tell"
 ONCE = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
 JUDGED = ONCE.replace("questions.read", "questions.read questions.read queue.load")
-TELL = "wakes.tell queue.load questions.read"
+TELL = "queue.load questions.read wakes.tell queue.load questions.read"
 OWNED = JUDGED.replace(
     "waiting.cadence", f"{TELL} questions.read queue.load queue.load waiting.cadence"
 )
+UNREAD = OWNED.replace("queue.load questions.read wakes.tell", "queue.load wakes.tell", 1)
 WORDED = ONCE.replace("waiting.cadence", f"{TELL} queue.load waiting.cadence")
 CLOSE = "Box.snapshot_due Box.sweep_owed alert.flush"
 AFTER = {
@@ -243,7 +247,7 @@ AFTER = {
     "blind": f"stall.tell waiting.cadence {CLOSE}",
     "word-sends.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "questions.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
-    "queue.json": f"{OWNED.removeprefix('work.write item.follow ')} Box.began {CLOSE}",
+    "queue.json": f"{UNREAD.removeprefix('work.write item.follow ')} Box.began {CLOSE}",
 }
 EVENING = (
     f"{DERIVED} merge.unplaced {OWNED} Box.began Box.snapshot_due Box.snapshot_sent "
