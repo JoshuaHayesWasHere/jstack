@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import asks, below, skills, standing
+from jbriefs import asks, below, findings, skills, standing
 from jsettings.brief import head as head
 
 NO_RESULT = "no result yet"
@@ -587,28 +587,94 @@ def tasked(text: str) -> str:
     return f"brief's {said}" if said else ""
 
 
+REVIEWS = (findings.TWICE, findings.REVIEW, findings.NONE)
+_REVIEWS = "(twice, review or none)"
+
+
+def reviewed(text: str) -> str:
+    """Why a brief's `Review:` line is not one of `REVIEWS`, as one line. It is an empty string
+    when it is.
+
+    The line is the one word and nothing else. The crew reads its first word, and reads any word
+    it does not know as `review` (`findings.mode_of`), so `standard` would launch a reviewer
+    unasked and `none, docs only` would too. A stored brief with an older word keeps it.
+    """
+    said = head(text, "Review:") or ""
+    return "" if said in REVIEWS else f"brief's Review: line says {said} {_REVIEWS}"
+
+
+DEEPER = ("perf-issue", "hillclimb", "runtime-forensics", "eval")
+"""The crewmate's playbooks that the home skill's deeper step runs on
+(`home/skills/home/handing-a-task-to-a-crewmate.md`), which writes the brief's `Read:` and
+`Instruments:` lines. The step's scout playbooks go on a request, never on a brief."""
+_KINDS = re.compile(r"\b(research|perf|performance|analysis|outcome)\b", re.I)
+_DEEPER = (
+    "(Read: the rawest material to start from, Instruments: each method with the command that "
+    "runs it here)"
+)
+
+
+def instrumented(text: str) -> str:
+    """Why a brief for research, perf, analysis or outcome work lacks the lines its crewmate
+    starts from, as one line. It is an empty string when it has them, or is no such work.
+
+    The work is the deeper kind when the `Playbook:` line names one of `DEEPER`, or when the
+    `Task:` line names the kind in so many words. Such a brief has a filled-in `Read:` line,
+    where to start looking, and `Instruments:`, the methods and the commands that run them.
+    """
+    name = playbook_named(text)
+    task = _KINDS.search(_head_lines(text, "Task") or "")
+    if name in DEEPER:
+        where, kind = "Playbook: line", name
+    elif task:
+        where, kind = "Task: line", task[0].lower()
+    else:
+        return ""
+    lacks = [label for label in ("Read", "Instruments") if _filled(text, label)]
+    if not lacks:
+        return ""
+    lines = " and ".join(f"{label}:" for label in lacks) + (" lines" if len(lacks) > 1 else " line")
+    return f"brief's {where} names {kind} work, and the brief has no filled-in {lines} {_DEEPER}"
+
+
+def warnings(text: str, fresh_check: str) -> list[str]:
+    """What `jbus queue add` and `jbus queue check` warn of in a brief they still queue, one
+    line each: a check line that asks for the wrong command (`check_asked`), and `Review: none`
+    on a brief whose pull request opens, which no reviewer reads and `jmerge` leaves to wait for
+    the user's word (`crew/the-review.md`)."""
+    found = [check_asked(text, fresh_check)]
+    if head(text, "Review:") == findings.NONE and head(text, "Pull request:") == "open one when done":
+        found.append(
+            "brief says Review: none and Pull request: open one when done: no reviewer runs, and "
+            "jmerge leaves the pull request to wait for the user's word"
+        )
+    return [one for one in found if one]
+
+
 CHECKS = (
     ("Task", tasked),
     ("Design", designed),
     ("Proves it", proven),
     ("Skills", skills.unknown),
     ("Size", sized),
+    ("Review", reviewed),
     ("Playbook", playbook),
     ("Where", wheres),
+    ("Instruments", instrumented),
     ("Builds on", lambda text: standing.layered(fields(text))),
     ("Load", lambda text: standing.load(one for one in fields(text) if one[0] != REST)),
 )
-_SAYS_MISSING = ("Design", "Size", "Skills", "Builds on", "Load")
+_SAYS_MISSING = ("Design", "Size", "Skills", "Instruments", "Builds on", "Load")
 
 
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
-    filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills`, `Builds on` and `Load` to their
-    own checks. `Size`'s reports a missing line, while a brief with no `Design:` or `Skills:` line
-    needs no design and names no skill, as `none` would say, and `Builds on` and `Load` need no
-    line. A brief with no fault is complete. This check runs when a row is first queued and does not
+    filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills`, `Instruments`, `Builds on` and
+    `Load` to their own checks. `Size`'s reports a missing line, while a brief with no `Design:` or
+    `Skills:` line needs no design and names no skill, as `none` would say, `Instruments:` is
+    needed only for the deeper work (`instrumented`), and `Builds on` and `Load` need no line. A brief with no fault is complete. This check runs when a row is first queued and does not
     run again at a launch, so a brief that already has a go launches without being checked
     again (`jbus.queue`).
     """

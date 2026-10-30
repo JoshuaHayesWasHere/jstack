@@ -138,9 +138,14 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             for release in releases:
                 release()
             raise
+        for _, verb in queue.parse(text):
+            if isinstance(verb, queue.Add):
+                _warn(config, project, verb.slug, verb.text)
         return 0
     if args.verb == "verify":
         return _verify(state, args.slug, args.brief)
+    if args.verb == "check":
+        return _check(config, project, args.slug, args.handed)
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
         text = verbs.piped("queue add", "the brief")
@@ -172,13 +177,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             print(said)
         for line in ruled:
             print(line)
-        try:
-            check = (config.home(project) / "fresh-check").read_text()
-        except OSError:
-            check = ""
-        warned = briefs.check_asked(text, check)
-        if warned:
-            print(f"warning: {args.slug}'s {warned}")
+        _warn(config, project, args.slug, text)
         row = queue.fresh(state, args.slug)
         if row is not None:
             by = queue.who(queue.runner())
@@ -210,6 +209,39 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         print(f"refused: {error}")
         return 1
     return 0
+
+
+def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> None:
+    """Print what a brief that `add` queues, or that `check` passes, is warned of
+    (`jbriefs.parse.warnings`), one `warning:` line each."""
+    try:
+        check = (config.home(project) / "fresh-check").read_text()
+    except OSError:
+        check = ""
+    for warned in briefs.warnings(text, check):
+        print(f"warning: {slug}'s {warned}")
+
+
+def _check(config: jbus.Config, project: jbus.Project, given: str | None, home: str | None) -> int:
+    """`jbus queue check`: print each fault for which `add` would refuse the brief on stdin, one
+    a line, and what `add` would warn of, and write nothing. Exit 1 when there is a fault.
+
+    The slug is the one given, or the first word of the brief's `# <slug>: <title>` line. The
+    faults are `add`'s own (`queue.refusals`), with the brief's `Home:` line checked as `add`
+    checks it, `--for` included. A fix's cap on retries is not checked, since counting the
+    fix is a write (`blockers.admit`)."""
+    text = verbs.piped("queue check", "the brief", "")
+    first = next(iter(text.splitlines()), "")
+    slug = given or first.removeprefix("# ").partition(":")[0].strip()
+    try:
+        fault = queue.owned(config.home(project), project.name, slug, text, None, home)
+    except jbus.Refused as refused:
+        fault = str(refused).removeprefix("refused: ").removesuffix(": nothing is queued")
+    found = queue.refusals(config.state(project), slug, text, fault)
+    for line in found:
+        print(line)
+    _warn(config, project, slug, text)
+    return 1 if found else 0
 
 
 def _item(state: Path, slug: str, given: str) -> str:
@@ -369,6 +401,20 @@ def _table(table: argparse.ArgumentParser) -> None:
     )
     verify.add_argument("slug")
     verify.add_argument("--brief", metavar="PATH", help="the brief to check, not the stored one")
+    check = table_verbs.add_parser(
+        "check",
+        help="the faults add would refuse the brief on stdin for, one a line; writes nothing",
+        description="Check the brief on stdin as add does, and write nothing: exit 0 when add "
+        "would take it, 1 with one fault a line. Warnings print as add prints them.",
+        allow_abbrev=False,
+    )
+    check.add_argument("slug", nargs="?", help="the row's slug; by default the brief's # <slug>")
+    check.add_argument(
+        "--for",
+        dest="handed",
+        metavar="HOME",
+        help="root, or the scope the brief's Home: line names, as add takes it",
+    )
 
 
 VERBS = (verbs.Verb("queue", "the queue table and the Chef's four verbs", _table, _queue),)
