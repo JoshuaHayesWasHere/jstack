@@ -1287,6 +1287,18 @@ def _new_faults(row: Row | None, was: str | None, text: str, slug: str = "") -> 
     return found
 
 
+def refusals(state: Path, slug: str, text: str, home_fault: str = "") -> list[str]:
+    """Return the faults for which `add` would refuse `text` as `slug`'s brief now, with
+    `home_fault` (`owned`) beside them, and write nothing: the row and its stored brief are
+    read as they are, so an approved row's edit is grandfathered as `add` grandfathers it."""
+    try:
+        row = next((row for row in load(state) if row["slug"] == slug), None)
+    except Unparsable:
+        row = None
+    found = _new_faults(row, brief(state, slug), text, slug)
+    return [*found, home_fault] if home_fault else found
+
+
 def grandfathered(state: Path, rows: list[Row]) -> list[tuple[str, list[str]]]:
     """Return the open rows whose go holds and whose stored brief now fails a lint: each
     slug with its faults, in the order of the table. The user approved them before the lint

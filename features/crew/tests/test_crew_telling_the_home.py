@@ -19,7 +19,7 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
     """`jbus` puts the brief under the first line of its launch, and step 1 writes it to disk."""
     brief = BRIEF.split("\n## Result")[0] + (
         "Done when:\n- it is done\nProves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
-        "Design: none, a test\nReview: review+test\nPlaybook: feature\nHome: root\n"
+        "Design: none, a test\nReview: review\nPlaybook: feature\nHome: root\n"
     )
     assert kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=brief)[0] == 0
     sha = judgement.brief_sha(brief)[:12]

@@ -1,0 +1,12 @@
+usage: jbus queue check [-h] [--for HOME] [slug]
+
+Check the lines of the brief on stdin as add does, and write nothing: exit 0
+when they have no fault, 1 with one fault a line. Warnings print as add prints
+them.
+
+positional arguments:
+  slug        the row's slug; by default the brief's # <slug>
+
+options:
+  -h, --help  show this help message and exit
+  --for HOME  root, or the scope the brief's Home: line names, as add takes it

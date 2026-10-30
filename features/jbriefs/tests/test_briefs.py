@@ -5,11 +5,11 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import asks, below, cli, home, page, parse, skills
+from jbriefs import asks, below, cli, home, page, parse, proof, skills
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
-FINDINGS = ("Read:", "Change:", "Rests on:", "Sources:", "Ruled out:")
+FINDINGS = ("Read:", "Instruments:", "Change:", "Rests on:", "Sources:", "Ruled out:")
 
 PLAN = """\
 # demo: plan
@@ -418,16 +418,16 @@ ASKED = "(name a test, a command, a metric, a dataset, an external judge or the 
 @pytest.mark.parametrize("case", PROOFS)
 def test_a_proof_that_names_something_outside_the_agent_holds(case):
     said, kind = PROOFS[case]
-    proof = parse.proof(said)
-    assert (proof.said, proof.kind, proof.why) == (said, kind, "")
+    judged = proof.proof(said)
+    assert (judged.said, judged.kind, judged.why) == (said, kind, "")
 
 
 @pytest.mark.parametrize("case", REFUSED)
 def test_a_proof_by_the_agents_own_word_is_refused_with_one_line_saying_why(case):
     said, fault = REFUSED[case]
-    proof = parse.proof(said)
-    assert proof.kind == ""
-    assert proof.why == f"brief's Proves it: line {fault} {ASKED}"
+    judged = proof.proof(said)
+    assert judged.kind == ""
+    assert judged.why == f"brief's Proves it: line {fault} {ASKED}"
 
 
 def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until_filled_in():
