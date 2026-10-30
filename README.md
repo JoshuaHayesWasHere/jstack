@@ -46,6 +46,7 @@ jstack runs only when every **hard** need is met.
 | `git` | hard | 2.31 or newer. |
 | `jq` | hard | 1.6 or newer. |
 | `gh`, signed in | hard | `gh auth login`. The threads open pull requests with it, and `jmerge` merges with it. |
+| `jbus`, signed in | hard | `jbus t3 login`, once `jbus` has a project, since `jbus` reads your go from T3 Code. |
 
 The commands run on Python 3.12 or newer.
 `uv` uses a Python it finds on the machine, and downloads one when it finds none.
@@ -56,7 +57,7 @@ jstack runs without it.
 
 | Need | What you lose without it |
 |---|---|
-| `jbus`, with its config and its sign-in | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. |
+| `jbus` and its config | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. |
 | systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
@@ -110,7 +111,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	jinstall --check
 	```
 
-	You see one line for each part it put, and every line starts with `ok`.
+	Every line it prints starts with `ok`.
 
 3. Check the machine.
 
@@ -125,7 +126,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
 	Where it has none, step 5 commits one on a branch `jstack-check`: push it and merge it.
 	GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to add a setup step it may need.
-	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
+	To wait on other checks too, list their names in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
 5. Open T3 Code, start a thread in any project, and type this with the path of the repo's main checkout.
 
@@ -135,19 +136,19 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 	You see one line for each part of the repo's first home: `done`, `already`, or `needs you` with what to do.
 	It makes the state directory, `~/.local/state/home/<repo>`, where `<repo>` is the checkout's folder name.
-	It adds the repo to T3 Code as a project and to the `jbus` config, and links jleak's git hooks, which refuse a push that leaks what must stay private and strip AI co-author lines from commits.
+	It adds the repo to T3 Code as a project and to the `jbus` config, and links jleak's git hooks, which keep what must stay private and AI co-author lines out of pushes and commits.
 	It writes the repo's check command to `fresh-check` there (`make check`, where the repo has that target), and the workflow of step 4.
-	Then its sign-in line says `needs you` until you run `jbus t3 login`, since `jbus` reads your go from T3 Code.
+	Then its sign-in line says `needs you` until you run `jbus t3 login`, a hard need from now on.
 	Last, it starts the home thread, and you see a short status of the repo there.
-	Once that home ends, the next thread you open in the project becomes the home by itself.
+	Once that home ends, the next thread you open in the project becomes the home.
 
 6. Tell the home one small task, and give the go.
-	You see it ask you about the plan and write a brief.
+	It asks you about the plan and writes a brief.
 	Nothing starts until you say go, which the home keeps with `jbus plan go`.
 	Then it starts a crewmate thread, with a worktree of its own, in T3 Code's thread list.
 
 7. Watch the crewmate.
-	You see it do the task, run the check command of `fresh-check`, open a pull request, and start a reviewer thread.
+	You see it do the task, run `fresh-check`'s check command, open a pull request, and start a reviewer thread.
 	Then it fixes what the review found, and says the pull request is fixed and green.
 
 8. Merge. In the repo's main checkout, run `jmerge`.
@@ -157,7 +158,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	```
 
 	You see `merged` or `wait` and the reason for each open pull request.
-	`jmerge` merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
+	It merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
 	The reviewer thread's review is the approval, so no person approves on GitHub.
 
 Nothing merges by itself until `jbus` runs.

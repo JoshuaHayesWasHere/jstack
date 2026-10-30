@@ -61,9 +61,10 @@ HARD = {
     "`git`": ("git",),
     "`jq`": ("jq",),
     "`gh`, signed in": ("gh", "gh sign-in"),
+    "`jbus`, signed in": ("jbus sign-in",),
 }
 OPTIONAL = {
-    "`jbus`, with its config and its sign-in": ("jbus config", "jbus sign-in"),
+    "`jbus` and its config": ("jbus config",),
     "systemd `--user`, or launchd on macOS": ("units",),
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
     "The backup: a private remote and `gitleaks`": ("state repo",),
@@ -373,8 +374,11 @@ def test_every_link_and_picture_of_every_page_leads_to_a_file_and_a_heading_it_h
 
 @pytest.mark.parametrize("pacman", [Path("/usr/bin/pacman"), None], ids=["arch", "not arch"])
 def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_them(
-    monkeypatch, pacman
+    monkeypatch, pacman, tmp_path
 ):
+    """A machine of a stranger who ran /new-home: jbus has a project, so its sign-in is hard."""
+    monkeypatch.setenv("JBUS_CONFIG_DIR", str(tmp_path))
+    (tmp_path / "config.toml").write_text('[[project]]\nname = "one"\n')
     which = Machine.which
     monkeypatch.setattr(
         Machine, "which", lambda self, name: pacman if name == "pacman" else which(self, name)
