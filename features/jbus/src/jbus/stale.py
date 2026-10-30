@@ -48,6 +48,7 @@ from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.told import FILE as WAKES
 from jbus.told import opened
+from jbus.view.state import MOMENT
 from jbus.watch import last_result, named, pulls
 from jmerge.asked import Silent
 
@@ -69,7 +70,7 @@ LINE = (
 )
 NO_GITHUB = "GitHub did not list the open pull requests{why}"
 _TOLD = re.compile(r"^(?:decision|stop) (?:question (\d+)|local ([^ :]+)|jbus): (.+)$")
-_WORDS = re.compile(r"\s*\b(?:at |until )?(?:[0-9a-f]{7,40}|\d{4}-\S+)\b|\d+")
+_WORDS = re.compile(f"{MOMENT.pattern}|\\d+")
 
 
 @dataclass(frozen=True)
@@ -202,7 +203,8 @@ def holds(home: Path, open_: set[int] | None) -> Found:
 
 
 def words(line: str) -> str:
-    """A line with each commit, time and number left out, and its spaces made one."""
+    """A line with each commit and time a key leaves out (`state.MOMENT`), and each number, left
+    out, and its spaces made one."""
     return " ".join(_WORDS.sub(" ", line).split())
 
 
@@ -335,12 +337,17 @@ def line(project: str, kept: dict[str, Any]) -> str:
 
 
 def hourly(half: Half) -> None:
-    """Once an hour, run the audit over what the pass saw and keep its count."""
+    """Once an hour, run the audit and keep its count. It lists the open pull requests as the verb
+    does, and not the pass's last hundred, so the count is what `jbus stale` prints."""
     run, hour = half.run, int(half.run.now.timestamp() // HOUR)
-    if read(run.state).get("hour") == hour or half.seen.world is None:
+    if read(run.state).get("hour") == hour:
+        return
+    pulled, why = open_pulls(run)
+    if pulled is None:
+        run.say(f"wait {run.project.name}: no stale count ({why})")
         return
     try:
-        found = audit(run, half.client, list(half.seen.world.open.values()))
+        found = audit(run, half.client, pulled)
     except jbus.Refused as refused:
         run.say(f"wait {run.project.name}: no stale count ({refused})")
         return

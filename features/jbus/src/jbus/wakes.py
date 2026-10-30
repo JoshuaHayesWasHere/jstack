@@ -19,8 +19,9 @@ A pass sends each home thread at most one `wakes` message through the outbox. It
 made from each item's key and digest, so an item whose words changed is a new message and not a
 retry of the one before. `wakes.json` is the
 one record of what a home was told, which the view reads too (`state._fixing`). It keeps the line
-of each item open at the pass, which `jbus stale` reads. A fault of a row
-that the step working the row tells, as a crew's carry-on, is on the list only as a cause.
+of each item open within `KEEP`, with when a pass last had it, which `jbus stale` reads.
+A fault of a row that the step working the row tells, as a crew's carry-on, is on the list only as
+a cause.
 """
 
 from __future__ import annotations
@@ -423,8 +424,19 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         told = new if new and _send(run, client, thread, new) else []
         threads[thread] = kept(items, seen, told, run.now)
     threads = {thread: seen for thread, seen in threads.items() if seen}
-    lines = sorted({one.line for one in items})
+    lines = seen_lines(record.get("open"), items, run.now)
     write_json(run.state / FILE, {"threads": threads, "tests": tests.used, "open": lines})
+
+
+def seen_lines(was: Any, items: list[Item], now: datetime) -> dict[str, str]:
+    """The line of each item open now, and of each open within `KEEP`, with when a pass last had
+    it: a pass where a source gave no answer lists less, and its gap ends no line it left out."""
+    kept = {
+        line: at
+        for line, at in (was if isinstance(was, dict) else {}).items()
+        if isinstance(at, str) and now - datetime.fromisoformat(at) < KEEP
+    }
+    return kept | dict.fromkeys(sorted({one.line for one in items}), now.isoformat())
 
 
 def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:

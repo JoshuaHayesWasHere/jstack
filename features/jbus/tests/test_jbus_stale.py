@@ -125,7 +125,7 @@ def test_a_told_line_is_stale_once_its_decision_or_stop_ended(kitchen):
     rows(kitchen, alpha="merged", beta="queued", removed=["gamma"])
     questions._write(kitchen.state, 3, [asked(kitchen, 1, True), asked(kitchen, 2, False)])
     open_line = "home-stall /: the root home has had 2 things out and been quiet 61 min"
-    record = {"threads": {}, "tests": {}, "open": [open_line]}
+    record = {"threads": {}, "tests": {}, "open": {open_line: NOW.isoformat()}}
     (kitchen.state / wakes.FILE).write_text(json.dumps(record))
     scope = kitchen.home / "jview"
     scope.mkdir()
@@ -226,13 +226,24 @@ def test_the_hourly_audit_sends_its_count_to_the_root_home_once_each_time_it_cha
     assert stale.read(kitchen.state)["count"] == 0 and len(stale_wakes(kitchen)) == 2
 
 
-def test_the_one_list_keeps_the_line_of_each_open_item_for_the_told_lines(kitchen):
+def test_a_told_line_of_an_item_a_pass_kept_ends_a_day_after_no_pass_has_it(kitchen):
+    """The home copies the line of an item a real pass told it into `told`: it is open while a pass
+    had that item within a day, through a pass that lists less, and ended after."""
     home(kitchen)
-    (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))
+    holds = kitchen.home / "holds.json"
+    holds.write_text(json.dumps({"5": "a" * 40}))
     kitchen.poll(NOW)
-    record = json.loads((kitchen.state / wakes.FILE).read_text())
-    assert [line for line in record["open"] if line.startswith("jbus stale:")] == [
-        stale.line("demo", stale.read(kitchen.state))
+    (said,) = stale_wakes(kitchen)
+    (kitchen.home / "told").write_text(f"decision jbus: {said}\n")
+    assert of(listed(kitchen)[1], "told") == []
+    holds.write_text("{}")
+    kitchen.poll(NOW + timedelta(hours=1))
+    assert stale.read(kitchen.state)["count"] == 0
+    assert of(listed(kitchen)[1], "told") == []
+    kitchen.poll(NOW + wakes.KEEP + timedelta(hours=2))
+    assert of(listed(kitchen)[1], "told") == [
+        "told demo/told:1: no item of the one list says it now: "
+        + stale._cut(f"decision jbus: {said}")
     ]
 
 
