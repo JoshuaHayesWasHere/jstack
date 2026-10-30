@@ -3,7 +3,7 @@ with work out.
 
 A child home is a scope of the repo's home: a directory of the state with a `home-id` or a
 `Was home:` line. The root home, the state directory itself, is watched as a child is, under the
-key `/` in `children.json`, which no scope's name can be. What a home has out (`out`) is read
+key `/` in `stalls.json`, which no scope's name can be. What a home has out (`out`) is read
 from jbus's own records, never from the home: each queue row of a brief of its that is not over,
 each entry of its plan whose go holds with no live row (`plan.owed`), each crew or reviewer
 thread of such a brief that the last pass found unsettled, each question jbus holds for it, and
@@ -28,8 +28,10 @@ patience (`PATIENCE`, or the routine's beat) jbus nudges the home thread and the
 it at once, the first strike (`FirstStrike`); a patience after that nudge it nudges it again; a
 patience after the second it asks the user, and nudges no more (`NudgesBounded`,
 `AsksAfterTwo`). Each step waits a patience after the last, so a home first checked long after it
-went quiet still gets that time to act on a nudge. `children.json` keeps each spell: when it
-began, how far it went, when it took its last step, and what the home had out.
+went quiet still gets that time to act on a nudge. `stalls.json` keeps each spell: when it
+began, how far it went, when it took its last step, and what the home had out. It holds a key only
+for a home that is watched, so it is no list of the child homes. It was `children.json`, and a
+state that holds only that is moved to the new name on the first pass.
 """
 
 from __future__ import annotations
@@ -62,7 +64,9 @@ from jbus.t3 import Client, T3Error, T3Refused
 
 EVENTS = {"home-stall": "quiet"}
 STALL = "home-stall"
-FILE = "children.json"
+FILE = "stalls.json"
+WAS_FILE = "children.json"
+"""The name `FILE` had before, moved on the first pass that finds it with no `FILE`."""
 PATIENCE = 60
 """The minutes a child with work out may be quiet before the root flags it."""
 STALE = 10
@@ -73,7 +77,7 @@ USERS = ("out question ", "out gate ")
 get it going."""
 STEPS_OF = ("calm", "nudged1", "nudged2", "asked")
 ROOT = "/"
-"""The root home's key in `children.json`: a scope is a directory, so none is named `/`."""
+"""The root home's key in `stalls.json`: a scope is a directory, so none is named `/`."""
 NUDGE = (
     "jbus: {home} has had {what} out and has done nothing jbus can see for {minutes} "
     "minutes. Carry on with your plan: read `{plan}` and your briefs' last "
@@ -225,6 +229,8 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
         questions.read(run.state)
     except (queue.Unparsable, questions.Unparsable):
         return
+    if (run.state / WAS_FILE).exists() and not (run.state / FILE).exists():
+        (run.state / WAS_FILE).replace(run.state / FILE)
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}
     for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
