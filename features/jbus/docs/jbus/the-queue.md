@@ -132,7 +132,7 @@ So does a `Done when:` that asks for a bare `make check` where the home's `fresh
 It prints each fault on a line of its own and exits 1, or prints nothing and exits 0, with the warnings `add` would print under either.
 The slug is the one given, or the first word of the brief's `# <slug>: <title>` line, and a row already queued under it is grandfathered as `add` grandfathers it.
 It does not count a fix against its cap of retries, since that count is a write ([Decisions](decisions.md)).
-It judges the brief's lines only, so `add` can still refuse a brief it passed: for a slug that is no slug, a twin in its batch, a brief whose role is not its row's, or a scout's row handed over to a crewmate's brief.
+It judges the brief's lines only, so `add` can still refuse a brief it passed: for a slug that is no slug, a brief another live row already has under another slug, or a brief whose role is not its row's, such as a crewmate's brief for a scout's row whose Report does not say done.
 A launch makes none of these checks.
 A row with a go is grandfathered, so a check added after the go neither refuses its brief at an `add` nor stops its launch.
 When a row's go still holds for its new brief, `add` refuses the row only for a fault the edit brought, not for one the brief already had.
