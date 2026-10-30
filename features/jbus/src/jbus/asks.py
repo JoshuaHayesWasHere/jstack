@@ -144,7 +144,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
         text = verbs.piped("queue add", "the brief")
-        home = queue.owned(
+        home_fault = queue.owned(
             config.home(project), project.name, args.slug, text, args.adder, args.handed
         )
         release = blockers.admit(config, project, args.slug, text)
@@ -163,7 +163,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
                 after,
                 config.user,
                 asks,
-                home=home,
+                home_fault=home_fault,
             )
         except BaseException:
             release()

@@ -176,7 +176,7 @@ lavish-axi "$H/reports/$S.html"
    uv run --project "$T/../source" jbus home "$B"
    ```
 
-   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.
+   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests say `Home: root` (or have no `Home:` line, from before the line was required), and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.
    A request names no thread, so no home's start or handoff changes it.
    One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home.
    `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them.
