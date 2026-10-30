@@ -10,11 +10,12 @@ import textwrap
 
 import pytest
 
-from jbriefs import pick
+from jbriefs import parse, pick
 from testing.layouts import assembled
 from testing.paths import REPO, playbooks
 
 SKILL = REPO / "features" / "skill-library" / "skills" / "poteto-help" / "SKILL.md"
+HANDING = REPO / "features" / "home" / "skills" / "home" / "handing-a-task-to-a-crewmate.md"
 HOOK = assembled() / "hooks" / "skill-tips.sh"
 
 BRIEF = """\
@@ -234,3 +235,12 @@ def hook_tip(tmp_path, prompt):
 def test_the_first_tip_is_the_one_the_tips_hook_gives(tmp_path, prompt):
     tips = pick.tipped(prompt, pick.skills())
     assert hook_tip(tmp_path, prompt) == (tips[0][0] if tips else None)
+
+
+def test_the_briefs_deeper_playbooks_are_the_crewmates_ones_the_deeper_step_runs_on():
+    """`queue add` asks a brief of each of `parse.DEEPER` for its `Read:` and `Instruments:`
+    lines, which the home's deeper step writes, so a crewmate's playbook added to the step's
+    `case` list and not to `DEEPER` is never asked for them."""
+    case = re.search(r"^\s*(investigation \|[^)\n]*)\)$", HANDING.read_text(), re.M)
+    crewmates = {row.name for row in pick.rows() if row.runner == pick.CREW.runner}
+    assert {name.strip() for name in case.group(1).split("|")} & crewmates == set(parse.DEEPER)

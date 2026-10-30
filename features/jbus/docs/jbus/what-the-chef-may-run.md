@@ -8,7 +8,7 @@ The Chef runs `jbus queue` and nothing else that changes state.
 | Command | What the Chef does with it |
 |---|---|
 | `jbus queue show` | Reads the table, and what waits on you above it. |
-| `jbus queue check [<slug>]` | Checks a brief on stdin as `add` would, and writes nothing. |
+| `jbus queue check [<slug>]` | Checks a brief on stdin as `add` would, and writes nothing. It judges the brief's lines only: `add` can still refuse a clean brief for a slug that is no slug, a twin, a role mismatch or a scout's row handed over. |
 | `jbus queue add <slug> --priority <n> [--depends <slugs>]` | Adds a row, with the brief on stdin. |
 | `jbus queue approve <slug> --sha <sha12> --message <thread id>/<message id>` | Records your go for the brief you were shown. The Chef runs it only after you said yes to that brief, and names the message you said it in. For a brief whose `Holds:` line names a door, it parks a gate for you instead, unless it runs as `jbus --as user queue approve ... --message ...` on your own message. |
 | `jbus queue hold <slug>` | Takes a row's approval back. |
