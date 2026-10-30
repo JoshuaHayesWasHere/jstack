@@ -108,13 +108,18 @@ class Machine:
         """What `git show jstack-check:.github/workflows/check.yml` prints, or None."""
         done = subprocess.run(
             ["git", "show", f"refs/heads/jstack-check:{FLOW}"],
-            cwd=self.repo, capture_output=True, text=True,
+            cwd=self.repo,
+            capture_output=True,
+            text=True,
         )
         return done.stdout if done.returncode == 0 else None
 
     def sha(self, ref):
         done = subprocess.run(
-            ["git", "rev-parse", "-q", "--verify", ref], cwd=self.repo, capture_output=True, text=True
+            ["git", "rev-parse", "-q", "--verify", ref],
+            cwd=self.repo,
+            capture_output=True,
+            text=True,
         )
         return done.stdout.strip()
 
@@ -349,9 +354,12 @@ def test_a_fresh_repo_gets_its_check_workflow_on_a_branch_and_its_fresh_check(ma
     assert machine.sha("jstack-check^") == machine.sha("wip")
     assert (machine.state / "fresh-check").read_text() == "make check\n"
     assert not (machine.repo / ".github").exists()
-    assert subprocess.run(
-        ["git", "status", "--porcelain", "-b"], cwd=machine.repo, capture_output=True, text=True
-    ).stdout == status
+    assert (
+        subprocess.run(
+            ["git", "status", "--porcelain", "-b"], cwd=machine.repo, capture_output=True, text=True
+        ).stdout
+        == status
+    )
 
     made = machine.sha("refs/heads/jstack-check")
     assert machine.merge() == [
@@ -439,10 +447,9 @@ def test_with_no_git_identity_the_line_says_what_git_said_and_no_branch_is_made(
         "GIT_CONFIG_VALUE_0": "true",
     }
     (said, *_) = machine.merge("npm test", extra=lonely)
-    assert said.startswith(
-        f"4 to merge: needs you: git could not commit {FLOW} on a branch jstack-check: "
-    )
-    assert len(said) > len(f"4 to merge: needs you: git could not commit {FLOW} on a branch jstack-check: ")
+    lead = f"4 to merge: needs you: git could not commit {FLOW} on a branch jstack-check: "
+    assert said.startswith(lead)
+    assert len(said) > len(lead)
     assert machine.sha("refs/heads/jstack-check") == ""
 
 
@@ -470,7 +477,8 @@ def test_under_zsh_a_repo_with_one_yml_workflow_and_no_yaml_one_is_read_as_sh_re
     (flows / "ci.yml").write_text("on:\n  pull_request:\njobs:\n  check:\n    steps: []\n")
     machine.state.mkdir(parents=True)
     (machine.state / "fresh-check").write_text("npm test\n")
-    assert machine.merge("npm test", "zsh") == machine.merge("npm test") == [ALREADY, switches(machine)]
+    expected = [ALREADY, switches(machine)]
+    assert machine.merge("npm test", "zsh") == machine.merge("npm test") == expected
     assert machine.sha("refs/heads/jstack-check") == ""
 
 
