@@ -397,7 +397,10 @@ The next thread is the one with exactly that title that is newer than this one.
 
 ### The thread a party's handoff started
 
-The message that started this thread sent it here. This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part. Get this thread's id from the `t3-code` server's `t3_thread_configure` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first). Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
+The message that started this thread sent it here.
+This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part.
+Get this thread's id from the `t3-code` server's `t3_thread_configure` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first).
+Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
 
 ```sh
 ME='<threadId>'
