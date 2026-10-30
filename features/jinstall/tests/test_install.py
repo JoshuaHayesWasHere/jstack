@@ -562,6 +562,32 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     }
 
 
+def test_a_hook_whose_script_no_feature_declares_is_old_and_taken_out(user):
+    retired = group("retired-gauge.sh", user.home, matcher=None)
+    mine = {"hooks": [{"type": "command", "command": "sh /mine/hooks/retired-gauge.sh"}]}
+    beside = {"type": "command", "command": "echo hello"}
+    shared = {"matcher": "Bash", "hooks": [beside, *retired["hooks"]]}
+    user.write(
+        user.settings,
+        {"model": "one", "hooks": {"PreToolUse": [retired, mine], "PostToolUse": [shared]}},
+    )
+    command = retired["hooks"][0]["command"]
+    pre = f"hook {user.settings} PreToolUse hooks/retired-gauge.sh"
+    post = f"hook {user.settings} PostToolUse hooks/retired-gauge.sh"
+    said = user.run("--check")[1]
+    assert line_for(said, pre) == [f"old hard {pre} -> {command}, a script no feature declares"]
+    assert line_for(said, post) == [f"old hard {post} -> {command}, a script no feature declares"]
+    code, said = user.run()
+    assert (code, line_for(said, pre)) == (0, [f"ok hard {pre} -> taken out"])
+    assert line_for(said, post) == [f"ok hard {post} -> taken out"]
+    hooks = user.written()
+    hooks["PreToolUse"] = [mine, *hooks["PreToolUse"]]
+    hooks["PostToolUse"] = [{"matcher": "Bash", "hooks": [beside]}, *hooks.get("PostToolUse", [])]
+    wanted = {"model": "one", "hooks": hooks, "statusLine": user.STATUS} | OFF
+    assert json.loads(user.settings.read_text()) == wanted
+    assert user.run("--check") == (0, user.every("ok"))
+
+
 def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touched(user):
     by_hand = 'sh "$HOME/repos/jstack/hooks/skill-tips.sh" 2>/dev/null || true'
     written = {

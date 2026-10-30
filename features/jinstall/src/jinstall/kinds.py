@@ -303,6 +303,129 @@ def rewrite(machine: Machine, file: Path, change: Callable[[dict], bool]) -> boo
     return False
 
 
+def event_groups(value: dict, event: str) -> list | None:
+    """The groups of `event`, or None when `value` does not have the shape of a hooks file: a
+    `hooks` object whose every event is a list of groups, each with a list of hooks."""
+    hooks = value.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return None
+    shaped = all(
+        isinstance(groups, list)
+        and all(
+            isinstance(group, dict) and isinstance(group.get("hooks", []), list) for group in groups
+        )
+        for groups in hooks.values()
+    )
+    return hooks.get(event, []) if shaped else None
+
+
+def take_out(value: dict, event: str, matches: Callable[[str], bool]) -> bool:
+    """Take out of `event` each hook whose command `matches`. Then take out a group the removal
+    leaves empty, and do the same for `hooks[event]`, then for `hooks`. Touch no other key.
+    False when no command matched."""
+    kept, found = [], False
+    for group in event_groups(value, event) or []:
+        hooks = group.get("hooks", [])
+        rest = [
+            hook
+            for hook in hooks
+            if not (
+                isinstance(hook, dict)
+                and isinstance(hook.get("command"), str)
+                and matches(hook["command"])
+            )
+        ]
+        if len(rest) == len(hooks):
+            kept.append(group)
+            continue
+        found = True
+        if rest:
+            kept.append(group | {"hooks": rest})
+    if not found:
+        return False
+    value["hooks"][event] = kept
+    if not kept:
+        del value["hooks"][event]
+    if not value["hooks"]:
+        del value["hooks"]
+    return True
+
+
+def layout_scripts(command: str, layout: Path) -> set[str]:
+    """The name of each script under `layout`'s `hooks/` that `command` runs."""
+    return set(re.findall(re.escape(f"{layout / 'hooks'}/") + r"([^/'\"\s]+)", command))
+
+
+def retired(machine: Machine, file: Path, harness: str, declared: frozenset[str]) -> list:
+    """Each event of `file` and script name, in the file's order, where a command runs a
+    script under `harness`'s layout `hooks/` that is not in `declared`. Nothing for a file
+    that is not a hooks file."""
+    was = machine.read_object(file)
+    if not isinstance(was, JsonObject) or event_groups(was.value, "") is None:
+        return []
+    layout = machine.layout(harness)
+    found = {}
+    for event, groups in was.value.get("hooks", {}).items():
+        for group in groups:
+            for hook in group.get("hooks", []):
+                command = hook.get("command") if isinstance(hook, dict) else None
+                if isinstance(command, str):
+                    for name in sorted(layout_scripts(command, layout) - declared):
+                        found[(event, name)] = None
+    return list(found)
+
+
+@dataclass(frozen=True)
+class RetiredHook:
+    """A hook in `.hooks[event]` of a hooks file whose command runs `<layout>/hooks/<name>`,
+    a script that no feature declares any more. `needs()` lists it only when it finds one, and
+    the probe answers old until put or drop takes each such hook out of the event, with any
+    group, event or `hooks` the removal leaves empty. A command that names no script of the
+    layout is the user's and is left alone."""
+
+    file: Path
+    event: str
+    name: str
+    harness: str = "claude-code"
+
+    def _runs(self, machine: Machine) -> Callable[[str], bool]:
+        layout = machine.layout(self.harness)
+        return lambda command: self.name in layout_scripts(command, layout)
+
+    def probe(self, machine: Machine) -> Found:
+        was = machine.read_object(self.file)
+        groups = event_groups(was.value, self.event) if isinstance(was, JsonObject) else None
+        runs = self._runs(machine)
+        named = [
+            hook["command"]
+            for group in groups or []
+            for hook in group.get("hooks", [])
+            if isinstance(hook, dict)
+            and isinstance(hook.get("command"), str)
+            and runs(hook["command"])
+        ]
+        if named:
+            return Found.old(f"{named[0]}, a script no feature declares")
+        return Found.ok("taken out")
+
+    def due(self, machine: Machine) -> bool:
+        return True
+
+    def _take_out(self, machine: Machine) -> bool:
+        if not isinstance(machine.read_object(self.file), JsonObject):
+            return False
+        runs = self._runs(machine)
+        return rewrite(machine, self.file, lambda value: take_out(value, self.event, runs))
+
+    def put(self, machine: Machine) -> None:
+        self._take_out(machine)
+
+    def drop(self, machine: Machine) -> Dropped:
+        if self._take_out(machine):
+            return Dropped(removed=(f"hook {self.file} {self.event} hooks/{self.name}",))
+        return Dropped()
+
+
 @dataclass(frozen=True)
 class HookGroup:
     """One group in `.hooks[event]` of ~/.claude/settings.json or ~/.codex/hooks.json:
@@ -343,20 +466,7 @@ class HookGroup:
         return ({} if self.matcher is None else {"matcher": self.matcher}) | {"hooks": [hook]}
 
     def _groups(self, value: dict) -> list | None:
-        """The event's groups, or None when `value` does not have the shape of a hooks file: a
-        `hooks` object whose every event is a list of groups, each with a list of hooks."""
-        hooks = value.get("hooks", {})
-        if not isinstance(hooks, dict):
-            return None
-        shaped = all(
-            isinstance(groups, list)
-            and all(
-                isinstance(group, dict) and isinstance(group.get("hooks", []), list)
-                for group in groups
-            )
-            for groups in hooks.values()
-        )
-        return hooks.get(self.event, []) if shaped else None
+        return event_groups(value, self.event)
 
     def _names(self, hook: object) -> bool:
         command = hook.get("command") if isinstance(hook, dict) else None
@@ -400,29 +510,7 @@ class HookGroup:
         ours = self._command(machine)
 
         def change(value: dict) -> bool:
-            groups = self._groups(value)
-            kept, found = [], False
-            for group in groups or []:
-                hooks = group.get("hooks", [])
-                rest = [
-                    hook
-                    for hook in hooks
-                    if not (isinstance(hook, dict) and hook.get("command") == ours)
-                ]
-                if len(rest) == len(hooks):
-                    kept.append(group)
-                    continue
-                found = True
-                if rest:
-                    kept.append(group | {"hooks": rest})
-            if not found:
-                return False
-            value["hooks"][self.event] = kept
-            if not kept:
-                del value["hooks"][self.event]
-            if not value["hooks"]:
-                del value["hooks"]
-            return True
+            return take_out(value, self.event, lambda command: command == ours)
 
         if not isinstance(machine.read_object(self.file), JsonObject):
             return Dropped()
