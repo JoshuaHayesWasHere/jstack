@@ -1,4 +1,4 @@
-From daa1bda51f50a34f37cf67656d211352116a9e00 Mon Sep 17 00:00:00 2001
+From 94ee4fd438d594d195fc7d129f98004a83b39803 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Fri, 30 Oct 2026 00:28:30 -0400
 Subject: [PATCH] feat(web): a jstack brief opens as what it says: its one
@@ -26,9 +26,9 @@ and Button a row size. Its one accent, sky, is a theme colour (jstack-link) on t
 The approve flow is as it was: the sha line, Close and "Approve this brief", none for a scout.
 ---
  apps/web/src/components/Sidebar.tsx           |  36 +-
- .../JstackBriefDialog.browser.test.tsx        | 280 ++++++++++++++-
- .../components/sidebar/JstackBriefDialog.tsx  |  56 ++-
- .../components/sidebar/JstackBriefView.tsx    | 318 ++++++++++++++++++
+ .../JstackBriefDialog.browser.test.tsx        | 308 ++++++++++++++++-
+ .../components/sidebar/JstackBriefDialog.tsx  |  56 +++-
+ .../components/sidebar/JstackBriefView.tsx    | 317 ++++++++++++++++++
  .../sidebar/JstackTreeRows.browser.test.tsx   |   5 +-
  .../sidebar/jstackAskOnAdd.browser.test.tsx   |   2 +-
  .../components/sidebar/jstackBrief.logic.ts   | 213 ++++++++++++
@@ -40,7 +40,7 @@ The approve flow is as it was: the sha line, Close and "Approve this brief", non
  .../jstack-briefs/jinstall-retired-hooks.txt  |  15 +
  .../jstack-briefs/jv-color-design.txt         |  40 +++
  .../jstack-briefs/sb-type-b2-build.txt        |  24 ++
- 15 files changed, 1064 insertions(+), 45 deletions(-)
+ 15 files changed, 1091 insertions(+), 45 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/JstackBriefView.tsx
  create mode 100644 apps/web/src/components/sidebar/jstackBrief.logic.ts
  create mode 100644 apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt
@@ -127,7 +127,7 @@ index bf5708a6d3..ccdbf403c7 100644
            sendJstackRowWord(target.homeThreadId, target.homeName, {
              kind: "approve",
 diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
-index f911fac586..5f2c3b4a6b 100644
+index f911fac586..e54946c148 100644
 --- a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
 @@ -4,6 +4,9 @@ import { describe, expect, it, vi } from "vite-plus/test";
@@ -214,7 +214,7 @@ index f911fac586..5f2c3b4a6b 100644
      expect(shown.element().textContent).toBe("# probe: look at the meter\n");
      expect(server.asked).toEqual([
        { environmentId, input: { repo: "jstack", slug: "probe", kind: "scout" } },
-@@ -175,3 +208,238 @@ describe("JstackBriefDialog", () => {
+@@ -175,3 +208,266 @@ describe("JstackBriefDialog", () => {
        .not.toBeInTheDocument();
    });
  });
@@ -360,6 +360,34 @@ index f911fac586..5f2c3b4a6b 100644
 +      .element(page.getByRole("button", { name: "More: Decisions, Design, Skills" }))
 +      .toBeVisible();
 +    expect(typeIn(page.getByRole("dialog").element())).toEqual(["11px/400", "13px/400"]);
++  });
++
++  it("keeps the list under any line, a quote, the caution band and file chips included", async () => {
++    const listed = [
++      "# fl-lists: lists under lines",
++      'Task: "read the meter"',
++      "- at noon",
++      "- at midnight",
++      "Do not touch:",
++      "- the live state",
++      "- `~/.t3/userdata`",
++      "Where: `meter.ts`",
++      "- `meter.test.ts`, its test",
++      "",
++    ].join("\n");
++    server.briefs.set("fl-lists", { text: listed, sha: "333333333333" });
++    await using _screen = await render(
++      <Opener target={target({ slug: "fl-lists" })} onApprove={async () => true} />,
++      { router: false },
++    );
++    await openBrief();
++    expect(items("Task")).toEqual(["at noon", "at midnight"]);
++    const band = page.getByRole("note", { name: "Do not touch" }).element();
++    expect([...band.querySelectorAll("li")].map(textOf)).toEqual([
++      "the live state",
++      "~/.t3/userdata",
++    ]);
++    expect(items("Where")).toEqual(["meter.test.ts, its test"]);
 +  });
 +
 +  it("a scout request: a line no template names stays as written with its list, and no approve", async () => {
@@ -556,10 +584,10 @@ index 73c01f5eed..6b7aaa10bb 100644
            {target?.approvable ? (
 diff --git a/apps/web/src/components/sidebar/JstackBriefView.tsx b/apps/web/src/components/sidebar/JstackBriefView.tsx
 new file mode 100644
-index 0000000000..d2aebbedaf
+index 0000000000..e6bc7e3c86
 --- /dev/null
 +++ b/apps/web/src/components/sidebar/JstackBriefView.tsx
-@@ -0,0 +1,318 @@
+@@ -0,0 +1,317 @@
 +import { ChevronRightIcon, TriangleAlertIcon } from "lucide-react";
 +import type { ReactNode } from "react";
 +
@@ -711,45 +739,44 @@ index 0000000000..d2aebbedaf
 +const unquoted = (value: string) =>
 +  value.length > 1 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
 +
-+/** A line's value, drawn the way its name asks. */
++/**
++ * A line's value, drawn the way its name asks, with the `- ` list under it: a list look draws
++ * the items its own way, and every other look draws them as a plain list after the value.
++ */
 +function Value(props: { line: BriefLine } & Pick<JstackBriefViewProps, "revealable" | "onReveal">) {
 +  const { line } = props;
 +  const look = line.kind === "known" ? BRIEF_LINES[line.name].look : "text";
 +  const value = line.kind === "known" ? line.value : line.text;
-+  switch (look) {
-+    case "quote":
-+      return (
-+        <blockquote className="border-l-2 border-border pl-3">
-+          <Inline text={unquoted(value)} />
-+        </blockquote>
-+      );
-+    case "files":
-+      return <Files value={value} />;
-+    case "links":
-+      return <Links value={value} revealable={props.revealable} onReveal={props.onReveal} />;
-+    case "checklist":
-+    case "numbered":
-+    case "list":
-+      return (
-+        <div className="space-y-1">
-+          {value === "" ? null : (
-+            <p>
-+              <Inline text={value} />
-+            </p>
-+          )}
-+          <Items items={line.items} look={look} />
-+        </div>
-+      );
-+    case "text":
-+      return (
-+        <div className="space-y-1">
++  if (look === "checklist" || look === "numbered" || look === "list") {
++    return (
++      <div className="space-y-1">
++        {value === "" ? null : (
 +          <p>
 +            <Inline text={value} />
 +          </p>
-+          {line.items.length === 0 ? null : <Items items={line.items} look="list" />}
-+        </div>
-+      );
++        )}
++        <Items items={line.items} look={look} />
++      </div>
++    );
 +  }
++  return (
++    <div className="space-y-1">
++      {value === "" ? null : look === "quote" ? (
++        <blockquote className="border-l-2 border-border pl-3">
++          <Inline text={unquoted(value)} />
++        </blockquote>
++      ) : look === "files" ? (
++        <Files value={value} />
++      ) : look === "links" ? (
++        <Links value={value} revealable={props.revealable} onReveal={props.onReveal} />
++      ) : (
++        <p>
++          <Inline text={value} />
++        </p>
++      )}
++      {line.items.length === 0 ? null : <Items items={line.items} look="list" />}
++    </div>
++  );
 +}
 +
 +/** A head line under its label; an unknown line is its own label, as written. */
@@ -840,7 +867,7 @@ index 0000000000..d2aebbedaf
 +            <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0" />
 +            <div className="min-w-0">
 +              <div className={LABEL}>{line.name}</div>
-+              <Inline text={line.value} />
++              <Value line={line} {...links} />
 +            </div>
 +          </div>
 +        ) : null,
