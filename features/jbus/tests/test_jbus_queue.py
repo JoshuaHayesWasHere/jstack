@@ -28,7 +28,8 @@ NO_BASIS = (
     "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
     "id>, --pick <thread id>/<item id> or --page <session key>/<entry id>, or --follows <parent "
     "slug>, and "
-    "no --by and no --at: jbus writes who ran it and when"
+    "no --by and no --at: jbus writes who ran it and when; the user's go on a plan entry is "
+    "jbus plan go <entry> --message <thread>/<message>"
 )
 NO_SHA = (
     "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
@@ -214,6 +215,7 @@ def test_a_verb_that_prints_the_table_after_prints_the_open_rows_too(kitchen):
             f"refused: {NO_BASIS}",
         ),
         (["approve", "alpha", "--sha", "0" * 12], "", f"refused: {NO_BASIS}"),
+        (["approve", "alpha"], "", f"refused: {NO_BASIS}"),
         (
             ["approve", "alpha", "--word", SAID, "--at", AT, "--sha", "0" * 12],
             "",
