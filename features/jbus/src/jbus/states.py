@@ -103,6 +103,7 @@ def keep_work(half: Half) -> None:
         home = bool(record and not record.busy and not leftover.his(record, run.now))
         busy = bool(record and record.busy)
         role = "scout" if queue.role(row) == queue.SCOUT else ""
+        scout = {"scout": str(work.scouting(state))} if role else {}
         line = work.entry(
             state,
             work.holder(state, role=role, home=home, busy=busy),
@@ -111,6 +112,7 @@ def keep_work(half: Half) -> None:
             slug=slug,
             thread=row.get("thread", ""),
             pr=row.get("pr", ""),
+            **scout,
         )
         listed.append(line)
     mine = {(queue.role(row), row["slug"]) for row in rows}
