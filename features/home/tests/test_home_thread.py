@@ -94,9 +94,12 @@ def about_the_home_id(skill):
     return block(skill, own.get(skill, 'jbus home "$B"'))
 
 
+STATUS = 'jbus home status --home "$M" $none'
+
+
 def start_block():
-    """Step 4 of a home's start, after the block that reads jbus ("Gates"), which runs first."""
-    return f"{block('home', 'OPEN=')}\n{block('home', '## to read')}"
+    """Step 4 of a home's start: the one call of `jbus home status`."""
+    return block("home", STATUS)
 
 
 def finds_this_home(thread):

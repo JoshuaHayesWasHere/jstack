@@ -118,103 +118,13 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
    A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`.
    A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../../jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
-   Then run it in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"), in the main checkout:
+   Then run it in one call with the block at the top and the block that finds this home, in the main checkout:
 
    ```sh
-   : "${SEP:?run the block that reads jbus first}"
-   W=110 # characters a line is cut at
-   clip() { awk -v w="${1:-$W}" '{ if (length($(0)) > w) print substr($(0), 1, w - 3) "..."; else print }'; }
-   atmost() { awk -v n="${1}" -v more="${2}" 'NR <= n {print} END {if (NR > n) print "... and " NR - n " more: " more}'; }
-   ours() { uv run --project "$T/../source" jbus home --keep "$M"; }
-   scope=
-   if [ "$M" != "$H" ]; then scope=${M##*/}; fi
-   for f in "$H/standing.md" "$M/handoff.md" "$M/handoff.next.md"; do
-       if [ -f "$f" ]; then echo "read whole: $f"; fi
-   done
-   if top=$(git rev-parse --show-toplevel 2> /dev/null) && [ -f "$top/docs/context/INDEX.md" ]; then
-       echo "read whole: $top/docs/context/INDEX.md"
-   fi
-   echo "## plan"
-   if ! command -v jbus > /dev/null || ! plan=$(jbus plan ${scope:+--scope "$scope"}); then
-       echo "no jbus plan: read $M/plan.md whole"
-   else
-       printf '%s\n' "$plan" | clip 150 | atmost 12 "jbus plan${scope:+ --scope $scope}"
-   fi
-   echo "## queue"
-   if [ -n "$WHY" ]; then
-       echo "$WHY"
-   elif ! shown=$(jbus --project "$P" queue show 2>&1); then
-       printf '%s\n' "$shown" | head -n 1 | clip
-   else
-       rows=$(printf '%s\n' "$shown" | awk '
-           function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-           /^\|/ {
-               line = $(0); gsub(/\\\|/, "\001", line)
-               n = split(line, cell, "|")
-               for (i = 1; i <= n; i++) gsub(/\001/, "|", cell[i])
-               if (!head) { for (i = 2; i < n; i++) at[trim(cell[i])] = i; head = 1; next }
-               if (trim(cell[2]) ~ /^-+$/) next
-               print "row\t" trim(cell[at["slug"]]) "\t" trim(cell[at["slug"]]) " | " trim(cell[at["status"]]) " | " trim(cell[at["pr"]]) " | " trim(cell[at["why"]])
-               next
-           }
-           NF { print (head ? "end" : "waits") "\t" $(0) }')
-       printf '%s\n' "$rows" | awk -F '\t' '$(1) == "waits" && n++ == 0 {print $(2)}'
-       printf '%s\n' "$rows" | awk -F '\t' '$(1) == "waits" && n++ > 0 {print $(2)}' | clip | atmost 3 "jbus --project $P queue show"
-       printf '%s\n' "$rows" | awk -F '\t' -v h="$H" '$(1) == "row" {print h "/tasks/" $(2) ".md\t" $(3)}' | ours | clip | atmost 10 "jbus --project $P queue show"
-       printf '%s\n' "$rows" | awk -F '\t' '$(1) == "end" {print $(2)}' | clip | atmost 2 "jbus --project $P queue show"
-   fi
-   echo "## questions"
-   if [ -f "$M/gates.md" ]; then echo "a gates file: run the block of \"Move the ones a file still has\" (\"Gates\"), then this block again"; fi
-   if [ -n "$WHY" ]; then
-       echo "$WHY"
-   elif [ -z "$OPEN" ]; then
-       echo "none is open"
-   else
-       printf '%s\n' "$OPEN" | while IFS=$SEP read -r n slug asked took rest; do
-           if [ -n "$n" ]; then printf 'question %s, from %s: %s (default: %s)\n' "$n" "$slug" "$asked" "$took"; fi
-       done | clip | atmost 5 "the block of \"Show the open ones\""
-   fi
-   echo "## merged"
-   L="$H/merge.log"
-   lines=$(grep -c '' "$L" 2> /dev/null)
-   lines=${lines:-0}
-   seen=$(cat "$M/merge-seen" 2> /dev/null)
-   case $seen in
-   '' | *[!0-9]*) seen=$lines ;;
-   esac
-   if [ "$seen" -gt "$lines" ]; then seen=0; fi
-   tail -n "+$((seen + 1))" "$L" 2> /dev/null | awk -v h="$H" 'substr($(0), 18) ~ /^merged / {split(substr($(0), 18), w, " "); print h "/tasks/" w[3] ".md\t" $(0)}' | ours | clip | atmost 5 "$L"
-   echo "## to read"
-   S="$M/read-seen"
-   unread=$(for f in "$H"/tasks/*.md "$H"/scouts/*.md; do
-       [ -f "$f" ] || continue
-       heading=$(grep -E '^## (Result|Report)' "$f" | tail -n 1)
-       said="${f#"$H"/}: $heading"
-       if [ -n "$heading" ] && ! grep -qxF -e "$said" "$S" 2> /dev/null; then
-           printf '%s\t%s\n' "$f" "$said"
-       fi
-   done | ours)
-   if [ ! -e "$S" ]; then
-       printf '%s\n' "$unread" | grep . > "$S"
-       echo "no mark yet: $(grep -c '' "$S") headings of this home's are marked read in $S, and none is shown"
-   else
-       merged=$(awk 'substr($(0), 18) ~ /^merged / {split(substr($(0), 18), w, " "); print "tasks/" w[3] ".md"}' "$L" 2> /dev/null)
-       printf '%s\n' "$unread" | grep . | while IFS= read -r said; do
-           f=${said%%: ## *}
-           if printf '%s\n' "$merged" | grep -qxF -e "$f" && awk '
-               /^## / {result = 0}
-               /^## Result/ {done = left = 0; result = 1}
-               result && $(1) == "Status:" {done = (NF == 2 && $(2) == "done")}
-               result && $(1) == "Left:" {left = (NF == 2 && $(2) == "none")}
-               END {exit !(done && left)}' "$H/$f"; then
-               printf '%s\n' "$said" >> "$S"
-           else
-               printf '%s\n' "$said"
-           fi
-       done | atmost 8 "mark these read, then run this block again"
-       finished=$(printf '%s\n' "$unread" | awk -v s="$S" 'BEGIN {while ((getline seen < s) > 0) read[seen] = 1} $(0) != "" && $(0) in read {n++} END {print n + 0}')
-       if [ "$finished" -gt 0 ]; then echo "marked read and not shown: $finished finished headings, each done with Left: none and merged"; fi
-   fi
+   : "${M:?run the block that finds this home first}"
+   none=
+   if ! command -v jbus > /dev/null; then none=--no-jbus; fi
+   uv run --project "$T/../source" jbus home status --home "$M" $none
    ```
 
    It prints this home's part of what jbus and the files hold, each line cut at 110 characters, a line of the plan at 150 and one under `## to read` not at all, and each part at a few lines, with the command that prints the rest.
