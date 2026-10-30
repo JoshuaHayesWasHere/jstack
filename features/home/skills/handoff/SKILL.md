@@ -177,7 +177,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
                out="not known, jbus said: ${out:-nothing}"
            fi
            if [ -n "$scope" ] && [ -f "$M/gates.md" ]; then
-               sep=$(printf '\001')
+               sep=$(printf '\037')
                moved=$(awk -v sep="$sep" '
                    function out() { if (open) printf "%s%s%s%s%s\n", n, sep, by, sep, entry; entry = by = ""; open = 0 }
                    /^## Gate [0-9]+: / { out(); n = $(3); sub(/:$/, "", n) }
