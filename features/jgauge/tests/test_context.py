@@ -26,6 +26,7 @@ def transcript(tmp_path, *entries):
     path.write_text("".join(json.dumps(entry) + "\n" for entry in entries))
     return path
 
+
 def test_context_prints_the_input_side_of_the_last_call_and_not_the_peak(tmp_path, capsys):
     path = transcript(tmp_path, call("m1", 5, 900, 95), call("m2", 2, 300, 40))
     assert cli.main(["context", str(path)]) == 0
@@ -48,5 +49,3 @@ def test_context_prints_0_for_a_transcript_with_no_call(tmp_path, capsys):
 def test_context_says_so_when_there_is_no_transcript(tmp_path):
     with pytest.raises(SystemExit, match="jgauge: transcript missing"):
         cli.main(["context", str(tmp_path / "none.jsonl")])
-
-

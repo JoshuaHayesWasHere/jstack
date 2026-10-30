@@ -5,7 +5,6 @@ role. The tests run the handoff skill's own shell block in a temporary repo and 
 own JSON blocks against the tools."""
 
 import json
-import re
 
 import pytest
 

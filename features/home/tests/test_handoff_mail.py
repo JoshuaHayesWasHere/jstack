@@ -171,7 +171,9 @@ def test_the_sender_is_told_the_new_id_and_that_its_message_was_not_sent_on():
 def test_the_sender_is_told_the_repo_has_no_home():
     file = "/state/a demo repo/home-id"
     told = json.loads(
-        NO_HOME.written.replace("<thread>", COOK).replace("<repo>", NAME).replace("<the home-id file>", file)
+        NO_HOME.written.replace("<thread>", COOK)
+        .replace("<repo>", NAME)
+        .replace("<the home-id file>", file)
     )
     assert told == {
         "threadId": COOK,

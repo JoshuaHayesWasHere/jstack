@@ -1,7 +1,12 @@
 # Chart labels for HomeTreeToday: what Josh sees of the root and its children.
 reader_actions = ["Answer", "Retire", "Steps"]
 
-LIFE = {"working": "working", "stuck": "stuck", "retired": "retired", "handed": "handed to the root"}
+LIFE = {
+    "working": "working",
+    "stuck": "stuck",
+    "retired": "retired",
+    "handed": "handed to the root",
+}
 WORK = {
     "none": "",
     "crew": ", crew out",

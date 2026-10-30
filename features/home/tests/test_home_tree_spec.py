@@ -256,7 +256,9 @@ def test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_r
 
     said = retiring.retires()
 
-    assert said[0].startswith("archived: scope sc is closed, and what it had out is the root home's")
+    assert said[0].startswith(
+        "archived: scope sc is closed, and what it had out is the root home's"
+    )
     assert "- out sc-crew: row launched" in said, said
     assert not (retiring.scope / "plan.md").exists()
     assert not (retiring.scope / "home-id").exists()

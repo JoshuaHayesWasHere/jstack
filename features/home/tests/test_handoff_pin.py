@@ -1,8 +1,8 @@
 """A home pins itself at its start, and an archive leaves nothing that makes the old home active
-again: its tasks are switched off, and a home started later takes them over and settles it. The tests
-run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers their
-calls. Each call the blocks make is a JSON block of a skill. The test checks the call against its
-tool's schema before the call changes anything."""
+again: its tasks are switched off, and a home started later takes them over and settles it. The
+tests run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers
+their calls. Each call the blocks make is a JSON block of a skill. The test checks the call against
+its tool's schema before the call changes anything."""
 
 import itertools
 import json

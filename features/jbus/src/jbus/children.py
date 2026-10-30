@@ -12,8 +12,8 @@ crew yet.
 
 `jbus out --scope <scope>` prints one line for each, and nothing when nothing is out. The
 handoff skill lists it in the note of a scope it archives, whose work is the root home's from
-then on (`RetireHandsOver` in `features/home/spec/HomeTree.tla`). It prints `unknown:` and ends 1 when jbus's last pass is too
-old for its list of threads to be trusted.
+then on (`RetireHandsOver` in `features/home/spec/HomeTree.tla`). It prints `unknown:` and ends
+1 when jbus's last pass is too old for its list of threads to be trusted.
 
 `watch`, a step of each pass, flags a home that has been quiet for its patience with work out, or
 a routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a

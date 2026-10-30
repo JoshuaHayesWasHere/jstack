@@ -99,7 +99,9 @@ def test_a_scoped_home_is_archived_in_its_own_directory_and_its_scope_closed(hom
     found, said = homes.archives(SCOPED, homes.scope_dir)
 
     assert found == [f"scope {SCOPE}", f"write: {homes.scope_dir}/handoff.next.md"]
-    (kept,) = [path for path in homes.changed(before) if KEPT.fullmatch(path.removeprefix(f"{SCOPE}/"))]
+    (kept,) = [
+        path for path in homes.changed(before) if KEPT.fullmatch(path.removeprefix(f"{SCOPE}/"))
+    ]
     assert said == [
         ARCHIVED_SCOPE,
         f"note: {homes.home_dir / kept}",
@@ -122,7 +124,9 @@ def test_a_scoped_home_is_archived_in_its_own_directory_and_its_scope_closed(hom
     assert (homes.scope_dir / "plan-archived.md").read_bytes() == plan
     note = (homes.home_dir / kept).read_text()
     assert note.startswith(NOTE)
-    assert re.search(r"\nArchived: \d{4}-\d\d-\d\d, and no home was started after this one\.\n", note)
+    assert re.search(
+        r"\nArchived: \d{4}-\d\d-\d\d, and no home was started after this one\.\n", note
+    )
     assert note.endswith(f"\nWas home: {SCOPED}\n")
     for gone in ("home-id", "handoff.md", "plan.md", "handoff.next.md"):
         assert not (homes.scope_dir / gone).exists()
@@ -135,7 +139,11 @@ def test_the_root_home_is_archived_and_the_repo_has_no_home(homes, monkeypatch):
     _, said = homes.archives(ROOT, homes.home_dir)
 
     assert said[0] == ARCHIVED_ROOT
-    assert said[2:] == ["Left with no home:", "- out fix-login: row launched", f"title: home: {NAME}"]
+    assert said[2:] == [
+        "Left with no home:",
+        "- out fix-login: row launched",
+        f"title: home: {NAME}",
+    ]
     assert own(homes.scope_dir) == scoped
     assert (homes.home_dir / "plan.md").exists()
     assert not (homes.home_dir / "home-id").exists()
@@ -148,9 +156,17 @@ def test_the_root_home_is_archived_and_the_repo_has_no_home(homes, monkeypatch):
         (
             "out sc-crew: row launched\nout question 4: tea or coffee?",
             0,
-            ["Moved to the root:", "- out sc-crew: row launched", "- out question 4: tea or coffee?"],
+            [
+                "Moved to the root:",
+                "- out sc-crew: row launched",
+                "- out question 4: tea or coffee?",
+            ],
         ),
-        ("unknown: the last pass is old", 1, ["Moved to the root:", "- not known, jbus said: unknown: the last pass is old"]),
+        (
+            "unknown: the last pass is old",
+            1,
+            ["Moved to the root:", "- not known, jbus said: unknown: the last pass is old"],
+        ),
     ],
     ids=["something out", "jbus cannot say"],
 )
@@ -161,7 +177,11 @@ def test_what_a_scope_had_out_is_listed_as_moved_and_the_scope_is_archived_all_t
     _, said_back = homes.archives(SCOPED, homes.scope_dir)
     assert said_back[0] == ARCHIVED_SCOPE
     assert said_back[2:-1] == listed
-    kept = [path for path in (homes.scope_dir / "log").iterdir() if path.read_text().endswith(f"Was home: {SCOPED}\n")]
+    kept = [
+        path
+        for path in (homes.scope_dir / "log").iterdir()
+        if path.read_text().endswith(f"Was home: {SCOPED}\n")
+    ]
     assert len(kept) == 1
     assert "\n".join(listed) in kept[0].read_text()
     assert not (homes.scope_dir / "plan.md").exists()
@@ -193,7 +213,11 @@ def test_a_run_cut_off_before_it_removed_home_id_keeps_one_note(homes, monkeypat
     jbus_says(homes, monkeypatch, "refused: no plan.md", 1)
     ran = homes.does(CLOSE, SCOPED)
     assert ran.stdout.startswith("archived: ")
-    kept = [path for path in (homes.scope_dir / "log").iterdir() if f"Was home: {SCOPED}" in path.read_text()]
+    kept = [
+        path
+        for path in (homes.scope_dir / "log").iterdir()
+        if f"Was home: {SCOPED}" in path.read_text()
+    ]
     assert len(kept) == 1
     assert "- out sc-crew: row launched" in kept[0].read_text()
     assert not (homes.scope_dir / "home-id").exists()
@@ -242,7 +266,9 @@ def test_the_skill_launches_nothing_and_renames_the_thread_archived():
     assert "t3_thread_launch" not in text and "message: /home" not in text
     skill = "\n".join(call.written for call in CALLS if call.where.startswith("handoff:"))
     assert "/home <seed>" not in skill
-    renamed = json.loads(RENAME.written.replace("<title>", "home: demo").replace("<date>", "2026-10-29"))
+    renamed = json.loads(
+        RENAME.written.replace("<title>", "home: demo").replace("<date>", "2026-10-29")
+    )
     assert renamed == {"action": "rename", "title": "home: demo (archived 2026-10-29)"}
     assert errors(RENAME, renamed) == []
     assert json.loads(SETTLE.written) == {"action": "settle"}

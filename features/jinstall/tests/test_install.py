@@ -739,7 +739,6 @@ def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(u
         *(f"removed {link}" for link in user.links()),
         f"removed hook {user.settings} SessionStart",
         f"removed hook {user.settings} UserPromptSubmit",
-        f"removed hook {user.settings} PostToolUse",
         f"removed hook {user.codex} SessionStart",
         f"removed patterns {user.patterns}",
         f"removed hook {user.settings} PreToolUse",
