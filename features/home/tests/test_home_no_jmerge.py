@@ -178,7 +178,7 @@ def test_no_block_runs_jmerge_while_the_switch_is_empty(repo, skill, text, held)
     said = repo.sh(*first(skill), text)
     assert repo.calls() == []
     assert (repo.code, repo.stderr) == (0, "")
-    assert said[0].startswith("no sweep: ")
+    assert said == ["sweep off: home-thread is empty, so no home runs jmerge --sweep"]
 
 
 @pytest.mark.parametrize(("skill", "text"), MERGING)
