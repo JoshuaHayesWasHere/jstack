@@ -125,7 +125,7 @@ class Home:
 
     def asks(self, thread=ROOT, entry=None, slug="own"):
         filled = {FILLED: entry or a_gate("which way?", "home"), "slug='own'": f"slug='{slug}'"}
-        return self.home('echo "asked: ', thread, **filled)
+        return self.home('jbus gate "$slug"', thread, **filled)
 
     def moves(self, thread=ROOT):
         return self.home("nothing to move: ", thread)
@@ -201,7 +201,10 @@ def polled(sent):
 
 
 def test_the_template_is_a_gate_the_real_jbus_takes_with_every_line_of_it(home):
-    assert home.kitchen.main("gate", "alpha", stdin=whole()) == (0, "queued: question 1\n")
+    assert home.kitchen.main("gate", "alpha", stdin=whole()) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     (kept,) = home.records()
     assert (kept["question"], kept["default"], kept["thread"]) == (ASKED, "tea", CREW)
     assert (kept["built_on"], kept["undo"]) == (
@@ -213,16 +216,16 @@ def test_the_template_is_a_gate_the_real_jbus_takes_with_every_line_of_it(home):
 @pytest.mark.parametrize("skill", ["crew", "scout"])
 def test_a_piped_gate_leaves_its_number_as_the_one_line_to_keep(home, skill):
     assert home.pipes(skill).splitlines() == [
-        "sent to jbus: queued: question 1",
+        "asked: queued: question 1",
         "Gate: question 1",
     ]
     assert home.pipes(skill).splitlines() == [
-        "sent to jbus: already sent: question 1",
+        "asked: already sent: question 1",
         "Gate: question 1",
     ]
     home.closes(1, "tea is fine", "default")
     said, kept = home.pipes(skill).splitlines()
-    assert said.startswith("sent to jbus: already answered: question 1: ")
+    assert said.startswith("asked: already answered: question 1: ")
     assert kept == "Gate: question 1"
 
 
@@ -230,7 +233,7 @@ def test_a_piped_gate_leaves_its_number_as_the_one_line_to_keep(home, skill):
 def test_the_context_and_the_options_a_skills_block_writes_are_kept_with_their_marks(home, skill):
     """The test uses the block's own `Context:` and `Option:` lines, filled in as the block
     writes them."""
-    said = home.asks() if skill == "home" else home.pipes(skill).splitlines()[0]
+    said = (home.asks() if skill == "home" else home.pipes(skill)).splitlines()[0]
     assert said.endswith("queued: question 1")
     (kept,) = home.records()
     assert kept["context"] == CONTEXT.removeprefix("Context: ")
@@ -243,7 +246,7 @@ def test_the_context_and_the_options_a_skills_block_writes_are_kept_with_their_m
 def test_a_gate_with_the_blocks_option_line_left_as_it_is_is_not_taken(home):
     sends = block("crew", "jbus gate '<slug>'").replace("<slug>", "alpha")
     said = home.sh(f"{paths('crew')}\n{sends.replace(FILLED, a_gate())}", home.worktree)
-    assert said.startswith('not sent: the line "Option: <an option')
+    assert said.startswith('not asked: not sent: the line "Option: <an option')
     assert not (home.kitchen.state / "questions.json").exists()
 
 
@@ -318,9 +321,12 @@ def test_a_refusal_names_what_the_block_is_to_be_given(home):
 
 
 def test_a_homes_own_question_is_asked_under_its_own_slug_and_shown_to_it_alone(home):
-    assert home.asks() == "asked: queued: question 1"
-    assert home.asks() == "asked: already sent: question 1"
-    assert home.asks(SCOPED, a_gate("how fast?", "home")) == "asked: queued: question 2"
+    assert home.asks() == "asked: queued: question 1\nGate: question 1"
+    assert home.asks() == "asked: already sent: question 1\nGate: question 1"
+    assert (
+        home.asks(SCOPED, a_gate("how fast?", "home"))
+        == "asked: queued: question 2\nGate: question 2"
+    )
     assert [one["slug"] for one in home.records()] == ["home", f"home-{SCOPE}"]
     home.kitchen.poll()
     assert home.shown() == "question 1, from home: which way?\n" + REST
@@ -338,12 +344,11 @@ def test_a_homes_own_question_is_asked_under_its_own_slug_and_shown_to_it_alone(
     [
         (
             FILLED,
-            "not asked: jbus said: not sent: the first line is not '## Gate <n>: ' and the "
-            "question.",
+            "not asked: not sent: the first line is not '## Gate <n>: ' and the question.",
         ),
         (
             a_gate("which way?", "home", Default=None),
-            "not asked: jbus said: not sent: the gate has no Default: line that is filled in.",
+            "not asked: not sent: the gate has no Default: line that is filled in.",
         ),
     ],
 )
@@ -603,10 +608,16 @@ def test_a_gate_jbus_cannot_take_stays_in_the_file_and_is_printed_whole(home):
 
 
 def test_a_gate_another_thread_wrote_out_is_handed_to_jbus_under_that_threads_slug(home):
-    assert home.pipes().splitlines()[0] == "sent to jbus: queued: question 1"
+    assert home.pipes().splitlines()[0] == "asked: queued: question 1"
     written = a_gate().replace("<n>", "1")
-    assert home.asks(entry=written, slug="alpha") == "asked: already sent: question 1"
-    assert home.asks(entry=a_gate("milk?"), slug="alpha") == "asked: queued: question 2"
+    assert (
+        home.asks(entry=written, slug="alpha")
+        == "asked: already sent: question 1\nGate: question 1"
+    )
+    assert (
+        home.asks(entry=a_gate("milk?"), slug="alpha")
+        == "asked: queued: question 2\nGate: question 2"
+    )
     assert [(one["slug"], one["thread"]) for one in home.records()] == [("alpha", CREW)] * 2
     home.closes(1, "tea", "default")
     assert home.asks(entry=written, slug="alpha").startswith(
@@ -630,7 +641,10 @@ def test_a_question_closed_since_the_last_pass_is_not_shown_as_open(home):
 
 def test_a_scoped_homes_own_slug_is_its_own_whatever_brief_has_that_name(home):
     home.kitchen.brief(f"home-{SCOPE}", f"Home: {ROOT}\n")
-    assert home.asks(SCOPED, a_gate("how fast?", "home")) == "asked: queued: question 1"
+    assert (
+        home.asks(SCOPED, a_gate("how fast?", "home"))
+        == "asked: queued: question 1\nGate: question 1"
+    )
     home.kitchen.poll()
     assert home.shown() == "no open questions"
     assert home.shown(SCOPED) == f"question 1, from home-{SCOPE}: how fast?\n" + REST

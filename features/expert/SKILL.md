@@ -86,44 +86,27 @@ A note that a correction or the source contradicts is wrong: fix the note, in th
 - It never enforces. It audits and answers, and the owning home and the user decide.
 - It never settles itself. Its thread stays open between asks.
 
-A finding that something should change goes to jbus as a gate: jbus keeps it as a numbered question for the user, and the root home of the owning repo shows it with its own. Read `$T/gates.md` now and fill it in, its `<n>` left as it is, with the finding as the question and "nothing was changed" as the default. The block writes the slug on its `Asked by:` line, the one the gate is sent under: jbus tells one gate from another by it. Then run this with the block at the top, with the owning repo's name in jbus in place of `<project>`, two or three words joined by hyphens in place of `<about>`, and the filled-in lines in place of the line in angle brackets:
+A finding that something should change goes to jbus as a gate: jbus keeps it as a numbered question for the user, and the root home of the owning repo shows it with its own.
+Read `$T/gates.md` now and fill it in, its `<n>` left as it is, with the finding as the question and "nothing was changed" as the default.
+jbus writes the slug the gate is sent under on its `Asked by:` line, and tells one gate from another by it.
+Then run this with the block at the top, with the owning repo's name in jbus in place of `<project>`, two or three lowercase words joined by hyphens in place of `<about>`, and the filled-in lines in place of the line in angle brackets:
 
 ```sh
-project='<project>'
-about='<about>'
-the_gate() {
-    cat << 'THE_GATE_ENDS_HERE'
+if command -v jbus > /dev/null; then
+    jbus --project '<project>' gate "expert-$N-<about>" << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
+Context: <what the user needs to know to answer it, in one line, with the links to it>
+Option: <an option's short name> (default, recommended): <what follows from it>
 THE_GATE_ENDS_HERE
-}
-gate=$(the_gate)
-case "$project $about" in
-*'<'* | *'>'*) why="put the project and what the finding is about in place of the placeholders" ;;
-*) why= ;;
-esac
-case $about in
-'' | *[!A-Za-z0-9-]*) why=${why:-"what the finding is about is letters, digits and hyphens"} ;;
-esac
-if [ -z "$why" ] && ! printf '%s\n' "$gate" | grep -q '^Asked by: [^,]*, thread '; then
-    why="the gate has no line 'Asked by: <slug>, thread <id>'"
-fi
-if [ -z "$why" ]; then
-    gate=$(printf '%s\n' "$gate" | sed "s/^Asked by: [^,]*,/Asked by: expert-$N-$about,/")
-fi
-if [ -n "$why" ]; then
-    echo "not sent: $why"
-elif ! command -v jbus > /dev/null; then
-    echo "not sent: jbus is not installed here: tell the user the finding in this thread"
-elif said=$(printf '%s\n' "$gate" | jbus --project "$project" gate "expert-$N-$about" 2>&1); then
-    echo "sent to $project as expert-$N-$about: $said"
 else
-    echo "not sent: jbus said: $said"
+    echo "not asked: jbus is not installed here"
 fi
 ```
 
-`jbus gate` checks the rest of the lines against `$T/gates.md` and refuses what they lack with `not sent: <why>`, which comes back here as `not sent: jbus said: not sent: <why>`: mend that line and run it again.
-On `sent`, say in the answer that the finding is a question jbus holds for that repo, with the number it printed, and keep no copy of the gate.
-On `not sent`, the finding reaches nobody by itself: tell the user in this thread, with the line it printed.
+`jbus gate` checks the slug and the lines against `$T/gates.md`, writes the slug on the `Asked by:` line, and prints every line to go by.
+On `not asked: not sent:` or `not asked: refused:` for the slug, mend that line or the words in place of `<about>` and run it again.
+On `asked:`, say in the answer that the finding is a question jbus holds for that repo, with the number it printed, and keep no copy of the gate.
+On any other `not asked`, the finding reaches nobody by itself: tell the user in this thread, with the line it printed.
 A repo with no home has nobody to gate: its finding goes to the user, here.
 
 ## When to roll over

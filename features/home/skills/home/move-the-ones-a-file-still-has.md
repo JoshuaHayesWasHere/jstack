@@ -20,10 +20,10 @@ else
             if [ -n "$WHY" ]; then
                 said=$WHY
             elif said=$(printf '%s\n' "$entry" | tr '\002' '\n' | jbus gate "$by" 2>&1); then
-                echo "moved: gate $n of $G, $said"
+                echo "moved: gate $n of $G, $(printf '%s\n' "${said#asked: }" | head -n 1)"
                 continue
             else
-                said="jbus said: $said"
+                said="jbus said: ${said#not asked: }"
             fi
             kept=$((kept + 1))
             echo "not moved: gate $n of $G, $said:"

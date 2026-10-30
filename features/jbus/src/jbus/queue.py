@@ -157,7 +157,7 @@ FINAL = judgement.FINAL
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"
-_SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
+SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 PAGE = "page"
 PICK = "pick"
 BASES = ("word", "answer", "message", PICK, PAGE)
@@ -1354,7 +1354,7 @@ def _do(
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
         )
     if isinstance(verb, Add):
-        if not _SLUG.fullmatch(verb.slug):
+        if not SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
         if verb.slug in batch.gone:
             said = _was(verb.slug, batch.gone)
@@ -1365,7 +1365,7 @@ def _do(
                 raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
         _merge_after(batch, verb)
         _builds_on(rows, verb)
-        if verb.entry and not _SLUG.fullmatch(verb.entry):
+        if verb.entry and not SLUG.fullmatch(verb.entry):
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():
             raise Refused("refused: no brief on stdin")
@@ -1722,7 +1722,7 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     rows, old, new = batch.rows, verb.slug, verb.new
     row = batch.row(old)
     _launching(row, asks)
-    if not _SLUG.fullmatch(new):
+    if not SLUG.fullmatch(new):
         raise Refused(f"refused: {new} is not a slug")
     if new in batch.gone:
         raise Refused(f"refused: {_was(new, batch.gone)}, and a removed slug is not added again")

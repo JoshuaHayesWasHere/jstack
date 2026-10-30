@@ -123,6 +123,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import jbus
 import jsettings
 from jbriefs import below, skills
 from jbriefs.home import thread_of
@@ -921,13 +922,38 @@ def propose(run: Pass, client: Client) -> None:
         run.say(line)
 
 
-def _gate(args: argparse.Namespace, config: Config) -> int:
+def _gate(args: argparse.Namespace, config: Config | None) -> int:
     """`jbus gate`: keep a thread's question for the user as a record with a number.
 
     The same question from the same slug is the same record, so jbus queues it once. If the
     user has answered it since, `jbus gate` prints that answer. The event's text is the lines
-    as the thread sent them, and a home parks a gate from that text.
+    as the thread sent them, with the slug on their `Asked by:` line, and a home parks a gate
+    from that text.
+
+    It prints every line the asking thread acts on, so a skill's block only pipes the gate:
+    `asked: <what jbus did>: question <n>` and under it `Gate: question <n>`, the line a
+    thread keeps in its Result or report, or `not asked: <why>` and exit 1, with `not asked:
+    not sent:` for lines to mend and run again, and any other `not asked` for a gate that jbus
+    holds nothing of.
     """
+    try:
+        one, new = _asked(args, config or jbus.load())
+    except (Refused, T3Error) as error:
+        print(f"not asked: {error}")
+        return 1
+    if one.answer:
+        print(f"asked: already answered: question {one.number}: {one.answer.line()}")
+    else:
+        print(f"asked: {'queued' if new else 'already sent'}: question {one.number}")
+    print(f"Gate: question {one.number}")
+    return 0
+
+
+def _asked(args: argparse.Namespace, config: Config) -> tuple[Question, bool]:
+    """Park the gate on stdin under `args.slug`, written onto its `Asked by:` line, or raise
+    `Refused` with why it is not asked."""
+    if not queue.SLUG.fullmatch(args.slug):
+        raise Refused(f"refused: {args.slug} is not a slug")
     project = verbs.here(config, args.project)
     run = Pass(config, project, datetime.now(UTC))
     text = verbs.piped("gate", "the gate's lines").strip()
@@ -936,12 +962,8 @@ def _gate(args: argparse.Namespace, config: Config) -> int:
     gone = queue.was_removed(run.state, args.slug)
     if gone:
         raise Refused(f"refused: {gone}, and a removed slug asks nothing")
-    one, new = park(run, args.slug, text)
-    if one.answer:
-        print(f"already answered: question {one.number}: {one.answer.line()}")
-        return 0
-    print(f"queued: question {one.number}" if new else f"already sent: question {one.number}")
-    return 0
+    text = re.sub(r"^Asked by: [^,\n]*", lambda _: f"Asked by: {args.slug}", text, flags=re.M)
+    return park(run, args.slug, text)
 
 
 def _slug(parser: argparse.ArgumentParser) -> None:
@@ -977,7 +999,11 @@ def closes(closes: argparse.ArgumentParser) -> None:
     closes.add_argument("words", nargs="*", help="the user's words, with --by and --at")
 
 
-VERBS = (verbs.Verb("gate", "keep a question for the user, its lines on stdin", _slug, _gate),)
+VERBS = (
+    verbs.Verb(
+        "gate", "keep a question for the user, its lines on stdin", _slug, _gate, config=False
+    ),
+)
 
 STEPS = (
     verbs.Step(

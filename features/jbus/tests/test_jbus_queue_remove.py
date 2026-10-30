@@ -434,7 +434,10 @@ def asked(kitchen, words="red?"):
     """Pipe a question from alpha to `jbus gate`, with its thread in the home's brief."""
     kitchen.brief("alpha", "Thread: mcp:a-crew\n")
     asks = GATE.format(n="<n>", asked=words, status="open", slug="alpha")
-    assert kitchen.main("gate", "alpha", stdin=asks) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=asks) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
 
 
 def test_a_removed_slug_asks_nothing_and_its_open_question_is_on_no_list(kitchen):
@@ -447,7 +450,7 @@ def test_a_removed_slug_asks_nothing_and_its_open_question_is_on_no_list(kitchen
     asks = GATE.format(n="<n>", asked="blue?", status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=asks) == (
         1,
-        f"refused: alpha was removed {AT} by user, and a removed slug asks nothing\n",
+        f"not asked: refused: alpha was removed {AT} by user, and a removed slug asks nothing\n",
     )
     assert (kitchen.state / "questions.json").read_text() == kept
     kitchen.poll()

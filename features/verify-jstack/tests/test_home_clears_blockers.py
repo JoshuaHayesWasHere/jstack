@@ -142,7 +142,9 @@ def approve(sandbox, slug):
 
 
 def test_a_gate_the_user_need_not_decide_is_closed_by_the_pass_with_no_event(demo):
-    assert run(demo, "jbus gate alpha", GATE).stdout == "queued: question 1\n"
+    assert (
+        run(demo, "jbus gate alpha", GATE).stdout == "asked: queued: question 1\nGate: question 1\n"
+    )
 
     cleared = run(demo, "jbus clear")
     polled = run(demo, "jbus poll")
@@ -183,7 +185,10 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
 
 
 def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_list(demo):
-    assert run(demo, "jbus gate alpha", HOLDS).stdout == "queued: question 1\n"
+    assert (
+        run(demo, "jbus gate alpha", HOLDS).stdout
+        == "asked: queued: question 1\nGate: question 1\n"
+    )
 
     run(demo, "jbus poll")
     cleared = run(demo, "jbus clear")
