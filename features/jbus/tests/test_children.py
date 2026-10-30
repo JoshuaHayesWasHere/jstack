@@ -8,8 +8,8 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import children
-from test_jbus_kitchen import NOW, PROJECT
+from jbus import children, questions
+from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_queue import add, brief
 from test_jbus_row_ends import sends
@@ -209,3 +209,43 @@ def test_a_root_home_with_only_a_gate_out_is_not_watched(kitchen):
         kitchen.poll(minutes(n))
     assert not [one for one in sends(kitchen) if one["clientRequestId"].startswith(STALL)]
     assert told(kitchen) == []
+
+
+def hold(kitchen, slug):
+    """Ask the user a question for `slug` that deletes data, so it waits on the user's own answer
+    and no pass settles it on its default."""
+    lines = GATE.format(n=1, asked="drop the old rows?", status="open", slug=slug).replace(
+        "Option:", "Holds: deletes data\nFail-safe: a dump of the rows at ~/rows.sql\nOption:", 1
+    )
+    return questions.ask(kitchen.state, kitchen.home, slug, lines, NOW)[0]
+
+
+def test_a_child_whose_only_open_item_waits_on_the_user_is_not_watched(kitchen):
+    """A child home with nothing out but a hold it asked the user and an open gate can do nothing
+    until the user answers: its quiet thread is neither nudged nor raised to the user."""
+    home(kitchen)
+    found = home(kitchen, "sb", idle=timedelta(hours=6))
+    (kitchen.home / "sb" / "plan.md").write_text("# sb: plan\n")
+    (kitchen.home / "sb" / "gates.md").write_text("## Gate 1: ship it?\nStatus: open\n")
+    asked = hold(kitchen, "home-sb")
+    assert children.out(kitchen.home, kitchen.home / "sb", kitchen.state, []) == [
+        f"out question {asked.number}: drop the old rows?",
+        "out gate 1: ship it?",
+    ]
+    for n in range(0, 5 * P, 10):
+        kitchen.poll(minutes(n))
+    assert [one for one in sends(kitchen) if one["threadId"] == found["threadId"]] == []
+    assert told(kitchen) == []
+
+
+def test_a_child_with_a_hold_and_a_quiet_crew_is_still_nudged(child):
+    """A hold waiting on the user does not shield the rest of what a child has out: its quiet crew
+    still gets the child nudged twice, and then the user is asked."""
+    kitchen, found, _ = child
+    hold(kitchen, "home-sc")
+    for n in range(10, 5 * P, 10):
+        kitchen.poll(minutes(n))
+    nudges = [one for one in sends(kitchen) if one["threadId"] == found["threadId"]]
+    assert len(nudges) == 2 and "has had 2 things out" in nudges[0]["message"]
+    first, asked = told(kitchen)
+    assert "nudged it" in first and "after two nudges" in asked
