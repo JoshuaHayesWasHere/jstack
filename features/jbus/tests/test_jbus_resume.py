@@ -11,7 +11,7 @@ import pytest
 import jbus
 from jbus import threads
 from jgauge import holders, slot
-from test_jbus_kitchen import NOW, RESULT, TOKEN, sends
+from test_jbus_kitchen import NOW, RESULT, TOKEN, asks, sends
 from test_jbus_leftover import home
 from test_jbus_queue import add, gates
 from testing.paths import skills
@@ -236,7 +236,7 @@ def test_a_slug_with_a_pull_request_is_sent_nothing(kitchen, state):
     pull = kitchen.merged("alpha", 7, "a" * 40) if state == "merged" else kitchen.opened("alpha", 7)
     kitchen.set(f"{state}.json", [pull])
     kitchen.poll()
-    assert sends(kitchen) == [] and resumes(kitchen) == []
+    assert asks(kitchen) == [] and resumes(kitchen) == []
 
 
 def test_a_slug_with_two_threads_is_the_gate_it_already_was_and_no_send(kitchen):

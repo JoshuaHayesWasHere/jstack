@@ -3,11 +3,12 @@ deletes nothing, and writes nothing but its count.
 
 It lists five kinds, a line each, `<kind> <what>: <why>`:
 
-- `brief`: a brief of the home's `tasks/` whose row is removed, merged or done, or whose pull
-  request is merged or closed, and whose last Result does not say `Status: done` with `Left: none`.
-  The pull request is the one its last Result's `Branch:` line ends on, or else its row's. It is
-  merged or closed when GitHub's list of open pull requests does not have it. A brief whose
-  leftover jbus still holds (`jbus.leftover`) is not listed: its home or its crewmate is at it.
+- `brief`: a brief of the home's `tasks/` whose row is removed, or merged or done with nothing it
+  waits on (`queue.over`), or whose pull request is merged or closed, and whose last Result does not
+  say `Status: done` with `Left: none`. The pull request is the one its last Result's `Branch:` line
+  ends on, or else its row's. It is merged or closed when GitHub's list of open pull requests does
+  not have it. A brief whose leftover jbus still holds (`jbus.leftover`) is not listed: its home or
+  its crewmate is at it.
 - `worktree`: a worktree of the project's checkout, other than the checkout itself, whose branch is
   no open row's slug or branch and no open pull request's head. An open row is one that is not
   removed, merged or done. A worktree on a detached head is on no branch, such as a build's source
@@ -124,6 +125,7 @@ def briefs(
     """Each brief whose row or pull request ended with its last Result not clean, less those
     whose leftover jbus `held`."""
     found, status = Found(), {row["slug"]: row.get("status") for row in rows}
+    over = {row["slug"] for row in rows if queue.over(row)}
     pull = {row["slug"]: str(row.get("pr") or "").lstrip("#") for row in rows}
     unjudged = False
     for path in sorted((home / "tasks").glob("*.md")):
@@ -137,9 +139,9 @@ def briefs(
         why = ""
         if slug in removed:
             why = "its row is removed"
-        elif status.get(slug) in queue.FINAL:
+        elif slug in over:
             why = f"its row is {status[slug]}"
-        else:
+        elif status.get(slug) not in queue.FINAL:
             number = named(result)[1] or pull.get(slug, "")
             if number.isdigit() and open_ is None:
                 unjudged = True

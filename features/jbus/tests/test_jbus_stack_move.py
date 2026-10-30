@@ -17,8 +17,7 @@ from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.cli import Repo
 from repo_template import IDENTITY
-from test_jbus_github import sends
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, asks
 from test_jbus_stack import edits, head_line, stacked
 
 __all__ = ["stacked"]
@@ -123,9 +122,9 @@ def test_a_merged_base_moves_its_link_onto_main_in_the_same_pass_with_no_send(st
     assert git(kitchen.origin, "show", f"{moved}:two.txt") == "two"
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
     assert unmoved(kitchen, moved) == ""
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert sends(kitchen) == [] and stack.origin("two") == moved
+    assert asks(kitchen) == [] and stack.origin("two") == moved
 
 
 def test_the_crews_own_worktree_follows_the_move(stack):
@@ -135,7 +134,7 @@ def test_the_crews_own_worktree_follows_the_move(stack):
     kitchen.poll(NOW)
     assert git(tree, "rev-parse", "HEAD") == stack.origin("two") != stack.head
     assert git(tree, "status", "--porcelain") == ""
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
 
 
 def test_a_crew_worktree_with_work_in_it_gets_the_moved_send(stack):
@@ -145,7 +144,7 @@ def test_a_crew_worktree_with_work_in_it_gets_the_moved_send(stack):
     (tree / "two.txt").write_text("half done\n")
     kitchen.poll(NOW)
     assert stack.origin("two") == stack.head
-    (said,) = [given["message"] for given in sends(kitchen)]
+    (said,) = [given["message"] for given in asks(kitchen)]
     assert "one merged as" in said and '"A link that moved"' in said
 
 
@@ -153,7 +152,7 @@ def test_a_link_that_conflicts_with_main_gets_the_moved_send_and_its_branch_stay
     kitchen = stack_conflict.kitchen
     kitchen.poll(NOW)
     assert stack_conflict.origin("two") == stack_conflict.head
-    (said,) = [given["message"] for given in sends(kitchen)]
+    (said,) = [given["message"] for given in asks(kitchen)]
     assert f"one merged as {stack_conflict.merge[:12]}" in said
     assert f"with {stack_conflict.last} as the branch it sat on" in said
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack_conflict.merge)
@@ -171,7 +170,7 @@ def test_a_push_the_lease_refuses_gets_the_moved_send(stack):
     git(kitchen.checkout, "worktree", "remove", "--force", str(tree))
     kitchen.poll(NOW)
     assert stack.origin("two") == pushed
-    assert len(sends(kitchen)) == 1
+    assert len(asks(kitchen)) == 1
 
 
 def test_a_link_jbus_moved_whose_line_was_not_written_is_not_moved_or_told_again(stack):
@@ -190,7 +189,7 @@ def test_a_link_jbus_moved_whose_line_was_not_written_is_not_moved_or_told_again
     kitchen.poll(NOW + timedelta(minutes=3))
     assert stack.origin("two") == moved
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
 
 
 def test_a_crew_at_work_is_moved_by_jbus_once_its_turn_ended(stack):
@@ -198,13 +197,13 @@ def test_a_crew_at_work_is_moved_by_jbus_once_its_turn_ended(stack):
     for thread in kitchen.t3.threads:
         thread["status"] = "running"
     kitchen.poll(NOW)
-    assert stack.origin("two") == stack.head and sends(kitchen) == []
+    assert stack.origin("two") == stack.head and asks(kitchen) == []
     assert head_line(kitchen) == stacks.Stacked("one", "one")
     for thread in kitchen.t3.threads:
         thread["status"] = "completed"
     kitchen.poll(NOW + timedelta(minutes=3))
     assert git(kitchen.origin, "rev-parse", "two^") == stack.merge
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
 
 
 def test_a_link_whose_reviewer_is_still_out_is_left_and_moved_once_its_review_is_written(stack):
@@ -215,14 +214,14 @@ def test_a_link_whose_reviewer_is_still_out_is_left_and_moved_once_its_review_is
     path = kitchen.home / "tasks" / "two.md"
     path.write_text(path.read_text() + "\n## Result\nReviewer: mcp:a-reviewer #1\n")
     said = kitchen.poll(NOW)
-    assert stack.origin("two") == stack.head and sends(kitchen) == []
+    assert stack.origin("two") == stack.head and asks(kitchen) == []
     assert any("held by the review rule" in line for line in said)
     path.write_text(
         path.read_text()
         + f"\n## Review\nBy: mcp:a-reviewer #1\nVerdict: clean\nHead: {stack.head}\n"
     )
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert stack.origin("two") != stack.head and sends(kitchen) == []
+    assert stack.origin("two") != stack.head and asks(kitchen) == []
 
 
 def test_a_crew_worktree_that_cannot_follow_the_move_is_said(stack):
@@ -238,7 +237,7 @@ def test_a_crew_worktree_that_cannot_follow_the_move_is_said(stack):
     assert moved != stack.head and git(tree, "rev-parse", "HEAD") == stack.head
     assert any(f"could not follow the move to {moved[:12]}" in line for line in said)
     assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
 
 
 def test_a_base_merged_into_a_merge_base_moves_its_link_onto_that_base(stacked, monkeypatch):
@@ -255,7 +254,7 @@ def test_a_base_merged_into_a_merge_base_moves_its_link_onto_that_base(stacked, 
     assert head_line(kitchen) == stacks.Stacked("one", "t3code-jstack", stack.merge)
     assert stack.origin("main") == stack.start
     assert unmoved(kitchen, moved, "t3code-jstack", ("t3code-jstack",)) == ""
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
 
 
 def test_a_link_whose_base_took_commits_while_open_is_moved_from_the_fork_with_no_send(
@@ -273,7 +272,7 @@ def test_a_link_whose_base_took_commits_while_open_is_moved_from_the_fork_with_n
     assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
     assert unmoved(stacked, moved) == ""
     stacked.poll(NOW + timedelta(minutes=3))
-    assert sends(stacked) == [] and stack.origin("two") == moved
+    assert asks(stacked) == [] and stack.origin("two") == moved
 
 
 @pytest.mark.parametrize("rewritten", ["amended", "reworded", "changed"])
@@ -290,11 +289,11 @@ def test_a_link_whose_base_was_rewritten_is_left_and_told_once_when_it_merged(
     said = stacked.poll(NOW)
     assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
     assert stack.origin("two") == stack.head
-    (told,) = [given["message"] for given in sends(stacked)]
+    (told,) = [given["message"] for given in asks(stacked)]
     assert "one merged as" in told and f"with {stack.last} as the branch it sat on" in told
     assert head_line(stacked) == stacks.Stacked("one", "main", stack.merge)
     stacked.poll(NOW + timedelta(minutes=3))
-    assert len(sends(stacked)) == 1
+    assert len(asks(stacked)) == 1
 
 
 def test_a_link_whose_base_left_no_record_is_left_and_told_once(stacked, monkeypatch):
@@ -307,4 +306,4 @@ def test_a_link_whose_base_left_no_record_is_left_and_told_once(stacked, monkeyp
     said = stacked.poll(NOW)
     assert any("jbus left its branch as it was (its head does not hold" in line for line in said)
     assert stack.origin("two") == stack.head
-    assert len(sends(stacked)) == 1
+    assert len(asks(stacked)) == 1

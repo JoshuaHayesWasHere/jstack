@@ -255,3 +255,12 @@ def test_a_brief_whose_leftover_jbus_holds_is_not_stale(kitchen):
     kitchen.brief("alpha", result("alpha"))
     (kitchen.state / leftover.NAME).write_text(json.dumps({"alpha": {"left": "the docs"}}))
     assert of(listed(kitchen)[1], "brief") == []
+
+
+def test_a_brief_whose_merged_row_still_waits_on_something_is_not_stale(kitchen):
+    rows(kitchen, alpha="merged")
+    table = json.loads((kitchen.state / "queue.json").read_text())
+    table[0]["why"] = "left: the docs"
+    (kitchen.state / "queue.json").write_text(json.dumps(table))
+    kitchen.brief("alpha", result("alpha"))
+    assert of(listed(kitchen)[1], "brief") == []
