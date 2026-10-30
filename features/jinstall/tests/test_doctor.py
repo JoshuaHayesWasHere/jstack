@@ -7,12 +7,14 @@ can produce."""
 
 import hashlib
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import time
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -620,11 +622,14 @@ NEWER = "v0.1.5-nightly.20261030.3900"
 
 class Upstream:
     """A machine with T3 Code on Arch, an upstream with `tags`, and a makepkg that applies the
-    patches to each tag but those in `refuses`, and fails outright on those in `breaks`."""
+    patches to each tag but those in `refuses`, fails outright on those in `breaks`, and runs
+    out of temp space on those in `fills` with the line `fills` names them with."""
 
-    def __init__(self, tmp_path, says, tags=(PINNED,), refuses=(), breaks=()):
+    def __init__(self, tmp_path, says, tags=(PINNED,), refuses=(), breaks=(), fills=None):
         self.says, self.tags, self.refuses, self.breaks = says, tags, refuses, breaks
+        self.fills = fills or {}
         self.ran = []
+        self.temp = []
         programs = tmp_path / "bin"
         programs.mkdir()
         for name in ("t3", "pacman"):
@@ -648,6 +653,12 @@ class Upstream:
             return Ran(0, "".join(f"abc\trefs/tags/{tag}\n" for tag in self.tags))
         if args[0] == "env":
             tag = next(arg for arg in args if arg.startswith("T3CODE_JSTACK_TAG="))[18:]
+            temp = next((arg[7:] for arg in args if arg.startswith("TMPDIR=")), None)
+            self.temp.append((temp, temp is not None and os.path.isdir(temp)))
+            if temp is not None:
+                (Path(temp) / "stage").mkdir()
+            if tag in self.fills:
+                return Ran(1, f"==> Starting build()...\n{self.fills[tag]}\n")
             if tag in self.refuses:
                 return Ran(4, f"t3code-jstack: 0001-a.patch does not apply to {tag}\n")
             if tag in self.breaks:
@@ -744,6 +755,47 @@ def test_a_build_that_fails_for_another_reason_stops_and_names_its_log(tmp_path)
         upstream.kind.put(upstream.machine)
     assert upstream.built() == [NEWER]
     assert not (upstream.cache / "failed").exists()
+
+
+def test_makepkg_stages_under_the_builds_cache_and_the_build_clears_it_after(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED, NEWER), refuses=(NEWER,))
+    (upstream.cache / "tmp" / "left").mkdir(parents=True)
+    upstream.kind.put(upstream.machine)
+    temp = str(upstream.cache / "tmp")
+    assert upstream.temp == [(temp, True), (temp, True)]
+    assert not (upstream.cache / "tmp").exists()
+    upstream.ran.clear()
+    upstream.temp.clear()
+    upstream.breaks = (PINNED,)
+    with pytest.raises(Refused):
+        upstream.kind.put(upstream.machine)
+    assert upstream.temp == [(temp, True)]
+    assert not (upstream.cache / "tmp").exists()
+
+
+QUOTA = (
+    "error: copyfile '/tmp/t3code-desktop-linux-stage-a1/app/apps/desktop/dist-electron"
+    "/main.cjs.map' returned system error -122"
+)
+FULL = "Error: ENOSPC: no space left on device, write"
+
+
+@pytest.mark.parametrize(
+    ("line", "place"),
+    [
+        (QUOTA, "/tmp/t3code-desktop-linux-stage-a1/app/apps/desktop/dist-electron/main.cjs.map"),
+        (FULL, None),
+    ],
+)
+def test_a_build_that_ran_out_of_temp_space_says_so_and_where(tmp_path, line, place):
+    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", fills={PINNED: line})
+    place = place or str(upstream.cache / "tmp")
+    with pytest.raises(Refused, match=f"the build ran out of temp space at {re.escape(place)}"):
+        upstream.kind.put(upstream.machine)
+    assert upstream.kind.ask(upstream.machine) == (
+        f"jinstall --setup builds it; the last build ran out of temp space at {place},"
+        f" and {upstream.cache / 'build.log'} holds its log"
+    )
 
 
 def test_with_no_nightly_that_takes_the_patches_the_build_waits_for_a_rebase(tmp_path):
