@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import sys
 from pathlib import Path
 
 import jbus
@@ -28,6 +29,7 @@ REFUSED = 2
 SILENT = "silent: end the turn with no message"
 QUIET = ("merged:", "launched:", "handled:", "parked:", "waits:")
 KEYED = re.compile(r"^(decision|stop) (question [0-9]+|local [^ :]+|jbus): .")
+BLANK = re.compile(r"[ \t\n\r\f\v]*")
 CLEARED = re.compile(r"^cleared local ([^ :]+): .")
 NO_KEY = "a decision or a stop names its key first: question <n>, jbus or local <slug>"
 NO_KIND = (
@@ -54,9 +56,10 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
     ends: set[str] = set()
     mine: list[str] = []
     bad: list[str] = []
-    for line in verbs.piped("told", "the turn's lines", " <home directory>").splitlines():
-        words = line.split()
-        if not words or words[0] in QUIET:
+    sys.stdin.reconfigure(newline="")
+    for line in verbs.piped("told", "the turn's lines", " <home directory>").split("\n"):
+        words = _words(line)
+        if BLANK.fullmatch(line) or words[0] in QUIET:
             continue
         if words[0] == "cleared" and (cleared := CLEARED.match(line)):
             ends.add(cleared[1])
@@ -69,7 +72,7 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
     if bad:
         print("\n".join(f"refused: {why}" for why in bad))
         return REFUSED
-    still = [line for line in kept if not (line.split()[1] == "local" and _slug(line) in ends)]
+    still = [line for line in kept if not (_words(line)[1] == "local" and _slug(line) in ends)]
     seen = {key(line) for line in still}
     tell = []
     for line in mine:
@@ -86,14 +89,20 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
 
 def _lines(told: Path) -> list[str]:
     try:
-        return told.read_text().splitlines()
+        with open(told, newline="") as file:
+            return file.read().split("\n")
     except FileNotFoundError:
         return []
 
 
 def _slug(line: str) -> str:
     """The slug of a `local` line, `x` of `stop local x: ...`."""
-    return line.split()[2][:-1]
+    return _words(line)[2][:-1]
+
+
+def _words(line: str) -> list[str]:
+    """The fields of a line as awk splits them, on runs of spaces and tabs alone."""
+    return re.findall(r"[^ \t]+", line)
 
 
 VERBS = (

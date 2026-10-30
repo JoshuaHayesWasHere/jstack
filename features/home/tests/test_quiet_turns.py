@@ -62,7 +62,7 @@ class Turns(Scene):
         """Run the end of a turn that did `lines`, and return what the block printed."""
         ends = block("home", PLACEHOLDER)
         ran = self.run("home", ends.replace(PLACEHOLDER, "\n".join(lines)), self.main, THREAD)
-        return ran.returncode, ran.stdout.splitlines()
+        return ran.returncode, ran.stdout.removesuffix("\n").split("\n")
 
 
 @pytest.fixture
@@ -182,4 +182,11 @@ def test_a_turn_that_clears_one_local_line_and_tells_one_new_line_keeps_both(tur
     asked = "decision question 5: new? default: no"
     assert turns.end(["cleared local x: done", asked]) == (0, [f"say: {asked}"])
     assert open_locals(turns) == [second]
+    assert turns.end([asked]) == (0, [SILENT])
+
+
+@pytest.mark.parametrize("inside", ["\f", "\v", "\x1c", "\x85", "\u2028"])
+def test_a_line_is_cut_at_a_newline_alone_and_told_whole(turns, inside):
+    asked = f"decision question 14: may it{inside}go? default: it goes"
+    assert turns.end([asked]) == (0, [f"say: {asked}"])
     assert turns.end([asked]) == (0, [SILENT])
