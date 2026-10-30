@@ -23,7 +23,7 @@ from jbus.launchd import label
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import RetiredHook, Units, rewrite, unit_templates
+from jinstall.kinds import RetiredHook, Units, layout_scripts, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
 from jinstall.needs import needs
 from testing.paths import REPO
@@ -1019,6 +1019,19 @@ def test_no_hook_is_retired_while_skills_json_cannot_be_read(tmp_path):
     listed = needs(machine(main, home, account=tmp_path / "account"))
 
     assert [need.name for need in listed if isinstance(need.kind, RetiredHook)] == []
+
+
+@pytest.mark.parametrize(
+    ("command", "names"),
+    [
+        ("sh '/lay/hooks/limits.sh' 2>/dev/null || true", {"limits.sh"}),
+        ("sh /lay/hooks/limits.sh;true", {"limits.sh"}),
+        ('sh "/lay/hooks/a-b.sh"&&sh /lay/hooks/c_d.sh', {"a-b.sh", "c_d.sh"}),
+        ("sh /mine/hooks/limits.sh", set()),
+    ],
+)
+def test_a_command_names_each_layout_script_it_runs_and_no_shell_punctuation(command, names):
+    assert layout_scripts(command, Path("/lay")) == names
 
 
 def test_a_plain_install_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp_path):
