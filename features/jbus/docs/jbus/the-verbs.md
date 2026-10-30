@@ -39,6 +39,9 @@ Each verb that jbus's help lists is in one of the three tables below.
 | `jbus steps` | Prints the steps of a pass in the order they run: each one's slot, its rank and its name, with what the pass must have for that step to run. Each feature declares its steps as `STEPS` in its module, and a pass skips a step whose needs it does not meet. |
 | `jbus failover --replay <items.json> --thread <id> [--dry-run]` | Replays one recorded usage limit for one live thread, makes the move a pass would make, and prints that move. It keeps the cap out of the ledger. `--dry-run` prints the move and writes nothing. [A usage limit](../working-on-jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit) has the rest. |
 
+A project's child homes are the scopes of its home with a `home-id`: `ls ~/.local/state/home/<project>/*/home-id` lists them, and so do the threads with role `home` in `jbus status`.
+`stalls.json` in jbus's state is no such list, since it holds a key only for a home jbus watches for a stall.
+
 ## The verbs the units run
 
 A systemd unit runs each of these on Linux, and a launchd agent on macOS ([The units](the-units.md)).
