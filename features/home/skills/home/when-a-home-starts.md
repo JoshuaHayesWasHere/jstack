@@ -249,37 +249,15 @@ After the calls, list the tasks again and run the block again, with the id of ea
 **Its thread.**
 Step 5 sends the start here, as its last look.
 A home that is archived settles itself, which takes effect only when its turn ends well, and a settle is what clears its pin.
-So the reply of that call says nothing: look, once the last home has had the time of this start to end its turn.
-Call `t3_thread_list`, with this thread's title, which the last home's begins with:
-
-```json
-{"titleContains": "<title>"}
-```
-
-Then run this in one call with the same two blocks, with the whole reply in place of the line in angle brackets:
+So look last, once the last home has had the time of this start to end its turn.
+Run this in one call with the block at the top and the block that finds this home: jbus reads the last home's thread, and settles it if it is still active.
 
 ```sh
-was=$(was_home "$M")
-if [ -z "$was" ] || [ "$was" = "$ME" ]; then
-    echo "no home before this one: no note of $M names one, so no thread is looked for"
-else
-    jq -rs --arg was "$was" '
-        if length == 1 and (.[0].threads | type) == "array" then .[0] else error("no threads") end
-        | [.threads[] | select(.threadId == $was)][0] as $it
-        | if $it == null and .nextCursor != null then "more: \($was) is not on this page, call again with cursor \(.nextCursor)"
-          elif $it == null then "not found: no thread with this title has the id \($was), so nothing is settled"
-          elif $it.settled == true then "settled: \($was) is settled, and a settle clears its pin"
-          else "settle \($was): the home before this one is still active, and may still be pinned" end' 2> /dev/null << 'THE_REPLY_ENDS_HERE' ||
-<the reply of t3_thread_list>
-THE_REPLY_ENDS_HERE
-        echo "not read: put the whole reply of t3_thread_list in place of the placeholder"
-fi
+uv run --project "$T/../source" jbus home was --home "$M"
 ```
 
-On `settle <id>`, settle that thread with `t3_thread_organize`, the id in place of `<thread>`, and tell the user in one line that the last home had not settled and now is:
-
-```json
-{"action": "settle", "threadId": "<thread>"}
-```
-
-On `more`, make the same call with `cursor` set to the number it names, and run the block on that reply. On `not found`, tell the user that line. On `settled`, nothing. T3 Code's list does not say whether a thread is pinned: a pin is known to be gone only because the thread is settled.
+It prints one line.
+On `settled now:`, tell the user in one line that the last home had not settled and now is.
+On `not found:` or `refused:`, tell the user that line.
+On `settled:` and `no home before this one:`, nothing.
+T3 Code does not say whether a thread is pinned: a pin is known to be gone only because the thread is settled.

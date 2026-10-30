@@ -8,6 +8,7 @@ import json
 
 import pytest
 
+from jbus import home
 from test_home_thread import NAME, NOTE, OTHER, THREAD, Scene, block
 from test_party_handoff import DESK, Party, takes
 from test_party_handoff import OTHER as COOK
@@ -48,11 +49,12 @@ def hands_off(scene, thread, checkout=None, code=0):
 
 
 def was_home(scene):
-    """The thread that the next home's start settles. The test reads it the way the home skill's
-    block does."""
-    before = block("home", "so no thread is looked for")
-    (line,) = [line for line in before.splitlines() if "was=$(" in line]
-    return scene.run("home", f'M="$H"\n{line}\nprintf "%s" "$was"', scene.main, None).stdout
+    """The thread that the next home's start settles, as `jbus home was` reads it. The home
+    skill's sh `was_home`, which "Its scheduled tasks" still reads, must read the same notes
+    alike."""
+    said = scene.run("home", 'printf "%s" "$(was_home "$H")"', scene.main, None).stdout
+    assert said == home.was_home(scene.home_dir)
+    return said
 
 
 def kept(scene):
@@ -246,3 +248,24 @@ def test_a_close_run_again_prints_the_same_model_selection(party, role_map):
     again = [tuple(line.split(": ", 1)) for line in ran.stdout.splitlines()]
     assert again[0][0] == "closed before"
     assert launched(again) == launched(first)
+
+
+@pytest.mark.parametrize(
+    "notes",
+    [
+        {},
+        {"log/2026-10-01-a.md": "Was home: mcp:one\n"},
+        {
+            "log/2026-10-01-a.md": "Was home: mcp:one\n",
+            "log/2026-10-02-b.md": "Was home: mcp:two\n",
+        },
+        {"log/2026-10-02-b.md": "Was home: mcp:two\n", "handoff.md": "Was home:  mcp:old more\n"},
+        {"log/2026-10-01-a.md": "Was home: mcp:one\n", "log/2026-10-02-b.md": "no line\n"},
+        {"handoff.md": "Was home:\nWas home: mcp:second\n"},
+    ],
+)
+def test_the_skills_was_home_and_jbuss_read_the_same_notes_alike(scene, notes):
+    for name, text in notes.items():
+        (scene.home_dir / name).parent.mkdir(exist_ok=True)
+        (scene.home_dir / name).write_text(text)
+    was_home(scene)

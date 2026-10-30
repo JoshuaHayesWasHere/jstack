@@ -2,7 +2,8 @@
 again: its tasks are switched off, and a home started later takes them over and settles it. The
 tests run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers
 their calls. Each call the blocks make is a JSON block of a skill. The test checks the call against
-its tool's schema before the call changes anything."""
+its tool's schema before the call changes anything. The last look of a start is jbus's own
+(`jbus home was`), and it runs against the kitchen's T3 Code, which holds the same threads."""
 
 import itertools
 import json
@@ -10,12 +11,12 @@ import json
 import pytest
 
 from test_home_thread import NOTE, OTHER, THREAD, Scene, block
+from test_jbus_kitchen import Kitchen
 from test_tool_calls import CALLS, FILLED, errors
 
 HOOK = "scheduled-task:hook"
 ADDRESS = "https://relay.example/hooks/a-token-nobody-may-see"
 TASKS = "<the reply of list_scheduled_tasks>"
-THREADS = "<the reply of t3_thread_list>"
 REFUSED = "<the ids a call was refused for>"
 ID = "<scheduledTaskId>"
 TITLE = FILLED["<title>"]
@@ -81,10 +82,7 @@ class T3:
             on.update(pinned=False)
         elif call.tool == "t3_thread_organize" and given["action"] == "settle":
             self.settled_by.append(caller)
-            if "threadId" in given:
-                on.update(pinned=False, settled=True)
-            else:
-                on["settles"] = True
+            on["settles"] = True
         elif call.tool == "t3_thread_update":
             on["title"] = given["title"]
         elif call.tool == "update_scheduled_task":
@@ -94,16 +92,14 @@ class T3:
             if given.get("bindToCurrentThread"):
                 task["boundThreadId"] = caller
             task["enabled"] = given.get("enabled", task["enabled"])
-        elif call.tool == "t3_thread_list":
-            asked = [
-                {key: value for key, value in thread.items() if key in SHOWN}
-                for thread in self.threads.values()
-                if given["titleContains"] in thread["title"]
-            ]
-            return json.dumps({"threads": asked, "nextCursor": None})
         else:
             raise AssertionError(f"{call.where}: no rule here for {call.tool}")
         return None
+
+    def settles(self, caller, thread):
+        """Settle another thread at once, as jbus does for the thread `caller`."""
+        self.settled_by.append(caller)
+        self.threads[thread].update(pinned=False, settled=True)
 
     def listed(self):
         return json.dumps({"tasks": list(self.tasks.values())})
@@ -121,12 +117,11 @@ class T3:
         return [id for id, task in self.tasks.items() if task["boundThreadId"] == thread]
 
 
-SHOWN = ("threadId", "title", "settled")
-
-
 class Home(Scene):
-    def __init__(self, tmp_path):
+    def __init__(self, tmp_path, monkeypatch):
         super().__init__(tmp_path)
+        self.kitchen = Kitchen(tmp_path / "kitchen", monkeypatch)
+        monkeypatch.setenv("JBUS_HOME_DIR", str(self.home_dir.parent))
         self.t3 = T3()
         (self.home_dir / "plan.md").write_text("# plan\n")
 
@@ -137,14 +132,19 @@ class Home(Scene):
         ran = self.run("home", found.replace(REFUSED, refused), self.main, thread)
         return ran.stdout.splitlines()
 
-    def thread_of_the_last(self, thread, reply=None):
-        found = block("home", "settle \\(")
-        assert THREADS in found
-        if reply is None:
-            reply = self.t3.call(thread, call("home", "t3_thread_list", titleContains=TITLE))
-        return self.run(
-            "home", found.replace(THREADS, reply), self.main, thread
+    def looks(self, thread):
+        """Run the last step of a home's start, which has jbus check the last home's thread and
+        settle it, against a T3 Code that holds the threads of `self.t3`. Return what it said."""
+        self.kitchen.t3.threads = [dict(one) for one in self.t3.threads.values()]
+        before = len(self.kitchen.t3.calls)
+        (said,) = self.run(
+            "home", block("home", "jbus home was --home"), self.main, thread
         ).stdout.splitlines()
+        for tool, given in self.kitchen.t3.calls[before:]:
+            if tool == "t3_thread_organize":
+                assert given == {"action": "settle", "threadId": given["threadId"]}
+                self.t3.settles(thread, given["threadId"])
+        return said
 
     def takes(self, thread):
         """Run the first steps of a home's start in the order the skill gives. The home writes
@@ -162,15 +162,6 @@ class Home(Scene):
                 if self.t3.call(thread, take, **{FILLED[ID]: id}) == "refused":
                     refused.append(id)
         return self.tasks_of_the_last(thread, refused=" ".join(refused))
-
-    def looks(self, thread):
-        """Run the last step of a home's start, which checks the last home's thread, and return
-        what the block said."""
-        (said,) = self.thread_of_the_last(thread)
-        if said.startswith("settle "):
-            settle = call("home", "t3_thread_organize", action="settle")
-            self.t3.call(thread, settle, **{FILLED["<thread>"]: said.split()[1].rstrip(":")})
-        return said
 
     def starts(self, thread):
         return [*self.takes(thread), self.looks(thread)]
@@ -211,8 +202,10 @@ class Home(Scene):
 
 
 @pytest.fixture
-def home(tmp_path):
-    return Home(tmp_path)
+def home(tmp_path, monkeypatch):
+    made = Home(tmp_path, monkeypatch)
+    yield made
+    made.kitchen.close()
 
 
 def test_a_home_pins_itself_at_its_start_and_a_second_start_pins_it_once(home):
@@ -274,7 +267,6 @@ def test_a_reply_that_is_not_filled_in_is_said_and_names_no_task(home, reply):
     home.hands_off(THREAD, OTHER, steps=1)
     home.home_starts(OTHER)
     assert home.tasks_of_the_last(OTHER, reply)[0].startswith("not read:")
-    assert home.thread_of_the_last(OTHER, reply)[0].startswith("not read:")
     assert home.listed_at_handoff(OTHER, reply) == [
         "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
     ]
@@ -322,7 +314,6 @@ def test_an_archived_home_switches_its_tasks_off_so_no_run_makes_it_active_again
 
 def test_the_next_home_reads_the_last_ones_own_row_and_settles_it_if_it_is_not(home):
     home.starts(THREAD)
-    assert call("home", "t3_thread_list", titleContains=TITLE).where != ""
     assert home.hands_off(THREAD, OTHER)[-1] == (
         f"settled: {THREAD} is settled, and a settle clears its pin"
     )
@@ -330,24 +321,23 @@ def test_the_next_home_reads_the_last_ones_own_row_and_settles_it_if_it_is_not(h
     assert home.t3.threads[THREAD]["title"] == f"{TITLE} (archived 2026-10-10)"
     home.t3.threads[THREAD].update(settled=False, pinned=True)
     assert home.looks(OTHER) == (
-        f"settle {THREAD}: the home before this one is still active, and may still be pinned"
+        f"settled now: {THREAD}, the home before this one, was still active and may have been"
+        " pinned"
     )
     assert home.t3.settled_by == [THREAD, OTHER] and home.t3.pinned() == [OTHER]
-    settle = call("home", "t3_thread_organize", action="settle")
-    assert settle.given == {"action": "settle", "threadId": FILLED["<thread>"]}
+    assert home.looks(OTHER) == f"settled: {THREAD} is settled, and a settle clears its pin"
+    assert home.t3.settled_by == [THREAD, OTHER]
 
 
-def test_a_last_home_the_list_does_not_have_is_said_and_asked_for_on_the_next_page(home):
+def test_a_last_home_t3_code_no_longer_has_is_said_and_nothing_is_settled(home):
     home.starts(THREAD)
     home.hands_off(THREAD, OTHER, steps=1)
     home.home_starts(OTHER)
-    page = {"threads": [{"threadId": OTHER, "settled": False}], "nextCursor": 100}
-    assert home.thread_of_the_last(OTHER, json.dumps(page)) == [
-        f"more: {THREAD} is not on this page, call again with cursor 100"
-    ]
-    assert home.thread_of_the_last(OTHER, json.dumps({**page, "nextCursor": None})) == [
-        f"not found: no thread with this title has the id {THREAD}, so nothing is settled"
-    ]
+    del home.t3.threads[THREAD]
+    assert home.looks(OTHER) == (
+        f"not found: T3 Code has no thread {THREAD}, so nothing is settled"
+    )
+    assert home.t3.settled_by == []
 
 
 def test_a_task_a_call_is_refused_for_is_named_as_left_and_not_asked_for_again(home):
@@ -401,3 +391,23 @@ def test_a_handoff_cut_off_anywhere_and_run_again_ends_in_the_same_state(home, c
     assert home.t3.bound(THREAD) == [] and home.t3.bound(OTHER) == [HOOK]
     assert home.file.read_text() == f"{OTHER}\n"
     assert (cut > 2) == home.t3.threads[THREAD]["title"].endswith("(archived 2026-10-10)")
+
+
+def test_a_last_home_that_is_this_home_is_left_as_it_is(home):
+    home.starts(THREAD)
+    home.hands_off(THREAD, OTHER, steps=1)
+    home.t3.threads[THREAD].update(settled=False, pinned=True)
+    home.home_starts(THREAD)
+    assert home.looks(THREAD) == (
+        f"no home before this one: {THREAD}, the last home the notes name, is this home"
+    )
+    assert home.t3.settled_by == [] and home.t3.pinned() == [THREAD]
+
+
+def test_a_t3_code_that_does_not_answer_is_said_and_nothing_is_settled(home):
+    home.starts(THREAD)
+    home.hands_off(THREAD, OTHER, steps=1)
+    home.home_starts(OTHER)
+    home.kitchen.t3.lose_read = True
+    assert home.looks(OTHER).startswith(f"refused: T3 Code did not settle {THREAD}: ")
+    assert home.t3.settled_by == [] and not home.t3.threads[THREAD]["settled"]
