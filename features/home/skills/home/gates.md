@@ -29,11 +29,11 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 ```sh
 : "${M:?run the block that finds this home first}"
 SEP=$(printf '\037')
-none=
-if ! command -v jbus > /dev/null; then none=--no-jbus; fi
 own=home
 if [ "$M" != "$H" ]; then own=home-$(basename "$M"); fi
-if said=$(uv run --project "$T/../source" jbus home status --home "$M" --gates $none); then
+if ! command -v jbus > /dev/null; then
+    P= OPEN= WHY="no jbus: jbus is not installed here, so it holds no question"
+elif said=$(uv run --project "$T/../source" jbus home status --home "$M" --gates); then
     { IFS= read -r P; IFS= read -r WHY; OPEN=$(cat); } << THE_STATUS_ENDS_HERE
 $said
 THE_STATUS_ENDS_HERE
