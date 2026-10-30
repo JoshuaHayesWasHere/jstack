@@ -15,8 +15,8 @@ positional arguments:
     apply               a batch of the four verbs on stdin, all or none
     verify              the row's approval record and whether it holds for a
                         brief, as JSON
-    check               the faults add would refuse the brief on stdin for,
-                        one a line; writes nothing
+    check               the faults of the lines of the brief on stdin, one a
+                        line; writes nothing
 
 options:
   -h, --help            show this help message and exit
