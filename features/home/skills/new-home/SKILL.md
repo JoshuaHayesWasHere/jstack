@@ -97,6 +97,11 @@ case $C$P in
         'refused: no config at '*) echo "3 jbus project: needs you: set jbus up once for the machine, as features/jbus/docs/jbus.md \"Set up jbus\" says, then type /new-home ${C##*/} again" ;;
         *) echo "3 jbus project: needs you: jbus project add said \"$said\"" ;;
         esac
+        if jq -e '.token.access_token' "${JBUS_CONFIG_DIR:-$HOME/.config/jbus}/t3.json" > /dev/null 2>&1; then
+            echo "3 jbus sign-in: already, jbus holds a T3 Code token"
+        else
+            echo "3 jbus sign-in: needs you: jbus t3 login, every go is your word and jbus reads it from T3 Code"
+        fi
     fi
     if ! command -v jinstall > /dev/null; then
         echo "3 git hooks: needs you: sh install.sh in the checkout that holds this skill, jinstall is not on PATH"
@@ -108,6 +113,10 @@ case $C$P in
     fi ;;
 esac
 ```
+
+The sign-in line says `needs you` while jbus holds no T3 Code token: with none, jbus reads no go of the user's, so no row of the project launches on a go and none merges.
+`jbus t3 login` asks the user to approve it in T3 Code, so this skill never runs it.
+`jinstall --doctor` says the same once the project is added: the sign-in is then a `hard` need.
 
 `jinstall --repo` links jleak's `pre-push` and `commit-msg` hooks into the repo's main checkout, and keeps the repo in the list `jinstall --check` and the doctor read.
 A run on a repo that has them already links nothing and says `done` all the same.

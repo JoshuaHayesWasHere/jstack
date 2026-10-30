@@ -86,6 +86,11 @@ def hooks(repo):
     return f"3 git hooks: done, 2 ok in {repo}/.git/hooks"
 
 
+NO_SIGN_IN = (
+    "3 jbus sign-in: needs you: jbus t3 login, every go is your word and jbus reads it from T3 Code"
+)
+
+
 @pytest.fixture
 def machine(tmp_path):
     return Machine(tmp_path)
@@ -161,8 +166,8 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
         f"1 state directory: already, {machine.state} has its plan.md",
         f"home-id: {THREAD}",
     ]
-    said, hooked = machine.jbus()
-    assert hooked == hooks(machine.repo)
+    said, signed, hooked = machine.jbus()
+    assert (signed, hooked) == (NO_SIGN_IN, hooks(machine.repo))
     (backup,) = machine.config.parent.glob("config.toml.*.bak")
     assert said == (
         f"3 jbus project: done, one [[project]] table, the file as it was is {backup}: "
@@ -192,6 +197,7 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
     now = machine.config.read_text()
     assert machine.jbus() == [
         "3 jbus project: already, jbus's config has its table",
+        NO_SIGN_IN,
         hooks(machine.repo),
     ]
     assert machine.config.read_text() == now
@@ -205,6 +211,7 @@ def test_a_name_the_config_has_for_another_checkout_is_the_users_to_settle(machi
     assert machine.jbus(checkout=other) == [
         '3 jbus project: needs you: jbus project add said "refused: the config already has a '
         'project of that name"',
+        NO_SIGN_IN,
         f"3 git hooks: needs you: jinstall --repo {other} said:",
         f"install.sh: {other} is no git repository",
     ]
@@ -215,6 +222,7 @@ def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
     assert machine.jbus() == [
         "3 jbus project: needs you: set jbus up once for the machine, as "
         'features/jbus/docs/jbus.md "Set up jbus" says, then type /new-home Winnie again',
+        NO_SIGN_IN,
         hooks(machine.repo),
     ]
     assert not machine.config.exists()
@@ -232,6 +240,16 @@ def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
         "3 git hooks: needs you: sh install.sh in the checkout that holds this skill, "
         "jinstall is not on PATH",
     ]
+
+
+def test_the_sign_in_line_says_needs_you_until_jbus_holds_a_token(machine):
+    token = machine.config.with_name("t3.json")
+    for stored in (None, "{}\n", '{"token": {}}\n', "not json\n"):
+        if stored is not None:
+            token.write_text(stored)
+        assert machine.jbus()[1] == NO_SIGN_IN
+    token.write_text('{"server": "http://127.0.0.1:1", "token": {"access_token": "t"}}\n')
+    assert machine.jbus()[1] == "3 jbus sign-in: already, jbus holds a T3 Code token"
 
 
 def test_a_repo_that_lacks_nothing_for_a_merge_says_already_and_no_switch_is_written(machine):

@@ -106,6 +106,11 @@ def hooks(machine):
     return f"3 git hooks: done, 2 ok in {machine.repo}/.git/hooks"
 
 
+NO_SIGN_IN = (
+    "3 jbus sign-in: needs you: jbus t3 login, every go is your word and jbus reads it from T3 Code"
+)
+
+
 def added(machine):
     (backup,) = machine.config.parent.glob("config.toml.*.bak")
     return (
@@ -121,7 +126,7 @@ def test_a_home_whose_repo_jbus_lacks_adds_it_and_leaves_the_merge_to_jbus(machi
         "not on the bus: Winnie has no project in jbus's config: add it with the block of "
         f"step 3 of {step3}, checkout {machine.repo}"
     ]
-    assert machine.add() == [added(machine), hooks(machine)]
+    assert machine.add() == [added(machine), NO_SIGN_IN, hooks(machine)]
     assert machine.tables() == ["first", "Winnie"]
     assert machine.seen.read_text() == "none\n"
     assert not machine.switch.exists()
@@ -134,6 +139,7 @@ def test_a_home_whose_repo_jbus_has_is_left_as_it_is(machine):
     assert machine.start() == ["on the bus: Winnie is jbus project Winnie"]
     assert machine.add() == [
         "3 jbus project: already, jbus's config has its table",
+        NO_SIGN_IN,
         hooks(machine),
     ]
     assert machine.config.read_text() == now
@@ -145,7 +151,7 @@ def test_registration_writes_no_switch_whatever_the_homes_rules_say(machine):
         "1. This repo's home merges its own pull requests, by itself.\n"
     )
     assert machine.start()[0].startswith("not on the bus: Winnie has no project")
-    assert machine.add() == [added(machine), hooks(machine)]
+    assert machine.add() == [added(machine), NO_SIGN_IN, hooks(machine)]
     assert machine.seen.read_text() == "none\n", "no switch was on when jbus was asked"
     assert not machine.switch.exists()
 
