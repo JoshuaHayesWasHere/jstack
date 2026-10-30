@@ -1,7 +1,7 @@
 # The home tree, as a TLA+ spec
 
 A root home and two sibling child homes on one repo, with the rules Josh set for them on 2026-10-23.
-Child a is short-lived and does one feature, and child b is a routine with a declared rhythm.
+Child a is short-lived, does one feature and is archived, and child b is a routine with a declared rhythm.
 Each child has a pull request, a crew thread and two calls to Josh, and a call reaches Josh through the root's home thread, which can fail.
 
 - `HomeTree.tla` holds the variables, the start, and the rules, each with its sentence.
@@ -59,8 +59,8 @@ The merge race (`NoBlindMerge`) needs two pull requests, so it is in the sibling
 Until the branch hometree-rules, today's code broke four rules, each along a story of the chart.
 Each now holds by the guard the design names for it, and a test in `features/home/tests/test_home_tree_spec.py` drives the real code along that story and fails on the code before it.
 
-1. `NoRetireWithOpen`, by the retire guard: the handoff skill closes a scope only when `jbus out --scope <scope>` says it has nothing out (`jbus/children.py`).
-   The test is `test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired`, where the handoff keeps the scope open while a crew jbus launched for it is out, and closes it once the crew's row is done.
+1. `RetireHandsOver`, by the hand-over: the handoff skill archives a scope whatever it has out, starts no home after it, and removes its `home-id` and moves its plan out, so what `jbus out --scope <scope>` printed for it is the root home's (`jbriefs/home.py`, `jbus/children.py`).
+   The test is `test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_root`, where the handoff archives the scope while a crew jbus launched for it is out, and the crew's brief is the root home's from then on.
 2. `StallFlagged`, with `FirstStrike`, `NudgesBounded` and `AsksAfterTwo`, by the root's watch of its children: a jbus pass nudges a child that has been quiet for its patience with work out, tells the user at once, nudges it once more and then asks the user (`jbus/children.py`, `watch`).
    The test is `test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged`, where real jbus passes nudge the child's home thread an hour after its crew stopped, and the user hears of it.
 3. `OneMerger`, by jbus as the only merger: jbus runs `jmerge` whatever `home-thread` holds, and a home's `jmerge --home` merges nothing (`jbus/merge.py`, `jmerge/cli.py`).

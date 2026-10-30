@@ -72,7 +72,7 @@ To grow a pool by one instance, add one line to `providers.json` and one more id
 | `crew` | `inherit` | The model of a crewmate's thread. | `jroles`, which the `home` skill runs before a launch |
 | `scout` | `inherit` | The model of a scout's thread. | `jroles`, for the `home` skill |
 | `review` | `inherit` | The model of a reviewer's thread. | `jroles`, for the `pr-review` skill |
-| `home` | `inherit` | The model of the next home's thread. | `jroles`, for the `handoff` skill |
+| `home` | `inherit` | The model of a repo's first home's thread. | `jroles`, for the `new-home` skill |
 | `expert` | `inherit` | The model of an expert's thread. | `jroles`. No skill asks for it yet. |
 
 `inherit` means the model of the thread that launches the role's thread.

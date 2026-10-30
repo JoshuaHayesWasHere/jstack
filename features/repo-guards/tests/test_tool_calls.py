@@ -42,6 +42,7 @@ FILLED = {
     "<the sender>": "mcp:the-sender",
     "<the message>": "From the cook: the oven is off.",
     "<the next home's id>": "mcp:the-next-home",
+    "<the home's id>": "mcp:the-root-home",
     "<the home-id file>": "/home/someone/.local/state/home/demo/home-id",
     "<name>": "deploy-buttons",
     "<the actions>": "deploy, rollback",
@@ -156,7 +157,7 @@ def misspelt(given):
 
 def test_the_skills_have_calls_to_check():
     assert len(CALLS) >= 21
-    assert len(LAUNCHES) >= 10
+    assert len(LAUNCHES) >= 8
     assert len(LAUNCHES) == 2 * len(TWINS)
     of_a_crewmate = [call.tool for call in CALLS if call.where.startswith("crew:")]
     assert of_a_crewmate == ["t3_thread_organize", "link_pull_request"]

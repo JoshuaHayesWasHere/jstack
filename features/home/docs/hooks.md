@@ -1,6 +1,6 @@
 # Hooks
 
-`install.sh` writes home's five hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
+`install.sh` writes home's three hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
 This page says what home's three scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
 [The catalog](../../../CATALOG.md#hooks) lists the hooks of every feature, and [jinstall](../../jinstall/docs/jinstall.md#hook-entries) says which file of each harness they go in.
@@ -43,82 +43,12 @@ The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.cl
 
 A thread with no hook gets no automatic home. Type `/home` there, or `$home`.
 
-## The gauge hook
+## No gauge hook
 
-`features/home/hooks/home-gauge.sh` is a `PostToolUse` hook and a `PreToolUse` hook.
-After a tool call it tells a home how full its context is, once the count reaches the home's limit.
-Before a tool call it refuses the call, once the count reaches the home's ceiling.
-The count is what `jgauge context` prints for the session's transcript: the input side of its last call.
-
-At the limit, and after every tool call from then on, the agent gets one line:
-
-```
-context: <n> tokens, over this home's limit of <limit>. Finish the step in hand, then read <layout>/skills/handoff/SKILL.md and do its steps. Start nothing new.
-```
-
-That line stops nothing: the tool call has run, and the next one runs too. At the ceiling the hook denies a tool call before it runs, and the agent gets this line as the reason:
-
-```
-context: <n> tokens, over this home's ceiling of <ceiling>. Only the handoff runs now: read <layout>/skills/handoff/SKILL.md and do its steps.
-```
-
-A home over its ceiling still makes the calls the `handoff` skill makes, and no other:
-
-| Tool | What still runs |
-| --- | --- |
-| `Skill` | the `handoff` skill |
-| `Read`, `Write`, `Edit` | a file under `~/.local/state/home/` |
-| `Read` | a file under `templates/` or `skills/` of the checkout the hook runs from |
-| `Bash` | every command |
-| `ToolSearch` | every search |
-| `t3_thread_launch` | a message that starts `/home`, or a title that starts `home: ` |
-| `t3_thread_configuration`, `t3_thread_list`, `t3_thread_send`, `t3_thread_update`, `t3_thread_organize` | every call |
-| `list_scheduled_tasks`, `update_scheduled_task`, `delete_scheduled_task` | every call |
-
-The last three rows are tools of the `t3-code` server. `Bash` runs whole because the steps of the handoff are shell blocks, and the hook cannot tell one of them from any other command by its text. The hook ends no turn: it refuses calls, and the home stops when it has handed off.
-
-The hook prints nothing under the limit, nothing before a tool call under the ceiling, nothing for a tool call a subagent made, and nothing for a session that is no home. A home is a session the start hook would make one: inside T3 Code, in a repo's main checkout, not under `~/.t3/scratch`, with no `off` file. An expert's thread is no home: the directory it started in holds a `CHARTER.md`, and the expert skill says when it rolls over. The hook judges the directory the session started in, `CLAUDE_PROJECT_DIR`, so a home whose shell has moved into a worktree is still a home. A hook that cannot read the transcript says nothing and denies nothing.
-
-The limit is 300,000 tokens and the ceiling is 350,000. To set others for one repo, write `~/.local/state/home/<repo>/limit`: its first line is the limit, and its second line, when there, is the ceiling. A ceiling under the limit counts as the limit.
-
-On each run in a home, over the limit or under it, the hook writes one line to `~/.local/state/home/<repo>/gauge`:
-
-```
-<n> <limit> <session id> <epoch seconds>
-```
-
-A repo has one `gauge` file. When two homes run in one repo, the line is that of the home that ran a tool last, and the session id says which.
-
-The hook needs `jq`, `git` and `tail`. It reads the last 256 KB of the transcript, and the whole of it only when that holds no call. `install.sh` merges these groups into `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh '<layout>/hooks/home-gauge.sh' 2>/dev/null || true",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh '<layout>/hooks/home-gauge.sh' 2>/dev/null || true",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+A home is not handed off for the size of its context, so no hook counts it.
+A long thread is compacted by its harness and goes on as the same home.
+`features/home/hooks/home-gauge.sh` did that count until 2026-10-29, and `install.sh` takes no entry of it out of `~/.claude/settings.json`.
+An entry left there runs `sh` on a file that is gone, and its `|| true` makes it do nothing: delete the `PreToolUse` and `PostToolUse` groups whose command names `home-gauge.sh` to drop them.
 
 ## The sends hook
 

@@ -72,7 +72,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | Command | What it does |
 |---|---|
 | `jgauge session [--format json] <project>/<session>.jsonl` | Prints what one thread cost: a row for the session, a row for each subagent it started (found under `<session>/subagents/`), and the total. It prints a table, and with `--format json` the same report as JSON. |
-| `jgauge context <project>/<session>.jsonl` | Prints one number: how full the thread's context is now. It is the input side of the transcript's last call, and 0 for a transcript with no call. `features/home/hooks/home-gauge.sh` tells a home the same count, which it works out with `jq`. |
+| `jgauge context <project>/<session>.jsonl` | Prints one number: how full the thread's context is now. It is the input side of the transcript's last call, and 0 for a transcript with no call. |
 | `jgauge spend [--day <date> \| --since <time> --until <time>] [--project <name>] [--store <path>]` | Prints Claude's spend in units by kind, by instance and by five-hour window, and the minutes each day with every Claude instance capped ("See what Claude spent, and when every account was capped"). The day is today by default. |
 | `jgauge room` | Prints `go`, or `wait: ` and the first reading with no room ("jgauge room"). |
 | `jgauge limits` | Reads each Claude account's five-hour and weekly use into the ledger, ahead of any cap ("jgauge limits"). |

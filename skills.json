@@ -443,14 +443,14 @@
       "kind": "skill",
       "path": "features/home/skills/handoff/SKILL.md",
       "source": "jstack",
-      "description": "Close this thread and leave the next one a short start - stop what runs, write a note of ten lines at most, and, for a repo's home, start the next home and settle this thread. The next home reads the rest from jbus. Use when the user invokes /handoff or $handoff, says to wrap up, move on or start fresh, or when the home skill's hand-off conditions are met."
+      "description": "Archive this home - stop what runs, keep a note of ten lines at most in its log, hand what it has out to the root home, close its scope, switch off its scheduled tasks, and rename and settle this thread. It starts no next home. Use when the user invokes /handoff or $handoff, archives a home from the jstack tree, or says to archive or close this home."
     },
     {
       "name": "home",
       "kind": "skill",
       "path": "features/home/skills/home/SKILL.md",
       "source": "jstack",
-      "description": "Make this thread the home for the repo it runs in - read the repo's short handoff, plan work with the user, hand each task to a crewmate thread, and hand off to a fresh home before the context grows. Use when the user invokes /home or $home, opens a new thread to continue work in a repo, or asks to pick up where the last thread left off."
+      "description": "Make this thread the home for the repo it runs in - read where things stand, plan work with the user, and hand each task to a crewmate thread. A home runs until it is archived with /handoff. Use when the user invokes /home or $home, opens a new thread to continue work in a repo, or asks to pick up where the last thread left off."
     },
     {
       "name": "how",
@@ -695,12 +695,6 @@
       "source": "jstack"
     },
     {
-      "name": "handoff-seed.md",
-      "kind": "template",
-      "path": "features/home/templates/handoff-seed.md",
-      "source": "jstack"
-    },
-    {
       "name": "handoff.md",
       "kind": "template",
       "path": "features/home/templates/handoff.md",
@@ -802,23 +796,6 @@
           "event": "PreToolUse",
           "matcher": "Bash",
           "refuses": true
-        }
-      ]
-    },
-    {
-      "name": "home-gauge.sh",
-      "path": "features/home/hooks/home-gauge.sh",
-      "harnesses": [
-        "claude-code"
-      ],
-      "events": [
-        {
-          "harness": "claude-code",
-          "event": "PreToolUse"
-        },
-        {
-          "harness": "claude-code",
-          "event": "PostToolUse"
         }
       ]
     },

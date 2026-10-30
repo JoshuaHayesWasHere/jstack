@@ -59,6 +59,7 @@ FACTS = {
     " (fl-standing-cap)",
     "handoff.md": "the note one home leaves the next: where things stand",
     "handoff.next.md": "a handoff written ahead of the one it replaces, the same note",
+    "plan-archived.md": "an archived scope's plan, moved out of plan.md: the same facts",
     "gates.md": "a home's open questions to the user and the defaults taken",
     "gates-moved.md": "a gates.md jbus has moved its questions out of, kept as a record",
     "RESTART.md": "the page a handoff writes of what a restarted home finds, where things stand",

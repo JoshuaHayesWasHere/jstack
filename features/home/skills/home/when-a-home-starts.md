@@ -5,7 +5,7 @@ The user types `/home`.
 Or the session-start hook (`hooks/home-start.sh` in the layout that holds this skill) adds a `[home]` line to a new T3 Code thread opened in the main checkout of any repo, one that never had a home included, and the thread invokes this skill before its first reply.
 In the second case the user's first message is their opening request, unless it starts with `/home`, which is the first case: do the five steps below, keep step 5 to the lines that matter for that request, and then take the request as the start of planning.
 
-The first word after `/home` may name a scope: step 1 says. Text after `/home`, or after the scope, that says the previous home wrote it is a seed: that home's handoff launched this thread with it. It is not the user's opening request. Do the five steps, do what the seed says to keep doing, and do not wait for the user: step 5 merges, launches and gives the status by itself.
+The first word after `/home` may name a scope: step 1 says.
 
 Escalations reach the user through jbus, which wakes the project's home thread with them.
 A home sends no other thread a status and keeps no registry of homes: jbus is it.
@@ -38,7 +38,13 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    '<the text after '*)
        echo "not filled in: put what was typed after /home in place of the placeholder, or nothing" ;;
    *)
-       if [ -n "$scope" ] && [ -f "$H/$scope/plan.md" ]; then
+       if [ -n "$scope" ] && [ ! -f "$H/$scope/plan.md" ] && [ -f "$H/$scope/plan-archived.md" ]; then
+           if mv "$H/$scope/plan-archived.md" "$H/$scope/plan.md"; then
+               printf 'scope %s\ntitle: home: %s %s\nreopened: %s was archived, and its plan is back in %s\n' "$scope" "$R" "$scope" "$scope" "$H/$scope/plan.md"
+           else
+               echo "not reopened: $H/$scope/plan-archived.md could not be moved back to plan.md. Nothing else is written."
+           fi
+       elif [ -n "$scope" ] && [ -f "$H/$scope/plan.md" ]; then
            printf 'scope %s\ntitle: home: %s %s\n' "$scope" "$R" "$scope"
        elif [ "$(printf '%s\n' "$typed" | wc -w)" -eq 1 ]; then
            echo "no scope: $R has no scope $word, there is no $H/$word/plan.md. Only the root home makes a scope, when the user asks for one. Nothing is written."
@@ -51,7 +57,17 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    esac
    ```
 
-   On `a party's home:`, the thread is in the folder of a party that is no repo's home, such as an expert's: this thread is no home, and none of the steps below is done. A thread that a message started goes on with that message, and one the user typed `/home` in tells the user that line and stops. How such a thread is replaced is not this skill's to say: `$T/../skills/handoff/SKILL.md` "A party's home", or for an expert, whose folder has a `CHARTER.md`, `$T/../skills/expert/SKILL.md` "When to roll over". Otherwise its first line says which home this is. `root`: the repo's root home, and the text, if there is any, is a seed or the user's opening request. `scope <word>`: that scope's home, and what follows the word is its seed. On `no scope:`, one word was typed and it names no scope: tell the user what the line says and stop, this thread is no home. When it prints `first home`, say this is the repo's first home. What was in `$H` before stays: a home in another repo may have kept briefs and notes there.
+   On `a party's home:`, the thread is in the folder of a party that is no repo's home, such as an expert's: this thread is no home, and none of the steps below is done.
+   A thread that a message started goes on with that message, and one the user typed `/home` in tells the user that line and stops.
+   How such a thread is replaced is not this skill's to say: `$T/../skills/handoff/SKILL.md` "A party's home", or for an expert, whose folder has a `CHARTER.md`, `$T/../skills/expert/SKILL.md` "When to roll over".
+   Otherwise its first line says which home this is.
+   `root`: the repo's root home, and the text, if there is any, is the user's opening request.
+   `scope <word>`: that scope's home, and what follows the word is the user's opening request.
+   On `no scope:`, one word was typed and it names no scope: tell the user what the line says and stop, this thread is no home.
+   When it prints `first home`, say this is the repo's first home.
+   On `reopened:`, the scope was archived and is a home again: its briefs whose `Home:` line names it are this home's again, and the root home's no more.
+   On `not reopened:`, tell the user the line and stop.
+   What was in `$H` before stays: a home in another repo may have kept briefs and notes there.
 2. Name this thread for what it is, with the `t3-code` server's `t3_thread_update` (if your harness defers it, load it first):
 
    ```json
@@ -66,7 +82,8 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    {"action": "pin"}
    ```
 
-   A home is pinned for as long as it is the home. A thread that is pinned already keeps its place, so a second start changes nothing, and the settle of its handoff clears the pin.
+   A home is pinned for as long as it is the home.
+   A thread that is pinned already keeps its place, so a second start changes nothing, and the settle of its archive clears the pin.
 3. Put this thread's id on disk, so the threads this home sends out can report back to it and the block that finds this home can find it. The `t3-code` server's `t3_thread_configuration` with no arguments gives the id as `threadId` (if your harness defers it, load it first). Shell variables do not last from one call to the next, so run this in one call with the block at the top, with the id in place of `<threadId>` and the first line step 1 printed, `root` or `scope <word>`, in place of `<which home>`:
 
    ```sh
@@ -95,7 +112,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    Then do what "Its scheduled tasks" says, under "The home before this one" below these steps, before step 4.
 4. See where things stand.
-   Read `$H/standing.md` and `$M/handoff.md` whole, the user's standing rules and the note the last home left: the block below prints the path of each that is there.
+   Read `$H/standing.md` whole, the user's standing rules, and `$M/handoff.md`, a note an older handoff left, where there is one: the block below prints the path of each that is there.
    Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those two: read it whole as well.
    It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it.
    When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
@@ -215,9 +232,9 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    A brief whose last Result says `Status: done` and `Left: none`, and whose slug `jmerge` logged as `merged`, has nothing left to read: the block marks its heading read without showing it, and says how many it marked.
    A home with no `$M/read-seen` yet marks every heading there is now, shows none, and says so: what came before the mark is the last homes'.
    Read each section it printed, then mark them read with the block below, and only then: a start cut off before the mark shows them to the next home again.
-   A path under `read whole:` that ends in `handoff.next.md` is a note the last home wrote and was cut off before it put in place: read it too, for a gate only it holds.
+   A path under `read whole:` that ends in `handoff.next.md` is a note a home wrote and was cut off before it archived: read it too, for a gate only it holds.
    A brief or a request is this home's by what `whose` prints for it: a scoped home's when its `Home:` line names the scope, and the root home's when it has no such line or one that names no home.
-   One written before, with a thread id on the line, is the home's whose `home-id` or whose handoff's `Was home:` line has that id.
+   One written before, with a thread id on the line, is the home's whose `home-id` or whose `handoff.md`'s `Was home:` line has that id.
    Read nothing else yet: not the log, not `plan.md`.
    A step that needs the repo's check command reads `$H/fresh-check` then.
    The code is never the home's to read.
@@ -239,11 +256,11 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    Then do steps 2 and 3 of "When a thread sends a message", once, without waiting for a word: run the merge step, which prints what jbus merged since the last home read the log and what each open pull request waits for, update the plan, and launch what can start.
    Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run.
    The merge step runs no `jmerge`, and the sweep runs one only while `$H/home-thread` holds an id.
-   A message sent between the last home's handoff and this start reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
+   A message sent while this directory had no home reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
    Then do what "Its thread" says, under "The home before this one".
    Then end the start.
-   A start the user began by typing `/home` asks where things stand: tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan and the note, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
-   A start the last home's handoff launched asks nothing of the user: it ends by "How a turn ends", with what it did as the lines, and only a decision or a stop among them reaches the user.
+   A start the user began by typing `/home` asks where things stand: tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
+   A start that a launch began, such as the one "Making a scope" makes, asks nothing of the user: it ends by "How a turn ends", with what it did as the lines, and only a decision or a stop among them reaches the user.
 
 ### On the bus
 
@@ -274,7 +291,8 @@ A home that cannot add its repo goes on with step 5: the pass names it among the
 
 ### The home before this one
 
-A handoff leaves two things that only the next home can see to. Both go by the `Was home:` line of `$M/handoff.md`, so a second run, and the start of a home whose last thread was cut off in its handoff, end in the same state: this thread pinned, no scheduled task that posts into the last one, and the last one settled.
+An archive leaves two things that only a home started later in the same directory can see to.
+Both go by the id `was_home "$M"` prints, the last thread that was this directory's home, so a second run, and the start of a home whose last thread was cut off in its archive, end in the same state: this thread pinned, no scheduled task that posts into the last one, and the last one settled.
 
 **Its scheduled tasks.** Step 3 sends the start here. A scheduled task posts into the thread that made it until another thread takes it, and each run of it makes that thread active again, settled or not. Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments. Then run this in one call with the block at the top and the block that finds this home, with the whole reply in place of the line in angle brackets, and nothing in place of `<the ids a call was refused for>`:
 
@@ -288,9 +306,9 @@ THE_REPLY_ENDS_HERE
 case $refused in
 *'<'* | *'>'*) refused= ;;
 esac
-was=$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$M/handoff.md" 2> /dev/null | head -n 1)
+was=$(was_home "$M")
 if [ -z "$was" ] || [ "$was" = "$ME" ]; then
-    echo "no home before this one: $M/handoff.md names none, so no task is taken over"
+    echo "no home before this one: no note of $M names one, so no task is taken over"
 else
     said=$(the_reply | jq -rs --arg was "$was" --arg refused " $refused " '
         if length == 1 and (.[0].tasks | type) == "array" then .[0] else error("no tasks") end
@@ -311,12 +329,18 @@ It prints one line for each task that posts into the last home, and never a task
   {"scheduledTaskId": "<scheduledTaskId>", "bindToCurrentThread": true}
   ```
 
-  Nothing else in the call: the task keeps its title, its prompt, its schedule and, for a webhook, its address, so whoever posts to it is told nothing. One that was switched off stays off: tell the user its title. A task can only be bound by the thread that calls, which is why this is done here and not by the home that handed off.
+  Nothing else in the call: the task keeps its title, its prompt, its schedule and, for a webhook, its address, so whoever posts to it is told nothing.
+  One that was switched off stays off: tell the user its title.
+  A task can only be bound by the thread that calls, which is why this is done here and not by the home that was archived.
 - `none` and `no home before this one`: nothing to do.
 
 After the calls, list the tasks again and run the block again, with the id of each task a call was refused for, a space between two, in place of `<the ids a call was refused for>`. It prints `none` when every one is taken. On `left <id>`, the task still posts into the last home: tell the user its id and what the call answered, make no second call for it, and go on.
 
-**Its thread.** Step 5 sends the start here, as its last look. A home that hands off settles itself, which takes effect only when its turn ends well, and a settle is what clears its pin. So the reply of that call says nothing: look, once the last home has had the time of this start to end its turn. Call `t3_thread_list`, with this thread's title, which the last home's begins with:
+**Its thread.**
+Step 5 sends the start here, as its last look.
+A home that is archived settles itself, which takes effect only when its turn ends well, and a settle is what clears its pin.
+So the reply of that call says nothing: look, once the last home has had the time of this start to end its turn.
+Call `t3_thread_list`, with this thread's title, which the last home's begins with:
 
 ```json
 {"titleContains": "<title>"}
@@ -325,9 +349,9 @@ After the calls, list the tasks again and run the block again, with the id of ea
 Then run this in one call with the same two blocks, with the whole reply in place of the line in angle brackets:
 
 ```sh
-was=$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$M/handoff.md" 2> /dev/null | head -n 1)
+was=$(was_home "$M")
 if [ -z "$was" ] || [ "$was" = "$ME" ]; then
-    echo "no home before this one: $M/handoff.md names none, so no thread is looked for"
+    echo "no home before this one: no note of $M names one, so no thread is looked for"
 else
     jq -rs --arg was "$was" '
         if length == 1 and (.[0].threads | type) == "array" then .[0] else error("no threads") end

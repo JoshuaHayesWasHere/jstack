@@ -17,8 +17,8 @@ SLUG = "fix-login"
 THREAD = "mcp:thread-one"
 OTHER = "mcp:thread-two"
 HANDOFF = "# a demo repo: handoff\n\n## Loose ends\nNone\n"
-NOTE = "Next: plan the next task\nOut, not on the bus: none\nDo not redo: none\nUncommitted: none\n"
-NOT_THE_HOME = "not the home: start nothing, tell the user\n"
+NOTE = "Why: the user archived it\nOut, not on the bus: none\nUncommitted: none\n"
+NOT_THE_HOME = "not the home: "
 READERS = ["scout", "crew"]
 TYPED = "<the text after /home>"
 WHICH = "<which home>"
@@ -89,7 +89,7 @@ def a_gate_in(sends, entry):
 def about_the_home_id(skill):
     """The one block the skill gives that touches the root home's `home-id`. In the home skill
     it is the block that writes a home's own id, step 3 of its start. In the handoff skill it is
-    the block that removes that id, its step 6."""
+    the block that removes that id, its step 3."""
     own = {"home": '> "$M/home-id"', "handoff": 'jbus forget "$M/home-id"'}
     return block(skill, own.get(skill, 'jbus home "$B"'))
 
@@ -165,7 +165,7 @@ class Scene:
         return done.stdout
 
     def home_hands_off(self, thread=THREAD, checkout=None, note=NOTE):
-        """Run steps 2 and 3 of a handoff: write the note if there is none yet, then close."""
+        """Run steps 2 and 3 of a handoff: write the note if there is none yet, then archive."""
         for own in (self.home_dir, *self.home_dir.iterdir()):
             ids = own / "home-id"
             mine = ids.is_file() and ids.read_text().split() == [thread]
@@ -213,8 +213,9 @@ def test_after_a_handoff_nobody_is_told(scene, reader):
     assert scene.whom_to_tell(reader) == ""
 
 
-def test_a_handoff_with_no_home_id_file_still_goes_through(scene):
-    assert scene.home_hands_off().returncode == 0
+def test_a_handoff_with_no_home_id_file_archives_nothing(scene):
+    ran = scene.home_hands_off()
+    assert (ran.returncode, ran.stdout.split(": ")[0]) == (1, "not the home")
     assert not scene.file.exists()
 
 
@@ -250,7 +251,7 @@ def test_a_handoff_by_a_thread_that_is_not_the_home_leaves_the_homes_files_alone
 
     ran = scene.home_hands_off(thread, checkout)
 
-    assert ran.stdout == NOT_THE_HOME
+    assert ran.stdout.startswith(NOT_THE_HOME)
     assert (scene.file.read_bytes(), handoff.read_bytes()) == before
 
 
@@ -265,7 +266,7 @@ def test_a_handoff_by_a_second_home_leaves_the_root_homes_files_alone(scene):
 
     ran = scene.home_hands_off(OTHER)
 
-    assert ran.stdout.startswith("the home")
+    assert ran.stdout.startswith("archived: ")
     assert not (second / "home-id").exists()
     assert (scene.file.read_bytes(), handoff.read_bytes()) == before
 
@@ -276,9 +277,12 @@ def test_a_handoff_by_the_home_removes_its_file_and_names_it_on_the_note(scene):
     handoff.write_text(HANDOFF)
     scene.home_hands_off()
     assert not scene.file.exists()
-    assert handoff.read_text() == f"{NOTE}\nWas home: {THREAD}\n"
-    (kept,) = (scene.home_dir / "log").iterdir()
-    assert kept.read_text() == HANDOFF
+    assert not handoff.exists()
+    before, kept = sorted((scene.home_dir / "log").iterdir())
+    assert before.name.endswith("-before.md")
+    assert before.read_text() == HANDOFF
+    assert kept.read_text().startswith(NOTE)
+    assert kept.read_text().endswith(f"\nWas home: {THREAD}\n")
 
 
 @pytest.mark.parametrize("switch", [None, "", f"{OTHER}\n"])
@@ -290,6 +294,6 @@ def test_a_start_and_a_handoff_leave_the_merge_switch_as_it_was(scene, switch):
         merges.write_text(switch)
     scene.home_starts()
     assert scene.file.read_text() == f"{THREAD}\n"
-    assert scene.home_hands_off().stdout.startswith("the home")
+    assert scene.home_hands_off().stdout.startswith("archived: ")
     assert not scene.file.exists()
     assert (merges.read_text() if merges.exists() else None) == switch

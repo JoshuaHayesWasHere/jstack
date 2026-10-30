@@ -20,14 +20,15 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 
 | File | Holds |
 |---|---|
-| `handoff.md` | The note the last home left, at most ten lines: what is next, what it has out that jbus does not hold, what not to redo, what is uncommitted, and any gate jbus could not take. The `handoff` skill rewrites it. Where things stand is read from jbus at the next start. |
+| `handoff.md` | A note a home left when the `handoff` skill still started the next home, where one is left. A start reads it, and the next archive moves it to `log/`. |
 | `plan.md` | One entry per open task, each with a "Done when" list and your decisions. It holds no status: `jbus plan` counts one from the entry's queue rows. |
 | `plan-done.md` | The sections of the entries that are finished, moved there by `jbus plan close <entry>`. |
 | `gates.md` | Each question only you can answer, with the default taken. |
 | `blockers.json` | Each blocker this home briefed a fix of, by its key, with each fix queued for it: `jbus queue add` counts them against `retry_cap` ([Decisions](../../jbus/docs/jbus/decisions.md)). |
 | `home-id` | The home's thread id. The home's start writes it. |
 | `prefix` | A scoped home's slug prefix, such as `ux-`, which starts each of its briefs and requests. The root home writes it when it makes the scope. |
-| `log/` | Old handoffs, dated. |
+| `log/` | The note of each home archived here, dated: what it had out that jbus did not hold, what was uncommitted, what it handed to the root home, and its `Was home:` line. Older notes too. |
+| `plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that nothing counts the scope as a home. `/home <scope>` moves it back. |
 
 A thread messages its home only when the home has something to do.
 A crewmate tells it only that its task ended with no pull request, or that its task is paused.
@@ -38,7 +39,8 @@ A reviewer sends nothing: jbus tells the crewmate of its review when the crewmat
 "Telling the home" in `features/crew/SKILL.md` has every case.
 The message goes to the id in a `home-id`, read when it is sent: the root home's, or the one in `<scope>/` when the `Home:` line of the brief or request names that scope.
 No brief names a thread, so a home that starts rewrites none.
-Between a handoff and the next start there is no `home-id`, nothing is sent, and the report waits on disk.
+Once a scoped home is archived, its briefs are the root home's, and their reports go to the root.
+Once the root home is archived there is no `home-id`, nothing is sent, and the report waits on disk until someone types `/home`.
 
 ## Undo an edit to standing.md
 

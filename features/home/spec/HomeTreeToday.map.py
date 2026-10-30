@@ -1,7 +1,7 @@
 # Chart labels for HomeTreeToday: what Josh sees of the root and its children.
 reader_actions = ["Answer", "Retire", "Steps"]
 
-LIFE = {"working": "working", "stuck": "stuck", "retired": "retired"}
+LIFE = {"working": "working", "stuck": "stuck", "retired": "retired", "handed": "handed to the root"}
 WORK = {
     "none": "",
     "crew": ", crew out",
@@ -135,7 +135,7 @@ def step(action, before, after):
 
 def cause(v, facts, invariant):
     return {
-        "NoRetireWithOpen": "nothing checks what a scope has out when its handoff ends it",
+        "RetireHandsOver": "a scope archived with work out leaves that work with no home",
         "CallsReachJosh": "a post to the home thread fails, and the call leaves its outbox"
         " all the same",
         "StallFlagged": "a hung thread is a quiet event, logged and sent to nobody",

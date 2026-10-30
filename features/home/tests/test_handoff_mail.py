@@ -1,6 +1,6 @@
-"""A handoff does not lose a message sent to the home. When a message still comes to a thread that
-handed off, that thread sends it on to nobody and tells the sender the next home's id, so the
-sender sends it again there. No party keeps a file for the home.
+"""An archive does not lose a message sent to the home. When a message still comes to a thread
+that was archived, that thread sends it on to nobody and tells the sender the home's id now, or
+that the repo has no home, so the sender sends it again there. No party keeps a file for the home.
 The user's word reaches the home by `jbus word`. So a home's start does not read a `to-<repo>.md`
 left beside the home, a handoff does not name that file, and the handoff tells no party the new id.
 Each test takes every block it runs from the skill that has the block, and runs it in a temporary
@@ -14,13 +14,14 @@ import subprocess
 import pytest
 
 from test_home_thread import NAME, OTHER, THREAD, Scene, block, paths, start_block
-from test_scoped_handoff import PAGE, HandingOff
-from test_scoped_home import SCOPE, SCOPED
+from test_home_thread import NOTE as PAGE
+from test_scoped_handoff import HandingOff, jbus_says
+from test_scoped_home import ROOT, SCOPE, SCOPED
 from test_tool_calls import CALLS, errors
 
 NEXT = "mcp:the-next-home"
 COOK = "mcp:a-cook"
-(TELL_THE_SENDER,) = (
+TELL_THE_SENDER, NO_HOME = (
     call for call in CALLS if call.where.startswith("handoff:") and call.tool == "t3_thread_send"
 )
 
@@ -46,7 +47,8 @@ class Mail(Scene):
         return self.run("home", start_block(), self.main, thread).stdout.splitlines()
 
     def hands_off(self, thread=THREAD, page=PAGE):
-        assert self.home_hands_off(thread, note=page).returncode == 0
+        ran = self.home_hands_off(thread, note=page)
+        assert ran.returncode == 0, ran.stdout
 
     def sent_a_message(self, thread):
         """What the block of "After the handoff" prints when a message has come to `thread`."""
@@ -71,22 +73,22 @@ def test_the_handoff_names_no_file_another_party_keeps_for_the_home(mail):
     mail.home_starts(THREAD)
     mail.kept.write_text("# Open asks\n")
     mail.hands_off()
-    assert (mail.home_dir / "handoff.md").read_text() == f"{PAGE}\nWas home: {THREAD}\n"
+    (kept,) = (mail.home_dir / "log").iterdir()
+    assert "to-" not in kept.read_text()
 
 
-def test_a_thread_that_handed_off_tells_the_sender_the_next_home_and_sends_nothing_on(mail):
+def test_an_archived_root_home_tells_the_sender_there_is_no_home_then_the_next_one(mail):
     mail.home_starts(THREAD)
     assert mail.sent_a_message(THREAD).startswith("a home: ")
     mail.hands_off()
     assert mail.sent_a_message(THREAD) == (
-        f"handed off: this thread's id is in no home-id, and {mail.file} holds none yet. "
-        "Do not act on the message and send it on to nobody: tell the sender, once, the id "
-        "this thread's own launch of the next home gave. With no such launch, tell the "
-        f"sender to read {mail.home_dir}/handoff.md\n"
+        f"archived: this thread's id is in no home-id, and {NAME} has no home now. Do not act on "
+        f"the message and send it on to nobody: tell the sender, once, that {NAME} has no home "
+        f"until someone types /home, and that {mail.file} names it then\n"
     )
     mail.home_starts(NEXT)
     assert mail.sent_a_message(THREAD) == (
-        "handed off: this thread's id is in no home-id. Do not act on the message and send "
+        "archived: this thread's id is in no home-id. Do not act on the message and send "
         f"it on to nobody: tell the sender, once, that {NEXT} is the home now\n"
     )
     assert mail.sent_a_message(NEXT).startswith("a home: ")
@@ -98,23 +100,21 @@ def test_with_no_id_of_its_own_a_thread_is_not_told_it_handed_off(mail, unfilled
     assert mail.sent_a_message(unfilled).startswith("not known: ")
 
 
-def test_a_thread_no_handoff_names_sends_nothing_on_to_the_root(tmp_path):
+def test_an_archived_scoped_home_points_the_sender_at_the_root_home(tmp_path, monkeypatch):
     homes = HandingOff(tmp_path)
-    homes.hands_off(SCOPED, homes.scope_dir)
-    homes.home_starts(NEXT, SCOPE)
+    jbus_says(homes, monkeypatch, "")
+    homes.archives(SCOPED, homes.scope_dir)
     found = block("handoff", "Do not act on the message")
 
     def said(thread):
         return homes.run("handoff", found.replace("<threadId>", thread), homes.main).stdout
 
-    assert f"tell the sender, once, that {NEXT} is the home now" in said(SCOPED)
-    (homes.scope_dir / "handoff.md").write_text(PAGE)
-    for thread in (SCOPED, OTHER):
-        assert said(thread) == (
-            "no home's: this thread's id is in no home-id and on no handoff's Was home: line, "
-            "so no file says whose mail this is. Do not act on the message: tell the sender "
-            f"to read {homes.home_dir}/home-id\n"
-        )
+    assert f"tell the sender, once, that {ROOT} is the home now" in said(SCOPED)
+    assert said(OTHER) == (
+        "no home's: this thread's id is in no home-id and on no archived home's Was home: line, "
+        "so no file says whose mail this is. Do not act on the message: tell the sender "
+        f"to read {homes.home_dir}/home-id\n"
+    )
 
 
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh is not installed")
@@ -137,14 +137,15 @@ def test_the_blocks_run_in_zsh_in_a_repo_with_no_scope_and_no_party(mail):
         return ran.stdout
 
     me = {"<threadId>": THREAD}
-    assert zsh('jbus forget "$M/home-id"', **me).startswith("the home: ")
+    assert zsh('jbus forget "$M/home-id"', **me).startswith("archived: ")
     assert not mail.file.exists()
-    assert zsh("Do not act on the message", **me).startswith("handed off: ")
+    assert zsh("Do not act on the message", **me).startswith("archived: ")
 
 
-def test_a_scoped_home_that_handed_off_names_its_own_next_home_to_the_sender(tmp_path):
+def test_a_scoped_home_started_again_is_named_to_the_sender(tmp_path, monkeypatch):
     homes = HandingOff(tmp_path)
-    homes.hands_off(SCOPED, homes.scope_dir)
+    jbus_says(homes, monkeypatch, "")
+    homes.archives(SCOPED, homes.scope_dir)
     homes.home_starts(NEXT, SCOPE)
     found = block("handoff", "Do not act on the message").replace("<threadId>", SCOPED)
     told = f"tell the sender, once, that {NEXT} is the home now"
@@ -156,7 +157,7 @@ def test_the_sender_is_told_the_new_id_and_that_its_message_was_not_sent_on():
     told = json.loads(
         TELL_THE_SENDER.written.replace("<thread>", COOK)
         .replace("<repo>", NAME)
-        .replace("<the next home's id>", NEXT)
+        .replace("<the home's id>", NEXT)
         .replace("<the home-id file>", file)
     )
     assert told == {
@@ -165,3 +166,16 @@ def test_the_sender_is_told_the_new_id_and_that_its_message_was_not_sent_on():
         f"Send it there if it still stands, and read the id in {file} before each send.",
     }
     assert errors(TELL_THE_SENDER, told) == []
+
+
+def test_the_sender_is_told_the_repo_has_no_home():
+    file = "/state/a demo repo/home-id"
+    told = json.loads(
+        NO_HOME.written.replace("<thread>", COOK).replace("<repo>", NAME).replace("<the home-id file>", file)
+    )
+    assert told == {
+        "threadId": COOK,
+        "message": f"{NAME}: there is no home now, and your message was not sent on. A home starts "
+        f"when someone types /home: read the id in {file} before each send.",
+    }
+    assert errors(NO_HOME, told) == []

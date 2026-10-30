@@ -251,13 +251,13 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">14</span><code>/handoff</code></b><small>Files what was learned, launches the next home with <code>/home &lt;seed&gt;</code>, the seed shaped as <code>features/home/templates/handoff-seed.md</code>, then renames and settles itself.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>handoff.md</b><small>shaped as <code>features/home/templates/handoff.md</code>, ending in <code>Was home:</code>. The old one moves to <code>log/</code>.</small></div><div class="box file"><b>home-id</b><small>removed. <code>home-thread</code> is left as it is.</small></div></div>
+      <div class="cell h"><div class="box"><b><span class="n">14</span><code>/handoff</code></b><small>Archives the home: hands what it has out to the root home, starts no next home, switches off its scheduled tasks, then renames and settles itself.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>log/</b><small>the note, shaped as <code>features/home/templates/handoff.md</code>, with what moved to the root and ending in <code>Was home:</code>.</small></div><div class="box file"><b>home-id</b><small>removed, and a scope's <code>plan.md</code> moved to <code>plan-archived.md</code>. <code>home-thread</code> is left as it is.</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
   </div>
-  <p class="lead" style="margin-top: 12px">The next home starts at step 1 from that one page.</p>
+  <p class="lead" style="margin-top: 12px">No home starts after it: a home started later in that directory begins at step 1.</p>
 </section>
 
 <section>
@@ -298,8 +298,7 @@
       <tr><td><code>features/crew/templates/rerun.md</code></td><td>9</td><td>Crewmate, and the reviewer</td><td>The one message that runs a reviewer <code>again</code>, which is the only rerun message a reviewer accepts</td></tr>
       <tr><td><code>features/expert/templates/expert-answer.md</code></td><td>any</td><td>Expert</td><td>An answer to an ask, in its four parts. It is not a step of a task</td></tr>
       <tr><td><code>features/jpack/templates/context</code></td><td>4</td><td>A scout or a crewmate, on the subject repo's brief</td><td>A repo's context pack, copied into the repo it is about and read by its home at its start (<code>features/jpack/docs/context.md</code>)</td></tr>
-      <tr><td><code>features/home/templates/handoff.md</code></td><td>14</td><td>Home</td><td><code>handoff.md</code></td></tr>
-      <tr><td><code>features/home/templates/handoff-seed.md</code></td><td>14</td><td>Home</td><td>The next home's first message</td></tr>
+      <tr><td><code>features/home/templates/handoff.md</code></td><td>14</td><td>Home</td><td>The note an archived home keeps in <code>log/</code></td></tr>
       <tr><td><code>features/skill-library/templates/playbook.md</code></td><td>none</td><td>Whoever writes a playbook, by <code>features/skill-library/playbooks/authoring-a-playbook.md</code></td><td>The frame of a playbook file</td></tr>
     </tbody>
   </table>
@@ -332,8 +331,8 @@
     <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home &lt;threadId&gt;</code> merges nothing.</li>
     <li>Homes never send each other a message of their own. The root carries your word to a scope with <code>jbus word --scope</code>, a scope reaches the root only with <code>jbus stop</code>, and a fault found in another home's work is a queued row of that home's.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
-    <li>A scoped home closes at its handoff when its plan has no open entry and <code>jbus out --scope</code> prints nothing, and then it starts no next home.</li>
-    <li>The root home reads a scope's handoff and open plan entries when you ask for status.</li>
+    <li>A scoped home is archived by <code>/handoff</code>: what <code>jbus out --scope</code> prints for it is the root home's from then on, and <code>/home &lt;scope&gt;</code> starts it again.</li>
+    <li>The root home reads a scope's open plan entries when you ask for status.</li>
   </ul>
 </section>
 
@@ -369,7 +368,7 @@
       <tr><td>Crewmate: pull request merged</td><td><span class="chip auto">auto</span></td><td>T3 Code, because the pull request is linked to the thread</td></tr>
       <tr><td>Scout: report done, no page</td><td><span class="chip auto">auto</span></td><td>Itself, once the home is told</td></tr>
       <tr><td>Reviewer: <code>## Review</code> written</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
-      <tr><td>Home: <code>/handoff</code> finished</td><td><span class="chip auto">auto</span></td><td>Itself, after it has launched the next home</td></tr>
+      <tr><td>Home: <code>/handoff</code> finished</td><td><span class="chip auto">auto</span></td><td>Itself, once it is archived</td></tr>
       <tr><td>Crewmate: pull request open</td><td><span class="chip never">not yet</span></td><td>Stays on the pull request</td></tr>
       <tr><td>Scout: report done, with a page</td><td><span class="chip never">not yet</span></td><td>Itself, once you have ended the page's session</td></tr>
       <tr><td>Crewmate: done, but uncommitted or unpushed work is left</td><td><span class="chip never">never auto</span></td><td>You. The sweep prints <code>kept</code> and the reason.</td></tr>
@@ -389,7 +388,7 @@
       <tr><td>Scout</td><td><code>/scout &lt;slug&gt;</code></td><td><code>features/scout/SKILL.md</code></td></tr>
       <tr><td>Crewmate</td><td><code>/crew &lt;slug&gt;</code></td><td><code>features/crew/SKILL.md</code></td></tr>
       <tr><td>Reviewer</td><td><code>/pr-review run &lt;slug&gt;</code>, sent by a launcher</td><td><code>features/pr-review/SKILL.md</code></td></tr>
-      <tr><td>A home that closes</td><td><code>/handoff</code></td><td><code>features/home/skills/handoff/SKILL.md</code></td></tr>
+      <tr><td>A home that is archived</td><td><code>/handoff</code></td><td><code>features/home/skills/handoff/SKILL.md</code></td></tr>
       <tr><td>A home that plans an unsettled shape</td><td>read by the home, not typed</td><td><code>features/grilling/SKILL.md</code></td></tr>
     </tbody>
   </table>

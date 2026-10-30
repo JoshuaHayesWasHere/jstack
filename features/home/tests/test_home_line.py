@@ -52,7 +52,7 @@ class Homes(Scene):
     def hands_off(self, thread, scope=""):
         own = self.home_dir / scope
         (own / "handoff.md").write_text("# a demo repo: handoff\n\n## Loose ends\nNone\n")
-        assert self.home_hands_off(thread).stdout.startswith("the home")
+        assert self.home_hands_off(thread).stdout.startswith("archived: ")
         assert not (own / "home-id").exists()
 
     def sums(self):
@@ -134,6 +134,20 @@ def test_between_a_handoff_and_the_next_start_nobody_is_told(homes, reader, scop
 
 
 @pytest.mark.parametrize("reader", READERS)
+def test_an_archived_scopes_thread_tells_the_root_home_and_its_own_once_it_starts_again(
+    homes, reader
+):
+    slug = homes.sent(reader, "a-task", f"Home: {SCOPE}")
+    homes.home_starts(THREAD)
+    homes.home_starts(OTHER, SCOPE)
+    assert homes.reports_to(reader, slug) == f"{OTHER}\n"
+    homes.hands_off(OTHER, SCOPE)
+    assert homes.reports_to(reader, slug) == f"{THREAD}\n"
+    homes.home_starts(NEXT, SCOPE)
+    assert homes.reports_to(reader, slug) == f"{NEXT}\n"
+
+
+@pytest.mark.parametrize("reader", READERS)
 def test_each_home_is_told_of_its_own_and_of_no_other_homes(homes, reader):
     mine = homes.sent(reader, "mine")
     theirs = homes.sent(reader, "theirs", f"Home: {SCOPE} (a second home of this repo)")
@@ -143,13 +157,15 @@ def test_each_home_is_told_of_its_own_and_of_no_other_homes(homes, reader):
     assert (homes.reports_to(reader, mine), homes.reports_to(reader, theirs)) == ("", f"{OTHER}\n")
     homes.home_starts(NEXT)
     homes.hands_off(OTHER, SCOPE)
-    assert (homes.reports_to(reader, mine), homes.reports_to(reader, theirs)) == (f"{NEXT}\n", "")
+    told = (f"{NEXT}\n", f"{NEXT}\n")
+    assert (homes.reports_to(reader, mine), homes.reports_to(reader, theirs)) == told
 
 
 @pytest.mark.parametrize("reader", READERS)
 def test_a_brief_written_before_names_a_thread_and_still_finds_its_home(homes, reader):
-    """An id in a `home-id` names that home. A scoped home's handoff names a thread, and that
-    thread's id names the scoped home too. Any other id names the root home."""
+    """An id in a `home-id` names that home. A scoped home's older handoff names a thread, and that
+    thread's id names the scoped home too. Any other id names the root home, the id of an archived
+    scoped home's thread too, whose note is in `log/`."""
     scoped = homes.sent(reader, "scoped", f"Home: {OTHER}")
     root = homes.sent(reader, "root", f"Home: {THREAD}  ")
     gone = homes.sent(reader, "gone", "Home: mcp:a-home-of-long-ago (the root home)")
@@ -166,9 +182,9 @@ def test_a_brief_written_before_names_a_thread_and_still_finds_its_home(homes, r
     homes.hands_off(NEXT)
     assert [homes.reports_to(reader, slug) for slug in (scoped, root, gone)] == [""] * 3
     homes.home_starts(THREAD)
-    assert homes.reports_to(reader, scoped) == ""
+    assert homes.reports_to(reader, scoped) == f"{THREAD}\n"
     homes.home_starts("mcp:the-next-scoped-home", SCOPE)
-    assert homes.reports_to(reader, scoped) == "mcp:the-next-scoped-home\n"
+    assert homes.reports_to(reader, scoped) == f"{THREAD}\n"
 
 
 @pytest.mark.parametrize("reader", READERS)

@@ -572,7 +572,7 @@ def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
                 key = "statusLine", script(value["statusLine"]["command"])
                 assert value["statusLine"] == written.get(key), (path.name, key)
                 shown.add(key)
-    assert len(shown) >= 5
+    assert len(shown) >= 4
 
 
 def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prints_its_own(

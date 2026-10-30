@@ -1,7 +1,7 @@
 # A home and its handoff
 
-The home skill makes a thread the home of a repo: it plans with the user, queues briefs, and hands off to a fresh home before its context grows.
-`new-home` adds a repo, `nohome` opts out, `handoff` writes the short note and starts the next home, and `features/home/hooks/home-start.sh` starts a home in a new thread by itself.
+The home skill makes a thread the home of a repo: it plans with the user, queues briefs, and runs until it is archived.
+`new-home` adds a repo, `nohome` opts out, `handoff` archives a home and starts no next one, and `features/home/hooks/home-start.sh` starts a home in a new thread by itself.
 An agent runs these skills in a thread; the tests lift each shell block and run it.
 
 Paths:
@@ -11,7 +11,6 @@ Paths:
 - `features/home/skills/handoff/`
 - `features/home/hooks/home-start.sh`
 - `features/home/templates/handoff.md`
-- `features/home/templates/handoff-seed.md`
 - `features/home/templates/hook-message.md`
 - `features/home/templates/plan-entry.md`
 Tests: none
