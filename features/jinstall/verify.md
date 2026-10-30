@@ -154,6 +154,18 @@ To install from a release's own `install.sh`, as a new user does, use a fourth s
   It prints `old optional hook ... -> a hook of the repo's own, which the install does not write over: run sh '<script>' "$@" from it` and exits 1.
   The repo's `pre-push` is as it was.
 
+To install from `main` with no release, as the docs' `curl .../main/install.sh | sh` does, use a fifth sandbox:
+
+- **Clone main.**
+  Run `git clone -q --bare "$VERIFY_JSTACK_REPO" "$VERIFY_JSTACK_SANDBOX/jstack.git"`, then `git -C "$VERIFY_JSTACK_SANDBOX/jstack.git" update-ref refs/heads/main <the commit to drive>`.
+  Export `JSTACK_GIT_URL=git+file://$VERIFY_JSTACK_SANDBOX/jstack.git@main`.
+- **Pipe the checkout's install.sh into sh from no checkout.**
+  Run `cd "$HOME" && PATH="$HOME/.local/bin:$PATH" record git sh -c "sh < '$VERIFY_JSTACK_REPO/install.sh'"`.
+  It prints `Installed 10 executables` from `uv`, then setup's lines, the last of them `done units <HOME>/.config/systemd/user`.
+  Every setup line is `done` or `already`, except for the `needs you` and `missing optional` lines for what a sandbox lacks (`t3`, `gh sign-in`), so it exits 1.
+- **Check it.**
+  Run `PATH="$HOME/.local/bin:$PATH" record git jinstall --check`, which exits 0.
+
 To follow a move, use a third sandbox with a clone of this checkout at the commit before a merge that moved a skill, so that you can pull the merge as `jmerge` pulls it.
 A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a merge.
 `features/jmerge/tests/test_jmerge_follow.py` drives the run that `jmerge` makes after such a merge.

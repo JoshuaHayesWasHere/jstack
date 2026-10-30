@@ -310,7 +310,19 @@ def a_new_user(tmp_path):
     home.mkdir()
     narrow = tmp_path / "narrow"
     narrow.mkdir()
-    for program in ("sh", "curl", "dirname", "mkdir", "ln", "cat", "readlink", "git"):
+    for program in (
+        "sh",
+        "curl",
+        "dirname",
+        "mkdir",
+        "ln",
+        "cat",
+        "readlink",
+        "git",
+        "basename",
+        "sed",
+        "uname",
+    ):
         (narrow / program).symlink_to(shutil.which(program))
     (narrow / "systemctl").symlink_to(SYSTEMCTL)
     installer = tmp_path / "uv-installer.sh"
