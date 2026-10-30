@@ -403,9 +403,9 @@ def _table(table: argparse.ArgumentParser) -> None:
     verify.add_argument("--brief", metavar="PATH", help="the brief to check, not the stored one")
     check = table_verbs.add_parser(
         "check",
-        help="the faults add would refuse the brief on stdin for, one a line; writes nothing",
-        description="Check the brief on stdin as add does, and write nothing: exit 0 when add "
-        "would take it, 1 with one fault a line. Warnings print as add prints them.",
+        help="the faults of the lines of the brief on stdin, one a line; writes nothing",
+        description="Check the lines of the brief on stdin as add does, and write nothing: exit 0 "
+        "when they have no fault, 1 with one fault a line. Warnings print as add prints them.",
         allow_abbrev=False,
     )
     check.add_argument("slug", nargs="?", help="the row's slug; by default the brief's # <slug>")

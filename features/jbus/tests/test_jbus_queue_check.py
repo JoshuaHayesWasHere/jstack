@@ -112,8 +112,17 @@ def test_check_refuses_a_for_that_is_not_the_briefs_home(kitchen):
 
 
 def test_check_reads_the_slug_from_the_title_or_takes_one_given(kitchen):
-    text = complete("alpha").replace("# alpha: a task", "# a task with no slug")
-    assert checks(kitchen, text, "alpha")[0] == 0
+    (kitchen.home / "flow").mkdir()
+    (kitchen.home / "flow" / "home-id").write_text("t3:flow\n")
+    text = complete("alpha")
+    assert checks(kitchen, text, "--for", "flow") == (
+        1,
+        "--for flow, and alpha's brief is the root home's\n",
+    )
+    assert checks(kitchen, text, "beta", "--for", "flow") == (
+        1,
+        "--for flow, and beta's brief is the root home's\n",
+    )
 
 
 def test_check_of_a_queued_rows_edit_refuses_what_add_refuses(kitchen):
