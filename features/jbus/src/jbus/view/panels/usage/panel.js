@@ -6,10 +6,10 @@ function usageSay(u) {
 }
 function usageTask(slug) { return USAGE && USAGE.tasks.filter(function (u) { return u.slug === slug; })[0]; }
 function homesSay() {
-  var l = USAGE.limit, homes = USAGE.homes;
+  var homes = USAGE.homes;
   if (!homes.length) return "No home is out.";
-  return "Peak context of each home, held to " + (l.limit == null ? "a limit that is not known" : num(l.limit)) + ": " + homes.map(function (u) {
-    return '<code>' + esc(u.title) + '</code> ' + (u.known ? num(u.peak_context) + (l.limit ? " (" + Math.round(u.peak_context / l.limit * 100) + "%)" : "") : esc(u.said));
+  return "Peak context of each home: " + homes.map(function (u) {
+    return '<code>' + esc(u.title) + '</code> ' + (u.known ? num(u.peak_context) : esc(u.said));
   }).join(", ") + ".";
 }
 function usageFill() {
@@ -37,9 +37,8 @@ function dUsage(arg, data) {
     if (u.known) h += '<h3>All of them</h3>' + figures(u) + '<h3>' + plural(u.sessions.length, "session", "sessions") + ', oldest first</h3><ul class="clean rows">' + u.sessions.map(function (s) { return '<li>' + usageSay({ known: true, total: s.total, calls: s.calls, peak_context: s.peak_context, first: s.first, last: s.last }) + '</li>'; }).join("") + '</ul>';
     return h;
   }
-  var l = all.limit;
   h = head("Usage", "Tokens and context") + from;
-  h += '<h3>Homes</h3><p class="src">Each is the session of the main checkout that started with its thread. Held to ' + (l.limit == null ? "a limit that is not known" : num(l.limit) + ", and refused at " + num(l.ceiling)) + ', from <code>' + esc(l.from) + '</code>.</p><ul class="clean rows">' + (all.homes.length ? all.homes.map(function (o) { return '<li><code>' + esc(o.title) + '</code><br>' + usageSay(o) + '</li>'; }).join("") : '<li class="src">No home is out.</li>') + '</ul>';
+  h += '<h3>Homes</h3><p class="src">Each is the session of the main checkout that started with its thread.</p><ul class="clean rows">' + (all.homes.length ? all.homes.map(function (o) { return '<li><code>' + esc(o.title) + '</code><br>' + usageSay(o) + '</li>'; }).join("") : '<li class="src">No home is out.</li>') + '</ul>';
   h += '<h3>Tasks</h3><ul class="clean rows">' + all.tasks.map(function (t) { return '<li class="' + (t.slug === arg ? "hit" : "") + '">' + openBtn("usage:" + t.slug, t.slug) + '<br>' + usageSay(t) + '</li>'; }).join("") + '</ul>';
   return h;
 }
