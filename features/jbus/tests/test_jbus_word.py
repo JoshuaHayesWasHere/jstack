@@ -28,6 +28,7 @@ def thread(digit):
 
 HOME, WAS, CREW, NOBODY = thread("a"), thread("b"), thread("c"), thread("0")
 CHAT, REF = thread("e"), f"{thread('e')}/m-word"
+LAUNCH = "mcp:launch:" + "3e50f5b2" * 8
 SAID = ("--message", REF)
 
 
@@ -153,19 +154,21 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
     assert not word.path(kitchen.state).exists()
 
 
-def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
-    (kitchen.home / "home-id").write_text(f"{HOME}\n")
-    assert kitchen.main("word", "--to", "demo", "--from", HOME, *SAID) == (
+@pytest.mark.parametrize("home", [HOME, LAUNCH])
+def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen, home):
+    """2026-10-30: a home launched over MCP has a `mcp:launch:<hex>` id, and jbus refused it."""
+    (kitchen.home / "home-id").write_text(f"{home}\n")
+    assert kitchen.main("word", "--to", "demo", "--from", home, *SAID) == (
         0,
         kept_not_posted(
-            kitchen, f"it was recorded by this project's home thread {HOME}", thread=HOME
+            kitchen, f"it was recorded by this project's home thread {home}", thread=home
         ),
     )
-    again = kitchen.main("word", "--to", "demo", "--from", HOME, *SAID)
+    again = kitchen.main("word", "--to", "demo", "--from", home, *SAID)
     assert again == (
         0,
         kept_not_posted(
-            kitchen, f"it was recorded by this project's home thread {HOME}", thread=HOME
+            kitchen, f"it was recorded by this project's home thread {home}", thread=home
         ),
     )
     assert not word.path(kitchen.state).exists()
@@ -224,14 +227,25 @@ def test_all_skips_only_the_recording_homes_own_copy(kitchen):
     assert len(sends(kitchen)) == 1
 
 
-@pytest.mark.parametrize("given", ["home-jstack", "home-1", "mcp:home", HOME[len("mcp:") :], ""])
+@pytest.mark.parametrize(
+    "given",
+    [
+        "home-jstack",
+        "home-1",
+        "mcp:home",
+        HOME[len("mcp:") :],
+        LAUNCH[:-1],
+        LAUNCH.replace("e", "E"),
+        "",
+    ],
+)
 def test_a_from_that_is_not_a_thread_id_is_refused_and_nothing_is_kept_or_sent(kitchen, given):
     """2026-10-23: the jstack home recorded the user's word with `--from home-jstack`, and jbus
     posted the word into that home, which had already acted on it."""
     (kitchen.home / "home-id").write_text(f"{HOME}\n")
     assert kitchen.main("word", "--to", "demo", "--from", given, *SAID) == (
         1,
-        f'refused: --from is a T3 Code thread id, mcp:<uuid>, not "{given}"\n',
+        f'refused: --from is a T3 Code thread id, mcp:<uuid> or mcp:launch:<hex>, not "{given}"\n',
     )
     assert word.load(kitchen.state) == []
     assert [tool for tool, _ in kitchen.t3.calls if tool == "t3_thread_send"] == []
