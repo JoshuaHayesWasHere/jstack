@@ -47,6 +47,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
+import jbus
 import jsettings
 from jbriefs import home as homes
 from jbriefs.chains import builds_on
@@ -348,14 +349,14 @@ def _plan(args: argparse.Namespace, config: Config) -> int:
     Every repo has the home skill, so with no `--project` the verb reads the plan of the repo
     it runs in, and refuses a repo the config does not name."""
     project = verbs.here(config, args.project)
+    if not args.verb:
+        print(listing(config, project, args.scope), end="")
+        return 0
     where = path(config.home(project), args.scope)
-    try:
-        rows = queue.load(config.state(project))
-    except queue.Unparsable as error:
-        raise Refused(f"refused: {error}") from error
+    rows = _rows(config, project)
     home, state = config.home(project), config.state(project)
     scope = _scope(home, where.parent)
-    if args.verb and not args.entry:
+    if not args.entry:
         raise Refused(f"refused: {args.verb} needs an entry: jbus plan {args.verb} <entry>")
     if args.verb == "close":
         print(close(where, args.entry, rows))
@@ -365,10 +366,23 @@ def _plan(args: argparse.Namespace, config: Config) -> int:
         return 0
     if args.verb == "stop":
         print("\n".join(stop(config.user, state, home, scope, args.entry)))
-        return 0
-    mine = [one for one in goes(state) if one.scope == scope]
-    print(shown(where.read_text(), rows, mine) or f"no entry in {where}\n", end="")
     return 0
+
+
+def _rows(config: Config, project: jbus.Project) -> list[queue.Row]:
+    try:
+        return queue.load(config.state(project))
+    except queue.Unparsable as error:
+        raise Refused(f"refused: {error}") from error
+
+
+def listing(config: Config, project: jbus.Project, scope: str | None) -> str:
+    """Return what `jbus plan` prints: a line for each entry of the plan of the root home, or of
+    the scoped home `scope`, with its status. A home's start prints the same (`jbus.homestatus`)."""
+    where = path(config.home(project), scope)
+    home, state = config.home(project), config.state(project)
+    mine = [one for one in goes(state) if one.scope == _scope(home, where.parent)]
+    return shown(where.read_text(), _rows(config, project), mine) or f"no entry in {where}\n"
 
 
 def go(

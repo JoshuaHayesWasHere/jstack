@@ -11,7 +11,7 @@ import textwrap
 
 import pytest
 
-from test_home_thread import as_read
+from test_home_thread import STATUS, as_read
 from test_jbus_kitchen import complete
 from testing.layouts import assembled
 
@@ -269,7 +269,7 @@ def test_nohome_switches_a_repo_off_and_on_before_any_home_has_started_there(sce
     assert scene.start() == scene.said(first=True)
 
 
-START = "## to read"
+START = STATUS
 LONG = "it waits on a long reason that a pass wrote, " * 6
 
 
@@ -469,6 +469,21 @@ def test_a_start_with_no_jbus_reads_the_plan_whole_and_says_why_it_has_no_queue(
     assert said["merged"] == []
     (line,) = said["to read"]
     assert line.startswith("no mark yet: 0 headings")
+
+
+def test_the_block_that_reads_jbus_says_why_where_its_command_fails(scene):
+    """A failed `jbus home status --gates` leaves no question and no project, and says why, so a
+    later block does not read the failure as "none is open"."""
+    scene.home_dir.mkdir(parents=True)
+    (scene.home_dir / "plan.md").write_text("# plan\n")
+    reads = block("home", "OPEN=")
+    assert '"$T/../source"' in reads
+    broken = reads.replace('"$T/../source"', '"$T/../no-source"')
+    shown = 'printf "%s|%s|%s|%s\\n" "$own" "$P" "$WHY" "$OPEN"'
+    said = scene.run("home", f'M="$H"\n{broken}\n{shown}')
+    assert re.fullmatch(
+        r"home\|\|jbus could not be read: jbus home status --gates ended \d+\|\n", said
+    )
 
 
 def test_a_start_reads_the_repos_context_pack_index_after_the_rules_and_the_note(bus):
