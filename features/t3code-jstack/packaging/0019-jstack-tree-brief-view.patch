@@ -1,0 +1,1529 @@
+From daa1bda51f50a34f37cf67656d211352116a9e00 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Fri, 30 Oct 2026 00:28:30 -0400
+Subject: [PATCH] feat(web): a jstack brief opens as what it says: its one
+ line, chips, what is out of bounds, a checklist, and the Markdown one click
+ away
+
+"Open brief" showed the brief file as one block of monospace text. It now draws the brief in
+one column: its one line, then Size, Review, Playbook, Pull request and Home as chips, then
+Do not touch (or a scout's Out of bounds) as a band directly under them, then the brief's own
+lines in its order, each under an 11px label: Task quoted, Done when a checklist, Questions
+numbered, Where as file chips, Builds on and Follows as links. Decisions, Design, Skills, a
+scout's lines and jbus's own lines fold under "More", each `## ` section (Report, Result,
+Review) is its own fold, and "Markdown" shows the file as jbus keeps it.
+
+The parse reads jbus's label grammar and the line names of jstack's brief and scout request
+templates, jbus's own lines and `Follows:`, one registry giving each its place and look. A
+line no template names is kept as written, with the list under it, where it was written.
+
+A Builds on or Follows link to a row the tree has closes the dialog, unfolds the row's project,
+lifts its home's cap and selects the row, which takes the focus; it stays the tree's selection
+until the route moves. A row the tree no longer has says "not in the tree".
+
+The dialog keeps to 13/400 and 11/400: DialogTitle and DialogDescription take a compact size
+and Button a row size. Its one accent, sky, is a theme colour (jstack-link) on the links only.
+The approve flow is as it was: the sha line, Close and "Approve this brief", none for a scout.
+---
+ apps/web/src/components/Sidebar.tsx           |  36 +-
+ .../JstackBriefDialog.browser.test.tsx        | 280 ++++++++++++++-
+ .../components/sidebar/JstackBriefDialog.tsx  |  56 ++-
+ .../components/sidebar/JstackBriefView.tsx    | 318 ++++++++++++++++++
+ .../sidebar/JstackTreeRows.browser.test.tsx   |   5 +-
+ .../sidebar/jstackAskOnAdd.browser.test.tsx   |   2 +-
+ .../components/sidebar/jstackBrief.logic.ts   | 213 ++++++++++++
+ .../sidebar/jstackTree.logic.test.ts          |  46 ++-
+ .../components/sidebar/jstackTree.logic.ts    |  28 +-
+ apps/web/src/components/ui/button.tsx         |   2 +
+ apps/web/src/components/ui/dialog.tsx         |  38 ++-
+ apps/web/src/index.css                        |   6 +-
+ .../jstack-briefs/jinstall-retired-hooks.txt  |  15 +
+ .../jstack-briefs/jv-color-design.txt         |  40 +++
+ .../jstack-briefs/sb-type-b2-build.txt        |  24 ++
+ 15 files changed, 1064 insertions(+), 45 deletions(-)
+ create mode 100644 apps/web/src/components/sidebar/JstackBriefView.tsx
+ create mode 100644 apps/web/src/components/sidebar/jstackBrief.logic.ts
+ create mode 100644 apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt
+ create mode 100644 apps/web/test/fixtures/jstack-briefs/jv-color-design.txt
+ create mode 100644 apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt
+
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index bf5708a6d3..ccdbf403c7 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -272,6 +272,7 @@ import {
+   rowWordMessage,
+   type JstackAnswering,
+   type JstackRowWord,
++  type JstackSelection,
+   type JstackTree,
+ } from "./sidebar/jstackTree.logic";
+ import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
+@@ -1369,6 +1370,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+   // The one jbus question whose answer row is open, and the one brief shown.
+   const [jstackAnswering, setJstackAnswering] = useState<JstackAnswering | null>(null);
+   const jstackBrief = useJstackBrief();
++  // The task a brief's link showed, the tree's selection in place of the route's until it moves.
++  const jstackRouteThreadId =
++    routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null;
++  const [jstackRevealed, setJstackRevealed] = useState<{
++    readonly repo: string;
++    readonly slug: string;
++    readonly routeThreadId: ThreadId | null;
++  } | null>(null);
++  if (jstackRevealed !== null && jstackRevealed.routeThreadId !== jstackRouteThreadId) {
++    setJstackRevealed(null);
++  }
++  const jstackSelection: JstackSelection =
++    jstackRevealed !== null
++      ? { kind: "task", repo: jstackRevealed.repo, slug: jstackRevealed.slug }
++      : jstackRouteThreadId === null
++        ? null
++        : { kind: "thread", threadId: jstackRouteThreadId };
+   // Scopes asked of a root home from here, shown as starting until jbus's home state has them.
+   const [jstackRequestedScopes, setJstackRequestedScopes] = useState<
+     ReadonlyArray<JbusStartingScope>
+@@ -1412,8 +1430,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+         folderThreads: folder.threads,
+         hiddenThreads: folder.hiddenThreads,
+         collapsed: folder.collapsed,
+-        routeThreadId:
+-          routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null,
++        selection: jstackSelection,
+         expandedHomes: jstackExpandedHomes,
+         frozenOrder: jstackFrozenOrder,
+         childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
+@@ -1490,10 +1507,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     );
+     return sent;
+   };
++  const jstackTaskOf = (repo: string, slug: string) =>
++    jbusWork?.tasks.find((task) => task.repo === repo && task.slug === slug) ?? null;
++  // A brief's link: unfold the task's project and lift its home's cap, then select its row.
++  const revealJstackTask = (repo: string, slug: string) => {
++    const task = jstackTaskOf(repo, slug);
++    if (task === null) return;
++    const rootHome = jbusWork?.homes.find((home) => home.repo === repo && home.scope === null);
++    const root = jstackRoots.find(({ tree }) => tree.root.main?.id === rootHome?.threadId);
++    if (root?.folder.collapsed) toggleProjectFolder(root.folder.group);
++    setJstackExpandedHomes((current) => new Set(current).add(task.homeThreadId));
++    setJstackRevealed({ repo, slug, routeThreadId: jstackRouteThreadId });
++  };
+   const jstackRowActions: JstackTreeRowActions = {
+     onPressRoot: jstackRootOrder.press,
+     onStepRoot: jstackRootOrder.step,
+     onOpenThread: (threadId) => {
++      setJstackRevealed(null);
+       if (primaryEnvironmentId !== null) {
+         navigateToThread(scopeThreadRef(primaryEnvironmentId, threadId));
+       }
+@@ -3908,6 +3938,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+       <JstackBriefDialog
+         shown={jstackBrief.shown}
+         onClose={jstackBrief.close}
++        revealable={(repo, slug) => jstackTaskOf(repo, slug) !== null}
++        onReveal={revealJstackTask}
+         onApprove={(target, sha) =>
+           sendJstackRowWord(target.homeThreadId, target.homeName, {
+             kind: "approve",
+diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
+index f911fac586..5f2c3b4a6b 100644
+--- a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
+@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from "vite-plus/test";
+ import { page, userEvent } from "vite-plus/test/browser";
+ 
+ import "~/index.css";
++import B2_BUILD from "../../../test/fixtures/jstack-briefs/sb-type-b2-build.txt?raw";
++import RETIRED_HOOKS from "../../../test/fixtures/jstack-briefs/jinstall-retired-hooks.txt?raw";
++import COLOR_DESIGN from "../../../test/fixtures/jstack-briefs/jv-color-design.txt?raw";
+ import { render } from "../../../test/render";
+ import { JstackBriefDialog, useJstackBrief, type JstackBriefTarget } from "./JstackBriefDialog";
+ 
+@@ -40,18 +43,45 @@ const target = (overrides: Partial<JstackBriefTarget> = {}): JstackBriefTarget =
+   ...overrides,
+ });
+ 
+-/** A button that opens the brief, as a row's menu item does, with the sidebar's dialog. */
++/**
++ * A button that opens the brief, as a row's menu item does, with the sidebar's dialog, and the
++ * tree's rows of `inTree`, which its links show.
++ */
+ function Opener(props: {
+   target: JstackBriefTarget;
+   onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
++  inTree?: ReadonlyArray<string>;
++  onReveal?: (repo: string, slug: string) => void;
+ }) {
+   const brief = useJstackBrief();
++  const inTree = props.inTree ?? [];
+   return (
+     <>
+       <button type="button" onClick={() => brief.open(props.target)}>
+         Open brief
+       </button>
+-      <JstackBriefDialog shown={brief.shown} onClose={brief.close} onApprove={props.onApprove} />
++      <ul role="tree" aria-label="Tree">
++        {inTree.map((slug) => (
++          <li key={slug}>
++            <button
++              type="button"
++              role="treeitem"
++              tabIndex={-1}
++              aria-selected={false}
++              data-sidebar-row={`jstack-task:jstack/${slug}`}
++            >
++              {slug}
++            </button>
++          </li>
++        ))}
++      </ul>
++      <JstackBriefDialog
++        shown={brief.shown}
++        onClose={brief.close}
++        onApprove={props.onApprove}
++        revealable={(repo, slug) => repo === "jstack" && inTree.includes(slug)}
++        onReveal={props.onReveal ?? (() => undefined)}
++      />
+     </>
+   );
+ }
+@@ -76,9 +106,11 @@ describe("JstackBriefDialog", () => {
+     await openBrief();
+     const dialog = page.getByRole("dialog", { name: "Brief: fl-meter" });
+     await expect.element(dialog).toBeVisible();
+-    const shown = page.getByRole("region", { name: "The brief of fl-meter" });
++    await expect.element(page.getByRole("region", { name: "The brief of fl-meter" })).toBeVisible();
++    // The stored copy as it is, the one an approval names, one click away.
++    await userEvent.click(page.getByRole("button", { name: "Markdown" }));
++    const shown = page.getByRole("region", { name: "The Markdown of fl-meter" });
+     await expect.element(shown).toBeVisible();
+-    // The stored copy as it is, the one an approval names.
+     expect(shown.element().textContent).toBe(BRIEF);
+     await expect.element(dialog).toHaveAccessibleDescription(/brief sha f7de575cc0d0/);
+     expect(server.asked).toEqual([
+@@ -164,8 +196,9 @@ describe("JstackBriefDialog", () => {
+     await expect
+       .element(dialog)
+       .toHaveAccessibleDescription("The brief its home wrote for this scout.");
+-    const shown = page.getByRole("region", { name: "The brief of probe" });
+-    await expect.element(shown).toBeVisible();
++    await expect.element(page.getByRole("region", { name: "The brief of probe" })).toBeVisible();
++    await userEvent.click(page.getByRole("button", { name: "Markdown" }));
++    const shown = page.getByRole("region", { name: "The Markdown of probe" });
+     expect(shown.element().textContent).toBe("# probe: look at the meter\n");
+     expect(server.asked).toEqual([
+       { environmentId, input: { repo: "jstack", slug: "probe", kind: "scout" } },
+@@ -175,3 +208,238 @@ describe("JstackBriefDialog", () => {
+       .not.toBeInTheDocument();
+   });
+ });
++
++// The brief's own words, read back from the dialog as a reader meets them.
++const inRegion = (slug: string) =>
++  page.getByRole("region", { name: `The brief of ${slug}` }).element();
++const textOf = (element: Element | null | undefined) =>
++  (element?.textContent ?? "").replace(/\s+/g, " ").trim();
++/** What a line says, after its label. */
++const said = (name: string, role: "region" | "note" = "region") =>
++  textOf(page.getByRole(role, { name }).element()).slice(name.length);
++const labels = (slug: string) => [...inRegion(slug).querySelectorAll("h3")].map(textOf);
++const chips = () =>
++  [...page.getByRole("list", { name: "At a glance" }).element().querySelectorAll("li")].map(textOf);
++const items = (name: string) =>
++  [...page.getByRole("region", { name }).element().querySelectorAll("li")].map(textOf);
++
++/** Every size and weight a visible text in the dialog computes to. */
++const typeIn = (root: Element) => {
++  const seen = new Set<string>();
++  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
++  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
++    if (node.textContent?.trim() && node.parentElement) {
++      const style = getComputedStyle(node.parentElement);
++      seen.add(`${style.fontSize}/${style.fontWeight}`);
++    }
++  }
++  return [...seen].toSorted();
++};
++
++const tabTo = async (target: { element: () => Element }) => {
++  for (let step = 0; step < 40 && document.activeElement !== target.element(); step += 1) {
++    await userEvent.keyboard("{Tab}");
++  }
++  await expect.element(target as never).toHaveFocus();
++};
++
++describe("JstackBriefDialog draws a brief as what it says", () => {
++  it("a crew brief: the one line, chips, the caution band under them, its lines in order", async () => {
++    server.briefs.set("sb-type-b2-build", { text: B2_BUILD, sha: "248905e4be30" });
++    await using _screen = await render(
++      <Opener
++        target={target({ slug: "sb-type-b2-build", homeName: "the sidebar home" })}
++        onApprove={async () => true}
++        inTree={["sb-scout-report-state"]}
++      />,
++      { router: false },
++    );
++    await openBrief();
++    const dialog = page.getByRole("dialog", { name: "Brief: sb-type-b2-build" });
++    await expect
++      .element(dialog)
++      .toHaveAccessibleDescription(
++        "The copy jbus keeps, brief sha 248905e4be30. Approve sends the sidebar home your go for it.",
++      );
++    const region = inRegion("sb-type-b2-build");
++    expect(textOf(region.querySelector("p"))).toBe(
++      "build take B2: one weight, a ring by thirds, scout diamonds, one sky accent for live work",
++    );
++    expect(chips()).toEqual([
++      "Size M",
++      "Review twice",
++      "Playbook feature",
++      "PR open one when done",
++      "Home sidebar",
++    ]);
++    // The band is the first thing under the chips, before the brief's first line.
++    const band = page.getByRole("note", { name: "Do not touch" }).element();
++    expect(
++      band.previousElementSibling?.contains(
++        page.getByRole("list", { name: "At a glance" }).element(),
++      ),
++    ).toBe(true);
++    expect(band.nextElementSibling?.getAttribute("aria-label")).toBe("Follows");
++    expect(textOf(band)).toContain("~/.t3/userdata");
++    // The brief's own order, with the chips, the band and More's lines out of it.
++    expect(labels("sb-type-b2-build")).toEqual([
++      "Follows",
++      "Task",
++      "Done when",
++      "Proves it",
++      "Where",
++      "Builds on",
++    ]);
++    expect(said("Task")).toMatch(/^the user, 2026-10-29, picked take B2/);
++    expect(items("Done when")).toHaveLength(8);
++    expect(
++      [...page.getByRole("region", { name: "Where" }).element().querySelectorAll("code")].map(
++        textOf,
++      ),
++    ).toEqual([
++      "features/t3code-jstack/packaging/",
++      "apps/web/src/components/sidebar/",
++      "JstackTreeRows.tsx",
++      "jstackTree.logic.ts",
++      "apps/server/src/jstack/",
++      "packages/contracts/src/jbusWork.ts",
++      "apps/web/src/index.css",
++      "sb-type-proto",
++      "~/repos/t3code-wt/sb-type-proto",
++    ]);
++    // A row the tree has is a link; one that left it says so.
++    expect(items("Builds on")).toEqual([
++      "sb-scout-report-state: the scout state jbus writes, which the tree reads",
++    ]);
++    await expect.element(page.getByRole("button", { name: "sb-scout-report-state" })).toBeVisible();
++    expect(items("Follows")).toEqual(["sb-type-b-proto not in the tree"]);
++    await expect
++      .element(page.getByRole("button", { name: "sb-type-b-proto" }))
++      .not.toBeInTheDocument();
++    // Decisions, Design and Skills fold under More.
++    const more = page.getByRole("button", { name: "More: Decisions, Design, Skills" });
++    await expect.element(more).toHaveAttribute("aria-expanded", "false");
++    expect(labels("sb-type-b2-build")).not.toContain("Decisions");
++    await userEvent.click(more);
++    expect(labels("sb-type-b2-build").slice(-3)).toEqual(["Decisions", "Design", "Skills"]);
++    await userEvent.click(page.getByRole("button", { name: "Markdown" }));
++
++    expect(typeIn(dialog.element())).toEqual(["11px/400", "13px/400"]);
++    expect(await audit()).toEqual([]);
++    await expect.element(page.getByRole("button", { name: "Approve this brief" })).toBeEnabled();
++  });
++
++  it("an S brief: the quote unquoted, two checks, and a playbook of none", async () => {
++    server.briefs.set("jinstall-retired-hooks", { text: RETIRED_HOOKS, sha: "a6aa9139d598" });
++    await using _screen = await render(
++      <Opener target={target({ slug: "jinstall-retired-hooks" })} onApprove={async () => true} />,
++      { router: false },
++    );
++    await openBrief();
++    expect(chips()).toEqual(["Size S", "Review review", "Playbook none", "PR open one when done"]);
++    expect(labels("jinstall-retired-hooks")).toEqual(["Task", "Done when", "Proves it", "Where"]);
++    const task = page.getByRole("region", { name: "Task" }).element();
++    expect(textOf(task.querySelector("blockquote"))).toMatch(/^jinstall writes a hook group/);
++    expect(textOf(task.querySelector("blockquote"))).not.toMatch(/^"|"$/);
++    expect(items("Done when")).toEqual([
++      "install.sh --check on a settings.json with a home-gauge.sh group prints it as old, and install.sh removes it and keeps every other group",
++      "a group the user wrote that names no layout script is left alone",
++    ]);
++    expect(said("Do not touch", "note")).toBe("the hooks features declare");
++    await expect
++      .element(page.getByRole("button", { name: "More: Decisions, Design, Skills" }))
++      .toBeVisible();
++    expect(typeIn(page.getByRole("dialog").element())).toEqual(["11px/400", "13px/400"]);
++  });
++
++  it("a scout request: a line no template names stays as written with its list, and no approve", async () => {
++    server.briefs.set("jv-color-design", { text: COLOR_DESIGN, sha: "222222222222" });
++    await using _screen = await render(
++      <Opener
++        target={target({ slug: "jv-color-design", kind: "scout", approvable: false })}
++        onApprove={async () => true}
++      />,
++      { router: false },
++    );
++    await openBrief();
++    expect(chips()).toEqual(["Playbook investigation", "Home jview"]);
++    expect(said("Out of bounds", "note")).toMatch(/^read-only in the repo\./);
++    expect(labels("jv-color-design")).toEqual(["Request", "Questions", "Deliver"]);
++    // "Read first (change none of it):" is no line a template names: it shows where it was
++    // written, between Request and Questions, as plain text with its three items.
++    const region = inRegion("jv-color-design");
++    const sections = [...region.querySelectorAll(":scope > section")];
++    expect(sections.map((one) => one.getAttribute("aria-label"))).toEqual([
++      "Request",
++      null,
++      "Questions",
++      "Deliver",
++    ]);
++    const unknown = sections[1]!;
++    expect(textOf(unknown.querySelector("p"))).toBe("Read first (change none of it):");
++    expect([...unknown.querySelectorAll("li")].map(textOf)).toEqual([
++      expect.stringMatching(/^features\/jbus\/src\/jbus\/view\/page\.html :root/),
++      expect.stringMatching(/^the view's kept shots/),
++      expect.stringMatching(/^reports\/jv-glance\/build\/design\.md/),
++    ]);
++    expect(items("Questions")).toHaveLength(4);
++    expect(page.getByRole("region", { name: "Questions" }).element().querySelector("ol")).not.toBe(
++      null,
++    );
++    // jbus's Thread line is under More, and the Report is its own fold.
++    await userEvent.click(page.getByRole("button", { name: "More: Thread" }));
++    expect(labels("jv-color-design").at(-1)).toBe("Thread");
++    const report = page.getByRole("button", { name: "Report" });
++    await userEvent.click(report);
++    await expect.element(page.getByText(/^Status: done\nVerdict: PASS/)).toBeVisible();
++
++    expect(typeIn(page.getByRole("dialog").element())).toEqual(["11px/400", "13px/400"]);
++    expect(await audit()).toEqual([]);
++    await expect
++      .element(page.getByRole("button", { name: "Approve this brief" }))
++      .not.toBeInTheDocument();
++  });
++
++  it("by keyboard: More and Markdown open, and a link shows its row in the tree", async () => {
++    server.briefs.set("sb-type-b2-build", { text: B2_BUILD, sha: "248905e4be30" });
++    const onReveal = vi.fn();
++    await using _screen = await render(
++      <Opener
++        target={target({ slug: "sb-type-b2-build" })}
++        onApprove={async () => true}
++        inTree={["sb-scout-report-state"]}
++        onReveal={onReveal}
++      />,
++      { router: false },
++    );
++    const opener = page.getByRole("button", { name: "Open brief" });
++    await userEvent.keyboard("{Tab}");
++    await expect.element(opener).toHaveFocus();
++    await userEvent.keyboard("{Enter}");
++    await expect.element(page.getByRole("dialog")).toBeVisible();
++
++    const more = page.getByRole("button", { name: "More: Decisions, Design, Skills" });
++    await tabTo(more);
++    await userEvent.keyboard("{Enter}");
++    await expect.element(more).toHaveAttribute("aria-expanded", "true");
++    await expect.element(page.getByRole("region", { name: "Decisions" })).toBeVisible();
++
++    const markdown = page.getByRole("button", { name: "Markdown" });
++    await tabTo(markdown);
++    await userEvent.keyboard("{Enter}");
++    const raw = page.getByRole("region", { name: "The Markdown of sb-type-b2-build" });
++    await tabTo(raw);
++    expect(raw.element().textContent).toBe(B2_BUILD);
++
++    const link = page.getByRole("button", { name: "sb-scout-report-state" });
++    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
++    await tabTo(link);
++    await userEvent.keyboard("{Enter}");
++    expect(onReveal).toHaveBeenCalledWith("jstack", "sb-scout-report-state");
++    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
++    // The dialog hands the focus to the row it showed, not back to the opener.
++    await expect
++      .element(page.getByRole("treeitem", { name: "sb-scout-report-state" }))
++      .toHaveFocus();
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
+index 73c01f5eed..6b7aaa10bb 100644
+--- a/apps/web/src/components/sidebar/JstackBriefDialog.tsx
++++ b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
+@@ -1,5 +1,5 @@
+ import type { EnvironmentId, JbusBrief, ThreadId } from "@t3tools/contracts";
+-import { useState } from "react";
++import { useRef, useState } from "react";
+ 
+ import { serverEnvironment } from "../../state/server";
+ import { useAtomCommand } from "../../state/use-atom-command";
+@@ -13,9 +13,12 @@ import {
+   DialogPopup,
+   DialogTitle,
+ } from "../ui/dialog";
++import { JstackBriefView } from "./JstackBriefView";
++import { jstackTaskRowKey } from "./jstackTree.logic";
+ 
+ // jstack fork: "Open brief" on a tree row. It shows the copy of the brief jbus keeps, which an
+-// approval is checked against, and approves that copy by its sha through the task's home.
++// approval is checked against, drawn as what it says, and approves that copy by its sha through
++// the task's home. A row it links to is shown in the tree as the dialog closes.
+ 
+ export interface JstackBriefTarget {
+   readonly environmentId: EnvironmentId;
+@@ -84,7 +87,7 @@ function ApproveButton(props: {
+     if (!(await props.onApprove(props.sha))) setApproving(false);
+   };
+   return (
+-    <Button disabled={props.sha === null || approving} onClick={() => void approve()}>
++    <Button size="row" disabled={props.sha === null || approving} onClick={() => void approve()}>
+       {approving ? "Sending..." : "Approve this brief"}
+     </Button>
+   );
+@@ -95,33 +98,52 @@ export function JstackBriefDialog(props: {
+   onClose: () => void;
+   /** Sends the task's home its approval of the brief with this sha; true once sent. */
+   onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
++  /** The tree has this task of the repo, so a link can show it. */
++  revealable: (repo: string, slug: string) => boolean;
++  /** Unfolds the tree to this task and selects its row. */
++  onReveal: (repo: string, slug: string) => void;
+ }) {
+   const { shown } = props;
+   const brief = shown?.read.status === "read" ? shown.read.brief : null;
+   const target = shown?.target ?? null;
++  // The row a link showed, which takes the focus as the dialog closes.
++  const revealed = useRef<string | null>(null);
++  const reveal = (slug: string) => {
++    if (target === null) return;
++    revealed.current = jstackTaskRowKey(target.repo, slug);
++    props.onReveal(target.repo, slug);
++    props.onClose();
++  };
++  const finalFocus = () => {
++    const key = revealed.current;
++    revealed.current = null;
++    if (key === null) return true;
++    const row = document.querySelector<HTMLElement>(`[data-sidebar-row="${CSS.escape(key)}"]`);
++    row?.scrollIntoView({ block: "nearest" });
++    return row ?? true;
++  };
+ 
+   return (
+     <Dialog open={shown !== null} onOpenChange={(open) => (open ? undefined : props.onClose())}>
+-      <DialogPopup className="max-w-2xl">
++      <DialogPopup className="max-w-2xl" finalFocus={finalFocus}>
+         <DialogHeader>
+-          <DialogTitle>Brief: {target?.slug}</DialogTitle>
+-          <DialogDescription>{shown === null ? "" : describe(shown)}</DialogDescription>
++          <DialogTitle size="compact">Brief: {target?.slug}</DialogTitle>
++          <DialogDescription size="compact">
++            {shown === null ? "" : describe(shown)}
++          </DialogDescription>
+         </DialogHeader>
+         <DialogPanel>
+-          {brief?.text ? (
+-            // A region, so the keyboard can scroll a long brief and a reader names it.
+-            <pre
+-              role="region"
+-              tabIndex={0}
+-              aria-label={`The brief of ${target?.slug}`}
+-              className="max-h-[60vh] overflow-auto rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+-            >
+-              {brief.text}
+-            </pre>
++          {brief?.text && target ? (
++            <JstackBriefView
++              text={brief.text}
++              slug={target.slug}
++              revealable={(slug) => props.revealable(target.repo, slug)}
++              onReveal={reveal}
++            />
+           ) : null}
+         </DialogPanel>
+         <DialogFooter>
+-          <Button variant="outline" onClick={props.onClose}>
++          <Button variant="outline" size="row" onClick={props.onClose}>
+             Close
+           </Button>
+           {target?.approvable ? (
+diff --git a/apps/web/src/components/sidebar/JstackBriefView.tsx b/apps/web/src/components/sidebar/JstackBriefView.tsx
+new file mode 100644
+index 0000000000..d2aebbedaf
+--- /dev/null
++++ b/apps/web/src/components/sidebar/JstackBriefView.tsx
+@@ -0,0 +1,318 @@
++import { ChevronRightIcon, TriangleAlertIcon } from "lucide-react";
++import type { ReactNode } from "react";
++
++import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
++import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
++import {
++  BRIEF_CHIPS,
++  BRIEF_LINES,
++  briefLine,
++  briefLinks,
++  briefPlace,
++  chipValue,
++  inlineParts,
++  parseBrief,
++  whereParts,
++  type BriefLine,
++} from "./jstackBrief.logic";
++
++// jstack fork: a brief drawn as what it says, in one column. The one line, then Size, Review,
++// Playbook, Pull request and Home as chips, then what is out of bounds, then the brief's own lines
++// in its order, each under an 11px label; the rest under "More", each `## ` section folded, and
++// the Markdown one click away. Type is 13/400 and 11/400 only, and sky is on the row links only.
++
++export interface JstackBriefViewProps {
++  readonly text: string;
++  readonly slug: string;
++  /** A `Builds on:` or `Follows:` row the tree has, so its link can show it. */
++  readonly revealable: (slug: string) => boolean;
++  readonly onReveal: (slug: string) => void;
++}
++
++const LABEL = "mb-1 text-2xs text-muted-foreground";
++const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
++
++/** Text with its `code` spans as 11px mono chips. */
++function Inline(props: { text: string }) {
++  return inlineParts(props.text).map((part) =>
++    part.code ? (
++      <code key={part.at} className="rounded-sm bg-muted px-1 font-mono text-2xs break-all">
++        {part.text}
++      </code>
++    ) : (
++      <span key={part.at}>{part.text}</span>
++    ),
++  );
++}
++
++/** A list as written; a line's items are its own, so their text keys them. */
++function Items(props: { items: ReadonlyArray<string>; look: "checklist" | "numbered" | "list" }) {
++  const keyed = props.items.map((item, index) => ({ item, key: `${index}:${item}` }));
++  if (props.look === "numbered") {
++    return (
++      <ol className="list-decimal space-y-1 pl-5">
++        {keyed.map(({ item, key }) => (
++          <li key={key}>
++            <Inline text={item} />
++          </li>
++        ))}
++      </ol>
++    );
++  }
++  if (props.look === "list") {
++    return (
++      <ul className="list-disc space-y-1 pl-5">
++        {keyed.map(({ item, key }) => (
++          <li key={key}>
++            <Inline text={item} />
++          </li>
++        ))}
++      </ul>
++    );
++  }
++  return (
++    <ul className="space-y-1.5">
++      {keyed.map(({ item, key }) => (
++        <li key={key} className="flex gap-2">
++          <span
++            aria-hidden
++            className="mt-0.5 size-3 shrink-0 rounded-sm border border-muted-foreground"
++          />
++          <span className="min-w-0">
++            <Inline text={item} />
++          </span>
++        </li>
++      ))}
++    </ul>
++  );
++}
++
++function Files(props: { value: string }) {
++  return (
++    <div className="flex flex-wrap items-baseline gap-1">
++      {whereParts(props.value).map((part) =>
++        part.code ? (
++          <code
++            key={part.at}
++            className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-2xs break-all"
++          >
++            {part.text}
++          </code>
++        ) : (
++          <span key={part.at} className="text-2xs text-muted-foreground">
++            {part.text}
++          </span>
++        ),
++      )}
++    </div>
++  );
++}
++
++function Links(props: { value: string } & Pick<JstackBriefViewProps, "revealable" | "onReveal">) {
++  return (
++    <ul className="space-y-0.5">
++      {briefLinks(props.value).map((link) => (
++        <li key={link.slug}>
++          {props.revealable(link.slug) ? (
++            <Tooltip>
++              <TooltipTrigger
++                render={
++                  <button
++                    type="button"
++                    onClick={() => props.onReveal(link.slug)}
++                    className={`rounded-sm text-jstack-link underline-offset-4 hover:underline ${FOCUS}`}
++                  >
++                    {link.slug}
++                  </button>
++                }
++              />
++              <TooltipPopup>Show {link.slug} in the tree</TooltipPopup>
++            </Tooltip>
++          ) : (
++            <>
++              <span>{link.slug}</span>{" "}
++              <span className="text-2xs text-muted-foreground">not in the tree</span>
++            </>
++          )}
++          {link.what === "" ? null : (
++            <span className="text-muted-foreground">
++              {": "}
++              <Inline text={link.what} />
++            </span>
++          )}
++        </li>
++      ))}
++    </ul>
++  );
++}
++
++const unquoted = (value: string) =>
++  value.length > 1 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
++
++/** A line's value, drawn the way its name asks. */
++function Value(props: { line: BriefLine } & Pick<JstackBriefViewProps, "revealable" | "onReveal">) {
++  const { line } = props;
++  const look = line.kind === "known" ? BRIEF_LINES[line.name].look : "text";
++  const value = line.kind === "known" ? line.value : line.text;
++  switch (look) {
++    case "quote":
++      return (
++        <blockquote className="border-l-2 border-border pl-3">
++          <Inline text={unquoted(value)} />
++        </blockquote>
++      );
++    case "files":
++      return <Files value={value} />;
++    case "links":
++      return <Links value={value} revealable={props.revealable} onReveal={props.onReveal} />;
++    case "checklist":
++    case "numbered":
++    case "list":
++      return (
++        <div className="space-y-1">
++          {value === "" ? null : (
++            <p>
++              <Inline text={value} />
++            </p>
++          )}
++          <Items items={line.items} look={look} />
++        </div>
++      );
++    case "text":
++      return (
++        <div className="space-y-1">
++          <p>
++            <Inline text={value} />
++          </p>
++          {line.items.length === 0 ? null : <Items items={line.items} look="list" />}
++        </div>
++      );
++  }
++}
++
++/** A head line under its label; an unknown line is its own label, as written. */
++function Line(props: { line: BriefLine } & Pick<JstackBriefViewProps, "revealable" | "onReveal">) {
++  const { line } = props;
++  if (line.kind === "other") {
++    return (
++      <section>
++        <Value {...props} />
++      </section>
++    );
++  }
++  return (
++    <section aria-label={line.name}>
++      <h3 className={LABEL}>{line.name}</h3>
++      <Value {...props} />
++    </section>
++  );
++}
++
++function Fold(props: { label: string; children: ReactNode }) {
++  return (
++    <Collapsible>
++      <CollapsibleTrigger
++        className={`group flex items-center gap-1 rounded-sm text-2xs text-muted-foreground hover:text-foreground ${FOCUS}`}
++      >
++        <ChevronRightIcon
++          aria-hidden
++          className="size-3 transition-transform group-data-panel-open:rotate-90"
++        />
++        {props.label}
++      </CollapsibleTrigger>
++      <CollapsiblePanel animate={false}>
++        <div className="space-y-3 pt-2">{props.children}</div>
++      </CollapsiblePanel>
++    </Collapsible>
++  );
++}
++
++const MARKDOWN = "whitespace-pre-wrap font-mono text-2xs";
++
++export function JstackBriefView(props: JstackBriefViewProps) {
++  const brief = parseBrief(props.text);
++  const chips = BRIEF_CHIPS.flatMap((name) => {
++    const line = briefLine(brief, name);
++    return line === null ? [] : [line];
++  });
++  const caution = brief.head.filter((line) => briefPlace(line) === "caution");
++  const body = brief.head.filter((line) => briefPlace(line) === "body");
++  const more = brief.head.filter((line) => briefPlace(line) === "more");
++  const links = { revealable: props.revealable, onReveal: props.onReveal };
++  // A known line is keyed by its name, which a brief has once, and an unknown one by its place.
++  const keyOf = (line: BriefLine) => (line.kind === "known" ? line.name : `line-${line.at}`);
++
++  return (
++    <div
++      role="region"
++      aria-label={`The brief of ${props.slug}`}
++      className="space-y-4 text-tree-row font-normal text-foreground"
++    >
++      <div className="space-y-2">
++        {/* The dialog's title names the slug: this is the brief's one line. */}
++        <p>{brief.title ?? props.slug}</p>
++        {chips.length === 0 ? null : (
++          <ul aria-label="At a glance" className="flex flex-wrap gap-1">
++            {chips.map((line) => (
++              <li
++                key={line.name}
++                className="inline-flex items-baseline gap-1 rounded-full border border-border px-2 py-0.5 text-2xs"
++              >
++                <span className="text-muted-foreground">
++                  {line.name === "Pull request" ? "PR" : line.name}
++                </span>{" "}
++                <span>{chipValue(line.value)}</span>
++              </li>
++            ))}
++          </ul>
++        )}
++      </div>
++      {caution.map((line) =>
++        line.kind === "known" ? (
++          <div
++            key={line.name}
++            role="note"
++            aria-label={line.name}
++            className="flex gap-2 rounded-md border border-border bg-muted px-3 py-2"
++          >
++            <TriangleAlertIcon aria-hidden className="mt-0.5 size-3 shrink-0" />
++            <div className="min-w-0">
++              <div className={LABEL}>{line.name}</div>
++              <Inline text={line.value} />
++            </div>
++          </div>
++        ) : null,
++      )}
++      {body.map((line) => (
++        <Line key={keyOf(line)} line={line} {...links} />
++      ))}
++      <div className="space-y-2 border-t border-border pt-3">
++        {more.length === 0 ? null : (
++          <Fold
++            label={`More: ${more.map((line) => (line.kind === "known" ? line.name : "")).join(", ")}`}
++          >
++            {more.map((line) => (
++              <Line key={keyOf(line)} line={line} {...links} />
++            ))}
++          </Fold>
++        )}
++        {brief.sections.map((section) => (
++          <Fold key={section.at} label={section.heading}>
++            <div className={MARKDOWN}>{section.text}</div>
++          </Fold>
++        ))}
++        <Fold label="Markdown">
++          {/* A region, so the keyboard can scroll a long brief and a reader names it. */}
++          <pre
++            role="region"
++            tabIndex={0}
++            aria-label={`The Markdown of ${props.slug}`}
++            className={`rounded-md bg-muted p-3 ${MARKDOWN} ${FOCUS}`}
++          >
++            {props.text}
++          </pre>
++        </Fold>
++      </div>
++    </div>
++  );
++}
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 50618c4eed..7c93402028 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -685,7 +685,8 @@ function LiveTree(props: {
+     folderThreads: [],
+     hiddenThreads: [],
+     collapsed: false,
+-    routeThreadId: props.routeThreadId ?? null,
++    selection:
++      props.routeThreadId === undefined ? null : { kind: "thread", threadId: props.routeThreadId },
+     expandedHomes: new Set(),
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+@@ -1129,7 +1130,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+     folderThreads: [],
+     hiddenThreads: [],
+     collapsed: false,
+-    routeThreadId: sidebarHome,
++    selection: { kind: "thread", threadId: sidebarHome },
+     answering: null,
+     expandedHomes: new Set(),
+     frozenOrder: null,
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+index ae2cb3d71a..559875ee0f 100644
+--- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+@@ -165,7 +165,7 @@ function treeRoots(
+       folderThreads,
+       hiddenThreads: [],
+       collapsed: false,
+-      routeThreadId: null,
++      selection: null,
+       expandedHomes: new Set(),
+       frozenOrder: null,
+       lastVisitedAt: () => null,
+diff --git a/apps/web/src/components/sidebar/jstackBrief.logic.ts b/apps/web/src/components/sidebar/jstackBrief.logic.ts
+new file mode 100644
+index 0000000000..bc24b15941
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackBrief.logic.ts
+@@ -0,0 +1,213 @@
++// jstack fork: a brief read as its lines, for the "Open brief" dialog. The names are those of
++// jstack's `templates/brief.md` and `templates/scout-request.md`, the lines jbus adds as it sends
++// one (`SENT_TO`: Home, Thread, Green main, Stacked on) and `Follows:`, which the home's queue
++// writes. Each name's place in the dialog and how it draws are one row of BRIEF_LINES.
++
++/**
++ * Where a line shows: as a chip under the one line, as the caution band under the chips, in the
++ * body in the brief's own order, or under "More".
++ */
++export type BriefPlace = "chip" | "caution" | "body" | "more";
++
++/** How a line's value draws. */
++export type BriefLook = "quote" | "checklist" | "numbered" | "list" | "files" | "links" | "text";
++
++export const BRIEF_LINES = {
++  Task: { place: "body", look: "quote" },
++  Request: { place: "body", look: "quote" },
++  "Done when": { place: "body", look: "checklist" },
++  Questions: { place: "body", look: "numbered" },
++  Deliver: { place: "body", look: "list" },
++  "Proves it": { place: "body", look: "text" },
++  Where: { place: "body", look: "files" },
++  "Builds on": { place: "body", look: "links" },
++  Follows: { place: "body", look: "links" },
++  Size: { place: "chip", look: "text" },
++  Review: { place: "chip", look: "text" },
++  Playbook: { place: "chip", look: "text" },
++  "Pull request": { place: "chip", look: "text" },
++  Home: { place: "chip", look: "text" },
++  "Do not touch": { place: "caution", look: "text" },
++  "Out of bounds": { place: "caution", look: "text" },
++  Decisions: { place: "more", look: "text" },
++  Design: { place: "more", look: "text" },
++  Skills: { place: "more", look: "text" },
++  Read: { place: "more", look: "text" },
++  Change: { place: "more", look: "text" },
++  "Rests on": { place: "more", look: "text" },
++  Sources: { place: "more", look: "text" },
++  "Ruled out": { place: "more", look: "text" },
++  Thread: { place: "more", look: "text" },
++  "Green main": { place: "more", look: "text" },
++  "Stacked on": { place: "more", look: "text" },
++} as const satisfies Record<string, { place: BriefPlace; look: BriefLook }>;
++
++export type BriefLineName = keyof typeof BRIEF_LINES;
++
++/** The chips, in the order they draw, whatever order the brief writes them in. */
++export const BRIEF_CHIPS: ReadonlyArray<BriefLineName> = [
++  "Size",
++  "Review",
++  "Playbook",
++  "Pull request",
++  "Home",
++];
++
++export type BriefLine =
++  | {
++      readonly kind: "known";
++      readonly name: BriefLineName;
++      readonly value: string;
++      /** The `- ` list under it. */
++      readonly items: ReadonlyArray<string>;
++    }
++  | {
++      /** A line no template names, kept as written, with the list under it. */
++      readonly kind: "other";
++      /** Its line in the file, from 0, which keys it. */
++      readonly at: number;
++      readonly text: string;
++      readonly items: ReadonlyArray<string>;
++    };
++
++export interface BriefSection {
++  /** Its `## ` line in the file, from 0, which keys it. */
++  readonly at: number;
++  readonly heading: string;
++  /** The section's Markdown, as written. */
++  readonly text: string;
++}
++
++export interface ParsedBrief {
++  /** The one line of `# <slug>: <one line>`. */
++  readonly title: string | null;
++  /** The lines above the first `## `, in the brief's order. */
++  readonly head: ReadonlyArray<BriefLine>;
++  /** Each `## ` section after the head: Report, Result, Review. */
++  readonly sections: ReadonlyArray<BriefSection>;
++}
++
++// jbus's own label grammar (`jbriefs/parse.py` `_LABEL`): a capitalised label of up to four words.
++const LABEL = /^([A-Z][A-Za-z]*(?:[ -][A-Za-z]+){0,3}):(?:[ \t]+|$)/;
++const ITEM = /^\s*- /;
++
++const isKnown = (name: string): name is BriefLineName => Object.hasOwn(BRIEF_LINES, name);
++
++export function parseBrief(text: string): ParsedBrief {
++  const lines = text.split("\n");
++  let title: string | null = null;
++  const order: Array<{ line: BriefLine; items: string[] }> = [];
++  const seen = new Set<BriefLineName>();
++  let index = 0;
++  for (; index < lines.length; index += 1) {
++    const line = lines[index] ?? "";
++    if (line.startsWith("## ")) break;
++    if (index === 0 && line.startsWith("# ")) {
++      const named = /^#\s+[^\s:]+:\s*(.*)$/.exec(line);
++      title = named ? (named[1] ?? null) : line.slice(2).trim();
++      continue;
++    }
++    if (line.trim() === "") continue;
++    const last = order.at(-1);
++    if (ITEM.test(line) && last !== undefined) {
++      last.items.push(line.replace(ITEM, ""));
++      continue;
++    }
++    const label = LABEL.exec(line);
++    const name = label?.[1];
++    // A name's first line is the one jbus reads; a second is kept as written.
++    if (label && name !== undefined && isKnown(name) && !seen.has(name)) {
++      seen.add(name);
++      const items: string[] = [];
++      order.push({
++        line: { kind: "known", name, value: line.slice(label[0].length).trim(), items },
++        items,
++      });
++      continue;
++    }
++    const items: string[] = [];
++    order.push({ line: { kind: "other", at: index, text: line.trim(), items }, items });
++  }
++  const sections: Array<{ at: number; heading: string; lines: string[] }> = [];
++  for (; index < lines.length; index += 1) {
++    const line = lines[index] ?? "";
++    if (line.startsWith("## "))
++      sections.push({ at: index, heading: line.slice(3).trim(), lines: [] });
++    else sections.at(-1)?.lines.push(line);
++  }
++  return {
++    title,
++    head: order.map((each) => each.line),
++    sections: sections.map((section) => ({
++      at: section.at,
++      heading: section.heading,
++      text: section.lines.join("\n").trim(),
++    })),
++  };
++}
++
++/** A line of the brief by its name, or null. */
++export const briefLine = (
++  brief: ParsedBrief,
++  name: BriefLineName,
++): Extract<BriefLine, { kind: "known" }> | null =>
++  brief.head.find(
++    (line): line is Extract<BriefLine, { kind: "known" }> =>
++      line.kind === "known" && line.name === name,
++  ) ?? null;
++
++/** Where a line of the head draws: an unknown line stays in the body, where it was written. */
++export const briefPlace = (line: BriefLine): BriefPlace =>
++  line.kind === "known" ? BRIEF_LINES[line.name].place : "body";
++
++/** A chip's value: its first clause, as `twice` of `twice, then ...`. */
++export const chipValue = (value: string): string => value.split(/[,(;]/)[0]?.trim() || value;
++
++export interface InlinePart {
++  /** Where it starts in the text, which keys it. */
++  readonly at: number;
++  readonly code: boolean;
++  readonly text: string;
++}
++
++/** Text with its `code` spans apart, so each draws as a chip. */
++export function inlineParts(text: string): ReadonlyArray<InlinePart> {
++  const parts: Array<InlinePart> = [];
++  let at = 0;
++  for (const part of text.split(/(`[^`]+`)/)) {
++    if (part !== "") {
++      const code = part.length > 2 && part.startsWith("`") && part.endsWith("`");
++      parts.push({ at, code, text: code ? part.slice(1, -1) : part });
++    }
++    at += part.length;
++  }
++  return parts;
++}
++
++/** A `Where:` line as file chips, with the words between kept beside them. */
++export const whereParts = (value: string): ReadonlyArray<InlinePart> =>
++  inlineParts(value)
++    .map((part) => (part.code ? part : { ...part, text: part.text.trim() }))
++    .filter((part) => part.code || part.text !== "");
++
++export interface BriefLink {
++  readonly slug: string;
++  /** What of that row's work this one starts from; empty for a bare slug. */
++  readonly what: string;
++}
++
++/**
++ * `Builds on:` is `<slug>: <what>; <slug>: <what>`, and `Follows:` a bare slug, which jbus reads
++ * back as it is. Each names a row the dialog links to.
++ */
++export const briefLinks = (value: string): ReadonlyArray<BriefLink> =>
++  value
++    .split(/;\s*/)
++    .map((item) => item.trim())
++    .filter((item) => item !== "")
++    .map((item) => {
++      const colon = item.indexOf(": ");
++      return colon === -1
++        ? { slug: item.replace(/:$/, "").trim(), what: "" }
++        : { slug: item.slice(0, colon).trim(), what: item.slice(colon + 2).trim() };
++    });
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index d0528e723e..53c54e5295 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -106,7 +106,7 @@ function build(
+     folderThreads: all,
+     hiddenThreads: [],
+     collapsed: false,
+-    routeThreadId: null,
++    selection: null,
+     expandedHomes: new Set(),
+     frozenOrder: null,
+     lastVisitedAt: () => null,
+@@ -222,7 +222,9 @@ describe("buildJstackTree", () => {
+         askedAt: minutesAgo(1),
+       },
+     ];
+-    const rows = build({ tasks, gates }, { routeThreadId: ThreadId.make("flow") }).rows ?? [];
++    const rows =
++      build({ tasks, gates }, { selection: { kind: "thread", threadId: ThreadId.make("flow") } })
++        .rows ?? [];
+     const opens = rows.flatMap((row) =>
+       row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
+     );
+@@ -298,7 +300,10 @@ describe("buildJstackTree", () => {
+     });
+     expect(workers(closed.rows)).toEqual([]);
+ 
+-    const open = build({ tasks }, { routeThreadId: ThreadId.make("crew-fl-pump") });
++    const open = build(
++      { tasks },
++      { selection: { kind: "thread", threadId: ThreadId.make("crew-fl-pump") } },
++    );
+     expect(open.rows.find((row) => row.kind === "domain")).toMatchObject({
+       open: true,
+       dot: false,
+@@ -307,6 +312,28 @@ describe("buildJstackTree", () => {
+     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
+   });
+ 
++  it("selects the task a brief's link showed in place of the route's, thread or none", () => {
++    const tasks = [
++      task("fl-pump", { homeThreadId: ThreadId.make("flow") }),
++      task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
++    ];
++    const selected = (tree: ReturnType<typeof build>) =>
++      tree.rows.flatMap((row) => ("selected" in row && row.selected ? [row.key] : []));
++    // The route is on the flow home; the link names a queued task with no thread yet.
++    const shown = build(
++      { tasks },
++      { selection: { kind: "task", repo: "jstack", slug: "fl-ready" } },
++    );
++    expect(selected(shown)).toEqual(["jstack-task:jstack/fl-ready"]);
++    expect(shown.rows.find((row) => row.kind === "domain")).toMatchObject({ open: true });
++    // Another repo's task of the same slug is not this one.
++    const elsewhere = build(
++      { tasks },
++      { selection: { kind: "task", repo: "other", slug: "fl-ready" } },
++    );
++    expect(selected(elsewhere)).toEqual([]);
++  });
++
+   it("lists only a home's open rows, and counts what merged on the project row", () => {
+     const merged = (slug: string, minutes: number) => ({
+       repo: "jstack",
+@@ -317,7 +344,7 @@ describe("buildJstackTree", () => {
+       tree.rows.flatMap((row) =>
+         "parentKey" in row && row.parentKey === "jstack-home:flow" ? [row.key] : [],
+       );
+-    const opened = { routeThreadId: ThreadId.make("flow") };
++    const opened = { selection: { kind: "thread", threadId: ThreadId.make("flow") } } as const;
+ 
+     const live = build(
+       {
+@@ -851,7 +878,9 @@ describe("row actions: approve, remove, answer and the brief", () => {
+   };
+ 
+   it("gives each task row the home its brief names, what it waits on, and its open question", () => {
+-    const rows = build(snapshot, { routeThreadId: ThreadId.make("flow") }).rows;
++    const rows = build(snapshot, {
++      selection: { kind: "thread", threadId: ThreadId.make("flow") },
++    }).rows;
+     expect(worker(rows, "meter")).toMatchObject({
+       homeThreadId: "flow",
+       homeName: "the flow home",
+@@ -883,7 +912,10 @@ describe("row actions: approve, remove, answer and the brief", () => {
+       number: 7,
+       question: "Which valve size?",
+     };
+-    const rows = build(snapshot, { routeThreadId: ThreadId.make("flow"), answering }).rows;
++    const rows = build(snapshot, {
++      selection: { kind: "thread", threadId: ThreadId.make("flow") },
++      answering,
++    }).rows;
+     const at = rows.findIndex((row) => row.kind === "worker" && row.slug === "valve");
+     expect(rows[at]).toMatchObject({ answering: true });
+     expect(rows[at + 1]).toMatchObject({
+@@ -899,7 +931,7 @@ describe("row actions: approve, remove, answer and the brief", () => {
+ 
+     const closed = build(
+       { ...snapshot, gates: [] },
+-      { routeThreadId: ThreadId.make("flow"), answering },
++      { selection: { kind: "thread", threadId: ThreadId.make("flow") }, answering },
+     ).rows;
+     expect(closed.find((row) => row.kind === "answer")).toMatchObject({ open: false });
+   });
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 671b2bfec7..9d84245594 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -46,6 +46,18 @@ export interface JstackAnswering {
+ 
+ export type JstackTreeAttention = "gates" | "gates-and-quiet";
+ 
++/**
++ * The tree's one selected row: the route's thread, or a task a brief's link showed, which may
++ * have no thread yet. It is the task's until the route moves.
++ */
++export type JstackSelection =
++  | { readonly kind: "thread"; readonly threadId: ThreadId }
++  | { readonly kind: "task"; readonly repo: string; readonly slug: string }
++  | null;
++
++/** A task's row key, which its row is found by in the DOM. `slug` is the full slug. */
++export const jstackTaskRowKey = (repo: string, slug: string) => `jstack-task:${repo}/${slug}`;
++
+ export interface JstackTreeOptions {
+   readonly attention: JstackTreeAttention;
+   readonly landedCount: boolean;
+@@ -237,7 +249,7 @@ export interface JstackTreeInput {
+   /** The folder's threads a fold hides. */
+   readonly hiddenThreads: ReadonlyArray<EnvironmentThreadShell>;
+   readonly collapsed: boolean;
+-  readonly routeThreadId: ThreadId | null;
++  readonly selection: JstackSelection;
+   /** Homes whose "+N" row the user opened. */
+   readonly expandedHomes: ReadonlySet<string>;
+   /** Worker order per home to keep while the pointer is in the sidebar; null re-sorts. */
+@@ -404,7 +416,7 @@ const toWorker = (
+     stage: stage.group,
+     row: {
+       kind: "worker",
+-      key: `jstack-task:${task.repo}/${task.slug}`,
++      key: jstackTaskRowKey(task.repo, task.slug),
+       parentKey,
+       depth,
+       repo: task.repo,
+@@ -431,7 +443,10 @@ const toWorker = (
+           : null,
+       thread,
+       pullRequest: task.kind === "crew" ? task.pullRequest : null,
+-      selected: task.threadId !== null && task.threadId === input.routeThreadId,
++      selected:
++        input.selection?.kind === "task"
++          ? input.selection.repo === task.repo && input.selection.slug === task.slug
++          : task.threadId !== null && selectsThread(input, task.threadId),
+       homeThreadId: home.threadId,
+       homeName: home.scope === null ? "the root home" : `the ${home.scope} home`,
+       queued: task.threadId === null && stage.group === "queue",
+@@ -472,6 +487,9 @@ const isMember = (input: JstackTreeInput, thread: EnvironmentThreadShell) =>
+     (ref) => ref.environmentId === input.environmentId && ref.projectId === thread.projectId,
+   );
+ 
++const selectsThread = (input: JstackTreeInput, threadId: ThreadId) =>
++  input.selection?.kind === "thread" && input.selection.threadId === threadId;
++
+ const ASKS_STATUSES = new Set(["approval", "input", "request"]);
+ 
+ const threadAsks = (thread: EnvironmentThreadShell) =>
+@@ -617,7 +635,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     const asksYou = gateThreads.has(home.threadId) || waitsOnUser(thread);
+     const workerAsks = workers.some((worker) => worker.row.tone === "asks");
+     innerAsks ||= asksYou || workerAsks;
+-    const selected = home.threadId === input.routeThreadId;
++    const selected = selectsThread(input, home.threadId);
+     const open = selected || workers.some((worker) => worker.row.selected);
+     const work: JstackHomeWork =
+       workers.length > 0 ? { kind: "live", tally: tallyOf(workers) } : { kind: "idle" };
+@@ -659,7 +677,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+     live: [...rootWorkers, ...domainWorkers].some((worker) => worker.row.mark.tone === "live"),
+     folded: { count: tasks.length, unit: "task" },
+     faded: tasks.length === 0 && gates.length === 0 && !rootAsks && !isThreadWorking(rootThread),
+-    selected: root.threadId === input.routeThreadId,
++    selected: selectsThread(input, root.threadId),
+   };
+   if (input.collapsed) return { root: project, rows: [project], order };
+ 
+diff --git a/apps/web/src/components/ui/button.tsx b/apps/web/src/components/ui/button.tsx
+index 4dea8acd73..6f980bcc8c 100644
+--- a/apps/web/src/components/ui/button.tsx
++++ b/apps/web/src/components/ui/button.tsx
+@@ -30,6 +30,8 @@ const buttonVariants = cva(
+         lg: "h-10 px-[calc(--spacing(3.5)-1px)] sm:h-9",
+         micro:
+           "h-5 gap-1 rounded-sm px-[calc(--spacing(1.5)-1px)] text-[11px] before:rounded-[calc(var(--radius-sm)-1px)] sm:text-[11px] [&_svg:not([class*='size-'])]:size-3 sm:[&_svg:not([class*='size-'])]:size-3",
++        // 13/400 at every breakpoint, for a dialog that keeps to two sizes and one weight.
++        row: "h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] font-normal text-tree-row sm:h-7 sm:text-tree-row",
+         sm: "h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] sm:h-7",
+         "sm-multiline":
+           "min-h-8 gap-1.5 px-[calc(--spacing(2.5)-1px)] py-[calc(--spacing(1)-1px)] whitespace-normal sm:min-h-7",
+diff --git a/apps/web/src/components/ui/dialog.tsx b/apps/web/src/components/ui/dialog.tsx
+index 656a8c0a9f..9c5e32afd1 100644
+--- a/apps/web/src/components/ui/dialog.tsx
++++ b/apps/web/src/components/ui/dialog.tsx
+@@ -1,4 +1,5 @@
+ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
++import { cva, type VariantProps } from "class-variance-authority";
+ import { XIcon } from "lucide-react";
+ import { type ComponentProps, createContext, type ReactNode, use, useState } from "react";
+ import { cn } from "~/lib/utils";
+@@ -166,20 +167,49 @@ function DialogFooter({
+   );
+ }
+ 
+-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
++// compact: a dialog that keeps to two sizes and one weight, 13/400 and 11/400.
++const dialogTitleVariants = cva("wrap-anywhere", {
++  defaultVariants: { size: "default" },
++  variants: {
++    size: {
++      default: "font-semibold text-xl leading-none",
++      compact: "font-normal text-tree-row",
++    },
++  },
++});
++
++function DialogTitle({
++  className,
++  size,
++  ...props
++}: DialogPrimitive.Title.Props & VariantProps<typeof dialogTitleVariants>) {
+   return (
+     <DialogPrimitive.Title
+-      className={cn("wrap-anywhere font-semibold text-xl leading-none", className)}
++      className={cn(dialogTitleVariants({ size }), className)}
+       data-slot="dialog-title"
+       {...props}
+     />
+   );
+ }
+ 
+-function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {
++const dialogDescriptionVariants = cva("text-muted-foreground", {
++  defaultVariants: { size: "default" },
++  variants: {
++    size: {
++      default: "text-sm",
++      compact: "font-normal text-2xs",
++    },
++  },
++});
++
++function DialogDescription({
++  className,
++  size,
++  ...props
++}: DialogPrimitive.Description.Props & VariantProps<typeof dialogDescriptionVariants>) {
+   return (
+     <DialogPrimitive.Description
+-      className={cn("text-muted-foreground text-sm", className)}
++      className={cn(dialogDescriptionVariants({ size }), className)}
+       data-slot="dialog-description"
+       {...props}
+     />
+diff --git a/apps/web/src/index.css b/apps/web/src/index.css
+index b9da1d6033..24f0f0c207 100644
+--- a/apps/web/src/index.css
++++ b/apps/web/src/index.css
+@@ -293,6 +293,7 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
+   --color-sidebar-border: var(--contrast-sidebar-border);
+   --color-jstack-live: var(--jstack-live);
+   --color-jstack-asks: var(--jstack-asks);
++  --color-jstack-link: var(--jstack-link);
+   --radius-sm: calc(var(--radius) - 4px);
+   --radius-md: calc(var(--radius) - 2px);
+   --radius-lg: var(--radius);
+@@ -2556,13 +2557,16 @@ code {
+ /* jstack fork: the tree sidebar's two colours, each with one meaning. Sky marks live work, a
+    ring or diamond at work and the badge of a root with live work under it; amber marks what
+    asks you. Each is its hue's 700 on light and its 400 on dark, at 4.5:1 or more on the
+-   sidebar. Every other mark and badge is neutral. */
++   sidebar. Every other mark and badge is neutral. The brief dialog's one accent is the same sky,
++   on its links to a tree row only. */
+ :root {
+   --jstack-live: #0369a1;
+   --jstack-asks: #b45309;
++  --jstack-link: #0369a1;
+ 
+   @variant dark {
+     --jstack-live: #38bdf8;
+     --jstack-asks: #fbbf24;
++    --jstack-link: #38bdf8;
+   }
+ }
+diff --git a/apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt b/apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt
+new file mode 100644
+index 0000000000..8c2d5b44c4
+--- /dev/null
++++ b/apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt
+@@ -0,0 +1,15 @@
++# jinstall-retired-hooks: install.sh takes out a hook entry whose script no feature declares any more
++Task: "jinstall writes a hook group for each script a feature.json names, but never takes out one whose script was removed: once sb-handoff-archive removed features/home/hooks/home-gauge.sh, every machine keeps a PreToolUse and a PostToolUse group that runs sh on a missing file. Fix: the install and --check find a group whose command names a script under the layout's hooks/ that no feature declares, report it old, and put drops it."
++Done when:
++- `install.sh --check` on a settings.json with a `home-gauge.sh` group prints it as old, and `install.sh` removes it and keeps every other group
++- a group the user wrote that names no layout script is left alone
++Proves it: a test in features/jinstall/tests/test_install.py that writes such a group, runs the install, and reads settings.json back
++Size: S
++Where: `features/jinstall/src/jinstall/kinds.py` (`HookGroup`), `features/jinstall/src/jinstall/needs.py`, `features/jinstall/tests/test_install.py`
++Do not touch: the hooks features declare
++Decisions: noticed in sb-handoff-archive
++Design: none, the install already drops its own groups on uninstall
++Skills: none
++Pull request: open one when done
++Review: review
++Playbook: none
+diff --git a/apps/web/test/fixtures/jstack-briefs/jv-color-design.txt b/apps/web/test/fixtures/jstack-briefs/jv-color-design.txt
+new file mode 100644
+index 0000000000..b3151cbb66
+--- /dev/null
++++ b/apps/web/test/fixtures/jstack-briefs/jv-color-design.txt
+@@ -0,0 +1,40 @@
++# jv-color-design: three modern dashboard colour schemes for jview, drawn on the real page, for Josh to pick one
++Request: Josh, 2026-10-28: "We need to add color to jview - today it is grayscale and beige background. We need to use a modern dashboard color scheme". Today's tokens (features/jbus/src/jbus/view/page.html :root) are a warm beige canvas (#FAF7F2), gray inks, one teal brand, and only amber (due) and red (missed) as status colours. Plan entry jv-color in jview/plan.md has the Done when.
++Read first (change none of it):
++- features/jbus/src/jbus/view/page.html :root and every place a colour token is used (rg 'var\(--'), panels/*/panel.js inline colours, and the light-dark() and data-theme switch.
++- the view's kept shots under features/jbus/tests/fixtures/jbus-view/shots/ and tests/view/page/test_view_page_look.py (how shots are drawn and kept).
++- reports/jv-glance/build/design.md (the layout the colours must serve) and the jv-score round's heuristics.json (H-03 stage vocabularies, H-15 home states with one colour).
++Questions:
++- Draw three distinct modern dashboard schemes (for example: slate neutrals with an indigo accent as in Linear or Vercel; zinc with a blue accent and saturated status chips as in Grafana or Datadog; and one of your own choosing), each as a full token set: canvas, surface, sunk, inks, lines, brand, focus, status (ok, running or queued, due, missed, held, stacked) with tints, and a categorical set of at least six for stages and homes, in light and dark.
++- Where should colour carry meaning on the page (verdict word, KPI tiles, matrix cells by stage, check bar, chips, drawers) and where should it stay neutral? Say it per widget.
++- Check every text and mark pair against WCAG AA in both themes, and colour-blind safety (deuteranopia, protanopia) for the status and categorical sets.
++- Which tokens and inline colours must change, file and line, and is it one pull request?
++Deliver: under "## Report" in this file: PASS, ISSUES or BLOCKED; for each scheme `#/` shots at 1440 and 390, light and dark, over the T scene (jbus view-shot with the tokens swapped in a scratch copy), under reports/jv-color/; one HTML page reports/jv-color/index.html that sets the three side by side with a pick per scheme and a notes field for Josh; your recommendation; and the crewmate's brief at tasks/jv-color.md, written for the recommended scheme, so the home can swap in Josh's pick.
++Playbook: investigation
++Out of bounds: read-only in the repo. No change to the repo, no pull request, no edit to jbus's config or state, no live jview change. Files under reports/jv-color/ and the brief only. No loop of more than ten gh calls until `jbus budget --calls <n>` says ok, and none while it says held.
++Home: jview
++Thread: mcp:jv-color-design-thread
++
++## Report
++Status: done
++Verdict: PASS. All three schemes pass every pair: 99 to 105 per theme, 606 in total, 0 fail.
++Answers:
++- Three schemes, each a full token set in light and dark (`reports/jv-color/schemes.json`): A slate and indigo (Linear, Vercel), B zinc and blue with solid chips (Grafana, Datadog), C graphite and teal with Okabe-Ito statuses. Each has canvas, surface, sunk, ink to ink-3, line, hair, brand, focus, ok, run, due, missed, held and stacked with tints, and cat-1 to cat-8. Shots of `#/` at 1440 and 390, light and dark, over the T scene, are in `reports/jv-color/shots/{slate,zinc,graphite,today}-*.png`.
++- Colour carries meaning on: the verdict word and its stripe (MOVING ok, HELD BY YOU and STALLED due, CANNOT SEE missed), a KPI tile's stripe only when the tile needs a look, the check bars and matrix dots by outcome, chips by status, the hour and day bars in brand, and a home swatch from the categorical set. Neutral: numbers, labels, stage columns (a stage is a place in an order, H-03), drawers apart from their one status, and AT REST. The table is on the page.
++- WCAG AA: every text pair is at least 4.5 and every mark at least 3.0, in both themes (`check.txt`). Colour-blind: the smallest CIEDE2000 gap between status pairs that share a widget, under protan and deutan, is A 14.2/13.9, B 11.4/11.1, C 11.8/18.5 (light/dark), against a floor of 11. The first six categorical colours are at least 13.6 apart in all three.
++- What changes: `page.html:11-18` (the tokens) plus about 15 rules, and 5 panel.js files. The file and line list is on the brief's `Change:` line. The panels write no colour literals. Two PRs: (1) tokens, status rules, test_view_tokens PAIRS and redrawn shots, M; (2) a stable home colour from the server, S (needs a field in view/homes.py).
++Findings:
++- Six statuses cannot all sit 12 or more apart under deuteranopia while each also passes 4.5:1 as text. The text rule pins them to one lightness band, and deutan leaves only blue-yellow within it. My first tuner raised the gap by turning statuses grey (thrown away). The floor is held on the pairs that share a widget, and shape or word carries the rest. Rests on: `tune.py`, then `check.py`'s "all six" row (zinc light run/held 8.2, reported and not held).
++- Brand against status: B's blue is ΔE 3 from running (dark) and 9 (light), C's teal is ΔE 7 from ok (dark), A's indigo is at least 11. Rests on: de2000 over schemes.json, also shown on the page as "brand to nearest status".
++- `test_view_tokens.py:14-30` PAIRS checks only ink, due and missed. The new statuses need adding there. `test_view_look.py` fails a literal radius or length and an undefined `var()`, so `meaning.css` cannot be pasted in as it is (its `var(--ok-chip, ...)` fallback and its 4px radii).
++- Kept shots must be drawn on Chrome for Testing 156.0.8078.47 (`browser.txt`). The local chromium is 156.0.8078.73. /tmp/jvg-cft holds the .47 build.
++- The phone's Every home legend (`page.html:450`) colours its swatches separately from its bars, so the legend's running swatch stayed grey in the shots while the bars turned blue.
++- Gate: question 119
++Sources: WCAG 2.2 SC 1.4.1, 1.4.3, 1.4.11; Machado et al. 2009 CVD matrices; CIEDE2000; `.github/workflows/browser.yml:45-46`; `test_view_page_look.py` and `test_view_page_days.py` docstrings; design.md section C; heuristics.json H-03, H-15.
++Ruled out: stage hues (they clash with status, and an order is not a category); a home colour by row order (it would move as counts change); hand-picked palettes (failed CVD, see check.py's first run); B as recommendation (its brand reads as running).
++Skills run: none
++Recommendation: build scheme A by tasks/jv-color.md, with homes coloured and stages neutral, in two PRs. C is the close second if keeping the teal matters more than keeping the brand apart from ok.
++Plan entries: jv-color-homes: Done when: view/homes.py gives each home a stable colour index 1-8 (by config order) in /stack.json and in the pipeline board's homes; the matrix, Homes page and Homes drawer draw its swatch; a scene test pins the index.
++Brief: ~/.local/state/home/jstack/tasks/jv-color.md   Page: ~/.local/state/home/jstack/reports/jv-color/index.html, http://localhost:4387/session/0000000000000001 (the request named index.html under reports/jv-color/, so the page is not at reports/jv-color-design.html)
++Steers: Josh, on the page (round 1), kept all three picks as recommended: scheme A (slate and indigo), homes coloured with stages neutral, two pull requests. No notes. The brief already builds this.
++Repo: `?? .lavish/` was there at the start and is not mine. Nothing else changed. Shots were drawn in a `git archive` copy at /tmp/jvc.
+diff --git a/apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt b/apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt
+new file mode 100644
+index 0000000000..ddba7e3d16
+--- /dev/null
++++ b/apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt
+@@ -0,0 +1,24 @@
++# sb-type-b2-build: build take B2: one weight, a ring by thirds, scout diamonds, one sky accent for live work
++Follows: sb-type-b-proto
++Task: the user, 2026-10-29, picked take B2 ("this one"): "one accent for live work. Sky blue marks only what's working right now: the ring or diamond at work, and the badge of a project that has live work. Everything else stays neutral."
++Done when:
++- the tree renders as `$H/reports/sidebar-type/take-b2.png` and the B2 row of `$H/reports/sidebar-type/round-2.md`: every tree text 13/400 or 11/400; the crew mark one 8px ring filled by thirds (crew, review, merge); scouts a 10px diamond, hollow and muted while queued, half filled while scouting, filled once its report is in
++- one accent, sky `#38bdf8` dark / `#0369a1` light, only on live work: a ring or diamond at work, and the badge of a root with live work under it; every other mark and badge neutral (60% ink); amber `#fbbf24` / `#b45309` kept for "asks you"; text stays neutral
++- "live" is a launched task not asking you, not stalled or held, and not a scout whose report is in, read from jbus's scout state (`sb-scout-report-state`), never faked
++- it replaces take A's three segments and its 500 root weight on main; no prototype switcher ships
++- browser tests assert sizes, weights, the ring and diamond states and the accent rule (computed styles), and contrast stays at or above 4.5:1 in dark and light
++- the fork's checks pass: `env -u ELECTRON_RUN_AS_NODE vp run check:changed` in a fresh fork worktree with every patch of main's `features/t3code-jstack/packaging/` applied, plus this commit
++- the patch series on main carries it as its own numbered patch, named in `_patches` with one more `'SKIP'` in `sha256sums`, `pkgver` names the series, and every patch applies to a clean `git archive` of tag `v0.1.5-nightly.20261029.3877`
++- the check command (`$H/fresh-check`) passes
++Proves it: the fork's browser tests with computed styles, the patch series applying to a clean archive of the tag, a screenshot of the built tree matching take-b2.png, and the user installing it with `jinstall --setup`
++Size: M
++Where: `features/t3code-jstack/packaging/` on main; the fork's `apps/web/src/components/sidebar/` (`JstackTreeRows.tsx`, `jstackTree.logic.ts`), `apps/server/src/jstack/` and `packages/contracts/src/jbusWork.ts` for the scout state; `apps/web/src/index.css`; the prototype on fork branch `sb-type-proto` (`~/repos/t3code-wt/sb-type-proto`) to read from, not to ship as is
++Do not touch: `~/.t3/userdata`, `VITE_HTTP_URL`/`VITE_WS_URL`, the live jbus and home state; never kill processes by pattern
++Decisions: the user, 2026-10-29: "this one", on take B2
++Design: `$H/reports/sidebar-type/round-2.md` and `take-b2.png`
++Skills: none
++Pull request: open one when done
++Review: twice
++Playbook: feature
++Home: sidebar
++Builds on: sb-scout-report-state: the scout state jbus writes, which the tree reads
+-- 
+2.56.0
+
