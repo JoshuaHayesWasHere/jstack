@@ -120,7 +120,7 @@ def resolved(skill, tmp_path):
 
     """
     text = as_read(skills()[skill] / "SKILL.md")
-    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json))`", text)))
+    named = sorted(set(re.findall(r"`(\$T/[^`<>\s]+\.(?:md|html|json|yml))`", text)))
     user = tmp_path / skill / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
     (user / ".claude" / "skills" / skill).symlink_to(TEMPLATES.parent / "skills" / skill)
@@ -147,6 +147,7 @@ READS = {
     "expert": {"expert-answer.md", "gates.md"},
     "grilling": {"grill-page.html", "grill-round.schema.json"},
     "handoff": {"handoff.md"},
+    "new-home": {"check.yml"},
     "home": {"brief.md", "context", "gates.md", "plan-entry.md", "scout-request.md"},
     "pr-review": {"rerun.md", "review.md"},
     "scout": {

@@ -119,9 +119,8 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 4. Pick the repo that you want work done in.
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
-	Add a workflow under `.github/workflows/` that runs `on: pull_request`, with a job named `check`.
-	The job's name is the check's name.
-	GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to write one.
+	Where it has none, step 5 commits one on a branch `jstack-check`: push it and merge it.
+	GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to add a setup step it may need.
 	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
 5. Open T3 Code, start a thread in any project, and type the command below with the path of the repo's main checkout.
@@ -133,7 +132,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	You see one line for each part of the repo's first home: `done`, `already`, or `needs you` with what to do.
 	It makes the state directory, `~/.local/state/home/<repo>`, where `<repo>` is the checkout's folder name.
 	It adds the repo to T3 Code as a project and to the `jbus` config, and links jleak's git hooks, which refuse a push that leaks what must stay private and strip AI co-author lines from commits.
-	A `needs you` line asks for what only you know, such as the repo's local check command, which goes in `fresh-check` there (`make check`, where the repo has that target).
+	It writes the repo's check command to `fresh-check` there (`make check`, where the repo has that target), and the workflow of step 4.
 	Last, it starts the home thread, and you see a short status of the repo there.
 	Once that home ends, the next thread you open in the project becomes the home by itself.
 
