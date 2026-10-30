@@ -114,7 +114,9 @@ def test_it_walks_every_need_the_doctor_lists_once_and_in_order(user):
         if link.parent == user.home / root
     }
     doctored = [line.split(" -> ")[0].split(" ", 2)[2] for line in user.doctor()[1][:-1]]
-    assert named == list(dict.fromkeys(links.get(name, name) for name in doctored))
+    folded = [links.get(name, name) for name in doctored]
+    runs = [name for at, name in enumerate(folded) if name not in FOLDS or folded[at - 1] != name]
+    assert named == runs
 
 
 def test_a_clean_home_is_set_up_in_at_most_40_lines_with_one_line_for_each_layouts_links(user):

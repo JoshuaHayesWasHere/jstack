@@ -111,7 +111,11 @@ def setup(machine: Machine) -> Report:
     `needs you <name> -> <command>` for each step that is left for the user. An optional
     need that is missing is a layer the user has not set up, and its line is the doctor's,
     `missing optional <name> -> <command>`. A repo's own git hook (`yours`) gets that line too:
-    the repo runs without jstack's hook, and no step of the user's is owed.
+    the repo runs without jstack's hook, and no step of the user's is owed. A need with a
+    `fold`, a harness's skill link, is counted in one line for its run instead, such as
+    `done skills claude-code: 66 links`, while it is done or already there. When a step is left
+    for the user, the last line names each again, `setup: <n> needs you: <name> -> <command>; ...`,
+    so the steps are not lost among the lines above.
 
     Setup writes a Seeded need that is missing, and puts a due Carried need that is not ok, as
     the install puts it. The jbus config comes before the units in the list, so a run that
@@ -119,14 +123,28 @@ def setup(machine: Machine) -> Report:
     need is left for the user."""
     if refusal := refused(machine, "set up"):
         return refusal
-    lines, notes, code = [], [], 0
+    lines, notes, code, left, folds = [], [], 0, [], {}
+
+    def tell(word: str, need: Need) -> None:
+        """Add the need's line, or count it in its fold's line, which its first need adds."""
+        if not need.fold:
+            lines.append(f"{word} {need.name}")
+            return
+        key = (word, need.fold)
+        if key not in folds:
+            folds[key] = [len(lines), 0]
+            lines.append("")
+        folds[key][1] += 1
+        at, count = folds[key]
+        lines[at] = f"{word} {need.fold}: {count} link{'s' if count > 1 else ''}"
+
     for need in needs(machine):
         kind = need.kind
         if isinstance(kind, Carried) and not kind.due(machine):
             continue
         found = kind.probe(machine)
         if found.state is State.OK:
-            lines.append(f"already {need.name}")
+            tell("already", need)
             continue
         seeds = isinstance(kind, Seeded) and found.state is State.MISSING
         puts = isinstance(kind, Carried) and found.replaceable
@@ -140,13 +158,17 @@ def setup(machine: Machine) -> Report:
                 notes.append(f"install.sh: {need.name}: {error}")
             found = kind.probe(machine)
             if found.state is State.OK:
-                lines.append(f"done {need.name}")
+                tell("done", need)
                 continue
         ask = kind.ask(machine) if isinstance(kind, Asks) else found.detail
         code |= need.level is Level.HARD
         layer = need.level is Level.OPTIONAL and found.state is State.MISSING
         said = "missing optional" if layer or yours(need, found) else "needs you"
-        lines.append(f"{said} {need.name} -> {ask or found.state.value}")
+        step = f"{need.name} -> {ask or found.state.value}"
+        left += [step] if said == "needs you" else []
+        lines.append(f"{said} {step}")
+    if left:
+        lines.append(f"setup: {len(left)} needs you: {'; '.join(left)}")
     return Report(tuple(lines), "\n".join(notes), code)
 
 

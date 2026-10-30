@@ -43,7 +43,7 @@ From then on, `jinstall` and its verbs work as this page says, and [Working on j
 |---|---|
 | `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. Prints one line for each part. |
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
-| `jinstall --setup` | Goes through every need once, in order, and prints one of these lines for each: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
+| `jinstall --setup` | Goes through every need once, in order, and prints one of these lines for each: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. The skill links of each harness are one line, `done skills <harness>: <n> links`. When a step is left to you, the last line is `setup: <n> needs you: <name> -> <command>; ...`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. Prints one line for each hook. |
 | `jinstall --uninstall` | Removes what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |

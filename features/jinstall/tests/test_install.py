@@ -423,7 +423,8 @@ def pre_tool_use(file, script):
 
 
 def line_for(said, part):
-    return [line for line in said if f" {part}" in line]
+    """The lines that name `part`, but for setup's last line, which names each need left."""
+    return [line for line in said if f" {part}" in line and not line.startswith("setup: ")]
 
 
 def test_it_puts_every_part_and_says_ok_for_each(user):
