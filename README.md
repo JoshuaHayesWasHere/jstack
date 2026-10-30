@@ -76,21 +76,26 @@ It writes outside jstack's own folders for each of the three.
 
 ## Quickstart
 
-In this tutorial we install jstack, point it at a repo of yours, and merge one pull request that its threads wrote.
+In this tutorial we install jstack, point it at a repo of yours, and merge one pull request its threads wrote.
 
-1. Install the latest release and set it up. The script needs only `curl` and a shell.
-	If the `curl` line fails with a 404, the repo has no release yet: install from a clone, as [jinstall](features/jinstall/docs/jinstall.md#install-from-a-clone) shows.
+1. Install jstack from `main` and set it up. The script needs only `curl` and a shell.
 
 	```sh
-	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
+	curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh
 	```
 
 	The script installs `uv` when it is missing, installs the ten commands as the `uv` tool `jstack`, and runs `jinstall --setup`.
-	With `uv` already there, you can do the same by hand, for one version:
+	With `uv` already there, you can do the same by hand:
 
 	```sh
-	uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@v<version>
+	uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@main
 	jinstall --setup
+	```
+
+	Once a release exists, its script installs it:
+
+	```sh
+	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
 	```
 
 	Setup prints one line for each need: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or `missing optional <name> -> <command>`.
@@ -114,8 +119,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	```
 
 	You see a line for each requirement, then the lines of step 2, and `doctor: ok` last.
-	A `missing optional` line names a layer you have not set up.
-	Every other `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
+	Every `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
 
 4. Pick the repo that you want work done in.
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
@@ -123,7 +127,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to add a setup step it may need.
 	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
-5. Open T3 Code, start a thread in any project, and type the command below with the path of the repo's main checkout.
+5. Open T3 Code, start a thread in any project, and type this with the path of the repo's main checkout.
 
 	```text
 	/new-home <path>
@@ -133,15 +137,18 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	It makes the state directory, `~/.local/state/home/<repo>`, where `<repo>` is the checkout's folder name.
 	It adds the repo to T3 Code as a project and to the `jbus` config, and links jleak's git hooks, which refuse a push that leaks what must stay private and strip AI co-author lines from commits.
 	It writes the repo's check command to `fresh-check` there (`make check`, where the repo has that target), and the workflow of step 4.
+	Then its sign-in line says `needs you` until you run `jbus t3 login`, since `jbus` reads your go from T3 Code.
 	Last, it starts the home thread, and you see a short status of the repo there.
 	Once that home ends, the next thread you open in the project becomes the home by itself.
 
-6. Tell the home one small task.
-	You see it ask you about the plan, write a brief, and start a crewmate thread, which shows up in T3 Code's thread list with a worktree of its own.
+6. Tell the home one small task, and give the go.
+	You see it ask you about the plan and write a brief.
+	Nothing starts until you say go, which the home keeps with `jbus plan go`.
+	Then it starts a crewmate thread, with a worktree of its own, in T3 Code's thread list.
 
 7. Watch the crewmate.
 	You see it do the task, run the check command of `fresh-check`, open a pull request, and start a reviewer thread.
-	Then it fixes what the review found, and says that the pull request is fixed and green.
+	Then it fixes what the review found, and says the pull request is fixed and green.
 
 8. Merge. In the repo's main checkout, run `jmerge`.
 
@@ -151,12 +158,11 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 	You see `merged` or `wait` and the reason for each open pull request.
 	`jmerge` merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
-	No person has to approve on GitHub.
-	The reviewer thread's review counts as the approval.
+	The reviewer thread's review is the approval, so no person approves on GitHub.
 
 Nothing merges by itself until `jbus` runs.
 Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.
-Without it, run `jmerge` yourself, since no home merges.
+Without it, run `jmerge` yourself.
 To add jleak's git hooks to another repo, run `jinstall --repo` in it ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.

@@ -413,16 +413,18 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     assert 0 < len(steps) <= 10
     typed = [line for block in blocks(said, "sh") for line in block]
     github = "https://github.com/JoshuaHayesWasHere/jstack"
-    assert typed[:2] == [
-        f"curl -fsSL {github}/releases/latest/download/install.sh | sh",
-        f"uv tool install git+{github}@v<version>",
-    ]
-    assert typed[2:] == [
+    assert typed == [
+        "curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh",
+        f"uv tool install git+{github}@main",
         "jinstall --setup",
+        f"curl -fsSL {github}/releases/latest/download/install.sh | sh",
         "jinstall --check",
         "jinstall --doctor",
         "jmerge",
     ]
+    install = re.search(r"^1\. (.*?)^2\. ", said, re.M | re.S)[1]
+    assert install.index("main/install.sh") < install.index("Once a release exists")
+    assert install.index("Once a release exists") < install.index("releases/latest")
     assert blocks(said, "text") == [["/new-home <path>"]]
     helped = subprocess.run(
         [sys.executable, "-m", "jmerge", "--help"], capture_output=True, text=True, cwd=tmp_path
@@ -431,7 +433,7 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     skill = (REPO / "features" / "home" / "skills" / "new-home" / "SKILL.md").read_text()
     assert re.search(r"\A---\n(?:.*\n)*?name: new-home\n", skill)
     user = Doctored(tmp_path)
-    for line in typed[2:5]:
+    for line in (typed[2], *typed[4:6]):
         code, printed, err = user.run_with_stderr(*line.split()[1:])
         assert (code, err) == (0, ""), line
         ends = ("ok ", "missing optional ")
@@ -439,6 +441,16 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
             ends = ("done ", "already ", "needs you ", "missing optional ")
         assert all(each.startswith(ends) for each in printed[:-1]), line
     assert printed[-1] == "doctor: ok"
+
+
+def test_the_quickstart_says_to_sign_jbus_in_and_to_give_the_go():
+    said = section(README.read_text(), "Quickstart")
+    home = re.search(r"^5\. (.*?)^6\. ", said, re.M | re.S)[1]
+    assert "its sign-in line says `needs you` until you run `jbus t3 login`" in home
+    go = re.search(r"^6\. (.*?)^7\. ", said, re.M | re.S)[1]
+    assert go.startswith("Tell the home one small task, and give the go.")
+    assert "Nothing starts until you say go" in go
+    assert "`jbus plan go`" in go
 
 
 def test_the_quickstart_links_how_to_make_the_check_it_asks_the_repo_for():
