@@ -413,8 +413,9 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     assert 0 < len(steps) <= 10
     typed = [line for block in blocks(said, "sh") for line in block]
     github = "https://github.com/JoshuaHayesWasHere/jstack"
+    raw = "https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack"
     assert typed == [
-        "curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh",
+        f"curl -fsSL {raw}/main/install.sh | sh",
         f"uv tool install git+{github}@main",
         "jinstall --setup",
         f"curl -fsSL {github}/releases/latest/download/install.sh | sh",
