@@ -20,7 +20,10 @@ raised a finding and another dismissed it there, `triage` keeps the two apart an
 dismissal beside the finding (`Finding.contradicts`). The `By:` line names a reviewer. Its
 last word is the reviewer's number, `#<n>`. The number is the line of the role map's review
 list that the crew launched the reviewer for, so two reviewers of one model count as two
-(`Section.seat`). The `Reviewer:` lines say whom a round waits for (`Roster`). Once one of
+(`Section.seat`). A section's first line of a shape pr-review prints for `By:`, the provider,
+the model and the effort or the first two, or `inherit`, then `#<n>`, with no label, as a
+reviewer writes it when it drops the `By: `, is read as that line (`_BARE_BY`). The
+`Reviewer:` lines say whom a round waits for (`Roster`). Once one of
 them carries a number, the round waits for the numbered lines alone, and the unnumbered lines
 before them are a launch that the numbered ones replaced. When a reviewer writes a section
 again at the same head, the new section takes the place of the earlier one. `triage` merges
@@ -169,6 +172,7 @@ class Section:
 
 
 _SEAT = re.compile(r"\s#(\d+)$")
+_BARE_BY = re.compile(r"(inherit|[^\s:]+ [^\s:]+( [^\s:]+)?) #\d+")
 
 
 @dataclass(frozen=True)
@@ -423,11 +427,13 @@ def _sections(text: str) -> list[Section]:
                 found.append(
                     {"by": "", "verdict": "", "ran": False, "head": "", "lines": [], "at": at}
                 )
-                found[-1] |= {"scoped": False, "rulings": []}
+                found[-1] |= {"scoped": False, "rulings": [], "first": True}
             elif found:
                 found[-1]["closed"] = True
             continue
         here = found[-1] if found and not found[-1].get("closed") else None
+        if here is not None and line.strip() and here.pop("first", False):
+            here["by"] = line.strip() if _BARE_BY.fullmatch(line.strip()) else ""
         if line.startswith("Dropped:"):
             listing = False
         if here is None:
