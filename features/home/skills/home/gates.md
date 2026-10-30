@@ -29,49 +29,16 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 ```sh
 : "${M:?run the block that finds this home first}"
 SEP=$(printf '\037')
-own=home
-if [ "$M" != "$H" ]; then own=home-$(basename "$M"); fi
-mine() {
-    if [ "${1}" = "$own" ]; then return 0; fi
-    case ${1} in
-    home) return 1 ;;
-    home-*) if [ -f "$H/${1#home-}/plan.md" ]; then return 1; fi ;;
-    esac
-    for f in "$H/tasks/${1}.md" "$H/scouts/${1}.md"; do
-        if [ -f "$f" ]; then
-            [ "$(whose "$f")" = "$M" ]
-            return
-        fi
-    done
-    [ "$M" = "$H" ]
-}
-P=$(awk -v repo="$R" '
-    function said(line) { sub(/^[^=]*=[ \t]*"/, "", line); sub(/"[ \t]*(#.*)?$/, "", line); return line }
-    function table() { if (inside && !found && name != "" && (state == "" ? name : state) == repo) { print name; found = 1 } name = state = "" }
-    /^[ \t]*\[/ { table(); inside = ($(0) ~ /^[ \t]*\[\[project\]\][ \t]*$/); next }
-    inside && /^[ \t]*name[ \t]*=/ { name = said($(0)) }
-    inside && /^[ \t]*state[ \t]*=/ { state = said($(0)) }
-    END { table() }' "${JBUS_CONFIG_DIR:-$HOME/.config/jbus}/config.toml" 2> /dev/null)
-OPEN=
-Q="${JBUS_STATE_DIR:-$HOME/.local/state/jbus}/$P/questions.json"
-if ! command -v jbus > /dev/null; then
-    WHY="no jbus: jbus is not installed here, so it holds no question"
-elif [ -z "$P" ]; then
-    WHY="no project: jbus's config names no project for $R, so it holds no question of this repo"
-elif [ ! -e "$Q" ]; then
-    WHY=
-elif ! found=$(jq -r '.records[] | select(.answer == null) | [.number, .slug, .question, .default, .built_on, .undo, (.holds // ""), (.fail_safe // "")] | map(tostring) | join("\u001f")' "$Q" 2> /dev/null); then
-    WHY="jbus could not be read: $Q is not the record jbus writes"
-else
-    WHY=
-    OPEN=$(printf '%s\n' "$found" | while IFS=$SEP read -r n slug rest; do
-        if [ -n "$n" ] && mine "$slug"; then printf '%s\n' "$n$SEP$slug$SEP$rest"; fi
-    done)
-fi
+none=
+if ! command -v jbus > /dev/null; then none=--no-jbus; fi
+{ IFS= read -r own; IFS= read -r P; IFS= read -r WHY; OPEN=$(cat); } << THE_STATUS_ENDS_HERE
+$(uv run --project "$T/../source" jbus home status --home "$M" --gates $none)
+THE_STATUS_ENDS_HERE
 ```
 
 It prints nothing.
-`$P` is this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, read from the record jbus keeps of them, `questions.json` in the project's state directory: it is as it is now, with no pass between.
+`jbus home status --gates` reads jbus for it, and this block reads no file of jbus's itself.
+`$own` is this home's own slug, `$P` this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, one to a line with their fields joined by `$SEP`, read from the record jbus keeps of them: it is as it is now, with no pass between.
 This block only reads it: `jbus gate` and `jbus answer` are the two that write it.
 A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one.
 One that no brief, no request and no home asked, as an expert's finding is, is the root home's.

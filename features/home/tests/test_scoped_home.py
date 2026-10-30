@@ -6,6 +6,7 @@ runs it in a temporary repo that has both homes."""
 import os
 import re
 import subprocess
+import sys
 
 import pytest
 
@@ -463,30 +464,46 @@ def test_a_heading_is_shown_until_it_is_marked_and_a_start_cut_before_shows_it_a
     assert homes.start(SCOPED)["to read"] == []
 
 
-@pytest.mark.parametrize("code", [0, 1])
+@pytest.mark.parametrize("named", [True, False])
 def test_a_start_reads_the_plan_as_jbus_counts_it_and_whole_only_where_jbus_gives_none(
-    homes, monkeypatch, code
+    homes, monkeypatch, tmp_path, named
 ):
-    """The block of step 4 runs the real verb with its words: `plan`, and `--scope` for a scope."""
-    stub = homes.user / "bin"
-    stub.mkdir()
-    (stub / "jbus").write_text(f'#!/bin/sh\necho "jbus $*"\nexit {code}\n')
-    (stub / "jbus").chmod(0o755)
-    monkeypatch.setenv("PATH", f"{stub}{os.pathsep}{os.environ['PATH']}")
+    """Step 4 prints what `jbus plan` prints, with `--scope` for a scope, and where jbus's config
+    names no project for the repo it says to read the plan whole."""
+    config, state = tmp_path / "config", tmp_path / "jbus"
+    config.mkdir()
+    (config / "config.toml").write_text(
+        f'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "demo"\n'
+        f'state = "{NAME if named else "another"}"\ncheckout = "{homes.main}"\nprojectId = "p"\n'
+    )
+    (config / "config.toml").chmod(0o600)
+    for name, value in (("CONFIG", config), ("STATE", state), ("HOME", homes.home_dir.parent)):
+        monkeypatch.setenv(f"JBUS_{name}_DIR", str(value))
     homes.home_starts(ROOT)
     homes.home_starts(SCOPED, SCOPE)
-    for thread, said, mine in (
-        (ROOT, "jbus plan", homes.home_dir),
-        (SCOPED, f"jbus plan --scope {SCOPE}", homes.scope_dir),
+    (homes.home_dir / "plan.md").write_text("# plan\n\n## root-task: the root's\nStage: planned\n")
+    (homes.scope_dir / "plan.md").write_text("# plan\n\n## sc-task: the scope's\nStage: planned\n")
+    for thread, words, mine in (
+        (ROOT, [], homes.home_dir),
+        (SCOPED, ["--scope", SCOPE], homes.scope_dir),
     ):
-        whole = [said] if code == 0 else [f"no jbus plan: read {mine}/plan.md whole"]
+        said = subprocess.run(
+            [sys.executable, "-m", "jbus", "plan", *words],
+            capture_output=True,
+            text=True,
+            cwd=homes.main,
+        )
+        whole = said.stdout.splitlines() if named else [f"no jbus plan: read {mine}/plan.md whole"]
+        assert (said.returncode == 0) == named
         assert homes.start(thread)["plan"] == whole
+        assert len(whole) == 1
 
 
 def test_a_block_run_without_the_block_it_is_run_after_says_so_and_does_nothing(homes):
     homes.home_starts(ROOT)
     before = homes.state()
     guarded = [text for text in blocks("home") if "SEP:?" in text or "SEP=" in text]
+    guarded.append(start_block())
     assert len(guarded) == 8
     for text in guarded:
         ran = subprocess.run(

@@ -11,7 +11,7 @@ import textwrap
 
 import pytest
 
-from test_home_thread import as_read
+from test_home_thread import STATUS, as_read
 from test_jbus_kitchen import complete
 from testing.layouts import assembled
 
@@ -269,7 +269,7 @@ def test_nohome_switches_a_repo_off_and_on_before_any_home_has_started_there(sce
     assert scene.start() == scene.said(first=True)
 
 
-START = "## to read"
+START = STATUS
 LONG = "it waits on a long reason that a pass wrote, " * 6
 
 
