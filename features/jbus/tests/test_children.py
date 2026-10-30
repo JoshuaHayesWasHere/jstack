@@ -4,6 +4,7 @@ user is asked, and nothing more is sent in that spell. Something the child does 
 see ends the spell, and its home's reply to a nudge does not. A routine, a scope with a `rhythm`
 file, is watched with nothing out. `jbus out --scope` says what a scope has out."""
 
+import json
 from datetime import timedelta
 
 import pytest
@@ -139,6 +140,20 @@ def test_a_quiet_root_home_is_nudged_twice_then_the_user_is_asked(root):
     assert "--scope" not in first["message"]
     stalled, asked = told(kitchen)
     assert "nudged it" in stalled and "after two nudges" in asked
+
+
+def test_a_spell_kept_under_the_old_name_is_read_once_and_moved(root):
+    """A state that holds only `children.json`, as an older jbus wrote it, goes on with the spell
+    it keeps, the home nudged once, and the file is `stalls.json` from then on."""
+    kitchen, _ = root
+    kitchen.poll(minutes(P + 10))
+    assert len(told(kitchen)) == 1
+    spell = json.loads((kitchen.state / "stalls.json").read_text())
+    assert spell[children.ROOT]["step"] == "nudged1"
+    (kitchen.state / "stalls.json").replace(kitchen.state / "children.json")
+    kitchen.poll(minutes(P + 20))
+    assert not (kitchen.state / "children.json").exists()
+    assert json.loads((kitchen.state / "stalls.json").read_text()) == spell
 
 
 @pytest.mark.parametrize("name", ["queue.json", "questions.json"])
