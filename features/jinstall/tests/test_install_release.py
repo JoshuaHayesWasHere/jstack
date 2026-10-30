@@ -377,9 +377,26 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
 
 
 def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_from_git(tmp_path):
-    origin = tmp_path / "jstack.git"
-    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
-    subprocess.run(["git", "-C", str(origin), "fetch", "-q", str(REPO), "HEAD:main"], check=True)
+    # A commit of HEAD's tree in a repo of its own, since CI's checkout is shallow and a fetch
+    # from it into another repo makes no branch.
+    origin = tmp_path / "jstack"
+    origin.mkdir()
+    tree = subprocess.run(
+        ["git", "-C", str(REPO), "archive", "HEAD"], capture_output=True, check=True
+    )
+    subprocess.run(["tar", "-x", "-C", str(origin)], input=tree.stdout, check=True)
+    git = [
+        "git",
+        "-C",
+        str(origin),
+        "-c",
+        "user.name=jstack",
+        "-c",
+        "user.email=jstack@example.com",
+    ]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True)
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "--no-verify", "-m", "main"], check=True)
     home, tools, env = a_new_user(tmp_path)
     env["JSTACK_GIT_URL"] = f"git+{origin.as_uri()}@main"
     assert "\nversion=\n" in INSTALL.read_text()
