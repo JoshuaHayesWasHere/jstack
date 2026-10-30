@@ -27,11 +27,11 @@ So jbus tries an action that got no answer again on the next pass.
 | The conflict | GitHub says such a pull request is `CONFLICTING`, and its head got no rebase message. | Before its review is written, sends the crewmate one queued message for each head, under the key `conflict\|<slug>\|<head12>`: run the first block of "A conflict". After it, sends the rebase message, also where a red check keeps `jmerge` from saying the conflict. |
 | The green | Every check of such a pull request passed at its head, and its crewmate owes a line on green and no reviewer it launched is still out: the brief says `Review: none` and has no `Reviewer: none` line yet, nor an `Unrun:`, `Stuck:` or `Stale base:` line at that head. | Sends the crewmate one queued message for each head, under the key `green\|<slug>\|<head12>`. A green pull request with nothing owed gets no message, and no watch wakes a crewmate. |
 
-jbus calls eight T3 Code tools and no other: `t3_thread_configuration`, `t3_thread_configure`, `t3_thread_launch`, `t3_thread_list`, `t3_thread_read`, `t3_thread_send`, `link_pull_request` and `t3_thread_organize`.
-Three of them change a thread, and jbus sends each in one form only.
+jbus calls seven T3 Code tools and no other: `t3_thread_configure`, `t3_thread_launch`, `t3_thread_list`, `t3_thread_read`, `t3_thread_send`, `link_pull_request` and `t3_thread_organize`.
+Three of them can change a thread, and jbus sends each only as this says.
 `t3_thread_organize` goes out as a settle or an archive of a thread it names.
-`t3_thread_configure` goes out to move a thread that failed on a usage limit to another instance of its pool.
-It changes only the `instanceId` of the selection that `t3_thread_configuration` gave (see "A usage limit" below).
+`t3_thread_configure` goes out to move a thread that failed on a usage limit to another instance of its pool, and with only a `threadId` it changes nothing and reads the thread's selection.
+It changes only the `instanceId` of the selection that `t3_thread_configure` read with only the `threadId` (see "A usage limit" below).
 `t3_thread_send` goes out only through `jbus.outbox.send`, as a queued message with a retry key, to a crew, a reviewer, a scout, a waiter or a home thread.
 The outbox holds a message to a capped instance, and a message that needs `act` while its thread waits on a slot, waits on its review, or is at work.
 
@@ -51,7 +51,7 @@ The search reads the thread's own role's lines first (`crew`, `review`, `scout`,
 Where no line names the instance, the pool is the thread's instance alone.
 So a Claude reviewer whose `review` lines name Codex and Cursor moves in the `crew` line's Claude pool, and no thread is moved to another provider.
 If a thread is not on the chosen instance, jbus moves it once with `t3_thread_configure`.
-The new selection is the one `t3_thread_configuration` gave, with only its `instanceId` changed, so the model, effort and fast mode stay as they were.
+The new selection is the one that read gave, with only its `instanceId` changed, so the model, effort and fast mode stay as they were.
 jbus sends every thread one queued carry-on with the retry key `failover|<thread>|<run>`.
 That carry-on is not one of the two of "The carry-on", and when a later pass sees the same failure, it finds the key and does nothing.
 A thread that did not fail on a limit is never moved, and nothing moves a working thread.

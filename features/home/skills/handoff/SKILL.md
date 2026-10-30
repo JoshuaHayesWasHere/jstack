@@ -63,7 +63,7 @@ A handoff archives a home, and starts no home after it.
 A repo has one root home, and may have scoped homes beside it (`skills/home/SKILL.md`, "Where a home's state lives"), and each is archived in its own directory, `$M`: `$H` for the root home, `$H/<scope>` for a scoped one.
 `this_home` sets it as the home skill does, from the one `home-id` that holds this thread's id.
 `handed_off` sets `$F` to the note that names a thread on its `Was home:` line, which step 3 writes, and `$L` to the directory of the home the thread was, or both to nothing.
-Each block below is run with that id in place of `<threadId>`: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first).
+Each block below is run with that id in place of `<threadId>`: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
 In a session with no tool that gives the id, put nothing in its place: the blocks then archive nothing.
 
 A party that is no repo's home hands off too, to a next thread of its own.
@@ -397,7 +397,7 @@ The next thread is the one with exactly that title that is newer than this one.
 
 ### The thread a party's handoff started
 
-The message that started this thread sent it here. This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part. Get this thread's id from the `t3-code` server's `t3_thread_configuration` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first). Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
+The message that started this thread sent it here. This thread is no home by the home skill, and reads this section of this file and the block at the top, and no other part. Get this thread's id from the `t3-code` server's `t3_thread_configure` with no arguments, as `threadId`, and call `list_scheduled_tasks` with no arguments (if your harness defers one, load it first). Then run this with the block at the top, with the id, the name the message gives, and the whole reply in place of the words in angle brackets:
 
 ```sh
 ME='<threadId>'

@@ -10,7 +10,7 @@ Reviewer: mcp:cursor-2
 Finding F1: fixed, a re-run at one head reads as no verdict forever
 Finding F2: not fixed, Codex's home has no jstack skills, because `ls ~/.codex/skills` is the home's install.sh to fill, and the brief puts that link in providers-as-code
 Finding F3: not fixed, the intro sentence points at the By: block, because consider: left for a follow-up
-Finding F4: fixed, By: now comes from t3_thread_configuration
+Finding F4: fixed, By: now comes from t3_thread_configure
 Fixed: 1e16fb7dd82ea2dae3209f561f5273e559b46b4a
 
 ## Review
@@ -36,5 +36,5 @@ Findings:
 Dropped: 0
 Noted: 1
 Dismissed: 1
-- warning skills/pr-review/SKILL.md:94 By: read from jroles is a proxy (principle: principle-prove-it-works) (dismissed: Start now asks t3_thread_configuration, jroles only where it is missing)
+- warning skills/pr-review/SKILL.md:94 By: read from jroles is a proxy (principle: principle-prove-it-works) (dismissed: Start now asks t3_thread_configure, jroles only where it is missing)
 Sent to: mcp:crew

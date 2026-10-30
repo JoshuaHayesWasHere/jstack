@@ -27,7 +27,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
    ```
 
    A thread that is pinned already keeps its place.
-3. Put this thread's id in the folder. The `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). Run this with the block at the top, with the id in place of `<threadId>`:
+3. Put this thread's id in the folder. The `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first). Run this with the block at the top, with the id in place of `<threadId>`:
 
    ```sh
    ME='<threadId>'

@@ -267,7 +267,7 @@ DUAL = "review: codex gpt-6-sol effort=xhigh\nreview: cursor grok-4.7 effort=xhi
 CODEX, CURSOR = "By: codex gpt-6-sol xhigh", "By: cursor grok-4.7 xhigh"
 
 
-CONFIG = "<what t3_thread_configuration printed, or nothing where this session has no such tool>"
+CONFIG = "<what t3_thread_configure printed, or nothing where this session has no such tool>"
 
 
 def by(reviewer, asked, roles=None, thread=None):

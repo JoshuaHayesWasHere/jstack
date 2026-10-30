@@ -84,7 +84,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    A home is pinned for as long as it is the home.
    A thread that is pinned already keeps its place, so a second start changes nothing, and the settle of its archive clears the pin.
-3. Put this thread's id on disk, so the threads this home sends out can report back to it and the block that finds this home can find it. The `t3-code` server's `t3_thread_configuration` with no arguments gives the id as `threadId` (if your harness defers it, load it first). Shell variables do not last from one call to the next, so run this in one call with the block at the top, with the id in place of `<threadId>` and the first line step 1 printed, `root` or `scope <word>`, in place of `<which home>`:
+3. Put this thread's id on disk, so the threads this home sends out can report back to it and the block that finds this home can find it. The `t3-code` server's `t3_thread_configure` with no arguments gives the id as `threadId` (if your harness defers it, load it first). Shell variables do not last from one call to the next, so run this in one call with the block at the top, with the id in place of `<threadId>` and the first line step 1 printed, `root` or `scope <word>`, in place of `<which home>`:
 
    ```sh
    ME='<threadId>'

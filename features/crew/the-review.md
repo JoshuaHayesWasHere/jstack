@@ -53,7 +53,7 @@ Never write a launch's arguments by hand: with no `workspaceStrategy` the review
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.
 
-Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/../source" jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configuration` gives as `threadId`.
+Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/../source" jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configure` with no arguments gives as `threadId`.
 The block runs it, in this worktree, with that id in place of `<thread id>`, `first`, `second` or `scoped` in place of `<pass>`, and for a scoped pass the message "A second pass" gives, whole, in place of `<message>`:
 
 ```sh

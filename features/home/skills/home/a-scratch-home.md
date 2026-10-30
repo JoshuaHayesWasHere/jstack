@@ -7,7 +7,7 @@ None of the rest of this skill is for it: it has no plan, no brief, no crewmate,
 ### How it starts
 
 The user types `/home`, or `/home <name>`, in a thread of "No project".
-Get this thread's id from the `t3-code` server's `t3_thread_configuration` with no arguments (if your harness defers it, load it first), as `threadId`.
+Get this thread's id from the `t3-code` server's `t3_thread_configure` with no arguments (if your harness defers it, load it first), as `threadId`.
 Run this in one call, with the id in place of `<threadId>`, and in place of `<name>` the name the user typed or nothing:
 
 ```sh

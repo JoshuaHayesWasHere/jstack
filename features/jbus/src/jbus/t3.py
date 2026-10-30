@@ -1,16 +1,17 @@
-"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
+"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and seven tools.
 
 `login` registers jbus with the server, sends the user to the server's approval page, keeps the
 token that the server issues, and records when the server issued it (`jsettings.t3.expiry` says
 when that token runs out). `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no
 other tool: a test scans this package for any other tool name.
 
-Three of the eight tools change a thread, and `Client.call` allows each of them in one form
+Three of the seven tools change a thread, and `Client.call` allows each of them in one form
 only (`_held`):
 
 - `t3_thread_organize`, to settle or archive a thread that the call names.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
-  its role's pool, with its model and options as they were (`jbus.failover`).
+  its role's pool, with its model and options as they were (`jbus.failover`). With only a
+  `threadId` it changes nothing and reads the thread's selection, which any thread may have.
 - `t3_thread_send`, as a queued message with a retry key, to a thread that the sender adds to
   `recipients`. Every such message goes through `jbus.outbox.send`, which adds its thread, holds
   a message to a capped thread, and logs each send and hold.
@@ -52,7 +53,6 @@ from jsettings.t3 import T3Error as T3Error
 from jsettings.t3 import T3Refused as T3Refused
 
 TOOLS = (
-    "t3_thread_configuration",
     "t3_thread_configure",
     "t3_thread_launch",
     "t3_thread_list",
@@ -208,8 +208,10 @@ class Client(Session):
             if not arguments["threadId"]:
                 return "names no thread to settle or archive"
         if tool == "t3_thread_configure":
+            if set(arguments) == {"threadId"}:
+                return "" if arguments["threadId"] else "names no thread to read"
             if set(arguments) != {"threadId", "modelSelection"}:
-                return "is only called with a thread and a model selection"
+                return "is only called to read a thread, or with a thread and a model selection"
             if arguments["threadId"] not in self.recipients:
                 return f"to {arguments['threadId']}: no brief has it on a Thread: line"
             was, instances = self.moves.get(arguments["threadId"], ({}, ()))

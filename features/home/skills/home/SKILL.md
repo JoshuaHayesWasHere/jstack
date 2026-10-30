@@ -222,7 +222,7 @@ A thread whose last turn failed on a usage limit, the text `You've hit your week
 `jbus` does it: its pass reads the failure, writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom with only the `instanceId` changed (`t3_thread_configure`), and sends one queued carry-on, once for the failed run.
 Every launch goes to that first instance with headroom as well (`jroles` says which instance it chose and why).
 Where every instance of the pool is capped `jbus` logs one `stall`, which is quiet and in the digest, and waits for the first reset.
-Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configuration`, call `t3_thread_configure` with that selection and the `instanceId` of the next instance of the pool, then send the carry-on below.
+Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configure` and only its `threadId`, call `t3_thread_configure` again with that selection and the `instanceId` of the next instance of the pool, then send the carry-on below.
 Never send a plain carry-on to a thread that failed on a limit.
 
 A message first, when the thread can still take one: `t3_thread_send` to the id on the brief's `Thread:` line, one line, to carry on from its brief and its worktree and to redo nothing that is there.
