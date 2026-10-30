@@ -176,6 +176,34 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
            if ! out=$(jbus out --scope "${scope:-.}" 2>&1); then
                out="not known, jbus said: ${out:-nothing}"
            fi
+           if [ -n "$scope" ] && [ -f "$M/gates.md" ]; then
+               sep=$(printf '\001')
+               moved=$(awk -v sep="$sep" '
+                   function out() { if (open) printf "%s%s%s%s%s\n", n, sep, by, sep, entry; entry = by = ""; open = 0 }
+                   /^## Gate [0-9]+: / { out(); n = $(3); sub(/:$/, "", n) }
+                   /^$/ { next }
+                   /^Status: open$/ { open = 1 }
+                   /^Asked by: / { by = $(0); sub(/^Asked by: /, "", by); sub(/,.*/, "", by) }
+                   { entry = entry $(0) "\002" }
+                   END { out() }' "$M/gates.md" | while IFS=$sep read -r n by entry; do
+                   if [ -z "$by" ] || [ "$by" = home ] || [ "$by" = "home-$scope" ]; then by=home; fi
+                   if said=$(printf '%s\n' "$entry" | tr '\002' '\n' | jbus gate "$by" 2>&1); then
+                       echo "gate $n of gates.md is the root home's, $said"
+                   else
+                       echo "not moved: gate $n of gates.md, jbus said: $said"
+                   fi
+               done)
+               if printf '%s\n' "$moved" | grep -q '^not moved: '; then
+                   echo "not archived: an open gate of $M/gates.md is not a question jbus holds, and nothing is changed but the gates moved before it. Run this again once jbus takes it:"
+                   printf '%s\n' "$moved" | grep '^not moved: '
+                   exit 1
+               fi
+               if ! mv "$M/gates.md" "$M/gates-moved.md"; then
+                   echo "not archived: $M/gates.md could not be renamed to gates-moved.md. Run this again once that is put right."
+                   exit 1
+               fi
+               out=$(printf '%s\n%s\n' "$out" "$moved" | grep .)
+           fi
            if [ -n "$scope" ]; then label="Moved to the root:"; else label="Left with no home:"; fi
            kept=$M/log/$(date +%F-%H%M).md
            if [ -e "$kept" ]; then kept=$M/log/$(date +%F-%H%M%S).md; fi
@@ -226,7 +254,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        echo "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
    ```
 
-   It does it all, in this order: it reads the note, asks jbus what this home has out, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
+   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the root home's and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
    A second run changes nothing and prints `archived before`, with the same lines under it.
    Its first line is what the steps below go by, and the lines under it are what step 4 tells the user and step 5 renames by: keep all of them.
 

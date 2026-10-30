@@ -303,3 +303,53 @@ def test_an_archive_rewrites_no_brief_and_leaves_no_note_a_start_reads(homes, mo
     for mine, last in ((homes.home_dir, LAST_ROOT), (homes.scope_dir, LAST_SCOPED)):
         assert not (mine / "handoff.md").exists()
         assert any(last in path.read_text() for path in (mine / "log").iterdir())
+
+
+GATE = (
+    "## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\nAsked by: home\nUndo: pour it\n\n"
+    "## Gate 4: milk?\nStatus: answered: no\nDefault: no\nAsked by: sc-crew\nUndo: none\n"
+)
+
+
+def jbus_takes_gates(homes, monkeypatch, gate_code=0):
+    """A `jbus` on PATH that says nothing is out, and keeps each gate piped to `jbus gate` in
+    `gates.log`, answering it as a question, or refusing it with `gate_code` 1."""
+    stub = homes.user / "bin"
+    stub.mkdir(exist_ok=True)
+    log = homes.user / "gates.log"
+    (stub / "jbus").write_text(
+        "#!/bin/sh\n"
+        "case $1 in\n"
+        f'gate) {{ echo "slug: $2"; cat; }} >> "{log}"; [ {gate_code} = 0 ] || {{ echo "refused: no"; exit 1; }}; echo "queued: question 9" ;;\n'
+        "esac\n"
+    )
+    (stub / "jbus").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub}{os.pathsep}{os.environ['PATH']}")
+    return log
+
+
+def test_an_open_gate_of_an_archived_scope_becomes_a_question_of_the_root_home(homes, monkeypatch):
+    log = jbus_takes_gates(homes, monkeypatch)
+    (homes.scope_dir / "gates.md").write_text(GATE)
+    _, said = homes.archives(SCOPED, homes.scope_dir)
+    assert said[0] == ARCHIVED_SCOPE
+    assert "- gate 3 of gates.md is the root home's, queued: question 9" in said
+    assert log.read_text() == (
+        "slug: home\n## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\nAsked by: home\n"
+        "Undo: pour it\n\n"
+    )
+    assert not (homes.scope_dir / "gates.md").exists()
+    assert (homes.scope_dir / "gates-moved.md").read_text() == GATE
+
+
+def test_a_gate_jbus_will_not_take_leaves_the_scope_unarchived(homes, monkeypatch):
+    jbus_takes_gates(homes, monkeypatch, gate_code=1)
+    (homes.scope_dir / "gates.md").write_text(GATE)
+    homes.does(WHERE, SCOPED)
+    (homes.scope_dir / "handoff.next.md").write_text(NOTE)
+    ran = homes.does(CLOSE, SCOPED)
+    assert ran.returncode == 1
+    assert ran.stdout.startswith("not archived: an open gate of ")
+    assert "not moved: gate 3 of gates.md, jbus said: refused: no" in ran.stdout
+    for kept in ("gates.md", "home-id", "plan.md", "handoff.next.md"):
+        assert (homes.scope_dir / kept).exists()
