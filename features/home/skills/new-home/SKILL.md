@@ -131,7 +131,10 @@ It never writes `home-thread`, here or at a home's start: a repo it adds is one 
 
 ## 4. What the repo lacks for a merge
 
-jmerge merges a pull request once a check named `check` has passed on it, and reads the repo's check command from `fresh-check`. This step writes either one that is missing, and names what only the user can do. Run it with the `checkout:` line of step 1 in place of `<the checkout>`, and the repo's check command in place of `<the check command>`: the one the repo's own instructions name (its `README`, `CLAUDE.md` or `AGENTS.md`, its `package.json`'s `test` script), or `none` where it names none. Where its `Makefile` has a `check` target, the block takes `make check` itself, so leave the placeholder as it is there:
+jmerge merges a pull request once a check named `check` has passed on it, and reads the repo's check command from `fresh-check`.
+This step writes either one that is missing, and names what only the user can do.
+Run it with the `checkout:` line of step 1 in place of `<the checkout>`, and the repo's check command in place of `<the check command>`: the one the repo's own instructions name (its `README`, `CLAUDE.md` or `AGENTS.md`, its `package.json`'s `test` script), or `none` where it names none.
+Where its `Makefile` has a `check` target, the block takes `make check` itself, so leave the placeholder as it is there:
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
@@ -258,11 +261,20 @@ case $C in
 esac
 ```
 
-Each `needs you` line is something only the user does: tell it as printed and do none of it. The default branch and its tip are asked of origin itself, as `jmerge` asks them, so this step needs the network. A workflow counts when it runs on `pull_request` and one of its jobs reports a check named exactly `check`, as `jmerge` waits for: a job whose `name:` is `check`, or a job with the id `check` and no `name:`, and no `matrix:`, which adds the matrix values to the name. The workflow is read in the checkout as it is, on whatever branch is checked out there, and then on the tip of origin's default branch.
+Each `needs you` line is something only the user does: tell it as printed and do none of it.
+The default branch and its tip are asked of origin itself, as `jmerge` asks them, so this step needs the network.
+A workflow counts when it runs on `pull_request` and one of its jobs reports a check named exactly `check`, as `jmerge` waits for: a job whose `name:` is `check`, or a job with the id `check` and no `name:`, and no `matrix:`, which adds the matrix values to the name.
+The workflow is read in the checkout as it is, on whatever branch is checked out there, and then on the tip of origin's default branch.
 
-Where neither has one, the block commits `.github/workflows/check.yml`, made from `$T/check.yml` with the check command in it, on a new branch `jstack-check` over that tip. It commits with git's plumbing and a scratch index, so the checkout's files, its index and the branch checked out there stay as they were, and it signs nothing. It pushes nothing: the user pushes the branch and merges its pull request, the repo's first, and the check runs on that pull request already. A runner that lacks the toolchain the command needs fails that check: the template's head says where a setup step goes. A branch `jstack-check` that is there already is never written over.
+Where neither has one, the block commits `.github/workflows/check.yml`, made from `$T/check.yml` with the check command in it, on a new branch `jstack-check` over that tip.
+It commits with git's plumbing and a scratch index, so the checkout's files, its index and the branch checked out there stay as they were, and it signs nothing.
+It pushes nothing: the user pushes the branch and merges its pull request, the repo's first, and the check runs on that pull request already.
+A runner that lacks the toolchain the command needs fails that check: the template's head says where a setup step goes.
+A branch `jstack-check` that is there already is never written over.
 
-Where `fresh-check` is missing or empty, the block writes the check command there, and never changes one that has a line. With that file `jmerge` also proves a pull request over today's main on GitHub ("Fresh against main" in `features/jmerge/docs/jmerge.md`). `off`, `merge-off` and `home-thread` are the user's three switches for a repo: the line names them, and this skill writes none of them.
+Where `fresh-check` is missing or empty, the block writes the check command there, and never changes one that has a line.
+With that file `jmerge` also proves a pull request over today's main on GitHub ("Fresh against main" in `features/jmerge/docs/jmerge.md`).
+`off`, `merge-off` and `home-thread` are the user's three switches for a repo: the line names them, and this skill writes none of them.
 
 ## 5. The home's thread
 
