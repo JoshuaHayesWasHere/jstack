@@ -181,7 +181,21 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
        printf '%s\n' "$unread" | grep . > "$S"
        echo "no mark yet: $(grep -c '' "$S") headings of this home's are marked read in $S, and none is shown"
    else
-       printf '%s\n' "$unread" | grep . | atmost 8 "mark these read, then run this block again"
+       merged=$(awk 'substr($(0), 18) ~ /^merged / {split(substr($(0), 18), w, " "); print "tasks/" w[3] ".md"}' "$L" 2> /dev/null)
+       printf '%s\n' "$unread" | grep . | while IFS= read -r said; do
+           f=${said%%: ## *}
+           if printf '%s\n' "$merged" | grep -qxF -e "$f" && awk '
+               /^## Result/ {done = left = 0; result = 1}
+               result && $(1) == "Status:" {done = (NF == 2 && $(2) == "done")}
+               result && $(1) == "Left:" {left = (NF == 2 && $(2) == "none")}
+               END {exit !(done && left)}' "$H/$f"; then
+               printf '%s\n' "$said" >> "$S"
+           else
+               printf '%s\n' "$said"
+           fi
+       done | atmost 8 "mark these read, then run this block again"
+       finished=$(printf '%s\n' "$unread" | awk -v s="$S" 'BEGIN {while ((getline seen < s) > 0) read[seen] = 1} $(0) != "" && $(0) in read {n++} END {print n + 0}')
+       if [ "$finished" -gt 0 ]; then echo "marked read and not shown: $finished finished headings, each done with Left: none and merged"; fi
    fi
    ```
 
@@ -197,6 +211,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    Under `## to read`, the last `## Result` or `## Report` heading of each brief and request that is this home's and that no home has marked read, at most eight: what came in that no home has read.
    A `## Review` or a `Finding:` line added under a heading that is marked shows nothing again.
+   A brief whose last Result says `Status: done` and `Left: none`, and whose slug `jmerge` logged as `merged`, has nothing left to read: the block marks its heading read without showing it, and says how many it marked.
    A home with no `$M/read-seen` yet marks every heading there is now, shows none, and says so: what came before the mark is the last homes'.
    Read each section it printed, then mark them read with the block below, and only then: a start cut off before the mark shows them to the next home again.
    A path under `read whole:` that ends in `handoff.next.md` is a note the last home wrote and was cut off before it put in place: read it too, for a gate only it holds.
