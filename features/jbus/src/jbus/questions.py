@@ -929,7 +929,7 @@ def _gate(args: argparse.Namespace, _: None) -> int:
     The same question from the same slug is the same record, so jbus queues it once. If the
     user has answered it since, `jbus gate` prints that answer. The event's text is the lines
     as the thread sent them, with the slug on their `Asked by:` line, and a home parks a gate
-    from that text.
+    by that text.
 
     It prints every line the asking thread acts on, so a skill's block only pipes the gate:
     `asked: <what jbus did>: question <n>` and under it `Gate: question <n>`, the line a
