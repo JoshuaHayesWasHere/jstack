@@ -3,8 +3,6 @@
 version=
 github=https://github.com/JoshuaHayesWasHere/jstack
 
-# With no version written in and no checkout around it, as `curl ... | sh` runs it from main,
-# install main from git; with a version, as `make dist` writes it, that release's wheel.
 here=$(dirname "$0")
 from=
 if [ -n "$version" ]; then

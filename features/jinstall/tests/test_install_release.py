@@ -377,8 +377,8 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
 
 
 def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_from_git(tmp_path):
-    # A commit of HEAD's tree in a repo of its own, since CI's checkout is shallow and a fetch
-    # from it into another repo makes no branch.
+    """Its origin is a commit of HEAD's tree in a repo of its own: CI's checkout is shallow, and
+    a fetch from a shallow repo into another makes no branch."""
     origin = tmp_path / "jstack"
     origin.mkdir()
     tree = subprocess.run(
