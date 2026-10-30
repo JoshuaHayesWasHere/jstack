@@ -377,11 +377,11 @@ def fake_gh(stub, args, cwd):
     files holds what `gh` says on stderr. `gh-code` is its exit code (1 when there is none), and
     `gh-out` is what it prints.
 
-    A list gives only a window of recent pull requests. A pull request marked `old` is outside that
-    window, and `pr view` still finds it by its number, or ends as the real command does for a
-    number it cannot resolve. `head-now.json` is a head pushed since the list was given, and only a
-    view shows it. `run rerun` starts a run again and says nothing, or fails when `gh-no-rerun` is
-    there.
+    A list gives only a window of recent pull requests, at most its `--limit`, the first in the
+    file. A pull request marked `old` is outside that window, and `pr view` still finds it by
+    its number, or ends as the real command does for a number it cannot resolve. `head-now.json`
+    is a head pushed since the list was given, and only a view shows it. `run rerun` starts a
+    run again and says nothing, or fails when `gh-no-rerun` is there.
 
     `pr edit` changes nothing and says nothing: the log is its record. With `gh-edit-refused`
     there, it fails and says nothing.
@@ -417,6 +417,8 @@ def fake_gh(stub, args, cwd):
             pulls = [p for p in pulls if p["headRefName"] == args[args.index("--head") + 1]]
         else:
             pulls = [p for p in pulls if not p.get("old")]
+        if "--limit" in args:
+            pulls = pulls[: int(args[args.index("--limit") + 1])]
         said = json.dumps(pulls)
     elif args[:2] == ["pr", "view"]:
         every = [

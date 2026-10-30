@@ -389,4 +389,4 @@ VERBS = (
         _stale,
     ),
 )
-STEPS = (verbs.Step("close", 26, "stale.hourly", hourly, ("sight", "client", "world", "budget")),)
+STEPS = (verbs.Step("close", 26, "stale.hourly", hourly, ("sight", "client", "budget")),)

@@ -275,3 +275,25 @@ def test_a_brief_whose_merged_row_still_waits_on_something_is_not_stale(kitchen)
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     kitchen.brief("alpha", result("alpha"))
     assert of(listed(kitchen)[1], "brief") == []
+
+
+def test_the_hourly_count_lists_every_open_pull_request_and_not_the_passs_last_hundred(kitchen):
+    """A pass lists a hundred open pull requests: the held one, the 101st, is open all the same."""
+    home(kitchen)
+    kitchen.set(
+        "open.json",
+        [kitchen.opened(f"pr-{n}", n) for n in range(6, 106)] + [kitchen.opened("held", 5)],
+    )
+    (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))
+    kitchen.poll(NOW)
+    assert stale.read(kitchen.state)["kinds"]["hold"] == 0
+    assert of(listed(kitchen)[1], "hold") == []
+
+
+def test_with_no_list_of_open_pull_requests_the_hour_keeps_no_count(kitchen):
+    home(kitchen)
+    (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))
+    kitchen.set("gh-list-down", "connection refused")
+    said = kitchen.poll(NOW)
+    assert stale.read(kitchen.state) == {}
+    assert any(line.startswith("wait demo: no stale count (GitHub did not list") for line in said)
