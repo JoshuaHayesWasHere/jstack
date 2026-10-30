@@ -448,8 +448,19 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     assert printed[-1] == "doctor: ok"
 
 
-def test_the_quickstart_says_to_sign_jbus_in_and_to_give_the_go():
+def test_the_quickstart_says_to_sign_jbus_in_and_to_give_the_go(tmp_path):
     said = section(README.read_text(), "Quickstart")
+    named = re.findall(r"`jbus (\w+) (\w+)`", said)
+    assert ("t3", "login") in named and ("plan", "go") in named
+    for verb, sub in named:
+        helped = subprocess.run(
+            [sys.executable, "-m", "jbus", verb, "--help"],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+        assert helped.returncode == 0, verb
+        assert re.search(rf"\{{[^}}]*\b{sub}\b[^}}]*\}}", helped.stdout), (verb, sub)
     home = re.search(r"^5\. (.*?)^6\. ", said, re.M | re.S)[1]
     assert "its sign-in line says `needs you` until you run `jbus t3 login`" in home
     go = re.search(r"^6\. (.*?)^7\. ", said, re.M | re.S)[1]
