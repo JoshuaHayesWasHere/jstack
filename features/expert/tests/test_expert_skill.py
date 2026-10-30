@@ -504,7 +504,7 @@ def test_a_gate_is_kept_under_the_slug_it_is_sent_under_whatever_its_asked_by_sa
         ({"about": "<about>"}, f"refused: expert-{NAME}-<about> is not a slug"),
         ({"about": "no/rollback"}, f"refused: expert-{NAME}-no/rollback is not a slug"),
         ({"about": "no rollback"}, f"refused: expert-{NAME}-no rollback is not a slug"),
-        ({"about": "No-Rollback"}, f"refused: expert-{NAME}-No-Rollback is not a slug"),
+        ({"about": "$(echo x)"}, f"refused: expert-{NAME}-$(echo x) is not a slug"),
         (
             {"text": GATE.replace("Asked by:", "Asked:")},
             "not sent: the gate has no Asked by: line that is filled in.",

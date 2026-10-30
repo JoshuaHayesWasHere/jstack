@@ -148,13 +148,21 @@ def test_the_gate_is_kept_under_the_slug_it_is_sent_under_whatever_its_asked_by_
     assert records(kitchen)["records"][0]["thread"] == THREAD
 
 
-@pytest.mark.parametrize("slug", ["expert-sage-<about>", "no rollback", "No-Rollback", ""])
+@pytest.mark.parametrize("slug", ["expert-sage-<about>", "no rollback", "no/rollback", ".x", ""])
 def test_a_gate_sent_under_a_name_that_is_not_a_slug_is_not_asked(kitchen, slug):
     assert kitchen.main("gate", slug, stdin=gate(slug="alpha")) == (
         1,
         f"not asked: refused: {slug} is not a slug\n",
     )
     assert not (kitchen.state / "questions.json").exists()
+
+
+def test_a_scoped_homes_own_slug_is_asked_whatever_case_its_scope_has(kitchen):
+    """A scope is any folder name a home accepts, so `home-Docs` is the scoped home's slug."""
+    assert kitchen.main("gate", "home-Docs", stdin=gate(slug="home")) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
 
 
 def test_a_number_is_never_used_twice_and_the_same_question_is_the_same_record(kitchen):

@@ -159,6 +159,7 @@ MESSAGE = (
 )
 _THREAD = re.compile(r"\bthread (\S+)")
 _GROUP = re.compile(r"\([^()]*\)$")
+_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
 QUIET = timedelta(0)
 UNANSWERED = "settled at once"
@@ -922,7 +923,7 @@ def propose(run: Pass, client: Client) -> None:
         run.say(line)
 
 
-def _gate(args: argparse.Namespace, config: Config | None) -> int:
+def _gate(args: argparse.Namespace, _: None) -> int:
     """`jbus gate`: keep a thread's question for the user as a record with a number.
 
     The same question from the same slug is the same record, so jbus queues it once. If the
@@ -937,7 +938,7 @@ def _gate(args: argparse.Namespace, config: Config | None) -> int:
     holds nothing of.
     """
     try:
-        one, new = _asked(args, config or jbus.load())
+        one, new = _asked(args, jbus.load())
     except (Refused, T3Error) as error:
         print(f"not asked: {error}")
         return 1
@@ -952,7 +953,7 @@ def _gate(args: argparse.Namespace, config: Config | None) -> int:
 def _asked(args: argparse.Namespace, config: Config) -> tuple[Question, bool]:
     """Park the gate on stdin under `args.slug`, written onto its `Asked by:` line, or raise
     `Refused` with why it is not asked."""
-    if not queue.SLUG.fullmatch(args.slug):
+    if not _NAME.fullmatch(args.slug):
         raise Refused(f"refused: {args.slug} is not a slug")
     project = verbs.here(config, args.project)
     run = Pass(config, project, datetime.now(UTC))

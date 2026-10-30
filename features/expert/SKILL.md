@@ -89,11 +89,11 @@ A note that a correction or the source contradicts is wrong: fix the note, in th
 A finding that something should change goes to jbus as a gate: jbus keeps it as a numbered question for the user, and the root home of the owning repo shows it with its own.
 Read `$T/gates.md` now and fill it in, its `<n>` left as it is, with the finding as the question and "nothing was changed" as the default.
 jbus writes the slug the gate is sent under on its `Asked by:` line, and tells one gate from another by it.
-Then run this with the block at the top, with the owning repo's name in jbus in place of `<project>`, two or three lowercase words joined by hyphens in place of `<about>`, and the filled-in lines in place of the line in angle brackets:
+Then run this with the block at the top, with the owning repo's name in jbus in place of `<project>`, two or three words joined by hyphens in place of `<about>`, and the filled-in lines in place of the line in angle brackets:
 
 ```sh
 if command -v jbus > /dev/null; then
-    jbus --project '<project>' gate "expert-$N-<about>" << 'THE_GATE_ENDS_HERE'
+    jbus --project '<project>' gate "expert-$N"'-<about>' << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>
 Option: <an option's short name> (default, recommended): <what follows from it>
