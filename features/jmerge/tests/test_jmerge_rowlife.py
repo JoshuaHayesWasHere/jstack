@@ -104,3 +104,36 @@ def test_a_drafts_accept_goes_when_its_pull_request_closes_unmerged(kitchen):
     listed(kitchen)
     kitchen.run()
     assert kept(kitchen) == []
+
+
+def holds(kitchen):
+    """The pull requests `holds.json` keeps a head for."""
+    path = kitchen.home.state / "holds.json"
+    return sorted(json.loads(path.read_text())) if path.exists() else []
+
+
+def gone_and_held(kitchen, slug):
+    """Take `slug`'s pull request off GitHub's open list, open gamma's as 8 with `Review: none`,
+    and run a pass, which holds gamma."""
+    del kitchen.pulls[slug]
+    kitchen.crew("gamma", 8, {"b.txt": "theirs\n"})
+    task = kitchen.home.tasks / "gamma.md"
+    task.write_text(task.read_text().replace("Task:", "Review: none\nTask:", 1) + PROOF)
+    listed(kitchen)
+    (said,) = kitchen.run()
+    assert said.startswith("hold 8 "), said
+
+
+def test_a_pass_drops_the_hold_of_a_pull_request_closed_unmerged_and_keeps_an_open_ones(kitchen):
+    held(kitchen, "alpha", 6, {"a.txt": "ours\n" + LINES}, mode="none")
+    assert holds(kitchen) == ["6"]
+    gone_and_held(kitchen, "alpha")
+    assert holds(kitchen) == ["8"]
+
+
+def test_a_pass_drops_the_hold_of_a_pull_request_that_merged_and_keeps_an_open_ones(kitchen):
+    held(kitchen, "alpha", 6, {"a.txt": "ours\n" + LINES}, mode="none")
+    out = accept(kitchen, 6)
+    assert out[0].startswith(f"accepted 6 {url(6)}"), (out, kitchen.home.stderr)
+    gone_and_held(kitchen, "alpha")
+    assert holds(kitchen) == ["8"]
