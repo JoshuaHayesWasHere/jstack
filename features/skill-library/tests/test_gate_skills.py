@@ -455,12 +455,14 @@ def test_accept_says_and_logs_every_hold_it_lifts(proven_merged):
     assert proven_merged.log()[-2].endswith(said[0])
 
 
-def test_a_merged_hold_is_taken_off_the_record_and_the_others_stay(proven_merged):
+def test_a_merged_hold_is_taken_off_the_record_on_the_next_pass(proven_merged):
     held(proven_merged)
     record = proven_merged.home.state / "holds.json"
-    record.write_text(json.dumps({**json.loads(record.read_text()), "9": "d" * 40}))
+    assert json.loads(record.read_text()) == {"7": proven_merged.head}
     assert accept(proven_merged)[0] == 0
-    assert json.loads(record.read_text()) == {"9": "d" * 40}
+    (proven_merged.home.stub / "list.json").write_text("[]")
+    assert proven_merged.run() == []
+    assert json.loads(record.read_text()) == {}
 
 
 def test_the_waiting_line_is_read_off_what_jmerge_itself_prints(proven_merged):
