@@ -279,7 +279,7 @@ class Home:
             script = f'{paths()}\nuv run --project "$T/../source" jmerge {" ".join(flags)}'
             return self.sh(script, cwd, path)
         text = block(about)
-        (line,) = [line for line in text.splitlines() if "jmerge --" in line]
+        (line,) = [line for line in text.splitlines() if re.search(r"^\s*uv run .*jmerge --", line)]
         asked = f"{line} {' '.join(flags)}".rstrip()
         return self.sh(f'{paths()}\nM="$H"\n{text.replace(line, asked)}', cwd, path)
 

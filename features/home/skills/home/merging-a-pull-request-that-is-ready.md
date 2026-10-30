@@ -148,11 +148,11 @@ Run the sweep once at the start of a home, after the merge step, from the main c
 if [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then
     uv run --project "$T/../source" jmerge --sweep
 else
-    echo "no sweep: $H/home-thread is empty, and this home sweeps nothing"
+    echo "sweep off: home-thread is empty, so no home runs jmerge --sweep"
 fi
 ```
 
-On `no sweep`, nothing was run and there are no lists to act on.
+On `sweep off`, nothing was run and there are no lists to act on.
 Otherwise it looks at each branch a brief in `$H/tasks` or a request in `$H/scouts` names, a crewmate's `<slug>` and a scout's `scout-<slug>`, with its worktree under `~/.t3/worktrees/<repo>`, and at every other worktree there.
 It prints two lists, the first one removed, and appends the same lines, dated, to `$H/merge.log`:
 
