@@ -66,7 +66,10 @@ def waiting(kitchen):
 
 def test_a_gate_with_no_default_is_refused(kitchen):
     code, said = gate(kitchen, LINES.replace("Default: made tea\n", "") + OPTIONS)
-    assert (code, said) == (1, "not sent: the gate has no Default: line that is filled in.\n")
+    assert (code, said) == (
+        1,
+        "not asked: not sent: the gate has no Default: line that is filled in.\n",
+    )
     assert not (kitchen.state / "questions.json").exists()
 
 
@@ -85,14 +88,14 @@ def test_a_gate_with_no_default_is_refused(kitchen):
 )
 def test_a_gate_whose_default_is_not_the_recommended_option_is_refused(kitchen, options, why):
     code, said = gate(kitchen, LINES + options)
-    assert (code, said.startswith(f"not sent: {why}")) == (1, True), said
+    assert (code, said.startswith(f"not asked: not sent: {why}")) == (1, True), said
     assert not (kitchen.state / "questions.json").exists()
 
 
 @pytest.mark.parametrize("case", HOLDS)
 def test_a_gate_that_holds_names_one_case_from_the_table_and_its_fail_safe(kitchen, case):
     lines = LINES + f"Holds: {case}\n" + SAFE + OPTIONS
-    assert gate(kitchen, lines) == (0, "queued: question 1\n")
+    assert gate(kitchen, lines) == (0, "asked: queued: question 1\nGate: question 1\n")
     one = record(kitchen)
     assert (one["holds"], one["fail_safe"]) == (case, SAFE[len("Fail-safe: ") :].strip())
 
@@ -114,7 +117,7 @@ def test_a_gate_that_holds_names_one_case_from_the_table_and_its_fail_safe(kitch
 )
 def test_a_holds_line_with_no_fail_safe_or_an_unknown_case_is_refused(kitchen, line, why):
     code, said = gate(kitchen, LINES + line + OPTIONS)
-    assert (code, said.startswith(f"not sent: {why}")) == (1, True), said
+    assert (code, said.startswith(f"not asked: not sent: {why}")) == (1, True), said
     assert not (kitchen.state / "questions.json").exists()
 
 
@@ -166,8 +169,8 @@ def test_a_plain_gate_asked_this_pass_settles_on_its_default_at_once(kitchen):
         questions.basis(kitchen.state, "1")
     assert gate(kitchen) == (
         0,
-        "already answered: question 1: closed with its default by jbus, "
-        "2026-10-12T15:00:00+00:00: settled at once\n",
+        "asked: already answered: question 1: closed with its default by jbus, "
+        "2026-10-12T15:00:00+00:00: settled at once\nGate: question 1\n",
     )
 
 

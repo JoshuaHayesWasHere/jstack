@@ -161,34 +161,24 @@ Under the gate go one `Context:` line and one `Option:` line for every option yo
 Run this in this worktree, with the block at the top and the filled-in lines in place of the line in angle brackets:
 
 ```sh
-the_gate() {
-    cat << 'THE_GATE_ENDS_HERE'
+if command -v jbus > /dev/null; then
+    jbus gate '<slug>' << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>
 Option: <an option's short name> (default, recommended): <what follows from it>
 THE_GATE_ENDS_HERE
-}
-gate=$(the_gate)
-if ! command -v jbus > /dev/null; then
-    echo "to the home: jbus is not installed here"
-elif said=$(printf '%s\n' "$gate" | jbus gate '<slug>' 2>&1); then
-    echo "sent to jbus: $said"
-    printf '%s\n' "$said" | sed -n 's/^[a-z ]*: question \([0-9][0-9]*\).*/Gate: question \1/p'
 else
-    case $said in
-    'not sent: '*) echo "$said" ;;
-    *) echo "to the home: jbus said: $said" ;;
-    esac
+    echo "not asked: jbus is not installed here"
 fi
 ```
 
-`jbus gate` checks the lines against `$T/gates.md`, the one copy of their shape, and refuses what they lack with `not sent: <why>`.
+`jbus gate` checks the lines against `$T/gates.md`, the one copy of their shape, and prints every line to go by.
 It speaks for the project whose repo this worktree is of, and refuses a repo its config does not name.
-On `sent to jbus`, send the home nothing.
+On `asked:`, jbus holds the question: send the home nothing.
 The line under it, `Gate: question <number>`, is all the Result keeps of the gate: add it to the Result as a line of its own, as printed, and no line of the gate itself.
-Where the first line says `already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
+Where it says `asked: already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
 Go by it, and take the default back where it differs.
-On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread "Telling the home" finds, and with no home there put them in the Result above its `Left:` line, the one place left that can hold them.
-On `not sent`, nothing was queued: fill in the line it names and run it again.
+On `not asked: not sent:`, nothing was queued: fill in the line it names and run it again.
+On any other `not asked`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread "Telling the home" finds, and with no home there put them in the Result above its `Left:` line, the one place left that can hold them.
 An answer that differs from the default comes back as a message here, from jbus.
 A review finding you cannot settle without the user's word is such a question.

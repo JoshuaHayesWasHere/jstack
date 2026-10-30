@@ -1,6 +1,12 @@
 # Questions
 
-A crewmate or scout pipes a gate to `jbus gate <slug>`. jbus keeps it in `~/.local/state/jbus/<project>/questions.json` as a question with a number, sends one `gate` event, and prints `queued: question <n>`. The same question from the same slug is the same record: a second run prints `already sent: question <n>`, or `already answered: question <n>: <the answer>` once you answered it.
+A crewmate, scout, expert or home pipes a gate to `jbus gate <slug>`.
+jbus writes the slug on the gate's `Asked by:` line, keeps it in `~/.local/state/jbus/<project>/questions.json` as a question with a number, sends one `gate` event, and prints `asked: queued: question <n>`.
+The same question from the same slug is the same record: a second run prints `asked: already sent: question <n>`, or `asked: already answered: question <n>: <the answer>` once you answered it.
+Under each it prints `Gate: question <n>`, the one line a thread keeps of the gate in its Result or report.
+
+Whatever stops a gate prints `not asked: ` and why, and exits 1: `not asked: not sent: <why>` for lines to mend and pipe again, and `not asked: refused: <why>` for a slug that is not one, a removed slug, or a repo jbus's config does not name.
+A skill's block only pipes the gate and reads these lines.
 
 A gate proposes every option its thread weighed. Each is one line, `Option: <short name>: <what follows from it>`, and the name ends at the first colon that a space follows. The option the thread took is the one it recommends, and it carries both marks between the name and that colon, `(default, recommended)`. The other options have no mark.
 
@@ -18,7 +24,7 @@ Option: water: nothing is brewed
 ```
 
 jbus checks the lines against `features/home/templates/gates.md`, the one copy of a gate's shape, so a skill pipes the gate and checks nothing first.
-It refuses with `not sent: <why>` and keeps nothing when the first line is not `## Gate <n>: ` and the question (`## Gate <number>: ` for a gate a home's old `gates.md` numbered), when there is more than one `## ` line, when there is no `Status: open` line, and when a line of the template's head (`Status:`, `Asked by:`, `Default:`, `Built on it:`, `Undo:`) is missing or still its placeholder.
+It refuses with `not asked: not sent: <why>` and keeps nothing when the first line is not `## Gate <n>: ` and the question (`## Gate <number>: ` for a gate a home's old `gates.md` numbered), when there is more than one `## ` line, when there is no `Status: open` line, and when a line of the template's head (`Status:`, `Asked by:`, `Default:`, `Built on it:`, `Undo:`) is missing or still its placeholder.
 
 The record keeps the `Context:` line as `context` and the options, in order, as `options`: each one's `name`, what `follows` from it, and whether it is the `default` and the one `recommended`. `proposed` is when a pass asked the thread of a question with no options for them. A gate may leave out the `Context:` line. jbus refuses, with `not sent:` and the form of an `Option:` line, a gate that has fewer than two options, none or several marked `(default)`, none or several marked `(recommended)`, a recommended option that is not the default, two options of one name, a name that ends in parentheses that are not one of the marks, or an `Option:` line that is not filled in. Nothing is kept of such a gate, and the thread pipes it again with its lines mended.
 

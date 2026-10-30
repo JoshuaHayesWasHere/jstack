@@ -157,21 +157,21 @@ def test_a_fixed_pull_request_of_a_scoped_home_is_told_as_one_of_the_root_home_i
 @pytest.mark.parametrize("skill", SENDERS)
 def test_a_gate_is_queued_by_the_real_jbus_and_the_home_is_sent_nothing(quiet, skill):
     quiet.jbus()
-    assert quiet.gate(skill) == "sent to jbus: queued: question 1\nGate: question 1"
+    assert quiet.gate(skill) == "asked: queued: question 1\nGate: question 1"
     assert quiet.outbox() == []
     (sent,) = [one for one in quiet.logged() if one.get("event") == "gate"]
     assert (sent["event"], sent["slug"], sent["loud"]) == ("gate", SLUG, "quiet")
     assert sent["line"] == f"gate {SLUG}: question 1: {ASKED}"
     assert sent["text"] == f"{GATE}\n{CONTEXT}\n{PROPOSED}"
-    assert quiet.gate(skill) == "sent to jbus: already sent: question 1\nGate: question 1"
+    assert quiet.gate(skill) == "asked: already sent: question 1\nGate: question 1"
 
 
 @pytest.mark.parametrize("skill", SENDERS)
-def test_a_gate_jbus_cannot_take_goes_to_the_home(quiet, skill):
-    assert quiet.gate(skill) == "to the home: jbus is not installed here"
+def test_a_gate_jbus_cannot_take_is_not_asked(quiet, skill):
+    assert quiet.gate(skill) == "not asked: jbus is not installed here"
     quiet.jbus(repo="another repo")
     said = quiet.gate(skill)
-    assert said.startswith("to the home: jbus said: refused: no project for this repo")
+    assert said.startswith("not asked: refused: no project for this repo")
 
 
 @pytest.mark.parametrize("skill", SENDERS)
@@ -188,5 +188,5 @@ def test_a_gate_jbus_cannot_take_goes_to_the_home(quiet, skill):
 )
 def test_a_gate_that_is_not_filled_in_is_not_sent(quiet, skill, text, why):
     quiet.jbus()
-    assert quiet.gate(skill, text).startswith(f"not sent: {why}")
+    assert quiet.gate(skill, text).startswith(f"not asked: not sent: {why}")
     assert not (quiet.user / ".local/state/jbus").exists()

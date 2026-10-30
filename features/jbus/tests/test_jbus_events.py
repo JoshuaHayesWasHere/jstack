@@ -80,7 +80,10 @@ def tree(root):
 
 
 def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events(kitchen):
-    assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=ASKED) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kitchen.poll()
     (gate,) = [one for one in logged(kitchen) if one["event"] == "gate"]
     assert gate["text"] == ASKED.strip()
@@ -108,7 +111,10 @@ def test_an_event_a_pass_sends_is_logged_with_its_slug_loudness_and_line(kitchen
 
 def test_the_log_is_private_and_holds_no_key(kitchen):
     kitchen.wakes.refused = REFUSED
-    assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=ASKED) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kitchen.poll()
     path = kitchen.state / "events.jsonl"
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
@@ -116,7 +122,10 @@ def test_the_log_is_private_and_holds_no_key(kitchen):
 
 
 def test_jbus_events_writes_nothing(kitchen):
-    assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=ASKED) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kitchen.poll()
     before = tree(kitchen.root)
     assert printed(kitchen)
@@ -143,7 +152,10 @@ def test_since_leaves_out_what_was_sent_before_it(kitchen, clock):
 
 def test_slug_and_since_together_leave_only_what_passes_both(kitchen, clock):
     later = NOW + timedelta(hours=1)
-    assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=ASKED) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     clock.at(later)
     assert kitchen.main("done", "alpha", stdin="Status: done\n") == (0, "queued\n")
     assert kitchen.main("done", "beta", stdin="Status: done\n") == (0, "queued\n")

@@ -54,7 +54,10 @@ def test_a_gate_answered_between_the_list_and_the_raise_is_not_raised(kitchen, m
     kitchen.poll()
     safe = "Holds: deletes data\nFail-safe: the dry-run lists what goes\n"
     holds = ASK.replace("Undo: pick the other\n", f"Undo: pick the other\n{safe}")
-    assert kitchen.main("gate", "alpha", stdin=holds) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=holds) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kept = waiting.keep
 
     def answered_after_the_list(*args, **kwargs):
@@ -84,7 +87,10 @@ def test_a_gate_that_holds_is_raised_in_the_pass_that_lists_it(kitchen):
     kitchen.poll()
     safe = "Holds: deletes data\nFail-safe: the dry-run lists what goes\n"
     holds = ASK.replace("Undo: pick the other\n", f"Undo: pick the other\n{safe}")
-    assert kitchen.main("gate", "alpha", stdin=holds) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=holds) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kitchen.poll(later(10))
     assert decisions(kitchen, "alpha") == [
         "decision alpha: question 1: which one, it holds (deletes data) for your answer. "

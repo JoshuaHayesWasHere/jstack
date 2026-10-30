@@ -281,12 +281,12 @@ def test_a_gate_from_a_repo_the_config_does_not_name_is_refused(kitchen, tmp_pat
     lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=lines) == (
         1,
-        "refused: no project for this repo (another-repo)\n",
+        "not asked: refused: no project for this repo (another-repo)\n",
     )
     assert kitchen.events() == []
     assert kitchen.main("--project", "demo", "gate", "alpha", stdin=lines) == (
         0,
-        "queued: question 1\n",
+        "asked: queued: question 1\nGate: question 1\n",
     )
 
 
@@ -327,9 +327,10 @@ def test_a_verb_that_reads_stdin_refuses_a_terminal_at_once(kitchen, argv, what)
     refuses a terminal before it reads, and names what to pipe in."""
     verb = " ".join(one for one in argv if not one.startswith("-") and not one.isdigit())
     verb, given = verb.removesuffix(" alpha"), " <slug>" if "alpha" in argv else ""
+    lead = "not asked: " if verb == "gate" else ""
     assert kitchen.main("--project", "demo", *argv, stdin=Terminal()) == (
         1,
-        f"refused: stdin is a terminal, and jbus {verb} reads {what} from it: pipe them in, "
+        f"{lead}refused: stdin is a terminal, and jbus {verb} reads {what} from it: pipe them in, "
         f"as in jbus {verb}{given} < <file>\n",
     )
     assert kitchen.events() == []

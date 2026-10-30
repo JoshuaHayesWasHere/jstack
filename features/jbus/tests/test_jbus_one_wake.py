@@ -101,7 +101,10 @@ def test_an_event_of_any_kind_wakes_no_thread_and_is_in_the_log(kitchen, kind):
 
 
 def test_a_question_piped_to_jbus_gate_with_a_default_is_logged_and_not_posted(kitchen):
-    assert kitchen.main("gate", "alpha", stdin=GATE) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=GATE) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kitchen.poll()
     assert kitchen.wakes.listed == []
     assert (ASKED, "quiet") in logged(kitchen)
@@ -111,7 +114,10 @@ def test_a_question_that_holds_is_one_decision_under_the_project_s_name(kitchen)
     kitchen.poll()
     safe = "Holds: deletes data\nFail-safe: the dry-run lists what goes\n"
     holds = GATE.replace("Undo: pick the other\n", f"Undo: pick the other\n{safe}")
-    assert kitchen.main("gate", "alpha", stdin=holds) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=holds) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert kitchen.wakes.listed == [[listing(HOLDING)]]

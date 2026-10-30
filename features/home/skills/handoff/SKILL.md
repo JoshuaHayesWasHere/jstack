@@ -188,9 +188,9 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
                    END { out() }' "$M/gates.md" | while IFS=$sep read -r n by entry; do
                    if [ -z "$by" ] || [ "$by" = home ] || [ "$by" = "home-$scope" ]; then by=home; fi
                    if said=$(printf '%s\n' "$entry" | tr '\002' '\n' | jbus gate "$by" 2>&1); then
-                       echo "gate $n of gates.md is the root home's, $said"
+                       echo "gate $n of gates.md is the root home's, $(printf '%s\n' "${said#asked: }" | head -n 1)"
                    else
-                       echo "gate $n of gates.md is kept whole in this note, jbus said: $(printf '%s' "$said" | head -n 1)"
+                       echo "gate $n of gates.md is kept whole in this note, jbus said: $(printf '%s' "${said#not asked: }" | head -n 1)"
                        printf 'KEEP%s\n' "$entry"
                    fi
                done)

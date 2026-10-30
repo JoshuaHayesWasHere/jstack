@@ -74,7 +74,10 @@ def test_the_same_result_piped_twice_is_one_event(kitchen):
 
 def test_a_gate_and_a_result_piped_to_jbus_are_queued_at_once(kitchen):
     lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
-    assert kitchen.main("gate", "alpha", stdin=lines) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=lines) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     assert kitchen.main("done", "alpha", stdin="Status: done\nLeft: none\n") == (0, "queued\n")
     assert [(e["event"], e["line"], e["text"]) for e in kitchen.events()] == [
         ("gate", "gate alpha: question 1: which way?", lines.strip()),
@@ -101,10 +104,16 @@ def test_a_gate_piped_to_jbus_and_written_in_the_brief_goes_once(kitchen):
     brief = kitchen.brief("alpha")
     kitchen.quiet()
     lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
-    assert kitchen.main("gate", "alpha", stdin=lines)[1] == "queued: question 1\n"
+    assert (
+        kitchen.main("gate", "alpha", stdin=lines)[1]
+        == "asked: queued: question 1\nGate: question 1\n"
+    )
     brief.write_text(brief.read_text() + RESULT + "alpha: gate\n" + lines)
     kitchen.poll()
-    assert kitchen.main("gate", "alpha", stdin=lines)[1] == "already sent: question 1\n"
+    assert (
+        kitchen.main("gate", "alpha", stdin=lines)[1]
+        == "asked: already sent: question 1\nGate: question 1\n"
+    )
     assert kitchen.lines("gate") == ["gate alpha: question 1: which way?"]
 
 
@@ -151,7 +160,10 @@ def test_a_gate_a_scoped_home_piped_to_jbus_and_wrote_in_its_file_goes_once(kitc
     scoped.parent.mkdir()
     kitchen.quiet()
     lines = GATE.format(n="<n>", asked="which berth?", status="open", slug="home")
-    assert kitchen.main("gate", "home", stdin=lines)[1] == "queued: question 1\n"
+    assert (
+        kitchen.main("gate", "home", stdin=lines)[1]
+        == "asked: queued: question 1\nGate: question 1\n"
+    )
     scoped.write_text(lines.replace("<n>", "1"))
     kitchen.poll()
     assert kitchen.lines("gate") == ["gate home: question 1: which berth?"]

@@ -52,9 +52,18 @@ Asked by: expert-sage-no-rollback, thread mcp:thread-one
 Default: nothing was changed
 Built on it: nothing
 Undo: nothing to undo
-Option: leave it (default, recommended): the workflow stays as it is
-Option: add the step: a release can be rolled back
 """
+CONTEXT = "the workflow is .github/workflows/release.yml"
+OPTIONS = (
+    ("leave it", "the workflow stays as it is"),
+    ("add the step", "a release can be rolled back"),
+)
+SENT = (
+    GATE
+    + f"Context: {CONTEXT}\n"
+    + f"Option: {OPTIONS[0][0]} (default, recommended): {OPTIONS[0][1]}\n"
+    + f"Option: {OPTIONS[1][0]}: {OPTIONS[1][1]}\n"
+)
 
 
 def blocks():
@@ -430,25 +439,21 @@ class Bus:
 
 
 def gate(scene, project="demo", about="no-rollback", text=GATE):
-    return scene.run("gate", project=project, about=about, **{"the gate, filled in": text.strip()})
+    """Run the gate block as the expert fills it in: the gate's lines, its context, and the
+    two options, the one the block writes and one more under it."""
+    (taken, follows), (other, then) = OPTIONS
+    filled = {
+        "the gate, filled in": text.strip(),
+        "what the user needs to know to answer it, in one line, with the links to it": CONTEXT,
+        "an option's short name": taken,
+        "what follows from it": f"{follows}\nOption: {other}: {then}",
+    }
+    return scene.run("gate", project=project, about=about, **filled)
 
 
-def test_a_finding_goes_to_the_owning_home_as_a_gate_through_jbus(scene):
-    bus = Bus(scene)
-    assert gate(scene) == [f"sent to demo as expert-{NAME}-no-rollback: queued"]
-    assert bus.got() == [["--project", "demo", "gate", f"expert-{NAME}-no-rollback"], GATE]
-
-
-@pytest.mark.parametrize("asked_by", ["home", "sage", "expert-sage-another-thing"])
-def test_a_gate_is_sent_under_the_slug_jbus_would_read_off_its_asked_by_line(scene, asked_by):
-    bus = Bus(scene)
-    gate(scene, text=GATE.replace("expert-sage-no-rollback", asked_by))
-    (slug,), sent = bus.got()[0][3:], bus.got()[1]
-    assert sent == GATE
-    assert [found[0] for found in mirror._gates(sent.replace("<n>", "1"))] == [slug]
-
-
-def test_the_real_jbus_queues_the_gate_the_block_sends_under_its_slug(scene):
+def real_jbus(scene):
+    """Put the real `jbus` on the PATH, with a config that names the project `demo`, and return
+    that project's state directory."""
     (scene.bin / "jbus").symlink_to(Path(sys.executable).parent / "jbus")
     config = scene.user / ".config" / "jbus" / "config.toml"
     config.parent.mkdir(parents=True)
@@ -457,42 +462,64 @@ def test_the_real_jbus_queues_the_gate_the_block_sends_under_its_slug(scene):
         f'checkout = "{scene.elsewhere}"\nprojectId = "a-project"\n'
     )
     config.chmod(0o600)
+    return scene.user / ".local/state/jbus/demo"
+
+
+def test_a_finding_goes_to_the_owning_home_as_a_gate_through_jbus(scene):
+    bus = Bus(scene)
+    assert gate(scene) == ["queued"]
+    assert bus.got() == [["--project", "demo", "gate", f"expert-{NAME}-no-rollback"], SENT]
+
+
+def test_the_real_jbus_queues_the_gate_the_block_sends_under_its_slug(scene):
+    state = real_jbus(scene)
     slug = f"expert-{NAME}-no-rollback"
-    assert gate(scene) == [f"sent to demo as {slug}: queued: question 1"]
-    state = scene.user / ".local/state/jbus/demo"
+    assert gate(scene) == ["asked: queued: question 1", "Gate: question 1"]
     logged = [json.loads(line) for line in (state / "events.jsonl").read_text().splitlines()]
     (gated,) = [one for one in logged if one.get("event") == "gate"]
     assert gated["line"] == f"gate {slug}: question 1: the release workflow has no rollback step"
     assert gated["loud"] == "quiet" and not (state / "outbox.json").exists()
-    assert gate(scene) == [f"sent to demo as {slug}: already sent: question 1"]
-    (said,) = gate(scene, project="another")
-    assert said.startswith("not sent: jbus said: refused: no project another")
+    assert gate(scene) == ["asked: already sent: question 1", "Gate: question 1"]
+    code, said = gate(scene, project="another")
+    assert (code, said.startswith("not asked: refused: no project another")) == (1, True)
+
+
+@pytest.mark.parametrize("asked_by", ["home", "sage", "expert-sage-another-thing"])
+def test_a_gate_is_kept_under_the_slug_it_is_sent_under_whatever_its_asked_by_says(scene, asked_by):
+    state = real_jbus(scene)
+    assert gate(scene, text=GATE.replace("expert-sage-no-rollback", asked_by))[0] == (
+        "asked: queued: question 1"
+    )
+    logged = [json.loads(line) for line in (state / "events.jsonl").read_text().splitlines()]
+    (gated,) = [one for one in logged if one.get("event") == "gate"]
+    assert gated["text"] == SENT.strip()
+    found = mirror._gates(gated["text"].replace("<n>", "1"))
+    assert [one[0] for one in found] == [f"expert-{NAME}-no-rollback"]
 
 
 @pytest.mark.parametrize(
     ("changed", "why"),
     [
-        ({"project": "<project>"}, "put the project"),
-        ({"about": "<about>"}, "put the project"),
-        ({"about": "no/rollback"}, "what the finding is about is letters"),
-        ({"about": "no rollback"}, "what the finding is about is letters"),
-        ({"about": ""}, "what the finding is about is letters"),
-        ({"text": GATE.replace("Asked by:", "Asked:")}, "the gate has no line 'Asked by:"),
+        ({"project": "<project>"}, "refused: no project <project>"),
+        ({"about": "<about>"}, f"refused: expert-{NAME}-<about> is not a slug"),
+        ({"about": "no/rollback"}, f"refused: expert-{NAME}-no/rollback is not a slug"),
+        ({"about": "no rollback"}, f"refused: expert-{NAME}-no rollback is not a slug"),
+        ({"about": "$(echo x)"}, f"refused: expert-{NAME}-$(echo x) is not a slug"),
+        (
+            {"text": GATE.replace("Asked by:", "Asked:")},
+            "not sent: the gate has no Asked by: line that is filled in.",
+        ),
     ],
 )
-def test_a_gate_that_is_not_filled_in_is_not_sent(scene, changed, why):
-    bus = Bus(scene)
-    (said,) = gate(scene, **changed)
-    assert said.startswith(f"not sent: {why}")
-    assert bus.got() is None
+def test_a_gate_that_is_not_filled_in_is_not_asked(scene, changed, why):
+    state = real_jbus(scene)
+    code, said = gate(scene, **changed)
+    assert (code, said.startswith(f"not asked: {why}")) == (1, True)
+    assert not (state / "questions.json").exists()
 
 
-def test_a_gate_jbus_refuses_and_one_with_no_jbus_are_said_as_not_sent(scene):
-    assert gate(scene) == [
-        "not sent: jbus is not installed here: tell the user the finding in this thread"
-    ]
-    Bus(scene, exit_code=1, says="refused: no project demo")
-    assert gate(scene) == ["not sent: jbus said: refused: no project demo"]
+def test_a_gate_with_no_jbus_is_not_asked(scene):
+    assert gate(scene) == ["not asked: jbus is not installed here"]
 
 
 def takes(tool, given):

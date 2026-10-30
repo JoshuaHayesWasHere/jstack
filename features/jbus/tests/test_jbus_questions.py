@@ -68,7 +68,7 @@ def later(minutes):
 
 
 def test_a_piped_gate_is_a_record_with_a_number_and_every_field_of_its_shape(kitchen):
-    assert ask(kitchen) == (0, "queued: question 1\n")
+    assert ask(kitchen) == (0, "asked: queued: question 1\nGate: question 1\n")
     kept = records(kitchen)
     (one,) = kept["records"]
     assert datetime.fromisoformat(one.pop("asked_at")).tzinfo is not None
@@ -138,16 +138,46 @@ def test_the_gate_event_names_the_number_and_its_text_is_the_lines_as_sent(kitch
     assert event["text"] == gate().strip()
 
 
+def test_the_gate_is_kept_under_the_slug_it_is_sent_under_whatever_its_asked_by_line_says(
+    kitchen,
+):
+    lines = gate().replace("Asked by: alpha,", "Asked by: home,")
+    assert kitchen.main("gate", "alpha", stdin=lines)[0] == 0
+    (event,) = kitchen.events("gate")
+    assert event["text"] == gate().strip()
+    assert records(kitchen)["records"][0]["thread"] == THREAD
+
+
+@pytest.mark.parametrize("slug", ["expert-sage-<about>", "no rollback", "no/rollback", ".x", ""])
+def test_a_gate_sent_under_a_name_that_is_not_a_slug_is_not_asked(kitchen, slug):
+    assert kitchen.main("gate", slug, stdin=gate(slug="alpha")) == (
+        1,
+        f"not asked: refused: {slug} is not a slug\n",
+    )
+    assert not (kitchen.state / "questions.json").exists()
+
+
+def test_a_scoped_homes_own_slug_is_asked_whatever_case_its_scope_has(kitchen):
+    """A scope is any folder name a home accepts, so `home-Docs` is the scoped home's slug."""
+    assert kitchen.main("gate", "home-Docs", stdin=gate(slug="home")) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
+
+
 def test_a_number_is_never_used_twice_and_the_same_question_is_the_same_record(kitchen):
-    assert ask(kitchen, "tea or coffee?") == (0, "queued: question 1\n")
-    assert ask(kitchen, "milk?") == (0, "queued: question 2\n")
+    assert ask(kitchen, "tea or coffee?") == (0, "asked: queued: question 1\nGate: question 1\n")
+    assert ask(kitchen, "milk?") == (0, "asked: queued: question 2\nGate: question 2\n")
     assert answer(kitchen, 2, "no milk")[0] == 0
-    assert ask(kitchen, "sugar?") == (0, "queued: question 3\n")
-    assert ask(kitchen, "tea or coffee?") == (0, "already sent: question 1\n")
+    assert ask(kitchen, "sugar?") == (0, "asked: queued: question 3\nGate: question 3\n")
+    assert ask(kitchen, "tea or coffee?") == (
+        0,
+        "asked: already sent: question 1\nGate: question 1\n",
+    )
     assert ask(kitchen, "milk?") == (
         0,
-        f'already answered: question 2: "no milk", by user, {AT}, in {kitchen.checkout} '
-        "(not the default)\n",
+        f'asked: already answered: question 2: "no milk", by user, {AT}, in {kitchen.checkout} '
+        "(not the default)\nGate: question 2\n",
     )
     assert [one["number"] for one in records(kitchen)["records"]] == [1, 2, 3]
     assert len(kitchen.lines("gate")) == 3
@@ -157,7 +187,7 @@ def test_a_number_starts_above_the_gates_a_gates_file_has(kitchen):
     (kitchen.home / "gates.md").write_text(gate("an old one?", n=7, status="answered"))
     (kitchen.home / "side").mkdir()
     (kitchen.home / "side" / "gates.md").write_text(gate("a scoped one?", n=9))
-    assert ask(kitchen) == (0, "queued: question 10\n")
+    assert ask(kitchen) == (0, "asked: queued: question 10\nGate: question 10\n")
 
 
 @pytest.mark.parametrize(
@@ -195,7 +225,7 @@ def test_a_number_starts_above_the_gates_a_gates_file_has(kitchen):
 )
 def test_lines_that_are_not_one_gate_of_the_template_filled_in_are_not_sent(kitchen, lines, why):
     code, said = kitchen.main("gate", "alpha", stdin=lines)
-    assert (code, said) == (1, f"not sent: {why}.\n")
+    assert (code, said) == (1, f"not asked: not sent: {why}.\n")
     assert not (kitchen.state / "questions.json").exists()
     assert kitchen.lines("gate") == []
 
@@ -494,7 +524,7 @@ def test_a_file_that_is_not_the_one_jbus_wrote_is_refused_and_left_as_it_is(kitc
     file = kitchen.state / "questions.json"
     file.write_text(text)
     refusal = f"refused: {file} does not parse, and nothing writes it\n"
-    assert ask(kitchen, "milk?") == (1, refusal)
+    assert ask(kitchen, "milk?") == (1, f"not asked: {refusal}")
     assert answer(kitchen, 1, "tea") == (1, refusal)
     assert file.read_text() == text
 
@@ -539,7 +569,10 @@ def test_an_open_question_asked_again_takes_the_new_lines_and_a_closed_one_keeps
     ask(kitchen)
     again = gate().replace("Built on it: nothing", "Built on it: the head abc123")
     again = again.replace("Default: the first one", "Default: the second one")
-    assert kitchen.main("gate", "alpha", stdin=again) == (0, "already sent: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=again) == (
+        0,
+        "asked: already sent: question 1\nGate: question 1\n",
+    )
     (one,) = records(kitchen)["records"]
     assert (one["default"], one["built_on"], one["number"]) == (
         "the second one",
@@ -558,7 +591,7 @@ def test_a_file_that_does_not_parse_loses_no_number(kitchen):
     kept["next"] = "soon"
     (kitchen.state / "questions.json").write_text(json.dumps(kept))
     assert [one.number for one in questions.load(kitchen.state)] == [1, 2]
-    assert ask(kitchen, "sugar?") == (0, "queued: question 3\n")
+    assert ask(kitchen, "sugar?") == (0, "asked: queued: question 3\nGate: question 3\n")
 
 
 SHELF = "Context: the shelf\nOption: tea (default, recommended): stay\nOption: coffee: they go\n"
@@ -586,7 +619,10 @@ def test_a_gate_keeps_its_context_and_every_option_in_order_with_the_two_marks(k
         "Option: coffee: the cups go back: one revert\n"
         "Option: water: nothing is brewed\n"
     )
-    assert kitchen.main("gate", "alpha", stdin=lines) == (0, "queued: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=lines) == (
+        0,
+        "asked: queued: question 1\nGate: question 1\n",
+    )
     (one,) = records(kitchen)["records"]
     assert one["context"] == "the cups are in https://example.test/pull/7, and tea is on the shelf"
     assert one["options"] == [
@@ -657,7 +693,7 @@ def test_a_gate_that_does_not_propose_two_options_with_the_default_is_not_sent(
 ):
     assert kitchen.main("gate", "alpha", stdin=BARE + options) == (
         1,
-        f"not sent: {missing}. {FORM}\n",
+        f"not asked: not sent: {missing}. {FORM}\n",
     )
     assert not (kitchen.state / "questions.json").exists()
     assert kitchen.lines("gate") == []
@@ -672,7 +708,7 @@ def test_the_refusal_alone_is_enough_to_write_lines_jbus_takes(kitchen):
     first = form.replace("<short name>", "tea").replace("<what follows from it>", "the cups stay")
     assert kitchen.main("gate", "alpha", stdin=f"{BARE}{first}\nOption: coffee: they go\n") == (
         0,
-        "queued: question 1\n",
+        "asked: queued: question 1\nGate: question 1\n",
     )
     assert records(kitchen)["records"][0]["options"] == [
         option("tea", "the cups stay", default=True, recommended=True),
@@ -714,13 +750,16 @@ def test_a_file_written_before_options_still_loads_and_its_question_is_still_ans
     assert answer(kitchen, 1, "tea", default=True)[0] == 0
     (kept,) = records(kitchen)["records"]
     assert (kept["answer"]["words"], kept["context"], kept["options"]) == ("tea", "", [])
-    assert ask(kitchen, "milk?") == (0, "queued: question 2\n")
+    assert ask(kitchen, "milk?") == (0, "asked: queued: question 2\nGate: question 2\n")
 
 
 def test_an_open_question_piped_again_with_options_gains_them_and_keeps_its_number(kitchen):
     before_options(kitchen, ("alpha", "tea or coffee?"), ("alpha", "milk?"))
     again = BARE + SHELF
-    assert kitchen.main("gate", "alpha", stdin=again) == (0, "already sent: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=again) == (
+        0,
+        "asked: already sent: question 1\nGate: question 1\n",
+    )
     one, other = records(kitchen)["records"]
     assert (one["number"], one["context"], one["asked_at"]) == (
         1,
@@ -741,7 +780,10 @@ def test_an_answered_question_piped_again_with_options_is_not_changed(kitchen):
     kept = file.read_text()
     again = BARE + SHELF
     code, said = kitchen.main("gate", "alpha", stdin=again)
-    assert (code, said.startswith('already answered: question 1: "tea", by user')) == (0, True)
+    assert (code, said.startswith('asked: already answered: question 1: "tea", by user')) == (
+        0,
+        True,
+    )
     assert file.read_text() == kept
 
 
@@ -770,7 +812,7 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
     kitchen.t3.says("mcp:a-home", "yes-4", "yes")
     argv = ("--as", "user", "answer", "4", "--message", "mcp:a-home/yes-4", "--default")
     assert kitchen.main(*argv)[0] == 0
-    assert ask(kitchen, "a spoon?") == (0, "queued: question 5\n")
+    assert ask(kitchen, "a spoon?") == (0, "asked: queued: question 5\nGate: question 5\n")
     for minutes in (10, 20, 30):
         kitchen.poll(later(minutes))
     assert asked_for_options(kitchen) == [
@@ -795,7 +837,10 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
         "Default: tea\nBuilt on it: the cups\nUndo: pour it out"
     )
     again = f"{held}\n{SHELF}"
-    assert kitchen.main("gate", "alpha", stdin=again) == (0, "already sent: question 1\n")
+    assert kitchen.main("gate", "alpha", stdin=again) == (
+        0,
+        "asked: already sent: question 1\nGate: question 1\n",
+    )
     (one, *_) = records(kitchen)["records"]
     assert (one["default"], one["built_on"], one["undo"]) == ("tea", "the cups", "pour it out")
     assert [each["name"] for each in one["options"]] == ["tea", "coffee"]

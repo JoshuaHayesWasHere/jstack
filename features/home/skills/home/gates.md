@@ -55,32 +55,23 @@ One that no brief, no request and no home asked, as an expert's finding is, is t
 ```sh
 : "${SEP:?run the block that reads jbus first}"
 slug='own'
-the_gate() {
-    cat << 'THE_GATE_ENDS_HERE'
+[ "$slug" != own ] || slug=$own
+if command -v jbus > /dev/null; then
+    jbus gate "$slug" << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>
 Option: <an option's short name> (default, recommended): <what follows from it>
 THE_GATE_ENDS_HERE
-}
-gate=$(the_gate)
-if [ "$slug" = own ]; then
-    slug=$own
-    gate=$(printf '%s\n' "$gate" | sed "s/^Asked by: [^,]*/Asked by: $own/")
-fi
-if ! command -v jbus > /dev/null; then
-    echo "not asked: jbus is not installed here"
-elif said=$(printf '%s\n' "$gate" | jbus gate "$slug" 2>&1); then
-    echo "asked: $said"
 else
-    echo "not asked: jbus said: $said"
+    echo "not asked: jbus is not installed here"
 fi
 ```
 
-On `asked: queued: question <number>`, jbus has it under this home's own slug, and nothing is written here.
+On `asked: queued: question <number>`, jbus has it under the slug it wrote on the `Asked by:` line, this home's own, and nothing is written here: the `Gate: question <number>` line under it is for a thread's Result.
 `asked: already sent:` is the same question still open.
 On `asked: already answered: question <number>:` nothing was asked: an earlier question of this home had the same words, and the line gives its answer.
 If that answer does not settle this one, word the question so that it says what is new, and run it again.
-On `not asked: jbus said: not sent:` or `jbus said: refused:`, jbus names what the gate lacks, checked against `$T/gates.md`: a first line that is not `## Gate <n>: ` and the question, more than one gate, no `Status: open` line, a line of the template left unfilled, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table.
+On `not asked: not sent:` or `not asked: refused:`, jbus names what the gate lacks, checked against `$T/gates.md`: a first line that is not `## Gate <n>: ` and the question, more than one gate, no `Status: open` line, a line of the template left unfilled, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table.
 Mend that line and run it again.
 On any other `not asked`, jbus holds nothing: end the turn with `decision local <slug>: ` and then the question and the default taken ("How a turn ends").
 
