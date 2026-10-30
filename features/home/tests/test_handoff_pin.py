@@ -391,3 +391,23 @@ def test_a_handoff_cut_off_anywhere_and_run_again_ends_in_the_same_state(home, c
     assert home.t3.bound(THREAD) == [] and home.t3.bound(OTHER) == [HOOK]
     assert home.file.read_text() == f"{OTHER}\n"
     assert (cut > 2) == home.t3.threads[THREAD]["title"].endswith("(archived 2026-10-10)")
+
+
+def test_a_last_home_that_is_this_home_is_left_as_it_is(home):
+    home.starts(THREAD)
+    home.hands_off(THREAD, OTHER, steps=1)
+    home.t3.threads[THREAD].update(settled=False, pinned=True)
+    home.home_starts(THREAD)
+    assert home.looks(THREAD) == (
+        f"no home before this one: {THREAD}, the last home the notes name, is this home"
+    )
+    assert home.t3.settled_by == [] and home.t3.pinned() == [THREAD]
+
+
+def test_a_t3_code_that_does_not_answer_is_said_and_nothing_is_settled(home):
+    home.starts(THREAD)
+    home.hands_off(THREAD, OTHER, steps=1)
+    home.home_starts(OTHER)
+    home.kitchen.t3.lose_read = True
+    assert home.looks(OTHER).startswith(f"refused: T3 Code did not settle {THREAD}: ")
+    assert home.t3.settled_by == [] and not home.t3.threads[THREAD]["settled"]
