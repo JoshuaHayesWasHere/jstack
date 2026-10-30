@@ -408,19 +408,22 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     code, said = kitchen.main(
         "answer", str(held), "--by", "user", "--at", "2026-10-12 11:00 ET", "--default", "yes"
     )
-    assert (code, said.startswith(f"refused: question {held} holds (rewrites history)")) == (
+    assert (code, said) == (
         1,
-        True,
+        f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
+        "Code or on a Lavish page, answers it, so it stays open. It closes with jbus --as user "
+        f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
+        "answer that is not the default, where the message is user's own in T3 Code: --by and "
+        "--at cannot close it\n",
     )
     assert questions.question(kitchen.state, held).answer is None
     assert [
         (one["party"]["kind"], one["evidence"]["source"], one["outcome"]) for one in logged(kitchen)
     ] == [("home", "typed", "refused")]
     kitchen.t3.says(HOME, MESSAGE, "yes")
-    code, said = kitchen.main(
-        "--as", "user", "--evidence", f"t3-message:{REF}", "answer", str(held), "--default"
-    )
+    code, said = kitchen.main("--as", "user", "answer", str(held), "--default", "--message", REF)
     assert code == 0, said
+    assert questions.question(kitchen.state, held).answer.keeps
     code, said = kitchen.main(
         "--as",
         "user",
