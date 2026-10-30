@@ -8,6 +8,7 @@ import os
 import re
 import resource
 import shutil
+import statistics
 import subprocess
 import sys
 import time
@@ -484,25 +485,31 @@ def test_before_a_tool_call_on_a_transcript_of_2_mb_it_uses_under_2_2_references
     times the reference's CPU time (1.50 on a macOS runner under the whole suite), and reading
     it all, or its tail three times, takes it to 2.5 or more. Its wall time tells nothing on a
     busy runner: a call that took 16 ms on an idle Linux took 131 ms at best of five on a macOS
-    runner under the whole suite."""
+    runner under the whole suite. A busy runner's load comes and goes, so each of 15 rounds
+    times the hook and then the reference, and the test takes the median of the rounds' ratios:
+    the least of each from two different rounds put the hook at 2.34 on a loaded Linux runner."""
     said = {"type": "user", "message": {"role": "user", "content": "x" * 2000}}
     lines = [json.dumps(entry) + "\n" for entry in (said, call("m1", 4, 250000, 50000))]
     scene.transcript.write_text("".join(lines) * (2_000_000 // sum(map(len, lines)) + 1))
     assert scene.transcript.stat().st_size > 2_000_000
     given = {"file_path": str(scene.main / "README.md")}
     took, used, yardsticks = [], [], []
-    for _ in range(5):
+    for _ in range(15):
         began, start = cpu(), time.perf_counter()
         assert scene.before("Read", **given) == ""
         took.append(time.perf_counter() - start)
         used.append(cpu() - began)
         yardsticks.append(reference(scene, tmp_path))
-    times = min(used) / min(yardsticks)
+    ratios = [one / yardstick for one, yardstick in zip(used, yardsticks, strict=True)]
+    times = statistics.median(ratios)
     assert times < 2.2, (
-        f"the hook used {min(used):.4f} CPU s before a tool call, {times:.2f} times the"
-        f" reference's {min(yardsticks):.4f} s, {times / 2.2:.2f} times the limit of 2.2;"
-        f" the five used {', '.join(f'{one:.4f}' for one in used)} CPU s and took"
-        f" {', '.join(f'{one:.3f}' for one in took)} s; in a sixth, {timed(scene, tmp_path, given)}"
+        f"the hook used {times:.2f} times the reference's CPU time before a tool call, at the"
+        f" median of 15 rounds, {times / 2.2:.2f} times the limit of 2.2; the rounds' ratios were"
+        f" {', '.join(f'{one:.2f}' for one in ratios)}, the hook used"
+        f" {', '.join(f'{one:.4f}' for one in used)} CPU s and took"
+        f" {', '.join(f'{one:.3f}' for one in took)} s, the reference used"
+        f" {', '.join(f'{one:.4f}' for one in yardsticks)} CPU s;"
+        f" in a sixteenth, {timed(scene, tmp_path, given)}"
     )
     assert scene.record().split()[0] == "300004"
 
