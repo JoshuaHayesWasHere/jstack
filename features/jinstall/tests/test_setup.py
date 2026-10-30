@@ -195,6 +195,17 @@ def test_a_file_that_is_there_is_never_written_over(user):
     assert user.roles.read_text() == "crew: nonsense\n"
 
 
+def test_setup_says_the_jbus_sign_in_is_yours_once_jbus_has_a_project(user, tmp_path):
+    user.setup()
+    table = f'[[project]]\nname = "one"\ncheckout = "{tmp_path}"\nprojectId = "1"\n'
+    user.private(user.jbus_config, user.jbus_config.read_text() + table)
+    code, said = user.setup()
+    assert line_for(said, "jbus sign-in") == [
+        f"needs you jbus sign-in {user.token} -> jbus t3 login"
+    ]
+    assert code == 1
+
+
 @linux_only(
     "test_setup.py::test_each_missing_program_is_named_with_the_command_that_gets_it_on_the_platform"
 )

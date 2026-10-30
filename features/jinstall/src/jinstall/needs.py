@@ -117,7 +117,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      gh                            Program("gh", arch="github-cli")
       hard      gh sign-in                    GhSignIn
       optional  jbus config <path>            JbusConfig, seeded
-      optional  jbus sign-in <path>           JbusSignIn
+      optional  jbus sign-in <path>           JbusSignIn, hard once jbus has a [[project]]
       optional  limits <path>                 Limits
       optional  config <path>                 JstackConfig, seeded
       optional  roles <path>                  Roles, seeded
@@ -197,7 +197,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"jbus config {jbus}", Level.OPTIONAL, JbusConfig(jbus)),
         Need(
             f"jbus sign-in {jbus.with_name('t3.json')}",
-            Level.OPTIONAL,
+            Level.HARD if _projects(jbus) else Level.OPTIONAL,
             JbusSignIn(jbus.with_name("t3.json")),
         ),
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
@@ -392,6 +392,16 @@ def _jbus_config(machine: Machine) -> Path:
     """Where jbus reads its config, as `jbus.config_dir` finds it."""
     named = machine.env.get("JBUS_CONFIG_DIR")
     return (Path(named) if named else machine.home / ".config" / "jbus") / "config.toml"
+
+
+def _projects(config: Path) -> bool:
+    """Whether jbus's config names a project. Every go is the user's word, which jbus reads from
+    T3 Code, so a project with no sign-in gets no go and its first merge holds forever. A config
+    that cannot be read names none: its own line says why."""
+    try:
+        return bool(tomllib.loads(config.read_text()).get("project"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return False
 
 
 def _state_tree(machine: Machine) -> Path:

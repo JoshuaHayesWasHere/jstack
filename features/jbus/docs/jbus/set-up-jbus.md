@@ -20,6 +20,9 @@ done jbus config /home/you/.config/jbus/config.toml
 missing optional jbus sign-in /home/you/.config/jbus/t3.json -> jbus t3 login
 ```
 
+The sign-in is optional only while jbus has no project.
+Every go is your word, which jbus reads from T3 Code, so once a project is in the config the line says `needs you jbus sign-in`, and setup exits 1 until you sign in.
+
 The config it wrote has the T3 Code server and no project, and it launches nothing:
 
 ```toml

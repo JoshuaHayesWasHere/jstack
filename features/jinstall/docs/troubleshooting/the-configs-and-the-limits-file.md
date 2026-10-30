@@ -19,6 +19,7 @@
 | `missing optional relay <path> -> no env file, so the relay is off` | The relay is an optional integration with a chat bot of your own, and it is off. Nothing sends alerts. | Nothing, or write its keys to `<path>` as [The relay](../../../jbus/docs/jbus/the-relay.md) says, then run `jinstall`. |
 | `old optional relay <path> -> the relay would not start: <why>` | The relay would refuse the env file, so the install does not turn the relay on. A relay that is already on stays on. `<why>` names each key, never a value. | Correct each key `<why>` names, then run `jinstall`. |
 | `missing optional jbus sign-in <path> -> run jbus t3 login` | `jbus` has not signed in to T3 Code. | Run `jbus t3 login`. |
+| `missing hard jbus sign-in <path> -> run jbus t3 login` | `jbus` has a project and has not signed in to T3 Code, so it reads no go of yours and merges nothing. Once a `[[project]]` is in the config, each line of the sign-in says `hard`. | Run `jbus t3 login`. |
 | `old optional jbus sign-in <path> -> holds no token, run jbus t3 login` | The sign-in file has no token in it. | Run `jbus t3 login`. |
 | `old optional jbus sign-in <path> -> expired <date>, run jbus t3 login` | The sign-in ran out on `<date>`. | See [A T3 Code sign-in ran out](../../../jbus/docs/troubleshooting/a-t3-code-sign-in-ran-out.md). |
 | `old optional jbus sign-in <path> -> <path> is mode <mode>, readable by others: chmod 600 it` | The file holds a token, and group or others can read it. | Run `chmod 600 <path>`. |
