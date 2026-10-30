@@ -224,6 +224,13 @@ class Config:
         for project in self.projects:
             if project.name == name:
                 return project
+        # A name typed or spoken in another case finds the one project it names that way.
+        alike = [p for p in self.projects if name and p.name.casefold() == name.casefold()]
+        if len(alike) == 1:
+            return alike[0]
+        if alike:
+            each = " or ".join(project.name for project in alike)
+            raise Refused(f"refused: project {name} is {each}, name one as it is written")
         names = ", ".join(project.name for project in self.projects) or "none"
         raise Refused(f"refused: no project {name or '(name one with --project)'}, have {names}")
 
