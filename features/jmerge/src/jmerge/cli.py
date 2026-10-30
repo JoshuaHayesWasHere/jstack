@@ -964,10 +964,11 @@ class Repo:
         if accepts != self.accepts() and self.state.is_dir():
             store.write_json(self.state / "accepted.json", accepts)
 
-    def open_accepts(self, listed: list[ready.PullRequest]) -> None:
-        """Keep only the accepts of pull requests still open at the head they were accepted at:
-        a push or a close drops one."""
+    def open_only(self, listed: list[ready.PullRequest]) -> None:
+        """Keep only the holds of pull requests still open, and the accepts of those still open at
+        the head they were accepted at: a merge or a close drops both, and a push an accept."""
         heads = {str(one.number): one.head for one in listed}
+        self.holds_are({number: head for number, head in self.holds().items() if number in heads})
         self.accepts_are(
             {
                 number: kept
@@ -1076,7 +1077,6 @@ class Repo:
             say(said)
             if not said.startswith("merged "):
                 raise jsettings.Refused(said)
-            self.holds_are({n: head for n, head in self.holds().items() if n != number})
             return said
 
         if acting is None:
@@ -1756,7 +1756,7 @@ def main(argv: list[str] | None = None) -> int:
     listed = [repo.in_full(one) for one in listed]
     repo.open = listed
     if not args.check:
-        repo.open_accepts(listed)
+        repo.open_only(listed)
 
     if args.accept is not None:
         found = next((one for one in listed if one.number == int(args.accept)), None)
