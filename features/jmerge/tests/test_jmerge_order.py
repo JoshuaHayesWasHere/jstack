@@ -12,6 +12,7 @@ names a red tip, only the fix of that main, the brief `main-red-<sha12>`, merges
 other pull request waits until main is green."""
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -133,7 +134,14 @@ def test_a_row_with_no_go_waits_for_one_and_a_row_with_a_go_merges_as_before(two
     queue_of(two.home, [row("alpha", pr="#7", approved=""), row("beta", pr="#8")])
     said = two.run()
     assert said[0] == f"wait 7 {merge.URL}: {ready.NO_GO}"
+    assert "jbus plan go <entry> --message <thread>/<message>" in said[0]
     assert merged_numbers(said) == [8]
+
+
+def test_the_verify_recipe_holds_a_row_with_no_go_on_the_line_jmerge_prints():
+    recipe = (Path(__file__).parents[1] / "verify.md").read_text()
+    assert f"It prints `wait 7 https://example.test/pull/7: {ready.NO_GO}`" in recipe
+    assert "jbus plan go <entry> --message <thread>/<message>" in str(ready.NO_GO)
 
 
 def test_a_repo_with_no_queue_merges_as_it_did(two):

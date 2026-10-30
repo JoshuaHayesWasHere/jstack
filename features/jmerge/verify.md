@@ -13,6 +13,7 @@ Tests: none
 - `decision-no-review` waits on a green pull request whose brief has no review.
 - `decision-ready` is ready at the head a clean review names.
 - `decision-hold` holds a pull request that changes a protected path, for the user.
+- `decision-no-go` waits on a pull request whose queue row has no go, and names `jbus plan go`.
 - `decision-review-after` reads a brief that still says `Review: after` as `review`: its findings hold the merge.
 - `decision-review-twice` waits for the second review of a `Review: twice` brief, then for an answer to its `warning` finding, and drops its `info` one.
 - `decision-red` waits while the check named `check` has not passed.
@@ -62,6 +63,10 @@ Preconditions:
   The next step reads the pull request's head from git, so this step gives the pull request a real one.
   Run `head=$(git commit-tree -p HEAD -m beta "$(git rev-parse 'HEAD^{tree}')") && git push -q origin "${head}:refs/heads/beta" && "$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py > /dev/null && jq --arg head "$head" '.[0].headRefOid = $head' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json" && printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
   It prints `ready 7 <the head> beta beta`.
+- **Queue it with no go.**
+  Run `printf '# beta: a demo task\nTask: beta, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/beta/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: open one when done\nHome: root\n' | jbus --project demo queue add beta --priority 1 > /dev/null`, then `record jmerge-decision jmerge --check`.
+  It prints `wait 7 https://example.test/pull/7: its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`.
+  The line names the command a user gives the go with, so a stranger is not sent to a bare `jbus queue approve` that refuses.
 - **Into another branch.**
   Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py > /dev/null && jq --arg head "$head" '.[0].headRefOid = $head | .[0].baseRefName = "migration"' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json"`, then `record jmerge-decision jmerge --check`.
   It prints `wait 7 https://example.test/pull/7: its base is migration, not main`.
