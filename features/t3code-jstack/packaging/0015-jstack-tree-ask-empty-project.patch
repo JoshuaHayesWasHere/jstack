@@ -1,0 +1,286 @@
+From ef481cd80188f0c8dbf9bf6d28910021848ecd4c Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 21:26:34 -0400
+Subject: [PATCH] fix(web): a project added with no thread is a jstack tree
+ root at once, so it is asked about on add and offers Start a home
+
+---
+ apps/web/src/components/Sidebar.tsx           |  25 ++--
+ .../sidebar/jstackAskOnAdd.browser.test.tsx   | 114 +++++++++++++++++-
+ .../src/components/sidebar/jstackAskOnAdd.ts  |  29 +++++
+ 3 files changed, 159 insertions(+), 9 deletions(-)
+
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index b00baebdca..fd2669c2c3 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -276,7 +276,11 @@ import {
+ } from "./sidebar/jstackTree.logic";
+ import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
+ import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
+-import { useJstackAskOnAdd } from "./sidebar/jstackAskOnAdd";
++import {
++  jstackAskCandidates,
++  jstackProjectFolders,
++  useJstackAskOnAdd,
++} from "./sidebar/jstackAskOnAdd";
+ import { useJstackRootOrder } from "./sidebar/jstackRootOrder";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
+ import { useJbusWork } from "../lib/jbusWorkState";
+@@ -431,6 +435,8 @@ function useSidebarThreads(input: {
+   readonly folderGroups: readonly SidebarProjectSnapshot[] | null;
+   // Keeps folders with no active threads, so a project the user filtered to can start one.
+   readonly keepEmptyFolders: boolean;
++  // jstack fork: keeps every project's folder, so a project just added is a root row at once.
++  readonly jstackTreeOn: boolean;
+ }) {
+   const {
+     projectScopeKey,
+@@ -442,6 +448,7 @@ function useSidebarThreads(input: {
+     routeRowThreadKey,
+     folderGroups,
+     keepEmptyFolders: keepEmpty,
++    jstackTreeOn,
+   } = input;
+   // Folders already separate the work, so boring mode has no Working shelf.
+   const workingShelfEnabled =
+@@ -529,7 +536,10 @@ function useSidebarThreads(input: {
+   const projectFolders =
+     folderGroups === null
+       ? null
+-      : groupSidebarThreadsByProject(folderGroups, activeThreads, keepEmpty).map((folder) => {
++      : (jstackTreeOn && !keepEmpty
++          ? jstackProjectFolders(folderGroups, activeThreads)
++          : groupSidebarThreadsByProject(folderGroups, activeThreads, keepEmpty)
++        ).map((folder) => {
+           const collapsed = !resolveProjectExpanded(
+             projectExpandedById,
+             sidebarFolderExpansionKeys(folder.group),
+@@ -1282,6 +1292,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     },
+   );
+ 
++  // jstack fork: read before the folders, since the tree keeps a folder with no thread.
++  const jstackTreeEnabled = useClientSettings((settings) => settings.jstackTreeSidebarEnabled);
++  const jbusWork = useJbusWork(jstackTreeEnabled ? primaryEnvironmentId : null);
+   const {
+     workingShelfEnabled,
+     pinnedThreads,
+@@ -1332,16 +1345,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+         : scopedProjectGroups
+       : null,
+     keepEmptyFolders: scopedProjectGroups.length > 0,
++    jstackTreeOn: jbusWork !== null && primaryEnvironmentId !== null,
+   });
+ 
+   // jstack fork: once jbus's snapshot loads, every project folder draws as a root row of the
+   // tree: a jstack root home's project, a plain folder, or "No project".
+-  const jstackTreeEnabled = useClientSettings((settings) => settings.jstackTreeSidebarEnabled);
+   const jstackAttention = useClientSettings((settings) => settings.jstackTreeAttention);
+   const jstackLandedCount = useClientSettings((settings) => settings.jstackTreeLandedCount);
+   const jstackQuietMinutes = useClientSettings((settings) => settings.jstackTreeQuietMinutes);
+   const jstackRowCap = useClientSettings((settings) => settings.jstackTreeRowCap);
+-  const jbusWork = useJbusWork(jstackTreeEnabled ? primaryEnvironmentId : null);
+   const jstackNowMinute = useNowMinute();
+   const jstackLocalVisits = useUiStateStore((store) => store.threadLastVisitedAtById);
+   const [jstackExpandedHomes, setJstackExpandedHomes] = useState<ReadonlySet<string>>(
+@@ -1712,10 +1724,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+   const jstackShellsBootstrapped = useAllEnvironmentShellsBootstrapped();
+   useJstackAskOnAdd(
+     jstackTreeOn && allProjectSnapshotsReady && jstackShellsBootstrapped
+-      ? jstackRoots.map(({ folder, tree }) => ({
+-          group: folder.group,
+-          askable: !tree.root.noProject && tree.root.main === null,
+-        }))
++      ? jstackAskCandidates(jstackRoots.map(({ folder, tree }) => ({ group: folder.group, tree })))
+       : null,
+     startJstackHome,
+   );
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+index 908f9872cb..903a815836 100644
+--- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+@@ -1,15 +1,23 @@
+-import { EnvironmentId, ProjectId } from "@t3tools/contracts";
++import { EMPTY_JBUS_WORK_SNAPSHOT, EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
+ import { expect, it, vi } from "vite-plus/test";
+ import { page, userEvent } from "vite-plus/test/browser";
+ 
++import "~/index.css";
+ import { render } from "../../../test/render";
++import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { makeThreadFixture } from "../../test-fixtures";
++import { groupSidebarThreadsByProject } from "../Sidebar.logic";
+ import { ToastProvider } from "../ui/toast";
+ import {
+   JSTACK_SEEN_PROJECTS_KEY,
++  jstackAskCandidates,
++  jstackProjectFolders,
+   useJstackAskOnAdd,
+   type JstackAskCandidate,
+ } from "./jstackAskOnAdd";
++import { buildJstackTree } from "./jstackTree.logic";
++import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+ 
+@@ -139,3 +147,107 @@ it("waits for every project and thread to load before it seeds or asks", async (
+   await show([jstack, winnifred]);
+   await expect.element(page.getByText(/Start a jstack home/)).not.toBeInTheDocument();
+ });
++
++/** The sidebar's root rows while the tree is on, from its projects and their threads. */
++function treeRoots(
++  groups: ReadonlyArray<SidebarProjectSnapshot>,
++  threads: ReadonlyArray<ReturnType<typeof makeThreadFixture>>,
++) {
++  return jstackProjectFolders(groups, threads).map(({ group, threads: folderThreads }) => ({
++    group,
++    tree: buildJstackTree({
++      environmentId,
++      folderRowId: `folder:${group.projectKey}`,
++      noProject: group.isScratch === true,
++      memberProjectRefs: group.memberProjectRefs,
++      snapshot: EMPTY_JBUS_WORK_SNAPSHOT,
++      threadsById: new Map(threads.map((thread) => [thread.id, thread] as const)),
++      folderThreads,
++      hiddenThreads: [],
++      collapsed: false,
++      routeThreadId: null,
++      expandedHomes: new Set(),
++      unfoldedHomes: new Set(),
++      frozenOrder: null,
++      lastVisitedAt: () => null,
++      childHomeEditor: false,
++      answering: null,
++      requestedScopes: [],
++      nowMs: Date.parse("2026-10-29T12:00:00.000Z"),
++      options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 },
++    }),
++  }));
++}
++
++it("asks at once about a project added with no thread, and draws it as a root row that offers Start a home", async () => {
++  using _client = freshClient();
++  const startHome = vi.fn();
++  const jstackGroup = project("jstack");
++  const winnifredGroup = project("Winnifred");
++  const scratch: SidebarProjectSnapshot = { ...project("No project"), isScratch: true };
++  const threads = [
++    makeThreadFixture({
++      environmentId,
++      projectId: jstackGroup.id,
++      id: ThreadId.make("jstack-thread"),
++    }),
++  ];
++  // Upstream's folders drop a project with no thread unless the user filtered to it.
++  expect(
++    groupSidebarThreadsByProject([jstackGroup, winnifredGroup], threads, false).map(
++      (folder) => folder.group.displayName,
++    ),
++  ).toEqual(["jstack"]);
++
++  const { screen, show } = await sidebar(startHome);
++  await using _screen = screen;
++  await show(jstackAskCandidates(treeRoots([jstackGroup, scratch], threads)));
++  const roots = treeRoots([jstackGroup, winnifredGroup, scratch], threads);
++  // "No project" with no thread stays out, as upstream has it.
++  expect(roots.map(({ group }) => group.displayName)).toEqual(["jstack", "Winnifred"]);
++  await show(jstackAskCandidates(roots));
++  await expect.element(ask()).toBeVisible();
++
++  const winnifredRoot = roots[1]!;
++  expect(winnifredRoot.tree.root.main).toBeNull();
++  const actions = Object.fromEntries(
++    [
++      "onOpenThread",
++      "onToggleProject",
++      "onExpandHome",
++      "onToggleHome",
++      "onNewThread",
++      "onCopyPath",
++      "onOpenProjectSettings",
++      "onCopyName",
++      "onHomeWork",
++      "onArchiveHome",
++      "onStartHome",
++      "onOpenChildHomeEditor",
++      "onCloseChildHomeEditor",
++      "onSendChildHome",
++      "onDismissStartingHome",
++      "onOpenBrief",
++      "onRemoveTask",
++      "onOpenAnswer",
++      "onCloseAnswer",
++      "onSendAnswer",
++      "onPressRoot",
++      "onStepRoot",
++    ].map((name) => [name, vi.fn()]),
++  ) as unknown as JstackTreeRowActions;
++  await using rows = await render(
++    <ul {...SIDEBAR_TREE_PROPS} ref={attachSidebarTree} className="flex w-[300px] flex-col">
++      <JstackTreeRowView
++        row={winnifredRoot.tree.root}
++        group={winnifredRoot.group}
++        actions={actions}
++        place={null}
++      />
++    </ul>,
++    { router: false },
++  );
++  await userEvent.click(rows.getByRole("treeitem", { name: "Winnifred" }), { button: "right" });
++  await userEvent.click(page.getByRole("menuitem", { name: "Start a home" }));
++  expect(actions.onStartHome).toHaveBeenCalledWith(winnifredGroup);
++});
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.ts b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
+index 6fa083c76e..0c0e6249c1 100644
+--- a/apps/web/src/components/sidebar/jstackAskOnAdd.ts
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
+@@ -2,7 +2,9 @@ import type { ScopedProjectRef } from "@t3tools/contracts";
+ import { useEffect, useRef } from "react";
+ 
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { groupSidebarThreadsByProject } from "../Sidebar.logic";
+ import { toastManager } from "../ui/toast";
++import type { JstackTree } from "./jstackTree.logic";
+ 
+ // jstack fork: a project added to T3 asks once whether to start a jstack home for it. The
+ // projects this client has seen are kept, so a project is asked about at most once, ever.
+@@ -16,6 +18,33 @@ export interface JstackAskCandidate {
+   readonly askable: boolean;
+ }
+ 
++/**
++ * The sidebar's project folders while the jstack tree is on. Upstream keeps a folder with no
++ * thread only for a project the user filtered to; the tree keeps every project's, so a project
++ * just added is a root row at once, which the ask sees and which offers Start a home. "No
++ * project" with no thread stays out, as upstream has it.
++ */
++export function jstackProjectFolders<
++  TGroup extends Parameters<typeof groupSidebarThreadsByProject>[0][number] & {
++    readonly isScratch?: boolean | undefined;
++  },
++  TThread extends Parameters<typeof groupSidebarThreadsByProject>[1][number],
++>(groups: readonly TGroup[], threads: readonly TThread[]) {
++  return groupSidebarThreadsByProject(groups, threads, true).filter(
++    (folder) => folder.threads.length > 0 || folder.group.isScratch !== true,
++  );
++}
++
++/** The tree's root rows as the ask reads them: a project with no home is asked about. */
++export function jstackAskCandidates(
++  roots: ReadonlyArray<{ readonly group: SidebarProjectSnapshot; readonly tree: JstackTree }>,
++): ReadonlyArray<JstackAskCandidate> {
++  return roots.map(({ group, tree }) => ({
++    group,
++    askable: !tree.root.noProject && tree.root.main === null,
++  }));
++}
++
+ function projectKey(ref: ScopedProjectRef): string {
+   return `${ref.environmentId}:${ref.projectId}`;
+ }
+-- 
+2.56.0
+
