@@ -168,7 +168,7 @@ Two more paths change what `jbus` does:
 
 The provider instances this machine runs are the ones T3 Code lists in `providerInstances`, in its settings, `~/.t3/userdata/settings.json` (`$T3CODE_HOME/userdata/settings.json` where that is set).
 A second Claude subscription in a home of its own is one of them.
-You add an instance in T3 Code's settings, and jstack sees it from its next read, with no file of its own to edit.
+You add an instance through T3 Code's own Settings, and jstack sees it from its next read, with no file of its own to edit.
 jstack never writes T3's settings, and `jroles`, `jgauge limits` and `jinstall --doctor` only read them.
 With no settings file, each provider has only its built-in instance, such as `claudeAgent` for Claude, and nothing is wrong.
 
@@ -191,16 +191,13 @@ This example lists the built-in Claude instance and a second Claude account in `
 | `enabled` | `true` | Whether T3 Code runs the instance. |
 | `config.homePath` | `~/.claude` for a Claude instance | The instance's home. A leading `~` is your home directory, and the path must be absolute after that. Each Claude home is one account, with its own login. |
 
-jstack refuses settings that do not parse, or an instance with no `driver`, and the doctor's `provider inventory` line says why.
-`jroles` refuses them too, with a `refused:` line that names T3's settings file, and the role inherits the model of the thread that launches it.
+`jroles` refuses settings that do not parse, or an instance with no `driver`, with a `refused:` line that names T3's settings file and says why, and the role inherits the model of the thread that launches it.
 A new Claude home needs its login once: run `CLAUDE_CONFIG_DIR=~/.claude-work claude` and sign in to that account.
 
 The doctor prints these lines:
 
 | Line | Meaning |
 |---|---|
-| `missing optional provider inventory -> <path>` | T3 has no settings file, so it lists no instance. The doctor does not fail on it. |
-| `old optional provider inventory -> <why>` | The settings or their `providerInstances` are not in T3's shape. The doctor checks no instance. |
 | `ok hard skills <home>` | A listed Claude home uses the central jstack skills. Its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` when the instance has no `config.homePath`. |
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
@@ -210,7 +207,7 @@ The doctor prints these lines:
 Each Claude instance whose home is not `~/.claude` is a mirror of `~/.claude`.
 `jroles mirror` and its timer keep each mirror up to date.
 The mirror shares every entry except the login and the per-session state, and its `.claude.json` keeps its own account keys ([mirrors](../../jroles/docs/jroles.md#mirrors)).
-jstack takes the instance ids and the homes from this file alone, so a second account needs its line here, the same instance in T3 Code, and its login.
+jstack takes the instance ids and the homes from this file alone, so a second account needs only its instance in T3 Code and its login.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
 
 ## Hook entries

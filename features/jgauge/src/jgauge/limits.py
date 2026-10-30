@@ -2,7 +2,7 @@
 of time into the ledger (`jroles.ledger`), so a launch can skip an account before the account
 is capped.
 
-The accounts are the Claude homes of the provider inventory (`jroles.inventory`), and the
+The accounts are the Claude homes of T3's provider instances (`jroles.inventory`), and the
 command treats each home as an instance. For each home it reads the first of these sources that
 answers:
 

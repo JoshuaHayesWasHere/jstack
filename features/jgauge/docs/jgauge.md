@@ -220,7 +220,7 @@ That account is the instance of T3 Code's `providerInstances` whose `config.home
 For a session in `~/.claude`, the account is `claudeAgent`.
 `claudeAgent`'s file is `~/.local/state/claude/limits`, or the path in `LIMITS`.
 Another instance's file is `<that path>.<instanceId>`.
-The script writes nothing for an account the inventory does not declare, so the ledger never records one account's limits as another's.
+The script writes nothing for an account T3's settings do not list, so the ledger never records one account's limits as another's.
 `jgauge room` reads those files ([jroles](../../jroles/docs/jroles.md#the-ledger)).
 The script prints nothing and exits 0 on any input, so the status line stays empty.
 

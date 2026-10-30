@@ -37,7 +37,6 @@ from jinstall.kinds import (
     Patterns,
     Platform,
     Program,
-    ProviderInventory,
     RelayKeys,
     RetiredHook,
     Roles,
@@ -96,12 +95,11 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     """Every need, in the order the lines print. This function probes nothing. It derives the
     list from the source's skills.json, the units (`templates`), the commands (`_commands`),
     one listing of each skills root for GoneLink, one read of each hooks file for RetiredHook,
-    and the provider inventory. The inventory names the instances and the Claude homes to
-    probe.
+    and T3's provider instances (`jroles.inventory`), which name the Claude homes to probe.
 
     A release has no checkout, so its list has no generated line and no project skill.
-    An inventory that the function cannot read names no instance or home, and its own line
-    says why. A skills.json that the function cannot read names no skill and no hook, and each
+    T3 settings that the function cannot read name no instance or home, and `jroles` says
+    why. A skills.json that the function cannot read names no skill and no hook, and each
     layout's line says why.
 
     Needs that the install only probes:
@@ -123,7 +121,6 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  state repo <path>             StateRepo, the backup
       optional  ci report <path>              CiReport, of the jbus config
       optional  relay <path>                  RelayKeys, the relay's env file
-      optional  provider inventory            ProviderInventory, T3's providerInstances
       hard      skills <home>                 HomeSkills, for each declared Claude home
       optional  mirror <home>                 Mirrored, for each Claude home not ~/.claude
 
@@ -206,10 +203,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"ci report {jbus}", Level.OPTIONAL, CiReport(jbus)),
         Need(f"relay {relay}", Level.OPTIONAL, RelayKeys(relay)),
     ]
-    settings = inventory.path(machine.env, home)
-    providers = inventory.declared(settings, home)
+    providers = inventory.declared(inventory.path(machine.env, home), home)
     providers = {} if isinstance(providers, str) else providers
-    found.append(Need("provider inventory", Level.OPTIONAL, ProviderInventory(settings)))
     found += [
         Need(f"limits {file}", Level.OPTIONAL, Limits(file))
         for file in (ledger.file_of(name, limits) for name in claude_instances(providers, home))
@@ -323,7 +318,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
 def _attribution(home: Path, providers: dict) -> list[tuple[Path, dict, bool]]:
     """Each settings file that gets the keys that turn off the AI co-author trailer, with the
     keys and whether the install makes the file when it is not there. Every Claude home gets
-    Claude Code's keys: `~/.claude`, made, and each home the inventory declares, only while its
+    Claude Code's keys: `~/.claude`, made, and each home T3's settings list, only while its
     settings.json is there. A home whose settings.json is a link to `~/.claude`'s, as
     `jroles mirror` makes it, reads and writes that one file."""
     found = []

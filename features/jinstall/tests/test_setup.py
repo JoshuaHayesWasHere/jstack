@@ -77,17 +77,16 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         f"missing optional state repo {user.state} -> git init {user.state}"
         f" && git -C {user.state} remote add origin <url>",
     ]
-    assert said[14:18] == [
+    assert said[14:17] == [
         f"missing optional ci report {user.jbus_config}"
         f" -> ci_report = true in a [[project]] of {user.jbus_config}",
         f"missing optional relay {user.relay_env}"
         f" -> write the relay's keys to {user.relay_env}, as the relay's page says",
-        "missing optional provider inventory -> add the instances in T3 Code's settings",
         f"missing optional limits {user.limits} -> jgauge limits",
     ]
     parts = [*user.parts(), f"optional units {user.units}"]
-    assert said[18] == "already generated files are current"
-    assert said[19:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
+    assert said[17] == "already generated files are current"
+    assert said[18:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))
 
@@ -347,10 +346,10 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     said = done.stdout.splitlines()
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
-    probed, harness, units, left = 18, 1, 1, 6
+    probed, harness, units, left = 17, 1, 1, 5
     count = probed + harness + len(user.parts()) + units - left
     assert said[-2:] == [
-        f"setup: 0 done, {count} already, 0 needs you, 6 optional left, exit 0",
+        f"setup: 0 done, {count} already, 0 needs you, {left} optional left, exit 0",
         "doctor: ok",
     ]
     assert user.snapshot() == before

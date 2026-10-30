@@ -170,7 +170,7 @@ While every instance of the pool is capped, `jroles` prints nothing on stdout an
 On stderr it prints a line such as `jroles: crew waits: claudeAgent and claudeAgent_work are both capped until ...`.
 The launch waits for the first reset.
 
-To add an instance to a pool, first add it in T3 Code's settings, whose `providerInstances` is the provider inventory ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
+To add an instance to a pool, first add it through T3 Code's own Settings, which lists it in `providerInstances` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
 Then add its id to the role line.
 Each id must be the provider's built-in instance or one T3 lists under the line's provider.
 `jroles` refuses a line that names any other id, so a Claude pool never names a Codex or a Cursor instance.

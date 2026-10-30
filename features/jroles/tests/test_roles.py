@@ -430,6 +430,20 @@ def test_t3_settings_whose_provider_instances_are_not_t3s_shape_refuse_the_pool(
     )
 
 
+@pytest.mark.parametrize(
+    ("settings", "why"),
+    [
+        ("{not json", "it cannot be read as JSON"),
+        ('["claudeAgent"]', "it is not an object of settings"),
+        ('{"providerInstances": {"cursor": {"enabled": true}}}', "cursor has no driver"),
+    ],
+)
+def test_t3_settings_not_in_t3s_shape_are_refused_with_why(pooled, settings, why):
+    """The doctor has no provider line, so this refusal is where a user reads what is wrong."""
+    pooled.t3.write_text(settings)
+    assert pooled("crew") == (0, "", f"refused crew: {pooled.t3}: {why}\n")
+
+
 def test_with_no_t3_settings_the_pool_is_taken_as_written(pooled):
     pooled.t3.unlink()
     assert json.loads(pooled("review")[1])["instanceId"] == PRIME
