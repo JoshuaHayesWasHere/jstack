@@ -16,7 +16,11 @@ When in doubt between the two, any one of the durable column's conditions decide
 
 **A durable scout** is a row of the queue, as a crewmate's task is:
 
-1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first. When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief. Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`. Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request. Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and `Home: root` for the root home.
+1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first.
+   When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief.
+   Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`.
+   Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request.
+   Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and `Home: root` for the root home.
    A scout that waits on another row's work has a `Builds on: <slug>: <what it uses>` line for each.
    Its `Out of bounds:` line also says: no loop of more than ten `gh` calls until `uv run --project "$T/../source" jbus budget --calls <n>` says `ok`, and none while it says `held`.
    GitHub's API allowance is one for jbus, `jmerge` and every thread, and a scout's fetch for each job once spent all of it and stalled every merge for an hour.
