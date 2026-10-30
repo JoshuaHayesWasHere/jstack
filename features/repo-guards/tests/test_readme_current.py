@@ -73,7 +73,6 @@ NO_REQUIREMENT = (
     "config",
     "roles",
     "patterns",
-    "provider inventory",
     "ci report",
     "relay",
 )

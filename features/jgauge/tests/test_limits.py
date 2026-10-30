@@ -243,7 +243,7 @@ PRIME = "claudeAgent_claude_prime"
 
 
 def inventory(tmp_path, env, prime_home):
-    """The provider inventory, T3's settings under the environment's T3 home, with prime's
+    """The provider instances, T3's settings under the environment's T3 home, with prime's
     home."""
     t3 = tmp_path / "t3"
     (t3 / "userdata").mkdir(parents=True, exist_ok=True)

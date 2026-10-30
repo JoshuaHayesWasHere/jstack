@@ -109,14 +109,13 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         "ok optional lavish-axi",
         f"missing optional state repo {user.state} -> not a git repo",
     ]
-    assert said[14:18] == [
+    assert said[14:17] == [
         f"missing optional ci report {user.jbus / 'config.toml'}"
         " -> no jbus config, so no project asks for it",
         f"missing optional relay {user.relay_env} -> no env file, so the relay is off",
-        f"missing optional provider inventory -> {user.t3_settings}",
         f"missing optional limits {user.limits} -> jgauge limits writes it, every 2 min",
     ]
-    assert said[18:-1] == user.every("ok")
+    assert said[17:-1] == user.every("ok")
 
 
 def test_with_a_hard_need_missing_and_one_old_the_doctor_counts_them_and_exits_1(user):
@@ -136,7 +135,7 @@ def test_the_doctor_writes_nothing_and_gives_checks_answer_for_each_part_both_pr
     assert user.listing() == []
     checked = user.run("--check")[1]
     assert checked == user.every("missing")
-    assert said[18:-1] == checked
+    assert said[17:-1] == checked
 
 
 def test_the_doctor_prints_the_units_once_they_are_due_as_check_does(user):
@@ -482,18 +481,28 @@ def declared(user, listed):
     user.write(user.t3_settings, {"providerInstances": claude | listed, "other": 1})
 
 
-def test_each_instance_t3_lists_is_the_inventory_and_its_claude_homes_are_probed(user):
+def test_with_no_providers_json_and_no_t3_settings_no_doctor_line_asks_for_a_provider(user):
+    """jstack keeps no provider list: a provider is added in T3 Code's settings alone, so a home
+    with neither file gets no provider line and still passes."""
+    user.run()
+    assert not (user.home / ".config" / "jstack" / "providers.json").exists()
+    assert not user.t3_settings.exists()
+    code, said = user.doctor()
+    assert (code, said[-1]) == (0, "doctor: ok")
+    lines = [line.replace(str(user.home.parent), "") for line in said]
+    assert [line for line in lines if "provider" in line or "T3 Code's settings" in line] == []
+
+
+def test_each_instance_t3_lists_has_its_claude_home_probed(user):
     """The doctor reads the instances from T3's settings alone: one added there is probed with
     no jstack file to edit, and the doctor writes nothing to T3's settings."""
     declared(user, {"codex": CODEX, "cursor": CURSOR})
-    assert line_for(user.doctor()[1], "provider") == ["ok optional provider inventory -> 3 listed"]
     assert line_for(user.doctor()[1], "skills") == [f"ok hard skills {user.home / '.claude'}"]
     grown = {"claudeAgent": {"driver": "claudeAgent"}, "codex": CODEX, PRIME: prime()}
     user.write(user.t3_settings, {"providerInstances": grown})
     written = user.t3_settings.read_bytes()
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
-    assert line_for(said, "provider") == ["ok optional provider inventory -> 3 listed"]
     assert line_for(said, "skills") == [
         f"ok hard skills {user.home / '.claude'}",
         f"ok hard skills {user.home / '.claude_prime'}",
@@ -528,22 +537,20 @@ def test_a_second_claude_home_is_old_until_jroles_mirror_makes_it_a_mirror(user)
 
 
 @pytest.mark.parametrize(
-    ("settings", "why"),
+    "settings",
     [
-        ("{not json", "it cannot be read as JSON"),
-        (["claudeAgent"], "it is not an object of settings"),
-        (
-            {"providerInstances": ["claudeAgent"]},
-            "providerInstances is not an object of provider instances",
-        ),
-        ({"providerInstances": {"cursor": {"enabled": True}}}, "cursor has no driver"),
+        "{not json",
+        ["claudeAgent"],
+        {"providerInstances": ["claudeAgent"]},
+        {"providerInstances": {"cursor": {"enabled": True}}},
     ],
 )
-def test_t3_settings_not_in_t3s_shape_are_old_and_list_nothing(user, settings, why):
+def test_t3_settings_not_in_t3s_shape_list_no_claude_home_and_ask_for_nothing(user, settings):
+    """`jroles` refuses such settings and says why; the doctor has no provider line."""
     user.run()
     user.write(user.t3_settings, settings)
     code, said = user.doctor()
-    assert line_for(said, "provider") == [f"old optional provider inventory -> {why}"]
+    assert line_for(said, "provider") == []
     assert line_for(said, "skills") == []
 
 

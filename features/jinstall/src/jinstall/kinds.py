@@ -43,7 +43,7 @@ from jbus import relayenv
 from jgauge import limits
 from jinstall.harnesses import HARNESSES
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
-from jroles.inventory import BUILT_IN, Instance, declared
+from jroles.inventory import BUILT_IN, Instance
 from jsettings import t3
 
 
@@ -1699,28 +1699,6 @@ def claude_homes(declared: dict[str, Instance], home: Path) -> list[Path]:
     has `~/.claude`."""
     homes = [each.home or home / ".claude" for each in declared.values() if each.driver == BUILT_IN]
     return list(dict.fromkeys(homes))
-
-
-@dataclass(frozen=True)
-class ProviderInventory:
-    """The provider instances that this machine runs, T3 Code's `providerInstances` in its
-    settings, which jstack only reads (`jroles.inventory`).
-    missing: T3 has no settings file, so it runs only its built-in instances.
-    old: the file or its `providerInstances` is not T3's shape."""
-
-    path: Path
-
-    def ask(self, machine: Machine) -> str:
-        """T3 owns the list: an instance is added in T3 Code's settings."""
-        return "add the instances in T3 Code's settings"
-
-    def probe(self, machine: Machine) -> Found:
-        if not self.path.exists():
-            return Found.missing(str(self.path))
-        found = declared(self.path, machine.home)
-        if isinstance(found, str):
-            return Found.old(found)
-        return Found.ok(f"{len(found)} listed")
 
 
 @dataclass(frozen=True)

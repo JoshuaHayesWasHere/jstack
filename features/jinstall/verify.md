@@ -135,7 +135,7 @@ To install from a release's own `install.sh`, as a new user does, use a fourth s
   Export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
 - **Install the release.**
   Run `PATH="$HOME/.local/bin:$PATH" record release sh -c "curl -fsSL $JSTACK_RELEASE_URL/install.sh | sh"`.
-  Every line is `done` or `already`, except for the `needs you` lines for what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
+  Every line is `done` or `already`, except for the `needs you` lines for what a sandbox lacks (`t3`, `gh sign-in`, `state repo`), so it exits 1.
 - **Run `/setup-pstack`'s block.**
   Take the one `sh` block of `$HOME/.claude/skills/setup-pstack/SKILL.md` and run it with `$HOME/.local/bin` first on PATH.
   Its first line is `release: <HOME>/.local/bin/jinstall`, then the setup's lines, `setup: <n> done, <n> already, 4 needs you, exit 1`, and the doctor's last line.

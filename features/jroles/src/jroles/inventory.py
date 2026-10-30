@@ -1,7 +1,7 @@
-"""The provider inventory: the provider instances this machine runs, as T3 Code lists them in
+"""The provider instances this machine runs, as T3 Code lists them in
 the `providerInstances` of its own settings, `$T3CODE_HOME/userdata/settings.json` (`~/.t3` by
 default). T3 owns the list, and jstack only reads it, in this module, for `jroles`, `jinstall`
-and `jgauge limits`. An instance added in T3's settings is in the inventory from the next read.
+and `jgauge limits`. jstack sees an instance added in T3's settings from its next read.
 
 `claude_instances` follows the same rule that `features/jgauge/hooks/limits.sh` follows to map a
 Claude home to the instance whose ledger file the hook writes. A home maps to the first listed
