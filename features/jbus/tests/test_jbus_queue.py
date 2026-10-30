@@ -40,6 +40,8 @@ NO_SHA = (
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     made.word()
+    (made.home / "flow").mkdir()
+    (made.home / "flow" / "home-id").write_text("mcp:flow-home\n")
     yield made
     made.close()
 
@@ -47,7 +49,7 @@ def kitchen(tmp_path, monkeypatch):
 def brief(slug, more=""):
     """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
-        f'# {slug}: a task\nHome: mcp:a-home\nTask: "do {slug}"\nDone when:\n- it is done\n'
+        f'# {slug}: a task\nHome: root\nTask: "do {slug}"\nDone when:\n- it is done\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
         'Design: none, a test\nDecisions: "review it once", the user\'s word in a test\n'
         "Pull request: open one when done\nReview: review\n"
@@ -541,7 +543,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, js
     add(kitchen, "alpha")
     said = kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = judgement.body(brief("alpha")) + "Home: mcp:a-home\n"
+    written = judgement.body(brief("alpha")) + "Home: root\n"
     assert given == {
         "projectId": PROJECT,
         "title": "crew: alpha",
@@ -1182,10 +1184,10 @@ def test_dispatch_off_sends_no_gate_whether_or_not_the_crews_out_are_known(kitch
     assert not (kitchen.state / "room.json").exists()
 
 
-def readdressed(slug, home="mcp:another-home", thread=""):
+def readdressed(slug, home="flow", thread=""):
     """Return the brief as a new home queues it again, with another `Home:` line and a `Thread:`
     line added."""
-    text = brief(slug).replace("Home: mcp:a-home\n", f"Home: {home}\n")
+    text = brief(slug).replace("Home: root\n", f"Home: {home}\n")
     return text.replace("Where:", f"Thread: {thread}\nWhere:") if thread else text
 
 
@@ -1193,7 +1195,7 @@ def readdressed(slug, home="mcp:another-home", thread=""):
     "again",
     [
         readdressed("alpha"),
-        readdressed("alpha", home="mcp:a-home", thread="mcp:a-thread"),
+        readdressed("alpha", home="root", thread="mcp:a-thread"),
         readdressed("alpha", thread="mcp:a-thread"),
     ],
     ids=["home", "thread", "both"],
@@ -1263,11 +1265,11 @@ def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):
     """jbus does not hash what follows `Home:` or `Thread:`, so jbus neither sends nor writes
     that text: a launch sends and writes only the home the `Home:` line names."""
     add(kitchen, "alpha")
-    unsaid = readdressed("alpha", home="mcp:a-home and more", thread="mcp:a-thread and also this")
+    unsaid = readdressed("alpha", home="root and more", thread="mcp:a-thread and also this")
     add(kitchen, "alpha", approve=False, text=unsaid)
     kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = judgement.body(brief("alpha")) + "Home: mcp:a-home\n"
+    written = judgement.body(brief("alpha")) + "Home: root\n"
     assert "and more" not in written
     assert given["message"] == f"/crew alpha\n\n{written}"
     assert (kitchen.home / "tasks/alpha.md").read_text() == written + "Thread: mcp:thread-1\n"

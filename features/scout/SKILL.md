@@ -127,7 +127,13 @@ The one thing it adds outside them is a queued row for a fault outside the reque
 **The report, always.** Read `$T/scout-report.md` now. Append it, filled in, to `$H/scouts/<slug>.md` under `## Report`. Keep it to 40 lines unless the request sets another length: the home reads it at the start of a short thread.
 A fault you find outside the request is no line of the report: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
 
-**A brief, when the request asks for one.** Write `$H/tasks/<slug>.md` in the brief's usual shape, `$T/brief.md`. The "Done when" list is checks a person or a command can run. Fill in the five lines the template keeps for a scout, `Read:` to `Ruled out:`, so that a fresh crewmate can trust the brief and not research again. Its `Playbook:` line is picked from the rows that the block in `$T/../skills/home/SKILL.md` "Handing a task to a crewmate" prints, one for each playbook: run that block and pick as the text under it says. Its `Home:` line is the request's, copied: the crewmate reports to the home that sent the scout. A request with no `Home:` line is the root home's: leave the line out of the brief, and never leave the template's placeholder in.
+**A brief, when the request asks for one.**
+Write `$H/tasks/<slug>.md` in the brief's usual shape, `$T/brief.md`.
+The "Done when" list is checks a person or a command can run.
+Fill in the five lines the template keeps for a scout, `Read:` to `Ruled out:`, so that a fresh crewmate can trust the brief and not research again.
+Its `Playbook:` line is picked from the rows that the block in `$T/../skills/home/SKILL.md` "Handing a task to a crewmate" prints, one for each playbook: run that block and pick as the text under it says.
+Its `Home:` line is the request's, copied: the crewmate reports to the home that sent the scout.
+A request with no `Home:` line is the root home's: write `Home: root`, and never leave the template's placeholder in.
 
 Do not start the crewmate. The home does that.
 
@@ -170,7 +176,7 @@ lavish-axi "$H/reports/$S.html"
    uv run --project "$T/../source" jbus home "$B"
    ```
 
-   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.
+   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests say `Home: root` (or have no `Home:` line, from before the line was required), and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.
    A request names no thread, so no home's start or handoff changes it.
    One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home.
    `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them.

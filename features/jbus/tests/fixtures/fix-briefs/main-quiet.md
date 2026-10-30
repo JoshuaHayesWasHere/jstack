@@ -12,6 +12,7 @@ Design: none, a fix to what the failed run names
 Pull request: open one when done
 Review: review
 Playbook: bug-fix
+Home: root
 Read:
 - the job `check`, with no URL: its log names no failed test, read it
 - the merge <sha12> chore: a hand merge

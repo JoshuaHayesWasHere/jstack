@@ -272,12 +272,21 @@ def _home_name(home: Path, directory: Path) -> str:
 
 def owned(
     home: Path, project: str, slug: str, text: str, adder: str | None, given: str | None
-) -> None:
+) -> str:
     """Refuse a row that a home adds for a brief whose home is another (`jbriefs.home.home_of`),
     so that two homes do not brief the same fix unseen. `adder` is the thread of the home that
     adds it (`--from`), the root home's when it is empty, and None when no home said it adds it.
     `given` is the home the row is handed over to on purpose (`--for`): `root` or a scope's name,
-    which must be the brief's home."""
+    which must be the brief's home.
+
+    Return why the brief names no home of the project (`jbriefs.home.fault`), or nothing: such a
+    brief has no home to own it, and `add` refuses it for that fault beside its fields' own,
+    named as they are, `brief has no Home: line` and a request's `no Home: line`."""
+    fault = homes.fault(home, text, project)
+    if fault and requested(judgement.body(text)):
+        return fault
+    if fault:
+        return f"brief's {fault}" if homes.named(text) else f"brief has {fault}"
     theirs = _home_name(home, homes.home_of(home, text))
     if given is not None:
         if given != theirs:
@@ -285,9 +294,9 @@ def owned(
                 f"refused: --for {given}, and {slug}'s brief is the {theirs} home's: "
                 "nothing is queued"
             )
-        return
+        return ""
     if adder is None:
-        return
+        return ""
     mine = home if not adder else None
     for where in (home, *(scope for scope, _, _ in homes.scopes(home))):
         if adder and thread_of(where) == adder:
@@ -303,6 +312,7 @@ def owned(
             f"home adds it: the {theirs} home queues it, or this home hands it over with --for "
             f"{theirs}, and nothing is queued"
         )
+    return ""
 
 
 def clock() -> datetime:
@@ -629,6 +639,7 @@ class Add:
     entry: str = ""
     item: str = ""
     merge_after: list[str] = field(default_factory=list)
+    home_fault: str = ""
 
 
 @dataclass(frozen=True)
@@ -1370,6 +1381,8 @@ def _do(
         faults = _new_faults(
             found[0] if found and not handed else None, batch.brief(verb.slug), verb.text, verb.slug
         )
+        if verb.home_fault:
+            faults.append(verb.home_fault)
         if faults:
             many = "1 fault" if len(faults) == 1 else f"{len(faults)} faults"
             lines = "".join(f"\n- {fault}" for fault in faults)
@@ -1914,13 +1927,15 @@ def add(
     user: jsettings.Settings | None = None,
     asks: Asks | None = None,
     ran_by: dict[str, str] | None = None,
+    home_fault: str = "",
 ) -> list[str]:
     """Add the row, or its brief again, linked to the work item `item` where one is given.
     Return the line that says what was added, and the line of its approval by the follow-up rule
     or of why it waits, where `asks`, or a `user` with `ran_by`, names the rule (`_followers`).
     `ran_by` is who queued it, `runner` where none is given: a filer gives `PASS`, and the row
-    keeps it as `queued_by`, which makes its fix a fix jbus filed (`filed`)."""
-    verb = Add(slug, priority, depends, text, entry, item, merge_after or [])
+    keeps it as `queued_by`, which makes its fix a fix jbus filed (`filed`). `home_fault` is why
+    the brief names no home of the project (`owned`), a fault that refuses it beside the others."""
+    verb = Add(slug, priority, depends, text, entry, item, merge_after or [], home_fault)
     return _run(state, [(0, verb)], user, asks, ran_by)
 
 

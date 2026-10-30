@@ -151,6 +151,8 @@ With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.
 A row keeps its item, and `add` refuses an `--item` that names another.
 `jbus queue add <slug> --from <thread id>` says which home adds the row, and an empty id is the root home.
+`add` refuses a brief or a request with no `Home:` line, or one whose line names neither `root` nor a scope of the project's homes, as a fault of the brief beside its other faults, and queues nothing: a brief with no line once landed in the root home unseen.
+A row already queued is not checked again.
 `add` refuses a row whose brief's `Home:` line names a home other than the one adding it, and queues nothing, so two homes do not brief the same fix unseen.
 `jbus queue add --for <home>`, `root` or a scope's name, hands the row over on purpose, and `add` refuses a `--for` that is not the brief's home.
 `hold` takes a row's approval back, which stops both its launch and its merge.

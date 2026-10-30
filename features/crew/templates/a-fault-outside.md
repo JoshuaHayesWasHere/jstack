@@ -8,7 +8,7 @@ A fault with no known fix, or one the queue already holds, is nothing: leave it.
 Write the row's brief from `$T/brief.md`, as a home writes one, to a new file in `/tmp`.
 Its slug is new, and its `Task:` says the fault and its fix.
 Its `Decisions:` line begins `noticed in <slug>`, with the slug of the task that found it.
-A fault in a scoped home's work has that home's `Home: <scope>` line, and the row is that home's.
+Its `Home:` line names the home whose work has the fault, `Home: <scope>` for a scoped home's and `Home: root` for any other, and the row is that home's.
 Then run this in this worktree, with the block at the top and the new slug and the brief's file in place of the words in angle brackets:
 
 ```sh

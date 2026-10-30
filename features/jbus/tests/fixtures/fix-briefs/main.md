@@ -12,6 +12,7 @@ Design: none, a fix to what the failed run names
 Pull request: open one when done
 Review: review
 Playbook: bug-fix
+Home: root
 Follows: alpha
 Read:
 - the job `full`, https://example.test/o/r/actions/runs/77/job/901: `tests/test_a.py::test_one`, `tests/test_b.py::test_two[x]`

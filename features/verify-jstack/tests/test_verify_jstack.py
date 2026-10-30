@@ -299,6 +299,7 @@ Deliver:
 - Under "## Report" in this file: the findings with their evidence.
 Playbook: none
 Out of bounds: read-only. Run nothing that writes.
+Home: root
 """
 
 
@@ -310,7 +311,7 @@ def test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch(sandb
     )
     assert added.returncode == 0, added.stdout + added.stderr
     assert "| scout |" in added.stdout
-    stored = 'shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12'
+    stored = 'grep -v "^Home:" "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12'
     sha = inside(sandbox, stored).stdout.strip()
     said = inside(sandbox, f"jbus word --to demo --message {says(sandbox, 'go')}")
     word = said.stdout.split()[-1]

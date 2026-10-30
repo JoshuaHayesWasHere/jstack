@@ -246,7 +246,7 @@ def test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_r
     from test_jbus_queue import add, brief, rows
 
     kitchen = retiring.kitchen
-    add(kitchen, "sc-crew", text=brief("sc-crew").replace("Home: mcp:a-home", "Home: sc"))
+    add(kitchen, "sc-crew", text=brief("sc-crew").replace("Home: root", "Home: sc"))
     now = datetime.now(UTC)
     assert any(line.startswith("launched sc-crew: ") for line in kitchen.poll(now))
     kitchen.poll(now)
@@ -279,7 +279,7 @@ def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):
 
     root = home(kitchen)["threadId"]
     child = home(kitchen, "sc", idle=timedelta(hours=6))["threadId"]
-    text = brief("sc-alpha").replace("Home: mcp:a-home", "Home: sc")
+    text = brief("sc-alpha").replace("Home: root", "Home: sc")
     add(kitchen, "sc-alpha", text=text)
     assert any(line.startswith("launched sc-alpha: ") for line in kitchen.poll(NOW))
     (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-alpha"]

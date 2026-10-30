@@ -13,8 +13,8 @@ Skills: <the skills and principles the crewmate runs, comma-separated, by pstack
 Pull request: open one when done | ask first
 Review: twice | review | none
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
-<The line below is there only in a brief a scoped home writes, and it is the scope's name, never a thread id. The root home's brief has no `Home:` line.>
-Home: <scope>
+<Every brief has the line below, and it names the home the row is for: `root` for the root home, and the scope's name for a scoped home, never a thread id, since `jbus queue add` refuses a brief with no such line, or one that names no home of the project.>
+Home: <root, or the scope's name>
 <The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while a plan layer, docs order or a shared file is no such need and an order that is only about merging is `--merge-after` with no line.>
 Builds on: <slug>: <what of its work this row starts from>; <slug>: <what of its work>
 <The five lines below are there when a scout wrote this brief. A home that writes one from a light scout's answer may fill `Read:`, `Change:` and `Rests on:` from it; any other brief the home writes leaves all five out.>

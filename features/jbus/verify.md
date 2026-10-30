@@ -95,13 +95,13 @@ Preconditions:
 
 - **Add the row.**
   Pipe a brief in.
-  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1`.
+  Run `printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: root\n' | record queue-row jbus queue add alpha --priority 1`.
   The table has one row, `alpha`, priority 1, status `queued`, with `approved` and `brief_sha` empty.
 - **Try a derived column.** Run `record queue-row jbus queue add gamma --priority 2 --status launched`. It prints `refused: status is derived from T3 Code and GitHub, and no command writes it` and exits 2. No `gamma` row is added.
 - **Keep a word, and approve it.**
   Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`.
   Run `record queue-row jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id.
-  Then run `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)` and `record queue-row jbus queue approve alpha --sha "$sha" --word <the id>`.
+  Then run `sha=$(grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)` and `record queue-row jbus queue approve alpha --sha "$sha" --word <the id>`.
   The row's `approved` reads `your word, ...` and its `brief_sha` is the 12 characters.
 - **Hold it, and pass.** Run `record queue-row jbus queue hold alpha`, then `record queue-row jbus poll`. The row's `approved` is empty again, the pass prints no `launched` line, and `$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl` has no `t3_thread_launch`.
 - **Approve again, and pass.** Run the approve command again, then `record queue-row jbus poll`. It prints `launched alpha: mcp:sandbox-thread-1`.
@@ -121,7 +121,7 @@ Preconditions:
 - No `jbus poll` has run in it.
 
 - **Write the request.**
-  Write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`, with these lines: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none` and `Out of bounds: read-only. <what it must not do>`.
+  Write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`, with these lines: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none`, `Out of bounds: read-only. <what it must not do>` and `Home: root`.
 - **Add it.**
   Run `record scout-path jbus --project demo queue add alpha --priority 1 < "$VERIFY_JSTACK_SANDBOX/alpha.md"`.
   The table has one row, `alpha`, with `scout` in its `role` column and `approved` empty, and the request is in `$JBUS_STATE_DIR/demo/briefs/alpha.md`.
@@ -130,7 +130,7 @@ Preconditions:
   It exits 1 and names `a Size: line, which only a crewmate's brief has`, and no `beta` row is added.
 - **Keep a word, and approve.**
   Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`.
-  Run `record scout-path jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id, then `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)` and `record scout-path jbus --project demo queue approve alpha --sha "$sha" --word <the id>`.
+  Run `record scout-path jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id, then `sha=$(grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)` and `record scout-path jbus --project demo queue approve alpha --sha "$sha" --word <the id>`.
   The row's `approved` reads `your word, ...`.
 - **Pass.**
   Run `record scout-path jbus poll`.

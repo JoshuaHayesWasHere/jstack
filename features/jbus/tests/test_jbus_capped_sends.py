@@ -175,7 +175,7 @@ def test_with_the_whole_pool_capped_a_quiet_child_is_neither_nudged_nor_logged(k
     home(kitchen)
     found = home(kitchen, "sc", idle=timedelta(hours=6))
     (kitchen.home / "sc" / "plan.md").write_text("# sc: plan\n")
-    add(kitchen, "sc-alpha", text=brief("sc-alpha").replace("Home: mcp:a-home", "Home: sc"))
+    add(kitchen, "sc-alpha", text=brief("sc-alpha").replace("Home: root", "Home: sc"))
     kitchen.poll(NOW)
     (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-alpha"]
     kitchen.t3.at_work.discard(crew["threadId"])

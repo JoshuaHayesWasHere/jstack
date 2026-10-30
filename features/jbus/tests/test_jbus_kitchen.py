@@ -1127,12 +1127,14 @@ ASK = asking()
 
 
 def complete(slug, more=""):
-    """Return a brief with every field that `jbus queue add` asks for, and `more` under them."""
+    """Return a brief with every field that `jbus queue add` asks for, and `more` under them:
+    `Home: root` unless `more` names a home of its own."""
+    home = "" if "Home:" in more else "Home: root\n"
     return (
         f'# {slug}: a task\nTask: "do {slug}"\nDone when:\n- it is done\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`\nDesign: none, a test\n"
         'Decisions: "review it once", the user\'s word in a test\n'
-        f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{more}"
+        f"Pull request: open one when done\nReview: review\nPlaybook: feature\n{home}{more}"
     )
 
 
@@ -1155,7 +1157,7 @@ def approved(kitchen, slug, priority=1):
 
 
 def go(kitchen, slug):
-    sha = hashlib.sha256((kitchen.state / "briefs" / f"{slug}.md").read_bytes()).hexdigest()[:12]
+    sha = judgement.brief_sha((kitchen.state / "briefs" / f"{slug}.md").read_text())[:12]
     return kitchen.main("queue", "approve", slug, "--word", kitchen.word(), "--sha", sha)
 
 

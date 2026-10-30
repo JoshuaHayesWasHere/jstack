@@ -5,7 +5,6 @@ Each test drives the real commands in a verify-jstack sandbox, as a home types t
 sent in `t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
 """
 
-import hashlib
 import json
 import subprocess
 from datetime import datetime
@@ -14,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from jbus.health import PREFIX
+from jmerge import judgement
 from test_verify_jstack import SCRIPTS, inside, launch, says
 
 GATE = """## Gate <n>: tea or coffee?
@@ -109,6 +109,7 @@ def brief(slug, *head):
         "Review: none",
         "Playbook: none",
         "Pull request: none",
+        *([] if any(line.startswith("Home:") for line in head) else ["Home: root"]),
         *head,
         "",
     ]
@@ -126,9 +127,10 @@ def at_zoned():
 
 
 def brief_sha(sandbox, slug):
-    """The first 12 hex of the sha256 of the slug's brief in jbus's state, as `--sha` takes it."""
+    """The first 12 hex of the sha of the slug's brief in jbus's state, as `--sha` takes it: of
+    its text less its `Home:` line (`jmerge.judgement.brief_sha`)."""
     kept = sandbox.parent / "state" / "demo" / "briefs" / f"{slug}.md"
-    return hashlib.sha256(kept.read_bytes()).hexdigest()[:12]
+    return judgement.brief_sha(kept.read_text())[:12]
 
 
 def approve(sandbox, slug):

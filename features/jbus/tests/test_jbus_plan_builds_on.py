@@ -50,7 +50,7 @@ def queued(kitchen, slug, entry="", more="", scope=""):
     """Queue an approved row for `slug`, under the entry `entry` where one is given."""
     text = brief(slug, more)
     if scope:
-        text = text.replace("Home: mcp:a-home\n", f"Home: {scope}\n")
+        text = text.replace("Home: root\n", f"Home: {scope}\n")
     argv = ["queue", "add", slug, "--priority", "1", *(["--entry", entry] if entry else [])]
     code, said = kitchen.main(*argv, stdin=text)
     assert code == 0, said
