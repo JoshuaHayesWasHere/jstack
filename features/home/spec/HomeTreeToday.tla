@@ -151,7 +151,7 @@ RouteMends ==
 Sees(k) ==
     /\ life[k] \in {"working", "stuck", "handed"}     \* jbus/children.py `if not thread or not (launched or beat):`
     /\ \/ Kept("beat") /\ Kind[k] = "routine" /\ life[k] # "handed"     \* jbus/children.py `patience = beat or PATIENCE`
-       \/ work[k] \in {"crew", "open", "ready", "again", "back", "merged"}
+       \/ CrewOut(k)
 \* The root acts on a child it sees each time the child has been quiet for its patience again
 \* since its last step (jbus/children.py `if step != "asked" and run.now - start >=
 \* timedelta(minutes=patience):`): it nudges it, at most twice in one spell, and then asks Josh.
