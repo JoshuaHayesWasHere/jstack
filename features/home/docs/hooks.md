@@ -47,8 +47,8 @@ A thread with no hook gets no automatic home. Type `/home` there, or `$home`.
 
 A home is not handed off for the size of its context, so no hook counts it.
 A long thread is compacted by its harness and goes on as the same home.
-`features/home/hooks/home-gauge.sh` did that count until 2026-10-29, and `install.sh` takes no entry of it out of `~/.claude/settings.json`.
-An entry left there runs `sh` on a file that is gone, and its `|| true` makes it do nothing: delete the `PreToolUse` and `PostToolUse` groups whose command names `home-gauge.sh` to drop them.
+`features/home/hooks/home-gauge.sh` did that count until 2026-10-29.
+`install.sh` takes its `PreToolUse` and `PostToolUse` entries out of `~/.claude/settings.json`, as it takes out any hook of its layout that no feature declares.
 
 ## The sends hook
 
