@@ -8,6 +8,7 @@ import json
 
 import pytest
 
+from jbus import home
 from test_home_thread import NAME, NOTE, OTHER, THREAD, Scene, block
 from test_party_handoff import DESK, Party, takes
 from test_party_handoff import OTHER as COOK
@@ -48,11 +49,8 @@ def hands_off(scene, thread, checkout=None, code=0):
 
 
 def was_home(scene):
-    """The thread that the next home's start settles. The test reads it the way the home skill's
-    block does."""
-    before = block("home", "so no thread is looked for")
-    (line,) = [line for line in before.splitlines() if "was=$(" in line]
-    return scene.run("home", f'M="$H"\n{line}\nprintf "%s" "$was"', scene.main, None).stdout
+    """The thread that the next home's start settles, as `jbus home --was` reads it."""
+    return home.was_home(scene.home_dir)
 
 
 def kept(scene):
