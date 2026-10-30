@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import sys
 from pathlib import Path
 
 import jbus
@@ -56,7 +55,6 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
     ends: set[str] = set()
     mine: list[str] = []
     bad: list[str] = []
-    sys.stdin.reconfigure(newline="")
     for line in verbs.piped("told", "the turn's lines", " <home directory>").split("\n"):
         words = _words(line)
         if BLANK.fullmatch(line) or words[0] in QUIET:

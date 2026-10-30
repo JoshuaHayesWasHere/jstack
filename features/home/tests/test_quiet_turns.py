@@ -190,3 +190,13 @@ def test_a_line_is_cut_at_a_newline_alone_and_told_whole(turns, inside):
     asked = f"decision question 14: may it{inside}go? default: it goes"
     assert turns.end([asked]) == (0, [f"say: {asked}"])
     assert turns.end([asked]) == (0, [SILENT])
+
+
+def test_a_carriage_return_inside_a_line_is_kept_in_told_byte_for_byte(turns):
+    asked = "decision question 15: may it\rgo? default: it goes"
+    other = "decision question 16: and the route? default: it stays"
+    told = turns.home_dir / "told"
+    assert turns.end([asked])[0] == 0
+    assert told.read_bytes() == f"{asked}\n".encode()
+    assert turns.end([asked, other]) == (0, [f"say: {other}"])
+    assert told.read_bytes() == f"{asked}\n{other}\n".encode()
