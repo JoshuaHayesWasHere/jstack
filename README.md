@@ -56,7 +56,7 @@ jstack runs without it.
 
 | Need | What you lose without it |
 |---|---|
-| `jbus`, with its config and its sign-in | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. `jbus` sends its wakes to each project's home thread, and has no webhook. |
+| `jbus`, with its config and its sign-in | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. |
 | systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
@@ -94,9 +94,9 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	```
 
 	Setup prints one line for each need: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or `missing optional <name> -> <command>`.
-	The skill links of each harness fold into one line, `done skills <harness>: <n> links`.
-	When a step is left to you, the last line is `setup: <n> needs you: <name> -> <command>; ...`, which names each `needs you` line again.
-	Run each command a `needs you` line names, such as `gh auth login`, then run `jinstall --setup` again until no `needs you` line is left.
+	Each harness's skill links are one line, `done skills <harness>: <n> links`.
+	While a step is left to you, the last line is `setup: <n> needs you: <name> -> <command>; ...`.
+	Run each command it names, such as `gh auth login`, then run setup again until that line is gone.
 	A `missing optional` line is a layer you may leave off.
 
 2. Check the install.
@@ -193,7 +193,7 @@ Each command has one page.
 ## Skills
 
 `features/` holds every skill, and [the catalog](CATALOG.md) lists each one by its feature.
-Several names come from pstack, the agent skills by Lauren Tan for Cursor that jstack takes its principles from: `poteto-help`, `setup-pstack` and the `jdrift` command, which lists what changed in pstack's files.
+Several names come from pstack, the agent skills by Lauren Tan for Cursor that jstack takes its principles from: `poteto-help`, `setup-pstack` and the `jdrift` command.
 Eight skills run the flow, and `poteto-help` is the way in.
 Each `SKILL.md` is the full text of what its thread does.
 
