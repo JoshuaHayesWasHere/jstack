@@ -11,7 +11,6 @@ The lines below print only in a checkout.
 | Line | Meaning | Do this |
 |---|---|---|
 | `missing hard python -> 3.12 or newer, or uv, which brings one` | The script found no Python 3.12 and no `uv`, so it ran nothing. | Install `uv`. |
-| `missing hard a checkout of jstack around <path> -> curl -fsSL <url> \| sh` | `install.sh` ran outside a checkout, and carries no release version. | Run it from the root of a checkout, or install a release with the `curl` line it names. |
 | `usage: install.sh [--check \| --uninstall \| --doctor \| --setup \| --repo [<path>]]` | The argument is not one of the verbs. The script exits 2. | Run it with one verb or none. |
 | `install.sh: <checkout> is a linked worktree, and HOME is your own: install from the main checkout` | A plain install from a worktree would point every skill at that worktree. The script wrote nothing. | Run `sh install.sh` in the main checkout. |
 | `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout` | A `--setup` from a worktree would do the same. The script wrote nothing. | Run `sh install.sh --setup` in the main checkout. |
