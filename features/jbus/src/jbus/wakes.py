@@ -299,15 +299,14 @@ def root_of(run: Pass) -> str:
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that a home passes on: each item of the list that the user has to
-    decide (`blockers.deciding`). A row to approve is the item of the home whose brief it is
-    (`jbriefs.home`), as `jbus home` says, and any other need, or a home with no thread, the
-    root's (`root_of`)."""
+    decide (`blockers.deciding`). A row to approve is the item of the home whose brief or scout's
+    request it is (`jbriefs.home`), as `jbus home` says, and any other need, or a home with no
+    thread, the root's (`root_of`)."""
     root, items = root_of(run), []
     for one, line in blockers.deciding(run, listed):
-        brief = run.home / "tasks" / f"{one.get('slug')}.md"
-        text = (
-            brief.read_text(errors="replace") if one["kind"] == "approve" and brief.exists() else ""
-        )
+        files = (run.home / kind / f"{one.get('slug')}.md" for kind in ("tasks", "scouts"))
+        brief = next((file for file in files if file.exists()), None)
+        text = brief.read_text(errors="replace") if one["kind"] == "approve" and brief else ""
         to = thread_of(homes.home_of(run.home, text)) or root
         items.append(Item(key=one["key"], to=to, line=line, row=one.get("slug") or ""))
     return items
