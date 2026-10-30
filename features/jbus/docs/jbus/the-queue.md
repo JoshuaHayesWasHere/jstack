@@ -158,7 +158,7 @@ A row already queued is not checked again.
 `hold` takes a row's approval back, which stops both its launch and its merge.
 A held row that was never launched does not launch.
 If its pull request is open, `jmerge` leaves it unmerged, with `wait <number> <url>: its queue row is held: approve it again to let it merge`, until `jbus queue approve` gives the row its go again.
-A row with no go is held by `jmerge` too: it leaves the row's pull request unmerged, with `wait <number> <url>: its queue row has no go: the user's go, or the bot's, lets it merge (jbus queue approve)`, until a go is given.
+A row with no go is held by `jmerge` too: it leaves the row's pull request unmerged, with `wait <number> <url>: its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`, until a go is given.
 A pull request that no row names is judged as any other.
 
 An approval names its brief.
@@ -180,7 +180,7 @@ An approval also names the words of yours that it is based on.
 | `--page <session key>/<entry id>` | What you sent from a page of Lavish, an optional tool. It is the entry with that `id` in that session's `chat`. jbus reads it at the approval from Lavish's state file, `state.json` under `LAVISH_AXI_STATE_DIR` or `~/.lavish-axi`, and never writes that file. The record keeps the entry's `text` as the words, its `at` as when, and the page's file as where, and the row reads `your pick on a Lavish page, <time>, <page file name>`. jbus refuses, in one line, a state file that is not there, a session or an entry the file does not have, an entry whose `role` is not `user`, and a reference with no `/`. The grilling skill prints the reference of a page's last send. |
 
 It takes no name and no time.
-With no basis, with two, or with `--by` or `--at`, it prints `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id>, --pick <thread id>/<item id> or --page <session key>/<entry id>, or --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
+With no basis, with two, or with `--by` or `--at`, it prints `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id>, --pick <thread id>/<item id> or --page <session key>/<entry id>, or --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when; the user's go on a plan entry is jbus plan go <entry> --message <thread>/<message>`.
 
 There is one more basis, and it is not your word for the row.
 A follow-up of approved work needs no new approval: that is the follow-up rule, and jbus knows it by what it says, not by its number in a home's `standing.md`.

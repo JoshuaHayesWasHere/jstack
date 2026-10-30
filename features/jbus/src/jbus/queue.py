@@ -166,6 +166,7 @@ BASIS = (
     "<thread id>/<item id> or --page <session key>/<entry id>"
 )
 _SLUG_IN = r"(?<![a-z0-9._-]){}(?![a-z0-9_-]|\.[a-z0-9])"
+PLAN_GO = "jbus plan go <entry> --message <thread>/<message>"
 RULE = "rule"
 ENTRY = "entry"
 ANSWER = "answer"
@@ -746,7 +747,8 @@ def basis(given: Mapping[str, Any]) -> tuple[party.Evidence, str]:
     if len(named) != 1 or (follows and named[0][0] != RULE) or (ruled and not follows) or stamped:
         raise Refused(
             f"refused: approve takes one basis, {BASIS}, or {BY_RULE}, and no --by and no "
-            "--at: jbus writes who ran it and when"
+            "--at: jbus writes who ran it and when; the user's go on a plan entry is "
+            f"{PLAN_GO}"
         )
     if not follows and given.get("sha") in (None, ""):
         raise Refused(f"refused: {NO_SHA}")
