@@ -14,11 +14,14 @@ from dataclasses import replace
 import pytest
 
 from jinstall.__main__ import setup as run_setup
+from jinstall.harnesses import HARNESSES
 from jinstall.kinds import StateRepo
 from test_doctor import T3_STABLE, Doctored
 from test_install import (
     REPO,
+    ROOTS,
     SCRUBBED,
+    SKILLS,
     T3_GET,
     UNITS_PUT,
     Machine,
@@ -32,6 +35,8 @@ from testing.paths import skills
 
 GIT = 'case "$1" in config) echo "Sam Doe" ;; *) echo "git version 2.51.0" ;; esac'
 SERVER = "http://127.0.0.1:3773"
+FOLDS = [f"skills {harness.name}" for harness in HARNESSES]
+"""What the line of each harness's skill links names, `<word> skills <harness>: <n> links`."""
 
 
 class Fresh(Doctored):
@@ -84,9 +89,12 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         f" -> write the relay's keys to {user.relay_env}, as the relay's page says",
         f"missing optional limits {user.limits} -> jgauge limits",
     ]
-    parts = [*user.parts(), f"optional units {user.units}"]
+    links = {f"hard {link}" for link in user.links()}
+    parts = [part for part in [*user.parts(), f"optional units {user.units}"] if part not in links]
+    done = [f"done {part.split(' ', 1)[1]}" for part in parts]
+    folded = [f"done {fold}: {len(SKILLS)} links" for fold in FOLDS]
     assert said[17] == "already generated files are current"
-    assert said[18:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
+    assert said[18:] == [*done[:3], *folded, *done[3:]]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))
 
@@ -95,12 +103,44 @@ def test_it_walks_every_need_the_doctor_lists_once_and_in_order(user):
     said = user.setup()[1]
     words = ("done ", "already ", "needs you ", "missing optional ")
     assert all(line.startswith(words) for line in said)
-    heads = [line.split(" -> ")[0] for line in said]
+    heads = [line.split(" -> ")[0].split(": ")[0] for line in said]
     named = [
         head.split(" ", 2 if head.startswith(("needs", "missing")) else 1)[-1] for head in heads
     ]
+    links = {
+        str(link): fold
+        for fold, root in zip(FOLDS, ROOTS, strict=True)
+        for link in user.links()
+        if link.parent == user.home / root
+    }
     doctored = [line.split(" -> ")[0].split(" ", 2)[2] for line in user.doctor()[1][:-1]]
-    assert named == doctored
+    folded = [links.get(name, name) for name in doctored]
+    runs = [name for at, name in enumerate(folded) if name not in FOLDS or folded[at - 1] != name]
+    assert named == runs
+
+
+def test_a_clean_home_is_set_up_in_at_most_40_lines_with_one_line_for_each_layouts_links(user):
+    said = user.setup()[1]
+    assert len(said) <= 40
+    assert [line for line in said if " links" in line] == [
+        f"done {fold}: {len(SKILLS)} links" for fold in FOLDS
+    ]
+    assert [line for line in user.setup()[1] if " links" in line] == [
+        f"already {fold}: {len(SKILLS)} links" for fold in FOLDS
+    ]
+
+
+def test_the_last_line_names_every_need_left_to_the_user_again(user):
+    said = user.setup(path=user.without("gh"))[1]
+    left = [line.removeprefix("needs you ") for line in said if line.startswith("needs you ")]
+    assert [step.split(" -> ")[0] for step in left[:2]] == ["gh", "gh sign-in"]
+    assert left[1] == "gh sign-in -> gh auth login"
+    assert said[-1] == f"setup: {len(left)} needs you: {'; '.join(left)}"
+    assert [line for line in said if line.startswith("setup: ")] == [said[-1]]
+
+
+def test_with_nothing_left_to_the_user_there_is_no_last_line_of_needs(user):
+    assert not any(line.startswith("setup: ") for line in user.setup()[1])
 
 
 def test_it_seeds_the_jstack_config_from_the_git_name_and_the_machines_zone(user):
@@ -173,6 +213,8 @@ def test_a_missing_program_names_the_one_command_to_get_it(user):
 
 
 WSL2 = "install jstack inside WSL2"
+T3_PAGE = "https://github.com/pingdotgg/t3code"
+CLAUDE_PAGE = "https://code.claude.com/docs/en/setup"
 
 
 @pytest.mark.parametrize(
@@ -182,8 +224,8 @@ WSL2 = "install jstack inside WSL2"
             "linux",
             [
                 "already platform",
-                "needs you t3 -> t3",
-                "needs you claude -> claude",
+                f"needs you t3 -> {T3_PAGE}",
+                f"needs you claude -> {CLAUDE_PAGE}",
                 "needs you uv -> uv",
                 "needs you git -> git",
                 "needs you jq -> jq",
@@ -222,7 +264,19 @@ def test_each_missing_program_is_named_with_the_command_that_gets_it_on_the_plat
     bare = machine(REPO, tmp_path / "home", tmp_path / "account")
     done = run_setup(replace(bare, platform=platform))
     assert list(done.lines[:7]) == lines
+    assert done.lines[-1].startswith("setup: ")
     assert done.code == 1
+
+
+@linux_only(
+    "test_setup.py::test_each_missing_program_is_named_with_the_command_that_gets_it_on_the_platform"
+)
+def test_off_arch_t3_and_claude_are_named_by_their_install_pages(user):
+    (user.stub / "claude").unlink()
+    said = user.setup(path=user.without("t3"))[1]
+    assert f"needs you t3 -> {T3_PAGE}" in said
+    assert f"needs you claude -> {CLAUDE_PAGE}" in said
+    assert f"t3 -> {T3_PAGE}; claude -> {CLAUDE_PAGE}" in said[-1]
 
 
 @pytest.mark.parametrize(
@@ -347,7 +401,8 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
     probed, harness, units, left = 17, 1, 1, 5
-    count = probed + harness + len(user.parts()) + units - left
+    parts = len(user.parts()) - len(user.links()) + len(FOLDS)
+    count = probed + harness + parts + units - left
     assert said[-2:] == [
         f"setup: 0 done, {count} already, 0 needs you, {left} optional left, exit 0",
         "doctor: ok",

@@ -28,7 +28,7 @@
 
 Each program's own page has the install steps for every platform it supports.
 On macOS, `jinstall --setup` names the Homebrew command, `brew install <formula>`.
-On a Linux machine with `pacman`, it names the Arch package as `yay -S <package>`, and on any other Linux machine it names the program.
+On a Linux machine with `pacman`, it names the Arch package as `yay -S <package>`, and on any other Linux machine it names the install page for `t3` and `claude`, and the name of every other program.
 On Windows, it says to install jstack inside WSL2, and there each program is installed in the Linux distribution.
 
 | Program | Install page | Homebrew, on macOS | Arch package |

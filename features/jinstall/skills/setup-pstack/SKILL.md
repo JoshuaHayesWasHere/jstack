@@ -61,8 +61,10 @@ It prints the checkout, or `release: <path>` with the `jinstall` it runs when th
 The setup's lines are:
 
 - `done <name>`: this run wrote it.
+  The skill links of each harness are one line, `done skills <harness>: <n> links` or `already skills <harness>: <n> links`.
 - `already <name>`: it was there.
 - `needs you <name> -> <command>`: only the user can do it, with the one command that does.
+- `setup: <n> needs you: <name> -> <command>; ...`: the last line, when a step is left, naming each `needs you` line again.
 - `missing optional <name> -> <command>`: a layer the user has not set up, such as the relay or the backup, with the command that sets it up, and the machine runs without it.
 - `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout`: nothing was written. The skill is linked from a worktree, which the setup refuses under the account's own HOME.
 
