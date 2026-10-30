@@ -102,7 +102,7 @@ REFUSED = "T3 Code refused it"
 CAPPED = "its home's thread is capped, so it goes on the first pass after the reset"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
-THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+THREAD = re.compile(r"mcp:(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|launch:[0-9a-f]{64})")
 EVERY = "every"
 SLUG = re.compile(r"[a-z0-9]+(?:\.[a-z0-9]+)*(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)+")
 
@@ -422,11 +422,14 @@ def line(run: Pass, was: Word) -> str:
 
 def recorded_by(recorder: str, homes: list[str], client: Client | None) -> str:
     """Check `--from` before anything is kept. Refuse a value that is not shaped like a T3 Code
-    thread id, `mcp:<uuid>` as a home's `home-id` holds it, and one that is neither a home's thread
-    nor a thread T3 Code has. Return a line to print when T3 Code gave no answer, so that the shape
-    alone decided, or nothing."""
+    thread id, `mcp:<uuid>` or `mcp:launch:<hex>` as a home's `home-id` holds it, and one that is
+    neither a home's thread nor a thread T3 Code has. Return a line to print when T3 Code gave no
+    answer, so that the shape alone decided, or nothing."""
     if not THREAD.fullmatch(recorder):
-        raise Refused(f'refused: --from is a T3 Code thread id, mcp:<uuid>, not "{recorder}"')
+        raise Refused(
+            f"refused: --from is a T3 Code thread id, mcp:<uuid> or mcp:launch:<hex>, "
+            f'not "{recorder}"'
+        )
     if recorder in homes:
         return ""
     try:
