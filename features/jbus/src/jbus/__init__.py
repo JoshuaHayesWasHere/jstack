@@ -224,7 +224,6 @@ class Config:
         for project in self.projects:
             if project.name == name:
                 return project
-        # A name typed or spoken in another case finds the one project it names that way.
         alike = [p for p in self.projects if name and p.name.casefold() == name.casefold()]
         if len(alike) == 1:
             return alike[0]
