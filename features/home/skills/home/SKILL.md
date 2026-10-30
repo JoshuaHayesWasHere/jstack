@@ -121,64 +121,13 @@ the_turn() {
 <what this turn did, one line each>
 THE_TURN_ENDS_HERE
 }
-said=$(the_turn)
-told="${M:?run the block that finds this home first}/told"
-printf '%s\n' "$said" | awk -v told="$told" '
-    function key(line) {
-        if (!match(line, /^(decision|stop) (question [0-9]+|local [^ :]+|jbus): ./)) return ""
-        split(line, word, " ")
-        return (word[2] == "jbus:") ? line : substr(line, 1, RLENGTH - 3)
-    }
-    BEGIN { while ((getline line < told) > 0) if (key(line) != "") kept[++k] = line }
-    /^[[:space:]]*$/ { next }
-    $(1) ~ /^(merged|launched|handled|parked|waits):$/ { next }
-    $(1) == "cleared" && match($(0), /^cleared local [^ :]+: ./) {
-        ends[substr($(3), 1, length($(3)) - 1)] = 1
-        next
-    }
-    $(1) ~ /^(decision|stop):?$/ {
-        if (key($(0)) == "") {
-            bad[++b] = $(0) ": a decision or a stop names its key first: question <n>, jbus or local <slug>"
-            next
-        }
-        mine[++m] = $(0)
-        next
-    }
-    { bad[++b] = $(0) ": its kind is none of decision, stop, merged, launched, handled, parked, waits, cleared local <slug>" }
-    END {
-        if (b) {
-            for (i = 1; i <= b; i++) print "refused: " bad[i]
-            exit 2
-        }
-        for (i = 1; i <= k; i++) {
-            split(kept[i], word, " ")
-            if (word[2] == "local" && (substr(word[3], 1, length(word[3]) - 1) in ends)) {
-                changed = 1
-                continue
-            }
-            open[++o] = kept[i]
-            seen[key(kept[i])] = 1
-        }
-        for (i = 1; i <= m; i++) if (!(key(mine[i]) in seen)) {
-            seen[key(mine[i])] = 1
-            tell[++n] = mine[i]
-            open[++o] = mine[i]
-            changed = 1
-        }
-        if (changed) {
-            for (i = 1; i <= o; i++) print open[i] > (told ".new")
-            close(told ".new")
-            system("mv \"" told ".new\" \"" told "\"")
-        }
-        if (!n) print "silent: end the turn with no message"
-        for (i = 1; i <= n; i++) print "say: " tell[i]
-    }'
+the_turn | uv run --project "$T/../source" jbus told "${M:?run the block that finds this home first}"
 ```
 
 On `silent`, end the turn and write nothing more: no recap, no acknowledgment, no line saying nothing changed.
 On `say:`, tell the user each line after `say: `, in its order, and nothing else.
 On `refused:`, nothing is marked told: mend the line it names and run the block again.
-A decision or a stop is told once, by its key, and the block keeps its line in `$M/told`.
+A decision or a stop is told once, by its key, and `jbus told` keeps its line in `$M/told`.
 A `question <n>` or `jbus` one is in jbus's list of what waits on the user from then on, and is shown again only when the user asks for status.
 A `local <slug>` one is in no list of jbus's, so status shows it from `$M/told` ("When a thread sends a message") until it ends.
 When it ends (the gate is answered, the stack lands, the tool is there), write `cleared local <slug>: <how it ended>` as a line of that turn: it is quiet, it takes that slug's lines out of `$M/told`, and the same stop coming back later is told again.
