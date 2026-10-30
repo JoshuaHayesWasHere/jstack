@@ -40,6 +40,7 @@ from jinstall.kinds import (
     ProviderInstance,
     ProviderInventory,
     RelayKeys,
+    RetiredHook,
     Roles,
     StateRepo,
     StatusLine,
@@ -49,6 +50,7 @@ from jinstall.kinds import (
     claude_homes,
     dead,
     declared,
+    retired,
     templates,
 )
 from jinstall.layout import (
@@ -95,8 +97,9 @@ class Need:
 def needs(machine: Machine) -> tuple[Need, ...]:
     """Every need, in the order the lines print. This function probes nothing. It derives the
     list from the source's skills.json, the units (`templates`), the commands (`_commands`),
-    one listing of each skills root for GoneLink, and the provider inventory. The inventory
-    names the instances and the Claude homes to probe.
+    one listing of each skills root for GoneLink, one read of each hooks file for RetiredHook,
+    and the provider inventory. The inventory names the instances and the Claude homes to
+    probe.
 
     A release has no checkout, so its list has no generated line and no project skill.
     An inventory that the function cannot read names no instance or home, and its own line
@@ -145,6 +148,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      hook <file> <event>           HookGroup, for each entry of each hook of
                                               skills.json, in the file its harness reads
                                               (`Harness.hooks`)
+      hard      hook <file> <event> hooks/<name>  RetiredHook, for each hook there that
+                                              runs a script of the harness's layout
+                                              `hooks/` that skills.json does not declare,
+                                              and none while skills.json cannot be read
       hard      hook <repo>/.git/hooks/<name> <name>  GitHook, for each git hook of
                                               skills.json in each repo jstack works in
                                               (`repos.checkouts`): hard in its own checkout,
@@ -166,8 +173,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         named, hooked = skills(machine.source), hooks(machine.source)
         line, pushed = status_line(machine.source), git_hooks(machine.source)
         local = project_skills(machine.source)
+        read = True
     except UNREADABLE:
-        named, hooked, line, pushed, local = [], (), None, (), ()
+        named, hooked, line, pushed, local, read = [], (), None, (), (), False
     roots = {harness: home / harness.root for harness in HARNESSES}
     jbus, limits = _jbus_config(machine), _limits(machine)
     config = machine.config_home() / "jstack" / "config.toml"
@@ -267,6 +275,19 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         )
         for hook in hooked
         for one in hook["events"]
+    ]
+    scripts = frozenset(
+        [hook["name"] for hook in hooked] + ([line["name"]] if line is not None else [])
+    )
+    found += [
+        Need(
+            f"hook {file} {event} hooks/{name}",
+            Level.HARD,
+            RetiredHook(file, event, name, harness=harness),
+        )
+        for harness, file in files.items()
+        if read
+        for event, name in retired(machine, file, harness, scripts)
     ]
     found += [
         Need(

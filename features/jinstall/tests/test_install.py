@@ -23,8 +23,9 @@ from jbus.launchd import label
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Units, rewrite, unit_templates
+from jinstall.kinds import RetiredHook, Units, layout_scripts, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
+from jinstall.needs import needs
 from testing.paths import REPO
 
 INSTALL = REPO / "install.sh"
@@ -562,6 +563,32 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     }
 
 
+def test_a_hook_whose_script_no_feature_declares_is_old_and_taken_out(user):
+    retired = group("retired-gauge.sh", user.home, matcher=None)
+    mine = {"hooks": [{"type": "command", "command": "sh /mine/hooks/retired-gauge.sh"}]}
+    beside = {"type": "command", "command": "echo hello"}
+    shared = {"matcher": "Bash", "hooks": [beside, *retired["hooks"]]}
+    user.write(
+        user.settings,
+        {"model": "one", "hooks": {"PreToolUse": [retired, mine], "PostToolUse": [shared]}},
+    )
+    command = retired["hooks"][0]["command"]
+    pre = f"hook {user.settings} PreToolUse hooks/retired-gauge.sh"
+    post = f"hook {user.settings} PostToolUse hooks/retired-gauge.sh"
+    said = user.run("--check")[1]
+    assert line_for(said, pre) == [f"old hard {pre} -> {command}, a script no feature declares"]
+    assert line_for(said, post) == [f"old hard {post} -> {command}, a script no feature declares"]
+    code, said = user.run()
+    assert (code, line_for(said, pre)) == (0, [f"ok hard {pre} -> taken out"])
+    assert line_for(said, post) == [f"ok hard {post} -> taken out"]
+    hooks = user.written()
+    hooks["PreToolUse"] = [mine, *hooks["PreToolUse"]]
+    hooks["PostToolUse"] = [{"matcher": "Bash", "hooks": [beside]}, *hooks.get("PostToolUse", [])]
+    wanted = {"model": "one", "hooks": hooks, "statusLine": user.STATUS} | OFF
+    assert json.loads(user.settings.read_text()) == wanted
+    assert user.run("--check") == (0, user.every("ok"))
+
+
 def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touched(user):
     by_hand = 'sh "$HOME/repos/jstack/hooks/skill-tips.sh" 2>/dev/null || true'
     written = {
@@ -979,6 +1006,32 @@ def worktree(tmp_path):
         (checkout / "plugin.json").write_text(json.dumps(plugin))
         (checkout / "pyproject.toml").write_text('[project]\nname = "jstack"\nscripts = {}\n')
     return main, linked
+
+
+def test_no_hook_is_retired_while_skills_json_cannot_be_read(tmp_path):
+    main, _ = worktree(tmp_path)
+    (main / "skills.json").write_text("{")
+    home = tmp_path / "home"
+    settings = home / ".claude" / "settings.json"
+    settings.parent.mkdir(parents=True)
+    settings.write_text(json.dumps({"hooks": {"SessionStart": [group("home-start.sh", home)]}}))
+
+    listed = needs(machine(main, home, account=tmp_path / "account"))
+
+    assert [need.name for need in listed if isinstance(need.kind, RetiredHook)] == []
+
+
+@pytest.mark.parametrize(
+    ("command", "names"),
+    [
+        ("sh '/lay/hooks/limits.sh' 2>/dev/null || true", {"limits.sh"}),
+        ("sh /lay/hooks/limits.sh;true", {"limits.sh"}),
+        ('sh "/lay/hooks/a-b.sh"&&sh /lay/hooks/c_d.sh', {"a-b.sh", "c_d.sh"}),
+        ("sh /mine/hooks/limits.sh", set()),
+    ],
+)
+def test_a_command_names_each_layout_script_it_runs_and_no_shell_punctuation(command, names):
+    assert layout_scripts(command, Path("/lay")) == names
 
 
 def test_a_plain_install_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp_path):
