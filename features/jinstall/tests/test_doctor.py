@@ -374,6 +374,22 @@ def test_a_jbus_sign_in_is_ok_until_its_token_runs_out(user):
     assert TOKEN not in "\n".join(user.doctor()[1])
 
 
+def test_the_jbus_sign_in_is_hard_once_jbus_has_a_project(user, tmp_path):
+    """Every go is the user's word, which jbus reads from T3 Code: a project with no sign-in
+    gets no go, so its first merge would hold forever."""
+    user.run()
+    table = f'[[project]]\nname = "one"\ncheckout = "{tmp_path}"\nprojectId = "1"\n'
+    user.private(user.jbus / "config.toml", JBUS + table)
+    code, said = user.doctor()
+    assert line_for(said, "jbus sign-in") == [
+        f"missing hard jbus sign-in {user.token} -> run jbus t3 login"
+    ]
+    assert (code, said[-1]) == (1, "doctor: not ok, 1 hard")
+    stored = {"token": {"access_token": TOKEN, "expires_in": 3600}, "obtained_at": time.time()}
+    user.private(user.token, stored)
+    assert user.line("jbus sign-in") == f"ok hard jbus sign-in {user.token}"
+
+
 def test_a_limits_file_is_ok_while_it_was_read_in_the_last_15_minutes(user):
     """`jgauge limits` sets the file's time on each read. It does so for an idle account's
     file too, which has no line."""
