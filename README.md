@@ -94,6 +94,8 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	```
 
 	Setup prints one line for each need: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or `missing optional <name> -> <command>`.
+	The skill links of each harness fold into one line, `done skills <harness>: <n> links`.
+	When a step is left to you, the last line is `setup: <n> needs you: <name> -> <command>; ...`, which names each `needs you` line again.
 	Run each command a `needs you` line names, such as `gh auth login`, then run `jinstall --setup` again until no `needs you` line is left.
 	A `missing optional` line is a layer you may leave off.
 
