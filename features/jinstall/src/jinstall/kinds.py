@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import tomllib
 from collections.abc import Callable
@@ -1135,6 +1136,23 @@ T3_NIGHTLY_TAG = re.compile(r"refs/tags/(v[0-9]+(?:\.[0-9]+)+-nightly\.[0-9]+\.[
 T3_UPSTREAM = "https://github.com/pingdotgg/t3code"
 PINNED_TAG = re.compile(r"T3CODE_JSTACK_TAG:-(v[^}\"]+)")
 MAKEPKG_DIRS = ("BUILDDIR", "PKGDEST", "SRCDEST")
+NO_SPACE = re.compile(
+    r"EDQUOT|ENOSPC|system error -(?:122|28)\b|[Dd]isk quota exceeded|[Nn]o space left on device"
+)
+QUOTED_PATH = re.compile(r"'(/[^']+)'")
+
+
+def _clear(path: Path) -> None:
+    """Remove `path` and all under it, a folder a build made read-only included."""
+
+    def writable(function: Callable[[str], object], name: str, _: BaseException) -> None:
+        os.chmod(os.path.dirname(name), 0o700)
+        if os.path.isdir(name) and not os.path.islink(name):
+            os.chmod(name, 0o700)
+        function(name)
+
+    if path.exists():
+        shutil.rmtree(path, onexc=writable)
 
 
 def patch_series(packaging: Path) -> str:
@@ -1157,6 +1175,9 @@ class T3JstackBuild:
     of the running build, else the PKGBUILD's pinned tag, leaving out each tag the patches did
     not apply to (the `failed` file of the cache, by tag and series). The probe asks upstream
     with `git ls-remote`, and when upstream does not answer it wants the running nightly.
+    makepkg runs with TMPDIR at the cache's `tmp` folder, which the build makes and clears, so
+    the desktop stage (about 1 GB) never needs room in /tmp. A build that failed on EDQUOT or
+    ENOSPC is named as out of temp space, at the path its log names, else at that folder.
     due: on Arch, where `t3 --version` answers a nightly, which the package replaces.
     ok: the running build is the tag it wants, with the folder's patches.
     missing: no `t3` answers, or the running build is upstream's.
@@ -1173,7 +1194,15 @@ class T3JstackBuild:
         return ran.code == 0 and "-nightly." in ran.out
 
     def ask(self, machine: Machine) -> str:
-        return f"jinstall --setup builds it, and {self._log(machine)} holds the last build's log"
+        log = self._log(machine)
+        said = log.read_text(errors="replace") if log.is_file() else ""
+        place = None if "==> Finished making" in said else self._no_space(machine, said)
+        if place is None:
+            return f"jinstall --setup builds it, and {log} holds the last build's log"
+        return (
+            f"jinstall --setup builds it; the last build ran out of temp space at {place},"
+            f" and {log} holds its log"
+        )
 
     def probe(self, machine: Machine) -> Found:
         command = t3_command(machine)
@@ -1205,24 +1234,33 @@ class T3JstackBuild:
         _, tags = self._plan(machine, f"v{built[1]}" if built else None, series)
         log = self._log(machine)
         print(f"jinstall: building t3code-jstack, a few minutes; the log is {log}", file=sys.stderr)
-        for tag in tags:
-            made = machine.run(
-                [
-                    "env",
-                    *(f"{name}={cache}" for name in MAKEPKG_DIRS),
-                    f"T3CODE_JSTACK_TAG={tag}",
-                    *("makepkg", "-f", "-s", "--noconfirm", "-D", str(self.packaging)),
-                ]
-            )
-            log.write_text(made.out)
-            if made.code == 0:
-                break
-            if f"does not apply to {tag}" not in made.out:
-                raise Refused(f"makepkg failed on {tag}: {log} holds its log")
-            with (cache / "failed").open("a") as failed:
-                failed.write(f"{tag} {series}\n")
-        else:
-            raise Refused(f"no nightly takes jstack's patches {series}: rebase them")
+        temp = cache / "tmp"
+        try:
+            for tag in tags:
+                _clear(temp)
+                temp.mkdir()
+                made = machine.run(
+                    [
+                        "env",
+                        *(f"{name}={cache}" for name in MAKEPKG_DIRS),
+                        f"TMPDIR={temp}",
+                        f"T3CODE_JSTACK_TAG={tag}",
+                        *("makepkg", "-f", "-s", "--noconfirm", "-D", str(self.packaging)),
+                    ]
+                )
+                log.write_text(made.out)
+                if made.code == 0:
+                    break
+                if f"does not apply to {tag}" not in made.out:
+                    place = self._no_space(machine, made.out)
+                    why = f"the build ran out of temp space at {place}, and " if place else ""
+                    raise Refused(f"makepkg failed on {tag}: {why}{log} holds its log")
+                with (cache / "failed").open("a") as failed:
+                    failed.write(f"{tag} {series}\n")
+            else:
+                raise Refused(f"no nightly takes jstack's patches {series}: rebase them")
+        finally:
+            _clear(temp)
         version = f"{tag[1:].replace('-nightly.', '_nightly.')}.jstack.{series}"
         package = max(
             cache.glob(f"t3code-jstack-{version}-*.pkg.tar.*"),
@@ -1269,6 +1307,15 @@ class T3JstackBuild:
 
     def _log(self, machine: Machine) -> Path:
         return self._cache(machine) / "build.log"
+
+    def _no_space(self, machine: Machine, said: str) -> str | None:
+        """Where a build whose log is `said` ran out of temp space: the path quoted on the line
+        that says so, else the build's temp folder. None for a build that did not."""
+        line = next((one for one in said.splitlines() if NO_SPACE.search(one)), None)
+        if line is None:
+            return None
+        quoted = QUOTED_PATH.search(line)
+        return quoted[1] if quoted else str(self._cache(machine) / "tmp")
 
 
 @dataclass(frozen=True)
