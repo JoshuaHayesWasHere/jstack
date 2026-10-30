@@ -1,0 +1,1884 @@
+From 743cb0ed2bf1bbc27e2457dbc57170c0b3a0a618 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 16:12:45 -0400
+Subject: [PATCH] feat(web): jstack tree home actions: New child home inline,
+ Start a home, New crew task and New scout, Archive
+
+A root home's menu offers New child home: an inline row under the root with the scope's name and
+one line on what it owns. Enter sends the root home the user message "Make a scope <name>: owns
+<line>.", and the scope shows as starting until its home writes `<scope>/home-id`. A scope the
+root home made shows as starting from its plan on disk too, and one only the sidebar asked for
+can be dismissed. The name is checked before the send by the rules the root home's "Making a
+scope" checks.
+
+A project with no home offers Start a home: a new thread in its main checkout whose first message
+is `/home`. Every home offers New crew task and New scout, which put the words in its composer,
+after any draft, and open it focused at the end, a composer already mounted included. Archive home
+sends the home `/handoff` as a user message, queued after its running turn, and never archives the
+T3 thread itself.
+
+The server reports scopes with a plan.md and no home-id or handoff.md as starting, and re-derives the directories
+it watches on each refresh, so a scope or a repo home made after it started shows without a
+restart.
+---
+ apps/server/src/jstack/JbusWork.test.ts       |  92 +++++
+ apps/server/src/jstack/JbusWork.ts            | 103 ++++--
+ apps/server/src/jstack/jbusWork.logic.test.ts |   1 +
+ apps/server/src/jstack/jbusWork.logic.ts      |   8 +-
+ apps/web/src/components/Sidebar.tsx           | 102 +++++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 337 +++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx | 271 +++++++++++++-
+ .../jstackHomeActions.browser.test.tsx        |  91 +++++
+ .../components/sidebar/jstackHomeActions.ts   | 116 ++++++
+ .../sidebar/jstackHomeSends.browser.test.tsx  | 118 ++++++
+ .../sidebar/jstackTree.logic.test.ts          | 103 ++++++
+ .../components/sidebar/jstackTree.logic.ts    | 108 +++++-
+ packages/contracts/src/jbusWork.ts            |  10 +
+ 13 files changed, 1417 insertions(+), 43 deletions(-)
+ create mode 100644 apps/web/src/components/sidebar/jstackHomeActions.browser.test.tsx
+ create mode 100644 apps/web/src/components/sidebar/jstackHomeActions.ts
+ create mode 100644 apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx
+
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+index 82b8d6e718..37aa4f037d 100644
+--- a/apps/server/src/jstack/JbusWork.test.ts
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -48,3 +48,95 @@ it.live("reads each repo beside jbus's own files and follows work.json", () =>
+     );
+   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+ );
++
++/** The next snapshot the test is waiting for, read off the stream of changes. */
++const nextWhere = <A>(
++  changes: Stream.Stream<A>,
++  test: (snapshot: A) => boolean,
++): Effect.Effect<Option.Option<A>> =>
++  changes.pipe(Stream.filter(test), Stream.runHead, Effect.timeout("5 seconds"), Effect.orDie);
++
++it.live(
++  "shows a scope its root home makes as starting, until the scope's home writes home-id",
++  () =>
++    Effect.gen(function* () {
++      const fs = yield* FileSystem.FileSystem;
++      const path = yield* Path.Path;
++      const { roots } = yield* seed;
++      const service = yield* JbusWork.make(roots);
++      const { latest, changes } = yield* service.subscribe;
++      assert.deepEqual(latest.startingScopes, []);
++
++      // What the root home's "Making a scope" writes, in its order.
++      const scope = path.join(roots.home, "jstack", "ops");
++      yield* fs.makeDirectory(scope);
++      yield* fs.writeFileString(path.join(scope, "plan.md"), "# jstack, ops: plan\n");
++      yield* fs.writeFileString(path.join(scope, "prefix"), "ops-\n");
++      const starting = yield* nextWhere(changes, (next) => next.startingScopes.length > 0);
++      assert.deepEqual(
++        Option.map(starting, (next) => [next.startingScopes, next.homes.map((home) => home.scope)]),
++        Option.some([[{ repo: "jstack", scope: "ops" }], [null]]),
++      );
++
++      // `/home ops` writes the scope's home-id, inside the new scope's own directory.
++      yield* fs.writeFileString(path.join(scope, "home-id"), "mcp:ops-home\n");
++      const started = yield* nextWhere(changes, (next) => next.startingScopes.length === 0);
++      assert.deepEqual(
++        Option.map(started, (next) =>
++          next.homes.map((home) => [home.scope, home.threadId, home.prefix]),
++        ),
++        Option.some([
++          [null, "mcp:root", null],
++          ["ops", "mcp:ops-home", "ops-"],
++        ]),
++      );
++    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
++
++it.live("finds a repo whose root home starts after the server does", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const path = yield* Path.Path;
++    const { roots } = yield* seed;
++    const service = yield* JbusWork.make(roots);
++    const { latest, changes } = yield* service.subscribe;
++    assert.deepEqual(
++      latest.homes.map((home) => home.repo),
++      ["jstack"],
++    );
++
++    // "Start a home" in a project jbus already tracks: `/home` writes home/<repo>/home-id.
++    yield* fs.makeDirectory(path.join(roots.jbus, "winnifred"));
++    yield* fs.writeFileString(path.join(roots.jbus, "winnifred", "work.json"), '{"work": []}');
++    yield* fs.makeDirectory(path.join(roots.home, "winnifred"));
++    yield* fs.writeFileString(path.join(roots.home, "winnifred", "home-id"), "mcp:winnifred\n");
++    const found = yield* nextWhere(changes, (next) => next.homes.length === 2);
++    assert.deepEqual(
++      Option.map(found, (next) => next.homes.map((home) => [home.repo, home.threadId])),
++      Option.some([
++        ["jstack", "mcp:root"],
++        ["winnifred", "mcp:winnifred"],
++      ]),
++    );
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
++
++it.live("never shows a scope whose home handed off as starting", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const path = yield* Path.Path;
++    const { roots } = yield* seed;
++    // What /handoff leaves of a scoped home: its plan and its note, and no home-id.
++    const scope = path.join(roots.home, "jstack", "ops");
++    yield* fs.makeDirectory(scope);
++    yield* fs.writeFileString(path.join(scope, "plan.md"), "# jstack, ops: plan\n");
++    yield* fs.writeFileString(path.join(scope, "handoff.md"), "Was home: mcp:ops-home\n");
++    const service = yield* JbusWork.make(roots);
++    const { latest } = yield* service.subscribe;
++    assert.deepEqual(latest.startingScopes, []);
++    assert.deepEqual(
++      latest.homes.map((home) => home.scope),
++      [null],
++    );
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+index 85299d8a8e..49d279aea1 100644
+--- a/apps/server/src/jstack/JbusWork.ts
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -50,6 +50,15 @@ const defaultJbusWorkRoots = (): JbusWorkRoots => {
+   return { jbus: `${state}/jbus`, home: `${state}/home` };
+ };
+ 
++/** A watch on one directory, or null when it is gone since it was listed. */
++const openWatcher = (directory: string, onChange: () => void): NodeFS.FSWatcher | null => {
++  try {
++    return NodeFS.watch(directory, onChange);
++  } catch {
++    return null;
++  }
++};
++
+ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots) {
+   const fs = yield* FileSystem.FileSystem;
+   const path = yield* Path.Path;
+@@ -89,9 +98,18 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     const work = yield* readJson(path.join(bus, "work.json"));
+     const merged = yield* readJson(path.join(bus, "merged.json"));
+     const scopes: Array<JbusRepoFiles["scopes"][number]> = [];
++    const startingScopes: Array<string> = [];
+     for (const scope of yield* listDirectory(home)) {
+       const homeId = yield* readText(path.join(home, scope, "home-id"));
+-      if (homeId === null || homeId === "") continue;
++      if (homeId === null || homeId === "") {
++        // The root home's "Making a scope" writes plan.md and the scope's `/home` writes home-id.
++        // A home that handed off left handoff.md in its place, and is not starting.
++        const made = yield* isFile(path.join(home, scope, "plan.md"));
++        if (made && !(yield* isFile(path.join(home, scope, "handoff.md")))) {
++          startingScopes.push(scope);
++        }
++        continue;
++      }
+       const prefix = yield* readText(path.join(home, scope, "prefix"));
+       scopes.push({ scope, homeId, prefix: prefix === "" ? null : prefix });
+     }
+@@ -110,14 +128,70 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+         scouts: yield* readJson(path.join(bus, "scouts.json")),
+         rootHomeId: yield* readText(path.join(home, "home-id")),
+         scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
++        startingScopes: startingScopes.toSorted(),
+         briefHomes,
+       },
+       nowMs,
+     );
+   });
+ 
++  // Every directory whose entries a refresh reads, so a write in any of them refreshes: the
++  // roots, each candidate repo's two directories, and every directory of a tracked repo's home,
++  // a scope made after the server started included. Each refresh re-derives the set first.
++  const touched = yield* Queue.sliding<void>(1);
++  const watchers = new Map<string, NodeFS.FSWatcher>();
++  yield* Effect.addFinalizer(() =>
++    Effect.sync(() => {
++      for (const watcher of watchers.values()) watcher.close();
++      watchers.clear();
++    }),
++  );
++  const isDirectory = (entry: string) =>
++    fs.stat(entry).pipe(
++      Effect.map((info) => info.type === "Directory"),
++      Effect.orElseSucceed(() => false),
++    );
++  const directoriesIn = Effect.fnUntraced(function* (directory: string) {
++    const found: Array<string> = [];
++    for (const name of yield* listDirectory(directory)) {
++      const entry = path.join(directory, name);
++      if (yield* isDirectory(entry)) found.push(entry);
++    }
++    return found;
++  });
++  const watchedDirectories = Effect.gen(function* () {
++    const wanted = new Set([roots.jbus, roots.home]);
++    for (const entry of yield* directoriesIn(roots.jbus)) wanted.add(entry);
++    for (const entry of yield* directoriesIn(roots.home)) wanted.add(entry);
++    for (const repo of yield* repos) {
++      for (const entry of yield* directoriesIn(path.join(roots.home, repo))) wanted.add(entry);
++    }
++    return wanted;
++  });
++  // node's watch registers synchronously, so a write after this and before the read is not lost;
++  // FileSystem.watch registers only once its stream is first pulled.
++  const syncWatchers = Effect.fnUntraced(function* () {
++    const wanted = yield* watchedDirectories;
++    for (const [directory, watcher] of watchers) {
++      if (wanted.has(directory)) continue;
++      watcher.close();
++      watchers.delete(directory);
++    }
++    for (const directory of wanted) {
++      if (watchers.has(directory)) continue;
++      const watcher = openWatcher(directory, () => Queue.offerUnsafe(touched, undefined));
++      if (watcher === null) continue;
++      watcher.on("error", () => {
++        watcher.close();
++        if (watchers.get(directory) === watcher) watchers.delete(directory);
++      });
++      watchers.set(directory, watcher);
++    }
++  });
++
+   // Refreshes run on every debounced file event; tracing each would flood spans.
+   const refresh = Effect.fnUntraced(function* () {
++    yield* syncWatchers();
+     const nowMs = yield* Clock.currentTimeMillis;
+     const snapshots: Array<JbusWorkSnapshot> = [];
+     for (const repo of yield* repos) snapshots.push(yield* readRepo(repo, nowMs));
+@@ -132,33 +206,6 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+     .withPermits(1)(refresh())
+     .pipe(Effect.ignoreCause({ log: true }));
+ 
+-  // The watched set is fixed at start; a repo jbus starts tracking later shows after a restart.
+-  const watched = [roots.jbus];
+-  for (const repo of yield* repos) {
+-    watched.push(
+-      path.join(roots.jbus, repo),
+-      path.join(roots.home, repo),
+-      path.join(roots.home, repo, "tasks"),
+-    );
+-  }
+-  // node's watch registers synchronously, so no write between this and the first read is lost;
+-  // FileSystem.watch registers only once its stream is first pulled.
+-  const touched = yield* Queue.sliding<void>(1);
+-  yield* Effect.acquireRelease(
+-    Effect.sync(() =>
+-      watched.flatMap((directory) => {
+-        try {
+-          const watcher = NodeFS.watch(directory, () => Queue.offerUnsafe(touched, undefined));
+-          watcher.on("error", () => watcher.close());
+-          return [watcher];
+-        } catch {
+-          return [];
+-        }
+-      }),
+-    ),
+-    (watchers) => Effect.sync(() => watchers.forEach((watcher) => watcher.close())),
+-  );
+-
+   yield* refreshLocked;
+ 
+   yield* Stream.fromQueue(touched).pipe(
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index c9067961fc..e8e189670d 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -24,6 +24,7 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+   repo: "jstack",
+   rootHomeId: "mcp:root",
+   scopes: [{ scope: "flow", homeId: "mcp:flow-home", prefix: "fl-" }],
++  startingScopes: [],
+   work: { work: [] },
+   questions: { next: 1, records: [] },
+   merged: {},
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index fc7d7ebc46..3a93cb3923 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -22,6 +22,8 @@ export interface JbusRepoFiles {
+     readonly homeId: string;
+     readonly prefix: string | null;
+   }>;
++  /** Scopes with `plan.md` and no `home-id`: made by the root home, their home not started. */
++  readonly startingScopes: ReadonlyArray<string>;
+   /** The value of each brief's `Home:` line, by slug. Briefs with no line are absent. */
+   readonly briefHomes: ReadonlyMap<string, string>;
+ }
+@@ -101,7 +103,7 @@ const resolveHome = (
+ 
+ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnapshot => {
+   const rootId = threadIdOf(files.rootHomeId);
+-  if (rootId === null) return { homes: [], tasks: [], gates: [], landed: [] };
++  if (rootId === null) return { homes: [], startingScopes: [], tasks: [], gates: [], landed: [] };
+   const { repo } = files;
+   const scopeIds = new Map(files.scopes.map((each) => [each.scope, ThreadId.make(each.homeId)]));
+   const homes: Array<JbusHome> = [
+@@ -187,7 +189,8 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+     }
+   }
+ 
+-  return { homes, tasks, gates, landed };
++  const startingScopes = files.startingScopes.map((scope) => ({ repo, scope }));
++  return { homes, startingScopes, tasks, gates, landed };
+ };
+ 
+ /** The slugs whose briefs `buildRepoWork` reads: live rows and recent merges. */
+@@ -214,6 +217,7 @@ export const slugsNeedingBriefs = (
+ 
+ export const mergeSnapshots = (snapshots: ReadonlyArray<JbusWorkSnapshot>): JbusWorkSnapshot => ({
+   homes: snapshots.flatMap((each) => each.homes),
++  startingScopes: snapshots.flatMap((each) => each.startingScopes),
+   tasks: snapshots.flatMap((each) => each.tasks),
+   gates: snapshots.flatMap((each) => each.gates),
+   landed: snapshots.flatMap((each) => each.landed),
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index bbd3afb10b..e5b36ba422 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -1,5 +1,9 @@
+ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../lib/sidebarTree";
+-import { type EnvironmentId, type ScopedProjectRef } from "@t3tools/contracts";
++import {
++  type EnvironmentId,
++  type JbusStartingScope,
++  type ScopedProjectRef,
++} from "@t3tools/contracts";
+ import type { EnvironmentServerConfig } from "@t3tools/client-runtime/connection";
+ import { ThreadContextDragGhost } from "./chat/ThreadContextDragGhost";
+ import {
+@@ -257,7 +261,14 @@ import {
+   SidebarProjectFolderHeader,
+   sidebarFolderRowId,
+ } from "./sidebar/SidebarProjectFolderHeader";
+-import { arrangeJstackRoots, buildJstackTree, type JstackTree } from "./sidebar/jstackTree.logic";
++import {
++  arrangeJstackRoots,
++  buildJstackTree,
++  childHomeMessage,
++  HOME_WORK_PROMPT,
++  type JstackTree,
++} from "./sidebar/jstackTree.logic";
++import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
+ import { useJbusWork } from "../lib/jbusWorkState";
+ import {
+@@ -1332,6 +1343,28 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     string,
+     ReadonlyArray<string>
+   > | null>(null);
++  // The one root whose "New child home" row is open, by its folder's project key.
++  const [jstackChildHomeEditor, setJstackChildHomeEditor] = useState<string | null>(null);
++  // Scopes asked of a root home from here, shown as starting until jbus's home state has them.
++  const [jstackRequestedScopes, setJstackRequestedScopes] = useState<
++    ReadonlyArray<JbusStartingScope>
++  >([]);
++  // A scope asked from here is forgotten once jbus's home state has it, so a home later handed
++  // off never shows as starting again. Adjusted while rendering, when the snapshot changes.
++  const [jstackSeenWork, setJstackSeenWork] = useState(jbusWork);
++  if (jbusWork !== jstackSeenWork) {
++    setJstackSeenWork(jbusWork);
++    const known = (each: JbusStartingScope) =>
++      jbusWork !== null &&
++      (jbusWork.homes.some((home) => home.repo === each.repo && home.scope === each.scope) ||
++        jbusWork.startingScopes.some(
++          (made) => made.repo === each.repo && made.scope === each.scope,
++        ));
++    if (jstackRequestedScopes.some(known)) {
++      setJstackRequestedScopes(jstackRequestedScopes.filter((each) => !known(each)));
++    }
++  }
++  const jstackHomeSends = useJstackHomeSends();
+   const jstackRoots: Array<{
+     readonly folder: NonNullable<typeof projectFolders>[number];
+     readonly tree: JstackTree;
+@@ -1359,6 +1392,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+           routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null,
+         expandedHomes: jstackExpandedHomes,
+         frozenOrder: jstackFrozenOrder,
++        childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
++        requestedScopes: jstackRequestedScopes,
+         lastVisitedAt: (thread) =>
+           resolveThreadLastVisitedAt(
+             thread.lastVisitedAt,
+@@ -1388,6 +1423,69 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
+     onOpenProjectSettings: openProjectSettings,
+     onCopyName: (name, what) => copyJstackNameToClipboard(name, { name, what }),
++    onHomeWork: (homeThreadId, kind) => {
++      if (primaryEnvironmentId === null) return;
++      const ref = scopeThreadRef(primaryEnvironmentId, homeThreadId);
++      placeHomeWork(ref, HOME_WORK_PROMPT[kind]);
++      void navigateToThread(ref).then(focusComposerSoon);
++    },
++    onArchiveHome: (homeThreadId, name) => {
++      if (primaryEnvironmentId === null) return;
++      const thread =
++        threads.find(
++          (each) => each.environmentId === primaryEnvironmentId && each.id === homeThreadId,
++        ) ?? null;
++      void jstackHomeSends
++        .sendToHome(primaryEnvironmentId, homeThreadId, thread, "/handoff")
++        .then((sent) => {
++          if (!sent) return;
++          toastManager.add({
++            type: "success",
++            title: `Sent /handoff to ${name}`,
++            description: "The home hands off its work, then archives itself.",
++          });
++        });
++    },
++    onStartHome: (group) => {
++      void jstackHomeSends.startHome(group).then((started) => {
++        if (started === "no-model") {
++          toastManager.add({
++            type: "error",
++            title: "Could not start a home",
++            description: `No provider is ready for ${group.displayName}. Set one up in Settings.`,
++          });
++        } else if (started !== null) {
++          void navigateToThread(scopeThreadRef(group.environmentId, started));
++        }
++      });
++    },
++    onOpenChildHomeEditor: (group) => {
++      const root = jstackRoots.find((one) => one.folder.group.projectKey === group.projectKey);
++      if (root?.folder.collapsed) toggleProjectFolder(group);
++      setJstackChildHomeEditor(group.projectKey);
++    },
++    onCloseChildHomeEditor: () => setJstackChildHomeEditor(null),
++    onSendChildHome: async (row, scope, owns) => {
++      if (primaryEnvironmentId === null) return false;
++      const rootThread =
++        threads.find(
++          (each) => each.environmentId === primaryEnvironmentId && each.id === row.rootThreadId,
++        ) ?? null;
++      const sent = await jstackHomeSends.sendToHome(
++        primaryEnvironmentId,
++        row.rootThreadId,
++        rootThread,
++        childHomeMessage(scope, owns),
++      );
++      if (!sent) return false;
++      setJstackRequestedScopes((current) => [...current, { repo: row.repo, scope }]);
++      setJstackChildHomeEditor(null);
++      return true;
++    },
++    onDismissStartingHome: (repo, scope) =>
++      setJstackRequestedScopes((current) =>
++        current.filter((each) => each.repo !== repo || each.scope !== scope),
++      ),
+   };
+ 
+   // Ranked across environments as the palette ranks them, so one
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 308101bcb3..a84dedda02 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -1,5 +1,13 @@
+-import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
++import {
++  EMPTY_JBUS_WORK_SNAPSHOT,
++  EnvironmentId,
++  ProjectId,
++  ThreadId,
++  type JbusStartingScope,
++  type JbusWorkSnapshot,
++} from "@t3tools/contracts";
+ import axe from "axe-core";
++import { useState } from "react";
+ import { describe, expect, it, vi } from "vite-plus/test";
+ import { page, userEvent } from "vite-plus/test/browser";
+ 
+@@ -8,7 +16,12 @@ import { render } from "../../../test/render";
+ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+-import type { JstackRootRow, JstackTreeRow } from "./jstackTree.logic";
++import {
++  buildJstackTree,
++  childHomeMessage,
++  type JstackRootRow,
++  type JstackTreeRow,
++} from "./jstackTree.logic";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+@@ -101,6 +114,13 @@ function actions(): JstackTreeRowActions {
+     onCopyPath: vi.fn(),
+     onOpenProjectSettings: vi.fn(),
+     onCopyName: vi.fn(),
++    onHomeWork: vi.fn(),
++    onArchiveHome: vi.fn(),
++    onStartHome: vi.fn(),
++    onOpenChildHomeEditor: vi.fn(),
++    onCloseChildHomeEditor: vi.fn(),
++    onSendChildHome: vi.fn(async () => true),
++    onDismissStartingHome: vi.fn(),
+   };
+ }
+ 
+@@ -303,11 +323,23 @@ const more: JstackTreeRow = {
+   count: 3,
+ };
+ 
++/** A scope the sidebar asked the root home for, which the root home has not made yet. */
++const starting: JstackTreeRow = {
++  kind: "starting-home",
++  key: "jstack-starting:jstack/ops",
++  parentKey: "jstack-home:root",
++  repo: "jstack",
++  scope: "ops",
++  rootThreadId: ThreadId.make("root"),
++  requested: true,
++};
++
+ describe("JstackTreeRowView context menus", () => {
+   it("runs each item of every row kind's menu, and only that item's action", async () => {
+     const spies = actions();
+     const jstack = group("jstack");
+     const winnifred = group("Winnifred");
++    const noProject = group("No project");
+     await using screen = await render(
+       <Tree
+         actions={spies}
+@@ -318,7 +350,13 @@ describe("JstackTreeRowView context menus", () => {
+           [queued, jstack],
+           [asking, jstack],
+           [more, jstack],
++          [starting, jstack],
++          [
++            { ...starting, key: "jstack-starting:jstack/infra", scope: "infra", requested: false },
++            jstack,
++          ],
+           [root({ key: "folder:Winnifred", main: null }), winnifred],
++          [root({ key: "folder:none", main: null, noProject: true }), noProject],
+         ]}
+       />,
+       { router: false },
+@@ -335,27 +373,57 @@ describe("JstackTreeRowView context menus", () => {
+         items: [
+           ["Open home", ["onOpenThread", ThreadId.make("root")]],
+           ["Fold", ["onToggleProject", jstack]],
++          ["New crew task", ["onHomeWork", ThreadId.make("root"), "crew"]],
++          ["New scout", ["onHomeWork", ThreadId.make("root"), "scout"]],
++          ["New child home", ["onOpenChildHomeEditor", jstack]],
+           ["New thread", ["onNewThread", jstack]],
+           ["Copy path", ["onCopyPath", jstack]],
+           ["Project settings", ["onOpenProjectSettings", jstack]],
++          ["Archive home", ["onArchiveHome", ThreadId.make("root"), "jstack's root home"]],
+         ],
+       },
+       {
+         row: "Winnifred",
+         items: [
+           ["Fold", ["onToggleProject", winnifred]],
++          ["Start a home", ["onStartHome", winnifred]],
+           ["New thread", ["onNewThread", winnifred]],
+           ["Copy path", ["onCopyPath", winnifred]],
+           ["Project settings", ["onOpenProjectSettings", winnifred]],
+         ],
+       },
++      {
++        // No project is no repo, so it has no home to start.
++        row: "No project",
++        items: [
++          ["Fold", ["onToggleProject", noProject]],
++          ["New thread", ["onNewThread", noProject]],
++          ["Copy path", ["onCopyPath", noProject]],
++          ["Project settings", ["onOpenProjectSettings", noProject]],
++        ],
++      },
+       {
+         row: "flow home",
+         items: [
+           ["Open home", ["onOpenThread", ThreadId.make("flow")]],
++          ["New crew task", ["onHomeWork", ThreadId.make("flow"), "crew"]],
++          ["New scout", ["onHomeWork", ThreadId.make("flow"), "scout"]],
+           ["Copy scope name", ["onCopyName", "flow", "scope name"]],
++          ["Archive home", ["onArchiveHome", ThreadId.make("flow"), "the flow home"]],
+         ],
+       },
++      {
++        row: "ops starting...",
++        items: [
++          ["Open root home", ["onOpenThread", ThreadId.make("root")]],
++          ["Dismiss", ["onDismissStartingHome", "jstack", "ops"]],
++        ],
++      },
++      {
++        // A scope its root home made is on disk, so only its own home ends it.
++        row: "infra starting...",
++        items: [["Open root home", ["onOpenThread", ThreadId.make("root")]]],
++      },
+       {
+         row: "fl-pump crew",
+         items: [
+@@ -478,3 +546,268 @@ describe("JstackTreeRowView context menus", () => {
+     await userEvent.keyboard("{Escape}");
+   });
+ });
++
++const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
++const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
++
++const crewTask = (slug: string, home: string) => ({
++  repo: "jstack",
++  slug,
++  kind: "crew" as const,
++  stage: "crew" as const,
++  threadId: ThreadId.make(`crew-${slug}`),
++  homeThreadId: ThreadId.make(home),
++  pullRequest: null,
++  waitsOnUser: false,
++  waits: "",
++});
++
++// Each home has a task running, so no row draws at the half ink of an idle one.
++const SNAPSHOT: JbusWorkSnapshot = {
++  ...EMPTY_JBUS_WORK_SNAPSHOT,
++  tasks: [crewTask("tidy", "root"), crewTask("fl-pump", "flow")],
++  homes: [
++    { repo: "jstack", scope: null, threadId: ThreadId.make("root"), prefix: null },
++    { repo: "jstack", scope: "flow", threadId: ThreadId.make("flow"), prefix: "fl-" },
++  ],
++};
++
++/**
++ * The tree as the sidebar keeps it: jbus's snapshot drawn by buildJstackTree, with the sidebar's
++ * own state for the open "New child home" row and the scopes asked from it. What the sidebar
++ * would send the root home lands in `sent`.
++ */
++function LiveTree(props: {
++  snapshot: JbusWorkSnapshot;
++  spies: JstackTreeRowActions;
++  sent: Array<string>;
++}) {
++  const [editor, setEditor] = useState(false);
++  const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
++  const jstack = group("jstack");
++  const tree = buildJstackTree({
++    environmentId,
++    folderRowId: "folder:jstack",
++    noProject: false,
++    memberProjectRefs: [{ environmentId, projectId }],
++    snapshot: props.snapshot,
++    threadsById: new Map(
++      [rootThread, flowThread, opsThread].map((thread) => [thread.id, thread] as const),
++    ),
++    folderThreads: [],
++    hiddenThreads: [],
++    collapsed: false,
++    routeThreadId: null,
++    expandedHomes: new Set(),
++    frozenOrder: null,
++    lastVisitedAt: () => null,
++    childHomeEditor: editor,
++    requestedScopes: requested,
++    nowMs: Date.parse("2026-10-29T12:00:00.000Z"),
++    options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 },
++  });
++  const live: JstackTreeRowActions = {
++    ...props.spies,
++    onOpenChildHomeEditor: (opened) => {
++      props.spies.onOpenChildHomeEditor(opened);
++      setEditor(true);
++    },
++    onCloseChildHomeEditor: () => {
++      props.spies.onCloseChildHomeEditor();
++      setEditor(false);
++    },
++    onSendChildHome: async (row, scope, owns) => {
++      await props.spies.onSendChildHome(row, scope, owns);
++      props.sent.push(childHomeMessage(scope, owns));
++      setRequested((current) => [...current, { repo: row.repo, scope }]);
++      setEditor(false);
++      return true;
++    },
++    onDismissStartingHome: (repo, scope) => {
++      props.spies.onDismissStartingHome(repo, scope);
++      setRequested((current) => current.filter((each) => each.scope !== scope));
++    },
++  };
++  return (
++    <ul
++      {...SIDEBAR_TREE_PROPS}
++      ref={attachSidebarTree}
++      className="flex w-[300px] flex-col gap-px bg-sidebar"
++    >
++      {tree.rows.map((row) =>
++        row.kind === "loose" ? null : (
++          <JstackTreeRowView key={row.key} row={row} group={jstack} actions={live} />
++        ),
++      )}
++    </ul>
++  );
++}
++
++const rootItem = (screen: Screen) =>
++  screen.getByRole("treeitem", { name: /^jstack .*main thread$/ });
++
++type Screen = Awaited<ReturnType<typeof render>>;
++
++const audit = async () => {
++  // A bare render has no landmark around it; in the app the sidebar's own nav is one.
++  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
++  return result.violations.map(
++    (violation) =>
++      `${violation.id}: ${violation.help} at ${violation.nodes.map((node) => node.html).join(" | ")}`,
++  );
++};
++
++describe("JstackTreeRowView home actions", () => {
++  it("asks the root home for a child home from an inline row, by mouse, and shows it starting until its home-id makes it a home", async () => {
++    const spies = actions();
++    const sent: Array<string> = [];
++    await using screen = await render(<LiveTree snapshot={SNAPSHOT} spies={spies} sent={sent} />, {
++      router: false,
++    });
++
++    await userEvent.click(rootItem(screen), { button: "right" });
++    await userEvent.click(page.getByRole("menuitem", { name: "New child home" }));
++    const name = screen.getByRole("textbox", { name: "Scope name" });
++    await expect.element(name).toHaveFocus();
++    expect(await audit()).toEqual([]);
++
++    await userEvent.type(name, "ops");
++    await userEvent.click(screen.getByRole("textbox", { name: "What it owns" }));
++    await userEvent.keyboard("deploys and the CI runners{Enter}");
++    expect(sent).toEqual(["Make a scope ops: owns deploys and the CI runners."]);
++
++    const starting = screen.getByRole("treeitem", { name: "ops starting..." });
++    await expect.element(starting).toHaveFocus();
++    await expect
++      .element(screen.getByRole("treeitem", { name: "New child home" }))
++      .not.toBeInTheDocument();
++    expect(await audit()).toEqual([]);
++    await userEvent.click(starting);
++    expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("root"));
++
++    // The root home made the scope: its plan is on disk, its home not started.
++    await screen.rerender(
++      <LiveTree
++        snapshot={{ ...SNAPSHOT, startingScopes: [{ repo: "jstack", scope: "ops" }] }}
++        spies={spies}
++        sent={sent}
++      />,
++    );
++    await expect.element(screen.getByRole("treeitem", { name: "ops starting..." })).toBeVisible();
++    // `/home ops` wrote home/jstack/ops/home-id.
++    await screen.rerender(
++      <LiveTree
++        snapshot={{
++          ...SNAPSHOT,
++          homes: [
++            ...SNAPSHOT.homes,
++            { repo: "jstack", scope: "ops", threadId: ThreadId.make("ops"), prefix: "ops-" },
++          ],
++        }}
++        spies={spies}
++        sent={sent}
++      />,
++    );
++    await expect.element(screen.getByRole("treeitem", { name: /^ops .*home$/ })).toBeVisible();
++    await expect.element(screen.getByText("starting...")).not.toBeInTheDocument();
++  });
++
++  it("asks for a child home by keyboard alone, says why a name is no scope's, and puts the row away on Escape", async () => {
++    const spies = actions();
++    const sent: Array<string> = [];
++    await using screen = await render(<LiveTree snapshot={SNAPSHOT} spies={spies} sent={sent} />, {
++      router: false,
++    });
++
++    await userEvent.keyboard("{Tab}");
++    await expect.element(rootItem(screen)).toHaveFocus();
++    await userEvent.keyboard("{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
++    // Open home, Fold, New crew task, New scout, New child home.
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{Enter}");
++    const name = screen.getByRole("textbox", { name: "Scope name" });
++    await expect.element(name).toHaveFocus();
++
++    // Escape puts the row away and gives the root row its focus back.
++    await userEvent.keyboard("{Escape}");
++    await expect.element(name).not.toBeInTheDocument();
++    await expect.element(rootItem(screen)).toHaveFocus();
++    expect(spies.onCloseChildHomeEditor).toHaveBeenCalledTimes(1);
++
++    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
++    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{Enter}");
++    await expect.element(screen.getByRole("textbox", { name: "Scope name" })).toHaveFocus();
++
++    // A name no scope can have, then one a home of the repo has: each is said, and not sent.
++    await userEvent.keyboard(".ops{Enter}");
++    const again = screen.getByRole("textbox", { name: "Scope name" });
++    await expect.element(again).toHaveAttribute("aria-invalid", "true");
++    await expect.element(again).toHaveAccessibleDescription(/letters, digits, dots and dashes/);
++    expect(await audit()).toEqual([]);
++    await userEvent.keyboard("{Control>}a{/Control}flow{Enter}");
++    await expect
++      .element(again)
++      .toHaveAccessibleDescription("flow is already a scope of this repo.");
++    await userEvent.keyboard("{Control>}a{/Control}ops{Enter}");
++    // With no line on what it owns, Enter goes to that field.
++    const owns = screen.getByRole("textbox", { name: "What it owns" });
++    await expect.element(owns).toHaveFocus();
++    await expect.element(owns).toHaveAttribute("aria-invalid", "true");
++    expect(sent).toEqual([]);
++
++    await userEvent.keyboard("the deploys{Enter}");
++    expect(sent).toEqual(["Make a scope ops: owns the deploys."]);
++    const starting = screen.getByRole("treeitem", { name: "ops starting..." });
++    await expect.element(starting).toHaveFocus();
++
++    // Not made yet, so the sidebar can forget it.
++    await userEvent.keyboard("{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Open root home" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{Enter}");
++    expect(spies.onDismissStartingHome).toHaveBeenCalledWith("jstack", "ops");
++    await expect.element(starting).not.toBeInTheDocument();
++    await expect.element(rootItem(screen)).toHaveFocus();
++  });
++
++  it("puts New crew task and New scout in a home's composer, and archives a home by sending it /handoff", async () => {
++    const spies = actions();
++    await using screen = await everyRow(spies);
++    const pick = async (row: string | RegExp, item: string) => {
++      await userEvent.click(screen.getByRole("treeitem", { name: row }), { button: "right" });
++      await userEvent.click(page.getByRole("menuitem", { name: item }));
++      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
++    };
++    await pick(/^jstack .*main thread$/, "New crew task");
++    expect(spies.onHomeWork).toHaveBeenLastCalledWith(ThreadId.make("root"), "crew");
++    await pick("flow home", "New scout");
++    expect(spies.onHomeWork).toHaveBeenLastCalledWith(ThreadId.make("flow"), "scout");
++    await pick("flow home", "Archive home");
++    expect(spies.onArchiveHome).toHaveBeenCalledWith(ThreadId.make("flow"), "the flow home");
++
++    // The same from the keyboard, on the row the menu gave its focus back to.
++    await expect.element(screen.getByRole("treeitem", { name: "flow home" })).toHaveFocus();
++    await userEvent.keyboard("{Shift>}{F10}{/Shift}{ArrowDown}{Enter}");
++    expect(spies.onHomeWork).toHaveBeenLastCalledWith(ThreadId.make("flow"), "crew");
++  });
++
++  it("offers a project with no home Start a home, by mouse and by keyboard", async () => {
++    const spies = actions();
++    const winnifred = group("Winnifred");
++    await using screen = await render(
++      <Tree actions={spies} rows={[[root({ key: "folder:Winnifred", main: null }), winnifred]]} />,
++      { router: false },
++    );
++    await userEvent.click(screen.getByRole("treeitem", { name: "Winnifred" }), {
++      button: "right",
++    });
++    await userEvent.click(page.getByRole("menuitem", { name: "Start a home" }));
++    expect(spies.onStartHome).toHaveBeenCalledWith(winnifred);
++
++    await expect.element(screen.getByRole("treeitem", { name: "Winnifred" })).toHaveFocus();
++    await userEvent.keyboard("{ContextMenu}");
++    await expect.element(page.getByRole("menuitem", { name: "Fold" })).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}{Enter}");
++    expect(spies.onStartHome).toHaveBeenCalledTimes(2);
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index a3bd512c64..19ab5a4544 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -1,7 +1,15 @@
+ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
+ import type { ContextMenuItem, ThreadId } from "@t3tools/contracts";
+ import { ChevronDownIcon, SquarePenIcon } from "lucide-react";
+-import { memo, type MouseEvent, type ReactNode, useState } from "react";
++import {
++  type KeyboardEvent,
++  memo,
++  type MouseEvent,
++  type ReactNode,
++  useId,
++  useRef,
++  useState,
++} from "react";
+ 
+ import { cn } from "~/lib/utils";
+ import { readLocalApi } from "../../localApi";
+@@ -9,7 +17,12 @@ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { ProjectFavicon } from "../ProjectFavicon";
+ import { Button } from "../ui/button";
+ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+-import type { JstackTally, JstackTicks, JstackTreeRow } from "./jstackTree.logic";
++import {
++  scopeNameProblem,
++  type JstackTally,
++  type JstackTicks,
++  type JstackTreeRow,
++} from "./jstackTree.logic";
+ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ 
+ // jstack fork: the tree sidebar's rows. Amber is the only colour, and only for what waits on you.
+@@ -17,6 +30,7 @@ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ // a home 28px at 13/450 and 90% ink, a worker 24px at 12/400 and 70% ink.
+ 
+ type TreeRow = Exclude<JstackTreeRow, { kind: "loose" }>;
++type NewHomeRow = Extract<JstackTreeRow, { kind: "new-home" }>;
+ 
+ export interface JstackTreeRowActions {
+   readonly onOpenThread: (threadId: ThreadId) => void;
+@@ -27,6 +41,26 @@ export interface JstackTreeRowActions {
+   readonly onOpenProjectSettings: (group: SidebarProjectSnapshot) => void;
+   /** Copies a row's name, such as a task's slug, and says what it copied. */
+   readonly onCopyName: (name: string, what: "scope name" | "slug") => void;
++  /** Puts New crew task or New scout text in a home's composer and opens the home. */
++  readonly onHomeWork: (homeThreadId: ThreadId, kind: "crew" | "scout") => void;
++  /** Sends a home `/handoff`, which archives it the way jbus knows of. */
++  readonly onArchiveHome: (homeThreadId: ThreadId, name: string) => void;
++  /** Starts a root home in a project with none. */
++  readonly onStartHome: (group: SidebarProjectSnapshot) => void;
++  /** Opens the root's "New child home" row, unfolding the root. */
++  readonly onOpenChildHomeEditor: (group: SidebarProjectSnapshot) => void;
++  readonly onCloseChildHomeEditor: () => void;
++  /** Asks the root home for the scope; true once the message is sent. */
++  readonly onSendChildHome: (row: NewHomeRow, scope: string, owns: string) => Promise<boolean>;
++  /** Forgets a scope the sidebar asked for that the root home has not made. */
++  readonly onDismissStartingHome: (repo: string, scope: string) => void;
++}
++
++/** Focuses a tree row once React has drawn it, as the tree's own arrow keys would. */
++function focusTreeRowSoon(key: string) {
++  window.requestAnimationFrame(() => {
++    document.querySelector<HTMLElement>(`[data-sidebar-row="${CSS.escape(key)}"]`)?.focus();
++  });
+ }
+ 
+ const ROW_BUTTON =
+@@ -136,6 +170,151 @@ const rowMenu = (items: ReadonlyArray<RowMenuItem>) => (event: MouseEvent) => {
+     .catch(() => undefined);
+ };
+ 
++const FIELD =
++  "h-6 w-full min-w-0 rounded-sm border border-input bg-card px-1.5 text-xs text-card-foreground outline-none placeholder:text-muted-foreground/70 focus:border-foreground read-only:opacity-60";
++
++/**
++ * The root home's "New child home" row: the scope's name and one line on what it owns. Enter
++ * asks the root home, which makes the scope and picks its prefix; Escape puts the row away.
++ */
++function NewChildHomeRow(props: {
++  row: NewHomeRow;
++  actions: JstackTreeRowActions;
++  onContextMenu: (event: MouseEvent) => void;
++}) {
++  const { row, actions } = props;
++  const [scope, setScope] = useState("");
++  const [owns, setOwns] = useState("");
++  const [problem, setProblem] = useState<{ field: "scope" | "owns"; text: string } | null>(null);
++  const [sending, setSending] = useState(false);
++  const scopeRef = useRef<HTMLInputElement>(null);
++  const ownsRef = useRef<HTMLInputElement>(null);
++  const hintId = useId();
++
++  const send = async () => {
++    if (sending) return;
++    const nameProblem = scopeNameProblem(scope, row.takenScopes);
++    if (nameProblem !== null) {
++      setProblem({ field: "scope", text: nameProblem });
++      scopeRef.current?.focus();
++      return;
++    }
++    if (owns.trim() === "") {
++      setProblem({ field: "owns", text: "Say in one line what it owns." });
++      ownsRef.current?.focus();
++      return;
++    }
++    setProblem(null);
++    setSending(true);
++    if (await actions.onSendChildHome(row, scope.trim(), owns)) {
++      focusTreeRowSoon(`jstack-starting:${row.repo}/${scope.trim()}`);
++    } else {
++      setSending(false);
++    }
++  };
++  const cancel = () => {
++    actions.onCloseChildHomeEditor();
++    focusTreeRowSoon(row.parentKey);
++  };
++  const onFieldKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
++    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
++    if (event.key === "Enter") {
++      event.preventDefault();
++      event.stopPropagation();
++      void send();
++    } else if (event.key === "Escape") {
++      event.preventDefault();
++      event.stopPropagation();
++      cancel();
++    }
++  };
++
++  return (
++    <li className="list-none">
++      <Nest depth={1}>
++        <div
++          role="treeitem"
++          tabIndex={-1}
++          aria-selected={false}
++          data-sidebar-row={row.key}
++          data-sidebar-parent={row.parentKey}
++          onContextMenu={(event) => {
++            // A field keeps its own menu, with cut, copy and paste.
++            if (event.target === event.currentTarget) props.onContextMenu(event);
++          }}
++          onKeyDown={(event) => {
++            // Reached by the tree's arrow keys, the row hands Enter to its first field.
++            if (event.target !== event.currentTarget) return;
++            if (event.key === "Enter") {
++              event.preventDefault();
++              scopeRef.current?.focus();
++            } else if (event.key === "Escape") {
++              event.preventDefault();
++              cancel();
++            }
++          }}
++          className="flex flex-col gap-1 rounded-(--control-radius) px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++        >
++          {/* The row is named by what it shows: this label, the fields, and the hint. */}
++          <span className="text-tree-home text-sidebar-foreground/90">New child home</span>
++          <input
++            ref={scopeRef}
++            autoFocus
++            value={scope}
++            readOnly={sending}
++            dir="auto"
++            spellCheck={false}
++            aria-label="Scope name"
++            aria-describedby={hintId}
++            aria-invalid={problem?.field === "scope"}
++            placeholder="scope name"
++            onChange={(event) => setScope(event.target.value)}
++            onKeyDown={onFieldKeyDown}
++            className={FIELD}
++          />
++          <input
++            ref={ownsRef}
++            value={owns}
++            readOnly={sending}
++            dir="auto"
++            aria-label="What it owns"
++            aria-describedby={hintId}
++            aria-invalid={problem?.field === "owns"}
++            placeholder="what it owns, in one line"
++            onChange={(event) => setOwns(event.target.value)}
++            onKeyDown={onFieldKeyDown}
++            className={FIELD}
++          />
++          {/* Each field's description too, which it says on focus. */}
++          <p
++            id={hintId}
++            className={cn(
++              "pb-0.5 text-2xs",
++              problem === null ? "text-sidebar-muted-foreground" : "text-destructive-foreground",
++            )}
++          >
++            {problem?.text ??
++              (sending ? "Asking the root home..." : "Enter asks the root home, Esc cancels.")}
++          </p>
++        </div>
++      </Nest>
++    </li>
++  );
++}
++
++/** What every home offers: work for it to plan, which its composer takes. */
++const homeWork = (actions: JstackTreeRowActions, home: ThreadId): ReadonlyArray<RowMenuItem> => [
++  { label: "New crew task", separatorBefore: true, run: () => actions.onHomeWork(home, "crew") },
++  { label: "New scout", run: () => actions.onHomeWork(home, "scout") },
++];
++
++/** Archiving a home hands it off: the home ends itself, so jbus stops sending to it. */
++const archiveHome = (actions: JstackTreeRowActions, home: ThreadId, name: string): RowMenuItem => ({
++  label: "Archive home",
++  separatorBefore: true,
++  run: () => actions.onArchiveHome(home, name),
++});
++
+ /** One tree row. Arrow keys reach rows through an untrusted click, which folds instead. */
+ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+   row: TreeRow;
+@@ -157,11 +336,8 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+     case "project": {
+       const main = row.main;
+       const toggle = () => actions.onToggleProject(group);
+-      const onContextMenu = rowMenu([
+-        ...(main === null
+-          ? []
+-          : [{ label: "Open home", run: () => actions.onOpenThread(main.id) }]),
+-        { label: row.collapsed ? "Unfold" : "Fold", run: toggle },
++      const fold: RowMenuItem = { label: row.collapsed ? "Unfold" : "Fold", run: toggle };
++      const folder: ReadonlyArray<RowMenuItem> = [
+         { label: "New thread", separatorBefore: true, run: () => actions.onNewThread(group) },
+         { label: "Copy path", run: () => actions.onCopyPath(group) },
+         {
+@@ -169,7 +345,29 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+           icon: "settings",
+           run: () => actions.onOpenProjectSettings(group),
+         },
+-      ]);
++      ];
++      const onContextMenu = rowMenu(
++        main !== null
++          ? [
++              { label: "Open home", run: () => actions.onOpenThread(main.id) },
++              fold,
++              ...homeWork(actions, main.id),
++              { label: "New child home", run: () => actions.onOpenChildHomeEditor(group) },
++              ...folder,
++              archiveHome(actions, main.id, `${group.displayName}'s root home`),
++            ]
++          : row.noProject
++            ? [fold, ...folder]
++            : [
++                fold,
++                {
++                  label: "Start a home",
++                  separatorBefore: true,
++                  run: () => actions.onStartHome(group),
++                },
++                ...folder,
++              ],
++      );
+       return (
+         <li
+           data-testid="jstack-tree-project"
+@@ -256,11 +454,13 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+     case "domain": {
+       const onContextMenu = rowMenu([
+         { label: "Open home", run: () => actions.onOpenThread(row.threadId) },
++        ...homeWork(actions, row.threadId),
+         {
+           label: "Copy scope name",
+           separatorBefore: true,
+           run: () => actions.onCopyName(row.scope, "scope name"),
+         },
++        archiveHome(actions, row.threadId, `the ${row.scope} home`),
+       ]);
+       return (
+         <li className={cn("list-none", row.faded && "opacity-50")}>
+@@ -385,6 +585,61 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+         </li>
+       );
+     }
++    case "starting-home": {
++      const onContextMenu = rowMenu([
++        { label: "Open root home", run: () => actions.onOpenThread(row.rootThreadId) },
++        ...(row.requested
++          ? [
++              {
++                label: "Dismiss",
++                separatorBefore: true,
++                run: () => {
++                  actions.onDismissStartingHome(row.repo, row.scope);
++                  focusTreeRowSoon(row.parentKey);
++                },
++              },
++            ]
++          : []),
++      ]);
++      return (
++        <li className="list-none">
++          <Nest depth={1}>
++            <button
++              type="button"
++              role="treeitem"
++              tabIndex={-1}
++              data-sidebar-row={row.key}
++              data-sidebar-parent={row.parentKey}
++              aria-selected={false}
++              onClick={() => actions.onOpenThread(row.rootThreadId)}
++              onContextMenu={onContextMenu}
++              className={cn(ROW_BUTTON, "h-7")}
++            >
++              <span className="min-w-0 flex-1 truncate text-tree-home text-sidebar-foreground/90">
++                {row.scope}
++              </span>{" "}
++              <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
++            </button>
++          </Nest>
++        </li>
++      );
++    }
++    case "new-home":
++      return (
++        <NewChildHomeRow
++          row={row}
++          actions={actions}
++          onContextMenu={rowMenu([
++            {
++              label: "Cancel",
++              run: () => {
++                actions.onCloseChildHomeEditor();
++                focusTreeRowSoon(row.parentKey);
++              },
++            },
++          ])}
++        />
++      );
+     case "more":
+       return (
+         <li className="list-none">
+diff --git a/apps/web/src/components/sidebar/jstackHomeActions.browser.test.tsx b/apps/web/src/components/sidebar/jstackHomeActions.browser.test.tsx
+new file mode 100644
+index 0000000000..7d4366b201
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackHomeActions.browser.test.tsx
+@@ -0,0 +1,91 @@
++import { scopeThreadRef } from "@t3tools/client-runtime/environment";
++import { EnvironmentId, ThreadId, type ScopedThreadRef } from "@t3tools/contracts";
++import { createRef, type RefObject, useEffect } from "react";
++import { expect, it } from "vite-plus/test";
++import { userEvent } from "vite-plus/test/browser";
++
++import "~/index.css";
++import { useComposerDraftStore } from "~/composerDraftStore";
++import { act, render } from "../../../test/render";
++import { subscribeSnapShotComposerFocus } from "../../lib/desktopSnapShot";
++import {
++  ComposerPromptEditorTiptap as ComposerPromptEditor,
++  type ComposerPromptEditorHandle,
++} from "../ComposerPromptEditorTiptap";
++import { focusComposerSoon, placeHomeWork } from "./jstackHomeActions";
++import { HOME_WORK_PROMPT } from "./jstackTree.logic";
++
++const environmentId = EnvironmentId.make("environment-local");
++
++/** A home's composer as ChatView mounts it: its draft from the store, focused on the event. */
++function HomeComposer(props: {
++  target: ScopedThreadRef;
++  editorRef: RefObject<ComposerPromptEditorHandle | null>;
++}) {
++  const prompt = useComposerDraftStore(
++    (store) => store.getComposerDraft(props.target)?.prompt ?? "",
++  );
++  // ChatView's own subscription to the window event that focuses its composer.
++  useEffect(
++    () => subscribeSnapShotComposerFocus(() => props.editorRef.current?.focusAtEnd()),
++    [props.editorRef],
++  );
++  return (
++    <>
++      <button type="button">elsewhere</button>
++      <ComposerPromptEditor
++        editorRef={props.editorRef}
++        value={prompt}
++        cursor={prompt.length}
++        contextRecords={new Map()}
++        skills={[]}
++        disabled={false}
++        placeholder=""
++        onChange={(next) => useComposerDraftStore.getState().setPrompt(props.target, next)}
++        onPaste={() => {}}
++      />
++    </>
++  );
++}
++
++const promptOf = (target: ScopedThreadRef) =>
++  useComposerDraftStore.getState().getComposerDraft(target)?.prompt ?? "";
++
++it("puts New crew task in a home's composer that is already mounted, focused at its end", async () => {
++  const target = scopeThreadRef(environmentId, ThreadId.make("home-mounted"));
++  const editorRef = createRef<ComposerPromptEditorHandle>();
++  await using screen = await render(<HomeComposer target={target} editorRef={editorRef} />, {
++    router: false,
++  });
++  const editor = screen.container.querySelector<HTMLElement>('[contenteditable="true"]')!;
++  await userEvent.click(screen.getByRole("button", { name: "elsewhere" }));
++
++  await act(() => {
++    placeHomeWork(target, HOME_WORK_PROMPT.crew);
++    focusComposerSoon();
++  });
++  await expect.poll(() => editor.textContent).toBe("New crew task: ");
++  await expect.poll(() => document.activeElement === editor).toBe(true);
++
++  await userEvent.keyboard("tidy the sidebar");
++  expect(promptOf(target)).toBe("New crew task: tidy the sidebar");
++});
++
++it("keeps a draft the home's composer already has, and puts New scout after it", async () => {
++  const target = scopeThreadRef(environmentId, ThreadId.make("home-drafted"));
++  useComposerDraftStore.getState().setPrompt(target, "half a thought");
++  const editorRef = createRef<ComposerPromptEditorHandle>();
++  await using screen = await render(<HomeComposer target={target} editorRef={editorRef} />, {
++    router: false,
++  });
++  const editor = screen.container.querySelector<HTMLElement>('[contenteditable="true"]')!;
++  await expect.poll(() => editor.textContent).toBe("half a thought");
++
++  await act(() => placeHomeWork(target, HOME_WORK_PROMPT.scout));
++  expect(promptOf(target)).toBe("half a thought\n\nNew scout: ");
++  await expect.poll(() => editor.innerText.replace(/\n+/g, "|")).toBe("half a thought|New scout: ");
++
++  // A second pick adds nothing more.
++  await act(() => placeHomeWork(target, HOME_WORK_PROMPT.scout));
++  expect(promptOf(target)).toBe("half a thought\n\nNew scout: ");
++});
+diff --git a/apps/web/src/components/sidebar/jstackHomeActions.ts b/apps/web/src/components/sidebar/jstackHomeActions.ts
+new file mode 100644
+index 0000000000..5e28e0eeda
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackHomeActions.ts
+@@ -0,0 +1,116 @@
++import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
++import {
++  DEFAULT_PROVIDER_INTERACTION_MODE,
++  DEFAULT_RUNTIME_MODE,
++  DEFAULT_SERVER_SETTINGS,
++  type EnvironmentId,
++  type ScopedThreadRef,
++  type ThreadId,
++} from "@t3tools/contracts";
++import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
++
++import { useComposerDraftStore } from "~/composerDraftStore";
++import { newMessageId, newThreadId } from "~/lib/utils";
++import { dispatchSnapShotComposerFocus } from "../../lib/desktopSnapShot";
++import { resolveProjectDefaultProviderModelSelection } from "../../providerInstances";
++import { appAtomRegistry } from "../../rpc/atomRegistry";
++import { environmentServerConfigsAtom } from "../../state/server";
++import { threadEnvironment } from "../../state/threads";
++import { useOrchestrationCommand } from "../../state/use-orchestration-command";
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++
++// jstack fork: what the tree's home actions do. Every write goes through a home as a real user
++// message, which the home then acts on as the user's word; the T3 server runs no jbus write.
++
++/**
++ * Puts New crew task or New scout text in a home's composer, after any draft it already has, so
++ * nothing the user typed is lost. A mounted composer takes it from the store as it is.
++ */
++export function placeHomeWork(target: ScopedThreadRef, text: string): void {
++  const store = useComposerDraftStore.getState();
++  const existing = store.getComposerDraft(target)?.prompt ?? "";
++  const next =
++    existing.trim() === ""
++      ? text
++      : existing.endsWith(text)
++        ? existing
++        : `${existing.trimEnd()}\n\n${text}`;
++  store.setPrompt(target, next);
++}
++
++/** Focuses the open thread's composer at its end, once the thread the route names has drawn. */
++export function focusComposerSoon(): void {
++  window.requestAnimationFrame(() => dispatchSnapShotComposerFocus());
++}
++
++export interface JstackHomeSends {
++  /** Sends a home a user message, after its running turn if it has one. */
++  readonly sendToHome: (
++    environmentId: EnvironmentId,
++    threadId: ThreadId,
++    thread: EnvironmentThreadShell | null,
++    text: string,
++  ) => Promise<boolean>;
++  /**
++   * Starts a project's root home: a new thread in its main checkout that runs `/home`. Its
++   * thread, else `no-model` when no provider can run it, else null when the send failed.
++   */
++  readonly startHome: (group: SidebarProjectSnapshot) => Promise<ThreadId | "no-model" | null>;
++}
++
++export function useJstackHomeSends(): JstackHomeSends {
++  const startTurn = useOrchestrationCommand(threadEnvironment.startTurn);
++  return {
++    sendToHome: async (environmentId, threadId, thread, text) => {
++      const result = await startTurn({
++        environmentId,
++        input: {
++          threadId,
++          message: { messageId: newMessageId(), role: "user", text, attachments: [] },
++          runtimeMode: thread?.runtimeMode ?? DEFAULT_RUNTIME_MODE,
++          interactionMode: thread?.interactionMode ?? DEFAULT_PROVIDER_INTERACTION_MODE,
++          dispatchMode: "queue",
++        },
++      });
++      return result._tag === "Success";
++    },
++    startHome: async (group) => {
++      const config = appAtomRegistry.get(environmentServerConfigsAtom).get(group.environmentId);
++      const settings = config?.settings ?? DEFAULT_SERVER_SETTINGS;
++      const defaults = resolveProjectSettings(settings, group.id, group).settings;
++      const modelSelection =
++        defaults.defaultModelSelection ??
++        resolveProjectDefaultProviderModelSelection(config?.providers ?? [], settings, group.id);
++      if (modelSelection === null) return "no-model";
++      const runtimeMode = defaults.defaultRuntimeMode ?? DEFAULT_RUNTIME_MODE;
++      const threadId = newThreadId();
++      const createdAt = new Date().toISOString();
++      const repo = group.workspaceRoot.split("/").filter(Boolean).at(-1) ?? group.displayName;
++      const result = await startTurn({
++        environmentId: group.environmentId,
++        input: {
++          threadId,
++          message: { messageId: newMessageId(), role: "user", text: "/home", attachments: [] },
++          modelSelection,
++          runtimeMode,
++          interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
++          bootstrap: {
++            createThread: {
++              projectId: group.id,
++              title: `home: ${repo}`,
++              modelSelection,
++              runtimeMode,
++              interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
++              // A home runs in the main checkout, never a worktree of its own.
++              branch: null,
++              worktreePath: null,
++              createdAt,
++            },
++          },
++          createdAt,
++        },
++      });
++      return result._tag === "Success" ? threadId : null;
++    },
++  };
++}
+diff --git a/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx b/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx
+new file mode 100644
+index 0000000000..cfaa5ab209
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackHomeSends.browser.test.tsx
+@@ -0,0 +1,118 @@
++import {
++  EnvironmentId,
++  ProjectId,
++  ProviderInstanceId,
++  ThreadId,
++  type ModelSelection,
++} from "@t3tools/contracts";
++import { useEffect } from "react";
++import { expect, it, vi } from "vite-plus/test";
++
++import { render } from "../../../test/render";
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { makeThreadFixture } from "../../test-fixtures";
++import { useJstackHomeSends, type JstackHomeSends } from "./jstackHomeActions";
++
++// Every command the sends run goes through here, so the test reads what reaches the server.
++const commands = vi.hoisted(() => ({
++  startTurn: vi.fn(async (_value: unknown) => ({ _tag: "Success" as const, value: undefined })),
++}));
++vi.mock("../../state/use-orchestration-command", () => ({
++  useOrchestrationCommand: () => commands.startTurn,
++}));
++// The provider a new thread in the project gets when its settings name none.
++const fallback = vi.hoisted(() => ({ model: { instanceId: "claude", model: "opus" } }));
++vi.mock("../../providerInstances", async (importOriginal) => ({
++  ...(await importOriginal<typeof import("../../providerInstances")>()),
++  resolveProjectDefaultProviderModelSelection: () => fallback.model,
++}));
++
++const environmentId = EnvironmentId.make("environment-local");
++const projectId = ProjectId.make("project-winnifred");
++const model: ModelSelection = { instanceId: ProviderInstanceId.make("claude"), model: "opus" };
++expect(fallback.model).toEqual(model);
++
++const winnifred: SidebarProjectSnapshot = {
++  id: projectId,
++  environmentId,
++  title: "Winnifred",
++  workspaceRoot: "/repos/winnifred",
++  defaultModelSelection: null,
++  scripts: [],
++  projectIcon: { kind: "monogram", text: "W", color: "pink" },
++  createdAt: "2026-10-29T00:00:00.000Z",
++  updatedAt: "2026-10-29T00:00:00.000Z",
++  projectKey: "Winnifred",
++  displayName: "Winnifred",
++  memberProjects: [],
++  memberProjectRefs: [{ environmentId, projectId }],
++  groupedProjectCount: 1,
++  environmentPresence: "local-only",
++  allRemoteMembersAreDesktopLocal: false,
++  allRemoteMembersAreWsl: false,
++  remoteEnvironmentLabels: [],
++};
++
++function Probe(props: { onSends: (sends: JstackHomeSends) => void }) {
++  const sends = useJstackHomeSends();
++  // Hands the hook's sends to the test once it has rendered.
++  useEffect(() => props.onSends(sends));
++  return null;
++}
++
++async function withSends(use: (sends: JstackHomeSends) => Promise<void>) {
++  let onSends: (sends: JstackHomeSends) => void = () => {};
++  const ready = new Promise<JstackHomeSends>((resolve) => {
++    onSends = resolve;
++  });
++  await using _screen = await render(<Probe onSends={onSends} />, { router: false });
++  await use(await ready);
++}
++
++it("archives a home by sending it /handoff as a user message, after its running turn, and nothing else", async () => {
++  commands.startTurn.mockClear();
++  const home = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
++  await withSends(async (sends) => {
++    expect(await sends.sendToHome(environmentId, home.id, home, "/handoff")).toBe(true);
++  });
++  expect(commands.startTurn).toHaveBeenCalledTimes(1);
++  expect(commands.startTurn.mock.calls[0]![0]).toMatchObject({
++    environmentId,
++    input: {
++      threadId: "flow",
++      message: { role: "user", text: "/handoff", attachments: [] },
++      dispatchMode: "queue",
++    },
++  });
++  // A message to the thread, never a thread change such as an archive.
++  expect(commands.startTurn.mock.calls[0]![0]).not.toHaveProperty("input.bootstrap");
++});
++
++it("starts a home as a new thread in the project's main checkout whose first message is /home", async () => {
++  commands.startTurn.mockClear();
++  let started: Awaited<ReturnType<JstackHomeSends["startHome"]>> = null;
++  await withSends(async (sends) => {
++    started = await sends.startHome(winnifred);
++  });
++  expect(commands.startTurn).toHaveBeenCalledTimes(1);
++  const sent = commands.startTurn.mock.calls[0]![0] as {
++    input: { threadId: string; bootstrap: { createThread: Record<string, unknown> } };
++  };
++  expect(started).toBe(sent.input.threadId);
++  expect(sent).toMatchObject({
++    environmentId,
++    input: {
++      message: { role: "user", text: "/home", attachments: [] },
++      modelSelection: model,
++      bootstrap: {
++        createThread: {
++          projectId,
++          title: "home: winnifred",
++          modelSelection: model,
++          branch: null,
++          worktreePath: null,
++        },
++      },
++    },
++  });
++});
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 5a437c34fd..e92908c53d 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -13,6 +13,8 @@ import { makeThreadFixture, type ThreadFixtureOverrides } from "../../test-fixtu
+ import {
+   arrangeJstackRoots,
+   buildJstackTree,
++  childHomeMessage,
++  scopeNameProblem,
+   type JstackTreeInput,
+   type JstackTreeRow,
+ } from "./jstackTree.logic";
+@@ -80,6 +82,8 @@ function build(
+     expandedHomes: new Set(),
+     frozenOrder: null,
+     lastVisitedAt: () => null,
++    childHomeEditor: false,
++    requestedScopes: [],
+     nowMs: NOW,
+     options: { attention: "gates-and-quiet", landedCount: true, quietMinutes: 20, rowCap: 8 },
+     ...rest,
+@@ -377,3 +381,102 @@ describe("arrangeJstackRoots", () => {
+     ]);
+   });
+ });
++
++const shape = (rows: ReadonlyArray<JstackTreeRow>) =>
++  rows.flatMap((row) => {
++    switch (row.kind) {
++      case "project":
++        return [`project`];
++      case "domain":
++        return [`home ${row.scope}`];
++      case "starting-home":
++        return [`starting ${row.scope}${row.requested ? " (sent)" : ""}`];
++      case "new-home":
++        return [`new home in ${row.repo}`];
++      default:
++        return [];
++    }
++  });
++
++describe("child homes", () => {
++  it("draws the inline editor under the root, after its child homes, while it is open", () => {
++    expect(shape(build({}).rows)).toEqual(["project", "home flow"]);
++    const tree = build({}, { childHomeEditor: true });
++    expect(shape(tree.rows)).toEqual(["project", "home flow", "new home in jstack"]);
++    expect(tree.rows.at(-1)).toMatchObject({
++      kind: "new-home",
++      parentKey: "jstack-home:root",
++      rootThreadId: "root",
++      takenScopes: ["flow"],
++    });
++  });
++
++  it("shows a scope as starting from the sidebar's send, through its plan on disk, until its home-id makes it a home", () => {
++    const ops = [{ repo: "jstack", scope: "ops" }];
++    // Sent: the root home has not made the scope yet, so only the sidebar knows of it.
++    expect(shape(build({}, { requestedScopes: ops }).rows)).toEqual([
++      "project",
++      "home flow",
++      "starting ops (sent)",
++    ]);
++    // Made: home/jstack/ops/plan.md is there and home-id is not.
++    expect(shape(build({ startingScopes: ops }, { requestedScopes: ops }).rows)).toEqual([
++      "project",
++      "home flow",
++      "starting ops",
++    ]);
++    // Started: home/jstack/ops/home-id is there.
++    const homes = [
++      ...HOMES,
++      { repo: "jstack", scope: "ops", threadId: ThreadId.make("ops"), prefix: "ops-" },
++    ];
++    expect(
++      shape(
++        build({ homes, startingScopes: [] }, { requestedScopes: ops, threads: [thread("ops")] })
++          .rows,
++      ),
++    ).toEqual(["project", "home flow", "home ops"]);
++  });
++
++  it("keeps another repo's scopes and every scope of a folded project out of the rows", () => {
++    const elsewhere = [{ repo: "winnifred", scope: "ops" }];
++    expect(
++      shape(build({ startingScopes: elsewhere }, { requestedScopes: elsewhere }).rows),
++    ).toEqual(["project", "home flow"]);
++    const folded = build(
++      { startingScopes: [{ repo: "jstack", scope: "ops" }] },
++      { collapsed: true, childHomeEditor: true },
++    );
++    expect(shape(folded.rows)).toEqual(["project"]);
++  });
++});
++
++describe("childHomeMessage", () => {
++  it("is the root home's own words for making a scope, one line ending in one period", () => {
++    expect(childHomeMessage("ops", "deploys and the CI runners")).toBe(
++      "Make a scope ops: owns deploys and the CI runners.",
++    );
++    expect(childHomeMessage(" ops ", "  deploys,\n and   runners.  ")).toBe(
++      "Make a scope ops: owns deploys, and runners.",
++    );
++  });
++});
++
++describe("scopeNameProblem", () => {
++  it("takes a name a scope can have", () => {
++    expect(scopeNameProblem("ops", [])).toBeNull();
++    expect(scopeNameProblem("ops-2.x", ["flow"])).toBeNull();
++  });
++
++  it("says why a name is no scope's, as Making a scope would", () => {
++    expect(scopeNameProblem("", [])).toBe("Name the scope.");
++    expect(scopeNameProblem(".ops", [])).toMatch(/letters, digits, dots and dashes/);
++    expect(scopeNameProblem("my ops", [])).toMatch(/letters, digits, dots and dashes/);
++    expect(scopeNameProblem("<scope>", [])).toMatch(/letters, digits, dots and dashes/);
++    expect(scopeNameProblem("tasks", [])).toBe(
++      "tasks is a directory every home of the repo shares.",
++    );
++    expect(scopeNameProblem("merge.log", [])).toBe("merge.log is a file of the repo's home.");
++    expect(scopeNameProblem("flow", ["flow"])).toBe("flow is already a scope of this repo.");
++  });
++});
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 65593538b9..c915f21f25 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -4,6 +4,7 @@ import type {
+   EnvironmentId,
+   JbusGate,
+   JbusHome,
++  JbusStartingScope,
+   JbusTask,
+   JbusWorkSnapshot,
+   ScopedProjectRef,
+@@ -109,6 +110,27 @@ export type JstackTreeRow =
+       readonly homeKey: string;
+       readonly count: number;
+     }
++  | {
++      /** A scope its root home makes, until the scope's own home writes its home-id. */
++      readonly kind: "starting-home";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly repo: string;
++      readonly scope: string;
++      readonly rootThreadId: ThreadId;
++      /** Only the sidebar knows of it: sent to the root home, with no plan on disk yet. */
++      readonly requested: boolean;
++    }
++  | {
++      /** The inline row that asks the root home for a child home. */
++      readonly kind: "new-home";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly repo: string;
++      readonly rootThreadId: ThreadId;
++      /** The repo's scopes, started or starting, which a new one cannot be named. */
++      readonly takenScopes: ReadonlyArray<string>;
++    }
+   | {
+       readonly kind: "loose";
+       readonly key: string;
+@@ -137,6 +159,10 @@ export interface JstackTreeInput {
+   /** Worker order per home to keep while the pointer is in the sidebar; null re-sorts. */
+   readonly frozenOrder: ReadonlyMap<string, ReadonlyArray<string>> | null;
+   readonly lastVisitedAt: (thread: EnvironmentThreadShell) => string | null;
++  /** The root home's "New child home" row is open. */
++  readonly childHomeEditor: boolean;
++  /** Scopes the sidebar asked a root home for, of every repo; jbus's home state has the rest. */
++  readonly requestedScopes: ReadonlyArray<JbusStartingScope>;
+   readonly nowMs: number;
+   readonly options: JstackTreeOptions;
+ }
+@@ -437,6 +463,41 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+   };
+   if (input.collapsed) return { root: project, rows: [project], order };
+ 
++  // A scope shows as starting from the sidebar's send, through its plan on disk, to its home-id.
++  const started = new Set(domains.map((home) => home.scope));
++  const onDisk = new Set(
++    snapshot.startingScopes.filter((each) => each.repo === root.repo).map((each) => each.scope),
++  );
++  const startingNames = [
++    ...new Set([
++      ...onDisk,
++      ...input.requestedScopes.filter((each) => each.repo === root.repo).map((each) => each.scope),
++    ]),
++  ]
++    .filter((scope) => !started.has(scope))
++    .toSorted((a, b) => a.localeCompare(b));
++  const childHomeRows: Array<JstackTreeRow> = startingNames.map((scope) => ({
++    kind: "starting-home",
++    key: `jstack-starting:${root.repo}/${scope}`,
++    parentKey: projectKey,
++    repo: root.repo,
++    scope,
++    rootThreadId: root.threadId,
++    requested: !onDisk.has(scope),
++  }));
++  if (input.childHomeEditor) {
++    childHomeRows.push({
++      kind: "new-home",
++      key: `jstack-new-home:${root.threadId}`,
++      parentKey: projectKey,
++      repo: root.repo,
++      rootThreadId: root.threadId,
++      takenScopes: [...started, ...startingNames].flatMap((scope) =>
++        scope === null ? [] : [scope],
++      ),
++    });
++  }
++
+   const loose: Array<JstackTreeRow> = input.folderThreads
+     .filter((thread) => !consumed.has(thread.id) && !WORKER_TITLE.test(thread.title))
+     .map((thread) => ({
+@@ -448,7 +509,13 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+ 
+   return {
+     root: project,
+-    rows: [project, ...capped(rootWorkers, root.threadId, projectKey, 1), ...domainRows, ...loose],
++    rows: [
++      project,
++      ...capped(rootWorkers, root.threadId, projectKey, 1),
++      ...domainRows,
++      ...childHomeRows,
++      ...loose,
++    ],
+     order,
+   };
+ }
+@@ -473,3 +540,42 @@ export function arrangeJstackRoots<T>(
+     dividerBefore: firstIdle === undefined || firstIdle === arranged[0] ? null : firstIdle,
+   };
+ }
++
++/**
++ * What the sidebar sends a root home for a child home: the user's own words, which the root
++ * home's "Making a scope" takes as the user's word, and whose prefix the root home picks.
++ */
++export function childHomeMessage(scope: string, owns: string): string {
++  const line = owns
++    .replace(/\s+/g, " ")
++    .trim()
++    .replace(/[.\s]+$/, "");
++  return `Make a scope ${scope.trim()}: owns ${line}.`;
++}
++
++/** What jstack's home shares in `home/<repo>/`, which no scope can be named. */
++const SHARED_DIRECTORIES = new Set(["tasks", "scouts", "reports", "log"]);
++const SHARED_FILES = new Set(["off", "merge.log"]);
++
++/**
++ * Why a scope cannot have this name, by the rules the root home's "Making a scope" checks, or
++ * null. A hint before the send: the root home checks again against what is on disk.
++ */
++export function scopeNameProblem(name: string, taken: ReadonlyArray<string>): string | null {
++  const scope = name.trim();
++  if (scope === "") return "Name the scope.";
++  if (!/^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(scope)) {
++    return "A scope's name is letters, digits, dots and dashes, and no dot first.";
++  }
++  if (SHARED_DIRECTORIES.has(scope))
++    return `${scope} is a directory every home of the repo shares.`;
++  if (SHARED_FILES.has(scope)) return `${scope} is a file of the repo's home.`;
++  if (taken.includes(scope)) return `${scope} is already a scope of this repo.`;
++  return null;
++}
++
++/** What New crew task and New scout put in a home's composer, for the home to write the brief. */
++export const HOME_WORK_PROMPT = {
++  crew: "New crew task: ",
++  scout: "New scout: ",
++} as const;
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index b61771c150..7213d5a42a 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -54,8 +54,17 @@ export const JbusLanded = Schema.Struct({
+ });
+ export type JbusLanded = typeof JbusLanded.Type;
+ 
++/** A scope its root home made, with a `plan.md` and no `home-id` or `handoff.md` yet. */
++export const JbusStartingScope = Schema.Struct({
++  repo: TrimmedNonEmptyString,
++  scope: TrimmedNonEmptyString,
++});
++export type JbusStartingScope = typeof JbusStartingScope.Type;
++
+ export const JbusWorkSnapshot = Schema.Struct({
+   homes: Schema.Array(JbusHome),
++  /** Scopes with a plan and no `home-id` yet: the tree shows each as starting. */
++  startingScopes: Schema.Array(JbusStartingScope),
+   tasks: Schema.Array(JbusTask),
+   gates: Schema.Array(JbusGate),
+   landed: Schema.Array(JbusLanded),
+@@ -64,6 +73,7 @@ export type JbusWorkSnapshot = typeof JbusWorkSnapshot.Type;
+ 
+ export const EMPTY_JBUS_WORK_SNAPSHOT: JbusWorkSnapshot = {
+   homes: [],
++  startingScopes: [],
+   tasks: [],
+   gates: [],
+   landed: [],
+-- 
+2.56.0
+

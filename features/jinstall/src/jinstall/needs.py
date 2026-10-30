@@ -44,6 +44,7 @@ from jinstall.kinds import (
     StateRepo,
     StatusLine,
     T3Code,
+    T3JstackBuild,
     Units,
     claude_homes,
     dead,
@@ -105,6 +106,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     Needs that the install only probes:
       hard      platform                      Platform, ok on Linux and macOS
       hard      t3                            T3Code(T3_FLOOR)
+      optional  t3 jstack build               T3JstackBuild, carried: --setup builds it, on Arch
       hard      claude                        Program("claude", arch="claude-code", ...)
       hard      uv                            Program("uv", floor=UV_FLOOR)
       hard      git                           Program("git", floor=(2, 31))
@@ -175,6 +177,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     found = [
         Need("platform", Level.HARD, Platform()),
         Need("t3", Level.HARD, T3Code(T3_FLOOR)),
+        *_t3_jstack(machine),
         Need(
             "claude",
             Level.HARD,
@@ -361,6 +364,15 @@ def _commands(machine: Machine) -> Commands:
         points = metadata.EntryPoints(())
     names = sorted(one.name for one in points if one.group == "console_scripts")
     return Commands(plugin["name"], tuple(names), version=plugin["version"])
+
+
+def _t3_jstack(machine: Machine) -> list[Need]:
+    """The jstack build's need, listed only on Arch, since its PKGBUILD builds for no other
+    machine. It is due only where T3 Code is a nightly, which the build replaces."""
+    if not machine.which("pacman"):
+        return []
+    packaging = machine.source / "features" / "t3code-jstack" / "packaging"
+    return [Need("t3 jstack build", Level.OPTIONAL, T3JstackBuild(packaging))]
 
 
 def _jbus_config(machine: Machine) -> Path:

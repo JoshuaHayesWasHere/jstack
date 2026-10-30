@@ -2,9 +2,10 @@
 code.
 
 Each test runs the script under a temporary `HOME`, with a stand-in for each program the doctor
-runs. Three tests are the exception: they give a kind a machine that no argument of the script
+runs. A few tests are the exception: they give a kind a machine that no argument of the script
 can produce."""
 
+import hashlib
 import os
 import shlex
 import shutil
@@ -16,9 +17,12 @@ from dataclasses import replace
 import pytest
 
 from jinstall.__main__ import doctor
-from jinstall.kinds import Program, T3Code
-from jinstall.needs import T3_FLOOR
+from jinstall.kinds import PINNED_TAG, Program, T3Code, T3JstackBuild, patch_series
+from jinstall.machine import Refused
+from jinstall.needs import T3_FLOOR, needs
 from test_install import REPO, T3_WHERE, Machine, Ran, User, line_for, machine
+
+READ_SET = ("features/t3code-jstack/packaging/",)
 
 T3_STABLE = "0.1.2"
 TOKEN = "gho_a_token_the_doctor_never_prints"
@@ -608,3 +612,179 @@ def test_a_claude_home_with_no_skills_is_missing(user):
         f"missing hard skills {user.home / '.claude_prime'}"
         f" -> link it to {user.home / '.claude' / 'skills'}"
     ]
+
+
+PINNED = "v0.1.5-nightly.20261029.3877"
+NEWER = "v0.1.5-nightly.20261030.3900"
+
+
+class Upstream:
+    """A machine with T3 Code on Arch, an upstream with `tags`, and a makepkg that applies the
+    patches to each tag but those in `refuses`, and fails outright on those in `breaks`."""
+
+    def __init__(self, tmp_path, says, tags=(PINNED,), refuses=(), breaks=()):
+        self.says, self.tags, self.refuses, self.breaks = says, tags, refuses, breaks
+        self.ran = []
+        programs = tmp_path / "bin"
+        programs.mkdir()
+        for name in ("t3", "pacman"):
+            (programs / name).write_text("#!/bin/sh\n")
+            (programs / name).chmod(0o755)
+        self.packaging = tmp_path / "packaging"
+        self.packaging.mkdir()
+        (self.packaging / "0001-a.patch").write_text("a\n")
+        (self.packaging / "PKGBUILD").write_text(f'_tag="${{T3CODE_JSTACK_TAG:-{PINNED}}}"\n')
+        self.cache = tmp_path / ".cache" / "t3code-jstack"
+        self.machine = Machine(REPO, tmp_path, {"PATH": str(programs)}, self.run, tmp_path)
+        self.kind = T3JstackBuild(self.packaging)
+
+    def run(self, args):
+        self.ran.append(list(args))
+        if args[-1] == "--version":
+            return Ran(0, f"t3 v{self.says}\n")
+        if args[0] == "timeout":
+            if self.tags is None:
+                return Ran(128, "fatal: unable to access\n")
+            return Ran(0, "".join(f"abc\trefs/tags/{tag}\n" for tag in self.tags))
+        if args[0] == "env":
+            tag = next(arg for arg in args if arg.startswith("T3CODE_JSTACK_TAG="))[18:]
+            if tag in self.refuses:
+                return Ran(4, f"t3code-jstack: 0001-a.patch does not apply to {tag}\n")
+            if tag in self.breaks:
+                return Ran(4, "error: build failed\n")
+            version = tag[1:].replace("-nightly.", "_nightly.")
+            (
+                self.cache / f"t3code-jstack-{version}.jstack.{SERIES}-1-x86_64.pkg.tar.zst"
+            ).write_text("")
+            return Ran(0, "==> Finished making\n")
+        return Ran(0, "")
+
+    def built(self):
+        return [
+            arg[18:] for args in self.ran for arg in args if arg.startswith("T3CODE_JSTACK_TAG=")
+        ]
+
+
+SERIES = hashlib.sha256(b"a\n").hexdigest()[:10]
+
+
+@pytest.mark.parametrize(
+    ("says", "tags", "found"),
+    [
+        (
+            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+            (PINNED,),
+            ("ok", f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"),
+        ),
+        (
+            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+            None,
+            ("ok", f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"),
+        ),
+        (
+            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+            (PINNED, NEWER),
+            (
+                "old",
+                f"built 0.1.5-nightly.20261029.3877+jstack.{SERIES},"
+                f" and jstack builds 0.1.5-nightly.20261030.3900+jstack.{SERIES}",
+            ),
+        ),
+        (
+            "0.1.5-nightly.20261029.3877+jstack.1234567890",
+            (PINNED,),
+            (
+                "old",
+                "built 0.1.5-nightly.20261029.3877+jstack.1234567890,"
+                f" and jstack builds 0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+            ),
+        ),
+        (
+            "0.1.5-nightly.20261029.3877",
+            (PINNED,),
+            (
+                "missing",
+                "0.1.5-nightly.20261029.3877 is upstream's build, without the tree sidebar",
+            ),
+        ),
+    ],
+)
+def test_the_jstack_build_is_ok_on_the_newest_nightly_with_jstacks_patches(
+    tmp_path, says, tags, found
+):
+    upstream = Upstream(tmp_path, says, tags)
+    probed = upstream.kind.probe(upstream.machine)
+    assert (probed.state.value, probed.detail) == found
+
+
+def test_a_build_falls_back_from_a_nightly_its_patches_do_not_apply_to_and_remembers_it(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED, NEWER), refuses=(NEWER,))
+    said = upstream.kind.put(upstream.machine)
+    assert upstream.built() == [NEWER, PINNED]
+    assert said == (
+        f"installed 0.1.5-nightly.20261029.3877+jstack.{SERIES}: quit T3 Code and open it again"
+        " to run it"
+    )
+    assert upstream.ran[-1][:5] == ["sudo", "pacman", "-U", "--noconfirm", "--ask"]
+    upstream.says = f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"
+    probed = upstream.kind.probe(upstream.machine)
+    assert (probed.state.value, probed.detail) == (
+        "ok",
+        f"0.1.5-nightly.20261029.3877+jstack.{SERIES};"
+        " 0.1.5-nightly.20261030.3900 does not take jstack's patches: rebase them",
+    )
+    upstream.ran.clear()
+    upstream.kind.put(upstream.machine)
+    assert upstream.built() == [PINNED]
+
+
+def test_a_build_that_fails_for_another_reason_stops_and_names_its_log(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED, NEWER), breaks=(NEWER,))
+    with pytest.raises(Refused, match=f"makepkg failed on {NEWER}: .*build.log holds its log"):
+        upstream.kind.put(upstream.machine)
+    assert upstream.built() == [NEWER]
+    assert not (upstream.cache / "failed").exists()
+
+
+def test_with_no_nightly_that_takes_the_patches_the_build_waits_for_a_rebase(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED,), refuses=(PINNED,))
+    with pytest.raises(Refused, match="no nightly takes jstack's patches"):
+        upstream.kind.put(upstream.machine)
+    upstream.says = "0.1.5-nightly.20261029.3877+jstack.1234567890"
+    probed = upstream.kind.probe(upstream.machine)
+    assert (probed.state.value, probed.replaceable) == ("old", False)
+
+
+def test_uninstall_keeps_the_jstack_build_and_says_so_only_where_it_runs(tmp_path):
+    upstream = Upstream(tmp_path, f"0.1.5-nightly.20261029.3877+jstack.{SERIES}")
+    assert upstream.kind.drop(upstream.machine).kept == (
+        "t3code-jstack -> it is T3 Code: yay -S t3code-nightly-bin puts upstream's back",
+    )
+    upstream.says = "0.1.5-nightly.20261029.3877"
+    assert upstream.kind.drop(upstream.machine).kept == ()
+
+
+@pytest.mark.parametrize(
+    ("pacman", "says", "due"),
+    [
+        (True, "0.1.5-nightly.20261029.3877", True),
+        (True, f"0.1.5-nightly.20261029.3877+jstack.{SERIES}", True),
+        (True, T3_STABLE, False),
+        (False, "0.1.5-nightly.20261029.3877", False),
+    ],
+)
+def test_the_jstack_build_is_due_only_on_arch_with_a_nightly(tmp_path, pacman, says, due):
+    upstream = Upstream(tmp_path, says)
+    if not pacman:
+        (tmp_path / "bin" / "pacman").unlink()
+    listed = [one.kind for one in needs(upstream.machine) if one.name == "t3 jstack build"]
+    assert len(listed) == pacman
+    assert upstream.kind.due(upstream.machine) is due
+
+
+def test_the_pkgbuild_names_the_series_and_each_patch_of_its_folder():
+    packaging = REPO / "features" / "t3code-jstack" / "packaging"
+    pkgbuild = (packaging / "PKGBUILD").read_text()
+    assert f'.jstack.{patch_series(packaging)}"\n' in pkgbuild
+    assert PINNED_TAG.search(pkgbuild)
+    assert all(one.name in pkgbuild for one in packaging.glob("*.patch"))
