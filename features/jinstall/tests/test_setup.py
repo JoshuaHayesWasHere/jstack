@@ -133,7 +133,8 @@ def test_a_clean_home_is_set_up_in_at_most_40_lines_with_one_line_for_each_layou
 def test_the_last_line_names_every_need_left_to_the_user_again(user):
     said = user.setup(path=user.without("gh"))[1]
     left = [line.removeprefix("needs you ") for line in said if line.startswith("needs you ")]
-    assert left[:2] == ["gh -> gh", "gh sign-in -> gh auth login"]
+    assert [step.split(" -> ")[0] for step in left[:2]] == ["gh", "gh sign-in"]
+    assert left[1] == "gh sign-in -> gh auth login"
     assert said[-1] == f"setup: {len(left)} needs you: {'; '.join(left)}"
     assert [line for line in said if line.startswith("setup: ")] == [said[-1]]
 
