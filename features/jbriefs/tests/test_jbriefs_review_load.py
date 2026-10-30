@@ -27,11 +27,14 @@ def test_twice_review_and_none_need_no_word(review):
     assert parse.faults(brief(review)) == []
 
 
-@pytest.mark.parametrize("mode", ["after", "cleanup"])
-def test_an_old_mode_needs_no_word_and_is_read_as_review(mode):
-    """`after` and `cleanup` went with the rows that held a review's leftovers: a brief that still
-    names one is read as `review`, and the linter asks no word for it."""
-    assert parse.faults(brief(f"Review: {mode}\n")) == []
+@pytest.mark.parametrize("mode", ["after", "cleanup", "standard", "none, docs only"])
+def test_an_old_or_unknown_mode_is_refused_and_a_stored_one_is_read_as_review(mode):
+    """`after` and `cleanup` went with the rows that held a review's leftovers. A new brief may
+    not name one, nor any word but the three, since the crew reads it as `review`: a stored brief
+    that still names one launches a reviewer."""
+    assert parse.faults(brief(f"Review: {mode}\n")) == [
+        f"brief's Review: line says {mode} (twice, review or none)"
+    ]
     assert findings.mode_of(brief(f"Review: {mode}\n")) == findings.REVIEW
 
 

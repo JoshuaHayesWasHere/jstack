@@ -93,7 +93,8 @@ def test_check_says_nothing_and_exits_0_for_a_good_brief_and_writes_nothing(kitc
 
 
 def test_check_gives_every_fault_add_gives_the_home_line_included(kitchen):
-    text = said("alpha", "Review", "standard").replace("Home: root\n", "").replace("Size: S", "Size: XL")
+    text = said("alpha", "Review", "standard").replace("Home: root\n", "")
+    text = text.replace("Size: S", "Size: XL")
     _, added = adds(kitchen, "alpha", text)
     code, out = checks(kitchen, text)
     assert code == 1

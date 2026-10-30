@@ -77,4 +77,4 @@ In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints 
 
 `jbus poll`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus budget`, `jbus view`, `jbus view-shot`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus forget`, `jbus told`, `jbus project add`, `jbus project bases` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
 `jbus home status` reads the project whose repo it runs in, and says so where the config names none.
-`jbus gate`, `jbus done`, `jbus told`, `jbus queue add` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+`jbus gate`, `jbus done`, `jbus told`, `jbus queue add`, `jbus queue check` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.

@@ -109,8 +109,11 @@ These five lines must also hold the right kind of value, and `add` makes more ch
 - `Where:` names at least one path under the repo.
   A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
   Prose and a flag are not paths.
+- `Review:` is one word, `twice`, `review` or `none`, and nothing more: the crew reads any other word as `review`, so `Review: standard` would launch a reviewer nobody asked for.
 - `Playbook:` names a crewmate's file of `playbooks/`, or `none`.
 - `Design:` names a file, or says `none, <why>`.
+- A brief for research, perf, analysis or outcome work has a filled-in `Read:` line and `Instruments:` line, as the home skill's deeper step writes them.
+  It is such work when its `Playbook:` line names `perf-issue`, `hillclimb`, `runtime-forensics` or `eval`, or when its `Task:` line names research, perf, performance, analysis or outcome.
 
 `add` refuses a brief short of any of these with one line for each fault, and queues nothing:
 
@@ -121,6 +124,14 @@ refused: alpha's brief has 2 faults, and nothing is queued
 ```
 
 In a batch, the line is `refused: line <n>: <slug>'s brief has <k> faults, and nothing is queued, and nothing in the batch was applied`, with the same lines under it.
+A brief `add` queues can still get a `warning: <slug>'s <why>` line, from `add` and from each `add` of a batch.
+`Review: none` beside `Pull request: open one when done` gets one: no reviewer runs, and `jmerge` leaves the pull request to wait for your word.
+So does a `Done when:` that asks for a bare `make check` where the home's `fresh-check` names another check command.
+
+`jbus queue check [<slug>] [--for <home>] < brief.md` runs the checks `add` runs, the `Home:` line and `--for` included, and writes nothing.
+It prints each fault on a line of its own and exits 1, or prints nothing and exits 0, with the warnings `add` would print under either.
+The slug is the one given, or the first word of the brief's `# <slug>: <title>` line, and a row already queued under it is grandfathered as `add` grandfathers it.
+It does not count a fix against its cap of retries, since that count is a write ([Decisions](decisions.md)).
 A launch makes none of these checks.
 A row with a go is grandfathered, so a check added after the go neither refuses its brief at an `add` nor stops its launch.
 When a row's go still holds for its new brief, `add` refuses the row only for a fault the edit brought, not for one the brief already had.

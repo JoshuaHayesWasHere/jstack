@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jbriefs import asks, below, findings, skills, standing
+from jbriefs.proof import Proof, proof
 from jsettings.brief import head as head
 
 NO_RESULT = "no result yet"
@@ -28,38 +29,6 @@ _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MU
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 _REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
 _STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
-_NAMED = (
-    (
-        "a test",
-        r"\btests?/|\btest_\w+|\w+_test\b|\bpytest\b|\buv run\b"
-        r"|\bmake (?!(sure|certain|it|this|that|a|an|the)\b)[\w-]+"
-        r"|\b(?!(crew|crewmates?|reviewers?|agents?|self|model|it|he|she|they|who|that|which"
-        r"|will|can|could|should|would|must|to|does|did|may|might)\b)[\w-]+[ -]tests\b",
-    ),
-    (
-        "an external judge",
-        r"\b(external|outside|independent|blind) judge\b|\bCI\b|\bgithub\b|\bthird[- ]party\b",
-    ),
-    ("the user", r"\bthe user\b|\buser's\b|\bthe (operator|owner)\b|\bhis (word|pick|eye)\b"),
-)
-_SELF = (
-    ("the crewmate", r"\bcrewmates?\b"),
-    ("the crew", r"\bcrew\b"),
-    ("the reviewer", r"\breviewers?\b"),
-    ("the agent", r"\bagents?\b"),
-    ("the agent itself", r"\bself\b|\bitself\b"),
-    ("the model", r"\bthe model\b|\bmodel's\b"),
-    ("a review alone", r"\breview(s|ed)?\b"),
-)
-_LOOSE = (
-    ("a test", r"\btests?\b"),
-    ("a metric", r"\bmetrics?\b|\bmeasured?\b|\bbenchmarks?\b|\blatency\b|\bp\d{2}\b|\d\s*%"),
-    ("a dataset", r"\bdata ?sets?\b|\bcorpus\b|\bfixtures?\b|\bgolden\b|\bevals?\b"),
-    ("an external judge", r"\bjudge\b"),
-)
-_SPAN = re.compile(r"`([^`\n]+)`")
-_PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
-
 SIZES = ("S", "M", "L")
 _SIZES = "(S, M or L)"
 _PLAYBOOK = "(name a file in playbooks/, without its .md, or none)"
@@ -158,55 +127,6 @@ class Result:
         """The steps that the `Playbook:` line reports, or None for a Result with no such line."""
         found = _REPORTED.search(self.text)
         return steps(found["said"]) if found else None
-
-
-@dataclass(frozen=True)
-class Proof:
-    """A brief's `Proves it:` line, which names something outside the agent that shows the task
-    is done.
-
-    `kind` is the first thing the line names that is not the agent's own claim, and `fault`
-    says why the line names nothing of the sort. One of the two is set.
-    """
-
-    said: str
-    kind: str = ""
-    fault: str = ""
-
-    @property
-    def why(self) -> str:
-        """Why the proof does not hold, as one line. It is an empty string when it holds."""
-        return f"brief's Proves it: line {self.fault} {_PROVES}" if self.fault else ""
-
-
-def proof(said: str) -> Proof:
-    """Judge what a `Proves it:` line says, without its label.
-
-    It reads three tables in turn, and the first match decides. `_NAMED` lists the words
-    that on their own name something outside the agent: a test's path or name, a runner, a
-    make target, CI, a named judge or the user. A command in backticks that names no agent
-    counts too, so a test that the crewmate runs is still a test. `_SELF` lists the agent's
-    own claims. `_LOOSE` lists words that count only when no agent is named, because "the
-    agent tests it" is the agent's own claim.
-    """
-    said = said.strip()
-    if not said:
-        return Proof(said, fault="is empty")
-    if said.startswith("<"):
-        return Proof(said, fault="is the template's own text")
-    for kind, pattern in _NAMED:
-        if re.search(pattern, said, re.I):
-            return Proof(said, kind=kind)
-    for span in _SPAN.findall(said):
-        if not any(re.search(pattern, span, re.I) for _, pattern in _SELF):
-            return Proof(said, kind="a test")
-    for name, pattern in _SELF:
-        if re.search(pattern, said, re.I):
-            return Proof(said, fault=f"names {name}, the agent's own word")
-    for kind, pattern in _LOOSE:
-        if re.search(pattern, said, re.I):
-            return Proof(said, kind=kind)
-    return Proof(said, fault="names nothing outside the agent")
 
 
 def thread_of(text: str) -> str:
@@ -643,7 +563,8 @@ def warnings(text: str, fresh_check: str) -> list[str]:
     on a brief whose pull request opens, which no reviewer reads and `jmerge` leaves to wait for
     the user's word (`crew/the-review.md`)."""
     found = [check_asked(text, fresh_check)]
-    if head(text, "Review:") == findings.NONE and head(text, "Pull request:") == "open one when done":
+    opens = head(text, "Pull request:") == "open one when done"
+    if opens and head(text, "Review:") == findings.NONE:
         found.append(
             "brief says Review: none and Pull request: open one when done: no reviewer runs, and "
             "jmerge leaves the pull request to wait for the user's word"
@@ -674,9 +595,10 @@ def faults(text: str) -> list[str]:
     filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills`, `Instruments`, `Builds on` and
     `Load` to their own checks. `Size`'s reports a missing line, while a brief with no `Design:` or
     `Skills:` line needs no design and names no skill, as `none` would say, `Instruments:` is
-    needed only for the deeper work (`instrumented`), and `Builds on` and `Load` need no line. A brief with no fault is complete. This check runs when a row is first queued and does not
-    run again at a launch, so a brief that already has a go launches without being checked
-    again (`jbus.queue`).
+    needed only for the deeper work (`instrumented`), and `Builds on` and `Load` need no line. A
+    brief with no fault is complete. This check runs when a row is first queued and does not run
+    again at a launch, so a brief that already has a go launches without being checked again
+    (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []

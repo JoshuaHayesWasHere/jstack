@@ -13,8 +13,13 @@ def brief(playbook, more="", pull_request="Pull request: open one when done\n"):
     return (
         '# alpha: a task\nTask: "find out why alpha spins"\nDone when:\n- the cause is named\n'
         "Proves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
-        f"Design: none, a read\n{pull_request}Review: twice\nPlaybook: {playbook}\n{more}"
+        f"Design: none, a read\n{pull_request}Review: twice\nPlaybook: {playbook}\n{READ}{more}"
     )
+
+
+READ = "Read: `src/alpha/spin.py:12`, the loop\nInstruments: `py-spy dump --pid <pid>`\n"
+"""What the home's deeper step writes on a brief for a runtime-forensics or an eval playbook,
+which `parse.instrumented` asks for."""
 
 
 ASK_FIRST = "Pull request: ask first\n"
