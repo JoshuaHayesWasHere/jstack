@@ -2,7 +2,8 @@
 
 T3 Code's sidebar lists threads.
 jstack's tree sidebar draws a jstack project from jbus's state instead: one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
-A domain home with no live work is one line, its name and its age, which unfolds to the tasks jbus merged for it lately.
+A domain home with no live work is one line, its name and its age, with nothing to unfold.
+A home lists only its open rows: a task leaves the tree once it merges or is done, and the project row counts what merged since you last opened its root home.
 A task in review says which part it is in, "review 1", "fixing", "review 2", "checks" or "rebase".
 A task's row draws its stage as three segments, crew, review and merge: the current one at full ink, amber when it asks you, the done ones fainter and those ahead fainter still.
 The tree keeps to two type sizes and two weights: every name is 13px and every word beside it 11px, all at 400 but a project's name at 500, and its levels step by ink and row height.
