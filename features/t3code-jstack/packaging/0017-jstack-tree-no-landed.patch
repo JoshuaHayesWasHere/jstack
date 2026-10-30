@@ -1,0 +1,53 @@
+From 76ff672922bf3f0a2b967f5a6afac60303517ce0 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 23:24:26 -0400
+Subject: [PATCH] test(web): a jstack home lists only its open rows, never what
+ merged
+
+---
+ .../sidebar/jstackTree.logic.test.ts          | 29 +++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 52a1bbc075..5a58f5777b 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -288,6 +288,35 @@ describe("buildJstackTree", () => {
+     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
+   });
+ 
++  it("lists only a home's open rows, and counts what merged on the project row", () => {
++    const merged = (slug: string, minutes: number) => ({
++      repo: "jstack",
++      slug,
++      homeThreadId: ThreadId.make("flow"),
++      mergedAt: minutesAgo(minutes),
++    });
++    const under = (tree: ReturnType<typeof build>) =>
++      tree.rows.flatMap((row) =>
++        "parentKey" in row && row.parentKey === "jstack-home:flow" ? [row.key] : [],
++      );
++    const opened = { routeThreadId: ThreadId.make("flow"), unfoldedHomes: new Set(["flow"]) };
++
++    const live = build(
++      {
++        tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow") })],
++        landed: [merged("fl-done", 60)],
++      },
++      opened,
++    );
++    expect(under(live)).toEqual(["jstack-task:jstack/fl-pump"]);
++    expect(live.rows[0]).toMatchObject({ kind: "project", landed: 1 });
++
++    // Once its last open row merges too, the home lists nothing, unfolded or not.
++    const idle = build({ landed: [merged("fl-done", 60), merged("fl-pump", 5)] }, opened);
++    expect(under(idle)).toEqual([]);
++    expect(idle.rows[0]).toMatchObject({ kind: "project", landed: 2 });
++  });
++
+   it("draws a home with no live work as one line that unfolds to what it merged, newest first", () => {
+     const merged = (slug: string, home: string, minutes: number) => ({
+       repo: "jstack",
+-- 
+2.56.0
+
