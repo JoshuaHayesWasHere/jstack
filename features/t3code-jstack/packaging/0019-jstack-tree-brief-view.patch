@@ -1,4 +1,4 @@
-From 94ee4fd438d594d195fc7d129f98004a83b39803 Mon Sep 17 00:00:00 2001
+From b304b0470a371f26f915224ef18e9e5bdd0aa450 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Fri, 30 Oct 2026 00:28:30 -0400
 Subject: [PATCH] feat(web): a jstack brief opens as what it says: its one
@@ -25,22 +25,22 @@ The dialog keeps to 13/400 and 11/400: DialogTitle and DialogDescription take a 
 and Button a row size. Its one accent, sky, is a theme colour (jstack-link) on the links only.
 The approve flow is as it was: the sha line, Close and "Approve this brief", none for a scout.
 ---
- apps/web/src/components/Sidebar.tsx           |  36 +-
+ apps/web/src/components/Sidebar.tsx           |  35 +-
  .../JstackBriefDialog.browser.test.tsx        | 308 ++++++++++++++++-
  .../components/sidebar/JstackBriefDialog.tsx  |  56 +++-
  .../components/sidebar/JstackBriefView.tsx    | 317 ++++++++++++++++++
  .../sidebar/JstackTreeRows.browser.test.tsx   |   5 +-
  .../sidebar/jstackAskOnAdd.browser.test.tsx   |   2 +-
  .../components/sidebar/jstackBrief.logic.ts   | 213 ++++++++++++
- .../sidebar/jstackTree.logic.test.ts          |  46 ++-
- .../components/sidebar/jstackTree.logic.ts    |  28 +-
+ .../sidebar/jstackTree.logic.test.ts          |  72 +++-
+ .../components/sidebar/jstackTree.logic.ts    |  46 ++-
  apps/web/src/components/ui/button.tsx         |   2 +
  apps/web/src/components/ui/dialog.tsx         |  38 ++-
  apps/web/src/index.css                        |   6 +-
  .../jstack-briefs/jinstall-retired-hooks.txt  |  15 +
  .../jstack-briefs/jv-color-design.txt         |  40 +++
  .../jstack-briefs/sb-type-b2-build.txt        |  24 ++
- 15 files changed, 1091 insertions(+), 45 deletions(-)
+ 15 files changed, 1134 insertions(+), 45 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/JstackBriefView.tsx
  create mode 100644 apps/web/src/components/sidebar/jstackBrief.logic.ts
  create mode 100644 apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt
@@ -48,10 +48,16 @@ The approve flow is as it was: the sha line, Close and "Approve this brief", non
  create mode 100644 apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index bf5708a6d3..ccdbf403c7 100644
+index bf5708a6d3..237a056467 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -272,6 +272,7 @@ import {
+@@ -267,11 +267,13 @@ import {
+ } from "./sidebar/SidebarProjectFolderHeader";
+ import {
+   buildJstackTree,
++  jstackRevealTarget,
+   childHomeMessage,
+   HOME_WORK_PROMPT,
    rowWordMessage,
    type JstackAnswering,
    type JstackRowWord,
@@ -59,7 +65,7 @@ index bf5708a6d3..ccdbf403c7 100644
    type JstackTree,
  } from "./sidebar/jstackTree.logic";
  import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
-@@ -1369,6 +1370,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1369,6 +1371,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
    // The one jbus question whose answer row is open, and the one brief shown.
    const [jstackAnswering, setJstackAnswering] = useState<JstackAnswering | null>(null);
    const jstackBrief = useJstackBrief();
@@ -83,7 +89,7 @@ index bf5708a6d3..ccdbf403c7 100644
    // Scopes asked of a root home from here, shown as starting until jbus's home state has them.
    const [jstackRequestedScopes, setJstackRequestedScopes] = useState<
      ReadonlyArray<JbusStartingScope>
-@@ -1412,8 +1430,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1412,8 +1431,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
          folderThreads: folder.threads,
          hiddenThreads: folder.hiddenThreads,
          collapsed: folder.collapsed,
@@ -93,20 +99,18 @@ index bf5708a6d3..ccdbf403c7 100644
          expandedHomes: jstackExpandedHomes,
          frozenOrder: jstackFrozenOrder,
          childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
-@@ -1490,10 +1507,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1490,10 +1508,21 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      );
      return sent;
    };
-+  const jstackTaskOf = (repo: string, slug: string) =>
-+    jbusWork?.tasks.find((task) => task.repo === repo && task.slug === slug) ?? null;
++  const jstackRevealOf = (repo: string, slug: string) =>
++    jbusWork === null ? null : jstackRevealTarget(jbusWork, jstackRoots, repo, slug);
 +  // A brief's link: unfold the task's project and lift its home's cap, then select its row.
 +  const revealJstackTask = (repo: string, slug: string) => {
-+    const task = jstackTaskOf(repo, slug);
-+    if (task === null) return;
-+    const rootHome = jbusWork?.homes.find((home) => home.repo === repo && home.scope === null);
-+    const root = jstackRoots.find(({ tree }) => tree.root.main?.id === rootHome?.threadId);
-+    if (root?.folder.collapsed) toggleProjectFolder(root.folder.group);
-+    setJstackExpandedHomes((current) => new Set(current).add(task.homeThreadId));
++    const target = jstackRevealOf(repo, slug);
++    if (target === null) return;
++    if (target.root.folder.collapsed) toggleProjectFolder(target.root.folder.group);
++    setJstackExpandedHomes((current) => new Set(current).add(target.homeThreadId));
 +    setJstackRevealed({ repo, slug, routeThreadId: jstackRouteThreadId });
 +  };
    const jstackRowActions: JstackTreeRowActions = {
@@ -117,11 +121,11 @@ index bf5708a6d3..ccdbf403c7 100644
        if (primaryEnvironmentId !== null) {
          navigateToThread(scopeThreadRef(primaryEnvironmentId, threadId));
        }
-@@ -3908,6 +3938,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3908,6 +3937,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
        <JstackBriefDialog
          shown={jstackBrief.shown}
          onClose={jstackBrief.close}
-+        revealable={(repo, slug) => jstackTaskOf(repo, slug) !== null}
++        revealable={(repo, slug) => jstackRevealOf(repo, slug) !== null}
 +        onReveal={revealJstackTask}
          onApprove={(target, sha) =>
            sendJstackRowWord(target.homeThreadId, target.homeName, {
@@ -1161,10 +1165,18 @@ index 0000000000..bc24b15941
 +        : { slug: item.slice(0, colon).trim(), what: item.slice(colon + 2).trim() };
 +    });
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index d0528e723e..53c54e5295 100644
+index d0528e723e..c1cc98af46 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -106,7 +106,7 @@ function build(
+@@ -17,6 +17,7 @@ import {
+   arrangeJstackRoots,
+   buildJstackTree,
+   childHomeMessage,
++  jstackRevealTarget,
+   jstackRootPlace,
+   jstackRootReorder,
+   moveJstackRoot,
+@@ -106,7 +107,7 @@ function build(
      folderThreads: all,
      hiddenThreads: [],
      collapsed: false,
@@ -1173,7 +1185,7 @@ index d0528e723e..53c54e5295 100644
      expandedHomes: new Set(),
      frozenOrder: null,
      lastVisitedAt: () => null,
-@@ -222,7 +222,9 @@ describe("buildJstackTree", () => {
+@@ -222,7 +223,9 @@ describe("buildJstackTree", () => {
          askedAt: minutesAgo(1),
        },
      ];
@@ -1184,7 +1196,7 @@ index d0528e723e..53c54e5295 100644
      const opens = rows.flatMap((row) =>
        row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
      );
-@@ -298,7 +300,10 @@ describe("buildJstackTree", () => {
+@@ -298,7 +301,10 @@ describe("buildJstackTree", () => {
      });
      expect(workers(closed.rows)).toEqual([]);
  
@@ -1196,10 +1208,35 @@ index d0528e723e..53c54e5295 100644
      expect(open.rows.find((row) => row.kind === "domain")).toMatchObject({
        open: true,
        dot: false,
-@@ -307,6 +312,28 @@ describe("buildJstackTree", () => {
+@@ -307,6 +313,53 @@ describe("buildJstackTree", () => {
      expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
    });
  
++  it("finds what a brief's link unfolds: its repo's root home project and the task's home", () => {
++    const tasks = [task("fl-pump", { homeThreadId: ThreadId.make("flow") })];
++    const snapshot = { ...EMPTY_JBUS_WORK_SNAPSHOT, homes: HOMES, tasks };
++    // A project with no home is listed first, with no root thread, as "No project" is.
++    const plain = {
++      name: "plain",
++      tree: build({}, { memberProjectRefs: [{ environmentId, projectId: ProjectId.make("p") }] }),
++    };
++    const jstack = { name: "jstack", tree: build({ tasks }, { collapsed: true }) };
++    expect(plain.tree.root.main).toBe(null);
++
++    expect(jstackRevealTarget(snapshot, [plain, jstack], "jstack", "fl-pump")).toEqual({
++      root: jstack,
++      homeThreadId: ThreadId.make("flow"),
++    });
++    // A repo with no root home draws no row for its task, so no project is unfolded for it.
++    const noHome = {
++      ...snapshot,
++      tasks: [task("ot-pump", { repo: "other" })],
++    };
++    expect(jstackRevealTarget(noHome, [plain, jstack], "other", "ot-pump")).toBe(null);
++    // A task jbus no longer lists has no row.
++    expect(jstackRevealTarget(snapshot, [plain, jstack], "jstack", "fl-gone")).toBe(null);
++  });
++
 +  it("selects the task a brief's link showed in place of the route's, thread or none", () => {
 +    const tasks = [
 +      task("fl-pump", { homeThreadId: ThreadId.make("flow") }),
@@ -1225,7 +1262,7 @@ index d0528e723e..53c54e5295 100644
    it("lists only a home's open rows, and counts what merged on the project row", () => {
      const merged = (slug: string, minutes: number) => ({
        repo: "jstack",
-@@ -317,7 +344,7 @@ describe("buildJstackTree", () => {
+@@ -317,7 +370,7 @@ describe("buildJstackTree", () => {
        tree.rows.flatMap((row) =>
          "parentKey" in row && row.parentKey === "jstack-home:flow" ? [row.key] : [],
        );
@@ -1234,7 +1271,7 @@ index d0528e723e..53c54e5295 100644
  
      const live = build(
        {
-@@ -851,7 +878,9 @@ describe("row actions: approve, remove, answer and the brief", () => {
+@@ -851,7 +904,9 @@ describe("row actions: approve, remove, answer and the brief", () => {
    };
  
    it("gives each task row the home its brief names, what it waits on, and its open question", () => {
@@ -1245,7 +1282,7 @@ index d0528e723e..53c54e5295 100644
      expect(worker(rows, "meter")).toMatchObject({
        homeThreadId: "flow",
        homeName: "the flow home",
-@@ -883,7 +912,10 @@ describe("row actions: approve, remove, answer and the brief", () => {
+@@ -883,7 +938,10 @@ describe("row actions: approve, remove, answer and the brief", () => {
        number: 7,
        question: "Which valve size?",
      };
@@ -1257,7 +1294,7 @@ index d0528e723e..53c54e5295 100644
      const at = rows.findIndex((row) => row.kind === "worker" && row.slug === "valve");
      expect(rows[at]).toMatchObject({ answering: true });
      expect(rows[at + 1]).toMatchObject({
-@@ -899,7 +931,7 @@ describe("row actions: approve, remove, answer and the brief", () => {
+@@ -899,7 +957,7 @@ describe("row actions: approve, remove, answer and the brief", () => {
  
      const closed = build(
        { ...snapshot, gates: [] },
@@ -1267,10 +1304,10 @@ index d0528e723e..53c54e5295 100644
      expect(closed.find((row) => row.kind === "answer")).toMatchObject({ open: false });
    });
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
-index 671b2bfec7..9d84245594 100644
+index 671b2bfec7..76bf8f23c9 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
-@@ -46,6 +46,18 @@ export interface JstackAnswering {
+@@ -46,6 +46,36 @@ export interface JstackAnswering {
  
  export type JstackTreeAttention = "gates" | "gates-and-quiet";
  
@@ -1283,13 +1320,31 @@ index 671b2bfec7..9d84245594 100644
 +  | { readonly kind: "task"; readonly repo: string; readonly slug: string }
 +  | null;
 +
++/**
++ * What a brief's link unfolds to show a task's row: the project root its repo's root home draws,
++ * and the home whose row cap is lifted. Null when the tree has no row for it: jbus no longer
++ * lists the task, or no project draws its repo's root home.
++ */
++export function jstackRevealTarget<Root extends { readonly tree: JstackTree }>(
++  snapshot: JbusWorkSnapshot,
++  roots: ReadonlyArray<Root>,
++  repo: string,
++  slug: string,
++): { readonly root: Root; readonly homeThreadId: ThreadId } | null {
++  const task = snapshot.tasks.find((each) => each.repo === repo && each.slug === slug);
++  const rootHome = snapshot.homes.find((home) => home.repo === repo && home.scope === null);
++  if (task === undefined || rootHome === undefined) return null;
++  const root = roots.find(({ tree }) => tree.root.main?.id === rootHome.threadId);
++  return root === undefined ? null : { root, homeThreadId: task.homeThreadId };
++}
++
 +/** A task's row key, which its row is found by in the DOM. `slug` is the full slug. */
 +export const jstackTaskRowKey = (repo: string, slug: string) => `jstack-task:${repo}/${slug}`;
 +
  export interface JstackTreeOptions {
    readonly attention: JstackTreeAttention;
    readonly landedCount: boolean;
-@@ -237,7 +249,7 @@ export interface JstackTreeInput {
+@@ -237,7 +267,7 @@ export interface JstackTreeInput {
    /** The folder's threads a fold hides. */
    readonly hiddenThreads: ReadonlyArray<EnvironmentThreadShell>;
    readonly collapsed: boolean;
@@ -1298,7 +1353,7 @@ index 671b2bfec7..9d84245594 100644
    /** Homes whose "+N" row the user opened. */
    readonly expandedHomes: ReadonlySet<string>;
    /** Worker order per home to keep while the pointer is in the sidebar; null re-sorts. */
-@@ -404,7 +416,7 @@ const toWorker = (
+@@ -404,7 +434,7 @@ const toWorker = (
      stage: stage.group,
      row: {
        kind: "worker",
@@ -1307,7 +1362,7 @@ index 671b2bfec7..9d84245594 100644
        parentKey,
        depth,
        repo: task.repo,
-@@ -431,7 +443,10 @@ const toWorker = (
+@@ -431,7 +461,10 @@ const toWorker = (
            : null,
        thread,
        pullRequest: task.kind === "crew" ? task.pullRequest : null,
@@ -1319,7 +1374,7 @@ index 671b2bfec7..9d84245594 100644
        homeThreadId: home.threadId,
        homeName: home.scope === null ? "the root home" : `the ${home.scope} home`,
        queued: task.threadId === null && stage.group === "queue",
-@@ -472,6 +487,9 @@ const isMember = (input: JstackTreeInput, thread: EnvironmentThreadShell) =>
+@@ -472,6 +505,9 @@ const isMember = (input: JstackTreeInput, thread: EnvironmentThreadShell) =>
      (ref) => ref.environmentId === input.environmentId && ref.projectId === thread.projectId,
    );
  
@@ -1329,7 +1384,7 @@ index 671b2bfec7..9d84245594 100644
  const ASKS_STATUSES = new Set(["approval", "input", "request"]);
  
  const threadAsks = (thread: EnvironmentThreadShell) =>
-@@ -617,7 +635,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+@@ -617,7 +653,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
      const asksYou = gateThreads.has(home.threadId) || waitsOnUser(thread);
      const workerAsks = workers.some((worker) => worker.row.tone === "asks");
      innerAsks ||= asksYou || workerAsks;
@@ -1338,7 +1393,7 @@ index 671b2bfec7..9d84245594 100644
      const open = selected || workers.some((worker) => worker.row.selected);
      const work: JstackHomeWork =
        workers.length > 0 ? { kind: "live", tally: tallyOf(workers) } : { kind: "idle" };
-@@ -659,7 +677,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+@@ -659,7 +695,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
      live: [...rootWorkers, ...domainWorkers].some((worker) => worker.row.mark.tone === "live"),
      folded: { count: tasks.length, unit: "task" },
      faded: tasks.length === 0 && gates.length === 0 && !rootAsks && !isThreadWorking(rootThread),
