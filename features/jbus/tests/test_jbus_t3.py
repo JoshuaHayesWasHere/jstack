@@ -21,7 +21,7 @@ import pytest
 
 import jbus
 from jbus import t3
-from test_jbus_kitchen import FIXTURE, NOW, PROJECT, TOKEN
+from test_jbus_kitchen import FIXTURE, NOW, PROJECT, SELECTION, TOKEN
 
 
 def test_the_sign_in_registers_takes_the_approval_and_keeps_the_token_private(kitchen):
@@ -124,6 +124,18 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
         ("t3_thread_send", {**SEND, "mode": "restart"}, "only called with mode queue"),
         ("t3_thread_send", {**SEND, "clientRequestId": ""}, "only called with mode queue"),
         ("t3_thread_send", {"threadId": "mcp:crew", "message": "a"}, "a mode and a retry key"),
+        ("t3_thread_configure", {}, "only called to read a thread, or with a thread and a model"),
+        ("t3_thread_configure", {"threadId": ""}, "names no thread to read"),
+        (
+            "t3_thread_configure",
+            {"threadId": "mcp:another", "modelSelection": {"model": "a"}},
+            "no brief has it on a Thread: line",
+        ),
+        (
+            "t3_thread_configure",
+            {"threadId": "mcp:crew", "modelSelection": {"model": "a"}, "runtimeMode": "auto"},
+            "only called to read a thread, or with a thread and a model",
+        ),
     ],
 )
 def test_a_call_that_changes_a_thread_in_any_other_form_is_refused_before_it_goes_out(
@@ -138,6 +150,15 @@ def test_a_call_that_changes_a_thread_in_any_other_form_is_refused_before_it_goe
     client.call("t3_thread_send", SEND)
     client.call("t3_thread_organize", {"action": "settle", "threadId": "mcp:crew"})
     assert [name for name, _ in kitchen.t3.calls] == ["t3_thread_send", "t3_thread_organize"]
+
+
+def test_a_read_of_any_thread_goes_out_and_changes_nothing(kitchen):
+    client = t3.Client(kitchen.t3.url, kitchen.config_dir / "t3.json")
+    kitchen.t3.thread("alpha", "completed", threadId="mcp:another")
+    read = client.call("t3_thread_configure", {"threadId": "mcp:another"})
+    assert (read["threadId"], read["modelSelection"]) == ("mcp:another", SELECTION)
+    assert kitchen.t3.calls == [("t3_thread_configure", {"threadId": "mcp:another"})]
+    assert "selection" not in kitchen.t3.threads[0]
 
 
 def test_a_send_with_no_thread_line_read_yet_is_refused(kitchen):

@@ -5,8 +5,8 @@ token that the server issues, and records when the server issued it (`jsettings.
 when that token runs out). `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no
 other tool: a test scans this package for any other tool name.
 
-Three of the seven tools change a thread, and `Client.call` allows each of them in one form
-only (`_held`):
+Three of the seven tools can change a thread, and `Client.call` allows each of them only in
+the forms below (`_held`):
 
 - `t3_thread_organize`, to settle or archive a thread that the call names.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
@@ -197,8 +197,8 @@ class Client(Session):
         return [tool for tool in self._rpc("tools/list", {})["tools"] if tool["name"] in TOOLS]
 
     def _held(self, tool: str, arguments: dict[str, Any]) -> str:
-        """For a call that changes a thread, return why jbus does not make it, or nothing when
-        jbus does make it."""
+        """For a call to a tool that can change a thread, return why jbus does not make it, or
+        nothing when jbus does make it."""
         if tool == "t3_thread_organize":
             if set(arguments) != {"action", "threadId"} or arguments["action"] not in (
                 "settle",
