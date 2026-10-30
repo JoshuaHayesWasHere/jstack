@@ -31,13 +31,19 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 SEP=$(printf '\037')
 none=
 if ! command -v jbus > /dev/null; then none=--no-jbus; fi
-{ IFS= read -r own; IFS= read -r P; IFS= read -r WHY; OPEN=$(cat); } << THE_STATUS_ENDS_HERE
-$(uv run --project "$T/../source" jbus home status --home "$M" --gates $none)
+own=home
+if [ "$M" != "$H" ]; then own=home-$(basename "$M"); fi
+if said=$(uv run --project "$T/../source" jbus home status --home "$M" --gates $none); then
+    { IFS= read -r P; IFS= read -r WHY; OPEN=$(cat); } << THE_STATUS_ENDS_HERE
+$said
 THE_STATUS_ENDS_HERE
+else
+    P= OPEN= WHY="jbus could not be read: jbus home status --gates ended $?"
+fi
 ```
 
 It prints nothing.
-`jbus home status --gates` reads jbus for it, and this block reads no file of jbus's itself.
+`jbus home status --gates` reads jbus for it, and this block reads no file of jbus's itself: where the command fails, `$WHY` says so and nothing else is set.
 `$own` is this home's own slug, `$P` this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, one to a line with their fields joined by `$SEP`, read from the record jbus keeps of them: it is as it is now, with no pass between.
 This block only reads it: `jbus gate` and `jbus answer` are the two that write it.
 A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one.

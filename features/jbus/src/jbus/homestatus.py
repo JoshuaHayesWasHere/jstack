@@ -9,9 +9,9 @@ questions. Then `## merged`, what `jmerge` merged since the home's `merge-seen` 
 `read-seen`. That last part is the one that writes: it marks read a heading whose brief is done,
 with `Left: none`, and merged, and on the home's first start it marks every heading there is.
 
-With `--gates` it prints instead the four things the blocks of the home skill's "Gates" read, one
-to a line (`gates`): the home's own slug, the repo's project in jbus's config, why no question
-could be read, and then the home's open questions, one to a line, their fields joined by `SEP`.
+With `--gates` it prints instead what the blocks of the home skill's "Gates" read, one to a line
+(`gates`): the repo's project in jbus's config, why no question could be read, and then the home's
+open questions, one to a line, their fields joined by `SEP`.
 
 `--home` is the home's directory: the repo's state directory for the root home, or a scope's
 directory inside it. A question, a row or a merge is the home's by the brief or the request of its
@@ -28,7 +28,7 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home
-from jbus import plan, questions, queue, verbs, waiting
+from jbus import plan, questions, queue, waiting
 from jsettings import paths
 
 SEP = "\037"
@@ -158,16 +158,15 @@ def gates(here: Home, found: Bus) -> list[str]:
         for one in found.open
     )
     asked = [SEP.join(map(str, each)) for each in fields]
-    return [here.own, found.project.name if found.project else "", found.why, *asked]
+    return [found.project.name if found.project else "", found.why, *asked]
 
 
 def _plan(here: Home, found: Bus) -> list[str]:
     more = f"jbus plan --scope {here.scope}" if here.scope else "jbus plan"
     try:
-        if found.config is None or found.why == NO_JBUS:
+        if found.config is None or found.project is None:
             raise jbus.Refused("no jbus")
-        project = verbs.here(found.config, None)
-        said = plan.listing(found.config, project, here.scope or None)
+        said = plan.listing(found.config, found.project, here.scope or None)
     except (jbus.Refused, OSError):
         return [f"no jbus plan: read {here.mine}/plan.md whole"]
     return atmost((clip(line, PLAN_WIDTH) for line in said.rstrip("\n").split("\n")), 12, more)
