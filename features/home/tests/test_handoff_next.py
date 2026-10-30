@@ -49,7 +49,7 @@ def hands_off(scene, thread, checkout=None, code=0):
 
 
 def was_home(scene):
-    """The thread that the next home's start settles, as `jbus home --was` reads it. The home
+    """The thread that the next home's start settles, as `jbus home was` reads it. The home
     skill's sh `was_home`, which "Its scheduled tasks" still reads, must read the same notes
     alike."""
     said = scene.run("home", 'printf "%s" "$(was_home "$H")"', scene.main, None).stdout

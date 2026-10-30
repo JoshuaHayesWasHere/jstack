@@ -253,7 +253,7 @@ So look last, once the last home has had the time of this start to end its turn.
 Run this in one call with the block at the top and the block that finds this home: jbus reads the last home's thread, and settles it if it is still active.
 
 ```sh
-uv run --project "$T/../source" jbus home --was "$M"
+uv run --project "$T/../source" jbus home was --home "$M"
 ```
 
 It prints one line.

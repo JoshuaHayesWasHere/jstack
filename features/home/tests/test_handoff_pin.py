@@ -3,7 +3,7 @@ again: its tasks are switched off, and a home started later takes them over and 
 tests run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers
 their calls. Each call the blocks make is a JSON block of a skill. The test checks the call against
 its tool's schema before the call changes anything. The last look of a start is jbus's own
-(`jbus home --was`), and it runs against the kitchen's T3 Code, which holds the same threads."""
+(`jbus home was`), and it runs against the kitchen's T3 Code, which holds the same threads."""
 
 import itertools
 import json
@@ -138,7 +138,7 @@ class Home(Scene):
         self.kitchen.t3.threads = [dict(one) for one in self.t3.threads.values()]
         before = len(self.kitchen.t3.calls)
         (said,) = self.run(
-            "home", block("home", "jbus home --was"), self.main, thread
+            "home", block("home", "jbus home was --home"), self.main, thread
         ).stdout.splitlines()
         for tool, given in self.kitchen.t3.calls[before:]:
             if tool == "t3_thread_organize":
