@@ -190,14 +190,12 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
                    if said=$(printf '%s\n' "$entry" | tr '\002' '\n' | jbus gate "$by" 2>&1); then
                        echo "gate $n of gates.md is the root home's, $said"
                    else
-                       echo "not moved: gate $n of gates.md, jbus said: $said"
+                       echo "gate $n of gates.md is kept whole in this note, jbus said: $(printf '%s' "$said" | head -n 1)"
+                       printf 'KEEP%s\n' "$entry"
                    fi
                done)
-               if printf '%s\n' "$moved" | grep -q '^not moved: '; then
-                   echo "not archived: an open gate of $M/gates.md is not a question jbus holds, and nothing is changed but the gates moved before it. Run this again once jbus takes it:"
-                   printf '%s\n' "$moved" | grep '^not moved: '
-                   exit 1
-               fi
+               held=$(printf '%s\n' "$moved" | sed -n 's/^KEEP//p' | tr '\002' '\n')
+               moved=$(printf '%s\n' "$moved" | grep -v '^KEEP')
                if ! mv "$M/gates.md" "$M/gates-moved.md"; then
                    echo "not archived: $M/gates.md could not be renamed to gates-moved.md. Run this again once that is put right."
                    exit 1
@@ -209,6 +207,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
            if [ -e "$kept" ]; then kept=$M/log/$(date +%F-%H%M%S).md; fi
            if ! mkdir -p "$M/log" || ! {
                sed '/^Was home:/d; /^Archived:/d; /^Moved to the root:/d; /^Left with no home:/d' "$note"
+               if [ -n "${held:-}" ]; then printf '\n%s\n' "$held"; fi
                printf '\nArchived: %s, and no home was started after this one.\n' "$(date +%F)"
                if [ -z "$out" ]; then
                    printf '%s none\n' "$label"
@@ -254,7 +253,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        echo "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
    ```
 
-   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the root home's and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
+   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the root home's, keeps one jbus refuses whole in the note, and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
    A second run changes nothing and prints `archived before`, with the same lines under it.
    Its first line is what the steps below go by, and the lines under it are what step 4 tells the user and step 5 renames by: keep all of them.
 

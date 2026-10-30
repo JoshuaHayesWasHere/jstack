@@ -344,14 +344,22 @@ def test_an_open_gate_of_an_archived_scope_becomes_a_question_of_the_root_home(h
     assert (homes.scope_dir / "gates-moved.md").read_text() == GATE
 
 
-def test_a_gate_jbus_will_not_take_leaves_the_scope_unarchived(homes, monkeypatch):
+def test_a_gate_jbus_will_not_take_is_kept_whole_in_the_note_and_the_scope_archived(
+    homes, monkeypatch
+):
     jbus_takes_gates(homes, monkeypatch, gate_code=1)
     (homes.scope_dir / "gates.md").write_text(GATE)
-    homes.does(WHERE, SCOPED)
-    (homes.scope_dir / "handoff.next.md").write_text(NOTE)
-    ran = homes.does(CLOSE, SCOPED)
-    assert ran.returncode == 1
-    assert ran.stdout.startswith("not archived: an open gate of ")
-    assert "not moved: gate 3 of gates.md, jbus said: refused: no" in ran.stdout
-    for kept in ("gates.md", "home-id", "plan.md", "handoff.next.md"):
-        assert (homes.scope_dir / kept).exists()
+    _, said = homes.archives(SCOPED, homes.scope_dir)
+    assert said[0] == ARCHIVED_SCOPE
+    assert "- gate 3 of gates.md is kept whole in this note, jbus said: refused: no" in said
+    (kept,) = [
+        path
+        for path in (homes.scope_dir / "log").iterdir()
+        if f"Was home: {SCOPED}" in path.read_text()
+    ]
+    text = kept.read_text()
+    assert text.startswith(NOTE + "\n## Gate 3: tea or coffee?\nStatus: open\nDefault: tea\n")
+    assert "## Gate 4" not in text
+    assert text.endswith(f"\nWas home: {SCOPED}\n")
+    assert not (homes.scope_dir / "gates.md").exists()
+    assert not (homes.scope_dir / "home-id").exists()
