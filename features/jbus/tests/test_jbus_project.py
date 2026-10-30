@@ -329,3 +329,32 @@ def test_a_project_names_its_merge_bases_or_none(tmp_path, lines, want):
 def test_merge_bases_that_are_not_a_list_of_branch_names_are_refused(tmp_path, lines):
     with pytest.raises(jbus.Refused, match="refused: project demo has a merge_bases that is not"):
         settings(tmp_path, lines)
+
+
+def test_a_project_named_in_another_case_is_found_when_no_other_project_has_that_name(tmp_path):
+    other = tmp_path / "other"
+    other.mkdir()
+    config = settings(
+        tmp_path, f'\n[[project]]\nname = "Winnifred"\ncheckout = "{other}"\nprojectId = "p2"\n'
+    )
+    assert [config.project(name).name for name in ("winnifred", "WINNIFRED", "Demo")] == [
+        "Winnifred",
+        "Winnifred",
+        "demo",
+    ]
+    with pytest.raises(jbus.Refused, match="refused: no project winnie, have demo, Winnifred"):
+        config.project("winnie")
+
+
+def test_a_name_two_projects_share_by_case_is_refused_naming_both_and_an_exact_one_is_found(
+    tmp_path,
+):
+    other = tmp_path / "other"
+    other.mkdir()
+    config = settings(
+        tmp_path, f'\n[[project]]\nname = "Demo"\ncheckout = "{other}"\nprojectId = "p2"\n'
+    )
+    assert (config.project("demo").name, config.project("Demo").name) == ("demo", "Demo")
+    with pytest.raises(jbus.Refused) as refused:
+        config.project("DEMO")
+    assert str(refused.value) == "refused: project DEMO is demo or Demo, name one as it is written"
