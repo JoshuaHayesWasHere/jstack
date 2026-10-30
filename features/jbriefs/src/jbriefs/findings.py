@@ -20,9 +20,9 @@ raised a finding and another dismissed it there, `triage` keeps the two apart an
 dismissal beside the finding (`Finding.contradicts`). The `By:` line names a reviewer. Its
 last word is the reviewer's number, `#<n>`. The number is the line of the role map's review
 list that the crew launched the reviewer for, so two reviewers of one model count as two
-(`Section.seat`). A section's first line that has the `By:` line's shape and no label, as a
-reviewer writes it when it drops the `By: `, is read as that line (`_BARE_BY`). The
-`Reviewer:` lines say whom a round waits for (`Roster`). Once one of
+(`Section.seat`). A section's first line of the `By:` line's shape, three words then `#<n>`,
+with no label, as a reviewer writes it when it drops the `By: `, is read as that line
+(`_BARE_BY`). The `Reviewer:` lines say whom a round waits for (`Roster`). Once one of
 them carries a number, the round waits for the numbered lines alone, and the unnumbered lines
 before them are a launch that the numbered ones replaced. When a reviewer writes a section
 again at the same head, the new section takes the place of the earlier one. `triage` merges
@@ -171,7 +171,7 @@ class Section:
 
 
 _SEAT = re.compile(r"\s#(\d+)$")
-_BARE_BY = re.compile(r"[^\s:]+( [^\s:]+)+ #\d+")
+_BARE_BY = re.compile(r"[^\s:]+ [^\s:]+ [^\s:]+ #\d+")
 
 
 @dataclass(frozen=True)
