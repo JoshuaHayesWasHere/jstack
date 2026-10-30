@@ -5,7 +5,9 @@ The items are the entries of `state.wrongs` an agent owns, the needs a home pass
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
 (`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`) and the open alerts
 whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
-snapshot that failed, a home that stalled. An item's key has no run and no time in it: a red's
+snapshot that failed, a home that stalled. The hourly count of what is stale (`jbus.stale`) is one
+more, the root home's, whose words change with the count.
+An item's key has no run and no time in it: a red's
 failing tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes
 the items one home thread owns that are new to it, less those whose cause is another open item,
 unless the row is that item's fix.
@@ -16,8 +18,10 @@ time wakes its home only when what it says changed.
 A pass sends each home thread at most one `wakes` message through the outbox. Its retry key is
 made from each item's key and digest, so an item whose words changed is a new message and not a
 retry of the one before. `wakes.json` is the
-one record of what a home was told, which the view reads too (`state._fixing`). A fault of a row
-that the step working the row tells, as a crew's carry-on, is on the list only as a cause.
+one record of what a home was told, which the view reads too (`state._fixing`). It keeps the line
+of each item open within `KEEP`, with when a pass last had it, which `jbus stale` reads.
+A fault of a row that the step working the row tells, as a crew's carry-on, is on the list only as
+a cause.
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ from jbus import (
     prose,
     queue,
     read_json,
+    stale,
     verbs,
     write_json,
 )
@@ -382,6 +387,12 @@ def prose_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     return items
 
 
+def stale_items(run: Pass) -> list[Item]:
+    """The hourly count of what is stale, an item of the root home's while it is above none."""
+    line = stale.line(run.project.name, stale.read(run.state))
+    return [Item(key=stale.KEY, to=root_of(run), line=line)] if line else []
+
+
 def _with_late(run: Pass, record: dict[str, Any], root: str, one: Item) -> list[Item]:
     """The item, and the root home's item of it too once a home that is not the root was told of
     it `leftover.CLOSE_MINUTES` ago or more."""
@@ -404,7 +415,7 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         pass
     else:
         items += owed_items(run, record, rows) + brief_items(run, rows)
-    items += prose_items(run, record) + alert_items(run)
+    items += prose_items(run, record) + alert_items(run) + stale_items(run)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)
@@ -412,7 +423,19 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         told = new if new and _send(run, client, thread, new) else []
         threads[thread] = kept(items, seen, told, run.now)
     threads = {thread: seen for thread, seen in threads.items() if seen}
-    write_json(run.state / FILE, {"threads": threads, "tests": tests.used})
+    lines = seen_lines(record.get("open"), items, run.now)
+    write_json(run.state / FILE, {"threads": threads, "tests": tests.used, "open": lines})
+
+
+def seen_lines(was: Any, items: list[Item], now: datetime) -> dict[str, str]:
+    """The line of each item open now, and of each open within `KEEP`, with when a pass last had
+    it: a pass where a source gave no answer lists less, and its gap ends no line it left out."""
+    kept = {
+        line: at
+        for line, at in (was if isinstance(was, dict) else {}).items()
+        if isinstance(at, str) and now - datetime.fromisoformat(at) < KEEP
+    }
+    return kept | dict.fromkeys(sorted({one.line for one in items}), now.isoformat())
 
 
 def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:

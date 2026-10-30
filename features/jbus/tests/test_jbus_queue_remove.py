@@ -201,7 +201,7 @@ def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):
     crew(kitchen)
     assert remove(kitchen, "alpha")[0] == 0
     kitchen.poll()
-    assert sends(kitchen) == [] and kitchen.lines("resume") == []
+    assert asks(kitchen) == [] and kitchen.lines("resume") == []
 
 
 @pytest.mark.parametrize(
@@ -467,4 +467,4 @@ def test_an_answer_to_a_removed_slugs_question_reaches_no_thread(kitchen, broken
         (kitchen.state / "removed.json").write_text("{")
     for now in (NOW, LATER):
         kitchen.poll(now)
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []

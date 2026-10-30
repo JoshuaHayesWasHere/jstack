@@ -15,8 +15,7 @@ import pytest
 
 from jmerge import stacked as stacks
 from test_jbus_chains import queue_add
-from test_jbus_github import keys, sends
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW, Kitchen, asks
 from test_jbus_queue import brief, go
 
 BASE, LINK, MERGE, LAST = "c" * 40, "b" * 40, "a" * 40, "d" * 40
@@ -70,6 +69,11 @@ def head_line(kitchen):
     return stacks.of(text)
 
 
+def keys(kitchen):
+    """The request id of each message a pass sent a thread, but for the one list's wakes."""
+    return [given["clientRequestId"] for given in asks(kitchen)]
+
+
 def edits(kitchen):
     return [line for line in kitchen.log("gh") if line.startswith("pr edit")]
 
@@ -81,7 +85,7 @@ def test_a_link_whose_base_is_open_is_told_nothing_however_the_base_moves(stacke
     for minute, (base, link) in enumerate([(BASE, LINK), ("e" * 40, LINK), ("f" * 40, "9" * 40)]):
         pulls(stacked, base=base, link=link)
         passes(stacked, 3 * minute)
-    assert sends(stacked) == [] and keys(stacked) == []
+    assert asks(stacked) == [] and keys(stacked) == []
     assert not [line for line in stacked.log("gh") if "/compare/" in line]
     assert head_line(stacked) == stacks.Stacked("one", "one")
 
@@ -100,7 +104,7 @@ def test_a_base_that_merged_moves_its_link_onto_main_once(stacked, on):
     passes(stacked, 0, 3)
     assert edits(stacked) == (["pr edit 11 --base main"] if on == "one" else [])
     assert keys(stacked) == [f"restack|two|{LINK[:12]}|{MERGE[:12]}"]
-    (said,) = [given["message"] for given in sends(stacked)]
+    (said,) = [given["message"] for given in asks(stacked)]
     assert "one merged as aaaaaaaaaaaa" in said and "now based on main" in said
     assert f"with {LAST} as the branch it sat on" in said and "again with one" in said
     assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
@@ -114,7 +118,7 @@ def test_a_base_that_merged_into_a_branch_moves_its_link_onto_the_branch(stacked
     pulls(stacked, merged=True, on=on, into="release/x")
     passes(stacked, 0, 3)
     assert edits(stacked) == (["pr edit 11 --base release/x"] if on == "one" else [])
-    (said,) = [given["message"] for given in sends(stacked)]
+    (said,) = [given["message"] for given in asks(stacked)]
     assert "one merged as aaaaaaaaaaaa" in said and "now based on release/x" in said
     assert "origin/release/x" in said and "main" not in said
     assert head_line(stacked) == stacks.Stacked("one", "release/x", MERGE)
@@ -141,7 +145,7 @@ def test_a_link_is_not_moved_while_github_does_not_say_where_its_base_merged(sta
     (stacked.stub / "gh-view-down").write_text("")
     said = stacked.poll(NOW)
     assert "wait two: GitHub did not say what one merged into" in said
-    assert edits(stacked) == [] and sends(stacked) == []
+    assert edits(stacked) == [] and asks(stacked) == []
     assert head_line(stacked) == stacks.Stacked("one", "one")
     (stacked.stub / "gh-view-down").unlink()
     passes(stacked, 3)
@@ -153,7 +157,7 @@ def test_a_link_whose_thread_is_at_work_is_moved_on_a_later_pass(stacked):
     for thread in stacked.t3.threads:
         thread["status"] = "running"
     passes(stacked, 0)
-    assert sends(stacked) == []
+    assert asks(stacked) == []
     assert head_line(stacked) == stacks.Stacked("one", "one")
     for thread in stacked.t3.threads:
         thread["status"] = "completed"
@@ -165,7 +169,7 @@ def test_a_link_whose_thread_is_at_work_is_moved_on_a_later_pass(stacked):
 def test_a_link_that_sits_on_its_base_is_not_told_to_rebase_onto_main_for_a_conflict(stacked):
     pulls(stacked, mergeable="CONFLICTING")
     passes(stacked, 0, 3)
-    assert sends(stacked) == []
+    assert asks(stacked) == []
 
 
 def test_a_link_github_will_not_rebase_is_told_nothing_and_its_line_stays(stacked):
@@ -173,5 +177,5 @@ def test_a_link_github_will_not_rebase_is_told_nothing_and_its_line_stays(stacke
     (stacked.stub / "gh-edit-refused").write_text("")
     said = stacked.poll(NOW)
     assert "wait two: #11 could not be based on main: gh exited 1" in said
-    assert sends(stacked) == []
+    assert asks(stacked) == []
     assert head_line(stacked) == stacks.Stacked("one", "one")

@@ -12,7 +12,7 @@ import jbus
 import jsettings
 from jbus import digest, leftover, queue, watch
 from jbus.view import state
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, asks
 from test_jbus_queue import add, brief, rows
 
 PULL = "https://example.test/pull/9"
@@ -31,13 +31,9 @@ def branched(kitchen, branch="a-branch", start="main", commits=1):
 
 
 def sends(kitchen):
-    """Return each message that a pass sent a thread, but for the wakes of a home thread. The fake
+    """Return each message that a pass sent a thread, the wakes of a home thread included. The fake
     keeps one message per request id, so this counts the calls."""
-    return [
-        given
-        for tool, given in kitchen.t3.calls
-        if tool == "t3_thread_send" and not given["clientRequestId"].startswith("wake|")
-    ]
+    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
 
 
 def listed(kitchen, kind="left"):
@@ -119,7 +115,7 @@ def test_a_done_result_naming_no_pull_request_with_no_commit_of_its_own_is_done(
     kitchen.brief("alpha", "Pull request: open one when done\n" + result())
     kitchen.t3.thread("alpha", "completed")
     kitchen.poll()
-    assert column(kitchen) == ("done", "", "") and sends(kitchen) == []
+    assert column(kitchen) == ("done", "", "") and asks(kitchen) == []
 
 
 def test_a_held_row_that_ended_with_no_commit_of_its_own_comes_back_to_done(kitchen):
@@ -152,7 +148,7 @@ def test_a_done_row_whose_result_names_no_pull_request_its_brief_asks_for_is_not
         assert column(kitchen) == ("done", "", "")
     moves = kitchen.state / "transitions.jsonl"
     assert not moves.exists() or moves.read_text() == ""
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
 
 
 def test_a_done_result_whose_brief_asks_for_no_pull_request_is_done(kitchen):
