@@ -415,7 +415,6 @@ def test_a_scout_whose_page_still_waits_is_never_hung(kitchen, status):
 
 def test_jbus_interrupts_nothing():
     assert t3.TOOLS == (
-        "t3_thread_configuration",
         "t3_thread_configure",
         "t3_thread_launch",
         "t3_thread_list",

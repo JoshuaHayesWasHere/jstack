@@ -17,7 +17,7 @@ the run was on. Then it sends the thread on to the instance of the thread's pool
   the map with the thread's instance, so no work goes to another provider.
 - When an instance has headroom, `failover` puts the thread on the first such instance with
   `t3_thread_configure`, and sends it one queued carry-on. The model and the options (effort,
-  fast mode) stay as `t3_thread_configuration` returned them, and only the `instanceId` changes.
+  fast mode) stay as `t3_thread_configure` read them, and only the `instanceId` changes.
   A thread already on that instance gets only the carry-on. This works both ways: a thread
   capped on a later instance goes back to an earlier one with headroom, just as a thread
   capped on the first instance goes on to the next.
@@ -359,7 +359,7 @@ def plan(
     that window's own reset. A pass sets `checked`. With it, `plan` skips an instance that is not
     mirrored (`dispatch.mirrored_choice`), and that check may run the mirror."""
     cap, ran = found
-    configuration = client.call("t3_thread_configuration", {"threadId": thread["threadId"]})
+    configuration = client.call("t3_thread_configure", {"threadId": thread["threadId"]})
     selection = dict(configuration.get("modelSelection") or {})
     if not selection.get("model"):
         return None

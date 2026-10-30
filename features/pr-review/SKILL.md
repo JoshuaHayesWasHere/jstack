@@ -79,13 +79,13 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    Then work out who this reviewer is, and then whether this message may start a review.
 
    Who this reviewer is goes on the section's `By:` line, under its heading: the provider, the model and the effort this thread runs on, and its number, `#<n>`.
-   Ask the thread itself: the `t3-code` server's `t3_thread_configuration` with no `threadId` (if your harness defers it, load it first).
+   Ask the thread itself: the `t3-code` server's `t3_thread_configure` with no arguments (if your harness defers it, load it first).
    Run this with the block at the top, with what it printed, whole, and the message this thread was started with in place of the words in angle brackets.
    Keep what it prints, the `By:` line:
 
    ```sh
    asked='<the message this thread was started with, whole>'
-   config='<what t3_thread_configuration printed, or nothing where this session has no such tool>'
+   config='<what t3_thread_configure printed, or nothing where this session has no such tool>'
    case $config in "<"*) config= ;; esac
    n=$(printf '%s\n' "$asked" | awk 'NR == 1 {print ($(4) ~ /^[0-9]+$/ ? $(4) : 1)}')
    by=$(printf '%s' "$config" | jq -r '.modelSelection | [(.provider // .instanceId), .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)

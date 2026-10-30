@@ -93,7 +93,7 @@ def capped(run: Pass, client: Client, thread: str) -> int | None:
     if not thread:
         return None
     try:
-        asked = client.call("t3_thread_configuration", {"threadId": thread})
+        asked = client.call("t3_thread_configure", {"threadId": thread})
     except T3Error:
         return None
     chosen = asked.get("modelSelection") or {}

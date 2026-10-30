@@ -127,37 +127,9 @@
       }
     },
     {
-      "name": "t3_thread_configuration",
-      "title": "Read a T3 thread's configuration",
-      "description": "Read a thread's provider/model selection and modes. Omit threadId for this thread. orchestrator_capabilities lists available providers and models.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "threadId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": true
-      },
-      "annotations": {
-        "title": "Read a T3 thread's configuration",
-        "readOnlyHint": true,
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false
-      }
-    },
-    {
       "name": "t3_thread_configure",
       "title": "Configure a T3 thread",
-      "description": "Set a thread's provider, model and options with the existing selection command. Omit threadId for this thread. This does not change permission modes. Use orchestrator_capabilities to choose a selection.",
+      "description": "Read a thread's provider, model, and modes, or set its provider, model, and options with `modelSelection`. Omit `threadId` for this thread. Permission modes stay. Values from `orchestrator_capabilities`.",
       "inputSchema": {
         "type": "object",
         "properties": {

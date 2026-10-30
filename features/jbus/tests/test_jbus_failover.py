@@ -66,7 +66,9 @@ def failed_on(thread, text, run="run-1", ran_on="claudeAgent", notice=None, at=N
 
 
 def configures(kitchen):
-    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_configure"]
+    """Return each move: a `t3_thread_configure` with only a `threadId` reads and moves nothing."""
+    calls = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_configure"]
+    return [given for given in calls if given.keys() != {"threadId"}]
 
 
 def failovers(kitchen):
@@ -593,8 +595,10 @@ def test_a_dry_run_replay_prints_the_move_and_writes_nothing(kitchen):
     assert code == 0
     assert out.startswith("dry run, nothing written: failover scratch: five_hour limit until ")
     assert f"carry-on on claudeAgent to {PRIME}" in out
-    written = {"t3_thread_configure", "t3_thread_send", "t3_thread_organize"}
-    assert not [tool for tool, _ in kitchen.t3.calls if tool in written]
+    written = {"t3_thread_send", "t3_thread_organize"}
+    assert (
+        not [tool for tool, _ in kitchen.t3.calls if tool in written] and configures(kitchen) == []
+    )
     assert ledger.read(["claudeAgent", PRIME]) == {}
     assert not [key for key in kitchen.marks() if key.startswith("failover|")]
 

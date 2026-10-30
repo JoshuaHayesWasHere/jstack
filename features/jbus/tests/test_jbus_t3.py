@@ -1,4 +1,4 @@
-"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its eight tools, and nothing else. It
+"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its seven tools, and nothing else. It
 refuses any call that changes a thread unless the call has the one form jbus makes, and it refuses
 the call before it goes out. When the sign-in is about to run out, it says so on the first pass of
 each day.
@@ -21,7 +21,7 @@ import pytest
 
 import jbus
 from jbus import t3
-from test_jbus_kitchen import FIXTURE, NOW, PROJECT, TOKEN
+from test_jbus_kitchen import FIXTURE, NOW, PROJECT, SELECTION, TOKEN
 
 
 def test_the_sign_in_registers_takes_the_approval_and_keeps_the_token_private(kitchen):
@@ -52,17 +52,16 @@ def test_the_test_launch_prints_the_thread_it_made(kitchen):
     assert given["message"] == "say hello and stop"
 
 
-def test_the_fixture_is_the_servers_mcp_url_its_eight_tools_and_a_token_with_no_secret():
+def test_the_fixture_is_the_servers_mcp_url_its_seven_tools_and_a_token_with_no_secret():
     assert FIXTURE["mcp_url"].endswith("/mcp")
     assert [tool["name"] for tool in FIXTURE["tools"]] == sorted(t3.TOOLS)
     assert all(tool["inputSchema"]["type"] == "object" for tool in FIXTURE["tools"])
     assert FIXTURE["token_response"]["access_token"] == "str"
 
 
-def test_a_tool_that_is_not_one_of_the_eight_is_never_called(kitchen):
+def test_a_tool_that_is_not_one_of_the_seven_is_never_called(kitchen):
     assert sorted(t3.TOOLS) == [
         "link_pull_request",
-        "t3_thread_configuration",
         "t3_thread_configure",
         "t3_thread_launch",
         "t3_thread_list",
@@ -125,6 +124,18 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
         ("t3_thread_send", {**SEND, "mode": "restart"}, "only called with mode queue"),
         ("t3_thread_send", {**SEND, "clientRequestId": ""}, "only called with mode queue"),
         ("t3_thread_send", {"threadId": "mcp:crew", "message": "a"}, "a mode and a retry key"),
+        ("t3_thread_configure", {}, "only called to read a thread, or with a thread and a model"),
+        ("t3_thread_configure", {"threadId": ""}, "names no thread to read"),
+        (
+            "t3_thread_configure",
+            {"threadId": "mcp:another", "modelSelection": {"model": "a"}},
+            "no brief has it on a Thread: line",
+        ),
+        (
+            "t3_thread_configure",
+            {"threadId": "mcp:crew", "modelSelection": {"model": "a"}, "runtimeMode": "auto"},
+            "only called to read a thread, or with a thread and a model",
+        ),
     ],
 )
 def test_a_call_that_changes_a_thread_in_any_other_form_is_refused_before_it_goes_out(
@@ -139,6 +150,15 @@ def test_a_call_that_changes_a_thread_in_any_other_form_is_refused_before_it_goe
     client.call("t3_thread_send", SEND)
     client.call("t3_thread_organize", {"action": "settle", "threadId": "mcp:crew"})
     assert [name for name, _ in kitchen.t3.calls] == ["t3_thread_send", "t3_thread_organize"]
+
+
+def test_a_read_of_any_thread_goes_out_and_changes_nothing(kitchen):
+    client = t3.Client(kitchen.t3.url, kitchen.config_dir / "t3.json")
+    kitchen.t3.thread("alpha", "completed", threadId="mcp:another")
+    read = client.call("t3_thread_configure", {"threadId": "mcp:another"})
+    assert (read["threadId"], read["modelSelection"]) == ("mcp:another", SELECTION)
+    assert kitchen.t3.calls == [("t3_thread_configure", {"threadId": "mcp:another"})]
+    assert "selection" not in kitchen.t3.threads[0]
 
 
 def test_a_send_with_no_thread_line_read_yet_is_refused(kitchen):

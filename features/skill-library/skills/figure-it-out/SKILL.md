@@ -28,7 +28,7 @@ A path such as `playbooks/<name>.md` or `principles/<name>.md` is from `$T/..`, 
 
 ## Where it runs
 
-Run this with the block at the top, with this thread's id in place of `<threadId>`: the `t3-code` server's `t3_thread_configuration` gives it as `threadId`.
+Run this with the block at the top, with this thread's id in place of `<threadId>`: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId`.
 In a session with no tool that gives the id, put nothing in its place: that thread is the root home, as in `skills/home/SKILL.md` "The block that finds this home".
 
 ```sh
