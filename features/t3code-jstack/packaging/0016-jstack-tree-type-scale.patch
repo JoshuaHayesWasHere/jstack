@@ -1,0 +1,760 @@
+From 1a9277a0b726ecd2266c026cbd14e54465df4d89 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 22:02:52 -0400
+Subject: [PATCH] feat(web): the jstack tree keeps to two type sizes and two
+ weights, and a task's stage is three segments, crew, review and merge
+
+Every name in the tree is 13px and every word beside it 11px, all at 400 but a root's name at
+500. Levels step by ink and height: a root row 32px at full ink with 16px above it, a home 28px
+at 85%, a worker 26px at 65%. A thread row under a project with no home is 13/400 and its status
+11/400.
+
+The seven stage ticks are three segments: the current one at full ink, amber when the task asks
+you, the done ones at 45% and those ahead at 25%. The part of a review (review 1, fixing,
+review 2) is only in the word. A scout draws none.
+---
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 132 ++++++++++++----
+ .../src/components/sidebar/JstackTreeRows.tsx |  66 ++++----
+ .../SidebarThreadRow.tree.browser.test.tsx    | 142 ++++++++++++++++++
+ .../components/sidebar/SidebarThreadRow.tsx   |  20 ++-
+ .../components/sidebar/jstackTree.logic.ts    |  50 +++---
+ apps/web/src/index.css                        |  17 +--
+ apps/web/src/lib/utils.ts                     |   2 +-
+ 7 files changed, 325 insertions(+), 104 deletions(-)
+ create mode 100644 apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx
+
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 06b0aa72a0..33b02408a6 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -99,7 +99,7 @@ const worker: JstackTreeRow = {
+   word: "crew",
+   tone: "plain",
+   waited: null,
+-  ticks: { step: 1, hollow: false, asks: false },
++  progress: { at: "crew", asks: false },
+   threadId: ThreadId.make("crew-pump"),
+   openThreadId: ThreadId.make("crew-pump"),
+   ask: null,
+@@ -190,16 +190,28 @@ function measure(row: HTMLElement, name: string) {
+   };
+ }
+ 
++/** The type of the first text in `row` that reads `text`, as the user sees it. */
++function typeOf(row: HTMLElement, text: string) {
++  const span = [...row.querySelectorAll<HTMLElement>("span, b")].find(
++    (element) => element.textContent === text,
++  );
++  if (span === undefined) throw new Error(`no text ${text} in the row`);
++  const style = getComputedStyle(span);
++  return { fontSize: style.fontSize, fontWeight: style.fontWeight };
++}
++
+ describe("JstackTreeRowView sizes", () => {
+-  it("steps each level down: root 36px 15/650 with 10px above, home 28px 13/450 at 90% ink, worker 24px 12/400 at 70% ink", async () => {
++  it("keeps to two sizes and two weights: root 32px 13/500 with 16px above, home 28px 13/400 at 85% ink, worker 26px 13/400 at 65% ink, and 11/400 for the rest", async () => {
+     await using screen = await render(
+       <Tree
+         actions={actions()}
+         rows={[
+           [root({ key: "jstack-home:infra", main: rootThread }), group("infra")],
+-          [root(), group("jstack")],
++          [root({ landed: 3 }), group("jstack")],
+           [home, group("jstack")],
+           [worker, group("jstack")],
++          // A folded home counts its work under its name.
++          [{ ...home, key: "jstack-home:pipe", scope: "pipe", open: false }, group("jstack")],
+         ]}
+       />,
+       { router: false },
+@@ -215,24 +227,33 @@ describe("JstackTreeRowView sizes", () => {
+     )!;
+ 
+     expect(measure(rootRow, "jstack")).toEqual({
+-      height: 36,
+-      fontSize: "15px",
+-      fontWeight: "650",
++      height: 32,
++      fontSize: "13px",
++      fontWeight: "500",
+       ink: 1,
+     });
+-    expect(getComputedStyle(rootRow.closest("li")!).marginTop).toBe("10px");
++    expect(getComputedStyle(rootRow.closest("li")!).marginTop).toBe("16px");
+     expect(measure(homeRow, "flow")).toEqual({
+       height: 28,
+       fontSize: "13px",
+-      fontWeight: "450",
+-      ink: 0.9,
++      fontWeight: "400",
++      ink: 0.85,
+     });
+     expect(measure(workerRow, "fl-pump")).toEqual({
+-      height: 24,
+-      fontSize: "12px",
++      height: 26,
++      fontSize: "13px",
+       fontWeight: "400",
+-      ink: 0.7,
++      ink: 0.65,
+     });
++    const small = { fontSize: "11px", fontWeight: "400" };
++    // The stage word, a count's word and its number, and what a root merged.
++    expect(typeOf(workerRow, "crew")).toEqual(small);
++    const tally = screen.container
++      .querySelector<HTMLElement>('[data-sidebar-row="jstack-home:pipe"]')!
++      .closest("li")!;
++    expect(typeOf(tally, "1")).toEqual(small);
++    expect(Math.round(alphaOf(getComputedStyle(tally.querySelector("b")!).color) * 100)).toBe(85);
++    expect(typeOf(rootRow, "3 merged")).toEqual(small);
+   });
+ });
+ 
+@@ -290,7 +311,7 @@ describe("JstackTreeRowView root rows", () => {
+     const row = screen
+       .getByRole("treeitem", { name: "No project 2 threads" })
+       .element() as HTMLElement;
+-    expect(measure(row, "No project")).toMatchObject({ height: 36, fontSize: "15px" });
++    expect(measure(row, "No project")).toMatchObject({ height: 32, fontSize: "13px" });
+     expect(row.textContent).toContain("2 threads");
+     expect(getComputedStyle(row.closest("li")!).opacity).toBe("0.5");
+   });
+@@ -301,7 +322,7 @@ const queued: JstackTreeRow = {
+   key: "jstack-task:jstack/fl-meter",
+   slug: "meter",
+   word: "ready",
+-  ticks: { step: 0, hollow: true, asks: false },
++  progress: { at: null, asks: false },
+   threadId: null,
+   openThreadId: ThreadId.make("flow"),
+ };
+@@ -312,7 +333,7 @@ const asking: JstackTreeRow = {
+   slug: "valve",
+   word: "asks you",
+   tone: "asks",
+-  ticks: { step: 0, hollow: true, asks: true },
++  progress: { at: null, asks: true },
+   threadId: null,
+   openThreadId: ThreadId.make("gate"),
+   ask: { what: "Which valve size?", default: null, brief: null, askedIn: "gate thread" },
+@@ -1396,35 +1417,88 @@ const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
+   ],
+ };
+ 
+-/** The tick a row's ticks stand at: the one drawn at full ink, every tick before it fainter. */
+-const tickAt = (row: Element) => {
+-  const ticks = [...row.querySelectorAll("i")];
+-  const ink = ticks.map((tick) => alphaOf(getComputedStyle(tick).backgroundColor));
+-  return { count: ticks.length, at: ink.indexOf(Math.max(...ink)) };
++/** The theme's warning colour, amber, as the browser computes it. */
++const amber = () => {
++  const probe = document.createElement("i");
++  probe.className = "bg-warning";
++  document.body.append(probe);
++  const color = getComputedStyle(probe).backgroundColor;
++  probe.remove();
++  return color;
+ };
+ 
++/** How each of a row's three segments, crew, review and merge, is drawn: amber, or its ink. */
++const segmentsOf = (row: Element) =>
++  [...row.querySelectorAll("i")].map((segment) => {
++    const color = getComputedStyle(segment).backgroundColor;
++    return color === amber() ? "amber" : Math.round(alphaOf(color) * 100) / 100;
++  });
++
+ describe("JstackTreeRowView review parts", () => {
+-  it("says which part of its review a task is in, and steps its ticks with it", async () => {
++  it("says which part of its review a task is in, and draws crew, review and merge as three segments", async () => {
+     await using screen = await render(
+       <LiveTree snapshot={REVIEW_SNAPSHOT} spies={actions()} sent={[]} />,
+       { router: false },
+     );
++    // The current segment at full ink, the done ones at 45%, those ahead at 25%.
+     const parts = [
+-      ["tidy", "crew", 1],
+-      ["first", "review 1", 2],
+-      ["fixes", "fixing", 3],
+-      ["again", "review 2", 4],
+-      ["green", "checks", 5],
+-      ["onto", "rebase", 5],
++      ["tidy", "crew", [1, 0.25, 0.25]],
++      ["first", "review 1", [0.45, 1, 0.25]],
++      ["fixes", "fixing", [0.45, 1, 0.25]],
++      ["again", "review 2", [0.45, 1, 0.25]],
++      ["green", "checks", [0.45, 0.45, 1]],
++      ["onto", "rebase", [0.45, 0.45, 1]],
+     ] as const;
+-    for (const [slug, word, step] of parts) {
++    for (const [slug, word, segments] of parts) {
+       const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
+       await expect.element(row).toBeVisible();
+       expect(shownText(row.element())).toBe(`${slug} ${word}`);
+-      expect(tickAt(row.element())).toEqual({ count: 7, at: step });
++      expect(segmentsOf(row.element())).toEqual(segments);
+     }
+     expect(await audit()).toEqual([]);
+   });
++
++  it("draws the current segment amber on a row that asks you, none lit on a queued one, and none at all for a scout", async () => {
++    const scout: JstackTreeRow = {
++      ...worker,
++      key: "jstack-task:jstack/fl-look",
++      slug: "look",
++      word: "scout",
++      taskKind: "scout",
++      progress: null,
++    };
++    const asksInReview: JstackTreeRow = {
++      ...asking,
++      key: "jstack-task:jstack/fl-gauge",
++      slug: "gauge",
++      progress: { at: "review", asks: true },
++    };
++    const jstack = group("jstack");
++    await using screen = await render(
++      <Tree
++        actions={actions()}
++        rows={[
++          [asksInReview, jstack],
++          [queued, jstack],
++          [scout, jstack],
++          [worker, jstack],
++        ]}
++      />,
++      { router: false },
++    );
++    const rowOf = (key: string) =>
++      screen.container.querySelector<HTMLElement>(`[data-sidebar-row="${key}"]`)!;
++    expect(segmentsOf(rowOf("jstack-task:jstack/fl-gauge"))).toEqual([0.45, "amber", 0.25]);
++    expect(segmentsOf(rowOf("jstack-task:jstack/fl-meter"))).toEqual([0.25, 0.25, 0.25]);
++    const scoutRow = rowOf("jstack-task:jstack/fl-look");
++    expect(segmentsOf(scoutRow)).toEqual([]);
++    // Its word still lines up with the words of the rows that draw segments.
++    const wordEnd = (row: HTMLElement, word: string) =>
++      [...row.querySelectorAll("span")]
++        .find((span) => span.textContent === word)!
++        .getBoundingClientRect().right;
++    expect(wordEnd(scoutRow, "scout")).toBe(wordEnd(rowOf("jstack-task:jstack/fl-pump"), "crew"));
++  });
+ });
+ 
+ /** A crew thread whose last turn ended at `endedAt`, or that is still in a turn. */
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 928299c072..22bb594438 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -22,15 +22,15 @@ import {
+   scopeNameProblem,
+   type JstackRootPlace,
+   type JstackTally,
+-  type JstackTicks,
+-  TICKS,
++  type JstackProgress,
++  SEGMENTS,
+   type JstackTreeRow,
+ } from "./jstackTree.logic";
+ import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
+ 
+ // jstack fork: the tree sidebar's rows. Amber is the only colour, and only for what waits on you.
+-// Each level is a size step down (option A): a root row is 36px at 15/650 with 10px above it,
+-// a home 28px at 13/450 and 90% ink, a worker 24px at 12/400 and 70% ink.
++// Names are 13/400 (a root's 13/500), words beside them 11/400; levels step by ink and height:
++// root 32px at full ink, home 28px at 85%, worker 26px at 65%.
+ // A home with no live work is its one line, which unfolds to what it finished, if anything.
+ 
+ type TreeRow = Exclude<JstackTreeRow, { kind: "loose" }>;
+@@ -97,23 +97,23 @@ function Nest(props: { depth: number; children: ReactNode }) {
+   );
+ }
+ 
+-function Ticks(props: { ticks: JstackTicks }) {
+-  const { step, hollow, asks } = props.ticks;
++/**
++ * A task's three segments, crew, review and merge: the current one at full ink, amber when the
++ * task asks you, the done ones at 45% and those ahead at 25%.
++ */
++function Segments(props: { progress: JstackProgress }) {
++  const { at, asks } = props.progress;
++  const current = at === null ? -1 : SEGMENTS.indexOf(at);
+   return (
+-    <span aria-hidden className="flex shrink-0 gap-0.5">
+-      {Array.from({ length: TICKS }, (_, index) => (
++    <span aria-hidden className="flex shrink-0 gap-0.75">
++      {SEGMENTS.map((segment, index) => (
+         <i
+-          key={index}
++          key={segment}
+           className={cn(
+-            "block h-[3px] w-1 rounded-full",
+-            index < step && "bg-sidebar-foreground/60",
+-            index > step && "bg-sidebar-muted-foreground/35",
+-            index === step &&
+-              (asks
+-                ? "bg-warning"
+-                : hollow
+-                  ? "bg-transparent ring-1 ring-inset ring-sidebar-muted-foreground/70"
+-                  : "bg-sidebar-foreground"),
++            "block h-[3px] w-2.5 rounded-full",
++            index < current && "bg-sidebar-foreground/45",
++            index > current && "bg-sidebar-foreground/25",
++            index === current && (asks ? "bg-warning" : "bg-sidebar-foreground"),
+           )}
+         />
+       ))}
+@@ -146,7 +146,7 @@ function Tally(props: { tally: JstackTally }) {
+     <div className="flex gap-2.5 px-2 pb-1 text-2xs text-sidebar-muted-foreground">
+       {parts.map((stage) => (
+         <span key={stage}>
+-          {stage} <b className="font-semibold text-sidebar-foreground/75">{props.tally[stage]}</b>
++          {stage} <b className="font-normal text-sidebar-foreground/85">{props.tally[stage]}</b>
+         </span>
+       ))}
+     </div>
+@@ -275,7 +275,7 @@ function NewChildHomeRow(props: {
+           className="flex flex-col gap-1 rounded-(--control-radius) px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+         >
+           {/* The row is named by what it shows: this label, the fields, and the hint. */}
+-          <span className="text-tree-home text-sidebar-foreground/90">New child home</span>
++          <span className="text-tree-row text-sidebar-foreground/85">New child home</span>
+           <input
+             ref={scopeRef}
+             autoFocus
+@@ -531,7 +531,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+           data-testid="jstack-tree-project"
+           data-dragging={props.dragging ? "" : undefined}
+           className={cn(
+-            "group/project-folder relative mt-2.5 list-none first:mt-0",
++            "group/project-folder relative mt-4 list-none first:mt-0",
+             row.faded && "opacity-50",
+             props.dragging && "z-10 rounded-(--control-radius) bg-sidebar shadow-md",
+           )}
+@@ -572,7 +572,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             }}
+             className={cn(
+               ROW_BUTTON,
+-              "h-9 pl-8",
++              "h-8 pl-8",
+               main === null ? "pr-14" : "pr-8",
+               row.selected && "bg-sidebar-row-selected",
+               props.dragging && "cursor-grabbing",
+@@ -680,7 +680,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                   row.selected && "bg-sidebar-row-selected",
+                 )}
+               >
+-                <span className="min-w-0 flex-1 truncate text-tree-home text-sidebar-foreground/90">
++                <span className="min-w-0 flex-1 truncate text-tree-row text-sidebar-foreground/85">
+                   {row.scope}
+                 </span>{" "}
+                 {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}{" "}
+@@ -740,9 +740,9 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                   run: () => actions.onCopyName(fullSlug, "slug"),
+                 },
+               ])}
+-              className={cn(ROW_BUTTON, "h-6 text-xs font-normal")}
++              className={cn(ROW_BUTTON, "h-[26px] text-tree-row")}
+             >
+-              <span className="min-w-0 flex-1 truncate text-sidebar-foreground/70">
++              <span className="min-w-0 flex-1 truncate text-sidebar-foreground/65">
+                 {row.prefix ? (
+                   <span className="text-sidebar-muted-foreground">{row.prefix}</span>
+                 ) : null}
+@@ -819,11 +819,11 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     onContextMenu={onContextMenu}
+                     className={cn(
+                       ROW_BUTTON,
+-                      "h-6 text-xs font-normal",
++                      "h-[26px] text-tree-row",
+                       row.selected && "bg-sidebar-row-selected",
+                     )}
+                   >
+-                    <span className="min-w-0 flex-1 truncate text-sidebar-foreground/70">
++                    <span className="min-w-0 flex-1 truncate text-sidebar-foreground/65">
+                       {row.prefix ? (
+                         <span className="text-sidebar-muted-foreground">{row.prefix}</span>
+                       ) : null}
+@@ -852,13 +852,11 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                         {row.waited.kind} {row.waited.age}
+                       </span>
+                     )}
+-                    {row.ticks === null ? (
+-                      <span
+-                        aria-hidden
+-                        className="mx-[17px] size-1.5 shrink-0 rounded-full bg-sidebar-muted-foreground/60"
+-                      />
++                    {row.progress === null ? (
++                      // A scout has no segments: the space keeps its word in line with theirs.
++                      <span aria-hidden className="w-9 shrink-0" />
+                     ) : (
+-                      <Ticks ticks={row.ticks} />
++                      <Segments progress={row.progress} />
+                     )}
+                   </button>
+                 }
+@@ -945,7 +943,7 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+               onContextMenu={onContextMenu}
+               className={cn(ROW_BUTTON, "h-7")}
+             >
+-              <span className="min-w-0 flex-1 truncate text-tree-home text-sidebar-foreground/90">
++              <span className="min-w-0 flex-1 truncate text-tree-row text-sidebar-foreground/85">
+                 {row.scope}
+               </span>{" "}
+               <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
+diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx
+new file mode 100644
+index 0000000000..b639dc195c
+--- /dev/null
++++ b/apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx
+@@ -0,0 +1,142 @@
++import { DndContext } from "@dnd-kit/core";
++import { SortableContext } from "@dnd-kit/sortable";
++import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
++import type { ComponentProps } from "react";
++import { describe, expect, it, vi } from "vite-plus/test";
++
++import "~/index.css";
++import { render } from "../../../test/render";
++import { makeThreadFixture } from "../../test-fixtures";
++import { SortableThreadRow } from "./SidebarThreadRow";
++
++const environmentId = EnvironmentId.make("environment-local");
++
++/** A thread under a project with no jstack home; `done` is a finished turn not yet seen. */
++const threadOf = (id: string, title: string, done = false) => ({
++  ...makeThreadFixture({
++    environmentId,
++    projectId: ProjectId.make("project-pbus"),
++    id: ThreadId.make(id),
++    title,
++    latestRun: done
++      ? {
++          runId: `run-${id}` as never,
++          status: "completed",
++          requestedAt: "2026-10-29T20:00:00.000Z",
++          startedAt: "2026-10-29T20:00:00.000Z",
++          completedAt: "2026-10-29T21:00:00.000Z",
++          assistantMessageId: null,
++        }
++      : null,
++  }),
++  // An idle runtime reads as waiting on the user; a finished turn has none.
++  runtime: null,
++  lastVisitedAt: "2026-10-29T20:30:00.000Z",
++});
++
++type RowProps = ComponentProps<typeof SortableThreadRow>;
++
++/** The props the sidebar gives a tree row, before each test's own. */
++const treeRow = (thread: ReturnType<typeof threadOf>, overrides: Partial<RowProps> = {}) => (
++  <SortableThreadRow
++    key={thread.id}
++    sortableId={thread.id}
++    sortableDisabled
++    contextDrag={false}
++    thread={thread as never}
++    variant="tree"
++    variantAction="settle"
++    settlementSupported
++    snoozeSupported
++    pinningSupported={false}
++    isPinned={false}
++    dropVerb={null}
++    dragOverPinned={false}
++    sweepAction={null}
++    snoozeWakeLabelText={null}
++    wokeAt={null}
++    isActive={false}
++    isRouteThread={false}
++    openPullRequestsInRightPanel={false}
++    jumpLabel={null}
++    currentEnvironmentId={environmentId}
++    environmentLabel={null}
++    environmentMachine={"local" as never}
++    scratchMachineLabel={null}
++    project={null}
++    projectDisplayName="pbus"
++    providerEntryByInstanceId={new Map()}
++    timestampFormat={"relative" as never}
++    onThreadClick={vi.fn()}
++    onThreadActivate={vi.fn()}
++    onStartRename={vi.fn()}
++    onRenameTitleChange={vi.fn()}
++    onCommitRename={vi.fn()}
++    onCancelRename={vi.fn()}
++    isRenaming={false}
++    renamingTitle=""
++    onContextMenu={vi.fn()}
++    onSettle={vi.fn()}
++    onActionSweepStart={vi.fn()}
++    onUnsettle={vi.fn()}
++    onSnooze={vi.fn()}
++    onUnsnooze={vi.fn()}
++    onUnpin={vi.fn()}
++    onAcknowledgeWoke={vi.fn()}
++    {...overrides}
++  />
++);
++
++/** The type of the innermost shown text that reads `text` exactly, as the user sees it. */
++function typeOf(text: string) {
++  const shown = [...document.querySelectorAll<HTMLElement>("span, button")].findLast(
++    (element) => element.textContent === text && !element.closest(".sr-only"),
++  );
++  if (shown === undefined) throw new Error(`no text ${text} shown`);
++  const style = getComputedStyle(shown);
++  return { fontSize: style.fontSize, fontWeight: style.fontWeight };
++}
++
++describe("SidebarThreadRow tree variant", () => {
++  it("draws a thread under a project with no home at 13/400, and its time and status at 11/400", async () => {
++    const plain = threadOf("wire", "Sketch the pbus wire format");
++    const done = threadOf("names", "Name the scratch folder", true);
++    const woke = threadOf("ping", "Ping the relay");
++    const snoozed = threadOf("later", "Look at it later");
++    await using screen = await render(
++      <DndContext>
++        <SortableContext items={[plain.id, done.id, woke.id, snoozed.id]}>
++          <ul>
++            {treeRow(plain)}
++            {treeRow(done)}
++            {treeRow(woke, { wokeAt: "2026-10-29T21:00:00.000Z" })}
++            {treeRow(snoozed, { variantAction: "unsnooze", snoozeWakeLabelText: "9:00 PM" })}
++          </ul>
++        </SortableContext>
++      </DndContext>,
++    );
++    await expect.element(screen.getByText("Woke", { exact: true })).toBeVisible();
++
++    const name = { fontSize: "13px", fontWeight: "400" };
++    const small = { fontSize: "11px", fontWeight: "400" };
++    for (const title of [plain, done, woke, snoozed].map((thread) => thread.title)) {
++      expect(typeOf(title)).toEqual(name);
++    }
++    expect(typeOf("Done")).toEqual(small);
++    expect(typeOf("Woke")).toEqual(small);
++    expect(typeOf("9:00 PM")).toEqual(small);
++    // The plain row's time: the one text of its row that is neither its title nor a status.
++    const plainRow = [...screen.container.querySelectorAll("li")].find((row) =>
++      row.textContent?.includes(plain.title),
++    )!;
++    const time = [...plainRow.querySelectorAll<HTMLElement>("span")].find(
++      (span) =>
++        span.children.length === 0 &&
++        !span.closest(".sr-only") &&
++        /\d|now/.test(span.textContent ?? ""),
++    );
++    expect(time).toBeDefined();
++    const style = getComputedStyle(time!);
++    expect({ fontSize: style.fontSize, fontWeight: style.fontWeight }).toEqual(small);
++  });
++});
+diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
+index 8124fc7a36..3f692b46b8 100644
+--- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx
++++ b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
+@@ -1015,9 +1015,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+       aria-hidden
+       className={cn(
+         "min-w-0 flex-1 text-start transition-opacity motion-reduce:transition-none",
+-        // jstack fork: a tree row sits at a home's level, 13/450 at 90% ink.
++        // jstack fork: a tree row's title is 13/400, the tree's one name size, at 90% ink.
+         variant === "tree"
+-          ? "text-tree-home"
++          ? "text-tree-row"
+           : cn("text-sm", shouldRecede ? "font-normal" : "font-medium"),
+         variant === "tree"
+           ? cn(
+@@ -1293,7 +1293,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+                     )}
+                   >
+                     {variantAction === "unsnooze" && props.snoozeWakeLabelText !== null ? (
+-                      <span className="inline-flex items-center gap-1 text-xs text-info-foreground tabular-nums">
++                      <span
++                        className={cn(
++                          "inline-flex items-center gap-1 text-info-foreground tabular-nums",
++                          tree ? "text-2xs" : "text-xs",
++                        )}
++                      >
+                         {/* The clock tells a wake time from an age at a glance. */}
+                         <AlarmClockIcon aria-hidden className="size-3" />
+                         {props.snoozeWakeLabelText}
+@@ -1306,7 +1311,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+                               type="button"
+                               aria-label="Dismiss Woke notification"
+                               onClick={handleAcknowledgeWokeClick}
+-                              className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-xs font-medium text-warning-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++                              className={cn(
++                                "inline-flex cursor-pointer items-center gap-1 rounded-sm text-warning-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
++                                // jstack fork: a tree row's status is 11/400, as the tree's words are.
++                                tree ? "text-2xs" : "text-xs font-medium",
++                              )}
+                             >
+                               <AlarmClockIcon aria-hidden className="size-3" />
+                               <span role="status">Woke</span>
+@@ -1329,7 +1338,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+                       // Folder rows have no status line, so the status takes the time slot.
+                       <span
+                         className={cn(
+-                          "inline-flex items-center gap-1 text-xs font-medium",
++                          "inline-flex items-center gap-1",
++                          tree ? "text-2xs" : "text-xs font-medium",
+                           topStatus.className,
+                         )}
+                       >
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 4ec30f0d80..49fc71ce96 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -52,14 +52,17 @@ export interface JstackTreeOptions {
+   readonly rowCap: number;
+ }
+ 
++/** The three things a task goes through to merge, one segment each on its row. */
++export const SEGMENTS = ["crew", "review", "merge"] as const;
++
++export type JstackSegment = (typeof SEGMENTS)[number];
++
+ /**
+- * One tick for each step a task takes to merge, `TICKS` of them: queue, crew, the first review,
+- * fixing its findings, the second review, checks, and merge. A hollow tick is queued work or a
+- * quiet crew.
++ * Where a task stands of `SEGMENTS`: null while it is queued, before its crew. The part of its
++ * review (review 1, fixing, review 2) is only in its word.
+  */
+-export interface JstackTicks {
+-  readonly step: number;
+-  readonly hollow: boolean;
++export interface JstackProgress {
++  readonly at: JstackSegment | null;
+   readonly asks: boolean;
+ }
+ 
+@@ -147,8 +150,8 @@ export type JstackTreeRow =
+       readonly word: string;
+       readonly tone: "asks" | "plain";
+       readonly waited: JstackWaited | null;
+-      /** null for a scout, which draws one dot. */
+-      readonly ticks: JstackTicks | null;
++      /** null for a scout, which draws no segments. */
++      readonly progress: JstackProgress | null;
+       /** null until jbus launches the task. */
+       readonly threadId: ThreadId | null;
+       /** What a click opens: the task's thread, else the thread that asks about it, else its home. */
+@@ -300,26 +303,26 @@ interface Worker {
+ 
+ type JstackGroup = Worker["stage"];
+ 
+-/** What a row shows for each stage: its word, its tick, its tally's group and its rank. */
++/** What a row shows for each stage: its word, its segment, its tally's group and its rank. */
+ const STAGES: Record<
+   JbusWorkStage,
+   {
+     readonly word: string;
+-    readonly step: number;
++    readonly segment: JstackSegment | null;
+     readonly group: JstackGroup;
+     readonly rank: number;
+   }
+ > = {
+-  ready: { word: "ready", step: 0, group: "queue", rank: 4 },
+-  behind: { word: "behind", step: 0, group: "queue", rank: 5 },
+-  crew: { word: "crew", step: 1, group: "crew", rank: 2 },
+-  quiet: { word: "crew", step: 1, group: "crew", rank: 2 },
+-  review: { word: "review 1", step: 2, group: "review", rank: 3 },
+-  findings: { word: "fixing", step: 3, group: "review", rank: 3 },
+-  second: { word: "review 2", step: 4, group: "review", rank: 3 },
+-  check: { word: "checks", step: 5, group: "review", rank: 3 },
+-  // A rebase is the last thing between a pull request and its merge, as its checks are.
+-  rebase: { word: "rebase", step: 5, group: "review", rank: 3 },
++  ready: { word: "ready", segment: null, group: "queue", rank: 4 },
++  behind: { word: "behind", segment: null, group: "queue", rank: 5 },
++  crew: { word: "crew", segment: "crew", group: "crew", rank: 2 },
++  quiet: { word: "crew", segment: "crew", group: "crew", rank: 2 },
++  review: { word: "review 1", segment: "review", group: "review", rank: 3 },
++  findings: { word: "fixing", segment: "review", group: "review", rank: 3 },
++  second: { word: "review 2", segment: "review", group: "review", rank: 3 },
++  // Checks and a rebase are the last things between a pull request and its merge.
++  check: { word: "checks", segment: "merge", group: "review", rank: 3 },
++  rebase: { word: "rebase", segment: "merge", group: "review", rank: 3 },
+ };
+ 
+ /** The stages in which a task's pull request is open. */
+@@ -357,9 +360,6 @@ const waitedOf = (
+     : { kind: "stalled", age: formatAge(minutes), reason: null };
+ };
+ 
+-/** How many ticks a task's row draws: one for each step, and the merge. */
+-export const TICKS = 7;
+-
+ const toWorker = (
+   input: JstackTreeInput,
+   task: JbusTask,
+@@ -376,7 +376,6 @@ const toWorker = (
+     gate ?? (task.threadId === null ? undefined : gateThreads.get(task.threadId)) ?? null;
+   const asks = task.waitsOn !== null || question !== null || waitsOnUser(thread);
+   const waited = waitedOf(input, task, thread);
+-  const quietShown = waited?.kind === "quiet";
+   const scout = task.kind === "scout";
+   const stage = STAGES[task.stage];
+   const [word, rank] = asks
+@@ -384,7 +383,6 @@ const toWorker = (
+     : scout
+       ? ["scout", 2]
+       : [stage.word, waited === null || waited.kind === "held" ? stage.rank : 1];
+-  const step = stage.step;
+   const prefix =
+     home.prefix !== null && task.slug.startsWith(home.prefix) && task.slug !== home.prefix
+       ? home.prefix
+@@ -409,7 +407,7 @@ const toWorker = (
+       word,
+       tone: asks ? "asks" : "plain",
+       waited,
+-      ticks: scout ? null : { step, hollow: step === 0 || quietShown, asks },
++      progress: scout ? null : { at: stage.segment, asks },
+       threadId: task.threadId,
+       openThreadId,
+       ask:
+diff --git a/apps/web/src/index.css b/apps/web/src/index.css
+index 2ad7223f08..dd05f9bcef 100644
+--- a/apps/web/src/index.css
++++ b/apps/web/src/index.css
+@@ -188,15 +188,14 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
+   --text-4xs--line-height: 1;
+   --text-5xs: 0.4375rem;
+   --text-5xs--line-height: 1;
+-  /* jstack fork: the tree sidebar's root rows (15/650) and home rows (13/450), a size
+-     step apart so a project never reads as one of its homes. */
+-  --text-tree-root: 0.9375rem;
+-  --text-tree-root--line-height: calc(1.25 / 0.9375);
+-  --text-tree-root--letter-spacing: -0.01em;
+-  --text-tree-root--font-weight: 650;
+-  --text-tree-home: 0.8125rem;
+-  --text-tree-home--line-height: calc(1.125 / 0.8125);
+-  --text-tree-home--font-weight: 450;
++  /* jstack fork: the tree sidebar's names, its roots at 13/500 and every other row at 13/400.
++     With text-2xs (11/400) beside them, the tree keeps to two sizes and two weights. */
++  --text-tree-root: 0.8125rem;
++  --text-tree-root--line-height: calc(1.25 / 0.8125);
++  --text-tree-root--font-weight: 500;
++  --text-tree-row: 0.8125rem;
++  --text-tree-row--line-height: calc(1.25 / 0.8125);
++  --text-tree-row--font-weight: 400;
+   /* Motion. drawer is the decelerating curve for surfaces that slide or pop in
+      (composer context, pills). */
+   --inset-shadow-control-highlight: 0 1px rgb(255 255 255 / 16%);
+diff --git a/apps/web/src/lib/utils.ts b/apps/web/src/lib/utils.ts
+index db8ed015dc..e645033b67 100644
+--- a/apps/web/src/lib/utils.ts
++++ b/apps/web/src/lib/utils.ts
+@@ -9,7 +9,7 @@ import { DraftId } from "../composerDraftStore";
+ // treat text-2xs or bg-composer-seam-below as colors.
+ const twMerge = extendTailwindMerge({
+   extend: {
+-    theme: { text: ["2xs", "3xs", "4xs", "5xs", "tree-root", "tree-home"] },
++    theme: { text: ["2xs", "3xs", "4xs", "5xs", "tree-root", "tree-row"] },
+     classGroups: { "bg-image": [{ bg: ["composer-seam-below", "composer-seam-above"] }] },
+   },
+ });
+-- 
+2.56.0
+
