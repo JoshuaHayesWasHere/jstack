@@ -393,7 +393,10 @@ def test_a_bot_answer_closes_a_two_way_gate_and_is_refused_on_a_gate_that_holds(
     assert status == 409
     assert said["error"] == (
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code or on a Lavish page, answers it, so it stays open"
+        "Code or on a Lavish page, answers it, so it stays open. It closes with jbus --as user "
+        f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
+        "answer that is not the default, where the message is user's own in T3 Code: --by and "
+        "--at cannot close it"
     )
     assert (said["act"]["outcome"], said["act"]["action"]["doors"]) == (
         "refused",
@@ -499,7 +502,9 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     assert said["error"] == (
         f"refused: question {numbers['door']} keeps the go of door, whose brief holds for "
         "rewrites history: only user's own word, read in T3 Code or on a Lavish page, answers it, "
-        "so it stays open"
+        f"so it stays open. It closes with jbus --as user answer {numbers['door']} --default "
+        "--message <thread id>/<message id>, or --differs for an answer that is not the default, "
+        "where the message is user's own in T3 Code: --by and --at cannot close it"
     )
     assert rows(kitchen)["door"]["approved"] == ""
     assert questions.question(kitchen.state, numbers["door"]).answer is None

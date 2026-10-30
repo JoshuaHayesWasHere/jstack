@@ -83,6 +83,12 @@ GO_OPTIONS = {
 """The option of `jbus queue approve` that each source `--evidence` may spell is."""
 GO_GATE = "may {slug} go? Its brief holds for {case}"
 _GO_GATE_HOLDS = "keeps the go of {slug}, whose brief holds for {cases}"
+HELD_ANSWER = (
+    "It closes with jbus --as user answer {number} --default --message <thread id>/<message id>, "
+    "or --differs for an answer that is not the default, where the message is {user}'s own in "
+    "T3 Code: --by and --at cannot close it"
+)
+"""How a held question closes, said with its refusal so a home hands the user one command."""
 UNCHECKED_USER = (
     "refused: --as user acts on the user's own words that jbus reads itself, --message "
     "<thread>/<message> or --page <session>/<entry>, and this act has {source} words"
@@ -284,7 +290,8 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         )
         line = (
             f"refused: question {number} {why}: only {run.user.user}'s own word, read in T3 "
-            "Code or on a Lavish page, answers it, so it stays open"
+            "Code or on a Lavish page, answers it, so it stays open. "
+            + HELD_ANSWER.format(number=number, user=run.user.user)
         )
         return action, "refused", line, number
     try:

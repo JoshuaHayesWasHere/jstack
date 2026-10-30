@@ -114,6 +114,8 @@ On `no open questions`, say nothing about gates.
 On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read.
 One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it.
 For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe.
+Give them the one command that closes it: `jbus --as user answer <n> --default --message <thread id>/<message id>`, or `--differs` for an answer that is not the default, where the message is their own answer in T3 Code.
+"Close one" below cannot close it, since jbus refuses `--by` and `--at` words on a question that holds.
 Ask for nothing more than the answer.
 
 Two or more open questions are one round of the grill page, wherever the grilling skill's "On a page" (`$T/../skills/grilling/SKILL.md`, read it now) puts a round on a page. Each set of open questions has a page of its own: do its step 1 with `gates-<n>` as the `<slug>`, `<n>` being the highest number among them, and for a scoped home `gates-<scope>-<n>`. Then run this in place of its step 2:
@@ -228,5 +230,6 @@ esac
 `default` is an answer that keeps the default the thread took, and `differs` one that does not: only the one who heard the answer knows which, so words such as "yes" are read against the question's default before the block is run. On `answered: question <number>`, the question is closed, and this home sends nothing and undoes nothing: jbus carries an answer that differs to the thread that asked, with the question's undo line, on its next pass. For a question this home asked under its own slug there is no thread to tell: change the plan entry it touches, or write the new brief. Where jbus says the slug `has no Thread: line`, or the thread is finished or its pull request merged, the answer is work for a new brief.
 
 On `not answered: jbus said: refused:` the question is as it was. `only <name> answers` gives the name `--by` takes, and `--at is "<YYYY-MM-DD HH:MM ZONE>"` the form of the time: set that line and run it again. `was answered already` prints the first answer, which stands: the user answered it elsewhere, and a second answer is theirs to give as a new word, not as this question's.
+A refusal that says the question `holds` ends with the `jbus --as user answer` command that closes it: give the user that command, since no `--by` and `--at` closes it.
 
 A gate that came as a `<slug>: gate` message is one jbus could not take, so jbus holds no question for it and no command closes it: this thread is its record. Give it to the user in two lines, and send an answer that differs to the thread on its `Asked by:` line yourself (`t3_thread_send`, the answer and the gate's `Undo:` line). It is the one answer a home carries. Until it is answered, the handoff's note carries it under its labels, whole: nothing else outlasts this thread.
