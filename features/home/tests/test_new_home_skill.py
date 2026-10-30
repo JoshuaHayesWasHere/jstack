@@ -425,6 +425,18 @@ def test_a_repo_that_names_no_check_command_gets_one_line_and_no_branch(machine)
     assert not (machine.state / "fresh-check").exists()
 
 
+def test_a_repo_with_a_fresh_check_but_no_workflow_and_no_check_command_is_not_already(machine):
+    machine.origin()
+    machine.state.mkdir(parents=True)
+    (machine.state / "fresh-check").write_text("uv run pytest\n")
+    assert machine.merge("none") == [
+        "4 to merge: needs you: the repo names no check command: give it one, such as a check "
+        "target in its Makefile, then type /new-home again",
+        switches(machine),
+    ]
+    assert machine.sha("refs/heads/jstack-check") == ""
+
+
 def test_with_no_makefile_check_the_command_must_be_filled_in(machine):
     machine.origin()
     assert machine.merge() == [

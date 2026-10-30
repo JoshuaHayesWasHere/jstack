@@ -166,6 +166,13 @@ case $C in
         told=$((told + 1))
         printf '4 to merge: %s\n' "${1}"
     }
+    unnamed=
+    nameless() {
+        if [ -z "$unnamed" ]; then
+            unnamed=yes
+            need "the repo names no check command: give it one, such as a check target in its Makefile, then type /new-home again"
+        fi
+    }
     reports() {
         grep -qsE 'pull_request([^_]|$)' "${1}" && awk '
             function close_job() {
@@ -203,7 +210,7 @@ case $C in
         if [ -f "$flow" ] && reports "$flow"; then checked=$flow; break; fi
     done
     flow=.github/workflows/check.yml
-    if [ -z "$checked" ] && [ -n "$sha" ] && [ "$K" != none ]; then
+    if [ -z "$checked" ] && [ -n "$sha" ]; then
         tmp=$(mktemp -d)
         if ! git -C "$C" cat-file -e "$sha^{commit}" 2> /dev/null; then
             need "git -C $C fetch origin, then type /new-home again: $default's tip is not in the checkout, and the check workflow is built on it"
@@ -215,6 +222,8 @@ case $C in
         fi
         if [ -n "$checked" ] || [ "$lacks" -gt 0 ]; then
             :
+        elif [ "$K" = none ]; then
+            nameless
         elif git -C "$C" rev-parse -q --verify refs/heads/jstack-check > /dev/null; then
             if git -C "$C" cat-file -e "refs/heads/jstack-check:$flow" 2> /dev/null; then
                 say "already, branch jstack-check adds $flow: push it and merge it as the repo's first pull request"
@@ -244,7 +253,7 @@ case $C in
     if [ -s "$H/fresh-check" ]; then
         :
     elif [ "$K" = none ]; then
-        need "the repo names no check command: give it one, such as a check target in its Makefile, then type /new-home again"
+        nameless
     elif [ -d "$H" ] && printf '%s\n' "$K" 2> /dev/null > "$H/fresh-check"; then
         say "done, wrote $K to $H/fresh-check, the repo's check command, which also has jmerge prove each pull request over today's main"
     else
