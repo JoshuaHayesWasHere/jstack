@@ -81,8 +81,9 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token():
         r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|docs\.github\.com|[^/]*[<{$].*)"
     )
     own = re.search(r"^github=(\S+)$", (REPO / "install.sh").read_text(), re.M)[1]
+    raw = own.replace("//github.com/", "//raw.githubusercontent.com/")
     for path in files:
-        text = path.read_text().replace(own, "")
+        text = path.read_text().replace(own, "").replace(raw, "")
         for host in re.findall(r"https?://([^\s\"'`)>/]*)", text):
             assert allowed.match(host) or host == "", f"{path.name}: {host}"
         assert not re.search(r"Bearer [A-Za-z0-9_-]{20,}", text), path.name
