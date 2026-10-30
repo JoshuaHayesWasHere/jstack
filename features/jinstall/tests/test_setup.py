@@ -436,6 +436,6 @@ def test_the_skill_with_no_checkout_and_no_jinstall_names_the_release_install(tm
     said = done.stdout.splitlines()
     assert said[0].startswith("not set up: ")
     assert said[1] == (
-        "needs you: curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/"
-        "download/install.sh | sh"
+        "needs you: curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/"
+        "install.sh | sh"
     )

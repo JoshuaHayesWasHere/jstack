@@ -24,11 +24,14 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 5. A plateau is not a stop. After three rounds in which no line moved, read the log, then change the approach: another cause, a smaller step, the check itself read again. Stop only when the predicate command exits zero, or at a real dead end, which is a line that no change inside **Where** can make hold. Then the Result says `Status: blocked`, the line, and what was tried, from the log. Never edit the predicate command so that a line holds.
 6. Check the log as "Check the log before handing over" in the log skill says. Run the predicate command once more on the committed head with `git status --porcelain` printing nothing, and keep what it prints for the `Proof:` line.
 7. Run `features/writing/playbooks/opening-a-pr.md`.
-   With a pull request open the run goes on as `skills/crew/SKILL.md` "Stay on the pull request" says: the watch wakes this thread, and a failed check or a finding is one more round.
+   With a pull request open the run goes on as `skills/crew/SKILL.md` "Stay on the pull request" says: a message from jbus, the reviewer, the home or the user wakes this thread, and a failed check or a finding is one more round.
 
 Never done here, and who does it:
 
-- **A timer, a loop or a watcher that wakes this thread.** Nobody arms one. Before the pull request the run is this thread's turn. After it, `watch_pull_request` wakes the thread.
+- **A timer, a loop or a watcher that wakes this thread.**
+  Nobody arms one, a pull request watch of T3's included.
+  Before the pull request the run is this thread's turn.
+  After it, jbus reads the pull request on each pass and sends this thread a message only when there is something for it to do.
 - **A fix outside the brief's Where, in a pull request of its own.**
   It is a row, queued as `templates/a-fault-outside.md` says.
 - **Loosening "Done when".** The user does, in this thread or through the home. A line you think is wrong is a gate, and the run goes on to the line as written.

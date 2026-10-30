@@ -17,7 +17,9 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 3. Make the work durable: commit every uncommitted edit as one commit on the current branch, with the subject `wip: <what was in progress>`. If the check command fails at that commit, say so in the commit body in one line. A second pause after this one makes a second `wip:` commit and loses nothing (`principles/principle-make-operations-idempotent.md`). Run `git status --porcelain` and see it print nothing.
 4. Write the resume note where the next thread reads first: the brief's Result, as `templates/result.md` has it, with `Status: paused`. Each "Done when" line says holds or does not hold, and the `Proof:` line has what was run so far. The `Left:` line carries the rest, in this order: what you were doing when you stopped, the first action on resume, the files that matter (with how to get back any that sit in `/tmp`), and what would trip up a thread that has not seen this one. Write paths and commit ids, not diffs.
 5. Read the note back from disk as the thread that resumes would, with the brief and the branch and nothing else (`principles/principle-prove-it-works.md`). Whatever it could not act on is still in your head: put it in the `Left:` line.
-6. End as `skills/crew/SKILL.md` "End" says, from its step 2 on: its blocks read `Status: paused`. What you send the home, and say in this thread, also has the first action on resume. A wake that comes while you are paused is that skill's "When the watch wakes you": one line in the Result, and the turn ends.
+6. End as `skills/crew/SKILL.md` "End" says, from its step 2 on: its blocks read `Status: paused`.
+   What you send the home, and say in this thread, also has the first action on resume.
+   A wake that comes while you are paused is that skill's block under "Stay on the pull request", after "What wakes this thread is a message", that reads `Status: paused`: one line in the Result saying what woke you, and the turn ends.
 
 Never done here, and who does it:
 

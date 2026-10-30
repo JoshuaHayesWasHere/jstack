@@ -40,7 +40,7 @@ elif J=$(command -v jinstall); then
     set -- "$J"
 else
     echo "not set up: no ~/.claude/skills/setup-pstack or ~/.agents/skills/setup-pstack links into a jstack checkout, and no jinstall is on PATH. Nothing is done."
-    echo "needs you: curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh"
+    echo "needs you: curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh"
 fi
 if [ "$#" -gt 0 ]; then
     said=$("$@" --setup 2>&1)
