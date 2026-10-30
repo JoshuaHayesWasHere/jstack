@@ -240,6 +240,72 @@ def test_a_scout_row_is_done_on_its_report_and_a_row_that_depends_on_it_then_lau
     assert "crew: build" in [one["title"] for one in kitchen.t3.launches]
 
 
+def judged(kitchen, slug):
+    """Return the row's line of `work.json`, as the last pass wrote it."""
+    kept = json.loads((kitchen.state / "work.json").read_text())
+    return {one["key"]: one for one in kept["work"] if one["kind"] == "row"}[slug]
+
+
+def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen):
+    """The tree reads a scout row's `scout` from `work.json`: queued until it launches, scouting
+    while its thread works or its Report does not say done, and report in once its Report says
+    `Status: done`. The row's other fields, which jview and the digest read, say what they did."""
+    add(kitchen, "look")
+    kitchen.poll()
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("queued", "unapproved", "user")
+    assert rows(kitchen)["look"]["status"] == "queued"
+
+    assert go(kitchen, "look")[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=3))
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"]) == ("scouting", "launching")
+    assert rows(kitchen)["look"]["status"] == "launched"
+
+    scout_thread(kitchen, "look")["status"] = "running"
+    kitchen.poll(NOW + timedelta(minutes=6))
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("scouting", "working", "scout")
+    assert rows(kitchen)["look"]["status"] == "running"
+
+    reported(kitchen, "look", status="not done")
+    kitchen.poll(NOW + timedelta(minutes=9))
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("scouting", "leftover", "user")
+    assert rows(kitchen)["look"]["status"] == "left"
+
+    reported(kitchen, "look")
+    kitchen.poll(NOW + timedelta(minutes=12))
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")
+    assert rows(kitchen)["look"]["status"] == "done"
+
+    scout_thread(kitchen, "look")["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=15))
+    assert (judged(kitchen, "look")["scout"], rows(kitchen)["look"]["status"]) == (
+        "report in",
+        "done",
+    )
+
+
+def test_a_scout_row_a_crewmates_brief_took_over_has_no_scout_state(kitchen):
+    """Once the brief a scout delivered takes its row over, the row is a crewmate's and is closed
+    as a scout's, so `work.json` gives it no `scout`."""
+    kitchen.config(max_running=8)
+    add(kitchen, "look")
+    go(kitchen, "look")
+    kitchen.poll()
+    reported(kitchen, "look")
+    scout_thread(kitchen, "look")["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert judged(kitchen, "look")["scout"] == "report in"
+
+    assert kitchen.main("queue", "add", "look", "--priority", "1", stdin=brief("look"))[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=6))
+
+    assert "scout" not in judged(kitchen, "look")
+
+
 def test_the_brief_a_scout_delivers_at_its_slug_takes_over_its_row_once_its_report_is_done(kitchen):
     kitchen.config(max_running=8)
     add(kitchen, "look", "--entry", "epic")
