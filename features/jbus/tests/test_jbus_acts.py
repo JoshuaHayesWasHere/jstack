@@ -393,7 +393,10 @@ def test_a_bot_answer_closes_a_two_way_gate_and_is_refused_on_a_gate_that_holds(
     assert status == 409
     assert said["error"] == (
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code or on a Lavish page, answers it, so it stays open"
+        "Code or on a Lavish page, answers it, so it stays open. It closes with jbus --as user "
+        f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
+        "answer that is not the default, where the message is user's own in T3 Code: --by and "
+        "--at cannot close it"
     )
     assert (said["act"]["outcome"], said["act"]["action"]["doors"]) == (
         "refused",
@@ -408,19 +411,32 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     code, said = kitchen.main(
         "answer", str(held), "--by", "user", "--at", "2026-10-12 11:00 ET", "--default", "yes"
     )
-    assert (code, said.startswith(f"refused: question {held} holds (rewrites history)")) == (
+    assert (code, said) == (
         1,
-        True,
+        f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
+        "Code or on a Lavish page, answers it, so it stays open. It closes with jbus --as user "
+        f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
+        "answer that is not the default, where the message is user's own in T3 Code: --by and "
+        "--at cannot close it\n",
     )
     assert questions.question(kitchen.state, held).answer is None
     assert [
         (one["party"]["kind"], one["evidence"]["source"], one["outcome"]) for one in logged(kitchen)
     ] == [("home", "typed", "refused")]
     kitchen.t3.says(HOME, MESSAGE, "yes")
+    code, said = kitchen.main("--as", "user", "answer", str(held), "--default", "--message", REF)
+    assert code == 0, said
+    assert questions.question(kitchen.state, held).answer.keeps
+    other = ASK.replace("which one?", "which other history?").replace(
+        "Option:", f"{HOLDS}{SAFE}Option:", 1
+    )
+    assert kitchen.main("gate", "alpha", stdin=other)[0] == 0
+    spelled = questions.read(kitchen.state)[-1].number
     code, said = kitchen.main(
-        "--as", "user", "--evidence", f"t3-message:{REF}", "answer", str(held), "--default"
+        "--as", "user", "--evidence", f"t3-message:{REF}", "answer", str(spelled), "--default"
     )
     assert code == 0, said
+    assert questions.question(kitchen.state, spelled).answer.keeps
     code, said = kitchen.main(
         "--as",
         "user",
@@ -496,7 +512,9 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     assert said["error"] == (
         f"refused: question {numbers['door']} keeps the go of door, whose brief holds for "
         "rewrites history: only user's own word, read in T3 Code or on a Lavish page, answers it, "
-        "so it stays open"
+        f"so it stays open. It closes with jbus --as user answer {numbers['door']} --default "
+        "--message <thread id>/<message id>, or --differs for an answer that is not the default, "
+        "where the message is user's own in T3 Code: --by and --at cannot close it"
     )
     assert rows(kitchen)["door"]["approved"] == ""
     assert questions.question(kitchen.state, numbers["door"]).answer is None

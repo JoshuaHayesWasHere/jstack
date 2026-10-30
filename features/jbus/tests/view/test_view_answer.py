@@ -162,7 +162,10 @@ def test_each_answer_of_the_view_is_an_act_and_one_to_a_gate_that_holds_is_refus
     assert (status, refused["say"]) == (
         409,
         f"Question {held} did not close: question {held} holds (publishes): only user's own "
-        "word, read in T3 Code or on a Lavish page, answers it, so it stays open.",
+        "word, read in T3 Code or on a Lavish page, answers it, so it stays open. It closes with "
+        f"jbus --as user answer {held} --default --message <thread id>/<message id>, or --differs "
+        "for an answer that is not the default, where the message is user's own in T3 Code: --by "
+        "and --at cannot close it.",
     )
     assert kept(scene.state)[held].answer is None
     logged = [
