@@ -44,6 +44,7 @@ from test_room import BIN, FRESH, IDLE, machine
 from testing.paths import REPO
 
 FIXTURE = json.loads((REPO / "features/jbus/tests/fixtures/t3/jbus-mcp.json").read_text())
+LISTED = {tool["name"] for tool in FIXTURE["tools"]} | {"t3_thread_update"}
 NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 KEY = "a-key-for-the-test"
 TOKEN = "a-token-for-the-test"
@@ -237,6 +238,10 @@ class T3(Server):
         if self.status != 200 and asked.get("params", {}).get("name") == "t3_thread_launch":
             self.launches.append(asked["params"]["arguments"])
             return self.reply(handler, {"error": "the server fell over"}, self.status)
+        if asked["method"] == "tools/call" and asked["params"]["name"] not in LISTED:
+            refused = {"code": -32602, "message": f"Tool '{asked['params']['name']}' not found"}
+            said = {"jsonrpc": "2.0", "id": asked["id"], "error": refused}
+            return self.reply(handler, said, headers=[("mcp-session-id", "a-session")])
         result = self.result(asked)
         if result is None:
             handler.close_connection = True
@@ -322,20 +327,19 @@ class T3(Server):
                 if thread["threadId"] == given["threadId"]:
                     thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
-        elif tool == "t3_thread_configuration":
+        elif tool == "t3_thread_configure":
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if not found:
                 return gone(given["threadId"], "is no longer available")
             (thread,) = found
+            if "modelSelection" in given:
+                thread["selection"] = given["modelSelection"]
             made = {
                 "threadId": given["threadId"],
                 "modelSelection": thread.get("selection") or SELECTION,
                 "runtimeMode": "full-access",
+                "interactionMode": "default",
             }
-        elif tool == "t3_thread_configure":
-            (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
-            thread["selection"] = given["modelSelection"]
-            made = {"threadId": given["threadId"], "modelSelection": given["modelSelection"]}
         elif tool == "link_pull_request":
             made = {"url": given["url"], "alreadyLinked": False}
         elif tool == "t3_thread_organize":
