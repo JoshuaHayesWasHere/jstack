@@ -220,7 +220,7 @@ class Retiring:
         )
 
     def retires(self):
-        """You retire child a: its home writes its note and hands off. Return what the close
+        """You retire child a: its home writes its note and is archived. Return what the archive
         prints, but its line about scheduled tasks."""
         from test_home_thread import NOTE
         from test_scoped_handoff import WHERE
@@ -237,14 +237,13 @@ def retiring(kitchen, tmp_path):
     return Retiring(kitchen, tmp_path / "retiring")
 
 
-def test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired(retiring):
-    """NoRetireWithOpen, along bug 1 of the chart. 1. The root makes child a: the scope `sc` has
+def test_retire_hands_over_a_child_archived_with_its_crew_out_leaves_it_to_the_root(retiring):
+    """RetireHandsOver, along bug 1 of the chart. 1. The root makes child a: the scope `sc` has
     its home. 2. Child a launches a crew: a jbus pass launches the scope's approved row. 3. You
-    retire child a: its home hands off with no open entry in its plan, and the scope stays open,
-    with a next home, while its crew is out. Once the row is over, the same handoff closes it."""
+    retire child a: its home is archived while its crew is out, the note lists the row as moved
+    to the root, and the row's brief is the root home's by the rule every thread and jbus ask."""
+    from jbriefs import home as homes
     from test_jbus_queue import add, brief, rows
-    from test_jbus_row_ends import result
-    from test_scoped_handoff import CLOSED, THE_HOME
 
     kitchen = retiring.kitchen
     add(kitchen, "sc-crew", text=brief("sc-crew").replace("Home: mcp:a-home", "Home: sc"))
@@ -252,22 +251,18 @@ def test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired(retiring):
     assert any(line.startswith("launched sc-crew: ") for line in kitchen.poll(now))
     kitchen.poll(now)
     assert rows(kitchen)["sc-crew"]["status"] == "launched"
+    text = (kitchen.home / "tasks" / "sc-crew.md").read_text()
+    assert homes.home_of(kitchen.home, text) == retiring.scope
 
     said = retiring.retires()
 
-    assert said[0] == THE_HOME
-    assert any(line.startswith("kept open: ") and "sc-crew" in line for line in said), said
-    assert "Scope closed:" not in (retiring.scope / "handoff.md").read_text()
-
-    kitchen.brief("sc-crew", result())
-    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-crew"]
-    crew |= {"status": "completed", "settled": True}
-    kitchen.poll(now)
-    assert rows(kitchen)["sc-crew"]["status"] == "done"
-    (retiring.scope / "home-id").write_text(f"{retiring.child}\n")
-    again = retiring.retires()
-    assert again[0] == CLOSED, again
-    assert "\nScope closed: " in (retiring.scope / "handoff.md").read_text()
+    assert said[0].startswith(
+        "archived: scope sc is closed, and what it had out is the root home's"
+    )
+    assert "- out sc-crew: row launched" in said, said
+    assert not (retiring.scope / "plan.md").exists()
+    assert not (retiring.scope / "home-id").exists()
+    assert homes.home_of(kitchen.home, text) == kitchen.home
 
 
 def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):
@@ -465,7 +460,7 @@ def test_a_change_to_any_one_input_runs_tlc_again(cache, monkeypatch):
     ("answer", "code", "again"),
     [
         (HOLDS, 0, False),
-        ("Error: Invariant NoRetireWithOpen is violated.", 13, False),
+        ("Error: Invariant RetireHandsOver is violated.", 13, False),
         ("Temporal properties were violated.", 13, False),
         ("Error: Invariant TypeOK is violated.", 12, True),
         ("Exception in thread main: java.lang.OutOfMemoryError", 1, True),

@@ -88,16 +88,6 @@ def hard_coded(machine):
             HookGroup(settings, "UserPromptSubmit", None, "hooks/skill-tips.sh"),
         ),
         (
-            f"hook {settings} PostToolUse",
-            Level.HARD,
-            HookGroup(settings, "PostToolUse", None, "hooks/home-gauge.sh"),
-        ),
-        (
-            f"hook {settings} PreToolUse",
-            Level.HARD,
-            HookGroup(settings, "PreToolUse", None, "hooks/home-gauge.sh"),
-        ),
-        (
             f"hook {codex} SessionStart",
             Level.HARD,
             HookGroup(codex, "SessionStart", "startup", "hooks/home-start.sh", harness="codex"),

@@ -1,6 +1,7 @@
 ---- MODULE HomeTree ----
 \* A root home and two sibling child homes on one repo. Child a is short-lived: it does one
-\* feature and is retired. Child b is long-lived: a routine, a home with a declared rhythm.
+\* feature and is retired, archived by its handoff, which starts no home after it and hands what it
+\* has out to the root. Child b is long-lived: a routine, a home with a declared rhythm.
 \* Each child has one pull request, a crew thread that opens it, and two calls to Josh: a gate
 \* and an item that waits on him. The root's own message to Josh about a child's stall, its
 \* notice, is a call too. A call waits in the outbox of jbus's one route to Josh, the root's
@@ -45,7 +46,8 @@ Rank == [w \in {"calm", "nudged1", "nudged2", "nudged3", "asked"} |->
 Up(n, top) == IF n < top THEN n + 1 ELSE top
 
 VARIABLES
-    life,       \* each child: unmade, working, stuck (only the child knows), or retired
+    life,       \* each child: unmade, working, stuck (only the child knows), retired, or handed
+                \* (retired with work out, which is the root's from then on)
     work,       \* each child's crew and pull request: none, crew (running, no pull request
                 \* yet), open, ready (green and reviewed), again (it was ready and is not),
                 \* back (ready again, and it drops at most once), merged (its crew still on
@@ -65,7 +67,7 @@ VARIABLES
 vars == <<life, work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 
 TypeOK ==
-    /\ life \in [Kids -> {"unmade", "working", "stuck", "retired"}]
+    /\ life \in [Kids -> {"unmade", "working", "stuck", "retired", "handed"}]
     /\ work \in [Kids -> {"none", "crew", "open", "ready", "again", "back", "merged", "done"}]
     /\ msg \in [Msgs -> {"none", "home", "told"}]
     /\ quiet \in [Kids -> 0..Cap]
@@ -96,7 +98,10 @@ Open(m) == msg[m] \in {"home", "told"}
 Ready(k) == work[k] \in {"ready", "back"}
 WorkOut(k) == work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
 \* A child the root must watch: one with work out, or a routine, which always owes its next beat.
-Watched(k) == life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ WorkOut(k))
+\* What a handed child had out is the root's own, and the root is watched for it as for its own.
+Watched(k) ==
+    \/ life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ WorkOut(k))
+    \/ life[k] = "handed" /\ WorkOut(k)
 \* What one check does to each child's count of quiet checks.
 Ticked == [k \in Kids |-> IF Watched(k) THEN Up(quiet[k], 3 * Patience(k) + 1) ELSE 0]
 
@@ -114,8 +119,9 @@ SceneStill ==
 
 \* Rules. Each is Josh's sentence (decisions.md, 2026-10-23) or the scouts' (home-tree review).
 
-\* No child retires while a call, gate, pull request or crew thread of its is open.
-NoRetireWithOpen ==
+\* No child retires leaving a call, gate, pull request or crew thread of its with no home: a child
+\* archived with one open hands it to the root.
+RetireHandsOver ==
     \A k \in Kids : life[k] = "retired" =>
         /\ work[k] \in {"none", "done"}
         /\ \A c \in CallsOf(k) : ~Open(c)

@@ -1,9 +1,9 @@
 ---
 name: home
-description: Make this thread the home for the repo it runs in - read the repo's short handoff, plan work with the user, hand each task to a crewmate thread, and hand off to a fresh home before the context grows. Use when the user invokes /home or $home, opens a new thread to continue work in a repo, or asks to pick up where the last thread left off.
+description: Make this thread the home for the repo it runs in - read where things stand, plan work with the user, and hand each task to a crewmate thread. A home runs until it is archived with /handoff. Use when the user invokes /home or $home, opens a new thread to continue work in a repo, or asks to pick up where the last thread left off.
 user-invocable: true
 disable-model-invocation: true
-card: "Run the pipeline | 1 | Makes this thread the repo's home. It reads the last home's note and what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work. | Reach for it when you start or continue work in a repo. | op: the operator; cmd: the start hook"
+card: "Run the pipeline | 1 | Makes this thread the repo's home. It reads what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work. | Reach for it when you start or continue work in a repo. | op: the operator; cmd: the start hook"
 ---
 
 # home
@@ -17,6 +17,7 @@ R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/home/../../templates)
 whose() { if [ -z "${1}" ]; then echo "$H"; else uv run --project "$T/../source" jbus home --directory "${1}"; fi; }
+was_home() { for f in "${1}"/log/*.md "${1}/handoff.md"; do if [ -f "$f" ]; then sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$f" | head -n 1; fi; done | tail -n 1; }
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
@@ -25,6 +26,7 @@ Every block below is sh, and its last line makes zsh read them so: without it zs
 `$R` is the repo's name, the same from the main checkout and from any worktree of it.
 `$H` is the repo's state directory, which every home of the repo shares.
 `whose` prints the directory of the home a brief or a request is, by the one rule `jmerge`, jbus and every thread ask (`jbus home`, "Merging a pull request that is ready"): a block below asks it whether one is this home's.
+`was_home` prints the id of the last thread that was the home of a directory, from the `Was home:` line of its last note: the one an older handoff left as `handoff.md`, or else the newest in its `log/`.
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
 
@@ -50,11 +52,15 @@ if [ -z "$M" ]; then
 fi
 ```
 
-Run it after the block at the top, in the same call as each block below that names `$M`, with this thread's id in place of `<threadId>`: the id step 3 of "When a home starts" put on disk. In a session with no tool that gives the id, put nothing in its place: that home is the root's. On `no home:` the call stops there. This thread handed off, or another home took its place: write nothing, and tell the user. A message that reaches such a thread is not its to act on, whoever sent it: run the block under "After the handoff" in `$T/../skills/handoff/SKILL.md` and do what it prints.
+Run it after the block at the top, in the same call as each block below that names `$M`, with this thread's id in place of `<threadId>`: the id step 3 of "When a home starts" put on disk.
+In a session with no tool that gives the id, put nothing in its place: that home is the root's.
+On `no home:` the call stops there.
+This thread was archived, or another home took its place: write nothing, and tell the user.
+A message that reaches such a thread is not its to act on, whoever sent it: run the block under "After the handoff" in `$T/../skills/handoff/SKILL.md` and do what it prints.
 
 | File | Holds | Size |
 |---|---|---|
-| `$M/handoff.md` | The note the last home left: what is next, what it has out that jbus does not hold, what not to redo, what is uncommitted, and each gate jbus could not take. Rewritten at every handoff, from `handoff.next.md` beside it. | Ten lines, and its gates |
+| `$M/handoff.md` | The note a home left when a handoff still started the next home, where one is left. A start reads it, and the archive moves it to `log/`. | Ten lines, and its gates |
 | `$M/plan.md` | The work this home has planned: one entry per task, each with a "Done when" list. | Open tasks only |
 | `$M/blockers.json` | Each blocker this home briefed a fix of, with each fix queued for it, which `jbus queue add` counts against the retry cap and writes: never by hand ("Clearing its own blockers"). | One entry per blocker |
 | `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: the root home's for a brief or a request with no `Home:` line, a scoped home's for one that names its scope. | One line |
@@ -62,7 +68,8 @@ Run it after the block at the top, in the same call as each block below that nam
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
 | `$M/told` | Each decision and stop a turn's end told the user, one a line, so each is told once, and each `local` one is shown on status until a `cleared local` line ends it ("How a turn ends"). | One line per decision or stop |
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that each `merged` line of jbus's is relayed once ("Merging a pull request that is ready"). | One number |
-| `$M/log/` | Old handoffs, dated. Nobody reads these at start. | Unbounded |
+| `$M/log/` | The note of each home archived here, dated, with what it had out and its `Was home:` line, and older notes. A start reads only the last `Was home:` line ("The home before this one"). | Unbounded |
+| `$M/plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that no home, jbus or tree counts the scope. `/home <scope>` moves it back. | Open tasks only |
 | `$H/fresh-check` | The repo's check command, a crewmate's one run of the check and the line `jbus queue add` holds a brief's check line to, and the switch that has `jmerge` prove a pull request over today's main on GitHub. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
 | `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
 | `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `features/home/docs/state.md`). | Short |
@@ -309,13 +316,7 @@ Put the new thread's id on the brief's `Thread:` line with the block of step 3 o
 
 When the root home is asked for status, when the repo has more than one home, or when the user asks for a home scoped to one goal: read `$T/../skills/home/scoped-homes.md` now.
 
-## When to hand off
+## When to archive
 
-Read `$T/../skills/handoff/SKILL.md` and do its steps, then stop working in this thread, when any of these is true:
-
-- The planning the user came for is done and the tasks are handed out.
-- The user moves to a different piece of work.
-- The context is past 300,000 tokens, or this thread has been compacted once. `hooks/home-gauge.sh` tells this thread its count after every tool call from then on, and at 350,000 it refuses every tool call but the ones the handoff makes: only the handoff runs.
-- The user says so.
-
-Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked.
+Read `$T/../skills/handoff/SKILL.md` and do its steps, then stop working in this thread, only when the user says so: they type `/handoff`, choose Archive on the home in the jstack tree, or say to archive or close this home.
+A home is never archived for its context: a thread that grows long is compacted by its harness and goes on as the same home, since everything it needs is on disk and in jbus.

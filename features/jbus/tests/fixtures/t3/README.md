@@ -6,7 +6,7 @@ CI has no T3 Code, which is why the schemas are copies.
 
 | File | Tool | Called from |
 |---|---|---|
-| `t3_thread_launch.json` | `mcp__t3-code__t3_thread_launch` | the home skill (a crewmate, a durable scout, a crewmate picked up on the worktree it left), the pr-review skill (a reviewer), the handoff skill (the next home), the new-home skill (a repo's first home) |
+| `t3_thread_launch.json` | `mcp__t3-code__t3_thread_launch` | the home skill (a crewmate, a durable scout, a crewmate picked up on the worktree it left), the pr-review skill (a reviewer) the new-home skill (a repo's first home) |
 | `t3_thread_list.json` | `mcp__t3-code__t3_thread_list` | the home skill and the handoff skill (the lookup after a lost reply), the home skill (the threads with a home's title, to see whether the home before this one settled), the new-home skill (whether the thread in `home-id` is still listed as not settled) |
 | `t3_thread_update.json` | `mcp__t3-code__t3_thread_update` | the home skill (the rename), the handoff skill (the home that hands off renames itself), the expert skill (the rename at its start; the launch and the rename of a roll-over are printed by a block, and `features/expert/tests/test_expert_skill.py` holds them against these schemas) |
 | `t3_thread_send.json` | `mcp__t3-code__t3_thread_send` | `jbus.outbox.send` (each message jbus sends a thread, the review notice of `jbus.reviewed` among them), and the crew, scout, home, handoff and make-bot-ui skills, which name the tool and write no JSON for it |

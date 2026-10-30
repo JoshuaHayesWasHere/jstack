@@ -32,7 +32,7 @@ SCENES = {
     "siblings": ('{"a", "b"}', "{}", "FALSE"),
 }
 INVARIANTS = [
-    "NoRetireWithOpen",
+    "RetireHandsOver",
     "StallFlagged",
     "FirstStrike",
     "NudgesBounded",
@@ -44,7 +44,7 @@ RULES = INVARIANTS + PROPERTIES
 
 # Each guard, the rule that rests on it, and the scene that shows it.
 CANARIES = {
-    "retire-guard": ("NoRetireWithOpen", "a"),
+    "hand-over": ("RetireHandsOver", "a"),
     "keep-on-fail": ("CallsReachJosh", "a"),
     "flag": ("StallFlagged", "a"),
     "beat": ("StallFlagged", "b"),
@@ -57,7 +57,7 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
 }
 
-# Today's code keeps every rule in every scene: the four it broke (NoRetireWithOpen, StallFlagged,
+# Today's code keeps every rule in every scene: the four it broke (RetireHandsOver, StallFlagged,
 # OneMerger and NoBlindMerge) since the branch hometree-rules gave it the design's guards,
 # ReadyMerges since pull request 357, and CallsReachJosh since jbus has one route to Josh, the
 # home thread, whose failed post leaves the call in its outbox. Each scene runs with both modes,

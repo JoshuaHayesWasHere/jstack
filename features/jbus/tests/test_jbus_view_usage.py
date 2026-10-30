@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-from jbriefs import skills
 from jbus.view.panels.usage import panel as usage
 from jgauge import session
 from view.scene import NOW, Scene, Served, iso, out
@@ -221,33 +220,7 @@ def test_a_home_with_no_session_that_started_with_it_is_not_known(place, scene, 
     assert said["said"].startswith("not known: no transcript that starts with its thread under ")
 
 
-def test_the_homes_limit_is_the_one_home_gauge_holds_it_to(place, scene, served, monkeypatch):
-    monkeypatch.chdir(place)
-    script = usage.gauge().read_text()
-    held = asked(served)["limit"]
-    assert f"limit={held['limit']} ;;" in script
-    assert f"ceiling={held['ceiling']} ;;" in script
-    assert held["from"].endswith("features/home/hooks/home-gauge.sh")
+def test_the_usage_has_no_context_limit_now_that_no_hook_holds_a_home_to_one(place, scene, served):
     (scene.home_dir / "demo").mkdir(parents=True, exist_ok=True)
     (scene.home_dir / "demo" / "limit").write_text("250000\n")
-    held = asked(served)["limit"]
-    assert held["limit"] == 250000
-    assert held["from"].endswith("demo/limit")
-
-
-def test_a_release_reads_the_limit_from_the_home_gauge_its_copy_carries(
-    place, scene, served, monkeypatch
-):
-    copy = place / "release" / skills.PACKAGED
-    (copy / usage.GAUGE.parent).mkdir(parents=True)
-    (copy / skills.CATALOG).write_text('{"items": []}')
-    script = (skills.root() / usage.GAUGE).read_text()
-    script = script.replace("limit=300000 ;;", "limit=123000 ;;")
-    (copy / usage.GAUGE).write_text(script.replace("=350000", "=456000"))
-    monkeypatch.setattr(skills, "root", skills.root.__wrapped__)
-    monkeypatch.setattr(skills, "checkout", lambda: None)
-    monkeypatch.setattr(sys, "prefix", str(place / "release"))
-    monkeypatch.chdir(place)
-    held = asked(served)["limit"]
-    assert (held["limit"], held["ceiling"]) == (123000, 456000)
-    assert held["from"] == str(copy / usage.GAUGE).replace(str(Path.home()) + "/", "~/", 1)
+    assert "limit" not in asked(served)

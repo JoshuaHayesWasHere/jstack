@@ -12,7 +12,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 - A scoped home reaches the root only when it is stuck and needs steering: a stop on its own open row, which jbus takes only when another home's row or something no home owns holds it ("Stopping on the root" below), and a decision only the user can make is a gate.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
-  A scope that ends says so in its own `handoff.md`.
+  A scope that ends is archived by its home's `/handoff`, which hands what it has out to the root home.
 - A standing rule from the user becomes code, a lint, a script or a check, queued as a task by the home that heard it, and never a line in `$H/standing.md`.
   It is relayed to no home: each home meets the rule in the code it runs.
 - A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
@@ -77,6 +77,8 @@ if [ -z "$why" ]; then
     *)
         if [ -f "$H/$scope/plan.md" ]; then
             why="$scope is already a scope of $R: its home starts with /home $scope"
+        elif [ -f "$H/$scope/plan-archived.md" ]; then
+            why="$scope is an archived scope of $R: /home $scope starts its home again"
         elif [ -e "$H/$scope" ]; then
             why="$scope is there already, as $H/$scope, and is no scope"
         fi ;;
@@ -188,9 +190,9 @@ fi
 ```
 
 It prints nothing in a repo with no scope, and nothing for a scoped home.
-For each scope it prints the scope's handoff, whole, then each entry of its plan that is not done, as its heading and its `Status:` line.
+For each scope it prints a note an older handoff left there, whole, or `no handoff yet`, then each entry of its plan that is not done, as its heading and its `Status:` line.
 Last it prints the scope's rows in jbus's queue, each as its slug, status, pull request and why: what a scope no longer sends the root, its launches, pull requests and merges, is there.
 A scope with a `home-id` has a home running, and that id makes its link.
-Tell the user each scope in a line or two: what is out, what is next, and that it is closed when its handoff says so.
+Tell the user each scope in a line or two: what is out and what is next.
 The rest of an entry is in `$H/<scope>/plan.md`: read it only when the user asks about that task.
 Send the scope's home nothing.

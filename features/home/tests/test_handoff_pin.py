@@ -1,7 +1,8 @@
-"""A home pins itself at its start, and a handoff leaves nothing pointing at the old home. The tests
-run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers their
-calls. Each call the blocks make is a JSON block of a skill. The test checks the call against its
-tool's schema before the call changes anything."""
+"""A home pins itself at its start, and an archive leaves nothing that makes the old home active
+again: its tasks are switched off, and a home started later takes them over and settles it. The
+tests run the skills' own shell blocks in a temporary state directory, and a fake T3 Code answers
+their calls. Each call the blocks make is a JSON block of a skill. The test checks the call against
+its tool's schema before the call changes anything."""
 
 import itertools
 import json
@@ -175,34 +176,38 @@ class Home(Scene):
         return [*self.takes(thread), self.looks(thread)]
 
     def listed_at_handoff(self, thread, reply=None):
-        """Give the handoff's close a reply from `list_scheduled_tasks`, and run the close once
-        the note is there. Return the lines the close printed about the tasks. They come after
-        the lines that say whether to launch."""
-        if not (self.home_dir / "handoff.next.md").exists():
+        """Give the handoff's archive a reply from `list_scheduled_tasks`, and run it once the
+        note is there. Return the lines it printed about the tasks, or its first line when it
+        archived nothing."""
+        if not (self.home_dir / "handoff.next.md").exists() and self.file.exists():
             (self.home_dir / "handoff.next.md").write_text(NOTE)
-        found = block("handoff", "Scheduled task \\(").replace("<threadId>", thread)
+        found = block("handoff", "switch off \\(").replace("<threadId>", thread)
         assert TASKS in found
         reply = self.t3.listed() if reply is None else reply
         said = self.run("handoff", found.replace(TASKS, reply), self.main).stdout.splitlines()
         if said[0].startswith(("not the home", "not known")):
             return said
-        return [line for line in said[1:] if not line.startswith(("title: ", "message: "))]
+        return [line for line in said if line.startswith(("switch off ", "none: ", "not read: "))]
 
     def hands_off(self, thread, next, steps=4):
         """Run the first `steps` of the four steps a handoff ends with, then cut the turn off. The
-        first step writes the handoff and removes `home-id`. The other three launch, rename and
-        settle. The next home starts while `thread` is still in its turn, and the next home checks
-        `thread` after that turn ends. Return what the next home's start blocks said, or nothing
-        when `thread` is not the home."""
-        if not self.home_hands_off(thread).stdout.startswith("the home"):
+        first step keeps the note and removes `home-id`. The other three switch the tasks off,
+        rename and settle. A home started later in the same directory then takes the tasks and
+        checks `thread`, but not after a cut after the first step. Return what that home's start
+        blocks said, or None when it did not start or `thread` was not archived."""
+        if not self.home_hands_off(thread).stdout.startswith(("archived: ", "archived before: ")):
             return None
-        said = self.takes(next) if steps > 1 else []
+        if steps > 1:
+            off = call("handoff", "update_scheduled_task", enabled=False)
+            for said in self.listed_at_handoff(thread):
+                if said.startswith("switch off "):
+                    self.t3.call(thread, off, **{FILLED[ID]: said.split()[2].rstrip(":")})
         if steps > 2:
             self.t3.call(thread, call("handoff", "t3_thread_update"))
         if steps > 3:
             self.t3.call(thread, call("handoff", "t3_thread_organize"))
         self.t3.ends(thread, well=steps > 3)
-        return [*said, self.looks(next)] if steps > 1 else None
+        return [*self.takes(next), self.looks(next)] if steps > 1 else None
 
 
 @pytest.fixture
@@ -275,14 +280,14 @@ def test_a_reply_that_is_not_filled_in_is_said_and_names_no_task(home, reply):
     ]
 
 
-def test_the_handoff_names_the_tasks_the_next_home_takes(home):
+def test_the_handoff_names_the_tasks_it_switches_off(home):
     home.starts(THREAD)
     assert home.listed_at_handoff(THREAD) == ["none: no scheduled task posts into this thread"]
     home.t3.task(HOOK, THREAD)
     home.t3.task("scheduled-task:theirs", OTHER)
     assert home.listed_at_handoff(THREAD) == [
-        f"Scheduled task {HOOK}, jbus events: demo home: it posts into the thread that handed "
-        "off, and the next home takes it over at its start",
+        f"switch off {HOOK}: jbus events: demo home posts into this thread, and no home takes it"
+        " over",
     ]
 
 
@@ -290,32 +295,29 @@ def test_the_handoff_names_the_tasks_the_next_home_takes(home):
 def test_a_handoff_with_no_id_filled_in_does_not_say_it_has_no_task(home, thread):
     home.starts(THREAD)
     home.t3.task(HOOK, THREAD)
-    said = home.listed_at_handoff(thread)
-    if thread:
-        (line,) = said
-        assert line.startswith("not known: put this thread's id in place of the placeholder")
-        assert (home.home_dir / "handoff.next.md").exists()
-    else:
-        assert said == ["not the home: start nothing, tell the user"]
+    (line,) = home.listed_at_handoff(thread)
+    assert line.startswith("not known: put this thread's id in place of the placeholder")
+    assert (home.home_dir / "handoff.next.md").exists()
     assert home.file.read_text() == f"{THREAD}\n"
 
 
-def test_a_closed_scopes_home_switches_its_tasks_off_so_no_run_makes_it_active_again(home):
+def test_an_archived_home_switches_its_tasks_off_so_no_run_makes_it_active_again(home):
     home.starts(THREAD)
     home.t3.task(HOOK, THREAD)
     off = call("handoff", "update_scheduled_task", enabled=False)
     assert off.given == {"scheduledTaskId": FILLED[ID], "enabled": False}
+    home.home_hands_off(THREAD)
     for said in home.listed_at_handoff(THREAD):
-        assert said.startswith(f"Scheduled task {HOOK}, ")
-        home.t3.call(THREAD, off, **{FILLED[ID]: said.split()[2].rstrip(",")})
+        assert said.startswith(f"switch off {HOOK}: ")
+        home.t3.call(THREAD, off, **{FILLED[ID]: said.split()[2].rstrip(":")})
     home.t3.call(THREAD, call("handoff", "t3_thread_organize"))
     home.t3.ends(THREAD)
     home.t3.runs(HOOK)
     assert home.t3.threads[THREAD]["settled"]
     assert home.t3.tasks[HOOK] == {**home.t3.tasks[HOOK], "enabled": False, "webhookUrl": ADDRESS}
-    home.hands_off(THREAD, OTHER, steps=1)
     home.starts(OTHER)
     assert home.t3.bound(OTHER) == [HOOK]
+    assert home.t3.tasks[HOOK]["enabled"] is False
 
 
 def test_the_next_home_reads_the_last_ones_own_row_and_settles_it_if_it_is_not(home):
@@ -325,7 +327,7 @@ def test_the_next_home_reads_the_last_ones_own_row_and_settles_it_if_it_is_not(h
         f"settled: {THREAD} is settled, and a settle clears its pin"
     )
     assert home.t3.settled_by == [THREAD]
-    assert home.t3.threads[THREAD]["title"] == f"{TITLE} (handed off 2026-10-10)"
+    assert home.t3.threads[THREAD]["title"] == f"{TITLE} (archived 2026-10-10)"
     home.t3.threads[THREAD].update(settled=False, pinned=True)
     assert home.looks(OTHER) == (
         f"settle {THREAD}: the home before this one is still active, and may still be pinned"
@@ -386,8 +388,9 @@ def test_a_handoff_cut_off_anywhere_and_run_again_ends_in_the_same_state(home, c
     home.hands_off(THREAD, OTHER, steps=cut)
     home.t3.runs(HOOK)
     if again == "the handoff":
-        assert home.hands_off(THREAD, OTHER) is None
-        assert (home.home_dir / "handoff.md").read_text().endswith(f"\nWas home: {THREAD}\n")
+        assert home.home_hands_off(THREAD).stdout.startswith("archived before: ")
+        (kept,) = [path for path in (home.home_dir / "log").iterdir()]
+        assert kept.read_text().endswith(f"\nWas home: {THREAD}\n")
     home.starts(OTHER)
     assert home.starts(OTHER) == [
         f"none: no scheduled task posts into {THREAD}",
@@ -397,4 +400,4 @@ def test_a_handoff_cut_off_anywhere_and_run_again_ends_in_the_same_state(home, c
     assert home.t3.threads[THREAD]["settled"] and not home.t3.threads[OTHER]["settled"]
     assert home.t3.bound(THREAD) == [] and home.t3.bound(OTHER) == [HOOK]
     assert home.file.read_text() == f"{OTHER}\n"
-    assert (cut > 2) == home.t3.threads[THREAD]["title"].endswith("(handed off 2026-10-10)")
+    assert (cut > 2) == home.t3.threads[THREAD]["title"].endswith("(archived 2026-10-10)")

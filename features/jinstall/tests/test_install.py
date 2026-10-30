@@ -225,7 +225,6 @@ class User:
         self.layout = laid(self.home)
         self.START = group("home-start.sh", self.home)
         self.CODEX_START = group("home-start.sh", self.home, harness="codex")
-        self.GAUGE = group("home-gauge.sh", self.home, matcher=None)
         self.OUTBOUND = group("outbound-command.sh", self.home, matcher="Bash", refuses=True)
         self.TRAILER = group("ai-trailer.sh", self.home, matcher="Bash", refuses=True)
         self.SENDS = group(
@@ -740,7 +739,6 @@ def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(u
         *(f"removed {link}" for link in user.links()),
         f"removed hook {user.settings} SessionStart",
         f"removed hook {user.settings} UserPromptSubmit",
-        f"removed hook {user.settings} PostToolUse",
         f"removed hook {user.codex} SessionStart",
         f"removed patterns {user.patterns}",
         f"removed hook {user.settings} PreToolUse",
@@ -1139,43 +1137,7 @@ def test_the_trailer_hook_the_install_writes_for_each_harness_refuses_an_ai_trai
         assert done.returncode == code, done.stderr
 
 
-def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(user, tmp_path):
-    user.run()
-    written = pre_tool_use(user.settings, "home-gauge.sh")
-    assert written == user.GAUGE
-    main, transcript = tmp_path / "demo", tmp_path / "session-1.jsonl"
-    subprocess.run(["git", "init", "-q", main], check=True)
-    usage = {"input_tokens": 350000}
-    message = {"id": "m1", "model": "claude-x", "usage": usage}
-    transcript.write_text(json.dumps({"type": "assistant", "message": message}) + "\n")
-    asked = {
-        "session_id": "session-1",
-        "transcript_path": str(transcript),
-        "cwd": str(main),
-        "hook_event_name": "PreToolUse",
-        "tool_name": "Agent",
-        "tool_input": {},
-    }
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
-    done = subprocess.run(
-        written["hooks"][0]["command"],
-        shell=True,
-        input=json.dumps(asked),
-        capture_output=True,
-        text=True,
-        env=env | {"HOME": str(user.home), "T3_MCP_BEARER_TOKEN": "x"},
-    )
-    assert (done.returncode, done.stderr) == (0, "")
-    assert json.loads(done.stdout)["hookSpecificOutput"] == {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "deny",
-        "permissionDecisionReason": "context: 350000 tokens, over this home's ceiling of 350000."
-        f" Only the handoff runs now: read {user.layout / 'skills' / 'handoff' / 'SKILL.md'}"
-        " and do its steps.",
-    }
-
-
-def test_a_machine_with_the_gauge_only_after_a_tool_call_gets_it_before_one_too(user):
+def test_a_machine_with_one_hook_before_a_tool_call_gets_the_others_too(user):
     user.run()
     written = json.loads(user.settings.read_text())
     written["hooks"]["PreToolUse"] = [user.OUTBOUND]
@@ -1184,14 +1146,13 @@ def test_a_machine_with_the_gauge_only_after_a_tool_call_gets_it_before_one_too(
     code, said = user.run("--check")
     assert (code, line_for(said, part)) == (
         1,
-        [*[f"missing hard {part}"] * 4, f"ok hard {part}"],
+        [*[f"missing hard {part}"] * 3, f"ok hard {part}"],
     )
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
         user.OUTBOUND,
         user.SENDS,
         user.TRAILER,
-        user.GAUGE,
         user.INFRA,
     ]
     assert user.run("--check") == (0, user.every("ok"))

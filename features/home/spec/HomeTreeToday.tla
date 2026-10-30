@@ -89,16 +89,16 @@ Activity(k) ==
 GetsStuck(k) ==
     /\ life[k] = "working" /\ life' = Set(life, k, "stuck")
     /\ UNCHANGED <<work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* The root or Josh retires a child: the scope's handoff closes it. It closes a scope whose plan
-\* has no open entry only when `jbus out --scope` says it has nothing out: no queue row of its
-\* briefs that is not over, no unsettled crew or reviewer thread of theirs, no question and no
-\* open gate (handoff/SKILL.md `elif [ -z "$still" ]; then`, jbus/children.py `if
-\* row["slug"] in mine and not queue.over(row)`). A closed scope has no home-id, and the root
-\* watches it no more (jbus/children.py `if not thread or not (launched or beat):`).
+\* The root or Josh retires a child: the scope's handoff archives it, whatever it has out, and
+\* starts no home after it. It lists what `jbus out --scope` says the scope has out, removes its
+\* home-id and moves its plan out, so the scope is no home and every brief of it is the root's
+\* (jbriefs/home.py `if now or was:`): the root's own watch covers that work from then on, and
+\* a child with nothing out is just retired. With the hand-over dropped, a child archived with
+\* work out leaves it with no home.
 Retire(k) ==
-    /\ life[k] \in {"working", "stuck"}
-    /\ Kept("retire-guard") => ~WorkOut(k)     \* handoff/SKILL.md `if ! still=$(jbus out --scope "$scope" 2>&1); then`
-    /\ life' = Set(life, k, "retired") /\ Calm(k)
+    /\ life[k] \in {"working", "stuck"}     \* handoff/SKILL.md `if ! out=$(jbus out --scope "${scope:-.}" 2>&1); then`
+    /\ life' = Set(life, k, IF WorkOut(k) /\ Kept("hand-over") THEN "handed" ELSE "retired")     \* handoff/SKILL.md `! uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null; then`
+    /\ Calm(k)
     /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
 
 \* ---- Josh, and the home thread
@@ -146,9 +146,11 @@ RouteMends ==
 \* `launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]`).
 \* A routine, a scope with a `rhythm` file, owes its next beat whatever it has out
 \* (jbus/children.py `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
+\* A handed child's work is the root's, which the root's own watch reads as its out
+\* (jbus/children.py `mine = {slug for slug, text in texts.items() if homes.home_of(root, text) == scope}`).
 Sees(k) ==
-    /\ life[k] \in {"working", "stuck"}     \* jbus/children.py `if not thread or not (launched or beat):`
-    /\ \/ Kept("beat") /\ Kind[k] = "routine"     \* jbus/children.py `patience = beat or PATIENCE`
+    /\ life[k] \in {"working", "stuck", "handed"}     \* jbus/children.py `if not thread or not (launched or beat):`
+    /\ \/ Kept("beat") /\ Kind[k] = "routine" /\ life[k] # "handed"     \* jbus/children.py `patience = beat or PATIENCE`
        \/ work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
 \* The root acts on a child it sees each time the child has been quiet for its patience again
 \* since its last step (jbus/children.py `if step != "asked" and run.now - start >=

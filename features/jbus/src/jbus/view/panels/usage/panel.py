@@ -23,7 +23,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from jbriefs import skills
 from jbus.view.state import Read, Source, iso, when
 from jgauge import session, transcript
 
@@ -31,7 +30,6 @@ FIRST = False
 KEPT = "~/.claude/projects"
 PROJECTS = Path(KEPT).expanduser()
 WORKTREES = Path.home() / ".t3" / "worktrees"
-GAUGE = Path("features") / "home" / "hooks" / "home-gauge.sh"
 JOINED = timedelta(minutes=10)
 EARLY = timedelta(minutes=1)
 SUMMED = (*session.SUMMED, "peak_context")
@@ -41,7 +39,6 @@ SHAPE = {
     "usage": {
         "tasks": [_UNIT | {"slug": None, "sessions": [FIGURES]}],
         "homes": [_UNIT | {"title": None, "created": None}],
-        "limit": {"limit": None, "ceiling": None, "from": None},
         "newest": None,
     }
 }
@@ -221,41 +218,6 @@ def _homes(read: Read) -> list[dict[str, Any]]:
     return found
 
 
-def gauge() -> Path:
-    """The `home-gauge.sh` that the panel reads: `GAUGE` under the checkout, or else under the
-    copy that a release carries."""
-    return skills.root() / GAUGE
-
-
-def limit(read: Read) -> dict[str, Any]:
-    """The context a home is held to, read from where `home-gauge.sh` reads it: the two lines of
-    the home's `limit` file, or the hook's default for a line that is not a number."""
-    try:
-        hook = gauge()
-        script = hook.read_text()
-    except LookupError:
-        hook, script = GAUGE, ""
-    except OSError:
-        script = ""
-    named = {
-        key: re.search(rf'^"" \| \*\[!0-9\]\*\) {key}=(\d+) ;;$', script, re.M)
-        for key in ("limit", "ceiling")
-    }
-    try:
-        lines = (read.home / "limit").read_text().splitlines()
-    except OSError:
-        lines = []
-    given = dict(zip(("limit", "ceiling"), lines, strict=False))
-    said = {}
-    for key, default in named.items():
-        mine = given.get(key, "")
-        said[key] = int(mine) if mine.isdigit() else int(default[1]) if default else None
-    if said["limit"] is not None and said["ceiling"] is not None:
-        said["ceiling"] = max(said["ceiling"], said["limit"])
-    mine = given.get("limit", "").isdigit()
-    return said | {"from": _short(read.home / "limit") if mine else _short(hook)}
-
-
 def build(read: Read) -> dict[str, Any]:
     slugs = list(dict.fromkeys(one["slug"] for one in [*read.tasks, *read.ended]))
     tasks = [_task(read, slug) for slug in slugs]
@@ -265,7 +227,6 @@ def build(read: Read) -> dict[str, Any]:
         "usage": {
             "tasks": tasks,
             "homes": homes,
-            "limit": limit(read),
             "newest": iso(datetime.fromtimestamp(newest / 1e9, UTC)) if newest else None,
         }
     }

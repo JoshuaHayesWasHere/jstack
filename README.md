@@ -184,7 +184,7 @@ Each command has one page.
 | [Configuration](features/jinstall/docs/configuration.md) | Find every file you write, with each key, its default and who reads it. |
 | [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md) | Fix a line the doctor or `jinstall --check` printed, a thread that did not become a home, or a `wait:` from `jgauge room`. |
 | [The Chef](features/jbus/docs/chef.md) | The agent outside a home that keeps the queue with `jbus queue`. |
-| [Hooks](features/home/docs/hooks.md) | See what the start hook and the gauge hook do. |
+| [Hooks](features/home/docs/hooks.md) | See what the start hook and the sends hook do. |
 | [State](features/home/docs/state.md) | Find the files a home and its threads keep, and who tells whom. |
 | [Playbooks, principles and templates](features/home/docs/playbooks.md) | Give a task numbered steps. |
 
@@ -201,7 +201,7 @@ Each `SKILL.md` is the full text of what its thread does.
 | `crew` | `/crew <slug>` | Becomes a crewmate. It does the task in `tasks/<slug>.md` in its own worktree, opens the pull request when the brief says so, appends its Result to the brief, and stays on the pull request. |
 | `scout` | `/scout <slug>` | Becomes a scout. It answers the questions in `scouts/<slug>.md`, appends its report, and writes a crewmate's brief or a visual page when the request asks for one. It changes nothing in the repo. |
 | `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the diff, judges what it found, and proves with one command the fact that makes the change safe. It runs no test suite. |
-| `handoff` | `/handoff` | Closes a home. It updates the plan, archives the old handoff, and writes a one-page handoff for the next home. |
+| `handoff` | `/handoff` | Archives a home: it hands what the home has out to the root home and starts no next home. |
 | `nohome` | `/nohome`, `/nohome repo`, `/nohome on`, `/nohome merge`, `/nohome merge on` | Opts this thread, or every new thread in the repo, out of the automatic home, or switches it back on. With `merge` it switches the repo's automatic merge off or on. |
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
 | `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. It names the role to type, the playbook and the skills that fit a brief or a question, each with its file. "Get set up" points at the Quickstart above. |
