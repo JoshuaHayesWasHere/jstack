@@ -1,0 +1,641 @@
+From 00d038b65975347834325e052375f6a5e7c099d4 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 20:10:17 -0400
+Subject: [PATCH] feat(web): a jstack task's crew idle while its pull request
+ waits says stalled and for how long, and a held one says held for how long
+ and why
+
+The server reads jmerge's holds from waiting-on-user.json and jbus's from
+held.json onto each task.
+The tree draws quiet, stalled or held with an age beside the stage word, and
+a hold's reason on hover and at the head of the row's menu.
+---
+ apps/server/src/jstack/JbusWork.ts            |   2 +
+ apps/server/src/jstack/jbusWork.logic.test.ts |  53 ++++++++
+ apps/server/src/jstack/jbusWork.logic.ts      |  49 ++++++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 127 +++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx |  24 +++-
+ .../sidebar/jstackTree.logic.test.ts          |   9 +-
+ .../components/sidebar/jstackTree.logic.ts    |  75 +++++++++--
+ packages/contracts/src/jbusWork.ts            |   9 ++
+ 8 files changed, 327 insertions(+), 21 deletions(-)
+
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+index 0ae67d556b..806d74ca7c 100644
+--- a/apps/server/src/jstack/JbusWork.ts
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -141,6 +141,8 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+         merged,
+         questions: yield* readJson(path.join(bus, "questions.json")),
+         scouts: yield* readJson(path.join(bus, "scouts.json")),
++        waiting: yield* readJson(path.join(bus, "waiting-on-user.json")),
++        held: yield* readJson(path.join(bus, "held.json")),
+         rootHomeId: yield* readText(path.join(home, "home-id")),
+         scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
+         startingScopes: startingScopes.toSorted(),
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+index 66c6cabb61..94f4e3c14c 100644
+--- a/apps/server/src/jstack/jbusWork.logic.test.ts
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -30,6 +30,8 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+   questions: { next: 1, records: [] },
+   merged: {},
+   scouts: [],
++  waiting: [],
++  held: {},
+   briefHomes: new Map(),
+   briefTitles: new Map(),
+   ...overrides,
+@@ -149,6 +151,57 @@ describe("buildRepoWork", () => {
+     expect(readBriefTitle("Task: x")).toBeNull();
+   });
+ 
++  it("says since when and why jmerge or jbus holds each row", () => {
++    const url = "https://github.com/JoshuaHayesWasHere/EndlessTropics/pull/3";
++    const work = {
++      work: [
++        row("a-held", "hold", "hold", { pr: "#3", who: "user", waits: "your word" }),
++        row("a-check", "check", "check", { pr: "#758", who: "ci" }),
++        row("a-review", "review", "review", { pr: "#760", who: "rev" }),
++      ],
++    };
++    const waiting = [
++      {
++        key: "#3",
++        kind: "hold",
++        line: `hold 3 ${url}: its brief says Review: none, so it needs the user's word`,
++        number: 3,
++        since: "2026-10-29T13:30:00+00:00",
++        url,
++      },
++    ];
++    const held = {
++      "01dfd99f9e78": {
++        home: "",
++        minutes: 8,
++        numbers: [758],
++        reason: "check has no run at 90c901cb781a",
++        rows: ["a-check"],
++        since: "2026-10-29T14:52:00+00:00",
++        woke: false,
++      },
++    };
++    const result = buildRepoWork(files({ work, waiting, held }), NOW);
++    expect(result.tasks.map((task) => [task.slug, task.stage, task.waitsOn, task.held])).toEqual([
++      [
++        "a-held",
++        "review",
++        "word",
++        {
++          since: "2026-10-29T13:30:00+00:00",
++          reason: "its brief says Review: none, so it needs the user's word",
++        },
++      ],
++      [
++        "a-check",
++        "check",
++        null,
++        { since: "2026-10-29T14:52:00+00:00", reason: "check has no run at 90c901cb781a" },
++      ],
++      ["a-review", "review", null, null],
++    ]);
++  });
++
+   it("nests each task under the home its brief names", () => {
+     const work = {
+       work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index 631265888e..d850e93434 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -1,6 +1,7 @@
+ import {
+   ThreadId,
+   type JbusGate,
++  type JbusHeld,
+   type JbusHome,
+   type JbusLanded,
+   type JbusTask,
+@@ -16,6 +17,10 @@ export interface JbusRepoFiles {
+   readonly questions: unknown;
+   readonly merged: unknown;
+   readonly scouts: unknown;
++  /** `waiting-on-user.json`: what jbus lists as waiting on the user, jmerge's holds among them. */
++  readonly waiting: unknown;
++  /** `held.json`: the rows jbus holds, each with since when and why. */
++  readonly held: unknown;
+   /** `home/<repo>/home-id`. */
+   readonly rootHomeId: string | null;
+   readonly scopes: ReadonlyArray<{
+@@ -83,6 +88,41 @@ const placeWorkRow = (value: string, lane: string): Placement | null => {
+   }
+ };
+ 
++interface Holds {
++  readonly bySlug: ReadonlyMap<string, JbusHeld>;
++  /** By pull request, as a row names it: `#3`. */
++  readonly byPull: ReadonlyMap<string, JbusHeld>;
++}
++
++/**
++ * The holds on a repo's rows. jmerge's are `hold` items of `waiting-on-user.json`, keyed `#<n>`,
++ * whose line is `hold <n> <url>: <reason>` (jmerge.lines.waits). jbus's are `held.json`, whose
++ * own `since` is when the hold began, which the `held` item of `waiting-on-user.json` lists only
++ * later, once it wakes the home.
++ */
++const holdsOf = (files: Pick<JbusRepoFiles, "waiting" | "held">): Holds => {
++  const bySlug = new Map<string, JbusHeld>();
++  const byPull = new Map<string, JbusHeld>();
++  for (const item of records(files.waiting)) {
++    const key = text(item.key);
++    const since = text(item.since);
++    const line = text(item.line);
++    if (item.kind !== "hold" || key === null || since === null || line === null) continue;
++    const url = text(item.url);
++    const after = url === null ? -1 : line.indexOf(`${url}: `);
++    const reason = after < 0 ? line : line.slice(after + `${url}: `.length);
++    byPull.set(key, { since, reason });
++  }
++  for (const one of records(files.held)) {
++    const since = text(one.since);
++    if (since === null || !Array.isArray(one.rows)) continue;
++    for (const slug of one.rows) {
++      if (typeof slug === "string") bySlug.set(slug, { since, reason: text(one.reason) ?? "" });
++    }
++  }
++  return { bySlug, byPull };
++};
++
+ /** What a row waits on the user for, from jbus's `value` and `who` (features/jbus/src/jbus/work.py). */
+ const waitsOnOf = (value: string, who: unknown): JbusWaitsOn | null => {
+   if (who !== "user") return null;
+@@ -165,12 +205,14 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+   };
+ 
+   const tasks: Array<JbusTask> = [];
++  const holds = holdsOf(files);
+   const rows = isRecord(files.work) ? records(files.work.work) : [];
+   for (const row of rows) {
+     const slug = text(row.slug);
+     if (slug === null || row.kind !== "row") continue;
+     const placed = placeWorkRow(text(row.value) ?? "", text(row.lane) ?? "");
+     if (placed === null) continue;
++    const pullRequest = text(row.pr);
+     tasks.push({
+       repo,
+       slug,
+@@ -178,10 +220,14 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       stage: placed.stage,
+       threadId: threadIdOf(row.thread),
+       homeThreadId: homeOfSlug(slug),
+-      pullRequest: text(row.pr),
++      pullRequest,
+       waitsOn: waitsOnOf(text(row.value) ?? "", row.who),
+       waits: text(row.waits) ?? "",
+       brief: files.briefTitles.get(slug) ?? null,
++      held:
++        (pullRequest === null ? undefined : holds.byPull.get(pullRequest)) ??
++        holds.bySlug.get(slug) ??
++        null,
+     });
+   }
+   for (const scout of records(files.scouts)) {
+@@ -201,6 +247,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+       waitsOn: null,
+       waits: "",
+       brief: null,
++      held: null,
+     });
+   }
+ 
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index 5ce8d06ffe..06b0aa72a0 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -98,6 +98,7 @@ const worker: JstackTreeRow = {
+   prefix: "fl-",
+   word: "crew",
+   tone: "plain",
++  waited: null,
+   ticks: { step: 1, hollow: false, asks: false },
+   threadId: ThreadId.make("crew-pump"),
+   openThreadId: ThreadId.make("crew-pump"),
+@@ -613,6 +614,7 @@ const crewTask = (slug: string, home: string) => ({
+   waitsOn: null,
+   waits: "",
+   brief: null,
++  held: null,
+ });
+ 
+ // Each home has a task running, so no row draws at the half ink of an idle one.
+@@ -635,6 +637,9 @@ function LiveTree(props: {
+   spies: JstackTreeRowActions;
+   sent: Array<string>;
+   routeThreadId?: ThreadId;
++  /** Task threads besides the homes', such as a crew that went quiet. */
++  threads?: ReadonlyArray<ReturnType<typeof makeThreadFixture>>;
++  attention?: "gates" | "gates-and-quiet";
+ }) {
+   const [editor, setEditor] = useState(false);
+   const [answering, setAnswering] = useState<JstackAnswering | null>(null);
+@@ -648,9 +653,14 @@ function LiveTree(props: {
+     memberProjectRefs: [{ environmentId, projectId }],
+     snapshot: props.snapshot,
+     threadsById: new Map(
+-      [rootThread, flowThread, opsThread, jviewThread, dictationThread].map(
+-        (thread) => [thread.id, thread] as const,
+-      ),
++      [
++        rootThread,
++        flowThread,
++        opsThread,
++        jviewThread,
++        dictationThread,
++        ...(props.threads ?? []),
++      ].map((thread) => [thread.id, thread] as const),
+     ),
+     folderThreads: [],
+     hiddenThreads: [],
+@@ -664,7 +674,12 @@ function LiveTree(props: {
+     answering,
+     requestedScopes: requested,
+     nowMs: Date.parse("2026-10-29T12:00:00.000Z"),
+-    options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 },
++    options: {
++      attention: props.attention ?? "gates",
++      landedCount: false,
++      quietMinutes: 20,
++      rowCap: 8,
++    },
+   });
+   const live: JstackTreeRowActions = {
+     ...props.spies,
+@@ -1411,3 +1426,107 @@ describe("JstackTreeRowView review parts", () => {
+     expect(await audit()).toEqual([]);
+   });
+ });
++
++/** A crew thread whose last turn ended at `endedAt`, or that is still in a turn. */
++const crewThread = (slug: string, endedAt: string, running = false) =>
++  makeThreadFixture({
++    environmentId,
++    projectId,
++    id: ThreadId.make(`crew-${slug}`),
++    updatedAt: endedAt,
++    latestRun: {
++      runId: `run-${slug}` as never,
++      status: running ? "running" : "completed",
++      requestedAt: endedAt,
++      startedAt: endedAt,
++      completedAt: running ? null : endedAt,
++      assistantMessageId: null,
++    },
++    runtime: running ? ({ status: "running", activeRunId: `run-${slug}` } as never) : null,
++  });
++
++// The tree's clock is 12:00; the quiet threshold is 20 minutes.
++const STALL_SNAPSHOT: JbusWorkSnapshot = {
++  ...SNAPSHOT,
++  tasks: [
++    { ...crewTask("green", "root"), stage: "check", pullRequest: "#758" },
++    { ...crewTask("fixes", "root"), stage: "findings", pullRequest: "#760" },
++    { ...crewTask("fresh", "root"), stage: "review", pullRequest: "#761" },
++    { ...crewTask("busy", "root"), stage: "findings", pullRequest: "#762" },
++    crewTask("tidy", "root"),
++    crewTask("fl-pump", "flow"),
++  ],
++};
++const STALL_THREADS = [
++  crewThread("green", "2026-10-29T11:15:00.000Z"),
++  crewThread("fixes", "2026-10-29T09:00:00.000Z"),
++  crewThread("fresh", "2026-10-29T11:50:00.000Z"),
++  crewThread("busy", "2026-10-29T09:00:00.000Z", true),
++];
++
++describe("JstackTreeRowView stalled and held rows", () => {
++  it("says how long a pull request's crew has sat idle past the quiet threshold, beside its stage", async () => {
++    await using screen = await render(
++      <LiveTree
++        snapshot={STALL_SNAPSHOT}
++        spies={actions()}
++        sent={[]}
++        threads={STALL_THREADS}
++        attention="gates-and-quiet"
++      />,
++      { router: false },
++    );
++    const shown = [
++      ["green", "green checks stalled 45m"],
++      ["fixes", "fixes fixing stalled 3h"],
++      // Under the threshold, and a crew still in its turn, are not stalled.
++      ["fresh", "fresh review 1"],
++      ["busy", "busy fixing"],
++    ] as const;
++    for (const [slug, text] of shown) {
++      const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
++      await expect.element(row).toBeVisible();
++      expect(shownText(row.element())).toBe(text);
++    }
++    expect(await audit()).toEqual([]);
++  });
++
++  it("shows a row jmerge holds, how long it has been held, and why, on hover and in its menu", async () => {
++    const snapshot: JbusWorkSnapshot = {
++      ...SNAPSHOT,
++      tasks: [
++        {
++          ...crewTask("poc", "root"),
++          stage: "review",
++          pullRequest: "#3",
++          waitsOn: "word",
++          waits: "your word",
++          held: { since: "2026-10-29T09:00:00+00:00", reason: "its brief says Review: none" },
++        },
++        crewTask("tidy", "root"),
++        crewTask("fl-pump", "flow"),
++      ],
++    };
++    await using screen = await render(
++      <LiveTree snapshot={snapshot} spies={actions()} sent={[]} />,
++      {
++        router: false,
++      },
++    );
++    const row = screen.getByRole("treeitem", { name: /^poc / });
++    await expect.element(row).toBeVisible();
++    expect(shownText(row.element())).toBe("poc asks you held 3h");
++
++    await userEvent.hover(row);
++    await expect
++      .element(page.getByText("poc · #3 · asks you · held 3h: its brief says Review: none"))
++      .toBeVisible();
++
++    await userEvent.click(row, { button: "right" });
++    await expect.element(page.getByRole("menu")).toBeVisible();
++    await expect
++      .element(page.getByRole("menu").getByText("Held 3h: its brief says Review: none"))
++      .toBeVisible();
++    await userEvent.keyboard("{Escape}");
++  });
++});
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index 958dde2074..928299c072 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -18,6 +18,7 @@ import { ProjectFavicon } from "../ProjectFavicon";
+ import { Button } from "../ui/button";
+ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+ import {
++  waitedText,
+   scopeNameProblem,
+   type JstackRootPlace,
+   type JstackTally,
+@@ -186,6 +187,8 @@ const rowMenu = (items: ReadonlyArray<RowMenuItem>) => (event: MouseEvent) => {
+     .catch(() => undefined);
+ };
+ 
++const capitalized = (words: string) => `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
++
+ const FIELD =
+   "h-6 w-full min-w-0 rounded-sm border border-input bg-card px-1.5 text-xs text-card-foreground outline-none placeholder:text-muted-foreground/70 focus:border-foreground read-only:opacity-60";
+ 
+@@ -757,6 +760,10 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+       const fullSlug = `${row.prefix ?? ""}${row.slug}`;
+       const { threadId, openThreadId } = row;
+       const onContextMenu = rowMenu([
++        // Why it is held heads its menu, as a line and not an action.
++        ...(row.waited?.kind === "held"
++          ? [{ label: capitalized(waitedText(row.waited)), header: true, run: () => undefined }]
++          : []),
+         ...(threadId !== null
+           ? [{ label: "Open thread", run: () => actions.onOpenThread(threadId) }]
+           : row.ask === null
+@@ -832,6 +839,19 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                     >
+                       {row.word}
+                     </span>
++                    {row.waited === null ? null : " "}
++                    {row.waited === null ? null : (
++                      <span
++                        className={cn(
++                          "shrink-0 text-2xs tabular-nums",
++                          row.waited.kind === "quiet"
++                            ? "text-sidebar-muted-foreground"
++                            : "text-warning-foreground",
++                        )}
++                      >
++                        {row.waited.kind} {row.waited.age}
++                      </span>
++                    )}
+                     {row.ticks === null ? (
+                       <span
+                         aria-hidden
+@@ -844,7 +864,9 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                 }
+               />
+               <TooltipPopup side="right">
+-                {[fullSlug, row.pullRequest, row.word].filter(Boolean).join(" · ")}
++                {[fullSlug, row.pullRequest, row.word, row.waited && waitedText(row.waited)]
++                  .filter(Boolean)
++                  .join(" · ")}
+               </TooltipPopup>
+             </Tooltip>
+             {row.ask !== null && unfolded ? (
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index f8c060f967..52a1bbc075 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -51,6 +51,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+   waitsOn: null,
+   waits: "",
+   brief: null,
++  held: null,
+   ...overrides,
+ });
+ 
+@@ -100,7 +101,11 @@ function build(
+ }
+ 
+ const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
+-  (rows ?? []).flatMap((row) => (row.kind === "worker" ? [`${row.slug}:${row.word}`] : []));
++  (rows ?? []).flatMap((row) =>
++    row.kind === "worker"
++      ? [`${row.slug}:${row.word}${row.waited ? ` ${row.waited.kind} ${row.waited.age}` : ""}`]
++      : [],
++  );
+ 
+ describe("buildJstackTree", () => {
+   it("draws a project with no jstack home as a root row over its threads, worker titles included", () => {
+@@ -168,7 +173,7 @@ describe("buildJstackTree", () => {
+     );
+     expect(workers(tree.rows)).toEqual([
+       "gated:asks you",
+-      "silent:quiet 45m",
++      "silent:crew quiet 45m",
+       "working:crew",
+       "reviewing:review 1",
+       "queued:ready",
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+index 310bd5f220..4ec30f0d80 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -63,6 +63,23 @@ export interface JstackTicks {
+   readonly asks: boolean;
+ }
+ 
++/**
++ * How long a task has waited, drawn beside its stage word: `quiet` for a crew that stopped writing
++ * before its pull request, `stalled` for one idle while its pull request waits, `held` for a pull
++ * request jmerge or jbus holds, with why.
++ */
++export interface JstackWaited {
++  readonly kind: "quiet" | "stalled" | "held";
++  /** Such as `45m`. */
++  readonly age: string;
++  /** Why it is held; null for a quiet or stalled crew. */
++  readonly reason: string | null;
++}
++
++/** A wait as words, such as `held 3h: draft`. */
++export const waitedText = (waited: JstackWaited): string =>
++  `${waited.kind} ${waited.age}${waited.reason === null ? "" : `: ${waited.reason}`}`;
++
+ export interface JstackTally {
+   readonly queue: number;
+   readonly crew: number;
+@@ -129,6 +146,7 @@ export type JstackTreeRow =
+       readonly prefix: string | null;
+       readonly word: string;
+       readonly tone: "asks" | "plain";
++      readonly waited: JstackWaited | null;
+       /** null for a scout, which draws one dot. */
+       readonly ticks: JstackTicks | null;
+       /** null until jbus launches the task. */
+@@ -261,7 +279,10 @@ const WORKER_TITLE = /^(crew|scout|review):/i;
+ 
+ const MINUTE_MS = 60_000;
+ 
+-const formatQuietAge = (minutes: number): string =>
++const minutesSince = (nowMs: number, at: string) =>
++  Math.max(0, Math.floor((nowMs - Date.parse(at)) / MINUTE_MS));
++
++const formatAge = (minutes: number): string =>
+   minutes < 60
+     ? `${minutes}m`
+     : minutes < 48 * 60
+@@ -301,6 +322,41 @@ const STAGES: Record<
+   rebase: { word: "rebase", step: 5, group: "review", rank: 3 },
+ };
+ 
++/** The stages in which a task's pull request is open. */
++const PULL_STAGES: ReadonlySet<JbusWorkStage> = new Set([
++  "review",
++  "findings",
++  "second",
++  "check",
++  "rebase",
++]);
++
++/** How long a task has waited, if it has waited long enough to say: see `JstackWaited`. */
++const waitedOf = (
++  input: JstackTreeInput,
++  task: JbusTask,
++  thread: EnvironmentThreadShell | null,
++): JstackWaited | null => {
++  if (task.held !== null) {
++    const age = formatAge(minutesSince(input.nowMs, task.held.since));
++    return { kind: "held", age, reason: task.held.reason === "" ? null : task.held.reason };
++  }
++  if (input.options.attention !== "gates-and-quiet" || thread === null) return null;
++  if (task.stage === "quiet") {
++    const minutes = minutesSince(input.nowMs, thread.updatedAt);
++    return minutes < input.options.quietMinutes
++      ? null
++      : { kind: "quiet", age: formatAge(minutes), reason: null };
++  }
++  if (task.kind !== "crew" || !PULL_STAGES.has(task.stage)) return null;
++  if (resolveSidebarThreadStatus(thread) === "working") return null;
++  // Its last turn's end, since a rename or a linked pull request also moves `updatedAt`.
++  const minutes = minutesSince(input.nowMs, thread.latestRun?.completedAt ?? thread.updatedAt);
++  return minutes < input.options.quietMinutes
++    ? null
++    : { kind: "stalled", age: formatAge(minutes), reason: null };
++};
++
+ /** How many ticks a task's row draws: one for each step, and the merge. */
+ export const TICKS = 7;
+ 
+@@ -319,21 +375,15 @@ const toWorker = (
+   const question =
+     gate ?? (task.threadId === null ? undefined : gateThreads.get(task.threadId)) ?? null;
+   const asks = task.waitsOn !== null || question !== null || waitsOnUser(thread);
+-  const quietMinutes =
+-    thread === null ? 0 : Math.floor((input.nowMs - Date.parse(thread.updatedAt)) / MINUTE_MS);
+-  const quietShown =
+-    input.options.attention === "gates-and-quiet" &&
+-    task.stage === "quiet" &&
+-    quietMinutes >= input.options.quietMinutes;
++  const waited = waitedOf(input, task, thread);
++  const quietShown = waited?.kind === "quiet";
+   const scout = task.kind === "scout";
+   const stage = STAGES[task.stage];
+   const [word, rank] = asks
+     ? ["asks you", 0]
+     : scout
+       ? ["scout", 2]
+-      : quietShown
+-        ? [`quiet ${formatQuietAge(quietMinutes)}`, 1]
+-        : [stage.word, stage.rank];
++      : [stage.word, waited === null || waited.kind === "held" ? stage.rank : 1];
+   const step = stage.step;
+   const prefix =
+     home.prefix !== null && task.slug.startsWith(home.prefix) && task.slug !== home.prefix
+@@ -358,6 +408,7 @@ const toWorker = (
+       prefix,
+       word,
+       tone: asks ? "asks" : "plain",
++      waited,
+       ticks: scout ? null : { step, hollow: step === 0 || quietShown, asks },
+       threadId: task.threadId,
+       openThreadId,
+@@ -596,9 +647,7 @@ export function buildJstackTree(input: JstackTreeInput): JstackTree {
+             parentKey: key,
+             slug: prefix === null ? merge.slug : merge.slug.slice(prefix.length),
+             prefix,
+-            age: formatQuietAge(
+-              Math.max(0, Math.floor((input.nowMs - Date.parse(merge.mergedAt)) / MINUTE_MS)),
+-            ),
++            age: formatAge(minutesSince(input.nowMs, merge.mergedAt)),
+             homeThreadId: home.threadId,
+           };
+         }),
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+index d3a47adda8..e227b98d8d 100644
+--- a/packages/contracts/src/jbusWork.ts
++++ b/packages/contracts/src/jbusWork.ts
+@@ -36,6 +36,13 @@ export const JbusHome = Schema.Struct({
+ });
+ export type JbusHome = typeof JbusHome.Type;
+ 
++/** Why jmerge or jbus holds a task's pull request, and since when. */
++export const JbusHeld = Schema.Struct({
++  since: IsoDateTime,
++  reason: Schema.String,
++});
++export type JbusHeld = typeof JbusHeld.Type;
++
+ export const JbusTask = Schema.Struct({
+   repo: TrimmedNonEmptyString,
+   slug: TrimmedNonEmptyString,
+@@ -55,6 +62,8 @@ export const JbusTask = Schema.Struct({
+   waits: Schema.String,
+   /** The brief's title, after its slug; null with no brief. */
+   brief: Schema.NullOr(Schema.String),
++  /** null unless jmerge (`waiting-on-user.json`) or jbus (`held.json`) holds its pull request. */
++  held: Schema.NullOr(JbusHeld),
+ });
+ export type JbusTask = typeof JbusTask.Type;
+ 
+-- 
+2.56.0
+
