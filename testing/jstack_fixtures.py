@@ -109,6 +109,18 @@ def jstack_config(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def t3_settings(tmp_path_factory, monkeypatch):
+    """The path of T3 Code's settings the test runs with, in a T3 home of its own
+    (`T3CODE_HOME`), so the provider inventory (`jroles.inventory`) is never the machine's.
+    The file is not there until a test writes it."""
+    home = tmp_path_factory.mktemp("t3")
+    monkeypatch.setenv("T3CODE_HOME", str(home))
+    path = home / "userdata" / "settings.json"
+    path.parent.mkdir()
+    return path
+
+
+@pytest.fixture(autouse=True)
 def no_machine_state(tmp_path_factory, monkeypatch):
     """Point `LIMITS` at a ledger of the test's own. `jroles` and `jbus` read the ledger that
     `LIMITS` names, so a test never reads the machine's ledger. A test that needs its own `LIMITS`
