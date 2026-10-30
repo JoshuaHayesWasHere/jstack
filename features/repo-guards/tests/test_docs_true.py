@@ -353,6 +353,7 @@ def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):
     assert missing(trees["jbus"], page.replace("--project", "--repo")) == [
         "jbus: --project",
         "jbus project add: --project-id",
+        "jbus stale: --project",
     ]
     assert missing(trees["jmerge"], "# jmerge\n\n`jmerge --check`\n")[:2] == [
         "jmerge: --sweep",
