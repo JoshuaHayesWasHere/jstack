@@ -353,7 +353,7 @@ def take_out(value: dict, event: str, matches: Callable[[str], bool]) -> bool:
 
 def layout_scripts(command: str, layout: Path) -> set[str]:
     """The name of each script under `layout`'s `hooks/` that `command` runs."""
-    return set(re.findall(re.escape(f"{layout / 'hooks'}/") + r"([^/'\"\s]+)", command))
+    return set(re.findall(re.escape(f"{layout / 'hooks'}/") + r"([\w.-]+)", command))
 
 
 def retired(machine: Machine, file: Path, harness: str, declared: frozenset[str]) -> list:

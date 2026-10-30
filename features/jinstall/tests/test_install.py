@@ -23,8 +23,9 @@ from jbus.launchd import label
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Units, rewrite, unit_templates
+from jinstall.kinds import RetiredHook, Units, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
+from jinstall.needs import needs
 from testing.paths import REPO
 
 INSTALL = REPO / "install.sh"
@@ -1005,6 +1006,19 @@ def worktree(tmp_path):
         (checkout / "plugin.json").write_text(json.dumps(plugin))
         (checkout / "pyproject.toml").write_text('[project]\nname = "jstack"\nscripts = {}\n')
     return main, linked
+
+
+def test_no_hook_is_retired_while_skills_json_cannot_be_read(tmp_path):
+    main, _ = worktree(tmp_path)
+    (main / "skills.json").write_text("{")
+    home = tmp_path / "home"
+    settings = home / ".claude" / "settings.json"
+    settings.parent.mkdir(parents=True)
+    settings.write_text(json.dumps({"hooks": {"SessionStart": [group("home-start.sh", home)]}}))
+
+    listed = needs(machine(main, home, account=tmp_path / "account"))
+
+    assert [need.name for need in listed if isinstance(need.kind, RetiredHook)] == []
 
 
 def test_a_plain_install_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp_path):
