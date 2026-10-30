@@ -9,7 +9,7 @@
 pkgname=t3code-jstack
 _tag="${T3CODE_JSTACK_TAG:-v0.1.5-nightly.20261029.3877}"
 _nightly="${_tag#v}"
-pkgver="${_nightly/-nightly./_nightly.}.jstack.0075246f5f"
+pkgver="${_nightly/-nightly./_nightly.}.jstack.c3016e987f"
 pkgrel=1
 pkgdesc='T3 Code nightly with the jstack tree sidebar'
 arch=('x86_64')
@@ -64,10 +64,12 @@ _patches=(0001-jstack-tree-sidebar.patch 0002-jstack-tree-asking-and-projects.pa
           0013-jstack-tree-review-parts.patch
           0014-jstack-tree-stall-age.patch
           0015-jstack-tree-ask-empty-project.patch
-          0016-jstack-tree-type-scale.patch)
+          0016-jstack-tree-type-scale.patch
+          0017-jstack-tree-no-landed.patch)
 source=("t3code-${_tag#v}.tar.gz::https://github.com/pingdotgg/t3code/archive/refs/tags/${_tag}.tar.gz"
         "${_patches[@]}")
 sha256sums=('SKIP'
+            'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
