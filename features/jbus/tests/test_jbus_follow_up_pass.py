@@ -219,6 +219,8 @@ def test_the_go_of_a_red_check_fix_reads_the_same_whatever_the_rule_says(kitchen
 
 @pytest.mark.parametrize("slug", red_briefs())
 def test_the_same_red_check_fix_queued_from_a_home_waits_for_the_users_go(kitchen, slug):
+    (kitchen.home / "macos").mkdir()
+    (kitchen.home / "macos" / "home-id").write_text("mcp:macos-home\n")
     code, said = kitchen.main("queue", "add", slug, "--priority", "0", stdin=red_briefs()[slug])
     assert code == 0, said
     kitchen.quiet()

@@ -7,5 +7,5 @@ Deliver:
 - <a brief for the crewmate, at `tasks/<slug>.md` | a visual page on Lavish, saved under `reports/` | leave this line out>
 Playbook: <a row `a scout` runs, from the home skill's block that prints a row for each playbook> | none
 Out of bounds: read-only. <what the scout must not run, start or touch>
-<The line below is there only in a request a scoped home writes, and it is the scope's name, never a thread id. The root home's request has no `Home:` line.>
-Home: <scope>
+<Every request has the line below, and it names the home the scout reports to: `root` for the root home, and the scope's name for a scoped home, never a thread id. `jbus queue add` refuses a request with no such line, or one that names no home of the project.>
+Home: <root, or the scope's name>

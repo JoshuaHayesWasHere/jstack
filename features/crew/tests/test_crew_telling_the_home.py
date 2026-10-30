@@ -1,11 +1,10 @@
 """The crew skill takes its brief from the launch message. Where a review's findings go is jbus's
 (`features/jbus/tests/test_jbus_reviewed.py`)."""
 
-import hashlib
-
 import pytest
 
 from crew_helpers import BRIEF, said
+from jmerge import judgement
 from test_jbus_kitchen import Kitchen
 
 
@@ -20,10 +19,10 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
     """`jbus` puts the brief under the first line of its launch, and step 1 writes it to disk."""
     brief = BRIEF.split("\n## Result")[0] + (
         "Done when:\n- it is done\nProves it: `make check`\nSize: S\nWhere: `src/alpha/`\n"
-        "Design: none, a test\nReview: review+test\nPlaybook: feature\n"
+        "Design: none, a test\nReview: review+test\nPlaybook: feature\nHome: root\n"
     )
     assert kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=brief)[0] == 0
-    sha = hashlib.sha256(brief.encode()).hexdigest()[:12]
+    sha = judgement.brief_sha(brief)[:12]
     at = ["--word", kitchen.word(), "--sha", sha]
     assert kitchen.main("queue", "approve", "alpha", *at)[0] == 0
     kitchen.poll()

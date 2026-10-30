@@ -31,11 +31,9 @@ def kitchen(tmp_path, monkeypatch):
     made.close()
 
 
-def bare(slug):
-    """A complete brief with its `Home:` line taken out."""
-    return "".join(
-        line for line in complete(slug).splitlines(keepends=True) if not line.startswith("Home:")
-    )
+def bare(text):
+    """The brief or request `text` with its `Home:` line taken out."""
+    return "".join(line for line in text.splitlines(keepends=True) if not line.startswith("Home:"))
 
 
 def adds(kitchen, slug, text, *more):
@@ -47,22 +45,25 @@ def queued(kitchen):
 
 
 def test_a_brief_with_no_home_line_is_refused_as_a_brief_fault(kitchen):
-    code, out = adds(kitchen, "no-home", bare("no-home"))
+    code, out = adds(kitchen, "no-home", bare(complete("no-home")))
     assert (code, out.splitlines()[:2]) == (
         1,
         [
             "refused: no-home's brief has 1 fault, and nothing is queued",
-            "- no Home: line: it names root, or the scope of the home the row is for (flow)",
+            "- brief has no Home: line: name root or the row's scope (flow)",
         ],
     )
     assert not (kitchen.state / "queue.json").exists() or "no-home" not in queued(kitchen)
 
 
 def test_a_scouts_request_with_no_home_line_is_refused_too(kitchen):
-    code, out = adds(kitchen, "sc-ask", request("sc-ask"))
-    assert (code, out.splitlines()[0]) == (
+    code, out = adds(kitchen, "sc-ask", bare(request("sc-ask")))
+    assert (code, out.splitlines()[:2]) == (
         1,
-        "refused: sc-ask's request has 1 fault, and nothing is queued",
+        [
+            "refused: sc-ask's request has 1 fault, and nothing is queued",
+            "- no Home: line: name root or the row's scope (flow)",
+        ],
     )
 
 
@@ -72,8 +73,8 @@ def test_a_home_line_that_names_no_scope_is_refused(kitchen):
         1,
         [
             "refused: to-docs's brief has 1 fault, and nothing is queued",
-            "- Home: line names docs, which is no home of demo: it names root, or the scope of "
-            "the home the row is for (flow)",
+            "- brief's Home: line names docs, which is no home of demo: name root or the row's "
+            "scope (flow)",
         ],
     )
 
@@ -91,7 +92,7 @@ def test_home_root_and_home_of_a_scope_are_queued(kitchen):
     assert adds(kitchen, "at-flow", complete("at-flow", f"Home: {SCOPE}\n"))[0] == 0
     assert adds(kitchen, "fl-own", complete("fl-own", f"Home: {SCOPE}\n"), "--from", FLOW)[0] == 0
     assert adds(kitchen, "rt-own", complete("rt-own", "Home: root\n"), "--from", ROOT)[0] == 0
-    assert queued(kitchen) == ["at-root", "at-flow", "fl-own", "rt-own"]
+    assert sorted(queued(kitchen)) == ["at-flow", "at-root", "fl-own", "rt-own"]
 
 
 def test_a_home_line_and_a_for_that_differ_are_refused(kitchen):
@@ -111,7 +112,7 @@ def test_a_home_line_and_a_for_that_differ_are_refused(kitchen):
 
 def test_a_row_queued_before_the_rule_is_not_checked_again(kitchen):
     assert adds(kitchen, "old-row", complete("old-row", "Home: root\n"))[0] == 0
-    (kitchen.state / "briefs" / "old-row.md").write_text(bare("old-row"))
+    (kitchen.state / "briefs" / "old-row.md").write_text(bare(complete("old-row")))
     assert kitchen.main("queue", "show")[0] == 0
     assert queued(kitchen) == ["old-row"]
 

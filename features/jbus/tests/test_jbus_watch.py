@@ -1026,7 +1026,7 @@ def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_eac
     kitchen.set("logs.json", {"712": MACOS_LOG, "911": BROWSER_LOG})
     kitchen.poll()
     tasks = kitchen.home / "tasks"
-    assert "Home:" not in (tasks / "browser-red-2026-10-12.md").read_text()
+    assert "\nHome: root\n" in (tasks / "browser-red-2026-10-12.md").read_text()
     assert (
         "tests/test_jbus_view_page.py::test_one"
         in (tasks / "browser-red-2026-10-12.md").read_text()

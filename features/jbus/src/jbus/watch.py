@@ -40,6 +40,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import below
+from jbriefs import home as homes
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse
 from jbus.launches import records
@@ -1184,7 +1185,8 @@ def fix_brief(
     shared doc a fix brief may not claim (`queue.shared_doc`), or says
     `nowhere` where there are none. `filed` is what jbus filed it from, and
     `follows` the row whose work the fix is a follow-up of: a pass approves it on that row's go
-    (`queue.follow_ups`)."""
+    (`queue.follow_ups`). Its `Home:` line is `home`, a scope's name, or `root`, so that a home
+    can queue it again as `jbus queue add` asks."""
     tests = [test for _, _, failed in jobs for test in failed]
     where = [
         file
@@ -1206,7 +1208,7 @@ def fix_brief(
             f"Pull request: {pull}",
             "Review: review",
             "Playbook: bug-fix",
-            *([f"Home: {home}"] if home else []),
+            f"Home: {home or homes.ROOT}",
             *([f"Follows: {follows}"] if follows else []),
             "Read:",
             *(

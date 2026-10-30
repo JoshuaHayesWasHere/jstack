@@ -34,7 +34,7 @@ def queue(kitchen, slug, home="", priority=1, approve=True):
     """Queue a row whose brief belongs to `home`, a scope's name, or to the root home."""
     text = brief(slug)
     if home:
-        text = text.replace("Home: mcp:a-home", f"Home: {home}")
+        text = text.replace("Home: root", f"Home: {home}")
     add(kitchen, slug, priority=priority, approve=approve, text=text)
 
 

@@ -144,7 +144,9 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
         text = verbs.piped("queue add", "the brief")
-        queue.owned(config.home(project), project.name, args.slug, text, args.adder, args.handed)
+        home = queue.owned(
+            config.home(project), project.name, args.slug, text, args.adder, args.handed
+        )
         release = blockers.admit(config, project, args.slug, text)
         try:
             named = _item(state, args.slug, args.item or "")
@@ -161,6 +163,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
                 after,
                 config.user,
                 asks,
+                home=home,
             )
         except BaseException:
             release()

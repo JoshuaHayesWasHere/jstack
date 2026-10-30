@@ -12,6 +12,7 @@ Design: none, a fix to what the failed run names
 Pull request: open one when done
 Review: review
 Playbook: bug-fix
+Home: root
 Follows: alpha
 Read:
 - the job `?`, with no URL: its log names no failed test, read it

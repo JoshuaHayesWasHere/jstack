@@ -186,7 +186,7 @@ def where_the_findings_go(kitchen, slug):
 def test_a_launched_or_adopted_thread_is_the_one_thread_line_in_the_head_of_the_brief(
     kitchen, lost, had, result
 ):
-    approved = complete("alpha", "Decisions: none\n").replace("\n", f"\n{had}", 1)
+    approved = complete("alpha", "Decisions: none\nHome: root\n").replace("\n", f"\n{had}", 1)
     queued(kitchen, "alpha", approved)
     brief = kitchen.home / "tasks/alpha.md"
     kitchen.t3.lose = lost

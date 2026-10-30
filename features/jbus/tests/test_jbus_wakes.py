@@ -220,11 +220,9 @@ def test_a_row_to_approve_wakes_the_home_whose_brief_it_is_and_not_the_root(
     monkeypatch.chdir(checkout)
     for slug, named, where in (
         ("sb-rows-build", "sidebar", kind),
-        ("alpha", "mcp:a-home", "tasks"),
+        ("alpha", "root", "tasks"),
     ):
-        given = (
-            request(slug) if where == "scouts" else brief(slug).replace("Home: mcp:a-home\n", "")
-        )
+        given = (request(slug) if where == "scouts" else brief(slug)).replace("Home: root\n", "")
         add(kitchen, slug, approve=False, text=f"{given}Home: {named}\n")
         kitchen.brief(slug, f"Home: {named}\n", kind=where)
     rows = json.loads((kitchen.state / "queue.json").read_text())

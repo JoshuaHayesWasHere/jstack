@@ -6,7 +6,8 @@ scoped home. A scope is such a directory whose `home-id` holds an id or whose `h
 `Was home:` line. A brief names its home on a `Home:` line in its head, before its first `## `
 heading. A home writes the scope's name there. A brief written before homes wrote scope names
 gives instead a thread id that is in a `home-id` or on a `Was home:` line. A brief with no such
-line, or one that names the root's ids or no scope, belongs to the root (`home_of`).
+line, or one that names `root`, the root's ids or no scope, belongs to the root (`home_of`).
+A brief queued now must name its home as `root` or a scope's name (`fault`).
 
 A home's thread is the first word of its `home-id`, read again on each call. A home that
 handed off has no thread until the next home's start writes its own id there. An id equal
@@ -28,6 +29,7 @@ from jsettings.brief import head
 from jsettings.paths import homes_dir as homes_dir
 
 WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
+ROOT = "root"
 
 
 def _read(file: Path) -> str:
@@ -65,12 +67,26 @@ def home_of(state: Path, brief: str) -> Path:
     line names, by name or by either of its ids. Where two scopes match, it is the last one
     in name order. For any other brief it is `state`."""
     name = named(brief)
-    if not name or name in ids(state):
+    if not name or name == ROOT or name in ids(state):
         return state
     for scope, now, was in reversed(scopes(state)):
         if name in (scope.name, now, was):
             return scope
     return state
+
+
+def fault(state: Path, brief: str, project: str) -> str:
+    """Why a brief may not be queued for its home, or an empty string. Its `Home:` line must
+    name `root` or the name of a scope of `state` (`scopes`): a brief with no line once landed
+    in the root without a word, and a thread id or a name that is no scope would too."""
+    name = named(brief)
+    names = ", ".join(scope.name for scope, _, _ in scopes(state))
+    want = f"name {ROOT} or the row's scope" + (f" ({names})" if names else "")
+    if not name:
+        return f"no Home: line: {want}"
+    if name != ROOT and name not in names.split(", "):
+        return f"Home: line names {name}, which is no home of {project}: {want}"
+    return ""
 
 
 def thread_of(home: Path, slug: str = "") -> str:

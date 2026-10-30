@@ -120,7 +120,7 @@ class Homes:
         if found != self.home:
             return Owner(found.name)
         named = jbriefs.named(brief)
-        return Owner(ROOT, "" if named in jbriefs.ids(self.home) else named)
+        return Owner(ROOT, "" if named in (jbriefs.ROOT, *jbriefs.ids(self.home)) else named)
 
     def of_slug(self, slug: str, kind: str = "tasks") -> Owner | None:
         """The home of the slug's brief, or of its request for `scouts`, or None where it has

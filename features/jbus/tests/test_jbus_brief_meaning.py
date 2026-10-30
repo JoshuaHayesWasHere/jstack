@@ -16,7 +16,7 @@ from testing.paths import REPO
 
 APPROVED = """\
 # alpha: a brief whose go is kept
-Home: mcp:a-home
+Home: root
 Task: "make the queue check a brief"
 Done when:
 - `jbus queue add` refuses an incomplete brief, with one line per fault
@@ -35,7 +35,7 @@ Playbook: feature
 
 REWORDED = """\
 # alpha: A brief whose go is kept.
-Home: mcp:another-home
+Home: flow
 Task: "Make the queue check a brief."
 Done when:
 - An approval holds through a wording-only edit.
@@ -60,6 +60,8 @@ Judge: the user
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
     made.word()
+    (made.home / "flow").mkdir()
+    (made.home / "flow" / "home-id").write_text("mcp:flow-home\n")
     yield made
     made.close()
 
@@ -231,7 +233,7 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
     code, said = add(kitchen, text)
     assert code == 1
     assert said.splitlines() == [
-        "refused: alpha's brief has 6 faults, and nothing is queued",
+        "refused: alpha's brief has 7 faults, and nothing is queued",
         "- brief's Task: line is the template's own text",
         "- brief's Done when: line is empty",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
@@ -240,6 +242,7 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
         f"- {parse.NO_DESIGN}",
+        "- brief has no Home: line: name root or the row's scope (flow)",
     ]
     assert not queue.brief_path(kitchen.state, "alpha").exists()
 
@@ -335,7 +338,7 @@ def old_go(kitchen):
     assert (code, json.loads(said)["holds"]) == (0, True)
 
 
-MOVED = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-crew")
+MOVED = APPROVED.replace("Home: root", "Home: flow\nThread: mcp:a-crew")
 LONGER = "`make check` exits 0, in 5 minutes or less"
 
 
@@ -539,7 +542,7 @@ def test_the_lines_a_launch_writes_keep_the_go(kitchen):
     what was approved: its go holds, and it launches with no `Thread:` line and its new
     `Home:`."""
     approved(kitchen)
-    again = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-launched-thread")
+    again = APPROVED.replace("Home: root", "Home: flow\nThread: mcp:a-launched-thread")
     code, said = add(kitchen, again)
     assert code == 0 and "does not hold" not in said, said
     assert judgement.brief_sha(again) == judgement.brief_sha(APPROVED)

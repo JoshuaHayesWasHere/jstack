@@ -374,7 +374,7 @@ def test_a_scoped_homes_go_approves_its_own_rows_and_its_stop_takes_them_back(ki
     (scope / "home-id").write_text("mcp:flow-home\n")
     (scope / "plan.md").write_text(FLOW_PLAN)
     kitchen.t3.says(HOME, MESSAGE, "go on the flow epic")
-    queued(kitchen, "alpha", text=brief("alpha").replace("Home: mcp:a-home\n", "Home: flow\n"))
+    queued(kitchen, "alpha", text=brief("alpha").replace("Home: root\n", "Home: flow\n"))
     code, said = kitchen.main(
         "plan", "go", "epic", "--scope", "flow", "--message", f"{HOME}/{MESSAGE}"
     )
@@ -431,7 +431,7 @@ def jview(kitchen):
     jview's plan with the user's go, whose one row is its design scout."""
     root, scoped = home(kitchen), home(kitchen, "jview")
     (kitchen.home / "jview" / "plan.md").write_text(JVIEW_PLAN)
-    text = brief("jv-design").replace("Home: mcp:a-home\n", "Home: jview\n")
+    text = brief("jv-design").replace("Home: root\n", "Home: jview\n")
     queued(kitchen, "jv-design", entry="jv-build", text=text)
     kitchen.t3.says(HOME, MESSAGE, "go on jv-build")
     code, said = kitchen.main(
@@ -492,7 +492,7 @@ def test_a_holding_go_whose_last_row_ended_wakes_its_home_once_and_jbus_out_says
     (late,) = owed_wakes(kitchen, root)
     assert "- owed jview/jv-build: go holds, no live row" in late and scoped in late
     assert len(owed_wakes(kitchen, scoped)) == 1
-    text = brief("jv-build-2").replace("Home: mcp:a-home\n", "Home: jview\n")
+    text = brief("jv-build-2").replace("Home: root\n", "Home: jview\n")
     queued(kitchen, "jv-build-2", entry="jv-build", text=text)
     assert not any(line.startswith("out entry ") for line in out(kitchen))
     kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 2))
@@ -528,9 +528,7 @@ def test_an_entry_whose_live_row_waits_on_depends_raises_nothing(jview):
         "jv-build",
         "--depends",
         "jv-first",
-        stdin=brief("jv-next", "Builds on: jv-first\n").replace(
-            "Home: mcp:a-home\n", "Home: jview\n"
-        ),
+        stdin=brief("jv-next", "Builds on: jv-first\n").replace("Home: root\n", "Home: jview\n"),
     )
     assert code == 0, said
     kitchen.poll(NOW)
