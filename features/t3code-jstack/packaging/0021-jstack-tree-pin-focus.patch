@@ -1,0 +1,119 @@
+From a34c25a55a8279795aca782b347fa71e4c005cd0 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Fri, 30 Oct 2026 05:16:33 -0400
+Subject: [PATCH] fix(web): a clicked jstack hover pin or root chevron hands
+ focus back to its row
+
+The pin at a home's row end and the fold chevron at a root's are for the pointer only, and sit
+outside their row, so a click left focus on them and the tree's keys did nothing until Tab or
+another click put it back on a row. Each now focuses its row once clicked, so ArrowUp, ArrowDown
+and the rest act at once.
+---
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 35 +++++++++++++++++++
+ .../src/components/sidebar/JstackTreeRows.tsx | 16 ++++++---
+ 2 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+index e6ccff83fc..989346d643 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
+@@ -278,6 +278,18 @@ describe("JstackTreeRowView root rows", () => {
+     expect(fold.tabIndex).toBe(-1);
+   });
+ 
++  it("hands focus to the root's row once its chevron is clicked, so the arrow keys go on at once", async () => {
++    const spies = actions();
++    await using screen = await summaryTree(spies);
++    await userEvent.click(
++      screen.container.querySelector<HTMLElement>('[aria-label="Fold jstack"]')!,
++    );
++    expect(spies.onToggleProject).toHaveBeenCalledTimes(1);
++    await expect.element(rootItem(screen)).toHaveFocus();
++    await userEvent.keyboard("{ArrowDown}");
++    await expect.element(screen.getByRole("treeitem", { name: /^tidy / })).toHaveFocus();
++  });
++
+   it("folds a project with no home from its name, and offers a new thread in it", async () => {
+     const spies = actions();
+     const winnifred = group("Winnifred");
+@@ -1894,6 +1906,29 @@ describe("JstackTreeRowView pinned homes", () => {
+     await userEvent.keyboard("{ArrowDown}{Enter}");
+     await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "false");
+   });
++
++  it("hands focus to the home's row once its pin is clicked, so the arrow keys go on at once", async () => {
++    await using _pins = await noPins();
++    await using screen = await summaryTree(actions());
++    const ops = homeItem(screen, "ops");
++    await userEvent.hover(ops);
++    await userEvent.click(pinOf(screen, "ops"));
++    await expect.poll(() => pinOf(screen, "ops").dataset.jstackPin).toBe("pinned");
++    await expect.element(ops).toHaveFocus();
++    // Pinned open: the next row is its first task.
++    await userEvent.keyboard("{ArrowDown}");
++    await expect.element(screen.getByRole("treeitem", { name: /^ops-trim / })).toHaveFocus();
++    await userEvent.keyboard("{ArrowUp}");
++    await expect.element(ops).toHaveFocus();
++
++    await userEvent.click(pinOf(screen, "ops"));
++    await expect.poll(() => pinOf(screen, "ops").dataset.jstackPin).toBe("unpinned");
++    await expect.element(ops).toHaveFocus();
++    // Unpinned, it folds: the next row is the next home.
++    await userEvent.keyboard("{ArrowDown}");
++    await expect.element(homeItem(screen, "jview")).toHaveFocus();
++    expect(await auditIdle()).toEqual([]);
++  });
+ });
+ 
+ describe("JstackTreeRowView home summaries", () => {
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+index d6986b517a..b41eee9b1a 100644
+--- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -635,7 +635,8 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+             )}
+           />
+           {/* For the pointer only: the row's menu and its arrow keys reach both, so the tree
+-              holds treeitems alone and Tab stays one stop. */}
++              holds treeitems alone and Tab stays one stop. The chevron hands focus back to
++              the row, where the tree's keys act. */}
+           <span aria-hidden className="absolute inset-y-0 right-1 flex items-center gap-0.5">
+             {main === null ? (
+               <span className="opacity-0 group-hover/project-folder:opacity-100 pointer-coarse:opacity-100">
+@@ -656,7 +657,10 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+               aria-label={
+                 row.collapsed ? `Unfold ${group.displayName}` : `Fold ${group.displayName}`
+               }
+-              onClick={toggle}
++              onClick={() => {
++                toggle();
++                focusTreeRowSoon(row.key);
++              }}
+               className="flex size-6 items-center justify-center rounded-(--control-radius) text-sidebar-muted-foreground outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+             >
+               <ChevronDownIcon
+@@ -724,7 +728,8 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                 />
+               </button>
+               {/* For the pointer only, in the column of the root's chevron: the row's menu has
+-                  Pin open and Unpin. A pinned home keeps its filled pin in sight as its mark. */}
++                  Pin open and Unpin. A pinned home keeps its filled pin in sight as its mark.
++                  A click hands focus back to the row, where the tree's keys act. */}
+               <span aria-hidden className="absolute inset-y-0 right-1 flex items-center">
+                 <Tooltip>
+                   <TooltipTrigger
+@@ -734,7 +739,10 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+                         tabIndex={-1}
+                         data-jstack-pin={row.pinned ? "pinned" : "unpinned"}
+                         aria-label={row.pinned ? `Unpin ${row.scope}` : `Pin ${row.scope} open`}
+-                        onClick={() => actions.onTogglePin(row.threadId)}
++                        onClick={() => {
++                          actions.onTogglePin(row.threadId);
++                          focusTreeRowSoon(row.key);
++                        }}
+                         className={cn(
+                           "flex size-6 items-center justify-center rounded-(--control-radius) outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+                           row.pinned
+-- 
+2.56.0
+
