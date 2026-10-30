@@ -320,7 +320,9 @@ def jbus_takes_gates(homes, monkeypatch, gate_code=0):
     (stub / "jbus").write_text(
         "#!/bin/sh\n"
         "case $1 in\n"
-        f'gate) {{ echo "slug: $2"; cat; }} >> "{log}"; [ {gate_code} = 0 ] || {{ echo "refused: no"; exit 1; }}; echo "queued: question 9" ;;\n'
+        f'gate) {{ echo "slug: $2"; cat; }} >> "{log}"\n'
+        f'    [ {gate_code} = 0 ] || {{ echo "refused: no"; exit 1; }}\n'
+        '    echo "queued: question 9" ;;\n'
         "esac\n"
     )
     (stub / "jbus").chmod(0o755)
