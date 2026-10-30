@@ -69,6 +69,7 @@ from jroles.mirror import mirrors
 from jsettings import paths
 
 T3_FLOOR = "0.1.2-nightly.20261022.3526"
+CLAUDE_PAGE = "https://code.claude.com/docs/en/setup"
 UV_FLOOR: tuple[int, ...] | None = None
 
 
@@ -84,11 +85,14 @@ class Level(Enum):
 class Need:
     """One line of the list. `name` is what the line prints after the level. For a link it
     is a path, and for anything else it is a word and a path, or a program
-    (`hook <file> <Event>`, `commands jstack`, `jq`)."""
+    (`hook <file> <Event>`, `commands jstack`, `jq`). `fold` names the run of needs that
+    `--setup` says in one line while each is done or already there, `skills <harness>` for a
+    harness's skill links."""
 
     name: str
     level: Level
     kind: Kind | Carried
+    fold: str = ""
 
 
 def needs(machine: Machine) -> tuple[Need, ...]:
@@ -183,7 +187,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(
             "claude",
             Level.HARD,
-            Program("claude", arch="claude-code", brew="--cask claude-code"),
+            Program("claude", arch="claude-code", brew="--cask claude-code", page=CLAUDE_PAGE),
         ),
         Need("uv", Level.HARD, Program("uv", floor=UV_FLOOR)),
         Need("git", Level.HARD, Program("git", floor=(2, 31))),
@@ -232,6 +236,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
             str(root / skill),
             Level.HARD,
             Link(root / skill, machine.layout(harness.name) / "skills" / skill),
+            fold=f"skills {harness.name}",
         )
         for harness, root in roots.items()
         for skill in named

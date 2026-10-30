@@ -149,17 +149,17 @@ WSL2 = "install jstack inside WSL2"
 WINDOWS = ("win32", "cygwin")
 
 
-def get(machine: Machine, command: str, arch: str = "", brew: str = "") -> str:
+def get(machine: Machine, command: str, arch: str = "", brew: str = "", page: str = "") -> str:
     """How to get a program on this machine. On macOS it is `brew install <formula>`, where the
     formula is `brew`, `--cask <name>` for an app, or else the command's name. On Windows it is
     WSL2, since jstack runs inside it there. On Arch, where pacman is on PATH, it is
     `yay -S <package>`, where the package is `arch` or else the command's name. Anywhere else it
-    is the program's name."""
+    is the program's install `page`, for a program no distribution packages, or else its name."""
     if machine.platform == "darwin":
         return f"brew install {brew or command}"
     if machine.platform in WINDOWS:
         return WSL2
-    return f"yay -S {arch or command}" if machine.which("pacman") else command
+    return f"yay -S {arch or command}" if machine.which("pacman") else page or command
 
 
 GENERATE = "scripts/generate-jstack-trees.py"
@@ -1139,11 +1139,12 @@ class Program:
     hint: str = ""
     arch: str = ""
     brew: str = ""
+    page: str = ""
 
     def ask(self, machine: Machine) -> str:
         """The hint where there is one, or else how to get the program on this machine, by its
-        Arch package `arch` and its Homebrew formula `brew` (`get`)."""
-        return self.hint or get(machine, self.command, self.arch, self.brew)
+        Arch package `arch`, its Homebrew formula `brew` and its install `page` (`get`)."""
+        return self.hint or get(machine, self.command, self.arch, self.brew, self.page)
 
     def probe(self, machine: Machine) -> Found:
         if machine.which(self.command) is None:
@@ -1193,7 +1194,7 @@ class T3Code:
     floor: str
 
     def ask(self, machine: Machine) -> str:
-        return get(machine, "t3", arch="t3code-bin", brew="--cask t3-code")
+        return get(machine, "t3", arch="t3code-bin", brew="--cask t3-code", page=T3_UPSTREAM)
 
     def probe(self, machine: Machine) -> Found:
         command = t3_command(machine)

@@ -361,7 +361,8 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
     assert os.path.islink(home / ".local" / "bin" / "uv"), setup.stdout + setup.stderr
     said = setup.stdout.splitlines()
     source = tools / "jstack" / "share" / "jstack"
-    assert f"done {home / '.claude' / 'skills' / 'crew'}" in said, setup.stdout + setup.stderr
+    folded = [line for line in said if re.fullmatch(r"done skills claude-code: \d+ links", line)]
+    assert folded, setup.stdout + setup.stderr
     assert "already commands jstack" in said
     checked = subprocess.run(
         [str(bin / "jinstall"), "--check"], env=env, cwd=home, capture_output=True, text=True
@@ -407,8 +408,10 @@ def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_fr
 
     assert os.path.islink(home / ".local" / "bin" / "uv"), setup.stdout + setup.stderr
     said = setup.stdout.splitlines()
-    assert f"done {home / '.claude' / 'skills' / 'crew'}" in said, setup.stdout + setup.stderr
-    assert said[-1] == f"done units {home / UNITS_DIR}"
+    folded = [line for line in said if re.fullmatch(r"done skills claude-code: \d+ links", line)]
+    assert folded, setup.stdout + setup.stderr
+    assert said[-2:-1] == [f"done units {home / UNITS_DIR}"]
+    assert said[-1].startswith("setup: ") and "needs you: " in said[-1]
     assert made_from(home) == tools / "jstack" / "share" / "jstack"
     loose = tmp_path / "install.sh"
     shutil.copy(INSTALL, loose)
