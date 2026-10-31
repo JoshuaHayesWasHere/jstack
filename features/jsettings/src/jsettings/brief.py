@@ -3,12 +3,10 @@ brief's first `## ` heading, before any Result or Review.
 
 `head_lines` gives those lines and `head` what the first of them with a label says. What a line
 means is its reader's: `jbriefs.parse` judges each line of a brief, and each command reads the
-lines it acts on through `head`. `page` reads a scout's Report for the page it names.
+lines it acts on through `head`.
 """
 
 from __future__ import annotations
-
-import re
 
 HEADING = "## "
 
@@ -29,16 +27,3 @@ def head(text: str, label: str) -> str | None:
         if line.startswith(label):
             return line.removeprefix(label).strip()
     return None
-
-
-def page(report: str) -> str:
-    """Return what a scout's Report says after its last `Page:`, or nothing when the Report names
-    no page.
-
-    `Page: none` names no page, and neither does `Page: none, <why>`. `jmerge --sweep` and the
-    scout skill's own settle block read the line the same way.
-    """
-    named = [
-        line.split("Page:", 1)[1].strip(" \t") for line in report.splitlines() if "Page:" in line
-    ]
-    return "" if not named or re.match(r"none(,|$)", named[-1]) else named[-1]

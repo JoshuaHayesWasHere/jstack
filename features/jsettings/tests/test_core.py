@@ -74,14 +74,6 @@ def test_a_line_is_read_from_the_head_of_a_brief_and_not_below_it():
     assert brief.head(text, "Home:") is None
 
 
-@pytest.mark.parametrize(
-    ("report", "page"),
-    [("Page: reports/a.html\n", "reports/a.html"), ("Page: none, why\n", ""), ("", "")],
-)
-def test_a_report_names_its_last_page(report, page):
-    assert brief.page(report) == page
-
-
 def test_a_locked_list_is_written_as_it_always_was(tmp_path):
     from dataclasses import dataclass
 
