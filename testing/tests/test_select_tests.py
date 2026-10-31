@@ -919,7 +919,7 @@ def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its
     assert "features/jroles/tests/test_jroles_mirror.py" not in selected
 
 
-@pytest.mark.parametrize("panel", ["bus", "checks", "words", "you"])
+@pytest.mark.parametrize("panel", ["bus", "checks", "slow", "you"])
 def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(panel):
     selected, _ = select.selection([f"features/jbus/src/jbus/view/panels/{panel}/panel.py"])
 
