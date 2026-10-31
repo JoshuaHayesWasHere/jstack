@@ -132,7 +132,8 @@ for event in $events; do
           for i in 1 2 3 4 5; do
             printf "$brief" | sed "s/^# beta/# b$i/; s/beta/b$i/g; s/sandbox-thread-1/sandbox-thread-b$i/; s#pull/7#pull/$((6 + i))#" > "$T/b$i.md"
           done
-          sed -i.bak 's/^Verdict: clean/Verdict: findings/; s/^none$/- warning src\/b5\/a.py:1 a made up one (bucket: Act on)/' "$T/b5.md" && rm "$T/b5.md.bak"
+          sed -i.bak 's/^Verdict: clean/Verdict: findings/; s/^none$/- warning src\/b5\/a.py:1 a made up one (bucket: Act on)/' "$T/b5.md"
+          rm "$T/b5.md.bak"
           jq -n '[range(1; 6) | {threadId: "mcp:sandbox-thread-b\(.)", title: "crew: b\(.)", status: "idle", settled: false}]' > "$S/t3/threads.json"
           expect="merged 7 8, told b3 and b4, held 11" ;;
       esac

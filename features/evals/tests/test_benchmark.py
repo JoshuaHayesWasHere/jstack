@@ -727,6 +727,7 @@ def test_a_spend_run_with_no_answer_says_so(tmp_path, machine, answer):
     assert json.loads((replay_out / "b.jsonl").read_text())["error"] is True
     assert started.returncode == 1
     assert "claude gave no answer" in started.stderr
+    assert json.loads((start_out / "c.jsonl").read_text())["error"] is True
 
 
 def at_most(machine, *command):
