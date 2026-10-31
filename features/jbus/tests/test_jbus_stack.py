@@ -13,6 +13,7 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 from jmerge import stacked as stacks
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, Kitchen, asks
@@ -179,3 +180,25 @@ def test_a_link_github_will_not_rebase_is_told_nothing_and_its_line_stays(stacke
     assert "wait two: #11 could not be based on main: gh exited 1" in said
     assert asks(stacked) == []
     assert head_line(stacked) == stacks.Stacked("one", "one")
+
+
+def test_a_refused_or_lost_move_keeps_no_key_and_the_link_where_it_sits(stacked):
+    """Only a message that went writes the restack key and moves the brief's `Stacked on:` line,
+    so the next pass tells it under the same key."""
+    key = f"restack|two|{LINK[:12]}|{MERGE[:12]}"
+    pulls(stacked, merged=True)
+    stacked.t3.refuse_send = True
+    passes(stacked, 0)
+    stacked.t3.refuse_send = False
+    stacked.t3.lose_send = True
+    passes(stacked, 3)
+    stacked.t3.lose_send = False
+    assert key not in jbus.read_json(stacked.state / "sent.json", [])
+    assert head_line(stacked) == stacks.Stacked("one", "one")
+    assert stacked.lines("restack") == []
+
+    passes(stacked, 6, 9)
+    assert keys(stacked) == [key] * 3
+    assert jbus.read_json(stacked.state / "sent.json", []).count(key) == 1
+    assert stacked.lines("restack") == [f"restack two: told the crew one merged (#11, {LINK[:12]})"]
+    assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
