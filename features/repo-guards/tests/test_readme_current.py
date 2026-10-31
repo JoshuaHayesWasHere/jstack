@@ -68,7 +68,6 @@ OPTIONAL = {
     "systemd `--user`, or launchd on macOS": ("units",),
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
     "The backup: a private remote and `gitleaks`": ("state repo",),
-    "`lavish-axi`": ("lavish-axi",),
 }
 NO_REQUIREMENT = (
     "config",
@@ -76,6 +75,7 @@ NO_REQUIREMENT = (
     "patterns",
     "ci report",
     "relay",
+    "lavish-axi",
 )
 ON_ARCH = ("t3 jstack build",)
 OF_THE_CHECKOUT = ("generated files are current",)
