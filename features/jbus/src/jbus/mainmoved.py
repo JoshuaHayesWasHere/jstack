@@ -73,7 +73,7 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 from __future__ import annotations
 
 from jbriefs.home import thread_of
-from jbus import Refused, dispatch, outbox, questions, read_json, rebase, verbs, write_json
+from jbus import Refused, dispatch, outbox, questions, read_json, rebase, verbs, watch, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import NO_JOB, NOT_RED, World, _api, _check, _judged, _log_failed, checks
@@ -118,12 +118,6 @@ MESSAGE = (
     'has none, without waiting for green ("The review"), and handle the rest as "Stay on the '
     'pull request" says.'
 )
-
-
-def short_of(pull: dict) -> str:
-    """Return why `tell` wakes the crew of a pull request, in the message's words, or an empty
-    string for a pull request whose crew it does not wake."""
-    return RED if checks(pull) == "failed" else ""
 
 
 def main_check(run: Pass, sha: str, again: bool = False, rerun: bool = False) -> str:
@@ -249,7 +243,8 @@ def tell(run: Pass, client: Client, world: World) -> None:
     for slug, pull in world.open.items() if last and fixed else ():
         if asked_before and slug not in kept:
             continue
-        why, head, number = short_of(pull), pull.get("headRefOid", ""), pull["number"]
+        why = RED if checks(pull) == "failed" else ""
+        head, number = pull.get("headRefOid", ""), pull["number"]
         key = f"mainmoved|{slug}|#{number}|{fixed[:12]}"
         if not head or not dispatch.launched(run, slug):
             continue
@@ -264,11 +259,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
                 continue
             if mergeable == MERGEABLE_CONFLICTING:
                 continue
-        try:
-            brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-        except OSError:
-            brief = ""
-        if stacks.unmoved(brief):
+        if stacks.unmoved(watch.task_brief(run, slug)):
             continue
         thread = thread_of(run.home, slug)
         if not thread:
