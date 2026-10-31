@@ -23,8 +23,9 @@ declares it as `CHORES = (Chore(...),)`, with its rank, its name, and the functi
 it. That function takes the config, the T3 Code client or None, the pass's time and its
 `say`. `chores` gathers the chores by rank, and `jbus.poll.poll` runs each one after the
 launches, inside `guarded` under the chore's name. The chores are the sign-in reminder, the
-sending of the scratch homes' words and the check of the tools T3 Code serves. A scratch home
-is no project of a pass. When two modules declare the same rank, `chores` raises a `ValueError`.
+sending of the scratch homes' words, the snapshots that did not reach their end and the check of
+the tools T3 Code serves. A scratch home is no project of a pass. When two modules declare the
+same rank, `chores` raises a `ValueError`.
 
 `project` and `here` are the two ways a verb finds its project.
 
