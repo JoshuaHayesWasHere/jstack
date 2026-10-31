@@ -18,7 +18,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import alert, alive, item, passes, poll, wake
+from jbus import alert, alive, item, mainmoved, passes, poll, wake
 from test_jbus_kitchen import ASK, NOW, REFUSED
 from test_jbus_kitchen import HOME as HOME_THREAD
 from test_jbus_wake_failing import OWNED, refusing
@@ -222,6 +222,8 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("record.py", "'heartbeat'")] == {"heartbeat"}
     assert sent[("item.py", "kind(verb)")] == set()
     every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}
+    every.add(mainmoved.ASK.kind)
+    assert mainmoved.ASK.kind in wake.LOUDNESS
     assert unknown(SRC) == {"word"}
     assert set(wake.LOUDNESS) - every == set()
 

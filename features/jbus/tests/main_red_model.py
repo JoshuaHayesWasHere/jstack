@@ -61,7 +61,7 @@ Each kind of step matches the code as follows:
 - **rerun passes**: the newest tip's check failed, and a rerun of that check on the same tip passes
   with no new commit. From then on, that tip's check is `green`.
 - Each pass also chooses T3 Code's answer to a send. T3 Code answers it, loses it (`T3Error`
-  in `tell`, `features/jbus/src/jbus/mainmoved.py`) or refuses it (`T3Refused`).
+  in `once`, `features/jbus/src/jbus/rebase.py`) or refuses it (`T3Refused`).
 
 The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
 model, where the real one would ask GitHub. `mainmoved.failed_at` returns the one test that failed

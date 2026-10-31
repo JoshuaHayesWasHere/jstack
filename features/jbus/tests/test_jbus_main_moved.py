@@ -13,7 +13,7 @@ import pytest
 
 import jbus
 from jmerge import mainjson
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, sends_in_once
 from test_jbus_queue import add, gates, go
 from test_jbus_watch import beside_a_dispatched_browser_run
 
@@ -469,3 +469,56 @@ def test_a_tip_that_failed_under_one_no_pass_saw_is_red_while_the_newest_is_pend
     launched.set("commits.json", commits)
     launched.poll()
     assert mainjson.read(launched.state).red == red
+
+
+def test_a_message_told_writes_its_key_and_the_two_it_stands_for(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    launched.poll()
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    assert {
+        f"mainmoved|alpha|#7|{main[:12]}",
+        "rebase|alpha|cccccccccccc",
+        "failed|alpha|cccccccccccc",
+    } <= set(sent)
+
+
+def test_a_refused_message_writes_its_key_and_failed_and_not_rebase(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    launched.t3.refuse_send = True
+    launched.poll()
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    assert {f"mainmoved|alpha|#7|{main[:12]}", "failed|alpha|cccccccccccc"} <= set(sent)
+    assert "rebase|alpha|cccccccccccc" not in sent
+
+
+def test_a_lost_message_writes_no_key_and_says_why_it_waits(launched):
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    launched.t3.lose_send = True
+    said = launched.poll()
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    assert f"mainmoved|alpha|#7|{main[:12]}" not in sent
+    assert "rebase|alpha|cccccccccccc" not in sent and "failed|alpha|cccccccccccc" not in sent
+    assert any(
+        line.startswith("wait alpha: its crew could not be told that main moved") for line in said
+    )
+
+
+def test_the_rebase_message_writes_its_key_and_the_main_moved_key_of_the_tip(launched):
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
+    launched.set("open.json", [pull(launched, "alpha", 7, mergeable="CONFLICTING")])
+    launched.poll()
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    assert {"rebase|alpha|cccccccccccc", f"mainmoved|alpha|#7|{tip(launched)[:12]}"} <= set(sent)
+    assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+
+
+def test_the_main_moved_message_goes_out_inside_once(launched, monkeypatch):
+    spied = sends_in_once(monkeypatch)
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    launched.poll()
+    assert (f"mainmoved|alpha|#7|{main[:12]}", True) in spied
+    assert all(inside for _, inside in spied)

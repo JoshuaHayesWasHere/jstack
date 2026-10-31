@@ -73,9 +73,9 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 from __future__ import annotations
 
 from jbriefs.home import thread_of
-from jbus import Refused, dispatch, outbox, questions, read_json, rebase, verbs, write_json
+from jbus import Refused, dispatch, questions, read_json, rebase, verbs, watch, write_json
 from jbus.passes import Pass
-from jbus.t3 import Client, T3Error, T3Refused
+from jbus.t3 import Client
 from jbus.watch import NO_JOB, NOT_RED, World, _api, _check, _judged, _log_failed, checks
 from jmerge import mainjson
 from jmerge import stacked as stacks
@@ -118,12 +118,9 @@ MESSAGE = (
     'has none, without waiting for green ("The review"), and handle the rest as "Stay on the '
     'pull request" says.'
 )
-
-
-def short_of(pull: dict) -> str:
-    """Return why `tell` wakes the crew of a pull request, in the message's words, or an empty
-    string for a pull request whose crew it does not wake."""
-    return RED if checks(pull) == "failed" else ""
+ASK = rebase.Ask(
+    "mainmoved", "told the crew", "told that main moved", MESSAGE, refused=REFUSED, closes=True
+)
 
 
 def main_check(run: Pass, sha: str, again: bool = False, rerun: bool = False) -> str:
@@ -249,8 +246,9 @@ def tell(run: Pass, client: Client, world: World) -> None:
     for slug, pull in world.open.items() if last and fixed else ():
         if asked_before and slug not in kept:
             continue
-        why, head, number = short_of(pull), pull.get("headRefOid", ""), pull["number"]
-        key = f"mainmoved|{slug}|#{number}|{fixed[:12]}"
+        why = RED if checks(pull) == "failed" else ""
+        head, number = pull.get("headRefOid", ""), pull["number"]
+        key = rebase.mark("mainmoved", slug, f"#{number}", fixed[:12])
         if not head or not dispatch.launched(run, slug):
             continue
         mergeable = pull.get("mergeable")
@@ -258,17 +256,13 @@ def tell(run: Pass, client: Client, world: World) -> None:
             continue
         if key in sent:
             continue
-        if f"rebase|{slug}|{head[:12]}" in sent:
+        if rebase.mark("rebase", slug, head) in sent:
             if mergeable == MERGEABLE_UNKNOWN:
                 owed = True
                 continue
             if mergeable == MERGEABLE_CONFLICTING:
                 continue
-        try:
-            brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-        except OSError:
-            brief = ""
-        if stacks.unmoved(brief):
+        if stacks.unmoved(watch.task_brief(run, slug)):
             continue
         thread = thread_of(run.home, slug)
         if not thread:
@@ -286,35 +280,14 @@ def tell(run: Pass, client: Client, world: World) -> None:
             head=head,
             default=default,
         )
-        try:
-            went = outbox.send(
-                run,
-                client,
-                thread=thread,
-                row=slug,
-                key=key,
-                text=message,
-                template="mainmoved",
-                needs="act",
-            )
-        except T3Refused as error:
-            run.gate(slug, REFUSED, f"{error}\n\n{message}", key=f"{REFUSED} {fixed[:12]}")
-            run.box.mark(key)
-            run.box.mark(f"failed|{slug}|{head[:12]}")
-            continue
-        except T3Error as error:
-            owed = True
-            run.say(f"wait {slug}: its crew could not be told that main moved ({error})")
-            continue
-        if not went:
-            owed = True
-            continue
-        run.box.mark(key)
-        run.box.mark(f"rebase|{slug}|{head[:12]}")
-        run.box.mark(f"failed|{slug}|{head[:12]}")
         line = f"mainmoved {slug}: told the crew (#{number}, main {fixed[:12]})"
-        run.find(slug, "mainmoved", line, message, key=f"#{number} {fixed[:12]}")
-        run.say(line)
+        told = (line, f"#{number} {fixed[:12]}")
+        went = rebase.once(run, client, ASK, key, thread, slug, message, at=fixed[:12], told=told)
+        owed = owed or went == rebase.OWED
+        if went == rebase.SENT:
+            run.box.mark(rebase.mark("rebase", slug, head))
+        if went in (rebase.SENT, rebase.REFUSED_SEND):
+            run.box.mark(rebase.mark("failed", slug, head))
     if not owed:
         at = (was.get("at") if main == last else "") or run.now.isoformat()
         kept_red = broken or (red if held else "")

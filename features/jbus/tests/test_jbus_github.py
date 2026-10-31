@@ -15,7 +15,9 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from test_jbus_kitchen import NOW, Kitchen
+from jbus import rebase
+from jbus.passes import Pass
+from test_jbus_kitchen import NOW, Kitchen, sends_in_once
 from test_jbus_queue import add, gates, rows
 
 HEAD = "c" * 40
@@ -596,3 +598,51 @@ def test_a_check_that_failed_is_a_blocker_at_the_first_pass(launched):
     passes(launched, 0)
     assert reruns(launched) == []
     assert blockers(launched).startswith("fix check:alpha: its check failed, brief a fix")
+
+
+def test_a_message_told_keeps_its_key_and_one_event_and_a_refused_or_lost_one_keeps_neither(
+    launched,
+):
+    """The key goes in `sent.json` only with the message, with its one event, so T3 Code's refusal
+    and a lost answer both try again under the same key on the next pass."""
+    key = "conflict|alpha|cccccccccccc"
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it has no review yet\n")
+    launched.set("open.json", [pull(launched, mergeable="CONFLICTING")])
+
+    launched.t3.refuse_send = True
+    launched.poll()
+    assert key not in jbus.read_json(launched.state / "sent.json", [])
+    assert "condition alpha: T3 Code refused the conflict message" in gates(launched)
+    launched.t3.refuse_send = False
+
+    launched.t3.lose_send = True
+    said = launched.poll(NOW + timedelta(minutes=3))
+    assert key not in jbus.read_json(launched.state / "sent.json", [])
+    assert any(
+        line.startswith("wait alpha: its crew could not be told of the conflict") for line in said
+    )
+    assert launched.lines("conflict") == []
+    launched.t3.lose_send = False
+
+    passes(launched, 6, 9)
+    assert keys(launched).count(key) == 3
+    assert launched.lines("conflict") == ["conflict alpha: told the crew (#7, cccccccccccc)"]
+    assert jbus.read_json(launched.state / "sent.json", []).count(key) == 1
+
+
+def test_the_rebase_message_goes_out_inside_once(launched, monkeypatch):
+    spied = sends_in_once(monkeypatch)
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
+    launched.set("open.json", [pull(launched, mergeable="CONFLICTING")])
+    launched.poll()
+    assert spied == [("rebase|alpha|cccccccccccc", True)]
+
+
+def test_once_sends_nothing_under_a_key_already_written(launched):
+    config = jbus.load()
+    run = Pass(config, config.projects[0], NOW)
+    run.box.mark("rebase|alpha|cccccccccccc")
+    ask = rebase.Ask("rebase", "told the crew", "told to rebase", "text")
+    key = "rebase|alpha|cccccccccccc"
+    went = rebase.once(run, None, ask, key, "mcp:t", "alpha", "text", at="c")
+    assert went == rebase.ALREADY
