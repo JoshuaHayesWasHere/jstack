@@ -93,7 +93,8 @@ def brief(
             "Done when:",
             f"- the shots under `{KEPT}/` and their `browser.txt` are those of the run's "
             f"`{ARTIFACT}` artifact, which the browser that draws them drew over main: "
-            f"`gh run download {number} -n {ARTIFACT} -D {KEPT}`",
+            f'`d=$(mktemp -d) && gh run download {number} -n {ARTIFACT} -D "$d" && '
+            f'cp -R "$d/." {KEPT}/`',
             f"- the pull request changes nothing outside `{KEPT}/`",
             "- the Result names each shot that moved and the merge that moved it, or the "
             "browser that moved, so the look is looked at",
