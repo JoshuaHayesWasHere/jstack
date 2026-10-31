@@ -9,7 +9,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `standing.md` | Your standing rules for the repo's homes. A home reads it whole at its start. |
 | `tasks/<slug>.md` | A crewmate's brief, then its Result, then its Review. |
 | `scouts/<slug>.md` | A scout's request, then its report. |
-| `reports/<slug>.html` | A scout's visual page, when the request asked for one. |
+| `reports/<slug>.html` | A scout's visual, when the request asked for one. |
 | `merge.log` | The lines `jmerge` printed, each after the time it was printed. |
 | `off` | Present when the automatic home is switched off for the repo. |
 | `merge-off` | Present when the automatic merge is switched off for the repo. |

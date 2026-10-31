@@ -26,8 +26,7 @@ RULE = "|" + " --- |" * 15
 SINCE = "since 2026-10-12 11:00 ET"
 NO_BASIS = (
     "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
-    "id>, --pick <thread id>/<item id> or --page <session key>/<entry id>, or --follows <parent "
-    "slug>, and "
+    "id> or --pick <thread id>/<item id>, or --follows <parent slug>, and "
     "no --by and no --at: jbus writes who ran it and when; the user's go on a plan entry is "
     "jbus plan go <entry> --message <thread>/<message>"
 )

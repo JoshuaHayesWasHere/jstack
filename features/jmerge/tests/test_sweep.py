@@ -13,7 +13,6 @@ from datetime import date
 import pytest
 
 import daemons
-from jbus import mirror
 from jmerge import cli
 from test_home_merge import NAME, git
 
@@ -248,40 +247,28 @@ def test_a_worktree_nobody_names_whose_directory_is_gone_stays_listed(scene):
     assert f"worktree {stray}" in git(scene.main, "worktree", "list", "--porcelain")
 
 
-def test_a_report_may_say_more_after_done_and_a_page_of_none_is_no_page(scene):
-    report = "## Report\nStatus: done (both ran the same cases)\nBrief: none   Page: none\n"
+def test_a_report_may_say_more_after_done(scene):
+    report = "## Report\nStatus: done (both ran the same cases)\nBrief: none   Visual: none\n"
     scene.scout("find-out", report=report)
     assert scene.look() == [removable("scout-find-out", WORKTREE, LOCAL)]
 
 
-PAGE = "its Report has a page, which may wait on the user"
-
-
 @pytest.mark.parametrize(
-    ("page", "waits"),
+    "line",
     [
+        pytest.param("Brief: none   Visual: reports/find-out.html\n", id="a visual"),
         pytest.param(
             "Brief: none   Page: reports/find-out.html, http://127.0.0.1:4387/session/1\n",
-            True,
-            id="a real page",
+            id="an old report that names a page",
         ),
-        pytest.param("Brief: none   Page: none, lavish-axi is not installed\n", False, id="why"),
-        pytest.param("Brief: none   Page: none,no lavish-axi\n", False, id="why, no space"),
-        pytest.param("Brief: none   Page: none\n", False, id="none"),
-        pytest.param("Brief: none   Page: none \n", False, id="none, and a blank"),
-        pytest.param("", False, id="no line"),
+        pytest.param("", id="no line"),
     ],
 )
-def test_the_sweep_the_scout_and_jbus_agree_on_which_report_names_a_page(
-    scene, tmp_path, page, waits
-):
-    report = f"## Report\nStatus: done\n{page}"
-    assert bool(mirror.page(report)) == waits
+def test_a_done_report_is_removed_and_its_scout_settles_whatever_it_names(scene, tmp_path, line):
+    report = f"## Report\nStatus: done\n{line}"
     scene.scout("find-out", report=report)
-    kept, removed_ = f"kept scout-find-out: {PAGE}", removable("scout-find-out", WORKTREE, LOCAL)
-    assert scene.look() == [kept if waits else removed_]
-    said = "page: settle once the user has ended its session" if waits else "settle"
-    assert settles(tmp_path, report) == [said]
+    assert scene.look() == [removable("scout-find-out", WORKTREE, LOCAL)]
+    assert settles(tmp_path, report) == ["settle"]
 
 
 def test_branches_with_no_worktree_left_are_removed(scene):
@@ -421,12 +408,6 @@ def report_blocked(scene):
     return "blocked, its Report says Status: blocked"
 
 
-def report_with_a_page(scene):
-    page = "reports/alpha.html, http://127.0.0.1:4387/session/1"
-    scene.scout("alpha", report=f"## Report\nStatus: done\nBrief: none   Page: {page}\n")
-    return "its Report has a page, which may wait on the user"
-
-
 def result_that_says_more_than_done(scene):
     scene.crewmate("alpha", status="done (all but the last line)")
     return "its Result says more than Status: done"
@@ -464,7 +445,6 @@ KEPT = [
     no_report,
     report_not_done,
     report_blocked,
-    report_with_a_page,
     result_that_says_more_than_done,
     two_records,
     named_by_nobody,
@@ -722,7 +702,7 @@ def settles(tmp_path, report):
     return ran.stdout.splitlines()
 
 
-REPORT = "## Report\nStatus: {}\nRecommendation: do it\nBrief: none   Page: {}\nSteers: none\n"
+REPORT = "## Report\nStatus: {}\nRecommendation: do it\nBrief: none   Visual: {}\nSteers: none\n"
 
 
 @pytest.mark.parametrize(
@@ -733,13 +713,7 @@ REPORT = "## Report\nStatus: {}\nRecommendation: do it\nBrief: none   Page: {}\n
         ("", "stay: the request has no Report"),
         (REPORT.format("blocked", "none"), "stay: the Report does not say Status: done"),
         (REPORT.format("not done", "none"), "stay: the Report does not say Status: done"),
-        pytest.param(
-            "## Report\nStatus: done\n", "settle", id="a report that names no page has none"
-        ),
-        (
-            REPORT.format("done", "reports/find-out.html, http://127.0.0.1:4387/session/1"),
-            "page: settle once the user has ended its session",
-        ),
+        pytest.param("## Report\nStatus: done\n", "settle", id="a report with no visual line"),
         pytest.param(
             REPORT.format("done", "none") + REPORT.format("blocked", "none"),
             "stay: the Report does not say Status: done",
@@ -747,5 +721,5 @@ REPORT = "## Report\nStatus: {}\nRecommendation: do it\nBrief: none   Page: {}\n
         ),
     ],
 )
-def test_a_scout_settles_itself_when_its_report_is_done_and_no_page_waits(tmp_path, report, said):
+def test_a_scout_settles_itself_when_its_report_is_done(tmp_path, report, said):
     assert settles(tmp_path, report) == [said]

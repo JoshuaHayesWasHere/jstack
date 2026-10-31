@@ -348,13 +348,13 @@ def parser(
         type=_cli_party,
         metavar="PARTY",
         help="who acts in a go or an answer: home, the default, or user, on the user's own "
-        "words that jbus reads (--message, --pick or --page); the bot acts only over POST /act",
+        "words that jbus reads (--message or --pick); the bot acts only over POST /act",
     )
     made.add_argument(
         "--evidence",
         metavar="SOURCE:REF",
         help="the words a go or an answer rests on, as <source>:<ref>, in place of its basis "
-        "option: t3-message, t3-pick, lavish-page, typed (a word's id) or answer",
+        "option: t3-message, t3-pick, typed (a word's id) or answer",
     )
     commands = made.add_subparsers(dest="command", required=True)
     taking = {verb.name: verb for verb in chosen}

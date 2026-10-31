@@ -1,6 +1,7 @@
 # A scout answers one question
 
-The scout skill makes a thread a scout: it researches the one question of a request with read-only calls, writes the report, and serves a page when one is asked for. The tests lift each block and run it.
+The scout skill makes a thread a scout: it researches the one question of a request with read-only calls, writes the report, and shows a visual when one is asked for.
+The tests lift each block and run it.
 
 Paths:
 - `features/scout/`

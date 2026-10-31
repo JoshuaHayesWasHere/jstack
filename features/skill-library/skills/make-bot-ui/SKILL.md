@@ -3,7 +3,7 @@ name: make-bot-ui
 description: "Build a page whose buttons wake this T3 Code thread through a schedule_task webhook, served on the tailnet by a local server that keeps the webhook's URL and key off the browser. Use for /make-bot-ui, 'make a bot UI', 'buttons that wake this thread'."
 tip: builds a page whose buttons wake this thread through a webhook | make a bot ui | bot ui | buttons that wake this thread | a page that wakes this thread | webhook buttons
 disable-model-invocation: true
-card: "Run the pipeline | 10 | Makes a webhook task bound to this thread, signed with a key the user enters privately, and briefs a crewmate to build the page and the local server that posts each button press to it. | Reach for it when a page with buttons should wake a thread, and a Lavish page or `jbus view` is not enough. | op: the operator; plain: a crewmate builds the server"
+card: "Run the pipeline | 10 | Makes a webhook task bound to this thread, signed with a key the user enters privately, and briefs a crewmate to build the page and the local server that posts each button press to it. | Reach for it when a page with buttons should wake a thread, and `jbus view` is not enough. | op: the operator; plain: a crewmate builds the server"
 ---
 
 # Make a bot UI
@@ -17,13 +17,10 @@ The browser never holds the webhook's URL or its key, and neither goes into chat
 
 ## Pick the smaller one first
 
-jstack already has two ways for a page to reach a thread, and each is smaller than this one:
-
-- A Lavish page with the `comments` capability's `sendToClaude` (`lavish-axi playbook input`): no server and no webhook, for a page that somebody's session watches while it waits for an answer.
-- `jbus view`'s one write, `POST /answer` (`features/jbus/src/jbus/view/__init__.py`): for a button that answers a question jbus already asked.
+jstack already has a way for a page to reach a thread, and it is smaller than this one: `jbus view`'s one write, `POST /answer` (`features/jbus/src/jbus/view/__init__.py`), for a button that answers a question jbus already asked.
 
 Make a bot UI only when the page must wake a thread that is not watching, at any time, with an action of its own.
-Say which of the three you took, and why, before you go on.
+Say which of the two you took, and why, before you go on.
 
 ## Where it runs
 

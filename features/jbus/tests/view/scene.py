@@ -782,7 +782,6 @@ def out(title, live="moving", status="running", minutes=1, **more):
         "run_started": None,
         "queued": 0,
         "pending": 0,
-        "page": False,
     } | more
 
 

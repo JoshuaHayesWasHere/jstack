@@ -864,7 +864,6 @@ THREAD = {
         "run_started",
         "queued",
         "pending",
-        "page",
         "rank",
         "open",
         "health",
@@ -958,7 +957,6 @@ def _threads(
             "run_started": when(one.get("run_started")),
             "queued": count(one.get("queued")),
             "pending": count(one.get("pending")),
-            "page": one.get("page") is True,
             "open": 0,
         }
         if thread["role"] == "scout" and home is not None and _SLUG.fullmatch(thread["slug"]):

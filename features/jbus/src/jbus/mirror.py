@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 from jbriefs import below
 from jbriefs import parse as briefs
 from jbus import queue, read_json, verbs, write_json
-from jsettings.brief import page as page
 
 if TYPE_CHECKING:
     from jbus.passes import Pass

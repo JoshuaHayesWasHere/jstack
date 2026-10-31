@@ -18,7 +18,6 @@ tries it again.
 
 from __future__ import annotations
 
-import re
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -29,7 +28,6 @@ from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
     dispatch,
-    lavish,
     mirror,
     outbox,
     queue,
@@ -42,7 +40,7 @@ from jbus import (
 )
 from jbus.live import Facts, judge
 from jbus.passes import Pass
-from jbus.roles import PREFIXES, SCOUT, role_of, slug_in
+from jbus.roles import PREFIXES, role_of, slug_in
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import ENDED, STARTING, World, after_merge, at_work, owes_pull, unfinished, when
 
@@ -111,7 +109,6 @@ def resume_message(template: str, title: str, home: Path, **fields: Any) -> str:
 
 
 Out = dict[str, Any]
-_SESSION = re.compile(r"/session/([0-9a-f]+)")
 
 
 def _done(run: Pass, key: str) -> bool:
@@ -142,10 +139,6 @@ def link(run: Pass, client: Client, world: World) -> None:
         run.say(f"linked {slug}: #{pull['number']} to {thread}")
 
 
-UNSEEN = "its page has no session in Lavish's state at {}, so its thread stays"
-UNDONE = "its Report does not say Status: done, so its thread stays"
-
-
 def _says_done(report: str) -> bool:
     """Say whether a scout's Report says `Status: done`, on its last `Status:` line, as the scout
     skill's own settle block reads it: the word after `Status:` is `done`, so `Status: done, but`
@@ -154,46 +147,15 @@ def _says_done(report: str) -> bool:
     return bool(said) and said[-1] == ["done"]
 
 
-def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> str:
-    """Return why the page that a scout's Report names may still wait on the user, or nothing.
-
-    The page's session is the one at the address on the `Page:` line, or else the session of the
-    file to which the scout skill writes a page. The page waits until that session has ended and no
-    answer is left queued in it. Lavish ends a session on the user's final send, and keeps what the
-    user sent until a poll takes it. When Lavish does not know the session, the scout's thread also
-    stays.
-    """
-    if not page:
-        return ""
-    keys = set(_SESSION.findall(page))
-    file = str((run.home / "reports" / f"{slug}.html").resolve())
-    mine = [one for one in sessions if one.get("key") in keys or one.get("file") == file]
-    if not mine:
-        return UNSEEN.format(lavish.path())
-    heard = all(
-        one.get("status") == "ended" and not one.get("prompts") and not one.get("pending_prompts")
-        for one in mine
-    )
-    return "" if heard else "its page waits on the user"
-
-
-def _scouts(run: Pass) -> dict[str, str]:
-    """Return each scout that has a Report, with the reason its thread stays. The reason is empty
-    for a scout that is over. A scout whose last Report does not say `Status: done` stays, as the
-    scout skill's End keeps it, and a page that waits is the reason it gives first."""
-    pages, undone = {}, set()
+def _scouts(run: Pass) -> set[str]:
+    """Return each scout that is over: its last Report says `Status: done`. Any other stays, as the
+    scout skill's End keeps it."""
+    over = set()
     for slug, text in _briefs(run, "scouts").items():
-        whole = mirror.sections(text)
-        reports = [body for heading, body in whole if heading == REPORT]
-        if reports:
-            pages[slug] = mirror.page(reports[-1])
-            if not _says_done(reports[-1]):
-                undone.add(slug)
-    sessions = lavish.sessions() if any(pages.values()) else []
-    return {
-        slug: _waits(run, slug, page, sessions) or (UNDONE if slug in undone else "")
-        for slug, page in pages.items()
-    }
+        reports = [body for heading, body in mirror.sections(text) if heading == REPORT]
+        if reports and _says_done(reports[-1]):
+            over.add(slug)
+    return over
 
 
 def shut(world: World, briefs: dict[str, str]) -> set[str]:
@@ -212,7 +174,7 @@ def shut(world: World, briefs: dict[str, str]) -> set[str]:
     return found
 
 
-def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> dict[str, set[str]]:
+def finished(run: Pass, world: World) -> dict[str, set[str]]:
     """Return the slugs whose threads may be put away, by the start of such a thread's title. Under
     `archive`, also return the slugs whose review threads jbus archives.
 
@@ -221,8 +183,7 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
     stays where the user sees it. A reviewer is over when the brief's last Review has a verdict and
     either the reviewer's pull request merged or closed or the reviewer's task is over. A reviewer
     that stopped early stays. jbus archives a reviewer when its pull request merged or closed. A
-    scout is over when its last Report says `Status: done` and nobody waits on the page that it
-    names, if it names one.
+    scout is over when its last Report says `Status: done`.
     """
     briefs = _briefs(run)
     tasks = set(world.merged) - set(world.open)
@@ -241,11 +202,10 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
         ran = [one.ran for one in findings.triage(briefs[slug]).sections]
         if ran and ran[-1]:
             reviewed.add(slug)
-    held = _scouts(run) if scouts is None else scouts
     return {
         "crew: ": tasks,
         "review: ": reviewed,
-        "scout: ": {slug for slug, why in held.items() if not why},
+        "scout: ": _scouts(run),
         "archive": reviewed & ended,
     }
 
@@ -281,8 +241,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     `out` reads a thread only when the thread is `quiet` or `hung` by the listed data alone. The
     read gives the active run, when it started, the runs queued behind it and the requests that
     wait. A pass with no quiet thread reads no thread. `out` also reads the threads in `also`,
-    whatever their state. A scout's entry has `page` set while its last Report names a page that
-    waits.
+    whatever their state.
 
     `run` is the run that a read gave as active, and nothing for a thread that was not read. T3
     Code's list of threads names only a thread's newest run, and that run is a queued one whenever a
@@ -295,7 +254,6 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads out could not be listed ({error})")
         return None
-    held = _scouts(run)
     before = {one.get("id"): one for one in record.seen(run.config, run.project.name)}
     found = []
     for thread in sorted(listed, key=lambda t: str(t.get("createdAt", ""))):
@@ -305,8 +263,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
         same = type(items) is int and was.get("items") == items and was.get("wrote")
         wrote = was["wrote"] if same else thread.get("updatedAt")
         silent = _silent(run.now, wrote)
-        page = role == "scout" and held.get(slug) not in (None, "", UNDONE)
-        facts = Facts(str(thread.get("status", "")), silent, page=page)
+        facts = Facts(str(thread.get("status", "")), silent)
         active, started, runs = None, None, None
         asked = was.get("pending") if same and type(was.get("pending")) is int else 0
         word = judge(facts).word
@@ -352,7 +309,6 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
                 "run_started": started,
                 "queued": facts.queued,
                 "pending": asked,
-                "page": facts.page,
                 "runs": runs,
             }
         )
@@ -365,15 +321,13 @@ def settle(run: Pass, client: Client, world: World) -> None:
 
     `settle` skips a thread that is still at work, and the threads under it, until the next pass.
     """
-    held = _scouts(run)
-    over = finished(run, world, held)
-    unseen = {slug for slug, why in held.items() if why == UNSEEN.format(lavish.path())}
+    over = finished(run, world)
     slug_of: dict[str, str] = {}
     shelve: set[str] = set()
     waiting: list[dict[str, Any]] = []
     try:
         for prefix in PREFIXES:
-            if not over[prefix] and not (prefix == SCOUT and unseen):
+            if not over[prefix]:
                 continue
             for thread in t3.listed(client, run.project.project_id, titleContains=prefix):
                 slug = slug_in(str(thread.get("title", "")), prefix)
@@ -382,9 +336,6 @@ def settle(run: Pass, client: Client, world: World) -> None:
                     waiting.append(thread)
                     if prefix == "review: " and slug in over["archive"]:
                         shelve.add(thread["threadId"])
-                elif prefix == SCOUT and slug in unseen and not thread.get("settled"):
-                    run.say(f"wait {slug}: {held[slug]}")
-                    unseen.discard(slug)
         if not slug_of:
             return
         below = t3.listed(client, run.project.project_id, settled=False, includeSubagents=True)

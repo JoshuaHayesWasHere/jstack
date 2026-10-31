@@ -79,7 +79,7 @@ def test_a_remove_by_someone_else_with_no_checked_words_is_refused_and_logged(ki
     assert (code, said) == (
         1,
         "refused: only user removes a row, on their own words: --by user, or --message "
-        "<thread>/<message> or --page <session>/<entry>, not flow home; a home takes out a row "
+        "<thread>/<message>, not flow home; a home takes out a row "
         "of its own that never launched with jbus queue withdraw\n",
     )
     assert "alpha" in rows(kitchen)

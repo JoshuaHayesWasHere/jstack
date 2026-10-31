@@ -28,8 +28,7 @@ The id is what `jbus queue approve --word` takes, and the message the home gets 
 A word that could not go waits, and each pass tries it again.
 
 A word goes to the one home of the project that owns its subject, so two homes never act on one word.
-With `jbus word --page <file>`, that is the home whose page the word was given on: a page under a scope's directory, or one named for a brief or a request, as `reports/<slug>/` is.
-Otherwise it is the home of the briefs, requests and rows the words name by slug, when they are all one home's, and a new slug is a scope's when every brief with its prefix is that scope's.
+It is the home of the briefs, requests and rows the words name by slug, when they are all one home's, and a new slug is a scope's when every brief with its prefix is that scope's.
 A word that names the work of two homes goes to the root home.
 A word that names none goes to the home it was said in (the thread of `--message`) or recorded by (`--from`), so a scoped home's own word stays in that scope, and otherwise to the root home.
 A home that records a word about another home's work with `--from` forwards it to that home, and the command prints `sent: <project>, to the <scope> home at <thread>, word <id>`.

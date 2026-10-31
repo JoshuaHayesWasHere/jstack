@@ -10,10 +10,9 @@ that acted, the `Action` it took, the `Evidence` it acted on, and what came of i
   the six cases a gate's `Holds:` line names (`CASES`), each with the words that name it in
   prose, which `jbus.waiting` and `jbus.item` read in a gate's words as `prose` gives them.
 - `Evidence`: the user's words an act rests on, and where jbus read them. `checked` says jbus
-  read the words and their time itself, in T3 Code (a message, or the answer to a question box)
-  or on a Lavish page; anything typed or
-  carried by the bot is not checked. Each basis of an approval (`jbus.queue.BASES`, `RULE`
-  and `ENTRY`) is one `source` (`SOURCE`).
+  read the words and their time itself, in T3 Code (a message, or the answer to a question box);
+  anything typed or carried by the bot is not checked. Each basis of an approval
+  (`jbus.queue.BASES`, `RULE` and `ENTRY`) is one `source` (`SOURCE`).
 - `Action`: what the party did (`Verb`) to what, with what it was given to check against: the
   brief's sha for a go, the head for an accept, and the event the actor last saw.
 - `Act`: the record, `v` 1, with its `outcome`: `done`, `gated` (a door the party may not open
@@ -47,7 +46,9 @@ Source = Literal[
 ]
 Verb = Literal["go", "answer", "hold", "remove", "withdraw", "accept", "word", "item"]
 Outcome = Literal["done", "gated", "refused", "noop"]
-SOURCES: tuple[str, ...] = get_args(Source)
+RECORDED = "lavish-page"
+"""The source of an old approval's words, which `acts.jsonl` keeps and no verb is given now."""
+SOURCES: tuple[str, ...] = tuple(one for one in get_args(Source) if one != RECORDED)
 CLI_PARTIES = ("user", "home")
 CLI_BOT = (
     "refused: --as {party}: the bot acts only over its own route, POST /act on jbus view, with "
@@ -119,12 +120,12 @@ SOURCE = {
     "answer": "answer",
     "message": "t3-message",
     "pick": "t3-pick",
-    "page": "lavish-page",
+    "page": RECORDED,
     "rule": "rule",
     "entry": "plan-entry",
 }
-"""The `Evidence.source` of each basis an approval has today (`jbus.queue.BASES`, `RULE` and
-`ENTRY`).
+"""The `Evidence.source` of each basis an approval has (`jbus.queue.BASES`, `RULE` and `ENTRY`),
+and of `jbus.queue.PAGE`, which only an old record has.
 A source no basis has, such as `bot-chat`, is its own basis in the approval record."""
 
 

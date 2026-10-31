@@ -1129,26 +1129,25 @@ def _numbers(text: str) -> tuple[int, ...]:
 @dataclass(frozen=True)
 class Program:
     """A program on PATH.
-    missing: the program is not there, and the detail is `hint`.
+    missing: the program is not there.
     old: its version is below `floor`, or the probe cannot read the version. When `floor` is
       None, the probe never answers old and does not run the program."""
 
     command: str
     version: tuple[str, ...] = ("--version",)
     floor: tuple[int, ...] | None = None
-    hint: str = ""
     arch: str = ""
     brew: str = ""
     page: str = ""
 
     def ask(self, machine: Machine) -> str:
-        """The hint where there is one, or else how to get the program on this machine, by its
-        Arch package `arch`, its Homebrew formula `brew` and its install `page` (`get`)."""
-        return self.hint or get(machine, self.command, self.arch, self.brew, self.page)
+        """How to get the program on this machine, by its Arch package `arch`, its Homebrew
+        formula `brew` and its install `page` (`get`)."""
+        return get(machine, self.command, self.arch, self.brew, self.page)
 
     def probe(self, machine: Machine) -> Found:
         if machine.which(self.command) is None:
-            return Found.missing(self.hint)
+            return Found.missing()
         if self.floor is None:
             return Found.ok()
         said = re.search(r"[0-9]+(\.[0-9]+)+", machine.run([self.command, *self.version]).out)

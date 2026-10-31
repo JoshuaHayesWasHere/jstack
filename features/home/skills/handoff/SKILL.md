@@ -107,7 +107,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
 ## Steps
 
 1. **Stop what runs in the background.**
-   A watch, a loop, a `lavish-axi poll` this thread holds: stop each by its process id.
+   A watch or a loop this thread holds: stop each by its process id.
    This thread is finished and must have nothing left that wakes it.
    Each one goes in the note, under `Out, not on the bus:`, with what it watched.
    Then run `git status --short` and `git log --oneline @{upstream}..` in each worktree this thread used, the main checkout included: each path and commit they print goes under `Uncommitted:` with its branch, and `none` only when both print nothing there.

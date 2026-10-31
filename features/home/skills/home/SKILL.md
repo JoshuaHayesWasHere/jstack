@@ -75,7 +75,7 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `features/home/docs/state.md`). | Short |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
 | `$H/scouts/<slug>.md` | A scout's request, and its report, whichever home wrote it. | One page |
-| `$H/reports/` | The pages a scout or a home makes for the user. | Unbounded |
+| `$H/reports/` | The visuals a scout or a home makes for the user. | Unbounded |
 | `$H/merge.log` | Every line `jmerge` printed, dated: what it merged, each with the command that opens its revert, what waits and is held, and what it swept. | Unbounded |
 | `$H/merge-off` | Present when the automatic merge is switched off for the repo: `jmerge` merges nothing here. `/nohome merge` makes it and `/nohome merge on` removes it. | Empty |
 
@@ -200,7 +200,7 @@ At the start, on status, whenever a gate is asked, shown or closed, and when a s
 
 ## The user's word, carried by jbus
 
-When a message says it is the user's word carried by jbus, when this home records the user's word or a plan entry's go, approves a row on a page's go, on a pick in a question box or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
+When a message says it is the user's word carried by jbus, when this home records the user's word or a plan entry's go, approves a row on a pick in a question box or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
 
 ## Merging a pull request that is ready
 

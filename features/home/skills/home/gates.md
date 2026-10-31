@@ -103,96 +103,14 @@ fi
 
 On `no open questions`, say nothing about gates.
 On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read.
-One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it.
+Give each open question to the user as text, by its number: the question and the default taken, then what was built on it and how to undo it.
 For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe.
 Give them the one command that closes it: `jbus --as user answer <n> --default --message <thread id>/<message id>`, or `--differs` for an answer that is not the default, where the message is their own answer in T3 Code.
 "Close one" below cannot close it, since jbus refuses `--by` and `--at` words on a question that holds.
 Ask for nothing more than the answer.
 
-Two or more open questions are one round of the grill page, wherever the grilling skill's "On a page" (`$T/../skills/grilling/SKILL.md`, read it now) puts a round on a page. Each set of open questions has a page of its own: do its step 1 with `gates-<n>` as the `<slug>`, `<n>` being the highest number among them, and for a scoped home `gates-<scope>-<n>`. Then run this in place of its step 2:
-
-```sh
-: "${SEP:?run the block that reads jbus first}"
-open=$(printf '%s\n' "$OPEN" | grep -c .)
-last=$(printf '%s\n' "$OPEN" | cut -d "$SEP" -f 1 | sort -n | tail -n 1)
-slug=gates-$last
-if [ "$M" != "$H" ]; then slug=gates-$(basename "$M")-$last; fi
-F="$H/reports/grill-$slug.html"
-if [ -n "$WHY" ]; then
-    echo "no page: $WHY"
-elif [ "$open" -lt 2 ]; then
-    echo "no page: $open open, and fewer than two are text"
-elif [ ! -f "$F" ]; then
-    echo "no page: $F is not there, make it first with $slug as the slug"
-else
-    ROUND=$(printf '%s\n' "$OPEN" | jq -R --arg slug "$slug" '
-        split("\u001f") | {
-            id: "gate-\(.[0])", title: .[2],
-            body: (if (.[6] // "") != "" then "Asked by \(.[1]). It holds (\(.[6])) for your answer, with its fail-safe: \(.[7])" else "Asked by \(.[1]). Its default is acted on already" end),
-            built_on: .[4], undo: .[5],
-            options: [
-                {id: "default", label: "Yes: \(.[3])", recommended: true},
-                {id: "other", label: "Something else: say what in the note"}
-            ]
-        }' | jq -s --arg slug "$slug" '{
-            slug: $slug, round: 1, title: "Open questions",
-            lead: "Each default was taken so the work did not wait, but for one that holds. A question left alone settles on its default at once, but for one that holds.",
-            settled: [], questions: .
-        }')
-    export ROUND
-    if awk '
-        /<script type="application\/json" id="round-data">/ { print; print ENVIRON["ROUND"]; inside = 1; seen = 1; next }
-        inside && /<\/script>/ { inside = 0 }
-        !inside { print }
-        END { exit !seen }' "$F" > "$F.new" && mv "$F.new" "$F"; then
-        echo "round written: $open questions, in $F"
-    else
-        uv run --project "$T/../source" jbus forget "$F.new" > /dev/null
-        echo "no page: $F has no round-data block to write the round into"
-    fi
-fi
-```
-
-On `round written:`, each open question is a question `gate-<n>` on the page, its default the recommended option, with what was built on it and how to undo it. Go on with steps 3 to 5 of "On a page": open the session, hold the one poll, end your turn. If a poll for this page is already out, hold no second one. On `no page:`, or where "On a page" keeps a round as text, give each question as text, as for one.
-
-When the poll returns answers, put what it printed, all of it, in place of `<what the poll printed>`:
-
-```sh
-awk '
-    function plain(s,    out, i, c) {
-        out = ""
-        for (i = 1; i <= length(s); i++) {
-            c = substr(s, i, 1)
-            if (c == "\\") { i++; c = substr(s, i, 1); if (c == "n") c = "\n" }
-            out = out c
-        }
-        return out
-    }
-    function answer(line,    word, n, same, mark, at, note) {
-        if (line !~ /^- gate-[0-9]+: (default|other) /) return
-        split(line, word, " ")
-        n = word[2]; gsub(/[^0-9]/, "", n)
-        same = (word[3] == "default")
-        mark = same ? "), left as recommended" : "), changed from the recommended"
-        at = index(line, mark)
-        note = at ? substr(line, at + length(mark)) : ""
-        sub(/^\. Note: /, "", note)
-        if (same && note == "") print "question " n ": default: the default, picked on the page"
-        else if (same) print "question " n ": noted: " note
-        else if (note != "") print "question " n ": differs: " note
-        else print "question " n ": open: something else was picked, with no note"
-        seen++
-    }
-    /^- gate-/ { answer($(0)); next }
-    /\\n- gate-/ { count = split(plain($(0)), line, "\n"); for (i = 1; i <= count; i++) answer(line[i]) }
-    END { if (!seen) print "no answers: no line says \"- gate-<n>: \"" }' << 'THE_POLL_ENDS_HERE'
-<what the poll printed>
-THE_POLL_ENDS_HERE
-```
-
-Run "Close one" for each `default`, `noted` and `differs` line, with the words after that word as the answer. A `noted` line is the default left checked, with a note: read the note, and it is `differs` if it disagrees with the default and `default` if not. An `open` line closes nothing: ask for that question's answer here. Then end the session, as step 7 of "On a page" does. If the poll says the user ended the session instead, these questions stay open and are text from then on.
-
-**Close one** when the user answers it, here or on a page. Put the question's number, the user's name, the time they answered, `default` or `differs`, and their words, as they said them, in place of the five placeholders:
+**Close one** when the user answers it.
+Put the question's number, the user's name, the time they answered, `default` or `differs`, and their words, as they said them, in place of the five placeholders:
 
 ```sh
 n='<number>'

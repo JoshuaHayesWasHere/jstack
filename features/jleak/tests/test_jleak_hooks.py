@@ -241,7 +241,6 @@ REFUSED = "jleak: 1 finding, so the command is refused: take the text out and ru
         (f"gh pr comment 12 --body 'done, {WORD}'", 1),
         (f"gh pr review 12 --comment --body 'as {WORD} said'", 1),
         (f"gh -R someone/repo pr review 12 --approve -b 'as {WORD} said'", 1),
-        (f"cd /tmp && gh-axi pr comment 12 --body 'done, {WORD}'", 1),
         (f"gh \\\n  pr create --title 'feat: for {WORD}'", 1),
         (f"GH_REPO=someone/repo command gh pr edit 12 --title 'feat: for {WORD}'", 1),
         (f"gh pr comment 12 --body 'done, {WORD}", 1),

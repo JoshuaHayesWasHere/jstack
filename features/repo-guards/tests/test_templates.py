@@ -15,7 +15,6 @@ HOOK = REPO / "features" / "home" / "hooks" / "home-start.sh"
 NAMES = [
     "brief.md",
     "expert-answer.md",
-    "grill-page.html",
     "handoff.md",
     "hook-message.md",
     "plan-entry.md",
@@ -145,7 +144,6 @@ def resolved(skill, tmp_path):
 READS = {
     "crew": {"a-fault-outside.md", "gates.md", "rerun.md", "result.md", "skill-artifacts.md"},
     "expert": {"expert-answer.md", "gates.md"},
-    "grilling": {"grill-page.html", "grill-round.schema.json"},
     "handoff": {"handoff.md"},
     "new-home": {"check.yml"},
     "home": {"brief.md", "context", "gates.md", "plan-entry.md", "scout-request.md"},
@@ -154,8 +152,6 @@ READS = {
         "a-fault-outside.md",
         "brief.md",
         "gates.md",
-        "grill-page.html",
-        "grill-round.schema.json",
         "scout-report.md",
         "scout-request.md",
         "skill-artifacts.md",

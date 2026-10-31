@@ -76,7 +76,6 @@ KEY = "bot-key.json"
 GO_OPTIONS = {
     "t3-message": "message",
     "t3-pick": "pick",
-    "lavish-page": "page",
     "typed": "word",
     "answer": "answer",
 }
@@ -91,7 +90,7 @@ HELD_ANSWER = (
 """How a held question closes, said with its refusal so a home hands the user one command."""
 UNCHECKED_USER = (
     "refused: --as user acts on the user's own words that jbus reads itself, --message "
-    "<thread>/<message> or --page <session>/<entry>, and this act has {source} words"
+    "<thread>/<message> or --pick <thread>/<item>, and this act has {source} words"
 )
 
 
@@ -290,7 +289,7 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         )
         line = (
             f"refused: question {number} {why}: only {run.user.user}'s own word, read in T3 "
-            "Code or on a Lavish page, answers it, so it stays open. "
+            "Code, answers it, so it stays open. "
             + HELD_ANSWER.format(number=number, user=run.user.user)
         )
         return action, "refused", line, number
@@ -351,7 +350,7 @@ def _park(run: Pass, who: Party, action: Action, said: Evidence, text: str) -> i
             f"Holds: {case}",
             f"Fail-safe: the brief, stored at {queue.brief_path(run.state, slug)}, unlaunched",
             f"Context: the {who.kind} gave the go on {said.source} {said.ref}, and a door "
-            f"opens only on {user}'s own word that jbus reads in T3 Code or on a Lavish page{also}",
+            f"opens only on {user}'s own word that jbus reads in T3 Code{also}",
             f"Option: wait (default, recommended): {slug} stays unlaunched",
             f"Option: go: {user} gives the go in T3 Code, and the next pass launches it",
         )
@@ -376,8 +375,7 @@ def _parked(run: Pass, who: Party, action: Action, said: Evidence, parked: Parke
             f"Holds: {case}",
             f"Fail-safe: {parked.fail_safe}",
             f"Context: the {who.kind} acted on {said.source} {said.ref or said.words}, and a "
-            f"door opens only on {user}'s own word that jbus reads in T3 Code or on a Lavish "
-            f"page{also}",
+            f"door opens only on {user}'s own word that jbus reads in T3 Code{also}",
             f"Option: wait (default, recommended): {parked.default}",
             f"Option: {action.verb}: {parked.given}",
         )
@@ -481,16 +479,16 @@ def go(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
     return act(run, who, action, said, asks=asks, follows=follows)
 
 
-OWN = {"t3-message": "message", "lavish-page": "page"}
+OWN = {"t3-message": "message"}
 """The options of the user's own words, which jbus reads itself, that a verb on a row takes."""
 REMOVE_BY = (
     "refused: only {user} removes a row, on their own words: --by {user}, or --message "
-    "<thread>/<message> or --page <session>/<entry>, not {by}; a home takes out a row of its own "
+    "<thread>/<message>, not {by}; a home takes out a row of its own "
     "that never launched with jbus queue withdraw"
 )
 REMOVE_WORDS = (
-    "refused: remove takes the user's own words, one of --message <thread>/<message>, --page "
-    "<session>/<entry>, or --by <user> with --at"
+    "refused: remove takes the user's own words, one of --message <thread>/<message>, or --by "
+    "<user> with --at"
 )
 
 
@@ -528,7 +526,7 @@ def withdraw(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
 
 
 def remove(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
-    """`jbus queue remove` as an act: on the user's message or page, read now, or on the words
+    """`jbus queue remove` as an act: on the user's message, read now, or on the words
     typed with `--by` and `--at`. Only the user's own words remove a row, and the act of any
     other `--by` is refused and logged."""
     given = vars(args) | given_evidence(args, OWN)

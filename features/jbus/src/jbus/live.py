@@ -4,8 +4,7 @@ out from what T3 Code reports about the thread.
 `judge` does all of the work. It reads no clock and no file: the pass gives it the thread's
 status, the minutes since the thread last wrote an item or had a request answered
 (`threads.out`), how many runs are queued behind
-the one that is active, how many requests wait for an answer, and
-whether the thread holds a page that still waits on the user.
+the one that is active, and how many requests wait for an answer.
 
 The word is one of `LIVENESS`:
 
@@ -13,8 +12,8 @@ The word is one of `LIVENESS`:
 - `quiet`: a turn is under way and has written nothing for `QUIET_MINUTES`;
 - `hung`: the thread has written nothing for `HUNG_MINUTES`, or for `QUIET_MINUTES` while a run is
   queued behind it. A long run that is still working has no wake waiting behind it;
-- `waiting`: the thread waits on a request, or is silent while a request or a page waits on
-  the user. That is never a hang;
+- `waiting`: the thread waits on a request, or is silent while a request waits on the user. That
+  is never a hang;
 - `ended`: no turn is under way;
 - `unknown`: no rule above matches the facts given. It is never `moving`. `judge` returns
   the facts with the word, so the caller sees a case that nobody foresaw as it is.
@@ -41,7 +40,6 @@ class Facts:
     silent: float | None
     queued: int = 0
     pending: int = 0
-    page: bool = False
 
 
 @dataclass(frozen=True)
@@ -63,7 +61,7 @@ def _word(facts: Facts) -> str:
         return "unknown"
     if facts.silent < QUIET_MINUTES:
         return "moving"
-    if facts.page or facts.pending:
+    if facts.pending:
         return "waiting"
     if facts.queued or facts.silent >= HUNG_MINUTES:
         return "hung"

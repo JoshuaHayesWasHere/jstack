@@ -242,7 +242,7 @@ def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen
     assert lines[1]["evidence"]["checked"] is True
     assert {
         basis: jbus.party.Evidence(source, "").basis for basis, source in jbus.party.SOURCE.items()
-    } == {basis: basis for basis in (*queue.BASES, queue.RULE, queue.ENTRY)}
+    } == {basis: basis for basis in (*queue.BASES, queue.PAGE, queue.RULE, queue.ENTRY)}
     approval = rows(kitchen)["beta"]["approval"]
     assert (approval["basis"], approval["checked"]) == ("message", True)
 
@@ -393,7 +393,7 @@ def test_a_bot_answer_closes_a_two_way_gate_and_is_refused_on_a_gate_that_holds(
     assert status == 409
     assert said["error"] == (
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code or on a Lavish page, answers it, so it stays open. It closes with jbus --as user "
+        "Code, answers it, so it stays open. It closes with jbus --as user "
         f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
         "answer that is not the default, where the message is user's own in T3 Code: --by and "
         "--at cannot close it"
@@ -414,7 +414,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     assert (code, said) == (
         1,
         f"refused: question {held} holds (rewrites history): only user's own word, read in T3 "
-        "Code or on a Lavish page, answers it, so it stays open. It closes with jbus --as user "
+        "Code, answers it, so it stays open. It closes with jbus --as user "
         f"answer {held} --default --message <thread id>/<message id>, or --differs for an "
         "answer that is not the default, where the message is user's own in T3 Code: --by and "
         "--at cannot close it\n",
@@ -452,7 +452,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     assert (code, said) == (
         1,
         "refused: --as user acts on the user's own words that jbus reads itself, --message "
-        "<thread>/<message> or --page <session>/<entry>, and this act has typed words\n",
+        "<thread>/<message> or --pick <thread>/<item>, and this act has typed words\n",
     )
 
 
@@ -511,7 +511,7 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     assert status == 409
     assert said["error"] == (
         f"refused: question {numbers['door']} keeps the go of door, whose brief holds for "
-        "rewrites history: only user's own word, read in T3 Code or on a Lavish page, answers it, "
+        "rewrites history: only user's own word, read in T3 Code, answers it, "
         f"so it stays open. It closes with jbus --as user answer {numbers['door']} --default "
         "--message <thread id>/<message id>, or --differs for an answer that is not the default, "
         "where the message is user's own in T3 Code: --by and --at cannot close it"

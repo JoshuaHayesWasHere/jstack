@@ -24,7 +24,6 @@ from jbus import (
     boxes,
     dispatch,
     item,
-    lavish,
     passes,
     plan,
     questions,
@@ -46,8 +45,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
 
     `said` returns the words an approval names: a word of the project's `acts.jsonl`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, the
-    user's answer to a question box read from T3 Code and its store, a pick read from Lavish's
-    state file. A follow-up's go reads no file of the home: jbus knows the rule by what it says.
+    user's answer to a question box read from T3 Code and its store. A follow-up's go reads no
+    file of the home: jbus knows the rule by what it says.
     `entry_go` reads the go of a row's plan entry (`plan.holding`).
 
     `out` asks T3 Code and GitHub now for a thread that is at work, `crew: <slug>` or
@@ -113,8 +112,6 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
             return t3.heard(config, ref)
         if basis == queue.PICK:
             return boxes.picked(config, ref)
-        if basis == queue.PAGE:
-            return lavish.picked(config.user, ref)
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
 
     goes = plan.entry_go(run.state, config.home(project))
@@ -338,9 +335,6 @@ def _table(table: argparse.ArgumentParser) -> None:
         "user_input_request item: it approves the row a picked label names",
     )
     approve.add_argument(
-        "--page", metavar="SESSION/ENTRY", help="the user's own send from a Lavish page"
-    )
-    approve.add_argument(
         "--rule",
         metavar="N",
         help="taken beside --follows and not read: the follow-up rule is known by what it says",
@@ -372,9 +366,6 @@ def _table(table: argparse.ArgumentParser) -> None:
     remove.add_argument("slug")
     remove.add_argument(
         "--message", metavar="THREAD/MESSAGE", help="the user's own message in T3 Code"
-    )
-    remove.add_argument(
-        "--page", metavar="SESSION/ENTRY", help="the user's own send from a Lavish page"
     )
     remove.add_argument("--by", help="the user's name, with --at, for words that were typed")
     remove.add_argument("--at", help='"<YYYY-MM-DD HH:MM ZONE>", when the user said it')

@@ -656,7 +656,6 @@ class Kitchen:
         monkeypatch.setenv("JBUS_STATE_DIR", str(self.state_dir))
         monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "home"))
         monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
-        monkeypatch.setenv("LAVISH_AXI_STATE_DIR", str(tmp_path / "lavish"))
         monkeypatch.chdir(self.checkout)
         monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
         monkeypatch.setattr(queue, "clock", lambda: NOW)
@@ -791,16 +790,6 @@ class Kitchen:
         path = self.home / kind / f"{slug}.md"
         path.write_text(f"# {slug}: a task\nWhere: `src/{slug}/`\n{text}")
         return path
-
-    def lavish(self, **sessions):
-        """Write what Lavish keeps of its sessions: each one's key, with its page and its status."""
-        kept = {
-            key: {"key": key, "file": str(file), "status": status, "pending_prompts": queued}
-            for key, (file, status, *more) in sessions.items()
-            for queued in [more[0] if more else 0]
-        }
-        (self.root / "lavish").mkdir(exist_ok=True)
-        (self.root / "lavish" / "state.json").write_text(json.dumps({"sessions": kept}))
 
     def word(self, project="demo"):
         """Return the id of a word of the user's that the project keeps. The user typed and sent
