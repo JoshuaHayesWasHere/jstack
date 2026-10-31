@@ -10,6 +10,7 @@ Tests: none
 ## Sub-features
 
 - `benchmark-records` totals tokens, events, holds, churn and the skills' sh blocks from what is on disk, with no model.
+- `benchmark-upkeep` prints each duty's fix share and cost from the same records, and with `--against` each duty's change since an earlier run.
 - `benchmark-replay` decides each seeded event with today's `jbus` and `jmerge`, with no model, and runs setup B only with `--spend`.
 - `benchmark-home-start` runs `/home` at a commit only with `--spend`.
 
@@ -17,7 +18,7 @@ The skill-cut eval and the eval of the depth questions are not driven yet.
 
 ## How to get to it (user POV)
 
-- Run `uv run --script features/evals/benchmark/records.py --before <commit> --after <commit>`.
+- Run `uv run --script features/evals/benchmark/records.py --before <commit> --after <commit>`, with `--against features/evals/benchmark/baseline-2026-10-30.json` for the change against the kept baseline.
 - Run `features/evals/benchmark/replay.sh "$PWD" <out dir>`.
 - Run `features/evals/benchmark/home-start.sh "$PWD" <out dir> <label> <commit>`.
 
@@ -38,6 +39,18 @@ The replay makes its own sandbox for each run of each event, so it is run from a
   `/tmp/replay/today.jsonl` has `"tokens":0`, and there is no `/tmp/replay/b.jsonl`.
 - **Proof.**
   Keep `/tmp/replay/redmain.1.today.txt` and `/tmp/replay/redmain.1.today-gh.log`, which has no `pr merge` line.
+
+### The upkeep ledger says jbus's share beside the baseline's 0.54
+
+- **Run the reader.**
+  Run `uv run --script features/evals/benchmark/records.py --before HEAD --after HEAD --json /tmp/records.json --against features/evals/benchmark/baseline-2026-10-30.json`.
+  It ends with `upkeep per duty:` and a row per duty, then `against ...baseline-2026-10-30.json, generated 2026-10-30:` and a row `jbus 0.54 <now> <change> 2425.72 <now> <change>`.
+- **Check the JSON.**
+  `jq .upkeep.duties.jbus /tmp/records.json` gives the row's totals, and `--against /tmp/records.json` on a second run shows each change as `+0.00` while no commit landed between the runs.
+- **Check that no model ran.**
+  The reader starts no process but `git`, so the limits ledger does not move for it.
+- **Proof.**
+  Keep what the first run printed from `upkeep per duty:` on.
 
 ## Gotchas
 

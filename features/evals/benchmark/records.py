@@ -16,6 +16,8 @@ And from --repo (default: the checkout this file is in):
 - git log --numstat over the window of --churn-days, per features/<module>.
 - The skills' sh blocks at --before and --after, for the home start run's two sides.
 A source that is not on disk counts as empty, and stderr names it.
+
+--against <an earlier --json> prints each duty's change since that run.
 """
 
 from __future__ import annotations
@@ -284,17 +286,35 @@ def merge_log(days: int, path: Path) -> dict:
     }
 
 
-def churn(days: int, repo: Path) -> dict:
+def commits_of(days: int, repo: Path) -> list[tuple[str, list[list[str]]]]:
+    """Each commit of the window: its subject and its numstat rows. A rename is a delete and an
+    add, so a file moved onto a duty's path counts to that duty."""
     out = git(
-        repo, "log", f"--since={days}.days", "--no-merges", "--format=@%s", "--numstat"
+        repo,
+        "log",
+        f"--since={days}.days",
+        "--no-merges",
+        "--no-renames",
+        "--format=@%s",
+        "--numstat",
     ).stdout
-    mods = collections.defaultdict(lambda: {"commits": 0, "fix": 0, "added": 0, "deleted": 0})
-    for block in out.split("\n@")[0:]:
+    commits = []
+    for block in out.split("\n@"):
         subject, *rows = block.lstrip("@").split("\n")
+        commits.append((subject, [p for r in rows if len(p := r.split("\t")) == 3]))
+    return commits
+
+
+def fix_share(fix: int, commits: int) -> float:
+    return round(fix / commits, 2) if commits else 0
+
+
+def churn(commits: list[tuple[str, list[list[str]]]]) -> dict:
+    mods = collections.defaultdict(lambda: {"commits": 0, "fix": 0, "added": 0, "deleted": 0})
+    for subject, rows in commits:
         touched = set()
-        for r in rows:
-            p = r.split("\t")
-            if len(p) != 3 or not p[2].startswith("features/"):
+        for p in rows:
+            if not p[2].startswith("features/"):
                 continue
             mod = p[2].split("/")[1]
             touched.add(mod)
@@ -305,9 +325,98 @@ def churn(days: int, repo: Path) -> dict:
             mods[mod]["commits"] += 1
             mods[mod]["fix"] += subject.startswith("fix")
     for v in mods.values():
-        v["fix_share"] = round(v["fix"] / v["commits"], 2) if v["commits"] else 0
+        v["fix_share"] = fix_share(v["fix"], v["commits"])
         v["over_built"] = v["fix_share"] > 0.5
     return dict(sorted(mods.items(), key=lambda kv: -kv[1]["commits"]))
+
+
+JBUS = "features/jbus/src/jbus/"
+
+# The files each duty lives in, as the 2026-10-30 Report read them; the first row is all of jbus,
+# which holds most of the rest, so a commit can count to several rows.
+DUTIES = {
+    "jbus": ("features/jbus/",),
+    "jbus pass": (JBUS + "poll.py",),
+    "merge": ("features/jmerge/",),
+    "launch": (JBUS + "launches.py", JBUS + "dispatch.py"),
+    "nudge": (JBUS + "rebase.py", JBUS + "mainmoved.py", JBUS + "watch.py", JBUS + "children.py"),
+    "usage-limit move": (JBUS + "failover.py",),
+    "gate": (JBUS + "questions.py",),
+    "home start": ("features/home/",),
+}
+
+
+def upkeep(history: list, recent: list, per_task: float | None) -> dict:
+    """Each duty's fix share over `history`, and what the commits of `recent` cost: an estimate,
+    each commit at the average doing cost of a merged task, None where no task merged."""
+
+    def tally(commits: list, paths: tuple[str, ...]) -> tuple[int, int]:
+        hit = [s for s, rows in commits if any(p[2].startswith(paths) for p in rows)]
+        return len(hit), sum(s.startswith("fix") for s in hit)
+
+    duties = {}
+    for duty, paths in DUTIES.items():
+        n, fix = tally(history, paths)
+        recent_n, recent_fix = tally(recent, paths)
+        duties[duty] = {
+            "commits": n,
+            "fix": fix,
+            "fix_share": fix_share(fix, n),
+            "recent_commits": recent_n,
+            "recent_fix": recent_fix,
+            "cost_usd": None if per_task is None else round(recent_n * per_task, 2),
+        }
+    return duties
+
+
+def earlier_ledger(path: Path) -> dict | None:
+    """The whole of an earlier --json, or None when it is no such file."""
+    try:
+        doc = json.loads(path.read_text())
+        return doc if isinstance(doc["upkeep"]["duties"], dict) else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def amount(value: float | None) -> str:
+    return "-" if value is None else f"{value:.2f}"
+
+
+def change(then: float | None, now: float | None) -> str:
+    return "-" if then is None or now is None else f"{round(now - then, 2):+.2f}"
+
+
+def print_ledger(ledger: dict) -> None:
+    print(
+        f"upkeep per duty: fix share over {ledger['churn_days']} days, cost over {ledger['days']}"
+        " days, each commit at the average doing cost of a merged task (an estimate):"
+    )
+    print(f"  {'duty':<18}{'commits':>8}{'fix':>6}{'share':>7}{'recent':>8}{'fix':>6}{'usd':>10}")
+    for duty, r in ledger["duties"].items():
+        print(
+            f"  {duty:<18}{r['commits']:>8}{r['fix']:>6}{r['fix_share']:>7.2f}"
+            f"{r['recent_commits']:>8}{r['recent_fix']:>6}{amount(r['cost_usd']):>10}"
+        )
+
+
+def print_against(path: str, earlier: dict, ledger: dict) -> None:
+    print(f"against {path}, generated {earlier.get('generated', 'at no date given')[:10]}:")
+    then = earlier["upkeep"]
+    windows = then.get("days"), then.get("churn_days")
+    if windows != (ledger["days"], ledger["churn_days"]):
+        print(
+            f"not like for like: the earlier run read {windows[0]} and {windows[1]} days,"
+            f" this one {ledger['days']} and {ledger['churn_days']}"
+        )
+    print(f"  {'duty':<18}{'share':>7}{'now':>7}{'change':>8}{'usd':>10}{'now':>10}{'change':>10}")
+    for duty in {**ledger["duties"], **then["duties"]}:
+        a, b = then["duties"].get(duty, {}), ledger["duties"].get(duty, {})
+        print(
+            f"  {duty:<18}{amount(a.get('fix_share')):>7}{amount(b.get('fix_share')):>7}"
+            f"{change(a.get('fix_share'), b.get('fix_share')):>8}"
+            f"{amount(a.get('cost_usd')):>10}{amount(b.get('cost_usd')):>10}"
+            f"{change(a.get('cost_usd'), b.get('cost_usd')):>10}"
+        )
 
 
 def skill_text(commit: str, repo: Path) -> dict:
@@ -373,9 +482,20 @@ def main() -> None:
         help="a checkout of the project",
     )
     ap.add_argument("--json", help="write every number here too")
+    ap.add_argument("--against", help="an earlier --json, to print each duty's change since it")
     a = ap.parse_args()
+    earlier = None
+    if a.against:
+        earlier = earlier_ledger(Path(a.against))
+        if earlier is None:
+            ap.error(f"--against: no ledger of duties in {a.against}")
     home = a.home
     repo = Path(git(a.repo, "rev-parse", "--show-toplevel").stdout.strip())
+    for paths in DUTIES.values():
+        for path in paths:
+            if not (repo / path).exists():
+                print(f"a duty's path is not on disk: {path.rstrip('/')}", file=sys.stderr)
+    history = commits_of(a.churn_days, repo)
     t = tokens(a.days, home, a.project, main_checkout_dir(repo))
     ev = events(a.days, home / ".local/state/jbus" / a.project / "events.jsonl")
     held = merge_log(a.days, home / ".local/state/home" / a.project / "merge.log")
@@ -385,7 +505,7 @@ def main() -> None:
         "tokens": t,
         "events": ev,
         "merge_log": held,
-        "churn": churn(a.churn_days, repo),
+        "churn": churn(history),
         "skills": {"before": skill_text(a.before, repo), "after": skill_text(a.after, repo)},
     }
     roles = t["by_role"]
@@ -397,6 +517,11 @@ def main() -> None:
         "coordinating_usd": round(coord / n, 2),
         "doing_usd": round(doing / n, 2),
         "coordinating_share": round(coord / (coord + doing), 3) if coord + doing else None,
+    }
+    res["upkeep"] = {
+        "days": a.days,
+        "churn_days": a.churn_days,
+        "duties": upkeep(history, commits_of(a.days, repo), doing / n if ev["merged"] else None),
     }
     if a.json:
         Path(a.json).write_text(json.dumps(res, indent=1, default=str))
@@ -447,6 +572,9 @@ def main() -> None:
             f" ~{tok['all_sh']} tok; home files {s['home']['bytes']} bytes"
             f" ~{tok['home_all']} tok, sh {s['home']['sh_lines']} lines"
         )
+    print_ledger(res["upkeep"])
+    if earlier:
+        print_against(a.against, earlier, res["upkeep"])
 
 
 if __name__ == "__main__":

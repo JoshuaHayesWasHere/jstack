@@ -23,9 +23,29 @@ It prints, over `--days` (default 7) and `--churn-days` (default 90):
 - The pull requests each kind of hold stopped at least once, from `merge.log`.
 - Each module's fix share, flagged `OVER-BUILT` above 0.5.
 - The size of the skills' sh blocks at each commit.
+- The upkeep ledger: each duty's fix share over `--churn-days`, and its commits and cost over `--days`.
 
 Every path comes from `--home` (default `$HOME`), `--project` (default `jstack`) and `--repo` (default this checkout).
 A record that is not on disk counts as empty, and stderr names it, as it does a model the prices do not have, which counts as $0.
+
+### The upkeep ledger
+
+It says, week on week, whether upkeep is falling:
+
+```sh
+uv run --script features/evals/benchmark/records.py --before 4d6fd232e --after f5d5a84d2 --json /tmp/records.json --against features/evals/benchmark/baseline-2026-10-30.json
+```
+
+`--json` writes the ledger under `upkeep`, and `--against <an earlier --json>` prints each duty's share and cost then, now and the change.
+A later run can be held against the kept baseline or against any earlier `--json`, and a line says `not like for like` when the windows differ.
+
+- A duty is the files `DUTIES` in `records.py` names, and `jbus` is the whole module, so a commit can count to several rows and the rows do not add up.
+- A commit is a fix when its subject starts with `fix`, and a file moved onto a duty's path counts to that duty.
+- The cost is an estimate: each commit in `--days` at the average doing cost of a merged task, not what that commit's own session spent.
+- The share covers `--churn-days`, so it moves slowly: the `recent` columns and the cost show the week by itself.
+
+`baseline-2026-10-30.json` holds the Report's numbers for jbus: 330 commits, 177 fix, 0.54, and 298 commits that week at $8.14.
+Its other rows are the same history, main at `140c7ba9a`, read through `DUTIES`, and they agree with the shares the Report printed for merge, launch, nudge and home.
 
 ## The replay
 
