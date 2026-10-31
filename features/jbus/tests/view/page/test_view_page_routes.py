@@ -2,6 +2,7 @@
 read and written again."""
 
 import html
+import json
 import re
 
 import pytest
@@ -17,7 +18,7 @@ from view.page.browser import (
     look,
     walked,
 )
-from view.scene import Served, out, said_by_him
+from view.scene import Served, ago, iso, said_by_him
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -62,7 +63,16 @@ def test_a_drawer_is_opened_by_its_name_in_the_address_under_the_servers_own_pol
 TEA = "#/demo/task/tea-cups"
 
 
-THREAD_AT = "#/demo/thread/crew/tea-cups"
+ITEM_AT = "#/demo/item/w1"
+
+
+def with_item(scene):
+    """The scene, with a work item linked to tea-cups, so that the task's drawer has a button
+    that opens another drawer."""
+    said_by_him(scene)
+    made = {"id": "w1.1", "item": "w1", "at": iso(ago(minutes=9)), "by": "Josh", "where": "chat"}
+    made |= {"line": "proposed", "verb": "proposed", "project": "demo", "slug": "tea-cups"}
+    (scene.state / "items.jsonl").write_text(json.dumps(made) + "\n")
 
 
 @pytest.mark.parametrize(
@@ -93,21 +103,20 @@ def test_every_route_opens_cold_from_a_pasted_link(scene, tmp_path, route, drawe
 
 
 def test_back_closes_a_drawer_forward_opens_it_and_esc_goes_back_one_layer(scene, tmp_path):
-    said_by_him(scene)
-    scene.passed(20, threads=[out("crew: tea-cups")])
+    with_item(scene)
     steps = walked(
         scene,
         tmp_path,
         TEA,
-        ["look", "open:thread:crew:tea-cups", "back", "forward", "esc", "esc"]
+        ["look", "open:item:w1", "back", "forward", "esc", "esc"]
         + ["open:you", "back", "forward", "close"],
     )
     seen = [(one["step"], one["hash"], one["open"]) for one in steps]
     assert seen == [
         ("look", TEA, True),
-        ("open:thread:crew:tea-cups", THREAD_AT, True),
+        ("open:item:w1", ITEM_AT, True),
         ("back", TEA, True),
-        ("forward", THREAD_AT, True),
+        ("forward", ITEM_AT, True),
         ("esc", TEA, True),
         ("esc", "#/demo", False),
         ("open:you", "#/demo/you", True),
@@ -115,28 +124,27 @@ def test_back_closes_a_drawer_forward_opens_it_and_esc_goes_back_one_layer(scene
         ("forward", "#/demo/you", True),
         ("close", "#/demo", False),
     ]
-    task, thread = steps[0]["title"], steps[1]["title"]
+    task, item = steps[0]["title"], steps[1]["title"]
     assert task.startswith("tea-cups")
     assert [one["back"] for one in steps[:5]] == ["", f"← {task}", "", f"← {task}", ""]
-    assert steps[1]["crumbs"] == [["All", "#/"], ["demo", "#/demo"], [thread, THREAD_AT]]
+    assert steps[1]["crumbs"] == [["All", "#/"], ["demo", "#/demo"], [item, ITEM_AT]]
     assert steps[0]["crumbs"] == [["All", "#/"], ["demo", "#/demo"], [task, TEA]]
-    assert steps[4]["focus"] == "thread:crew:tea-cups", "back on the button that opened it"
+    assert steps[4]["focus"] == "item:w1", "back on the button that opened it"
 
 
 def test_the_arrow_and_the_breadcrumbs_lead_to_real_pages(scene, tmp_path):
-    said_by_him(scene)
-    scene.passed(20, threads=[out("crew: tea-cups")])
+    with_item(scene)
     steps = walked(
         scene,
         tmp_path,
         "#/demo",
-        ["open:task:tea-cups", "open:thread:crew:tea-cups", "arrow", "crumb:1", "back"]
+        ["open:task:tea-cups", "open:item:w1", "arrow", "crumb:1", "back"]
         + ["open:task:tea-cups", "crumb:0"],
     )
     seen = [(one["step"], one["hash"], one["open"]) for one in steps]
     assert seen == [
         ("open:task:tea-cups", TEA, True),
-        ("open:thread:crew:tea-cups", THREAD_AT, True),
+        ("open:item:w1", ITEM_AT, True),
         ("arrow", TEA, True),
         ("crumb:1", "#/demo", False),
         ("back", TEA, True),
@@ -150,25 +158,24 @@ def test_a_way_back_through_an_entry_rewritten_since_lands_on_its_layer(scene, t
     """On a drawer that a pasted link opened, Esc rewrites the history entry to the page.
     After the user goes forward again, the back arrow still goes back to that drawer, not to
     the page. A drawer opened over another puts the focus on its own Close."""
-    said_by_him(scene)
-    scene.passed(20, threads=[out("crew: tea-cups")])
+    with_item(scene)
     steps = walked(
         scene,
         tmp_path,
         TEA,
-        ["look", "open:thread:crew:tea-cups", "esc", "esc", "forward", "arrow", "cancel"]
-        + ["open:thread:crew:tea-cups", "cancel-hard"],
+        ["look", "open:item:w1", "esc", "esc", "forward", "arrow", "cancel"]
+        + ["open:item:w1", "cancel-hard"],
     )
     seen = [(one["step"], one["hash"], one["open"]) for one in steps]
     assert seen == [
         ("look", TEA, True),
-        ("open:thread:crew:tea-cups", THREAD_AT, True),
+        ("open:item:w1", ITEM_AT, True),
         ("esc", TEA, True),
         ("esc", "#/demo", False),
-        ("forward", THREAD_AT, True),
+        ("forward", ITEM_AT, True),
         ("arrow", TEA, True),
         ("cancel", "#/demo", False),
-        ("open:thread:crew:tea-cups", THREAD_AT, True),
+        ("open:item:w1", ITEM_AT, True),
         ("cancel-hard", "#/demo", False),
     ]
     assert steps[1]["focus"] == "dw-close"
