@@ -11,10 +11,13 @@ Like `test_jbus_main_moved.py`, the tests run the real pass against the fakes.""
 
 import json
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
 import jbus
+from jbus import mainmoved, rebase, stack
+from jbus.passes import Pass
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, gates, rows
 
@@ -626,3 +629,20 @@ def test_a_message_told_keeps_its_key_and_one_event_and_a_refused_or_lost_one_ke
     assert keys(launched).count(key) == 3
     assert launched.lines("conflict") == ["conflict alpha: told the crew (#7, cccccccccccc)"]
     assert jbus.read_json(launched.state / "sent.json", []).count(key) == 1
+
+
+def test_one_function_sends_the_rebase_mainmoved_and_restack_messages():
+    """`rebase.once` holds the one send of the three, and the key's one writer on it. `stack` asks
+    `rebase.post`, as `expedite` does."""
+    sources = [Path(module.__file__).read_text() for module in (rebase, mainmoved, stack)]
+    assert [source.count("outbox.send(") for source in sources] == [1, 0, 0]
+    assert "rebase.post(" in sources[2]
+
+
+def test_once_sends_nothing_under_a_key_already_written(launched):
+    config = jbus.load()
+    run = Pass(config, config.projects[0], NOW)
+    run.box.mark("rebase|alpha|cccccccccccc")
+    ask = rebase.Ask("rebase", "told the crew", "told to rebase", "text")
+    went = rebase.once(run, None, ask, "rebase|alpha|cccccccccccc", "mcp:t", "alpha", "text", "c")
+    assert went == rebase.ALREADY

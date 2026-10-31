@@ -31,8 +31,9 @@ line does. So the third kind ends in a scoped-review ask too: jbus asks the crew
 once per head, under `rereview|<slug>|<head 12>`. A head that already has that mark, or whose
 Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
-`deliver` is the one function that sends these messages. `post` sends the message without writing
-the event, and `expedite` calls `post` and writes an event of its own.
+`once` is the one function that sends these messages, `post`'s and `mainmoved`'s, and writes their
+keys, which `mark` is the one function to word. `deliver` is `post` with the event that says so;
+`stack` and `expedite` call `post` and write an event of their own.
 
 Each of these messages names a head. jbus sends each message with `mode: queue`, so the crew reads
 the message in a separate turn, after its running turn ends. In two cases the crew would read the
@@ -74,7 +75,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
 from jbriefs import below
@@ -166,12 +167,14 @@ GREEN = (
     "`fixed and green` line. " + END_TURN
 )
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
+SENT, REFUSED_SEND, OWED, ALREADY = "sent", "refused", "owed", "already"
 
 
 @dataclass(frozen=True)
 class Ask:
     """An `Ask` is one message that jbus sends because of a `wait` line of `jmerge`. It holds the
-    message and the head that the message is about."""
+    message and the head that the message is about. With `closes`, T3 Code's refusal ends it: its
+    key is written, and it is not sent again. With `event`, `post` writes an event of its kind."""
 
     kind: str
     did: str
@@ -181,6 +184,8 @@ class Ask:
     default: bool = False
     no_thread: str = NO_THREAD
     refused: str = REFUSED
+    closes: bool = False
+    event: bool = False
 
 
 def _waits(line: str) -> tuple[Line, str] | None:
@@ -267,15 +272,15 @@ def github(run: Pass, client: Client, world: World) -> None:
         if not head or not crew(run, slug):
             continue
         brief = task_brief(run, slug)
-        rebased = f"rebase|{slug}|{head[:12]}" in sent
+        rebased = mark("rebase", slug, head) in sent
         red = Red() if rebased else ran_and_failed(run, pull)
         again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
         ask = again or _asked("failed", FAILED, head)
-        if red.reason and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
-            told = f"failure|{slug}|{head[:12]}|{failure(run, red)}"
+        if red.reason and mark(ask.kind, slug, head) not in sent:
+            told = mark("failure", slug, head, failure(run, red))
             merged = "" if again else told_before(run, head, told, sent)
             if merged:
-                run.box.mark(f"failed|{slug}|{head[:12]}")
+                run.box.mark(mark("failed", slug, head))
                 run.box.mark(told)
                 run.say(
                     f"failed {slug}: #{number} at {head[:12]} is a merge of main onto "
@@ -283,7 +288,7 @@ def github(run: Pass, client: Client, world: World) -> None:
                 )
             elif deliver(run, client, world, number, red.reason, ask):
                 run.box.mark(told)
-        told = rebased or f"conflict|{slug}|{head[:12]}" in sent
+        told = rebased or mark("conflict", slug, head) in sent
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
             if review.reviewed(brief):
@@ -291,7 +296,7 @@ def github(run: Pass, client: Client, world: World) -> None:
             else:
                 ask = _asked("conflict", CONFLICTED, head)
             deliver(run, client, world, number, reason, ask)
-        green = f"green|{slug}|{head[:12]}" not in sent and checks(pull) == "passed"
+        green = mark("green", slug, head) not in sent and checks(pull) == "passed"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
 
@@ -448,19 +453,54 @@ def ran_and_failed(run: Pass, pull: dict) -> Red:
 def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> bool:
     """Send the crew of a pull request one message, once per head, and write an event of the ask's
     kind that says so. Say whether the message went."""
-    sent = post(run, client, world, number, reason, ask)
-    if sent:
-        slug, head, message = sent
-        line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
-        run.find(slug, ask.kind, line, message, key=head[:12])
-        run.say(line)
-    return bool(sent)
+    return bool(post(run, client, world, number, reason, replace(ask, event=True)))
 
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
     """Return the key of a message about a head: `<kind>|<slug>|<head 12>`, and `|<window>` after
-    it where the caller names one, as a restack names the base it moves onto (`jbus.stack`)."""
+    it where the caller names one, as a restack names the base it moves onto (`jbus.stack`). A
+    main-moved key names `#<number>` in the head's place, and the tip as its window."""
     return f"{kind}|{slug}|{head[:12]}" + (f"|{window}" if window else "")
+
+
+def once(
+    run: Pass,
+    client: Client,
+    ask: Ask,
+    key: str,
+    thread: str,
+    slug: str,
+    text: str,
+    at: str,
+    told: tuple[str, str] | None = None,
+) -> str:
+    """Send a crew one message under `key`, its retry key at T3 Code and its mark in `sent.json`.
+    Return `SENT`, `REFUSED_SEND`, `OWED` where a later pass tries again, or `ALREADY`.
+
+    A message that went writes `key` after the event of `told`, its line and its event's key, since
+    an event under `key` itself goes only while `key` is unwritten. A refusal is a gate once for
+    `at`, and writes `key` only where the ask `closes`."""
+    if key in run.box.sent():
+        return ALREADY
+    try:
+        went = outbox.send(
+            run, client, thread=thread, row=slug, key=key, text=text, template=ask.kind, needs="act"
+        )
+    except T3Refused as error:
+        run.gate(slug, ask.refused, f"{error}\n\n{text}", key=f"{ask.refused} {at}")
+        if ask.closes:
+            run.box.mark(key)
+        return REFUSED_SEND
+    except T3Error as error:
+        run.say(f"wait {slug}: its crew could not be {ask.doing} ({error})")
+        return OWED
+    if not went:
+        return OWED
+    if told:
+        run.find(slug, ask.kind, told[0], text, key=told[1])
+        run.say(told[0])
+    run.box.mark(key)
+    return SENT
 
 
 def post(
@@ -471,9 +511,9 @@ def post(
 
     `post` sends only for a pull request that is open under a slug that has a crew (`crew`): jbus
     launched it, or its home launched it for a queue row that names its thread. The key `mark`
-    gives is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`.
-    `deliver` puts the key there through the event that it queues, and any other caller writes the
-    key itself. `mainmoved` also writes the key, for a head that it told.
+    gives is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`,
+    and `once` writes it there when the message goes.
+    `mainmoved` also writes the key, for a head that it told.
     `post` sends nothing while `held` delays the message, or while the outbox holds it for a capped
     instance (`jbus.outbox`): the message waits under its key, and the first pass after the reset
     sends it. When a rebase message goes, `post` writes
@@ -490,7 +530,7 @@ def post(
         return None
     if ask.head and not head.startswith(ask.head):
         return None
-    again = any(mark.startswith(f"rebase|{slug}|") for mark in sent)
+    again = any(one.startswith(f"rebase|{slug}|") for one in sent)
     if ask.kind == "rebase" and again and ready.code_of(reason) != ready.CONFLICTS.code:
         run.gate(slug, SECOND, f"#{number}: {reason}", key=f"{SECOND} {head[:12]}")
         return None
@@ -514,30 +554,15 @@ def post(
     )
     if "{worktree}" in message:
         message = message.replace("{worktree}", where(client, thread))
-    try:
-        went = outbox.send(
-            run,
-            client,
-            thread=thread,
-            row=slug,
-            key=key,
-            text=message,
-            template=ask.kind,
-            needs="act",
-        )
-    except T3Refused as error:
-        run.gate(slug, ask.refused, f"{error}\n\n{message}", key=f"{ask.refused} {head[:12]}")
-        return None
-    except T3Error as error:
-        run.say(f"wait {slug}: its crew could not be {ask.doing} ({error})")
-        return None
-    if not went:
+    line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
+    told = (line, head[:12]) if ask.event else None
+    if once(run, client, ask, key, thread, slug, message, head[:12], told) != SENT:
         return None
     if ask.default:
         asked = run.run("git", "ls-remote", "origin", f"refs/heads/{default}")
         main = (asked.stdout.split() or [""])[0]
         if asked.returncode == 0 and main:
-            run.box.mark(f"mainmoved|{slug}|#{number}|{main[:12]}")
+            run.box.mark(mark("mainmoved", slug, f"#{number}", main[:12]))
     return slug, head, message
 
 
