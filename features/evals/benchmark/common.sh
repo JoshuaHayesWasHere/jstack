@@ -13,6 +13,11 @@ ledger() {
   [ -n "$found" ] || echo "  none at $limits"
 }
 
+# Runs a command for at most the given seconds, for macOS has no `timeout`: an alarm outlives exec.
+at_most() {
+  perl -e 'alarm shift; exec @ARGV or die "at_most: $ARGV[0]: $!\n"' "$@"
+}
+
 # A throwaway Claude config dir whose sign-in is the one in the given home (a link, so a refresh
 # writes the shared file as any other session on that account does). No CLAUDE.md, skills, hooks,
 # plugins or memory. It prints the directory.

@@ -4,8 +4,10 @@ start run: no model runs without --spend, and each prints the limits ledger befo
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -529,9 +531,21 @@ def test_no_path_names_a_user():
 @pytest.fixture
 def machine(tmp_path):
     """A shell with its own ledger, sign-in and temporary directory, and a `claude` that spends
-    nothing: it keeps its first arguments, and answers in the shape of --output-format json."""
+    nothing: it keeps its first arguments, and answers in the shape of --output-format json.
+    Its `sed` and `timeout` act as macOS's do, so a GNU-only form fails on Linux too: BSD sed
+    reads the word after a bare -i as the backup suffix, and macOS has no `timeout`."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
+    sed = bin_dir / "sed"
+    sed.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = -i ]; then echo "sed: 1: invalid command code" >&2; exit 1; fi\n'
+        f'exec {shutil.which("sed")} "$@"\n'
+    )
+    sed.chmod(0o755)
+    no_timeout = bin_dir / "timeout"
+    no_timeout.write_text('#!/bin/sh\necho "timeout: command not found" >&2\nexit 127\n')
+    no_timeout.chmod(0o755)
     called = tmp_path / "claude-called"
     claude = bin_dir / "claude"
     answer = {
@@ -709,6 +723,60 @@ def test_a_spend_run_with_no_answer_says_so(tmp_path, machine, answer):
     start = [HOME_START, REPO, start_out, "after", "HEAD", "--spend", *sign_in]
     replayed = subprocess.run(replay, env=machine["env"], capture_output=True, text=True)
     started = subprocess.run(start, env=machine["env"], capture_output=True, text=True)
+    assert replayed.returncode == 0, replayed.stderr
+    assert json.loads((replay_out / "b.jsonl").read_text())["error"] is True
+    assert started.returncode == 1
+    assert "claude gave no answer" in started.stderr
+    assert json.loads((start_out / "c.jsonl").read_text())["error"] is True
+
+
+def at_most(machine, *command):
+    common = BENCHMARK / "common.sh"
+    return subprocess.run(
+        ["bash", "-c", f'. "{common}"; at_most "$@"', "at_most", *command],
+        env=machine["env"],
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_at_most_stops_a_command_at_its_limit(machine):
+    started = time.monotonic()
+    ran = at_most(machine, "1", "sleep", "30")
+    assert time.monotonic() - started < 15
+    assert ran.returncode == 128 + 14
+
+
+def test_at_most_keeps_the_exit_of_a_command_that_ends_in_time(machine):
+    assert at_most(machine, "30", "sh", "-c", "exit 3").returncode == 3
+
+
+def test_at_most_says_when_the_command_cannot_run(machine):
+    ran = at_most(machine, "30", "no-such-command-here")
+    assert ran.returncode != 0
+    assert "no-such-command-here" in ran.stderr
+
+
+def test_a_claude_that_hangs_is_stopped_at_the_limit(tmp_path, machine):
+    """The scripts' limits are minutes, so a `perl` stand-in shortens the one `at_most` gives it
+    to a second: the scripts go on past a hung `claude` only if it runs under that limit."""
+    machine["claude"].write_text(f'#!/bin/sh\necho hung >> "{machine["called"]}"\nexec sleep 300\n')
+    perl = machine["claude"].parent / "perl"
+    perl.write_text(
+        "#!/bin/sh\n"
+        'case $2 in *"alarm shift"*) code=$2; shift 3; set -- -e "$code" 1 "$@" ;; esac\n'
+        f'exec {shutil.which("perl")} "$@"\n'
+    )
+    perl.chmod(0o755)
+    replay_out, start_out = tmp_path / "replay", tmp_path / "start"
+    sign_in = ["--claude-home", machine["sign_in"]]
+    replay = [REPLAY, REPO, replay_out, "--runs", "1", "--events", "conflict", "--spend", *sign_in]
+    start = [HOME_START, REPO, start_out, "after", "HEAD", "--spend", *sign_in]
+    replayed = subprocess.run(
+        replay, env=machine["env"], capture_output=True, text=True, timeout=60
+    )
+    started = subprocess.run(start, env=machine["env"], capture_output=True, text=True, timeout=60)
+    assert machine["called"].read_text().splitlines() == ["hung", "hung"]
     assert replayed.returncode == 0, replayed.stderr
     assert json.loads((replay_out / "b.jsonl").read_text())["error"] is True
     assert started.returncode == 1

@@ -58,7 +58,7 @@ ready=$(env -u VERIFY_JSTACK_SANDBOX "$repo/features/verify-jstack/project-skill
   trap '"$VERIFY_JSTACK_SCRIPTS/cleanup.sh" > /dev/null' EXIT
   mkdir -p "$HOME/.claude"
   ln -s "$L/skills" "$HOME/.claude/skills"
-  CLAUDE_CONFIG_DIR=$bconf timeout 540 "$real_claude" -p "/home" \
+  CLAUDE_CONFIG_DIR=$bconf at_most 540 "$real_claude" -p "/home" \
     --model "$model" --output-format json --max-budget-usd 3 \
     --allowedTools Bash Read Write Edit \
     --no-session-persistence < /dev/null > "$out/$label.json" 2> "$out/$label.err" || true
