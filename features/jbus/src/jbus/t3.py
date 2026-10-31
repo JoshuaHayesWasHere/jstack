@@ -20,6 +20,11 @@ the forms below (`_held`):
 the message, its text and its time, and that is why jbus counts the user's word as checked.
 `Client.item` reads any item of a thread by its id the same way, such as a question box
 (`jbus.boxes`).
+
+A tool of `TOOLS` that T3 Code stops serving fails only where jbus calls it, so each pass compares
+the two, with one `tools/list`, in a chore (`contract`). Each tool it no longer serves is an
+incident of the machine's (`jbus.alert`), under the key `t3-tool <tool>`, told once when it starts
+and once when it ends. A list that did not come says nothing of any tool, either way.
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,7 +49,7 @@ from typing import Any
 
 import jroles
 import jsettings
-from jbus import Config, Refused, queue, verbs, write_json
+from jbus import Config, Refused, alert, queue, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
 from jsettings.t3 import PROTOCOL as PROTOCOL
@@ -61,6 +67,7 @@ TOOLS = (
     "link_pull_request",
     "t3_thread_organize",
 )
+MISSING = "t3-tool "
 SCOPE = "orchestration:read orchestration:operate"
 CHARS = 50000
 GONE = re.compile(
@@ -352,6 +359,33 @@ def typed(args: argparse.Namespace, config: Config, verb: str) -> queue.Said | N
     return None
 
 
+def contract(
+    config: Config, client: Client | None, now: datetime, say: Callable[[str], None]
+) -> None:
+    """Open the alert of each tool of `TOOLS` that T3 Code does not serve, end the alert of each
+    it serves again, and end with no line the alert of a tool jbus no longer names."""
+    if client is None:
+        return
+    try:
+        served = {tool["name"] for tool in client.tools()}
+    except (T3Error, ValueError, KeyError, TypeError) as error:
+        say(f"wait: T3 Code's tools not known: {alert.why(error, config)}")
+        return
+    state = config.state_dir
+    for key in alert.streaks(state):
+        if key.startswith(MISSING) and key.removeprefix(MISSING) not in TOOLS:
+            alert.retire(state, key)
+    for tool in TOOLS:
+        key = MISSING + tool
+        if tool in served:
+            line = alert.closed(config, key, f"T3 Code serves {tool} again")
+        else:
+            why = f"T3 Code no longer serves {tool}, a tool jbus calls: what calls it fails"
+            line = alert.opened(config, key, why, now=now)
+        if line:
+            say(line)
+
+
 def _t3(args: argparse.Namespace, config: Config) -> int:
     if args.verb == "login":
         login(config.server, config.token_path, wait=args.wait)
@@ -392,3 +426,4 @@ def _sign(sign: argparse.ArgumentParser) -> None:
 
 
 VERBS = (verbs.Verb("t3", "the sign-in to the T3 Code server, and one test launch", _sign, _t3),)
+CHORES = (verbs.Chore(40, "the tools T3 Code serves", contract),)
