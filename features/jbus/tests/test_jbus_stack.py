@@ -16,7 +16,7 @@ import pytest
 import jbus
 from jmerge import stacked as stacks
 from test_jbus_chains import queue_add
-from test_jbus_kitchen import NOW, Kitchen, asks
+from test_jbus_kitchen import NOW, Kitchen, asks, sends_in_once
 from test_jbus_queue import brief, go
 
 BASE, LINK, MERGE, LAST = "c" * 40, "b" * 40, "a" * 40, "d" * 40
@@ -202,3 +202,10 @@ def test_a_refused_or_lost_move_keeps_no_key_and_the_link_where_it_sits(stacked)
     assert jbus.read_json(stacked.state / "sent.json", []).count(key) == 1
     assert stacked.lines("restack") == [f"restack two: told the crew one merged (#11, {LINK[:12]})"]
     assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
+
+
+def test_the_restack_message_goes_out_inside_once(stacked, monkeypatch):
+    spied = sends_in_once(monkeypatch)
+    pulls(stacked, merged=True)
+    passes(stacked, 0)
+    assert spied == [(f"restack|two|{LINK[:12]}|{MERGE[:12]}", True)]

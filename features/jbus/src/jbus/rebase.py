@@ -471,6 +471,7 @@ def once(
     thread: str,
     slug: str,
     text: str,
+    *,
     at: str,
     told: tuple[str, str] | None = None,
 ) -> str:
@@ -556,7 +557,7 @@ def post(
         message = message.replace("{worktree}", where(client, thread))
     line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
     told = (line, head[:12]) if ask.event else None
-    if once(run, client, ask, key, thread, slug, message, head[:12], told) != SENT:
+    if once(run, client, ask, key, thread, slug, message, at=head[:12], told=told) != SENT:
         return None
     if ask.default:
         asked = run.run("git", "ls-remote", "origin", f"refs/heads/{default}")

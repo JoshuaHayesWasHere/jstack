@@ -35,7 +35,7 @@ import jbus
 import jsettings
 import repo_template
 from jbriefs import meaning
-from jbus import acts, cli, live, party, poll, queue, t3, verbs, wake, word
+from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, verbs, wake, word
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
@@ -1281,3 +1281,26 @@ def settles(kitchen, action="settle"):
         for tool, given in kitchen.t3.calls
         if tool == "t3_thread_organize" and given["action"] == action
     ]
+
+
+def sends_in_once(monkeypatch):
+    """Spy on `outbox.send` for the messages about a pull request's head, and return a list that
+    gets each one's key, and whether it went out inside a call of `rebase.once`."""
+    spied, inside = [], []
+    real_once, real_send = rebase.once, outbox.send
+
+    def once(*args, **kwargs):
+        inside.append(True)
+        try:
+            return real_once(*args, **kwargs)
+        finally:
+            inside.pop()
+
+    def send(run, client, **given):
+        if given["key"].split("|")[0] in ("rebase", "mainmoved", "restack", "failed", "conflict"):
+            spied.append((given["key"], bool(inside)))
+        return real_send(run, client, **given)
+
+    monkeypatch.setattr(rebase, "once", once)
+    monkeypatch.setattr(outbox, "send", send)
+    return spied

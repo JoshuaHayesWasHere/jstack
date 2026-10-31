@@ -13,7 +13,7 @@ import pytest
 
 import jbus
 from jmerge import mainjson
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, sends_in_once
 from test_jbus_queue import add, gates, go
 from test_jbus_watch import beside_a_dispatched_browser_run
 
@@ -513,3 +513,12 @@ def test_the_rebase_message_writes_its_key_and_the_main_moved_key_of_the_tip(lau
     sent = jbus.read_json(launched.state / "sent.json", [])
     assert {"rebase|alpha|cccccccccccc", f"mainmoved|alpha|#7|{tip(launched)[:12]}"} <= set(sent)
     assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+
+
+def test_the_main_moved_message_goes_out_inside_once(launched, monkeypatch):
+    spied = sends_in_once(monkeypatch)
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    launched.poll()
+    assert (f"mainmoved|alpha|#7|{main[:12]}", True) in spied
+    assert all(inside for _, inside in spied)

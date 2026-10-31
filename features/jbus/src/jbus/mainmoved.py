@@ -282,7 +282,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
         )
         line = f"mainmoved {slug}: told the crew (#{number}, main {fixed[:12]})"
         told = (line, f"#{number} {fixed[:12]}")
-        went = rebase.once(run, client, ASK, key, thread, slug, message, fixed[:12], told)
+        went = rebase.once(run, client, ASK, key, thread, slug, message, at=fixed[:12], told=told)
         owed = owed or went == rebase.OWED
         if went == rebase.SENT:
             run.box.mark(rebase.mark("rebase", slug, head))
