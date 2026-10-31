@@ -204,8 +204,8 @@ def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_pas
 
 
 def colours(scene):
-    """Each home's colour, by its name, as /stack.json, the pipeline board's matrix and the
-    Homes drawer give it, which must agree."""
+    """Each home's colour, by its name, as /stack.json and the pipeline board's matrix give it,
+    which must agree."""
     stack, _ = answers(scene)
     (project,) = stack["projects"]
     got = {one["name"]: one["colour"] for one in project["homes"]}
@@ -213,7 +213,6 @@ def colours(scene):
     read = built.Read(found, scene.name, NOW, runs)
     matrix = read.asked("pipeline")["data"]["homes"]
     assert {("" if one["name"] == "root" else one["name"]): one["colour"] for one in matrix} == got
-    assert {one["name"]: one["colour"] for one in read.asked("board")["data"]["homes"]} == got
     return got
 
 

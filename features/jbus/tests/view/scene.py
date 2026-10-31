@@ -923,69 +923,6 @@ def folder(process, name, script=LINKED, data=SAMPLE):
     return made
 
 
-ROUNDED = """# oat-milk: a made-up task
-Task: a task
-Review: review
-
-## Result
-Status: done
-Branch: oat-milk, {pull}
-Reviewer: mcp:0001
-Woke on the review's findings: fixed two.
-Woken by the check passing.
-Finding: fixed, one
-Finding: not fixed, two, because three
-Fixed: {fixed}
-Second pass: needed since {first}, the fix changed more than the findings named
-Scoped review: needed since {first}, the fix changed src/a.py
-Scoped reviewer: mcp:0002, of {fixed}
-Scoped review: none, nothing was pushed for the findings
-Rebase: patch unchanged, before {first}, head {fixed}
-Woke: a message from jbus.
-Not a wake: Woke in the middle of a line counts for nothing.
-
-## Review
-Verdict: findings
-Head: {first}   Unchanged by the review: yes
-Findings:
-- warning src/a.py:1 one
-- info src/a.py:2 two
-Dropped: 0
-
-## Review
-Verdict: clean
-Head: {fixed}
-Second pass: of the whole diff, as the last line says
-Findings:
-- none
-"""
-
-
-def rounded(scene, slug="oat-milk"):
-    """A brief with two reviews in the home, and a `review` event for the first only. Its
-    `Rebase:` line is an older brief's, which the Rounds panel counts for nothing."""
-    first, fixed = "1a" * 20, "2b" * 20
-    brief = ROUNDED.format(pull=PULL.format(13), first=first, fixed=fixed)
-    (scene.home / "tasks").mkdir(exist_ok=True)
-    (scene.home / "tasks" / f"{slug}.md").write_text(brief)
-    review = brief.split("## Review")[1]
-    scene.lines(
-        "events.jsonl",
-        [
-            {
-                "at": iso(ago(minutes=20)),
-                "event": "review",
-                "id": "00000000000000aa",
-                "line": f"review {slug}: findings",
-                "loud": "quiet",
-                "slug": slug,
-                "text": "## Review" + review,
-            }
-        ],
-    )
-    return brief, first, fixed
-
-
 ROOT, SHELF, RACK, OLD = "", "pantry-shelf", "spice-rack", "old-shelf"
 HOMES = {
     "tea-kettle": None,

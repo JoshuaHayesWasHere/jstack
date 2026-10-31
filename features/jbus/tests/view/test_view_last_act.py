@@ -72,14 +72,12 @@ def zoned(tmp_path, monkeypatch):
 
 
 def test_each_home_has_its_open_rows_by_its_briefs_home_line(zoned):
-    """The summary and the board count each open row in its brief's home. The pipeline places
+    """The summary counts each open row in its brief's home. The pipeline places
     only the rows on a step it knows, and the fixture keeps no step of `jmerge`'s for most pull
     requests, so each row it places is checked against its brief: a cleanup row, whose brief
     names no home, is the root's whatever row it is stacked on."""
     (project,) = zoned.json("/stack.json")["projects"]
     assert {one["name"]: one["open"] for one in project["homes"]} == OPEN
-    board = zoned.json("/panel/board.json?project=demo")["data"]["homes"]
-    assert {one["name"]: len(one["workers"]) for one in board} == OPEN
     named = json.loads((FIXTURE / "state.json").read_text())["tasks"]
     rows = zoned.json("/panel/pipeline.json")["data"]["rows"]
     assert {one["slug"]: one["home"] for one in rows} == {
@@ -109,8 +107,6 @@ def test_each_home_and_the_project_say_their_last_act_not_their_last_merge(zoned
     assert last["jview"]["what"].startswith("failover home: seven_day limit")
     assert last["macos"]["what"].startswith("overlap bl-macos-ci-required:")
     assert project["last"] == {"home": "jview"} | last["jview"]
-    board = zoned.json("/panel/board.json?project=demo")["data"]["homes"]
-    assert {one["name"]: one["last"] for one in board} == last
 
 
 def test_a_heartbeat_is_no_act_and_an_act_of_no_home_is_the_projects_alone(zoned, tmp_path):

@@ -90,13 +90,11 @@ def test_what_jbus_wrote_is_frozen_and_what_the_server_reads_is_live(served):
     assert {name for name, by in sources.items() if by == "server"} == {
         "jbus.timer",
         "gates.md",
-        "plan.md",
         "scouts/",
         "GitHub",
         "runner units",
         "test slots",
         "the machine",
-        "~/.claude/projects",
     }
     assert {"queue.json", "waiting-on-user.json", "status.json", "pass.json"} <= {
         name for name, by in sources.items() if by == "jbus"

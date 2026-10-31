@@ -119,13 +119,12 @@ window.addEventListener("load", function () { setTimeout(function () {
     "route, where, names",
     [
         ("#/homes", ".hm", ["demo", f"demo › {SHELF}", f"demo › {RACK}"]),
-        ("#/demo/board", ".bd-h", ["root", SHELF, RACK]),
         ("#/homes", "tr[data-home]", ["root", SHELF, RACK]),
     ],
-    ids=["homes-page", "homes-drawer", "matrix"],
+    ids=["homes-page", "matrix"],
 )
 def test_each_home_is_drawn_with_its_colour_beside_its_name(scene, tmp_path, route, where, names):
-    """The Homes page, the Homes drawer and the matrix each draw a home's swatch in its own
+    """The Homes page and the matrix each draw a home's swatch in its own
     categorical colour, the root's 1 and the child homes' 2 and 3, and its name right after it,
     so no home is told by its colour alone."""
     homed(scene)

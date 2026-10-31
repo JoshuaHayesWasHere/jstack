@@ -51,7 +51,7 @@ function dTask(slug) {
       '<div class="key">' + ["crew", "rev", "ci", "user", "unknown"].filter(function (w) { return tot[w]; }).map(function (w) { return '<span><i class="sw ' + w + '"></i>' + WHO[w] + ' <b style="color:var(--ink)">' + dur(tot[w]) + '</b></span>'; }).join("") + '</div>' +
       '<ul class="clean steps" style="margin-top:10px">' + segs.map(function (g) {
         return '<li class="' + (g.cur ? "cur" : "") + '"><span class="t">' + hm(g.a) + '</span><span><span class="chip ' + esc(g.who) + '">' + esc((STEP[g.step] || {}).name) + '</span>' + (g.cur ? ' <span class="chip plain">now</span>' : "") + '<span class="r">' + esc(g.text) + '</span></span><span class="d">' + dur(g.b - g.a) + '</span></li>';
-      }).join("") + '</ul><p class="src" style="margin-top:7.5px">From <code>merge.log</code>: each length runs until jmerge printed another reason.</p>';
+      }).join("") + '</ul>';
   }
   var seen = t.seen;
   h += '<h3>What the last pass saw</h3><dl class="kv"><dt>thread</dt><dd>' + (seen.thread_status ? esc(seen.thread_status) + (ms(seen.thread_updated) == null ? "" : ", updated " + day(ms(seen.thread_updated))) : "none") + (seen.live ? ' <span class="chip ' + LIVE[seen.live] + '">' + esc(seen.live) + '</span>' : "") + '</dd><dt>threads out</dt><dd>' + seen.threads + '</dd>' +
@@ -62,4 +62,4 @@ function dTask(slug) {
       .map(function (kv) { return '<dt>' + kv[0] + '</dt><dd>' + (kv[1] === "" ? '<span class="src">empty</span>' : '<code>' + esc(kv[1]) + '</code>') + (kv[0] === "approved" && t.by_rule ? ' <span class="chip plain">by rule ' + esc(t.by_rule.rule) + '</span>' : "") + '</dd>'; }).join("") + '</dl>';
   return h;
 }
-panel({ drawer: dTask });
+panel({ drawer: dTask, gloss: { time_went: ["Where the time went", "Read from merge.log: each length runs until jmerge printed another reason."] } });
