@@ -270,8 +270,7 @@ function dYou(arg) {
         (w.unblocks && w.unblocks.length ? '<br><span class="tag">Unblocks</span> ' + w.unblocks.map(taskBtn).join(" ") : "") + '</li>';
     }, hit && k !== hit ? 0 : YOU_FIRST, named || k === "gate" ? mine : null) : '<p class="src">None.</p>') +
       (k === "gate" && can.length ? '<div id="bfoot">' + batchFoot() + '</div>' : "") +
-      (k === "approve" && items.length ? saidHere() : "") +
-      "";
+      (k === "approve" && items.length ? saidHere() : "");
   });
   var shut = S.gates.filter(function (g) { return !g.open; });
   if (shut.length) h += '<h3>' + plural(shut.length, "gate", "gates") + ' not open</h3>' + fold(shut, function (g) { return '<li><span class="n zero" data-gloss="count:question">' + esc(g.number) + '</span> ' + esc(g.question) + '<br><span class="src">' + esc(g.status) + '</span></li>'; }, YOU_FIRST);
