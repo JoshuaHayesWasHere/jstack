@@ -14,18 +14,33 @@ from pathlib import Path
 import pytest
 
 from jbus import launchd, view
-from jbus.view import panels
+from jbus.view import panels, usage
 from jbus.view import state as built
 from view.scene import LINKED, LINKS, NOW, REPO, SAMPLE, Scene, folder
 from view.walk import runs, sources
 
-PANELS = ["blind", "bus", "checks", "merged", "pulse", "room", "rounds", "steps", "task"]
-
-
-PANELS.append("threads")
-
-
-PANELS.append("you")
+PANELS = [
+    "blind",
+    "bus",
+    "checks",
+    "gate",
+    "glance",
+    "item",
+    "merged",
+    "milestones",
+    "pipeline",
+    "pulse",
+    "room",
+    "since",
+    "slow",
+    "steps",
+    "task",
+    "thread",
+    "threads",
+    "throughput",
+    "you",
+]
+CUT = ["board", "ci", "find", "rounds", "usage", "words"]
 
 
 POLICY = (
@@ -124,6 +139,17 @@ def test_a_panel_adds_to_the_stack_only_a_key_the_stack_does_not_have(tmp_path, 
     assert given["added"] == 1
     with pytest.raises(ValueError, match=r"the panel one gives \['wrong'\], which are taken"):
         built.stack(found, NOW, runs, found=(*panels.found(), panel("one", "wrong")))
+
+
+def test_the_routes_are_the_kept_panels_and_a_cut_panel_has_none(served):
+    """The audit of `sb-view-audit`: each kept panel answers at its route, and a cut one is 404
+    and is no name the usage log takes."""
+    assert view.routes() == (*view.FIXED, *(f"/panel/{name}.json" for name in PANELS))
+    for name in PANELS:
+        assert served.ask(f"/panel/{name}.json?project=demo")[0] == 200, name
+    for name in CUT:
+        assert served.ask(f"/panel/{name}.json?project=demo")[0] == 404, name
+        assert name not in usage.names("item", panels.names())
 
 
 def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_state(served):
