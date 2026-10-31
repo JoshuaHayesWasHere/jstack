@@ -80,6 +80,7 @@ def test_a_list_that_did_not_come_says_nothing_of_a_tool_either_way(kitchen, inf
     kitchen.t3.lose_listing = True
     said = kitchen.poll()
     assert told(said) == []
+    assert [line for line in said if line.startswith("wait: T3 Code's tools not known: ")]
     assert [key for key in alert.streaks(kitchen.state_dir) if key.startswith(t3.MISSING)] == []
     kitchen.t3.lose_listing = False
     kitchen.t3.dropped = {GONE}
