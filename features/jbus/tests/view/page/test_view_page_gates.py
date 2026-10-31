@@ -1,15 +1,11 @@
 """A gate on the page: opened, answered each of the three ways, and the write that follows."""
 
-import html
 import json
-import re
-import types
 
 import pytest
 
 import jsettings
 from jbus import party, questions
-from test_jbus_kitchen import GATE as PIPED
 from view.page.browser import (
     BROWSES,
     DESK,
@@ -17,43 +13,13 @@ from view.page.browser import (
     PATIENCE,
     PHONE,
     WORDS,
-    browse,
     clean,
     gated,
     look,
 )
-from view.scene import NOW, Served, asks, et, kept, said_by_him
+from view.scene import NOW, et, kept
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
-
-
-def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_his_answer(
-    scene, tmp_path
-):
-    said_by_him(scene)
-    number = asks(scene, "which lid?", slug="jam-lid")
-    with open(scene.home / "gates.md", "a") as gates:
-        gates.write(
-            "\n"
-            + PIPED.format(n=number, asked="which lid?", status="answered: red", slug="jam-lid")
-        )
-    questions.closed_in_files(types.SimpleNamespace(home=scene.home, state=scene.state))
-    served = Served(scene)
-    try:
-        ran = browse(
-            f"--user-data-dir={tmp_path / 'profile'}",
-            "--virtual-time-budget=3000",
-            f"http://127.0.0.1:{served.port}/#/demo/words/question/{number}",
-        )
-    finally:
-        served.close()
-    drawer = ran.stdout.partition('id="drawer"')[2].partition("</dialog>")[0]
-    hit = drawer.partition('<li class="hit">')[2].partition("</li>")[0]
-    said = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", hit)))
-    assert "which lid?" in said
-    assert 'Closed by its home "answered: red"' in said
-    assert "Your answer" not in said
-    assert "not the default" not in said
 
 
 @pytest.mark.parametrize("screen", [DESK, PHONE])

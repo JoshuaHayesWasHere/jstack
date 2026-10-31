@@ -39,12 +39,8 @@ def wrongs(scene):
     return built.wrongs(read(scene))
 
 
-def board(scene):
-    return {
-        one["slug"]: one
-        for card in read(scene).asked("board")["data"]["homes"]
-        for one in card["workers"]
-    }
+def rows(scene):
+    return {one["slug"]: one for one in read(scene).answer()["tasks"]}
 
 
 def told(slug, thread, template, minutes, key=""):
@@ -100,7 +96,7 @@ def test_a_red_check_of_a_crews_pull_request_is_the_crews_and_not_in_the_band(
     given = stack(scene)
     assert [one for one in given["wrong"] if one["kind"] == "ci"] == []
     assert [one for one in given["glance"]["items"] if one["tier"] == "wrong"] == []
-    assert board(scene)["oat-milk"]["fixing"] == {
+    assert rows(scene)["oat-milk"]["fixing"] == {
         "owner": "crew of oat-milk",
         "told": iso(ago(minutes=20)),
     }
@@ -142,7 +138,7 @@ def test_the_four_crew_reds_of_2026_10_27_are_each_on_its_row_and_none_is_the_us
     given = stack(scene)
     assert given["wrong"] == []
     assert given["glance"]["calm"]
-    cards = board(scene)
+    cards = rows(scene)
     assert {slug: cards[slug]["fixing"] for slug in REDS} == {
         slug: {"owner": f"crew of {slug}", "told": iso(ago(minutes=minutes)) if minutes else None}
         for slug, (_, _, minutes) in REDS.items()

@@ -6,15 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from jbus import queue, view
+from jbus import view
 from jbus.view import panels
-from jbus.view.panels.usage import panel as usage
 from view.page.browser import (
     BROWSES,
     LAUNCH,
     PATIENCE,
     WORDS,
-    Proxy,
     browse,
     clean,
     gated,
@@ -23,17 +21,13 @@ from view.page.browser import (
 )
 from view.scene import (
     DRAWN,
-    NOW,
     Process,
     Served,
     ago,
-    et,
     iso,
     item,
     out,
-    rounded,
     row,
-    said_by_him,
     table,
 )
 from view.scene import folder as panel
@@ -112,36 +106,6 @@ def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp
     assert "since" not in drawn(panels.found()), "the line of `#/` has no drawer"
 
 
-def test_an_approval_by_a_pick_on_a_lavish_page_says_so_with_the_pages_file(scene, tmp_path):
-    by = {"session": "s-1", "directory": "/made/up/elsewhere"}
-    page = "/made/up/reports/grill-tea.html"
-    made = queue.Approval(
-        "page",
-        "k1/e3",
-        "1. Cups: as recommended",
-        et(ago(minutes=20)),
-        page,
-        True,
-        by,
-        iso(ago(minutes=10)),
-    )
-    rows = table()
-    rows[1] |= {"approved": made.line(), "approval": queue.held(made)}
-    scene.queue(rows)
-    served = Served(scene)
-    try:
-        task = shown(served.port, tmp_path, "task:tea-cups")
-        words = shown(served.port, tmp_path, "words:approval:tea-cups")
-    finally:
-        served.close()
-    assert "Approval on your pick on a Lavish page, " in task
-    assert ", grill-tea.html, run " in task.partition("Approval on your pick")[2]
-    assert "by page" in words
-    assert "Your pick on a Lavish page, " in words
-    assert "grill-tea.html. Run " in words
-    assert page not in words
-
-
 def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_lines(
     scene, tmp_path
 ):
@@ -191,52 +155,6 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         process.stop()
 
 
-def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_path):
-    """A round shows a time where the event log has a `review` event for the round's head. Where the
-    log has none, the round says no time is kept. A task whose brief the view cannot read says
-    that instead."""
-    _, first, fixed = rounded(scene)
-    served = Served(scene)
-    try:
-        task = shown(served.port, tmp_path, "task:oat-milk")
-        drawer = shown(served.port, tmp_path, "rounds:oat-milk")
-        other = shown(served.port, tmp_path, "rounds:oat-bowl")
-    finally:
-        served.close()
-    assert "2 reviews, 3 wakes" in task
-    assert drawer.startswith(
-        f"All › demo › oat-milk Rounds oat-milk Updated {NOW.astimezone():%H:%M:%S} "
-        "Close (Esc) Now 2 reviews, 3 wakes"
-    ), drawer
-    at = ago(minutes=20).astimezone()
-    when = f"{at:%H:%M}" if at.date() == NOW.astimezone().date() else f"{at:%m-%d %H:%M}"
-    assert f"1st findings review of {first[:12]} 2 findings {when}" in drawer
-    assert f"2nd clean review of {fixed[:12]} 0 findings no time kept" in drawer
-    assert "second pass needed scoped review needed wakes 3" in drawer
-    assert "rebases" not in drawer
-    assert "0 reviews" not in other
-    assert "not read it has no brief in its home or in jbus's copies." in other
-
-
-def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_path, monkeypatch):
-    """The task drawer fills its Usage line with a request of its own. The line says when a
-    transcript is not there. When the server does not answer the request, the line says
-    so rather than wait."""
-    monkeypatch.setattr(usage, "PROJECTS", tmp_path / "projects")
-    monkeypatch.setattr(usage, "_kept", {})
-    served = Served(scene)
-    proxy = Proxy(served.port, 600, probe=False)
-    try:
-        said = shown(proxy.port, tmp_path, "task:oat-milk")
-        assert "Usage: not known: no transcript under " in said
-        proxy.refused = ("/panel/usage.json",)
-        said = shown(proxy.port, tmp_path / "again", "task:oat-milk")
-        assert "Usage: not known: the view server did not answer" in said
-    finally:
-        proxy.close()
-        served.close()
-
-
 def test_a_homes_drawer_names_its_scope_and_an_idle_home_is_a_row_in_progress(scene, tmp_path):
     """A scoped home's drawer names its scope and counts its own open tasks, and the root's
     says it is the root's. A home that ended with a task of its own open is a row of In
@@ -264,19 +182,16 @@ def test_a_homes_drawer_names_its_scope_and_an_idle_home_is_a_row_in_progress(sc
 
 
 def test_a_fault_its_crew_owns_is_drawn_on_its_row_as_fixing_by_the_crew(scene, tmp_path):
-    """oat-milk's check is red and its crew was told 20 minutes ago: the task drawer and the
-    board draw the row as fixing by its crew, with when it was told."""
+    """oat-milk's check is red and its crew was told 20 minutes ago: the task drawer draws the
+    row as fixing by its crew, with when it was told."""
     crewed(scene)
     scene.lines("outbox.jsonl", [told("oat-milk", "mcp:crew-oat-milk", "failed", 20)])
     served = Served(scene)
     try:
         task = shown(served.port, tmp_path, "task:oat-milk")
-        board = shown(served.port, tmp_path, "board")
     finally:
         served.close()
-    at = ago(minutes=20).astimezone()
     assert "Fixing: crew of oat-milk, told " in task, task
-    assert f"fixing: crew of oat-milk, told {at:%H:%M}" in board, board
 
 
 def folded(port, tmp_path, opens):
@@ -354,30 +269,3 @@ def lists(scene, tmp_path, opens):
         (one["head"], one["shown"], one["folded"], one["summary"], one["marker"])
         for one in seen["lists"]
     ]
-
-
-def test_the_words_drawer_opened_on_an_approval_shows_it_and_folds_the_other_kinds(scene, tmp_path):
-    """One answer, two words and six approvals. Opened on the approval of `tea-4`, the drawer
-    shows that row beside the first two approvals, folds the other three under how many they
-    are, and folds the answers and the words whole. Opened on the approvals, it shows their
-    first two and folds the other kinds the same way. Each fold says it opens: the browser
-    draws its summary the disclosure marker a summary has."""
-    said_by_him(scene)
-    slugs = [f"tea-{n}" for n in range(6)]
-    scene.queue([row(slug) for slug in slugs])
-    others = [
-        ("1 questions you answered", [], ["row"], "Show all 1", True),
-        ("2 words sent down", [], ["row", "row"], "Show all 2", True),
-    ]
-    named = lists(scene, tmp_path / "named", "words:approval:tea-4")
-    kind = lists(scene, tmp_path / "kind", "words:approval")
-    assert named == others + [
-        (
-            "6 approvals of a row",
-            ["tea-0", "tea-1", "tea-4 hit"],
-            ["tea-2", "tea-3", "tea-5"],
-            "3 more",
-            True,
-        )
-    ]
-    assert kind == others + [("6 approvals of a row", slugs[:2], slugs[2:], "4 more", True)]

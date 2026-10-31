@@ -117,8 +117,9 @@ def _defaults(read: Read, start: str) -> list[dict[str, Any]]:
         said = one.answer
         at = when(said.at) if said and said.closed_by == questions.SILENCE else None
         if at and at >= start:
-            subj = text(one.slug, 80) or f"question {one.number}"
-            found.append(_event(read, "default", subj, at, "words"))
+            slug = text(one.slug, 80)
+            route = f"task/{quote(slug, safe='')}" if slug else "you/gate"
+            found.append(_event(read, "default", slug or f"question {one.number}", at, route))
     return found
 
 

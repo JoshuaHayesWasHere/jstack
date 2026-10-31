@@ -30,7 +30,7 @@ task, the line of its gate, the whole note a Result leaves, and since when its h
 leftover.
 
 A row is drawn on a stage, not a step: `STAGES`, the eleven stages of the process from Scout
-to Merged. Each screen, the board, the project page, the Homes drawer and help, takes its
+to Merged. Each screen, the board, the project page and help, takes its
 names from that one table, which `/state.json` and `/stack.json` give under `process`. A step
 is one of a stage's parts, and `stages` puts each open task on its one stage, so a row is on
 the same stage on every screen.
@@ -1808,7 +1808,7 @@ def _owned(read: Read, found: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _unwell(read: Read) -> list[dict[str, Any]]:
     """Each source of the project that is not ok, except one that a session writes, one that
     is missing and one of the machine. A missing file is one jbus has not written for the
-    project, as `ci.jsonl` where no `jbus ci` runs: the pulse lists it, and it is no fault. A
+    project, as `stall.json` where nothing has stalled: the pulse lists it, and it is no fault. A
     file that is there and cannot be read is."""
     machine = {one.name for panel in read.panels for one in panel.sources if one.machine}
     return [
@@ -2009,7 +2009,7 @@ def summary(read: Read) -> dict[str, Any]:
     out what the page never can say. It also leaves out a source the view could not read,
     because that source is in `unwell`. `unwell` is each source of the project that is not ok,
     except one that a session writes and one that is missing. A missing file is one jbus has
-    not written for the project, as `ci.jsonl` where no `jbus ci` runs: the pulse lists it,
+    not written for the project, as `stall.json` where nothing has stalled: the pulse lists it,
     and it is no fault. A file that is there and cannot be read is. A source or a blind spot of
     the machine is on no project's row."""
     held = [task["step"] for task in read.tasks]

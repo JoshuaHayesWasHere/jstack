@@ -271,7 +271,7 @@ function dYou(arg) {
     }, hit && k !== hit ? 0 : YOU_FIRST, named || k === "gate" ? mine : null) : '<p class="src">None.</p>') +
       (k === "gate" && can.length ? '<div id="bfoot">' + batchFoot() + '</div>' : "") +
       (k === "approve" && items.length ? saidHere() : "") +
-      (k === "gate" ? '<p class="src" style="margin:10px 0 0">' + openBtn("words:answer", "The questions you answered, in Your words") + '</p>' : "");
+      "";
   });
   var shut = S.gates.filter(function (g) { return !g.open; });
   if (shut.length) h += '<h3>' + plural(shut.length, "gate", "gates") + ' not open</h3>' + fold(shut, function (g) { return '<li><span class="n zero" data-gloss="count:question">' + esc(g.number) + '</span> ' + esc(g.question) + '<br><span class="src">' + esc(g.status) + '</span></li>'; }, YOU_FIRST);

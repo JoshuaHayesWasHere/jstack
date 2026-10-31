@@ -771,10 +771,8 @@ MERGED_TODAY = re.compile(r"merged today\W*(\d+)|(\d+) merged today", re.I)
 DONE = re.compile(r"\b(\d+) done\b|\bDone (\d+)\b")
 
 
-DONE_SAID = {"#/": [], "#/triage": [], "#/demo": [2], "#/demo/board": [1, 1, 2]}
-"""The done counts each route draws over that day: the project page's 2 done work items, and on
-the Homes board, drawn over the project page, the 1 done row the board still has, in its
-summary and on its card."""
+DONE_SAID = {"#/": [], "#/triage": [], "#/demo": [2]}
+"""The done counts each route draws over that day: the project page's 2 done work items."""
 
 
 def merged_and_done(scene):
@@ -800,10 +798,10 @@ def merged_and_done(scene):
     scene.waiting([])
 
 
-@pytest.mark.parametrize("route", ["#/", "#/triage", "#/demo", "#/demo/board"])
+@pytest.mark.parametrize("route", ["#/", "#/triage", "#/demo"])
 def test_every_merged_today_reads_the_rows_jbus_merged_today(scene, tmp_path, route):
     """Over a day of 21 merged rows and 2 done work items, each "Merged today" on the overview's
-    tile, Triage's calm line, the project page and the Homes board reads 21: done work is not a
+    tile, Triage's calm line and the project page reads 21: done work is not a
     merge, and is counted apart as done."""
     merged_and_done(scene)
     seen = look(scene, tmp_path, route=route, script=SAID, at=4000, budget=8000)

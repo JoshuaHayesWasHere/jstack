@@ -60,14 +60,13 @@ def test_a_failed_wake_is_red_since_its_streak_began_and_clears_once_one_goes(
 
 
 def test_a_source_never_had_is_not_unread_and_one_that_cannot_be_read_is(tmp_path, monkeypatch):
-    """`ci.jsonl` and `stall.json` the project never had are no fault. `checks.json` that it
+    """`stall.json` the project never had is no fault. `checks.json` that it
     has and cannot read is, since it was last written, and it clears once it reads again."""
     scene = Scene(tmp_path, monkeypatch)
-    for name in ("ci.jsonl", "ci-prs.jsonl", "stall.json"):
-        (scene.state / name).unlink()
+    (scene.state / "stall.json").unlink()
     stack, state = answers(scene)
     assert row(stack)["broken"] == []
-    assert {one["name"]: one["state"] for one in state["sources"]}["ci.jsonl"] == "missing"
+    assert {one["name"]: one["state"] for one in state["sources"]}["stall.json"] == "missing"
     (scene.state / "checks.json").write_text("{not json")
     stack, _ = answers(scene)
     (reason,) = row(stack)["broken"]

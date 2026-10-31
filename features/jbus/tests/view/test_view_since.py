@@ -97,7 +97,7 @@ def test_what_merged_got_stuck_or_took_its_default_over_the_last_week_oldest_fir
     opens = {one["subj"]: (one["project"], one["open"]) for one in since["events"]}
     assert opens["tea-pot"] == ("demo", "#/demo/merged")
     assert opens["oat-spoon"] == ("demo", "#/demo/task/oat-spoon")
-    assert opens["alpha"] == ("demo", "#/demo/words")
+    assert opens["alpha"] == ("demo", "#/demo/task/alpha")
 
 
 def test_a_quiet_week_has_nothing_and_the_panel_alone_gives_the_same_list(tmp_path, monkeypatch):

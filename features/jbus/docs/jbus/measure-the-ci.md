@@ -85,10 +85,3 @@ A week where every target is met, or has no data, sends nothing.
 A week with a missed target sends one `alert` event, only once that day.
 The event names each missed target and the report.
 A run that fails shows in `journalctl --user -u jbus-ci` on Linux, and in `~/Library/Logs/jstack/jstack.jbus-ci.log` on macOS.
-
-The `ci` panel of [the view](the-view.md) opens at `#/<project>/ci`.
-It has no card, so the first screen keeps its size.
-It draws from the same files: each target with its value and what it is held to, and its series by day.
-`MARKS` in `features/jbus/src/jbus/view/panels/ci/panel.py` names the slugs of changes to CI.
-Where one of those slugs merged in the project's home, the panel draws a dashed mark at its merge.
-A repo where none of them merged has no mark.

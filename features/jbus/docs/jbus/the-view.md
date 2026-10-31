@@ -87,7 +87,7 @@ From the top, it has these parts:
 |---|---|
 | Waits on you | One line: how many things wait on you across the projects, how long the oldest has waited, and how many go ahead on their default. Its Open goes to the triage tab, `#/triage`, which lists them. |
 | Every stage, every home | The matrix and its Chains, as the table of the board's parts below says, asked of `/panel/pipeline.json` each poll. |
-| Homes | A card for each project with something wrong or something for you, what is wrong first, then what waits on you most. The card's first line is the root home: the project's name, which opens its page, the home's health, its open tasks, what of it waits on you, what goes ahead on its default, how long ago the project's last act was and how long ago the root's own was. Each child home is a line under it, by name: its path (`demo › ui`), its health, its open tasks, what waits on you, how long ago its last act was, a flag for each row of it with a stall or an idle that is yours, and how old the home is. Each thing wrong in the project that is yours is a line under its home that opens its drawer, with how long ago it went wrong. A thing wrong in more than one project, and a stopped jbus, is a line over the cards. A home's health is its own thread's, in the words of the one set the Homes drawer and the project page use too: Working, Waiting on you, Quiet or Hung with how long, Idle, work open, or At rest; a home with no thread, or one not known, says nothing here. A child home with nothing wrong and nothing for you is its one line. |
+| Homes | A card for each project with something wrong or something for you, what is wrong first, then what waits on you most. The card's first line is the root home: the project's name, which opens its page, the home's health, its open tasks, what of it waits on you, what goes ahead on its default, how long ago the project's last act was and how long ago the root's own was. Each child home is a line under it, by name: its path (`demo › ui`), its health, its open tasks, what waits on you, how long ago its last act was, a flag for each row of it with a stall or an idle that is yours, and how old the home is. Each thing wrong in the project that is yours is a line under its home that opens its drawer, with how long ago it went wrong. A thing wrong in more than one project, and a stopped jbus, is a line over the cards. A home's health is its own thread's, in the words of the one set the project page uses too: Working, Waiting on you, Quiet or Hung with how long, Idle, work open, or At rest; a home with no thread, or one not known, says nothing here. A child home with nothing wrong and nothing for you is its one line. |
 | Quiet | Every other project, one line each: its name, which opens its page, and its open tasks. |
 
 A project's page leads with the queue of what needs you in that project, oldest first:
@@ -109,7 +109,7 @@ A project's card or line opens its page, `#/<project>`, which has nothing else o
 | Part | What it shows |
 |---|---|
 | Needs you | The project's queue, as above. |
-| In progress | One row for each open task that is not in Needs you, and one for each scout or reviewer thread with no task. A task in Needs you is drawn there only. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its stage, the same stage the board and the Homes drawer give it with its state in words as the stage's title, who holds it, and its age; a home's own thread says its health in the Homes page's words. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
+| In progress | One row for each open task that is not in Needs you, and one for each scout or reviewer thread with no task. A task in Needs you is drawn there only. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its stage, the same stage the board gives it with its state in words as the stage's title, who holds it, and its age; a home's own thread says its health in the Homes page's words. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer. It says "jbus well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
 
@@ -136,7 +136,7 @@ It is the user's only where no agent can fix it: a row that waits on a gate, whi
 A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `wakes.json`, `outbox.jsonl`, the leftover record or the main-red row.
 `wrong`, the band's wrong tier, its since line and a project's red reasons hold only the user's entries.
-Any other is on its row, on the board card and in the task drawer, as `fixing: <owner>, told <time>`.
+Any other is on its row, in the task drawer, as `fixing: <owner>, told <time>`.
 A home hears of these from the one list ([One list wakes a home](events-and-wakes.md#one-list-wakes-a-home)), and any other fault of a row is told by the step that works that row.
 
 ### Every view is a link
@@ -160,7 +160,7 @@ The server reads the data of some drawers itself, such as the room, the checks a
 The page draws no badge, fold button or `?` beside a part.
 Each part has one plain heading.
 Every term, shape, mark and count is in the glossary at `#/help`, which the header's `?` and the key <kbd>?</kbd> open.
-The glossary lists the stages first, in the order of the process, each with what a row on it waits for, from the same table the board, the project page and the Homes drawer take their names from (`process` in `/state.json` and `/stack.json`).
+The glossary lists the stages first, in the order of the process, each with what a row on it waits for, from the same table the board and the project page take their names from (`process` in `/state.json` and `/stack.json`).
 No two entries of the glossary share a name.
 When you hover over a shape, a mark or a count, or reach a token by Tab, the page shows its meaning beside it.
 The bus drawer lists the last 10 events of `events.jsonl`, with a link to the last 40.
