@@ -514,7 +514,7 @@ def post(
     launched it, or its home launched it for a queue row that names its thread. The key `mark`
     gives is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`,
     and `once` writes it there when the message goes.
-    `mainmoved` also writes the key, for a head that it told.
+    `mainmoved` writes the rebase key of a head that it told, since that tells the head to rebase.
     `post` sends nothing while `held` delays the message, or while the outbox holds it for a capped
     instance (`jbus.outbox`): the message waits under its key, and the first pass after the reset
     sends it. When a rebase message goes, `post` writes
