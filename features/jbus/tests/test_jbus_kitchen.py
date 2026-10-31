@@ -150,6 +150,7 @@ class T3(Server):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
         self.messages, self.refuse_send, self.lose_send = {}, False, False
         self.status, self.on_list, self.down, self.lose_read = 200, None, set(), False
+        self.dropped, self.listings, self.lose_listing = set(), 0, False
         self.challenges, self.registered, self.at_work = {}, [], set()
         self.said, self.forgot, self.wakes = {}, set(), {}
         super().__init__()
@@ -253,7 +254,11 @@ class T3(Server):
         if asked["method"] == "initialize":
             return {"protocolVersion": t3.PROTOCOL, "capabilities": {}, "serverInfo": {}}
         if asked["method"] == "tools/list":
-            return {"tools": [*FIXTURE["tools"], {"name": "t3_thread_update", "inputSchema": {}}]}
+            self.listings += 1
+            if self.lose_listing:
+                return None
+            tools = [tool for tool in FIXTURE["tools"] if tool["name"] not in self.dropped]
+            return {"tools": [*tools, {"name": "t3_thread_update", "inputSchema": {}}]}
         tool, given = asked["params"]["name"], asked["params"]["arguments"]
         self.calls.append((tool, given))
         if tool == "t3_thread_list":
