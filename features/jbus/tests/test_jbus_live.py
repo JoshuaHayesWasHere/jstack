@@ -30,7 +30,6 @@ STATUSES = (
     "a status nobody named",
 )
 SILENT = (None, -1, 0, QUIET - 0.1, QUIET, HUNG - 0.1, HUNG, 600)
-ADDRESS = "http://127.0.0.1:4387/session/"
 
 
 def test_the_thresholds_are_ten_and_twenty_minutes_each_a_named_constant():
@@ -43,10 +42,8 @@ def test_every_combination_of_what_judge_is_given_keeps_what_the_rule_promises()
     second time."""
     turning = ("preparing", "queued", "starting", "running")
     walked, words = 0, set()
-    for status, silent, queued, pending, page in itertools.product(
-        STATUSES, SILENT, (0, 1, 3), (0, 1), (False, True)
-    ):
-        facts = live.Facts(status, silent, queued, pending, page)
+    for status, silent, queued, pending in itertools.product(STATUSES, SILENT, (0, 1, 3), (0, 1)):
+        facts = live.Facts(status, silent, queued, pending)
         found = live.judge(facts)
         word = found.word
         assert word in live.LIVENESS and found.facts == facts
@@ -54,20 +51,20 @@ def test_every_combination_of_what_judge_is_given_keeps_what_the_rule_promises()
             assert status in turning and silent is not None and silent < QUIET, facts
         if silent is not None and silent >= QUIET:
             assert word != "moving", facts
-        if page or pending:
+        if pending:
             assert word not in ("hung", "quiet"), facts
         if word == "hung":
             assert status in turning and silent >= QUIET and (queued or silent >= HUNG), facts
         if word == "quiet":
             assert status in turning and QUIET <= silent < HUNG and not queued, facts
-        if status in turning and silent is not None and silent >= HUNG and not (page or pending):
+        if status in turning and silent is not None and silent >= HUNG and not pending:
             assert word == "hung", facts
         if status == "a status nobody named" or (silent is None and status in turning):
             assert word == "unknown", facts
         assert (word == "ended") == (status not in (*turning, "waiting", STATUSES[-1])), facts
         walked += 1
         words.add(word)
-    assert walked == 12 * 8 * 3 * 2 * 2 and words == set(live.LIVENESS)
+    assert walked == 12 * 8 * 3 * 2 and words == set(live.LIVENESS)
 
 
 @pytest.mark.parametrize(
@@ -79,8 +76,6 @@ def test_every_combination_of_what_judge_is_given_keeps_what_the_rule_promises()
         (live.Facts("running", 10, queued=1), "hung"),
         (live.Facts("running", 20), "hung"),
         (live.Facts("running", 9.9, queued=4), "moving"),
-        (live.Facts("running", 240, page=True), "waiting"),
-        (live.Facts("running", 240, queued=2, page=True), "waiting"),
         (live.Facts("running", 25, pending=1), "waiting"),
         (live.Facts("waiting", 90), "waiting"),
         (live.Facts("completed", 0), "ended"),
@@ -170,7 +165,6 @@ def test_a_pass_leaves_every_unsettled_thread_once_with_its_role_and_its_livenes
         "run_started": None,
         "queued": 0,
         "pending": 0,
-        "page": False,
     }
 
 
@@ -182,7 +176,7 @@ def test_a_status_no_rule_names_is_unknown_with_what_was_given(kitchen):
     kitchen.poll()
     (found,) = written(kitchen)
     assert (found["live"], found["status"], found["silent"]) == ("unknown", "paused", 3)
-    assert (found["queued"], found["pending"], found["page"]) == (0, 0, False)
+    assert (found["queued"], found["pending"]) == (0, 0)
 
 
 def test_a_pass_with_nothing_quiet_reads_no_thread(kitchen):
@@ -393,24 +387,6 @@ def test_a_later_pass_adds_what_became_of_a_hung_call_once(kitchen, after, becam
     ]
     assert hung(kitchen)[1:] == (closed if became else [])
     assert len(kitchen.lines("stall")) == 1
-
-
-@pytest.mark.parametrize("status", ["done", "blocked"])
-def test_a_scout_whose_page_still_waits_is_never_hung(kitchen, status):
-    page = f"reports/look.html, {ADDRESS}ab12"
-    report = f"\n## Report\nStatus: {status}\nBrief: none   Page: {page}\n"
-    kitchen.brief("look", report, kind="scouts")
-    kitchen.t3.thread("look", title="scout: look", idle=timedelta(hours=3))
-    kitchen.lavish(ab12=(kitchen.home / "reports" / "look.html", "open"))
-    kitchen.poll()
-    (found,) = written(kitchen)
-    assert (found["live"], found["page"], found["silent"]) == ("waiting", True, 180)
-    assert kitchen.lines("stall") == [] and hung(kitchen) == []
-    kitchen.lavish(ab12=(kitchen.home / "reports" / "look.html", "ended"))
-    kitchen.t3.threads[0]["settled"] = False
-    kitchen.brief("look", "", kind="scouts")
-    kitchen.poll(NOW + MIN)
-    assert written(kitchen)[0]["live"] == "hung"
 
 
 def test_jbus_interrupts_nothing():

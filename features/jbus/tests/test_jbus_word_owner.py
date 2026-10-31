@@ -77,20 +77,6 @@ def test_a_word_that_names_a_new_slug_of_a_scoped_homes_prefix_goes_to_that_home
     assert to(kitchen) == [FLOW, FLOW]
 
 
-def test_a_word_given_on_a_page_goes_to_the_home_whose_page_it_is(kitchen):
-    page = kitchen.home / "reports" / "fl-statechart" / "index.html"
-    assert says(kitchen, "fix", "them", more=("--page", str(page)))[0] == 0
-    own = kitchen.home / SCOPE / "grill-gates.html"
-    assert says(kitchen, "yes", "to", "all", more=("--page", str(own)))[0] == 0
-    assert to(kitchen) == [FLOW, FLOW]
-
-
-def test_the_page_decides_over_the_slugs_its_words_name(kitchen):
-    page = kitchen.home / "reports" / "fl-statechart.html"
-    assert says(kitchen, "and", "fix-login", "too", more=("--page", str(page)))[0] == 0
-    assert to(kitchen) == [FLOW]
-
-
 def test_a_word_about_the_roots_work_or_about_no_brief_goes_to_the_root(kitchen):
     assert says(kitchen, "fix-login", "can", "wait")[0] == 0
     assert says(kitchen, "hold", "every", "merge")[0] == 0

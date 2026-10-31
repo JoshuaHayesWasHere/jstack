@@ -72,7 +72,6 @@ def test_a_commit_whose_message_has_an_ai_trailer_is_refused_for_each_name(trail
         (f"gh pr create --title 'feat: a thing' --body 'a body\n\n{CLAUDE}'", 3),
         (f"gh pr edit 12 --body '{CLAUDE}'", 1),
         (f"gh pr merge 12 --squash --body 'a body\n{CLAUDE}'", 2),
-        (f"gh-axi pr create --title x --body '{CLAUDE}'", 1),
     ],
 )
 def test_each_way_a_commit_or_pull_request_is_written_is_read(command, line):

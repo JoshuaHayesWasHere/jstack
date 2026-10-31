@@ -23,13 +23,12 @@ its home's own thread when it was kept. `Word` is the read model of the two (`lo
 The file of words jbus kept before words were acts is not read: a word it kept and never sent is
 said again with `jbus word --message`.
 
-A word goes to one home of the project, the one that owns its subject (`owner`): the home whose
-directory or brief the page it was given on (`--page`) is of, else the home of the briefs, requests
-and rows its words name by slug, when they are all one home's, else the home it was said in (the
-thread of `--message`) or recorded by (`--from`), else the root home. So a word about a scoped
-home's work reaches that home alone, a scoped home's own word that names no other home's work stays
-in that scope, and two homes never act on one word. A home that records a word about another home's
-work with `--from` forwards it to the home that owns it.
+A word goes to one home of the project, the one that owns its subject (`owner`): the home of the
+briefs, requests and rows its words name by slug, when they are all one home's, else the home it
+was said in (the thread of `--message`) or recorded by (`--from`), else the root home. So a word
+about a scoped home's work reaches that home alone, a scoped home's own word that names no other
+home's work stays in that scope, and two homes never act on one word. A home that records a word
+about another home's work with `--from` forwards it to the home that owns it.
 
 `--scope <scope>`, given again for each scope or once as `--scope every`, carries one word to the
 scoped homes it names in place of `owner`'s one home: the root home runs it for the user's word to
@@ -212,36 +211,23 @@ def _named(home: Path, name: str) -> str | None:
     return found.pop() if len(found) == 1 and "" not in found else None
 
 
-def _decided(home: Path, words: str, page: str) -> str | None:
-    """The scope that a page or the words' slugs give a word (`owner`), or None when neither
-    decides."""
-    if page:
-        where = Path(page).resolve()
-        if where.is_relative_to(home.resolve()):
-            parts = where.relative_to(home.resolve()).parts
-            if parts[:1] and parts[0] in {scope.name for scope, _, _ in scopes(home)}:
-                return parts[0]
-            for part in parts[1:]:
-                found = _named(home, Path(part).name.removesuffix(".html"))
-                if found is not None:
-                    return found
+def _decided(home: Path, words: str) -> str | None:
+    """The scope that the words' slugs give a word (`owner`), or None when they do not decide."""
     named = {_named(home, slug) for slug in SLUG.findall(words)} - {None}
     if len(named) == 1:
         return named.pop() or ""
     return "" if named else None
 
 
-def owner(home: Path, words: str, page: str = "", *threads: str) -> str:
+def owner(home: Path, words: str, *threads: str) -> str:
     """The scope of the home that owns a word's subject, or an empty string for the root home.
 
-    A page under a scope's directory is that scope's, and a page named for a brief or a request,
-    as `reports/<slug>/` or `reports/<slug>.html`, is the home's of that brief or request. A page
-    decides over the words. Without one, the briefs, requests and rows that the words name by slug
-    decide when they are all one home's (`_named`), and a word that names the work of two homes is
-    the root home's. A word that names none is the home's whose thread is the first of `threads`
-    that is a home's thread: the thread it was said in, then the one that recorded it. So a scoped
-    home's own word stays in that scope. With no such thread, it is the root home's."""
-    decided = _decided(home, words, page)
+    The briefs, requests and rows that the words name by slug decide when they are all one home's
+    (`_named`), and a word that names the work of two homes is the root home's. A word that names
+    none is the home's whose thread is the first of `threads` that is a home's thread: the thread
+    it was said in, then the one that recorded it. So a scoped home's own word stays in that scope.
+    With no such thread, it is the root home's."""
+    decided = _decided(home, words)
     if decided is not None:
         return decided
     homes = {
@@ -273,7 +259,6 @@ def keep(
     who: party.Party,
     heard: party.Evidence,
     recorder: str = "",
-    page: str = "",
     scope: str | None = None,
 ) -> Word:
     """Keep a word for the project as an act of `who`, and return its record: the one there was,
@@ -281,9 +266,9 @@ def keep(
 
     `heard` is the user's words, read by jbus from a T3 Code message (`ref` is then the message's
     `<thread id>/<message id>`) or given in the view. `recorder` is the thread that ran
-    `jbus word`, for `--from`, and `page` the page it was given on, for `--page`. A new word is for
-    the home that `owner` names. When it was said in that home's thread, or recorded by that
-    thread, `keep` records the word as sent to that thread and posts it to nobody (`skipped`).
+    `jbus word`, for `--from`. A new word is for the home that `owner` names. When it was said in
+    that home's thread, or recorded by that thread, `keep` records the word as sent to that thread
+    and posts it to nobody (`skipped`).
 
     A word from the bot's chat (`bot-chat`) has no time of its own, only the time jbus kept it,
     and its address names the message, so its id hashes no time: the bot sending the same message
@@ -306,7 +291,7 @@ def keep(
     with locked(run.state, acts.LOCK):
         whose = scope
         if whose is None:
-            whose = owner(run.home, words, page, ref.partition("/")[0], recorder)
+            whose = owner(run.home, words, ref.partition("/")[0], recorder)
         for one in load(run.state):
             if one.id == name or (one.words, one.at, one.ref, one.home) == (words, at, ref, whose):
                 return one
@@ -551,7 +536,7 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     for project in projects:
         run = Pass(config, project, now, lambda _: None)
         try:
-            was = keep(run, who, heard, args.recorder or "", args.page or "")
+            was = keep(run, who, heard, args.recorder or "")
             deliver(run, client)
             print(line(run, was))
         except Refused as error:
@@ -631,11 +616,6 @@ def _down(down: argparse.ArgumentParser) -> None:
         dest="recorder",
         metavar="THREAD",
         help="the thread running this: a word recorded by a project's home is not posted to it",
-    )
-    down.add_argument(
-        "--page",
-        metavar="FILE",
-        help="the page the word was given on: the word goes to the home whose page it is",
     )
     down.add_argument(
         "--scope",

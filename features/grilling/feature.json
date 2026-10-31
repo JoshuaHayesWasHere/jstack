@@ -1,5 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "grilling",
-  "description": "Questions a plan until nothing is left assumed, with a page for each round."
+  "description": "Questions a plan until nothing is left assumed, in rounds through the thread's question form."
 }

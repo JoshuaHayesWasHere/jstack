@@ -23,17 +23,17 @@ the sha of the brief the user was shown, and refuses when the stored brief diffe
 a rule, the follow-up rule's or an entry's, is pinned to no sha, since no user read one.
 
 An approval is based on the user's words, which another store holds, and `approve` names them: a
-word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, the
-user's answer to a question box of a T3 Code thread (`PICK`), or a pick the user sent with a
-Lavish page (`PAGE`), which jbus reads in Lavish's own state file. One answer to a question box
+word that `jbus word` kept, the answer that closed a question, a message of a T3 Code thread, or
+the user's answer to a question box of a T3 Code thread (`PICK`). One answer to a question box
 approves each row that a label it picked names (`picked`), so a box of three rows picked at
 once is one go for the three.
 `approve` takes no name and no time. The row's `approval` is the record (`Approval`). The record
 holds the basis and its reference, the words, and when and where the user said them. It also says
-whether jbus read the words out of T3 Code or Lavish, and who ran the command and when, which jbus
+whether jbus read the words out of T3 Code, and who ran the command and when, which jbus
 writes itself. `approved` holds a line that states the go, and every reader checks that column to
 know whether the row has a go. An older row holds only a typed string there, and still has its go
-(`approval`).
+(`approval`). A row approved by a pick on a page, a basis no `approve` takes now, keeps its record
+and its go (`PAGE`).
 
 One more basis is not the user's word for the row: a follow-up of approved work needs no new
 approval (`RULE`, the rule in words is `FOLLOW_RULE`). Its ground is the go of the parent row it
@@ -159,11 +159,12 @@ LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 PAGE = "page"
+"""The basis of an approval recorded from a page's send: an old row has it, and no verb gives it."""
 PICK = "pick"
-BASES = ("word", "answer", "message", PICK, PAGE)
+BASES = ("word", "answer", "message", PICK)
 BASIS = (
-    "--word <id>, --answer <number>, --message <thread id>/<message id>, --pick "
-    "<thread id>/<item id> or --page <session key>/<entry id>"
+    "--word <id>, --answer <number>, --message <thread id>/<message id> or --pick "
+    "<thread id>/<item id>"
 )
 _SLUG_IN = r"(?<![a-z0-9._-]){}(?![a-z0-9_-]|\.[a-z0-9])"
 PLAN_GO = "jbus plan go <entry> --message <thread>/<message>"
@@ -347,9 +348,9 @@ def who(ran_by: dict[str, str]) -> str:
 @dataclass(frozen=True)
 class Said:
     """`Said` holds the user's words as their store recorded them: when and where the user said
-    them, and whether jbus read the words and the time in T3 Code or Lavish (`checked`) or
-    someone typed them. `ref` is the `<thread id>/<message id>`, `<thread id>/<item id>` or
-    `<session key>/<entry id>` in which jbus read them, or nothing. `picks` are the labels the
+    them, and whether jbus read the words and the time in T3 Code (`checked`) or someone typed
+    them. `ref` is the `<thread id>/<message id>` or `<thread id>/<item id>` in which jbus read
+    them, or nothing. `picks` are the labels the
     user picked in a question box (`PICK`), each with its question."""
 
     words: str
@@ -402,7 +403,7 @@ class Approval(judgement.Go):
             parent = f"{ruled}, {of}"
             return f"{parent}; {ran}; you did not speak of this row"
         if self.basis == PAGE:
-            return f"your pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
+            return f"your pick on a page, {self.said_at}, {Path(self.said_in).name}; {ran}"
         if self.basis == PICK:
             where = f", in {self.said_in}" if self.said_in else ""
             return f"your pick in a question box, {self.said_at}{where}: {self.words}; {ran}"
@@ -2088,9 +2089,8 @@ def parse(text: str) -> list[tuple[int, Verb]]:
 
     - `add <slug> --priority N [--depends a,b] [--merge-after a,b] [--entry <plan entry>]`;
     - `approve <slug> --sha <12>` with one of `--word <id>`, `--answer <number>`,
-      `--message <thread id>/<message id>`, `--pick <thread id>/<item id>` and
-      `--page <session key>/<entry id>`, or `approve <slug>` with
-      `--follows <parent slug>` (a `--rule <n>` or a `--sha` beside it is taken and not read);
+      `--message <thread id>/<message id>` and `--pick <thread id>/<item id>`, or `approve <slug>`
+      with `--follows <parent slug>` (a `--rule <n>` or a `--sha` beside it is taken and not read);
     - `hold <slug>`;
     - `remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM ZONE>"`.
 

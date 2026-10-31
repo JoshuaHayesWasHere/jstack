@@ -1,9 +1,9 @@
 ---
 name: scout
-description: Make this thread a scout - research the one question a home wrote a request for, with read-only tool calls over the code and the docs, write the report (and the crewmate's brief or a visual page when asked), and tell the home. Use when the user or a home starts a thread with /scout <slug> or $scout <slug>.
+description: Make this thread a scout - research the one question a home wrote a request for, with read-only tool calls over the code and the docs, write the report (and the crewmate's brief or a visual when asked), and tell the home. Use when the user or a home starts a thread with /scout <slug> or $scout <slug>.
 user-invocable: true
 disable-model-invocation: true
-card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question with read-only tool calls, writes its report, and writes a crewmate's brief or a visual page when asked. | Reach for it when a question has to be answered before a task can be briefed. | model: a home | look: scout"
+card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question with read-only tool calls, writes its report, and writes a crewmate's brief or a visual when asked. | Reach for it when a question has to be answered before a task can be briefed. | model: a home | look: scout"
 ---
 
 # scout
@@ -115,7 +115,7 @@ Besides a gate jbus could not take, a scout sends its home nothing before the En
 
 ## Write it down
 
-Besides its note of the start and its note of what the home was told, a scout writes three kinds of file and no others, all under `$H`: its report, a brief, a page.
+Besides its note of the start and its note of what the home was told, a scout writes three kinds of file and no others, all under `$H`: its report, a brief, a visual.
 The **Deliver** list says which.
 The one thing it adds outside them is a queued row for a fault outside the request, whose brief it writes in `/tmp` first, as the line under the report says.
 
@@ -132,25 +132,12 @@ A request with no `Home:` line is the root home's: write `Home: root`, and never
 
 Do not start the crewmate. The home does that.
 
-**A visual page, when the request asks for one.** Before building it, run this:
-
-```sh
-if command -v lavish-axi > /dev/null; then
-    echo "page: lavish-axi is installed"
-else
-    echo "no page: lavish-axi is not installed"
-fi
-```
-
-On `no page`, build none. Write `Page: none, lavish-axi is not installed` in the report. Each open choice the page would have asked is a gate: park it as "Research" says for a question only the user can answer, and, home or no home, put its lines in the report under "Findings".
-
-On `page`, build one HTML file at `$H/reports/<slug>.html`, with anything it loads beside it, then serve it, in one call with the block at the top and `S` set to the slug. It prints the page's address:
-
-```sh
-lavish-axi "$H/reports/$S.html"
-```
-
-`lavish-axi --help` gives the rules for the page and the playbooks to open before writing it. The page shows what the report says, with the numbers behind it, and puts each open choice as an input the user can answer on the page. A page that asks for picks is made from `$T/grill-page.html`, one card per choice with the recommended pick marked: copy it and write the choices into its `round-data` block as `$T/grill-round.schema.json` says. What the report says goes in sections of your own inside `<main>`, above the one with the id `settled-sec`. The script, the cards and the send bar stay as they are.
+**A visual, when the request asks for one.**
+Write it as one HTML file at `$H/reports/<slug>.html`, with anything it loads beside it, and name it on the report's `Visual:` line.
+Show it in this thread with T3 Code's `html_preview` and then `html_render`.
+The visual shows what the report says, with the numbers behind it.
+It takes no input: each open choice is a gate, parked as "Research" says for a question only the user can answer, and, home or no home, its lines go in the report under "Findings".
+In a session with no such tools, the file on disk is the visual, and the report says it was not shown.
 
 ## End
 
@@ -164,7 +151,7 @@ lavish-axi "$H/reports/$S.html"
    ```
 
    The repo is unchanged only if both lists are empty. Put back what this thread itself wrote into the repo, and nothing else: a line that was there at the start, or a change somebody else made while you worked, stays as it is. Name every line that is left, and whose it is, here and on the report's `Repo:` line, which you correct now if it says otherwise. A path that was already changed at the start cannot be shown untouched: say that, not "unchanged". Never commit, push or open a pull request.
-2. Check that the report, and the brief and the page if asked for, are on disk. A page that `no page` ruled out is not one to check.
+2. Check that the report, and the brief and the visual if asked for, are on disk.
 3. Tell the home that launched this thread, if there is one to tell. In one call with the block at the top and `B` set to the request, `$H/scouts/<slug>.md`:
 
    ```sh
@@ -180,55 +167,30 @@ lavish-axi "$H/reports/$S.html"
 
    If it prints a thread id, send a message of at most five lines to that thread, with the `t3-code` server's `t3_thread_send` (if your harness defers it, load it first): the status, the recommendation in one line, and the path of each file written. If it prints nothing, there is no home listening: skip the report and send nothing, and the next home reads the report from disk.
 
-   Besides a gate jbus could not take, this is the one message a scout sends its home. Note the report it was told of, in one call with the block at the top and `S` set to the slug:
-
-   ```sh
-   sed -n '/^## Report/,$p' "$H/scouts/$S.md" | cksum > "$H/scouts/$S.told"
-   ```
+   Besides a gate jbus could not take, this is the one message a scout sends its home.
 4. Say the same thing in this thread in at most five lines.
 5. See whether this thread settles itself. Its work is the report, which is on disk, so nothing is lost with the thread. In one call with the block at the top and `S` set to the slug. It is the only check:
 
    ```sh
    awk '
-       /^## Report/ {report = 1; done = 0; page = ""}
+       /^## Report/ {report = 1; done = 0}
        report && $(1) == "Status:" {done = ($(2) == "done")}
-       report && /(^|[ \t])Page:/ {page = $(0); sub(/.*Page:[ \t]*/, "", page); sub(/[ \t]+$/, "", page)}
        END {
            if (!report) print "stay: the request has no Report"
            else if (!done) print "stay: the Report does not say Status: done"
-           else if (page != "" && page !~ /^none(,|$)/) print "page: settle once the user has ended its session"
            else print "settle"
        }' "$H/scouts/$S.md"
    ```
 
-   It reads the last report in the request, and a report that names no page has none, as the home's sweep reads it.
+   It reads the last report in the request, as the home's sweep reads it.
    On `settle`, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
    It takes effect when the turn ends, so it is the last call, made only once the home is told.
    A worktree and a branch, where the launch gave this thread one, stay: the home's sweep removes them at its next start.
    On `stay`, or in a session with no such tool, settle nothing and say the reason here: the thread stays where the user can see what is left.
-   On `page`, the page waits on the user: do what follows, and settle the same way once the user has ended the session and the second message, if there is one, is sent.
 
-Then stop, unless there is a page. With a page, stay, and hold the poll inside this turn. Run this as a tracked command, in one call with the block at the top and `S` set to the slug:
-
-```sh
-lavish-axi poll "$H/reports/$S.html"
-```
-
-A tracked command is one whose end your harness gives back to this turn: the call in the foreground, or, where the harness cuts a foreground call short, its own background job with the longest limit it gives, whose output you wait for in this turn. In Claude Code that is the Bash tool with `run_in_background` and a two hour `timeout`, then the Monitor tool on the job's output file until it has an answer. Never end the turn while the poll runs: nothing wakes a thread whose turn has ended, so a poll left in the background of one is heard by nobody. A poll the harness stopped with no answer is run again, and the answers stay queued.
+Then stop.
 
 A subagent the scout starts is waited on in the same turn, as a tracked command is: started in the foreground, or in the background and then waited for before the turn ends.
 A turn never ends while a subagent of the scout runs and the Report is not `Status: done`, since a subagent left running when the turn ends reports to nobody and jbus finds the scout left.
-
-When it returns, change the page as the user's feedback asks, update the report when a finding or the recommendation changes, and run it again until the session ends. Send the home nothing while the session lasts. A poll that returns `status: browser_disconnected` is a closed tab, and no answer: each choice the page still asked stays at its default in the report. End the session with `lavish-axi end "$H/reports/<slug>.html"`, go on as when the user ends it, and say here that the page opens again on their word. On that word, serve it again with the block of "Write it down" that runs `lavish-axi "$H/reports/$S.html"`, in one call with the block at the top and `S` set to the slug, then run the poll above. When the user ends it, run this, in one call with the block at the top and `S` set to the slug:
-
-```sh
-if sed -n '/^## Report/,$p' "$H/scouts/$S.md" | cksum | cmp -s - "$H/scouts/$S.told"; then
-    echo "send nothing: the report is the one the home was told of"
-else
-    echo "tell the home: the report changed since it was told"
-fi
-```
-
-On `tell the home`, send the second message, the same way as the first, with what changed. On `send nothing`, there is no second message: a page that changed with the report as it was is not news for the home.
 
 This thread is finished after that; a follow-up is a new message from the user here, or a new request from the home.

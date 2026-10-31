@@ -555,7 +555,7 @@
       "kind": "skill",
       "path": "features/scout/SKILL.md",
       "source": "jstack",
-      "description": "Make this thread a scout - research the one question a home wrote a request for, with read-only tool calls over the code and the docs, write the report (and the crewmate's brief or a visual page when asked), and tell the home. Use when the user or a home starts a thread with /scout <slug> or $scout <slug>."
+      "description": "Make this thread a scout - research the one question a home wrote a request for, with read-only tool calls over the code and the docs, write the report (and the crewmate's brief or a visual when asked), and tell the home. Use when the user or a home starts a thread with /scout <slug> or $scout <slug>."
     },
     {
       "name": "setup-pstack",
@@ -686,18 +686,6 @@
       "name": "gates.md",
       "kind": "template",
       "path": "features/home/templates/gates.md",
-      "source": "jstack"
-    },
-    {
-      "name": "grill-page.html",
-      "kind": "template",
-      "path": "features/grilling/templates/grill-page.html",
-      "source": "jstack"
-    },
-    {
-      "name": "grill-round.schema.json",
-      "kind": "template",
-      "path": "features/grilling/templates/grill-round.schema.json",
       "source": "jstack"
     },
     {

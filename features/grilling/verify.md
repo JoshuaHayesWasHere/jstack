@@ -1,7 +1,6 @@
 # Grilling the user
 
-The grilling skill asks the user a round of questions on a Lavish page (`features/grilling/templates/grill-page.html`) and reads the answers back.
-Its page script is run in node.
+The grilling skill asks the user rounds of questions through the thread's question form, or as a plain message where a provider has none.
 
 Paths:
 - `features/grilling/`

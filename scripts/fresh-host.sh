@@ -13,7 +13,6 @@ mkdir -p "$stand"
 printf '#!/bin/sh\necho "t3 v0.1.2"\n' > "$stand/t3"
 printf '#!/bin/sh\necho "2.1.296 (Claude Code)"\n' > "$stand/claude"
 printf '#!/bin/sh\n[ "$1 $2" = "auth token" ] && echo gho_stand_in\n' > "$stand/gh"
-printf '#!/bin/sh\nexit 0\n' > "$stand/lavish-axi"
 cp /src/systemctl "$stand/systemctl"
 chmod 755 "$stand"/*
 export PATH="$stand:$HOME/.local/bin:$PATH" FAKE_SYSTEMCTL_LOG=/tmp/systemctl.log

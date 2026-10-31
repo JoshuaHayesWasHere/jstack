@@ -147,7 +147,7 @@
 
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">2</span>Plan with you</b><small>One entry per pull request, each with a "Done when" list. If the shape is not settled, the home first grills it in rounds, by <code>features/grilling/SKILL.md</code>.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>features/home/templates/plan-entry.md</code></small></div><div class="box file"><b>reports/grill-&lt;slug&gt;.html</b><small>a round of two or more questions, made from <code>features/grilling/templates/grill-page.html</code></small></div></div>
+      <div class="cell s"><div class="box file"><b>plan.md</b><small>an entry, shaped as <code>features/home/templates/plan-entry.md</code></small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -161,7 +161,7 @@
 
     <div class="row rev">
       <div class="cell h"><div class="box plain"><b>Read the report</b><small>From disk, not from the scout's thread.</small></div><i class="ar l"></i></div>
-      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>gains <code>## Report</code>, shaped as <code>features/scout/templates/scout-report.md</code></small></div><div class="box file"><b>tasks/&lt;slug&gt;.md &nbsp;reports/&lt;slug&gt;.html</b><small>the crewmate's brief and a page, each only when the request asks</small></div><div class="box msg"><span class="tag">Message</span><b>the report is written</b><small>once, at most five lines: status, recommendation, paths</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box file"><b>scouts/&lt;slug&gt;.md</b><small>gains <code>## Report</code>, shaped as <code>features/scout/templates/scout-report.md</code></small></div><div class="box file"><b>tasks/&lt;slug&gt;.md &nbsp;reports/&lt;slug&gt;.html</b><small>the crewmate's brief and a visual, each only when the request asks</small></div><div class="box msg"><span class="tag">Message</span><b>the report is written</b><small>once, at most five lines: status, recommendation, paths</small></div><i class="ar l"></i></div>
       <div class="cell c other"><div class="box scout"><span class="tag">Scout thread</span><b>Write it down</b><small>Then tells the home and settles itself. It never becomes the crewmate.</small></div></div>
       <div class="cell g"></div>
     </div>
@@ -268,7 +268,7 @@
     <tbody>
       <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to <code>jbus gate</code></td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It is parked as a gate whose default is that the pull request waits for your word.</td></tr>
       <tr><td>The task ended with no pull request</td><td>Crewmate, to its home</td><td>Its Result names none. At most five lines.</td></tr>
-      <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end. Once more only if a page's feedback changed the report.</td></tr>
+      <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end.</td></tr>
       <tr><td><code>&lt;slug&gt;: gate</code></td><td>Crewmate or scout, to its home</td><td>It took a default on a question only you can answer, and carried on, on a machine with no <code>jbus</code>. With <code>jbus</code>, the gate goes to <code>jbus gate</code>, and the thread sends no message.</td></tr>
       <tr><td>A review's notice</td><td><code>jbus</code>, to the crewmate</td><td>Once every reviewer of the head has written and <code>jmerge</code> says the crewmate owes a line. To the home only when the brief has no <code>Thread:</code> line.</td></tr>
     </tbody>
@@ -285,8 +285,6 @@
       <tr><td><code>features/home/templates/check.yml</code></td><td>before 1</td><td><code>/new-home</code>, with the repo's check command</td><td>The repo's <code>.github/workflows/check.yml</code>, on a branch <code>jstack-check</code> the user pushes</td></tr>
       <tr><td><code>features/home/templates/hook-message.md</code></td><td>1</td><td><code>features/home/hooks/home-start.sh</code></td><td>The <code>[home]</code> lines a new thread in a main checkout starts with</td></tr>
       <tr><td><code>features/home/templates/plan-entry.md</code></td><td>2</td><td>Home</td><td>An entry in <code>plan.md</code></td></tr>
-      <tr><td><code>features/grilling/templates/grill-page.html</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>A round of questions as a page under <code>reports/</code>. The home shows two or more open gates the same way.</td></tr>
-      <tr><td><code>features/grilling/templates/grill-round.schema.json</code></td><td>2</td><td>Home, and a scout whose page asks for picks</td><td>Every key of a round, the block a thread writes into the grill page, and what each holds.</td></tr>
       <tr><td><code>features/scout/templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>features/scout/templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
       <tr><td><code>features/jbriefs/templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
@@ -367,11 +365,10 @@
     <tbody>
       <tr><td>Crewmate: done, no pull request, nothing left, worktree clean</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
       <tr><td>Crewmate: pull request merged</td><td><span class="chip auto">auto</span></td><td>T3 Code, because the pull request is linked to the thread</td></tr>
-      <tr><td>Scout: report done, no page</td><td><span class="chip auto">auto</span></td><td>Itself, once the home is told</td></tr>
+      <tr><td>Scout: report done</td><td><span class="chip auto">auto</span></td><td>Itself, once the home is told</td></tr>
       <tr><td>Reviewer: <code>## Review</code> written</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
       <tr><td>Home: <code>/handoff</code> finished</td><td><span class="chip auto">auto</span></td><td>Itself, once it is archived</td></tr>
       <tr><td>Crewmate: pull request open</td><td><span class="chip never">not yet</span></td><td>Stays on the pull request</td></tr>
-      <tr><td>Scout: report done, with a page</td><td><span class="chip never">not yet</span></td><td>Itself, once you have ended the page's session</td></tr>
       <tr><td>Crewmate: done, but uncommitted or unpushed work is left</td><td><span class="chip never">never auto</span></td><td>You. The sweep prints <code>kept</code> and the reason.</td></tr>
       <tr><td>Crewmate or scout: not done, or blocked</td><td><span class="chip never">never auto</span></td><td>You</td></tr>
       <tr><td>Reviewer: stopped before its run ended</td><td><span class="chip never">never auto</span></td><td>You. The thread stays, and says why.</td></tr>

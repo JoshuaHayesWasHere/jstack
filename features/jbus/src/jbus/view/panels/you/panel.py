@@ -601,7 +601,7 @@ def _approve(app: Any, name: str, body: bytes) -> Answer:
     except jbus.Refused as error:
         return _refused(409, f"{slug} has no go: {str(error).removeprefix('refused: ')}.")
     if made.outcome == "gated":
-        say = f"{slug} waits for your own word, read in T3 Code or on a Lavish page: {made.line}."
+        say = f"{slug} waits for your own word, read in T3 Code: {made.line}."
         return said(200, {"say": " ".join([say, _went(run, kept)]), "slug": slug, "word": kept.id})
     _, *ruled = made.line.split("\n")
     at = app.sources.user.clock(app.clock())

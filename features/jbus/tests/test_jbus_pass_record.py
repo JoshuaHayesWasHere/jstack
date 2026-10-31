@@ -79,7 +79,6 @@ ALPHA = {
     "run_started": None,
     "queued": 0,
     "pending": 0,
-    "page": False,
 }
 WHOLE = {
     "started": STARTED,

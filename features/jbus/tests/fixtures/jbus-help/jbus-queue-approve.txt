@@ -1,7 +1,7 @@
 usage: jbus queue approve [-h] [--word ID] [--answer NUMBER]
                           [--message THREAD/MESSAGE] [--pick THREAD/ITEM]
-                          [--page SESSION/ENTRY] [--rule N] [--follows SLUG]
-                          [--sha SHA] [--seen EVENT]
+                          [--rule N] [--follows SLUG] [--sha SHA]
+                          [--seen EVENT]
                           slug
 
 positional arguments:
@@ -16,7 +16,6 @@ options:
   --pick THREAD/ITEM    the user's own answer to a question box in T3 Code, by
                         its thread and its user_input_request item: it
                         approves the row a picked label names
-  --page SESSION/ENTRY  the user's own send from a Lavish page
   --rule N              taken beside --follows and not read: the follow-up
                         rule is known by what it says
   --follows SLUG        the approved row that this one follows up: its go is

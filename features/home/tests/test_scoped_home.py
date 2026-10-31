@@ -247,7 +247,7 @@ def test_a_block_run_by_a_thread_that_is_no_home_writes_nothing(homes, thread):
     homes.home_starts(SCOPED, SCOPE)
     before = homes.state()
     found = of_this_home()
-    assert len(found) == 16
+    assert len(found) == 15
     finds = block("home", 'echo "no home:').replace(UNFILLED, thread)
     for text in found:
         ran = subprocess.run(
@@ -504,7 +504,7 @@ def test_a_block_run_without_the_block_it_is_run_after_says_so_and_does_nothing(
     before = homes.state()
     guarded = [text for text in blocks("home") if "SEP:?" in text or "SEP=" in text]
     guarded.append(start_block())
-    assert len(guarded) == 8
+    assert len(guarded) == 7
     for text in guarded:
         ran = subprocess.run(
             ["sh", "-c", f"{paths('home')}\n{text}"],

@@ -1575,7 +1575,7 @@ index 0000000000..b3151cbb66
 +Plan entries: jv-color-homes: Done when: view/homes.py gives each home a stable colour index 1-8 (by config order) in /stack.json and in the pipeline board's homes; the matrix, Homes page and Homes drawer draw its swatch; a scene test pins the index.
 +Brief: ~/.local/state/home/jstack/tasks/jv-color.md   Page: ~/.local/state/home/jstack/reports/jv-color/index.html, http://localhost:4387/session/0000000000000001 (the request named index.html under reports/jv-color/, so the page is not at reports/jv-color-design.html)
 +Steers: Josh, on the page (round 1), kept all three picks as recommended: scheme A (slate and indigo), homes coloured with stages neutral, two pull requests. No notes. The brief already builds this.
-+Repo: `?? .lavish/` was there at the start and is not mine. Nothing else changed. Shots were drawn in a `git archive` copy at /tmp/jvc.
++Repo: `?? .scratch/` was there at the start and is not mine. Nothing else changed. Shots were drawn in a `git archive` copy at /tmp/jvc.
 diff --git a/apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt b/apps/web/test/fixtures/jstack-briefs/sb-type-b2-build.txt
 new file mode 100644
 index 0000000000..ddba7e3d16

@@ -59,7 +59,6 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         "run_started": began,
         "queued": 2,
         "pending": 0,
-        "page": False,
         "rank": 0,
         "home": "",
         "retired": "",

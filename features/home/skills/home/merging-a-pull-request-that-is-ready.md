@@ -160,14 +160,14 @@ It prints two lists, the first one removed, and appends the same lines, dated, t
 |---|---|
 | `removed <branch> <thread>: <what>` | the thread is finished and nothing of its work could be lost, so what it left is gone: the worktree, the local branch, the remote branch, the gate's ref, whichever were there |
 | `removed <branch> <thread>: <what>, kept: <what and why>` | git refused a step, and the rest is left for the next sweep |
-| `kept <branch>: <reason>` | nothing of it was removed. The reason is the first of: not done, blocked, paused, something under Left, a scout's Report with a page, a pull request that is open or closed unmerged, uncommitted work, a commit that is in neither the remote's default branch nor its merged pull request, a process running in the worktree |
+| `kept <branch>: <reason>` | nothing of it was removed. The reason is the first of: not done, blocked, paused, something under Left, a pull request that is open or closed unmerged, uncommitted work, a commit that is in neither the remote's default branch nor its merged pull request, a process running in the worktree |
 | `kept <directory>: no brief or request names its branch <branch>` | a worktree of T3 Code's that is nobody's task here. It is never removed |
 | `wait: could not read origin` | nothing was looked at |
 
 Removable means all of these hold.
 The rules are in `features/jmerge/src/jmerge/sweep.py`, and nowhere else:
 
-- the brief's last Result says `Status: done` and `Left: none`, or the request's last Report says `Status: done` and names no page: a page may still wait on the user;
+- the brief's last Result says `Status: done` and `Left: none`, or the request's last Report says `Status: done`;
 - its pull request is merged, or it has none;
 - the worktree has nothing uncommitted and no process running in it;
 - each of the local branch, the remote branch and the gate's ref is at a commit the remote's default branch has, or at the merged pull request's head or behind it.

@@ -122,13 +122,9 @@ def test_a_task_that_is_not_done_or_has_a_pull_request_open_keeps_its_threads(ki
     assert settles(kitchen) == []
 
 
-ADDRESS = "http://127.0.0.1:4387/session/"
-
-
-def scout_with(kitchen, page):
-    kitchen.brief("look", f"\n## Report\nStatus: done\nBrief: none   Page: {page}\n", kind="scouts")
+def scout_with(kitchen, report):
+    kitchen.brief("look", f"\n## Report\nStatus: done\n{report}\n", kind="scouts")
     kitchen.t3.thread("look", "completed", title="scout: look")
-    return kitchen.home / "reports" / "look.html"
 
 
 def settled(kitchen):
@@ -137,72 +133,27 @@ def settled(kitchen):
 
 
 @pytest.mark.parametrize(
-    ("page", "session", "settles"),
+    "report",
     [
-        pytest.param("none", None, True, id="none"),
-        pytest.param("none, lavish-axi is not installed", None, True, id="none, and why"),
-        pytest.param(f"reports/look.html, {ADDRESS}ab12", ("open",), False, id="open"),
-        pytest.param(f"reports/look.html, {ADDRESS}ab12", ("feedback", 1), False, id="answered"),
-        pytest.param(f"reports/look.html, {ADDRESS}ab12", ("ended",), True, id="ended"),
+        pytest.param("Brief: none   Visual: none", id="no visual"),
+        pytest.param("Brief: none   Visual: reports/look.html", id="a visual"),
         pytest.param(
-            f"reports/look.html, {ADDRESS}ab12", ("ended", 1), False, id="ended, an answer unheard"
+            "Brief: none   Page: reports/look.html, http://127.0.0.1:4387/session/ab12",
+            id="an old report that names a page",
         ),
-        pytest.param(f"reports/look.html, {ADDRESS}ab12", None, False, id="no session known"),
     ],
 )
-def test_a_scout_whose_report_names_a_page_is_settled_once_its_session_ended(
-    kitchen, page, session, settles
-):
-    file = scout_with(kitchen, page)
-    if session:
-        kitchen.lavish(
-            ab12=(file, *session), cd34=(kitchen.home / "reports" / "other.html", "ended")
-        )
-    assert settled(kitchen) == (["scout: look"] if settles else [])
-
-
-def test_a_page_with_no_address_is_known_by_where_the_scout_skill_puts_it(kitchen):
-    file = scout_with(kitchen, "`reports/look.html`, not served again")
-    kitchen.lavish(ab12=(file, "open"))
-    assert settled(kitchen) == []
-    kitchen.lavish(ab12=(file, "ended"))
+def test_a_scout_whose_report_is_done_is_settled_whatever_it_names(kitchen, report):
+    scout_with(kitchen, report)
     assert settled(kitchen) == ["scout: look"]
-
-
-def test_a_page_somewhere_else_is_known_by_its_address(kitchen):
-    scout_with(kitchen, f"a page of its own, {ADDRESS}cd34")
-    kitchen.lavish(cd34=(kitchen.root / "elsewhere.html", "open"))
-    assert settled(kitchen) == []
-    kitchen.lavish(cd34=(kitchen.root / "elsewhere.html", "ended"))
-    assert settled(kitchen) == ["scout: look"]
-
-
-def test_a_page_with_no_session_jbus_can_find_is_said_while_its_thread_is_out(kitchen):
-    scout_with(kitchen, f"reports/look.html, {ADDRESS}ab12")
-    state = kitchen.root / "lavish" / "state.json"
-    line = f"wait look: its page has no session in Lavish's state at {state}, so its thread stays"
-    assert kitchen.poll().count(line) == 1
-    kitchen.t3.threads[-1]["settled"] = True
-    assert line not in kitchen.poll(NOW + timedelta(minutes=3))
-    kitchen.t3.threads[-1]["settled"] = False
-    kitchen.lavish(ab12=(kitchen.home / "reports" / "look.html", "open"))
-    assert not [said for said in kitchen.poll(NOW + timedelta(minutes=6)) if "wait look" in said]
 
 
 @pytest.mark.parametrize("status", ["blocked", "not done", "done, mostly", ""])
 def test_a_scout_whose_last_report_does_not_say_status_done_stays(kitchen, status):
-    kitchen.brief("look", "\n## Report\nStatus: done\nPage: none\n", kind="scouts")
+    kitchen.brief("look", "\n## Report\nStatus: done\n", kind="scouts")
     with (kitchen.home / "scouts" / "look.md").open("a") as request:
-        request.write(f"\n## Report\nStatus: {status}\nBrief: none   Page: none\n")
+        request.write(f"\n## Report\nStatus: {status}\nBrief: none   Visual: none\n")
     kitchen.t3.thread("look", "completed", title="scout: look")
-    assert settled(kitchen) == []
-
-
-def test_of_two_reports_the_last_one_says_whether_a_page_waits(kitchen):
-    file = scout_with(kitchen, "none")
-    kitchen.lavish(ab12=(file, "open"))
-    with (kitchen.home / "scouts" / "look.md").open("a") as request:
-        request.write(f"\n## Report\nStatus: done\nPage: reports/look.html, {ADDRESS}ab12\n")
     assert settled(kitchen) == []
 
 

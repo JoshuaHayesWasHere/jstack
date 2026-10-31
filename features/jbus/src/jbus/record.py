@@ -157,7 +157,6 @@ THREAD = (
     "run_started",
     "queued",
     "pending",
-    "page",
 )
 
 

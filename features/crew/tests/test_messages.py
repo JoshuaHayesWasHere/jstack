@@ -52,12 +52,6 @@ class Threads(Scene):
     def crewmate_with_no_reviewer(self):
         return self.says("crew", "has no review")
 
-    def scout_is_told(self):
-        return self.says("scout", '> "$H/scouts/$S.told"', "$S")
-
-    def scout_after_the_page(self):
-        return self.says("scout", "send nothing", "$S")
-
 
 @pytest.fixture
 def threads(tmp_path):
@@ -84,27 +78,6 @@ def test_the_last_result_decides_after_a_follow_up(threads):
 
 def test_a_brief_with_no_result_yet_decides_nothing(threads):
     assert threads.crewmate_ends().startswith("write the Result first")
-
-
-def test_a_scout_whose_report_is_as_the_home_was_told_sends_no_second_message(threads):
-    threads.scout_is_told()
-    assert threads.scout_after_the_page().startswith("send nothing: ")
-
-
-def test_a_line_the_home_adds_above_the_report_is_not_a_changed_report(threads):
-    threads.scout_is_told()
-    text = threads.request.read_text()
-    threads.request.write_text(
-        text.replace("\n\n## Report", "\nThread: mcp:the-scout\n\n## Report")
-    )
-    assert threads.scout_after_the_page().startswith("send nothing: ")
-
-
-def test_a_scout_whose_report_changed_on_the_page_tells_its_home_again(threads):
-    threads.scout_is_told()
-    text = threads.request.read_text()
-    threads.request.write_text(text.replace("do it", "do not do it"))
-    assert threads.scout_after_the_page().startswith("tell the home: ")
 
 
 def test_a_follow_up_with_no_branch_line_is_not_decided_by_the_result_before_it(threads):

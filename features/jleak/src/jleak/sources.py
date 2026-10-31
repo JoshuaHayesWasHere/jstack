@@ -248,7 +248,7 @@ def command(typed: str, cwd: Path) -> tuple[list[Finding], list[Text]]:
     except ValueError:
         low = typed.lower()
         around = "push" in low and ("--no-verify" in low or "hookspath" in low)
-        whole = re.search(r"\bgh(-axi)?\b", typed) and re.search(r"\bpr\b", typed)
+        whole = re.search(r"\bgh\b", typed) and re.search(r"\bpr\b", typed)
         return (
             [Finding("command", 1, "push-no-verify")] if around else [],
             [Text.of("command", typed)] if whole else [],
@@ -261,7 +261,7 @@ def command(typed: str, cwd: Path) -> tuple[list[Finding], list[Text]]:
             cwd = cwd / os.path.expandvars(os.path.expanduser(words[1]))
         elif program == "git":
             broken += [Finding("command", 1, rule) for rule in _push_rules(words)]
-        elif program in ("gh", "gh-axi"):
+        elif program == "gh":
             verbs = zip(words, words[1:], strict=False)
             if any(one == "pr" and verb in VERBS for one, verb in verbs):
                 sent += _sent(words, here, cwd)
@@ -279,7 +279,7 @@ def _file_flags(words: list[str]) -> tuple[str, str] | None:
     if program == "git":
         at, _ = _git_verb(words)
         return ("-F", "--file") if words[at : at + 1] == ["commit"] else None
-    if program in ("gh", "gh-axi"):
+    if program == "gh":
         verbs = zip(words, words[1:], strict=False)
         if any(one == "pr" and verb in MESSAGE_VERBS for one, verb in verbs):
             return ("-F", "--body-file")

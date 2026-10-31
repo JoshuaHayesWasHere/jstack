@@ -36,4 +36,9 @@ A durable scout gets the check of the machine before its launch, as a crewmate d
 
 A scout that finishes writes its report under `## Report` in its request and sends this thread one message. It never becomes the crewmate: the crewmate starts later, in a fresh thread, from the brief.
 
-**Launch a scout's brief without showing it** when the user approved the plan entry it is for: an entry agreed in planning or answered on a page. Launch from step 2 of "Handing a task to a crewmate": the brief is on disk already, and the home does not rewrite it. Show it first, and wait for the user's word, in two cases only: the brief changes that entry's "Done when", or the task has no entry the user approved. A brief changes the list when it drops a check, weakens one, or adds an outcome the entry does not ask for. Checks that only say how an entry's line is proven change nothing. To show it, give the path, the lines that differ and what the brief rests on, in a few lines.
+**Launch a scout's brief without showing it** when the user approved the plan entry it is for: an entry agreed in planning or answered in a question box.
+Launch from step 2 of "Handing a task to a crewmate": the brief is on disk already, and the home does not rewrite it.
+Show it first, and wait for the user's word, in two cases only: the brief changes that entry's "Done when", or the task has no entry the user approved.
+A brief changes the list when it drops a check, weakens one, or adds an outcome the entry does not ask for.
+Checks that only say how an entry's line is proven change nothing.
+To show it, give the path, the lines that differ and what the brief rests on, in a few lines.

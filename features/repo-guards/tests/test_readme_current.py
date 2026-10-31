@@ -75,7 +75,6 @@ NO_REQUIREMENT = (
     "patterns",
     "ci report",
     "relay",
-    "lavish-axi",
 )
 ON_ARCH = ("t3 jstack build",)
 OF_THE_CHECKOUT = ("generated files are current",)

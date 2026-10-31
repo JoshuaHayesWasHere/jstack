@@ -45,7 +45,7 @@ def home(tmp_path, monkeypatch, t3_settings):
                 "oauthAccount": {"accountUuid": "main"},
                 "userID": "main-user",
                 "cachedUsageUtilization": {"five_hour": 10},
-                "mcpServers": {"lavish": {"command": "lavish-axi"}},
+                "mcpServers": {"notes": {"command": "notes-server"}},
                 "projects": {"/repo": {"allowedTools": ["Bash"], "mcpServers": {}}},
                 "theme": "dark",
             }
