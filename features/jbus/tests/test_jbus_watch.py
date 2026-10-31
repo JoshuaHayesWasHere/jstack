@@ -651,7 +651,10 @@ DAY = (
     "features/jbus/tests/view/page/test_view_page_days.py::"
     "test_view_shot_draws_the_overview_of_each_day_at_each_width"
 )
-KEEP = "gh run download 88 -n jbus-view-shots -D features/jbus/tests/fixtures/jbus-view/shots"
+KEEP = (
+    'd=$(mktemp -d) && gh run download 88 -n jbus-view-shots -D "$d" && '
+    'cp -R "$d/." features/jbus/tests/fixtures/jbus-view/shots/'
+)
 
 
 def shots_log(*lines, count):
