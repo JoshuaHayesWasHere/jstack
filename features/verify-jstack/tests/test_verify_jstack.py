@@ -362,6 +362,9 @@ def test_record_heads_the_evidence_with_what_a_stand_in_set_up(sandbox):
     unverified = [line for line in head.splitlines() if line.startswith("# - ")]
     for stand_in in ("fake-gh", "fake_t3.py", "notify-send", "PROC", "LIMITS"):
         assert any(stand_in in line for line in unverified), stand_in
+    lines = head.splitlines()
+    fake_gh = next(i for i, line in enumerate(lines) if line.startswith("# - `fake-gh`"))
+    assert lines[fake_gh + 1].startswith("#   The real machine asks GitHub")
     assert kept.count("# Set up by a stand-in") == 1
     assert runs.count("hello\n") == 3
 
