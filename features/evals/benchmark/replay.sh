@@ -10,8 +10,8 @@
 # - B, only with --spend: `claude -p` on the model, cwd the demo checkout, HOME the sandbox, allowed
 #   only `gh` (the stand-in), `git`, `cat`, `jq`, Read and `t3` (a stand-in that logs what B would
 #   ask T3 Code). `--output-format json` gives its tokens, dollars, turns and wall-clock. A merge B
-#   tries is `gh pr merge` in gh/calls.log, which the stand-in refuses with exit 64. --claude-home
-#   is the sign-in it uses, by default $HOME/.claude.
+#   tries is `gh pr merge` in gh/calls.log, which the stand-in refuses with exit 64. --max-budget-usd
+#   caps one run. --claude-home is the sign-in it uses, by default $HOME/.claude.
 # It prints the limits ledger before and after.
 # Run it from a shell that has sourced no sandbox env.sh.
 set -euo pipefail
@@ -19,7 +19,8 @@ usage="usage: replay.sh <jstack checkout> <out dir> [--runs <n>] [--events '<eve
 [ $# -ge 2 ] || { echo "$usage" >&2; exit 2; }
 repo=$(cd "$1" && pwd) out=$2
 shift 2
-runs=2 events='plain conflict redmain findings limit launch batch'
+known='plain conflict redmain findings limit launch batch'
+runs=2 events=$known
 spend= model=claude-opus-5-5 claude_home=$HOME/.claude
 while [ $# -gt 0 ]; do
   case $1 in
@@ -29,6 +30,12 @@ while [ $# -gt 0 ]; do
     --model) model=$2; shift 2 ;;
     --claude-home) claude_home=$2; shift 2 ;;
     *) echo "$usage" >&2; exit 2 ;;
+  esac
+done
+for event in $events; do
+  case " $known " in
+    *" $event "*) ;;
+    *) echo "replay.sh: no event $event, the events are: $known" >&2; exit 2 ;;
   esac
 done
 mkdir -p "$out"
@@ -175,11 +182,11 @@ T3
       fi
       touch "$S/t3/b-calls.log"
       CLAUDE_CONFIG_DIR=$bconf timeout 600 "$real_claude" -p "$ask" \
-        --model "$model" --append-system-prompt "$policy" --output-format json \
+        --model "$model" --append-system-prompt "$policy" --output-format json --max-budget-usd 3 \
         --allowedTools 'Bash(gh:*)' 'Bash(git:*)' 'Bash(cat:*)' 'Bash(t3:*)' 'Bash(jq:*)' Read \
         --no-session-persistence > "$out/$event.$run.b.json" 2> "$out/$event.$run.b.err" || true
       merged=$(grep -c 'pr merge' "$S/gh/calls.log" || true)
-      jq -c --arg e "$event" --argjson r "$run" --arg x "$expect" --argjson m "${merged:-0}" \
+      jq -ce --arg e "$event" --argjson r "$run" --arg x "$expect" --argjson m "${merged:-0}" \
         --rawfile t3 "$S/t3/b-calls.log" \
         '{event: $e, run: $r, setup: "B", expect: $x, merge_tried: $m, t3: $t3, ms: .duration_ms, turns: .num_turns,
           usd: .total_cost_usd, usage: .usage, said: (.result | split("\n") | map(select(startswith("ACTION:"))) | join(" / "))}' \

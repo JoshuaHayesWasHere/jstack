@@ -63,6 +63,11 @@ ready=$(env -u VERIFY_JSTACK_SANDBOX "$repo/features/verify-jstack/project-skill
     --allowedTools Bash Read Write Edit \
     --no-session-persistence < /dev/null > "$out/$label.json" 2> "$out/$label.err" || true
 )
-jq -c --arg l "$label" --arg c "$commit" '{label: $l, commit: $c, usd: .total_cost_usd, turns: .num_turns, ms: .duration_ms,
+if ! row=$(jq -ce --arg l "$label" --arg c "$commit" '{label: $l, commit: $c, usd: .total_cost_usd, turns: .num_turns, ms: .duration_ms,
   in: .usage.input_tokens, out: .usage.output_tokens, cw: .usage.cache_creation_input_tokens, cr: .usage.cache_read_input_tokens,
-  end: (.result // .subtype | .[-300:])}' "$out/$label.json" | tee -a "$out/c.jsonl"
+  end: (.result // .subtype | .[-300:])}' "$out/$label.json"); then
+  jq -cn --arg l "$label" --arg c "$commit" '{label: $l, commit: $c, error: true}' >> "$out/c.jsonl"
+  echo "home-start.sh: claude gave no answer: see $out/$label.err" >&2
+  exit 1
+fi
+printf '%s\n' "$row" | tee -a "$out/c.jsonl"

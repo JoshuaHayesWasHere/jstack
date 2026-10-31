@@ -290,6 +290,14 @@ def test_a_record_not_on_disk_counts_as_empty_and_is_named(tmp_path, records):
     assert "merge.log" in ran.stderr
 
 
+def test_a_model_the_prices_do_not_have_counts_as_nothing_and_is_named(tmp_path, records):
+    rates = records["home"] / ".t3" / "userdata" / "usage-model-rates.json"
+    rates.write_text(json.dumps({"document": {"claude-other": RATES}}))
+    said, ran = read_records(tmp_path, **records)
+    assert said["tokens"]["by_role"]["crew"]["usd"] == 0
+    assert "no price, so its dollars are 0: claude-opus-5-5\n" in ran.stderr
+
+
 def test_before_and_after_are_required(records):
     ran = subprocess.run(
         [sys.executable, RECORDS, f"--repo={records['repo']}"], capture_output=True, text=True
@@ -322,6 +330,7 @@ def machine(tmp_path):
     claude.write_text(
         f"#!/bin/sh\n"
         f'echo "$CLAUDE_CONFIG_DIR $1 $2" >> "{called}"\n'
+        f'printf "%s\\n" "$@" >> "{called}.args"\n'
         f"cat <<'END'\n{json.dumps(answer)}\nEND\n"
     )
     claude.chmod(0o755)
@@ -340,7 +349,7 @@ def machine(tmp_path):
         "LIMITS": str(limits),
         "TMPDIR": str(temporary),
     }
-    return {"env": env, "called": called, "sign_in": sign_in, "tmp": temporary}
+    return {"env": env, "called": called, "claude": claude, "sign_in": sign_in, "tmp": temporary}
 
 
 def assert_the_ledger_is_printed_before_and_after(said):
@@ -387,10 +396,48 @@ def test_the_replay_runs_setup_b_only_with_spend(tmp_path, machine):
     assert ran.returncode == 0, ran.stderr
     assert_the_ledger_is_printed_before_and_after(ran.stdout)
     assert len(machine["called"].read_text().splitlines()) == 1
+    assert "--max-budget-usd" in (tmp_path / "claude-called.args").read_text().splitlines()
     row = json.loads((out / "b.jsonl").read_text())
     assert row["usd"] == 0.5
     assert row["said"] == "ACTION: held 7: main is red"
     assert not list(machine["tmp"].glob("benchmark-claude.*"))
+
+
+def test_every_events_today_side_says_what_jbus_and_jmerge_decide(tmp_path, machine):
+    ran = subprocess.run(
+        [REPLAY, REPO, tmp_path / "out", "--runs", "1"],
+        env=machine["env"],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stderr
+    parts = re.split(r"^today: (\w+), .*$", ran.stdout, flags=re.M)
+    said = dict(zip(parts[1::2], parts[2::2], strict=True))
+    assert "  ready 7 " in said["plain"]
+    assert "pull/7: it conflicts with its base" in said["conflict"]
+    assert "pull/7: main is red at " in said["redmain"]
+    assert "pull/7: its findings are not handled" in said["findings"]
+    assert "  dry run, nothing written: " in said["limit"]
+    assert "  launched alpha: " in said["launch"]
+    assert "gamma" not in said["launch"]
+    assert "  ready 7 " in said["batch"] and "  ready 8 " in said["batch"]
+    assert "pull/9: it conflicts with its base" in said["batch"]
+    assert "pull/10: check has failed" in said["batch"]
+    assert "pull/11: its findings are not handled" in said["batch"]
+
+
+def test_an_event_the_replay_does_not_know_is_refused_before_anything_runs(tmp_path, machine):
+    out = tmp_path / "out"
+    ran = subprocess.run(
+        [REPLAY, REPO, out, "--events", "redmian", "--spend", "--claude-home", machine["sign_in"]],
+        env=machine["env"],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 2
+    assert "no event redmian" in ran.stderr
+    assert not out.exists()
+    assert not machine["called"].exists()
 
 
 def layout_repo(tmp_path):
@@ -437,3 +484,19 @@ def test_the_home_start_runs_the_model_with_spend_in_a_sandbox(tmp_path, machine
     row = json.loads((out / "c.jsonl").read_text())
     assert (row["label"], row["usd"]) == ("after", 0.5)
     assert not list(machine["tmp"].glob("benchmark-*"))
+
+
+@pytest.mark.parametrize("answer", ["exit 1", "echo not json"])
+def test_a_spend_run_with_no_answer_says_so(tmp_path, machine, answer):
+    machine["claude"].write_text(f"#!/bin/sh\n{answer}\n")
+    replay_out, start_out = tmp_path / "replay", tmp_path / "start"
+    sign_in = ["--claude-home", machine["sign_in"]]
+    replay = [REPLAY, REPO, replay_out, "--runs", "1", "--events", "conflict", "--spend", *sign_in]
+    start = [HOME_START, REPO, start_out, "after", "HEAD", "--spend", *sign_in]
+    replayed = subprocess.run(replay, env=machine["env"], capture_output=True, text=True)
+    started = subprocess.run(start, env=machine["env"], capture_output=True, text=True)
+    assert replayed.returncode == 0, replayed.stderr
+    assert json.loads((replay_out / "b.jsonl").read_text())["error"] is True
+    assert started.returncode == 1
+    assert "claude gave no answer" in started.stderr
+    assert json.loads((start_out / "c.jsonl").read_text())["error"] is True

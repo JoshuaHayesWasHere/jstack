@@ -139,8 +139,12 @@ def usage_of(path: Path, since: datetime) -> list[dict]:
     return list(seen.values())
 
 
+def rate_of(model: str, table: dict) -> dict:
+    return table.get(model) or table.get(re.sub(r"-\d{8}$", "", model), {})
+
+
 def price(rec: dict, table: dict) -> float:
-    r = table.get(rec["model"]) or table.get(re.sub(r"-\d{8}$", "", rec["model"]), {})
+    r = rate_of(rec["model"], table)
     return (
         rec["in"] * r.get("input_cost_per_token", 0)
         + rec["out"] * r.get("output_cost_per_token", 0)
@@ -157,6 +161,7 @@ def tokens(days: int, home: Path, project: str, main_dir: str) -> dict:
         print(f"not on disk, counted as empty: {projects}", file=sys.stderr)
     by_role = collections.defaultdict(lambda: collections.Counter())
     sessions = collections.defaultdict(list)
+    unpriced = set()
     for d in projects.glob(f"*{project}*"):
         for f in d.glob("*.jsonl"):
             if datetime.fromtimestamp(f.stat().st_mtime, UTC) < since:
@@ -167,6 +172,7 @@ def tokens(days: int, home: Path, project: str, main_dir: str) -> dict:
                 recs += [dict(x, start=False) for x in usage_of(sub, since)]
             if not recs:
                 continue
+            unpriced |= {x["model"] for x in recs if table and not rate_of(x["model"], table)}
             s = collections.Counter()
             for x in recs:
                 for k in ("in", "out", "cw", "cr", "tools"):
@@ -188,6 +194,8 @@ def tokens(days: int, home: Path, project: str, main_dir: str) -> dict:
                     **{k: round(v, 4) for k, v in s.items()},
                 }
             )
+    for model in sorted(unpriced):
+        print(f"no price, so its dollars are 0: {model}", file=sys.stderr)
     return {
         "since": since.isoformat(),
         "by_role": {k: dict(v) for k, v in by_role.items()},
