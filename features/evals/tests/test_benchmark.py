@@ -16,6 +16,7 @@ READ_SET = ("features/evals/benchmark/",)
 
 BENCHMARK = REPO / "features" / "evals" / "benchmark"
 RECORDS = BENCHMARK / "records.py"
+BASELINE = BENCHMARK / "baseline-2026-10-30.json"
 REPLAY = BENCHMARK / "replay.sh"
 HOME_START = BENCHMARK / "home-start.sh"
 
@@ -46,19 +47,22 @@ def assistant(mid, usage, tools=0, model="claude-opus-5-5", at=NOW):
     return json.dumps({"type": "assistant", "timestamp": at.isoformat(), "message": message})
 
 
-def git(repo, *args):
+def git(repo, *args, env=None):
     identity = ["-c", "user.name=t", "-c", "user.email=t@example.test"]
     command = ["git", "-c", "core.hooksPath=/dev/null", *identity, "-C", str(repo), *args]
-    return subprocess.run(command, check=True, capture_output=True, text=True).stdout.strip()
+    env = {**os.environ, **(env or {})}
+    ran = subprocess.run(command, check=True, capture_output=True, text=True, env=env)
+    return ran.stdout.strip()
 
 
-def commit(repo, subject, files):
+def commit(repo, subject, files, days_ago=0):
     for name, text in files.items():
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
     git(repo, "add", ".")
-    git(repo, "commit", "-q", "-m", subject)
+    date = (NOW - timedelta(days=days_ago)).isoformat()
+    git(repo, "commit", "-q", "-m", subject, env={"GIT_COMMITTER_DATE": date})
     return git(repo, "rev-parse", "HEAD")
 
 
@@ -159,7 +163,7 @@ def records(tmp_path):
     return {"home": home, "repo": repo, "before": before, "after": after}
 
 
-def read_records(tmp_path, home, repo, before, after):
+def read_records(tmp_path, home, repo, before, after, *more):
     out = tmp_path / "out.json"
     ran = subprocess.run(
         [
@@ -170,6 +174,7 @@ def read_records(tmp_path, home, repo, before, after):
             f"--before={before}",
             f"--after={after}",
             f"--json={out}",
+            *more,
         ],
         capture_output=True,
         text=True,
@@ -296,6 +301,216 @@ def test_a_model_the_prices_do_not_have_counts_as_nothing_and_is_named(tmp_path,
     said, ran = read_records(tmp_path, **records)
     assert said["tokens"]["by_role"]["crew"]["usd"] == 0
     assert "no price, so its dollars are 0: claude-opus-5-5\n" in ran.stderr
+
+
+JBUS = "features/jbus/src/jbus"
+
+
+@pytest.fixture
+def ledger(records):
+    """Commits on each duty's files, some past --days and one past --churn-days, and a session
+    that makes doing cost $2.002031 for the one merged task."""
+    repo = records["repo"]
+    commit(repo, "fix(jbus): too old", {f"{JBUS}/failover.py": "1\n"}, days_ago=200)
+    commit(repo, "feat(jbus): last month", {f"{JBUS}/failover.py": "2\n"}, days_ago=20)
+    commit(repo, "fix(jbus): last month", {f"{JBUS}/rebase.py": "1\n"}, days_ago=20)
+    commit(repo, "fix(jbus): a pass", {f"{JBUS}/poll.py": "1\n"})
+    commit(repo, "feat(jbus): a launch", {f"{JBUS}/dispatch.py": "1\n"})
+    commit(repo, "fix(jbus): a nudge", {f"{JBUS}/rebase.py": "2\n", f"{JBUS}/watch.py": "1\n"})
+    commit(repo, "fix(jmerge): a merge", {"features/jmerge/src/jmerge/rows.py": "1\n"})
+    commit(repo, "fix(home): a start", {"features/home/start.md": "1\n"})
+    commit(repo, "feat: elsewhere", {"features/d/x.py": "1\n"})
+    commit(repo, "chore: a file to move", {"features/jbus/old.py": "lines\n" * 20})
+    git(repo, "mv", "features/jbus/old.py", f"{JBUS}/questions.py")
+    commit(repo, "refactor(jbus): a move onto a duty's path", {})
+    write_lines(
+        records["home"] / ".claude/projects/-worktrees-jstack-big/big.jsonl",
+        [user("<command-name>/crew</command-name>"), assistant("big", (2_000_000, 0, 0, 0))],
+    )
+    return records
+
+
+def ledger_args(ledger):
+    return ledger["home"], ledger["repo"], ledger["before"], ledger["after"]
+
+
+def test_each_dutys_totals_and_cost_come_from_its_files_and_the_doing_cost(tmp_path, ledger):
+    said, _ = read_records(tmp_path, **ledger)
+    duties = said["upkeep"]["duties"]
+    row = {
+        "commits": 7,
+        "fix": 3,
+        "fix_share": 0.43,
+        "recent_commits": 5,
+        "recent_fix": 2,
+        "cost_usd": 10.01,
+    }
+    assert duties["jbus"] == row
+    assert duties["jbus pass"] == {
+        "commits": 1,
+        "fix": 1,
+        "fix_share": 1.0,
+        "recent_commits": 1,
+        "recent_fix": 1,
+        "cost_usd": 2.0,
+    }
+    assert (duties["launch"]["commits"], duties["launch"]["fix"]) == (1, 0)
+    # Two files of one duty are one commit, and the older commit counts only to the share.
+    nudge = duties["nudge"]
+    assert (nudge["commits"], nudge["fix"], nudge["recent_commits"]) == (2, 2, 1)
+    # The commit past --churn-days counts nowhere, the one past --days only to the share.
+    limit = duties["usage-limit move"]
+    assert (limit["commits"], limit["fix"], limit["recent_commits"]) == (1, 0, 0)
+    assert limit["cost_usd"] == 0
+    assert (duties["merge"]["commits"], duties["merge"]["fix_share"]) == (1, 1.0)
+    assert (duties["home start"]["commits"], duties["home start"]["fix"]) == (1, 1)
+    # A file moved onto a duty's path counts to that duty.
+    assert duties["gate"]["commits"] == 1
+    assert said["upkeep"]["days"] == 7
+    assert said["upkeep"]["churn_days"] == 90
+
+
+def test_the_jbus_row_is_churns_jbus_module(tmp_path, ledger):
+    said, _ = read_records(tmp_path, **ledger)
+    row, module = said["upkeep"]["duties"]["jbus"], said["churn"]["jbus"]
+    assert (row["commits"], row["fix"], row["fix_share"]) == (
+        module["commits"],
+        module["fix"],
+        module["fix_share"],
+    )
+
+
+def test_the_ledger_prints_each_dutys_row(tmp_path, ledger):
+    _, ran = read_records(tmp_path, **ledger)
+    assert re.search(r"^  jbus +7 +3 +0\.43 +5 +2 +10\.01$", ran.stdout, re.M)
+    assert re.search(r"^  usage-limit move +1 +0 +0\.00 +0 +0 +0\.00$", ran.stdout, re.M)
+    assert "against" not in ran.stdout
+
+
+def test_with_no_merged_task_the_cost_is_not_known(tmp_path, ledger):
+    (ledger["home"] / ".local/state/jbus/jstack/events.jsonl").unlink()
+    said, ran = read_records(tmp_path, **ledger)
+    assert said["upkeep"]["duties"]["jbus"]["cost_usd"] is None
+    assert re.search(r"^  jbus +7 +3 +0\.43 +5 +2 +-$", ran.stdout, re.M)
+
+
+def test_against_an_earlier_json_prints_each_dutys_change(tmp_path, ledger):
+    earlier = tmp_path / "earlier.json"
+    row = {"commits": 9, "fix": 9, "recent_commits": 1, "recent_fix": 1}
+    earlier.write_text(
+        json.dumps(
+            {
+                "generated": "2026-10-01T00:00:00+00:00",
+                "upkeep": {
+                    "days": 7,
+                    "churn_days": 90,
+                    "duties": {
+                        "jbus": {**row, "fix_share": 0.54, "cost_usd": 2425.72},
+                        "merge": {**row, "fix_share": 1.0, "cost_usd": None},
+                        "a retired duty": {**row, "fix_share": 0.3, "cost_usd": 5.0},
+                    },
+                },
+            }
+        )
+    )
+    _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={earlier}")
+    assert f"against {earlier}, generated 2026-10-01" in ran.stdout
+    said = ran.stdout
+    assert re.search(r"^  jbus +0\.54 +0\.43 +-0\.11 +2425\.72 +10\.01 +-2415\.71$", said, re.M)
+    assert re.search(r"^  merge +1\.00 +1\.00 +\+0\.00 +- +2\.00 +-$", said, re.M)
+    assert re.search(r"^  gate +- +0\.00 +- +- +2\.00 +-$", said, re.M)
+    assert re.search(r"^  a retired duty +0\.30 +- +- +5\.00 +- +-$", said, re.M)
+    assert "not like for like" not in said
+
+
+def test_a_run_against_its_own_json_shows_no_change(tmp_path, ledger):
+    first, _ = read_records(tmp_path, **ledger)
+    kept = tmp_path / "first.json"
+    kept.write_text(json.dumps(first))
+    _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={kept}")
+    assert re.search(r"^  jbus +0\.43 +0\.43 +\+0\.00 +10\.01 +10\.01 +\+0\.00$", ran.stdout, re.M)
+
+
+def test_against_other_windows_says_it_is_not_like_for_like(tmp_path, ledger):
+    earlier = tmp_path / "earlier.json"
+    earlier.write_text(json.dumps({"upkeep": {"days": 14, "churn_days": 90, "duties": {}}}))
+    _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={earlier}")
+    assert "not like for like: the earlier run read 14 and 90 days, this one 7 and 90" in ran.stdout
+
+
+def test_the_kept_baseline_prints_jbus_beside_the_reports_share(tmp_path, ledger):
+    baseline = json.loads(BASELINE.read_text())["upkeep"]["duties"]
+    assert (baseline["jbus"]["commits"], baseline["jbus"]["fix"]) == (330, 177)
+    assert baseline["jbus"]["fix_share"] == 0.54
+    assert baseline["jbus"]["recent_commits"] == 298
+    assert baseline["jbus"]["cost_usd"] == pytest.approx(2425.72)
+    _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={BASELINE}")
+    assert re.search(r"^  jbus +0\.54 +0\.43 +-0\.11 ", ran.stdout, re.M)
+
+
+@pytest.mark.parametrize(
+    "text", ["not json", "[]", '{"generated": "x"}', '{"upkeep": {"days": 7}}']
+)
+def test_against_a_file_with_no_ledger_is_refused_before_anything_is_read(tmp_path, records, text):
+    earlier = tmp_path / "earlier.json"
+    earlier.write_text(text)
+    out = tmp_path / "out.json"
+    ran = subprocess.run(
+        [
+            sys.executable,
+            RECORDS,
+            f"--home={records['home']}",
+            f"--repo={records['repo']}",
+            f"--before={records['before']}",
+            f"--after={records['after']}",
+            f"--json={out}",
+            f"--against={earlier}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 2
+    assert "--against" in ran.stderr
+    assert not out.exists()
+
+
+def test_against_a_missing_file_is_refused(tmp_path, records):
+    ran = subprocess.run(
+        [
+            sys.executable,
+            RECORDS,
+            f"--repo={records['repo']}",
+            f"--before={records['before']}",
+            f"--after={records['after']}",
+            f"--against={tmp_path / 'nothing.json'}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 2
+    assert "--against" in ran.stderr
+
+
+def test_every_dutys_path_is_in_this_repo(tmp_path):
+    ran = subprocess.run(
+        [
+            sys.executable,
+            RECORDS,
+            f"--home={tmp_path}",
+            f"--repo={REPO}",
+            "--before=HEAD",
+            "--after=HEAD",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stderr
+    assert "a duty's path is not on disk" not in ran.stderr
+
+
+def test_a_duty_path_not_on_disk_is_named(tmp_path, records):
+    _, ran = read_records(tmp_path, **records)
+    assert f"a duty's path is not on disk: {JBUS}/poll.py" in ran.stderr
 
 
 def test_before_and_after_are_required(records):
