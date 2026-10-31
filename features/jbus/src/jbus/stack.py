@@ -142,7 +142,6 @@ def _moved(
     )
     if not rebase.post(run, client, world, number, f"{stacked.slug} merged", ask, merge[:12]):
         return
-    run.box.mark(key)
     line = f"{KIND} {slug}: told the crew {stacked.slug} merged (#{number}, {head[:12]})"
     run.find(slug, KIND, line, message, key=f"{head[:12]} {merge[:12]}")
     run.say(line)
