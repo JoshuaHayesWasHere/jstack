@@ -11,7 +11,7 @@ out=${VERIFY_JSTACK_EVIDENCE:?source the sandbox env.sh first}/$name.txt
 if [ ! -s "$out" ]; then
   {
     echo "# Set up by a stand-in, so not verified by this run:"
-    awk '/^## / {on = ($0 == "## Set up by a stand-in")} on && /^- / {print "# " $0}' \
+    awk '/^## / {on = ($0 == "## Set up by a stand-in")} on && /^(- |  )/ {print "# " $0}' \
       "$(dirname "$0")/../SKILL.md"
     echo
   } >"$out"

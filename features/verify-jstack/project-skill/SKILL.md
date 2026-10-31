@@ -24,9 +24,12 @@ Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-js
 
 A sandbox is a stand-in for the machine jstack runs on. Each line below is a setup step that `launch.sh` or a stand-in did, and that the real machine does another way. A drive proves what the commands do after these steps, never the steps. They stay unverified until a run on the real machine covers them.
 
-- `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, no pull request for `pr list --base`, nothing for `api --paginate`, a commit's check runs from `gh/checks.json` (none until a drive writes some) and a job's log from `gh/logs/<job id>`. The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
+- `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, `sandbox-owner` as the repo's owner, no comment or review on a pull request, no pull request for `pr list --base`, nothing for `api --paginate`, a commit's check runs from `gh/checks.json` (none until a drive writes some) and a job's log from `gh/logs/<job id>`.
+  The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
 - `fake_t3.py` is the T3 Code server and takes a token Launch made up and wrote to `config/t3.json`. The real machine signs in with `jbus t3 login`, approved in T3 Code.
 - `fake_t3.py` answers `t3_thread_launch` with a thread id, and makes no worktree and starts no agent. On the real machine T3 Code does both.
+- `fake_t3.py` answers `t3_thread_configure` with what it keeps for the thread: the selection the launch or the last move gave it, or a made-up one, and it moves no run and has no limits of its own.
+  On the real machine T3 Code keeps the selection, and a usage limit ends a run because the provider says so.
 - `fake_t3.py` takes each wake jbus sends the home thread, `mcp:sandbox-home`, and writes the lines of its items to `t3/wake.jsonl`.
   On the real machine the wake queues in the project's home thread, which T3 Code can refuse.
 - `notify-send` is a script that appends to `notify.log`. The real machine shows a notification on a desktop session.
@@ -90,14 +93,30 @@ record queue-row jbus status
 
 `jbus poll` prints `launched alpha: mcp:sandbox-thread-1`, and the row's `status` and `thread` columns then say so.
 
+To stop that thread on a usage limit, give the crew's role a pool of two instances before the launch, then fail its run between passes.
+The next `jbus poll` prints `failover alpha: five_hour limit until ...`, and `t3/calls.jsonl` has the `t3_thread_configure` that moved it and the queued carry-on.
+The open pull request makes the pass ask GitHub who owns the repo, and it prints no line that GitHub did not say.
+
+```sh
+mkdir -p "$VERIFY_JSTACK_SANDBOX/home/.config/jstack"
+echo 'crew: claudeAgent claude-sonnet-5-5 claudeAgent,claudeAgent_sandbox' > "$VERIFY_JSTACK_SANDBOX/home/.config/jstack/roles"
+# Add, approve and launch the row as above, then:
+T="$VERIFY_JSTACK_SANDBOX/t3"
+notice="run-1:usage-limit:five_hour:$(($(date +%s) + 3600))"
+jq --arg id "$notice" '."mcp:sandbox-thread-1" = [{runId: "run-1", itemId: $id, type: "system_notice", text: ""}]' "$T/messages.json" > "$T/m" && mv "$T/m" "$T/messages.json"
+jq 'map(.status = "failed" | .latestRunId = "run-1")' "$T/threads.json" > "$T/t" && mv "$T/t" "$T/threads.json"
+"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" alpha src/alpha/a.py
+record usage-limit jbus poll
+```
+
 What a drive sets up and reads, all under `$VERIFY_JSTACK_SANDBOX`:
 
 | Path | What it is | A drive |
 |---|---|---|
 | `gh/open.json`, `gh/merged.json`, `gh/commits.json`, `gh/checks.json`, `gh/logs/` | what GitHub would answer | edits them (`open-pull.sh` writes `open.json`) |
 | `gh/calls.log` | every `gh` call jbus and jmerge made | reads it |
-| `t3/threads.json` | the threads T3 Code has | edits a thread's `status` or `settled` between passes |
-| `t3/messages.json` | the user's messages, by thread id, that `jbus word --message <thread>/<message>` reads | writes one before a drive keeps the user's word |
+| `t3/threads.json` | the threads T3 Code has, each with its `modelSelection` | edits a thread's `status`, `latestRunId` or `settled` between passes |
+| `t3/messages.json` | a thread's items, by thread id: the user's messages that `jbus word --message <thread>/<message>` reads, and the items of a run a pass reads for a usage limit | writes one before a drive keeps the user's word or stops a thread on a limit |
 | `t3/calls.jsonl` | every tool call jbus made, with its arguments | reads it |
 | `t3/wake.jsonl` | every wake sent to a home thread, with the thread and the lines it carried | reads it |
 | `machine/proc/loadavg`, `machine/limits` | the load and the plan limits `jgauge room` reads | edits them |

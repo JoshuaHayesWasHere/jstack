@@ -5,7 +5,8 @@ The items are the entries of `state.wrongs` an agent owns, the needs a home pass
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
 (`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`) and the open alerts
 whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
-snapshot that failed, a home that stalled. The hourly count of what is stale (`jbus.stale`) is one
+tool T3 Code stopped serving (`jbus.t3.contract`), a snapshot that failed, a home that stalled. The
+hourly count of what is stale (`jbus.stale`) is one
 more, the root home's, whose words change with the count.
 An item's key has no run and no time in it: a red's
 failing tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes

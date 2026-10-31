@@ -91,8 +91,9 @@ if ! link=$(uv run --project "$T/../source" jbus link 2> /dev/null); then
 else
     view=${link%%#*}
     [ "$scope" = root ] || route="#/?home=${link##*#/}/$scope"
-    curl -fsS --max-time 5 "${view%/}/panel/board.json" 2> /dev/null | jq -r '
-        (.stages | map({(.key): .name}) | add) as $name
+    curl -fsS --max-time 5 "${view%/}/panel/pipeline.json" 2> /dev/null | jq -r '
+        .data
+        | (.stages | map({(.key): .name}) | add) as $name
         | "first: "
           + (if (.stuck.still // 0) > 0 then "Most stuck: \($name[.stuck.stage] // .stuck.stage), \(.stuck.still) of \(.stuck.count)." else "Every row is moving." end)
           + (if .longest_wait then " Waiting longest: \(.longest_wait.slug), \($name[.longest_wait.stage] // .longest_wait.stage) since \(.longest_wait.since), \(.longest_wait.cause)." else " No row waits." end)' 2> /dev/null

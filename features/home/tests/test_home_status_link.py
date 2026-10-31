@@ -70,10 +70,10 @@ class View(http.server.BaseHTTPRequestHandler):
     board = BOARD
 
     def do_GET(self):
-        if self.path != "/panel/board.json":
+        if self.path != "/panel/pipeline.json":
             self.send_error(404)
             return
-        body = json.dumps(self.board).encode()
+        body = json.dumps({"at": self.board["at"], "data": self.board}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -85,8 +85,8 @@ class View(http.server.BaseHTTPRequestHandler):
 
 @pytest.fixture
 def view(request):
-    """The origin of a stand-in view that answers `/panel/board.json` with the board a test gives
-    it, or `BOARD`."""
+    """The origin of a stand-in view that answers `/panel/pipeline.json` with the board a test gives
+    it, or `BOARD`, under `data`."""
     handler = type("Board", (View,), {"board": getattr(request, "param", BOARD)})
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
