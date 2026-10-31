@@ -127,7 +127,7 @@ Check every step against this table; a step no line backs is a modeling error, a
 | `Mn lands: another merge` | a merge that asks no `rows.red`, or that `rows.red` lets through as a fix (S3's `fl-fix`), a merge by hand, `jmerge --accept` |
 | `jmerge holds fl-fix ...` / `jmerge lets fl-fix merge ...` | the last line of an S3 or S1 trace: `rows.red` and `rows.browser_red` over what `jmerge.cli`'s `Repo.proved` and `Repo.proved_browser` read of the pull request's check, which the model's `proof` stands for |
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py`; `pending` is a check not ended |
-| `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `features/jbus/src/jbus/mainmoved.py` |
+| `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, caught by `once` in `features/jbus/src/jbus/rebase.py` |
 
 The stubs are the other place a model can lie: `mainmoved.main_check`, `mainmoved.failed_at`, `dispatch.launched`, `dispatch.thread_of` and `rebase.held` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
 If one of them is no longer what `tell` calls, the step it stands for is not the code's.

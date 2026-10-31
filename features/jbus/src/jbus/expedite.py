@@ -504,7 +504,6 @@ def _tell(
     went = rebase.post(run, client, world, number, entry["reason"], ask)
     if not went:
         return ""
-    run.box.mark(rebase.mark(row.kind, slug, head))
     line = f"{EXPEDITE} {slug}: told the crew what #{number} is short of ({row.kind}, {head[:12]})"
     line += f", sent `{sent}`" if sent else ""
     run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]}")
