@@ -335,6 +335,8 @@ def ledger_args(ledger):
 
 
 def test_each_dutys_totals_and_cost_come_from_its_files_and_the_doing_cost(tmp_path, ledger):
+    """Two files of one duty are one commit. A commit past --days counts only to the share, one past
+    --churn-days counts nowhere, and a file moved onto a duty's path counts to that duty."""
     said, _ = read_records(tmp_path, **ledger)
     duties = said["upkeep"]["duties"]
     row = {
@@ -355,16 +357,13 @@ def test_each_dutys_totals_and_cost_come_from_its_files_and_the_doing_cost(tmp_p
         "cost_usd": 2.0,
     }
     assert (duties["launch"]["commits"], duties["launch"]["fix"]) == (1, 0)
-    # Two files of one duty are one commit, and the older commit counts only to the share.
     nudge = duties["nudge"]
     assert (nudge["commits"], nudge["fix"], nudge["recent_commits"]) == (2, 2, 1)
-    # The commit past --churn-days counts nowhere, the one past --days only to the share.
     limit = duties["usage-limit move"]
     assert (limit["commits"], limit["fix"], limit["recent_commits"]) == (1, 0, 0)
     assert limit["cost_usd"] == 0
     assert (duties["merge"]["commits"], duties["merge"]["fix_share"]) == (1, 1.0)
     assert (duties["home start"]["commits"], duties["home start"]["fix"]) == (1, 1)
-    # A file moved onto a duty's path counts to that duty.
     assert duties["gate"]["commits"] == 1
     assert said["upkeep"]["days"] == 7
     assert said["upkeep"]["churn_days"] == 90
