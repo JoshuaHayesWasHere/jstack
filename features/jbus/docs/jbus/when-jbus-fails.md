@@ -26,6 +26,12 @@ On macOS, which has no `notify-send`, jbus raises nothing on the desktop, and th
 An alert that stands also blocks, so it goes to the second target too where the config has one, and from there to the relay ([What blocks](what-blocks.md)).
 Each alert and recovered line is also printed in the journal, as `<project>: <line>`, so `journalctl --user -u jbus` has it on Linux, and `~/Library/Logs/jstack/jstack.jbus.log` has it on macOS.
 
+A pass also compares T3 Code's `tools/list` with the tools jbus calls (`TOOLS` in `jbus.t3`), with one call, since a tool T3 Code stops serving otherwise fails only where jbus calls it.
+A tool it no longer serves is an alert of the machine's from the first pass that finds it, under the key `t3-tool <tool>`, one for each tool: `alert: T3 Code no longer serves <tool>, a tool jbus calls: what calls it fails`.
+Later passes say nothing of it while it stays missing.
+The first pass that finds it served again logs `recovered: T3 Code serves <tool> again`, which wakes no thread.
+A pass whose list did not come prints `wait: T3 Code's tools not known: <why>` and leaves each of these alerts as it is.
+
 A second target that refuses keeps the `error` text of its JSON body, with no URL and no key, as `the second target answered 400: <error>`, in the journal and in its `last_error`.
 `jbus wakes`, run in a repo's checkout, prints `wakes fail: <the alert line>` and exits 1 while the `home thread <project>` streak of the repo's project has alerted.
 Otherwise it prints `wakes go: the home thread of <project> is not failing`.

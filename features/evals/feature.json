@@ -1,5 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "evals",
-  "description": "Measures a skill's effect against a baseline, with runs a grader scores."
+  "description": "Measures a skill's effect against a baseline, with runs a grader scores, and what jstack's coordinating layer costs against a home agent with no jbus."
 }

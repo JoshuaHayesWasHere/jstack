@@ -5,14 +5,18 @@ keeps everything it is told under the directory it is given:
 
     port          the port it listens on, written once it is ready
     threads.json  the threads it has, which a drive may edit between passes
-    messages.json the messages a drive gives a thread, by thread id, which `t3_thread_read`
-                  returns when jbus asks for one by its item id, as `jbus word --message` does
+    messages.json the items a drive gives a thread, by thread id, which `t3_thread_read` returns:
+                  one by its item id, as `jbus word --message` asks, or all of them, as a pass
+                  asks when it looks for a usage limit in a failed thread's last run
     calls.jsonl   one line for each tool call jbus made, with its arguments
     wake.jsonl    one line for each wake jbus sent a home thread, with the lines it carried
 
 It answers the tools `jbus.t3.TOOLS` names, and only to the sandbox's token. Any other tool
-is a JSON-RPC error. A wake is a `t3_thread_send` whose request id starts `wakes|`, the one
-list's message (`jbus.wakes`), and its lines are the items the message names.
+is the JSON-RPC error T3 Code gives, `t3_thread_configuration` included, which T3 Code folded
+into `t3_thread_configure`. That one reads a thread's selection with `threadId` alone and sets
+it with `modelSelection`, and a thread keeps its selection under that key in threads.json. A
+wake is a `t3_thread_send` whose request id starts `wakes|`, the one list's message
+(`jbus.wakes`), and its lines are the items the message names.
 """
 
 from __future__ import annotations
@@ -28,6 +32,8 @@ from typing import Any
 from jbus.bind import NoLookup
 from jbus.t3 import PROTOCOL, TOOLS
 
+SELECTION = {"provider": "claudeAgent", "model": "claude-sandbox"}
+
 
 def now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -35,6 +41,10 @@ def now() -> str:
 
 class Unknown(Exception):
     """A tool the stand-in does not answer: one jbus does not name, or a new one."""
+
+
+class Gone(Exception):
+    """A thread the stand-in does not have, which T3 Code answers with a failure."""
 
 
 class Fake:
@@ -72,16 +82,30 @@ class Fake:
             found = [t for t in threads if given.get("titleContains", "") in t["title"]]
             if given.get("settled") is not None:
                 found = [t for t in found if t["settled"] == given["settled"]]
-            listed = [{k: v for k, v in t.items() if k != "branch"} for t in found]
+            hidden = ("branch", "modelSelection")
+            listed = [{k: v for k, v in t.items() if k not in hidden} for t in found]
             return {"projectId": given.get("projectId"), "threads": listed, "nextCursor": None}
         if name == "t3_thread_read":
             thread = given["threadId"]
+            said = self.messages().get(thread, [])
             if "itemId" in given:
-                said = self.messages().get(thread, [])
                 items = [one for one in said if one["itemId"] == given["itemId"]]
                 found = by_id.get(thread, {"threadId": thread, "title": "home: demo"})
                 return {"thread": found, "recentRuns": [], "items": items}
-            return {"thread": by_id[thread], "recentRuns": [], "items": []}
+            return {"thread": by_id[thread], "recentRuns": [], "items": said}
+        if name == "t3_thread_configure":
+            if given["threadId"] not in by_id:
+                raise Gone(given["threadId"])
+            thread = by_id[given["threadId"]]
+            if "modelSelection" in given:
+                thread["modelSelection"] = given["modelSelection"]
+                self.keep(threads)
+            return {
+                "threadId": thread["threadId"],
+                "modelSelection": thread.get("modelSelection") or SELECTION,
+                "runtimeMode": "full-access",
+                "interactionMode": "default",
+            }
         if name == "t3_thread_send":
             if given["clientRequestId"].startswith("wakes|"):
                 listed = given["message"].split("\n\n")[1].splitlines()
@@ -102,6 +126,7 @@ class Fake:
             "status": "running",
             "settled": False,
             "branch": given["workspaceStrategy"].get("branch"),
+            "modelSelection": given.get("modelSelection"),
             "createdAt": now(),
             "updatedAt": now(),
         }
@@ -113,7 +138,12 @@ class Fake:
             return {"protocolVersion": PROTOCOL, "capabilities": {}, "serverInfo": {}}
         if asked["method"] == "tools/list":
             return {"tools": [{"name": name, "inputSchema": {}} for name in TOOLS]}
-        made = self.tool(asked["params"]["name"], asked["params"]["arguments"])
+        try:
+            made = self.tool(asked["params"]["name"], asked["params"]["arguments"])
+        except Gone as thread:
+            failure = {"_tag": "OrchestratorMcpFailure", "code": "thread_not_found"}
+            failure["message"] = f"Thread {thread} is no longer available."
+            return {"isError": True, "content": [{"type": "text", "text": json.dumps(failure)}]}
         return {"content": [{"type": "text", "text": json.dumps(made)}], "structuredContent": made}
 
 
@@ -146,7 +176,7 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
                 try:
                     said = {"result": fake.rpc(asked)}
                 except Unknown as tool:
-                    said = {"error": {"code": -32602, "message": f"unknown tool: {tool}"}}
+                    said = {"error": {"code": -32602, "message": f"Tool '{tool}' not found"}}
                 self.reply({"jsonrpc": "2.0", "id": asked["id"], **said})
 
         def log_message(self, *_: Any) -> None:
