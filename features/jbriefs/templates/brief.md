@@ -13,7 +13,7 @@ Skills: <the skills and principles the crewmate runs, comma-separated, by pstack
 Pull request: open one when done | ask first
 Review: twice | review | none
 <`twice`: one review, its findings fixed, then a second review of that fix, and `jmerge` merges once the second's findings are answered.>
-<`review`: one review, its error and warning findings fixed in the pull request, and `jmerge` merges once they are.>
+<`review`: one review, its findings answered in the pull request, a later review's error findings alone fixed there, and `jmerge` merges once they are.>
 <`none`: no reviewer, and `jmerge` leaves the pull request to wait for the user's word, so `jbus queue add` warns of it beside `Pull request: open one when done`.>
 <`jbus queue add` refuses any other word on the `Review:` line.>
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
