@@ -1,9 +1,8 @@
 """A brief whose `Review:` line says `twice` gets one review, one fix round, and a second review
 of the head that the fix pushed. It merges once the crew has answered the first review's
 findings and pushed its `Fixed:` line, the second reviewer has written its review, and the crew
-has answered that review's errors and warnings too, with a push after it where it fixed one. No
-third review follows. The tests drive
-it through `ready.short_of`, the function that `jmerge` calls before a merge, and through
+has answered that review's errors too, with a push after it where it fixed one, and that review's
+warnings and infos are dropped. No third review follows. The tests drive it through `ready.short_of`, the function that `jmerge` calls before a merge, and through
 `jmerge` itself against a real origin and a fake `gh`
 (`features/jmerge/tests/test_jmerge_fresh.py`).
 """
@@ -16,6 +15,7 @@ HEAD, FIX, AGAIN = "a" * 40, "b" * 40, "c" * 40
 PULL = "https://example.test/pull/7"
 WARNING = "warning a.py:3 the loop reads the list twice (bucket: Act on)"
 INFO = "info b.py:9 a name says less than it could (bucket: Consider)"
+ERROR = "error c.py:5 the retry never stops (bucket: Consider)"
 
 
 def brief(mode="twice", result=""):
@@ -52,12 +52,16 @@ def test_a_second_review_of_info_findings_alone_lets_it_merge():
     assert ready.short_of(twice(review(FIX, (INFO,))), FIX) == ""
 
 
-def test_a_second_review_with_a_warning_waits_for_its_answer_and_a_push_and_no_third_review():
-    text = twice(review(FIX, (WARNING, INFO)))
+def test_a_second_review_of_warnings_and_infos_alone_lets_it_merge():
+    assert ready.short_of(twice(review(FIX, (WARNING, INFO))), FIX) == ""
+
+
+def test_a_second_review_with_an_error_waits_for_its_answer_and_a_push_and_no_third_review():
+    text = twice(review(FIX, (ERROR, WARNING, INFO)))
     assert ready.short_of(text, FIX) == ready.NOT_PUSHED
     pushed = text + f"Fixed: {AGAIN}\n"
     assert ready.short_of(pushed, AGAIN) == ready.UNANSWERED.format(ids="F2")
-    fixed = text + f"Finding F2: fixed, the loop\nFixed: {AGAIN}\n"
+    fixed = text + f"Finding F2: fixed, the retry\nFixed: {AGAIN}\n"
     assert ready.short_of(fixed, AGAIN) == ""
     assert ready.declines(fixed, user=jsettings.DEFAULTS) == ("", "")
     assert ready.to_range_diff(fixed, AGAIN) is None
@@ -129,16 +133,18 @@ def written(kitchen, slug, head, second):
     )
 
 
-def test_jmerge_finds_it_ready_once_its_second_reviews_warning_is_answered(tmp_path):
+def test_jmerge_finds_it_ready_once_its_second_reviews_error_is_answered(tmp_path):
     kitchen = Kitchen(tmp_path, {"a.txt": LINES})
     head = kitchen.crew("alpha", 7, {"a.txt": "ours\n" + LINES})
     written(kitchen, "alpha", head, "")
     reason = ready.TWICE_UNWRITTEN.format(head=head[:12])
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {reason}"]
-    second = review(head, (WARNING, INFO))
+    written(kitchen, "alpha", head, review(head, (WARNING, INFO)))
+    assert kitchen.run("--check") == [f"ready 7 {head} alpha alpha"]
+    second = review(head, (ERROR, WARNING, INFO))
     written(kitchen, "alpha", head, second)
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {ready.NOT_PUSHED}"]
-    declined = "Finding F2: not fixed, the loop, because a.py:3 reads it once\n"
+    declined = "Finding F2: not fixed, the retry, because c.py:5 stops it\n"
     written(kitchen, "alpha", head, second + declined + "Fixed: none needed, declined\n")
     (said,) = kitchen.run("--check")
     assert said == f"ready 7 {head} alpha alpha"
