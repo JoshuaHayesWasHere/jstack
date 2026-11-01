@@ -18,8 +18,8 @@
 
    | Write | When |
    |---|---|
-   | `Review: twice` | always, unless one below holds or the user says otherwise: the user, 2026-10-21, "from now on do one round of addressing fixes and then another round of review. on the second review file any findings medium or above in severity as follow ups, ignore the rest." Josh, 2026-10-29, replaced its second half: every finding goes to the row's own crewmate before the merge. It gets one review and one fix round, then a second review whose `warning` and `error` findings the crewmate answers and whose `info` findings are dropped, and it merges once those are answered |
-   | `Review: review` | the user asks for a review whose findings are answered before the merge: the crewmate answers each finding of the first review, and after it a later review's `error` and `warning` findings are fixed in the pull request too, and its `info` findings are dropped |
+   | `Review: twice` | always, unless one below holds or the user says otherwise: the user, 2026-10-21, "from now on do one round of addressing fixes and then another round of review. on the second review file any findings medium or above in severity as follow ups, ignore the rest." Josh, 2026-10-29, replaced its second half: every finding goes to the row's own crewmate before the merge. It gets one review and one fix round, then a second review whose `error` findings the crewmate answers and whose `warning` and `info` findings are dropped (Josh, 2026-10-28: after the second review only an error is fixed), and it merges once those are answered |
+   | `Review: review` | the user asks for a review whose findings are answered before the merge: the crewmate answers each finding of the first review, and after it a later review's `error` findings alone are fixed in the pull request, and its `warning` and `info` findings are dropped |
    | `Review: none` | the task is text only (wording, a note, a doc with nothing that runs) or throwaway (a spike nobody merges) |
 
    A brief with no line, or with any other word, an old `after` included, counts as `review`.

@@ -8,7 +8,7 @@ A fix that changes a file outside `tests/` gets one scoped review: a reviewer th
 A fix that changes files under `tests/` only, or nothing, gets none: what stands behind it is the pull request's own checks.
 A blocking finding you declined by id gets that scoped review all the same, also when nothing was pushed: a decline changes no line, so nothing else would look at it again, and the scoped reviewer rules on it.
 That review is the last: a fix pushed for its findings gets no further review, and merges on its checks.
-Its findings are a second review's, so its `error` and `warning` findings come to this thread, and a fix is owed for those alone: its `info` ones are dropped ("The review").
+Its findings are a second review's, so its `error` findings alone come to this thread, and a fix is owed for those alone: its `warning` and `info` ones are dropped ("The review").
 No fix gets a whole second review.
 
 What decides is this, run with the block at the top, in this worktree. Run it once the findings are handled and the fix, if there is one, is pushed, before the `Fixed:` line is written, and on each wake that finds the pull request green after that. It is the only check:

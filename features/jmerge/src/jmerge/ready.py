@@ -625,7 +625,7 @@ def second_review(text: str) -> tuple[str, ...]:
 def _twice(said: Said, text: str) -> str:
     """What a `twice` brief still lacks. It needs the first review, then one fix round in which
     the crew answers that review's findings and pushes the fix, then a second review of a
-    later head, whose errors and warnings the crew answers too, by id and with a push after it,
+    later head, whose errors the crew answers too, by id and with a push after it,
     and no third review follows. A clean first review, or a round that declined every finding
     and pushed nothing, needs no second review, because nothing changed after the first review."""
     if not said.written:
