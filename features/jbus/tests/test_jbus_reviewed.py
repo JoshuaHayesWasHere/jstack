@@ -70,20 +70,28 @@ def test_a_findings_review_tells_the_crew_once_by_the_outbox_naming_the_section_
     assert kitchen.lines("reviewed") == [f"reviewed alpha: told mcp:crew of #7 at {HEAD[:12]}"]
 
 
-def test_a_twice_brief_s_second_review_goes_to_its_own_crew(kitchen):
-    """The crew answered the first review and pushed its fix. The second review's warning goes to
-    the same crew, which owes it an answer and a push before the merge."""
+def test_a_twice_brief_s_second_review_error_goes_to_its_own_crew_and_a_warning_alone_does_not(
+    kitchen,
+):
+    """The crew answered the first review and pushed its fix. The second review's error goes to
+    the same crew, which owes it an answer and a push before the merge. A second review with a
+    warning alone sends the crew nothing, since a later review's warning is dropped."""
     first = section(head="d" * 40)
     answered = "\n## Result\nFinding F1: fixed, the sum\nFixed: " + HEAD + "\n"
-    second = section(findings="- warning src/alpha/b.py:9 a second thing")
-    kitchen.brief("alpha", "Review: twice\nThread: mcp:crew\n" + first + answered + second)
+    warned = section(findings="- warning src/alpha/b.py:9 a second thing")
+    kitchen.brief("alpha", "Review: twice\nThread: mcp:crew\n" + first + answered + warned)
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     for minutes in (0, 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert sends(kitchen) == []
+    second = section(findings="- error src/alpha/b.py:9 a second thing")
+    kitchen.brief("alpha", "Review: twice\nThread: mcp:crew\n" + first + answered + second)
+    for minutes in (6, 9):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     (given,) = sends(kitchen)
     assert given["threadId"] == "mcp:crew"
     assert "nothing was pushed after them" in given["message"]
-    assert "F2 [Act on] warning src/alpha/b.py:9 a second thing" in given["message"]
+    assert "F2 [Act on] error src/alpha/b.py:9 a second thing" in given["message"]
 
 
 def test_a_findings_review_of_a_brief_with_no_thread_line_goes_to_its_home(kitchen):
