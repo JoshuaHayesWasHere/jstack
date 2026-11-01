@@ -2,9 +2,9 @@
 of the head that the fix pushed. It merges once the crew has answered the first review's
 findings and pushed its `Fixed:` line, the second reviewer has written its review, and the crew
 has answered that review's errors too, with a push after it where it fixed one, and that review's
-warnings and infos are dropped. No third review follows. The tests drive it through `ready.short_of`, the function that `jmerge` calls before a merge, and through
-`jmerge` itself against a real origin and a fake `gh`
-(`features/jmerge/tests/test_jmerge_fresh.py`).
+warnings and infos are dropped. No third review follows. The tests drive it through
+`ready.short_of`, the function that `jmerge` calls before a merge, and through `jmerge` itself
+against a real origin and a fake `gh` (`features/jmerge/tests/test_jmerge_fresh.py`).
 """
 
 import jsettings
