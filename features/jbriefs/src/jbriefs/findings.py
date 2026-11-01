@@ -39,7 +39,9 @@ and so does a finding on one of `RISKS`, whatever its bucket. A decline of a blo
 counts only when its reason cites a `path:line`, a command in backticks, or a gate that the
 Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier
 finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks the user
-with the default "fix it". In a first review, severity is a field and decides nothing.
+with the default "fix it". In a first review, severity is a field and decides nothing. In a
+later review, severity alone decides: an error holds the merge, and a warning or an info is
+dropped (`_LATER`).
 
 The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
 declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
@@ -99,10 +101,10 @@ ROUTES = (HOLDS, ASKS, DROPPED, UNSENT)
 (`HOLDS`), to the crew, holding nothing (`ASKS`), nowhere (`DROPPED`), or never sent, as a
 Noted, Dismissed or superseded finding (`UNSENT`). Every finding that goes anywhere goes to the
 row's own crew while its pull request is open: no finding is left for another row."""
-_LATER = ("error", "warning")
+_LATER = ("error",)
 """The severities of a later review's findings that hold the merge: the severity is trusted as
-the review wrote it, and any other severity is `DROPPED`. A `review` brief and a `twice` brief
-both fix them in the pull request."""
+the review wrote it, whatever its bucket or tag, and a warning or an info is `DROPPED`, with no
+row filed for it. A `review` brief and a `twice` brief both fix an error in the pull request."""
 
 
 def mode_of(text: str) -> str:
@@ -734,7 +736,7 @@ def left(said: Triage) -> str:
     if shape is None:
         return (
             "write nothing: the last review sends this thread no finding, since only an error "
-            "or a warning of a later review comes here, and the Fixed: line stays as it is"
+            "of a later review comes here, and the Fixed: line stays as it is"
         )
     pushed, why = shape
     return f"write Fixed: {'<the head you pushed>, ' if pushed else 'none needed, <reason>: '}{why}"
@@ -765,7 +767,7 @@ def fixed_shape(said: Triage) -> tuple[bool, str] | None:
 def owes(said: Triage, last: set[int]) -> bool:
     """Whether the round of the sections `last` owes the crew a line. A first review in it
     owes one on `Verdict: findings`, whatever it sent. A later review owes one only for a
-    finding it sends the crew, an error or a warning (`_route`)."""
+    finding it sends the crew, an error (`_route`)."""
     first = any(not said.sections[n].later and said.sections[n].verdict == "findings" for n in last)
     return first or any(one.sent and one.lead.section in last for one in said.findings)
 

@@ -125,8 +125,8 @@ echo "$D/prompt.md"
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there, `<severity> <file>:<line> <what is wrong> (principle: <name>) (dismissed: <the reason>)`: it is what lets the user overrule the lead, and where another reviewer raised the same finding, `jbriefs --findings` prints the dismissal beside it. Neither goes to the crewmate.
 - The buckets are the lead's reading. What the crewmate does with a finding is still its own: `Finding F<n>: fixed`, or `Finding F<n>: not fixed` with a reason (the crew skill, "The review").
 - In a review after the first, a scoped pass or a second pass, the severity alone routes each finding, and the bucket and the risk tag are written as they are and route nothing (`jbriefs.findings`, `_LATER`).
-  An `error` or a `warning` goes to the crewmate and holds the merge.
-  An `info` is dropped.
+  An `error` goes to the crewmate and holds the merge.
+  A `warning` or an `info` is dropped, and no row is filed for it.
 
 **5. The one safety fact.** Read `$T/../skills/blast-radius/SKILL.md` now, its "How sure are you" list and its steps 2 and 5: find the one fact this change is safe because of, and prove it by running real code at this head. Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
 
