@@ -2,8 +2,8 @@
 next run never cancels a run on either, because each push's run is a concurrency group of its
 own. A pull request gets the job `check`, the fast one, which runs the lint and the tests its
 change reaches. A push to main, and a manual run, get the job `full`, the whole suite. Each runs
-its tests as four parts side by side, the jobs `check-shard` and `full-shard`, and passes only
-when all four did.
+its tests as parts side by side, eight in the job `check-shard` and four in `full-shard`, and
+passes only when all of them did.
 
 The test reads the workflow file as YAML with two small readers, `mapping` and `block`, which handle
 only mappings by their indentation, a scalar, and a list in brackets.
@@ -601,18 +601,20 @@ def job_line(job, key):
     return None
 
 
-PARTS = ["1", "2", "3", "4"]
+PARTS = {"check-shard": [str(k) for k in range(1, 9)], "full-shard": ["1", "2", "3", "4"]}
 RESULTS = ("success", "failure", "cancelled", "skipped")
 
 
 @pytest.mark.parametrize("gate,parts", [("check", "check-shard"), ("full", "full-shard")])
-def test_the_suite_runs_as_four_parts_side_by_side_and_one_job_passes_only_when_all_four_did(
+def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_did(
     gate, parts, tmp_path
 ):
     """The ruleset and jmerge require the job named `check`, so it stays one job: it waits on the
-    four parts whatever they did, and this runs its first step on each result GitHub can give."""
-    assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS}}
-    assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of 4"
+    parts whatever they did, and this runs its first step on each result GitHub can give. The
+    check runs eight parts, so that its wall is half of four's, and the full run four."""
+    count = len(PARTS[parts])
+    assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS[parts]}}
+    assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of {count}"
     assert job_line(gate, "needs") == parts
     assert job_line(gate, "if").startswith("always() && ")
     (every, *_), _ = steps(CHECK.read_text(), gate)
@@ -625,7 +627,8 @@ def test_the_suite_runs_as_four_parts_side_by_side_and_one_job_passes_only_when_
     }
     assert [result for result in RESULTS if ran[result].returncode == 0] == ["success"]
     assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
-    assert "SHARD=${{ matrix.shard }}/4" in " ".join(map(str, steps(CHECK.read_text(), parts)[0]))
+    suite = " ".join(map(str, steps(CHECK.read_text(), parts)[0]))
+    assert f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite
 
 
 def test_macos_runs_on_every_pull_request_and_on_nothing_else():
@@ -832,7 +835,7 @@ def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_
         ZSH,
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
         "actions/cache",
-        "make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/4",
+        "make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert all("if" not in step for step in found[:7])
