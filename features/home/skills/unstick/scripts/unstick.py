@@ -5,7 +5,8 @@
 """Why each stalled row of jbus's queue has not moved, from jbus's own records, read-only.
 
 A row is open while its queue status is not merged or done. Its stage is that status, and its
-age is the time since the last transition into it (`transitions.jsonl`). A row is stalled when
+age is the time since the last transition into it (`transitions.jsonl`), or, for a row that has
+had none since it was added, since its queue `since` or `updated` stamp. A row is stalled when
 its age is past the 90th percentile of that stage's past spans in its project, or past `FLOOR`
 where the project has fewer than `SAMPLES` spans of the stage.
 
@@ -34,7 +35,7 @@ import os
 import re
 import sys
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 FINAL = ("merged", "done")
@@ -42,6 +43,8 @@ SAMPLES = 5
 FLOOR = timedelta(minutes=60)
 TOLD_LATELY = timedelta(minutes=30)
 KINDS = ("act", "wait", "user", "gate")
+ZONES = {"EDT": timezone(timedelta(hours=-4)), "EST": timezone(timedelta(hours=-5))}
+STAMP = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (EDT|EST)")
 CAPPED = re.compile(r"(?:capped|limit) until (\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2}))")
 TELLS = ("expedite", "failed", "stall", "stale", "rebase", "leftover")
 HELD = "jbus holds this for the user: name it, raise nothing more"
@@ -56,8 +59,14 @@ ACTIONS = {
         "act",
         'tell {thread}: {pr} is in conflict with its base, do what "A conflict" says',
     ),
-    "review": ("act", "send {thread}: /pr-review run {slug} again"),
-    "second": ("act", "send {thread}: /pr-review run {slug} again"),
+    "review": (
+        "act",
+        'tell {thread}: {pr} has no review yet, launch or wake its reviewer as "The review" says',
+    ),
+    "second": (
+        "act",
+        'tell {thread}: {pr} has no second review yet, launch or wake it as "A second pass" says',
+    ),
     "findings": ("act", 'tell {thread}: the findings on {pr} are not handled, see "The review"'),
     "result": ("act", 'tell {thread}: write the Result in the brief, as "End" says'),
     "quiet": ("act", "send {thread}: Continue where you left off."),
@@ -115,6 +124,9 @@ class Stalled:
 def when(text):
     if not text:
         return None
+    local = STAMP.fullmatch(str(text))
+    if local:
+        return datetime.strptime(local[1], "%Y-%m-%d %H:%M").replace(tzinfo=ZONES[local[2]])
     try:
         found = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
     except ValueError:
@@ -290,7 +302,8 @@ def project_rows(state, project, now, every, waiters):
     found = []
     for row in rows:
         status = row.get("status") or "queued"
-        since = entered(by_slug.get(row["slug"]), status)
+        since = entered(by_slug.get(row["slug"]), status) or when(row.get("since"))
+        since = since or when(row.get("updated"))
         if since is None:
             continue
         limit = p90(spans.get(status, [])) or FLOOR

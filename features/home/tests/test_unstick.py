@@ -8,7 +8,10 @@ import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 
+from skill_blocks import block, linked, run
 from testing.paths import REPO
+
+__all__ = ["block", "linked", "run"]
 
 SCRIPT = REPO / "features" / "home" / "skills" / "unstick" / "scripts" / "unstick.py"
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=UTC)
@@ -95,10 +98,8 @@ def test_a_stalled_row_of_each_cause_is_named_with_its_age_and_what_to_do(tmp_pa
     }
     assert {one["age_minutes"] for one in found.values()} == {300}
     assert found["asks"]["action"] == "answer it: jbus --project demo answer 4"
-    assert (
-        found["unreviewed"]["action"]
-        == "send mcp:unreviewed-thread: /pr-review run unreviewed again"
-    )
+    assert found["unreviewed"]["action"].startswith("tell mcp:unreviewed-thread: #7 has no review")
+    assert "/pr-review" not in found["unreviewed"]["action"]
 
 
 def test_a_row_inside_its_stage_p90_is_not_stalled(tmp_path):
@@ -137,3 +138,29 @@ def test_nothing_stalled_says_so(tmp_path):
     project(tmp_path / "state", [("young", "running", "working", 0.1, {})])
 
     assert unstick(tmp_path) == "nothing is stalled: 1 open rows, each inside its stage's p90\n"
+
+
+def test_a_queued_row_with_no_transition_is_aged_from_its_queue_stamp(tmp_path):
+    project(tmp_path / "state", [])
+    folder = tmp_path / "state" / "demo"
+    behind = {"slug": "behind", "status": "queued", "depends": ["front"]}
+    (folder / "queue.json").write_text(json.dumps([behind | {"updated": "2026-11-01 02:00 EST"}]))
+    work = {"kind": "row", "slug": "behind", "value": "behind", "waits": "the rows in front"}
+    (folder / "work.json").write_text(json.dumps({"work": [work]}))
+
+    found = by_slug(tmp_path)
+
+    assert (found["behind"]["cause"], found["behind"]["kind"]) == ("depends", "wait")
+    assert found["behind"]["age_minutes"] == 300
+    assert "front" in found["behind"]["evidence"]
+
+
+def test_the_skill_block_runs_the_installed_script(tmp_path):
+    home = tmp_path / "home"
+    project(home / ".local" / "state" / "jbus", [("silent", "running", "hung", 5, {})])
+    linked(home, "unstick")
+
+    said = run(block("unstick", "no unstick:"), tmp_path, home)
+
+    assert said[0] == "stalled: 1 of 1 open rows, oldest first"
+    assert said[1].startswith("demo silent: running ")
