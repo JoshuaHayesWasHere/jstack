@@ -91,7 +91,7 @@ The section "Protected paths" describes one more hold.
 - **Its base is the default branch, or a merge base its project names.**
   A project of jbus's names merge bases besides the default branch with `jbus project bases <project> --add <branch>`, and `jbus project bases <project>` prints them: jstack names `t3code-jstack`, the branch the sidebar's pull requests go on.
   `jmerge` merges a pull request into a named base on the rules of one into the default branch: its review written and answered, its required checks green, and not a draft.
-  Main's red holds no pull request into a named base, since main's red says nothing of that branch and no fix of main merges there.
+  Main's red holds no pull request, into a named base or into main.
   `jmerge` never merges a pull request based on a branch that is neither (`its base is <base>, not <default>`), nor one into a named base where jbus's config does not load.
   The sweep keeps a brief's branch that is a merge base (`it is a merge base of the project`).
   A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
@@ -277,7 +277,7 @@ When one of them is, `jmerge` merges the head over today's main with `git merge-
 A clean merge merges the pull request on the check it has: GitHub is asked for no update of its branch, and no second CI round runs.
 A head that does not merge over today's main waits with `it conflicts with today's main`, on the `rebase` step, and GitHub is asked nothing.
 A file of main's that imports the pull request's files, one they import, one that names their path, or one that CI reads leaves its check counted as well.
-Main's own full run at the merge commit is what checks the combined tree: it catches a break that a clean merge hides, such as a caller main added that the pull request breaks, and the red-main hold ("Main is not red") holds the queue until its fix merges.
+Main's own full run at the merge commit is what checks the combined tree: it catches a break that a clean merge hides, such as a caller main added that the pull request breaks, and jbus then reverts its one clear culprit or files its fix ("Main is not red").
 A pull request whose check failed at its own head is not merged by this rule: its green check is the one that counts, and a red one is judged as "A failed check over a base that moved" says.
 `jmerge` judges this only once the pull request has no other reason to wait.
 `jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
@@ -291,7 +291,7 @@ A pull request's check runs on its merge with the base as the base was then, and
 So a check that failed while the base was red stays red after the base is fixed, though the pull request owes no change (`features/jmerge/src/jmerge/rejudge.py`).
 `jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`) has moved since the check started.
 That holds for every required check the `required-checks` file names, `macos` as much as `check`.
-It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has failed`, a red base included.
+It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has failed`.
 So a crew is asked for what its pull request is short of, such as a scoped review of a push after its review, and its base is merged in once that is done (#529, 2026-10-27: ten hours on `macos has not passed` while it was short of a scoped review that nobody was asked for).
 It asks GitHub to merge the base into the branch, `PUT /repos/{owner}/{repo}/pulls/<n>/update-branch` with `expected_head_sha`, which rewrites no history.
 The line is then `GitHub was asked to merge <base> at <tip12> into it: its check failed before <base> moved`, or `GitHub did not merge <base> at <tip12> into it: <what GitHub said>`.
