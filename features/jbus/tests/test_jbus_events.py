@@ -199,6 +199,8 @@ def test_the_daily_prune_drops_what_is_older_than_two_weeks(kitchen, clock):
 
 TABLE = {
     "act": "quiet",
+    "ask-owed": "quiet",
+    "ask-resent": "quiet",
     "gate": "quiet",
     "waiting": "quiet",
     "alert": "quiet",

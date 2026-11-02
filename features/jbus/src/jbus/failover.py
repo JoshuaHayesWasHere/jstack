@@ -72,9 +72,8 @@ from typing import Any
 
 import jbus
 import jroles
-import jsettings
 from jbriefs.home import ids, scopes, thread_of
-from jbus import dispatch, outbox, roles, threads, verbs
+from jbus import dispatch, outbox, owed, roles, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
@@ -209,20 +208,8 @@ def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.
         run_of.get("completedAt"),
         *sorted((i.get("updatedAt") or "" for i in last), reverse=True),
     ]
-    found = ledger.cap_of(last, _when(stamps) or run.now)
+    found = ledger.cap_of(last, owed.when(stamps) or run.now)
     return (found, run_of.get("providerInstanceId") or "") if found else None
-
-
-def _when(stamps: list[Any]) -> datetime | None:
-    """Return when the run ended, from the first of `stamps` that parses. A text's
-    `resets 11pm` means 11pm of that day, whichever pass reads it."""
-    for stamp in stamps:
-        try:
-            at = jsettings.when(str(stamp))
-        except ValueError:
-            continue
-        return at if at.tzinfo else at.replace(tzinfo=UTC)
-    return None
 
 
 def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
@@ -248,26 +235,11 @@ def failover(run: Pass, client: Client, world: World) -> None:
     """Move each thread that failed on a usage limit to an instance that is not capped, and
     tell it to carry on. See the module for the rules."""
     try:
-        said = client.call(
-            "t3_thread_list",
-            {
-                "projectId": run.project.project_id,
-                "settled": False,
-                "statuses": ["failed"],
-                "limit": 100,
-            },
-        )
+        failed = owed.failed(run, client)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the failed threads could not be listed ({error})")
         return
-    listed = [
-        thread
-        for thread in said.get("threads") or []
-        if thread.get("status") == "failed"
-        and thread.get("latestRunId")
-        and not thread.get("settled")
-        and not thread.get("snoozed")
-    ]
+    listed = [thread for thread in failed if not thread.get("snoozed")]
     found = movers(run, listed)
     if not found:
         return
@@ -406,7 +378,7 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
         instance=choice.instance,
         where=move.mover.where(run.home),
         slug=move.mover.slug,
-    )
+    ) + owed.quoted(run, at)
     sent = outbox.send(
         run,
         client,
@@ -421,6 +393,7 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
         return
     run.find(subject, "failover", line, key=key)
     run.box.mark(key)
+    owed.taken(run, at)
     run.say(line)
 
 
@@ -457,7 +430,7 @@ def recorded(items: list[dict[str, Any]], now: datetime) -> ledger.Cap:
     """Return the cap in a recording, moved to `now`. Its reset is as far after `now` as it
     was after the last item's `updatedAt`, so `resets in 17m` reads as 17 minutes from now."""
     stamps = sorted((str(one.get("updatedAt") or "") for one in items), reverse=True)
-    then = _when(stamps)
+    then = owed.when(stamps)
     cap = ledger.cap_of(items, then or now)
     if cap is None:
         raise jbus.Refused("refused: the recording holds no usage limit")
@@ -516,6 +489,13 @@ VERBS = (
     ),
 )
 STEPS = (
+    verbs.Step(
+        "before-watch",
+        7,
+        "owed.sweep",
+        lambda half: owed.sweep(half.run, half.client, lambda listed: movers(half.run, listed)),
+        ("client",),
+    ),
     verbs.Step(
         "tellers",
         55,

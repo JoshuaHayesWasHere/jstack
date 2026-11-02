@@ -27,6 +27,7 @@ SENDERS = {
     "rebase.py": ("the crew of a pull request to rebase, or that main is fixed", ["once"]),
     "slotwait.py": ("a thread that waits on a test slot", ["tell", "tell_capped", "tell_ended"]),
     "failover.py": ("a thread moved to another provider", ["apply"]),
+    "owed.py": ("the thread of an ask that stopped on a usage cap or an auth error", ["_settle"]),
     "questions.py": ("the thread that asked a question", ["carry", "propose"]),
     "remarks.py": ("the thread a remark is for", ["tell"]),
     "threads.py": (

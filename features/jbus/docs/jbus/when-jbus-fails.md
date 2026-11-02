@@ -51,3 +51,10 @@ The first pass of each hour queues a quiet `heartbeat` event from the same file.
 `alerts` lists the alert line of each project whose home thread's streak alerted, with its last error, one item for each, and the heartbeat adds the same line as a heartbeat of its own.
 
 Beside it a pass leaves `pass.json`: when the pass started and ended, and for each project its open rows and its `threads`. `threads` is every thread T3 Code lists as not settled, a crewmate's, a reviewer's, a scout's, a home's or any other, each with its role, slug, status, `updatedAt` and its liveness: `moving`, `quiet`, `hung`, `waiting`, `ended` or `unknown`. A turn that has written no item for 10 minutes is `quiet`: jbus counts from the pass that last saw the thread's count of items change, since T3 Code moves `updatedAt` when a message is queued. It is `hung` after 20 minutes, or after 10 with a run queued behind it, and jbus reads only a quiet thread to learn that. A thread that turns `hung` is one `stall` event for that thread and that run, and one line of `hung.jsonl` in the project's state directory. A later pass adds a line there with what became of it: `wrote again`, `interrupted` or `ended`. jbus interrupts no thread and sends a hung one nothing.
+
+## An ask that stopped on a limit or an auth error
+
+An ask whose turn stopped on a usage limit or an auth error is kept in `owed.json` in the project's state, with its cause.
+jbus sends it again once, word for word, when the cap on the thread's instance lifts or the session is signed in again.
+An ask you repeated in the thread is not sent, and neither is one in a settled thread.
+`jbus status` shows each one under its project's `capped`, with the cause and when it frees, beside the messages and launches a cap holds.

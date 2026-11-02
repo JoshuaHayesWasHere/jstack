@@ -7,12 +7,16 @@ Every test runs the real command and the real pass against the faked T3 Code ser
 """
 
 import json
-from datetime import timedelta
+import os
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import jbus
-from jbus import acts, alert, party, passes, t3, word
+from jbus import acts, alert, outbox, party, passes, t3, word
+from jgauge import limits
+from jroles import ledger
+from test_jbus_failover import PRIME
 from test_jbus_kitchen import NOW, iso, sends
 
 AT = "2026-10-12 10:55 ET"
@@ -548,3 +552,54 @@ def test_a_word_on_the_bots_chat_goes_to_no_scope(kitchen):
         f"{word.SCOPE_CHECKED}\n",
     )
     assert word.load(kitchen.state) == [] and sends(kitchen) == []
+
+
+def out_of_date(kitchen, age, failed=True):
+    """Put the home's thread on prime, whose ledger holds its weekly window full, as it last read
+    it `age` ago on the real clock, which `jbus word` goes by. `failed` says that `jgauge limits`
+    has failed to read it since."""
+    desk = kitchen.t3.thread("desk", "completed", title="home: demo", idle=timedelta(hours=1))
+    desk["selection"] = {"model": "m", "instanceId": PRIME}
+    (kitchen.home / "home-id").write_text(desk["threadId"] + "\n")
+    now = datetime.now(UTC)
+    ledger.write(ledger.Record(PRIME, "seven_day", 100, int((now + timedelta(days=2)).timestamp())))
+    if failed:
+        limits.retry_file(PRIME).write_text(f"{int(now.timestamp())}\n")
+    read_at = (now - age).timestamp()
+    os.utime(ledger.file_of(PRIME), (read_at, read_at))
+    return desk
+
+
+def word_goes(kitchen):
+    """The user's word to the home, and whether it went."""
+    kitchen.main("word", "--to", "demo", *SAID)
+    return [one for one in sends(kitchen) if one["clientRequestId"].startswith("word|")]
+
+
+def test_a_word_is_not_held_behind_a_ledger_that_failed_to_read_and_the_cap_stays(kitchen):
+    """The Categories home on 2026-10-31: the ledger held prime full and its reader answered 429.
+    The word goes, and the ledger still says what it last read, so nothing marks prime free."""
+    out_of_date(kitchen, limits.FRESH + timedelta(minutes=1))
+    assert len(word_goes(kitchen)) == 1
+    assert ledger.capped_until(ledger.read([PRIME]), PRIME, datetime.now(UTC))
+
+
+def test_a_word_waits_at_a_cap_read_lately_though_the_last_read_failed(kitchen):
+    out_of_date(kitchen, limits.FRESH - timedelta(minutes=5))
+    assert word_goes(kitchen) == []
+
+
+def test_a_word_waits_at_a_cap_with_no_failed_read_however_old(kitchen):
+    """An instance `jgauge limits` does not read has only what a stopped turn wrote."""
+    out_of_date(kitchen, timedelta(days=1), failed=False)
+    assert word_goes(kitchen) == []
+
+
+def test_only_the_user_s_word_goes_past_a_ledger_that_failed_to_read(kitchen):
+    desk = out_of_date(kitchen, limits.FRESH + timedelta(minutes=1))
+    config = jbus.load()
+    run = passes.Pass(config, config.project("demo"), datetime.now(UTC))
+    client = t3.Client(config.server, config.token_path)
+    assert outbox.capped(run, client, desk["threadId"], "rebase")
+    assert outbox.capped(run, client, desk["threadId"], "ask")
+    assert outbox.capped(run, client, desk["threadId"], "word") is None

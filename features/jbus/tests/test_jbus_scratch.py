@@ -8,11 +8,13 @@ its faked T3 Code server. Nothing reaches the network.
 
 import subprocess
 import tomllib
+from datetime import timedelta
 
 import pytest
 
 import jbus
-from test_jbus_kitchen import sends
+from test_jbus_kitchen import NOW, sends
+from test_jbus_owed import AFTER, ASK, limit, said, stopped
 
 NAME = "scratch"
 SCRATCH_ID = "mcp:the-no-project-id"
@@ -71,7 +73,19 @@ def test_the_pass_runs_no_repo_step_for_a_scratch_home(kitchen, scratch, monkeyp
     left = sorted(path.name for path in state.iterdir()) if state.exists() else []
     assert "queue.json" not in left and "wake.json" not in left, left
     asked = [given for _, given in kitchen.t3.calls if SCRATCH_ID in str(given)]
-    assert asked == []
+    assert asked == [
+        {"projectId": SCRATCH_ID, "settled": False, "statuses": ["failed"], "limit": 100}
+    ]
+
+
+def test_an_ask_in_a_scratch_home_s_thread_is_owed_and_sent_when_the_cap_lifts(kitchen, scratch):
+    """The no-project thread of a7e76e2d: its turn stopped on a session limit."""
+    chat = kitchen.t3.thread("x", "completed", title="Recap", project=SCRATCH_ID, idle=timedelta(1))
+    stopped(chat, [said(ASK), *limit()])
+    kitchen.poll(NOW)
+    kitchen.poll(AFTER)
+    (sent,) = [one for one in sends(kitchen) if one["clientRequestId"].startswith("ask|")]
+    assert sent["threadId"] == chat["threadId"] and sent["message"].endswith(ASK)
 
 
 def test_status_lists_the_scratch_home_with_its_thread_and_no_repo_fields(kitchen, scratch):

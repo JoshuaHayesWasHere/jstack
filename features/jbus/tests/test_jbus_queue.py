@@ -602,7 +602,12 @@ def test_a_brief_on_disk_that_is_not_the_approved_one_is_a_gate_and_is_left_alon
 
 def test_a_hold_that_lands_while_a_pass_runs_stops_the_launch(kitchen):
     add(kitchen, "alpha")
-    kitchen.t3.on_list = lambda: queue.hold(kitchen.state, "alpha")
+
+    def hold():
+        if kitchen.t3.calls[-1][1].get("titleContains") == "crew: ":
+            queue.hold(kitchen.state, "alpha")
+
+    kitchen.t3.on_list = hold
     said = kitchen.poll()
     assert "wait alpha: its row changed during the pass" in said
     assert kitchen.t3.launches == [] and gates(kitchen) == []

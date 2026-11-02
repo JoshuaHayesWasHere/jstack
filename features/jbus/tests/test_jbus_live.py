@@ -187,8 +187,8 @@ def test_a_pass_with_nothing_quiet_reads_no_thread(kitchen):
     assert reads(kitchen) == []
     lists = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_list"]
     assert lists == [
-        {"projectId": PROJECT, "titleContains": "crew: ", "limit": 100},
         {"projectId": PROJECT, "settled": False, "statuses": ["failed"], "limit": 100},
+        {"projectId": PROJECT, "titleContains": "crew: ", "limit": 100},
         {"projectId": PROJECT, "limit": 100, "settled": False},
     ]
     assert {tool for tool, _ in kitchen.t3.calls} == {"t3_thread_list"}
