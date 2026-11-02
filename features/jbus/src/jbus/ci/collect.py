@@ -7,7 +7,9 @@ pull request whose update the ledger has not kept, it reads the timeline, where 
 branch is an event: one the ledger kept at the same update keeps its force-pushes. The pull
 requests come a page at a time, the latest update first, and the collector stops at the first page
 that reaches back past the time. For a red job on a local runner it reads the log once, for the
-failing tests the log names and the runner faults the log shows.
+failing tests the log names and the runner faults the log shows. Each of those reads waits for the
+reads of the stage before it and for no other, so a pass's job lists, annotations and logs are read
+side by side (`jbus.passes.side_by_side`).
 
 `jbus ci` collects the last `days` days (`collect`) and waits for the ledger's lock. Each pass of
 jbus collects too (`keep`, from the step in `jbus.ci`): the runs created in the last `PASS_HOURS`
@@ -40,6 +42,7 @@ from typing import Any, Protocol
 import jsettings
 from jbus import locked
 from jbus.ci import ledger
+from jbus.passes import side_by_side
 from jsettings import budget as allowance
 from jsettings import proc
 
@@ -318,31 +321,37 @@ def _collect(
     """Keep the pull requests and the jobs of the runs created since `since`, of at most `most`
     new runs. With `back`, the pull requests are those updated since the newest update the
     ledger holds where that is earlier than `since`, and not before `back`. The pull requests'
-    file is written only where one of them changed, and each run's jobs as soon as they are
-    read, so a collector stopped half way keeps what it read."""
+    file is written only where one of them changed. The pull requests and the runs are read side
+    by side, then the jobs of every new run, then each job's annotations and log, and the jobs
+    are written once all of them are read: a collector stopped half way keeps the pull requests,
+    and the next one reads the jobs again."""
     held = {one["number"]: one for one in ledger.read(state / ledger.PULLS)}
     updated = [when for one in held.values() if (when := _time(one.get("updated")))]
     caught = since if back is None or not updated else max(back, min(since, max(updated)))
-    now_held = held | {one["number"]: one for one in pulls(gh, repo, caught, held)}
+    stamp = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    path = f"repos/{repo}/actions/runs?per_page={PAGE}&created=%3E%3D{stamp}"
+    found, runs = side_by_side(
+        lambda ask: ask(),
+        [lambda: pulls(gh, repo, caught, held), lambda: gh.pages(path, "workflow_runs")],
+    )
+    now_held = held | {one["number"]: one for one in found}
     everyone = sorted(now_held.values(), key=lambda one: one["number"])
     if now_held != held:
         ledger.rewrite(state / ledger.PULLS, everyone)
     seen = {(one["run"], one["attempt"]) for one in ledger.read(state / ledger.JOBS)}
-    stamp = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    runs = gh.pages(
-        f"repos/{repo}/actions/runs?per_page={PAGE}&created=%3E%3D{stamp}", "workflow_runs"
-    )
     new = [
         run
         for run in runs
         if run.get("status") == "completed" and (run["id"], run.get("run_attempt") or 1) not in seen
+    ][:most]
+    listed = side_by_side(
+        lambda run: gh.pages(f"repos/{repo}/actions/runs/{run['id']}/jobs?filter=all", "jobs"), new
+    )
+    done = [
+        (run, job)
+        for run, jobs in zip(new, listed, strict=True)
+        for job in jobs
+        if job.get("status") == "completed"
     ]
-    added = 0
-    for run in new[:most]:
-        rows = [
-            row(gh, repo, run, job, everyone)
-            for job in gh.pages(f"repos/{repo}/actions/runs/{run['id']}/jobs?filter=all", "jobs")
-            if job.get("status") == "completed"
-        ]
-        added += ledger.add(state / ledger.JOBS, rows)
-    return Counts(len(runs), added, len(everyone))
+    rows = side_by_side(lambda one: row(gh, repo, *one, everyone), done)
+    return Counts(len(runs), ledger.add(state / ledger.JOBS, rows), len(everyone))
