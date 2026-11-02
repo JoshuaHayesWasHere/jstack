@@ -895,10 +895,10 @@ def test_the_lead_and_the_safety_fact_are_judged_by_the_reviews_own_steps():
     """What the reads carried that a review depends on is in steps 4 and 5: the four buckets
     jmerge reads, and that the safety fact is proven by running the real code."""
     text = section("### The review")
-    lead = text.split("**4. Lead judgment.**", 1)[1].split("**5. ", 1)[0]
+    lead = text.split("**4: Lead judgment.**", 1)[1].split("**5: ", 1)[0]
     for bucket in ("Act on", "Consider", "Noted", "Dismissed"):
         assert re.search(rf"^- \*\*{bucket}\*\*: \S", lead, re.M), bucket
-    fact = text.split("**5. The one safety fact.**", 1)[1].split("```", 1)[0]
+    fact = text.split("**5: The one safety fact.**", 1)[1].split("```", 1)[0]
     assert re.search(r"running real code at this head", fact)
     assert re.search(r"not a proof", fact)
 

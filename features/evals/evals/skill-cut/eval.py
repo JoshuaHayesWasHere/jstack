@@ -242,7 +242,7 @@ def patch(base: str, variant: str, paths: list[str]) -> str:
 
 def step4(review: str) -> str:
     """Step 4 of the review, the lead judgment, as `the-review.md` gives it to a reviewer."""
-    found = re.search(r"^\*\*4\. Lead judgment\.\*\*.*?(?=^\*\*5\. )", review, re.M | re.S)
+    found = re.search(r"^\*\*4[.:] Lead judgment\.\*\*.*?(?=^\*\*5[.:] )", review, re.M | re.S)
     if not found:
         raise SystemExit(f"eval.py: {THE_REVIEW} has no step 4, Lead judgment, at this revision")
     return found[0].strip()
