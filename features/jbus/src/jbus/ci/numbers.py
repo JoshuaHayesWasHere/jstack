@@ -499,12 +499,25 @@ def mainred(facts: Facts, start: datetime, end: datetime) -> Number:
     return _number("mainred", value, shown, value < 30, seen, how, _runners(ran))
 
 
+def flake_branches(facts: Facts, start: datetime, end: datetime) -> dict[str, set[str]]:
+    """Return each test that failed in a flake job of the period, with the branches it failed on.
+    A flake job may hold a test that failed on its branch alone: the test is a flake only where
+    it failed on two branches."""
+    found: dict[str, set[str]] = defaultdict(set)
+    for job in facts.jobs:
+        if (
+            job["conclusion"] == "failure"
+            and facts.causes[job["job"]] == "flake"
+            and _in(job["created"], start, end)
+        ):
+            for test in job["tests"]:
+                found[test].add(facts._branch(job))
+    return found
+
+
 def flaky(facts: Facts, start: datetime, end: datetime) -> Number:
-    ids: set[str] = set()
     red = [j for j in facts.jobs if j["conclusion"] == "failure" and _in(j["created"], start, end)]
-    for job in red:
-        if facts.causes[job["job"]] == "flake":
-            ids |= set(job["tests"] or [])
+    ids = {test for test, where in flake_branches(facts, start, end).items() if len(where) > 1}
     how = (
         "tests that failed on two branches in the period with no runner fault in the log and "
         "no red main to blame; counted by this rule, not by hand"
