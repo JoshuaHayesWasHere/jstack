@@ -495,11 +495,11 @@ def _go(
     key: str,
     message: str,
     line: str,
-) -> bool:
+) -> None:
     """Put the thread on instance `to` of its pool, where it is not there yet, with its
     selection as it was, and queue its one carry-on under the retry key `key`, with the user's
     ask that the failed run stopped on quoted below it (`owed.quoted`). Log and say `line` once
-    it went, close that ask (`owed.taken`), and return whether it went."""
+    it went, and close that ask (`owed.taken`)."""
     at = str(thread["threadId"])
     selection, instances = chosen
     client.recipients = client.recipients | {at}
@@ -518,12 +518,11 @@ def _go(
         needs="act",
     )
     if not sent:
-        return False
+        return
     run.find(mover.subject(at), "failover", line, key=key)
     run.box.mark(key)
     owed.taken(run, at)
     run.say(line)
-    return True
 
 
 @dataclass(frozen=True)
