@@ -40,16 +40,17 @@ import time
 from collections import Counter
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, date, datetime, tzinfo
 from pathlib import Path
 from typing import Any
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import messages, records, schema
+from jbus.telemetry import kpis, messages, records, schema
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
+PAGE = "kpis.html"
 PASS_BYTES = 16 * 2**20
 """How much of the record files a pass reads at most; a file is read whole once begun."""
 BUSY_MS = 30_000
@@ -348,6 +349,42 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
     return 0
 
 
+def _page_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--store", metavar="path", help="the store to read, the machine's by default"
+    )
+    parser.add_argument(
+        "--week",
+        metavar="YYYY-MM-DD",
+        type=date.fromisoformat,
+        help="a day of the week to show as this week, today by default",
+    )
+    parser.add_argument(
+        "--out", metavar="path", help=f"where to write the page, {PAGE} in jbus's state by default"
+    )
+
+
+def _page(args: argparse.Namespace, config: jbus.Config) -> int:
+    """Write the KPI page from the store, which it brings to this schema's views first."""
+    store = Path(args.store) if args.store else path(config)
+    if not store.is_file() or store.stat().st_size == 0:
+        print(f"refused: no telemetry store at {store}: run jbus telemetry first")
+        return 2
+    now = datetime.now(config.user.zone).astimezone(config.user.zone)
+    connection = connect(store)
+    try:
+        board = kpis.board(connection, args.week or now.date())
+    finally:
+        connection.close()
+    out = Path(args.out) if args.out else config.state_dir / PAGE
+    out.parent.mkdir(parents=True, exist_ok=True)
+    draft = out.with_name(f".{out.name}.{os.getpid()}")
+    draft.write_text(kpis.page(board, now))
+    draft.replace(out)
+    print(f"kpis: {out}: {board.line()}")
+    return 0
+
+
 def _pass(config: jbus.Config, say: Callable[[str], None]) -> None:
     """The pass's build: at most `PASS_BYTES` read, and a line only where files were left."""
     built = build(config, most=PASS_BYTES)
@@ -361,6 +398,12 @@ VERBS = (
         "compile every project's records into one SQLite file with KPI views",
         _arguments,
         _run,
+    ),
+    verbs.Verb(
+        "kpis",
+        "write a static page of each KPI against its target, this week and last, from the store",
+        _page_arguments,
+        _page,
     ),
 )
 CHORES = (verbs.Chore(35, "the telemetry store", lambda config, _, __, say: _pass(config, say)),)
