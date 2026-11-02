@@ -1,4 +1,4 @@
-"""Each project's Claude spend, one line a day, kept from T3 Code's store (`jgauge.spend`).
+"""Each project's model spend, one line a day, kept from T3 Code's store (`jgauge.spend`).
 
 `jgauge spend` reads T3 Code's store and prints, and keeps nothing. This chore keeps what it
 counts, as two append-only logs in each project's state, read by the telemetry store:
@@ -13,7 +13,8 @@ A run counts whole on the day it started, as `jgauge spend` counts it. A day is 
 ended `SETTLE` ago, so the runs that started near its end have ended too, and never again. The
 first time, the chore keeps the last `BACKFILL` days. It reads the store once a pass, for every
 project, and only on a pass with a day to keep. A line names the project's runs by T3 Code's
-project id. With no store on the machine, or one that cannot be read, it keeps nothing.
+project id. With no store on the machine, or one that cannot be read, it keeps nothing, and a
+project whose state cannot be read is passed over, so it stops no other project's.
 """
 
 from __future__ import annotations
@@ -59,7 +60,12 @@ def due(config: jbus.Config, state: Path, now: datetime) -> list[date]:
 def keep(config: jbus.Config, now: datetime, store: Path = spend.STORE) -> int:
     """Keep each project's days that are due, and return how many lines of `spend.jsonl` it
     added."""
-    owed = {project: due(config, config.state(project), now) for project in config.projects}
+    owed = {}
+    for project in config.projects:
+        try:
+            owed[project] = due(config, config.state(project), now)
+        except OSError:
+            continue
     days = sorted({day for found in owed.values() for day in found})
     if not days:
         return 0
@@ -71,20 +77,29 @@ def keep(config: jbus.Config, now: datetime, store: Path = spend.STORE) -> int:
         return 0
     added = 0
     for project, found in owed.items():
-        state = config.state(project)
-        mine = [run for run in runs if run.project_id == project.project_id]
-        for day in found:
-            begin, end = _start(config, day), _start(config, day + timedelta(days=1))
-            total, rows = spend.day_lines([r for r in mine if begin <= r.start < end], str(day))
-            at = {"at": now.isoformat()}
-            history.add(
-                state / ROWS,
-                [one | at for one in rows],
-                lambda one: (one.get("day"), one.get("role"), one.get("slug")),
-                history.TAIL,
-            )
-            history.add(state / FILE, [total | at], lambda one: one.get("day"), history.TAIL)
-            added += 1
+        try:
+            added += _write(config, project, found, runs, now)
+        except OSError:
+            continue
+    return added
+
+
+def _write(config: jbus.Config, project: jbus.Project, found, runs, now: datetime) -> int:
+    """Keep the project's days, and return how many it kept."""
+    state, added = config.state(project), 0
+    mine = [run for run in runs if run.project_id == project.project_id]
+    for day in found:
+        begin, end = _start(config, day), _start(config, day + timedelta(days=1))
+        total, rows = spend.day_lines([r for r in mine if begin <= r.start < end], str(day))
+        at = {"at": now.isoformat()}
+        history.add(
+            state / ROWS,
+            [one | at for one in rows],
+            lambda one: (one.get("day"), one.get("role"), one.get("slug")),
+            history.TAIL,
+        )
+        history.add(state / FILE, [total | at], lambda one: one.get("day"), history.TAIL)
+        added += 1
     return added
 
 
