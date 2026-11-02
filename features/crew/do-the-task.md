@@ -153,6 +153,7 @@
   A pull request already open whose diff a later push makes touch two features gets it with `gh pr edit --add-label cross-cutting`, and the borders check reruns when it is labelled.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
+  jbus drops the line, and bases the pull request on the default branch, where the link's own change has no need of its base's: the base is then the default branch.
   On `no base`, open no pull request: write what it printed on the Result's `Left:` line and in what you tell the home.
 
 The user may steer in this thread at any time. What they say here overrides the brief; record it in the result.

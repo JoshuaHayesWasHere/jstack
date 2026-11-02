@@ -205,3 +205,4 @@ A failing push before any review starts nothing more than the reviewer the pull 
 
 A task is stacked on another task's branch in one case only, and a crewmate sees it as a line in the head of its brief.
 A row that builds on another row's code launches once that row opened its pull request, on its branch: jbus writes its `Stacked on:` line, and only once its base merged moves it, or tells it once to rebase with "A link that moved".
+jbus takes the link off its stack sooner where its own change has no need of its base's ("A link that moved"), and drops the line: it is then a pull request on the default branch like any other.
