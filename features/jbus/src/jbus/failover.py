@@ -499,7 +499,7 @@ VERBS = (
     ),
 )
 STEPS = (
-    verbs.Step("before-watch", 7, "failover.held", lambda half: held(half.run)),
+    verbs.Step("before-watch", 11, "failover.held", lambda half: held(half.run)),
     verbs.Step(
         "before-watch",
         7,

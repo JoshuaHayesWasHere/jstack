@@ -73,15 +73,16 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
         "already gh",
         "already gh sign-in",
     ]
-    assert said[8:13] == [
+    assert said[8:14] == [
         f"done jbus config {user.jbus_config}",
         f"missing optional jbus sign-in {user.token} -> jbus t3 login",
         f"done config {user.config}",
         f"done roles {user.roles}",
+        "already role pools",
         f"missing optional state repo {user.state} -> git init {user.state}"
         f" && git -C {user.state} remote add origin <url>",
     ]
-    assert said[13:16] == [
+    assert said[14:17] == [
         f"missing optional ci report {user.jbus_config}"
         f" -> ci_report = true in a [[project]] of {user.jbus_config}",
         f"missing optional relay {user.relay_env}"
@@ -92,8 +93,8 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
     parts = [part for part in [*user.parts(), f"optional units {user.units}"] if part not in links]
     done = [f"done {part.split(' ', 1)[1]}" for part in parts]
     folded = [f"done {fold}: {len(SKILLS)} links" for fold in FOLDS]
-    assert said[16] == "already generated files are current"
-    assert said[17:] == [*done[:3], *folded, *done[3:]]
+    assert said[17] == "already generated files are current"
+    assert said[18:] == [*done[:3], *folded, *done[3:]]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))
 
@@ -410,7 +411,7 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     said = done.stdout.splitlines()
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
-    probed, harness, units, left = 16, 1, 1, 5
+    probed, harness, units, left = 17, 1, 1, 5
     parts = len(user.parts()) - len(user.links()) + len(FOLDS)
     count = probed + harness + parts + units - left
     assert said[-2:] == [

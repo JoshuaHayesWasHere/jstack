@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from jroles import ledger
-from test_jbus_kitchen import NOW, SELECTION, approved, sends
+from test_jbus_kitchen import NOW, SELECTION, approved, asks
 from test_jbus_resume import THREAD, crew
 
 PRIME = "claudeAgent_claude_prime"
@@ -86,7 +86,7 @@ def test_the_16th_weekly_failure_moves_the_thread_once_to_prime_with_its_model(k
     assert configures(kitchen) == [
         {"threadId": THREAD, "modelSelection": {**SELECTION, "instanceId": PRIME}}
     ]
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert carry["threadId"] == THREAD and carry["mode"] == "queue"
     assert carry["clientRequestId"] == f"failover|{THREAD}|run-1"
     assert WEEKLY in carry["message"] and f"now on {PRIME}" in carry["message"]
@@ -121,7 +121,7 @@ def test_the_17th_prime_cap_stalls_once_then_carries_on_at_the_first_reset(kitch
     failed_on(thread, SESSION, run="run-2", ran_on=PRIME, at=PRIME_CAPPED)
     for minutes in (0, 3, 6, 60):
         kitchen.poll(PRIME_CAPPED + timedelta(minutes=minutes))
-    assert len(sends(kitchen)) == 1 and len(configures(kitchen)) == 1
+    assert len(asks(kitchen)) == 1 and len(configures(kitchen)) == 1
     (stall,) = kitchen.lines("stall")
     assert stall == (
         f"capped alpha: claudeAgent and {PRIME} are both capped until "
@@ -130,7 +130,7 @@ def test_the_17th_prime_cap_stalls_once_then_carries_on_at_the_first_reset(kitch
     assert kitchen.lines("resume") == []
     kitchen.poll(SESSION_RESET + timedelta(minutes=1))
     kitchen.poll(SESSION_RESET + timedelta(minutes=4))
-    assert [given["clientRequestId"] for given in sends(kitchen)] == [
+    assert [given["clientRequestId"] for given in asks(kitchen)] == [
         f"failover|{THREAD}|run-1",
         f"failover|{THREAD}|run-2",
     ]
@@ -143,7 +143,7 @@ def test_the_same_failure_seen_on_two_passes_acts_once(kitchen):
     failed_on(thread, WEEKLY)
     for minutes in (0, 3, 6):
         kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
-    assert len(sends(kitchen)) == 1 and len(configures(kitchen)) == 1
+    assert len(asks(kitchen)) == 1 and len(configures(kitchen)) == 1
     assert len(failovers(kitchen)) == 1 and kitchen.lines("resume") == []
     assert thread["selection"]["instanceId"] == PRIME
 
@@ -164,7 +164,7 @@ def test_a_thread_already_on_the_chosen_instance_is_not_moved_again(kitchen):
     failed_on(thread, SESSION, ran_on="claudeAgent")
     kitchen.poll(FAILED_16TH)
     assert configures(kitchen) == []
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"now on {PRIME}" in carry["message"]
 
 
@@ -175,7 +175,7 @@ def test_a_limit_failure_is_no_carry_on_of_the_resume_path(kitchen):
     kitchen.poll(FAILED_16TH)
     failed_on(thread, WEEKLY, run="run-2", ran_on=PRIME)
     kitchen.poll(AFTER)
-    assert [given["clientRequestId"] for given in sends(kitchen)] == [
+    assert [given["clientRequestId"] for given in asks(kitchen)] == [
         f"failover|{THREAD}|run-1",
         f"failover|{THREAD}|run-2",
     ]
@@ -204,7 +204,7 @@ def test_a_home_thread_is_moved_in_the_home_pool_and_told_to_carry_on_from_its_h
     (given,) = configures(kitchen)
     assert given["threadId"] == home["threadId"]
     assert given["modelSelection"]["instanceId"] == PRIME
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert "read your handoff" in carry["message"]
 
 
@@ -234,7 +234,7 @@ def test_a_capped_thread_moves_to_the_other_instance_either_way(kitchen, who, ra
     assert configures(kitchen) == [
         {"threadId": thread["threadId"], "modelSelection": {**SELECTION, "instanceId": other}}
     ]
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"now on {other}" in carry["message"]
     (line,) = failovers(kitchen)
     assert line.startswith(f"failover {name}: five_hour limit until {SESSION_RESET.isoformat()}")
@@ -256,7 +256,7 @@ def test_with_both_capped_a_thread_stalls_once_and_carries_on_at_the_first_reset
     failed_on(thread, SESSION, ran_on=ran_on, notice=("five_hour", SESSION_RESET))
     for minutes in (0, 3, 6, 60):
         kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
-    assert configures(kitchen) == [] and sends(kitchen) == []
+    assert configures(kitchen) == [] and asks(kitchen) == []
     assert kitchen.lines("stall") == [
         f"capped {name}: claudeAgent and {PRIME} are both capped until {first.isoformat()}; "
         "it is sent on at the first reset"
@@ -266,7 +266,7 @@ def test_with_both_capped_a_thread_stalls_once_and_carries_on_at_the_first_reset
     assert configures(kitchen) == [
         {"threadId": thread["threadId"], "modelSelection": {**SELECTION, "instanceId": other}}
     ]
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"now on {other}" in carry["message"]
     assert len(kitchen.lines("stall")) == 1 and kitchen.lines("resume") == []
 
@@ -275,7 +275,7 @@ def test_a_thread_no_brief_and_no_home_names_is_left_alone(kitchen):
     other = kitchen.t3.thread("stray", "failed", title="a chat")
     failed_on(other, WEEKLY)
     kitchen.poll(FAILED_16TH)
-    assert configures(kitchen) == [] and sends(kitchen) == []
+    assert configures(kitchen) == [] and asks(kitchen) == []
     assert ledger.read(["claudeAgent", "stray"]) == {}
 
 
@@ -287,7 +287,7 @@ def test_a_thread_on_an_instance_outside_its_pool_is_never_moved_into_it(kitchen
     thread["selection"] = {"instanceId": "cursor", "model": "grok-4.7"}
     failed_on(thread, WEEKLY, ran_on="cursor")
     kitchen.poll(FAILED_16TH)
-    assert configures(kitchen) == [] and sends(kitchen) == []
+    assert configures(kitchen) == [] and asks(kitchen) == []
     assert kitchen.lines("stall") == [
         f"capped alpha: cursor is capped until {WEEKLY_RESET.isoformat()}; "
         "it is sent on at the first reset"
@@ -300,9 +300,9 @@ def test_a_pool_of_one_waits_for_its_reset_and_then_carries_on_where_it_is(kitch
     thread = crew(kitchen)
     failed_on(thread, WEEKLY)
     kitchen.poll(FAILED_16TH)
-    assert sends(kitchen) == [] and len(kitchen.lines("stall")) == 1
+    assert asks(kitchen) == [] and len(kitchen.lines("stall")) == 1
     kitchen.poll(AFTER)
-    assert configures(kitchen) == [] and len(sends(kitchen)) == 1
+    assert configures(kitchen) == [] and len(asks(kitchen)) == 1
 
 
 def test_the_ledger_keeps_the_later_reset_and_holds_a_blind_limit_for_an_hour(tmp_path):
@@ -450,14 +450,14 @@ def test_tonights_caps_move_all_twelve_threads_to_the_other_account_once(
         }
         for at, thread in sorted(made.items())
     ]
-    assert sorted(given["threadId"] for given in sends(kitchen)) == sorted(made)
-    assert all(f"now on {other}" in given["message"] for given in sends(kitchen))
+    assert sorted(given["threadId"] for given in asks(kitchen)) == sorted(made)
+    assert all(f"now on {other}" in given["message"] for given in asks(kitchen))
     assert all(thread["selection"]["instanceId"] == other for thread in made.values())
     assert ledger.file_of(ran_on).read_text() == f"five_hour 100 {TONIGHT_RESET}\n"
     assert not ledger.file_of(other).exists()
     assert len(failovers(kitchen)) == 12
     kitchen.poll(AT_0416 + timedelta(minutes=3))
-    assert len(sends(kitchen)) == 12 and len(configures(kitchen)) == 12
+    assert len(asks(kitchen)) == 12 and len(configures(kitchen)) == 12
 
 
 def test_a_reviewer_is_told_to_carry_on_its_review_and_logged_under_its_own_thread(kitchen, pools):
@@ -465,7 +465,7 @@ def test_a_reviewer_is_told_to_carry_on_its_review_and_logged_under_its_own_thre
     made = tonight(kitchen)
     kitchen.poll(AT_0416)
     (reviewer,) = [t for t in made.values() if t["title"].startswith("review: hot-semantic")]
-    (carry,) = [given for given in sends(kitchen) if given["threadId"] == reviewer["threadId"]]
+    (carry,) = [given for given in asks(kitchen) if given["threadId"] == reviewer["threadId"]]
     brief = kitchen.home / "tasks" / "hot-semantic-lines.md"
     assert f"read `{brief}` and the pull request first" in carry["message"]
     assert "features/pr-review/SKILL.md" in carry["message"]
@@ -482,7 +482,7 @@ def test_a_scout_moves_and_reads_its_request(kitchen):
     kitchen.poll(FAILED_16TH)
     (given,) = configures(kitchen)
     assert given["modelSelection"]["instanceId"] == PRIME
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"read `{kitchen.home / 'scouts' / 'probe.md'}` first" in carry["message"]
     assert failovers(kitchen)[0].startswith("failover scout probe: five_hour limit")
 
@@ -507,14 +507,14 @@ def test_a_thread_that_owes_nothing_is_left_alone(kitchen, title, kind, text):
     thread = kitchen.t3.thread("alpha", "failed", title=title)
     failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
     kitchen.poll(FAILED_16TH)
-    assert configures(kitchen) == [] and sends(kitchen) == [] and failovers(kitchen) == []
+    assert configures(kitchen) == [] and asks(kitchen) == [] and failovers(kitchen) == []
 
 
 def test_a_home_titled_thread_no_home_id_holds_is_left_alone(kitchen):
     thread = kitchen.t3.thread("home", "failed", title="home: demo")
     failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
     kitchen.poll(FAILED_16TH)
-    assert configures(kitchen) == [] and sends(kitchen) == []
+    assert configures(kitchen) == [] and asks(kitchen) == []
 
 
 def test_a_crew_of_every_project_of_the_config_moves(kitchen):
@@ -527,7 +527,7 @@ def test_a_crew_of_every_project_of_the_config_moves(kitchen):
         "threadId": thread["threadId"],
         "modelSelection": SELECTION | {"instanceId": PRIME},
     }
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"read `{side.home / 'tasks' / 'beta.md'}`" in carry["message"]
 
 
@@ -566,7 +566,7 @@ def test_the_replay_moves_a_live_thread_once_and_leaves_the_ledger_alone(kitchen
     assert configures(kitchen) == [
         {"threadId": thread["threadId"], "modelSelection": SELECTION | {"instanceId": other}}
     ]
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"now on {other}" in carry["message"]
     assert carry["clientRequestId"].startswith(f"failover|{thread['threadId']}|replay:")
     assert "failover scratch: five_hour limit until " in out
@@ -574,7 +574,7 @@ def test_the_replay_moves_a_live_thread_once_and_leaves_the_ledger_alone(kitchen
     assert ledger.read(["claudeAgent", PRIME]) == {}
     code, again = replayed(kitchen, "--thread", thread["threadId"])
     assert code == 0 and again.startswith("already replayed")
-    assert len(sends(kitchen)) == 1 and len(configures(kitchen)) == 1
+    assert len(asks(kitchen)) == 1 and len(configures(kitchen)) == 1
 
 
 def test_the_replay_moves_the_recorded_reset_to_now(kitchen):
@@ -610,7 +610,7 @@ def test_the_replay_refuses_a_thread_that_is_no_role_of_the_project(kitchen):
     assert (
         out.strip() == f"refused: {other['threadId']} is no crew, reviewer, scout or home of demo"
     )
-    assert configures(kitchen) == [] and sends(kitchen) == []
+    assert configures(kitchen) == [] and asks(kitchen) == []
 
 
 def test_the_replay_fills_the_window_the_ledger_has_running(kitchen):
@@ -638,14 +638,14 @@ def test_a_scoped_or_second_reviewer_of_a_task_still_out_moves_though_a_verdict_
     kitchen.poll(FAILED_16TH)
     (given,) = configures(kitchen)
     assert given["modelSelection"]["instanceId"] == PRIME
-    assert len(sends(kitchen)) == 1
+    assert len(asks(kitchen)) == 1
 
 
 def test_a_numbered_reviewer_is_told_to_read_its_brief(kitchen):
     thread = kitchen.t3.thread("alpha", "failed", title="review: alpha, 2")
     failed_on(thread, SESSION, notice=("five_hour", SESSION_RESET))
     kitchen.poll(FAILED_16TH)
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert f"read `{kitchen.home / 'tasks' / 'alpha.md'}` and the pull request" in carry["message"]
     assert f"jbriefs --skills {kitchen.home / 'tasks' / 'alpha.md'}" in carry["message"]
     assert failovers(kitchen)[0].startswith("failover review alpha: five_hour limit")
