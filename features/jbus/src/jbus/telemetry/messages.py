@@ -7,6 +7,14 @@ read, `kind` is worked out of its first few hundred characters, and only the lab
 text's length are kept. The view `ask_ledger` (`jbus.telemetry.schema`) joins each message the
 user typed to the row, the answer or the reply that followed it.
 
+A word the user said where T3 Code has no message of theirs, through the bots' chat or the view,
+is a message too: `jbus word` keeps it as an act (`jbus.word`), and each build writes a row for
+each such act of the store's `acts`, keyed `word:<id>`, from the user, at the time it was said, in
+the thread jbus carried it to (`word_sends`), with `creation_source` `word:<the act's source>`.
+A word recorded from the user's own T3 message (`t3-message`) is that message and no row of its
+own, and the message jbus carries a word in is written by T3 Code's agent, so neither is a second
+ask.
+
 A message's `project` is the jbus project whose `projectId` its thread is in, else T3 Code's own
 id of the project, so a project jbus does not know yet still has its messages kept.
 
@@ -67,6 +75,8 @@ DROPPED = (
     "generate a title that will help the user",
 )
 """The starts of a text that T3 Code or an agent put in the user's turn: the week audit's filter."""
+WORD = "word:"
+"""The start of a word's key and of its `creation_source`, which ends with its act's source."""
 _COMMAND = re.compile(r"^[/$][a-z][\w:-]*")
 _READ = """
 select m.rowid, m.message_id, m.thread_id, m.role, m.created_at, t.project_id,
@@ -77,6 +87,16 @@ length(m.payload_json) from orchestration_v2_projection_messages m
 left join orchestration_v2_projection_threads t on t.thread_id = m.thread_id
 where m.rowid > ? order by m.rowid limit ?
 """
+
+
+WORDS = f"""
+SELECT a.project, '{WORD}' || a.id, a.id, s.thread, 'user', coalesce(a.said_at, a.at), NULL,
+'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len
+FROM acts a LEFT JOIN word_sends s ON s.project = a.project AND s.word = a.id
+WHERE a.verb = 'word' AND coalesce(a.source, '') <> 't3-message'
+"""
+"""Each word no T3 message holds, as a row of `messages`: a `jbus word` said through the bots'
+chat or the view, at the time it was said, in the thread jbus carried it to."""
 
 
 def kind(message_id: str, head: str | None) -> str:
@@ -110,7 +130,19 @@ def read(
     most: int | None,
 ) -> None:
     """Keep each message of T3 Code's store the store has not read, batch by batch, and leave
-    the rest once `most` bytes are read."""
+    the rest once `most` bytes are read; then keep each word of the store's acts as a message."""
+    _t3(connection, config, zone, built, most)
+    _words(connection, zone, built)
+
+
+def _t3(
+    connection: sqlite3.Connection,
+    config: jbus.Config,
+    zone: tzinfo | None,
+    built: Built,
+    most: int | None,
+) -> None:
+    """Keep each message of T3 Code's store the store has not read."""
     where = boxes.store()
     if not where.is_file():
         return
@@ -160,6 +192,28 @@ def read(
             _keep(connection, rows, inode, start, found[-1][1], signed, built)
     finally:
         t3.close()
+
+
+def _words(connection: sqlite3.Connection, zone: tzinfo | None, built: Built) -> None:
+    """Keep each word the store's acts hold that no T3 message holds as a row of its own, in
+    place of a row that says otherwise: the thread a word went to can come after the word."""
+    names = ["project", "key", *(name for name, _ in COLUMNS), "day"]
+    found = connection.execute(WORDS).fetchall()
+    rows = {row[:2]: (*row, records.day(row[5], zone)) for row in found}
+    held = set(
+        connection.execute(f"SELECT {', '.join(names)} FROM {TABLE} WHERE key LIKE '{WORD}%'")
+    )
+    new = [row for row in rows.values() if row not in held]
+    if not new:
+        return
+    connection.execute("BEGIN")
+    connection.executemany(
+        f"INSERT OR REPLACE INTO {TABLE} ({', '.join(names)}) "
+        f"VALUES ({', '.join('?' for _ in names)})",
+        new,
+    )
+    built.rows[TABLE] += len(new)
+    connection.execute("COMMIT")
 
 
 def _start(connection: sqlite3.Connection, t3: sqlite3.Connection, inode: int, signed: str) -> int:

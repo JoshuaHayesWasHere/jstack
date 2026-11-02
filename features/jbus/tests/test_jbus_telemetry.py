@@ -100,6 +100,47 @@ def act_citing(machine, project, thread, message, at, verb="go", subject="alpha-
     )
 
 
+def word(machine, project, name, said, source="bot-chat", ref="winifred-chef/voice:call-1"):
+    """A word as `jbus word` keeps it: an act whose verb is `word`, said at `said`."""
+    machine.append(
+        project,
+        "acts.jsonl",
+        {
+            "action": {"doors": [], "subject": "", "verb": "word"},
+            "at": iso(said + timedelta(seconds=30)),
+            "evidence": {
+                "checked": False,
+                "ref": ref,
+                "said_at": iso(said),
+                "said_in": f"{source} {ref}",
+                "source": source,
+                "words": SECRET,
+            },
+            "gate": None,
+            "id": name,
+            "line": "kept",
+            "outcome": "done",
+            "party": {"kind": "home", "name": "", "route": "cli"},
+        },
+    )
+
+
+def act_on_word(machine, project, name, at, verb="go", subject="alpha-one", gate=None):
+    """An act that cites a word by its id, as a go given on the user's word does."""
+    machine.append(
+        project,
+        "acts.jsonl",
+        {
+            "action": {"doors": [], "subject": subject, "verb": verb},
+            "at": iso(at),
+            "evidence": {"ref": name, "source": "typed", "words": ""},
+            "gate": gate,
+            "id": f"act-{name}",
+            "party": {"kind": "home"},
+        },
+    )
+
+
 class Machine:
     """A jbus config of two projects, `alpha` and `beta`, with their state and their homes."""
 
@@ -464,6 +505,7 @@ def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
     t3.thread("mcp:home-a", "alpha-id")
     t3.say("m-1", "mcp:home-a", NOW)
     t3.say("r-1", "mcp:home-a", NOW + timedelta(seconds=20), text=SECRET, role="assistant")
+    word(machine, "beta", "w-1", NOW)
     machine.build()
 
     found = dump(machine.state_dir / telemetry.FILE)
@@ -477,7 +519,7 @@ def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
     assert stat.S_IMODE((machine.state_dir / telemetry.FILE).stat().st_mode) == 0o600
     with contextlib.closing(machine.store()) as store:
         lengths = store.execute("SELECT words_len FROM acts").fetchall()
-        assert lengths == [(len(SECRET),), (len(SECRET),)]
+        assert lengths == [(len(SECRET),)] * 3
 
 
 def scorecard_pct(values, share):
@@ -656,6 +698,79 @@ def test_each_typed_message_joins_a_row_an_answer_or_a_reply_or_is_a_lost_ask(ma
     ]
     assert weeks[0] == ("2026-10-25", 6, 2, 0)
     assert weeks[-1][1:] == (0, 0, 1)
+
+
+def test_a_word_said_in_the_bots_chat_is_a_typed_message_and_joins_like_one(machine):
+    """A word the user said through the bots' chat is one row of `messages` with no text, in
+    the thread jbus carried it to, and joins the act that cites it by its id, a row first, then
+    an answer, else the first reply in that thread within the wait; with none, it is lost."""
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    wait = timedelta(minutes=telemetry.schema.WAIT)
+    word(machine, "alpha", "w-row", NOW)
+    act_on_word(machine, "alpha", "w-row", NOW + 3 * wait)
+    word(machine, "beta", "w-answer", NOW + timedelta(minutes=1), source="view", ref="")
+    act_on_word(machine, "beta", "w-answer", NOW + timedelta(minutes=2), "answer", gate=4)
+    word(machine, "alpha", "w-reply", NOW + timedelta(minutes=10))
+    t3.say("r-reply", home, NOW + timedelta(minutes=11), role="assistant")
+    word(machine, "alpha", "w-lost", NOW + timedelta(hours=1))
+    t3.say("r-lost", home, NOW + timedelta(hours=1) + wait + timedelta(minutes=1), role="assistant")
+    word(machine, "alpha", "w-waiting", datetime.now(UTC) - timedelta(minutes=5))
+    sent = {"sent_at": iso(NOW), "thread": home, "waits": ""}
+    machine.write("alpha", "word-sends.json", {"w-reply": sent, "w-lost": sent})
+    machine.build()
+    assert "nothing new" in machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(
+            "SELECT project, key, thread, role, created_by, creation_source, kind, text_len "
+            "FROM messages WHERE role = 'user' ORDER BY key"
+        ).fetchall()
+        ledger = store.execute(
+            "SELECT project, id, kind, joined, link FROM ask_ledger ORDER BY at"
+        ).fetchall()
+        weeks = store.execute("SELECT week, typed, lost, waiting FROM weekly_lost_asks").fetchall()
+    assert rows == [
+        ("beta", "word:w-answer", None, "user", "user", "word:view", "text", len(SECRET)),
+        ("alpha", "word:w-lost", home, "user", "user", "word:bot-chat", "text", len(SECRET)),
+        ("alpha", "word:w-reply", home, "user", "user", "word:bot-chat", "text", len(SECRET)),
+        ("alpha", "word:w-row", None, "user", "user", "word:bot-chat", "text", len(SECRET)),
+        ("alpha", "word:w-waiting", None, "user", "user", "word:bot-chat", "text", len(SECRET)),
+    ]
+    assert ledger == [
+        ("alpha", "w-row", "text", "row", "act-w-row"),
+        ("beta", "w-answer", "text", "answer", "act-w-answer"),
+        ("alpha", "w-reply", "text", "reply", "r-reply"),
+        ("alpha", "w-lost", "text", "unanswered", None),
+        ("alpha", "w-waiting", "text", "waiting", None),
+    ]
+    assert weeks[0] == ("2026-10-25", 4, 1, 0)
+
+
+def test_a_word_carried_into_a_t3_thread_or_said_in_one_is_one_ask(machine):
+    """The message jbus carries a word in is T3 Code's, not the user's, and a word recorded
+    from the user's own T3 message is that message: each word is one ask."""
+    t3, home, crew = T3(), "mcp:home-a", "mcp:crew-a"
+    t3.thread(home, "alpha-id")
+    t3.thread(crew, "alpha-id")
+    word(machine, "alpha", "w-chat", NOW)
+    machine.write(
+        "alpha", "word-sends.json", {"w-chat": {"sent_at": iso(NOW), "thread": home, "waits": ""}}
+    )
+    carried = "message:mcp:client:thread-send:word%7Calpha%7Cw-chat%7Cmcp%3Ahome-a"
+    t3.say(carried, home, NOW + timedelta(seconds=40), by="agent")
+    t3.say("r-chat", home, NOW + timedelta(minutes=1), role="assistant")
+    t3.say("m-typed", crew, NOW + timedelta(minutes=5))
+    word(machine, "alpha", "w-typed", NOW + timedelta(minutes=5), "t3-message", f"{crew}/m-typed")
+    t3.say("r-typed", crew, NOW + timedelta(minutes=6), role="assistant")
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        ledger = store.execute("SELECT id, joined FROM ask_ledger ORDER BY at").fetchall()
+        typed = store.execute("SELECT typed FROM weekly_lost_asks").fetchall()
+    assert [one for one, _ in ledger] == ["w-chat", "m-typed"]
+    assert ledger[0] == ("w-chat", "reply")
+    assert typed == [(2,)]
 
 
 def test_a_t3_store_numbered_again_or_replaced_is_read_again_and_keeps_one_row_a_message(machine):

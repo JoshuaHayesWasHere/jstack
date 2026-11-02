@@ -28,12 +28,13 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `weekly_lead_time`, `weekly_change_failure` and `weekly_restore` (S7): each week's number,
   the median and the 85th percentile as `statistics.median` and the scorecard's `pct` take
   them. A week starts on Sunday, in the user's zone.
-- `ask_ledger`: each message the user typed (`TYPED`) and what followed it, the first of: a
-  `row`, an act that cites the message by id and names a row; an `answer`, an act that cites it
-  and answers a gate; a `reply`, the assistant's first message in its thread within `WAIT`
-  minutes. An act counts whenever it came, since it names the message; a reply is only matched
-  by time. With none, it is `waiting` until `WAIT` minutes have passed by the last build, then
-  `unanswered`: a lost ask.
+- `ask_ledger`: each message the user typed (`TYPED`), a word said through the bots' chat or the
+  view among them, and what followed it, the first of: a `row`, an act that cites the message by
+  id (a word by its own id) and names a row; an `answer`, an act that cites it and answers a
+  gate; a `reply`, the assistant's first message in its thread within `WAIT` minutes. An act
+  counts whenever it came, since it names the message; a reply is only matched by time. With
+  none, it is `waiting` until `WAIT` minutes have passed by the last build, then `unanswered`: a
+  lost ask.
 - `weekly_lost_asks` (S3): each week's typed messages that are settled, the lost ones among
   them, those still waiting, and the rate, with no labels.
 - `pr_times`: each pull request `ci-prs.jsonl` holds and `jmerge` logged as merged, in the week
@@ -353,7 +354,8 @@ VIEWS: tuple[tuple[str, str], ...] = (
         f"WITH typed AS (SELECT * FROM messages WHERE {TYPED}), "
         "links AS (SELECT t.project, t.key, CASE WHEN a.gate IS NOT NULL OR a.verb = 'answer' "
         "THEN 'answer' ELSE 'row' END AS joined, a.at AS joined_at, a.id AS link FROM typed t "
-        "JOIN acts a ON a.ref = t.thread || '/' || t.id "
+        f"JOIN acts a ON a.ref = CASE WHEN t.key = '{messages.WORD}' || t.id THEN t.id "
+        "ELSE t.thread || '/' || t.id END "
         "WHERE a.gate IS NOT NULL OR a.verb = 'answer' OR a.subject IS NOT NULL "
         "UNION ALL SELECT t.project, t.key, 'reply', r.at, r.id FROM typed t JOIN messages r "
         "ON r.thread = t.thread AND r.role = 'assistant' AND r.at > t.at "

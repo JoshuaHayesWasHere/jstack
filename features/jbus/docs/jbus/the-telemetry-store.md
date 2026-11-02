@@ -28,7 +28,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
-| `messages` | T3 Code's store, read only | a message of a T3 Code thread, the user's or the assistant's, keyed by its id |
+| `messages` | T3 Code's store, read only, and the `word` acts of `acts` | a message of a T3 Code thread, the user's or the assistant's, keyed by its id, or a word you said with no T3 message, keyed `word:<id>` |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
 Each table also has `day`, the local date of its main time in the zone that `jsettings` gives.
@@ -37,6 +37,9 @@ Each table also has `day`, the local date of its main time in the zone that `jse
 `messages` reads T3 Code's `statev2.sqlite` on from the last message it read.
 Its `project` is the jbus project of the thread, or T3 Code's own id of a project jbus does not know.
 A user's message has a `kind`: `text`, `command`, `answer`, `resume`, or `dropped` for a text that T3 Code or an agent put in the user's turn.
+A word you said through the bots' chat or the view, which `jbus word` keeps as an act, is a message of yours too, of kind `text`.
+Each build writes it from the store's `acts`, at the time you said it, in the thread jbus carried it to, with `creation_source` `word:` and the act's source, such as `word:bot-chat`.
+A word recorded from your own T3 message is that message, and the message jbus carries a word in is T3 Code's, so each word is one ask.
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.
@@ -86,7 +89,7 @@ F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with 
 | `run_attempts` | F2 for each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
 | `carried_words` | F4 for each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
-| `ask_ledger` | each message you typed and what it joined: a `row` or an `answer`, an act that cites the message by id, else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
+| `ask_ledger` | each message you typed or word you said and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
 | `weekly_typed_per_row` | each week's messages you `typed`, resumes apart, rows `merged`, and `per_row` |
 | `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its merge line: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round |
