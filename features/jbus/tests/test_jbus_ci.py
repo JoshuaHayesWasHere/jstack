@@ -410,12 +410,18 @@ def test_a_hosted_red_kept_before_its_log_was_read_is_read_once_by_the_next_coll
     collect.collect(gh, REPO, tmp_path, NOW, 14)
     after = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
     assert after[red["id"]]["tests"] == ["tests/test_a.py::test_b"]
-    reds = [one for one in after.values() if one["conclusion"] == "failure" and one["steps"]]
-    assert len(after) == len(rows) and reds and all(one["logged"] for one in reds)
+    reds = [
+        one
+        for one in after.values()
+        if one["conclusion"] == "failure" and one["steps"] and one["kind"] == "hosted"
+    ]
+    assert len(after) == len(rows) and after[red["id"]]["logged"] is True
+    assert all("logged" not in one for one in reds if one["job"] != red["id"])
     assert red["id"] in gh.read
     again = HostedLog(red["id"])
     collect.collect(again, REPO, tmp_path, NOW, 14)
-    assert again.read == []
+    assert red["id"] not in again.read
+    assert sorted(again.read) == sorted(one["job"] for one in reds if one["job"] != red["id"])
 
 
 def test_a_re_read_keeps_what_a_local_red_held_and_retries_a_log_github_did_not_give(tmp_path):

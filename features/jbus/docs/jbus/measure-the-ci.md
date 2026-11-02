@@ -26,7 +26,7 @@ It keeps what it collects in two files in the project's state directory:
   It also holds the job's `name`, `sha`, `branch`, `pr`, `event`, `created`, `started`, `completed` and `conclusion`.
   It names the `runner` and its `kind`, `hosted` or `local`.
   For a red job on either kind of runner, it lists the failing `tests` and the runner faults (`signs`) that the job's log shows, and `logged` says the log was read.
-  A red job kept before `jbus ci` read the logs of hosted jobs has no `logged` field, and the next collect whose days reach it reads its log once and rewrites the file.
+  A red hosted job kept before `jbus ci` read the logs of hosted jobs has no `logged` field, and the next collect whose days reach it reads its log and rewrites the file, or leaves it for a later collect where GitHub did not give the log.
   A job cancelled while it waited has no runner and no start, and `jbus ci` keeps it and counts it.
 - `ci-prs.jsonl`, one line per pull request, rewritten when one changed, with the time GitHub last updated it and the times its branch was force-pushed.
 

@@ -9,9 +9,10 @@ requests come a page at a time, the latest update first, and the collector stops
 that reaches back past the time. For a red job, on a local or a hosted runner, it reads the log
 once, for the failing tests the log names and the runner faults the log shows. Each of those reads
 waits for the reads of the stage before it and for no other, so a pass's job lists, annotations and
-logs are read side by side (`jbus.passes.side_by_side`). A red job kept before the collector read
-every red job's log has no `logged` field: a collect reads the log of each such job created since
-its time, once, and rewrites the ledger with what it read.
+logs are read side by side (`jbus.passes.side_by_side`). A red hosted job kept before the collector
+read hosted logs has no `logged` field: a collect reads the log of each such job created since its
+time and rewrites the ledger with what it read, and leaves one whose log GitHub did not give as it
+was, for the next collect.
 
 `jbus ci` collects the last `days` days (`collect`) and waits for the ledger's lock. Each pass of
 jbus collects too (`keep`, from the step in `jbus.ci`): the runs created in the last `PASS_HOURS`
@@ -371,17 +372,25 @@ def _collect(
 
 
 def _reread(gh: Gh, repo: str, state: Path, since: datetime) -> None:
-    """Read the log of each red job created since `since` that was kept before the collector
-    read every red job's log (it has no `logged` field), and rewrite the ledger with it."""
+    """Read the log of each red hosted job created since `since` that was kept before the
+    collector read hosted logs (it has no `logged` field), and rewrite the ledger with what was
+    read. A local one's log was read when it was kept, and a log GitHub does not give now leaves
+    its job as it was, for the next collect."""
     kept = ledger.read(state / ledger.JOBS)
     older = [
         at
         for at, one in enumerate(kept)
-        if "logged" not in one and unlogged(one) and (_time(one.get("created")) or since) >= since
+        if "logged" not in one
+        and one["kind"] == "hosted"
+        and unlogged(one)
+        and (_time(one.get("created")) or since) >= since
     ]
     if not older:
         return
     read = side_by_side(lambda at: read_log(gh, repo, kept[at]), older)
-    for at, one in zip(older, read, strict=True):
+    given = [(at, one) for at, one in zip(older, read, strict=True) if one["tests"] is not None]
+    if not given:
+        return
+    for at, one in given:
         kept[at] = one
     ledger.rewrite(state / ledger.JOBS, kept)
