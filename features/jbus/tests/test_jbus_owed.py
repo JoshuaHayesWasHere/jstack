@@ -13,7 +13,7 @@ import pytest
 import jbus
 from jbus import owed, record
 from jroles import ledger
-from test_jbus_failover import PRIME, failed_on, pools  # noqa: F401
+from test_jbus_failover import POOL, PRIME
 from test_jbus_kitchen import NOW, sends
 from test_jbus_leftover import home
 
@@ -77,6 +77,18 @@ def stopped(thread, items, run="run-1", ran_on="claudeAgent", status="failed", o
         runs=runs,
         read_items=items,
         snoozed=False,
+    )
+
+
+@pytest.fixture(autouse=True)
+def pools(jstack_config, request):
+    """The role map gives the crew and the home one pool, claudeAgent first, as
+    `test_jbus_failover` has it, and the kitchen starts with no plan."""
+    if "kitchen" in request.fixturenames:
+        request.getfixturevalue("kitchen").machine(plan=None)
+    roles = jstack_config.parent / "roles"
+    roles.write_text(
+        f"crew: claudeAgent claude-sonnet-5-5 {POOL}\nhome: claudeAgent claude-opus-5-5 {POOL}\n"
     )
 
 
