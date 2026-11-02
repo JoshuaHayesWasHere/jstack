@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jbriefs import asks, below, findings, skills, standing
+from jbriefs.meets import done_when
 from jbriefs.proof import Proof, proof
 from jsettings.brief import head as head
 
@@ -339,7 +340,7 @@ def check_asked(text: str, fresh_check: str) -> str:
     command = check_command(fresh_check)
     if not command or _BARE_CHECK.fullmatch(command):
         return ""
-    if not any(_BARE_CHECK.search(item) for item in _done_when(text.splitlines())):
+    if not any(_BARE_CHECK.search(item) for item in done_when(text.splitlines())):
         return ""
     return (
         f"brief's Done when: asks for `make check`, and fresh-check names the check command "
@@ -687,28 +688,6 @@ def sections(text: str) -> list[tuple[str, list[str]]]:
     return found
 
 
-def _done_when(lines: list[str]) -> tuple[str, ...]:
-    items: list[str] = []
-    inside = False
-    for line in lines:
-        if not inside:
-            if line.startswith("Done when:"):
-                inside = True
-                inline = line.removeprefix("Done when:").strip()
-                if inline:
-                    items.append(inline)
-            continue
-        if not line.strip():
-            continue
-        if line.startswith(("- ", "* ")):
-            items.append(line[2:].strip())
-        elif line[:1].isspace() and items:
-            items[-1] += " " + line.strip()
-        else:
-            break
-    return tuple(items)
-
-
 def plan_entries(text: str) -> list[Entry]:
     entries = []
     for heading, lines in sections(text):
@@ -721,7 +700,7 @@ def plan_entries(text: str) -> list[Entry]:
                 slug=found["slug"],
                 title=found["title"].strip(),
                 status=status.partition(":")[2].strip(),
-                done_when=_done_when(lines),
+                done_when=done_when(lines),
             )
         )
     return entries

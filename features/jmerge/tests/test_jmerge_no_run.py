@@ -32,7 +32,7 @@ MOVED = "GitHub was asked to merge main at {tip} into it: main moved after its c
 def replay_of(tmp_path, *checks):
     """A pull request whose check and borders passed, and whose rollup has `checks` beside them,
     in a repo that requires check, borders and macos."""
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     (replay.kitchen.home.state / "required-checks").write_text(REQUIRED)
     head = replay.kitchen.crew("one", 479, {"one.txt": "ours\n"}, checks=(CHECKED, *checks))
     (replay.kitchen.home.stub / "branch-479").write_text("one")
@@ -84,7 +84,7 @@ def shard(status):
 def live_of(tmp_path, status):
     """A pull request whose borders and macos passed, and whose check workflow is at work with
     no job named `check` listed yet, in a repo whose main moved since."""
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     (replay.kitchen.home.state / "required-checks").write_text(REQUIRED)
     checks = (BORDERS, {**run("SUCCESS", "macos"), "startedAt": STARTED}, shard(status))
     head = replay.kitchen.crew("one", 479, {"one.txt": "ours\n"}, checks=checks)

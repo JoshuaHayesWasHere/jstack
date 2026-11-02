@@ -6,11 +6,12 @@ Source: pstack, `pstack/skills/figure-it-out/SKILL.md`
 
 <!-- card: Work on jstack itself | 1 | Writing a new file in `playbooks/`, when a kind of task comes back and no playbook covers it. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
-**You own the playbook's steps**: its reader is an agent that copies them in as todos and works them to the letter, in a thread that has read nothing else.
+**You own the playbook's steps**: its reader is an agent that works them in order and to the letter, in a thread that has read nothing else.
 The frame around the steps is not yours: `features/skill-library/templates/playbook.md` is its one copy, and the shape test holds every file in `playbooks/` to it.
 
 1. Show that no playbook fits. Run the block under step 1 of "Handing a task to a crewmate" in `skills/home/SKILL.md`, with `$T` as your skill's top block sets it: it prints a row for each playbook, its name and who runs it for what. Write down the two closest rows and, for each, the step that does not fit this kind of task. When a changed step in one of them is enough, change that playbook and write no new one (`principles/principle-subtract-before-you-add.md`): steps 2 to 5 are then `skip: <the playbook> changed`.

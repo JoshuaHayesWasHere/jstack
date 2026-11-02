@@ -38,7 +38,7 @@ WHOLE = 'uv run pytest -n 4 --dist worksteal --durations=25 -m "not browser" --s
 
 @pytest.fixture
 def replay(tmp_path):
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     gh = replay.kitchen.home.stub / "gh"
     gh.write_text(gh.read_text().replace("    *) exit 64 ;;\n", LOGS + "    *) exit 64 ;;\n"))
     return replay

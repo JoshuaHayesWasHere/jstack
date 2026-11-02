@@ -6,7 +6,8 @@ Source: pstack, `pstack/skills/poteto-mode/playbooks/investigation.md`
 
 <!-- card: A scout runs it | 1 | A read-only question: how does X work, why was Y built this way, are we sure about Z, should we do X or Y. | look: scout -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/scout/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 

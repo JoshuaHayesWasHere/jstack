@@ -24,6 +24,8 @@ from pathlib import Path
 
 import jbus
 import jsettings
+from jbriefs import meets
+from jbriefs.meets import Waiver
 from jbus import Refused, acts, party, queue, t3
 from jbus.passes import Pass
 from jmerge import bus
@@ -82,6 +84,39 @@ class Port:
 
     def stored(self, state: Path, slug: str) -> str | None:
         return queue.brief(state, slug)
+
+    def heard(self, checkout: Path, waiver: Waiver, slug: str) -> str:
+        """`jmerge.bus.Bus.heard`: the bot's word is an act of the party `bot`, which only
+        `POST /act` with the bot's key makes (`acts.is_bot`), and the user's is the message
+        `t3.heard` reads, as `jbus queue approve --message` does. Either names the slug
+        (`queue.names`), as a go that opens a door does (`acts._unbound`), and says it waives the
+        line the `Waived:` line names, quoting it (`meets.quotes`): an earlier word about the row,
+        such as its go, waives nothing."""
+        ref = waiver.ref
+        try:
+            found = project(checkout)
+        except Refused as error:
+            return str(error)
+        if found is None:
+            return f"refused: jbus has no project of {checkout}, so no word of {ref} is read"
+        config, one = found
+        bot = [
+            act["evidence"]["words"]
+            for act in acts.read(config.state(one))
+            if act["party"]["kind"] == "bot" and act["evidence"].get("ref") == ref
+        ]
+        if bot:
+            words = bot[-1]
+        else:
+            try:
+                words = t3.heard(config, ref).words
+            except Refused as error:
+                return str(error)
+        if not queue.names(words, slug):
+            return f'refused: the word {ref} ("{words}") does not name {slug}'
+        if not meets.quotes(words, waiver):
+            return f'refused: the word {ref} ("{words}") does not waive "{waiver.named}"'
+        return ""
 
     def acting(
         self,

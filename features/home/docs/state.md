@@ -13,7 +13,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `merge.log` | The lines `jmerge` printed, each after the time it was printed. |
 | `off` | Present when the automatic home is switched off for the repo. |
 | `merge-off` | Present when the automatic merge is switched off for the repo. |
-| `fresh-check` | The repo's check command, one line, which a crewmate runs once and `jbus queue add` holds a brief's check line to. Present, it also has a pull request whose check started before main moved proven over today's main on GitHub: `jmerge` asks GitHub to merge main into its branch, and the check at that head decides. No suite runs on this machine for a merge. Optional. |
+| `fresh-check` | The repo's check command, one line, which a crewmate runs once and `jbus queue add` holds a brief's check line to. Optional. |
 | `home-thread` | The sweep switch. With a thread id in it, the home runs `jmerge --sweep` at its start; empty or missing, nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. You write it by hand. |
 
 A home's own directory is the repo's directory for the root home, and `~/.local/state/home/<repo>/<scope>/` for a scoped one:

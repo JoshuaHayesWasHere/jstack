@@ -23,7 +23,7 @@ def named(text):
 
 
 def steps(text):
-    """The numbers of the playbook's steps, the lines a reader copies in as todos."""
+    """The numbers of the playbook's steps, the lines a reader works in order."""
     return [int(n) for n in re.findall(r"^(\d+)\. \S", text, re.M)]
 
 
@@ -249,7 +249,7 @@ def test_a_source_that_is_neither_this_repo_nor_a_pstack_file_is_a_problem(root,
 
 def test_a_standing_paragraph_that_differs_from_the_template_is_a_problem(root):
     copy, paths = standing(root, "crew")
-    assert check(root, copy=copy.replace("word for word", "roughly")) == [
+    assert check(root, copy=copy.replace("in order", "roughly")) == [
         "does not carry standing paragraph 1 of templates/playbook.md"
     ]
     assert check(root, paths=None) == [

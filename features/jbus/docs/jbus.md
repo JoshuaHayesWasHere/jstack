@@ -45,6 +45,7 @@ A run of `jmerge` holds the repo's merge lock from its read of main's tip to its
 - [Back up the homes' state](jbus/back-up-the-homes-state.md)
 - [Decisions](jbus/decisions.md)
 - [Events and wakes](jbus/events-and-wakes.md)
+- [Gate labels](jbus/gate-labels.md)
 - [Measure the CI](jbus/measure-the-ci.md)
 - [Questions](jbus/questions.md)
 - [Set up jbus](jbus/set-up-jbus.md)

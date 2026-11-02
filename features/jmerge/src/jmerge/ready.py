@@ -4,12 +4,13 @@ import functools
 import re
 import string
 from collections import Counter
+from collections.abc import Collection
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from jbriefs import findings, skills
+from jbriefs import findings, meets, skills
 from jbriefs.findings import CLEANUP, NONE, REVIEW, TWICE
 from jmerge.rangediff import Verdict
 from jmerge.stacked import Stacked
@@ -147,6 +148,19 @@ RISKY_OVERRULED = Reason(
     "hold",
     "needs {user}, the scoped review did not uphold the decline of {ruled} on {risks}",
 )
+MEETS_NO = Reason(
+    "findings",
+    "its review at {head} says the brief is not met, {met} of {count}: Done when {lines} unmet, "
+    "so a fix and a scoped review whose line says yes, or the user's Waived: line",
+)
+MEETS_UNREAD = Reason(
+    "review",
+    "its review at {head} has no Meets the brief line of the shape yes, <n> of <n> or no, <m> of "
+    "<n>",
+)
+MEETS_MISCOUNTED = Reason(
+    "review", "its review at {head} counts {said} Done when lines, and its brief has {count}"
+)
 UNENDED = Reason("findings", "its findings are not handled: {left} of {found} have no Finding line")
 UNANSWERED = Reason("findings", "its findings are not handled: {ids} have no answer by id")
 UNCITED = Reason(
@@ -192,6 +206,8 @@ MAIN_CHANGED = Reason(
     "check",
     "{default} changed {paths} after its check started at {since}; it needs a fresh check",
 )
+"""The wait an older `jmerge` wrote for a check that main moved under, which the last week of a
+log still has, and which jbus still reads as a rebase (`jbus.rebase.STALE`)."""
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 NO_GO = Reason(
     "hold",
@@ -252,7 +268,6 @@ _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
 _RULED = "{id}: {why}"
-_MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 
 
@@ -623,12 +638,14 @@ def second_review(text: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(ran))
 
 
-def _twice(said: Said, text: str) -> str:
+def _twice(said: Said, text: str, meets_short: str = "") -> str:
     """What a `twice` brief still lacks. It needs the first review, then one fix round in which
     the crew answers that review's findings and pushes the fix, then a second review of a
     later head, whose errors the crew answers too, by id and with a push after it,
     and no third review follows. A clean first review, or a round that declined every finding
-    and pushed nothing, needs no second review, because nothing changed after the first review."""
+    and pushed nothing, needs no second review, because nothing changed after the first review.
+    A clean first review whose judgement of the brief holds the merge (`meets_short`) is owed
+    what one with findings is: a fix, and the second review of the head it pushed."""
     if not said.written:
         return NO_REVIEW
     first = _first_head(said)
@@ -637,7 +654,7 @@ def _twice(said: Said, text: str) -> str:
     verdict = "" if owed or not verdicts else _worst(verdicts)
     if verdict not in ("clean", "findings"):
         return NO_VERDICT
-    if verdict == "clean":
+    if verdict == "clean" and not (meets_short and said.reviewed == first):
         return ""
     if not said.fixed:
         return NO_FIXED
@@ -708,18 +725,44 @@ def _round(said: Said) -> None:
         said.verdict = ""
 
 
-def short_of(text: str, head: str) -> str:
+def short_on_meets(text: str, heard: Collection[meets.Waiver] = ()) -> str:
+    """Why the last round's judgement of the brief holds the merge, or nothing
+    (`jbriefs.meets.reading`): it says `no`, or a section of it has no line `jmerge` reads, or
+    one whose count is not the brief's. `heard` holds the brief's `Waived:` lines whose word jbus
+    checked."""
+    said = meets.reading(text, heard)
+    head = said.head[:12]
+    if said.word == meets.NO:
+        lines = ", ".join(map(str, said.unmet))
+        return MEETS_NO.format(head=head, met=said.met, count=said.count, lines=lines)
+    if said.word == meets.UNREAD:
+        return MEETS_UNREAD.format(head=head)
+    if said.word == meets.MISCOUNTED:
+        return MEETS_MISCOUNTED.format(head=head, said=said.said, count=said.count)
+    return ""
+
+
+def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
+    """What the pull request is short of at `head`, by its brief, or nothing. Every path that
+    reads a review ends on the last round's judgement of the brief (`short_on_meets`), with the
+    waivers whose words are in `heard`."""
     said = said_of(text)
-    verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     unrun = skills.missing(text)
     if unrun:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.mode == NONE:
         return REVIEW_NONE
     if said.mode == TWICE:
-        return _twice(said, text)
-    if said.mode == CLEANUP:
-        return _cleanup(said)
+        short = _twice(said, text, short_on_meets(text, heard))
+    elif said.mode == CLEANUP:
+        short = _cleanup(said)
+    else:
+        short = _review(said, head)
+    return short or short_on_meets(text, heard)
+
+
+def _review(said: Said, head: str) -> str:
+    verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     if not said.written:
         return NO_REVIEW
     if verdict not in ("clean", "findings"):
@@ -1070,44 +1113,6 @@ def needs_the_user(
 @dataclass(frozen=True)
 class Judged:
     tip: str = ""
-    fresh: str = ""
-
-
-def stale_paths(
-    pr_files: tuple[str, ...],
-    renamed_from: tuple[str, ...],
-    main_paths: tuple[str, ...],
-    ci_paths: tuple[str, ...],
-) -> tuple[str, ...]:
-    ours = {*pr_files, *renamed_from}
-    stale = (
-        path
-        for path in main_paths
-        if path in ours or any(_protects(pattern, path) for pattern in ci_paths)
-    )
-    return tuple(dict.fromkeys(stale))
-
-
-def short_on_main(
-    stale: tuple[str, ...],
-    since: datetime,
-    default: str = "main",
-    *,
-    user: Settings,
-) -> str:
-    if not stale:
-        return ""
-    paths = _first_five(stale)
-    return MAIN_CHANGED.format(default=default, paths=paths, since=user.clock(since))
-
-
-def _first_five(paths: tuple[str, ...]) -> str:
-    more = _MORE.format(more=len(paths) - 5) if len(paths) > 5 else ""
-    return " ".join(paths[:5]) + more
-
-
-def fresh_command(text: str) -> str:
-    return "".join(text.strip().splitlines()[:1]).strip()
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")

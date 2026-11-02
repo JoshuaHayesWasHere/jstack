@@ -20,7 +20,6 @@ from jmerge import cli, ready
 from testing.paths import REPO
 
 SOURCE = REPO / "features" / "jmerge" / "src" / "jmerge"
-CI = ready.patterns_of((SOURCE / "ci-paths.txt").read_text())
 STARTED = {**merge.PASSED, "startedAt": "2000-01-01T12:00:00Z"}
 SKILL = "skills/home/SKILL.md"
 
@@ -117,23 +116,20 @@ def test_a_check_that_has_not_passed_at_the_head_waits(proven_merged, rules):
     assert proven_merged.untouched()
 
 
-STALE = "main changed {} after its check started at 07:00 ET; it needs a fresh check"
-
-
-@pytest.mark.parametrize("path", [SKILL, "Makefile"])
-def test_a_main_that_changed_one_of_its_files_or_a_ci_path_after_its_check_waits(
-    proven_merged, rules, path
-):
-    on_main(proven_merged, path)
+def test_a_main_that_changed_its_file_into_a_conflict_after_its_check_waits(proven_merged, rules):
+    on_main(proven_merged, "a.txt")
     proven_merged.home.open_pull_request(
         proven_merged.head, checks=(STARTED,), files=["a.txt", SKILL]
     )
-    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: {STALE.format(path)}"]
+    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: {ready.FRESH_CONFLICT}"]
     assert merges(proven_merged) == []
 
 
-def test_a_main_that_moved_only_on_other_files_leaves_the_check_standing(proven_merged, rules):
-    on_main(proven_merged, "docs/other.md")
+@pytest.mark.parametrize("path", ["docs/other.md", "Makefile"])
+def test_a_main_that_moved_only_on_other_files_leaves_the_check_standing(
+    proven_merged, rules, path
+):
+    on_main(proven_merged, path)
     proven_merged.home.open_pull_request(
         proven_merged.head, checks=(STARTED,), files=["a.txt", SKILL]
     )
@@ -222,35 +218,6 @@ def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):
     assert ready.short_on_github(one) == short.format(head=one.head[:12])
 
 
-def test_stale_paths_are_the_ones_main_changed_that_the_pull_request_changes_or_ci_reads():
-    ours = ("a.txt", SKILL)
-    assert ready.stale_paths(ours, (), ("docs/x.md", SKILL), CI) == (SKILL,)
-    assert ready.stale_paths(ours, (), ("old/a.txt", "a.txt"), CI) == ("a.txt",)
-    assert ready.stale_paths(ours, ("docs/first.md",), ("docs/first.md",), CI) == ("docs/first.md",)
-    assert ready.stale_paths(ours, (), ("Makefile", "uv.lock", "docs/Makefile"), CI) == (
-        "Makefile",
-        "uv.lock",
-    )
-    assert ready.stale_paths(ours, (), (".github/workflows/check.yml",), CI) == (
-        ".github/workflows/check.yml",
-    )
-    assert ready.stale_paths(ours, (), ("docs/x.md", "src/jgauge/cli.py"), CI) == ()
-    assert ready.stale_paths(ours, ("docs/first.md",), (), CI) == ()
-
-
-def test_the_reason_names_at_most_five_paths_and_the_time_in_et():
-    since = datetime(2026, 10, 12, 2, 18, tzinfo=UTC)
-    assert ready.short_on_main((), since, user=ET) == ""
-    assert ready.short_on_main(("a.py", "b.py"), since, user=ET) == (
-        "main changed a.py b.py after its check started at 22:18 ET; it needs a fresh check"
-    )
-    seven = tuple(f"{n}.py" for n in range(7))
-    assert ready.short_on_main(seven, since, "trunk", user=ET) == (
-        "trunk changed 0.py 1.py 2.py 3.py 4.py and 2 more after its check started at "
-        "22:18 ET; it needs a fresh check"
-    )
-
-
 def repo(proven_merged, monkeypatch):
     """The command's own view of the repo, in this process, with the fake `gh`."""
     home = proven_merged.home
@@ -258,20 +225,20 @@ def repo(proven_merged, monkeypatch):
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
     monkeypatch.setenv("LOG", str(home.state / "merge.log"))
-    return cli.Repo(home.main, home.state, merge.ME, False, (), CI, user=ET)
+    return cli.Repo(home.main, home.state, merge.ME, False, user=ET)
 
 
 def test_a_main_that_moved_while_it_was_judged_has_it_judged_again_before_the_merge(
     proven_merged, monkeypatch
 ):
     proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
-    one = pull_request(SKILL, head=proven_merged.head)
+    one = pull_request("a.txt", SKILL, head=proven_merged.head)
     here = repo(proven_merged, monkeypatch)
     *_, judged = here.waits(one, "main")
     assert judged == ready.Judged(proven_merged.start)
-    on_main(proven_merged, SKILL)
+    on_main(proven_merged, "a.txt")
     said = here.merge(one, "alpha", "", judged)
-    assert said == f"wait 7 {merge.URL}: {STALE.format(SKILL)}"
+    assert said == f"wait 7 {merge.URL}: {ready.FRESH_CONFLICT}"
     assert not (proven_merged.home.stub / "calls").exists()
 
 

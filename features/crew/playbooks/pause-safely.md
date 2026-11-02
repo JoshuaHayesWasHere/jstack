@@ -6,7 +6,8 @@ Source: pstack, `pstack/skills/poteto-mode/playbooks/pause-safely.md`
 
 <!-- card: In every task | 2 | An explicit word to pause in the middle of a task, from the operator or the home: stop here, pick it up later. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 

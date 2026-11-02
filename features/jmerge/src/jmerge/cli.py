@@ -19,7 +19,7 @@ from typing import NamedTuple
 
 import jsettings
 from jbriefs import home as home_rule
-from jbriefs import parse
+from jbriefs import meets, parse
 from jmerge import (
     bus,
     checks,
@@ -47,7 +47,6 @@ LIST = (
 )
 PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
-CI_PATHS = PACKAGE / "ci-paths.txt"
 REQUIRED_CHECKS = "required-checks"
 JUDGED_AGAIN_AT_MOST = 2
 TIMEOUT_SECONDS = 120
@@ -99,29 +98,6 @@ def patterns(path: Path) -> tuple[str, ...]:
         ) from None
 
 
-class Merged:
-    """A pull request's head merged over today's base, as GitHub's update of its branch merges
-    it. Where the repo's state has a `fresh-check` file, a pull request whose check started before
-    its base moved is proven over today's base on GitHub, and no suite runs on this machine for a
-    merge: `rejudge.BaseMerge` asks GitHub to update the branch, and GitHub's check at the updated
-    head decides by the normal path."""
-
-    def __init__(self, main: Path, state: Path, run: bool = True):
-        self.main = main
-        self.state = state
-        self.run = run
-        self.command = ready.fresh_command(_read(state / "fresh-check"))
-
-    def of(self, head: str, tip: str) -> str:
-        """Why the head over `tip` waits, or nothing when GitHub is to update the branch."""
-        merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
-        if merged.returncode == 1:
-            return ready.FRESH_CONFLICT
-        if merged.returncode:
-            return ready.UNMERGED.format(why=lines.said(merged))
-        return ""
-
-
 class Homes(NamedTuple):
     known: dict[str, str]
     running: dict[str, str]
@@ -143,8 +119,7 @@ class Repo:
         home: str | None,
         every: bool,
         protected: tuple[str, ...] = (),
-        ci: tuple[str, ...] = (),
-        merged: Merged | None = None,
+        asks: bool = False,
         *,
         user: jsettings.Settings,
     ) -> None:
@@ -153,8 +128,6 @@ class Repo:
         self.state = state
         self.every = every
         self.protected = protected
-        self.ci = ci
-        self.merged = merged
         self.accepted: tuple[int, str] | None = None
         self.lifts: list[str] = []
         self.fetched = False
@@ -169,9 +142,10 @@ class Repo:
         self.logs: dict[str, str | None] = {}
         self.open: list[ready.PullRequest] = []
         self.heads: dict[int, bool] = {}
+        self.words: dict[tuple[meets.Waiver, str], bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
-        self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(merged and merged.run))
+        self.base_merge = rejudge.BaseMerge(main, state, self.about, asks)
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
 
@@ -181,6 +155,14 @@ class Repo:
 
     def stored(self, slug: str) -> str | None:
         return rows.stored(self.main, slug)
+
+    def heard(self, text: str, slug: str) -> frozenset[meets.Waiver]:
+        """The brief's `Waived:` lines whose word jbus checked as the user's own, or the bot's,
+        of this row, waiving the line each names (`rows.heard`), each asked once a run."""
+        for one in meets.waivers(text):
+            if (one, slug) not in self.words:
+                self.words[(one, slug)] = not rows.heard(self.main, one, slug)
+        return frozenset(one for one in meets.waivers(text) if self.words[(one, slug)])
 
     @functools.cached_property
     def main_state(self) -> mainjson.Main:
@@ -661,25 +643,25 @@ class Repo:
                 lost.append(ready.Drop(file, theirs, ours))
         return tuple(lost)
 
-    def stale(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str, str]:
+    def over_main(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str]:
+        """Why the head waits over today's base, or nothing, and the base's tip it was judged
+        over. A green check stays good for its own head: where the base moved since the check
+        started, the head waits only when `git merge-tree` of it onto the base's tip conflicts,
+        and GitHub is asked for no update of its branch. Main's own run checks the merge."""
         if one.started is None:
-            return "", "", ""
-        left = left or ()
+            return "", ""
         moved = self.moved(one.base, one.started)
         if moved is None:
-            return f"{one.base} could not be fetched to see what changed after its check", "", ""
+            return f"{one.base} could not be fetched to see what changed after its check", ""
         tip, paths = moved
-        stale = ready.stale_paths(one.files, left, paths, self.ci)
-        if not stale:
-            return "", tip, ""
-        asks = self.merged is not None and self.merged.command
-        if not asks:
-            return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
-        short = self.merged.of(one.head, tip)
-        if short:
-            return short, "", ""
-        reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-        return self.base_merge.of(one, tip, *reasons), "", ""
+        if not {*one.files, *(left or ())} & set(paths):
+            return "", tip
+        merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, one.head)
+        if merged.returncode == 1:
+            return ready.FRESH_CONFLICT, ""
+        if merged.returncode:
+            return ready.UNMERGED.format(why=lines.said(merged)), ""
+        return "", tip
 
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose required checks failed waits, judged over today's base. Its
@@ -720,7 +702,7 @@ class Repo:
     def judge(self, one: ready.PullRequest, default: str) -> Judgement:
         """The judgement of the pull request. Where all that holds it is a required check that
         failed, or one with no run at its head, it is judged again as if that check had passed,
-        and a judgement that gets as far as freshness judges it over today's base: `again` for a
+        and a judgement that gets as far as today's base judges it over that base: `again` for a
         check that failed, and for a check with no run GitHub's merge of a base that moved since
         its check started, which brings the head the workflows the base has. One that falls short
         of anything else says that, and not the check: #529 waited ten hours on "macos has not
@@ -744,7 +726,8 @@ class Repo:
         stacked = stacks.of(text)
         short = self.lift(ready.held(one, default, stacked, self.bases), lifted)
         short = short or self.on_stack(one, default, stacked)
-        short = short or self.lift(ready.short_of(text, one.head), lifted)
+        heard = self.heard(text, brief.stem)
+        short = short or self.lift(ready.short_of(text, one.head, heard), lifted)
         rebase: ready.Rebase | None = None
         covered = ready.to_range_diff(text, one.head)
         under = ready.under_fix(text, one.head)
@@ -815,7 +798,7 @@ class Repo:
             return Judgement(brief.stem, "wait", red, note, None)
         if red:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
-        short, tip, fresh = self.stale(one, left)
+        short, tip = self.over_main(one, left)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
@@ -825,7 +808,7 @@ class Repo:
             )
         if one.number in self.order:
             self.through = one.number
-        judged = ready.Judged(tip, fresh)
+        judged = ready.Judged(tip)
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
@@ -1238,8 +1221,6 @@ class Repo:
         kept = self.clear_up(one.branch, one.head)
         if kept:
             notes.append(f"kept: {kept}")
-        if judged.fresh:
-            notes.append(judged.fresh)
         return lines.merged(number, slug, commit, one.title, notes, one.url)
 
 
@@ -1557,11 +1538,9 @@ def parser() -> argparse.ArgumentParser:
         "bases --add): one into a merge base merges on the default branch's rules, and a red main "
         "does not hold it. "
         "A draft is never merged, with any flag. "
-        "One whose check started before main changed one of its paths, a CI path "
-        "(features/jmerge/src/jmerge/ci-paths.txt) waits for a fresh check: where the "
-        "repo's state has a "
-        "fresh-check file, GitHub is asked to merge main into its branch, and its check at "
-        "the updated head stands in; no suite runs on this machine. One whose rebase dropped "
+        "A green check stands for its own head: one whose head no longer merges over a main "
+        "that changed one of its paths after its check started waits for a rebase, and one "
+        "that still merges cleanly merges on that check. One whose rebase dropped "
         "a line waits for its crew to say why and for the scoped review to uphold it, and is "
         "printed as hold when it does not. "
         "One that changes a protected path (features/jmerge/src/jmerge/protected.txt) is "
@@ -1716,8 +1695,7 @@ def main(argv: list[str] | None = None) -> int:
         args.home,
         not args.home,
         patterns(PROTECTED),
-        patterns(CI_PATHS),
-        Merged(main_checkout, state, run=not args.check),
+        not args.check,
         user=user,
     )
 
@@ -1787,7 +1765,7 @@ def main(argv: list[str] | None = None) -> int:
         if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
         elif args.check:
-            notes = [found.note, found.judged.fresh]
+            notes = [found.note]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
             said = repo.merge(one, found.slug, found.note, found.judged)
