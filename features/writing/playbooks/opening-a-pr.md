@@ -37,7 +37,7 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
 
    ```sh
    if ! { printf '%s\n\n' '<the title>'; cat '<the file the body is in>'; } | python3 -I -S "$T/../source/features/writing/scripts/prose_lint.py" -; then
-       echo "not opened: write each line named as one sentence"
+       echo "not opened: the prose lint refused, as it says above"
        exit 1
    fi
    said=$(gh pr create --draft --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
