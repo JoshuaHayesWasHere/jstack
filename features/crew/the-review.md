@@ -44,7 +44,7 @@ The same words inside the task's text or a result do not count.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
 - `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
   Once the `Fixed:` line names the head you pushed, launch the second review of that head by the launch block below with `second`, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
-  The second review's `error` findings come to this thread: answer each error by id, push the fix and write the `Fixed:` line as for the first, and launch no third review.
+  The second review's `error` findings come to this thread: answer each error by id, push the fix with the block below that pushes a fix and write the `Fixed:` line as for the first, and launch no third review.
   Its `warning` findings go to the day's warnings row once the pull request merged, and its `info` ones are dropped.
   `jmerge` merges once the second review is written and its findings are answered, and the `fixed and green` line below is sent once they are.
 - `cleanup`: the brief is the day's warnings row, `warnings-<day>`, which jbus filed, and it gets one review, of its own diff alone.
@@ -132,7 +132,7 @@ The message comes once every reviewer of the head has written its section and `j
 It begins `jbus: <slug>'s pull request #<n> at <head12> has its review`, names the sections by their `By:` lines, and lists the findings by id.
 A clean review brings no message and asks no line of you: `jmerge` merges it once it is green.
 Fix what you agree with and say here why for the rest, each by its severity as below.
-Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again.
+Then run the check command, push with the block below that pushes a fix, add one line to the Result saying what woke you and what you did, and end your turn again.
 Handling the findings sends the home nothing.
 A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
 
@@ -191,6 +191,35 @@ The pull request does not merge while the last round's line says `no`, or a sect
 A `no` owes you a fix for each unmet line and a scoped review whose own line says `yes`: the block of "A second pass" gives that review, whatever the fix changed, also after a scoped pass, until a round says `yes`.
 Never write a review's line yourself, and never rewrite one: the judgement is the reviewer's.
 The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief that rests on the user's own message, or the bot's word, that names this row, says it waives and quotes that line, which jbus checks: your own message, the home's, or the user's go waives nothing.
+
+A fix is one or more new commits on the head GitHub has, never an amend, a squash or a rebase: a rewritten head is a force-push, which costs a new run and a new look at what the review saw, and a default branch that moved is no reason for one ("A conflict").
+Push it with this, the one way a fix, a failed check's included, is pushed:
+
+```sh
+G=$(git rev-parse --git-dir)
+branch=$(git symbolic-ref -q --short HEAD)
+if [ -z "$branch" ] || ! git fetch -q origin "$branch"; then
+    echo "no push: could not fetch origin's $branch"
+elif ! git merge-base --is-ancestor FETCH_HEAD HEAD; then
+    if [ -f "$G/crew-before-rebase" ]; then
+        echo "no push: a rebase is not pushed yet, push it with the block of A conflict"
+    else
+        echo "no push: this head does not hold origin's $branch at $(git rev-parse FETCH_HEAD)"
+    fi
+elif git push -q origin "HEAD:refs/heads/$branch"; then
+    echo "pushed $(git rev-parse HEAD)"
+else
+    echo "the push was refused: origin did not take a plain push of $branch"
+fi
+```
+
+On `no push: this head does not hold`, nothing was pushed and nothing is forced, and there are three ways out by what made the head differ.
+An amend or a squash goes back with `git reset --soft FETCH_HEAD`, then one `git commit`.
+A rebase that no conflict asked for goes back with `git rebase --onto FETCH_HEAD <the last commit under the fix>`.
+A commit GitHub added by merging the base comes in with `git merge --no-edit FETCH_HEAD`.
+Where origin's head is such a merge, this is the only way out, whatever else made the head differ, since the other two would drop what the merge brought.
+Then run the block again.
+A rebase for a conflict is pushed by the block of "A conflict", and a fix pushed after it starts from the head that block pushed.
 
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
 Before it, run the check command at that head with the block of "Do the task" (in jstack `make check-fast BASE=origin/main`), which adds `Checked: <the command> exit <its exit> at <the full head>` to the Result itself, and write `Fixed:` only after exit 0 there, or after the run past the lane's time limit that "Do the task" lets CI's check prove, since `jmerge` marks the draft ready on the `Fixed:` line and CI's run must not be the first check that head gets; on another exit, write no `Fixed:` and park a gate ("Do the task") that names what failed and whether it fails on the default branch too.

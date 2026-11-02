@@ -44,10 +44,73 @@ A wake's body is `{"kind": "events", "say": [...], "events": [...]}`, and an eve
 `loud` says whom the event is for, by its kind (`wake.LOUDNESS` in `features/jbus/src/jbus/wake.py`):
 
 <!-- built: events -->
-| `loud` | Kinds | What happens |
-|---|---|---|
-| `user` | `decision` | It is a decision of yours. It is in the log, and the one list carries it to a home as an item (`jbus.wakes`). |
-| `quiet` | `act`, `alert`, `ask-owed`, `ask-resent`, `cancelled`, `clock`, `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate`, `gate answered`, `green`, `heartbeat`, `hold-stall`, `home-stall`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.waiting`, `jmerge`, `mainmoved`, `merged`, `note`, `pack`, `pool-wake`, `queue`, `rebase`, `recovered`, `refailed`, `report`, `rereview`, `restack`, `result`, `resume`, `retro`, `revert`, `review`, `reviewed`, `rollover`, `slot-end`, `slot-wake`, `snapshot`, `stale`, `stall`, `sweep`, `unplaced`, `unstack`, `waiting`, `waiting-on-user` | It wakes no thread. It is in the log, which `jbus events` prints and the view shows. |
+`user`: It is a decision of yours.
+It is in the log, and the one list carries it to a home as an item (`jbus.wakes`).
+
+- `decision`
+
+`quiet`: It wakes no thread.
+It is in the log, which `jbus events` prints and the view shows.
+
+- `act`
+- `alert`
+- `ask-owed`
+- `ask-resent`
+- `cancelled`
+- `clock`
+- `condition`
+- `conflict`
+- `drops`
+- `expedite`
+- `failed`
+- `failover`
+- `gate`
+- `gate answered`
+- `green`
+- `heartbeat`
+- `hold-stall`
+- `home-stall`
+- `item.approved`
+- `item.done`
+- `item.dropped`
+- `item.held`
+- `item.launched`
+- `item.linked`
+- `item.proposed`
+- `item.queued`
+- `item.resumed`
+- `item.waiting`
+- `jmerge`
+- `mainmoved`
+- `merged`
+- `note`
+- `pack`
+- `pool-wake`
+- `queue`
+- `rebase`
+- `recovered`
+- `refailed`
+- `report`
+- `rereview`
+- `restack`
+- `result`
+- `resume`
+- `retro`
+- `revert`
+- `review`
+- `reviewed`
+- `rollover`
+- `slot-end`
+- `slot-wake`
+- `snapshot`
+- `stale`
+- `stall`
+- `sweep`
+- `unplaced`
+- `unstack`
+- `waiting`
+- `waiting-on-user`
+
 <!-- built: end -->
 
 A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).

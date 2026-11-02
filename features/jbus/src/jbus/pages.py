@@ -1,11 +1,12 @@
-"""`python -m jbus.pages [--check]`: build the event table of `features/jbus/docs/jbus/`
+"""`python -m jbus.pages [--check]`: build the list of events of `features/jbus/docs/jbus/`
 out of the code.
 
 Run it in this repo's root. It writes the built part of one page,
 `features/jbus/docs/jbus/events-and-wakes.md`: the text between `<!-- built: events -->`
-and the `<!-- built: end -->` after it. That part is the table of the kinds of event, one row
-for each level, with the level's kinds sorted, read from `wake.LOUDNESS`. It leaves the rest of
-the page, which a person wrote by hand, as it is. A second run changes nothing.
+and the `<!-- built: end -->` after it. That part lists the kinds of event for each level, sorted
+and one on a line, read from `wake.LOUDNESS`, so that two pull requests that each add a kind merge
+with no conflict. It leaves the rest of the page, which a person wrote by hand, as it is. A second
+run changes nothing.
 `scripts/generate-jstack-trees.py` writes the index of `features/jbus/docs/jbus.md` from the
 tree, and needs no import of jbus.
 
@@ -29,10 +30,12 @@ BUILT = re.compile(
 )
 HAPPENS = {
     "user": (
-        "It is a decision of yours. It is in the log, and the one list carries it to a home "
+        "It is a decision of yours.\nIt is in the log, and the one list carries it to a home "
         "as an item (`jbus.wakes`)."
     ),
-    "quiet": "It wakes no thread. It is in the log, which `jbus events` prints and the view shows.",
+    "quiet": (
+        "It wakes no thread.\nIt is in the log, which `jbus events` prints and the view shows."
+    ),
 }
 
 
@@ -42,13 +45,14 @@ class Refused(Exception):
 
 
 def events() -> str:
-    """Return the table of the kinds of event, one row for each level, as `wake.LOUDNESS`
-    lists them."""
-    rows = ["| `loud` | Kinds | What happens |\n", "|---|---|---|\n"]
+    """Return what each level does and its kinds, one on a line, as `wake.LOUDNESS` lists them."""
+    parts = []
     for level in LEVELS:
-        kinds = ", ".join(f"`{kind}`" for kind, at in sorted(wake.LOUDNESS.items()) if at == level)
-        rows.append(f"| `{level}` | {kinds} | {HAPPENS[level]} |\n")
-    return "".join(rows)
+        kinds = "".join(
+            f"- `{kind}`\n" for kind, at in sorted(wake.LOUDNESS.items()) if at == level
+        )
+        parts.append(f"`{level}`: {HAPPENS[level]}\n\n{kinds}\n")
+    return "".join(parts)
 
 
 def build(root: Path) -> dict[str, str]:
