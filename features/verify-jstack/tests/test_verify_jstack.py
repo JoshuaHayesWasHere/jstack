@@ -420,6 +420,43 @@ def test_the_stand_in_reads_and_sets_a_selection_with_t3_thread_configure(sandbo
     assert [one["threadId"] for one in listed["threads"]] == [thread]
 
 
+def test_the_stand_in_lists_every_instance_with_no_constraints_by_default(sandbox):
+    said = t3(sandbox, "orchestrator_capabilities")["result"]["structuredContent"]
+    listed = {one["providerInstanceId"]: one["constraints"] for one in said["providers"]}
+    assert listed == {"claudeAgent": [], SPARE: [], "codex": []}
+
+
+def test_the_stand_in_shows_a_constraint_written_to_its_file_on_that_instance(sandbox):
+    able = sandbox.parent / "t3" / "capabilities.json"
+    lapse = ["Provider is not authenticated."]
+    able.write_text(json.dumps({**json.loads(able.read_text()), SPARE: lapse}))
+
+    said = t3(sandbox, "orchestrator_capabilities")["result"]["structuredContent"]
+    listed = {one["providerInstanceId"]: one["constraints"] for one in said["providers"]}
+    assert listed == {"claudeAgent": [], SPARE: lapse, "codex": []}
+
+
+def test_the_stand_in_reads_a_threads_recent_runs_and_lists_it_without_them(sandbox):
+    launched_alpha(sandbox)
+    thread = "mcp:sandbox-thread-1"
+    path = sandbox.parent / "t3" / "threads.json"
+    runs = [
+        {"runId": "run-1", "ordinal": 1, "status": "failed", "completedAt": "2026-11-02T00:00:00Z"}
+    ]
+    kept = [
+        {**one, "recentRuns": runs} if one["threadId"] == thread else one
+        for one in json.loads(path.read_text())
+    ]
+    path.write_text(json.dumps(kept))
+
+    read = t3(sandbox, "t3_thread_read", threadId=thread)["result"]["structuredContent"]
+    assert read["recentRuns"] == runs
+
+    listed = t3(sandbox, "t3_thread_list", titleContains="alpha")["result"]["structuredContent"]
+    assert [one["threadId"] for one in listed["threads"]] == [thread]
+    assert "recentRuns" not in listed["threads"][0]
+
+
 def test_the_stand_in_gives_a_thread_it_does_not_have_no_selection(sandbox):
     said = t3(sandbox, "t3_thread_configure", threadId="mcp:no-such-thread")["result"]
     assert said["isError"] is True
