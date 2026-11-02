@@ -506,9 +506,10 @@ VERBS = (
 STEPS = (
     verbs.Step(
         "before-watch",
-        5,
+        7,
         "owed.sweep",
         lambda half: owed.sweep(half.run, half.client, lambda listed: movers(half.run, listed)),
+        ("client",),
     ),
     verbs.Step(
         "tellers",

@@ -63,6 +63,7 @@ from test_jbus_verbs import fresh
 
 ORDER = [
     "before-watch 6 health.first",
+    "before-watch 7 owed.sweep (client)",
     "before-watch 8 queue.follow_ups",
     "before-watch 9 plan.entered",
     "before-watch 10 word.deliver",
