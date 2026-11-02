@@ -49,12 +49,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 
 import jsettings
+from jbriefs import meets
 from jbriefs.home import thread_of
 from jbus import review
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import slot, waiters
-from jmerge import ready
+from jmerge import ready, rows
 from jroles import ledger
 from jsettings import store
 
@@ -67,7 +68,20 @@ Needs = Literal["act", "decide"]
 WAKES = frozenset({"slot-wake", "pool-wake", "slot-end", "clock"})
 """The templates of a wake: `jbus.slotwait`'s three and the stall clock's line to the thread a wait
 is on. `slot` and `review` never hold them."""
-ASKS = frozenset({"unreviewed", "twice", "second", "fix", "declines", "unruled", "rereview"})
+ASKS = frozenset(
+    {
+        "unreviewed",
+        "twice",
+        "second",
+        "fix",
+        "declines",
+        "meets-no",
+        "meets-unread",
+        "meets-miscounted",
+        "unruled",
+        "rereview",
+    }
+)
 """The templates that ask for the review itself: `jbus.expedite`'s kinds whose reason is a review
 not written, and `jbus.rebase`'s asks for a scoped review. `review` never holds them, since the
 review it waits on is what they ask for."""
@@ -122,6 +136,15 @@ def waiting(run: Pass, client: Client, thread: str, row: str) -> bool:
     return any(one.thread == thread and not one.woken for one in waiters.read(slot.locks_dir()))
 
 
+def heard(run: Pass, row: str, brief: str) -> frozenset[meets.Waiver]:
+    """Return the brief's `Waived:` lines whose word jbus checked as the user's own, or the bot's,
+    of this row, waiving the line each names (`jmerge.rows.heard`): the waivers `jmerge` counts.
+    jbus's own callers of `ready.short_of` pass them, so jbus judges a waived row as `jmerge`
+    does."""
+    checkout = run.project.checkout
+    return frozenset(one for one in meets.waivers(brief) if not rows.heard(checkout, one, row))
+
+
 def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     """Say whether the thread is the row's crew and its pull request waits on a review at its head
     that a reviewer the crew launched has not written: jmerge's judge (`ready.short_of`) says the
@@ -135,7 +158,8 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     brief = task_brief(run, row)
     if jsettings.thread_id(thread) != jsettings.thread_id(thread_of(run.home, row)):
         return False
-    unwritten = review.class_of(ready.short_of(brief, head)) in ("review", "scoped")
+    judged = ready.short_of(brief, head, heard(run, row, brief))
+    unwritten = review.class_of(judged) in ("review", "scoped")
     return unwritten and review.reviewing(brief)
 
 

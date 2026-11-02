@@ -135,7 +135,8 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    An entry with no row shows its `Stage:` line, and one from before shows its old line as `(typed) Status: ...`, which nobody checked.
    The plan is not read whole: read an entry's own section of `$M/plan.md` when you take that entry up, its "Done when" list and the user's words under `Decisions:`.
    On `no jbus plan`, read the file whole.
-   Under `## queue`, what waits on the user, then each open row of this home's as its slug, status, pull request and why it waits.
+   Under `## waiting on you`, what waits on the user in this project, as `jbus needs` prints it and never cut, then a count for each other project with something waiting ("What waits on the user").
+   Under `## queue`, each open row of this home's as its slug, status, pull request and why it waits.
    Under `## questions`, each open question of this home's, by its number.
    Under `## merged`, each `merged` line `jmerge` logged since this home's mark in `merge-seen`, which the merge step of step 5 moves, and not this block.
 
@@ -171,7 +172,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    A message sent while this directory had no home reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
    Then do what "Its thread" says, under "The home before this one".
    Then end the start.
-   A start the user began by typing `/home` asks where things stand: tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
+   A start the user began by typing `/home` asks where things stand: open with what `## waiting on you` printed, as it printed it, then tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
    A start that a launch began, such as the one "Making a scope" makes, asks nothing of the user: it ends by "How a turn ends", with what it did as the lines, and only a decision or a stop among them reaches the user.
 
 ### On the bus

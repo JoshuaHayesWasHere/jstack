@@ -1,6 +1,10 @@
 # Playbooks, principles and templates
 
-A playbook is the numbered steps for one kind of task, and nothing in `playbooks/` or `principles/` loads by itself. A brief names one playbook on its `Playbook:` line, such as `Playbook: bug-fix`, and a scout's request does the same. The thread that takes the brief copies the playbook's steps into its todo list and works them in order. A step it does not do stays in the list as `skip: <reason>`. `Playbook: none`, or no line, means the thread works by its skill alone. Where a playbook and the skill disagree, the skill wins.
+A playbook is the numbered steps for one kind of task, and nothing in `playbooks/` or `principles/` loads by itself.
+A brief names one playbook on its `Playbook:` line, such as `Playbook: bug-fix`, and a scout's request does the same.
+The thread that takes the brief works the playbook's steps in order, and reports a step it does not do as `skip: <reason>`.
+`Playbook: none`, or no line, means the thread works by its skill alone.
+Where a playbook and the skill disagree, the skill wins.
 
 A playbook is for one role, the one its `Run by:` line starts with: a crewmate, a scout, the home or an expert.
 The home runs a playbook of its own from a `Playbook:` line in the head of its `plan.md`.

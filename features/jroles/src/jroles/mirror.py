@@ -23,6 +23,16 @@ lock in the mirror, and a run with nothing to do writes nothing. These are infra
 - `move`: the run moves an entry that only the mirror has into `~/.claude`, and links it back.
 - `dangling`: the run removes a link into `~/.claude` whose entry is gone.
 - `json`: the run gives `.claude.json` the main file's keys, as above.
+- `settings`: the run writes the mirror's `settings.json` as `~/.claude`'s, with the skill
+  listing trimmed (`trimmed`), in place of a link or an older copy.
+
+A mirror is the home of the launched roles, never the user's own sessions, so its threads list
+only the user's skills and the repo's. `settings.json` is the one entry that is a file of the
+mirror's own and not a link: it is `~/.claude/settings.json` with every enabled plugin off,
+Claude Code's bundled skills off, and each claude.ai account skill synced under
+`~/.claude/skills/synced` off. The skills' files stay where they are, so a thread can still
+read one by its path. A write to the mirror's copy lasts until the next run, which writes
+`~/.claude`'s again.
 
 The run does not copy `skillUsage` from the main file. All the accounts are one user, so the
 run pools it. For each skill, the run takes the highest of every home's numbers, field by
@@ -82,7 +92,16 @@ ACCOUNT_KEYS = re.compile(
 )
 LOCK = ".jroles-mirror.lock"
 JSON = ".claude.json"
-_OURS = re.compile(r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.claude\.json\..*")
+_OURS = re.compile(
+    r".*\.bak[-.].*|\.jroles-mirror\.lock|\.prime-sync\.lock|\.claude\.json\..*|.*\.mirror\.\d+"
+)
+SETTINGS = "settings.json"
+SYNCED = "skills/synced"
+"""Where Claude Code keeps the claude.ai account skills it syncs, one folder for each login,
+each skill a folder with a SKILL.md. It lists each as `anthropic-skills:<folder>`."""
+KEPT_BUNDLED = ("plugin-authoring",)
+"""The bundled skills that `disableBundledSkills` leaves listed, as Claude Code 2.1.310 lists
+them with it set."""
 DRIFT, BROKEN = 1, 2
 USAGE = "skillUsage"
 PERIOD = (5 + 1 + 1) * 60
@@ -115,7 +134,7 @@ class Main:
 @dataclass(frozen=True)
 class Step:
     """One entry of a mirror that is not as it should be. `kind` is `link`, `backup`,
-    `move`, `dangling` or `json`. `name` is the entry's name in the mirror's home. For a
+    `move`, `dangling`, `json` or `settings`. `name` is the entry's name in the mirror's home. For a
     `json` step, `keys` are the shared keys whose values differ, and `usage` is the skill use
     that the step pools in."""
 
@@ -134,6 +153,7 @@ class Step:
             "move": f"would move {at} into {main.home} and link it",
             "dangling": f"would remove dangling {at}",
             "json": f"would sync {keys} of {main.config} into {at}",
+            "settings": f"would write {at} as {there}, trimmed",
         }[self.kind]
 
 
@@ -162,7 +182,9 @@ def declared(user: Path) -> tuple[Mirror, ...]:
 
 def _entries(directory: Path) -> list[str]:
     return sorted(
-        name for name in os.listdir(directory) if name not in KEEP and not _OURS.fullmatch(name)
+        name
+        for name in os.listdir(directory)
+        if name not in KEEP and name != SETTINGS and not _OURS.fullmatch(name)
     )
 
 
@@ -193,7 +215,40 @@ def plan(main: Main, mirror: Mirror, usage: dict | None = None) -> tuple[Step, .
     found = shared(main, mirror, usage)
     if found is not None:
         steps.append(Step("json", JSON, found[1], usage))
+    at, made = mirror.home / SETTINGS, trimmed(main)
+    if made is not None and (at.is_symlink() or _own(at) != made):
+        steps.append(Step("settings", SETTINGS))
     return tuple(steps)
+
+
+def _own(at: Path) -> object:
+    """The mirror's own settings.json, or None when it is missing or cannot be read, so a run
+    writes over a half-written copy instead of refusing."""
+    try:
+        return _read(at) if at.is_file() else None
+    except Refused:
+        return None
+
+
+def trimmed(main: Main) -> dict | None:
+    """`~/.claude/settings.json` as a mirror's threads read it: every plugin it enables off,
+    the bundled skills off, and each account skill synced under `~/.claude` off. The skills the
+    user wrote and the repo's stay listed. None when `~/.claude` has no settings.json."""
+    path = main.home / SETTINGS
+    found = _read(path)
+    if found is None:
+        return None
+    plugins, overrides = found.get("enabledPlugins", {}), found.get("skillOverrides", {})
+    if not isinstance(plugins, dict) or not isinstance(overrides, dict):
+        raise Refused(f"jroles mirror: {path}: enabledPlugins or skillOverrides is not an object")
+    synced = sorted({skill.parent.name for skill in (main.home / SYNCED).glob("*/*/SKILL.md")})
+    off = [f"anthropic-skills:{name}" for name in synced] + list(KEPT_BUNDLED)
+    return {
+        **found,
+        "enabledPlugins": dict.fromkeys(plugins, False),
+        "disableBundledSkills": True,
+        "skillOverrides": {**overrides, **dict.fromkeys(off, "off")},
+    }
 
 
 def _deep(kept: object, over: object) -> object:
@@ -359,6 +414,12 @@ def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
     if step.kind == "dangling":
         at.unlink()
         return [f"removed   dangling {at}"]
+    if step.kind == "settings":
+        made = trimmed(main)
+        if made is None:
+            return []
+        _write(at, made, there.stat().st_mode & 0o777)
+        return [f"trimmed   {at}: {there} with no plugin, bundled or account skill listed"]
     found = shared(main, mirror, step.usage)
     if found is None:
         return []
@@ -371,8 +432,9 @@ def apply(main: Main, mirror: Mirror, step: Step) -> list[str]:
 
 
 def _write(target: Path, made: dict, mode: int) -> None:
-    """Write `made` to `target` in one move, by renaming a temporary file over it."""
-    temporary = target.with_name(f"{JSON}.mirror.{os.getpid()}")
+    """Write `made` to `target` in one move, by renaming a temporary file over it. A link at
+    `target` is replaced, and the file it pointed at is left as it was."""
+    temporary = target.with_name(f"{target.name}.mirror.{os.getpid()}")
     temporary.unlink(missing_ok=True)
     try:
         with os.fdopen(os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, mode), "w") as out:

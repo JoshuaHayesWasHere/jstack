@@ -44,7 +44,8 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
    On `go` or `no jbus`, go on.
    On `stop`, the block has written the Result: say its line here and do nothing else, not even "End".
 2. Check where you are: `git status -sb`. A home that launched this thread has already given it a worktree and a branch named for the task: work there. If this is instead the repo's main checkout on its default branch, make a branch first. Never commit on the default branch.
-3. See whether the brief names a playbook. Run this with the block at the top:
+3. See whether the brief names a playbook.
+   Run this in a call of its own, with the block at the top and nothing else in it: a call that also prints another file, with `cat` or the like, can come back cut off behind a file, and the steps with it:
 
    ```sh
    B="$H/tasks/<slug>.md"
@@ -55,12 +56,12 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
    On `no playbook`, do the same, and write what it printed on the Result's `Playbook:` line.
    On `not a crewmate's`, the file is for a scout or the home: do the same again.
    When its first line is a path, read that file now.
-   Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order.
-   A step you do not do stays in the list as `skip: <reason>`.
+   Under the path it prints the playbook's numbered steps: work them in order.
+   A step you do not do is reported as `skip: <reason>`.
    The Result's `Playbook:` line reports each step, as `$T/result.md` shows.
    A path the playbook names is from `$T/..`, the repo this skill lives in, also when the task is in another repo.
    A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the brief to have.
-   Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook.
+   Last, it prints the name and path of each principle the playbook cites, once each, under a line that says so: a step's citation points to one, and you read it in full at its path when you do that step.
    On `no principle`, a citation names a file `principles/` does not have: write what it printed on the Result's `Playbook:` line.
    On `lacks the line`, the brief stands as the home wrote it: write what it printed on the Result's `Playbook:` line.
    The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and the Result's `Playbook:` line says so.
@@ -307,6 +308,7 @@ fi
 
 On `jbus merges: send nothing`, write the lines the Result is owed and go on: `jmerge`, run by jbus, reads them.
 On `jbus merges: send no line, and park it as a gate`, the line asks for somebody's word and jbus's `jmerge` says only `wait` of such a pull request: park a gate ("Do the task") whose question is the line without its `at <head>`, with the default that the pull request waits and the head on its `Built on it:` line.
+The line of a brief that says `Review: none` is the one exception: `jmerge` already holds that pull request for the user's word, so park nothing for it.
 jbus tells one gate from another by its slug and its question, so a later head of the same pull request is the same gate, and `already sent` is no fault.
 A brief of a scoped home is told the same way: jbus merges its pull request as it merges the root home's.
 A block beside a send that prints `tell the home` is answered by this one.

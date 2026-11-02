@@ -119,8 +119,9 @@ def test_the_first_run_links_backs_up_and_merges_and_the_second_prints_nothing(h
     code, said, _ = mirror(capsys)
     assert code == 0
     for at in (prime, third):
-        for name in ("CLAUDE.md", "settings.json", "skills", "projects", "history.jsonl"):
+        for name in ("CLAUDE.md", "skills", "projects", "history.jsonl"):
             assert os.readlink(at / name) == str(main / name), (at, name)
+        assert not (at / "settings.json").is_symlink()
         assert os.readlink(at / "file-history") == str(main / "file-history")
         assert not (at / "sessions").exists()
     assert (prime / ".credentials.json").read_text() == "prime login\n"
@@ -148,6 +149,105 @@ def test_the_first_run_links_backs_up_and_merges_and_the_second_prints_nothing(h
     assert mirror(capsys) == (0, [], "")
     code, said, _ = mirror(capsys, "--check")
     assert code == 0 and said == [f"ok        {at} mirrors {main}" for at in (prime, third)]
+
+
+def listed(home: Path) -> dict:
+    """The settings a thread launched on `home` reads."""
+    return json.loads((home / "settings.json").read_text())
+
+
+@pytest.fixture
+def skills(home):
+    """`~/.claude` enables two plugins, turns one skill of the user's to name-only, and has
+    two claude.ai account skills synced for each of two logins."""
+    main = home / ".claude"
+    settings = {
+        "effortLevel": "medium",
+        "enabledPlugins": {"typesafe@typesafe-ai": True, "skill-creator@official": True},
+        "skillOverrides": {"crew": "name-only"},
+    }
+    write(main / "settings.json", json.dumps(settings))
+    for login in ("org_one", "org_two"):
+        for name in ("docx", "morning"):
+            write(main / "skills" / "synced" / login / name / "SKILL.md", f"{name}\n")
+        write(main / "skills" / "synced" / login / "manifest.json", "{}\n")
+    write(main / "plugins" / "cache" / "typesafe" / "SKILL.md", "typesafe\n")
+    return settings
+
+
+def test_a_mirrors_threads_list_no_plugin_bundled_or_account_skill_and_mains_list_all(
+    home, capsys, skills
+):
+    main, prime = home / ".claude", home / ".claude_prime"
+    (prime / "settings.json").symlink_to(main / "settings.json")
+    code, said, _ = mirror(capsys)
+    assert code == 0
+    assert (
+        f"trimmed   {prime / 'settings.json'}: {main / 'settings.json'} with no plugin, bundled"
+        " or account skill listed"
+    ) in said
+    assert listed(main) == skills
+    for at in (prime, home / ".claude_third"):
+        assert not (at / "settings.json").is_symlink()
+        assert listed(at) == {
+            "effortLevel": "medium",
+            "enabledPlugins": {"typesafe@typesafe-ai": False, "skill-creator@official": False},
+            "disableBundledSkills": True,
+            "skillOverrides": {
+                "crew": "name-only",
+                "anthropic-skills:docx": "off",
+                "anthropic-skills:morning": "off",
+                "plugin-authoring": "off",
+            },
+        }
+    for skill in ("skills/synced/org_one/docx/SKILL.md", "plugins/cache/typesafe/SKILL.md"):
+        assert (prime / skill).read_text() == (main / skill).read_text()
+    assert mirror(capsys) == (0, [], "")
+
+
+def test_a_plugin_or_account_skill_main_gains_is_drift_until_the_next_run_turns_it_off(
+    home, capsys, skills
+):
+    main, prime = home / ".claude", home / ".claude_prime"
+    mirror(capsys)
+    skills["enabledPlugins"]["new@market"] = True
+    skills["theme"] = "dark"
+    write(main / "settings.json", json.dumps(skills))
+    write(main / "skills" / "synced" / "org_one" / "pdf" / "SKILL.md", "pdf\n")
+    code, said, _ = mirror(capsys, "--check")
+    assert code == 1
+    assert f"would write {prime / 'settings.json'} as {main / 'settings.json'}, trimmed" in said
+    mirror(capsys)
+    assert listed(prime)["enabledPlugins"]["new@market"] is False
+    assert listed(prime)["theme"] == "dark"
+    assert listed(prime)["skillOverrides"]["anthropic-skills:pdf"] == "off"
+    assert listed(main)["enabledPlugins"]["new@market"] is True
+    assert mirror(capsys, "--check")[0] == 0
+
+
+def test_a_write_to_a_mirrors_settings_lasts_until_the_next_run_and_never_reaches_main(
+    home, capsys, skills
+):
+    main, prime = home / ".claude", home / ".claude_prime"
+    mirror(capsys)
+    write(prime / "settings.json", json.dumps({"enabledPlugins": {"typesafe@typesafe-ai": True}}))
+    mirror(capsys)
+    assert listed(prime)["enabledPlugins"]["typesafe@typesafe-ai"] is False
+    assert listed(main) == skills
+    assert not list(prime.glob("settings.json.mirror.*"))
+
+
+def test_a_mirrors_settings_that_cannot_be_read_is_written_again_and_stops_no_other_step(
+    home, capsys, skills
+):
+    main, prime = home / ".claude", home / ".claude_prime"
+    mirror(capsys)
+    write(prime / "settings.json", "{ half written")
+    (prime / "CLAUDE.md").unlink()
+    code, said, _ = mirror(capsys)
+    assert code == 0
+    assert listed(prime)["enabledPlugins"]["typesafe@typesafe-ai"] is False
+    assert os.readlink(prime / "CLAUDE.md") == str(main / "CLAUDE.md")
 
 
 def test_claude_json_keeps_each_mirrors_account_and_takes_mains_servers_and_projects(home, capsys):
@@ -201,10 +301,11 @@ def test_check_changes_nothing_and_names_each_entry_that_differs(home, capsys):
     assert f"would move {prime / 'agents'} into {main} and link it" in said
     assert f"would remove dangling {prime / 'gone'}" in said
     assert f"would link {prime / 'skills'} -> {main / 'skills'}" in said
-    assert said[-1] == (
+    assert said[-2:] == [
         f"would sync mcpServers, projects, theme of {home / '.claude.json'}"
-        f" into {prime / '.claude.json'}"
-    )
+        f" into {prime / '.claude.json'}",
+        f"would write {prime / 'settings.json'} as {main / 'settings.json'}, trimmed",
+    ]
     assert not any(".claude_third" in line for line in said)
 
 

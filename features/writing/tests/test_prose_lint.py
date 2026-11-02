@@ -299,3 +299,14 @@ def test_sentences_ends_a_sentence_only_where_one_ends(line, count):
 
 def test_sentences_keeps_the_text_as_written():
     assert lint.sentences("Run `a. B`. Then go.") == ["Run `a. B`.", "Then go."]
+
+
+def test_a_text_on_stdin_is_judged_whole_past_its_fences_and_fields():
+    text = "One line. Two sentences.\n\n```sh\nA. B.\n```\nDone when: one. Two.\nOne line.\n"
+    ran = subprocess.run(
+        [sys.executable, "-I", "-S", str(SCRIPT), "-"], input=text, capture_output=True, text=True
+    )
+    assert ran.returncode == 1
+    assert ran.stdout.splitlines()[:-1] == [
+        "<stdin>:1: more than one sentence, break it at sentence ends: One line. Two sentences."
+    ]

@@ -24,6 +24,9 @@ The one exception is a default that is **irreversible or slow to revert**: undoi
 
 Everything else acts at once on its default: a merge (reverted by `gh pr revert`), a branch, a brief, a config edit with its backup, a launch. `$T/gates.md` has the same rule under the gate's lines, for every thread that gates.
 
+`jbus gate` asks nothing a rule already settles: a gate with no `Holds:` line whose question asks whether to swarm, whether a `Review: none` pull request merges, whether to write `Fixed:` after a check ended 124, which base a pull request goes on, whether to add a `cross-cutting` label, or whether to wait for the fix of a red that is its base's is refused as `settled:`, with the rule that settles it and what to do instead.
+It refuses as `not sent:` a gate with no `Holds:` line whose default waits for the user's word, since the first pass closes it at once and nobody is left to give that word: the default says what is done with no word.
+
 **The block that reads jbus** is run in the same call as every block of this section but the last two, after the block at the top and the block that finds this home, from the main checkout:
 
 ```sh
@@ -73,6 +76,7 @@ On `asked: already answered: question <number>:` nothing was asked: an earlier q
 If that answer does not settle this one, word the question so that it says what is new, and run it again.
 On `not asked: not sent:` or `not asked: refused:`, jbus names what the gate lacks, checked against `$T/gates.md`: a first line that is not `## Gate <n>: ` and the question, more than one gate, no `Status: open` line, a line of the template left unfilled, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table.
 Mend that line and run it again.
+On `not asked: settled:`, a rule already answers the question: do what the line says, and ask nothing.
 On any other `not asked`, jbus holds nothing: end the turn with `decision local <slug>: ` and then the question and the default taken ("How a turn ends").
 
 The same block hands jbus a gate another thread wrote out in full, the lines of a gate in a Result or under "Findings" in a Report: run it with that thread's slug in place of `own` and those lines as the entry.

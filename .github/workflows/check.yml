@@ -47,12 +47,15 @@ jobs:
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
   # commits of history are enough and the diff is read from the local git, with no cap on
   # its files. A change the whole suite rests on runs all of it, but for the tests that open a
-  # real browser, which browser.yml runs. The tests run as four jobs side by side, each with a
-  # quarter of what the change selected (`SHARD`, testing/shard.py), and the job `check` below
-  # passes only when all four did.
+  # real browser, which browser.yml runs. The tests run as eight jobs side by side, each with an
+  # eighth of what the change selected by time (`SHARD`, testing/shard.py), and the job `check`
+  # below passes only when all eight did. Eight, not four, halves the check's wall: a part took
+  # p50 7.2 min of four on 2026-10-28..11-02. The account runs at most 40 hosted jobs at once
+  # (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): a head's eight parts,
+  # borders and macos are ten jobs, so four heads run at once and a fifth queues.
   check-shard:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
-    name: check ${{ matrix.shard }} of 4
+    name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
     # cost nothing. The image is pinned, not ubuntu-latest, so a new Ubuntu release comes only
@@ -66,7 +69,7 @@ jobs:
       # first part's.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     outputs:
       selection: ${{ steps.suite.outputs.selection }}
       tree: ${{ steps.tree.outputs.name }}
@@ -91,10 +94,11 @@ jobs:
         run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
       # TLC's output for each run of the specs, kept by the sha256 of what the run reads
       # (statechart's `kept`): a run whose spec, config, script, jar and Java are those of a run
-      # kept here starts no Java. A test's part is fixed by its id, so each part keeps its own
-      # runs. Every run saves under a key of its own, and restores the latest of its part, of
-      # the same spec files first, else of any: a stale entry is never read, since each file is
-      # named by the hash of its own inputs.
+      # kept here starts no Java. A test's part is fixed by the selection and the test times, so
+      # each part keeps its own runs, and a run of the same selection finds its part's. Every run
+      # saves under a key of its own, and restores the latest of its part, of the same spec files
+      # first, else of any: a stale entry is never read, since each file is named by the hash of
+      # its own inputs.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/jstack/tlc
@@ -107,7 +111,7 @@ jobs:
       # when its selection is 80% of the test files or more.
       - name: make check-fast
         id: suite
-        run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/4
+        run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8
       # A pull request whose title, body or any commit from base to head credits an AI tool as a
       # co-author fails here, with each line named. It runs whatever the suite said, so a red
       # suite does not hide it, and in the first part only, since it reads no test. The commits
@@ -127,7 +131,7 @@ jobs:
           NAME: ${{ steps.tree.outputs.name }}
         run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}"'
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
-  # whatever the parts did, and passes only when all four passed: a part that failed, was
+  # whatever the parts did, and passes only when all eight passed: a part that failed, was
   # cancelled or never ran fails it, where a skipped required check would count as passed.
   # On a draft it is skipped with its parts: GitHub merges no draft, and jmerge waits on one.
   check:
@@ -161,8 +165,9 @@ jobs:
           if-no-files-found: error
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
   # real browser are not in it: browser.yml runs them, nightly and on a release. It runs as
-  # four jobs side by side, as the check does, and the job `full` below passes only when all
-  # four did.
+  # four jobs side by side, split by time as the check's eight are, and the job `full` below
+  # passes only when all four did. Four, not eight: it is off the merge path, and its jobs share
+  # the account's 40 with the pull requests' checks.
   full-shard:
     if: github.event_name != 'pull_request'
     name: full ${{ matrix.shard }} of 4

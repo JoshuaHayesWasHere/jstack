@@ -186,7 +186,11 @@ def test_a_config_that_names_robin_is_whom_jbus_takes_and_prints(kitchen, jstack
     line = f"waiting-on-user demo: {hand} · unblocks alpha · since 11:00 ET"
     (event,) = kitchen.events("waiting-on-user")
     assert (event["line"], event["loud"]) == (line, "quiet")
-    assert kitchen.main("queue", "show")[1].startswith(f"waiting on Robin:\n{hand}\n\n| slug |")
+    shown = kitchen.main("queue", "show")[1]
+    assert shown.startswith(
+        f"waiting on Robin: 1, in demo\ndemo {hand}, a pull request jmerge holds for your word\n"
+        '  answer: say "demo #286: merge it", or say what to do instead\n\n| slug |'
+    )
 
 
 def test_a_row_approved_before_the_name_was_a_setting_still_launches(kitchen):

@@ -62,6 +62,8 @@ INTENT=$(
     printf '\nSkills: %s. The crewmate loaded each in full and ran it, and its Result owes one artifact for each under Skills run:, the one templates/skill-artifacts.md names. jmerge waits on one that is missing, empty or a placeholder. Judge whether each is the real one: an artifact that restates the brief, or that running the skill plainly did not produce, is a finding about the change as a whole.\n' "$skills"
     printf 'What the Results hold under Skills run:, as jmerge reads it:\n%s\n' "$run"
   fi
+  count=$(uv run --project "$T/../source" jbriefs --meets "$BRIEF" | awk '{print $(3)}')
+  printf '\nDone when lines in the brief, numbered from 1 in the order above: %s, the n the Meets the brief line counts against.\n' "$count"
   play=$(uv run --project "$T/../source" jbus playbook reviewer "$BRIEF")
   if [ -n "$play" ]; then printf '\n%s\n' "$play"; fi
   printf '\n%s\n' "$SCOPE"
@@ -164,5 +166,11 @@ THE_PROOF_ENDS_HERE
 | `PASS+NOTES` or `FAIL` | `findings` | the section's `Findings:` has at least one line |
 
 - A review that could not be done is neither: its section says `Verdict: not run` and why.
+- `Meets the brief:` is the review's judgement of the brief, a typed line `jmerge` reads (`jbriefs.meets`), and it is the reviewer's alone.
+  It is `yes, <n> of <n>` or `no, <m> of <n>`, where `<n>` is the count the intent gives of the brief's `Done when` lines and `<m>` how many the change meets.
+  Under it goes one item for each line not taken as met, `- unmet <k>: <the line>`, `<k>` its number in the brief's list from 1.
+  A line that can only be proven once the pull request is merged is `- after-merge <k>: <the line>`, and one that only waits on CI is `- waiting <k>: <the line>`: neither is unmet, so `<m>` is `<n>` less the `unmet` items alone.
+  `jmerge` holds the pull request while the last round's line says `no`, and also where a section of that round has no line of this shape or a count that is not the brief's: a skipped or skimmed check is no pass.
+  Each unmet line is also a finding, so the crew has it to fix, and the way out is that fix and a scoped review whose own line says `yes`.
 - `Head:` is the head reviewed, and `Patch-id:` is `git patch-id --stable` of the diff from the base to that head. The block of step 1 of "After the review" prints both lines whole.
 - CI's `check` is not the verdict, and not the precondition either: a reviewer is launched when the pull request opens, beside its checks, and never on one whose check failed. A green pull request can still have findings, and `jmerge` merges only one that is green.

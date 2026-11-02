@@ -148,14 +148,16 @@ def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
     return stacked(green_main(brief, ""), on)
 
 
-def stacked(brief: str, on: stacks.Stacked) -> str:
+def stacked(brief: str, on: stacks.Stacked | None) -> str:
     """Return the brief with `on`'s `Stacked on:` line under its first line, in place of any such
-    line its head had."""
+    line its head had, or with no such line where `on` is None."""
     kept, head = [], True
     for line in brief.splitlines(keepends=True):
         head = head and not line.startswith("## ")
         if not (head and line.startswith(stacks.LINE)):
             kept.append(line)
+    if on is None:
+        return "".join(kept)
     first, _, rest = "".join(kept).partition("\n")
     return f"{first}\n{stacks.line(on)}\n{rest}"
 
