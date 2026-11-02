@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING, Any
 
 import jsettings
 from jbus import boxes
+from jbus.telemetry.messages import DROPPED
 from jsettings.store import append_jsonl
 
 if TYPE_CHECKING:
@@ -75,17 +76,6 @@ BYPASS = re.compile(
 )
 PASTE = re.compile(
     r"t3-citation://|^\s*[\[#]|here is the response|^From the |^Josh \(|^Take a census", re.I
-)
-DROPPED = (
-    "<task-notification>",
-    "<system-reminder>",
-    "this session is being continued from a previous conversation",
-    "<local-command-",
-    "context handoff",
-    "base directory for this skill",
-    "[request interrupted",
-    "caveat: the messages below were generated",
-    "generate a title that will help the user",
 )
 _HEARD = """
 select m.message_id, t.project_id, m.created_at, json_extract(m.payload_json, '$.text') from

@@ -679,3 +679,77 @@ def test_a_t3_store_numbered_again_or_replaced_is_read_again_and_keeps_one_row_a
     with contextlib.closing(machine.store()) as store:
         held = store.execute("SELECT project, id FROM messages ORDER BY id").fetchall()
     assert held == [("alpha", f"m-{n}") for n in range(4)]
+
+
+def test_a_project_jbus_learns_later_takes_its_messages_under_its_name_one_row_a_message(machine):
+    t3 = T3()
+    t3.thread("mcp:scratch", "scratch-id")
+    t3.say("m-1", "mcp:scratch", NOW)
+    machine.build()
+    config = machine.root / "c" / "config.toml"
+    config.write_text(
+        config.read_text()
+        + f'[[project]]\nname = "gamma"\ncheckout = "{machine.root / "gamma"}"\n'
+        + 'projectId = "scratch-id"\n'
+    )
+    (machine.state_dir / "gamma").mkdir()
+
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        held = store.execute("SELECT project, id FROM messages").fetchall()
+    assert held == [("gamma", "m-1")]
+
+
+def test_a_t3_store_that_cannot_be_read_leaves_the_rest_of_the_build(machine):
+    t3 = T3()
+    t3.thread("mcp:home-a", "alpha-id")
+    t3.say("m-0", "mcp:home-a", NOW)
+    machine.build()
+    t3.path.write_text("not a database")
+    records(machine, "alpha", NOW, "alpha-one", 10)
+
+    out = machine.build()
+
+    assert "events 1" in out and "messages" not in out
+    with contextlib.closing(machine.store()) as store:
+        held = store.execute("SELECT id FROM messages").fetchall()
+    assert held == [("m-0",)]
+
+
+def test_a_raised_rules_reads_every_message_again_under_the_new_kind(machine, monkeypatch):
+    t3 = T3()
+    t3.thread("mcp:home-a", "alpha-id")
+    for n in range(3):
+        t3.say(f"m-{n}", "mcp:home-a", NOW + timedelta(minutes=n))
+    machine.build()
+    monkeypatch.setattr(telemetry.messages, "kind", lambda message_id, head: "relabelled")
+    assert "nothing new" in machine.build()
+
+    monkeypatch.setattr(telemetry.messages, "RULES", telemetry.messages.RULES + 1)
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        held = store.execute("SELECT id, kind FROM messages ORDER BY id").fetchall()
+    assert held == [(f"m-{n}", "relabelled") for n in range(3)]
+
+
+def test_the_most_cap_leaves_the_messages_past_it_for_the_next_build(machine, monkeypatch):
+    monkeypatch.setattr(telemetry.messages, "BATCH", 2)
+    t3 = T3()
+    t3.thread("mcp:home-a", "alpha-id")
+    for n in range(5):
+        t3.say(f"m-{n}", "mcp:home-a", NOW + timedelta(minutes=n))
+
+    capped = telemetry.build(jbus.load(), most=1)
+
+    assert capped.left == 1
+    with contextlib.closing(machine.store()) as store:
+        held = store.execute("SELECT id FROM messages ORDER BY id").fetchall()
+    assert held == [("m-0",), ("m-1",)]
+
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        held = store.execute("SELECT id FROM messages ORDER BY id").fetchall()
+    assert held == [(f"m-{n}",) for n in range(5)]
