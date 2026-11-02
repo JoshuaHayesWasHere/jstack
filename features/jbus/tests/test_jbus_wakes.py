@@ -9,6 +9,7 @@ was told.
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
 import json
+import threading
 from datetime import timedelta
 
 import pytest
@@ -179,6 +180,51 @@ def test_a_red_whose_tests_stay_unread_wakes_once_with_the_key_it_first_got(laun
         launched.poll(NOW + minutes * MIN)
     assert reds_told(launched, root) == ["ci dependabot/pip/oat: check failed"]
     assert jbus.read_json(launched.state / wakes.FILE, {})["tests"] == {"500": []}
+
+
+def test_a_red_runs_failed_job_logs_are_read_at_one_moment_for_the_same_tests(
+    launched, monkeypatch
+):
+    """Each log read waits until every failed job's read has begun, so a pass that read them one
+    by one would break the barrier. The run's key is the union of the tests its logs name."""
+    root = home(launched)["threadId"]
+    runs(launched, "dependabot/pip/oat")
+    launched.set("run-jobs.json", {"500": [job(at) for at in range(3)]})
+    launched.set("logs.json", {str(900 + at): log_of(at) for at in range(3)})
+    barrier, met, real = threading.Barrier(3), [], wakes._log_failed
+
+    def reading(run, job_id):
+        try:
+            barrier.wait(10)
+            met.append(True)
+        except threading.BrokenBarrierError:
+            met.append(False)
+        return real(run, job_id)
+
+    monkeypatch.setattr(wakes, "_log_failed", reading)
+    for minutes in (0, 3):
+        launched.poll(NOW + minutes * MIN)
+    assert met == [True] * 3
+    assert reds_told(launched, root) == ["ci dependabot/pip/oat: check failed"]
+    tests = [f"tests/test_grain.py::test_{at}" for at in range(3)]
+    assert jbus.read_json(launched.state / wakes.FILE, {})["tests"] == {"500": tests}
+
+
+def test_one_unread_log_of_several_leaves_the_run_unread_for_a_pass(launched):
+    """The other logs are read, and the run still waits for its tests: one read is not a red."""
+    root = home(launched)["threadId"]
+    runs(launched, "dependabot/pip/oat")
+    launched.set("run-jobs.json", {"500": [job(at) for at in range(3)]})
+    launched.set("logs.json", {"900": log_of(0), "902": log_of(2)})
+    launched.poll(NOW)
+    assert reds_told(launched, root) == []
+    assert jbus.read_json(launched.state / wakes.FILE, {})["tests"] == {"500": wakes.UNREAD}
+    launched.set("logs.json", {str(900 + at): log_of(at) for at in range(3)})
+    for minutes in (3, 6):
+        launched.poll(NOW + minutes * MIN)
+    assert reds_told(launched, root) == ["ci dependabot/pip/oat: check failed"]
+    tests = [f"tests/test_grain.py::test_{at}" for at in range(3)]
+    assert jbus.read_json(launched.state / wakes.FILE, {})["tests"] == {"500": tests}
 
 
 def reds_told(kitchen, thread):

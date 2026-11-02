@@ -50,7 +50,7 @@ from jbus import (
     verbs,
     write_json,
 )
-from jbus.passes import Pass
+from jbus.passes import Pass, side_by_side
 from jbus.roles import ROLES
 from jbus.t3 import Client, T3Error
 from jbus.told import FILE, KIND, told_to
@@ -220,15 +220,15 @@ class _Tests:
         asked = _api(self.run, f"repos/{{owner}}/{{repo}}/actions/runs/{run_id}/jobs")
         if not isinstance(asked, dict):
             return None
-        failed = set()
-        for job in asked.get("jobs") or []:
-            if job.get("status") != "completed" or job.get("conclusion") in NOT_RED:
-                continue
-            said = _log_failed(self.run, job.get("id"))
-            if said is None:
-                return None
-            failed |= set(said.tests)
-        return sorted(failed)
+        red = [
+            job.get("id")
+            for job in asked.get("jobs") or []
+            if job.get("status") == "completed" and job.get("conclusion") not in NOT_RED
+        ]
+        said = side_by_side(lambda job: _log_failed(self.run, job), red)
+        if None in said:
+            return None
+        return sorted({test for one in said if one is not None for test in one.tests})
 
 
 def red_key(tests: list[str]) -> str:
