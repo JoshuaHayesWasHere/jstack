@@ -33,10 +33,11 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    Write each line of the title and the body as one sentence: step 6 lints both.
 6. When the brief asks for a pull request, push and open it as a draft, on the base the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief.
    On `no base`, open none.
-   Open it with this, with the block at the top of `skills/crew/SKILL.md`: it lints the text, then locks the conversation.
+   Open it with this, with `skills/crew/SKILL.md`'s top block: it lints, then locks.
 
    ```sh
-   if ! { printf '%s\n\n' '<the title>'; cat '<the file the body is in>'; } | python3 -I -S "$T/../source/features/writing/scripts/prose_lint.py" -; then
+   lint="$T/../source/features/writing/scripts/prose_lint.py"
+   if ! printf '%s\n' '<the title>' | python3 -I -S "$lint" - || ! cat '<the file the body is in>' | python3 -I -S "$lint" -; then
        echo "not opened: the prose lint refused, as it says above"
        exit 1
    fi

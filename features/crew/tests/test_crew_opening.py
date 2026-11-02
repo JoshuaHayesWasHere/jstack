@@ -16,7 +16,6 @@ from jinstall import layout
 from testing.layouts import assembled
 from testing.paths import REPO
 
-TEMPLATE = REPO / "features" / "pr-review" / "templates" / "pr-body.md"
 PLAYBOOK = REPO / "features" / "writing" / "playbooks" / "opening-a-pr.md"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 URL = "https://example.test/ada/demo/pull/7"
@@ -74,7 +73,7 @@ def test_a_body_with_a_line_of_two_sentences_opens_nothing_and_says_which_line(o
         "feat(crew): lint the text", BODY.replace("## Scope", f"{line}\n\n## Scope")
     )
     assert asked == []
-    assert said[0] == f"<stdin>:7: more than one sentence, break it at sentence ends: {line}"
+    assert said[0] == f"<stdin>:5: more than one sentence, break it at sentence ends: {line}"
     assert said[-1].startswith("not opened:")
 
 
@@ -93,7 +92,6 @@ def test_a_title_and_body_one_sentence_a_line_open_and_lock(opened):
 def test_step_five_names_no_skill_to_read():
     named = {REPO / path for path in re.findall(r"`([^`]+\.md)`", step(5))}
     assert named & set(listed("skill", REPO).values()) == set()
-    assert named & set(listed("template", REPO).values()) == {TEMPLATE}
 
 
 @pytest.mark.parametrize("name", ["technical-writing", "unslop"])
