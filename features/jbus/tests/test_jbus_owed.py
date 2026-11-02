@@ -204,11 +204,11 @@ def test_a_read_refused_for_another_reason_keeps_the_ask(kitchen, free, monkeypa
     def refused(client, ask):
         raise T3Refused("refused: the server is busy")
 
-    monkeypatch.setattr(owed, "_since", refused)
-    lines = kitchen.poll(AFTER)
+    with monkeypatch.context() as patched:
+        patched.setattr(owed, "_since", refused)
+        lines = kitchen.poll(AFTER)
     assert [one.state for one in asks(kitchen)] == ["owed"]
     assert any("refused to read its thread" in line for line in lines)
-    monkeypatch.undo()
     kitchen.poll(AFTER + timedelta(minutes=1))
     assert len(resent(kitchen)) == 1
 
