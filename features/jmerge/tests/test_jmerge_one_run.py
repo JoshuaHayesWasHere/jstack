@@ -29,9 +29,7 @@ def asked(kitchen):
 def test_a_run_with_if_free_does_nothing_while_another_run_holds_the_lock(kitchen):
     kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
     other = held(kitchen)
-    said = kitchen.home.sh(
-        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge --if-free'
-    )
+    said = kitchen.home.sh(f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge --if-free')
     assert kitchen.home.code == lock.BUSY
     assert said == [lock.BUSY_LINE.format(path=kitchen.home.state / lock.RUN)]
     assert not asked(kitchen)
