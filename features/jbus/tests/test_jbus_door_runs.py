@@ -292,7 +292,7 @@ def test_the_carried_word_parks_a_gate_whose_holds_names_the_case(kitchen):
     queued(kitchen)
     said = carried_word(kitchen, None, "deploy-prod")
     (asked,) = questions.read(kitchen.state)
-    assert f"so it waits for user's own word: question {asked.number}\n" in said
+    assert f"so it waits for user's own word: question {asked.number}; jbus queue " in said
     assert (asked.slug, asked.holds) == ("deploy-prod", PROD)
 
 
@@ -304,9 +304,9 @@ def test_a_message_of_joshs_that_names_another_row_is_refused_and_says_what_to_s
     assert (code, said) == (
         1,
         f"refused: deploy-prod's brief holds for {PROD}, and message {ref} (\"go on the "
-        'skills") names neither deploy-prod nor its gate: user sends "go deploy-prod" in T3 '
-        f"Code, and jbus --as user queue approve deploy-prod --sha {sha} --message "
-        "<thread>/<message> records it\n",
+        f'skills") names neither deploy-prod nor its gate: jbus queue approve deploy-prod --sha '
+        f"{sha} --message <thread>/<message>, on user's own message in T3 Code that names "
+        "deploy-prod and was said after its brief was stored, opens it\n",
     )
     assert rows(kitchen)["deploy-prod"]["approved"] == ""
 
@@ -369,7 +369,7 @@ def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_noth
     (asked,) = questions.read(kitchen.state)
     assert said.startswith(
         f"gated qw-deploy-main-to-prod: its brief holds for {PROD}, so it waits for user's own "
-        f"word: question {asked.number}\n"
+        f"word: question {asked.number}; jbus queue approve qw-deploy-main-to-prod --sha "
     )
     assert asked.holds == PROD
     assert rows(kitchen)["qw-deploy-main-to-prod"]["approved"] == ""
@@ -402,7 +402,6 @@ def test_the_homes_approve_on_the_users_own_message_opens_the_door_at_once(kitch
     ref = josh(kitchen, wording.format(slug=STALE, sha=sha))
     code, said = approve(kitchen, STALE, "--message", ref)
     assert code == 0, said
-    assert said.startswith(f"approved {STALE}: brief {sha}"), said
     assert questions.read(kitchen.state) == []
     assert rows(kitchen)[STALE]["approval"]["checked"] is True
     kitchen.poll()

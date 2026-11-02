@@ -87,11 +87,17 @@ GO_OPTIONS = {
 GO_GATE = "may {slug} go? Its brief holds for {case}"
 _GO_GATE_HOLDS = "keeps the go of {slug}, whose brief holds for {cases}"
 HELD_ANSWER = (
-    "It closes with jbus --as user answer {number} --default --message <thread id>/<message id>, "
-    "or --differs for an answer that is not the default, where the message is {user}'s own in "
-    "T3 Code: --by and --at cannot close it"
+    "It closes with jbus answer {number} --default --message <thread id>/<message id>, or "
+    "--differs for an answer that is not the default, where the message is {user}'s own in T3 "
+    "Code: --by and --at cannot close it"
 )
 """How a held question closes, said with its refusal so a home hands the user one command."""
+OPENS = (
+    "jbus queue approve {slug} --sha {sha} --message <thread>/<message>, on {user}'s own message "
+    "in T3 Code that names {slug} and was said after its brief was stored, opens it"
+)
+"""The command that opens a door row, which every line of a go that does not open it names. A
+message the user already sent that names the row is enough: nobody is asked to send another."""
 UNCHECKED_USER = (
     "refused: --as user acts on the user's own words that jbus reads itself, --message "
     "<thread>/<message> or --pick <thread>/<item>, and this act has {source} words"
@@ -186,7 +192,7 @@ def _done(
             number = _parked(run, who, action, said, parked)
             line = (
                 f"gated {action.verb} {action.subject}: it holds for {', '.join(action.doors)}, "
-                f"so it waits for {run.user.user}'s own word: question {number}"
+                f"so it waits for {run.user.user}'s own word: question {number}; {parked.given}"
             )
             return logged(run, who, action, said, "gated", line, number, id=id)
     try:
@@ -254,9 +260,12 @@ def _go(
     action = replace(action, doors=party.doors(text or ""))
     if action.doors and not party.opens(who, said):
         number = _park(run, who, action, said, text or "")
+        opens = OPENS.format(
+            slug=slug, sha=judgement.brief_sha(text or "")[:12], user=run.user.user
+        )
         line = (
             f"gated {slug}: its brief holds for {', '.join(action.doors)}, so it waits for "
-            f"{run.user.user}'s own word: question {number}"
+            f"{run.user.user}'s own word: question {number}; {opens}"
         )
         return action, "gated", line, number
     if action.doors:
@@ -270,8 +279,7 @@ def _go(
             sha = judgement.brief_sha(text or "")[:12]
             line = (
                 f"refused: {slug}'s brief holds for {', '.join(action.doors)}, and {unbound}: "
-                f'{run.user.user} sends "go {slug}" in T3 Code, and jbus --as user queue approve '
-                f"{slug} --sha {sha} --message <thread>/<message> records it"
+                + OPENS.format(slug=slug, sha=sha, user=run.user.user)
             )
             return action, "refused", line, None
     try:
@@ -282,7 +290,7 @@ def _go(
         return action, "noop", said_lines[0], None
     if action.doors:
         for one in questions.read(run.state):
-            if one.slug == slug and one.question.startswith(f"may {slug} go?"):
+            if one.slug == slug and _may_go(one):
                 questions.clear(run, one.number, f"{run.user.user} gave the go")
     return action, "done", "\n".join(said_lines), None
 
@@ -321,8 +329,9 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         if unbound:
             line = (
                 f"refused: question {number} holds for {', '.join(action.doors)}, and {unbound}: "
-                f'{run.user.user} sends "{number}: <the answer>" in T3 Code, and jbus --as user '
-                f"answer {number} --message <thread>/<message> records it"
+                f"jbus answer {number} --message <thread>/<message>, on {run.user.user}'s own "
+                f"message in T3 Code that names {asked.slug} or question {number} and was said "
+                "after it was asked, closes it"
             )
             return action, "refused", line, number
     try:
@@ -333,6 +342,9 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         return action, "refused", str(error), number
     given = closed.answer
     assert given is not None
+    if not given.keeps and _may_go(closed):
+        heard = queue.Said(given.words, given.at, given.said_in, given.checked, given.ref)
+        went = queue.gone_ahead(run.state, closed.slug, number, given.at, run.user, heard)
     if went:
         carried = f"nothing is sent, and {went}"
     elif given.keeps and not closed.holds:
@@ -342,6 +354,12 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
     else:
         carried = f"{closed.slug} has no Thread: line in a brief or request, so no thread is told"
     return action, "done", f"answered: question {number}: {given.line()}: {carried}", number
+
+
+def _may_go(one: questions.Question) -> bool:
+    """Whether the question is the gate a go on a door parks (`_park`): "may <slug> go?", whose
+    default is that the row waits. An answer that differs from that default is the go."""
+    return one.question.startswith(f"may {one.slug} go?")
 
 
 def _stored(run: Pass, slug: str) -> datetime | None:
@@ -411,14 +429,15 @@ def _park(run: Pass, who: Party, action: Action, said: Evidence, text: str) -> i
             f"Asked by: {slug}, by the {who.kind}'s go",
             f"Default: {slug} waits, with no go and no launch",
             "Built on it: nothing, since no thread launched",
-            f"Undo: nothing to undo; {user} gives the go in T3 Code, and jbus --as user queue "
-            f"approve {slug} --sha {shown} --message <thread>/<message> records it",
+            f"Undo: nothing to undo; jbus queue approve {slug} --sha {shown} --message "
+            f"<thread>/<message>, on {user}'s own message in T3 Code that names {slug}, opens it",
             f"Holds: {case}",
             f"Fail-safe: the brief, stored at {queue.brief_path(run.state, slug)}, unlaunched",
             f"Context: the {who.kind} gave the go on {said.source} {said.ref}, and a door "
             f"opens only on {user}'s own word that jbus reads in T3 Code{also}",
             f"Option: wait (default, recommended): {slug} stays unlaunched",
-            f"Option: go: {user} gives the go in T3 Code, and the next pass launches it",
+            f"Option: go: {user}'s own message in T3 Code names {slug}, jbus queue approve "
+            "records it, and the next pass launches it",
         )
     )
     one, _ = questions.park(run, slug, lines)
