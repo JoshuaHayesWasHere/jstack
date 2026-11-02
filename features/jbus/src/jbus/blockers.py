@@ -50,9 +50,9 @@ again. A blocker at its cap is `blocker:<key>`, the same from `admit` and `jbus 
 ends with `Reply: "<reply>"`, a line the user can send as it is: the reply goes to the home as the
 user's word (`jbus word`). A pass raises one for each item of the list of what waits that the user
 has to decide (`needs`): a question or a gate that holds, has no default or names one of
-`waiting.PAUSE`, a row to approve, a pull request `jmerge` holds, and a config item. `jbus decide`
-raises one by hand, for a scope change. A project's first pass raises none, as it sends nothing
-else.
+`waiting.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
+holds, and a config item. `jbus decide` raises one by hand, for a scope change. A project's first
+pass raises none, as it sends nothing else.
 
 The list was built from what the pass read at its start, and a home may approve a row or answer a
 gate while the pass runs. So just before it sends, the pass reads again what each item stands on
@@ -309,11 +309,15 @@ def needs(one: waiting.Item, context: str = "", known: frozenset[str] = frozense
         return f"it holds ({one['holds']}) for your answer"
     if not str(one.get("default") or "").strip():
         return "a gate with no default"
+    if one.get("waits"):
+        return f"its silence starts nothing, since {one['waits']}"
     named = waiting.paused(f"{one.get('question', '')} {context}", known | {one.get("slug") or ""})
     return f"it names {named}" if named else ""
 
 
-def _reply(project: Project, one: waiting.Item) -> str:
+def reply(project: Project, one: waiting.Item) -> str:
+    """Return the line the user sends as it is to answer an item, which a decision carries as its
+    `Reply:` and `jbus needs` prints."""
     kind = one["kind"]
     if kind == "gate" and questions.listed(one):
         return f"{project.name} question {one['number']}: default"
@@ -417,7 +421,7 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
     hears of it from the one list (`jbus.wakes`), and the log keeps this event."""
     for one, said in deciding(run, listed):
         key, slug = _keyed(one)
-        decide(run, slug, key, said, _reply(run.project, one), listed=True)
+        decide(run, slug, key, said, reply(run.project, one), listed=True)
 
 
 def _raise(half: Half) -> None:

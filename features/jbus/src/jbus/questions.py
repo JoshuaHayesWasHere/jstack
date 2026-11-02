@@ -727,8 +727,9 @@ def _state(one: Question, why: str) -> str:
 def item(one: Question, why: str = "") -> dict[str, Any]:
     """Return an open question as a gate item for the list of what waits on the user. The
     item has `acted` where the thread acted on the default at once, and the case and the
-    fail-safe of a gate that holds. `why` is what `waits` says of it. No go gate is `acted`: its
-    default waits for its close."""
+    fail-safe of a gate that holds. `why` is what `waits` says of it, kept as `waits`: a go gate
+    whose silence starts nothing waits on the user. No go gate is `acted`: its default waits for
+    its close."""
     return {
         "kind": "gate",
         "key": f"gate:q{one.number}",
@@ -743,6 +744,7 @@ def item(one: Question, why: str = "") -> dict[str, Any]:
         "acted": not one.holds and not go_gate(one),
         "holds": one.holds,
         "fail_safe": one.fail_safe,
+        "waits": why,
     }
 
 

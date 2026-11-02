@@ -14,7 +14,7 @@ It sends the root again each hour while the root is still open, and a pass that 
 Each time a root is due, jbus shows its line as a desktop notification with `notify-send`, whether or not it queues an event.
 On macOS, which has no `notify-send`, jbus raises nothing on the desktop.
 While the last wake of the project's home thread failed, jbus also prints the line in the journal.
-Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with the roots that are still open, and `jbus queue show` prints them above the table.
+Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with the roots that are still open.
 
 A spent GitHub API allowance is one item of that list, of the kind `github`, whatever the calls GitHub refused.
 Its line names the window and when it starts again, such as `GitHub refused it for its API rate limit: its core window has 0 of 5000 calls left until 2026-10-28 16:20 UTC`, and `jmerge` and the pass print the same line in place of what `gh` said.
@@ -43,3 +43,15 @@ A row is yours at once, and its line says why, in any of these cases:
 When a home takes over from the one that jbus told, jbus tells the new home too.
 `~/.local/state/jbus/<project>/leftover.json` is the record.
 For each such row, it holds the `Left:` text, the home's thread, when jbus told the home, and when jbus sent the `stall` event.
+
+## The one answer to "what needs me"
+
+`jbus needs` prints what of that list only you can do, for every project, or for one with `--project`.
+It keeps an item by the rule that raises a decision and wakes a home with it (`blockers.needs`).
+That rule keeps a gate that holds, a gate with no default or one that names a door, a go gate whose silence starts nothing, a row with no go, a pull request `jmerge` holds for your word and a setup only you can give.
+Each item is one line with what it holds, then its fail-safe where it has one, then the reply that answers it: `answer: say "<project> question <n>: default", or say what to do instead`.
+A row a home can clear by itself is left out, such as a row at `gate` or a leftover its home still has.
+A refused go is left out too: most refusals are a sha that did not match, and the home tries again by itself.
+With nothing open it prints `nothing waits on <you> in any project`, and a project no pass has listed yet is a `not known:` line.
+`jbus queue show` prints the same lines above the table, a home's start opens its status with them for its own project, and the home and ketchup skills open a status reply with them.
+`features/jbus/scripts/needs_replay.py` replays the list over a week's records, and counts the asks it answers and the items it shows that needed no one.

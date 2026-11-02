@@ -1,0 +1,112 @@
+"""`jbus needs` prints what waits on the user, for one project or for all: each item with what it
+holds and the reply that answers it, and nothing a home can clear by itself.
+
+Like `test_jbus_kitchen.py`, the tests run the real commands and the real pass against a faked T3
+Code server, `gh` and `jmerge`. Nothing reaches the network.
+"""
+
+from datetime import timedelta
+
+import jbus
+from jbus import acts, verbs
+from test_jbus_kitchen import GATE, NOW, RESULT
+from test_jbus_questions import held
+from test_jbus_queue import add, brief, go, sha12
+
+HOLDS = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
+
+
+AFTER = NOW + timedelta(minutes=5)
+"""A few minutes after the pass, past a row's grace."""
+
+
+def needs(kitchen, *argv, at=AFTER):
+    """What `jbus needs` prints at `at`."""
+    kitchen.monkeypatch.setattr(verbs, "clock", lambda: at)
+    code, out = kitchen.main(*argv, "needs")
+    assert code == 0, out
+    return out.splitlines()
+
+
+def test_an_open_gate_that_holds_is_listed_with_what_it_holds_and_the_reply_that_answers_it(
+    kitchen,
+):
+    kitchen.brief("alpha")
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    kitchen.poll()
+    assert needs(kitchen) == [
+        "waiting on user: 1, in demo",
+        "demo question 1: drop the old branch, it holds (deletes data) for your answer",
+        "  fail-safe: the dry-run in /tmp/gone.txt",
+        '  answer: say "demo question 1: default", or say what to do instead',
+    ]
+
+
+def test_a_row_awaiting_the_users_word_and_a_held_pull_request_are_listed(kitchen):
+    add(kitchen, "unsaid", approve=False)
+    kitchen.brief("held", RESULT)
+    kitchen.set("open.json", [kitchen.opened("held", 9)])
+    kitchen.set("jmerge.txt", HOLDS + "\n")
+    kitchen.poll()
+    command = f"jbus --project demo queue approve unsaid --sha {sha12(brief('unsaid'))} with"
+    said = needs(kitchen)
+    assert said[0] == "waiting on user: 2, in demo"
+    assert said[1].startswith(f"demo approve unsaid: {command}")
+    assert said[1].endswith(", a row with no approval of its brief")
+    assert said[2] == '  answer: say "demo approve unsaid: go", or say what to do instead'
+    assert said[3:] == [
+        f"demo {HOLDS}, a pull request jmerge holds for your word",
+        '  answer: say "demo #9: merge it", or say what to do instead',
+    ]
+
+
+def test_with_nothing_open_it_says_nothing_waits(kitchen):
+    kitchen.poll()
+    assert needs(kitchen) == ["nothing waits on user in any project"]
+    assert needs(kitchen, "--project", "demo") == ["nothing waits on user in demo"]
+
+
+def test_a_refused_go_whose_sha_did_not_match_is_not_listed(kitchen):
+    add(kitchen, "retried", approve=False)
+    code, said = go(kitchen, "retried", sha="0" * 12)
+    assert code != 0 and "000000000000" in said
+    assert go(kitchen, "retried")[0] == 0
+    assert [one["outcome"] for one in acts.read(kitchen.state)][-2:] == ["refused", "done"]
+    kitchen.poll()
+    assert needs(kitchen) == ["nothing waits on user in any project"]
+
+
+def test_a_row_its_home_can_clear_and_a_gate_whose_default_stands_are_not_listed(kitchen):
+    add(kitchen, "stuck")
+    kitchen.t3.thread("stuck", "failed", settled=True)
+    (kitchen.home / "gates.md").write_text(
+        GATE.format(n=4, asked="which way?", status="open", slug="home")
+    )
+    kitchen.poll()
+    kinds = [one["kind"] for one in jbus.read_json(kitchen.state / "waiting-on-user.json", [])]
+    assert kinds == ["gate", "row"]
+    assert needs(kitchen) == ["nothing waits on user in any project"]
+
+
+def test_a_go_gate_whose_silence_starts_nothing_waits_on_the_user(kitchen):
+    add(kitchen, "picked", approve=False)
+    asked = GATE.format(n="<n>", asked="start picked?", status="open", slug="picked")
+    lines = asked.replace("Default: the first one", "Default: approve").replace(
+        "Option: the first one (default, recommended)", "Option: approve (default, recommended)"
+    )
+    assert kitchen.main("gate", "picked", stdin=lines)[0] == 0
+    kitchen.poll()
+    said = needs(kitchen)
+    assert (
+        "demo question 1: start picked, its silence starts nothing, since the setting go is "
+        "entry, not silence" in said
+    )
+
+
+def test_all_projects_or_one(kitchen):
+    other = kitchen.second()
+    kitchen.brief("alpha")
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    kitchen.poll()
+    assert needs(kitchen)[0] == "waiting on user: 1, in demo"
+    assert needs(kitchen, "--project", other.name) == ["nothing waits on user in other"]

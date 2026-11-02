@@ -194,6 +194,26 @@ When a thread this home sent out sends it a message, when the user asks for stat
 Each time this home wakes, at its start and on a thread's message, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
 No bot outside watches the homes or the queue: this home clears its own blockers, and raises to the user only what the user has to decide.
 
+## What waits on the user
+
+jbus holds the one list of what only the user can do, and `jbus needs` prints it: each open gate that holds, each row waiting on the user's word and each pull request `jmerge` holds for it, with what it holds and the reply that answers it.
+It leaves out a refused go and a row this home can clear by itself, which are this home's to fix.
+A status reply, a `/ketchup` in a home, and any turn a wake started that tells the user something, open with what this block prints, as it prints it, before anything else.
+The list comes from jbus and never from this home's memory of what it asked.
+Run it in one call with the block at the top:
+
+```sh
+if command -v jbus > /dev/null; then
+    uv run --project "$T/../source" jbus needs
+else
+    echo "no jbus: jbus is not installed here, so what waits on the user is not known"
+fi
+```
+
+It names every project of jbus's config, since the user asks every home the same question.
+A line `nothing waits on <user> in any project` opens the reply as it is, and a `not known:` line says which project no pass has listed yet.
+A start's `## waiting on you` part, from step 4 of "When a home starts", is the same list for this home's project, with a count for each other project.
+
 ## Gates
 
 At the start, on status, whenever a gate is asked, shown or closed, and when a step elsewhere names a step of this section: read `$T/../skills/home/gates.md` now.
