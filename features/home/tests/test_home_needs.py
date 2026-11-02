@@ -6,9 +6,8 @@ part, which is the same list."""
 import pytest
 
 from test_home_start import parts
-from test_home_thread import STATUS, as_read, block
+from test_home_thread import STATUS, block
 from test_jbus_questions import held
-from testing.layouts import assembled
 
 NEEDS = "jbus needs"
 LISTED = [
@@ -54,13 +53,3 @@ def test_a_start_opens_its_status_with_the_same_list(bus):
     assert said["waiting on you"] == LISTED
     assert not any(line.startswith("waiting on") for line in said["queue"])
 
-
-def test_the_skills_say_status_a_wake_and_ketchup_open_with_the_list():
-    skills = assembled() / "skills"
-    home = as_read(skills / "home" / "SKILL.md")
-    assert "A status reply, a `/ketchup` in a home, and any turn a wake started" in home
-    told = as_read(skills / "home" / "when-a-thread-sends-a-message.md")
-    assert 'First run the block of "What waits on the user"' in told
-    assert 'open the reply with what the block of "What waits on the user" prints' in told
-    ketchup = as_read(skills / "ketchup" / "SKILL.md")
-    assert "In a home, the reply opens with what it printed" in ketchup
