@@ -9,8 +9,9 @@ word reaches a crew only from `jbus word` or in the crew's own thread.
 
 For each open pull request of a slug that jbus launched, `tell` reads GitHub's three lists of
 remarks, every pull request's at the same moment. It sends the slug's crew each remark whose
-author is the repo's owner, one message each, in the order of the pull requests. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
-and writes the owner nowhere in the tree. When GitHub gives no answer, jbus relays nothing.
+author is the repo's owner, one message each, in the order of the pull requests. jbus asks
+GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`, and writes the owner
+nowhere in the tree. When GitHub gives no answer, jbus relays nothing.
 
 jbus counts a remark by anybody else and reads it no further. It does not keep or log the
 remark's body, and sends it neither to a thread nor to the Chef. The pass says how many such
