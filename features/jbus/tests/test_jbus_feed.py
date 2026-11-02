@@ -161,7 +161,9 @@ def test_an_unknown_or_expired_cursor_resets_with_the_needs_to_catch_up_on(kitch
     box(kitchen).send("gamma", "queue", "queue demo: gamma is queued")
     kept = fed(kitchen)["cursor"]
     box(kitchen).send("delta", "queue", "queue demo: delta is queued")
-    box(kitchen).forget(datetime.now(UTC) - wake.LOG_KEEP)
+    box(kitchen).forget(
+        datetime.now(UTC) - wake.LOG_KEEP, (kitchen.state / "events.jsonl").stat().st_size
+    )
     assert fed(kitchen, expired)["reset"] is True
     assert lines(fed(kitchen, kept)) == ["queue demo: delta is queued"]
 
