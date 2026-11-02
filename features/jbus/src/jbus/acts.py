@@ -313,7 +313,10 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
         )
         return action, "refused", line, number
     if action.doors and asked is not None:
-        since = datetime.fromisoformat(asked.asked_at)
+        try:
+            since: datetime | None = datetime.fromisoformat(asked.asked_at)
+        except ValueError:
+            since = None
         unbound = _unbound(run, said, asked.slug, [number], since, f"question {number} was asked")
         if unbound:
             line = (
