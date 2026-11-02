@@ -7,14 +7,14 @@ The tests run the real commands and the real pass against the faked T3 Code serv
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import jbus
 from jbus import digest, questions, wake
 from jbus.view import state as view_state
-from test_jbus_kitchen import GATE, HOME, NOW, OPTIONS, Kitchen
+from test_jbus_kitchen import GATE, HOME, NOW, OPTIONS, Kitchen, iso
 
 AT = "2026-10-12 11:30 ET"
 ACTED = " Its default is acted on already, and stands unless you stop it."
@@ -512,7 +512,7 @@ def test_a_home_closes_no_gate_that_holds_in_its_gates_file_and_the_pass_says_so
     assert [one["key"] for one in listed(kitchen)] == ["gate:q2"]
     assert [one for one in kitchen.poll(later(20)) if "question 2" in one] == []
     assert answer(kitchen, 2, "yes", default=True)[0] == 1
-    kitchen.t3.says("mcp:a-home", "yes-2", "yes")
+    kitchen.t3.says("mcp:a-home", "yes-2", "yes to 2", updatedAt=iso(datetime.now(UTC)))
     argv = ("--as", "user", "answer", "2", "--message", "mcp:a-home/yes-2", "--default")
     assert kitchen.main(*argv)[0] == 0
     assert records(kitchen)["records"][1]["answer"]["closed_by"] == "jbus answer"
@@ -809,7 +809,7 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
         ("done", "a?"),
         holds="deletes data",
     )
-    kitchen.t3.says("mcp:a-home", "yes-4", "yes")
+    kitchen.t3.says("mcp:a-home", "yes-4", "yes to 4", updatedAt=iso(datetime.now(UTC)))
     argv = ("--as", "user", "answer", "4", "--message", "mcp:a-home/yes-4", "--default")
     assert kitchen.main(*argv)[0] == 0
     assert ask(kitchen, "a spoon?") == (0, "asked: queued: question 5\nGate: question 5\n")

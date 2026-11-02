@@ -1,5 +1,5 @@
 """Whether a thread's own shell command may walk through a door, read by
-`features/jbus/hooks/door-command.sh` before Claude Code or Codex runs a `Bash` command.
+`features/jbus/hooks/door-command.sh` before an agent's harness runs a `Bash` command.
 
 A door is a case of `templates/gates.md`, and the commands that walk through one are the `runs`
 of `party.DOORS`, the table a brief's commands are read by (`party.walks`). jbus's go and answer
@@ -80,9 +80,8 @@ def pieces(command: str) -> list[str]:
         if char in _SEPARATOR:
             cut()
         elif char in "'\"":
-            end = text.find(char, at + 1)
-            end = len(text) if end < 0 else end
-            quoted, at = text[at + 1 : end], end
+            quoted = text[at + 1 :].partition(char)[0]
+            at += len(quoted) + 1
             if _RUNS_TEXT.search(now):
                 cut()
                 found.extend(pieces(quoted))

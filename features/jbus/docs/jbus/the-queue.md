@@ -300,7 +300,7 @@ A brief holds for a door when a line of its head, above its first `## `, is `Hol
 A line that names a case the table does not have holds for every door.
 A brief also holds for each door that a command of its `Done when:` or `Proves it:` lines walks through, by the table's `runs` (`party.walks`), whether or not a `Holds:` line names it: `DSQL_STAGE=prod db/apply.sh dsql <file>`, `infra/deploy-backend.sh prod`, `scripts/deploy <service>`, `git push --force`, `gh release create` and the like.
 In those lines, never, do not or without hides the commands after it in its clause, and not run hides those of its own clause, so an aside hides no door beside it.
-A command with `--dry-run`, `DRY_RUN=1` or `--help` walks through no door.
+A command that runs dry, with `--dry-run` or `DRY_RUN=1`, or only prints its help walks through no door.
 `jbus queue add` prints `holds: <case>, from <the command>` for each such door that no `Holds:` line names, so the home writes the line.
 An act on a door goes through only for you, on words jbus read itself.
 A go on such a brief from the bot, a home or the view approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
