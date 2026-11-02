@@ -6,7 +6,8 @@
     "handoff",
     "home",
     "new-home",
-    "nohome"
+    "nohome",
+    "unstick"
   ],
   "hooks": [
     {

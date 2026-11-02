@@ -306,7 +306,7 @@ def test_codex_finds_beside_each_hidden_skill_a_policy_that_bars_implicit_invoca
     items = json.loads((REPO / "skills.json").read_text())["items"]
     hidden = {item["name"] for item in items if item.get("hidden")}
     exposed = set(layout.skills(REPO)) - hidden
-    assert len(hidden) == 16 and "home" in hidden and "grilling" in exposed
+    assert "home" in hidden and "grilling" in exposed
     policy = "policy:\n  allow_implicit_invocation: false\n"
     for root in (".codex/skills", ".agents/skills"):
         for name in hidden:

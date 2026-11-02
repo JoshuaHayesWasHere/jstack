@@ -568,7 +568,8 @@
       "kind": "skill",
       "path": "features/skill-library/skills/retro/SKILL.md",
       "source": "jstack",
-      "description": "Audit what happened over a past window from the raw records: build a dataset you can rerun, freeze a codebook before reading any outcome, sharpen the prompt, and send scouts, with a second labeller, a red team, and rates that show their row mix. Use for /retro, 'audit what happened over <window>', 'take a census of', 'what went wrong last week'."
+      "description": "Audit what happened over a past window from the raw records: build a dataset you can rerun, freeze a codebook before reading any outcome, sharpen the prompt, and send scouts, with a second labeller, a red team, and rates that show their row mix. Use for /retro, 'audit what happened over <window>', 'take a census of', 'what went wrong last week'.",
+      "hidden": true
     },
     {
       "name": "scout",
@@ -655,7 +656,8 @@
       "kind": "skill",
       "path": "features/home/skills/unstick/SKILL.md",
       "source": "jstack",
-      "description": "Find why rows of the jbus queue have not moved, from jbus's own records: each stalled row's cause and age, the reversible step that moves it taken at once, and the rest parked as gates. Use for /unstick, 'why are we stalled', 'why is nothing moving', 'why do these crewmates look stalled'."
+      "description": "Find why rows of the jbus queue have not moved, from jbus's own records: each stalled row's cause and age, the reversible step that moves it taken at once, and the rest parked as gates. Use for /unstick, 'why are we stalled', 'why is nothing moving', 'why do these crewmates look stalled'.",
+      "hidden": true
     },
     {
       "name": "why",

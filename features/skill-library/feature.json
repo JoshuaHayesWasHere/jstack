@@ -4,6 +4,7 @@
   "description": "The skills any thread may load by name.",
   "hidden": [
     "maintain-verification-skill",
-    "make-bot-ui"
+    "make-bot-ui",
+    "retro"
   ]
 }
