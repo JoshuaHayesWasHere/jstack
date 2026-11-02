@@ -405,7 +405,7 @@ def carry_lapse(
         run.limited.discard(mover.slug if mover.role == "crew" else "")
         return ()
     here = _instance(selection)
-    instances = pool_of(run, mover.role, here)
+    instances = dispatch.pool_of(run, MAP_ROLE[mover.role], here)
     skip = {
         name: f"{name} cannot sign in ({why.get(name, UNLISTED)})"
         for name in instances
