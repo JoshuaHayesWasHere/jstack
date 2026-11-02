@@ -190,9 +190,10 @@ def entered(moves, status):
 
 
 def open_question(questions, slug):
+    """The row's last question with no answer yet. One closed by silence took its default and
+    holds nothing up, though the user may still answer it."""
     for one in reversed(questions.get("records") or []):
-        answer = one.get("answer")
-        if one.get("slug") == slug and (answer is None or answer.get("closed_by") == "silence"):
+        if one.get("slug") == slug and one.get("answer") is None:
             return one
     return None
 
@@ -224,7 +225,7 @@ def diagnose(project, row, work, events, question, waiter, since, now):
     """The cause of one stalled row and what to do, as (cause, evidence, kind, action)."""
     slug, thread = row["slug"], row.get("thread") or ""
     value = (work or {}).get("value", "unknown")
-    if value == "asking" or row.get("status") == "gate":
+    if question or value == "asking" or row.get("status") == "gate":
         if question:
             number = question.get("number")
             return (
@@ -358,7 +359,8 @@ def main(argv=None):
     if not found:
         print(f"nothing is stalled: {total} open rows, each inside its stage's p90")
         return
-    print(f"stalled: {len(found)} of {total} open rows, oldest first")
+    stalled = sum(one.age_minutes > one.p90_minutes for one in found)
+    print(f"stalled: {stalled} of {total} open rows, oldest first")
     for one in found:
         took, limit = (
             age(timedelta(minutes=one.age_minutes)),

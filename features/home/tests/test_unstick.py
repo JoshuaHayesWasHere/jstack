@@ -57,6 +57,7 @@ def by_slug(tmp_path, **kwargs):
 def test_a_stalled_row_of_each_cause_is_named_with_its_age_and_what_to_do(tmp_path):
     state = tmp_path / "state"
     question = {"slug": "asks", "number": 4, "question": "which base?", "answer": None}
+    settled = {"slug": "red", "number": 3, "question": "?", "answer": {"closed_by": "silence"}}
     lifts = (NOW + timedelta(hours=3)).isoformat()
     capped = {
         "at": stamp(2),
@@ -67,7 +68,7 @@ def test_a_stalled_row_of_each_cause_is_named_with_its_age_and_what_to_do(tmp_pa
     project(
         state,
         [
-            ("asks", "gate", "asking", 5, {}),
+            ("asks", "running", "working", 5, {}),
             ("unreviewed", "pr", "review", 5, {}),
             ("red", "pr", "check", 5, {"checks": "failed"}),
             ("slotted", "running", "quiet", 5, {}),
@@ -76,7 +77,7 @@ def test_a_stalled_row_of_each_cause_is_named_with_its_age_and_what_to_do(tmp_pa
             ("gone", "running", "lost", 5, {}),
         ],
         events=[capped],
-        questions=[question],
+        questions=[question, settled],
     )
     waiter = {"thread": "slotted-thread", "lane": "full", "since": stamp(4)}
 
