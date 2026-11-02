@@ -652,10 +652,10 @@ def scratch(
 ) -> None:
     """For each scratch home, send the home's waiting words to the home's thread. That and the
     asks its threads owe (`jbus.owed`) are all the work a scratch home gets from jbus, and
-    `jbus.poll.poll` runs `scratch` once a pass as a chore. A scratch home is not one of the projects that a pass works through
-    (`jbus.load`), so `scratch` cannot be one of a project's steps. When a scratch home's
-    `word-sends.json` does not parse, `scratch` says so and raises no gate, since a scratch home
-    has no outbox that could take a gate."""
+    `jbus.poll.poll` runs `scratch` once a pass as a chore. A scratch home is not one of the
+    projects that a pass works through (`jbus.load`), so `scratch` cannot be one of a project's
+    steps. When a scratch home's `word-sends.json` does not parse, `scratch` says so and raises no
+    gate, since a scratch home has no outbox that could take a gate."""
     for one in config.scratch:
         run = Pass(config, one.addressee(), now, say)
         try:

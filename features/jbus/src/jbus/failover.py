@@ -235,26 +235,11 @@ def failover(run: Pass, client: Client, world: World) -> None:
     """Move each thread that failed on a usage limit to an instance that is not capped, and
     tell it to carry on. See the module for the rules."""
     try:
-        said = client.call(
-            "t3_thread_list",
-            {
-                "projectId": run.project.project_id,
-                "settled": False,
-                "statuses": ["failed"],
-                "limit": 100,
-            },
-        )
+        failed = owed.failed(run, client)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the failed threads could not be listed ({error})")
         return
-    listed = [
-        thread
-        for thread in said.get("threads") or []
-        if thread.get("status") == "failed"
-        and thread.get("latestRunId")
-        and not thread.get("settled")
-        and not thread.get("snoozed")
-    ]
+    listed = [thread for thread in failed if not thread.get("snoozed")]
     found = movers(run, listed)
     if not found:
         return

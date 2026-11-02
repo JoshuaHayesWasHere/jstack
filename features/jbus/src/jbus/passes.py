@@ -13,7 +13,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jbus
 from jbus import Config, Project, queue, read_json, verbs
@@ -81,6 +81,8 @@ class Pass:
     `told` is the threads this pass sent a message that needs `act` (`jbus.outbox`), each id in
     T3 Code's `mcp:` form: each waits on its thread, not on the user, and the outbox sends it no
     second such message this pass.
+    `failed` is the project's failed threads that are not settled, as T3 Code listed them for
+    `jbus.owed` first in the pass, so `jbus.failover` lists them no second time, or None before.
     `limited` is the slugs whose last run ended on a usage limit (`jbus.failover`). The pass sends
     their threads no carry-on, since the failover sends one. `world` is what the pass saw of T3
     Code and GitHub, once it has looked (`watch.look`), or None before then or where it could not
@@ -98,6 +100,7 @@ class Pass:
     held: set[str] = field(default_factory=set)
     told: set[str] = field(default_factory=set)
     limited: set[str] = field(default_factory=set)
+    failed: list[dict[str, Any]] | None = None
     world: World | None = None
     red: RedTip | None = None
 

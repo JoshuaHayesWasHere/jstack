@@ -391,21 +391,25 @@ def _settle(run: Pass, client: Client, ask: Ask, carried: bool) -> None:
         run.say(line)
 
 
-def _failed(run: Pass, client: Client) -> list[dict[str, Any]]:
-    said = client.call(
-        "t3_thread_list",
-        {
-            "projectId": run.project.project_id,
-            "settled": False,
-            "statuses": ["failed"],
-            "limit": 100,
-        },
-    )
-    return [
-        one
-        for one in said.get("threads") or []
-        if one.get("status") == "failed" and one.get("latestRunId") and not one.get("settled")
-    ]
+def failed(run: Pass, client: Client) -> list[dict[str, Any]]:
+    """Return the project's failed threads that are not settled and have a run, listed once a
+    pass (`Pass.failed`). Raise what `Client.call` raises where T3 Code gives no list."""
+    if run.failed is None:
+        said = client.call(
+            "t3_thread_list",
+            {
+                "projectId": run.project.project_id,
+                "settled": False,
+                "statuses": ["failed"],
+                "limit": 100,
+            },
+        )
+        run.failed = [
+            one
+            for one in said.get("threads") or []
+            if one.get("status") == "failed" and one.get("latestRunId") and not one.get("settled")
+        ]
+    return run.failed
 
 
 def sweep(
@@ -418,12 +422,12 @@ def sweep(
     limit, is left to the carry-on while the thread stays failed. See the module for the rules."""
     asks, looked = load(run.state), _looked(run.state)
     try:
-        failed = _failed(run, client)
+        listed = failed(run, client)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the failed threads could not be listed ({error})")
-        failed = []
-    carried = set(movers(failed))
-    for thread in failed:
+        listed = []
+    carried = set(movers(listed))
+    for thread in listed:
         at = thread["threadId"]
         if looked.get(at) == thread["latestRunId"]:
             continue
@@ -434,7 +438,7 @@ def sweep(
             continue
         looked[at] = thread["latestRunId"]
     looked = {
-        one["threadId"]: looked[one["threadId"]] for one in failed if one["threadId"] in looked
+        one["threadId"]: looked[one["threadId"]] for one in listed if one["threadId"] in looked
     }
     _save(run.state, asks, looked)
     for ask in asks:
