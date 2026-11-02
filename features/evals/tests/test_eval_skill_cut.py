@@ -311,10 +311,14 @@ def test_the_lead_judges_by_the_reviews_step_4_and_the_reads_it_names_at_that_re
     """Before reviewer-reads-trim, step 4 sent the reviewer to interrogate's step 5 and
     lead-judgment, so the lead gets both; a step 4 that names neither is given alone, as a
     reviewer reads it."""
-    files = {path: run.show("HEAD", path) for path in run.LEAD_FILES}
-    now = (run.REPO / "features" / "pr-review" / "the-review.md").read_text()
-    files[run.THE_REVIEW] = now
+    files = {
+        run.STEP5: "# Interrogate\n\n## Step 5, Lead Judgment\n\nJudge the list.\n",
+        run.REFERENCE: "# Lead Judgment Framework\n",
+    }
     case = f"lead/{run.lead_cases()[0]}"
+    files[run.THE_REVIEW] = (
+        "### The review\n\n**4: Lead judgment.**\nJudge the list.\n\n**5: The one safety fact.**\n"
+    )
     made = run.prompt(case, files)
     assert made.count("<text path=") == 1
     assert "**4: Lead judgment.**" in made
