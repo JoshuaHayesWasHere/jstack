@@ -177,7 +177,8 @@ def test_main_red_on_another_project_is_its_own(machine):
 
 
 class T3:
-    """T3 Code's store, with the usage-limit failures `jgauge spend` reads."""
+    """T3 Code's store, with the usage-limit failures `jgauge spend` reads, and the threads and
+    messages the store's `ask_ledger` reads."""
 
     def __init__(self, root):
         (root / "t3" / "userdata").mkdir(parents=True)
@@ -187,8 +188,29 @@ class T3:
             "requested_at text, payload_json text, provider_instance_id text);"
             "create table orchestration_v2_projection_turn_items (turn_item_id text primary key, "
             "thread_id text, run_id text, type text, status text, payload_json text);"
+            "create table orchestration_v2_projection_threads ("
+            "thread_id text primary key, project_id text, payload_json text);"
+            "create table orchestration_v2_projection_messages (message_id text primary key, "
+            "thread_id text not null, role text not null, created_at text not null, "
+            "payload_json text not null);"
         )
         self.runs = 0
+
+    def thread(self, thread, project_id):
+        self.db.execute(
+            "insert into orchestration_v2_projection_threads values (?, ?, '{}')",
+            (thread, project_id),
+        )
+        self.db.commit()
+
+    def say(self, message, thread, at, role="user"):
+        """A message of the thread: one the user typed, or the assistant's."""
+        payload = {"text": "words", "createdBy": "user" if role == "user" else None}
+        self.db.execute(
+            "insert into orchestration_v2_projection_messages values (?, ?, ?, ?, ?)",
+            (message, thread, role, at.strftime("%Y-%m-%dT%H:%M:%S.000Z"), json.dumps(payload)),
+        )
+        self.db.commit()
 
     def capped(self, instance, at, reset):
         """A Claude run of the instance that failed at `at` on a usage limit until `reset`."""
@@ -267,6 +289,47 @@ def test_pass_time_needs_a_whole_hour_of_passes(machine):
     passes(machine, lambda at: 120.0, NOW - timedelta(minutes=50))
     assert machine.look() == []
     assert machine.alerts() == []
+
+
+WAIT = timedelta(minutes=telemetry.schema.WAIT)
+
+
+def test_a_lost_ask_today_alerts_once_however_many_passes_look(machine):
+    t3 = T3(machine.root)
+    t3.thread("mcp:alpha-home", "alpha-id")
+    t3.thread("mcp:beta-home", "beta-id")
+    t3.say("m-answered", "mcp:beta-home", NOW - 2 * WAIT)
+    t3.say("r-answered", "mcp:beta-home", NOW - 2 * WAIT + timedelta(minutes=1), role="assistant")
+    t3.say("m-lost", "mcp:alpha-home", NOW - 2 * WAIT)
+    said = machine.look()
+
+    line = (
+        "alert: kpi lost-asks alpha: 1 ask lost on 2026-11-02, with no act citing it and no "
+        "reply within 120 min, and the threshold alerts on 1"
+    )
+    assert said == [f"alpha: {line}"]
+    assert machine.alerts() == [line]
+    assert machine.logged("alpha") == [line]
+    assert machine.logged("beta") == []
+
+    t3.say("m-lost-too", "mcp:alpha-home", NOW - WAIT - timedelta(minutes=5))
+    later = NOW + timedelta(minutes=1)
+    assert machine.look(later) == []
+    assert machine.look(later + timedelta(minutes=1)) == []
+    assert machine.alerts(later) == [line]
+    assert machine.logged("alpha") == [line]
+
+
+def test_a_day_with_no_lost_ask_alerts_none(machine):
+    t3 = T3(machine.root)
+    t3.thread("mcp:alpha-home", "alpha-id")
+    t3.say("m-yesterday", "mcp:alpha-home", MIDNIGHT - WAIT - timedelta(minutes=1))
+    t3.say("m-today", "mcp:alpha-home", MIDNIGHT + timedelta(hours=1))
+    t3.say("r-today", "mcp:alpha-home", MIDNIGHT + timedelta(hours=1, minutes=2), role="assistant")
+
+    assert machine.look() == []
+    assert machine.alerts() == []
+    assert machine.logged("alpha") == []
 
 
 def test_a_crossing_alerts_once_however_many_passes_look_and_its_number_moves(machine):
