@@ -61,6 +61,12 @@ A red main files the brief for its fix (`main-red`):
 - `red-row` queues the brief unapproved, so `jbus queue show` lists the row with `approved` empty.
 - `red-once` files nothing more for the same commit on a later pass, and leaves an edited brief as it is.
 
+A check that ends merges within seconds, apart from the pass (`merge-tick`):
+
+- `tick-pending` has the pass keep the open pull requests whose checks are still going, in `checks-pending.json`.
+- `tick-304` has each tick ask GitHub for the completed runs with the ETag it kept, and run no `jmerge` while GitHub answers 304.
+- `tick-merge` runs `jmerge --if-free` on the first tick after a run ends, and its merge follows within a tick.
+
 ## How to get to it (user POV)
 
 - Run `jbus queue add <slug> --priority <n>` with the brief on stdin.
@@ -79,6 +85,8 @@ A red main files the brief for its fix (`main-red`):
 - After a merge whose commit on main has a failed check run, run `jbus poll`.
   On the live machine, the systemd timer runs it.
 - Run `jbus queue show` to see the row, and read the brief in the home's `tasks/`.
+- Run `jbus tick` between passes.
+  On the live machine, `jbus-merge.timer` runs it every 5 seconds.
 
 ## Driving it with verify-jstack
 
@@ -218,6 +226,26 @@ Preconditions:
   Edit the brief (`echo 'Steers: edited' >> <that file>`), then run `record main-red jbus poll` and `record main-red jbus queue show`.
   The brief still ends with the edit, and the table still has one `main-red-` row.
 - **Proof.** Copy `gh/calls.log`, the brief and `$JBUS_STATE_DIR/demo/queue.json` into `$VERIFY_JSTACK_EVIDENCE`, as the skill's Evidence section shows. `gh/calls.log` has the `check-runs` call for the red commit and the `actions/jobs/901/logs` call.
+
+### A check that ends merges within seconds
+
+- You are in a new sandbox, `env.sh` is sourced, and the doctor prints `doctor: ok`.
+
+- **A reviewed pull request whose check is going.**
+  Give it a real head, a check still going, and a clean review:
+
+  ```sh
+  head=$(git commit-tree -p HEAD -m beta "$(git rev-parse 'HEAD^{tree}')") && git push -q origin "${head}:refs/heads/beta" && "$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py > /dev/null
+  jq --arg head "$head" '.[0].headRefOid = $head | .[0].statusCheckRollup[0].status = "IN_PROGRESS" | .[0].statusCheckRollup[0].conclusion = null' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/o" && mv "$VERIFY_JSTACK_SANDBOX/gh/o" "$VERIFY_JSTACK_SANDBOX/gh/open.json"
+  printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" > "$HOME/.local/state/home/demo/tasks/beta.md"
+  ```
+
+- **A pass.** Run `record merge-tick jbus poll`, then `record merge-tick cat "$JBUS_STATE_DIR/demo/checks-pending.json"`. It lists `7`.
+- **Ticks as the timer runs them.** In the background, run `jbus tick` every 5 seconds for a minute, each line with the time (`while :; do date +%T.%3N; jbus tick; sleep 5; done > ticks.log`).
+  The first tick runs `jmerge`, and each tick after it asks `actions/runs` with `If-None-Match` and runs no `jmerge`.
+- **The check ends.** Note the time, then set the check to `COMPLETED` and `SUCCESS` in `gh/open.json` and write one completed run to `gh/runs.json`.
+  The next tick prints `tick demo: a run ended, and jmerge ran`, and `gh/calls.log` has `pr merge 7`, which the stand-in refuses, within 5 seconds of the noted time.
+- **Proof.** Copy `ticks.log` and `gh/calls.log` into `$VERIFY_JSTACK_EVIDENCE`.
 
 ## Gotchas
 
