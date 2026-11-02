@@ -41,6 +41,7 @@ import pytest
 import daemons
 import repo_template
 from jbus import health, item, record
+from jbus import rules as rule_files
 from test_jbus_kitchen import Kitchen
 from testing.paths import REPO
 
@@ -88,6 +89,13 @@ def no_health(request, monkeypatch):
     """The health step checks the machine the test runs on, so only `test_jbus_health` runs it."""
     if request.module.__name__ != "test_jbus_health":
         monkeypatch.setattr(health, "watch", lambda config, now, say: [])
+
+
+@pytest.fixture(autouse=True)
+def no_claude_homes(request, monkeypatch):
+    """A pass reads the machine's Claude homes for rule files, so only `test_jbus_rules` does."""
+    if request.module.__name__ != "test_jbus_rules":
+        monkeypatch.setattr(rule_files, "claude_homes", lambda: [])
 
 
 @pytest.fixture(autouse=True)
