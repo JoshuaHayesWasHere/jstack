@@ -47,7 +47,7 @@ from jbriefs import below
 from jbus import write_json
 from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
-from jbus.ci.numbers import Facts, time
+from jbus.ci.numbers import Facts, flake_branches
 from jbus.passes import Pass
 from jbus.watch import task_brief
 from jmerge import reverts as kept
@@ -123,22 +123,14 @@ def culprit(red: Red, made: dict[str, kept.Revert], flakes: Collection[str]) -> 
 
 def flaky(run: Pass, branch: str) -> frozenset[str]:
     """The tests `jbus ci` counts as flakes over the last `FLAKE_WINDOW` (`numbers.flaky`'s rule:
-    they failed on two branches with no runner fault and no red main to blame), less those that
-    failed only on `branch`, the culprit's own: its own red is no flake."""
+    each failed on two branches with no runner fault and no red main to blame), where `branch`,
+    the culprit's own, is not one of the two: its own red is no flake."""
     state = run.state
     facts = Facts(
         ledger(state / JOBS), ledger(state / PULLS), ledger(state / "events.jsonl"), run.now
     )
-    since = run.now - FLAKE_WINDOW
-    return frozenset(
-        test
-        for job in facts.jobs
-        if job["conclusion"] == "failure"
-        and facts.causes.get(job["job"]) == "flake"
-        and job["branch"] != branch
-        and (time(job["created"]) or since) >= since
-        for test in job["tests"] or []
-    )
+    found = flake_branches(facts, run.now - FLAKE_WINDOW, run.now)
+    return frozenset(test for test, branches in found.items() if len(branches - {branch}) > 1)
 
 
 def brief(branch: str, red: Culprit, url: str, home: str) -> str:

@@ -116,8 +116,10 @@ def test_staleness_only_rebases_are_22_of_38_where_the_plan_counted_21_by_hand(n
     assert nine["stale"].met is False
 
 
-def test_the_rule_finds_2_flaky_tests_where_the_plan_named_9_by_hand(nine):
-    assert (nine["flaky"].value, nine["flaky"].met) == (2.0, True)
+def test_the_rule_finds_1_flaky_test_where_the_plan_named_9_by_hand(nine):
+    """The relay test failed on js-item-model and jstack-help. The room test beside it in
+    jstack-help's red failed there alone, so it is no flake."""
+    assert (nine["flaky"].value, nine["flaky"].met) == (1.0, True)
 
 
 def red(job, branch, *tests):
