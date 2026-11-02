@@ -8,8 +8,9 @@ port (`$GITHUB_API_URL`). The selection runs the script on this repo, as `make c
 `RUNS` are the push runs of check.yml on main, each with its latest attempt, conclusion and time.
 150 green pushes on one day fill a second page of that day, and 1100 more over the window pass
 the 1,000 results GitHub gives a filtered list (`SEARCHED`), so a lookup that lists the whole
-window at once is refused. `JOBS` are each run's jobs over every attempt, and `LOGS` what the red ones' logs say.
-Storage holds no log for job 14, as it holds none for some red jobs on GitHub."""
+window at once is refused. `JOBS` are each run's jobs over every attempt, and `LOGS` what the
+red ones' logs say. Storage holds no log for job 14, as it holds none for some red jobs on
+GitHub."""
 
 import importlib.util
 import json
