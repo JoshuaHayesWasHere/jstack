@@ -15,7 +15,9 @@ once for each head of the link and of its base. jbus moves those commits onto th
 the pull request there and drops the brief's `Stacked on:` line, under the same holds as a move
 below, so `jmerge` no longer waits on the base and the link merges on its own. A link that
 conflicts without its base, or uses such a name, stays stacked, and so does a link whose base is
-itself still stacked. A `merge_after` order is the home's word on merging and is kept as it is.
+itself still stacked, and a link whose brief's `Builds on:` line names its base: the home wrote
+that need down, and one carried by a string, such as a tool's name, is not a name `need` sees.
+A `merge_after` order is the home's word on merging and is kept as it is.
 
 Otherwise its link's crew is told nothing while the base is open, whatever the base's head does:
 the link is moved once, when the base merged. Each pass reads every open pull request whose brief
@@ -61,6 +63,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from jbriefs.chains import builds_on
 from jbriefs.home import thread_of
 from jbus import END_TURN, dispatch, rebase, review, verbs
 from jbus.passes import Pass
@@ -308,7 +311,9 @@ def _rewrite(run: Pass, slug: str, stacked: stacks.Stacked | None) -> None:
 def unstack(run: Pass, client: Client, world: World) -> None:
     """Take each stacked link whose base is still open off its stack where its own change has no
     need of the base's: its own commits merge cleanly onto the branch the base goes on without the
-    base's, and its added lines use no name the base introduced (`need`)."""
+    base's, and its added lines use no name the base introduced (`need`). A link whose brief's
+    `Builds on:` line names its base stays stacked: the home wrote that need down, and `need`
+    cannot see one carried by a string."""
     sent = set(run.box.sent())
     for slug in world.open:
         pull = world.open[slug]
@@ -322,8 +327,16 @@ def unstack(run: Pass, client: Client, world: World) -> None:
         if not last or not onto or stacks.unmoved(task_brief(run, stacked.slug)):
             continue
         key = rebase.mark(UNSTACK, slug, head, last[:12])
-        if key not in sent:
-            _unstack(run, client, slug, pull, stacked, base, onto, key)
+        if key in sent:
+            continue
+        if stacked.slug in builds_on(brief):
+            run.box.mark(key)
+            run.say(
+                f"{UNSTACK} {slug}: stays stacked on {stacked.slug}, since its brief's Builds on: "
+                "line names it"
+            )
+            continue
+        _unstack(run, client, slug, pull, stacked, base, onto, key)
 
 
 def _unstack(
