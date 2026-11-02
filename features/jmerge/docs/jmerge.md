@@ -114,7 +114,8 @@ The section "Protected paths" describes one more hold.
   In a first review, three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
   A `Consider` finding there does not block, and a finding's severity does not change whether it blocks.
   In a review after the first, a scoped pass or a second pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
-  An `error` blocks until the crew answers it, and a `warning` or an `info` is dropped, with no row filed for it.
+  An `error` blocks until the crew answers it, and an `info` is dropped.
+  A `warning` blocks nothing and goes to no crew: once the pull request merged, jbus keeps it for the day's warnings row (`findings.KEPT`, `jbus.daywarnings`).
   So a second review with no `error` owes no fix push and merges on its checks.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).
@@ -131,9 +132,12 @@ The section "Protected paths" describes one more hold.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
   It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
-  The second review's `error` findings then wait for an answer by id, and for a `Fixed:` line pushed after that review where it sent any, and its `warning` and `info` findings are dropped.
+  The second review's `error` findings then wait for an answer by id, and for a `Fixed:` line pushed after that review where it sent any, its `warning` findings go to the day's warnings row, and its `info` findings are dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
   A brief whose first review was clean, or whose Result says `Fixed: none needed`, needs no second review.
+- A brief that says `Review: cleanup` is the day's warnings row, which only jbus files (`jbus.daywarnings`), and it gets one review, of its own diff.
+  Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
+  `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
 - A brief whose `Review:` line says anything else, an old `after` included, is read as `review`.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
