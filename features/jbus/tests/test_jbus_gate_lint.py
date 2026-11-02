@@ -47,7 +47,7 @@ SHAPES = {
         "do the work in this thread",
     ),
     "Review: none": (
-        "alpha: https://github.com/o/r/pull/9 is green and has no review (the brief says "
+        "alpha: https://example.com/o/r/pull/9 is green and has no review (the brief says "
         "Review: none): may it merge?",
         "the pull request waits, as a draft",
         "REVIEW_NONE",
