@@ -54,7 +54,7 @@ The same words inside the task's text or a result do not count.
   The `fixed and green` line below is sent once the `Fixed:` line is written, with no block of "A second pass" run for it.
 - `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
-To launch them, run the block below, and make one `t3_thread_launch` call for each `launch:` line it prints, with the JSON after `launch: ` as the call's arguments, as printed: `$T/../skills/pr-review/SKILL.md` "Launching" says what a reviewer does with its number.
+To launch them, run the block below, and make one `t3_thread_launch` call for each `launch:` line it prints, with the JSON after `launch: ` as the call's arguments, as printed: `$T/../skills/pr-review/launching.md` says what a reviewer does with its number.
 Never write a launch's arguments by hand: with no `workspaceStrategy` the reviewer opens in the project's main checkout and refuses to run there, and the block gives each call this worktree and its branch.
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.

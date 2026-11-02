@@ -16,7 +16,7 @@ from testing.layouts import assembled
 def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
     text = as_read(SKILL)
     (setting,) = [line for line in text.splitlines() if line.startswith("T=")]
-    ((path, heading),) = re.findall(r'`(\$T/\S+/SKILL\.md)` "([^"]+)"', text)
+    (path,) = re.findall(r"`(\$T/\S+\.md)` says what a reviewer does with its number", text)
 
     user = tmp_path / "user"
     (user / ".claude" / "skills").mkdir(parents=True)
@@ -30,7 +30,7 @@ def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
         cwd=elsewhere,
         check=True,
     )
-    assert f"## {heading}" in Path(found.stdout.decode()).read_text().splitlines()
+    assert "## Launching" in Path(found.stdout.decode()).read_text().splitlines()
 
 
 @pytest.mark.parametrize(
