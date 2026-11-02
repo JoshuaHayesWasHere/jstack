@@ -10,13 +10,14 @@ target.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any
 
 import jsettings
 from jbus import Config, Project, alert, passes
-from jbus.ci import numbers
+from jbus.ci import numbers, wrongcloses
 
 
 def missed(nine: list[numbers.Number]) -> list[numbers.Number]:
@@ -42,6 +43,7 @@ def body(
     end: datetime,
     zone: tzinfo,
     user: jsettings.Settings,
+    closes: Sequence[str] = (),
 ) -> str:
     days = numbers.day_windows(end, max(1, round((end - start) / timedelta(days=1))), zone)
     red = [f"- {day}: {numbers.mainred(facts, a, b).shown}" for day, a, b in days]
@@ -75,6 +77,15 @@ def body(
             "## Main red, by day",
             "",
             *red,
+            "",
+            "## Wrong closes of gates (S8), by labelled week",
+            "",
+            "Of the gates closed by silence or by your word whose outcome a scout labelled known,"
+            " the ones whose chosen option did not stand: corrected later, or another option"
+            " done. Who closed each gate is jbus's record, and the outcome is the label"
+            f" (`{wrongcloses.CODEBOOK}`).",
+            "",
+            *closes,
             "",
         ]
     )

@@ -80,7 +80,12 @@ For each project that asks, it collects the jobs and pull requests, then writes 
 The report has the nine targets over the last 7 days, each with how it was counted.
 It gives the number of local jobs and the number of hosted jobs.
 It also gives how many jobs were cancelled while they waited.
-It ends with main's red minutes by day.
+It gives main's red minutes by day.
+It ends with S8, the wrong closes of gates, for each week a scout labelled by [Gate labels](gate-labels.md).
+S8 is the share of gates closed by silence or by your word whose chosen option did not stand, of those whose outcome is known, with silence and your word apart.
+For the Sunday-to-Saturday week that ended last, a week with no labels file says "not labelled" and gives no number.
+The report then queues one scout row, `scout-gate-labels-<the week's first day>`, to label that week, and a week in which no gate was asked queues none.
+The row follows `scorecard-s8`, whose go was the owner's word that a scout labels each week, so the follow-up rule approves it.
 A week where every target is met, or has no data, sends nothing.
 A week with a missed target sends one `alert` event, only once that day.
 The event names each missed target and the report.
