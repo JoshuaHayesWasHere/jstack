@@ -8,8 +8,6 @@ card: "Run the pipeline | 3 | Makes a thread a scout. It answers one question wi
 
 # scout
 
-Three roles share a repo's work. The **home** orchestrates: it plans with the user, sends scouts and crewmates, and keeps the record. A **scout** researches: it reads the code and the docs and writes down what it found. A **crewmate** does the work: one task, from a brief, in its own worktree.
-
 This thread is a **scout**. It has one request, written by the repo's home. It finds out what the request asks, from the code and from the docs, and writes down what it found so that nobody has to find it out again. It changes nothing in the repo. It never becomes the crewmate and never does the task it researched: a crewmate starts later, from the brief, with a fresh context.
 
 ```sh
@@ -32,7 +30,7 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
    cat "$H/scouts/$S.start"
    ```
 
-   `--porcelain` prints the lines of `git status --short`, with every path from the repo's root, so the note reads the same from any directory. In a worktree of its own it prints nothing. If it prints anything, the checkout is not clean: say so now. The lines are kept in `$H/scouts/<slug>.start`, since they are not yours and you leave them alone. Make no branch: a scout has nothing to commit.
+   In a worktree of its own it prints nothing. If it prints anything, the checkout is not clean: say so now, and leave those lines alone: they are not yours. Make no branch: a scout has nothing to commit.
 3. See whether the request names a playbook.
    Run this in a call of its own, with the block at the top, `S` set to the slug and nothing else in it: a call that also prints another file, with `cat` or the like, can come back cut off behind a file, and the steps with it:
 
@@ -41,26 +39,23 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
    uv run --project "$T/../source" jbus playbook scout "$B"
    ```
 
-   It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook.
-   On `no playbook`, do the same, and say what it printed in the report.
-   On `not a scout's`, the file is for a crewmate or the home: do the same again.
-   When its first line is a path, read that file now.
-   Under the path it prints the playbook's numbered steps: work them in order.
-   A step you do not do is reported as `skip: <reason>`.
-   A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo.
-   A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the request to have.
-   Last, it prints the name and path of each principle the playbook cites, once each, under a line that says so: a step's citation points to one, and you read it in full at its path when you do that step.
-   On `no principle`, a citation names a file `principles/` does not have: say what it printed in the report.
-   On `lacks the line`, the request stands as the home wrote it: say what it printed in the report.
-   The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
-   Then see whether the request names skills. Run this with the block at the top and `S` set to the slug:
+   When its first line is a path, read that file now, and work the numbered steps it prints in order.
+   Read a principle it names in full at its path when you do the step that cites it.
+   The report's `Playbook:` line reports each step as `<n> done` or `<n> skip: <reason>`.
+   It prints nothing when the request has no playbook: go on.
+   Any other first line, or a line under the path that says `no principle` or `lacks the line`, you say in the report, and you go on.
+   A path the playbook names is from `$T/..`, also when the question is in another repo.
+   Where the playbook and this skill disagree, this skill wins, and you say so in the report.
+   Then see whether the request names skills, with the block at the top and `S` set to the slug:
 
    ```sh
    B="$H/scouts/$S.md"
    uv run --project "$T/../source" jbriefs --skills "$B"
    ```
 
-   It prints nothing when the request has no `Skills:` line or says `none`. Otherwise its first line, `loaded: <names>`, names each skill and principle the line names, by its canonical name, and under it each one's file in full: read them now, and do what each says while you research. Last it prints the artifact each one owes, from `$T/skill-artifacts.md`: the report's `Skills run:` section has one item for each, `- <name>: <the artifact>`, as `$T/scout-report.md` shows. A line `unknown skill: <name>` is a name jstack does not have: say it in the report, and go on with the rest.
+   It prints `loaded: <names>`, each skill's file in full, and the artifact each owes, from `$T/skill-artifacts.md`, or nothing where the request names none.
+   Read them now and do what each says while you research, and give each one item under the report's `Skills run:`, `- <name>: <the artifact>`.
+   A line `unknown skill: <name>` you say in the report, and you go on with the rest.
 4. Say in two lines what you are about to find out, then start. Do not wait for a go-ahead: the request is the go-ahead.
 
 ## Carry on
@@ -74,82 +69,36 @@ When in doubt, act and write down what you did.
 ## Research
 
 - The **Questions** list is the whole target. Answer each one. A question that cannot be answered gets the reason and what would answer it, not a guess.
-- Read the code, and read the docs. Docs means the repo's own (README, `docs/`, comments, changelog) and the outside documentation for any library, API or tool the task depends on. Read the outside docs for the version the repo pins, from the source: the installed package, `--help`, the project's own site or repo. Do not answer from memory what a doc can settle.
+- Read the code, and read the docs: the repo's own, and the outside documentation for the version the repo pins, from the source. Do not answer from memory what a doc can settle.
 - Every tool call only reads: file reads and searches, `git log`, `git show` and `git diff`, `gh` views, web fetches and searches, and commands that print and change nothing.
-  Install nothing, start nothing, and run nothing that writes into the repo or changes state outside it, but for the one `jbus queue add` of a fault outside the request ("Write it down").
+  Install nothing, start nothing, and run nothing that writes into the repo or changes state outside it, but for the one `jbus queue add` of a fault outside the request.
   If a question needs such a run to answer, say so in the report and leave the run to a crewmate.
-- A scout seldom meets a test slot, since a run that writes is a crewmate's.
-  A command the request asks you to run under one, `jgauge test-slot --short --thread <thread id> -- <command>`, does not wait: `<thread id>` is this thread's own id, which the `t3-code` server's `t3_thread_configure` with no arguments gives as `threadId` (if your harness defers it, load it first).
-  With every slot taken it registers this thread as a waiter and ends 76.
-  Then end your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and run the same command again when jbus wakes you.
-  Never poll for a slot, never wait in a background job, and never end the turn with nothing said.
-  On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.
-- For a wide search, use an Explore subagent and keep its conclusion, not its output; or, with no subagent tool, do it in this thread.
 - Keep the evidence as you go: the command and what it printed, the path and line, the URL and the part that matters. A finding without one is a guess, and the report says so where it is.
-- Keep what you ruled out, and why. It is what saves the crewmate from looking again.
+- Keep what you ruled out, and why.
 - Stay inside **Out of bounds**. A question that cannot be answered without crossing it is not answered: record that in the report, with what would answer it, and go on to the next question.
+- The user may steer in this thread at any time. What they say here overrides the request, except in one thing: asked to do the task itself, say that a crewmate does it from the brief, and finish the report. Record the steer in the report.
 
-The user may steer in this thread at any time. What they say here overrides the request, except in one thing: asked to do the task itself, say that a crewmate does it from the brief, and finish the report. Record the steer in the report.
-
-A question only the user can answer does not wait.
-A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in.
-The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
-Do not act on that one.
-Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer.
-Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept.
-A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or, when it has no `Holds:` line, closes it with its default in the first pass that sees it.
-Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark.
-Run this in this checkout, with the block at the top and the filled-in lines in place of the line in angle brackets:
-
-```sh
-if command -v jbus > /dev/null; then
-    jbus gate '<slug>' << 'THE_GATE_ENDS_HERE'
-<the gate, filled in>
-Context: <what the user needs to know to answer it, in one line, with the links to it>
-Option: <an option's short name> (default, recommended): <what follows from it>
-THE_GATE_ENDS_HERE
-else
-    echo "not asked: jbus is not installed here"
-fi
-```
-
-`jbus gate` checks the lines against `$T/gates.md`, the one copy of their shape, and prints every line to go by.
-It speaks for the project whose repo this checkout is of, and refuses a repo its config does not name.
-On `asked:`, jbus holds the question: send the home nothing.
-The line under it, `Gate: question <number>`, is all the report keeps of the gate: add it under "Findings", as printed, and no line of the gate itself.
-Where it says `asked: already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
-Go by it, and take the default back where it differs.
-On `not asked: not sent:`, nothing was queued: fill in the line it names and run it again.
-On any other `not asked`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread the block in step 3 of "End" prints, and with no home there put them in the report under "Findings", the one place left that can hold them.
-An answer that differs from the default comes back as a message here, from jbus.
-The four things "Carry on" never does on a default are such gates, each one that holds.
-Besides a gate jbus could not take, a scout sends its home nothing before the End.
+| When | Do |
+|---|---|
+| A question only the user can answer, or one of the doors of "Carry on" | read `$T/../skills/scout/a-gate.md` now, and park it as a gate |
+| The request asks you to run a command under a test slot | read `$T/../skills/scout/test-slot.md` now |
+| A search too wide to hold in this thread | use an Explore subagent and keep its conclusion, not its output; with no subagent tool, do it in this thread |
+| A loop of more than ten `gh` calls | read `$T/../skills/crew/gh-budget.md` now |
 
 ## Write it down
 
 Besides its note of the start and its note of what the home was told, a scout writes three kinds of file and no others, all under `$H`: its report, a brief, a visual.
 The **Deliver** list says which.
-The one thing it adds outside them is a queued row for a fault outside the request, whose brief it writes in `/tmp` first, as the line under the report says.
+Do not start the crewmate: the home does that.
 
 **The report, always.** Read `$T/scout-report.md` now. Append it, filled in, to `$H/scouts/<slug>.md` under `## Report`. Keep it to 40 lines unless the request sets another length: the home reads it at the start of a short thread.
-A fault you find outside the request is no line of the report: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
+Its lines, in order: `Status:`, `Answers:`, `Findings:`, `Sources:`, `Ruled out:`, `Skills run:`, `Recommendation:`, `Plan entries:`, `Brief:` and `Visual:`, `Steers:`, `Repo:`.
 
-**A brief, when the request asks for one.**
-Write `$H/tasks/<slug>.md` in the brief's usual shape, `$T/brief.md`.
-The "Done when" list is checks a person or a command can run.
-Fill in the five lines the template keeps for a scout, `Read:` to `Ruled out:`, so that a fresh crewmate can trust the brief and not research again.
-Its `Playbook:` line is picked from the rows that the block in `$T/../skills/home/SKILL.md` "Handing a task to a crewmate" prints, one for each playbook: run that block and pick as the text under it says.
-Its `Home:` line is the request's, copied: the crewmate reports to the home that sent the scout.
-A request with no `Home:` line is the root home's: write `Home: root`, and never leave the template's placeholder in.
-
-Do not start the crewmate. The home does that.
-
-**A visual, when the request asks for one.**
-Write it as one HTML file at `$H/reports/<slug>.html`, with anything it loads beside it, and name it on the report's `Visual:` line.
-Show it in this thread with T3 Code's `html_preview` and then `html_render`.
-The visual shows what the report says, with the numbers behind it.
-It takes no input: each open choice is a gate, parked as "Research" says for a question only the user can answer, and, home or no home, its lines go in the report under "Findings".
-In a session with no such tools, the file on disk is the visual, and the report says it was not shown.
+| When | Do |
+|---|---|
+| **Deliver** asks for a brief | read `$T/../skills/scout/a-brief.md` now, and write `$T/brief.md`'s shape |
+| **Deliver** asks for a visual | read `$T/../skills/scout/a-visual.md` now |
+| A fault outside the request, which is no line of the report | read `$T/a-fault-outside.md`, which makes it a queued row or nothing, whose brief you write in `/tmp` first |
 
 ## End
 
@@ -170,12 +119,7 @@ In a session with no such tools, the file on disk is the visual, and the report 
    uv run --project "$T/../source" jbus home "$B"
    ```
 
-   It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests say `Home: root` (or have no `Home:` line, from before the line was required), and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.
-   A request names no thread, so no home's start or handoff changes it.
-   One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home.
-   `jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them.
-   Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing.
-   Run it each time there is something to tell, and do not keep the id from an earlier run: the next home's start puts its own id in the file.
+   It prints the id of the request's home, read now and never kept: run it each time there is something to tell.
 
    If it prints a thread id, send a message of at most five lines to that thread, with the `t3-code` server's `t3_thread_send` (if your harness defers it, load it first): the status, the recommendation in one line, and the path of each file written. If it prints nothing, there is no home listening: skip the report and send nothing, and the next home reads the report from disk.
 
@@ -194,7 +138,6 @@ In a session with no such tools, the file on disk is the visual, and the report 
        }' "$H/scouts/$S.md"
    ```
 
-   It reads the last report in the request, as the home's sweep reads it.
    On `settle`, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
    It takes effect when the turn ends, so it is the last call, made only once the home is told.
    A worktree and a branch, where the launch gave this thread one, stay: the home's sweep removes them at its next start.

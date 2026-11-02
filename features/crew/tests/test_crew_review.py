@@ -499,7 +499,8 @@ def test_the_lines_that_end_a_finding_change_nothing_the_other_blocks_read(endin
     )
     assert ran.stdout.splitlines() == [
         "send nothing: https://example.test/pull/1 is open, "
-        "and a home that merges hears of it once, when its checks have passed"
+        "and a home that merges hears of it once, when its checks have passed: "
+        "go on with stay-on-the-pr.md"
     ]
 
 

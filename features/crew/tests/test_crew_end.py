@@ -113,21 +113,22 @@ MORE = ["", ", wip at abc123", " (wip at abc123)", "."]
 @pytest.mark.parametrize("more", MORE)
 def test_a_paused_crewmate_with_no_pull_request_tells_its_home_it_has_not_ended(more, tmp_path):
     assert said(tmp_path, "End", "tell the home", paused(more=more)) == [
-        "tell the home: the task is paused and has not ended"
+        "tell the home: the task is paused and has not ended: go on with telling-the-home.md"
     ]
 
 
 def test_a_paused_crewmate_with_a_pull_request_sends_its_home_nothing(tmp_path):
     assert said(tmp_path, "End", "tell the home", paused(URL)) == [
         f"send nothing: {URL} is open, and a home that merges hears of it once, "
-        "when its checks have passed"
+        "when its checks have passed: go on with stay-on-the-pr.md"
     ]
 
 
 def test_a_task_resumed_and_ended_is_not_said_to_be_paused(tmp_path):
     brief = paused() + RESUMED + DONE
     assert said(tmp_path, "End", "tell the home", brief) == [
-        "tell the home: the task ends with no pull request"
+        "tell the home: the task ends with no pull request: "
+        "go on with telling-the-home.md, then no-pr-end.md"
     ]
 
 

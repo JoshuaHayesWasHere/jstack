@@ -65,7 +65,9 @@ def test_a_crewmate_with_a_pull_request_sends_its_home_nothing_at_its_result(thr
 
 def test_a_crewmate_that_ends_with_no_pull_request_tells_its_home(threads):
     threads.brief.write_text(BRIEF + result("none"))
-    assert threads.crewmate_ends() == "tell the home: the task ends with no pull request"
+    assert threads.crewmate_ends().startswith(
+        "tell the home: the task ends with no pull request: go on with "
+    )
 
 
 def test_the_last_result_decides_after_a_follow_up(threads):
