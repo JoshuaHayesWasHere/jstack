@@ -44,6 +44,8 @@ def kept_why(run: Pass, tip: RedTip) -> str | None:
     flakes = reverts.flaky(run, branch) if tip.pull and failed else frozenset[str]()
     made = kept.read(run.state)
     found = reverts.culprit(one, made, flakes)
+    if isinstance(found, reverts.Culprit):
+        found = reverts.tested(run, found, str(record.get("green", "")), one.age)
     if found == reverts.Keep.OPENED and (stuck := reverts.stuck(run, made[tip.sha], checks)):
         return stuck
     if found in reverts.QUIET:

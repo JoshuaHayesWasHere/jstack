@@ -16,6 +16,12 @@ so it is the one merge since the last green. It reverts nothing, and says which 
 - `TWICE`: jbus reverted the same slug before, so a row is never reverted twice.
 - `FLAKES`: each test that failed at the tip is a flake by `jbus ci`'s rule (`flaky`).
 
+`tested` adds one more, on what GitHub says: `SKEW`, where the culprit's own head lacks the green
+commit under the red tip, so its check passed over a main without that merge. Each merge passed
+alone and the two went red together, as #864 and #866 did on 2026-11-02, so neither is the one
+culprit. Where GitHub does not say, the tip waits as `UNREAD` does, and gets its row as
+`UNANSWERED` once it is older than `READ_WAIT`.
+
 A red tip jbus already opened a revert for is `OPENED`: nothing more is done for it, no row
 either, while its revert's pull request goes the normal path, and `stuck` says when it no longer
 does: closed unmerged, in conflict or with a failed check, and the tip gets its row. A tip whose
@@ -31,7 +37,10 @@ the culprit's crew, from every pass until the message goes, so a capped thread o
 gives no answer loses it to nothing. `opened` asks GitHub for the revert's branch first, so a pass
 that stopped between GitHub's answer and the record finds its revert and opens no second one, and
 the brief is written before the record, so a revert on record has a brief. `jmerge` merges the
-revert by the normal path, its checks green, with no review.
+revert by the normal path, its checks green, with no review. `close` closes a revert jbus opened
+that is still open once main's check passes at a later tip without it, as when a fix row merged
+first, with a comment that names the green tip: it would only sit in conflict with main. Its
+record stays, so the row is still never reverted twice.
 """
 
 from __future__ import annotations
@@ -44,12 +53,13 @@ from datetime import timedelta
 from typing import Any
 
 from jbriefs import below
-from jbus import write_json
+from jbus import verbs, write_json
 from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
 from jbus.ci.numbers import Facts, flake_branches
 from jbus.passes import Pass
-from jbus.watch import task_brief
+from jbus.watch import World, task_brief
+from jmerge import mainjson
 from jmerge import reverts as kept
 
 EVENTS = {"revert": "quiet"}
@@ -66,13 +76,18 @@ class Keep(enum.StrEnum):
     """Why a red tip of main is not reverted."""
 
     OPENED = "jbus already opened its revert"
-    UNREAD = "the tests that failed there are not read yet"
+    UNREAD = "what failed there, or what main its own check passed over, is not read yet"
     OVERLAP = "two reds overlap: more than one merge came since the last green"
     UNBRIEFED = "it is no briefed merge's commit"
     OF_A_REVERT = "it is a revert, and a revert that goes red is not reverted"
     TWICE = "jbus reverted this row before, and a row is never reverted twice"
     FLAKES = "each test that failed there is a flake by jbus ci's rule"
     NOT_READ = "the tests that failed there could not be read from its logs"
+    SKEW = (
+        "two merges went red together: its own check passed over a main that lacked the merge "
+        "under it"
+    )
+    UNANSWERED = "GitHub did not say what main its own check passed over"
 
 
 @dataclass(frozen=True)
@@ -119,6 +134,22 @@ def culprit(red: Red, made: dict[str, kept.Revert], flakes: Collection[str]) -> 
     if red.failed and all(test in flakes for test in red.failed):
         return Keep.FLAKES
     return Culprit(red.tip, red.slug, red.pull)
+
+
+def tested(run: Pass, found: Culprit, under: str, age: timedelta) -> Culprit | Keep:
+    """`found`, where its own head holds `under`, the green commit under the red tip, so its
+    check passed over the main it turned red, or why it is not reverted: `SKEW` where its head
+    lacks it, and `UNREAD`, then `UNANSWERED` once the tip is older than `READ_WAIT`, where
+    GitHub does not say."""
+    head = str(found.pull.get("headRefOid", ""))
+    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{under}...{head}")
+    try:
+        status = json.loads(asked.stdout).get("status") if asked.returncode == 0 else None
+    except (ValueError, AttributeError):
+        status = None
+    if not (under and head) or status not in ("ahead", "identical", "behind", "diverged"):
+        return Keep.UNANSWERED if age > READ_WAIT else Keep.UNREAD
+    return found if status in ("ahead", "identical") else Keep.SKEW
 
 
 def flaky(run: Pass, branch: str) -> frozenset[str]:
@@ -238,5 +269,36 @@ def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) 
     return ""
 
 
+def close(run: Pass, world: World) -> None:
+    """Close each revert jbus opened that is still open once main's check passed at a later tip
+    without it, with a comment that names that tip. `main.json` keeps the red tip until a later
+    tip is green, and a revert is opened only while it does, so its `green` is then the later
+    tip. A pull request GitHub would not close is a condition, and the next pass tries again."""
+    main = mainjson.read(run.state)
+    if main.red or not main.green:
+        return
+    urls = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
+    for one in kept.read(run.state).values():
+        if one.pull.rstrip("/") not in urls:
+            continue
+        comment = (
+            f"jbus closes this: main's check passed at {main.green[:12]}, a later tip than the "
+            f"red {one.red[:12]} it reverts, so main is green without it."
+        )
+        asked = run.run("gh", "pr", "close", one.pull, "--comment", comment)
+        if asked.returncode != 0:
+            why = (asked.stderr or "no answer").strip()
+            run.condition(one.slug, f"its revert {one.pull} was not closed: {why}")
+            continue
+        line = f"revert {one.slug}: main is green at {main.green[:12]}, jbus closed {one.pull}"
+        run.find(one.slug, "revert", line, key=f"closed {one.red}")
+        run.say(line)
+
+
 QUIET = (Keep.OPENED, Keep.UNREAD)
 """The `Keep`s for which a pass files no row: the revert is open, or the next pass judges it."""
+STEPS = (
+    verbs.Step(
+        "tellers", 43, "reverts.close", lambda half: close(half.run, half.seen.world), ("world",)
+    ),
+)
