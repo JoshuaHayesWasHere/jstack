@@ -28,7 +28,7 @@ Never done here, and who does it:
 
 - **A second class in the same pull request.**
   It is a row, queued as `templates/a-fault-outside.md` says.
-- **An edit to the plan, `standing.md` or `~/.claude/CLAUDE.md`.**
+- **An edit to the plan or `~/.claude/CLAUDE.md`.**
   None of them is this task's.
 - **An exception to the new check.** Only the user's word makes one.
 

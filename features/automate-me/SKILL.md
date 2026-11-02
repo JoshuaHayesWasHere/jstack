@@ -58,7 +58,7 @@ Survey recent agent conversations within that scope for recurring patterns. Run 
 
 Cross-check across slices before elevating a signal. Patterns seen in 2+ slices are high-confidence. Lone signals are weak and usually get dropped.
 
-What the user has already written down is evidence too, and stronger than a pattern: read `~/.claude/CLAUDE.md` and, in a repo with a home, its `standing.md`.
+What the user has already written down is evidence too, and stronger than a pattern: read `~/.claude/CLAUDE.md`, and the code, the skill steps and the queued rows that already hold a standing rule.
 A rule that is there already is pointed at from the mode skill, not written a second time.
 
 ### 2. Ask the user directly

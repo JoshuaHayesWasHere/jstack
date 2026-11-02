@@ -38,7 +38,7 @@ and its go (`PAGE`).
 One more basis is not the user's word for the row: a follow-up of approved work needs no new
 approval (`RULE`, the rule in words is `FOLLOW_RULE`). Its ground is the go of the parent row it
 names (`follows`), and the words jbus keeps are the rule and the line of that go. jbus knows the
-rule by what it says and not by its number in a home's `standing.md`, which a home renumbers, so a
+rule by what it says and reads no number for it from any file, so a
 `--rule <n>` beside `--follows` is taken and not read. The parent's go is the user's word or this
 rule's, and it holds for the parent's brief (`_parent`), so a chain of follow-ups goes back to the
 user's word one go at a time, and the follow-up's line says that the user said nothing of it. A
@@ -385,7 +385,7 @@ class Approval(judgement.Go):
     row. A fix jbus filed from a red check names no parent: its `ground` is what its line says in
     place of the parent, `jbus filed it from the red run "<the run>"`, and its `words` end with
     the same. A record from before the rule was known by what it says has the number the rule had
-    in the home's `standing.md` as its `ref`, and that rule's text as its `words`. The user said
+    then as its `ref`, and that rule's text as its `words`. The user said
     nothing of the row, so `said_at` and `said_in` are empty. No other basis has a `follows` or a
     `ground`, and the record of such a basis has neither.
 
