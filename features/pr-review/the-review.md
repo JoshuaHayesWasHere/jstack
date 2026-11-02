@@ -124,7 +124,8 @@ echo "$D/prompt.md"
 
 **3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
 
-**4. Lead judgment.** Judge the list of step 3 as a pragmatic senior engineer, not as a tally: merge the findings that say the same thing, then put each in one of pstack's four buckets.
+**4. Lead judgment.**
+Judge the list of step 3 as a pragmatic senior engineer, not as a tally: merge the findings that say the same thing, then put each in one of pstack's four buckets.
 Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
 
 - **Act on**: a real issue of correctness, security or maintainability, given what the task is for, that would block a real pull request.
@@ -149,7 +150,8 @@ Filter the list, since a reading that finds nothing critical fills itself with n
   An `info` is dropped.
 - A brief that says `Review: cleanup` is that day's row, and its one review is of its own diff alone: an `error` goes to the crewmate and holds the merge, whatever the bucket or tag, and a `warning` or an `info` is dropped, so none of its findings goes to another row.
 
-**5. The one safety fact.** Most changes that look risky are safe because of a single fact, such as "this call only drops cache entries that are already dead": find the one fact this change is safe because of.
+**5. The one safety fact.**
+Most changes that look risky are safe because of a single fact, such as "this call only drops cache entries that are already dead": find the one fact this change is safe because of.
 Prove it by running real code at this head, with a script or test that calls the code and fails loud if the fact is false.
 Saying so, pointing at a line, or walking the bad case through by hand is not a proof.
 Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
