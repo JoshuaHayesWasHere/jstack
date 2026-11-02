@@ -71,7 +71,7 @@ api\ *)
     runs=$(cat "$G/runs.json" 2>/dev/null || echo '{"workflow_runs": []}')
     case " $* " in
     *" -i "*)
-      etag="W/\"$(printf '%s' "$runs" | sha256sum | cut -c1-40)\""
+      etag="W/\"$(printf '%s' "$runs" | shasum -a 256 | cut -c1-40)\""
       if [ "$(arg_after -H "$@")" = "If-None-Match: $etag" ]; then
         printf 'HTTP/2.0 304 Not Modified\r\n\r\n'
         echo "gh: HTTP 304" >&2
