@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import item, questions, queue, wake, work
+from jbus import item, questions, queue, telemetry, wake, work
 from jbus.item import MOVES, Item, Risk, State, Verb, Where
 from jmerge import judgement
 from test_jbus_kitchen import NOW, complete
@@ -384,8 +384,12 @@ def test_forget_trims_the_events_and_leaves_items_jsonl_as_it_was(kitchen):
     assert add(kitchen, "alpha")[0] == 0
     before = item.path(kitchen.state).read_bytes()
     assert kitchen.events("item.proposed")
-    box = wake.Box(kitchen.state, jbus.load().project("demo"))
-    box.forget(NOW + timedelta(days=365))
+    config = jbus.load()
+    project = config.project("demo")
+    telemetry.build(config)
+    wake.Box(kitchen.state, project).forget(
+        NOW + timedelta(days=365), telemetry.copied(config, project)
+    )
     assert not kitchen.events("item.proposed")
     assert item.path(kitchen.state).read_bytes() == before
 
