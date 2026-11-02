@@ -3,7 +3,8 @@ primings, and its launch record keeps which, as `priming`.
 
 `trimmed` is the SKILL.md that `/crew` and `/scout` expand. `control` is the priming main had
 before the trim, kept at `features/crew/control/` and `features/scout/control/`: the launch's first
-line tells the thread to read that copy in place of the slash command. A new row gets the arm
+line tells the thread to read that copy, by its path in the jstack source jbus runs from, in place
+of the slash command, whatever harness the thread runs on. A new row gets the arm
 with fewer rows of its role so far, the trimmed one on a tie, so the arms stay within one row of
 each other however the rows launch. A row launched again keeps the arm its record names, so a
 retry or a changed brief does not move it.
@@ -25,16 +26,22 @@ from pathlib import Path
 from typing import Any
 
 import jbus
+from jbriefs import skills
 from jbus import queue, read_json, verbs, write_json
 from jbus.launches import records
 
 TRIMMED, CONTROL = "trimmed", "control"
 ARMS = (TRIMMED, CONTROL)
 COPIES = {
-    queue.CREW: "~/.claude/skills/crew/control/crew.md",
-    queue.SCOUT: "~/.claude/skills/scout/control/scout.md",
+    queue.CREW: "features/crew/control/crew.md",
+    queue.SCOUT: "features/scout/control/scout.md",
 }
 SLUG = r"[A-Za-z0-9][A-Za-z0-9-]*"
+
+
+def copy(role: str) -> Path:
+    """The control copy of `role`'s priming, in the jstack source jbus runs from."""
+    return skills.root() / COPIES[role]
 
 
 def file(state_dir: Path) -> Path:
@@ -82,7 +89,7 @@ def first_line(role: str, slug: str, chosen: str) -> str:
     if chosen != CONTROL:
         return f"/{role} {slug}"
     return (
-        f"Read `{COPIES[role]}` in full now, and follow it as the /{role} skill with the "
+        f"Read `{copy(role)}` in full now, and follow it as the /{role} skill with the "
         f"arguments `{slug}`: it is the priming of crew-router-pilot's control arm."
     )
 
@@ -95,8 +102,8 @@ def asked_slug(role: str, asked: str) -> str:
         asked,
     )
     control = re.match(
-        rf"\s*Read `{re.escape(COPIES[role])}` in full now, and follow it as the /{role} skill "
-        rf"with the arguments `({SLUG})`",
+        rf"\s*Read `[^`]*/{re.escape(COPIES[role])}` in full now, and follow it as the "
+        rf"/{role} skill with the arguments `({SLUG})`",
         asked,
     )
     found = plain or control

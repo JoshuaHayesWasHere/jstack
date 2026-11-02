@@ -18,6 +18,7 @@ from test_jbus_queue import add, go
 from test_jbus_scout import add as add_scout
 from test_jbus_scout import launches as scout_launches
 from test_jbus_scout import request
+from testing.paths import REPO
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ def crews(kitchen):
 
 def control(role, slug):
     return (
-        f"Read `~/.claude/skills/{role}/control/{role}.md` in full now, and follow it as the "
+        f"Read `{REPO}/features/{role}/control/{role}.md` in full now, and follow it as the "
         f"/{role} skill with the arguments `{slug}`: it is the priming of crew-router-pilot's "
         "control arm."
     )
