@@ -73,6 +73,8 @@ When something is easier to grasp as a picture than as sentences, draw it: how a
 
 Keep each visual small enough to read at a glance: at most six boxes, with at most eight words in each. Write labels as plain words a person would say, not tags like "Tests: pass". A fact that needs a sentence belongs in the text, or nowhere.
 
+The home's pipeline page from "Gather what changed" is the one exception to these limits: it shows every row, grouped by stage and joined by its chains, with each stalled row's cause and age.
+
 Embed screenshots and videos inline when the change is visible, not only as links.
 If a visible change has none, mark its summary line "No screenshot yet," and say there what changed on screen.
 Draw diagrams and charts from facts you have, as one HTML page shown with `html_preview` and then `html_render`.
