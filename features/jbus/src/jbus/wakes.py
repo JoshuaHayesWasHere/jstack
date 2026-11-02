@@ -90,8 +90,8 @@ PROSE = (
     "this: make it a row with `--depends`, or delete the line."
 )
 NOTES = (
-    "{file} holds {dated} dated entries, and the user's word of 2026-10-28 is that a home adds "
-    "none: a rule written there is read by no code and goes stale. Move each entry into the plan, "
+    "Dated lines in {file}: {dated}. {user}'s word of 2026-10-28 is that a home adds no entries "
+    "there: a rule written there is read by no code and goes stale. Move each entry into the plan, "
     "a brief or code, and take it out of the file once it is moved. Deleting the file is a "
     "deletes-data door."
 )
@@ -403,7 +403,10 @@ def notes_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     root, items = root_of(run), []
     for key, one in notes.read(run.state).items():
         thread = (thread_of(run.home / one.scope) if one.scope else "") or root
-        line, text = f"{key}: {one.last}", NOTES.format(file=one.file, dated=one.dated)
+        line, text = (
+            f"{key}: {one.last}",
+            NOTES.format(file=one.file, dated=one.dated, user=run.user.user),
+        )
         items += _with_late(run, record, root, Item(key, thread, line, text=text))
     return items
 
