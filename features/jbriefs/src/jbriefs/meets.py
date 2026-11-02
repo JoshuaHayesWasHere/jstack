@@ -21,9 +21,9 @@ ran saw, is the one that counts: each reviewer's last section of the round says 
 brief's count, or the pull request is short. A round at a later head, such as the scoped review
 of the fix, takes the place of an earlier `no`, and so does a scoped pass at the same head, which
 rules on what the crew declined. A `Done when` line the round says is unmet is cleared by a
-`Waived: <the Done when line>, <thread>/<message>` line of the brief whose words the caller
+`Waived: <the Done when line>, <thread>/<message>` line of the brief whose word the caller
 checked (`heard`): `jmerge` asks jbus, by the same check `jbus queue approve --message` reads a
-word with.
+word with, and the word must say it waives and quote the line it names (`quotes`).
 
 `jmerge` (`ready.short_of`), the crew skill's second pass (`jbriefs --meets`) and the replay in
 `features/jmerge/scripts/meets_replay.py` read the line through this module and nowhere else.
@@ -133,10 +133,19 @@ def _plain(text: str) -> str:
     return " ".join(text.split()).lower()
 
 
-def waivers(text: str) -> tuple[tuple[int, str], ...]:
-    """Each `Waived: <the Done when line>, <thread>/<message>` line of the brief, as the number of
-    the `Done when` line it names and the reference of the word it rests on. The line is named by
-    its words, spaces and case aside, whole or by a start no other line has. A line that names
+@dataclass(frozen=True)
+class Waiver:
+    """One `Waived:` line: the number of the `Done when` line it names, the reference of the word
+    it rests on, and the words it names the line by, which that word must quote."""
+
+    number: int
+    ref: str
+    named: str
+
+
+def waivers(text: str) -> tuple[Waiver, ...]:
+    """Each `Waived: <the Done when line>, <thread>/<message>` line of the brief. The line is named
+    by its words, spaces and case aside, whole or by a start no other line has. A line that names
     none, or two, waives nothing."""
     items = [_plain(one) for one in done_when(head_lines(text))]
     found = []
@@ -150,13 +159,16 @@ def waivers(text: str) -> tuple[tuple[int, str], ...]:
         whole = [k for k, one in enumerate(items, 1) if one == said]
         start = [k for k, one in enumerate(items, 1) if one.startswith(said)]
         if whole or len(start) == 1:
-            found.append(((whole or start)[0], ref))
-    return tuple(found)
+            found.append(Waiver((whole or start)[0], ref, said))
+    return tuple(dict.fromkeys(found))
 
 
-def refs(text: str) -> tuple[str, ...]:
-    """The reference of each word a `Waived:` line rests on, once each, for the caller to check."""
-    return tuple(dict.fromkeys(ref for _, ref in waivers(text)))
+def quotes(words: str, waiver: Waiver) -> bool:
+    """Whether a word is of this waiver: it says it waives, and quotes the words the `Waived:`
+    line names its `Done when` line by. A word about the row that waives nothing, or waives
+    another line, is not."""
+    said = _plain(words)
+    return bool(re.search(r"\bwaiv", said)) and waiver.named in said
 
 
 @dataclass(frozen=True)
@@ -186,10 +198,10 @@ def last_round(triage: findings.Triage) -> list[findings.Section]:
     return list(last.values())
 
 
-def reading(text: str, heard: Collection[str] = ()) -> Reading:
+def reading(text: str, heard: Collection[Waiver] = ()) -> Reading:
     """The rule (`Reading`). It does not apply to a brief that says `Review: none`, to one with no
-    review that ran, or to one with no `Done when` list. `heard` holds the references of the
-    words the caller checked, and only a waiver that rests on one of them counts."""
+    review that ran, or to one with no `Done when` list. `heard` holds the waivers whose word the
+    caller checked, and only those count."""
     items = done_when(head_lines(text))
     triage = findings.triage(text)
     last = last_round(triage)
@@ -203,7 +215,7 @@ def reading(text: str, heard: Collection[str] = ()) -> Reading:
     if off is not None:
         return Reading(MISCOUNTED, head, count=count, said=off)
     named = {k for one in said for k in one.unmet}
-    waived = named & {k for k, ref in waivers(text) if ref in heard}
+    waived = named & {one.number for one in waivers(text) if one in heard}
     unmet = tuple(sorted(named - waived))
     word = NO if unmet else YES
     return Reading(word, head, count - len(unmet), count, unmet=unmet, waived=tuple(sorted(waived)))

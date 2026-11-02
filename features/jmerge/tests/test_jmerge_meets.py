@@ -6,7 +6,10 @@ request with, over briefs as the skills write them."""
 
 import pytest
 
-from jmerge import ready
+import test_home_merge as merge
+import test_jmerge_run as jrun
+from jbriefs import meets
+from jmerge import bus, ready
 
 SAW, FIX, LATER = "a" * 40, "b" * 40, "c" * 40
 DONE = "Done when:\n- the rule holds: a test\n- the docs say it\n- the check command passes\n"
@@ -157,21 +160,22 @@ WAIVED = "Waived: the docs say it, mcp:josh/m1\n"
 
 def test_a_waiver_on_a_word_the_caller_checked_clears_the_line_it_names():
     held = brief(section(NO), result=WAIVED)
-    assert ready.short_of(held, SAW, heard={"mcp:josh/m1"}) == ""
+    assert ready.short_of(held, SAW, heard=set(meets.waivers(held))) == ""
     assert ready.short_of(held, SAW) == ready.MEETS_NO.format(
         head=SAW[:12], met=2, count=3, lines="2"
     )
-    assert ready.short_of(held, SAW, heard={"mcp:crew/m2"}) == ready.MEETS_NO.format(
+    other = {meets.Waiver(3, "mcp:josh/m1", "the check command passes")}
+    assert ready.short_of(held, SAW, heard=other) == ready.MEETS_NO.format(
         head=SAW[:12], met=2, count=3, lines="2"
     )
 
 
 def test_a_waiver_names_its_line_whole_or_by_a_start_no_other_line_has():
     by_start = brief(section(NO), result="Waived: The docs, mcp:josh/m1\n")
-    assert ready.short_of(by_start, SAW, heard={"mcp:josh/m1"}) == ""
+    assert ready.short_of(by_start, SAW, heard=set(meets.waivers(by_start))) == ""
     two = "Meets the brief: no, 1 of 3\n- unmet 2: docs\n- unmet 3: check"
     other = brief(section(two), result="Waived: the, mcp:josh/m1\n" + WAIVED)
-    assert ready.short_of(other, SAW, heard={"mcp:josh/m1"}) == ready.MEETS_NO.format(
+    assert ready.short_of(other, SAW, heard=set(meets.waivers(other))) == ready.MEETS_NO.format(
         head=SAW[:12], met=2, count=3, lines="3"
     )
 
@@ -197,3 +201,44 @@ def test_a_cleanup_brief_is_held_by_its_review_saying_no():
         head=SAW[:12], met=2, count=3, lines="2"
     )
     assert ready.short_of(brief(section(YES), head=cleanup), SAW) == ""
+
+
+class Bus:
+    """The bus there is, but for the waivers: `heard` answers `said` and keeps what it was asked."""
+
+    def __init__(self, real, said):
+        self.real, self.said, self.asked = real, said, []
+
+    def heard(self, checkout, waiver, slug):
+        self.asked.append((waiver, slug))
+        return self.said
+
+    def __getattr__(self, name):
+        return getattr(self.real, name)
+
+
+@pytest.mark.parametrize(
+    ("said", "waits"),
+    [("", False), ("refused: message mcp:josh/m1 is not user's own", True)],
+    ids=["a word the bus checked", "a word the bus refused"],
+)
+def test_jmerge_judges_a_waived_no_by_the_word_its_bus_checked(
+    proven_merged, monkeypatch, said, waits
+):
+    """The path a merge takes: `Repo.waits` reads the brief's `Waived:` line, asks the bus of its
+    word once (`rows.heard`), and holds or lets the pull request go by the answer."""
+    head = proven_merged.head
+    reviewed = section(NO, head=head)
+    text = merge.brief(reviewed, result="Reviewer: mcp:9 #1\n" + WAIVED, field=DONE)
+    (proven_merged.home.tasks / "alpha.md").write_text(text)
+    proven_merged.home.open_pull_request(head, checks=(jrun.STARTED,), files=["a.txt"])
+    fake = Bus(bus.found(), said)
+    monkeypatch.setattr(bus, "found", lambda: fake)
+    here = jrun.repo(proven_merged, monkeypatch)
+    one = jrun.pull_request("a.txt", head=head)
+    found = here.waits(one, "main")
+    held = ready.MEETS_NO.format(head=head[:12], met=2, count=3, lines="2")
+    assert (found.why == held) == waits
+    assert (found.judged is not None) == (not waits)
+    here.waits(one, "main")
+    assert fake.asked == [(meets.Waiver(2, "mcp:josh/m1", "the docs say it"), "alpha")]

@@ -169,7 +169,7 @@ class Repo:
         self.logs: dict[str, str | None] = {}
         self.open: list[ready.PullRequest] = []
         self.heads: dict[int, bool] = {}
-        self.words: dict[tuple[str, str], bool] = {}
+        self.words: dict[tuple[meets.Waiver, str], bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(merged and merged.run))
@@ -183,13 +183,13 @@ class Repo:
     def stored(self, slug: str) -> str | None:
         return rows.stored(self.main, slug)
 
-    def heard(self, text: str, slug: str) -> frozenset[str]:
-        """The references of the brief's `Waived:` lines whose words jbus checked as the user's
-        own, or the bot's, of this row (`rows.heard`), each asked once a run."""
-        for ref in meets.refs(text):
-            if (ref, slug) not in self.words:
-                self.words[(ref, slug)] = not rows.heard(self.main, ref, slug)
-        return frozenset(ref for ref in meets.refs(text) if self.words[(ref, slug)])
+    def heard(self, text: str, slug: str) -> frozenset[meets.Waiver]:
+        """The brief's `Waived:` lines whose word jbus checked as the user's own, or the bot's,
+        of this row, waiving the line each names (`rows.heard`), each asked once a run."""
+        for one in meets.waivers(text):
+            if (one, slug) not in self.words:
+                self.words[(one, slug)] = not rows.heard(self.main, one, slug)
+        return frozenset(one for one in meets.waivers(text) if self.words[(one, slug)])
 
     @functools.cached_property
     def main_state(self) -> mainjson.Main:

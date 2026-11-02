@@ -724,11 +724,11 @@ def _round(said: Said) -> None:
         said.verdict = ""
 
 
-def short_on_meets(text: str, heard: Collection[str] = ()) -> str:
+def short_on_meets(text: str, heard: Collection[meets.Waiver] = ()) -> str:
     """Why the last round's judgement of the brief holds the merge, or nothing
     (`jbriefs.meets.reading`): it says `no`, or a section of it has no line `jmerge` reads, or
-    one whose count is not the brief's. `heard` holds the references of the words jbus checked
-    for the brief's `Waived:` lines."""
+    one whose count is not the brief's. `heard` holds the brief's `Waived:` lines whose word jbus
+    checked."""
     said = meets.reading(text, heard)
     head = said.head[:12]
     if said.word == meets.NO:
@@ -741,7 +741,7 @@ def short_on_meets(text: str, heard: Collection[str] = ()) -> str:
     return ""
 
 
-def short_of(text: str, head: str, heard: Collection[str] = ()) -> str:
+def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
     """What the pull request is short of at `head`, by its brief, or nothing. Every path that
     reads a review ends on the last round's judgement of the brief (`short_on_meets`), with the
     waivers whose words are in `heard`."""
