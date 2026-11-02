@@ -104,8 +104,9 @@ def test_a_homes_prod_migration_is_refused_with_where_the_door_goes(home, harnes
     assert said == (
         f"door-command: refused: `{MIGRATE}` walks through a door (touches prod or real users), "
         "and a home runs no door itself: the door goes in a row whose brief has Holds: touches "
-        'prod or real users, and user\'s own go in T3 Code, "go <slug>", opens it for that '
-        "row's crew\n"
+        "prod or real users, and jbus queue approve <slug> --sha <sha12> --message "
+        "<thread>/<message>, on user's own message in T3 Code that names the row, opens it for "
+        "that row's crew\n"
     )
 
 
@@ -119,10 +120,19 @@ def test_a_crew_runs_a_door_on_the_users_own_go_and_not_on_a_carried_one(home):
     code, said = run(home, FLOW_CREW, MIGRATE)
     assert code == 2
     assert said.endswith(
-        f'and the go of {BOTS} is not user\'s own word read in T3 Code: user sends "go {BOTS}" '
-        f"in T3 Code, and jbus --as user queue approve {BOTS} --sha <sha12> --message "
-        "<thread>/<message> records it\n"
+        f"and the go of {BOTS} is not user's own word read in T3 Code: jbus queue approve {BOTS} "
+        "--sha <sha12> --message <thread>/<message>, on user's own message in T3 Code that names "
+        f"{BOTS}, records it\n"
     )
+
+
+def test_a_crew_runs_a_door_on_the_users_own_message_a_home_carried_to_its_go(home):
+    """The home's plain `jbus queue approve --message` on the user's own T3 message is that
+    user's go: the crew of the row it approved runs its door."""
+    bus = home / ".local" / "state" / "jbus" / "Winnifred"
+    carried = act(JOSHS, "home", "t3-message", True)
+    (bus / "acts.jsonl").write_text(json.dumps(carried) + "\n")
+    assert run(home, ROOT_CREW, MIGRATE) == (0, "")
 
 
 def test_a_crews_go_that_no_longer_holds_for_its_brief_opens_nothing(home):

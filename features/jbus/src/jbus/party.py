@@ -21,8 +21,9 @@ that acted, the `Action` it took, the `Evidence` it acted on, and what came of i
 - `Act`: the record, `v` 1, with its `outcome`: `done`, `gated` (a door the party may not open
   alone, parked as a gate for the user), `refused`, or `noop` (the same go again).
 
-The rule of doors is `opens`: an act on a door goes through only for the user, on checked
-evidence. Everything else the bot or a home may do as the user would.
+The rule of doors is `opens`: an act on a door goes through only on the user's own words that jbus
+read itself, whether the user or a home runs the command. Everything else the bot or a home may
+do as the user would.
 """
 
 from __future__ import annotations
@@ -243,9 +244,11 @@ class Act:
 
 
 def opens(party: Party, said: Evidence) -> bool:
-    """Whether the party may open a door on this evidence: only the user, on words jbus read
-    itself."""
-    return party.kind == "user" and said.checked
+    """Whether the party may open a door on this evidence: only the user's own words, read by
+    jbus itself in T3 Code (`checked`). The user acts on them, or a home carries them on the
+    command line: the words are the user's either way, so the carrier adds nothing. The bot's
+    words are never checked, and a home's own words, typed, are not either."""
+    return party.kind in ("user", "home") and said.checked
 
 
 def held(*lines: str) -> tuple[str, ...]:

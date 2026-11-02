@@ -305,19 +305,6 @@ def test_a_pick_is_the_users_own_word_for_a_door(kitchen, tmp_path, monkeypatch)
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     stored(tmp_path, monkeypatch, {QUESTION: ["alpha (S)"]}, resolved=now)
     code, said = kitchen.main("queue", "approve", "alpha", "--pick", REF, "--sha", sha12(held))
-    assert (code, rows(kitchen)["alpha"]["approved"]) == (0, ""), said
-    assert said.startswith("gated alpha: its brief holds for publishes")
-    code, said = kitchen.main(
-        "--as",
-        "user",
-        "queue",
-        "approve",
-        "alpha",
-        "--pick",
-        REF,
-        "--sha",
-        sha12(held),
-    )
     assert code == 0, said
     made = rows(kitchen)["alpha"]["approval"]
     assert (made["basis"], made["words"]) == ("pick", f'"alpha (S)", for "{QUESTION}"')

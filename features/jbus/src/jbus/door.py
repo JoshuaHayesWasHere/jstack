@@ -8,8 +8,8 @@ read in T3 Code, that names it. This hook is the second, for what a thread runs 
 
 - a home's or a scout's command that walks through a door is refused: the door goes in a row
   whose brief has `Holds: <case>`, and the user's own go in T3 Code opens it for that row's crew;
-- a crew's command goes only where its row's go is a `done` act by the party `user` on checked
-  evidence, and still holds for the brief stored now;
+- a crew's command goes only where its row's go is a `done` act on the user's own words that jbus
+  read (`party.opens`), and still holds for the brief stored now;
 - any other thread, and a session T3 Code's store does not know, is let through, as
   `jbriefs.sends` lets a send through.
 
@@ -102,8 +102,9 @@ def walks(command: str) -> tuple[tuple[str, str], ...]:
 
 
 def _holds(state: Path, slug: str) -> bool:
-    """Whether the row's go is the user's own, read in T3 Code: its last `done` go is an act of
-    the party `user` on checked evidence, and the row's go holds for the brief stored now."""
+    """Whether the row's go is the user's own, read in T3 Code: its last `done` go is an act that
+    opens a door (`party.opens`), the user's own words that jbus read, and the row's go holds for
+    the brief stored now."""
     from jbus import acts, queue
     from jmerge import judgement
 
@@ -114,7 +115,11 @@ def _holds(state: Path, slug: str) -> bool:
         and one["action"]["subject"] == slug
         and one["outcome"] == "done"
     ]
-    if not gos or gos[-1]["party"]["kind"] != "user" or not gos[-1]["evidence"]["checked"]:
+    if not gos:
+        return False
+    who, said = gos[-1]["party"], gos[-1]["evidence"]
+    checked = party.Evidence(said.get("source", ""), "", checked=bool(said.get("checked")))
+    if not party.opens(party.Party(who["kind"], who["route"]), checked):
         return False
     row, text = queue.current(state, slug)
     return row is not None and judgement.has_go(row, text)
@@ -130,8 +135,9 @@ def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
     user = _user()
     door = f"`{matched}` walks through a door ({case})"
     row = (
-        f"the door goes in a row whose brief has Holds: {case}, and {user}'s own go in T3 Code, "
-        '"go <slug>", opens it for that row\'s crew'
+        f"the door goes in a row whose brief has Holds: {case}, and jbus queue approve <slug> "
+        f"--sha <sha12> --message <thread>/<message>, on {user}'s own message in T3 Code that "
+        "names the row, opens it for that row's crew"
     )
     if any(one.holds(thread) for one in sends.homes(homes)):
         return f"{door}, and a home runs no door itself: {row}"
@@ -142,9 +148,9 @@ def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
     if crew is None or _holds(buses, crew.slug):
         return ""
     return (
-        f"{door}, and the go of {crew.slug} is not {user}'s own word read in T3 Code: {user} "
-        f'sends "go {crew.slug}" in T3 Code, and jbus --as user queue approve {crew.slug} '
-        "--sha <sha12> --message <thread>/<message> records it"
+        f"{door}, and the go of {crew.slug} is not {user}'s own word read in T3 Code: jbus "
+        f"queue approve {crew.slug} --sha <sha12> --message <thread>/<message>, on {user}'s own "
+        f"message in T3 Code that names {crew.slug}, records it"
     )
 
 
