@@ -203,6 +203,7 @@ def test_the_skills_block_says_so_when_it_is_not_linked(tmp_path, demo):
         ("how does the jbus pass work", "how"),
         ("why did we pick sqlite for the queue", "why"),
         ("this reads like chatgpt, it sounds like ai", "unslop"),
+        ("can you review the pr and then catch me up", "ketchup"),
         ("please wrap up and hand off", "handoff"),
         ("/grilling grill me", None),
         ("nothing here asks for a skill at all", None),
@@ -211,6 +212,66 @@ def test_the_skills_block_says_so_when_it_is_not_linked(tmp_path, demo):
 def test_the_first_tip_is_the_skill_whose_tip_phrase_the_words_say(prompt, first):
     tips = pick.tipped(prompt, pick.skills())
     assert (tips[0][0] if tips else None) == first
+
+
+RULE = {
+    skill.name: skill
+    for skill in [
+        pick.Skill("blast-radius", ("blast radius", "what could this break")),
+        pick.Skill("how", ("how does * work",)),
+        pick.Skill("ketchup", ("catch me up", "catch me up on this chat")),
+    ]
+}
+
+
+def first_tip(text, found=RULE):
+    tips = pick.tipped(text, found)
+    return tips[0][0] if tips else None
+
+
+def test_a_tip_matches_by_whole_words_and_not_by_case():
+    assert first_tip("BLAST-RADIUS,\nplease") == "blast-radius"
+    assert first_tip("Blast  Radius?") == "blast-radius"
+    for near in [
+        "blast radiuses",
+        "sandblast radius",
+        "blast the radius",
+        "what could this breaker",
+    ]:
+        assert first_tip(near) is None
+
+
+def test_a_star_in_a_tip_phrase_stands_for_one_to_four_words():
+    assert first_tip("how does the start hook work") == "how"
+    assert first_tip("how does work") is None
+    assert first_tip("how does one two three four five work") is None
+
+
+def test_the_longest_phrase_that_matches_comes_first():
+    assert first_tip("catch me up on this chat, what could this break") == "ketchup"
+    assert first_tip("catch me up, and what could this break") == "blast-radius"
+
+
+def test_a_skill_the_text_names_gets_no_tip():
+    assert first_tip("run /blast-radius: what could this break") is None
+    assert first_tip("is $blast-radius the one for what could this break") is None
+    assert first_tip("after /blast-radius, catch me up") == "ketchup"
+    assert first_tip("then /blast-radius-2 says what could this break") == "blast-radius"
+
+
+TIPPED = sorted((s.name, s.phrases) for s in pick.skills().values() if s.phrases)
+
+
+def test_the_repo_has_skills_with_a_tip_line():
+    assert len(TIPPED) > 10
+
+
+@pytest.mark.parametrize(("name", "phrases"), TIPPED, ids=[name for name, _ in TIPPED])
+def test_each_tip_phrase_of_the_repos_skills_tips_that_skill(name, phrases):
+    found = pick.skills()
+    for phrase in phrases:
+        text = f"So, {phrase.replace('*', 'the thing').upper()}?"
+        assert name in [tipped for tipped, _ in pick.tipped(text, found)], phrase
 
 
 def test_the_briefs_deeper_playbooks_are_the_crewmates_ones_the_deeper_step_runs_on():
