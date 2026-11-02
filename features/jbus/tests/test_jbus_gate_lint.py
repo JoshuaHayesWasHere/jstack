@@ -3,7 +3,9 @@ user's word, since a pass closes a gate with no `Holds:` line at once and nobody
 that word. A gate that holds is asked as before, whatever its shape.
 
 The tests run the real `jbus gate` against the kitchen of `test_jbus_kitchen`, and read what it
-printed and the questions it kept."""
+printed and the questions it kept. Each shape of `SHAPES` is a gate the audit of 2026-10-26 to
+11-01 found asked, in its words, with the rule that settles it and what the thread does instead,
+as the refusal must name them."""
 
 import json
 
@@ -37,8 +39,6 @@ def kept(kitchen):
     return json.loads(found.read_text())["records"] if found.exists() else []
 
 
-# Each shape is a gate the audit of 2026-10-26 to 11-01 found asked, in its words, with the rule
-# that settles it and what the thread does instead, as the refusal must name them.
 SHAPES = {
     "swarm": (
         "Run /swarm over the fourteen walk findings, as the request's Skills line names it?",
