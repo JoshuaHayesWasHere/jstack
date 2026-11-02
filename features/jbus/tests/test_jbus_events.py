@@ -220,6 +220,7 @@ TABLE = {
     "rebase": "quiet",
     "rereview": "quiet",
     "restack": "quiet",
+    "unstack": "quiet",
     "drops": "quiet",
     "failed": "quiet",
     "conflict": "quiet",
