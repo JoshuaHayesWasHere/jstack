@@ -67,6 +67,21 @@ class Route:
         finally:
             link.close()
 
+    def answer(self, body, project="demo"):
+        """`POST /answer` on the view, as its own page sends it: the user over a page."""
+        import http.client
+
+        link = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        origin = f"http://127.0.0.1:{self.port}"
+        sent = {"Host": origin.removeprefix("http://"), "Origin": origin}
+        sent["Content-Type"] = "application/json"
+        try:
+            link.request("POST", f"/answer?project={project}", json.dumps(body), sent)
+            answer = link.getresponse()
+            return answer.status, json.loads(answer.read())
+        finally:
+            link.close()
+
     def get(self, path):
         import http.client
 
@@ -95,6 +110,16 @@ def logged(kitchen):
 
 def stored(kitchen, slug):
     return (kitchen.state / "briefs" / f"{slug}.md").read_text()
+
+
+def now(kitchen, words):
+    """The user's own message `REF`, said now: after the brief or the gate it opens was stored,
+    and naming it, as a door's go or answer must."""
+    from datetime import UTC, datetime
+
+    from test_jbus_kitchen import iso
+
+    kitchen.t3.says(HOME, MESSAGE, words, updatedAt=iso(datetime.now(UTC)))
 
 
 def bot_go(route, kitchen, slug, **more):
@@ -325,7 +350,7 @@ def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_n
         "gated alpha: its brief holds for rewrites history, so it waits for user's own word: "
         f"question {asked.number}",
     )
-    kitchen.t3.says(HOME, MESSAGE, "yes, rewrite it")
+    now(kitchen, "yes, rewrite alpha")
     code, said = kitchen.main(
         "--as", "user", "queue", "approve", "alpha", "--message", REF, "--sha", sha
     )
@@ -345,7 +370,7 @@ def test_a_follow_up_on_a_door_parks_a_gate_whose_command_names_the_stored_brief
     (asked,) = questions.read(kitchen.state)
     sha = sha12(stored(kitchen, "beta"))
     assert f"queue approve beta --sha {sha} --message <thread>/<message>" in asked.undo
-    kitchen.t3.says(HOME, MESSAGE, "yes, rewrite it")
+    now(kitchen, "yes, rewrite beta")
     code, said = kitchen.main(
         "--as", "user", "queue", "approve", "beta", "--message", REF, "--sha", sha
     )
@@ -423,7 +448,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     assert [
         (one["party"]["kind"], one["evidence"]["source"], one["outcome"]) for one in logged(kitchen)
     ] == [("home", "typed", "refused")]
-    kitchen.t3.says(HOME, MESSAGE, "yes")
+    now(kitchen, f"yes to {held}")
     code, said = kitchen.main("--as", "user", "answer", str(held), "--default", "--message", REF)
     assert code == 0, said
     assert questions.question(kitchen.state, held).answer.keeps
@@ -432,6 +457,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     )
     assert kitchen.main("gate", "alpha", stdin=other)[0] == 0
     spelled = questions.read(kitchen.state)[-1].number
+    now(kitchen, f"and yes to {spelled}")
     code, said = kitchen.main(
         "--as", "user", "--evidence", f"t3-message:{REF}", "answer", str(spelled), "--default"
     )

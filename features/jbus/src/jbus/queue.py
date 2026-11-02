@@ -201,6 +201,9 @@ SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
 ALREADY = "already approved"
 GO_VOID = ", its go does not hold for it: approve it again"
+TAKEN = "'s go is taken back: its brief now holds for "
+"""What `add` says of a row whose go held, and whose new brief holds for a door the old one
+did not: no go given before a door was in the brief opens it."""
 NO_SHA = (
     "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
     "they were shown; a go by --follows needs none"
@@ -1462,6 +1465,12 @@ def _do(
         ):
             holds = judgement.approved_text(row, verb.text)
             go = GO_HOLDS if holds else GO_VOID
+            opened = [case for case in party.doors(verb.text) if case not in party.doors(was)]
+            if holds and opened and _unlaunched(row):
+                _void(rows, row)
+                go = (
+                    f", {verb.slug}{TAKEN}{', '.join(opened)}, which only the user's own word opens"
+                )
         return f"added {verb.slug}: priority {verb.priority}{depends}{of}, brief {shown}{go}"
     if isinstance(verb, Approve):
         ruled = verb.basis == RULE
@@ -1578,13 +1587,10 @@ def picked(said: Said, slug: str) -> Said:
 
 
 def case(text: str) -> str:
-    """Return the case of `gates.md` that the brief's head names on a `Holds:` line, or nothing.
-    Such a row waits for the user's own word: no entry's go, no silence and no follow-up rule
-    approves it."""
-    for label, lines in briefs.fields(text):
-        if label == "Holds":
-            return " ".join(lines).strip() or "a Holds: line with no case"
-    return ""
+    """Return the cases of `gates.md` the brief holds for (`party.doors`), its `Holds:` lines' and
+    its commands', or nothing. Such a row waits for the user's own word: no entry's go, no
+    silence and no follow-up rule approves it."""
+    return ", ".join(party.doors(text))
 
 
 def _waits(row: Row | None, text: str | None) -> bool:
@@ -1856,6 +1862,17 @@ def _none(line: int, error: Exception) -> Refused:
     return Refused(f"refused: line {line}: {said}, and nothing in the batch was applied{lines}")
 
 
+def _store(path: Path, text: str) -> None:
+    """Store a brief, and leave one that already holds the same text as it is: when its file was
+    written is when that text was stored, which a door's go is held to (`jbus.acts`)."""
+    try:
+        if path.read_text() == text:
+            return
+    except OSError:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
 def _run(
     state: Path,
     verbs: list[tuple[int, Verb]],
@@ -1935,7 +1952,7 @@ def _run(
         if any(isinstance(verb, Rename) for _, verb in verbs):
             for slug, text in batch.briefs.items():
                 if text is not None:
-                    brief_path(state, slug).write_text(text)
+                    _store(brief_path(state, slug), text)
             rows.sort(key=order)
             write_json(path(state), rows)
         if batch.gone != gone:
@@ -1944,8 +1961,7 @@ def _run(
             if text is None:
                 brief_path(state, slug).unlink(missing_ok=True)
             else:
-                brief_path(state, slug).parent.mkdir(parents=True, exist_ok=True)
-                brief_path(state, slug).write_text(text)
+                _store(brief_path(state, slug), text)
         for move in moves if asks else []:
             asks.told(move)
     return said

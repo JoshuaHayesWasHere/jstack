@@ -10,6 +10,7 @@ store laid out as T3 Code lays out its own, under `T3CODE_HOME`.
 import json
 import sqlite3
 import urllib.parse
+from datetime import UTC, datetime
 
 import pytest
 
@@ -57,9 +58,9 @@ def shown(kitchen, kind="user_input_request", labels=LABELS):
     )
 
 
-def stored(tmp_path, monkeypatch, answers, status="resolved", commands=(APP,)):
+def stored(tmp_path, monkeypatch, answers, status="resolved", commands=(APP,), resolved=None):
     """Write T3 Code's store with the request and the commands that resolved it, as T3 Code
-    keeps them, and point `T3CODE_HOME` at it."""
+    keeps them, and point `T3CODE_HOME` at it. `resolved` is when the user answered."""
     home = tmp_path / "t3"
     (home / "userdata").mkdir(parents=True)
     db = sqlite3.connect(home / "userdata" / "statev2.sqlite")
@@ -80,7 +81,7 @@ def stored(tmp_path, monkeypatch, answers, status="resolved", commands=(APP,)):
             command_type text);
         """
     )
-    resolved = "2026-10-12T14:30:00.000Z" if status == "resolved" else None
+    resolved = (resolved or "2026-10-12T14:30:00.000Z") if status == "resolved" else None
     payload = {"id": REQUEST, "kind": "user_input", "status": status}
     if status == "resolved":
         payload |= {"resolvedAt": resolved, "answers": answers}
@@ -299,9 +300,10 @@ def test_a_store_that_is_not_there_approves_nothing(kitchen, tmp_path, monkeypat
 
 def test_a_pick_is_the_users_own_word_for_a_door(kitchen, tmp_path, monkeypatch):
     shown(kitchen)
-    stored(tmp_path, monkeypatch, {QUESTION: ["alpha (S)"]})
     held = brief("alpha", "Holds: publishes\n")
     add(kitchen, "alpha", approve=False, text=held)
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    stored(tmp_path, monkeypatch, {QUESTION: ["alpha (S)"]}, resolved=now)
     code, said = kitchen.main("queue", "approve", "alpha", "--pick", REF, "--sha", sha12(held))
     assert (code, rows(kitchen)["alpha"]["approved"]) == (0, ""), said
     assert said.startswith("gated alpha: its brief holds for publishes")
@@ -317,4 +319,5 @@ def test_a_pick_is_the_users_own_word_for_a_door(kitchen, tmp_path, monkeypatch)
         sha12(held),
     )
     assert code == 0, said
-    assert rows(kitchen)["alpha"]["approved"] == line("alpha (S)")
+    made = rows(kitchen)["alpha"]["approval"]
+    assert (made["basis"], made["words"]) == ("pick", f'"alpha (S)", for "{QUESTION}"')

@@ -7,6 +7,9 @@ Size: S | M | L
 Where: <files or areas it concerns>
 Do not touch: <what is out of bounds>
 Decisions: <any the user already made, in their words>
+Holds: <a case of gates.md the task walks through, word for word, several split by commas>
+<The line above is left out when the task walks through no door.>
+<A row whose `Done when:` or `Proves it:` runs a door's command holds for that door all the same, and `jbus queue add` prints `holds: <case>, from <the command>` for one no `Holds:` line names.>
 <The two lines below may be left out where they would say none.>
 Design: <the path of the design `/architect` wrote for this task> | none, <why it needs no design call>
 Skills: <the skills and principles the crewmate runs, comma-separated, by pstack's names: a skill's directory of `skills/`, `architect`, and a principle's directory of `features/principles/skills/`, `principle-model-the-domain`> | none

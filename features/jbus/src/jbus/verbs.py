@@ -306,16 +306,23 @@ def piped(verb: str, what: str, given: str = " <slug>") -> str:
     return sys.stdin.read()
 
 
+def moment(user: jsettings.Settings, at: str) -> datetime:
+    """The moment a time as `user.stamp` writes it names, to the minute. In the hour the clocks
+    go back, the zone's word after it tells the two apart."""
+    typed, word = at.rsplit(" ", 1)
+    said = user.local(datetime.strptime(typed, "%Y-%m-%d %H:%M"))
+    if user.word(said) != word:
+        said = user.local(said.replace(tzinfo=None, fold=1))
+    return said
+
+
 def typed_at(user: jsettings.Settings, at: str) -> None:
     """Refuse an `--at` that is not a time as `user.stamp` writes it, or that is more than
     `TYPED_MINUTES` off the clock."""
     if not user.takes(at):
         raise jbus.Refused(f'refused: --at is "{user.form(at)}"')
     now = clock()
-    typed, word = at.rsplit(" ", 1)
-    said = user.local(datetime.strptime(typed, "%Y-%m-%d %H:%M"))
-    if user.word(said) != word:
-        said = user.local(said.replace(tzinfo=None, fold=1))
+    said = moment(user, at)
     off = round(abs((said - now).total_seconds()) / 60)
     if off > TYPED_MINUTES:
         raise jbus.Refused(

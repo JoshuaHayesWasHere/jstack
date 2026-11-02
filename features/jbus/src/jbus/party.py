@@ -8,7 +8,10 @@ that acted, the `Action` it took, the `Evidence` it acted on, and what came of i
   The bot has no name: one bot speaks for the user, and it is known by its route alone.
 - `Door`: an action that is irreversible or slow to revert. `DOORS` is the one table of them:
   the six cases a gate's `Holds:` line names (`CASES`), each with the words that name it in
-  prose, which `jbus.waiting` and `jbus.item` read in a gate's words as `prose` gives them.
+  prose, which `jbus.waiting` and `jbus.item` read in a gate's words as `prose` gives them, and
+  the commands that walk through it (`runs`). A brief holds for the cases its `Holds:` lines
+  name and for those the commands of its `Done when:` and `Proves it:` lines walk through
+  (`doors`), and `jbus.door` refuses a home's own command that walks through one.
 - `Evidence`: the user's words an act rests on, and where jbus read them. `checked` says jbus
   read the words and their time itself, in T3 Code (a message, or the answer to a question box);
   anything typed or carried by the bot is not checked. Each basis of an approval
@@ -71,30 +74,60 @@ BOT = Party("bot", "bot")
 
 @dataclass(frozen=True)
 class Door:
-    """One case of a gate that holds. `case` is the words a `Holds:` line names it by, and
-    `named` the pattern of the words that name it in a gate's prose, or nothing."""
+    """One case of a gate that holds. `case` is the words a `Holds:` line names it by, `named`
+    the pattern of the words that name it in a gate's prose, and `runs` the pattern of a command
+    that walks through it, or nothing for either. `runs` reads one command at a time, as `walks`
+    gives it, a backticked command of a brief's or a command a thread runs."""
 
     case: str
     named: str = ""
+    runs: str = ""
 
+
+_IN = r"[^`\n]"
+"""What a pattern of `runs` may read past within one command: no backtick and no new line."""
+_TOKEN = r"[^\s`]+"
 
 DOORS = (
     Door(
-        "deletes data", r"\b(delet|drop|eras|wip)\w*\b[^.]*\b(data|database|tables?|rows|records)\b"
+        "deletes data",
+        r"\b(delet|drop|eras|wip)\w*\b[^.]*\b(data|database|tables?|rows|records)\b",
+        r"\bdrop\s+(table|database|schema)\b|\baws\s+s3\s+rm\b|\bgh\s+repo\s+delete\b"
+        rf"|\bgit\s+(branch\s+(?-i:-D)\b|worktree\s+remove\b|push(\s+{_TOKEN})*?\s+--delete\b)",
     ),
-    Door("rewrites history", r"\bforce[- ]?push"),
+    Door(
+        "rewrites history",
+        r"\bforce[- ]?push",
+        rf"\bpush(\s+{_TOKEN})*?\s+(-f|--force)(?![\w-])|\bfilter-repo\b",
+    ),
     Door("spends money"),
     Door(
         "touches prod or real users",
         r"\bdeploy"
         r"|\b(customers?|outside|external|public)\b[^.]*\b(message|e-?mail|post|reply)"
         r"|\b(message|e-?mail|post|reply)\w*\b[^.]*\b(customers?|outside|external|public)\b",
+        r"\b(DSQL_STAGE|STAGE|AWS_PROFILE)=[\w-]*prod\b"
+        r"|[\w./-]*\bdeploy\b[\w.-]*\s+(--?\S+\s+)*prod\b"
+        r"|`(\s*[A-Z_][A-Z0-9_]*=\S*)*\s*(sudo\s+|env\s+|ba?sh\s+|make\s+|just\s+"
+        r"|(npm|pnpm|yarn|bun)\s+run\s+|uv\s+run\s+)?[\w./-]*\bdeploy\b[\w.-]*"
+        rf"(?!{_IN}*(\bdev\b|--help))"
+        r"|\b(sam|cdk|serverless|wrangler|fly|flyctl|vercel)\s+deploy\b"
+        r"|\bterraform\s+apply\b|\bpulumi\s+up\b|\bkubectl\s+apply\b"
+        r"|(?-i:\b(A|AAAA|CNAME|TXT) record\b)",
     ),
     Door(
         "changes access or secrets",
         r"\b(secrets?|tokens?|credentials?|passwords?|api[ -]?keys?)\b",
+        rf"\btailscale\s+(funnel|serve|set|up)\b(?!{_IN}*\b(off|status)\b)"
+        r"|tailnet\.hujson|\btag:[a-z][\w-]*|\bauth key\b"
+        r"|\b(CLOUDFLARE|TAILSCALE|TS)_API_(TOKEN|KEY)\b",
     ),
-    Door("publishes"),
+    Door(
+        "publishes",
+        "",
+        r"\bgh\s+release\s+create\b|\b(npm|uv|cargo)\s+publish\b|\btwine\s+upload\b"
+        rf"|\bgit\s+push\b{_IN}*?(--tags\b|\brefs/tags\b)",
+    ),
 )
 CASES = tuple(one.case for one in DOORS)
 
@@ -225,7 +258,77 @@ def held(*lines: str) -> tuple[str, ...]:
     return tuple(case for case in CASES if case in named)
 
 
+DRY = re.compile(r"--dry-run\b|--help\b|\bDRY_RUN=(1|true|yes)\b", re.I)
+"""A command that runs dry, or only says how it is run, walks through no door."""
+AHEAD = re.compile(r"\b(never|do not|don't|without)\b", re.I)
+"""Words that say the commands after them in their clause are not run: `never `x``."""
+BEHIND = re.compile(r"\bnot run\b", re.I)
+"""Words that say the commands of their clause are not run: ``x` is not run`."""
+_CLAUSE = re.compile(r",(?=(?:[^`]*`[^`]*`)*[^`]*$)")
+"""A comma outside a backticked command, which ends a clause."""
+_RUNS = tuple((one.case, re.compile(one.runs, re.I)) for one in DOORS if one.runs)
+_SEGMENT = re.compile(r"[;\n]|, (?=and |then )")
+_SPAN = re.compile(r"`[^`\n]*`")
+WALKED = ("Done when", "Proves it")
+"""The fields of a brief whose commands it runs."""
+
+
+def walks(command: str) -> tuple[tuple[str, str], ...]:
+    """The doors one command walks through, by each case's `runs`, in the table's order, each
+    with what it matched: the backticked command it is in, where it is in one. `command` is a
+    segment of a brief's prose, its commands in backticks, or one command a thread runs, in
+    backticks. A command that runs dry (`DRY`) walks through none."""
+    if DRY.search(command):
+        return ()
+    found = []
+    for case, runs in _RUNS:
+        matched = runs.search(command)
+        if matched is None:
+            continue
+        span = next(
+            (one for one in _SPAN.finditer(command) if one.start() <= matched.start() < one.end()),
+            None,
+        )
+        found.append((case, (span.group(0) if span else matched.group(0)).strip("`").strip()))
+    return tuple(found)
+
+
+def walked(brief: str) -> tuple[tuple[str, str], ...]:
+    """The doors the commands of a brief's `Done when:` and `Proves it:` lines walk through, in
+    the table's order, each with the first command that does. The lines are read in segments,
+    split at a semicolon, a line's end, and a comma before "and" or "then", and each segment in
+    clauses, split at a comma outside a backticked command. In a clause, the commands after a
+    word of `AHEAD` are not run, and none is where it says so of itself (`BEHIND`), so an aside
+    hides only the commands it is about and not a door beside it."""
+    lines = [line for label, lines in briefs.fields(brief) if label in WALKED for line in lines]
+    first: dict[str, str] = {}
+    for segment in _SEGMENT.split("\n".join(lines)):
+        for clause in _CLAUSE.split(segment):
+            prose = _SPAN.sub(lambda span: "_" * len(span.group(0)), clause)
+            if BEHIND.search(prose):
+                continue
+            aside = AHEAD.search(prose)
+            for case, command in walks(clause[: aside.start()] if aside else clause):
+                first.setdefault(case, command)
+    return tuple((case, first[case]) for case in CASES if case in first)
+
+
 def doors(brief: str) -> tuple[str, ...]:
-    """The cases a brief's head holds for, by its `Holds: <case>` lines (`held`), as
-    `jbriefs.parse.fields` reads the head."""
+    """The cases a brief holds for, in the table's order: those its head's `Holds: <case>` lines
+    name (`held`), as `jbriefs.parse.fields` reads the head, and those its commands walk through
+    (`walked`), whether or not a `Holds:` line names them."""
+    named, run = set(declared(brief)), {case for case, _ in walked(brief)}
+    return tuple(case for case in CASES if case in named or case in run)
+
+
+def declared(brief: str) -> tuple[str, ...]:
+    """The cases a brief's head names on `Holds:` lines (`held`), as `jbriefs.parse.fields` reads
+    the head."""
     return held(*(" ".join(lines) for label, lines in briefs.fields(brief) if label == "Holds"))
+
+
+def undeclared(brief: str) -> tuple[tuple[str, str], ...]:
+    """The doors a brief's commands walk through (`walked`) that no `Holds:` line of its names,
+    each with the command, which `jbus queue add` names so the home can write the line."""
+    named = declared(brief)
+    return tuple((case, command) for case, command in walked(brief) if case not in named)

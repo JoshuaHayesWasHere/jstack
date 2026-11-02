@@ -1,0 +1,185 @@
+"""The hook that refuses a home's or a scout's own shell command that walks through a door, and a
+crew's where its row's go is not the user's own word read in T3 Code.
+
+Each test feeds `features/jbus/hooks/door-command.sh` what Claude Code and Codex give a
+`PreToolUse` hook for `Bash`, in a home of the test's own: `HOME` holds T3 Code's store, which maps
+each session to its thread, the homes' state of a repo named `Winnifred`, its jbus state and a
+checkout of it. The command is the one Winnifred's home ran itself on 2026-10-30, the prod
+migration of its deploy brief. No test touches the machine's own files.
+"""
+
+import json
+import os
+import subprocess
+
+import pytest
+
+from jbus import door
+from jmerge import judgement
+from test_home_sends import git, session
+from test_home_sends import store as t3_store
+from testing.paths import REPO
+
+HOOK = REPO / "features" / "jbus" / "hooks" / "door-command.sh"
+MIGRATE = "DSQL_STAGE=prod db/apply.sh dsql x.up.sql"
+ROOT = "mcp:the-root"
+SCOUT = "mcp:a-scout"
+ROOT_CREW = "mcp:a-root-crew"
+FLOW_CREW = "mcp:a-flow-crew"
+STRANGER = "mcp:a-stranger"
+JOSHS = "josh-go"
+BOTS = "bot-go"
+
+
+def brief(slug, thread):
+    return f"# {slug}: a task\nDone when:\n- `{MIGRATE}` is run\nThread: {thread}\n"
+
+
+def act(slug, kind, source, checked):
+    return {
+        "action": {"verb": "go", "subject": slug},
+        "party": {"kind": kind, "route": "cli", "name": ""},
+        "evidence": {"source": source, "checked": checked},
+        "outcome": "done",
+    }
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """Winnifred's root home, a scout, and two crews: `josh-go`'s row went on the user's own T3
+    message, `bot-go`'s on a word the bot carried that a home typed."""
+    home = tmp_path / "home"
+    checkout = home / "repos" / "Winnifred"
+    checkout.mkdir(parents=True)
+    git("init", "-q", cwd=checkout)
+    git("commit", "-q", "--allow-empty", "-m", "start", cwd=checkout)
+    monkeypatch.setattr("test_home_sends.THREADS", (ROOT, SCOUT, ROOT_CREW, FLOW_CREW, STRANGER))
+    t3_store(home)
+    state = home / ".local" / "state" / "home" / "Winnifred"
+    for one in ("tasks", "scouts"):
+        (state / one).mkdir(parents=True)
+    (state / "home-id").write_text(f"{ROOT}\n")
+    (state / "scouts" / "a-scout.md").write_text(f"# a-scout: a request\nThread: {SCOUT}\n")
+    bus = home / ".local" / "state" / "jbus" / "Winnifred"
+    (bus / "briefs").mkdir(parents=True)
+    rows, acts = [], []
+    for slug, thread, made in (
+        (JOSHS, ROOT_CREW, act(JOSHS, "user", "t3-message", True)),
+        (BOTS, FLOW_CREW, act(BOTS, "home", "bot-chat", False)),
+    ):
+        text = brief(slug, thread)
+        (state / "tasks" / f"{slug}.md").write_text(text)
+        (bus / "briefs" / f"{slug}.md").write_text(text)
+        rows.append({"slug": slug, "approved": "a go", "brief_sha": judgement.brief_sha(text)})
+        acts.append(made)
+    (bus / "queue.json").write_text(json.dumps(rows))
+    (bus / "acts.jsonl").write_text("".join(json.dumps(one) + "\n" for one in acts))
+    return home
+
+
+def run(home, thread, command, *, harness="claude-code", known=True):
+    """What the hook exits with and says on stderr, for `command` run by the thread `thread`."""
+    call = {
+        "session_id": session(thread) if known else "a-session-of-no-thread",
+        "cwd": str(home / "repos" / "Winnifred"),
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+    }
+    if harness == "codex":
+        call |= {"turn_id": "a-turn", "model": "gpt-5"}
+    gone = ("JBUS_HOME_DIR", "JBUS_STATE_DIR", "CLAUDE_PROJECT_DIR", "XDG_CONFIG_HOME")
+    env = {k: v for k, v in os.environ.items() if k not in gone}
+    env["HOME"] = str(home)
+    done = subprocess.run(
+        ["sh", str(HOOK)], input=json.dumps(call), capture_output=True, text=True, env=env
+    )
+    return done.returncode, done.stderr
+
+
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_a_homes_prod_migration_is_refused_with_where_the_door_goes(home, harness):
+    code, said = run(home, ROOT, MIGRATE, harness=harness)
+    assert code == 2
+    assert said == (
+        f"door-command: refused: `{MIGRATE}` walks through a door (touches prod or real users), "
+        "and a home runs no door itself: the door goes in a row whose brief has Holds: touches "
+        'prod or real users, and user\'s own go in T3 Code, "go <slug>", opens it for that '
+        "row's crew\n"
+    )
+
+
+def test_a_scouts_door_command_is_refused(home):
+    code, said = run(home, SCOUT, "git push --force origin main")
+    assert code == 2 and "a scout runs no door itself" in said, said
+
+
+def test_a_crew_runs_a_door_on_the_users_own_go_and_not_on_a_carried_one(home):
+    assert run(home, ROOT_CREW, MIGRATE) == (0, "")
+    code, said = run(home, FLOW_CREW, MIGRATE)
+    assert code == 2
+    assert said.endswith(
+        f'and the go of {BOTS} is not user\'s own word read in T3 Code: user sends "go {BOTS}" '
+        f"in T3 Code, and jbus --as user queue approve {BOTS} --sha <sha12> --message "
+        "<thread>/<message> records it\n"
+    )
+
+
+def test_a_crews_go_that_no_longer_holds_for_its_brief_opens_nothing(home):
+    bus = home / ".local" / "state" / "jbus" / "Winnifred"
+    (bus / "briefs" / f"{JOSHS}.md").write_text(brief(JOSHS, ROOT_CREW) + "- and more\n")
+    assert run(home, ROOT_CREW, MIGRATE)[0] == 2
+
+
+def test_a_session_the_store_does_not_know_and_a_thread_of_no_role_are_let_through(home):
+    assert run(home, STRANGER, MIGRATE) == (0, "")
+    code, said = run(home, ROOT, MIGRATE, known=False)
+    assert (code, said) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        f"{MIGRATE} --dry-run",
+        "infra/deploy-backend.sh dev",
+        "DRY_RUN=1 ./deploy-backend.sh prod",
+        'git commit -m "fix the deploy script for prod"',
+        "grep -rn deploy infra/",
+        "git push --force-with-lease=x:abc origin x",
+        f"jbus queue add x --priority 1 <<'EOF'\n# x: a task\nDone when:\n- `{MIGRATE}`\nEOF",
+        'git commit -m "deploy hook for prod"',
+        'gh pr create --title "deploy prod fix" --body "scripts/deploy caveman"',
+        "git branch -d merged-old",
+    ],
+)
+def test_a_dry_run_and_a_command_that_only_names_a_door_pass_for_a_home(home, command):
+    assert run(home, ROOT, command) == (0, "")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        f"cd infra && {MIGRATE}",
+        "ssh yelena 'cd caveman && scripts/deploy caveman'",
+        'bash -c "terraform apply -auto-approve"',
+        "git push origin main -f",
+        "git push origin --tags",
+        "tailscale funnel 443",
+        'DSQL_STAGE="prod" db/apply.sh dsql x.up.sql',
+        f"bash <<'EOF'\n{MIGRATE}\nEOF",
+        f"ssh yelena <<EOF\n{MIGRATE}\nEOF",
+        f'cat <<< "x"\n{MIGRATE}',
+    ],
+)
+def test_a_door_inside_a_compound_or_a_quoted_command_is_still_read(home, command):
+    assert run(home, ROOT, command)[0] == 2
+
+
+def test_the_command_line_is_read_in_pieces_with_a_heredocs_body_left_out():
+    assert door.pieces("a && b | 'c d'; e <<EOF\nnot me\nEOF\nf") == [
+        "`a`",
+        "`b`",
+        "`c d`",
+        "`e <<EOF`",
+        "`f`",
+    ]

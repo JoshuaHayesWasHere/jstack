@@ -10,12 +10,15 @@ the act's id and its `subject`, so the feed (`jbus.cursor`) gives events and act
 - A go given with `seen`, the id of the last event the party read (`wake.entries`, the feed's
   cursor), is refused as stale when `events.jsonl` has an event for the row after that one, or
   has no event of that id. An `act` event names no row, so an act is no change to the row.
-- A go for a brief whose `Holds:` lines name a door (`party.doors`), from a party the door
-  does not open for (`party.opens`), approves nothing. It parks a gate that holds for the user
-  instead (`questions.park`), and the act is `gated`. The user's own go later closes that gate.
+- A go for a brief that holds for a door (`party.doors`: its `Holds:` lines and the commands it
+  runs), from a party the door does not open for (`party.opens`), approves nothing. It parks a
+  gate that holds for the user instead (`questions.park`), and the act is `gated`. The user's
+  own go later closes that gate, on words that name the row or its gate and were said after its
+  brief was stored (`_unbound`); other words of the user's are `refused`.
 - A go whose row's go already holds for that brief is a `noop`.
-- An answer to a gate that holds, from a party the door does not open for, is `refused`, and
-  the gate stays open.
+- An answer to a gate that holds, from a party the door does not open for, or on words of the
+  user's that name neither the gate nor its row or came before it, is `refused`, and the gate
+  stays open.
 
 Every other verb (`party.Verb`) is given by its caller as `does`, which does the verb and returns
 its line, or raises `Refused`: `queue hold`, `remove` and `withdraw`, a word, the view's go of a
@@ -36,6 +39,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import sys
 from collections.abc import Callable
@@ -255,6 +259,21 @@ def _go(
             f"{run.user.user}'s own word: question {number}"
         )
         return action, "gated", line, number
+    if action.doors:
+        open_gates = [
+            one.number for one in questions.read(run.state) if one.slug == slug and not one.answer
+        ]
+        unbound = _unbound(
+            run, said, slug, open_gates, _stored(run, slug), f"{slug}'s brief was stored"
+        )
+        if unbound:
+            sha = judgement.brief_sha(text or "")[:12]
+            line = (
+                f"refused: {slug}'s brief holds for {', '.join(action.doors)}, and {unbound}: "
+                f'{run.user.user} sends "go {slug}" in T3 Code, and jbus --as user queue approve '
+                f"{slug} --sha {sha} --message <thread>/<message> records it"
+            )
+            return action, "refused", line, None
     try:
         said_lines = queue.go(run.state, slug, said, follows, action.pre, run.user, asks, ran_by)
     except Refused as error:
@@ -293,6 +312,19 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
             + HELD_ANSWER.format(number=number, user=run.user.user)
         )
         return action, "refused", line, number
+    if action.doors and asked is not None:
+        try:
+            since: datetime | None = datetime.fromisoformat(asked.asked_at)
+        except ValueError:
+            since = None
+        unbound = _unbound(run, said, asked.slug, [number], since, f"question {number} was asked")
+        if unbound:
+            line = (
+                f"refused: question {number} holds for {', '.join(action.doors)}, and {unbound}: "
+                f'{run.user.user} sends "{number}: <the answer>" in T3 Code, and jbus --as user '
+                f"answer {number} --message <thread>/<message> records it"
+            )
+            return action, "refused", line, number
     try:
         closed, went = questions.answer(
             run.state, number, party=who, evidence=said, where=where, keeps=keeps, user=run.user
@@ -310,6 +342,40 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
     else:
         carried = f"{closed.slug} has no Thread: line in a brief or request, so no thread is told"
     return action, "done", f"answered: question {number}: {given.line()}: {carried}", number
+
+
+def _stored(run: Pass, slug: str) -> datetime | None:
+    """When the row's brief, as it is stored now, was stored, or None where none is."""
+    try:
+        return datetime.fromtimestamp(queue.brief_path(run.state, slug).stat().st_mtime, UTC)
+    except OSError:
+        return None
+
+
+def _unbound(
+    run: Pass, said: Evidence, slug: str, numbers: list[int], since: datetime | None, what: str
+) -> str:
+    """Why the user's own words do not open a door for this row, or nothing where they do: they
+    name the row's slug (`queue.names`) or one of its gates' `numbers`, and were said no earlier
+    than the minute of `since`, when `what` says the brief was stored or the question asked. An
+    older message, or one about something else, was not said of this door."""
+    kind = "pick" if said.source == "t3-pick" else "message"
+    named = queue.names(said.words, slug) or any(
+        re.search(rf"(?<![\w.-]){number}(?![\w.-])", said.words) for number in numbers
+    )
+    if not named:
+        gate = f"question {numbers[0]}" if what.startswith("question") else "its gate"
+        return f'{kind} {said.ref} ("{said.words}") names neither {slug} nor {gate}'
+    if since is None:
+        return ""
+    try:
+        at = verbs.moment(run.user, said.said_at)
+    except ValueError:
+        return f"{kind} {said.ref} has no time jbus can read, {said.said_at}"
+    if at < since.replace(second=0, microsecond=0):
+        stamp = run.user.stamp(since)
+        return f"{kind} {said.ref} was said at {said.said_at}, before {what} at {stamp}"
+    return ""
 
 
 def _stale(run: Pass, slug: str, seen: str) -> str:

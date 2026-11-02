@@ -5,11 +5,11 @@ A row to approve is raised only once it has waited unapproved for `APPROVE_GRACE
 home that queues a row and approves it a moment later never puts it to the user. A gate that holds
 is raised at once. Every test runs the real pass against the kitchen's fakes."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import jbus
 from jbus import blockers, digest, waiting
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, iso
 from test_jbus_one_wake import ASK
 from test_jbus_queue import add, go
 
@@ -62,7 +62,7 @@ def test_a_gate_answered_between_the_list_and_the_raise_is_not_raised(kitchen, m
 
     def answered_after_the_list(*args, **kwargs):
         listed = kept(*args, **kwargs)
-        kitchen.t3.says("mcp:a-home", "other-1", "the other")
+        kitchen.t3.says("mcp:a-home", "other-1", "1: the other", updatedAt=iso(datetime.now(UTC)))
         said = ("--message", "mcp:a-home/other-1", "--differs")
         assert kitchen.main("--as", "user", "answer", "1", *said)[0] == 0
         return listed

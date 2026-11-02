@@ -24,6 +24,7 @@ from jbus import (
     boxes,
     dispatch,
     item,
+    party,
     passes,
     plan,
     questions,
@@ -170,7 +171,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         except BaseException:
             release()
             raise
-        if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
+        if said.endswith((queue.GO_HOLDS, queue.GO_VOID)) or queue.TAKEN in said:
             print(said)
         for line in ruled:
             print(line)
@@ -210,13 +211,17 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
 
 def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> None:
     """Print what a brief that `add` queues, or that `check` passes, is warned of
-    (`jbriefs.parse.warnings`), one `warning:` line each."""
+    (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
+    that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
+    all the same, and the line tells the home to write it."""
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
         check = ""
     for warned in briefs.warnings(text, check):
         print(f"warning: {slug}'s {warned}")
+    for case, command in party.undeclared(text):
+        print(f"holds: {case}, from {command}")
 
 
 def _check(config: jbus.Config, project: jbus.Project, given: str | None, home: str | None) -> int:

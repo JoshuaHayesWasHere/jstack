@@ -243,6 +243,10 @@ class User:
         self.CODEX_TRAILER = group(
             "ai-trailer.sh", self.home, matcher="Bash", refuses=True, harness="codex"
         )
+        self.DOOR = group("door-command.sh", self.home, matcher="Bash", refuses=True)
+        self.CODEX_DOOR = group(
+            "door-command.sh", self.home, matcher="Bash", refuses=True, harness="codex"
+        )
         limits = self.layout / "hooks" / "limits.sh"
         self.STATUS = {"type": "command", "command": f"sh '{limits}'"}
         self.home.mkdir()
@@ -542,7 +546,7 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
         "hooks": {
             "SessionStart": [other, user.CODEX_START],
             "Stop": stop,
-            "PreToolUse": [user.CODEX_TRAILER],
+            "PreToolUse": [user.CODEX_TRAILER, user.CODEX_DOOR],
         }
     }
     before = user.codex.read_text()
@@ -563,7 +567,7 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     assert json.loads(user.codex.read_text()) == {
         "hooks": {
             "SessionStart": [{"matcher": "startup", "hooks": [beside]}, user.CODEX_START],
-            "PreToolUse": [user.CODEX_TRAILER],
+            "PreToolUse": [user.CODEX_TRAILER, user.CODEX_DOOR],
         }
     }
 
@@ -1167,13 +1171,14 @@ def test_a_machine_with_one_hook_before_a_tool_call_gets_the_others_too(user):
     code, said = user.run("--check")
     assert (code, line_for(said, part)) == (
         1,
-        [*[f"missing hard {part}"] * 3, f"ok hard {part}"],
+        [*[f"missing hard {part}"] * 4, f"ok hard {part}"],
     )
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
         user.OUTBOUND,
         user.SENDS,
         user.TRAILER,
+        user.DOOR,
         user.INFRA,
     ]
     assert user.run("--check") == (0, user.every("ok"))
