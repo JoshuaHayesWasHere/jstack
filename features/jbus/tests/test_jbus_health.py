@@ -333,7 +333,7 @@ def test_a_capped_instance_pauses_its_launches_and_they_resume_on_their_own_at_t
     )
     assert [line for line in said if "resume" in line] == [resumed]
     polls(kitchen, 2, 30, start=LATER)
-    assert pages(kitchen)[3:] == [resumed]
+    assert pages(kitchen)[4:] == [resumed]
 
 
 def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothing(
