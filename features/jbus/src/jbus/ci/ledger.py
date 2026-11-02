@@ -1,13 +1,16 @@
 """Keep what `jbus ci` records of a project's CI, in its state directory, as JSON lines.
 
-`ci.jsonl` has one line per job, written once. `jbus ci` keeps a job once it has completed, and
-never adds a job that is already there, so a second run over the same days adds nothing. A line has
+`ci.jsonl` has one line per job. `jbus ci` keeps a job once it has completed, and never adds a job
+that is already there, so a second run over the same days adds nothing. A collect rewrites the
+file only to add what the log says to a red job kept with no `logged` field, from before the
+collector read the log of every red job. A line has
 `run`, `job` and `attempt`, and the job's `name`, `sha`, `branch`, `pr` (the pull request it ran
 for, or None), `event`, `created`, `started`, `completed` and `conclusion`. It also has the `runner`
 the job ran on, the runner's `kind` (`hosted` or `local`), and `steps`, the number of steps that
 ran. A job cancelled while it waited has a conclusion of `cancelled` and no runner or start, and the
-ledger keeps and counts it. A red local job also has `tests`, the failing tests its log names, and
-`signs`, the runner faults that log shows.
+ledger keeps and counts it. A red job also has `tests`, the failing tests its log names (None where
+GitHub did not give the log), `signs`, the runner faults that log shows, and `logged`, whether the
+collector read its log.
 
 Each lever's telemetry is a field of the same line, `None` where the run did not give it:
 `full` and `tree` (one suite per tree), `selection` (`all` or how many files) and `reason`

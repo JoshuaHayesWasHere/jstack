@@ -7,8 +7,8 @@ rules:
 - The period is the window, from `start` up to `end`. A job belongs to the day its `created`
   falls in, a pull request to the day it merged, and a push to main to the day it completed.
 - It counts jobs, never runs: a `check` job and a `full` job each count once.
-- It counts local and hosted runners apart. `Number.value` is the local runner's figure,
-  which the targets are about, and `Number.hosted` is the hosted runner's, where there is one.
+- It counts the jobs that ran, on a self-hosted (`local`) runner or a GitHub-hosted one, together.
+  `Number.runners` says which runners a number covers, and how many jobs of each.
 - It counts a job cancelled while it waited. That job got no minute of execution, so it is in
   the jobs of the queue and not in the minutes of execution.
 
@@ -18,7 +18,7 @@ The nine, in order:
    median minutes it ran. The target is that the wait is under the run.
 2. `waste`: the share of execution minutes spent by jobs that failed or were cancelled.
    The target is under 15%.
-3. `own`: of the local jobs that failed on their last attempt, the share whose cause is the pull
+3. `own`: of the jobs that failed on their last attempt, the share whose cause is the pull
    request's own. The target is over 70%. A red job's cause is `main` when main was red with the
    same failing tests at the time the job started. It is `runner` when its log shows a runner fault
    and another branch fails the same tests, and `flake` when no fault shows. Otherwise it is `own`.
@@ -38,7 +38,7 @@ The nine, in order:
 from __future__ import annotations
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, tzinfo
@@ -63,14 +63,16 @@ TARGETS = {
     "flaky": ("flaky tests", "under 3"),
     "inode": ("/tmp inode peak", "under 80%"),
 }
+PULLS = "pull requests, any runner"
+"""What `Number.runners` says of a target that counts pull requests and not jobs."""
 
 
 @dataclass(frozen=True)
 class Number:
-    """A `Number` is one target. It has its `value` (the local runner's figure), `shown`
-    (how the value reads), the `target` it is checked against, and `met` (None where there
-    was nothing to count). It also has `n`, the jobs or pull requests counted, `how` it
-    counts, and `hosted`, the hosted runner's figure."""
+    """A `Number` is one target. It has its `value`, `shown` (how the value reads), the `target`
+    it is checked against, and `met` (None where there was nothing to count). It also has `n`,
+    the jobs or pull requests counted, `how` it counts, and `runners`, the runners its jobs ran
+    on with how many of each (`local 3, hosted 40`), or `PULLS`."""
 
     key: str
     name: str
@@ -80,7 +82,7 @@ class Number:
     met: bool | None
     n: int
     how: str
-    hosted: str = ""
+    runners: str = ""
 
 
 def time(text: str | None) -> datetime | None:
@@ -100,6 +102,11 @@ def percentile(values: list[float], share: float) -> float:
     return ordered[low] + (ordered[high] - ordered[low]) * (at - low)
 
 
+def _runners(jobs: list[dict[str, Any]]) -> str:
+    kinds = Counter(j["kind"] for j in jobs)
+    return ", ".join(f"{kind} {kinds[kind]}" for kind in ("local", "hosted") if kinds[kind])
+
+
 def _text(value: float, places: int = 1) -> str:
     return f"{value:.{places}f}".rstrip("0").rstrip(".")
 
@@ -111,11 +118,11 @@ def _number(
     met: bool | None,
     n: int,
     how: str,
-    hosted: str = "",
+    runners: str = "",
 ) -> Number:
     name, target = TARGETS[key]
     return Number(
-        key, name, value, shown if value is not None else "no data", target, met, n, how, hosted
+        key, name, value, shown if value is not None else "no data", target, met, n, how, runners
     )
 
 
@@ -217,14 +224,7 @@ class Facts:
     def _causes(self) -> dict[int, str]:
         """Return the cause of each failed job: `main`, `runner`, `flake` or `own`."""
         failed = [j for j in self.jobs if j["conclusion"] == "failure"]
-        mains = [
-            j
-            for j in failed
-            if j["branch"] == "main"
-            and j["event"] == "push"
-            and j["kind"] == "local"
-            and j["tests"]
-        ]
+        mains = [j for j in failed if j["branch"] == "main" and j["event"] == "push" and j["tests"]]
         inherited = {j["job"]: self._inherited(j, mains) for j in failed}
         found: dict[int, str] = {}
         for job in failed:
@@ -338,61 +338,39 @@ class Facts:
 
 
 def queue(facts: Facts, start: datetime, end: datetime) -> Number:
-    def of(kind: str) -> tuple[list[float], list[float]]:
-        green = [
-            j
-            for j in facts.jobs
-            if j["kind"] == kind
-            and _ran(j)
-            and j["conclusion"] == "success"
-            and _in(j["created"], start, end)
-        ]
-        return (
-            [minutes(j["created"], j["started"]) for j in green],
-            [minutes(j["started"], j["completed"]) for j in green],
-        )
-
-    waits, runs = of("local")
-    h_waits, h_runs = of("hosted")
+    green = [
+        j
+        for j in facts.jobs
+        if _ran(j) and j["conclusion"] == "success" and _in(j["created"], start, end)
+    ]
     how = (
-        "median minutes a green job waited for a runner against the median it ran, on the "
-        "local runner, job level; a job cancelled while it waited is in neither (it never ran)"
+        "median minutes a green job waited for a runner against the median it ran, job level; "
+        "a job cancelled while it waited is in neither (it never ran)"
     )
-    hosted = (
-        f"{_text(percentile(h_waits, 0.5))} vs {_text(percentile(h_runs, 0.5), 2)} min"
-        if h_waits
-        else ""
-    )
-    if not waits:
-        return _number("queue", None, "", None, 0, how, hosted)
-    wait, run = percentile(waits, 0.5), percentile(runs, 0.5)
+    if not green:
+        return _number("queue", None, "", None, 0, how)
+    wait = percentile([minutes(j["created"], j["started"]) for j in green], 0.5)
+    run = percentile([minutes(j["started"], j["completed"]) for j in green], 0.5)
     shown = f"{_text(wait)} vs {_text(run, 2)} min"
-    return _number("queue", wait, shown, wait < run, len(waits), how, hosted)
+    return _number("queue", wait, shown, wait < run, len(green), how, _runners(green))
 
 
 def waste(facts: Facts, start: datetime, end: datetime) -> Number:
-    def of(kind: str) -> tuple[float, float, int]:
-        ran = [
-            j for j in facts.jobs if j["kind"] == kind and _ran(j) and _in(j["created"], start, end)
-        ]
-        lost = sum(
-            minutes(j["started"], j["completed"])
-            for j in ran
-            if j["conclusion"] in ("failure", "cancelled")
-        )
-        return lost, sum(minutes(j["started"], j["completed"]) for j in ran), len(ran)
-
-    lost, total, count = of("local")
-    h_lost, h_total, _ = of("hosted")
+    ran = [j for j in facts.jobs if _ran(j) and _in(j["created"], start, end)]
+    lost = sum(
+        minutes(j["started"], j["completed"])
+        for j in ran
+        if j["conclusion"] in ("failure", "cancelled")
+    )
+    total = sum(minutes(j["started"], j["completed"]) for j in ran)
     how = (
         "execution minutes of jobs that failed or were cancelled over all execution minutes, "
-        "on the local runner, job level; a job cancelled while it waited has none to count"
+        "job level; a job cancelled while it waited has none to count"
     )
-    hosted = f"{h_lost / h_total:.1%}" if h_total else ""
     if not total:
-        return _number("waste", None, "", None, 0, how, hosted)
+        return _number("waste", None, "", None, 0, how)
     share = lost / total
-    return _number("waste", share, f"{share:.1%}", share < 0.15, count, how, hosted)
+    return _number("waste", share, f"{share:.1%}", share < 0.15, len(ran), how, _runners(ran))
 
 
 def _final(facts: Facts) -> set[int]:
@@ -407,8 +385,7 @@ def own(facts: Facts, start: datetime, end: datetime) -> Number:
     reds = [
         j
         for j in facts.jobs
-        if j["kind"] == "local"
-        and j["conclusion"] == "failure"
+        if j["conclusion"] == "failure"
         and j["job"] in final
         and _in(j["started"] or j["created"], start, end)
     ]
@@ -419,7 +396,7 @@ def own(facts: Facts, start: datetime, end: datetime) -> Number:
         if c in counted
     )
     how = (
-        "failed jobs on the local runner, last attempt of a run, that were the pull request's "
+        "failed jobs, last attempt of a run, that were the pull request's "
         "own fault: not main already red with the same tests, a runner fault, or a flake "
         "(the same tests red on another branch). A job whose log could not be read is counted "
         "and is not the pull request's"
@@ -434,6 +411,7 @@ def own(facts: Facts, start: datetime, end: datetime) -> Number:
         share > 0.7,
         len(counted),
         how,
+        _runners(reds),
     )
 
 
@@ -458,6 +436,7 @@ def rebases(facts: Facts, start: datetime, end: datetime) -> Number:
         value < 0.3,
         len(merged),
         how,
+        PULLS,
     )
 
 
@@ -471,37 +450,27 @@ def stale(facts: Facts, start: datetime, end: datetime) -> Number:
     )
     if not counted:
         return _number("stale", None, "", None, 0, how)
-    return _number(
-        "stale", float(len(found)), f"{len(found)} of {len(counted)}", not found, len(counted), how
-    )
+    shown = f"{len(found)} of {len(counted)}"
+    return _number("stale", float(len(found)), shown, not found, len(counted), how, PULLS)
 
 
 def green(facts: Facts, start: datetime, end: datetime) -> Number:
-    def of(kind: str) -> list[float]:
-        found = []
-        for one in _merged(facts, start, end):
-            ran = [
-                j
-                for j in facts.jobs
-                if j["sha"] == one["head"] and j["event"] == "pull_request" and j["kind"] == kind
-            ]
-            ok = [j for j in ran if j["conclusion"] == "success"]
-            if ok:
-                found.append(
-                    minutes(min(j["created"] for j in ran), max(j["completed"] for j in ok))
-                )
-        return found
-
-    local, hosted = of("local"), of("hosted")
+    found, counted = [], []
+    for one in _merged(facts, start, end):
+        ran = [j for j in facts.jobs if j["sha"] == one["head"] and j["event"] == "pull_request"]
+        ok = [j for j in ran if j["conclusion"] == "success"]
+        if ok:
+            found.append(minutes(min(j["created"] for j in ran), max(j["completed"] for j in ok)))
+            counted += ran
     how = (
         "minutes from the first job on a merged pull request's final head to the last green "
-        "one, median over the pull requests merged in the period, on the local runner"
+        "one, median over the pull requests merged in the period"
     )
-    shown_hosted = f"{_text(percentile(hosted, 0.5))} min" if hosted else ""
-    if not local:
-        return _number("green", None, "", None, 0, how, shown_hosted)
-    value = percentile(local, 0.5)
-    return _number("green", value, f"{_text(value)} min", value < 15, len(local), how, shown_hosted)
+    if not found:
+        return _number("green", None, "", None, 0, how)
+    value = percentile(found, 0.5)
+    shown = f"{_text(value)} min"
+    return _number("green", value, shown, value < 15, len(found), how, _runners(counted))
 
 
 def mainred(facts: Facts, start: datetime, end: datetime) -> Number:
@@ -518,7 +487,16 @@ def mainred(facts: Facts, start: datetime, end: datetime) -> Number:
     seen = sum(1 for one in facts.main if one[0] < end)
     if not seen:
         return _number("mainred", None, "", None, 0, how)
-    return _number("mainred", value, f"{_text(value)} min", value < 30, seen, how)
+    ran = [
+        j
+        for j in facts.jobs
+        if j["event"] == "push"
+        and j["branch"] == "main"
+        and j.get("steps")
+        and _in(j["created"], start, end)
+    ]
+    shown = f"{_text(value)} min"
+    return _number("mainred", value, shown, value < 30, seen, how, _runners(ran))
 
 
 def flaky(facts: Facts, start: datetime, end: datetime) -> Number:
@@ -533,20 +511,21 @@ def flaky(facts: Facts, start: datetime, end: datetime) -> Number:
     )
     if not red:
         return _number("flaky", None, "", None, 0, how)
-    return _number("flaky", float(len(ids)), str(len(ids)), len(ids) < 3, len(red), how)
+    shown = str(len(ids))
+    return _number("flaky", float(len(ids)), shown, len(ids) < 3, len(red), how, _runners(red))
 
 
 def inode(facts: Facts, start: datetime, end: datetime) -> Number:
-    seen = [
-        float(j["tmp_inode_pct"])
+    wrote = [
+        j
         for j in facts.jobs
         if j.get("tmp_inode_pct") is not None and _in(j["created"], start, end)
     ]
-    how = "the highest /tmp inode use a job wrote with `jbus ci --notice`; nothing writes it yet"
-    if not seen:
+    how = "the highest /tmp inode use a job wrote with `jbus ci --notice`"
+    if not wrote:
         return _number("inode", None, "", None, 0, how)
-    peak = max(seen)
-    return _number("inode", peak, f"{_text(peak)}%", peak < 80, len(seen), how)
+    peak = max(float(j["tmp_inode_pct"]) for j in wrote)
+    return _number("inode", peak, f"{_text(peak)}%", peak < 80, len(wrote), how, _runners(wrote))
 
 
 ALL: tuple[Callable[[Facts, datetime, datetime], Number], ...] = (

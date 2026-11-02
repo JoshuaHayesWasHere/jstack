@@ -2,10 +2,10 @@
 home, and send the one alert for a missed target.
 
 The report gives every number with how it counts (`Number.how`), the period, and what the
-counts are based on: the jobs, local and hosted apart, and how many jobs were cancelled
-while they waited. jbus sends no alert for a week with every target met, or with no data.
-For a week that missed a target it raises one alert of the project's, which names each missed
-target.
+counts are based on: the runners each number covers, the jobs of each kind of runner, and
+how many jobs were cancelled while they waited. jbus sends no alert for a week with every
+target met, or with no data. For a week that missed a target it raises one alert of the
+project's, which names each missed target.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def body(
     days = numbers.day_windows(end, max(1, round((end - start) / timedelta(days=1))), zone)
     red = [f"- {day}: {numbers.mainred(facts, a, b).shown}" for day, a, b in days]
     rows = [
-        f"| {one.name} | {one.shown} | {one.hosted or '-'} | {one.target} | "
+        f"| {one.name} | {one.shown} | {one.runners or '-'} | {one.target} | "
         f"{'missed' if one.met is False else 'met' if one.met else 'no data'} |"
         for one in nine
     ]
@@ -58,11 +58,11 @@ def body(
             f"# CI, the week to {user.stamp(end)}",
             "",
             f"Period: {user.stamp(start)} to {user.stamp(end)}. Job level only: a job counts once,"
-            " a run never. Local and hosted runners are counted apart, and the local runner's"
-            " figure is the one the target is held to. A job cancelled while it waited is"
-            " counted as a job.",
+            " a run never. Each number counts the jobs that ran on a self-hosted (local) runner"
+            " or a GitHub-hosted one together, and its runners column says which and how many."
+            " A job cancelled while it waited is counted as a job.",
             "",
-            "| target | local | hosted | held to | |",
+            "| target | figure | runners | held to | |",
             "| --- | --- | --- | --- | --- |",
             *rows,
             "",

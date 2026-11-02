@@ -2,8 +2,9 @@
 
 The tests check the numbers against a recording of GitHub's Actions API for jstack, from 2026-10-14
 to 2026-10-17 (`features/jbus/tests/fixtures/ci/jstack`, which `ci_replay` replays). They run the
-collector as `jbus ci` runs it. The numbers equal the figures the plan was written from, and where
-one does not, the test says by how much and why.
+collector as `jbus ci` runs it. The plan's figures held the local runner's jobs alone. The numbers
+now count the jobs of both runners together, so a figure that differs from the plan's says by how
+much and why. The recording has no log of a hosted job, so each red hosted job is counted unread.
 """
 
 import configparser
@@ -66,22 +67,25 @@ def test_the_nine_targets_come_in_the_order_of_the_plan(nine):
     ]
 
 
-def test_a_green_job_waits_26_6_minutes_for_a_runner_and_runs_9_67_and_the_target_is_missed(nine):
+def test_a_green_job_waits_0_minutes_for_a_runner_and_runs_8_22_over_both_runners(nine):
+    """The plan's 26.6 vs 9.67 was the local runner's 75 green jobs alone. The hosted runner's 120
+    start at once, so over both the median wait is 0."""
     one = nine["queue"]
-    assert (one.shown, one.n, one.met) == ("26.6 vs 9.67 min", 75, False)
-    assert one.hosted == "0 vs 6.44 min"
+    assert (one.shown, one.n, one.met) == ("0 vs 8.22 min", 195, True)
+    assert one.runners == "local 75, hosted 120"
 
 
-def test_42_9_percent_of_the_local_runners_minutes_go_to_jobs_that_fail_or_are_cancelled(nine):
-    assert (nine["waste"].shown, nine["waste"].met) == ("42.9%", False)
-    assert nine["waste"].hosted == "31.4%"
+def test_37_1_percent_of_both_runners_minutes_go_to_jobs_that_fail_or_are_cancelled(nine):
+    """The plan's 42.9% was the local runner's alone, and the hosted runner's was 31.4%."""
+    assert (nine["waste"].shown, nine["waste"].met) == ("37.1%", False)
+    assert nine["waste"].runners == "local 130, hosted 165"
 
 
-def test_7_of_35_local_reds_are_the_pull_requests_own_and_the_rest_are_main_the_runner_or_a_flake(
-    nine,
-):
-    assert nine["own"].shown == "20% (7 of 35: 7 own, 10 main, 16 runner, 2 flake)"
-    assert nine["own"].met is False
+def test_7_of_68_reds_are_the_pull_requests_own_and_the_33_hosted_reds_are_unread(nine):
+    """The plan's 7 of 35 was the local runner's reds. The recording has no log of the 33
+    hosted reds, so they are counted unread and none of them is the pull request's own."""
+    assert nine["own"].shown == "10% (7 of 68: 7 own, 10 main, 16 runner, 2 flake, 33 unread)"
+    assert (nine["own"].met, nine["own"].runners) == (False, "local 35, hosted 33")
 
 
 def test_29_force_pushes_over_62_merged_pull_requests_is_0_47_each(nine):
@@ -89,11 +93,13 @@ def test_29_force_pushes_over_62_merged_pull_requests_is_0_47_each(nine):
     assert nine["rebases"].met is False
 
 
-def test_time_to_green_is_33_minutes_on_the_local_runner_and_8_6_on_the_hosted(nine):
-    assert (nine["green"].shown, nine["green"].hosted, nine["green"].n) == (
-        "33 min",
-        "8.6 min",
-        28,
+def test_time_to_green_is_11_minutes_over_the_62_merged_pull_requests(nine):
+    """The plan's 33 minutes was the 28 pull requests with a green local job; every merged pull
+    request had a green job on one runner or the other."""
+    assert (nine["green"].shown, nine["green"].n, nine["green"].runners) == (
+        "11 min",
+        62,
+        "local 30, hosted 36",
     )
 
 
@@ -193,13 +199,14 @@ def test_a_week_of_hosted_jobs_only_has_a_number_for_each_of_the_nine_targets_an
         report.jsettings.DEFAULTS,
     )
     assert "| queue p50 under exec p50 | 1 vs 5 min | hosted 2 | queue under exec | met |" in text
-    assert "no data" not in text
+    assert "| no data |" not in text
 
 
 def test_every_number_says_how_it_was_counted(nine):
     for one in nine.values():
         assert one.how and one.target and one.name
-    assert "job level" in nine["queue"].how and "local runner" in nine["queue"].how
+    assert "job level" in nine["queue"].how
+    assert all(one.runners for one in nine.values() if one.value is not None)
     assert "cancelled while it waited" in nine["queue"].how
 
 
@@ -351,7 +358,64 @@ def test_a_red_job_whose_log_could_not_be_read_is_kept_unread_and_is_never_the_p
     red = [one for one in rows if one["conclusion"] == "failure" and one["kind"] == "local"]
     assert len(rows) == 314 and red and all(one["tests"] is None for one in red)
     one = numbers.own(numbers.Facts(rows, [], [], NOW), START, NOW)
-    assert (one.value, one.met) == (0.0, False) and "35 unread" in one.shown
+    assert (one.value, one.met) == (0.0, False) and "68 unread" in one.shown
+
+
+FAILED_LOG = "2026-10-17T20:00:00.1Z FAILED tests/test_a.py::test_b - boom\n"
+
+
+def a_hosted_red():
+    base = Replay()
+    return next(
+        job
+        for jobs in base.jobs.values()
+        for job in jobs
+        if job["steps"]
+        and job["conclusion"] == "failure"
+        and collect.kind(job["labels"]) == "hosted"
+    )
+
+
+class HostedLog(Replay):
+    """The recording, with a log for one red hosted job, and the logs it was asked for."""
+
+    def __init__(self, job):
+        super().__init__()
+        self.logs[str(job)] = FAILED_LOG
+        self.read = []
+
+    def log(self, repo, job):
+        self.read.append(job)
+        return super().log(repo, job)
+
+
+def test_a_red_job_on_a_hosted_runner_has_the_failing_tests_its_log_names(tmp_path):
+    red = a_hosted_red()
+    collect.collect(HostedLog(red["id"]), REPO, tmp_path, NOW, 14)
+    row = next(one for one in ledger.read(tmp_path / ledger.JOBS) if one["job"] == red["id"])
+    assert (row["kind"], row["tests"], row["logged"]) == (
+        "hosted",
+        ["tests/test_a.py::test_b"],
+        True,
+    )
+
+
+def test_a_hosted_red_kept_before_its_log_was_read_is_read_once_by_the_next_collect(tmp_path):
+    red = a_hosted_red()
+    collect.collect(Replay(), REPO, tmp_path, NOW, 14)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    older = [{k: v for k, v in one.items() if k != "logged"} | {"tests": []} for one in rows]
+    ledger.rewrite(tmp_path / ledger.JOBS, older)
+    gh = HostedLog(red["id"])
+    collect.collect(gh, REPO, tmp_path, NOW, 14)
+    after = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
+    assert after[red["id"]]["tests"] == ["tests/test_a.py::test_b"]
+    reds = [one for one in after.values() if one["conclusion"] == "failure" and one["steps"]]
+    assert len(after) == len(rows) and reds and all(one["logged"] for one in reds)
+    assert red["id"] in gh.read
+    again = HostedLog(red["id"])
+    collect.collect(again, REPO, tmp_path, NOW, 14)
+    assert again.read == []
 
 
 def test_a_log_with_colour_codes_gives_the_same_evidence_as_one_without():
@@ -448,7 +512,8 @@ def test_the_week_report_says_every_number_with_how_it_was_counted(facts, nine):
     text = report.body(
         facts, list(nine.values()), NOW - timedelta(days=7), NOW, UTC, report.jsettings.DEFAULTS
     )
-    assert "Job level only" in text and "counted apart" in text
+    assert "Job level only" in text and "its runners column says which" in text
+    assert "| 0 vs 8.22 min | local 75, hosted 120 |" in text
     assert "cancelled while it waited" in text
     for one in nine.values():
         assert f"**{one.name}**" in text
@@ -458,12 +523,10 @@ def test_the_week_report_says_every_number_with_how_it_was_counted(facts, nine):
 
 def test_only_a_missed_target_is_missed(nine):
     assert [one.key for one in report.missed(list(nine.values()))] == [
-        "queue",
         "waste",
         "own",
         "rebases",
         "stale",
-        "green",
     ]
 
 
@@ -484,7 +547,7 @@ def test_a_week_with_a_target_missed_alerts_once_and_a_week_without_alerts_nobod
     report.escalate(config, project, late, path, KITCHEN_NOW, said.append)
     kitchen.poll(KITCHEN_NOW)
     (line,) = kitchen.wakes.said
-    assert "missed" in line and "queue p50 under exec p50 26.6 vs 9.67 min" in line
+    assert "missed" in line and "wasted-minute share 37.1%" in line
     assert "flaky tests" not in line and str(path) in line
 
 
