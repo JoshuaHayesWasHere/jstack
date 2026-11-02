@@ -123,7 +123,7 @@ Leave the pull request out of this drive: a pass tells the crew of a green one, 
 ```sh
 # Add, approve and launch the row as above, with no roles file, then:
 T="$VERIFY_JSTACK_SANDBOX/t3"
-ended=$(date -u -d '-10 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-10M +%Y-%m-%dT%H:%M:%SZ)
+ended=$(perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - 600))')
 jq --arg at "$ended" '."mcp:sandbox-thread-1" = [{runId: "run-1", itemId: "run-1:error", type: "error", text: "Not logged in · Please run /login", updatedAt: $at}]' "$T/messages.json" > "$T/m" && mv "$T/m" "$T/messages.json"
 jq --arg at "$ended" 'map(.status = "failed" | .latestRunId = "run-1" | .recentRuns = [{runId: "run-1", ordinal: 1, status: "failed", providerInstanceId: "claudeAgent", model: "claude-sandbox", requestedAt: $at, startedAt: $at, completedAt: $at}])' "$T/threads.json" > "$T/t" && mv "$T/t" "$T/threads.json"
 jq '.claudeAgent = ["Provider is not authenticated."]' "$T/capabilities.json" > "$T/c" && mv "$T/c" "$T/capabilities.json"
