@@ -104,7 +104,7 @@ def status(config: Config, now: datetime | None = None) -> dict[str, Any]:
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
-        "held": [one.as_json() for one in pool.held(now or datetime.now(UTC))],
+        "held_pools": [one.as_json() for one in pool.held(now or datetime.now(UTC))],
         "pass": record.read(config),
     }
 

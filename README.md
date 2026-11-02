@@ -47,6 +47,7 @@ jstack runs only when every **hard** need is met.
 | `jq` | hard | 1.6 or newer. |
 | `gh`, signed in | hard | `gh auth login`. The threads open pull requests with it, and `jmerge` merges with it. |
 | `jbus`, signed in | hard | `jbus t3 login`, once `jbus` has a project, since `jbus` reads your go from T3 Code. |
+| Role pools | hard | `jroles --check`. |
 
 The commands run on Python 3.12 or newer.
 `uv` uses a Python it finds on the machine, and downloads one when it finds none.

@@ -388,7 +388,7 @@ def test_jbus_status_prints_the_streaks_as_they_are_and_not_as_the_last_pass_lef
     (streak,) = printed.pop("streaks").values()
     assert code == 0 and printed == {
         **{key: value for key, value in kitchen.status().items() if key != "streaks"},
-        "held": [],
+        "held_pools": [],
     }
     assert (streak["key"], streak["count"], streak["alerted"]) == ("pass", 3, True)
     assert kitchen.status()["streaks"] == {}

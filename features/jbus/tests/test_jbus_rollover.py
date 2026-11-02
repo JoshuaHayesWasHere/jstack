@@ -181,10 +181,10 @@ def test_a_second_hold_tells_the_home_again(kitchen):
 def test_status_shows_the_bus_held_on_the_pool_and_not_once_it_has_room(kitchen):
     kitchen.poll(NOW)
     cap("claudeAgent", PRIME)
-    held = digest.status(jbus.load(), now=NOW)["held"]
+    held = digest.status(jbus.load(), now=NOW)["held_pools"]
     assert [one["until"] for one in held] == [RESETS.isoformat()]
     assert set(held[0]["instances"]) == {"claudeAgent", PRIME}
     assert set(held[0]["roles"]) == {"crew", "home", "review"}
     assert RESETS.isoformat() in held[0]["why"]
     cap(PRIME, resets=NOW - timedelta(hours=1))
-    assert digest.status(jbus.load(), now=NOW)["held"] == []
+    assert digest.status(jbus.load(), now=NOW)["held_pools"] == []
