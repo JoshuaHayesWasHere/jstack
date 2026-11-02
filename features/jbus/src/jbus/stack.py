@@ -310,7 +310,8 @@ def unstack(run: Pass, client: Client, world: World) -> None:
     need of the base's: its own commits merge cleanly onto the branch the base goes on without the
     base's, and its added lines use no name the base introduced (`need`)."""
     sent = set(run.box.sent())
-    for slug, pull in world.open.items():
+    for slug in world.open:
+        pull = world.open[slug]
         head = str(pull.get("headRefOid") or "")
         brief = task_brief(run, slug)
         stacked = stacks.of(brief)
