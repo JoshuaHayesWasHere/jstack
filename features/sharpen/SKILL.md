@@ -18,3 +18,10 @@ I want a deeper version of this task, not a bigger one. Before rewriting it, do 
 Then rewrite my prompt to ask for exactly that.
 
 Leave choices that are mine to make open instead of deciding them.
+Name the professional whose view you took in step 1, as one of those choices, so that I can swap it.
+When you have listed the open choices, ask them at once, one question per choice with your recommended answer as its first option, as grilling's "Asking a round" says (`../grilling/SKILL.md`).
+Fold each answer into the rewritten prompt, and show the final prompt once.
+Then ask, in the same form, what to do with it: send it as one scout request, as a swarm of three scouts on the same request with their findings in one table, as an arena, or not at all.
+Recommend one.
+In a home the answer is the go for that step.
+In any other thread, the answer gives me the line to type in the home.

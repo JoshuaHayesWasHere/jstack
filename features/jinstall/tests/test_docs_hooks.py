@@ -83,11 +83,6 @@ def hard_coded(machine):
             HookGroup(settings, "SessionStart", "startup", "hooks/home-start.sh"),
         ),
         (
-            f"hook {settings} UserPromptSubmit",
-            Level.HARD,
-            HookGroup(settings, "UserPromptSubmit", None, "hooks/skill-tips.sh"),
-        ),
-        (
             f"hook {codex} SessionStart",
             Level.HARD,
             HookGroup(codex, "SessionStart", "startup", "hooks/home-start.sh", harness="codex"),

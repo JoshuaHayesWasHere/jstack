@@ -43,7 +43,7 @@ These lines follow the role line:
   - a row whose `in a brief with` lines all appear in the file
   - a row whose backticked path covers every path on the file's `Where:` and `Change:` lines, not counting test paths
   - the role's default, which is `feature` for a crewmate, `investigation` for a scout and `none` for the home
-- `tip <skill>: ...`: up to three skills whose `tip:` phrases appear in the text, matched by the rule of `features/skill-library/hooks/skill-tips.sh`, with the closest match first.
+- `tip <skill>: ...`: up to three skills whose `tip:` phrases appear in the text, with the closest match first.
   In a brief or a request, `jbriefs pick` reads only the title, the `Task:` line and the list items.
   It reads other text whole.
 - `named <skill>: ...`: each skill the text names as `/<name>` or as `skills/<name>`.

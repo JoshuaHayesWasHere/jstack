@@ -850,19 +850,6 @@
           "refuses": true
         }
       ]
-    },
-    {
-      "name": "skill-tips.sh",
-      "path": "features/skill-library/hooks/skill-tips.sh",
-      "harnesses": [
-        "claude-code"
-      ],
-      "events": [
-        {
-          "harness": "claude-code",
-          "event": "UserPromptSubmit"
-        }
-      ]
     }
   ],
   "statusLine": {

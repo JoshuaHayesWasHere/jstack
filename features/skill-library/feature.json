@@ -1,17 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "skill-library",
-  "description": "The skills any thread may load by name, and the tips hook that suggests them.",
-  "hooks": [
-    {
-      "event": "UserPromptSubmit",
-      "script": "hooks/skill-tips.sh",
-      "harnesses": [
-        "claude-code"
-      ]
-    }
-  ],
-  "docs": [
-    "docs/skill-tips.md"
-  ]
+  "description": "The skills any thread may load by name."
 }
