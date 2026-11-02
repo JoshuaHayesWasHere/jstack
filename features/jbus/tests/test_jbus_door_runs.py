@@ -332,3 +332,18 @@ def test_an_answer_to_a_held_gate_names_its_number_or_its_row(kitchen):
     named = josh(kitchen, f"go on {number}, deploy it", name="named")
     code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", named)
     assert code == 0, said
+
+
+def test_an_edit_that_adds_a_door_takes_the_rows_go_back(kitchen):
+    """`Proves it:` and `Holds:` are not what a go's fingerprint reads, so a go would hold for a
+    brief edited to run a door after it: the edit takes the go back instead."""
+    queued(kitchen, "plain", brief("plain"))
+    assert approve(kitchen, "plain", "--word", kitchen.word())[0] == 0
+    edited = brief("plain", f"Holds: {PROD}\n").replace(
+        "Proves it: `make check`", f"Proves it: `make check`, then `{DEPLOY}`"
+    )
+    said = queued(kitchen, "plain", edited)
+    assert f"plain's go is taken back: its brief now holds for {PROD}" in said
+    assert rows(kitchen)["plain"]["approved"] == ""
+    kitchen.poll()
+    assert "crew: plain" not in [launch["title"] for launch in kitchen.t3.launches]

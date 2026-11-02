@@ -62,6 +62,7 @@ NOT_MEANING = (
     "Thread",
     "Skills",
     "Decisions",
+    "Holds",
     "Design",
     "Proves it",
     "Review",

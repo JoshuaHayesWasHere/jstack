@@ -194,6 +194,9 @@ SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
 ALREADY = "already approved"
 GO_VOID = ", its go does not hold for it: approve it again"
+TAKEN = "'s go is taken back: its brief now holds for "
+"""What `add` says of a row whose go held, and whose new brief holds for a door the old one
+did not: no go given before a door was in the brief opens it."""
 NO_SHA = (
     "approve on the user's word needs --sha <sha12>, the first 12 of the sha256 of the brief "
     "they were shown; a go by --follows needs none"
@@ -1441,6 +1444,12 @@ def _do(
         ):
             holds = judgement.approved_text(row, verb.text)
             go = GO_HOLDS if holds else GO_VOID
+            opened = [case for case in party.doors(verb.text) if case not in party.doors(was)]
+            if holds and opened and _unlaunched(row):
+                _void(rows, row)
+                go = (
+                    f", {verb.slug}{TAKEN}{', '.join(opened)}, which only the user's own word opens"
+                )
         return f"added {verb.slug}: priority {verb.priority}{depends}{of}, brief {shown}{go}"
     if isinstance(verb, Approve):
         ruled = verb.basis == RULE

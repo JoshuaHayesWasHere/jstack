@@ -171,7 +171,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         except BaseException:
             release()
             raise
-        if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
+        if said.endswith((queue.GO_HOLDS, queue.GO_VOID)) or queue.TAKEN in said:
             print(said)
         for line in ruled:
             print(line)
