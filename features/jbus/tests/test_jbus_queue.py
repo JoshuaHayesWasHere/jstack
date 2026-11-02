@@ -1434,3 +1434,54 @@ def test_a_row_another_merges_after_is_not_removed(kitchen):
     code, said = kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", RAN)
     assert code != 0
     assert "beta wait on alpha: remove them first" in said
+
+
+def stacks_on(kitchen, slug, parent, where):
+    """Queue `slug`, whose brief builds on `parent` and has the `Where:` line given, and return
+    what the add printed."""
+    built = brief(slug, f"Builds on: {parent}: its code\n").replace(f"`src/{slug}/`", where)
+    argv = ("queue", "add", slug, "--priority", "2", "--depends", parent)
+    code, said = kitchen.main(*argv, stdin=built)
+    assert code == 0, said
+    return said
+
+
+def test_a_row_that_stacks_on_a_row_sharing_a_where_path_is_warned_and_still_queued(kitchen):
+    add(kitchen, "alpha")
+    said = stacks_on(kitchen, "beta", "alpha", "`src/alpha/`")
+    assert "beta shares src/alpha with alpha" in said
+    assert "join the two rows" in said
+    assert rows(kitchen)["beta"]["depends"] == ["alpha"]
+
+
+def test_a_file_under_a_directory_the_other_row_names_is_a_shared_path(kitchen):
+    add(kitchen, "alpha")
+    said = stacks_on(kitchen, "beta", "alpha", "`src/alpha/one.py`")
+    assert "beta shares src/alpha/one.py with alpha" in said
+
+
+def test_a_row_that_stacks_on_a_row_with_no_where_path_in_common_is_not_warned(kitchen):
+    add(kitchen, "alpha")
+    assert " shares " not in stacks_on(kitchen, "beta", "alpha", "`src/beta/`")
+
+
+def test_a_merge_after_order_sharing_a_where_path_is_not_warned(kitchen):
+    add(kitchen, "alpha")
+    built = brief("beta").replace("`src/beta/`", "`src/alpha/`")
+    argv = ("queue", "add", "beta", "--priority", "2", "--merge-after", "alpha")
+    code, said = kitchen.main(*argv, stdin=built)
+    assert code == 0, said
+    assert " shares " not in said
+
+
+def test_queue_check_warns_of_a_shared_where_path_as_add_does(kitchen):
+    add(kitchen, "alpha")
+    built = brief("beta", "Builds on: alpha: its code\n").replace("`src/beta/`", "`src/alpha/`")
+    code, said = kitchen.main("queue", "check", "beta", stdin=built)
+    assert code == 0, said
+    assert "beta shares src/alpha with alpha" in said
+
+
+def test_a_where_of_the_whole_repo_is_no_shared_path(kitchen):
+    add(kitchen, "alpha")
+    assert " shares " not in stacks_on(kitchen, "beta", "alpha", "`.`")
