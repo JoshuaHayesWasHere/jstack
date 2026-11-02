@@ -240,12 +240,17 @@ Preconditions:
   printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" > "$HOME/.local/state/home/demo/tasks/beta.md"
   ```
 
-- **A pass.** Run `record merge-tick jbus poll`, then `record merge-tick cat "$JBUS_STATE_DIR/demo/checks-pending.json"`. It lists `7`.
-- **Ticks as the timer runs them.** In the background, run `jbus tick` every 5 seconds for a minute, each line with the time (`while :; do date +%T.%3N; jbus tick; sleep 5; done > ticks.log`).
+- **A pass.**
+  Run `record merge-tick jbus poll`, then `record merge-tick cat "$JBUS_STATE_DIR/demo/checks-pending.json"`.
+  It lists `7`.
+- **Ticks as the timer runs them.**
+  In the background, run `jbus tick` every 5 seconds for a minute, each line with the time (`while :; do date +%T.%3N; jbus tick; sleep 5; done > ticks.log`).
   The first tick runs `jmerge`, and each tick after it asks `actions/runs` with `If-None-Match` and runs no `jmerge`.
-- **The check ends.** Note the time, then set the check to `COMPLETED` and `SUCCESS` in `gh/open.json` and write one completed run to `gh/runs.json`.
+- **The check ends.**
+  Note the time, then set the check to `COMPLETED` and `SUCCESS` in `gh/open.json` and write one completed run to `gh/runs.json`.
   The next tick prints `tick demo: a run ended, and jmerge ran`, and `gh/calls.log` has `pr merge 7`, which the stand-in refuses, within 5 seconds of the noted time.
-- **Proof.** Copy `ticks.log` and `gh/calls.log` into `$VERIFY_JSTACK_EVIDENCE`.
+- **Proof.**
+  Copy `ticks.log` and `gh/calls.log` into `$VERIFY_JSTACK_EVIDENCE`.
 
 ## Gotchas
 
