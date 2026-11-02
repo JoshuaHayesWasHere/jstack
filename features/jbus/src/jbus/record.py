@@ -246,7 +246,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
             **_hook(config, alert.home(one.name)),
             "sign_in": signin.expiring(config, now),
             "sweep": box.marks().get("sweep", ""),
-            "capped": owed.blocked(config.state(one), config.user, now),
+            "capped": owed.blocked(config.state(one), config.user, now, box.sent()),
         }
         if box.blocking is not None:
             key = alert.blocking(one.name)

@@ -21,7 +21,7 @@ The account frees when:
   `sweep` writes the cap into the ledger for the run's instance. A thread moved to an instance with
   headroom is free at once. A thread on which `jbus.failover` acts is its to carry on: its carry-on
   quotes the ask (`quoted`), and `taken` closes the record.
-- an auth error: the thread is on another instance now, the Claude home's credentials were written
+- an auth error: the thread is on another instance now, the account home's credentials were written
   after the stop and hold a live token (`jgauge.limits.renewed`), or, for an instance with no such
   home, a thread of the project has completed a turn on it since.
 
@@ -368,9 +368,6 @@ def _settle(run: Pass, client: Client, ask: Ask, carried: bool) -> None:
         return
     if thread.get("snoozed") or (carried and thread.get("status") == "failed"):
         return
-    if ask.key in run.box.sent():
-        ask.state, ask.closed = SENT, run.now.isoformat()
-        return
     if ask.cause == AUTH and not _renewed(run, client, ask):
         run.say(f"wait {ask.row}: its ask waits for {ask.instance} to be signed in again")
         return
@@ -490,10 +487,13 @@ def _held(state: Path) -> list[dict[str, Any]]:
     return list(last.values())
 
 
-def blocked(state: Path, user: jsettings.Settings, now: datetime) -> list[dict[str, str]]:
+def blocked(
+    state: Path, user: jsettings.Settings, now: datetime, sent: list[str]
+) -> list[dict[str, str]]:
     """Return what `jbus status` shows of each row or ask a cap holds now: what waits, the cause and
     when it frees. They are the asks still owed, the messages the outbox held at a cap that has
-    not reset, and the launches and failovers that raised a stall for one (`sent.json`)."""
+    not reset, and the launches and failovers that raised a stall for one, by the keys `sent` that
+    the project's box has sent."""
     found = []
     for ask in load(state):
         if ask.state == OWED:
@@ -514,7 +514,7 @@ def blocked(state: Path, user: jsettings.Settings, now: datetime) -> list[dict[s
                     "frees": user.stamp(at),
                 }
             )
-    for key in store.read_json(state / "sent.json", []):
+    for key in sent:
         kind, _, rest = str(key).partition("|")
         row, _, why = rest.partition("|")
         at = when([why.removeprefix("capped ")]) if why.startswith("capped ") else None
