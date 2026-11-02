@@ -44,7 +44,7 @@ The same words inside the task's text or a result do not count.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
 - `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
   Once the `Fixed:` line names the head you pushed, launch the second review of that head by the launch block below with `second`, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
-  The second review's `error` findings come to this thread: answer each error by id, push the fix and write the `Fixed:` line as for the first, and launch no third review.
+  The second review's `error` findings come to this thread: answer each error by id, push the fix with the block below that pushes a fix and write the `Fixed:` line as for the first, and launch no third review.
   Its `warning` findings go to the day's warnings row once the pull request merged, and its `info` ones are dropped.
   `jmerge` merges once the second review is written and its findings are answered, and the `fixed and green` line below is sent once they are.
 - `cleanup`: the brief is the day's warnings row, `warnings-<day>`, which jbus filed, and it gets one review, of its own diff alone.
@@ -132,7 +132,7 @@ The message comes once every reviewer of the head has written its section and `j
 It begins `jbus: <slug>'s pull request #<n> at <head12> has its review`, names the sections by their `By:` lines, and lists the findings by id.
 A clean review brings no message and asks no line of you: `jmerge` merges it once it is green.
 Fix what you agree with and say here why for the rest, each by its severity as below.
-Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again.
+Then run the check command, push with the block below that pushes a fix, add one line to the Result saying what woke you and what you did, and end your turn again.
 Handling the findings sends the home nothing.
 A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
 
@@ -198,12 +198,14 @@ Push it with this, the one way a fix, a failed check's included, is pushed:
 ```sh
 G=$(git rev-parse --git-dir)
 branch=$(git symbolic-ref -q --short HEAD)
-if [ -f "$G/crew-before-rebase" ]; then
-    echo "no push: a rebase is not pushed yet, push it with the block of A conflict"
-elif [ -z "$branch" ] || ! git fetch -q origin "$branch"; then
+if [ -z "$branch" ] || ! git fetch -q origin "$branch"; then
     echo "no push: could not fetch origin's $branch"
 elif ! git merge-base --is-ancestor FETCH_HEAD HEAD; then
-    echo "no push: this head does not hold origin's $branch at $(git rev-parse FETCH_HEAD)"
+    if [ -f "$G/crew-before-rebase" ]; then
+        echo "no push: a rebase is not pushed yet, push it with the block of A conflict"
+    else
+        echo "no push: this head does not hold origin's $branch at $(git rev-parse FETCH_HEAD)"
+    fi
 elif git push -q origin "HEAD:refs/heads/$branch"; then
     echo "pushed $(git rev-parse HEAD)"
 else
@@ -215,6 +217,7 @@ On `no push: this head does not hold`, nothing was pushed and nothing is forced,
 An amend or a squash goes back with `git reset --soft FETCH_HEAD`, then one `git commit`.
 A rebase that no conflict asked for goes back with `git rebase --onto FETCH_HEAD <the last commit under the fix>`.
 A commit GitHub added by merging the base comes in with `git merge --no-edit FETCH_HEAD`.
+Where origin's head is such a merge, this is the only way out, whatever else made the head differ, since the other two would drop what the merge brought.
 Then run the block again.
 A rebase for a conflict is pushed by the block of "A conflict", and a fix pushed after it starts from the head that block pushed.
 
