@@ -73,6 +73,7 @@ ORDER = [
     "before-watch 41 slotwait.wake_capped (client)",
     "before-watch 42 slotwait.wake_ended (client)",
     "tellers 10 mirror.scan (sight)",
+    "tellers 15 tick.pending (world)",
     "tellers 20 questions.tell (sight, client)",
     "tellers 30 questions.propose (sight, client)",
     "tellers 40 watch.watch (client, world)",
