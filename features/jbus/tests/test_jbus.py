@@ -176,7 +176,7 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
     code, said = kitchen.main("status")
     printed = json.loads(said)
     assert printed.pop("pass")["started"] == "2026-10-12T15:00:00Z"
-    assert (code, printed) == (0, written)
+    assert (code, printed) == (0, {**written, "held_pools": []})
     kitchen.poll(NOW + timedelta(minutes=3))
     assert kitchen.status()["last_pass"] == "2026-10-12 11:03 ET"
 

@@ -62,6 +62,7 @@ HARD = {
     "`jq`": ("jq",),
     "`gh`, signed in": ("gh", "gh sign-in"),
     "`jbus`, signed in": ("jbus sign-in",),
+    "Role pools": ("role pools",),
 }
 OPTIONAL = {
     "`jbus` and its config": ("jbus config",),

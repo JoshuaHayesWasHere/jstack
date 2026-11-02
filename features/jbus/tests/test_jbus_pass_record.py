@@ -124,7 +124,7 @@ def test_jbus_status_prints_the_record_beside_the_status_file(kitchen):
     took(kitchen, 19)
     kitchen.poll()
     code, said = kitchen.main("status")
-    assert (code, json.loads(said)) == (0, {**kitchen.status(), "pass": WHOLE})
+    assert (code, json.loads(said)) == (0, {**kitchen.status(), "held_pools": [], "pass": WHOLE})
 
 
 def test_a_pass_stopped_halfway_leaves_a_start_with_no_end(kitchen):
@@ -183,7 +183,7 @@ def test_a_first_pass_stopped_before_any_status_is_still_printed(kitchen):
     record.Record(jbus.load(), NOW).start()
     code, said = kitchen.main("status")
     started = {"started": STARTED, "ended": None, "seconds": None, "projects": {}, "silent": {}}
-    printed = {"pass": started, "streaks": {}, "homes_off_bus": []}
+    printed = {"pass": started, "streaks": {}, "homes_off_bus": [], "held_pools": []}
     assert (code, json.loads(said)) == (0, printed)
 
 

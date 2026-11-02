@@ -321,6 +321,9 @@ def test_a_capped_instance_pauses_its_launches_and_they_resume_on_their_own_at_t
         f"alert: health capped {PRIME}: seven_day full until 2026-10-14 14:00 ET, pauses its "
         f"launches at 100% of a window; launches skip {PRIME} until then; every instance is "
         "capped, and no launch starts before 2026-10-12 14:00 ET",
+        f"pool held: crew cannot launch: claudeAgent and {PRIME} are both capped until "
+        "2026-10-12T18:00:00+00:00. Nothing launches on that pool until then, and every thread on "
+        "it waits for the reset",
     ]
     said = kitchen.poll(LATER)
     assert launched(kitchen) == [PRIME, "claudeAgent"]
@@ -330,7 +333,7 @@ def test_a_capped_instance_pauses_its_launches_and_they_resume_on_their_own_at_t
     )
     assert [line for line in said if "resume" in line] == [resumed]
     polls(kitchen, 2, 30, start=LATER)
-    assert pages(kitchen)[3:] == [resumed]
+    assert pages(kitchen)[4:] == [resumed]
 
 
 def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothing(

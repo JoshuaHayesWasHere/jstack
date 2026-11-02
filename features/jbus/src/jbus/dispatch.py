@@ -253,6 +253,33 @@ def mirrored(run: Pass, slug: str, instance: str, checked: dict[str, bool]) -> b
     return checked[instance]
 
 
+def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
+    """Return the pool a thread of `role`, a role of the map, on `instance` moves in. It is the
+    first line of the role map that names the instance. The function reads the thread's own role's
+    lines first, then every other role's in the map's order. Where no line names the instance, the
+    pool is the instance alone. A reviewer on the crew's provider moves in the crew's pool when its
+    `review` lines name two other instances."""
+    for name in sorted(jroles.ROLES, key=lambda one: one != role):
+        try:
+            chosen = pool.selections(name)
+        except jroles.Refused as error:
+            run.say(f"wait {run.project.name}: the role map gives {name} no pool ({error})")
+            continue
+        for one in chosen:
+            if instance in one.instances:
+                return one.instances
+    return (instance,)
+
+
+def say_unread(run: Pass, instance: str) -> None:
+    """Say, once a day, that a launch or a move lands on an account nobody can read
+    (`jroles.pool.unread`). It still goes there."""
+    unread = pool.unread(instance, run.now)
+    line = f"note {run.project.name}: {unread}"
+    if unread and run.find("", "note", line, key=f"unread {instance} {run.day}"):
+        run.say(line)
+
+
 def mirrored_choice(
     run: Pass,
     slug: str,
@@ -273,6 +300,8 @@ def mirrored_choice(
         choice = pool.choose(instances, kept, run.now, skip, full)
         at = choice.instance
         if at is None or at == here or mirrored(run, slug, at, checked):
+            if at is not None:
+                say_unread(run, at)
             return choice
         skip[at] = f"{at} is not mirrored"
 

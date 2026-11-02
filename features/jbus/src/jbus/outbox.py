@@ -6,10 +6,14 @@ template, and what it needs of the receiver: `act`, where the receiver has work,
 a person or a home must choose. There is no third kind, since a message that needs neither is not
 sent.
 
-`send` holds a message to a thread whose instance is capped (`jroles.ledger`), since a message sent
-then starts a turn that ends at once on the limit. The key stays unsent, the pass says so in one
-`wait` line, and the first pass after the reset sends it, since each sender asks again on each pass
-until a message goes.
+A thread whose instance is capped (`jroles.ledger`) moves to the first instance of its pool with
+headroom, as `jbus.failover` moves a thread that failed, and the message goes there. Asking `capped`
+makes the move, so each sender gets it. A thread with a turn running stays, since nothing moves
+under a turn: the turn ends on the limit, and failover moves it then.
+
+`send` holds a message to a thread that could not move, since a message sent then starts a turn that
+ends at once on the limit. The key stays unsent, the pass says so in one `wait` line, and the first
+pass after the reset sends it, since each sender asks again on each pass until a message goes.
 
 The user's own word is not held behind a ledger that is out of date (`jgauge.limits.unread`): the
 ledger keeps what it last read, and launches still go by it, but what it read is no reason to sit on
@@ -56,7 +60,7 @@ from typing import TYPE_CHECKING, Literal
 import jsettings
 from jbriefs import meets
 from jbriefs.home import thread_of
-from jbus import review
+from jbus import dispatch, review, roles
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import limits, slot, waiters
@@ -105,29 +109,81 @@ class Rule:
     spares: frozenset[str]
 
 
-def instance_of(client: Client, thread: str) -> str:
-    """Return the instance a thread is on now, as T3 Code says of it. Raise what `Client.call`
-    raises where it says nothing."""
-    chosen = client.call("t3_thread_configure", {"threadId": thread}).get("modelSelection") or {}
+def selection_of(client: Client, thread: str) -> dict:
+    """Return the model selection a thread is on now, as T3 Code says of it. Raise what
+    `Client.call` raises where it says nothing."""
+    return client.call("t3_thread_configure", {"threadId": thread}).get("modelSelection") or {}
+
+
+def _instance(chosen: dict) -> str:
     return chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN
 
 
-def capped(run: Pass, client: Client, thread: str, template: str = "") -> int | None:
+def instance_of(client: Client, thread: str) -> str:
+    """Return the instance a thread is on now, as T3 Code says of it. Raise what `Client.call`
+    raises where it says nothing."""
+    return _instance(selection_of(client, thread))
+
+
+MOVES = {"crew": "crew", "reviewer": "review", "scout": "scout", "home": "home"}
+"""The role map's role for each thread role that a capped instance moves, as `jbus.failover` moves
+the same roles. A thread of no role stays, and its message waits for the reset."""
+
+
+def _rolled(run: Pass, client: Client, thread: str, chosen: dict, instance: str, row: str) -> bool:
+    """Move an idle thread off its capped `instance` to the first instance of its pool with
+    headroom, with its model and options, and say whether it moved. A move T3 Code did not make
+    leaves the thread where it is, and its message waits, as does a thread of no role (`MOVES`)."""
+    try:
+        read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
+    except T3Error:
+        return False
+    found = (read or {}).get("thread") or {}
+    if not chosen.get("model") or at_work([found], settled_too=True):
+        return False
+    role, slug = roles.role_of(str(found.get("title", "")))
+    if role not in MOVES:
+        return False
+    instances = dispatch.pool_of(run, MOVES[role], instance)
+    subject = row or slug or thread
+    choice = dispatch.mirrored_choice(run, subject, instances, {}, instance)
+    at = choice.instance
+    if at is None or at == instance:
+        return False
+    client.recipients = client.recipients | {thread}
+    client.moves[thread] = (chosen, instances)
+    try:
+        moved = {**chosen, "instanceId": at}
+        client.call("t3_thread_configure", {"threadId": thread, "modelSelection": moved})
+    except T3Error as error:
+        run.say(f"wait {subject}: the move off {instance} could not be made ({error})")
+        return False
+    line = f"rollover {subject}: {thread} moved from {instance} to {at}: {choice.why}"
+    run.find(subject, "rollover", line)
+    run.say(line)
+    return True
+
+
+def capped(run: Pass, client: Client, thread: str, template: str = "", row: str = "") -> int | None:
     """Return the Unix time the cap on a thread's instance resets, or None while that instance
-    has headroom, or where T3 Code did not say which instance the thread is on. A thread whose
-    instance is not known is not held: the send that follows says what T3 Code said of it. For the
-    user's own word, a cap the ledger read long ago and cannot read now holds nothing."""
+    has headroom, once the thread has moved off it (`_rolled`), or where T3 Code did not say which
+    instance the thread is on. A thread whose instance is not known is not held: the send that
+    follows says what T3 Code said of it. For the user's own word, a cap the ledger read long ago
+    and cannot read now holds nothing."""
     if not thread:
         return None
     try:
-        instance = instance_of(client, thread)
+        chosen = selection_of(client, thread)
     except T3Error:
         return None
+    instance = _instance(chosen)
     until = ledger.capped_until(ledger.read([instance]), instance, run.now)
     if not until:
         return None
     if template in USERS and (why := limits.unread(instance, run.now)):
         run.say(f"{thread}: its {template} message goes past a cap not read lately ({why})")
+        return None
+    if _rolled(run, client, thread, chosen, instance, row):
         return None
     return int(until.timestamp())
 
@@ -203,7 +259,7 @@ def hold(
     `RULES` holds it. A held message gets one `wait` line and one `held` line in `outbox.jsonl`
     with its rule. `send` asks this first, and so does a sender that asks GitHub something before
     it sends (`rebase.held`), so it asks nothing for a message the outbox would hold."""
-    until = capped(run, client, thread, template)
+    until = capped(run, client, thread, template, row)
     if until:
         at = datetime.fromtimestamp(until, UTC).isoformat()
         run.say(

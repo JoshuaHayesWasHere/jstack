@@ -14,6 +14,12 @@ To grow the pool, add the instance in T3 Code's settings (`providerInstances`, w
 `jroles.inventory` reads) and one more id to the role line. `jroles` refuses a line with an id
 that T3 does not list under the line's provider, so a Claude pool never names a Codex or a
 Cursor instance. When T3 has no settings file, `jroles` takes the line as the user wrote it.
+
+Three more reads go with that choice. `lone` says which role has a pool of one while T3 lists
+another instance of its provider, for `jroles --check` and the doctor. `unread` says when a Claude
+instance's ledger is no fresh reading: such an instance counts as usable, since a blind account
+beats a stopped bus, and whoever chooses it says so. `held` gives the pools that hold the bus now,
+with every instance capped, for `jbus status` and the home's one alert.
 """
 
 from __future__ import annotations
@@ -24,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 import jsettings
-from jroles import Refused, Selection, inventory, ledger, read_map
+from jroles import ROLES, Refused, Selection, inventory, ledger, read_map
 
 WAIT = 75
 
@@ -148,3 +154,102 @@ def headroom(role: str) -> float:
         return jsettings.load().headroom
     except jsettings.Invalid as error:
         raise Refused(f"refused {role}: {error}") from error
+
+
+def lone(text: str, listed: Mapping[str, inventory.Instance]) -> list[str]:
+    """One line for each line of the map `text` whose pool has one instance while `listed`, T3's
+    instances, has another enabled one of its provider: a cap on it stops the role with the other
+    account free. Each line gives the fix, the map's line with the others added. Infra owns the map,
+    so the fix is theirs to make. The function raises `Refused` for a map it cannot read."""
+    found = []
+    for role in ROLES:
+        for one in read_map(text, role):
+            others = [
+                name
+                for name, each in listed.items()
+                if each.driver == one.provider and each.enabled and name not in one.instances
+            ]
+            if len(one.instances) == 1 and others:
+                found.append(
+                    f"{role} has one instance, {one.instances[0]}, while T3's settings also list "
+                    f"{', '.join(others)}: a cap on it stops the role with the other account free. "
+                    f"Send infra the fix for the role map: {_line(role, one, others)}"
+                )
+    return found
+
+
+def _line(role: str, one: Selection, others: list[str]) -> str:
+    """The map's line for `one`, with `others` added to its pool."""
+    words = [one.provider, one.model, ",".join([*one.instances, *others])]
+    if one.effort is not None:
+        words.append(f"effort={one.effort}")
+    if one.fast is not None:
+        words.append(f"fast={'on' if one.fast else 'off'}")
+    return f"{role}: {' '.join(words)}"
+
+
+def problems() -> list[str]:
+    """What `jroles --check` reports: the map's pools of one (`lone`), or why it cannot tell."""
+    where = jsettings.config_home() / "roles"
+    try:
+        text = where.read_text()
+    except FileNotFoundError:
+        return []
+    except (OSError, UnicodeDecodeError):
+        return [f"{where} cannot be read"]
+    settings = inventory.path()
+    listed = inventory.declared(settings, Path.home())
+    if isinstance(listed, str):
+        return [f"{settings}: {listed}"]
+    return lone(text, listed)
+
+
+def unread(instance: str, now: datetime) -> str:
+    """Why nobody can read a Claude instance's use now, as a line that says it counts as usable, or
+    nothing while its ledger is fresh. `jgauge limits` reads only Claude homes, so another
+    provider's ledger holds only its caps, and being old says nothing of it."""
+    listed = inventory.declared(inventory.path(), Path.home())
+    known = inventory.claude_instances({} if isinstance(listed, str) else listed, Path.home())
+    why = ledger.stale(ledger.file_of(instance), now) if instance in known else None
+    if why is None:
+        return ""
+    return f"{instance}'s use is unread ({why}), so it counts as usable"
+
+
+@dataclass(frozen=True)
+class Held:
+    """A pool with every instance full: the roles on it, its instances, the first reset, and why."""
+
+    roles: tuple[str, ...]
+    instances: tuple[str, ...]
+    until: datetime
+    why: str
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "roles": list(self.roles),
+            "instances": list(self.instances),
+            "until": self.until.isoformat(),
+            "why": self.why,
+        }
+
+
+def held(now: datetime) -> list[Held]:
+    """The pools with no instance for a launch now, each once, whichever roles and order name its
+    instances. A role whose map or settings cannot be used holds nothing here: `jbus health` and the
+    launch say so."""
+    found: dict[frozenset[str], Held] = {}
+    for role in ROLES:
+        try:
+            routed = routes(role, now)
+        except Refused:
+            continue
+        for one in routed:
+            if one.choice.instance is not None or one.choice.until is None:
+                continue
+            key = frozenset(one.selection.instances)
+            was = found.get(key)
+            roles = (*was.roles, role) if was and role not in was.roles else (role,)
+            kept = was.instances if was else one.selection.instances
+            found[key] = Held(roles, kept, one.choice.until, was.why if was else one.choice.why)
+    return list(found.values())

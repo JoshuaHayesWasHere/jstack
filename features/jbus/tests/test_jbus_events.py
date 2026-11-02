@@ -208,6 +208,7 @@ TABLE = {
     "stall": "quiet",
     "decision": "user",
     "failover": "quiet",
+    "rollover": "quiet",
     "waiting-on-user": "quiet",
     "condition": "quiet",
     "clock": "quiet",

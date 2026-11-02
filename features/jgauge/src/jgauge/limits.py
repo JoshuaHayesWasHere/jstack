@@ -10,8 +10,8 @@ answers:
    `<home>/.credentials.json`, while that token has not expired. Claude Code makes the same
    call for `/usage`. `JGAUGE_USAGE_URL` names another address, for a test.
 2. The answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`),
-   `cachedUsageUtilization`, while it is younger than `FRESH` and belongs to the account signed
-   in there.
+   `cachedUsageUtilization`, while it is younger than `jroles.ledger.FRESH` and belongs to the
+   account signed in there.
 
 The command never refreshes, writes or prints a token, and it never writes either file. A
 refresh token rotates on each refresh, so a refresh here would conflict with the sessions signed
@@ -26,12 +26,15 @@ value stays, and nothing marks the account free or capped on a guess. The comman
 time in `<ledger file>.retry` (the answer's `Retry-After`, or `RETRY`) and does not ask the endpoint
 again before it. The file also says that the last read of a home failed, for any reason, and a good
 answer from the endpoint removes it. `unread` is what `jbus.outbox` asks of that: the ledger's
-reading is out of date only while such a file stands and the ledger is older than `FRESH`.
+reading is out of date only while such a file stands and the ledger is older than
+`jroles.ledger.FRESH`.
 
 The endpoint returns a slightly different reset on each call (21:29:59.74, then 21:30:00.31).
 The command floors it to the second, as the other writers do, and the ledger's merge takes
-resets a few minutes apart as one window. A window with no reset is not open, and the command
-writes no line for it.
+resets a few minutes apart as one window. A window that is null or has no reset is not open: the
+command writes no line for it, keeps the other window's reading, and says so. An account resting
+between sessions answers `five_hour: null`, with `seven_day` as usual, and that is a reading.
+An answer with no such key at all is not one, and its `stale` line names the keys it has.
 """
 
 from __future__ import annotations
@@ -50,9 +53,9 @@ from jroles import inventory, ledger
 
 URL = "https://api.anthropic.com/api/oauth/usage"
 BETA = "oauth-2025-04-20"
-FRESH = timedelta(minutes=15)
 RETRY = timedelta(minutes=10)
 TIMEOUT_SECONDS = 10
+NOT_OPEN = "the answer gives it null, as it does until a session opens it"
 
 
 @dataclass(frozen=True)
@@ -109,15 +112,21 @@ def _json(file: Path) -> dict:
 
 def records(instance: str, usage: object) -> list[ledger.Record]:
     """The ledger's lines for a usage answer. The answer has the shape that the endpoint
-    returns and that Claude Code caches, `{five_hour: {utilization, resets_at}, ...}`. Raises
-    ValueError for an answer not in that shape."""
+    returns and that Claude Code caches, `{five_hour: {utilization, resets_at}, ...}`, where a
+    window no session has opened is null and has no line. Raises ValueError for an answer not in
+    that shape, which names the answer's keys and none of its values."""
     if not isinstance(usage, Mapping):
         raise ValueError("the answer is not an object")
     found = []
     for window in ledger.WINDOWS:
-        each = usage.get(window)
+        if window not in usage:
+            keys = ", ".join(sorted(str(key) for key in usage)) or "nothing"
+            raise ValueError(f"the answer has no {window}: it has {keys}")
+        each = usage[window]
+        if each is None:
+            continue
         if not isinstance(each, Mapping):
-            raise ValueError(f"the answer has no {window}")
+            raise ValueError(f"the {window} is not an object")
         used, resets = each.get("utilization"), each.get("resets_at")
         if isinstance(used, bool) or not isinstance(used, int | float) or used < 0:
             raise ValueError(f"the {window} utilization is not a share")
@@ -161,11 +170,11 @@ def _keep_retry(instance: str, until: datetime) -> None:
 
 def unread(instance: str, now: datetime) -> str:
     """Why the instance's ledger is out of date, or nothing while its reading stands: its last read
-    failed and the ledger has not been read for `FRESH`. An instance `jgauge limits` does not read
-    has no retry file, so its ledger is never out of date by this."""
+    failed and the ledger has not been read for `ledger.FRESH`. An instance `jgauge limits` does
+    not read has no retry file, so its ledger is never out of date by this."""
     if not retry_file(instance).exists():
         return ""
-    return stale(ledger.file_of(instance), now) or ""
+    return ledger.stale(ledger.file_of(instance), now) or ""
 
 
 def fetch(url: str, token: str) -> object:
@@ -219,7 +228,7 @@ def from_cache(home: Home, now: datetime) -> list[ledger.Record]:
     if not isinstance(fetched, int | float):
         raise ValueError("its cached usage has no time")
     age = now - datetime.fromtimestamp(fetched / 1000, UTC)
-    if not timedelta(0) <= age < FRESH:
+    if not timedelta(0) <= age < ledger.FRESH:
         raise ValueError(f"its cached usage is {age.total_seconds() / 60:.0f} min old")
     return records(home.instance, cached.get("utilization"))
 
@@ -254,25 +263,6 @@ def keep(home: Home, found: list[ledger.Record], now: datetime, source: str = ""
     return file
 
 
-def age(file: Path, now: datetime) -> timedelta | None:
-    """How long ago the file was last written, or None when there is no file."""
-    try:
-        return now - datetime.fromtimestamp(file.stat().st_mtime, UTC)
-    except OSError:
-        return None
-
-
-def stale(file: Path, now: datetime) -> str | None:
-    """Why the file is not a fresh reading, or None while it is younger than `FRESH`."""
-    old = age(file, now)
-    if old is None:
-        return f"no {file}"
-    if old >= FRESH:
-        minutes = old.total_seconds() / 60
-        return f"{file} was written {minutes:.0f} min ago, {FRESH.seconds // 60} min or more"
-    return None
-
-
 def run(now: datetime, get: Fetch = fetch) -> list[str]:
     """Read every home and return a line for each: `<instance> <source> <file>` for a home
     that the command read, and `stale <instance>: <why>` for a home that it could not read."""
@@ -291,6 +281,10 @@ def run(now: datetime, get: Fetch = fetch) -> list[str]:
             said.append(f"stale {home.instance}: its ledger cannot be written: {error.strerror}")
             continue
         shares = ", ".join(f"{one.window} {one.used:g}%" for one in found) or "no window open"
+        if found:
+            open_now = {one.window for one in found}
+            shut = (window for window in ledger.WINDOWS if window not in open_now)
+            shares = ", ".join([shares, *(f"{window} not open: {NOT_OPEN}" for window in shut)])
         said.append(f"{home.instance} from the {source}: {shares}, into {file}")
     return said
 
@@ -313,7 +307,7 @@ def check(now: datetime) -> list[str]:
     """`stale <instance>: <why>` for each home whose ledger file is not fresh."""
     said = []
     for home in homes():
-        why = stale(ledger.file_of(home.instance), now)
+        why = ledger.stale(ledger.file_of(home.instance), now)
         if why:
             said.append(f"stale {home.instance}: {why}")
     return said

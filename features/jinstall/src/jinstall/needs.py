@@ -36,6 +36,7 @@ from jinstall.kinds import (
     Link,
     Patterns,
     Platform,
+    Pools,
     Program,
     RelayKeys,
     RetiredHook,
@@ -122,6 +123,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  limits <path>                 Limits
       optional  config <path>                 JstackConfig, seeded
       optional  roles <path>                  Roles, seeded
+      hard      role pools                    Pools, no role on one account while T3 lists another
       optional  state repo <path>             StateRepo, the backup
       optional  ci report <path>              CiReport, of the jbus config
       optional  relay <path>                  RelayKeys, the relay's env file
@@ -205,6 +207,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         ),
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
+        Need("role pools", Level.HARD, Pools(roles)),
         Need(f"state repo {state}", Level.OPTIONAL, StateRepo(state)),
         Need(f"ci report {jbus}", Level.OPTIONAL, CiReport(jbus)),
         Need(f"relay {relay}", Level.OPTIONAL, RelayKeys(relay)),

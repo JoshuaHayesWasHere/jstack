@@ -67,6 +67,7 @@ ORDER = [
     "before-watch 8 queue.follow_ups",
     "before-watch 9 plan.entered",
     "before-watch 10 word.deliver",
+    "before-watch 11 failover.held",
     "before-watch 12 stop.deliver",
     "before-watch 20 questions.closed_in_files",
     "before-watch 30 questions.silent",

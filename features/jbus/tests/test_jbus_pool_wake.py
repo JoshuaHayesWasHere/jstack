@@ -11,7 +11,7 @@ import pytest
 import jbus
 from jroles import ledger, waits
 from jroles.cli import main as jroles
-from test_jbus_kitchen import NOW, sends
+from test_jbus_kitchen import NOW, asks
 
 INSTANCE = "claudeAgent_claude_prime"
 UNTIL = NOW + timedelta(minutes=20)
@@ -40,7 +40,7 @@ def crew(kitchen, capsys, status="completed", at=NOW):
 
 
 def told(kitchen):
-    return [given["threadId"] for given in sends(kitchen)]
+    return [given["threadId"] for given in asks(kitchen)]
 
 
 def test_a_capped_pool_registers_the_crew_with_the_caps_end(capped, capsys):
@@ -57,9 +57,9 @@ def test_the_crew_is_woken_after_the_caps_end_and_not_before(capped, capsys):
     thread, _ = crew(capped, capsys)
     capped.poll()
     capped.poll(UNTIL - timedelta(minutes=1))
-    assert sends(capped) == []
+    assert asks(capped) == []
     said = capped.poll(UNTIL + timedelta(minutes=1))
-    (given,) = sends(capped)
+    (given,) = asks(capped)
     assert given["threadId"] == thread and given["mode"] == "queue"
     assert given["clientRequestId"].startswith(f"pool-wake|{thread}|")
     assert f"jroles review --thread {thread}" in given["message"]
@@ -86,7 +86,7 @@ def test_a_crew_is_woken_once_for_each_wait(capped, capsys):
     assert told(capped) == [thread]
     capped.poll(again + timedelta(minutes=1))
     assert told(capped) == [thread, thread]
-    assert len({given["clientRequestId"] for given in sends(capped)}) == 2
+    assert len({given["clientRequestId"] for given in asks(capped)}) == 2
 
 
 def test_registering_again_before_the_wake_keeps_one_wait(capped, capsys):
@@ -104,7 +104,7 @@ def test_a_crew_that_finds_headroom_leaves_the_waiters(capped, capsys):
     capsys.readouterr()
     assert waits.read(waits.where()) == []
     capped.poll(UNTIL + timedelta(minutes=2))
-    assert sends(capped) == []
+    assert asks(capped) == []
 
 
 def test_without_a_thread_nothing_is_registered(capped, capsys):
@@ -128,7 +128,7 @@ def test_a_dead_crew_is_dropped_and_never_woken(capped, capsys, how):
     capped.poll()
     assert waits.read(waits.where()) == []
     capped.poll(UNTIL + timedelta(minutes=1))
-    assert sends(capped) == []
+    assert asks(capped) == []
 
 
 def test_a_crew_whose_thread_could_not_be_checked_is_kept(capped, capsys):
@@ -148,13 +148,13 @@ def test_a_lost_wake_is_tried_again_with_the_same_key(capped, capsys):
     capped.t3.lose_send = False
     capped.poll(UNTIL + timedelta(minutes=3))
     assert told(capped) == [thread, thread]
-    assert len({given["clientRequestId"] for given in sends(capped)}) == 1
+    assert len({given["clientRequestId"] for given in asks(capped)}) == 1
     assert waits.read(waits.where()) == []
 
 
 def test_no_waits_is_a_pass_that_sends_nothing(kitchen):
     kitchen.poll(datetime(2026, 10, 12, 16, 0, tzinfo=UTC))
-    assert sends(kitchen) == [] and kitchen.lines("pool-wake") == []
+    assert asks(kitchen) == [] and kitchen.lines("pool-wake") == []
 
 
 def test_a_crew_that_waits_again_once_its_wait_is_due_has_a_new_wait_jbus_keeps(capped, capsys):
@@ -181,7 +181,7 @@ def test_a_crew_t3_code_no_longer_has_is_dropped_with_one_line(capped, capsys):
     said = capped.poll(UNTIL + timedelta(minutes=1))
     (line,) = about(said, thread)
     assert "is gone" in line and "no longer available" in line
-    assert waits.read(waits.where()) == [] and sends(capped) == []
+    assert waits.read(waits.where()) == [] and asks(capped) == []
     assert about(capped.poll(UNTIL + timedelta(minutes=3)), thread) == []
 
 

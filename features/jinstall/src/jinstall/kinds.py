@@ -40,9 +40,9 @@ import jleak
 import jroles
 import jsettings
 from jbus import relayenv
-from jgauge import limits
 from jinstall.harnesses import HARNESSES
 from jinstall.machine import Dropped, JsonObject, Machine, Moved, Refused, same_bytes
+from jroles import inventory, ledger, pool
 from jroles.inventory import BUILT_IN, Instance
 from jsettings import t3
 
@@ -1598,7 +1598,7 @@ class Limits:
             return Found.old("it cannot be read")
         if not self.path.exists():
             return Found.missing("jgauge limits writes it, every 2 min")
-        why = limits.stale(self.path, datetime.now(UTC))
+        why = ledger.stale(self.path, datetime.now(UTC))
         return Found.old(f"{why}: run jgauge limits") if why else Found.ok()
 
 
@@ -1760,6 +1760,32 @@ class Roles:
 
     def drop(self, machine: Machine) -> Dropped:
         return unseed(machine, self.path, "roles")
+
+
+@dataclass(frozen=True)
+class Pools:
+    """The role map's pools against T3's instances, by the rule `jroles --check` reads
+    (`jroles.pool.lone`).
+    ok: no role is on one account while T3 lists another. A map that cannot be read is `Roles`'
+    line.
+    old: a role is, and the detail gives the fix to send to infra, who own the map. The doctor only
+    probes it: nothing here writes the map."""
+
+    path: Path
+
+    def probe(self, machine: Machine) -> Found:
+        try:
+            text = self.path.read_text()
+        except (OSError, UnicodeDecodeError):
+            return Found.ok()
+        listed = inventory.declared(inventory.path(machine.env, machine.home), machine.home)
+        if isinstance(listed, str):
+            return Found.old(f"T3's settings: {listed}")
+        try:
+            said = pool.lone(text, listed)
+        except jroles.Refused:
+            return Found.ok()
+        return Found.old("; ".join(said)) if said else Found.ok()
 
 
 def claude_homes(declared: dict[str, Instance], home: Path) -> list[Path]:

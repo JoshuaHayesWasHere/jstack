@@ -98,7 +98,7 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         "ok hard gh",
         "ok hard gh sign-in",
     ]
-    assert said[8:13] == [
+    assert said[8:14] == [
         f"missing optional jbus config {user.jbus / 'config.toml'} -> jbus does not run without it",
         f"missing optional jbus sign-in {user.token} -> run jbus t3 login",
         f"missing optional config {user.config}"
@@ -106,15 +106,16 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         " go_quiet_minutes",
         f"missing optional roles {user.config.with_name('roles')}"
         " -> every role inherits the model of the thread that launches it",
+        "ok hard role pools",
         f"missing optional state repo {user.state} -> not a git repo",
     ]
-    assert said[13:16] == [
+    assert said[14:17] == [
         f"missing optional ci report {user.jbus / 'config.toml'}"
         " -> no jbus config, so no project asks for it",
         f"missing optional relay {user.relay_env} -> no env file, so the relay is off",
         f"missing optional limits {user.limits} -> jgauge limits writes it, every 2 min",
     ]
-    assert said[16:-1] == user.every("ok")
+    assert said[17:-1] == user.every("ok")
 
 
 def test_with_a_hard_need_missing_and_one_old_the_doctor_counts_them_and_exits_1(user):
@@ -134,7 +135,7 @@ def test_the_doctor_writes_nothing_and_gives_checks_answer_for_each_part_both_pr
     assert user.listing() == []
     checked = user.run("--check")[1]
     assert checked == user.every("missing")
-    assert said[16:-1] == checked
+    assert said[17:-1] == checked
 
 
 def test_the_doctor_prints_the_units_once_they_are_due_as_check_does(user):
@@ -853,3 +854,33 @@ def test_the_pkgbuild_names_the_series_and_each_patch_of_its_folder():
     assert f'.jstack.{patch_series(packaging)}"\n' in pkgbuild
     assert PINNED_TAG.search(pkgbuild)
     assert all(one.name in pkgbuild for one in packaging.glob("*.patch"))
+
+
+def test_a_role_on_one_account_with_another_listed_is_a_hard_problem_with_the_fix_for_infra(user):
+    """`jroles --check` and this line read the same rule (`jroles.pool.lone`)."""
+    user.run()
+    prime = "claudeAgent_claude_prime"
+    settings = user.home / ".t3" / "userdata" / "settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text(
+        json.dumps(
+            {
+                "providerInstances": {
+                    "claudeAgent": {"driver": "claudeAgent"},
+                    prime: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
+                }
+            }
+        )
+    )
+    roles = user.config.with_name("roles")
+    roles.parent.mkdir(parents=True, exist_ok=True)
+    roles.write_text("crew: claudeAgent claude-opus-5-5\n")
+    code, said = user.doctor()
+    (line,) = line_for(said, "role pools")
+    assert code == 1 and line.startswith(
+        "old hard role pools -> crew has one instance, claudeAgent"
+    )
+    assert f"crew: claudeAgent claude-opus-5-5 claudeAgent,{prime} effort=medium" in line
+    roles.write_text(f"crew: claudeAgent claude-opus-5-5 claudeAgent,{prime}\n")
+    (line,) = line_for(user.doctor()[1], "role pools")
+    assert line == "ok hard role pools"

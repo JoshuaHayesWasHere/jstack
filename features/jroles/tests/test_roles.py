@@ -4,10 +4,11 @@ They put what it prints into the skills' own launch blocks and check it against 
 schema."""
 
 import json
+import os
 
 import pytest
 
-from jroles import ROLES
+from jroles import ROLES, ledger
 from jroles.cli import main
 from test_tool_calls import LAUNCHES, errors
 
@@ -309,6 +310,12 @@ def pooled(tmp_path, monkeypatch, capsys, t3_settings):
     (tmp_path / "config" / "jstack").mkdir(parents=True)
     (tmp_path / "config" / "jstack" / "roles").write_text(POOL_MAP)
     t3_settings.write_text(json.dumps({"providerInstances": INVENTORY, "other": 1}))
+    read = datetime(2026, 10, 17, 19, 45, tzinfo=UTC).timestamp()
+    for instance in ("claudeAgent", PRIME):
+        (tmp_path / "state").mkdir(exist_ok=True)
+        file = ledger.file_of(instance)
+        file.touch()
+        os.utime(file, (read, read))
 
     def ask(role, at=datetime(2026, 10, 17, 19, 45, tzinfo=UTC)):
         code = main([role], now=at)
@@ -360,6 +367,28 @@ def test_a_capped_first_instance_sends_the_role_to_the_next_until_its_reset(pool
     )
     code, out, _ = pooled("crew", datetime(2026, 10, 18, 20, 1, tzinfo=UTC))
     assert json.loads(out)["instanceId"] == "claudeAgent"
+
+
+def test_a_pool_that_rolls_onto_an_unread_account_still_goes_and_says_so(pooled):
+    """On 2026-11-02 claudeAgent's ledger went unread for two days. A choice that lands on an
+    account whose ledger is old or missing goes there, since a blind account beats a stopped bus,
+    and says it cannot see that account's use."""
+    from datetime import UTC, datetime
+
+    cap("claudeAgent", WEEKLY)
+    file = ledger.file_of(PRIME)
+    old = datetime(2026, 10, 17, 19, 0, tzinfo=UTC).timestamp()
+    os.utime(file, (old, old))
+    code, out, err = pooled("crew")
+    assert (code, json.loads(out)["instanceId"]) == (0, PRIME)
+    assert err.splitlines()[1] == (
+        f"jroles: {PRIME}'s use is unread ({file} was written 45 min ago, 15 min or more), "
+        "so it counts as usable"
+    )
+    file.unlink()
+    assert pooled("crew")[2].splitlines()[1] == (
+        f"jroles: {PRIME}'s use is unread (no {file}), so it counts as usable"
+    )
 
 
 def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):
@@ -499,3 +528,80 @@ def test_a_declared_claude_agent_at_its_own_home_is_read_there_and_not_at_dot_cl
     assert claude_instances(instances({}, tmp_path), tmp_path) == {
         "claudeAgent": tmp_path / ".claude"
     }
+
+
+PRIME = "claudeAgent_claude_prime"
+TWO = {
+    "providerInstances": {
+        "claudeAgent": {"driver": "claudeAgent"},
+        PRIME: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
+        "codex": {"driver": "codex"},
+    }
+}
+
+
+@pytest.fixture
+def check(tmp_path, monkeypatch, capsys):
+    """Run `jroles --check` over a map and T3's settings, and return its exit code and lines."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setenv("T3CODE_HOME", str(tmp_path / "t3"))
+
+    def run(text, settings=TWO):
+        (tmp_path / "jstack").mkdir(exist_ok=True)
+        (tmp_path / "jstack" / "roles").write_text(text)
+        (tmp_path / "t3" / "userdata").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "t3" / "userdata" / "settings.json").write_text(json.dumps(settings))
+        code = main(["--check"])
+        return code, capsys.readouterr().out.splitlines()
+
+    return run
+
+
+def test_check_reports_a_pool_of_one_with_another_instance_listed_and_the_fix_for_infra(check):
+    code, said = check("crew: claudeAgent claude-opus-5-5 effort=low\n")
+    assert code == 1
+    assert said == [
+        f"crew has one instance, claudeAgent, while T3's settings also list {PRIME}: a cap on it "
+        "stops the role with the other account free. Send infra the fix for the role map: "
+        f"crew: claudeAgent claude-opus-5-5 claudeAgent,{PRIME} effort=low"
+    ]
+
+
+def test_check_names_each_line_of_a_list_and_each_role(check):
+    code, said = check(
+        f"crew: claudeAgent claude-opus-5-5 {PRIME}\n"
+        "review: codex gpt-5-codex\n"
+        "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=high\n"
+    )
+    assert code == 1
+    assert [line.split(" has ")[0] for line in said] == ["crew", "review"]
+    assert f"crew: claudeAgent claude-opus-5-5 {PRIME},claudeAgent effort=medium" in said[0]
+    assert f"review: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME} effort=high" in said[1]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"crew: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n",
+        "crew: codex gpt-5-codex\n",
+        "crew: inherit\n",
+        "",
+    ],
+)
+def test_check_passes_a_pool_with_room_a_lone_provider_and_an_inherited_role(check, text):
+    assert check(text) == (0, [])
+
+
+def test_check_counts_no_disabled_instance_as_room(check):
+    off = {
+        "providerInstances": {
+            "claudeAgent": {"driver": "claudeAgent"},
+            PRIME: {"driver": "claudeAgent", "enabled": False},
+        }
+    }
+    assert check("crew: claudeAgent claude-opus-5-5\n", off) == (0, [])
+
+
+def test_check_says_so_when_it_cannot_read_the_map(check):
+    code, said = check("crew: \n")
+    assert code == 1 and said[0].startswith("bad line 1")

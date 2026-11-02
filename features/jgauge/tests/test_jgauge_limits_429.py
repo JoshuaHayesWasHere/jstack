@@ -111,13 +111,13 @@ def test_the_endpoint_is_not_asked_before_the_retry_time_and_is_asked_after(home
 
 def test_the_ledger_is_out_of_date_only_after_a_failed_read_and_fresh_minutes(home):
     file = read(home, AT, reading(100))
-    assert limits.unread(PRIME, AT + limits.FRESH * 2) == ""
+    assert limits.unread(PRIME, AT + ledger.FRESH * 2) == ""
     with pytest.raises(limits.Stale):
         limits.read(home, AT + timedelta(minutes=1), refused())
     os.utime(file, (AT.timestamp(), AT.timestamp()))
-    assert limits.unread(PRIME, AT + limits.FRESH - timedelta(seconds=1)) == ""
-    assert limits.unread(PRIME, AT + limits.FRESH)
-    assert capped(AT + limits.FRESH) == RESETS
+    assert limits.unread(PRIME, AT + ledger.FRESH - timedelta(seconds=1)) == ""
+    assert limits.unread(PRIME, AT + ledger.FRESH)
+    assert capped(AT + ledger.FRESH) == RESETS
 
 
 def test_a_turn_that_just_hit_the_limit_is_not_undone_by_a_reading_of_98(home):

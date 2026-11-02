@@ -57,6 +57,16 @@ runs it through the same `plan` and `apply`, and prints the move. It does not wr
 to the ledger, because launches read the ledger. `--dry-run` prints the move and writes
 nothing.
 Replaying the same items on the same thread again sends nothing.
+
+A thread that has not failed moves too: `jbus.outbox` moves one on a capped instance when a message
+is due it, by the same pool.
+
+`held` tells each project's root home once of a pool with every instance capped, with the first
+reset, through an alert of the one list (`jbus.wakes`). A home on that pool hears at the reset,
+since the outbox holds a message into a cap, so the alert stays open for `TOLD` past it. A reset
+that passes with the pool still full is a new hold, under a key of its own reset, since the home's
+list reads a line whose only change is a time as nothing new (`jbus.wakes.words`), and is told
+again. `jbus status` shows the same pools as they stand now (`jroles.pool.held`).
 """
 
 from __future__ import annotations
@@ -66,20 +76,22 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import jbus
-import jroles
 from jbriefs.home import ids, scopes, thread_of
-from jbus import dispatch, outbox, owed, roles, threads, verbs
+from jbus import alert, dispatch, outbox, owed, roles, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
 from jroles import ledger, pool
 
-EVENTS = {"failover": "quiet"}
+EVENTS = {"failover": "quiet", "rollover": "quiet"}
+TOLD = timedelta(hours=1)
+"""How long past its reset the alert of a held pool stays open, so a home on that pool, which the
+outbox holds a message from until then, still hears of it."""
 ITEMS = 12
 CARRY_ON = (
     "jbus: your last turn stopped on a usage limit ({text}). This thread is now on {instance}, "
@@ -212,25 +224,6 @@ def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.
     return (found, run_of.get("providerInstanceId") or "") if found else None
 
 
-def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
-    """Return the pool a thread of `role` on `instance` moves in. It is the first line of the
-    role map that names the instance. The function reads the thread's own role's lines first,
-    then every other role's in the map's order. Where no line names the instance, the pool is
-    the instance alone. A reviewer on the crew's provider moves in the crew's pool when its
-    `review` lines name two other instances."""
-    own = MAP_ROLE[role]
-    for name in (own, *(one for one in jroles.ROLES if one != own)):
-        try:
-            chosen = pool.selections(name)
-        except jroles.Refused as error:
-            run.say(f"wait {run.project.name}: the role map gives {name} no pool ({error})")
-            continue
-        for one in chosen:
-            if instance in one.instances:
-                return one.instances
-    return (instance,)
-
-
 def failover(run: Pass, client: Client, world: World) -> None:
     """Move each thread that failed on a usage limit to an instance that is not capped, and
     tell it to carry on. See the module for the rules."""
@@ -337,7 +330,7 @@ def plan(
         return None
     instance = selection.get("instanceId") or selection.get("provider") or ledger.BUILT_IN
     capped = ran or instance
-    instances = pool_of(run, mover.role, instance)
+    instances = dispatch.pool_of(run, MAP_ROLE[mover.role], instance)
     running = ledger.read([capped]).get((capped, cap.window))
     if fill and running and running.resets > cap.resets.timestamp():
         cap = replace(cap, resets=datetime.fromtimestamp(running.resets, UTC))
@@ -411,6 +404,22 @@ def handle(
         run.limited.discard(mover.slug if mover.role == "crew" else "")
         return
     apply(run, client, move, key)
+
+
+def held(run: Pass) -> None:
+    """Tell the project's home once of each pool that holds the bus: see the module."""
+    for one in pool.held(run.now):
+        instances = "+".join(sorted(one.instances))
+        key = f"pool-held {run.project.name} {instances} {one.until.isoformat()}"
+        if alert.streak(run.config.state_dir, key):
+            continue
+        line = (
+            f"pool held: {', '.join(one.roles)} cannot launch: {one.why}. "
+            "Nothing launches on that pool until then, and every thread on it waits for the reset"
+        )
+        ends = (one.until + TOLD).isoformat()
+        alert.raise_(run.config, key, line, owner=run.project.name, now=run.now, ends=ends)
+        run.say(line)
 
 
 def _items(path: Path) -> list[dict[str, Any]]:
@@ -489,6 +498,7 @@ VERBS = (
     ),
 )
 STEPS = (
+    verbs.Step("before-watch", 11, "failover.held", lambda half: held(half.run)),
     verbs.Step(
         "before-watch",
         7,
