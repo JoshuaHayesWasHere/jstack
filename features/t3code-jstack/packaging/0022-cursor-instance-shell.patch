@@ -1,0 +1,419 @@
+From 14e880d788d690660c5ee823f175ee10441b13b2 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Mon, 2 Nov 2026 01:12:38 -0500
+Subject: [PATCH] fix(cursor): a Cursor instance's agent runs its commands in
+ the instance environment's SHELL
+
+@cursor/sdk runs in the server process and takes its shell from process.env.SHELL,
+so a Cursor thread ran the server's login shell whatever its instance set. The runner
+now makes each SDK call under an async scope where process.env.SHELL reads the
+instance's SHELL, and leaves that scope for callbacks into T3, so T3's terminals and
+other providers keep the server's shell. An instance with no SHELL is unchanged.
+---
+ .../src/server/CursorAgentSdk.test.ts         | 68 +++++++++++++++++-
+ .../src/server/CursorAgentSdk.ts              | 65 ++++++++++-------
+ .../provider-cursor/src/server/driver.test.ts | 72 +++++++++++++++++++
+ packages/provider-cursor/src/server/driver.ts | 10 ++-
+ .../src/server/instanceShell.ts               | 44 ++++++++++++
+ 5 files changed, 230 insertions(+), 29 deletions(-)
+ create mode 100644 packages/provider-cursor/src/server/instanceShell.ts
+
+diff --git a/packages/provider-cursor/src/server/CursorAgentSdk.test.ts b/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
+index d715766a30..0abda4e75a 100644
+--- a/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
++++ b/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
+@@ -14,6 +14,11 @@ const cursorSdkMock = vi.hoisted(() => {
+   const runOperations: Array<string> = [];
+   let agentCloseFailure: unknown;
+   let staleRunActive = false;
++  // What the SDK's shell would run: it spawns `process.env.SHELL` with `{ ...process.env }`.
++  const shellsSeen: Array<{
++    readonly executable: string | undefined;
++    readonly environment: string | undefined;
++  }> = [];
+   const runWait = vi.fn(async () => ({
+     id: "run-cursor-agent-sdk-test",
+     requestId: "request-cursor-agent-sdk-test",
+@@ -44,10 +49,20 @@ const cursorSdkMock = vi.hoisted(() => {
+           text: "hello",
+         },
+       });
++      shellsSeen.push({ executable: process.env.SHELL, environment: { ...process.env }.SHELL });
+       return {
+         id: "run-cursor-agent-sdk-test",
+         agentId: "agent-cursor-agent-sdk-test",
+-        wait: runWait,
++        // A delta that lands while the run is going, after send returned.
++        wait: async () => {
++          await options.onDelta?.({
++            update: {
++              type: "assistant-message-chunk",
++              text: "later",
++            },
++          });
++          return runWait();
++        },
+         cancel: runCancel,
+       };
+     },
+@@ -90,6 +105,7 @@ const cursorSdkMock = vi.hoisted(() => {
+     setStaleRunActive: (active: boolean) => {
+       staleRunActive = active;
+     },
++    shellsSeen,
+   };
+ });
+ 
+@@ -172,4 +188,54 @@ describe("CursorAgentSdkRunner", () => {
+       ]);
+     }).pipe(Effect.provide(layerTest)),
+   );
++
++  it.effect("runs a Cursor agent in its instance's SHELL, and T3's own code in the server's", () =>
++    Effect.gen(function* () {
++      yield* Effect.acquireRelease(
++        Effect.sync(() => {
++          const serverShell = process.env.SHELL;
++          process.env.SHELL = "/usr/bin/zsh";
++          return serverShell;
++        }),
++        (serverShell) =>
++          Effect.sync(() => {
++            if (serverShell === undefined) delete process.env.SHELL;
++            else process.env.SHELL = serverShell;
++          }),
++      );
++      cursorSdkMock.shellsSeen.length = 0;
++      const runner = yield* CursorAgentSdk.CursorAgentSdkRunner;
++      const seenByT3: Array<string | undefined> = [];
++      const runOnce = (shell: string | undefined) =>
++        Effect.gen(function* () {
++          const session = yield* runner.open({
++            operation: "create",
++            options: { model: { id: "default" }, mode: "agent", local: { cwd: process.cwd() } },
++            threadId: ThreadId.make("thread-cursor-agent-sdk-shell-test"),
++            providerSessionId: ProviderSessionId.make(
++              "provider-session-cursor-agent-sdk-shell-test",
++            ),
++            ...(shell === undefined ? {} : { shell }),
++          });
++          const run = yield* session.send({
++            message: "echo",
++            onDelta: () =>
++              Effect.sync(() => {
++                seenByT3.push(process.env.SHELL);
++              }),
++          });
++          yield* run.wait;
++        });
++
++      yield* runOnce("/usr/bin/bash");
++      yield* runOnce(undefined);
++
++      assert.deepStrictEqual(cursorSdkMock.shellsSeen, [
++        { executable: "/usr/bin/bash", environment: "/usr/bin/bash" },
++        { executable: "/usr/bin/zsh", environment: "/usr/bin/zsh" },
++      ]);
++      assert.deepStrictEqual(seenByT3, Array(4).fill("/usr/bin/zsh"));
++      assert.strictEqual(process.env.SHELL, "/usr/bin/zsh");
++    }).pipe(Effect.scoped, Effect.provide(layerTest)),
++  );
+ });
+diff --git a/packages/provider-cursor/src/server/CursorAgentSdk.ts b/packages/provider-cursor/src/server/CursorAgentSdk.ts
+index 5986d09506..3af9a7d808 100644
+--- a/packages/provider-cursor/src/server/CursorAgentSdk.ts
++++ b/packages/provider-cursor/src/server/CursorAgentSdk.ts
+@@ -19,6 +19,7 @@ import * as Ref from "effect/Ref";
+ import * as Schema from "effect/Schema";
+ 
+ import * as CursorSdk from "./CursorSdk.ts";
++import { withInstanceShell, withoutInstanceShell } from "./instanceShell.ts";
+ import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
+ 
+ export const CURSOR_AGENT_SDK_PROTOCOL = "cursor-agent-sdk.local" as const;
+@@ -81,6 +82,8 @@ export interface CursorAgentSdkOpenInput {
+   readonly operation: "create" | "resume";
+   readonly agentId?: string;
+   readonly options: AgentOptions;
++  /** The instance environment's SHELL, which the agent's commands run in. */
++  readonly shell?: string;
+   readonly threadId: ThreadId;
+   readonly providerSessionId: OrchestrationV2ProviderSession["id"];
+ }
+@@ -386,11 +389,14 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+         },
+       });
+ 
++      const sdk = <A>(call: () => Promise<A>) => withInstanceShell(input.shell, call);
+       const agent = yield* Effect.tryPromise({
+         try: () =>
+-          input.operation === "create"
+-            ? Agent.create(input.options)
+-            : Agent.resume(input.agentId!, input.options),
++          sdk(() =>
++            input.operation === "create"
++              ? Agent.create(input.options)
++              : Agent.resume(input.agentId!, input.options),
++          ),
+         catch: (cause) => runnerError(cause, `agent.${input.operation}`),
+       });
+ 
+@@ -439,16 +445,18 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+                 if (callbackFailure !== undefined) {
+                   return;
+                 }
+-                return Effect.runPromiseWith(context)(
+-                  log({
+-                    direction: "incoming",
+-                    stage: "decoded",
+-                    payload: {
+-                      type: "interaction.update",
+-                      runId,
+-                      update,
+-                    },
+-                  }).pipe(Effect.andThen(sendInput.onDelta?.(update) ?? Effect.void)),
++                return withoutInstanceShell(() =>
++                  Effect.runPromiseWith(context)(
++                    log({
++                      direction: "incoming",
++                      stage: "decoded",
++                      payload: {
++                        type: "interaction.update",
++                        runId,
++                        update,
++                      },
++                    }).pipe(Effect.andThen(sendInput.onDelta?.(update) ?? Effect.void)),
++                  ),
+                 );
+               })
+               .catch((cause) => {
+@@ -460,16 +468,18 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+           const startRun = () =>
+             Effect.tryPromise({
+               try: () =>
+-                agent.send(sendInput.message, {
+-                  ...sendInput.options,
+-                  onDelta: async ({ update }) => {
+-                    if (!callbacksReady) {
+-                      pendingUpdates.push(update);
+-                      return;
+-                    }
+-                    await dispatchUpdate(update);
+-                  },
+-                }),
++                sdk(() =>
++                  agent.send(sendInput.message, {
++                    ...sendInput.options,
++                    onDelta: async ({ update }) => {
++                      if (!callbacksReady) {
++                        pendingUpdates.push(update);
++                        return;
++                      }
++                      await dispatchUpdate(update);
++                    },
++                  }),
++                ),
+               catch: (cause) => runnerError(cause, "run.start"),
+             });
+           const run = yield* startRun().pipe(
+@@ -479,7 +489,8 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+                 Effect.gen(function* () {
+                   abandonedRunRecoveryAvailable = false;
+                   const latestRun = yield* Effect.tryPromise({
+-                    try: () => Agent.listRuns(agent.agentId, { ...runOptions, limit: 1 }),
++                    try: () =>
++                      sdk(() => Agent.listRuns(agent.agentId, { ...runOptions, limit: 1 })),
+                     catch: (cause) => runnerError(cause, "agent.listRuns"),
+                   });
+                   const activeRun = latestRun.items.find(
+@@ -494,7 +505,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+                     payload: { type: "run.cancel", runId: activeRun.id },
+                   });
+                   yield* Effect.tryPromise({
+-                    try: () => Agent.cancelRun(activeRun.id, runOptions),
++                    try: () => sdk(() => Agent.cancelRun(activeRun.id, runOptions)),
+                     catch: (cause) => runnerError(cause, "agent.cancelRun"),
+                   });
+                   return yield* startRun();
+@@ -525,7 +536,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+             agentId: run.agentId,
+             wait: Effect.tryPromise({
+               try: async () => {
+-                const result = await run.wait();
++                const result = await sdk(() => run.wait());
+                 await callbackChain;
+                 if (callbackFailure !== undefined) {
+                   throw callbackFailure.cause;
+@@ -557,7 +568,7 @@ export const makeCursorAgentSdkRunner = Effect.fn("makeCursorAgentSdkRunner")(fu
+                 Effect.tryPromise({
+                   try: async () => {
+                     try {
+-                      await run.cancel();
++                      await sdk(() => run.cancel());
+                     } catch (cause) {
+                       if (!isCursorCancellationError(cause)) {
+                         throw cause;
+diff --git a/packages/provider-cursor/src/server/driver.test.ts b/packages/provider-cursor/src/server/driver.test.ts
+index 5a3202fd20..25f77270b5 100644
+--- a/packages/provider-cursor/src/server/driver.test.ts
++++ b/packages/provider-cursor/src/server/driver.test.ts
+@@ -173,6 +173,78 @@ it.layer(layerTest)("CursorDriver", (it) => {
+       }).pipe(Effect.scoped),
+   );
+ 
++  it.effect(
++    "opens a Cursor agent in the SHELL its instance environment sets, and in the server's with none",
++    () =>
++      Effect.gen(function* () {
++        const fileSystem = yield* FileSystem.FileSystem;
++        const workspace = yield* fileSystem.makeTempDirectoryScoped({ prefix: "cursor-shell-" });
++        const me = vi.spyOn(Cursor, "me").mockResolvedValue({
++          apiKeyName: "T3 Code",
++          createdAt: "2026-01-01T00:00:00.000Z",
++        });
++        const models = vi
++          .spyOn(Cursor.models, "list")
++          .mockResolvedValue([{ id: "auto", displayName: "Auto" }]);
++        yield* Effect.addFinalizer(() =>
++          Effect.sync(() => {
++            me.mockRestore();
++            models.mockRestore();
++          }),
++        );
++        const openShell = (name: string, shell: ReadonlyArray<{ name: string; value: string }>) =>
++          Effect.gen(function* () {
++            const instanceId = ProviderInstanceId.make(`cursor-shell-${name}`);
++            const opened: Array<string | undefined> = [];
++            const instance = yield* CursorDriver.create({
++              instanceId,
++              displayName: "Cursor",
++              enabled: true,
++              environment: [
++                { name: "CURSOR_API_KEY", value: "shell-key", sensitive: true },
++                ...shell.map((variable) => ({ ...variable, sensitive: false })),
++              ],
++              config: CursorDriver.defaultConfig(),
++            }).pipe(
++              Effect.provideService(CursorAgentSdk.CursorAgentSdkRunner, {
++                assertComplete: Effect.void,
++                open: (request) =>
++                  Effect.sync(() => {
++                    opened.push(request.shell);
++                    return {
++                      agentId: `native-cursor-shell-${name}`,
++                      listMessages: Effect.succeed([]),
++                      send: () => Effect.die("This test only opens a session"),
++                      close: Effect.void,
++                    };
++                  }),
++              }),
++            );
++            const threadId = ThreadId.make(`cursor-shell-thread-${name}`);
++            const modelSelection = { instanceId, model: "auto" };
++            const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
++              runtimeMode: "full-access",
++              interactionMode: "default",
++              cwd: workspace,
++            });
++            const runtime = yield* instance.orchestrationAdapter.openSession({
++              threadId,
++              providerSessionId: ProviderSessionId.make(`cursor-shell-session-${name}`),
++              modelSelection,
++              runtimePolicy,
++            });
++            yield* runtime.ensureThread({ threadId, modelSelection, runtimePolicy });
++            return opened;
++          });
++
++        expect(yield* openShell("bash", [{ name: "SHELL", value: "/usr/bin/bash" }])).toEqual([
++          "/usr/bin/bash",
++        ]);
++        expect(yield* openShell("none", [])).toEqual([undefined]);
++        expect(yield* openShell("empty", [{ name: "SHELL", value: "" }])).toEqual([undefined]);
++      }).pipe(Effect.scoped),
++  );
++
+   it.effect("budgets handoffs for the SDK model across catalog refreshes and option changes", () =>
+     Effect.gen(function* () {
+       const fileSystem = yield* FileSystem.FileSystem;
+diff --git a/packages/provider-cursor/src/server/driver.ts b/packages/provider-cursor/src/server/driver.ts
+index de7251fb56..caef9036b3 100644
+--- a/packages/provider-cursor/src/server/driver.ts
++++ b/packages/provider-cursor/src/server/driver.ts
+@@ -101,6 +101,10 @@ export const CursorDriver: ProviderDriver<
+     const keychain = yield* CursorKeychain.CursorKeychain;
+     const sdkRunner = yield* CursorAgentSdk.CursorAgentSdkRunner;
+     const processEnv = yield* mergeProviderInstanceEnvironment(environment);
++    // The SDK's commands run in the instance's SHELL; with none set, or an empty one, in the server's.
++    const shell = environment?.some((variable) => variable.name === "SHELL")
++      ? processEnv.SHELL || undefined
++      : undefined;
+     const continuationIdentity = defaultProviderContinuationIdentity({
+       driverKind: DRIVER_KIND,
+       instanceId,
+@@ -177,7 +181,11 @@ export const CursorDriver: ProviderDriver<
+             Effect.flatMap((apiKey) =>
+               Effect.acquireRelease(
+                 sdkRunner
+-                  .open({ ...input, options: { ...input.options, apiKey } })
++                  .open({
++                    ...input,
++                    options: { ...input.options, apiKey },
++                    ...(shell === undefined ? {} : { shell }),
++                  })
+                   .pipe(
+                     Effect.flatMap((session) =>
+                       Effect.cached(session.close).pipe(
+diff --git a/packages/provider-cursor/src/server/instanceShell.ts b/packages/provider-cursor/src/server/instanceShell.ts
+new file mode 100644
+index 0000000000..1edf4d8afb
+--- /dev/null
++++ b/packages/provider-cursor/src/server/instanceShell.ts
+@@ -0,0 +1,44 @@
++import * as NodeAsyncHooks from "node:async_hooks";
++
++// @cursor/sdk runs in this process and has no per-agent shell option: it reads
++// `process.env.SHELL` to pick, start and give the environment of each command's shell.
++// Work run under `withInstanceShell` reads its instance's SHELL there instead, and every
++// other reader, T3's own terminals and other providers included, still reads the server's.
++const instanceShell = new NodeAsyncHooks.AsyncLocalStorage<string>();
++let installed = false;
++
++function installInstanceShell(): void {
++  if (installed) return;
++  installed = true;
++  const scoped = (key: string | symbol) => (key === "SHELL" ? instanceShell.getStore() : undefined);
++  process.env = new Proxy(process.env, {
++    get: (target, key) => scoped(key) ?? Reflect.get(target, key),
++    set: (target, key, value) => Reflect.set(target, key, value),
++    has: (target, key) => scoped(key) !== undefined || Reflect.has(target, key),
++    ownKeys: (target) => {
++      const keys = Reflect.ownKeys(target);
++      return scoped("SHELL") !== undefined && !keys.includes("SHELL") ? [...keys, "SHELL"] : keys;
++    },
++    getOwnPropertyDescriptor: (target, key) => {
++      const value = scoped(key);
++      return value === undefined
++        ? Reflect.getOwnPropertyDescriptor(target, key)
++        : { value, writable: true, enumerable: true, configurable: true };
++    },
++  });
++}
++
++/** Runs `run`, and all the async work it starts, with `process.env.SHELL` reading `shell`. */
++export function withInstanceShell<A>(shell: string | undefined, run: () => Promise<A>): Promise<A> {
++  if (shell === undefined) return run();
++  installInstanceShell();
++  return instanceShell.run(shell, run);
++}
++
++/**
++ * Runs `run` outside any instance's shell. A callback from the SDK back into T3 goes through
++ * this, so that Effect fibers it wakes, which may be anyone's, read the server's SHELL.
++ */
++export function withoutInstanceShell<A>(run: () => A): A {
++  return instanceShell.exit(run);
++}
+-- 
+2.56.0
+
