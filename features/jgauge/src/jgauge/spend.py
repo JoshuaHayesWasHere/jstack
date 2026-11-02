@@ -2,9 +2,9 @@
 
 The store is `~/.t3/userdata/statev2.sqlite`, opened read-only. A run is one turn of a thread;
 its tokens are the sum of its provider turns' `turnTokenUsage`. Spend is in units, the day
-audit's proxy (reports/day-audit-1026/premises.md): uncached input x1, cache write x1.25, cache
-read x0.1, output x5, and an Opus run x5/3. A run counts whole in the period, and in the
-five-hour window, in which it started.
+audit's proxy (reports/day-audit-1026/premises.md): each token at its kind's rate (`PLAIN`,
+`WRITTEN`, `CACHED`, `OUTPUT`), and an Opus run times `OPUS`. A run counts whole in the period,
+and in the five-hour window, in which it started.
 
 A cap is a run's usage-limit failure: the instance is capped from the failure to its `resetAt`.
 Every instance is capped while each Claude instance that ran in the week before the period's end
@@ -29,7 +29,12 @@ import jsettings
 
 STORE = Path.home() / ".t3" / "userdata" / "statev2.sqlite"
 FIVE_HOURS = timedelta(hours=5)
+PLAIN, WRITTEN, CACHED, OUTPUT = 1, 1.25, 0.1, 5
+"""Units per token: uncached input, cache write, cache read and output. `units` weighs a run by
+these, and `jbus.telemetry.schema.UNITS` weighs a call by them, so the two never part."""
 OPUS = 5 / 3
+"""The weight on a run whose model's name holds `OPUS_NAME`, case and all."""
+OPUS_NAME = "opus"
 
 FIRST, REVIEWS, FIXES, SENDS, HOMES, SCOUTS, CAPPED = KINDS = (
     "first crew run",
@@ -111,8 +116,8 @@ class Window:
 def units(run: Run) -> float:
     t = run.tokens
     plain = t.input - t.cached - t.written
-    spent = plain + t.written * 1.25 + t.cached * 0.1 + t.output * 5
-    return spent * (OPUS if "opus" in run.model else 1)
+    spent = plain * PLAIN + t.written * WRITTEN + t.cached * CACHED + t.output * OUTPUT
+    return spent * (OPUS if OPUS_NAME in run.model else 1)
 
 
 def kind(run: Run) -> str:
