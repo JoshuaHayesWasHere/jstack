@@ -53,6 +53,7 @@ from __future__ import annotations
 
 from jbus.telemetry import messages
 from jbus.telemetry.records import SOURCES, Source
+from jgauge import spend
 
 
 def _table(source: Source) -> str:
@@ -174,11 +175,13 @@ MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES, MESSAGES, TOKENS)
 """`MIGRATIONS[n]` takes a store from version `n` to `n + 1`. Append, never edit one."""
 
 UNITS = (
-    "(c.input + c.cache_write * 1.25 + c.cache_read * 0.1 + c.output * 5) "
-    "* (CASE WHEN c.model LIKE '%opus%' THEN 5.0 / 3 ELSE 1 END)"
+    f"(c.input * {spend.PLAIN!r} + c.cache_write * {spend.WRITTEN!r} "
+    f"+ c.cache_read * {spend.CACHED!r} + c.output * {spend.OUTPUT!r}) "
+    f"* (CASE WHEN instr(c.model, '{spend.OPUS_NAME}') > 0 THEN {spend.OPUS!r} ELSE 1 END)"
 )
-"""A call's spend in `jgauge spend`'s units (`jgauge.spend.units`): uncached input x1, cache
-write x1.25, cache read x0.1, output x5, and x5/3 on Opus, by the call's own model."""
+"""A call's spend in `jgauge spend`'s units, built from `jgauge.spend`'s rates as
+`jgauge.spend.units` weighs a run: `c.input` is the uncached input, and Opus goes by the call's
+own model. `instr` matches case and all, as Python's `in` does, where `LIKE` would not."""
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 GREEN = "('success', 'skipped', 'neutral')"
 WEEK = "date({day}, '-6 days', 'weekday 0')"

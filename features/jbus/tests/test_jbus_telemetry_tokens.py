@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from jbus import cli, telemetry
+from jgauge import spend as jgauge_spend
 
 SECRET = "the user said this and it stays out"
 NOW = datetime(2026, 10, 28, 15, 0, tzinfo=UTC)
@@ -395,6 +396,35 @@ def test_every_call_keeps_its_thread_row_and_role_after_its_transcript_is_gone(m
         ("row-a", "crew", "claude", 4, 36, 150, 3500, 113, pytest.approx(crew)),
         ("row-a", "reviewer", "codex", 2, 300, 0, 2700, 80, pytest.approx(review)),
     ]
+
+
+def test_a_calls_units_are_jgauge_spends_for_each_model_kind(machine):
+    """The store weighs a call as `jgauge.spend.units` weighs a run of the same counts: on Opus,
+    on another Claude model and on a Codex model, with no rate written here."""
+    machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    machine.thread("mcp:review-a", "review: row-a", "codex", C1)
+    machine.claude(
+        "s1",
+        said(NOW, "m1", (7, 300, 9000, 41)),
+        said(NOW, "m2", (13, 200, 7000, 59), model="claude-sonnet-5-5"),
+    )
+    machine.codex(C1, *rollout(C1), counted(NOW, (3000, 2900, 77), 3077))
+    machine.run()
+
+    with machine.store() as store:
+        calls = store.execute(
+            "SELECT model, input, cache_write, cache_read, output, units FROM call_rows "
+            "ORDER BY call"
+        ).fetchall()
+    assert {model for model, *_ in calls} == {
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "gpt-6.1-terra",
+    }
+    for model, plain, written, cached, output, units in calls:
+        tokens = jgauge_spend.Tokens(plain + written + cached, cached, written, output)
+        run = jgauge_spend.Run(model, "i", model, "t", 1, NOW, tokens, "", "", False)
+        assert units == jgauge_spend.units(run), model
 
 
 def test_a_call_written_across_two_builds_is_one_row_with_its_final_counts(machine):
