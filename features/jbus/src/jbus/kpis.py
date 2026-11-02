@@ -29,21 +29,18 @@ an ask was lost.
 
 from __future__ import annotations
 
-import contextlib
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
 import jbus
-import jsettings
 from jbus import alert, boxes, telemetry, verbs
 from jbus.telemetry import records
 from jgauge import spend
 
 Say = Callable[[str], None]
 HOUR = timedelta(hours=1)
-WEEK = timedelta(days=7)
 
 
 @dataclass(frozen=True)
@@ -117,20 +114,10 @@ def _main_red(look: Look) -> dict[str, float]:
 
 
 def _capped(look: Look) -> dict[str, float]:
-    where = boxes.store()
-    if not where.is_file():
-        return {}
-    week = {"week": _stamp(look.now - WEEK), "until": _stamp(look.now)}
     try:
-        with contextlib.closing(sqlite3.connect(f"file:{where}?mode=ro", uri=True)) as t3:
-            caps = t3.execute(spend.CAPS).fetchall()
-            instances = {name for (name,) in t3.execute(spend.INSTANCES, week)}
-    except sqlite3.Error:
+        found, instances = spend.caps(boxes.store(), look.now)
+    except spend.Refused:
         return {}
-    found = [
-        spend.Cap(instance, jsettings.when(at), jsettings.when(reset), "")
-        for instance, at, reset, _ in caps
-    ]
     spans = spend.capped_spans(found, instances)
     return {alert.MACHINE: _minutes(spans, look.begins, look.now)}
 
