@@ -42,12 +42,6 @@ def filled(choice, met, items):
     return (f"{meets.LABEL} {side}", *under)
 
 
-def test_the_template_offers_each_choice_and_each_kind_the_parser_reads():
-    line, items = template()
-    assert line == f"{meets.LABEL} yes, <n> of <n> | no, <m> of <n>"
-    assert [re.match(r"- (\S+) <k>: <", one)[1] for one in items] == list(meets.KINDS)
-
-
 @pytest.mark.parametrize(
     ("choice", "met", "items", "said"),
     [

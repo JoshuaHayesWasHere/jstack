@@ -153,9 +153,7 @@ class Section:
     scoped pass, which has a `Scope:` line, and `rulings` contains that pass's ruling on each
     decline, by id. `line` is the index of the section's heading among the brief's lines. `by`
     is the whole `By:` text, the number included, and `seat` is that number, or None for a `By:`
-    line that has no number. `later` is true for a review after the first (`_later`). `meets` is
-    its `Meets the brief:` line and the `- ` items right under it, as written, which
-    `jbriefs.meets` reads."""
+    line that has no number. `later` is true for a review after the first (`_later`)."""
 
     by: str = ""
     verdict: str = ""
@@ -167,7 +165,6 @@ class Section:
     rulings: tuple[tuple[str, Ruling], ...] = ()
     line: int = 0
     later: bool = False
-    meets: tuple[str, ...] = ()
 
     @property
     def seat(self) -> int | None:
@@ -423,15 +420,15 @@ def _sections(text: str) -> list[Section]:
     starts `- ` and is not `- none` is a finding, and the lines under `Dismissed:` that start
     `- ` are its dismissed findings."""
     found: list[dict] = []
-    listing = dismissing = meeting = False
+    listing = dismissing = False
     for at, line in enumerate(text.splitlines()):
         if line.startswith("## "):
-            listing = dismissing = meeting = False
+            listing = dismissing = False
             if line.rstrip() == "## Review":
                 found.append(
                     {"by": "", "verdict": "", "ran": False, "head": "", "lines": [], "at": at}
                 )
-                found[-1] |= {"scoped": False, "rulings": [], "first": True, "meets": []}
+                found[-1] |= {"scoped": False, "rulings": [], "first": True}
             elif found:
                 found[-1]["closed"] = True
             continue
@@ -442,11 +439,6 @@ def _sections(text: str) -> list[Section]:
             listing = False
         if here is None:
             continue
-        meeting = meeting and line.startswith("- ")
-        if meeting:
-            here["meets"].append(line)
-        elif line.startswith("Meets the brief:"):
-            here["meets"], meeting = [line], True
         if line.startswith("Findings:"):
             listing, dismissing = True, False
         elif line.startswith("Dismissed:"):
@@ -489,7 +481,6 @@ def _sections(text: str) -> list[Section]:
                 one["scoped"],
                 tuple(one["rulings"]),
                 one["at"],
-                meets=tuple(one["meets"]),
             )
         )
     return sections

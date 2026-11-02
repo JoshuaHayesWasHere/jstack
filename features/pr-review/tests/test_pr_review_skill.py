@@ -37,6 +37,8 @@ Pull request: open one when done
 Thread: mcp:1
 """
 INTENT = "".join(BRIEF.splitlines(keepends=True)[1:6]).rstrip("\n")
+COUNT = "Done when lines in the brief, numbered from 1 in the order above: {}, the n the Meets the brief line counts against."
+INTENT += "\n\n" + COUNT.format(1)
 URL = "https://github.com/someone/repo/pull/7"
 
 GH = """\
@@ -384,7 +386,7 @@ def test_every_brief_but_one_that_says_none_is_reviewed(reviewer, brief, notes):
     if notes is not None:
         (reviewer.state / "notes.md").write_text(notes)
     told = "".join(BRIEFS[brief].splitlines(keepends=True)[1:6])
-    assert intent(reviewer) == f"{told}\n{scope()}\n"
+    assert intent(reviewer) == f"{told}\n{COUNT.format(1)}\n\n{scope()}\n"
 
 
 def test_a_brief_that_asks_for_no_review_gets_none(reviewer):

@@ -185,6 +185,12 @@ Where the last review has findings and none of them is fixed, it says `none need
 The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head.
 `jmerge` reads both: it merges on the `Fixed:` line, and waits, on every path, until each `Act on` finding has an answer that counts.
 
+`jmerge` also reads each review's `Meets the brief:` line, the reviewer's typed judgement of the brief, and the one rule is this.
+The pull request does not merge while the last round's line says `no`, or a section of that round has no line of the template's shape, or a count that is not the brief's (`jbriefs --meets <brief>` prints what `jmerge` reads).
+A `no` owes you a fix for each unmet line and a scoped review whose own line says `yes`: the block of "A second pass" gives that review, whatever the fix changed, also after a scoped pass, until a round says `yes`.
+Never write a review's line yourself, and never rewrite one: the judgement is the reviewer's.
+The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief that rests on the user's own message naming this row, or on the bot's word, which jbus checks: your own message, or the home's, waives nothing.
+
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
 Before it, run the check command at that head with the block of "Do the task" (in jstack `make check-fast BASE=origin/main`), which adds `Checked: <the command> exit <its exit> at <the full head>` to the Result itself, and write `Fixed:` only after exit 0 there, or after the run past the lane's time limit that "Do the task" lets CI's check prove, since `jmerge` marks the draft ready on the `Fixed:` line and CI's run must not be the first check that head gets; on another exit, write no `Fixed:` and park a gate ("Do the task") that names what failed and whether it fails on the default branch too.
 

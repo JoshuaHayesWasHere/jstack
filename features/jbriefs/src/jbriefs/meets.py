@@ -65,9 +65,9 @@ class Meets:
 
 
 def parse(lines: tuple[str, ...]) -> Meets | None:
-    """The typed line of a section, from the lines `findings.Section.meets` holds: the
-    `Meets the brief:` line and the `- ` items right under it. None where it has no such line,
-    or one whose word, counts and items do not agree."""
+    """The typed line of a section, from the lines `lines_of` gives: the `Meets the brief:` line
+    and the `- ` items right under it. None where it has no such line, or one whose word, counts
+    and items do not agree."""
     if not lines:
         return None
     found = _LINE.fullmatch(lines[0].strip())
@@ -86,6 +86,23 @@ def parse(lines: tuple[str, ...]) -> Meets | None:
     if met != of - len(named[UNMET]) or (word == YES) != (met == of):
         return None
     return Meets(word, met, of, *(tuple(named[kind]) for kind in KINDS))
+
+
+def lines_of(text: str, section: findings.Section) -> tuple[str, ...]:
+    """The section's last `Meets the brief:` line and the `- ` items right under it, read from
+    the brief from the section's heading (`findings.Section.line`) to the next heading."""
+    found: list[str] = []
+    under = False
+    for line in text.splitlines()[section.line + 1 :]:
+        if line.startswith("## "):
+            break
+        if line.startswith(LABEL):
+            found, under = [line], True
+        elif under and line.startswith("- "):
+            found.append(line)
+        else:
+            under = False
+    return tuple(found)
 
 
 def done_when(lines: list[str]) -> tuple[str, ...]:
@@ -179,7 +196,7 @@ def reading(text: str, heard: Collection[str] = ()) -> Reading:
     if not items or triage.mode == findings.NONE or not last:
         return Reading(NONE, count=len(items))
     count, head = len(items), last[0].head
-    said = [parse(one.meets) for one in last]
+    said = [parse(lines_of(text, one)) for one in last]
     if any(one is None for one in said):
         return Reading(UNREAD, head, count=count)
     off = next((one.of for one in said if one.of != count), None)
