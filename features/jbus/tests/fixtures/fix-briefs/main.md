@@ -1,5 +1,5 @@
 # main-red-dddddddddddd: main's check failed at dddddddddddd, after alpha merged
-Task: "main check failed at dddddddddddd, 1 merges since the last green" (jbus, the retro of alpha)
+Task: "main check failed at dddddddddddd, 1 merges since the last green" (jbus, the retro of alpha). jbus reverts nothing: jbus reverted this row before, and a row is never reverted twice
 Done when:
 - each failed test named under Read passes on main, and the failed job passes at the commit that merges the fix
 - the Result names the cause: the merge that broke main, or a flake with its evidence

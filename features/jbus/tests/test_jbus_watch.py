@@ -12,7 +12,7 @@ import pytest
 import jbus
 import jbus.queue
 from jbus import poll
-from jmerge import judgement
+from jmerge import judgement, reverts
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
 
@@ -180,6 +180,21 @@ def main_after_alpha(kitchen, conclusion):
     )
     kitchen.set("logs.json", {"901": summary})
     kitchen.set("commit-files.json", {red: ["src/alpha/a.py"], green: ["src/older.py"]})
+
+
+@pytest.fixture(autouse=True)
+def alpha_reverted_before(kitchen):
+    reverted_before(kitchen)
+
+
+def reverted_before(kitchen):
+    """jbus reverts the one clear culprit of a red main (`jbus.reverts`, `test_jbus_reverts.py`).
+    These tests are about the fix row a red gets when no culprit is reverted, so alpha, the
+    briefed merge most of them turn main red with, was reverted once before: a row is never
+    reverted twice, and its red files the row."""
+    made = reverts.Revert("0" * 40, "alpha", "revert-6-alpha", "e" * 40, "https://example.test/6")
+    kitchen.state.mkdir(parents=True, exist_ok=True)
+    (kitchen.state / reverts.NAME).write_text(json.dumps({made.red: reverts.record(made)}))
 
 
 def main_red(kitchen):

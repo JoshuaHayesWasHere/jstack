@@ -20,13 +20,17 @@ import jbus.waiting
 import jbus.wake
 import test_jbus_main_moved
 from jbus import questions
-from jmerge import mainjson, ready
-from jmerge import rows as jmerge_rows
+from jmerge import mainjson
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, RESULT, approved, complete, filed_as, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
 from test_jbus_queue import go as queue_go
-from test_jbus_watch import main_of, main_red
+from test_jbus_watch import main_of, main_red, reverted_before
+
+
+@pytest.fixture(autouse=True)
+def alpha_reverted_before(kitchen):
+    reverted_before(kitchen)
 
 
 def kept(kitchen):
@@ -137,7 +141,6 @@ def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_approved
         assert kept(kitchen).red == red
         assert [row["slug"] for row in main_red(kitchen)] == [name]
         assert f'the red run "main check failed at {red[:12]}' in main_red(kitchen)[0]["approved"]
-    assert jmerge_rows.red(kept(kitchen), "beta") == ready.MAIN_RED.format(sha=red[:12])
     text = (kitchen.home / "tasks" / f"{name}.md").read_text()
     assert f"# {name}: main's check failed at {red[:12]}" in text
     assert "chore: a hand merge" in text
@@ -172,24 +175,22 @@ def test_a_tip_whose_check_has_not_ended_changes_nothing(kitchen):
 
 
 def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitchen):
-    """`mainmoved` keeps the red tip as `broken`, and `jmerge` reads the same sha from the same
-    file. `checks.json` holds the sha too, as the answer GitHub gave for that commit, but that is
-    no record of which tip is red. No other file of the project's state names a red main."""
+    """`mainmoved` keeps the red tip as `broken`, and `jbus.dispatch` and `jbus.watch` read the
+    same sha from the same file. `checks.json` holds the sha too, as the answer GitHub gave for
+    that commit, but that is no record of which tip is red. No other file of the project's state
+    names a red main."""
     checks(kitchen, tip(kitchen), "success")
     kitchen.poll()
     red = move(kitchen, "failure")
     kitchen.poll(NOW + timedelta(minutes=3))
     record = json.loads((kitchen.state / "main.json").read_text())
-    assert record["broken"] == red == jmerge_rows.main(kitchen.checkout).red
-    assert jmerge_rows.red(jmerge_rows.main(kitchen.checkout), "beta").endswith(
-        f"{red[:12]}, its fix merges first"
-    )
+    assert record["broken"] == red == mainjson.read(kitchen.state).red
     named = {path.name for path in kitchen.state.rglob("*.json") if red in path.read_text()}
     assert named == {"main.json", "checks.json"}
     assert json.loads((kitchen.state / "checks.json").read_text())[red] == "failed"
     move(kitchen, "success")
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert jmerge_rows.main(kitchen.checkout).red == ""
+    assert mainjson.read(kitchen.state).red == ""
 
 
 def test_main_json_keeps_the_tests_that_failed_at_the_red_tip(kitchen):
@@ -243,7 +244,7 @@ def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews)
     record = json.loads((crews.state / "main.json").read_text())
     assert (record["main"], record["broken"], record["fixed"]) == (red, red, green)
     assert kept(crews) == mainjson.Main(green=green)
-    assert jmerge_rows.main(crews.checkout).red == ""
+    assert mainjson.read(crews.state).red == ""
 
 
 def test_a_record_from_before_broken_was_kept_names_its_failed_tip_as_red():
@@ -556,6 +557,7 @@ def test_infra_s_two_fix_rows_are_withdrawn_once_its_main_has_three_green_commit
     infra = kitchen.second("infra")
     alpha = f"# alpha: a task\nWhere: `src/alpha/`\n{RESULT}"
     (infra.home / "tasks" / "alpha.md").write_text(alpha)
+    reverted_before(infra)
     main_of(kitchen, "failure")
     kitchen.poll()
     first, second = main_of(kitchen, "failure", "failure")[:2]

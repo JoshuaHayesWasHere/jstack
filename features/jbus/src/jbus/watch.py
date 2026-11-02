@@ -51,6 +51,7 @@ from jbus.wake import cut
 from jgauge import holders, slot, waiters
 from jmerge import checks as reading
 from jmerge import judgement, mainjson
+from jmerge import reverts as kept_reverts
 from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
@@ -979,7 +980,9 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
     return "" if kept == "not approved" else kept
 
 
-def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
+def watch(
+    run: Pass, world: World, rows: list[dict[str, Any]], client: Client | None = None
+) -> None:
     """Send a line for each thing a home would have seen, and a gate for what no rule covers.
 
     The thread of a queue row that completed with a Result is no gate: its row says how it
@@ -1018,7 +1021,7 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
-    _retro(run, world, rows)
+    _retro(run, world, rows, client)
     for nightly in NIGHTLIES:
         _nightly_red(run, nightly)
 
@@ -1235,14 +1238,14 @@ def _changed(run: Pass, red: list[dict]) -> list[str]:
     return [file for file in dict.fromkeys(files) if file]
 
 
-def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
+def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
     approval. Where a briefed merge turned main red, the brief follows that row and a pass
     approves it on the row's go; otherwise the user approves it like any other row. Its priority
     is one above the first row of the queue, so once approved it is the next launch there.
     `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
     it added the row, the next pass files the brief again. If the queue refuses the brief, that
-    is a condition."""
+    is a condition. `kept` says why jbus reverted nothing (`_revert`), which its task names."""
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
@@ -1261,7 +1264,8 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     text = fix_brief(
         f"{name}: main's check failed at {sha[:12]}, {after}",
         f'"main check failed at {sha[:12]}, {len(red)} merges since the last green" '
-        + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)"),
+        + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)")
+        + (f". jbus reverts nothing: {kept}" if kept else ""),
         [
             "- each failed test named under Read passes on main, and the failed job passes at "
             "the commit that merges the fix",
@@ -1566,7 +1570,9 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
         run.say(said)
 
 
-def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
+def _retro(
+    run: Pass, world: World, rows: list[dict[str, Any]], client: Client | None = None
+) -> None:
     """Report a red main within a day of a merge, and a revert of one. Both lines name the
     merged slug. A red tip of main with no briefed merge in the day before it is reported too,
     under the name of its fix row: `jmerge` holds every merge on it all the same.
@@ -1643,8 +1649,45 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
         if place == 0 and not run.first and slug not in run.removed:
-            _file(run, slug, sha, commits[place : place + since])
+            red = commits[place : place + since]
+            why = _revert(run, client, sha, red, by_commit.get(sha), slug_of, known)
+            if why is not None:
+                _file(run, slug, sha, red, why)
     write_json(run.state / "checks.json", known)
+
+
+def _revert(
+    run: Pass,
+    client: Client | None,
+    sha: str,
+    red: list[dict],
+    pull: dict[str, Any] | None,
+    slug_of: dict[int, str],
+    known: dict[str, str],
+) -> str | None:
+    """Revert the one clear culprit of the red tip `sha` (`jbus.reverts`), red after its one
+    rerun with `red` the merges since the last green. Return None where no row is to be filed:
+    the revert is open, or the next pass judges the tip. Otherwise return why nothing was
+    reverted, which the fix row's brief says: two overlapping reds name every red tip."""
+    from jbus import reverts
+
+    record = mainjson.load(run.state) or {}
+    failed = record.get("failed") if record.get("broken") == sha else None
+    slug = slug_of.get(pull["number"], "") if pull else ""
+    one = reverts.Red(sha, [commit["sha"] for commit in red], pull, slug, failed)
+    branch = str((pull or {}).get("headRefName", ""))
+    flakes = reverts.flaky(run, branch) if pull and failed else frozenset[str]()
+    found = reverts.culprit(one, kept_reverts.read(run.state), flakes)
+    if found in reverts.QUIET:
+        return None
+    if isinstance(found, reverts.Culprit):
+        if reverts.revert(run, client, found):
+            return None
+        return "jbus could not open its revert"
+    if found == reverts.Keep.OVERLAP:
+        tips = [c["sha"][:12] for c in red if _check(run, known, c["sha"]) == "failed"]
+        return f"{found}, and main is red at {' and '.join(tips)}"
+    return str(found)
 
 
 STEPS = (
@@ -1652,7 +1695,7 @@ STEPS = (
         "tellers",
         40,
         "watch.watch",
-        lambda half: watch(half.run, half.seen.world, half.rows or []),
+        lambda half: watch(half.run, half.seen.world, half.rows or [], half.client),
         ("client", "world"),
     ),
 )
