@@ -300,6 +300,78 @@ def _ci_prs(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
+def _brief_versions(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "at": utc(one.get("at"), zone),
+        "slug": _text(one.get("slug")),
+        "sha": _text(one.get("sha")),
+        "was": _text(one.get("was")),
+        "bytes": _number(one.get("bytes")),
+    }
+
+
+def _row_pulls(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "at": utc(one.get("at"), zone),
+        "slug": _text(one.get("slug")),
+        "number": _number(one.get("number")),
+        "state": _text(one.get("state")),
+        "branch": _text(one.get("branch")),
+        "head": _text(one.get("head")),
+        "merged_at": utc(one.get("merged_at"), zone),
+    }
+
+
+def _runs(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "at": utc(one.get("at"), zone),
+        "run": _number(one.get("run")),
+        "attempt": _number(one.get("attempt")),
+        "workflow": _text(one.get("workflow")),
+        "sha": _text(one.get("sha")),
+        "branch": _text(one.get("branch")),
+        "event": _text(one.get("event")),
+        "pr": _number(one.get("pr")),
+        "created": utc(one.get("created"), zone),
+        "started": utc(one.get("started"), zone),
+        "updated": utc(one.get("updated"), zone),
+        "conclusion": _text(one.get("conclusion")),
+    }
+
+
+SPENT = ("units", "runs", "input", "cached", "written", "output")
+KINDS = ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped")
+"""The units of a day's spend by kind, as `jgauge.spend.COLUMNS` names them."""
+
+
+def _spend_days(one: Row, zone: tzinfo | None) -> Row:
+    spent_on = _text(one.get("day"))
+    return {
+        "at": utc(one.get("at"), zone),
+        "spent_on": spent_on,
+        **{name: _number(one.get(name)) for name in (*SPENT, *KINDS)},
+    }
+
+
+def _spend_rows(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "at": utc(one.get("at"), zone),
+        "spent_on": _text(one.get("day")),
+        "role": _text(one.get("role")),
+        "slug": _text(one.get("slug")) or None,
+        **{name: _number(one.get(name)) for name in SPENT},
+    }
+
+
+def _word_sends(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "word": _text(one.get("id")),
+        "thread": _text(one.get("thread")) or None,
+        "sent_at": utc(one.get("sent_at"), zone),
+        "waiting": bool(one.get("waits")),
+    }
+
+
 def json_lines(text: str) -> Iterator[Row]:
     """Each line of a JSON-lines file that is an object, in order."""
     for line in text.splitlines():
@@ -327,6 +399,13 @@ def _merged_pulls(text: str) -> Iterable[Row]:
     if not isinstance(held, dict):
         return []
     return [{**pull, "slug": slug} for slug, pull in held.items() if isinstance(pull, dict)]
+
+
+def _sends(text: str) -> Iterable[Row]:
+    held = json.loads(text)
+    if not isinstance(held, dict):
+        return []
+    return [{**sent, "id": word} for word, sent in held.items() if isinstance(sent, dict)]
 
 
 @dataclass(frozen=True)
@@ -373,6 +452,10 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         "holds",
         "on_hold",
         "keeps",
+        "bytes",
+        "waiting",
+        *SPENT,
+        *KINDS,
     }
     real = {"slowest_s", "tail_s"}
     return tuple(
@@ -564,4 +647,65 @@ SOURCES: tuple[Source, ...] = (
         at="created",
         natural="number",
     ),
+    Source(
+        "brief_versions",
+        "brief-versions.jsonl",
+        "log",
+        _columns("at", "slug", "sha", "was", "bytes"),
+        _brief_versions,
+    ),
+    Source(
+        "row_pulls",
+        "row-pulls.jsonl",
+        "log",
+        _columns("at", "slug", "number", "state", "branch", "head", "merged_at"),
+        _row_pulls,
+    ),
+    Source(
+        "runs",
+        "runs.jsonl",
+        "log",
+        _columns(
+            "at",
+            "run",
+            "attempt",
+            "workflow",
+            "sha",
+            "branch",
+            "event",
+            "pr",
+            "created",
+            "started",
+            "updated",
+            "conclusion",
+        ),
+        _runs,
+        at="updated",
+    ),
+    Source(
+        "spend_days",
+        "spend.jsonl",
+        "log",
+        _columns("at", "spent_on", *SPENT, *KINDS),
+        _spend_days,
+    ),
+    Source(
+        "spend_rows",
+        "spend-rows.jsonl",
+        "log",
+        _columns("at", "spent_on", "role", "slug", *SPENT),
+        _spend_rows,
+    ),
+    Source(
+        "word_sends",
+        "word-sends.json",
+        "snapshot",
+        _columns("word", "thread", "sent_at", "waiting"),
+        _word_sends,
+        at="sent_at",
+        records=_sends,
+        natural="word",
+    ),
 )
+"""Each source by its table. A source added here has its table made by a migration of its own
+(`jbus.telemetry.schema.MIGRATIONS`), never by the first."""

@@ -42,6 +42,7 @@ from jbus import (
     alert,
     blockers,
     clock,
+    history,
     leftover,
     notes,
     outbox,
@@ -171,10 +172,13 @@ class _Sources(state.Sources):
 
 def read(run: Pass) -> state.Read:
     """The project as the view reads it now. Its repo's runs are asked of GitHub in its checkout,
-    as each call of the pass asks, so a repo the view has no `jmerge` line of is known too."""
+    as each call of the pass asks, so a repo the view has no `jmerge` line of is known too. Each
+    completed attempt in the answer is kept in `runs.jsonl` (`jbus.history.runs`)."""
 
     def runs(repo: str) -> dict:
-        return shaped(_api(run, f"repos/{{owner}}/{{repo}}/actions/runs?per_page={RUNS}"), run.now)
+        said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?per_page={RUNS}")
+        history.runs(run.state, said, run.now)
+        return shaped(said, run.now)
 
     sources = _Sources(run.state.parent, run.home.parent, user=run.user, own=run.home)
     found = state.Read(sources, run.project.name, run.now, runs)

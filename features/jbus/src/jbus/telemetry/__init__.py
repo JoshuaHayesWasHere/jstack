@@ -2,7 +2,7 @@
 
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
-the jbus logs, the CI ledger, the home's `merge.log` and four snapshots. Its views give the KPIs
+the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and `jbus.spent` keep, and five snapshots. Its views give the KPIs
 (`jbus.telemetry.schema`). It keeps a row forever, and keeps no text of a message: ids, times,
 counts, labels and the length of each text.
 

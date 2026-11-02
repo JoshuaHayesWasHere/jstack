@@ -131,7 +131,7 @@ from jbriefs import chains, findings, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbriefs.home import thread_of
-from jbus import Refused, party, verbs, write_json
+from jbus import Refused, history, party, verbs, write_json
 from jmerge import judgement
 from jmerge.judgement import bound
 from jsettings import store
@@ -1862,15 +1862,24 @@ def _none(line: int, error: Exception) -> Refused:
     return Refused(f"refused: line {line}: {said}, and nothing in the batch was applied{lines}")
 
 
-def _store(path: Path, text: str) -> None:
-    """Store a brief, and leave one that already holds the same text as it is: when its file was
-    written is when that text was stored, which a door's go is held to (`jbus.acts`)."""
+def _store(state: Path, slug: str, text: str | None) -> None:
+    """Store a brief, or take it away for None, and leave one that already holds the same text as
+    it is: when its file was written is when that text was stored, which a door's go is held to
+    (`jbus.acts`). A change of the brief's sha is a line of `brief-versions.jsonl`
+    (`jbus.history`)."""
+    path = brief_path(state, slug)
     try:
-        if path.read_text() == text:
-            return
+        was: str | None = path.read_text()
     except OSError:
+        was = None
+    if was == text:
+        return
+    if text is None:
+        path.unlink(missing_ok=True)
+    else:
         path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+        path.write_text(text)
+    history.brief(state, slug, was, text, clock())
 
 
 def _run(
@@ -1952,16 +1961,13 @@ def _run(
         if any(isinstance(verb, Rename) for _, verb in verbs):
             for slug, text in batch.briefs.items():
                 if text is not None:
-                    _store(brief_path(state, slug), text)
+                    _store(state, slug, text)
             rows.sort(key=order)
             write_json(path(state), rows)
         if batch.gone != gone:
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
-            if text is None:
-                brief_path(state, slug).unlink(missing_ok=True)
-            else:
-                _store(brief_path(state, slug), text)
+            _store(state, slug, text)
         for move in moves if asks else []:
             asks.told(move)
     return said
