@@ -9,7 +9,8 @@ of the project once a run (`looked`). A scratch home's threads get the same look
 
 An ask is a `user_message` the user wrote (`createdBy: user`) in a run whose last items name the
 stop (`stop_of`), and that stopped within `RECENT` of the look: the first pass on a machine, or
-after jbus was down, sends no one's old words into a thread that has long moved on. What jbus or a home sent a thread is no ask: its sender asks again by itself. Each
+after jbus was down, sends no one's old words into a thread that has long moved on. What jbus or a
+home sent a thread is no ask: its sender asks again by itself. Each
 ask is one record of `owed.json` in the project's state, with the thread, the run, the words, the
 cause, the line T3 Code ended on, the instance the run was on and when it frees. The record is what
 `jbus status` shows (`blocked`), and the `ask-owed` and `ask-resent` events go in the project's log.
