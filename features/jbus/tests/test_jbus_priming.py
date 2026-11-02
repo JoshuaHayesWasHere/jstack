@@ -7,11 +7,9 @@ run the real commands and the real pass against a faked T3 Code server, as
 
 import json
 from datetime import timedelta
-from types import SimpleNamespace
 
 import pytest
 
-from jbus import priming, queue
 from test_jbus_entry_go import PLAN
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, go
@@ -123,19 +121,22 @@ def test_stop_names_its_row_and_needs_a_started_pilot(kitchen):
     assert kitchen.main("priming")[1].startswith("crew-router-pilot: not started")
 
 
-def test_a_row_launched_again_keeps_the_arm_its_record_names(tmp_path):
-    state = tmp_path / "state"
-    run = SimpleNamespace(
-        config=SimpleNamespace(state_dir=state), project=SimpleNamespace(name="demo")
-    )
-    state.mkdir()
-    priming.file(state).write_text(json.dumps({"started": "2026-11-02T12:00:00+00:00"}))
-    folder = state / "launches" / "demo" / "alpha"
-    folder.mkdir(parents=True)
-    (folder / "aaaaaaaaaaaa.json").write_text(json.dumps({"state": "retry", "priming": "control"}))
+def test_a_dropped_launch_is_launched_once_more_on_the_arm_its_record_names(kitchen):
+    """A row's arm is chosen once: a launch that dropped goes again on the arm its record
+    names, even after a stop, which would pick the control arm for a new row."""
+    assert kitchen.main("priming", "start")[0] == 0
+    add(kitchen, "alpha")
+    kitchen.t3.lose = "before"
+    kitchen.poll()
+    kitchen.t3.lose = None
+    assert kitchen.main("priming", "stop", "beta: a stuck wake")[0] == 0
 
-    assert priming.arm(run, "alpha", queue.CREW) == "control"
-    assert priming.arm(run, "beta", queue.CREW) == "trimmed"
+    kitchen.poll(NOW + timedelta(minutes=3))
+
+    tries = [one["message"].split("\n", 1)[0] for one in kitchen.t3.launches]
+    assert tries == ["/crew alpha", "/crew alpha"]
+    (record,) = records(kitchen, "alpha")
+    assert (record["state"], record["priming"]) == ("launched", "trimmed")
 
 
 def test_the_pilot_alternates_scout_rows_and_records_each_rows_arm(kitchen):
