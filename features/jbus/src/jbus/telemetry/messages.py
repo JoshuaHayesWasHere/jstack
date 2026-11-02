@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import boxes
-from jbus.f1trial import DROPPED
 from jbus.telemetry import records
 
 if TYPE_CHECKING:
@@ -56,6 +55,18 @@ TABLE_SQL = (
     f"CREATE INDEX {TABLE}_thread ON {TABLE} (thread, role, at);\n"
     f"CREATE INDEX {TABLE}_key ON {TABLE} (key);\n"
 )
+DROPPED = (
+    "<task-notification>",
+    "<system-reminder>",
+    "this session is being continued from a previous conversation",
+    "<local-command-",
+    "context handoff",
+    "base directory for this skill",
+    "[request interrupted",
+    "caveat: the messages below were generated",
+    "generate a title that will help the user",
+)
+"""The starts of a text that T3 Code or an agent put in the user's turn: the week audit's filter."""
 _COMMAND = re.compile(r"^[/$][a-z][\w:-]*")
 _READ = """
 select m.rowid, m.message_id, m.thread_id, m.role, m.created_at, t.project_id,
