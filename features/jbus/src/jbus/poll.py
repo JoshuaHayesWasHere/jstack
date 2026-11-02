@@ -5,11 +5,20 @@
 `second_half`. Each half runs its fixed steps in order, and the steps that the modules of jbus
 declare in their slots (`jbus.verbs.Step`). Importing this module imports every module of jbus,
 to gather those steps and the chores, so only `jbus poll` and `jbus steps` import it.
+
+Most of a pass is waiting on `gh` and `git`, so the projects' halves run side by side, each project
+in a thread of its own with its own `Pass`, `Half` and `t3.Client`, and a project's steps keep their
+order. All first halves end before the launches, the chores run alone, and `halves` keeps the order
+of the config. What a project writes is under its own state directory, what the machine shares is
+kept under a lock file (`jsettings.store.locked`), and the steps of `ONE_AT_A_TIME` decide from what
+the machine shares, so they run one at a time.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -36,6 +45,13 @@ from jbus import (
 from jsettings import store
 
 LAUNCH = "the launch"
+ONE_AT_A_TIME = frozenset(
+    {"slotwait.wake", "slotwait.wake_capped", "slotwait.wake_ended", "failover.failover"}
+)
+"""The steps that read what the machine shares, act on it and record that they did: the free test
+slots and who was woken for them, and the usage caps a thread's next instance is chosen by. A
+project's step sees all that an earlier project's step recorded this pass."""
+_MACHINE = threading.Lock()
 
 
 @dataclass
@@ -95,7 +111,12 @@ def steps(half: Half, slot: str) -> None:
             "rows": half.states is not None,
             "budget": not half.seen.held,
         }
-        if all(has[need] for need in step.needs):
+        if not all(has[need] for need in step.needs):
+            continue
+        if step.name in ONE_AT_A_TIME:
+            with _MACHINE:
+                step.run(half)
+        else:
             step.run(half)
 
 
@@ -155,6 +176,24 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     alert.flush(run)
 
 
+def side_by_side[T, U](work: Callable[[T], U], items: Sequence[T]) -> list[U]:
+    """Run `work` on each item in a thread of its own, and return what it gave in the items' order.
+    `work` catches what it can raise (`guarded`)."""
+    with ThreadPoolExecutor(max_workers=max(len(items), 1)) as pool:
+        return list(pool.map(work, items))
+
+
+def _whole(say: Callable[[str], None]) -> Callable[[str], None]:
+    """Return `say` taking one line at a time, so no project's line lands inside another's."""
+    saying = threading.Lock()
+
+    def whole(line: str) -> None:
+        with saying:
+            say(line)
+
+    return whole
+
+
 def poll(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
@@ -171,6 +210,7 @@ def poll(
 
     The pass ends by writing the status file (`record.write_status`).
     """
+    say = _whole(say)
     with ExitStack() as lock:
         try:
             lock.enter_context(store.locked(config.state_dir, config.lock_path.name, wait=False))
@@ -206,18 +246,21 @@ def poll(
         def first(project: jbus.Project) -> Half:
             run = passes.Pass(config, project, now, say)
             record.heartbeat(run, last)
-            return first_half(run, client)
+            own = t3.Client(config.server, config.token_path) if client else None
+            return first_half(run, own)
 
-        halves = [guarded(p.name, lambda p=p: first(p)) for p in config.projects]
+        halves = side_by_side(lambda p: guarded(p.name, lambda: first(p)), config.projects)
         halves = [half for half in halves if half is not None]
         if raised:
-            say(f"wait: crews out not known ({', '.join(raised)}: the pass raised)")
+            say(f"wait: crews out not known ({', '.join(sorted(raised))}: the pass raised)")
         else:
             guarded(LAUNCH, lambda: rotation.share(config, halves, say))
         for chore in CHORES:
             guarded(chore.name, lambda chore=chore: chore.run(config, client, now, say))
-        for half in halves:
-            guarded(half.run.project.name, lambda half=half: second_half(half, client))
+        side_by_side(
+            lambda half: guarded(half.run.project.name, lambda: second_half(half, half.client)),
+            halves,
+        )
         if not raised:
             guarded(alert.PASS, lambda: alert.recovered(config, say))
         record.write_status(config, now, last, raised, say)
