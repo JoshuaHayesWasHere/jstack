@@ -794,6 +794,28 @@
       ]
     },
     {
+      "name": "door-command.sh",
+      "path": "features/jbus/hooks/door-command.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        }
+      ]
+    },
+    {
       "name": "home-start.sh",
       "path": "features/home/hooks/home-start.sh",
       "harnesses": [

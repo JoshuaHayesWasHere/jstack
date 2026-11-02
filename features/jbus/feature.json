@@ -21,6 +21,18 @@
     "units/jbus.service",
     "units/jbus.timer"
   ],
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "hooks/door-command.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "refuses": true
+    }
+  ],
   "projectSkills": [
     "project-skill/verify-main-red"
   ],
