@@ -1,0 +1,11 @@
+[Unit]
+Description=jbus merge tick: jmerge within seconds of a check ending
+Documentation=file:%Y/../docs/jbus/the-units.md#the-units
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

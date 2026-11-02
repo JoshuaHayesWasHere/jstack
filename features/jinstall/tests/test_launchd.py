@@ -281,6 +281,7 @@ def test_a_sandbox_never_runs_the_systems_launchctl(tmp_path, monkeypatch):
 
 SCHEDULES = {
     "jbus.timer": {"StartInterval": 60},
+    "jbus-merge.timer": {"StartInterval": 5},
     "jbus-stale.timer": {"StartInterval": 900},
     "jgauge-limits.timer": {"StartInterval": 120},
     "jgauge-sample.timer": {"StartInterval": 15},

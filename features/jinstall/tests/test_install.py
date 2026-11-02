@@ -53,6 +53,8 @@ UNITS = [
     "jbus-ci.service",
     "jbus-ci.timer",
     "jbus-failed.service",
+    "jbus-merge.service",
+    "jbus-merge.timer",
     "jbus-relay.service",
     "jbus-snapshot.service",
     "jbus-snapshot.timer",
@@ -69,6 +71,7 @@ UNITS = [
     "jroles-mirror.timer",
 ]
 TIMERS = [
+    "jbus-merge.timer",
     "jbus-stale.timer",
     "jbus.timer",
     "jgauge-limits.timer",

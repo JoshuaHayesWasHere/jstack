@@ -50,6 +50,7 @@ A systemd unit runs each of these on Linux, and a launchd agent on macOS ([The u
 | Verb | What it does |
 |---|---|
 | `jbus poll` | Runs one pass over every project. `jbus.service` runs it each minute, and you may run it by hand. |
+| `jbus tick` | Runs `jmerge --if-free` for each project where the last pass saw a check still going and a workflow run ended since the last tick. `jbus-merge.service` runs it every 5 seconds, and it asks GitHub nothing while no check is going. |
 | `jbus alarm [--stale <limit>]` | Counts a pass that did not finish. `jbus-failed.service` runs it. With `--stale 2h`, which `jbus-stale.timer` runs, it checks that a pass ended within that time. [When jbus fails](when-jbus-fails.md) says what the count is for. |
 | `jbus snapshot [--why <text>]` | Commits the homes' state tree and pushes it. `--why` puts what changed in the commit message after the time, as a home does after each edit to a `standing.md`. A snapshot that did not finish raises its own alert. [Back up the homes' state](back-up-the-homes-state.md) has the rest. |
 | `jbus relay` | Takes what blocks, which jbus posts on 127.0.0.1:4390, spools it, and sends it on to the webhook of a chat bot of your own. It pages you when the chat bot is silent. `jbus-relay.service` runs it, where you set the relay up. [The relay](the-relay.md) has the rest. |
@@ -76,6 +77,6 @@ A time with no zone is in your time zone.
 In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`.
 `jbus` refuses any other word.
 
-`jbus poll`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus budget`, `jbus view`, `jbus view-shot`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus forget`, `jbus told`, `jbus project add`, `jbus project bases` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
+`jbus poll`, `jbus tick`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus budget`, `jbus view`, `jbus view-shot`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus forget`, `jbus told`, `jbus project add`, `jbus project bases` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
 `jbus home status` reads the project whose repo it runs in, and says so where the config names none.
 `jbus gate`, `jbus done`, `jbus told`, `jbus queue add`, `jbus queue check` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
