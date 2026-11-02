@@ -249,8 +249,15 @@ class Repo:
         itself when the base's branch is deleted on its merge, and its head still holds the
         base's commits then. Once jbus wrote the commit that merged its base and the branch it
         merged into, it waits until it is based on that branch and its head holds that commit:
-        its crew rebased its own commits onto it."""
+        its crew rebased its own commits onto it.
+
+        A draft on its base's branch while the base is open does not wait here: it is marked
+        ready once reviewed and fixed, as any draft is, so CI checks it while it is stacked,
+        beside its base's own check, and once ready it waits here. Its move onto the default
+        branch then adds no round in series where the move checks the same trees (`reuse`)."""
         if stacked is None:
+            return ""
+        if one.draft and not stacked.at and one.base == stacked.branch:
             return ""
         onto = stacked.branch if stacked.at else default
         if not stacked.at or one.base != onto:

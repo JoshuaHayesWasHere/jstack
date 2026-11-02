@@ -277,7 +277,8 @@ def test_the_bound_of_a_test_is_well_inside_the_jobs_limit():
     """A hang fails its test, and the run reaches its summary, long before GitHub cancels the
     job."""
     bound = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["pytest"]["ini_options"]
-    job = re.search(r"timeout-minutes: (\d+)", (REPO / ".github/workflows/check.yml").read_text())
+    text = (REPO / ".github/workflows/check.yml").read_text()
+    job = re.search(r"\n  check-shard:\n(?:    .*\n|\s*\n)*?    timeout-minutes: (\d+)", text)
     assert 0 < int(bound["timeout"]) * 4 <= int(job[1]) * 60
 
 

@@ -2,14 +2,12 @@ name: check
 
 on:
   pull_request:
-    # A pull request's check runs once, at the gate of the branch it merges into: on a pull
-    # request into main, or into a merge base jstack's project names (`jbus project bases
-    # jstack`), that is not a draft. A crew opens its pull request as a draft and jmerge marks it
-    # ready once it is reviewed and fixed, so `ready_for_review` runs the check on the head that
-    # goes to the merge, and a push of work in progress runs none (the jobs' `if` skips a draft).
-    # Work into any other branch, such as a parent row's branch, is checked when it lands on one
-    # of these. `t3code-jstack` is the sidebar's branch, which draft #739 takes to main.
-    branches: [main, t3code-jstack]
+    # A pull request's check runs on a pull request into any branch that is not a draft. A crew
+    # opens its pull request as a draft and jmerge marks it ready once it is reviewed and fixed,
+    # so `ready_for_review` runs the check on the head that goes to the merge, and a push of work
+    # in progress runs none (the jobs' `if` skips a draft). A link jbus stacked on a parent row's
+    # branch is marked ready there too, so it is checked while it is stacked, beside its parent's
+    # own check, and its move onto main reuses that pass where it checks the same trees (`reuse`).
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
@@ -43,6 +41,41 @@ env:
   ZSH_DEBS: "56d160585b417af0cc04d7372f74a3b734609d7cc43ef8ea6e92bfdfc27f77c3 zsh-common_5.9-6ubuntu2_all.deb bd5cc8dd3a01a6db38c0a815d75202c356a9c7f378674ba7bed9bc86dcba8af0 zsh_5.9-6ubuntu2_amd64.deb"
 
 jobs:
+  # Whether a passed check already checked the two trees this run checks: GitHub's merge of the
+  # head over its base, and that base (`jmerge.reuse`). The pair fixes what the parts select and
+  # test, so a run of a pair that passed skips the parts, and `check` passes on the reuse in the
+  # time the lookup takes. A stacked link's move onto main checks the pair its stacked run passed
+  # where the move replays the same trees, so the move adds no round of the suite in series. The
+  # lookup is plain python on the runner, with `gh` and the run's token (`actions: read`), before
+  # any `uv sync`.
+  reuse:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      name: ${{ steps.reuse.outputs.name }}
+      reused: ${{ steps.reuse.outputs.reused }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: reuse
+        id: reuse
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse
+      # A pull request whose title, body or any commit from base to head credits an AI tool as a
+      # co-author fails here, with each line named. It runs on every run, a reuse included: the
+      # two trees fix the files, and not the title, the body or a commit's message, which a push
+      # that keeps the trees can still change. It reads no test, so it runs here, once, and
+      # `check` fails when this job did. The commits come from GitHub's compare API, not this
+      # checkout's two commits of history, and the patterns need only the runner's python3.
+      - name: no AI co-author trailer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py
   # A pull request's check is the fast one: the lint, and the tests its change reaches. On
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
   # commits of history are enough and the diff is read from the local git, with no cap on
@@ -54,7 +87,10 @@ jobs:
   # (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): a head's eight parts,
   # borders and macos are ten jobs, so four heads run at once and a fifth queues.
   check-shard:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    needs: reuse
+    # A lookup that failed reuses nothing, so the parts run: `!cancelled()` and not the implicit
+    # `success()`, which would skip them and fail `check`.
+    if: "!cancelled() && github.event_name == 'pull_request' && !github.event.pull_request.draft && needs.reuse.outputs.reused != 'true'"
     name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
@@ -112,15 +148,6 @@ jobs:
       - name: make check-fast
         id: suite
         run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8
-      # A pull request whose title, body or any commit from base to head credits an AI tool as a
-      # co-author fails here, with each line named. It runs whatever the suite said, so a red
-      # suite does not hide it, and in the first part only, since it reads no test. The commits
-      # come from GitHub's compare API, not this checkout's two commits of history.
-      - name: no AI co-author trailer
-        if: "!cancelled() && steps.suite.outcome != 'skipped' && matrix.shard == 1"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: uv run python scripts/no_ai_trailers.py
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
       # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had.
       - name: full suite
@@ -136,14 +163,35 @@ jobs:
   # On a draft it is skipped with its parts: GitHub merges no draft, and jmerge waits on one.
   check:
     if: always() && github.event_name == 'pull_request' && !github.event.pull_request.draft
-    needs: check-shard
+    needs: [reuse, check-shard]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # The parts are skipped only on a reuse, and then it passes on the pass it reuses. The
+      # `reuse` job, which runs the trailer check, passed in either case.
       - name: every part passed
         env:
           PARTS: ${{ needs.check-shard.result }}
-        run: '[ "$PARTS" = success ] || { echo "::error::the parts of the check ended $PARTS, not success"; exit 1; }'
+          REUSE: ${{ needs.reuse.result }}
+          REUSED: ${{ needs.reuse.outputs.reused }}
+        run: '[ "$REUSE" = success ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, and the parts of the check ended $PARTS, not success"; exit 1; }'
+      # The pass of the two trees, for a later run of them to reuse (`reuse`). A reuse leaves
+      # none: the run it reused left one. One that cannot be kept costs that reuse and nothing
+      # else.
+      - name: checked trees marker
+        id: checked
+        if: needs.check-shard.result == 'success' && needs.reuse.outputs.name != ''
+        env:
+          NAME: ${{ needs.reuse.outputs.name }}
+        run: mkdir -p "$RUNNER_TEMP/checked-tree" && touch "$RUNNER_TEMP/checked-tree/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.checked.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ needs.reuse.outputs.name }}
+          path: ${{ runner.temp }}/checked-tree/${{ needs.reuse.outputs.name }}
+          retention-days: 7
+          if-no-files-found: error
       # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
       # tree, and a fast run leaves none, since a marker says the full suite passed. A later
       # run of the same tree, main's after a squash merge, skips the suite on it. A marker that

@@ -20,14 +20,61 @@ from test_jmerge_order import queue_of
 __all__ = ["built_on"]
 
 
-def judged(built_on, line, base="main"):
+def judged(built_on, line, base="main", flags=("--check",), **listed_as):
+    """What jmerge says of alpha (#7) under the brief's `line`, based on `base`, run with `flags`,
+    with the fields of `listed_as` in what GitHub lists of it."""
     brief_of(built_on.home, "alpha", merge.URL, built_on.head, more=line + "\n")
     queue_of(built_on.home, rows(gamma="merged"))
     listing(built_on, 7)
     listed = json.loads((built_on.home.stub / "list.json").read_text())
-    listed[0]["baseRefName"] = base
+    listed[0].update(baseRefName=base, **listed_as)
     (built_on.home.stub / "list.json").write_text(json.dumps(listed))
-    return built_on.run("--check")[0]
+    return built_on.run(*flags)[0]
+
+
+def readied(built_on):
+    asked = (built_on.home.stub / "calls").read_text().splitlines()
+    return [call.split()[2] for call in asked if call.startswith("pr ready")]
+
+
+def test_a_reviewed_draft_on_its_open_bases_branch_is_marked_ready_so_ci_checks_it_stacked(
+    built_on,
+):
+    """A link is checked while it is stacked, beside its base's own check, so its move onto main
+    adds no round in series: its draft is marked ready once reviewed and fixed, as any other's.
+    Once ready it still waits on its stack, and it merges only after jbus moved it."""
+    said = judged(built_on, "Stacked on: beta beta", "beta", (), isDraft=True)
+    assert said == f"wait 7 {merge.URL}: {ready.READIED.format(head=built_on.head)}"
+    assert readied(built_on) == ["7"]
+    said = judged(built_on, "Stacked on: beta beta", "beta", isDraft=False)
+    on = ready.STACKED_ON.format(branch="beta", slug="beta", default="main")
+    assert said == f"wait 7 {merge.URL}: {on}"
+
+
+def test_a_draft_whose_base_merged_waits_for_its_move_and_is_not_marked_ready(built_on):
+    """Once its base merged, the head on the base's branch is not what merges: it is moved first,
+    and the check runs on the moved head."""
+    line = f"Stacked on: beta main at {built_on.delta}"
+    said = judged(built_on, line, "main", (), isDraft=True)
+    unmoved = ready.STACKED_UNMOVED.format(slug="beta", sha=built_on.delta[:12], default="main")
+    assert said == f"wait 7 {merge.URL}: {unmoved}"
+    assert readied(built_on) == []
+
+
+@pytest.mark.parametrize(
+    ("check", "said"),
+    [(merge.PASSED, "ready 7 "), (merge.RUNNING, f"wait 7 {merge.URL}: check has not passed")],
+)
+def test_a_moved_link_merges_on_its_check_at_the_moved_head(built_on, check, said):
+    """CI's check at the moved head reuses the stacked run's pass where the two check the same
+    trees, and passes at once (`jmerge.reuse`); where they differ it runs the round, and the link
+    waits on it."""
+    found = judged(
+        built_on,
+        f"Stacked on: beta main at {built_on.beta}",
+        statusCheckRollup=[check, merge.BORDERS],
+    )
+    assert found.startswith(said), found
 
 
 @pytest.mark.parametrize("base", ["beta", "main"])
