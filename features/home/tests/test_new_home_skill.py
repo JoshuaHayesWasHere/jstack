@@ -230,7 +230,8 @@ def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
         f"4 to merge: needs you: git -C {machine.repo} remote add origin <the repo's address at "
         "GitHub>, it has no remote named origin, then type /new-home again for the check workflow",
         f"4 to merge: done, wrote uv run pytest -k 'not slow' to {machine.state}/fresh-check, "
-        "the repo's check command, which a crewmate runs and jbus queue add holds a brief's check line to",
+        "the repo's check command, which a crewmate runs and jbus queue add holds a brief's check "
+        "line to",
         "switches, the user's alone: off is absent (/nohome repo), merge-off is absent "
         f"(/nohome merge), home-thread holds empty (a home's thread id on one line of "
         f"{machine.state}/home-thread, written by hand)",
