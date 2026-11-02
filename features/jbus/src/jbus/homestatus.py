@@ -1,8 +1,9 @@
 """`jbus home status --home <directory>`: print where things stand for one home, at its start.
 
 A home's start prints its part of what jbus and the home's files hold, each part under its own
-heading and cut short (`status`). First come the files to read whole: the user's standing rules,
-the home's note, and the repo's context pack. Then `## waiting on you`, what waits on the user in
+heading and cut short (`status`). First come the files to read whole: the
+home's note and the repo's context pack. A `standing.md` is not one: it holds no rule
+(`jbus.rules`). Then `## waiting on you`, what waits on the user in
 this project as `jbus needs` prints it, uncut, and a count for each other project that has
 something waiting. Then `## plan`, the lines of `jbus plan`. Then `## queue`, the home's open
 rows. Then `## questions`, the home's open questions. Then `## merged`, what `jmerge` merged
@@ -321,7 +322,6 @@ def _whole(here: Home) -> list[str]:
     said = [
         f"read whole: {file}"
         for file in (
-            here.state / "standing.md",
             here.mine / "handoff.md",
             here.mine / "handoff.next.md",
         )

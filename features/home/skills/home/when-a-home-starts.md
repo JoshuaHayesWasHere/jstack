@@ -114,10 +114,10 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    Then do what "Its scheduled tasks" says, under "The home before this one" below these steps, before step 4.
 4. See where things stand.
-   Read `$H/standing.md` whole, the user's standing rules, and `$M/handoff.md`, a note an older handoff left, where there is one: the block below prints the path of each that is there.
-   Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those two: read it whole as well.
+   Read `$M/handoff.md`, a note an older handoff left, where there is one: the block below prints the path of each that is there.
+   Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those: read it whole as well.
    It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it.
-   When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
+   When what you know disagrees, the first in this order wins: the user's word, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
    A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`.
    A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../../jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
    Then run it in one call with the block at the top and the block that finds this home, in the main checkout:

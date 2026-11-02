@@ -6,23 +6,18 @@ The install enables the timer only once the tree has a remote and gitleaks is on
 It has `Persistent=true`, so a snapshot time that the machine slept through runs as soon as the machine is up again.
 The timer runs `jbus-snapshot.service`, which runs `jbus snapshot`:
 
-1. It reads each project's `standing.md`, the home's and each scoped home's, before it stages anything.
-   A `standing.md` holds at most 3 numbered rules, and each rule names `Code: <slug>`, a row of the project's queue that turns it into code.
-   A file over the cap, a rule with no `Code:`, or a slug in no row of the queue is refused.
-   It prints `snapshot: refused, left out: <project>: <file> <which rule and why>` on stderr for each refused file.
-2. It stages everything in the tree but each refused `standing.md` (`git add -A`).
+1. It stages everything in the tree (`git add -A`).
    With nothing staged it commits nothing, and goes on to the push.
-3. gitleaks reads what is staged (`gitleaks protect --staged`).
+2. gitleaks reads what is staged (`gitleaks protect --staged`).
    If gitleaks finds a secret, or gitleaks is not on the machine, the snapshot unstages it all, commits nothing, and fails.
    With a remote and no gitleaks, `jinstall --doctor` says `needs gitleaks` on its `state repo` line.
-4. It commits as `snapshot <YYYY-MM-DD HH:MM zone>`, in your time zone, followed by `: <text>` when `--why <text>` is given.
-   A home runs `jbus snapshot --why` right after each edit to a `standing.md`, so each edit is a commit of its own.
-   "Undo an edit to standing.md" in [state.md](../../../home/docs/state.md) says how to undo one.
-5. It pushes to `origin`, whether or not it committed, so a commit whose push failed goes out with the next snapshot.
+3. It commits as `snapshot <YYYY-MM-DD HH:MM zone>`, in your time zone, followed by `: <text>` when `--why <text>` is given.
+4. It pushes to `origin`, whether or not it committed, so a commit whose push failed goes out with the next snapshot.
    It then prints `snapshot: committed, pushed` or `snapshot: nothing changed, pushed`.
    In a tree with no `origin`, the commit stays in the tree, so you can still undo an edit back to it.
    The snapshot then succeeds with `snapshot: committed, not pushed: <tree> has no origin, so the backup is off`.
-6. A snapshot that refused a `standing.md` fails after its commit and push, so the alert names the refused project, its file, rule and why.
+
+A `standing.md` holds no rule, so the snapshot reads none: `jbus rules` is what flags one.
 
 The backup needs two things a fresh install does not have: a private repository of yours as the remote, which nothing else pushes to, and gitleaks on the machine.
 Without them the timer stays off, and nothing alerts.

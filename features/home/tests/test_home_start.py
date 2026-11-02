@@ -342,7 +342,7 @@ def test_a_start_prints_this_homes_part_of_the_bus_and_what_came_in_since_the_no
     printed = bus.home(START)
     assert len(printed) < 6000
     said = parts(printed)
-    names = ("standing.md", "handoff.md", "handoff.next.md")
+    names = ("handoff.md", "handoff.next.md")
     assert said[""] == [f"read whole: {bus.shown_dir}/{name}" for name in names]
     assert said["plan"] == ["alpha | the first task | 0 of 1 merged, #7 at pr"]
     assert said["queue"] == [
@@ -486,10 +486,10 @@ def test_the_block_that_reads_jbus_says_why_where_its_command_fails(scene):
     )
 
 
-def test_a_start_reads_the_repos_context_pack_index_after_the_rules_and_the_note(bus):
+def test_a_start_reads_the_repos_context_pack_index_after_the_note_and_no_standing_md(bus):
     (bus.dir / "standing.md").write_text("1. A standing rule.\n")
     (bus.dir / "handoff.md").write_text("Next: the queue\n")
-    before = [f"read whole: {bus.shown_dir}/{name}" for name in ("standing.md", "handoff.md")]
+    before = [f"read whole: {bus.shown_dir}/handoff.md"]
     assert parts(bus.home(START))[""] == before
     index = bus.main / "docs" / "context" / "INDEX.md"
     index.parent.mkdir(parents=True)

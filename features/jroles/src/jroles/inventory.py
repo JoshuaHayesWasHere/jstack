@@ -89,3 +89,12 @@ def claude_instances(declared: dict[str, Instance], home: Path) -> dict[str, Pat
     if BUILT_IN not in found.values():
         found.setdefault(home / ".claude", BUILT_IN)
     return {name: where for where, name in found.items()}
+
+
+def agent_homes(home: Path | None = None) -> list[Path]:
+    """The home of each Claude instance T3's settings list, `~/.claude` at least, once each, for
+    a reader of what those homes keep, such as `jbus rules`. Settings that cannot be read list
+    the built-in instance alone."""
+    home = home or Path.home()
+    found = declared(path(home=home), home)
+    return sorted(set(claude_instances(found if isinstance(found, dict) else {}, home).values()))

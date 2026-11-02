@@ -9,17 +9,13 @@ that failed. The backup is opt-in: a tree with no `origin` keeps its commit, whi
 undone to, and the snapshot succeeds and says the backup is off. The install enables the timer
 only once the tree has an origin and gitleaks is on the machine.
 
-`jbus-snapshot.timer` runs `jbus snapshot` at 08:30 and 17:30. A home runs it with `--why` right
-after each edit to a `standing.md`, so that each such edit is a commit of its own and can be undone.
-Before it stages anything, a snapshot reads each project's `standing.md`, the home's and each
-scoped home's (`refusals`). The file holds at most `CAP` numbered rules, and each rule names
-`Code: <slug>`, a row of the project's queue that turns the rule into code. A file that breaks
-either is refused: the snapshot leaves it out of the stage, commits and pushes the rest of the tree,
-says on stderr which file, project, rule and why, and fails.
+`jbus-snapshot.timer` runs `jbus snapshot` at 08:30 and 17:30, and `--why` says what changed. A
+`standing.md` holds no rule at all now, and `jbus.rules` is what flags one, so a snapshot reads
+none.
 
 A snapshot that did not finish raises its alert itself (`alert.sound`), one for each owner: the
-first path segment of each file gitleaks names in its report, or of each refused `standing.md`,
-which is a home's directory and so its project (`owners`). A failure that names no file, such as a
+first path segment of each file gitleaks names in its report, which is a home's directory and so
+its project (`owners`). A failure that names no file, such as a
 push that failed or an error no check foresaw, is the machine's. Each alert goes to its owner's
 home alone. A snapshot that did not fail for the machine read the whole stage, so it ends the
 alert of each owner it did not fail for (`alert.recover`); one that failed for the machine ends
@@ -37,7 +33,6 @@ import argparse
 import fcntl
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -50,19 +45,16 @@ from typing import IO
 
 import jbus
 import jsettings
-from jbus import alert, queue, verbs
+from jbus import alert, verbs
 from jsettings import proc
 
 AFTER = 1
-CAP = 3
 FAILED = "the snapshot of the homes' state tree did not finish"
 KILLED = (
     "it was stopped before its end, as the unit's timeout stops one "
     "(journalctl --user -u jbus-snapshot)"
 )
 RUNS = "snapshot-runs"
-_RULE = re.compile(r"(\d+)\. ")
-_CODE = re.compile(r"\bCode: ([\w.-]*\w)")
 WAIT = 60.0
 
 
@@ -90,10 +82,9 @@ def take(
     now: datetime,
     user: jsettings.Settings,
     why: str | None = None,
-    held: Iterable[Path] = (),
 ) -> str:
-    """Snapshot the tree, but for the files `held` names, and return one line that says what
-    `take` did. Raise `Failed` when `take` cannot finish the snapshot.
+    """Snapshot the tree, and return one line that says what `take` did. Raise `Failed` when
+    `take` cannot finish the snapshot.
 
     A run holds `jbus-snapshot.lock` in the tree's git dir from `git add` to the push. So the
     runs of the homes and the timer wait for each other and never share an index. A run that
@@ -104,7 +95,7 @@ def take(
         raise Failed(f"{tree} is not a git repo")
     with (Path(found.stdout.strip()) / "jbus-snapshot.lock").open("a") as lock:
         _hold(lock)
-        return _take(tree, now, user, why, [str(path.relative_to(tree)) for path in held])
+        return _take(tree, now, user, why)
 
 
 def _hold(lock: IO[str]) -> None:
@@ -121,15 +112,8 @@ def _hold(lock: IO[str]) -> None:
             time.sleep(0.1)
 
 
-def _take(
-    tree: Path, now: datetime, user: jsettings.Settings, why: str | None, held: list[str]
-) -> str:
-    _must(
-        _git(tree, "add", "-A", "--", ".", *(f":(exclude,literal){path}" for path in held)),
-        "git add",
-    )
-    if held:
-        _must(_git(tree, "reset", "-q", "--", *(f":(literal){path}" for path in held)), "git reset")
+def _take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None) -> str:
+    _must(_git(tree, "add", "-A"), "git add")
     staged = _git(tree, "diff", "--cached", "--quiet").returncode != 0
     if staged:
         _commit(tree, f"snapshot {user.stamp(now)}" + (f": {why}" if why else ""))
@@ -162,62 +146,6 @@ def _commit(tree: Path, message: str) -> None:
         named = f" ({', '.join(files)})" if files else ""
         raise Failed(f"gitleaks found a secret in the changes{named}, nothing committed", files)
     _must(_git(tree, "commit", "-q", "-m", message), "git commit")
-
-
-def _rules(text: str) -> list[tuple[str, str]]:
-    """Return each numbered rule of a `standing.md`, its number and its words. A rule runs from
-    its numbered line to the next numbered line or heading, as `queue.rule` reads it."""
-    rules: list[tuple[str, str]] = []
-    inside = False
-    for line in text.splitlines():
-        numbered = _RULE.match(line)
-        if numbered:
-            rules.append((numbered[1], line))
-            inside = True
-        elif line.startswith("#"):
-            inside = False
-        elif inside:
-            rules[-1] = (rules[-1][0], f"{rules[-1][1]}\n{line}")
-    return rules
-
-
-def refusals(config: jbus.Config) -> dict[Path, str]:
-    """Return each `standing.md` of a project's home or scoped home that breaks the cap, with one
-    line that names its project and the file, then each reason, which names the rule."""
-    lines: dict[Path, str] = {}
-    for project in config.projects:
-        home = config.home(project)
-        try:
-            slugs = {row["slug"] for row in queue.load(config.state(project))}
-        except queue.Unparsable:
-            slugs = set()
-        for standing in sorted({home / "standing.md", *home.glob("*/standing.md")}):
-            if not standing.is_file():
-                continue
-            try:
-                rules = _rules(standing.read_text(errors="replace"))
-            except OSError as error:
-                lines[standing] = (
-                    f"{project.name}: {standing} cannot be read: {error.strerror or error}"
-                )
-                continue
-            why = []
-            if len(rules) > CAP:
-                why.append(f"has {len(rules)} rules, and a standing.md holds at most {CAP}")
-            for number, words in rules:
-                code = _CODE.search(words)
-                if not code:
-                    why.append(
-                        f"rule {number} has no Code: <slug>, the queue row that makes it code"
-                    )
-                elif code[1] not in slugs:
-                    why.append(
-                        f"rule {number} names Code: {code[1]}, "
-                        f"which is in no queue of {project.name}"
-                    )
-            if why:
-                lines[standing] = f"{project.name}: {standing} {'; '.join(why)}"
-    return lines
 
 
 def _stderr(line: str) -> None:
@@ -280,17 +208,12 @@ def _snapshot(
     why: str | None,
     warn: Callable[[str], None],
 ) -> int:
-    """Take a snapshot of `config.home_dir`, with each refused `standing.md` (`refusals`) left
-    out of it and named to `warn`. A snapshot that refused none and succeeds ends the alerts of
-    failed ones. One that fails says why to `warn`, and raises an alert for each owner of what
-    failed: see the module."""
-    refused: dict[Path, str] = {}
+    """Take a snapshot of `config.home_dir`. One that succeeds ends the alerts of failed ones.
+    One that fails says why to `warn`, and raises an alert for each owner of what failed: see the
+    module."""
     failed: dict[str, str] = {}
     try:
-        refused = refusals(config)
-        for line in refused.values():
-            warn(f"snapshot: refused, left out: {line}")
-        say(take(config.home_dir, now, config.user, why, refused))
+        say(take(config.home_dir, now, config.user, why))
     except Failed as error:
         warn(f"snapshot: {error}")
         for owner in owners(config, error.files) or [alert.MACHINE]:
@@ -298,9 +221,6 @@ def _snapshot(
     except Exception as error:
         warn(f"snapshot: {alert.why(error, config)}")
         failed[alert.MACHINE] = alert.why(error, config)
-    for path, line in refused.items():
-        owner = owners(config, [str(path.relative_to(config.home_dir))])[0]
-        failed[owner] = "; ".join(filter(None, (failed.get(owner), f"refused {line}")))
     if alert.MACHINE not in failed:
         for key in alert.streaks(config.state_dir):
             if _owner(key) not in (None, *failed):
