@@ -37,7 +37,10 @@ Pull request: open one when done
 Thread: mcp:1
 """
 INTENT = "".join(BRIEF.splitlines(keepends=True)[1:6]).rstrip("\n")
-COUNT = "Done when lines in the brief, numbered from 1 in the order above: {}, the n the Meets the brief line counts against."
+COUNT = (
+    "Done when lines in the brief, numbered from 1 in the order above: {}, the n the Meets the "
+    "brief line counts against."
+)
 INTENT += "\n\n" + COUNT.format(1)
 URL = "https://github.com/someone/repo/pull/7"
 
