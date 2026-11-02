@@ -54,6 +54,7 @@ A run of `jmerge` holds the repo's merge lock from its read of main's tip to its
 - [The queue](jbus/the-queue.md)
 - [The relay](jbus/the-relay.md)
 - [The sign-in](jbus/the-sign-in.md)
+- [The telemetry store](jbus/the-telemetry-store.md)
 - [The units](jbus/the-units.md)
 - [The verbs](jbus/the-verbs.md)
 - [The view](jbus/the-view.md)
