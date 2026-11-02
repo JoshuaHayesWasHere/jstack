@@ -88,11 +88,15 @@ Never merge: `jmerge`, run by jbus, merges.
 ## Do the task
 
 - The **Done when** list is the whole target. Write the tests for it first where the repo has tests.
-- The brief is trusted. Read the files it names; where it names none, read only what the task needs. Do not check its findings again, and do not explore beyond it.
+- The brief is trusted.
+  Read the files it names; where it names none, read only what the task needs.
+  Do not check its findings again, and do not explore beyond it.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
-- When every **Done when** line holds, stop. A leftover of the task inside **Where** is cleared in this pull request before the Result.
-- The user may steer in this thread at any time. What they say here overrides the brief; record it in the Result.
+- When every **Done when** line holds, stop.
+  A leftover of the task inside **Where** is cleared in this pull request before the Result.
+- The user may steer in this thread at any time.
+  What they say here overrides the brief; record it in the Result.
 
 1. Before your first test run: read `$T/../skills/crew/test-slots.md` now.
 2. Once every **Done when** line holds, with the work committed, and before you open the pull request: read `$T/../skills/crew/do-the-task.md` now.
@@ -136,7 +140,8 @@ Never merge: `jmerge`, run by jbus, merges.
 A later round does not rewrite a Result: it appends `## Result, follow-up (<date>, <why>)` in the same shape, and step 2 is run again on it.
 The single lines a wake adds (what woke you, `Reviewer:`, `Fixed:`, `Rerun:`, `Stale base:`, `Stuck:`, `Unrun:`, `Lock:`, `Comment:`) are not a round: they go into the last result there is.
 
-With a pull request open, the thread stays on it. With no pull request, after step 3: read `$T/../skills/crew/no-pr-end.md` now, and run its block.
+With a pull request open, the thread stays on it.
+With no pull request, after step 3: read `$T/../skills/crew/no-pr-end.md` now, and run its block.
 
 ## Stay on the pull request
 

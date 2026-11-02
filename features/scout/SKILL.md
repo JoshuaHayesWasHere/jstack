@@ -30,7 +30,9 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
    cat "$H/scouts/$S.start"
    ```
 
-   In a worktree of its own it prints nothing. If it prints anything, the checkout is not clean: say so now, and leave those lines alone: they are not yours. Make no branch: a scout has nothing to commit.
+   In a worktree of its own it prints nothing.
+   If it prints anything, the checkout is not clean: say so now, and leave those lines alone: they are not yours.
+   Make no branch: a scout has nothing to commit.
 3. See whether the request names a playbook.
    Run this in a call of its own, with the block at the top, `S` set to the slug and nothing else in it: a call that also prints another file, with `cat` or the like, can come back cut off behind a file, and the steps with it:
 
@@ -69,14 +71,17 @@ When in doubt, act and write down what you did.
 ## Research
 
 - The **Questions** list is the whole target. Answer each one. A question that cannot be answered gets the reason and what would answer it, not a guess.
-- Read the code, and read the docs: the repo's own, and the outside documentation for the version the repo pins, from the source. Do not answer from memory what a doc can settle.
+- Read the code, and read the docs: the repo's own, and the outside documentation for the version the repo pins, from the source.
+  Do not answer from memory what a doc can settle.
 - Every tool call only reads: file reads and searches, `git log`, `git show` and `git diff`, `gh` views, web fetches and searches, and commands that print and change nothing.
   Install nothing, start nothing, and run nothing that writes into the repo or changes state outside it, but for the one `jbus queue add` of a fault outside the request.
   If a question needs such a run to answer, say so in the report and leave the run to a crewmate.
 - Keep the evidence as you go: the command and what it printed, the path and line, the URL and the part that matters. A finding without one is a guess, and the report says so where it is.
 - Keep what you ruled out, and why.
 - Stay inside **Out of bounds**. A question that cannot be answered without crossing it is not answered: record that in the report, with what would answer it, and go on to the next question.
-- The user may steer in this thread at any time. What they say here overrides the request, except in one thing: asked to do the task itself, say that a crewmate does it from the brief, and finish the report. Record the steer in the report.
+- The user may steer in this thread at any time.
+  What they say here overrides the request, except in one thing: asked to do the task itself, say that a crewmate does it from the brief, and finish the report.
+  Record the steer in the report.
 
 | When | Do |
 |---|---|

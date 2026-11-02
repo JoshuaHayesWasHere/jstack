@@ -54,8 +54,10 @@ From the root of the repo, on a machine with `claude` and the private patterns o
 uv run python features/evals/evals/skill-cut/eval.py --base main --variant HEAD
 ```
 
-It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`. It makes 3 x 3 calls per case (about 530 for the committed cases), six at a time.
-Each answer is kept as it comes in `.<run>.answers.jsonl`, so a call that fails costs only itself: the write ends naming what failed, and the same command again asks only for what is missing. A cut branch commits the run it adds.
+It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`.
+It makes 3 x 3 calls per case (about 530 for the committed cases), six at a time.
+Each answer is kept as it comes in `.<run>.answers.jsonl`, so a call that fails costs only itself: the write ends naming what failed, and the same command again asks only for what is missing.
+A cut branch commits the run it adds.
 
 `uv run python features/evals/evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed.
 A run is scored only against the cases it was answered against: its `run.json` holds a hash of `cases/`, and `--run` refuses a run whose cases have changed since.
