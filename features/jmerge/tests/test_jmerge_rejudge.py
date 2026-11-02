@@ -281,45 +281,49 @@ MACOS_RED = {**merge.run("FAILURE", "macos"), "startedAt": STARTED}
 MOVED = "GitHub was asked to merge main at {tip} into it: main moved after its check started"
 
 
-@pytest.fixture
-def moved(tmp_path):
-    """A repo with a `fresh-check` file whose command takes a stand-in test slot, and a pull
-    request that passed its check before main changed its own file under it."""
-    replay = Replay(tmp_path, fresh=False)
-    slot = replay.kitchen.home.stub / "slot-taken"
-    (replay.kitchen.home.state / "fresh-check").write_text(f"touch {slot}\n")
+@pytest.fixture(params=[False, True], ids=["no-fresh-check", "fresh-check"])
+def moved(tmp_path, request):
+    """A pull request that passed its check before main changed its own file under it, in a
+    repo with a `fresh-check` file as in one without."""
+    replay = Replay(tmp_path, fresh=request.param)
     head = replay.crew("one", 333, {"a.txt": "ours\n" + LINES}, check=PASSED_BEFORE)
-    tip = replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
-    replay.slot = slot
-    return replay, head, tip
+    return replay, head
 
 
-def test_main_moving_under_a_green_pull_request_asks_github_and_runs_no_local_suite(moved):
-    """The base moved after the check passed: `jmerge` asks GitHub to merge it into the branch,
-    holds while GitHub's check runs at the updated head, and merges once it passed there. No
-    local suite runs, and `fresh.json` gets no run."""
-    replay, head, tip = moved
-    assert replay.run() == [f"wait 333 {url(333)}: {MOVED.format(tip=tip[:12])}"]
-    assert replay.updated() == ["333"]
-    replay.github(PENDING)
-    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
-    replay.github(GREEN)
+def test_main_moving_under_a_green_pull_request_that_still_merges_cleanly_merges_it(moved):
+    """The base moved after the check passed, and the head merges over today's main with no
+    conflict: `jmerge` merges it on the check it has, asks GitHub for no update of its branch,
+    and so starts no second CI round. Main's own run checks the merge."""
+    replay, head = moved
+    replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
     (line,) = replay.run()
-    assert line.startswith("merged 333 "), line
-    assert replay.updated() == ["333"]
+    assert line.startswith("merged 333 one "), line
+    assert replay.updated() == []
     assert replay.kitchen.at_main("a.txt") == "ours\n" + LINES + "theirs"
-    assert not replay.slot.exists()
-    assert not (replay.kitchen.home.state / "fresh.json").exists()
 
 
-def test_a_failed_check_at_the_updated_head_holds_it(moved):
-    replay, head, tip = moved
-    replay.run()
+def test_main_moving_into_a_conflict_with_a_green_pull_request_has_it_rebased(moved):
+    replay, head = moved
+    replay.main_at({"a.txt": "theirs\n" + LINES}, FIXED, "green")
+    conflict = f"wait 333 {url(333)}: {ready.FRESH_CONFLICT}"
+    assert replay.run() == [conflict]
+    assert judgement.step(conflict) == "rebase"
+    assert replay.updated() == []
+    assert git(replay.kitchen.origin, "rev-parse", "refs/heads/one") == head
+
+
+def test_a_pull_request_red_at_its_own_head_is_held_when_main_moves_cleanly(moved):
+    """A green check counts for its own head alone: a head whose check failed is not merged
+    because the head still merges over today's main."""
+    replay, head = moved
+    replay.kitchen.checked("one", RED)
+    tip = replay.main_at({"b.txt": "theirs\n"}, FIXED, "green")
+    assert replay.run() == [f"wait 333 {url(333)}: {ASKED.format(tip=tip[:12])}"]
     replay.github(FAILED_AFTER)
     for _ in range(2):
         assert replay.run() == [f"wait 333 {url(333)}: check has failed"]
+    assert merged(replay.said) == []
     assert replay.updated() == ["333"]
-    assert not replay.slot.exists()
 
 
 RUNS = """\
