@@ -216,7 +216,7 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
     (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
     that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
     all the same, and the line tells the home to write it. It warns as well of each `Where:` path
-    XX
+    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`)."""
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
