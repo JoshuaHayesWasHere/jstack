@@ -17,6 +17,8 @@ Two families of cases, both committed in `cases/` before the first run.
 Each run has three arms: **base**, **base again** (the same prompts at the same revision, which is the noise floor), and **variant**. Every case runs three times in each arm. The candidate is `claude-opus-5-5` at medium effort with no tools, the model homes, crewmates and reviewers run on.
 
 The files under test are read from the two revisions with `git show <rev>:<path>`, never from the working tree.
+A `steps` file is fed as read: each file beside a skill that a line says to read now follows that line, as `as_read` of the home's tests has it, so text moved into a file a trigger line names is still under test.
+Each router row of the crew and scout skills has a `crew-row-*` or `scout-row-*` case, and `crew-outside-where` is the crew's fault row.
 
 ## Blind scoring
 
@@ -52,7 +54,8 @@ From the root of the repo, on a machine with `claude` and the private patterns o
 uv run python features/evals/evals/skill-cut/eval.py --base main --variant HEAD
 ```
 
-It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (a failed call leaves nothing, and no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`. It makes 3 x 3 calls per case (about 400 for the committed cases), six at a time. A cut branch commits the run it adds.
+It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`. It makes 3 x 3 calls per case (about 530 for the committed cases), six at a time.
+Each answer is kept as it comes in `.<run>.answers.jsonl`, so a call that fails costs only itself: the write ends naming what failed, and the same command again asks only for what is missing. A cut branch commits the run it adds.
 
 `uv run python features/evals/evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed.
 A run is scored only against the cases it was answered against: its `run.json` holds a hash of `cases/`, and `--run` refuses a run whose cases have changed since.

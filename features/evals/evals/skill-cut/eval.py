@@ -240,10 +240,40 @@ def show(rev: str, path: str) -> str:
     return git("show", f"{rev}:{last}")
 
 
+NAMED = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
+
+
+def named(path: str, text: str) -> list[str]:
+    """The files beside the skill at `path` that a line of `text` says to read now."""
+    if not path.startswith("skills/"):
+        return []
+    folder = path.split("/")[1]
+    return [
+        f"skills/{folder}/{name}"
+        for skill, name in NAMED.findall(text)
+        if skill == folder and name != "SKILL.md"
+    ]
+
+
+def as_read(rev: str, path: str) -> str:
+    """A skill's file as a thread reads it, at a revision: each file beside it that a line says to
+    read now follows that line, as `as_read` of the home's tests has it."""
+    out = []
+    for line in show(rev, path).splitlines(keepends=True):
+        out += [line, *("\n" + show(rev, found) for found in named(path, line))]
+    return "".join(out)
+
+
+def beside(rev: str, paths: list[str]) -> list[str]:
+    """The files a thread reads at `rev` through the files under test's trigger lines."""
+    return [each for path in paths for each in named(path, show(rev, path))]
+
+
 def patch(base: str, variant: str, paths: list[str]) -> str:
     """The diff of the files under test from `base` to `variant`, under every path each has had
     (`spellings`): a case names a file as it was before its move, and the diff of that name alone
     is empty once the file has moved."""
+    paths = [*paths, *beside(base, paths), *beside(variant, paths)]
     every = dict.fromkeys(each for path in paths for each in spellings(path))
     return git("diff", base, variant, "--", *every)
 
@@ -388,7 +418,9 @@ def write(base: str, variant: str, name: str | None = None) -> None:
     """Write a new run next to the kept ones, `run-<the variant's first 12>/` or the `name`
     given, so two branches that each add a run never pick the same directory. It is built in a
     directory of its own and put in place by one rename once its last answer and its key are
-    written, so a call that fails leaves no part of it and no kept run is touched."""
+    written, so no kept run is touched. Each answer is kept as it comes in `.<run>.answers.jsonl`,
+    so a call that fails costs only itself: the rest go on, the write ends with what failed, and
+    the same command again asks only for what is missing."""
     global RUN
     if not shutil.which("claude"):
         raise SystemExit("eval.py: write: no claude on PATH, no run is written")
@@ -401,23 +433,53 @@ def write(base: str, variant: str, name: str | None = None) -> None:
     patterns = _private()
     cases = cases_sha()
     paths = files_under_test()
-    text = {arm: {p: show(rev, p) for p in paths} for arm, rev in revs.items()}
+    read = lambda rev, p: show(rev, p) if p in LEAD_FILES else as_read(rev, p)  # noqa: E731
+    text = {arm: {p: read(rev, p) for p in paths} for arm, rev in revs.items()}
     text["base-again"] = text["base"]
     jobs = [
         (case, arm, trial) for case in case_ids() for arm in ARMS for trial in range(1, 1 + TRIALS)
     ]
     random.shuffle(jobs)
+    kept = HERE / f".{made.name}.answers.jsonl"
+    stamp = {**revs, "cases": cases}
+    had = _kept_answers(kept, stamp)
+    if not had:
+        kept.write_text(json.dumps(stamp) + "\n")
+    answered = {(one["case"], one["arm"], one["trial"]): one["answer"] for one in had}
+    missing = [job for job in jobs if job not in answered]
+    failed = []
+
+    def ask(job):
+        try:
+            return job, _redact(claude(prompt(job[0], text[job[1]])), patterns) + "\n", None
+        except (RuntimeError, subprocess.TimeoutExpired) as error:
+            return job, None, error
+
+    with concurrent.futures.ThreadPoolExecutor(WORKERS) as pool, kept.open("a") as keep:
+        for job, answer, error in pool.map(ask, missing):
+            if error is not None:
+                failed.append(error)
+                continue
+            answered[job] = answer
+            case, arm, trial = job
+            line = {"case": case, "arm": arm, "trial": trial, "answer": answer}
+            keep.write(json.dumps(line, ensure_ascii=False) + "\n")
+            keep.flush()
+            print(f"write: {len(answered)} of {len(jobs)}", flush=True)
+    if failed:
+        raise SystemExit(
+            f"eval.py: write: {len(failed)} calls failed, {len(answered)} of {len(jobs)} answers "
+            f"are kept in {kept.name}: run the same command again for the rest. "
+            f"The last: {failed[-1]}"
+        )
     fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=HERE))
     try:
         key, which, answers = {}, {}, {}
-        with concurrent.futures.ThreadPoolExecutor(WORKERS) as pool:
-            done = pool.map(lambda job: (job, claude(prompt(job[0], text[job[1]]))), jobs)
-            for (case, arm, trial), answer in done:
-                name = secrets.token_hex(6)
-                answers[name] = _redact(answer, patterns) + "\n"
-                key[name] = {"case": case, "arm": arm, "trial": trial}
-                which[name] = case
-                print(f"write: {len(key)} of {len(jobs)}", flush=True)
+        for case, arm, trial in jobs:
+            name = secrets.token_hex(6)
+            answers[name] = answered[(case, arm, trial)]
+            key[name] = {"case": case, "arm": arm, "trial": trial}
+            which[name] = case
         shuffled = sorted(key)
         (fresh / "answers.json").write_text(
             json.dumps({n: answers[n] for n in shuffled}, indent=2, ensure_ascii=False) + "\n"
@@ -444,10 +506,20 @@ def write(base: str, variant: str, name: str | None = None) -> None:
         if cases != cases_sha():
             raise SystemExit("eval.py: write: cases/ changed while the run was written")
         fresh.rename(made)
+        kept.unlink()
     finally:
         shutil.rmtree(fresh, ignore_errors=True)
     RUN = made
     print(f"write: {len(key)} answers in {made.name}/answers.json, the key in {made.name}/key.json")
+
+
+def _kept_answers(kept: Path, stamp: dict) -> list[dict]:
+    """The answers an earlier write of this run kept, for the same revisions and cases. An earlier
+    write of anything else is not this run, and its answers are not used."""
+    if not kept.is_file():
+        return []
+    head, *rest = kept.read_text().splitlines()
+    return [json.loads(line) for line in rest] if json.loads(head) == stamp else []
 
 
 def _answers() -> dict[str, str]:
