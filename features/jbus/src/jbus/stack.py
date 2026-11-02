@@ -361,6 +361,7 @@ def _unstack(
         return
     new = _replay(run, slug, head, fork, onto, UNSTACK)
     if not new:
+        run.box.mark(key)
         return
     if pull.get("baseRefName") not in (None, "", onto):
         asked = run.run("gh", "pr", "edit", str(number), "--base", onto)

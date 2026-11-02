@@ -97,3 +97,28 @@ def test_a_link_that_uses_a_name_its_base_introduced_stays_stacked(signed_stack)
     )
     stack.kitchen.poll(NOW)
     stays(stack)
+
+
+def test_a_link_whose_commits_conflict_one_by_one_is_left_once_for_its_heads(signed_stack):
+    """Its own change as a whole merges cleanly, but its first commit, replayed onto main, does
+    not: jbus leaves it stacked and tries it again only once a head moves."""
+    kitchen, tree = signed_stack, signed_stack.checkout
+    commit(tree, "shared.txt", "main's line\n")
+    git(tree, "switch", "-q", "-c", "one")
+    last = commit(tree, "one.py", "def table_of(rows):\n")
+    git(tree, "switch", "-q", "-c", "two")
+    commit(tree, "shared.txt", "for a while\n")
+    head = commit(tree, "shared.txt", "main's line\n", "back")
+    git(tree, "switch", "-q", "main")
+    commit(tree, "shared.txt", "main's later line\n")
+    git(tree, "push", "-q", "origin", "main", "one", "two")
+    git(tree, "branch", "-q", "-D", "one", "two")
+    one = {**kitchen.opened("one", 10), "headRefOid": last, "baseRefName": "main"}
+    two = {**kitchen.opened("two", 11), "headRefOid": head, "baseRefName": "one"}
+    kitchen.set("open.json", [one, two])
+    said = kitchen.poll(NOW) + kitchen.poll(NOW + timedelta(minutes=3))
+    assert [line for line in said if line.startswith("unstack two")] == [
+        "unstack two: jbus left its branch as it was (its commits conflict with origin/main), "
+        "so it stays stacked for now"
+    ]
+    assert edits(kitchen) == [] and head_line(kitchen) == stacks.Stacked("one", "one")
