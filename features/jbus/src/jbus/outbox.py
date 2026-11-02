@@ -125,10 +125,15 @@ def instance_of(client: Client, thread: str) -> str:
     return _instance(selection_of(client, thread))
 
 
+MOVES = {"crew": "crew", "reviewer": "review", "scout": "scout", "home": "home"}
+"""The role map's role for each thread role that a capped instance moves, as `jbus.failover` moves
+the same roles. A thread of no role stays, and its message waits for the reset."""
+
+
 def _rolled(run: Pass, client: Client, thread: str, chosen: dict, instance: str, row: str) -> bool:
     """Move an idle thread off its capped `instance` to the first instance of its pool with
     headroom, with its model and options, and say whether it moved. A move T3 Code did not make
-    leaves the thread where it is, and its message waits."""
+    leaves the thread where it is, and its message waits, as does a thread of no role (`MOVES`)."""
     try:
         read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
     except T3Error:
@@ -137,7 +142,9 @@ def _rolled(run: Pass, client: Client, thread: str, chosen: dict, instance: str,
     if not chosen.get("model") or at_work([found], settled_too=True):
         return False
     role, slug = roles.role_of(str(found.get("title", "")))
-    instances = dispatch.pool_of(run, "review" if role == "reviewer" else role, instance)
+    if role not in MOVES:
+        return False
+    instances = dispatch.pool_of(run, MOVES[role], instance)
     subject = row or slug or thread
     choice = dispatch.mirrored_choice(run, subject, instances, {}, instance)
     at = choice.instance
