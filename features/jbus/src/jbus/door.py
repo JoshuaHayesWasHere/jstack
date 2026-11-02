@@ -13,11 +13,12 @@ read in T3 Code, that names it. This hook is the second, for what a thread runs 
 - any other thread, and a session T3 Code's store does not know, is let through, as
   `jbriefs.sends` lets a send through.
 
-A command is read in pieces: a heredoc's body is left out, since it is text a command reads and
-not a command, and the rest is cut at each shell separator, quote, backtick and parenthesis, so a
-command quoted for `ssh` or `bash -c` is read as a command of its own, and a commit message's
-words are read as words. A command that runs dry walks through nothing (`party.DRY`). A home can
-still wrap a door in a script of its own, which is why the go path is the main check.
+A command is read in pieces (`pieces`): cut at each shell separator, backtick and parenthesis,
+with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, and
+left out where it is an argument such as a commit message or a title. A heredoc's body is left
+out, since it is text a command reads, but where it feeds a shell or `ssh`, whose commands it is.
+A command that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a
+script of its own, which is why the go path is the main check.
 """
 
 from __future__ import annotations
@@ -33,24 +34,67 @@ from jbriefs import home, sends
 from jbus import party
 from jsettings import paths
 
-_HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1")
-_CUT = re.compile(r"[;&|\n'\"`()]")
+_HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)(\w+)\1")
+_SEPARATOR = set(";&|\n()`")
+_SHELL = r"(?:\S*/)?(?:ba|z|da|k)?sh"
+_RUNS_TEXT = re.compile(rf"(?:^|\s){_SHELL}(?:\s+-\w+)*\s+-c\s*$|\bssh\s|\beval\s*$")
+"""What runs the quoted text after it as a command: `bash -c`, `ssh <host>`, `eval`."""
+_FEEDS = re.compile(rf"(?:^|[;&|(]\s*|\s){_SHELL}\b[^<]*$|\bssh\s[^<]*$")
+"""What runs a heredoc's body as commands: a shell, or `ssh <host>`, before the `<<`."""
 
 
-def pieces(command: str) -> list[str]:
-    """The commands of a shell command line, each as one backticked command, a heredoc's body
-    left out."""
-    kept, ends = [], ""
+def _unfold(command: str) -> str:
+    """The command line with each heredoc's body left out, but for one that feeds a shell, whose
+    body is commands of its own. A here-string, `<<<`, is no heredoc."""
+    kept, ends, runs = [], "", False
     for line in command.splitlines():
         if ends:
             if line.strip() == ends:
                 ends = ""
+            elif runs:
+                kept.append(line)
             continue
         kept.append(line)
         opened = _HEREDOC.search(line)
         if opened:
-            ends = opened.group(2)
-    return [f"`{one.strip()}`" for one in _CUT.split("\n".join(kept)) if one.strip()]
+            ends, runs = opened.group(2), bool(_FEEDS.search(line[: opened.start()]))
+    return "\n".join(kept)
+
+
+def pieces(command: str) -> list[str]:
+    """The commands of a shell command line, each as one backticked command. It is cut at each
+    separator. A quoted string is read as commands of its own after what runs it (`_RUNS_TEXT`),
+    as part of its word after `=` or as the command's first word, and otherwise it is an
+    argument, a commit message or a title, which runs nothing and is left out."""
+    found: list[str] = []
+    text, at, now = _unfold(command), 0, ""
+
+    def cut() -> None:
+        nonlocal now
+        if now.strip():
+            found.append(f"`{now.strip()}`")
+        now = ""
+
+    while at < len(text):
+        char = text[at]
+        if char in _SEPARATOR:
+            cut()
+        elif char in "'\"":
+            end = text.find(char, at + 1)
+            end = len(text) if end < 0 else end
+            quoted, at = text[at + 1 : end], end
+            if _RUNS_TEXT.search(now):
+                cut()
+                found.extend(pieces(quoted))
+            elif now.endswith("=") or not now.strip():
+                now += quoted
+            else:
+                now += " _ "
+        else:
+            now += char
+        at += 1
+    cut()
+    return found
 
 
 def walks(command: str) -> tuple[tuple[str, str], ...]:

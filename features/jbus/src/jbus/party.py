@@ -93,7 +93,7 @@ DOORS = (
         "deletes data",
         r"\b(delet|drop|eras|wip)\w*\b[^.]*\b(data|database|tables?|rows|records)\b",
         r"\bdrop\s+(table|database|schema)\b|\baws\s+s3\s+rm\b|\bgh\s+repo\s+delete\b"
-        rf"|\bgit\s+(branch\s+-D\b|worktree\s+remove\b|push(\s+{_TOKEN})*?\s+--delete\b)",
+        rf"|\bgit\s+(branch\s+(?-i:-D)\b|worktree\s+remove\b|push(\s+{_TOKEN})*?\s+--delete\b)",
     ),
     Door(
         "rewrites history",
@@ -260,8 +260,12 @@ def held(*lines: str) -> tuple[str, ...]:
 
 DRY = re.compile(r"--dry-run\b|--help\b|\bDRY_RUN=(1|true|yes)\b", re.I)
 """A command that runs dry, or only says how it is run, walks through no door."""
-ASIDE = re.compile(r"\b(never|do not|don't|not run|without)\b", re.I)
-"""Words that say a brief's segment runs no command it names."""
+AHEAD = re.compile(r"\b(never|do not|don't|without)\b", re.I)
+"""Words that say the commands after them in their clause are not run: `never `x``."""
+BEHIND = re.compile(r"\bnot run\b", re.I)
+"""Words that say the commands of their clause are not run: ``x` is not run`."""
+_CLAUSE = re.compile(r",(?=(?:[^`]*`[^`]*`)*[^`]*$)")
+"""A comma outside a backticked command, which ends a clause."""
 _RUNS = tuple((one.case, re.compile(one.runs, re.I)) for one in DOORS if one.runs)
 _SEGMENT = re.compile(r"[;\n]|, (?=and |then )")
 _SPAN = re.compile(r"`[^`\n]*`")
@@ -292,15 +296,20 @@ def walks(command: str) -> tuple[tuple[str, str], ...]:
 def walked(brief: str) -> tuple[tuple[str, str], ...]:
     """The doors the commands of a brief's `Done when:` and `Proves it:` lines walk through, in
     the table's order, each with the first command that does. The lines are read in segments,
-    split at a semicolon, a line's end, and a comma before "and" or "then"; a segment that says
-    the command is not run (`ASIDE`) walks through none."""
+    split at a semicolon, a line's end, and a comma before "and" or "then", and each segment in
+    clauses, split at a comma outside a backticked command. In a clause, the commands after a
+    word of `AHEAD` are not run, and none is where it says so of itself (`BEHIND`), so an aside
+    hides only the commands it is about and not a door beside it."""
     lines = [line for label, lines in briefs.fields(brief) if label in WALKED for line in lines]
     first: dict[str, str] = {}
     for segment in _SEGMENT.split("\n".join(lines)):
-        if ASIDE.search(segment):
-            continue
-        for case, command in walks(segment):
-            first.setdefault(case, command)
+        for clause in _CLAUSE.split(segment):
+            prose = _SPAN.sub(lambda span: "_" * len(span.group(0)), clause)
+            if BEHIND.search(prose):
+                continue
+            aside = AHEAD.search(prose)
+            for case, command in walks(clause[: aside.start()] if aside else clause):
+                first.setdefault(case, command)
     return tuple((case, first[case]) for case in CASES if case in first)
 
 
