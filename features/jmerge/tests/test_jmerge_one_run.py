@@ -11,7 +11,7 @@ import time
 
 from jmerge import lock
 from test_jmerge_fresh import LINES
-from test_jmerge_fresh import kitchen as kitchen  # noqa: F401
+from test_jmerge_fresh import kitchen as kitchen
 
 
 def held(kitchen):

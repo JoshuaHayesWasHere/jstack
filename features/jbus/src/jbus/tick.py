@@ -40,7 +40,9 @@ def _pending(half: Half) -> None:
     """Keep the open pull requests whose checks are still going, for the tick to watch."""
     world = half.seen.world
     assert world is not None
-    going = sorted(pull["number"] for pull in world.open.values() if watch.checks(pull) == "pending")
+    going = sorted(
+        pull["number"] for pull in world.open.values() if watch.checks(pull) == "pending"
+    )
     if store.read_json(half.run.state / PENDING, None) != going:
         store.write_json(half.run.state / PENDING, going)
 
