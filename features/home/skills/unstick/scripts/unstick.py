@@ -283,10 +283,10 @@ def project_rows(state, project, now, every, waiters):
     questions = read(folder / "questions.json", {})
     by_slug, spans = stages(lines(folder / "transitions.jsonl"))
     rows = [row for row in queue if row.get("slug") and row.get("status") not in FINAL]
-    events = {}
+    events = {row["slug"]: [] for row in rows}
     for one in lines(folder / "events.jsonl"):
-        if one.get("slug") in judged or any(one.get("slug") == row["slug"] for row in rows):
-            events.setdefault(one["slug"], []).append(one)
+        if one.get("slug") in events:
+            events[one["slug"]].append(one)
     found = []
     for row in rows:
         status = row.get("status") or "queued"
