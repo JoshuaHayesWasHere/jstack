@@ -518,8 +518,14 @@ def reviewed(text: str) -> str:
     The line is the one word and nothing else. The crew reads its first word, and reads any word
     it does not know as `review` (`findings.mode_of`), so `standard` would launch a reviewer
     unasked and `none, docs only` would too. A stored brief with an older word keeps it.
+    `cleanup` is the day's warnings row's, which only jbus files: a brief whose `Decisions:` line
+    begins `findings.CLEANUP_DECIDED` may say it, and no other.
     """
     said = head(text, "Review:") or ""
+    if said == findings.CLEANUP and (head(text, "Decisions:") or "").startswith(
+        findings.CLEANUP_DECIDED.strip()
+    ):
+        return ""
     return "" if said in REVIEWS else f"brief's Review: line says {said} {_REVIEWS}"
 
 
