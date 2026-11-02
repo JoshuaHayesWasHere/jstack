@@ -10,9 +10,10 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import reviewed
+from jbus import outbox, reviewed
 from jmerge import ready
 from test_jbus_kitchen import FOUND, NOW, review, sends
+from test_jbus_outbox_rules import run_of
 
 HEAD = "c" * 40
 KEY = f"review|alpha|{HEAD[:12]}"
@@ -179,3 +180,45 @@ def test_a_clean_review_is_judged_the_same_with_or_without_a_fixed_none_needed_l
     fixed = brief + "\n## Result\nFixed: none needed, the review is clean\n"
     assert ready.short_of(brief, HEAD) == ready.short_of(fixed, HEAD) == ""
     assert reviewed.due(brief, HEAD) is None and reviewed.due(fixed, HEAD) is None
+
+
+WAIVED = "Waived: the docs say it, mcp:a-home/a-message-of-his\n"
+TWICE = "Done when:\n- the rule holds: a test\n- the docs say it\nReview: twice\nThread: mcp:crew\n"
+AGENTS = {"createdBy": "agent", "creationSource": "mcp"}
+
+
+def judged_no(head=HEAD):
+    """A clean first review whose `Meets the brief:` line says the second `Done when` line is not
+    met, which holds a `twice` brief's merge as findings do, unless a `Waived:` line clears it."""
+    meets = "Meets the brief: no, 1 of 2\n- unmet 2: the docs say it\n"
+    return section("clean", "- none", head).replace("Findings:", meets + "Findings:")
+
+
+@pytest.mark.parametrize(("more", "told"), [({}, False), (AGENTS, True)], ids=["user", "agent"])
+def test_a_waiver_on_the_user_s_own_word_owes_the_crew_no_line_and_one_on_an_agent_s_does(
+    kitchen, more, told
+):
+    """jmerge counts a `Waived:` line only on a word jbus checked as the user's own of the row,
+    and jbus's notice judges the brief the same: a waived `no` owes the crew nothing, and one an
+    agent's message names still owes it the fix a `no` is owed."""
+    kitchen.t3.says("mcp:a-home", "a-message-of-his", "waive the docs line of alpha", **more)
+    kitchen.brief("alpha", TWICE + judged_no() + "\n## Result\n" + WAIVED)
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.poll()
+    assert [given["clientRequestId"] for given in sends(kitchen)] == ([KEY] if told else [])
+
+
+@pytest.mark.parametrize(("more", "held"), [({}, False), (AGENTS, True)], ids=["user", "agent"])
+def test_the_outbox_judges_a_waived_brief_as_jmerge_does_before_it_holds_for_a_review(
+    kitchen, more, held
+):
+    """A `twice` brief whose first review was clean and said `no` owes a second review of the fix,
+    and the outbox holds the crew's messages while that review is out. With the `no` waived on the
+    user's own word no second review is owed, so nothing waits on one; on an agent's word it is."""
+    kitchen.t3.says("mcp:a-home", "a-message-of-his", "waive the docs line of alpha", **more)
+    seats = f"Reviewer: mcp:r1 #1\nSecond reviewer: mcp:r2\nFixed: {HEAD}\n"
+    result = "\n## Result\n" + seats + WAIVED
+    kitchen.brief("alpha", TWICE + judged_no("d" * 40) + result)
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    run, client = run_of(kitchen, look=True)
+    assert outbox.reviewing(run, client, "mcp:crew", "alpha") is held
