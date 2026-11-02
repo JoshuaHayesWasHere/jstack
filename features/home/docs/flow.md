@@ -60,8 +60,10 @@ Without asking you, the threads do everything else that is reversible.
 
 A brief that says `Review: twice`, the home's default, gets one review and one fix round.
 Then a second review reads the head the fix round pushed, unless that round changed nothing and wrote `Fixed: none needed`.
-The second review's `error` findings go to the same crewmate, which answers them before the merge, and its `warning` and `info` findings are dropped.
-Every finding a review sends goes to the row's own crewmate while its pull request is open: none becomes a row of its own.
+The second review's `error` findings go to the same crewmate, which answers them before the merge, and its `info` findings are dropped.
+Its `warning` findings hold nothing: once the pull request merged, jbus keeps them for one follow-up row a day, `warnings-<day>`, which it files and approves by the follow-up rule.
+A day whose warnings are fewer than 3 files no row, and they carry to the next day's row.
+That row gets one review, of its own diff, in which only an error is fixed, and none of its findings becomes another row.
 A brief that says `Review: review` has every finding answered before the merge.
 There, a fix that changes a file outside `tests/` gets one more review, of the fix alone, and that review is the last.
 A fix that changes only files under `tests/` gets no second review, and the pull request's checks stand behind it.

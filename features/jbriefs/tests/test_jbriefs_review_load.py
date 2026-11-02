@@ -27,15 +27,25 @@ def test_twice_review_and_none_need_no_word(review):
     assert parse.faults(brief(review)) == []
 
 
-@pytest.mark.parametrize("mode", ["after", "cleanup", "standard", "none, docs only"])
+@pytest.mark.parametrize("mode", ["after", "standard", "none, docs only"])
 def test_an_old_or_unknown_mode_is_refused_and_a_stored_one_is_read_as_review(mode):
-    """`after` and `cleanup` went with the rows that held a review's leftovers. A new brief may
-    not name one, nor any word but the three, since the crew reads it as `review`: a stored brief
-    that still names one launches a reviewer."""
+    """`after` went with a review that held no merge. A new brief may not name it, nor any word
+    but the three, since the crew reads it as `review`: a stored brief that still names one
+    launches a reviewer."""
     assert parse.faults(brief(f"Review: {mode}\n")) == [
         f"brief's Review: line says {mode} (twice, review or none)"
     ]
     assert findings.mode_of(brief(f"Review: {mode}\n")) == findings.REVIEW
+
+
+def test_only_a_brief_jbus_filed_says_cleanup():
+    """`cleanup` is the day's warnings row's, one review of errors alone, so a home cannot pick it
+    for a row of its own: only the `Decisions:` line jbus writes lets a brief say it."""
+    asked = brief("Review: cleanup\n")
+    assert parse.faults(asked) == ["brief's Review: line says cleanup (twice, review or none)"]
+    filed = asked + f"Decisions: {findings.CLEANUP_DECIDED}of 2026-11-01\n"
+    assert parse.faults(filed) == []
+    assert findings.mode_of(filed) == findings.CLEANUP
 
 
 @pytest.mark.parametrize(

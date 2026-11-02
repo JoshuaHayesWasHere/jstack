@@ -593,15 +593,31 @@ def test_a_hook_whose_script_no_feature_declares_is_old_and_taken_out(user):
     assert user.run("--check") == (0, user.every("ok"))
 
 
+def test_the_skill_tips_hook_an_older_install_wrote_is_taken_out(user):
+    """jstack dropped `skill-tips.sh`, and a machine whose settings still run it loses it."""
+    tips = group("skill-tips.sh", user.home, matcher=None)
+    user.write(user.settings, {"model": "one", "hooks": {"UserPromptSubmit": [tips]}})
+    part = f"hook {user.settings} UserPromptSubmit hooks/skill-tips.sh"
+    command = tips["hooks"][0]["command"]
+    said = user.run("--check")[1]
+    assert line_for(said, part) == [f"old hard {part} -> {command}, a script no feature declares"]
+    assert user.run()[0] == 0
+    hooks = json.loads(user.settings.read_text())["hooks"]
+    assert "skill-tips.sh" not in json.dumps(hooks)
+    assert hooks == user.written()
+    assert user.run("--check") == (0, user.every("ok"))
+
+
 def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touched(user):
-    by_hand = 'sh "$HOME/repos/jstack/hooks/skill-tips.sh" 2>/dev/null || true'
+    by_hand = 'sh "$HOME/repos/jstack/hooks/home-start.sh" 2>/dev/null || true'
+    entry = {"matcher": "startup", "hooks": [{"type": "command", "command": by_hand}]}
     written = {
         "model": "one",
-        "hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command", "command": by_hand}]}]},
+        "hooks": {"SessionStart": [entry]},
         "statusLine": {"type": "command", "command": "sh /mine/line.sh"},
     }
     user.write(user.settings, written)
-    part = f"hook {user.settings} UserPromptSubmit"
+    part = f"hook {user.settings} SessionStart"
     code, said = user.run("--check")
     assert line_for(said, part) == [f"old hard {part} -> {by_hand}"]
     assert line_for(said, "statusline") == []
@@ -743,7 +759,6 @@ def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(u
     assert set(said) >= {
         *(f"removed {link}" for link in user.links()),
         f"removed hook {user.settings} SessionStart",
-        f"removed hook {user.settings} UserPromptSubmit",
         f"removed hook {user.codex} SessionStart",
         f"removed patterns {user.patterns}",
         f"removed hook {user.settings} PreToolUse",
