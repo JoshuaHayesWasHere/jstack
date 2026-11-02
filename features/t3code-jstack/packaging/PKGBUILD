@@ -1,4 +1,4 @@
-# T3 Code nightly with jstack's tree sidebar: an upstream nightly tag, plus this folder's patches.
+# T3 Code nightly with jstack's tree sidebar and fixes: an upstream nightly tag, plus this folder's patches.
 # `jinstall --setup` builds and installs it. It picks the tag in $T3CODE_JSTACK_TAG: upstream's
 # newest nightly, or the last one the patches applied to. `_tag` below is the tag a bare
 # makepkg builds. makepkg's work stays out of this folder, under BUILDDIR, PKGDEST and SRCDEST.
@@ -9,7 +9,7 @@
 pkgname=t3code-jstack
 _tag="${T3CODE_JSTACK_TAG:-v0.1.5-nightly.20261029.3877}"
 _nightly="${_tag#v}"
-pkgver="${_nightly/-nightly./_nightly.}.jstack.bd9a69f56f"
+pkgver="${_nightly/-nightly./_nightly.}.jstack.e22c6dbafc"
 pkgrel=1
 pkgdesc='T3 Code nightly with the jstack tree sidebar'
 arch=('x86_64')
@@ -69,10 +69,12 @@ _patches=(0001-jstack-tree-sidebar.patch 0002-jstack-tree-asking-and-projects.pa
           0018-jstack-tree-type-b2.patch
           0019-jstack-tree-brief-view.patch
           0020-jstack-tree-pin-crew.patch
-          0021-jstack-tree-pin-focus.patch)
+          0021-jstack-tree-pin-focus.patch
+          0022-cursor-instance-shell.patch)
 source=("t3code-${_tag#v}.tar.gz::https://github.com/pingdotgg/t3code/archive/refs/tags/${_tag}.tar.gz"
         "${_patches[@]}")
 sha256sums=('SKIP'
+            'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
