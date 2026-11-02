@@ -4,7 +4,7 @@ A context pack is what a home needs to know about one repo that the code does no
 
 - **One copy.**
   The pack lives in the repo it describes, at `docs/context/`, and changes only by a pull request there.
-  No pack text is copied into jstack, into a home's state or into `standing.md`.
+  No pack text is copied into jstack or into a home's state.
 - **Who writes it.** The subject repo's home, through a scout or a crewmate on a brief. Whoever writes a note, `jpack verify` checks it, with no model.
 - **What it holds.**
   `sources.md`, each source pinned to a commit or a date.
@@ -28,7 +28,7 @@ jpack stale docs/context
 
 A home reads the layers in this order, and the one that comes first wins:
 
-1. The user's word and the home's `standing.md`.
+1. The user's word, and a standing rule of the user's, which is code, a skill step's text or a queued row.
 2. The source at its current revision.
 3. This pack.
 4. The model's memory, always labelled "from memory, not checked".

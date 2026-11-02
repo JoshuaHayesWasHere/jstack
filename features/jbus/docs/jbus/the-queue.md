@@ -194,7 +194,7 @@ It takes no name and no time.
 With no basis, with two, or with `--by` or `--at`, it prints `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id> or --pick <thread id>/<item id>, or --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when; the user's go on a plan entry is jbus plan go <entry> --message <thread>/<message>`.
 
 There is one more basis, and it is not your word for the row.
-A follow-up of approved work needs no new approval: that is the follow-up rule, and jbus knows it by what it says, not by its number in a home's `standing.md`.
+A follow-up of approved work needs no new approval: that is the follow-up rule, and jbus knows it by what it says, in code, and reads no number for it from any file.
 A home can approve a follow-up by naming the approved row it follows:
 
 ```sh
@@ -203,7 +203,7 @@ jbus queue approve <slug> --follows <parent slug>
 
 `--follows` goes with none of the bases above.
 It takes no `--sha`, since nobody read the brief's sha for a follow-up, and a `--sha` beside it is taken and not read: the go is for the brief jbus stores.
-A `--rule <n>` beside it, from the days when jbus read the rule out of `standing.md`, is taken and not read, so `jbus queue approve <slug> --rule 6 --follows <parent slug>` still approves, and a home that renumbers its standing rules breaks nothing.
+A `--rule <n>` beside it, from the days when jbus read the rule's number out of a file, is taken and not read, so `jbus queue approve <slug> --rule 6 --follows <parent slug>` still approves.
 Any other mix gets the refusal above.
 jbus checks the parent and judges nothing else.
 The home decides whether the brief is really a follow-up, and you audit that call through the mark on the row and the count in the digest.

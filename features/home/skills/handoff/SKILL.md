@@ -115,8 +115,7 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
 2. **Write the note**, at the path the block above printed after `write: `, in the shape of `$T/handoff.md`: read it now.
    It is the record of the archived home, kept in its `log/`, and no home starts from it.
    It holds only what nothing else holds: jbus holds the plan, the queue, the questions and what merged, so none of that is written here.
-   A rule of the user's is no line of it either: the home wrote it to `standing.md` when it heard it.
-   Right after any edit this handoff makes to `$H/standing.md`, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed.
+   A rule of the user's is no line of it either: a standing rule is code, the text of the skill step that needs it, or a queued row, which the home queued when it heard it.
    Facts and pointers, not narrative: a path or a thread id in place of an explanation.
 
    A gate jbus could not take, which came as a message or sits in a Result or a Report, is held by nothing else while it is unanswered: write it under the labels, whole, with its default and its `Asked by:` and `Undo:` lines. The gates are not counted in the note's ten lines.

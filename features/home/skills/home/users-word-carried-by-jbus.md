@@ -118,7 +118,7 @@ Both keys, `go` and `go_quiet_minutes`, are in the user's jstack `config.toml`, 
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--pick`.
 In two cases a row launches on no word of the user's for it: a follow-up of approved work needs no new approval, and a fix jbus filed from a red check is approved by the same rule.
-The rule is known by what it says, in code: jbus reads no number for it from `standing.md` or a `follow-rule` file.
+The rule is known by what it says, in code: jbus reads no number for it from any file.
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
 
 - the row names its parent P, by a line `Follows: P` in its brief's head;

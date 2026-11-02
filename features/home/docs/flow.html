@@ -140,7 +140,7 @@
 
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>features/home/hooks/home-start.sh</code>, which prints <code>features/home/templates/hook-message.md</code>. Writes its thread id into <code>home-id</code>, runs step 13 only while <code>home-thread</code> holds an id, runs no merge, then reports in six lines.</small></div><i class="ar b"></i></div>
-      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;standing.md</b><small>read</small></div><div class="box file"><b>home-id</b><small>written: this thread's id</small></div><div class="box file"><b>home-thread</b><small>read: the sweep switch, which only you write</small></div></div>
+      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md</b><small>read</small></div><div class="box file"><b>home-id</b><small>written: this thread's id</small></div><div class="box file"><b>home-thread</b><small>read: the sweep switch, which only you write</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -305,11 +305,11 @@
 
 <section>
   <h2>The root home and a scoped home</h2>
-  <p class="lead">A repo has one root home, and may have scoped homes beside it, each for one goal. Briefs, requests and standing rules are shared. A handoff and a plan are a home's own, and <code>jbus</code> keeps each home's gates.</p>
+  <p class="lead">A repo has one root home, and may have scoped homes beside it, each for one goal. Briefs and requests are shared. A handoff and a plan are a home's own, and <code>jbus</code> keeps each home's gates.</p>
   <div class="dirs">
     <h3>~/.local/state/home/&lt;repo&gt;/</h3>
     <p class="who">The repo's directory, shared by every home of the repo</p>
-    <div class="files"><code>standing.md</code><code>fresh-check</code><code>tasks/&lt;slug&gt;.md</code><code>scouts/&lt;slug&gt;.md</code><code>reports/</code><code>merge.log</code><code>off</code><code>home-thread</code><code>required-checks</code></div>
+    <div class="files"><code>fresh-check</code><code>tasks/&lt;slug&gt;.md</code><code>scouts/&lt;slug&gt;.md</code><code>reports/</code><code>merge.log</code><code>off</code><code>home-thread</code><code>required-checks</code></div>
     <div class="own">
       <div>
         <h3>./</h3>

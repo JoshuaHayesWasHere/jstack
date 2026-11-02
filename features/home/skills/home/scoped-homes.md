@@ -13,7 +13,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
   A scope that ends is archived by its home's `/handoff`, which hands what it has out to the root home.
-- A standing rule from the user becomes code, a lint, a script or a check, queued as a task by the home that heard it, and never a line in `$H/standing.md`.
+- A standing rule from the user becomes code, a lint, a script or a check, queued as a task by the home that heard it, and never a line in a file a thread reads at its start.
   It is relayed to no home: each home meets the rule in the code it runs.
 - A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
   One with no known fix is nothing.
@@ -39,7 +39,7 @@ On `refused:` nothing is sent: the home clears what the line names itself, or it
 A stop whose own row merges or is removed closes itself, with no message.
 
 A `decision` the scope cannot make alone, one the user must make, is no stop: park it as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
-Nothing else reaches the root, and never by a `t3_thread_send` of this home's own or a line in `$H/standing.md`.
+Nothing else reaches the root, and never by a `t3_thread_send` of this home's own.
 `features/home/hooks/agent-sends.sh` refuses a home's own `t3_thread_send` to any home of this repo or of another repo, or to a crew of another home's brief, and its line names the jbus verb that carries the message instead.
 
 **Answering a stop** is the root home's.

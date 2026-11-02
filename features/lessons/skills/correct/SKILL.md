@@ -37,7 +37,7 @@ grep -HE '^(Steers:|Noticed:|- (error|warning|info) )' "$H"/tasks/*.md 2> /dev/n
 
 A `Steers:` line is the user correcting a crewmate.
 A finding line is a reviewer correcting one.
-Then read the rest: the repo's `$H/standing.md` (a standing rule there is a correction the user gave, and one with nothing enforcing it is a candidate), its `CLAUDE.md` or `AGENTS.md`, and the comments in the code that explain a workaround.
+Then read the rest: the repo's queued rows that code a standing rule (each is a correction the user gave, and one not yet merged is a candidate), its `CLAUDE.md` or `AGENTS.md`, and the comments in the code that explain a workaround.
 In a repo with no home, the second list is empty: the commits, the pull request reviews (`gh pr list --state merged`, `gh pr view <n> --comments`) and the instruction files are the sources.
 
 Group the mistakes into classes. A class counts once it has happened twice. Once is a one-off: leave it.
@@ -54,7 +54,7 @@ Take the levels in this order, and take a lower one only when you can say why th
 ## Where each lands in this flow
 
 - Levels 1 to 3 are a change to the repo: a check or a test in it, run by its check command, locally and in CI. It goes the way every change goes: a brief, a crewmate, a pull request, one review. Nobody edits the default branch to "just add the check".
-- Level 4 is a queued row that codes the rule: a brief that turns the judgment call into a check, a block or a skill's text, which the home queues with `jbus queue add`, as `standing.md` already says of a standing rule.
+- Level 4 is a queued row that codes the rule: a brief that turns the judgment call into a check, a block or a skill's text, which the home queues with `jbus queue add`, since a standing rule is code, a skill step's text or a queued row.
   A crewmate queues that row itself, as `templates/a-fault-outside.md` says.
   No rule is a line in a file of the home's state, and none goes in `~/.claude/CLAUDE.md`: that file is about the machine and stays short.
 - A class that is too big for one pull request, or that needs the user's word, is a plan entry: a heading, what holds when it is done, and the evidence, in the shape of `templates/plan-entry.md`. The home proposes it and the user decides.

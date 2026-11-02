@@ -6,7 +6,6 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 
 | File | Holds |
 |---|---|
-| `standing.md` | Your standing rules for the repo's homes. A home reads it whole at its start. |
 | `tasks/<slug>.md` | A crewmate's brief, then its Result, then its Review. |
 | `scouts/<slug>.md` | A scout's request, then its report. |
 | `reports/<slug>.html` | A scout's visual, when the request asked for one. |
@@ -15,6 +14,8 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `merge-off` | Present when the automatic merge is switched off for the repo. |
 | `fresh-check` | The repo's check command, one line, which a crewmate runs once and `jbus queue add` holds a brief's check line to. Optional. |
 | `home-thread` | The sweep switch. With a thread id in it, the home runs `jmerge --sweep` at its start; empty or missing, nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. You write it by hand. |
+
+No file here holds a standing rule of yours: a standing rule is code, the text of the skill step that needs it, or a queued row.
 
 A home's own directory is the repo's directory for the root home, and `~/.local/state/home/<repo>/<scope>/` for a scoped one:
 
@@ -41,16 +42,3 @@ The message goes to the id in a `home-id`, read when it is sent: the root home's
 No brief names a thread, so a home that starts rewrites none.
 Once a scoped home is archived, its briefs are the root home's, and their reports go to the root.
 Once the root home is archived there is no `home-id`, nothing is sent, and the report waits on disk until someone types `/home`.
-
-## Undo an edit to standing.md
-
-A home runs `jbus snapshot --why "<what changed>"` right after each edit to a `standing.md`, so each edit is a commit of its own in `~/.local/state/home`, pushed with the tree ("Back up the homes' state" in `features/jbus/docs/jbus.md`).
-To undo one, find its commit, write back the file as it was before it, and snapshot again:
-
-```sh
-git -C ~/.local/state/home log -p -- <repo>/standing.md
-git -C ~/.local/state/home restore --source=<commit>^ -- <repo>/standing.md
-jbus snapshot --why "<repo> standing.md, <commit> undone"
-```
-
-The first line lists every edit with its diff, the newest first, and `<commit>` is the one to undo. The second writes the file as it stood in the commit before it, which undoes that edit and every later one. Undoing the commit that made the file removes it. A commit that is not there, or the tree's first commit, makes it fail, and it writes nothing. The undo is itself a commit, so it can be undone the same way.
