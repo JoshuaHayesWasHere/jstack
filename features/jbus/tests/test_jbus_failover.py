@@ -689,7 +689,7 @@ def lapsed_on(thread, texts=(NOT_LOGGED_IN, NO_AUTH), run="run-1", ran_on="claud
 
 
 def keys(kitchen):
-    return [given["clientRequestId"] for given in sends(kitchen)]
+    return [given["clientRequestId"] for given in asks(kitchen)]
 
 
 @pytest.mark.parametrize("text", [NOT_LOGGED_IN, NO_AUTH])
@@ -707,7 +707,7 @@ def test_a_run_that_failed_on_either_login_text_is_a_lapse_and_moves_to_an_insta
         {"threadId": THREAD, "modelSelection": {**SELECTION, "instanceId": PRIME}}
     ]
     assert keys(kitchen) == [f"lapse|{THREAD}|run-1"]
-    (carry,) = sends(kitchen)
+    (carry,) = asks(kitchen)
     assert "could not sign in" in carry["message"] and f"now on {PRIME}" in carry["message"]
     assert text in carry["message"]
     assert kitchen.lines("failover") == [
@@ -727,7 +727,7 @@ def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_
     lapsed_on(thread)
     for minutes in (1, 4, 7, 30):
         kitchen.poll(LAPSED + timedelta(minutes=minutes))
-    assert sends(kitchen) == [] and configures(kitchen) == []
+    assert asks(kitchen) == [] and configures(kitchen) == []
     assert kitchen.lines("resume") == []
     assert kitchen.lines("stall") == [
         f"signed out: claudeAgent and {PRIME} cannot sign in, so the threads that failed on a "
@@ -739,7 +739,7 @@ def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_
     kitchen.poll(LAPSED + timedelta(minutes=33))
     kitchen.poll(LAPSED + timedelta(minutes=36))
     assert configures(kitchen) == [] and keys(kitchen) == [f"lapse|{THREAD}|run-1"]
-    assert "now on claudeAgent" in sends(kitchen)[0]["message"]
+    assert "now on claudeAgent" in asks(kitchen)[0]["message"]
     assert len(kitchen.log("notify")) == 1 and len(kitchen.lines("stall")) == 1
     assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))
 
@@ -754,7 +754,7 @@ def test_one_carry_on_goes_per_failed_run_and_none_while_its_instance_just_faile
     thread = crew(kitchen)
     lapsed_on(thread)
     kitchen.poll(LAPSED + timedelta(minutes=1))
-    assert sends(kitchen) == []
+    assert asks(kitchen) == []
     kitchen.poll(LAPSED + timedelta(minutes=6))
     assert keys(kitchen) == [f"lapse|{THREAD}|run-1"]
     again = LAPSED + timedelta(minutes=6, seconds=1)
