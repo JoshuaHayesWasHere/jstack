@@ -702,14 +702,19 @@ def test_a_project_jbus_learns_later_takes_its_messages_under_its_name_one_row_a
 
 
 def test_a_t3_store_that_cannot_be_read_leaves_the_rest_of_the_build(machine):
-    path = Path(os.environ["T3CODE_HOME"]) / "userdata" / "statev2.sqlite"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("not a database")
+    t3 = T3()
+    t3.thread("mcp:home-a", "alpha-id")
+    t3.say("m-0", "mcp:home-a", NOW)
+    machine.build()
+    t3.path.write_text("not a database")
     records(machine, "alpha", NOW, "alpha-one", 10)
 
     out = machine.build()
 
     assert "events 1" in out and "messages" not in out
+    with contextlib.closing(machine.store()) as store:
+        held = store.execute("SELECT id FROM messages").fetchall()
+    assert held == [("m-0",)]
 
 
 def test_a_raised_rules_reads_every_message_again_under_the_new_kind(machine, monkeypatch):
