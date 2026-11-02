@@ -1338,27 +1338,26 @@ def outputs(repo, head, tmp_path):
     return ran.stdout.splitlines(), SUMMARY.fullmatch(file.read_text().strip()), given
 
 
-def test_a_selection_of_four_fifths_of_the_test_files_or_more_is_the_whole_suite(tmp_path):
-    """Of five test files, the three changed ones and the cross-cutting one make four, which is
-    80%."""
+def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_path):
+    """Of five test files, the four changed ones and the cross-cutting one make all five: the
+    selection names them, and only a path every test rests on makes it `all`."""
     repo = Repo(tmp_path / "repo", files=SMALL)
-    head = repo.change(
-        ["testing/tests/test_a.py", "testing/tests/test_b.py", "testing/tests/test_c.py"]
-    )
+    head = repo.change([f"testing/tests/test_{name}.py" for name in "abcd"])
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert printed == ["all"]
-    assert (line["selection"], line["files"], line["of"], line["forced"]) == (
-        "all",
-        "5",
-        "5",
-        "share",
-    )
-    assert given == {"selection": "all"}
+    assert printed == [
+        "testing/tests/test_a.py",
+        "testing/tests/test_b.py",
+        "testing/tests/test_c.py",
+        "testing/tests/test_d.py",
+        "testing/tests/test_tree.py",
+    ]
+    assert (line["selection"], line["files"], line["of"], line["forced"]) == ("some", "5", "5", "-")
+    assert given == {"selection": "some"}
 
 
-def test_a_selection_under_four_fifths_runs_only_what_it_selected(tmp_path):
+def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
     repo = Repo(tmp_path / "repo", files=SMALL)
     head = repo.change(["testing/tests/test_a.py", "testing/tests/test_b.py"])
 
@@ -1371,6 +1370,16 @@ def test_a_selection_under_four_fifths_runs_only_what_it_selected(tmp_path):
     ]
     assert (line["selection"], line["files"], line["forced"]) == ("some", "3", "-")
     assert given == {"selection": "some"}
+
+
+@pytest.mark.parametrize("path", ["pyproject.toml", "conftest.py"])
+def test_a_path_every_test_rests_on_still_runs_all_however_few_tests_there_are(tmp_path, path):
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change([path], text="# changed\n")
+
+    printed, line, given = outputs(repo, head, tmp_path)
+
+    assert (printed, line["forced"], given) == (["all"], path, {"selection": "all"})
 
 
 def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
