@@ -643,11 +643,16 @@ def report() -> None:
             f"by the judge ({per})."
         )
     holds = all(said["holds"] for said in verdicts.values())
+    failed = ", ".join(f"`{family}`" for family, said in verdicts.items() if not said["holds"])
     lines += [
         "",
-        f"**Verdict of this run: the variant {'does not regress' if holds else 'regresses'}**, by "
-        "the rule in `README.md`: in each family its mean is no lower than base minus the noise "
-        "floor, and the sign test against base shows no loss under 0.05.",
+        "**Verdict of this run: the variant does not regress**, by the rule in `README.md`: in "
+        "each family its mean is no lower than base minus the noise floor, and the sign test "
+        "against base shows no loss under 0.05."
+        if holds
+        else "**Verdict of this run: the variant regresses**, by the rule in `README.md`: in "
+        f"{failed} its mean is lower than base minus the noise floor, or the sign test against "
+        "base shows a loss under 0.05.",
     ]
     (RUN / "results.md").write_text("\n".join(lines) + "\n")
     print(f"report: the variant {'does not regress' if holds else 'regresses'}, results.md written")
