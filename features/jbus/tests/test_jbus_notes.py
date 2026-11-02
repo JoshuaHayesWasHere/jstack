@@ -19,7 +19,7 @@ from test_jbus_leftover import home
 OLD = "- 2026-10-13: AWS for this repo: dev is the HayesApps account"
 NEW = "- 2026-11-02 10:01 EST, word 53334f6970be: merge the green PR, the other two snoozed"
 LATER = "- 2026-11-02 11:30 EST: the runner label is Winnifred-ephemeral"
-ASK = "move each entry into the plan, a brief or code"
+ASK = "Move each entry into the plan, a brief or code"
 
 
 @pytest.fixture

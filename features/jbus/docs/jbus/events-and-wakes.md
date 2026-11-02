@@ -26,6 +26,7 @@ The desk shows only where `notify-send` is on the PATH.
 A home is woken from one list: the open items it owns that are new to it since its last wake (`jbus.wakes`).
 The list is what the view already builds: each entry of [what is wrong](the-view.md) that an agent owns, each leftover a home has, and each need of yours that a home passes on.
 A line of a home's `plan.md` that defers an action on an event no code watches, as "brief once foo lands" or "on resume", is an item of that home's too (`jbus.prose`), unless the first pass on the machine found it already there.
+A home's notes file that takes a new dated line is an item of that home's too (`jbus.notes`), named by the newest such line, since a home adds no entries there.
 A stall is how a step hands a row to its home: the clock's second miss, a check cancelled twice, a decline the scoped pass did not uphold.
 An item's key is what it is, with no run and no time in it: a red is its failing tests, so one red is one item whatever runs or branches show it.
 A row to approve is the item of the home whose brief it is, as `jbus home` says, and any other need is the root home's.

@@ -3,8 +3,8 @@
 A line of a home's `plan.md` that defers an action on an event no code watches ("take X out once
 #12 merges", "on resume") is an item keyed `prose:<file>:<hash>`: the root's for the root plan, a
 scope's for its plan. The first pass on a machine records every such line already there as told,
-so only a line written after it wakes a home. A home keeps no `notes.md` now, and one left on disk
-is not read. The tests run the real pass against the kitchen's fakes.
+so only a line written after it wakes a home. A home's `notes.md` is not read as prose: its dated
+lines are `jbus.notes`'s. The tests run the real pass against the kitchen's fakes.
 """
 
 import json
@@ -133,7 +133,7 @@ def test_the_seed_pass_over_todays_lines_wakes_nobody_and_a_later_line_alone_is_
     assert said.count("- prose:") == 1
 
 
-def test_a_notes_md_left_on_disk_is_not_read(homes):
+def test_a_notes_md_is_not_read_as_prose(homes):
     kitchen, root, _ = homes
     kitchen.poll(NOW)
     (kitchen.home / "notes.md").write_text(NOTE + "\n")
