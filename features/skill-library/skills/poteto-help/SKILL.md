@@ -1,7 +1,6 @@
 ---
 name: poteto-help
-description: "Answer a help question about jstack: how to get set up, which role takes a piece of work, and which playbook and skills fit a brief, a scout's request or a plain question, each with the file it came from. Type /poteto-help with a question, a brief's path or its slug."
-disable-model-invocation: true
+description: "Answer a help question about jstack: setup, which role takes a piece of work, and which playbook and skills fit a brief. Use for 'how do I do X in jstack', 'which playbook fits', or 'what do I type'."
 card: "Run the pipeline | 9 | Answers a help question with the skill to type and the file it came from: the role that takes the work, its playbook, and the skills its words call for. It starts no work. | Reach for it when you do not know which skill, playbook or role fits a brief, a request or a question. | op: the operator"
 ---
 

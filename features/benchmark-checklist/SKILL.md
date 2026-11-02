@@ -1,8 +1,7 @@
 ---
 name: benchmark-checklist
-description: Vet a measured number (its limiter, tuning, limits, errors, repeatability, relevance, and whether the work happened) before it is reported or acted on. Use for /benchmark-checklist, or when a playbook step names this skill.
+description: "Vet a measured number before it is reported or acted on: its limiter, tuning, errors, repeatability and whether the work ran. Use when a speedup, regression, latency or eval result is about to be trusted."
 tip: vets a measured number before it is reported or acted on | benchmark | benchmarks | benchmarked | measured number
-disable-model-invocation: true
 card: "Distrust the change | 4 | Vets a measured number before it is reported: its limiter, its tuning, its errors, whether it repeats, and whether the work happened. | Reach for it when a speedup, a regression or an eval result is about to be believed. | op: the operator; plain: a step of `perf-issue`, `hillclimb`"
 ---
 

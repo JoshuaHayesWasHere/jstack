@@ -37,14 +37,13 @@ def test_a_principle_opens_with_its_heading_and_has_a_body(path):
 
 
 @pytest.mark.parametrize("path", FILES, ids=named)
-def test_a_principle_is_a_skill_typed_by_name_described_by_its_apply_when_line(path):
+def test_a_principle_is_a_skill_a_model_may_load_described_by_its_apply_when_line(path):
     front = frontmatter.parse(path.read_text())
     _, text = frontmatter.split(path.read_text())
     apply = text.lstrip("\n").split("\n\n")[1]
     assert front == {
         "name": named(path),
         "description": apply,
-        "disable-model-invocation": True,
     }
     assert apply.startswith("Apply ")
 

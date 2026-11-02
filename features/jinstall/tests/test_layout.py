@@ -299,6 +299,23 @@ def test_each_layout_keeps_templates_and_playbooks_beside_its_skills(user):
         assert os.path.realpath(f"{root}/source") == str(REPO)
 
 
+def test_codex_finds_beside_each_hidden_skill_a_policy_that_bars_implicit_invocation(user):
+    """Codex ignores `disable-model-invocation` and reads `agents/openai.yaml` beside the skill,
+    in its own root and in `~/.agents/skills`. The hidden skills are the ones skills.json marks."""
+    user.run()
+    items = json.loads((REPO / "skills.json").read_text())["items"]
+    hidden = {item["name"] for item in items if item.get("hidden")}
+    exposed = set(layout.skills(REPO)) - hidden
+    assert "home" in hidden and "grilling" in exposed
+    policy = "policy:\n  allow_implicit_invocation: false\n"
+    for root in (".codex/skills", ".agents/skills"):
+        for name in hidden:
+            assert (user.home / root / name / "agents" / "openai.yaml").read_text() == policy
+        assert [name for name in exposed if (user.home / root / name / "agents").exists()] == []
+    claude = user.home / ".claude" / "skills"
+    assert [name for name in hidden if (claude / name / "agents").exists()] == []
+
+
 def test_uninstall_takes_every_layout_away(user):
     user.run()
     code, said = user.run("--uninstall")

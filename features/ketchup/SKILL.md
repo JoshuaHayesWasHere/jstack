@@ -1,8 +1,7 @@
 ---
 name: ketchup
-description: "Catch the user up on what changed in this chat since their last message, in plain words and small visuals. List every item waiting on them with what they need to decide it from the reply alone. Use for /ketchup."
+description: "Catch the user up on what changed in this chat since their last message, with every item waiting on them. Use for 'catch me up on this thread' or 'what did I miss'. For past sessions, use recall."
 tip: catches you up on this chat since your last message | catch me up | what did i miss | what happened while i was away | where are we
-disable-model-invocation: true
 card: "Catch up and keep track | 2 | Catches the operator up on everything in this chat since their last message and lists every waiting item, each one decidable from the reply alone. | Reach for it when a thread ran on while you were away. | op: the operator"
 ---
 

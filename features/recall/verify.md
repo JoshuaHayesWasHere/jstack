@@ -1,7 +1,7 @@
 # The recall skill
 
 `recall` rebuilds where you left off from your chat history and the home's record.
-It loads only when a user types it, and the tests run each shell block it gives.
+A model may load it by itself from its description, and the tests run each shell block it gives.
 
 Paths:
 - `features/recall/`

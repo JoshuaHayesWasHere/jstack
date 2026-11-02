@@ -2,6 +2,10 @@
   "$schema": "../../schemas/feature.schema.json",
   "name": "arena-swarm",
   "description": "Runs one task as several threads that do not see each other, and judges or merges what they make.",
+  "hidden": [
+    "arena",
+    "swarm"
+  ],
   "nameable": [
     "arena",
     "swarm"

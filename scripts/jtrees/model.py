@@ -41,6 +41,7 @@ class Item:
     feature: str
     description: str = ""
     nameable: bool = False
+    hidden: bool = False
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,7 @@ class Feature:
     git_hooks: tuple[tuple[str, str], ...] = ()
     project_skills: tuple[tuple[str, str], ...] = ()
     nameable: tuple[str, ...] = ()
+    hidden: tuple[str, ...] = ()
 
     @property
     def folder(self) -> str:

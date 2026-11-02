@@ -1,8 +1,7 @@
 ---
 name: tdd
-description: "Use for /tdd: fix a bug test-first, with a focused regression test that fails before the fix and passes after it. For a bug with a clear, cheap test path. Skip when the test path is unclear, expensive or integration-heavy."
+description: "Fix a bug test-first, with a focused regression test that fails before the fix and passes after. Use for a bug with a clear, cheap test path; skip it when the test would be slow or integration-heavy."
 tip: fixes a bug test-first, with a regression test that fails before the fix | fix this bug | fix the bug | regression test | failing test first | test first
-disable-model-invocation: true
 card: "Distrust the change | 3 | Fixes a bug test-first: a focused regression test that fails before the fix and passes after it. | Reach for it when a bug has a clear, cheap test path. | op: the operator"
 ---
 

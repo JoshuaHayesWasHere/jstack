@@ -22,7 +22,7 @@ import jleak
 from jbus.launchd import label
 from jinstall import layout
 from jinstall.__main__ import install as run_install
-from jinstall.harnesses import HARNESSES
+from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import RetiredHook, Units, layout_scripts, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
 from jinstall.needs import needs
@@ -171,6 +171,10 @@ def lines_of(state, parts, home):
 
 GENERATED = "ok hard generated files are current"
 OFF = {"attribution": {"commit": "", "pr": ""}, "includeCoAuthoredBy": False}
+ENV = {"env": CLAUDE_CODE.env}
+SET = OFF | ENV
+"""What the install sets in a Claude home's settings.json: the trailer off, and the variables
+of `env`."""
 CURSOR_OFF = {"attribution": {"attributeCommitsToAgent": False, "attributePRsToAgent": False}}
 UV = """#!/bin/sh
 echo "$*" >> "$UV_LOG"
@@ -327,6 +331,7 @@ class User:
             "hard commands jstack",
             f"optional statusline {self.settings}",
             f"hard attribution {self.settings}",
+            f"hard env {self.settings}",
         ]
 
     def every(self, state, *more):
@@ -435,7 +440,7 @@ def test_it_puts_every_part_and_says_ok_for_each(user):
     assert json.loads(user.settings.read_text()) == {
         "hooks": user.written(),
         "statusLine": user.STATUS,
-        **OFF,
+        **SET,
     }
     assert json.loads(user.codex.read_text()) == {"hooks": user.written("codex")}
     assert sorted(path.name for path in user.bin.iterdir()) == sorted(NAMES)
@@ -584,7 +589,7 @@ def test_a_hook_whose_script_no_feature_declares_is_old_and_taken_out(user):
     hooks = user.written()
     hooks["PreToolUse"] = [mine, *hooks["PreToolUse"]]
     hooks["PostToolUse"] = [{"matcher": "Bash", "hooks": [beside]}, *hooks.get("PostToolUse", [])]
-    wanted = {"model": "one", "hooks": hooks, "statusLine": user.STATUS} | OFF
+    wanted = {"model": "one", "hooks": hooks, "statusLine": user.STATUS} | SET
     assert json.loads(user.settings.read_text()) == wanted
     assert user.run("--check") == (0, user.every("ok"))
 
@@ -618,7 +623,7 @@ def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touc
     assert line_for(said, part) == [f"old hard {part} -> {by_hand}"]
     assert line_for(said, "statusline") == []
     assert user.run()[0] == 0
-    assert json.loads(user.settings.read_text()) == written | {"hooks": user.written()} | OFF
+    assert json.loads(user.settings.read_text()) == written | {"hooks": user.written()} | SET
     assert user.run("--uninstall")[0] == 0
     assert json.loads(user.settings.read_text()) == {
         "model": "one",
@@ -667,7 +672,7 @@ def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_pat
     assert json.loads(kept.read_text()) == {
         "hooks": {"Stop": stop, **user.written()},
         "statusLine": user.STATUS,
-        **OFF,
+        **SET,
     }
     assert sorted(path.name for path in kept.parent.iterdir()) == ["settings.json"]
     assert user.run("--uninstall")[0] == 0
@@ -1312,15 +1317,32 @@ def test_a_settings_file_with_no_attribution_gets_it_and_keeps_every_other_key(u
     part = f"attribution {user.settings}"
     assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
     assert line_for(user.run()[1], part) == [f"ok hard {part}"]
-    assert (
-        json.loads(user.settings.read_text())
-        == written
-        | {
-            "hooks": user.written(),
-            "statusLine": user.STATUS,
-        }
-        | OFF
+    assert json.loads(user.settings.read_text()) == written | {
+        "hooks": user.written(),
+        "statusLine": user.STATUS,
+    } | OFF | {"env": {"A": "1", **CLAUDE_CODE.env}}
+
+
+def test_the_skill_listing_budget_is_set_in_env_beside_the_users_own_and_uninstall_takes_it_out(
+    user,
+):
+    """A session of 200k tokens cuts the listing of skills to 8,000 characters, and jstack's
+    skills bring it to about 29,000, so the install raises the budget in `env`."""
+    user.write(user.settings, {"env": {"A": "1"}})
+    part = f"env {user.settings}"
+    assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
+    assert line_for(user.run()[1], part) == [f"ok hard {part}"]
+    env = json.loads(user.settings.read_text())["env"]
+    assert env["A"] == "1" and int(env["SLASH_COMMAND_TOOL_CHAR_BUDGET"]) >= 29_000
+    user.write(user.settings, {"env": {"A": "1", "SLASH_COMMAND_TOOL_CHAR_BUDGET": "8000"}})
+    code, said = user.run("--check")
+    assert (code, line_for(said, part)) == (
+        1,
+        [f'old hard {part} -> env.SLASH_COMMAND_TOOL_CHAR_BUDGET is "8000"'],
     )
+    user.run()
+    assert user.run("--uninstall")[0] == 0
+    assert json.loads(user.settings.read_text()) == {"env": {"A": "1"}}
 
 
 @pytest.mark.parametrize(
@@ -1379,7 +1401,7 @@ def test_a_declared_claude_home_with_its_own_settings_gets_the_attribution_too(u
     part = f"attribution {prime}"
     assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
     assert line_for(user.run()[1], part) == [f"ok hard {part}"]
-    assert json.loads(prime.read_text()) == {"model": "two", **OFF}
+    assert json.loads(prime.read_text()) == {"model": "two", **SET}
 
 
 def test_a_declared_home_whose_settings_link_to_the_main_ones_shares_that_one_file(user):

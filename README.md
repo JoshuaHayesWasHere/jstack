@@ -68,7 +68,7 @@ The threads run on Claude Code, and the install also links the skills for Codex 
 It writes outside jstack's own folders for each of the three.
 `jinstall --uninstall` takes its links, hook entries, keys and units away:
 
-- Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line and the attribution keys in `~/.claude/settings.json`.
+- Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line, the attribution keys and the skill listing's budget in `~/.claude/settings.json`.
 - Codex: a link for each skill in `~/.codex/skills`, and hook entries in `~/.codex/hooks.json`.
 - Cursor: a link for each skill in `~/.agents/skills`, and the attribution keys in `~/.cursor/cli-config.json` once Cursor's CLI has made it.
 - The units: in `~/.config/systemd/user`, or `~/Library/LaunchAgents` on macOS.

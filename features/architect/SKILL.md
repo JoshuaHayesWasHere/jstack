@@ -1,8 +1,7 @@
 ---
 name: architect
-description: "Sketch types, signatures, and module structure before code, then stay in the loop while implementation fills in. Use for /architect, 'architect this', 'design this', or non-trivial work where jumping to code would lock in the wrong shape."
+description: "Sketch the types, signatures and module layout before writing code for non-trivial work. Use when asked to architect or design something, or when coding first would lock in the wrong shape."
 tip: sketches types, signatures and module structure before any code | architect this | design this | sketch the types | module structure
-disable-model-invocation: true
 card: "Settle the shape before code | 2 | Sketches types, signatures and module structure twice, apart, picks one and grafts the other's best, then lets the code fill in against it. | Reach for it when jumping to code would lock in the wrong shape. Its design is what a brief's `Design:` line names. | op: the operator; model: a crewmate"
 ---
 
@@ -12,7 +11,8 @@ Source: pstack, `pstack/skills/architect/SKILL.md`
 
 Sketch types, function signatures, class shapes, and module boundaries with `not implemented` bodies and pseudocode. Make the sketch twice, apart, pick and graft one, then fill in code against it.
 
-No skill named here loads by itself. To run one, read its file and do what it says. Run this first:
+To run a skill named here, read its file and do what it says: arena never loads by itself.
+Run this first:
 
 ```sh
 if R=$(realpath ~/.claude/skills/architect/../.. 2> /dev/null) && [ -f "$R/playbooks/arena.md" ]; then

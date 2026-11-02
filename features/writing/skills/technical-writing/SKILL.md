@@ -1,8 +1,7 @@
 ---
 name: technical-writing
-description: "Layered technical-writing standard: Diátaxis structure, Google developer style sentences, STE instruction rules, Global English syntax. Use for /technical-writing or when writing or reviewing docs, RFCs, readmes, PR descriptions, or commit messages."
+description: "Write or review docs, READMEs, RFCs, PR descriptions and commit messages to a layered standard: Diataxis structure, Google developer style, STE rules and Global English."
 tip: holds docs, readmes and pull request descriptions to one writing standard | write the docs | write the readme | update the readme | write documentation | write an rfc | pr description
-disable-model-invocation: true
 card: "House standards for text and code | 1 | A layered writing standard: structure, sentence style, instruction rules and syntax that reads well in translation. | Reach for it when you write or review a doc, a pull request description or a commit message. | op: the operator; plain: a step of `opening-a-pr`"
 ---
 

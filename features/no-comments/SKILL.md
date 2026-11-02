@@ -1,8 +1,7 @@
 ---
 name: no-comments
-description: "Use for /no-comments: a comment hunter reads the scope and condemns every comment that has no exception, then this thread deletes what it accepts, fixes the code a comment was excusing, and offers encodings for claimed constraints."
+description: "Hunt down every code comment with no reason to stay, delete it, and fix the code it was excusing. Use for 'remove useless comments' or a comment cleanup over a scope."
 tip: hunts down every comment that has no reason to stay | remove the comments | delete the comments | strip the comments | too many comments | useless comments
-disable-model-invocation: true
 card: "House standards for text and code | 3 | A comment hunter condemns every comment that has no exception. The thread deletes what it accepts and fixes the code a comment was excusing. | Reach for it when comments have piled up in a scope. | op: the operator"
 ---
 

@@ -97,6 +97,11 @@
       "type": "array",
       "items": {"type": "string", "minLength": 1}
     },
+    "hidden": {
+      "description": "Each skill of the feature that a model may not load by itself: its SKILL.md sets disable-model-invocation: true, and the install hides it from Codex's implicit invocation. Every other skill sets no such key.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    },
     "nameable": {
       "description": "Each playbook of the feature that a brief's Skills: line may name.",
       "type": "array",
