@@ -16,6 +16,7 @@ jbus's test of what the source imports as an import.
 
 from __future__ import annotations
 
+import contextlib
 import re
 import sqlite3
 from collections import defaultdict
@@ -372,24 +373,39 @@ WHERE requested_at >= :week AND requested_at < :until
 """
 
 
-def read(
-    store: Path, since: datetime, until: datetime, project: str | None
-) -> tuple[list[Run], list[Cap], set[str]]:
-    """Every Claude run that ran in [since - 5 h, until + 5 h), so that a five-hour window
-    across either end of the period is whole; every usage-limit cap; and the Claude instances
-    of the week."""
+def caps(store: Path, until: datetime) -> tuple[list[Cap], set[str]]:
+    """Every usage-limit cap, and the Claude instances that ran in the week before `until`."""
     if not store.is_file():
         raise Refused(f"{store} is not T3 Code's store")
-    edges = {"since": _stamp(since - FIVE_HOURS), "until": _stamp(until + FIVE_HOURS)}
     week = {"week": _stamp(until - timedelta(days=7)), "until": _stamp(until)}
     try:
-        with sqlite3.connect(f"file:{store}?mode=ro", uri=True) as db:
-            projects = {name for (name,) in db.execute("SELECT title FROM projection_projects")}
-            found = db.execute(RUNS, edges).fetchall()
+        with contextlib.closing(sqlite3.connect(f"file:{store}?mode=ro", uri=True)) as db:
             capped = db.execute(CAPS).fetchall()
             instances = {name for (name,) in db.execute(INSTANCES, week)}
     except sqlite3.Error as error:
         raise Refused(f"{store} cannot be read: {error}") from None
+    found = [
+        Cap(instance, _at(at), _at(reset), native.split(":")[-2] if native else "")
+        for instance, at, reset, native in capped
+    ]
+    return found, instances
+
+
+def read(
+    store: Path, since: datetime, until: datetime, project: str | None
+) -> tuple[list[Run], list[Cap], set[str]]:
+    """Every Claude run that ran in [since - 5 h, until + 5 h), so that a five-hour window
+    across either end of the period is whole; and `caps` until `until`."""
+    if not store.is_file():
+        raise Refused(f"{store} is not T3 Code's store")
+    edges = {"since": _stamp(since - FIVE_HOURS), "until": _stamp(until + FIVE_HOURS)}
+    try:
+        with contextlib.closing(sqlite3.connect(f"file:{store}?mode=ro", uri=True)) as db:
+            projects = {name for (name,) in db.execute("SELECT title FROM projection_projects")}
+            found = db.execute(RUNS, edges).fetchall()
+    except sqlite3.Error as error:
+        raise Refused(f"{store} cannot be read: {error}") from None
+    capped, instances = caps(store, until)
     if project is not None and project not in projects:
         raise Refused(f"no project {project!r} in {store}: it has {', '.join(sorted(projects))}")
     runs = [
@@ -427,8 +443,4 @@ def read(
         ) in found
         if project is None or in_project == project
     ]
-    caps = [
-        Cap(instance, _at(at), _at(reset), native.split(":")[-2] if native else "")
-        for instance, at, reset, native in capped
-    ]
-    return runs, caps, instances
+    return runs, capped, instances
