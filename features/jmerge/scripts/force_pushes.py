@@ -168,7 +168,7 @@ def git(repo: Path, *args: str) -> str:
 
 def merged_over(repo: Path, main: str, head: str) -> tuple[str, list[str]] | None:
     """The tree of `head` merged over `main`, and the files of it that conflict, or None where git
-    could not merge them: merge-tree ends 0 on a clean merge, 1 on a conflict, and else on a fault."""
+    could not merge them: merge-tree ends 0 on a clean merge, 1 on a conflict, else on a fault."""
     command = ["-c", "merge.conflictStyle=diff3", "merge-tree", "--write-tree", "--name-only"]
     said = ran(repo, *command, "--no-messages", main, head)
     lines = said.stdout.splitlines()
