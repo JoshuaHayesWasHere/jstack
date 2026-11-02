@@ -71,8 +71,8 @@ jobs:
       # The tests that failed on main in the last 30 days, which every part adds to what it
       # selects (`select_tests.py --failed-on-main`): timing tests no pull request reached broke
       # main in 8 of the audit's 15 reds. The lookup reads the logs of main's red jobs, and the
-      # cache keeps what each log named, so a run reads about 8 pages of main's runs and the logs
-      # of new reds only. A cache saved on main, by `full`, is one every pull request can
+      # cache keeps what each log named, so a run lists the last 4 days of main's runs and reads
+      # the logs of new reds only. A cache saved on main, by `full`, is one every pull request can
       # restore. A lookup that fails adds no test, and `check` warns of it.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.reuse.outputs.reused != 'true'

@@ -6,8 +6,9 @@ The lookup runs as CI runs it, `python3 -I -S`, against a stand-in for GitHub's 
 port (`$GITHUB_API_URL`). The selection runs the script on this repo, as `make check-fast` does.
 
 `RUNS` are the push runs of check.yml on main, each with its latest attempt, conclusion and time.
-150 green pushes fill a second page, so a red on it is found only by a lookup that reads every
-page. `JOBS` are each run's jobs over every attempt, and `LOGS` what the red ones' logs say.
+150 green pushes on one day fill a second page of that day, and 1100 more over the window pass
+the 1,000 results GitHub gives a filtered list (`SEARCHED`), so a lookup that lists the whole
+window at once is refused. `JOBS` are each run's jobs over every attempt, and `LOGS` what the red ones' logs say.
 Storage holds no log for job 14, as it holds none for some red jobs on GitHub."""
 
 import importlib.util
@@ -25,6 +26,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 SCRIPT = REPO / "scripts" / "select_tests.py"
 TOKEN = "fake-token-for-the-stand-in"
+SEARCHED = 1000
 NOW = datetime.now(UTC)
 
 
@@ -43,6 +45,10 @@ RUNS = [
     *(
         {"id": 100 + n, "run_attempt": 1, "conclusion": "success", "created_at": stamp(1)}
         for n in range(150)
+    ),
+    *(
+        {"id": 1000 + n, "run_attempt": 1, "conclusion": "success", "created_at": stamp(n % 26)}
+        for n in range(1100)
     ),
     {"id": 4, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(20)},
 ]
@@ -84,6 +90,7 @@ class GitHub(BaseHTTPRequestHandler):
     does."""
 
     asked: list[str] = []
+    days: list[str] = []
 
     def log_message(self, *args):
         pass
@@ -114,9 +121,15 @@ class GitHub(BaseHTTPRequestHandler):
         rest = parts[3:]
         if rest == ["actions", "workflows", "check.yml", "runs"]:
             assert query["branch"] == ["main"] and query["event"] == ["push"]
-            since = query["created"][0].removeprefix(">=")
-            runs = [run for run in RUNS if run["created_at"][:10] >= since]
+            created = query["created"][0]
+            GitHub.days.append(created)
+            if created.startswith(">="):
+                runs = [run for run in RUNS if run["created_at"][:10] >= created[2:]]
+            else:
+                runs = [run for run in RUNS if run["created_at"][:10] == created]
             size, page = int(query["per_page"][0]), int(query.get("page", ["1"])[0])
+            if (page - 1) * size >= SEARCHED:
+                return self.answer(422, b'{"message": "Only the first 1000 search results"}')
             body = {
                 "total_count": len(runs),
                 "workflow_runs": runs[(page - 1) * size : page * size],
@@ -136,6 +149,7 @@ class GitHub(BaseHTTPRequestHandler):
 @pytest.fixture
 def github():
     GitHub.asked = []
+    GitHub.days = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), GitHub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -170,9 +184,11 @@ def test_a_second_lookup_reads_no_log_or_job_list_it_kept(github, tmp_path):
     kept = tmp_path / "kept.json"
     assert lookup(github, kept).returncode == 0
     GitHub.asked = []
+    GitHub.days = []
     again = lookup(github, kept)
     assert again.returncode == 0, again.stderr
     assert again.stdout.splitlines() == FAILED
+    assert set(GitHub.days) == {stamp(days)[:10] for days in range(4)}
     assert GitHub.asked and all(
         path.endswith("/actions/workflows/check.yml/runs") for path in GitHub.asked
     )

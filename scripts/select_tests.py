@@ -102,8 +102,11 @@ was run again, since a rerun that passed hides a flaky test. It reads GitHub's R
 `$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails, naming the answer,
 where GitHub refuses. A completed job and its log never change, so the JSON file `<kept>` keeps
 the red jobs of each run's attempt and the files each one's log named, for the runs still in the
-window: a lookup with it reads only the list of runs, about 8 pages for a month. It reads the
-pages, the job lists and the logs `READS` at a time. Storage holds no log for some red jobs, and
+window. GitHub gives a filtered list of runs 1,000 at most, and main has more in a month, so the
+lookup lists a day at a time. It keeps each day's red runs too, and lists again only the last
+`SETTLED` days, where a rerun of main still lands: a lookup with the file reads about 4 lists. A
+rerun of a run older than that is missed. It reads the days, the job lists and the logs `READS`
+at a time. Storage holds no log for some red jobs, and
 such a job names no test.
 
 The diff is two-dot. So for a pull request, `<base>` is where it branched from main (`git
@@ -154,6 +157,7 @@ FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
 PER_PAGE = 100
 READS = 8
+SETTLED = 4
 FAILING = re.compile(r"^(?:\S+Z )?(?:FAILED|ERROR) (\S+?\.py)(?:::|\s|$)", re.M)
 COLOR = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -972,10 +976,10 @@ def side_by_side(read, items):
         return dict(zip(items, pool.map(read, items), strict=True))
 
 
-def red_runs(days):
-    """The completed push runs of `WORKFLOW` on main created in the last `days` days that
-    failed or were run again, each as `<id>/<attempt>`."""
-    since = (datetime.now(UTC) - timedelta(days=days)).date().isoformat()
+def red_runs(day):
+    """The completed push runs of `WORKFLOW` on main created on a UTC `day` that failed or
+    were run again, each as `<id>/<attempt>`. GitHub gives a filtered list 1,000 runs at most,
+    and main has more in a month, so a day is listed at a time."""
 
     def page(number):
         return json.loads(
@@ -984,7 +988,7 @@ def red_runs(days):
                 branch="main",
                 event="push",
                 status="completed",
-                created=f">={since}",
+                created=day,
                 exclude_pull_requests="true",
                 per_page=PER_PAGE,
                 page=number,
@@ -992,12 +996,12 @@ def red_runs(days):
         )
 
     first = page(1)
-    rest = side_by_side(page, range(2, -(-first["total_count"] // PER_PAGE) + 1))
-    runs = [run for one in (first, *rest.values()) for run in one["workflow_runs"]]
+    rest = [page(number) for number in range(2, -(-first["total_count"] // PER_PAGE) + 1)]
     return sorted(
         {
             f"{run['id']}/{run['run_attempt']}"
-            for run in runs
+            for one in (first, *rest)
+            for run in one["workflow_runs"]
             if run["conclusion"] == "failure" or run["run_attempt"] > 1
         }
     )
@@ -1022,16 +1026,24 @@ def logged(job):
 
 def failed_on_main(days, kept_path):
     """The test files a red job of main's runs of the last `days` days named, sorted. `kept`
-    holds what earlier lookups read, and is left with the runs still in the window."""
-    kept = json.loads(kept_path.read_text()) if kept_path.is_file() else {"runs": {}, "jobs": {}}
-    window = red_runs(days)
-    runs = {run: kept["runs"].get(run) for run in window}
+    holds what earlier lookups read, and is left with the days, runs and jobs still in the
+    window. The last `SETTLED` days are listed again, and an older one only when `kept` lacks it."""
+    kept = {"days": {}, "runs": {}, "jobs": {}}
+    if kept_path.is_file():
+        kept |= json.loads(kept_path.read_text())
+    today = datetime.now(UTC).date()
+    window = [(today - timedelta(days=back)).isoformat() for back in range(days + 1)]
+    listed = {day: None for day in window[:SETTLED]}
+    listed |= {day: kept["days"].get(day) for day in window[SETTLED:]}
+    listed |= side_by_side(red_runs, [day for day, runs in listed.items() if runs is None])
+    runs = {run: kept["runs"].get(run) for day in window for run in listed[day]}
     runs |= side_by_side(red_jobs, [run for run, jobs in runs.items() if jobs is None])
     red = sorted({job for jobs in runs.values() for job in jobs})
     jobs = {job: kept["jobs"].get(job) for job in red}
     jobs |= side_by_side(logged, [job for job, tests in jobs.items() if tests is None])
     kept_path.parent.mkdir(parents=True, exist_ok=True)
-    kept_path.write_text(json.dumps({"runs": runs, "jobs": jobs}, indent=1, sort_keys=True) + "\n")
+    kept = {"days": listed, "runs": runs, "jobs": jobs}
+    kept_path.write_text(json.dumps(kept, indent=1, sort_keys=True) + "\n")
     return sorted({test for tests in jobs.values() for test in tests})
 
 
