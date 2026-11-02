@@ -418,6 +418,40 @@ def test_a_hosted_red_kept_before_its_log_was_read_is_read_once_by_the_next_coll
     assert again.read == []
 
 
+def test_a_re_read_keeps_what_a_local_red_held_and_retries_a_log_github_did_not_give(tmp_path):
+    """Only a hosted red was never read: a local red kept before `logged` keeps its tests, and a
+    hosted red whose log GitHub did not give is left as it was, for the next collect."""
+    red = a_hosted_red()
+    collect.collect(Replay(), REPO, tmp_path, NOW, 14)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    older = [{k: v for k, v in one.items() if k != "logged"} for one in rows]
+    for one in older:
+        if one["job"] == red["id"]:
+            one["tests"] = []
+    ledger.rewrite(tmp_path / ledger.JOBS, older)
+    local = {
+        one["job"]: one["tests"]
+        for one in older
+        if one["kind"] == "local" and one["conclusion"] == "failure" and one["steps"]
+    }
+
+    class Down(HostedLog):
+        def log(self, repo, job):
+            self.read.append(job)
+            raise Unavailable("down")
+
+    down = Down(red["id"])
+    collect.collect(down, REPO, tmp_path, NOW, 14)
+    after = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
+    assert local and {job: after[job]["tests"] for job in local} == local
+    assert not set(local) & set(down.read) and red["id"] in down.read
+    assert "logged" not in after[red["id"]] and after[red["id"]]["tests"] == []
+    gh = HostedLog(red["id"])
+    collect.collect(gh, REPO, tmp_path, NOW, 14)
+    row = next(one for one in ledger.read(tmp_path / ledger.JOBS) if one["job"] == red["id"])
+    assert (row["tests"], row["logged"]) == (["tests/test_a.py::test_b"], True)
+
+
 def test_a_log_with_colour_codes_gives_the_same_evidence_as_one_without():
     plain = "2026-10-17T20:00:00.1Z FAILED tests/test_a.py::test_b - boom\n"
     coloured = "2026-10-17T20:00:00.1Z \x1b[31mFAILED\x1b[0m tests/test_a.py::test_b - boom\n"
