@@ -10,6 +10,7 @@ for them: it keeps runs from the answer it already asked for.
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -80,6 +81,38 @@ def test_a_removed_brief_is_a_version_with_no_sha_and_its_text_stays_kept(kitche
     one = judgement.brief_sha(brief("alpha"))
     assert [(line["was"], line["sha"]) for line in log.read()] == [("", one), (one, "")]
     assert (kitchen.state / history.KEPT / f"{one}.md").exists()
+
+
+@pytest.mark.parametrize("at", ["text", "line"])
+def test_a_brief_whose_store_died_part_way_keeps_its_version_once(kitchen, at):
+    log = Grows(kitchen.state / history.BRIEFS)
+    add(kitchen, "alpha", approve=False)
+    stored = queue.brief_path(kitchen.state, "alpha")
+    write, append = Path.write_text, history.store.append_jsonl
+
+    def text_dies(path, *args, **kwargs):
+        if path == stored:
+            raise OSError("the store died here")
+        return write(path, *args, **kwargs)
+
+    def line_dies(path, *args, **kwargs):
+        if path.name == history.BRIEFS:
+            raise OSError("the store died here")
+        return append(path, *args, **kwargs)
+
+    if at == "text":
+        kitchen.monkeypatch.setattr(Path, "write_text", text_dies)
+    else:
+        kitchen.monkeypatch.setattr(history.store, "append_jsonl", line_dies)
+    with pytest.raises(OSError):
+        add(kitchen, "alpha", approve=False, text=widened("alpha"))
+    kitchen.monkeypatch.setattr(Path, "write_text", write)
+    kitchen.monkeypatch.setattr(history.store, "append_jsonl", append)
+    add(kitchen, "alpha", approve=False, text=widened("alpha"))
+
+    one, two = judgement.brief_sha(brief("alpha")), judgement.brief_sha(widened("alpha"))
+    assert [(line["was"], line["sha"]) for line in log.read()] == [("", one), (one, two)]
+    assert stored.read_text() == widened("alpha")
 
 
 def test_every_pull_request_a_row_has_is_kept_open_and_merged_once_each(launched):

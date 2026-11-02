@@ -1866,7 +1866,8 @@ def _store(state: Path, slug: str, text: str | None) -> None:
     """Store a brief, or take it away for None, and leave one that already holds the same text as
     it is: when its file was written is when that text was stored, which a door's go is held to
     (`jbus.acts`). A change of the brief's sha is a line of `brief-versions.jsonl`
-    (`jbus.history`)."""
+    (`jbus.history`), written before the brief, so a store that dies between the two leaves a
+    line that the next store of the same text does not write again."""
     path = brief_path(state, slug)
     try:
         was: str | None = path.read_text()
@@ -1874,12 +1875,12 @@ def _store(state: Path, slug: str, text: str | None) -> None:
         was = None
     if was == text:
         return
+    history.brief(state, slug, was, text, clock())
     if text is None:
         path.unlink(missing_ok=True)
     else:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
-    history.brief(state, slug, was, text, clock())
 
 
 def _run(

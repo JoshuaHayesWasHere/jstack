@@ -6,7 +6,8 @@ Each comes from what jbus already holds, and none asks GitHub anything:
 
 - `brief-versions.jsonl`: `queue._store`, the one writer of a stored brief, adds a line each time
   the brief's sha (`judgement.brief_sha`) changes, and a line with no sha when the brief is taken
-  away. The text of each version is kept once, by its sha, in `brief-versions/`, and the line
+  away. It writes the line before the brief, and no line whose sha is the slug's last already, so
+  a store that dies between the two loses no version and writes none twice. The text of each version is kept once, by its sha, in `brief-versions/`, and the line
   holds the sha and the size: the store keeps no text.
 - `row-pulls.jsonl`: the step `history.pulls` adds a line the first time the pass's world shows a
   pull request under a row's slug as open, and again the first time it shows it merged. A row
@@ -44,24 +45,29 @@ TAIL = 256 * 1024
 """How much of the end of `runs.jsonl` holds the keys a list of the last runs can repeat."""
 
 
-def held(path: Path, key: Callable[[dict[str, Any]], Any], tail: int | None = None) -> set:
-    """The keys of the log's lines, of its last `tail` bytes where given."""
+def _lines(path: Path, tail: int | None = None) -> list[dict[str, Any]]:
+    """The log's lines that are JSON objects, in order, of its last `tail` bytes where given."""
     try:
         with open(path, "rb") as handle:
             if tail is not None:
                 handle.seek(max(0, os.fstat(handle.fileno()).st_size - tail))
             data = handle.read()
     except FileNotFoundError:
-        return set()
-    found = set()
+        return []
+    found = []
     for line in data.decode(errors="replace").splitlines():
         try:
             one = json.loads(line)
         except ValueError:
             continue
         if isinstance(one, dict):
-            found.add(key(one))
+            found.append(one)
     return found
+
+
+def held(path: Path, key: Callable[[dict[str, Any]], Any], tail: int | None = None) -> set:
+    """The keys of the log's lines, of its last `tail` bytes where given."""
+    return {key(one) for one in _lines(path, tail)}
 
 
 def add(path: Path, lines: Iterable[dict[str, Any]], key, tail: int | None = None) -> None:
@@ -80,7 +86,7 @@ def brief(state: Path, slug: str, was: str | None, text: str | None, at: datetim
     its sha changed."""
     before = judgement.brief_sha(was) if was is not None else ""
     after = judgement.brief_sha(text) if text is not None else ""
-    if before == after:
+    if before == after or _last(state / BRIEFS, slug) == after:
         return
     if text is not None:
         kept = state / KEPT / f"{after}.md"
@@ -95,6 +101,15 @@ def brief(state: Path, slug: str, was: str | None, text: str | None, at: datetim
         "bytes": len(text.encode()) if text is not None else 0,
     }
     store.append_jsonl(state / BRIEFS, [line])
+
+
+def _last(path: Path, slug: str) -> str | None:
+    """The sha of the last version the log holds of `slug`, of its last `TAIL` bytes."""
+    found = None
+    for one in _lines(path, TAIL):
+        if one.get("slug") == slug:
+            found = one.get("sha")
+    return found
 
 
 def _pull_key(one: dict[str, Any]) -> tuple:
