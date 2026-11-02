@@ -652,9 +652,6 @@ def test_a_numbered_reviewer_is_told_to_read_its_brief(kitchen):
     assert failovers(kitchen)[0].startswith("failover review alpha: five_hour limit")
 
 
-# The login lapse of 2026-11-02: from about 16:47 to 17:30 UTC claudeAgent could not sign in, and
-# each turn on it failed within a second with these two items, recorded from crew
-# reviewer-reads-trim's run 25. The replay keeps the texts and moves the clock to the kitchen's.
 NOT_LOGGED_IN = "Not logged in · Please run /login"
 NO_AUTH = (
     "Claude could not authenticate. For subscription login, run `claude auth login` on this "
@@ -667,7 +664,10 @@ LAPSED = datetime(2026, 10, 17, 17, 24, 4, tzinfo=UTC)
 
 
 def lapsed_on(thread, texts=(NOT_LOGGED_IN, NO_AUTH), run="run-1", ran_on="claudeAgent", at=LAPSED):
-    """End the thread's last turn as a turn on a signed-out instance ends: at once, on `texts`."""
+    """End the thread's last turn as a turn on a signed-out instance ends: at once, on `texts`.
+    The texts are the two items of the login lapse of 2026-11-02, when from about 16:47 to 17:30
+    UTC claudeAgent could not sign in, recorded from crew reviewer-reads-trim's run 25. The
+    replay keeps the texts and moves the clock to the kitchen's."""
     items = [
         {"runId": run, "itemId": f"{run}:{n}", "type": TYPES[text], "text": text}
         for n, text in enumerate(texts)

@@ -398,6 +398,7 @@ def test_jbus_interrupts_nothing():
         "t3_thread_send",
         "link_pull_request",
         "t3_thread_organize",
+        "orchestrator_capabilities",
     )
     assert not [tool for tool in t3.TOOLS if "interrupt" in tool]
 
