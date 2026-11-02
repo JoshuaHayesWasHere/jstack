@@ -4,10 +4,15 @@
 keeps everything it is told under the directory it is given:
 
     port          the port it listens on, written once it is ready
-    threads.json  the threads it has, which a drive may edit between passes
+    threads.json  the threads it has, which a drive may edit between passes: a thread's
+                  `recentRuns`, which `t3_thread_read` returns, are kept on the thread
+    capabilities.json  each provider instance `orchestrator_capabilities` lists, by its id, with
+                  its constraints, none by default: a drive gives one `Provider is not
+                  authenticated.` to sign it out
     messages.json the items a drive gives a thread, by thread id, which `t3_thread_read` returns:
                   one by its item id, as `jbus word --message` asks, or all of them, as a pass
-                  asks when it looks for a usage limit in a failed thread's last run
+                  asks when it looks for a usage limit or a login lapse in a failed thread's
+                  last run
     calls.jsonl   one line for each tool call jbus made, with its arguments
     wake.jsonl    one line for each wake jbus sent a home thread, with the lines it carried
 
@@ -33,6 +38,7 @@ from jbus.bind import NoLookup
 from jbus.t3 import PROTOCOL, TOOLS
 
 SELECTION = {"provider": "claudeAgent", "model": "claude-sandbox"}
+INSTANCES = ("claudeAgent", "claudeAgent_sandbox", "codex")
 
 
 def now() -> str:
@@ -53,6 +59,9 @@ class Fake:
         self.lock = threading.Lock()
         if not self.path.exists():
             self.path.write_text("[]\n")
+        able = directory / "capabilities.json"
+        if not able.exists():
+            able.write_text(json.dumps({name: [] for name in INSTANCES}, indent=2) + "\n")
 
     @property
     def path(self) -> Path:
@@ -64,6 +73,21 @@ class Fake:
     def messages(self) -> dict[str, list[dict[str, Any]]]:
         path = self.directory / "messages.json"
         return json.loads(path.read_text()) if path.exists() else {}
+
+    def providers(self) -> list[dict[str, Any]]:
+        constraints = json.loads((self.directory / "capabilities.json").read_text())
+        return [
+            {
+                "providerInstanceId": name,
+                "driverKind": name.split("_")[0],
+                "displayName": name,
+                "models": [],
+                "canRunChildTask": True,
+                "canRunCrossProviderChildTask": True,
+                "constraints": said,
+            }
+            for name, said in constraints.items()
+        ]
 
     def keep(self, threads: list[dict[str, Any]]) -> None:
         self.path.write_text(json.dumps(threads, indent=2) + "\n")
@@ -82,7 +106,7 @@ class Fake:
             found = [t for t in threads if given.get("titleContains", "") in t["title"]]
             if given.get("settled") is not None:
                 found = [t for t in found if t["settled"] == given["settled"]]
-            hidden = ("branch", "modelSelection")
+            hidden = ("branch", "modelSelection", "recentRuns")
             listed = [{k: v for k, v in t.items() if k not in hidden} for t in found]
             return {"projectId": given.get("projectId"), "threads": listed, "nextCursor": None}
         if name == "t3_thread_read":
@@ -91,8 +115,19 @@ class Fake:
             if "itemId" in given:
                 items = [one for one in said if one["itemId"] == given["itemId"]]
                 found = by_id.get(thread, {"threadId": thread, "title": "home: demo"})
-                return {"thread": found, "recentRuns": [], "items": items}
-            return {"thread": by_id[thread], "recentRuns": [], "items": said}
+                return {"thread": found, "recentRuns": found.get("recentRuns", []), "items": items}
+            found = by_id[thread]
+            return {"thread": found, "recentRuns": found.get("recentRuns", []), "items": said}
+        if name == "orchestrator_capabilities":
+            return {
+                "parentThreadId": None,
+                "inheritedProviderInstanceId": None,
+                "inheritedModel": None,
+                "runtimeMode": "full-access",
+                "interactionMode": "default",
+                "providers": self.providers(),
+                "features": {},
+            }
         if name == "t3_thread_configure":
             if given["threadId"] not in by_id:
                 raise Gone(given["threadId"])
