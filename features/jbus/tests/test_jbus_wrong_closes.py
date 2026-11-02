@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 import pytest
 
 import jbus
+import jsettings
 from jbus import questions, queue, verbs
 from jbus.questions import Answer, Question
 from jmerge import judgement
@@ -113,7 +114,7 @@ def run(kitchen, monkeypatch, now=MONDAY):
     monkeypatch.setattr(verbs, "clock", lambda: now)
     code, said, project = service(kitchen, monkeypatch)
     assert code == 0, said
-    report = next((kitchen.home / "reports").glob("ci-week-*.md")).read_text()
+    report = (kitchen.home / "reports" / f"ci-week-{jsettings.load().day(now)}.md").read_text()
     return said, report
 
 
