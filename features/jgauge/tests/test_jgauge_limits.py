@@ -310,3 +310,28 @@ def test_a_cap_another_writer_floored_to_the_second_is_the_same_window_and_stand
     machine.run()
     (five,) = [line for line in machine.lines("claudeAgent") if line.startswith("five_hour")]
     assert five.split()[1] == "100"
+
+
+def test_a_window_the_endpoint_gives_as_null_is_not_open_and_the_reading_is_kept(machine):
+    """On 2026-11-02 claudeAgent's answer gave `five_hour: null`, with no session since its last
+    reset, and `seven_day` at 4%. The command refused the whole answer, so the account's ledger
+    went unread for two days: rollover landed on an account nobody could read."""
+    machine.answer("claudeAgent", {**usage(5, 4), "five_hour": None})
+    machine.answer(PRIME, usage(5, 4))
+    code, out, _ = machine.run()
+    assert code == 0
+    (line,) = [one for one in out.splitlines() if one.startswith("claudeAgent ")]
+    assert "seven_day 4%" in line
+    assert "five_hour not open: the answer gives it null, as it does until a session opens it" in line
+    assert machine.file("claudeAgent").read_text() == f"seven_day 4 {WEEK_AT}\n"
+    assert "stale" not in out
+
+
+def test_an_answer_with_no_such_window_says_what_it_has(machine):
+    """An answer of another shape, such as an error object, is no reading: the line names its
+    keys, and never a value."""
+    machine.answer("claudeAgent", {"error": "secret-detail", "kind": "x"})
+    machine.answer(PRIME, usage(5, 4))
+    (line,) = [one for one in machine.run()[1].splitlines() if "claudeAgent:" in one]
+    assert "endpoint: the answer has no five_hour: it has error, kind" in line
+    assert "secret-detail" not in line

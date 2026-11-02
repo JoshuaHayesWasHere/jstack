@@ -853,3 +853,31 @@ def test_the_pkgbuild_names_the_series_and_each_patch_of_its_folder():
     assert f'.jstack.{patch_series(packaging)}"\n' in pkgbuild
     assert PINNED_TAG.search(pkgbuild)
     assert all(one.name in pkgbuild for one in packaging.glob("*.patch"))
+
+
+def test_a_role_on_one_account_with_another_listed_is_a_hard_problem_with_the_fix_for_infra(user):
+    """`jroles --check` and this line read the same rule (`jroles.pool.lone`)."""
+    user.run()
+    prime = "claudeAgent_claude_prime"
+    settings = user.home / ".t3" / "userdata" / "settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text(
+        json.dumps(
+            {
+                "providerInstances": {
+                    "claudeAgent": {"driver": "claudeAgent"},
+                    prime: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
+                }
+            }
+        )
+    )
+    roles = user.config.with_name("roles")
+    roles.parent.mkdir(parents=True, exist_ok=True)
+    roles.write_text("crew: claudeAgent claude-opus-5-5\n")
+    code, said = user.doctor()
+    (line,) = line_for(said, "role pools")
+    assert code == 1 and line.startswith("old hard role pools -> crew has one instance, claudeAgent")
+    assert f"crew: claudeAgent claude-opus-5-5 claudeAgent,{prime} effort=medium" in line
+    roles.write_text(f"crew: claudeAgent claude-opus-5-5 claudeAgent,{prime}\n")
+    (line,) = line_for(user.doctor()[1], "role pools")
+    assert line == "ok hard role pools"

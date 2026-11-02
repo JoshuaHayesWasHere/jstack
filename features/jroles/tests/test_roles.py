@@ -499,3 +499,80 @@ def test_a_declared_claude_agent_at_its_own_home_is_read_there_and_not_at_dot_cl
     assert claude_instances(instances({}, tmp_path), tmp_path) == {
         "claudeAgent": tmp_path / ".claude"
     }
+
+
+PRIME = "claudeAgent_claude_prime"
+TWO = {
+    "providerInstances": {
+        "claudeAgent": {"driver": "claudeAgent"},
+        PRIME: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
+        "codex": {"driver": "codex"},
+    }
+}
+
+
+@pytest.fixture
+def check(tmp_path, monkeypatch, capsys):
+    """Run `jroles --check` over a map and T3's settings, and return its exit code and lines."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setenv("T3CODE_HOME", str(tmp_path / "t3"))
+
+    def run(text, settings=TWO):
+        (tmp_path / "jstack").mkdir(exist_ok=True)
+        (tmp_path / "jstack" / "roles").write_text(text)
+        (tmp_path / "t3" / "userdata").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "t3" / "userdata" / "settings.json").write_text(json.dumps(settings))
+        code = main(["--check"])
+        return code, capsys.readouterr().out.splitlines()
+
+    return run
+
+
+def test_check_reports_a_pool_of_one_with_another_instance_listed_and_the_fix_for_infra(check):
+    code, said = check("crew: claudeAgent claude-opus-5-5 effort=low\n")
+    assert code == 1
+    assert said == [
+        f"crew has one instance, claudeAgent, while T3's settings also list {PRIME}: a cap on it "
+        "stops the role with the other account free. Send infra the fix for the role map: "
+        f"crew: claudeAgent claude-opus-5-5 claudeAgent,{PRIME} effort=low"
+    ]
+
+
+def test_check_names_each_line_of_a_list_and_each_role(check):
+    code, said = check(
+        f"crew: claudeAgent claude-opus-5-5 {PRIME}\n"
+        "review: codex gpt-5-codex\n"
+        "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=high\n"
+    )
+    assert code == 1
+    assert [line.split(" has ")[0] for line in said] == ["crew", "review"]
+    assert f"crew: claudeAgent claude-opus-5-5 {PRIME},claudeAgent effort=medium" in said[0]
+    assert f"review: claudeAgent claude-sonnet-5-5 claudeAgent,{PRIME} effort=high" in said[1]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"crew: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}\n",
+        "crew: codex gpt-5-codex\n",
+        "crew: inherit\n",
+        "",
+    ],
+)
+def test_check_passes_a_pool_with_room_a_lone_provider_and_an_inherited_role(check, text):
+    assert check(text) == (0, [])
+
+
+def test_check_counts_no_disabled_instance_as_room(check):
+    off = {
+        "providerInstances": {
+            "claudeAgent": {"driver": "claudeAgent"},
+            PRIME: {"driver": "claudeAgent", "enabled": False},
+        }
+    }
+    assert check("crew: claudeAgent claude-opus-5-5\n", off) == (0, [])
+
+
+def test_check_says_so_when_it_cannot_read_the_map(check):
+    code, said = check("crew: \n")
+    assert code == 1 and said[0].startswith("bad line 1")
