@@ -187,7 +187,8 @@ def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_hav
 
 
 def test_the_levels_the_jbus_page_gives_each_kind_of_event_are_the_codes():
-    rows = re.findall(r"^\| `(user|quiet)` \| ([^|]+) \|", page("jbus.md"), re.M)
+    built = re.search(r"<!-- built: events -->\n(.*?)<!-- built: end -->", page("jbus.md"), re.S)
+    rows = re.findall(r"^`(user|quiet)`: (?:.+\n)+\n((?:- `.+`\n)+)", built[1], re.M)
     given = {kind: level for level, kinds in rows for kind in re.findall(r"`([^`]+)`", kinds)}
     assert given == wake.LOUDNESS
 

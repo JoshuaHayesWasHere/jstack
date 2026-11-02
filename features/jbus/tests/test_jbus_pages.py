@@ -4,6 +4,7 @@ page, each page under a `features/<name>/docs/`.
 `LONG` names each page over the cap, by its path in the repo, until somebody splits the page. The
 list only shrinks."""
 
+import re
 import shutil
 import subprocess
 import sys
@@ -65,9 +66,53 @@ def test_a_kind_added_to_an_events_without_the_table_is_behind(tree, monkeypatch
     assert f"behind: {pages.EVENTS_PAGE}: run" in capsys.readouterr().out
     assert pages.main([]) == 0
     said = (tree / pages.EVENTS_PAGE).read_text()
-    assert (
-        "| `quiet` | `a-new-kind`, `act`, `alert`, `ask-owed`, `ask-resent`, `cancelled`, " in said
+    assert "- `a-new-kind`\n- `act`\n- `alert`\n" in said
+
+
+def committed(root, message):
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    identity = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+    subprocess.run(["git", *identity, "commit", "-qm", message], cwd=root, check=True)
+    said = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True)
+    return said.stdout.strip()
+
+
+def test_two_rows_that_each_add_a_kind_merge_with_no_conflict(tree, monkeypatch):
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tree, check=True)
+    start = committed(tree, "start")
+    heads = []
+    for kind in ("a-new-kind", "zz-new-kind"):
+        subprocess.run(["git", "checkout", "-q", "-B", kind, start], cwd=tree, check=True)
+        with monkeypatch.context() as patched:
+            patched.setattr(wake, "LOUDNESS", {**wake.LOUDNESS, kind: "quiet"})
+            assert pages.main([]) == 0
+        heads.append(committed(tree, kind))
+    merged = subprocess.run(
+        ["git", "merge-tree", "--write-tree", *heads], cwd=tree, capture_output=True, text=True
     )
+    assert merged.returncode == 0, merged.stdout
+    both = {**wake.LOUDNESS, "a-new-kind": "quiet", "zz-new-kind": "quiet"}
+    monkeypatch.setattr(wake, "LOUDNESS", both)
+    page = subprocess.run(
+        ["git", "show", f"{merged.stdout.strip()}:{pages.EVENTS_PAGE}"],
+        cwd=tree,
+        capture_output=True,
+        text=True,
+    )
+    assert page.stdout == pages.build(tree)[pages.EVENTS_PAGE]
+
+
+def verbs_of(table):
+    """The verbs of a table, by the words before their arguments."""
+    return [re.match(r"\| `([^\[<`]*)", row)[1].strip() for row in table.splitlines()[2:]]
+
+
+def test_each_table_of_verbs_is_sorted_so_a_new_verb_lands_in_its_own_place():
+    page = (REPO / "features/jbus/docs/jbus/the-verbs.md").read_text()
+    tables = re.findall(r"^\| Verb \|.*\n(?:\|.*\n)+", page, re.M)
+    assert len(tables) == 3
+    for table in tables:
+        assert verbs_of(table) == sorted(verbs_of(table))
 
 
 def test_no_docs_page_is_over_the_cap_unless_listed_and_a_listed_one_is():
