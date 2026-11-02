@@ -396,7 +396,9 @@ def test_a_gh_that_fails_on_the_address_a_brief_names_gives_no_answer_for_the_pa
     assert column(kitchen) == ("left", "", "pull request #9 is not open and not merged")
     gh = kitchen.stub / "gh"
     gh.write_text(gh.read_text().replace('elif args[:2] == ["pr", "view"]:', "elif 0:"))
-    said = kitchen.poll()
+    kept = kitchen.poll(NOW + timedelta(minutes=1))
+    assert not any("could not ask GitHub" in line for line in kept)
+    said = kitchen.poll(NOW + watch.UNMERGED_FOR)
     assert any(line.startswith("wait demo: could not ask GitHub: gh exited ") for line in said)
     assert column(kitchen) == ("left", "", "pull request #9 is not open and not merged")
 

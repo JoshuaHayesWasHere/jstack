@@ -65,6 +65,14 @@ def owed(run: Pass, said: Iterable[str]) -> list[dict[str, Any]]:
     return kept
 
 
+def keep(run: Pass, said: Iterable[str]) -> None:
+    """Keep each merge of `said` that changed a skill in `reload.json`, for the next pass's
+    `tell`: the merge tick's `jmerge` prints its `merged` line once, and no pass sees it."""
+    kept = owed(run, said)
+    if kept != read_json(run.state / FILE, []):
+        write_json(run.state / FILE, kept)
+
+
 def tell(run: Pass, client: Client, said: Iterable[str]) -> None:
     """Tell each thread out of a merge that changed a skill, once, as the module says."""
     kept = owed(run, said)

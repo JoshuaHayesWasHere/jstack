@@ -8,6 +8,7 @@ Each unit runs `~/.local/bin/jbus`.
 | Unit | Runs | When | Enabled by the install |
 |---|---|---|---|
 | `jbus.timer`, `jbus.service` | `jbus poll`, one pass | Every minute (`OnUnitActiveSec=1min`), from 2 minutes after boot | Always |
+| `jbus-merge.timer`, `jbus-merge.service` | `jbus tick`, `jmerge` where a check ended | Every 5 seconds (`OnUnitActiveSec=5s`, `AccuracySec=1s`), from 2 minutes after boot | Always |
 | `jbus-failed.service` | `jbus alarm` | When a pass fails (`OnFailure=` of `jbus.service`) | Started by `jbus.service` |
 | `jbus-stale.timer`, `jbus-stale.service` | `jbus alarm --stale 2h` | Every 15 minutes | Always |
 | `jbus-snapshot.timer`, `jbus-snapshot.service` | `jbus snapshot` | At 08:30 and 17:30 local time | Once the homes' state tree has a remote and gitleaks is on the machine |
@@ -16,6 +17,12 @@ Each unit runs `~/.local/bin/jbus`.
 | `jbus-view.service` | `jbus view` | Always on | Never: on Linux `systemctl --user enable --now jbus-view.service` starts it, and on macOS the view gets no agent, so you run `jbus view` yourself |
 
 `jbus.service` stops a pass after 20 minutes (`TimeoutStartSec=20min`).
+`jbus-merge.timer` merges a pull request within about 15 seconds of its last check ending, where the pass alone would take a minute or more.
+A tick asks GitHub nothing while the last pass saw no check going, and asks only with an ETag otherwise, which GitHub answers with a 304 that spends no API allowance until a workflow run ends.
+It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is under way, since `jmerge` holds its run lock for the whole of a run that may merge.
+What a tick misses, the next pass does, since the pass runs `jmerge` as before.
+`jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 5 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
+On macOS its agent runs every 5 seconds too (`StartInterval`).
 `jbus-stale.timer` catches a timer that stopped.
 A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](when-jbus-fails.md)).
 [Back up the homes' state](back-up-the-homes-state.md) covers `jbus-snapshot.timer`, [Measure the CI](measure-the-ci.md) covers `jbus-ci.timer`, [The relay](the-relay.md) covers `jbus-relay.service`, and [The view](the-view.md) covers `jbus-view.service`.

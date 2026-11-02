@@ -26,6 +26,7 @@ from jmerge import (
     claims,
     judgement,
     lines,
+    lock,
     mainjson,
     proof,
     rangediff,
@@ -1541,6 +1542,8 @@ def parser() -> argparse.ArgumentParser:
         "One that changes a protected path (features/jmerge/src/jmerge/protected.txt) is "
         "never merged and is printed as hold. A merge-off file in the repo's state merges "
         "nothing. "
+        "A run that may merge or remove holds the repo's run lock for the whole run, so one "
+        "runs at a time: it waits for another to end, or with --if-free does nothing. "
         "With --sweep it merges nothing: it "
         "removes the worktree and the branches of each finished thread whose "
         "work is all merged or pushed, and prints what it removed and what it kept. With "
@@ -1634,6 +1637,12 @@ def parser() -> argparse.ArgumentParser:
         "a --message alone",
     )
     top.add_argument(
+        "--if-free",
+        action="store_true",
+        help="do nothing and exit 75 when another run of jmerge is under way, in place of "
+        "waiting for it to end (jbus's merge tick)",
+    )
+    top.add_argument(
         "--home",
         metavar="ID",
         help="the home that is asking: say what jmerge would do of its own pull requests, as "
@@ -1679,6 +1688,24 @@ def main(argv: list[str] | None = None) -> int:
     if not shutil.which("gh"):
         raise SystemExit("jmerge: gh is not installed")
     state = homes_state(main_checkout)
+    if args.check or args.claims or args.scope or not state.is_dir():
+        return _merging(args, user, main_checkout, state, said, typed)
+    with lock.running(state, wait=not args.if_free) as free:
+        if not free:
+            print(lock.BUSY_LINE.format(path=state / lock.RUN), flush=True)
+            return lock.BUSY
+        return _merging(args, user, main_checkout, state, said, typed)
+
+
+def _merging(
+    args: argparse.Namespace,
+    user: jsettings.Settings,
+    main_checkout: Path,
+    state: Path,
+    said: bool,
+    typed: bool,
+) -> int:
+    """The run itself, once `main` holds the run lock where the run may write."""
     if args.claims:
         return Repo(main_checkout, state, args.home, not args.home, user=user).claimed()
     if args.scope:

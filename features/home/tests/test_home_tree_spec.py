@@ -332,13 +332,18 @@ def test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging(tmp_pat
     """NoBlindMerge, in the siblings' scene: two ready pull requests, one of each home. A second
     run of jmerge starts while the first is in the middle of its merge, after it read main's tip
     and before that merge lands. The second run merges nothing, so nothing lands over a tip its
-    merger did not read, and the first merges both, one after the other."""
+    merger did not read, and the first merges both, one after the other. The second is the merge
+    tick's, `--if-free`: a plain run would wait on the run lock for the first, which here waits on
+    it (`features/jmerge/tests/test_jmerge_one_run.py`)."""
     from test_jmerge_fresh import GH
     from test_jmerge_homes import kitchen
 
     made = kitchen.__wrapped__(tmp_path)
     stub = made.home.stub
-    second = f'PYTHONPATH="{made.source}" "{sys.executable}" -m jmerge > "$STUB/second.out" 2>&1'
+    second = (
+        f'PYTHONPATH="{made.source}" "{sys.executable}" -m jmerge --if-free'
+        ' > "$STUB/second.out" 2>&1'
+    )
     hook = f'    "pr merge")\n        if [ -e "$STUB/hook" ]; then rm "$STUB/hook"; {second}; fi\n'
     assert '    "pr merge")\n' in GH
     (stub / "gh").write_text(GH.replace('    "pr merge")\n', hook))

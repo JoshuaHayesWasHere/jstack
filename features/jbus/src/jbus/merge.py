@@ -2,9 +2,10 @@
 
 jbus is the only merger: it runs `jmerge` on each pass whatever the home's `home-thread` file
 says, with no `--home`, so the run judges the pull requests of every home of the repo, and a
-home's own run of `jmerge --home` merges nothing. The pass holds the pass lock around the run, so
-two passes never run `jmerge` together, and `jmerge` holds the repo's merge lock from its read of
-main's tip to its merge, so a hand run of the user's never merges between them either.
+home's own run of `jmerge --home` merges nothing. Between passes the merge tick runs it too, a
+few seconds after a check ends (`tick`, `jbus.tick`). `jmerge` holds the repo's run lock for the
+whole of a run that may merge, so the pass, the tick and a hand run of the user's never run it
+together (`jmerge.lock`).
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text, and `rebase` and `expedite` go by
@@ -32,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import subprocess
 from typing import TYPE_CHECKING
 
 from jbus import alert, outbox, verbs
@@ -87,17 +89,7 @@ def merge(run: Pass) -> Said:
     is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did not reach.
     """
     ran = run.run("jmerge", timeout=JMERGE_TIMEOUT)
-    lines = Said()
-    for text in map(str.strip, ran.stdout.splitlines()):
-        line = parse(text)
-        if line is None or line.word == "refused":
-            continue
-        lines.append(text)
-        slug = line.name if line.word == "merged" else ""
-        run.find(slug or f"#{line.number}", "jmerge", text, key=f"{line.number} {text}")
-        if slug and (unfollowed := lines_of.unfollowed(text)):
-            alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
-    lines.failed = bool(ran.returncode)
+    lines = _sent(run, ran)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if not ran.returncode or lines:
         if lines.failed:
@@ -112,6 +104,35 @@ def merge(run: Pass) -> Said:
             run, streak, alert.failed(run.config.state_dir, streak, why, now=run.now, user=run.user)
         )
     return lines
+
+
+def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
+    """Send each line a run of `jmerge` printed about a pull request, once for its key, and
+    return them."""
+    lines = Said()
+    for text in map(str.strip, ran.stdout.splitlines()):
+        line = parse(text)
+        if line is None or line.word == "refused":
+            continue
+        lines.append(text)
+        slug = line.name if line.word == "merged" else ""
+        run.find(slug or f"#{line.number}", "jmerge", text, key=f"{line.number} {text}")
+        if slug and (unfollowed := lines_of.unfollowed(text)):
+            alert.deliver(run, f"alert: {run.project.name}: {unfollowed}")
+    lines.failed = bool(ran.returncode)
+    return lines
+
+
+def tick(run: Pass) -> Said:
+    """Run `jmerge` for the merge tick (`jbus.tick`), send its lines as `merge` does, and return
+    them, `failed` where it did not run to its end.
+
+    It runs with `--if-free`, so a run of the pass's under way makes it do nothing, and it leaves
+    the `jmerge` streak alone: the tick runs every few seconds, and the pass's own run each
+    minute is what counts a `jmerge` that does not run. A run that did not end, busy or failed,
+    is the tick's to try again.
+    """
+    return _sent(run, run.run("jmerge", "--if-free", timeout=JMERGE_TIMEOUT))
 
 
 def _shown(half: Half) -> None:
