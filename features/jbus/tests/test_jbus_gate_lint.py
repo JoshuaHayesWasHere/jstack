@@ -94,6 +94,19 @@ def test_a_gate_a_rule_settles_is_not_asked_and_says_the_rule_and_what_to_do(kit
     assert kept(kitchen) == []
 
 
+@pytest.mark.parametrize(
+    "asked",
+    (
+        "Should the swarm skill's default fan-out be 4 or 8?",
+        "Which base model should the benchmark use?",
+        "Should the Cross-cutting tests stay in the quick list?",
+    ),
+)
+def test_a_choice_that_only_names_a_shapes_word_is_asked(kitchen, asked):
+    code, said = kitchen.main("gate", "alpha", stdin=lines(asked))
+    assert (code, said.splitlines()[0]) == (0, "asked: queued: question 1")
+
+
 @pytest.mark.parametrize("shape", SHAPES)
 def test_a_gate_that_holds_is_asked_whatever_its_shape(kitchen, shape):
     asked, default, _, _ = SHAPES[shape]
@@ -133,6 +146,8 @@ def test_a_default_that_waits_for_the_users_word_and_holds_is_asked(kitchen, def
         "#580 waits for #576 to merge, then rebases",
         "keep the draft; the owner's last word on gate 62 said so",
         "made tea, and the cups wait in the kitchen",
+        "the pull request waits for CI's answer",
+        "wait once GitHub's merge lands",
     ),
 )
 def test_a_default_that_waits_on_anything_but_the_users_word_is_asked(kitchen, default):

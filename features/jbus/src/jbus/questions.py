@@ -421,7 +421,7 @@ _RED = _words(r"\b(red|fails?|failing)\b")
 SETTLED = (
     Settled(
         "swarm",
-        (_words(r"\bswarm\b"),),
+        (_words(r"/swarm\b"),),
         "only a home launches threads, and a swarm is the user's to type in the repo's home "
         "(features/arena-swarm/skills/swarm/SKILL.md)",
         "start nothing, and do the work in this thread, with read-only subagents where it fans out",
@@ -452,7 +452,7 @@ SETTLED = (
     ),
     Settled(
         "merge base",
-        (_words(r"\b(base|stacked)\b"),),
+        (_words(r"\b(base|stacked)\b"), _words(r"#\d+|pull request|\bPR\b")),
         "a pull request's base is the home's to give, by the brief's Stacked on: line, and jmerge "
         "merges into each merge base the project names as it merges into main "
         "(features/crew/do-the-task.md; features/jmerge/src/jmerge/rows.py, bases)",
@@ -468,9 +468,10 @@ SETTLED = (
         "label it yourself with gh pr edit --add-label cross-cutting",
     ),
 )
-_YOURS = r"(?:your|the user's|the owner's|[A-Z][\w-]*'s)"
 WAITS_FOR_WORD = re.compile(
-    rf"\b(?:for|until|once) {_YOURS} (?:by-hand )?(?:word|answer|merge|go-ahead|say-so)\b"
+    r"\b(?:for|until|once) (?:your|the user's|the owner's) (?:by-hand )?"
+    r"(?:word|answer|merge|go-ahead|say-so)\b"
+    r"|\b(?:for|until|once) [A-Z][\w-]*'s (?:by-hand )?(?:word|go-ahead|say-so)\b"
     r"|\bfor (?:you|the user|the owner) to (?:merge|answer|say|decide)\b"
 )
 WAITS = (
