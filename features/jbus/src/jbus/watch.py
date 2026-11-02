@@ -51,7 +51,6 @@ from jbus.wake import cut
 from jgauge import holders, slot, waiters
 from jmerge import checks as reading
 from jmerge import judgement, mainjson
-from jmerge import reverts as kept_reverts
 from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
@@ -980,9 +979,7 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
     return "" if kept == "not approved" else kept
 
 
-def watch(
-    run: Pass, world: World, rows: list[dict[str, Any]], client: Client | None = None
-) -> None:
+def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     """Send a line for each thing a home would have seen, and a gate for what no rule covers.
 
     The thread of a queue row that completed with a Result is no gate: its row says how it
@@ -1021,7 +1018,7 @@ def watch(
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
-    _retro(run, world, rows, client)
+    _retro(run, world, rows)
     for nightly in NIGHTLIES:
         _nightly_red(run, nightly)
 
@@ -1570,9 +1567,22 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
         run.say(said)
 
 
-def _retro(
-    run: Pass, world: World, rows: list[dict[str, Any]], client: Client | None = None
-) -> None:
+@dataclass(frozen=True)
+class RedTip:
+    """Main's tip, red after its one rerun, as `_retro` read it for `jbus.culprits.judge`, which
+    reverts its one clear culprit or files its fix row (`_file`): the slug its row is filed after,
+    the tip, the merges since the last green, newest first, the pull request merged at the tip and
+    its slug, and the check answers `_check` keeps."""
+
+    slug: str
+    sha: str
+    red: list[dict]
+    pull: dict[str, Any] | None
+    culprit: str
+    known: dict[str, str]
+
+
+def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     """Report a red main within a day of a merge, and a revert of one. Both lines name the
     merged slug. A red tip of main with no briefed merge in the day before it is reported too,
     under the name of its fix row.
@@ -1581,16 +1591,15 @@ def _retro(
     only a second cancelled run, or a run GitHub would not start again. It reports a red main
     once for each commit. A merge into another branch than main, a merge base's, did not land on
     main, so it takes no blame for it. `_retro` files and queues a brief for the fix once, and
-    only for main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
-    is no longer main, so there is nothing to fix. Once main's tip is green at a later commit
-    than the one a fix row was filed for, the red is gone: `_withdraw` takes out a row that never
-    launched, and reports once a row that did, which its crew and pull request keep. With no
+    only for main's tip as this pass reads it: it hands the tip to `jbus.culprits.judge` as
+    `Pass.red`, which reverts its one clear culprit or files its row (`_file`). A red commit
+    that a later commit superseded is no longer main, so there is nothing to fix. Once main's
+    tip is green at a later commit than the one a fix row was filed for, the red is gone:
+    `_withdraw` takes out a row that never launched, and reports once a row that did, which its
+    crew and pull request keep. With no
     briefed merge and no open fix row, `_retro` asks GitHub nothing until `main.json` keeps a
     red tip.
     """
-    from jbus import reverts
-
-    reverts.tell(run, client)
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
         key=lambda s: world.merged[s]["mergedAt"],
@@ -1652,49 +1661,10 @@ def _retro(
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
         if place == 0 and not run.first and slug not in run.removed:
-            red = commits[place : place + since]
-            why = _revert(run, client, sha, red, by_commit.get(sha), slug_of, known)
-            if why is not None:
-                _file(run, slug, sha, red, why)
+            pull = by_commit.get(sha)
+            culprit = slug_of.get(pull["number"], "") if pull else ""
+            run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit, known)
     write_json(run.state / "checks.json", known)
-
-
-def _revert(
-    run: Pass,
-    client: Client | None,
-    sha: str,
-    red: list[dict],
-    pull: dict[str, Any] | None,
-    slug_of: dict[int, str],
-    known: dict[str, str],
-) -> str | None:
-    """Revert the one clear culprit of the red tip `sha` (`jbus.reverts`), red after its one
-    rerun with `red` the merges since the last green. Return None where no row is to be filed:
-    the revert is open, or the next pass judges the tip. Otherwise return why nothing was
-    reverted, which the fix row's brief says: two overlapping reds name every red tip."""
-    from jbus import reverts
-
-    record = mainjson.load(run.state) or {}
-    failed = record.get("failed") if record.get("broken") == sha else None
-    slug = slug_of.get(pull["number"], "") if pull else ""
-    landed = when(red[0]["commit"]["committer"]["date"])
-    one = reverts.Red(sha, [commit["sha"] for commit in red], pull, slug, failed, run.now - landed)
-    branch = str((pull or {}).get("headRefName", ""))
-    flakes = reverts.flaky(run, branch) if pull and failed else frozenset[str]()
-    made = kept_reverts.read(run.state)
-    found = reverts.culprit(one, made, flakes)
-    if found == reverts.Keep.OPENED and (stuck := reverts.stuck(run, made[sha], checks)):
-        return stuck
-    if found in reverts.QUIET:
-        return None
-    if isinstance(found, reverts.Culprit):
-        if reverts.revert(run, client, found):
-            return None
-        return "jbus could not open its revert"
-    if found == reverts.Keep.OVERLAP:
-        tips = [c["sha"][:12] for c in red if _check(run, known, c["sha"]) == "failed"]
-        return f"{found}, and main is red at {' and '.join(tips)}"
-    return str(found)
 
 
 STEPS = (
@@ -1702,7 +1672,7 @@ STEPS = (
         "tellers",
         40,
         "watch.watch",
-        lambda half: watch(half.run, half.seen.world, half.rows or [], half.client),
+        lambda half: watch(half.run, half.seen.world, half.rows or []),
         ("client", "world"),
     ),
 )

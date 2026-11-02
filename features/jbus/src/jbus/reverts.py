@@ -44,12 +44,11 @@ from datetime import timedelta
 from typing import Any
 
 from jbriefs import below
-from jbriefs.home import thread_of
-from jbus import rebase, write_json
-from jbus.ci import facts_of
-from jbus.ci.numbers import time
+from jbus import write_json
+from jbus.ci.ledger import JOBS, PULLS
+from jbus.ci.ledger import read as ledger
+from jbus.ci.numbers import Facts, time
 from jbus.passes import Pass
-from jbus.t3 import Client
 from jmerge import reverts as kept
 
 EVENTS = {"revert": "quiet"}
@@ -125,7 +124,10 @@ def flaky(run: Pass, branch: str) -> frozenset[str]:
     """The tests `jbus ci` counts as flakes over the last `FLAKE_WINDOW` (`numbers.flaky`'s rule:
     they failed on two branches with no runner fault and no red main to blame), less those that
     failed only on `branch`, the culprit's own: its own red is no flake."""
-    facts = facts_of(run.state, run.now)
+    state = run.state
+    facts = Facts(
+        ledger(state / JOBS), ledger(state / PULLS), ledger(state / "events.jsonl"), run.now
+    )
     since = run.now - FLAKE_WINDOW
     return frozenset(
         test
@@ -136,23 +138,6 @@ def flaky(run: Pass, branch: str) -> frozenset[str]:
         and (time(job["created"]) or since) >= since
         for test in job["tests"] or []
     )
-
-
-MESSAGE = (
-    "jbus: main went red at {red} when your pull request merged, and stayed red after "
-    "its one rerun. It was the one merge since the last green, so jbus opened {revert} to revert "
-    "it (Josh's rule of 2026-11-02, guess-free reverts), which merges with no review. Do not push "
-    "to the revert's branch. Find the cause in main's failed run at {red}, and bring your change "
-    "back in a new pull request with the fix."
-)
-ASK = rebase.Ask(
-    "revert",
-    "told the crew",
-    "told of the revert",
-    MESSAGE,
-    refused="T3 Code refused the revert message",
-    closes=True,
-)
 
 
 def brief(branch: str, red: Culprit, url: str, home: str) -> str:
@@ -192,9 +177,10 @@ def opened(run: Pass, red: Culprit) -> dict[str, str]:
     return found[0] if found else {}
 
 
-def revert(run: Pass, client: Client | None, red: Culprit) -> bool:
-    """Open the revert of `red`, or take the one GitHub has, and tell its crew. Return False where
-    GitHub did not open it, so the caller files the fix row instead."""
+def revert(run: Pass, red: Culprit) -> bool:
+    """Open the revert of `red`, or take the one GitHub has, and keep it, which `jbus.culprits`
+    tells the culprit's crew. Return False where GitHub did not open it, so the caller files the
+    fix row instead."""
     said = opened(run, red)
     if not said:
         url = str(red.pull.get("url", ""))
@@ -237,21 +223,7 @@ def revert(run: Pass, client: Client | None, red: Culprit) -> bool:
     line = f"revert {red.slug}: main red at {red.red[:12]}, jbus opened {url} to revert it"
     run.find(red.slug, "revert", line, key=f"opened {red.red}")
     run.say(line)
-    tell(run, client)
     return True
-
-
-def tell(run: Pass, client: Client | None) -> None:
-    """Tell the crew of each revert on record whose message has not gone (`rebase.once`, by its
-    mark in `sent.json`). A later pass tries again where it could not go."""
-    if client is None:
-        return
-    for one in kept.read(run.state).values():
-        thread = thread_of(run.home, one.slug)
-        if thread:
-            message = MESSAGE.format(red=one.red[:12], revert=one.pull)
-            key = rebase.mark("revert", one.slug, one.red[:12])
-            rebase.once(run, client, ASK, key, thread, one.slug, message, at=one.red[:12])
 
 
 def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) -> str:
