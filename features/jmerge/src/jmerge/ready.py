@@ -10,7 +10,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from jbriefs import findings, skills
-from jbriefs.findings import NONE, REVIEW, TWICE
+from jbriefs.findings import CLEANUP, NONE, REVIEW, TWICE
 from jmerge.rangediff import Verdict
 from jmerge.stacked import Stacked
 from jsettings import Settings
@@ -604,9 +604,10 @@ def _owes(said: Said) -> bool:
 
 def asks_no_ruling(text: str) -> bool:
     """Whether the brief's mode needs no ruling from any review after the first: a `twice`
-    brief has two reviews and no more, so it asks for no scoped review of the fix, no ruling on
-    a decline or a drop, and no range-diff review after a rebase."""
-    return said_of(text).mode == TWICE
+    brief has two reviews and no more, and the day's warnings row (`cleanup`) gets one, so
+    neither asks for a scoped review of the fix, a ruling on a decline or a drop, or a range-diff
+    review after a rebase."""
+    return said_of(text).mode in (TWICE, CLEANUP)
 
 
 def _first_head(said: Said) -> str:
@@ -655,6 +656,23 @@ def _twice(said: Said, text: str) -> str:
     return ""
 
 
+def _cleanup(said: Said) -> str:
+    """What the day's warnings row still lacks. It gets one review, of its own diff, and only
+    that review's errors go to the crew, so it waits on a `Fixed:` line, a push and an answer by
+    id only for an error. No scoped review follows the fix and no pass rules on a decline."""
+    if not said.written:
+        return NO_REVIEW
+    if said.verdict not in ("clean", "findings"):
+        return NO_VERDICT
+    if not said.owes:
+        return ""
+    if not said.fixed:
+        return NO_FIXED
+    if said.fixed == said.reviewed:
+        return NOT_PUSHED
+    return unanswered(said)
+
+
 def unanswered(said: Said) -> str:
     blocking = said.triage.blocking()
     old = [one for one in blocking if one.legacy]
@@ -700,6 +718,8 @@ def short_of(text: str, head: str) -> str:
         return REVIEW_NONE
     if said.mode == TWICE:
         return _twice(said, text)
+    if said.mode == CLEANUP:
+        return _cleanup(said)
     if not said.written:
         return NO_REVIEW
     if verdict not in ("clean", "findings"):
@@ -793,7 +813,7 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
 
 
 def _named(said: Said, head: str) -> bool:
-    if said.mode == TWICE:
+    if said.mode in (TWICE, CLEANUP):
         return head in (said.reviewed, said.fixed)
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
@@ -813,7 +833,7 @@ def under_fix(text: str, head: str) -> str:
     rebase, as for a `Fixed:` line it reads from git (`cli.Repo.kept_fix`)."""
     said = said_of(text)
     reviewed, fixed = said.reviewed, said.fixed
-    if said.mode == TWICE or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
+    if said.mode in (TWICE, CLEANUP) or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
         return ""
     if fixed == head:
         return reviewed if _COMMIT.fullmatch(head) else ""
@@ -955,7 +975,7 @@ def to_range_diff(text: str, head: str) -> str | None:
     saw (`_covered`), also for a push for a failed check that no line names. An empty string is
     a review that names no commit to compare with."""
     said = said_of(text)
-    if said.mode == TWICE:
+    if said.mode in (TWICE, CLEANUP):
         return None
     if _named(said, head) or head == said.reviewed:
         return None
