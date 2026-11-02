@@ -30,10 +30,10 @@ One call can cover many items, such as each PR in a set awaiting merge. For each
 Where jbus runs, it holds the one list of what waits on the user, across every project, and this prints it:
 
 ```sh
-if command -v jbus > /dev/null; then
-    jbus needs
+if command -v jbus > /dev/null && said=$(jbus needs 2> /dev/null); then
+    printf '%s\n' "$said"
 else
-    echo "no list: jbus is not installed here, so what waits on the user is not known"
+    echo "no list: jbus is not installed or set up here, so what waits on the user is not known"
 fi
 ```
 

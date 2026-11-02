@@ -25,7 +25,7 @@ when the records were taken, or a row approved on the user's word (basis `word`,
 approved by a rule, an entry's go or a bot, or removed with no go. An ask is answered when the
 list at that time holds every item that waited on the user, so a list that says nothing waits
 answers an ask at which nothing did. Under today's settle rule that is every ask: a gate the user
-answered that the list leaves out had no `Holds:` line, so its default stood and his answer
+answered that the list leaves out had no `Holds:` line, so its default stood and the answer
 corrected it. The replay counts the asks at which such a gate was open, since a correction is
 what the list does not prompt.
 """
