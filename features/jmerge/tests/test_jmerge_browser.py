@@ -40,7 +40,7 @@ BROWSER_DRAFT = {**merge.run("SKIPPED", "browser"), "startedAt": "2026-10-23T12:
 
 @pytest.fixture
 def replay(tmp_path):
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     gh = replay.kitchen.home.stub / "gh"
     gh.write_text(gh.read_text().replace("    *) exit 64 ;;\n", RUNS + "    *) exit 64 ;;\n"))
     return replay

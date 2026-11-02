@@ -1,4 +1,0 @@
-.github/workflows/
-/pyproject.toml
-/uv.lock
-/Makefile

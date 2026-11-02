@@ -111,7 +111,7 @@ Two more things keep a ready pull request from the command, and only the user li
   A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none.
   Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `features/jbus/src/jbus/merge.py`.
   A `*` matches within one part of a path.
-  `jmerge` refuses to run, and merges nothing, while that file or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
+  `jmerge` refuses to run, and merges nothing, while that file is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
   The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it.
   A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not.
   GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else.
