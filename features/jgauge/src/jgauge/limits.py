@@ -21,6 +21,13 @@ capped account as free. When the command reads a home, it sets the time of the h
 file to now, even when no line changed. With that, `--check` can tell an idle account apart from
 a reader that stopped running.
 
+An endpoint that answers 429 changes no line of the ledger, in either direction: the last good
+value stays, and nothing marks the account free or capped on a guess. The command keeps a retry
+time in `<ledger file>.retry` (the answer's `Retry-After`, or `RETRY`) and does not ask the endpoint
+again before it. The file also says that the last read of a home failed, for any reason, and a good
+answer from the endpoint removes it. `unread` is what `jbus.outbox` asks of that: the ledger's
+reading is out of date only while such a file stands and the ledger is older than `FRESH`.
+
 The endpoint returns a slightly different reset on each call (21:29:59.74, then 21:30:00.31).
 The command floors it to the second, as the other writers do, and the ledger's merge takes
 resets a few minutes apart as one window. A window with no reset is not open, and the command
@@ -36,6 +43,7 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from http import HTTPStatus
 from pathlib import Path
 
 from jroles import inventory, ledger
@@ -43,6 +51,7 @@ from jroles import inventory, ledger
 URL = "https://api.anthropic.com/api/oauth/usage"
 BETA = "oauth-2025-04-20"
 FRESH = timedelta(minutes=15)
+RETRY = timedelta(minutes=10)
 TIMEOUT_SECONDS = 10
 
 
@@ -66,6 +75,14 @@ class Home:
 
 class Stale(Exception):
     """No source of a home answered. The message gives one reason for each source."""
+
+
+class Refused(ValueError):
+    """The endpoint answered 429. `until` is when it may be asked again."""
+
+    def __init__(self, until: datetime) -> None:
+        super().__init__(f"the usage endpoint answered 429, asked again at {until.isoformat()}")
+        self.until = until
 
 
 def homes(home: Path | None = None) -> list[Home]:
@@ -117,6 +134,40 @@ def records(instance: str, usage: object) -> list[ledger.Record]:
 Fetch = Callable[[str, str], object]
 
 
+def _waits(error: urllib.error.HTTPError) -> timedelta:
+    """How long a 429 asks us to wait: its `Retry-After` in seconds, or `RETRY`."""
+    said = str((error.headers or {}).get("Retry-After") or "")
+    return timedelta(seconds=int(said)) if said.isdecimal() else RETRY
+
+
+def retry_file(instance: str) -> Path:
+    file = ledger.file_of(instance)
+    return file.with_name(f"{file.name}.retry")
+
+
+def retry_at(instance: str) -> datetime | None:
+    """When the endpoint may be asked again for this instance, or None where no time is kept."""
+    try:
+        return datetime.fromtimestamp(int(retry_file(instance).read_text().split()[0]), UTC)
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _keep_retry(instance: str, until: datetime) -> None:
+    file = retry_file(instance)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(f"{int(until.timestamp())}\n")
+
+
+def unread(instance: str, now: datetime) -> str:
+    """Why the instance's ledger is out of date, or nothing while its reading stands: its last read
+    failed and the ledger has not been read for `FRESH`. An instance `jgauge limits` does not read
+    has no retry file, so its ledger is never out of date by this."""
+    if not retry_file(instance).exists():
+        return ""
+    return stale(ledger.file_of(instance), now) or ""
+
+
 def fetch(url: str, token: str) -> object:
     """The endpoint's answer, as JSON. The function sends the token in the header and nowhere
     else."""
@@ -139,10 +190,17 @@ def from_endpoint(home: Home, now: datetime, get: Fetch) -> list[ledger.Record]:
     expires = oauth.get("expiresAt")
     if not isinstance(expires, int | float) or expires / 1000 <= now.timestamp():
         raise ValueError("its token has expired, and is never refreshed here")
+    wait = retry_at(home.instance)
+    if wait and wait > now:
+        raise ValueError(f"the usage endpoint answered 429, asked again at {wait.isoformat()}")
     url = os.environ.get("JGAUGE_USAGE_URL") or URL
     try:
         usage = get(url, oauth["accessToken"])
     except urllib.error.HTTPError as error:
+        if error.code == HTTPStatus.TOO_MANY_REQUESTS:
+            refused = Refused(now + _waits(error))
+            _keep_retry(home.instance, refused.until)
+            raise refused from None
         raise ValueError(f"the usage endpoint answered {error.code}") from None
     except (urllib.error.URLError, OSError, ValueError) as error:
         raise ValueError(f"the usage endpoint did not answer: {type(error).__name__}") from None
@@ -181,12 +239,14 @@ def read(home: Home, now: datetime, get: Fetch = fetch) -> tuple[str, list[ledge
     raise Stale("; ".join(reasons))
 
 
-def keep(home: Home, found: list[ledger.Record], now: datetime) -> Path:
+def keep(home: Home, found: list[ledger.Record], now: datetime, source: str = "") -> Path:
     """Merge the lines into the home's file, make the file where there is none, and set its
-    time to now."""
+    time to now. The endpoint's own answer also ends the home's retry time."""
     file = ledger.file_of(home.instance)
     for record in found:
-        ledger.write(record)
+        ledger.write(record, read=source == "endpoint")
+    if source == "endpoint":
+        retry_file(home.instance).unlink(missing_ok=True)
     if not file.exists():
         file.parent.mkdir(parents=True, exist_ok=True)
         file.touch()
@@ -221,16 +281,32 @@ def run(now: datetime, get: Fetch = fetch) -> list[str]:
         try:
             source, found = read(home, now, get)
         except Stale as why:
+            if not retry_file(home.instance).exists():
+                _keep_retry(home.instance, now)
             said.append(f"stale {home.instance}: {why}")
             continue
         try:
-            file = keep(home, found, now)
+            file = keep(home, found, now, source)
         except OSError as error:
             said.append(f"stale {home.instance}: its ledger cannot be written: {error.strerror}")
             continue
         shares = ", ".join(f"{one.window} {one.used:g}%" for one in found) or "no window open"
         said.append(f"{home.instance} from the {source}: {shares}, into {file}")
     return said
+
+
+def renewed(home: Home, since: datetime, now: datetime) -> bool:
+    """Say whether the home was signed in again after `since`: its credentials were written after
+    that and their token has not expired. It reads the expiry and no token."""
+    try:
+        oauth = _json(home.credentials()).get("claudeAiOauth")
+        written = home.credentials().stat().st_mtime
+    except (ValueError, OSError):
+        return False
+    expires = oauth.get("expiresAt") if isinstance(oauth, Mapping) else None
+    if not isinstance(expires, int | float):
+        return False
+    return written > since.timestamp() and expires / 1000 > now.timestamp()
 
 
 def check(now: datetime) -> list[str]:

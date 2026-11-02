@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Any
 
 import jsettings
 from jbriefs.home import thread_of
-from jbus import Config, alert, passes, project, read_json, signin, wake, write_json
+from jbus import Config, alert, owed, passes, project, read_json, signin, wake, write_json
 from jbus.queue import Row
 from jbus.watch import NEVER, World, checks
 from jsettings import t3
@@ -246,6 +246,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
             **_hook(config, alert.home(one.name)),
             "sign_in": signin.expiring(config, now),
             "sweep": box.marks().get("sweep", ""),
+            "capped": owed.blocked(config.state(one), config.user, now),
         }
         if box.blocking is not None:
             key = alert.blocking(one.name)

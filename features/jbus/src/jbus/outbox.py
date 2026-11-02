@@ -11,6 +11,11 @@ then starts a turn that ends at once on the limit. The key stays unsent, the pas
 `wait` line, and the first pass after the reset sends it, since each sender asks again on each pass
 until a message goes.
 
+The user's own word is not held behind a ledger that is out of date (`jgauge.limits.unread`): the
+ledger keeps what it last read, and launches still go by it, but what it read is no reason to sit on
+what the user said. If the account is in fact capped, the turn stops on the limit, the ledger is
+written from that, and `jbus.owed` keeps the ask and sends it again when the account frees.
+
 `send` also holds a message that needs `act` while its receiver cannot act on it now, by the rules
 of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
 
@@ -54,7 +59,7 @@ from jbriefs.home import thread_of
 from jbus import review
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
-from jgauge import slot, waiters
+from jgauge import limits, slot, waiters
 from jmerge import ready, rows
 from jroles import ledger
 from jsettings import store
@@ -100,20 +105,31 @@ class Rule:
     spares: frozenset[str]
 
 
-def capped(run: Pass, client: Client, thread: str) -> int | None:
+def instance_of(client: Client, thread: str) -> str:
+    """Return the instance a thread is on now, as T3 Code says of it. Raise what `Client.call`
+    raises where it says nothing."""
+    chosen = client.call("t3_thread_configure", {"threadId": thread}).get("modelSelection") or {}
+    return chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN
+
+
+def capped(run: Pass, client: Client, thread: str, template: str = "") -> int | None:
     """Return the Unix time the cap on a thread's instance resets, or None while that instance
     has headroom, or where T3 Code did not say which instance the thread is on. A thread whose
-    instance is not known is not held: the send that follows says what T3 Code said of it."""
+    instance is not known is not held: the send that follows says what T3 Code said of it. For the
+    user's own word, a cap the ledger read long ago and cannot read now holds nothing."""
     if not thread:
         return None
     try:
-        asked = client.call("t3_thread_configure", {"threadId": thread})
+        instance = instance_of(client, thread)
     except T3Error:
         return None
-    chosen = asked.get("modelSelection") or {}
-    instance = chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN
     until = ledger.capped_until(ledger.read([instance]), instance, run.now)
-    return int(until.timestamp()) if until else None
+    if not until:
+        return None
+    if template in USERS and (why := limits.unread(instance, run.now)):
+        run.say(f"{thread}: its {template} message goes past a cap not read lately ({why})")
+        return None
+    return int(until.timestamp())
 
 
 def busy(run: Pass, client: Client, thread: str, row: str = "") -> bool:
@@ -187,7 +203,7 @@ def hold(
     `RULES` holds it. A held message gets one `wait` line and one `held` line in `outbox.jsonl`
     with its rule. `send` asks this first, and so does a sender that asks GitHub something before
     it sends (`rebase.held`), so it asks nothing for a message the outbox would hold."""
-    until = capped(run, client, thread)
+    until = capped(run, client, thread, template)
     if until:
         at = datetime.fromtimestamp(until, UTC).isoformat()
         run.say(

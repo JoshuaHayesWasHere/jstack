@@ -28,6 +28,13 @@ of that window never replaces a cap.
 Under this rule, merging the same failure or the same reading twice changes nothing, and the
 next window replaces a window that has reset.
 
+One reading goes around `merge`: `jgauge limits` writes with `read=True` what the usage endpoint
+itself just answered. An answer of `EARLY` percent or less replaces the window's line, whatever it
+held, since the provider has reset that window ahead of its time: on 2026-10-31 the endpoint read
+claude_prime's weekly window at 0% from 15:00 with the same reset, and `merge` kept the 100. A
+higher answer merges as any other, so a turn that just ended on the limit is not undone by an
+endpoint that still reads it at 98%.
+
 For a move off a running thread, an instance is full at `FULL`, a real cap. For a new launch,
 jroles counts the instance full earlier, at the user's `headroom` (`jsettings`), so new
 launches go to another instance before this one reaches the cap.
@@ -46,6 +53,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 WINDOWS = ("five_hour", "seven_day")
 FULL = 100.0
+EARLY = 10.0
 BLIND = timedelta(hours=1)
 SAME = 300
 
@@ -137,12 +145,15 @@ def read(instances: Iterable[str], base: Path | None = None) -> dict[tuple[str, 
     return ledger
 
 
-def write(record: Record, base: Path | None = None) -> bool:
+def write(record: Record, base: Path | None = None, *, read: bool = False) -> bool:
     """Merge `record` into its instance's file, which the function writes whole and renames
-    into place. Return True when the file changed."""
+    into place. Return True when the file changed. `read` says the record is the usage endpoint's
+    own answer, which at `EARLY` or less replaces the window's line (the module's docstring)."""
     file = file_of(record.instance, base)
     before = _text(file)
     merged = merge(parse(record.instance, before), [record])
+    if read and record.used <= EARLY:
+        merged[record.instance, record.window] = record
     text = "".join(f"{merged[key].line()}\n" for key in sorted(merged))
     if text == before:
         return False
