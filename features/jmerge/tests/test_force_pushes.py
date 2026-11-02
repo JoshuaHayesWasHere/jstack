@@ -174,6 +174,10 @@ def test_a_commit_git_cannot_read_is_not_known_and_never_a_push_with_no_conflict
     assert pushes.reason_of(repo, head, head, gone, main, "row", {}) == (pushes.UNKNOWN, [])
 
 
+def stamp(moment):
+    return moment.isoformat().replace("+00:00", "Z")
+
+
 def test_explained_joins_each_told_push_to_its_commits_and_main_then(repo, monkeypatch):
     """The path the table is made by: a push of a merged pull request, the event jbus told before
     it, the commits GitHub gives for it and the main of that moment, from `origin/main`."""
@@ -181,7 +185,6 @@ def test_explained_joins_each_told_push_to_its_commits_and_main_then(repo, monke
     git(repo, "update-ref", "refs/remotes/origin/main", main)
     landed = datetime.fromisoformat(git(repo, "log", "-1", "--format=%cI", main))
     told_at, pushed_at = landed + timedelta(minutes=1), landed + timedelta(minutes=5)
-    stamp = lambda moment: moment.isoformat().replace("+00:00", "Z")  # noqa: E731
     pulls = [
         pull(7, "row", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1))),
         pull(8, "lost", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1))),
