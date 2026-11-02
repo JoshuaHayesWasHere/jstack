@@ -397,6 +397,8 @@ def fake_gh(stub, args, cwd):
     `pr revert` opens the revert of a merged pull request, as GitHub does on its own branch
     `revert-<number>-<branch>` with the head `e` * 40, and adds it to the open ones; with
     `gh-no-revert` there, it fails and says what that file holds.
+    With `-i` it prints the status and an ETag of what it gives before it, and with `-H
+    If-None-Match:` that ETag it gives 304 and nothing more, and exits 1, as gh does.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
@@ -542,6 +544,14 @@ def fake_gh(stub, args, cwd):
         said = (stub / "commits.json").read_text()
     else:
         return 2, "", ""
+    if "-i" in args:
+        import hashlib
+
+        etag = f'W/"{hashlib.sha256(said.encode()).hexdigest()}"'
+        asked = args[args.index("-H") + 1] if "-H" in args else ""
+        if asked == f"If-None-Match: {etag}":
+            return 1, "HTTP/2.0 304 Not Modified\r\n\r\n", "gh: HTTP 304\n"
+        return 0, f"HTTP/2.0 200 OK\r\nEtag: {etag}\r\n\r\n{said}\n", ""
     return 0, said + "\n", ""
 
 
@@ -550,7 +560,8 @@ def fake_jmerge(stub, args, cwd):
 
     `jmerge-dies` ends it the way a `SystemExit` with a message ends the real command: the line on
     stderr, and exit 1. `jmerge-says` ends it the way the real command ends when it cannot ask
-    GitHub: the line on stdout, and exit 1. An accept of a held pull request does nothing where the
+    GitHub: the line on stdout, and exit 1. `jmerge-busy` makes a run with `--if-free` find
+    another run under way, and exit 75. An accept of a held pull request does nothing where the
     test wrote no `accept.txt`.
     """
     with open(stub / "jmerge.log", "a") as log:
@@ -561,6 +572,8 @@ def fake_jmerge(stub, args, cwd):
         return 1, (stub / "jmerge-says").read_text() + "\n", ""
     if "--sweep" in args:
         return 0, (stub / "sweep.txt").read_text(), ""
+    if "--if-free" in args and (stub / "jmerge-busy").exists():
+        return 75, "busy: another run of jmerge holds run.lock\n", ""
     if "--accept" in args:
         said = stub / "accept.txt"
         return 0, said.read_text() if said.exists() else "", ""
