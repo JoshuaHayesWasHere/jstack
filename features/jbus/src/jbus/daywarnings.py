@@ -38,8 +38,8 @@ if TYPE_CHECKING:
 
 PREFIX = "warnings-"
 BAR = 3
-SINCE = datetime(2026, 11, 1, 2, 9, 8, tzinfo=UTC)
-"""When #833 merged (636ac8b20, 2026-10-31 22:09:08 -0400)."""
+SINCE = datetime(2026, 11, 1, 2, 9, 9, tzinfo=UTC)
+"""When #833 merged (636ac8b20), as GitHub gives its `mergedAt`."""
 LEDGER = "day-warnings.json"
 
 
