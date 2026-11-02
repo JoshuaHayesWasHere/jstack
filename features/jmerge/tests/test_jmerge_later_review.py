@@ -1,8 +1,8 @@
 """After a pull request's first review, only an error is fixed in it. A `Review: review` brief
 answers its first review as before, and pushes its fix. The review after that, the scoped pass of
 the fix, routes each finding by the severity it wrote, whatever its bucket or tag: an error waits
-on its answer by id and a push, and a warning or an info is dropped. No finding goes to another
-row. A brief that still says `after` is read as `review`. The tests drive it through
+on its answer by id and a push, a warning holds nothing and is kept for the day's warnings row
+(`jbus.daywarnings`), and an info is dropped. A brief that still says `after` is read as `review`. The tests drive it through
 `ready.short_of`, the function `jmerge` calls before a merge, through `jbriefs --findings
 --left`, the crew's count, and through `jmerge --check` against a real origin and a fake `gh`."""
 
@@ -78,7 +78,7 @@ def test_a_second_review_with_errors_and_warnings_waits_on_its_errors_alone(tmp_
     assert routes == {
         "F1": findings.HOLDS,
         "F2": findings.HOLDS,
-        "F3": findings.DROPPED,
+        "F3": findings.KEPT,
         "F4": findings.DROPPED,
     }
 
@@ -92,12 +92,38 @@ def test_a_second_review_of_warnings_and_infos_owes_no_fix_push_and_merges(tmp_p
     assert ready.short_of(fixed(()), FIX) == ""
 
 
-@pytest.mark.parametrize("found", [WARNING, RISKY])
-def test_a_second_reviews_warning_is_dropped_whatever_its_bucket_or_tag(found):
+CONSIDERED = WARNING.replace("Act on", "Consider")
+NOTED_ERROR = ERROR.replace("Consider", "Act on") + " (risk: auth)"
+
+
+@pytest.mark.parametrize(
+    ("found", "route"),
+    [
+        (WARNING, findings.KEPT),
+        (RISKY, findings.KEPT),
+        (CONSIDERED, findings.KEPT),
+        (INFO, findings.DROPPED),
+        (INFO + " (risk: data)", findings.DROPPED),
+        (ERROR, findings.HOLDS),
+        (NOTED_ERROR, findings.HOLDS),
+    ],
+)
+def test_a_second_reviews_severity_routes_it_whatever_its_bucket_or_tag(tmp_path, found, route):
     text = fixed((found,))
     (one,) = [one for one in findings.triage(text).findings if one.lead.head == FIX]
-    assert (one.bucket, one.route) == ("Act on", findings.DROPPED)
-    assert not findings.triage(text).blocking()
+    assert one.route == route
+    assert bool(findings.triage(text).blocking()) == (route == findings.HOLDS)
+    assert (ready.short_of(text, FIX) == "") == (route != findings.HOLDS)
+    path = tmp_path / "alpha.md"
+    path.write_text(text)
+    listed = subprocess.run(
+        [sys.executable, "-m", "jbriefs", "--findings", str(path)],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    kept = "goes to: the day's warnings row once the pull request merged"
+    assert (kept in listed) == (route == findings.KEPT)
 
 
 def test_the_first_review_still_goes_to_the_crew_whatever_its_severity():
@@ -115,7 +141,7 @@ def test_a_seat_that_writes_its_first_review_late_is_still_a_first_review():
     assert [one.route for one in findings.triage(text).findings] == [findings.HOLDS] * 2
 
 
-@pytest.mark.parametrize("mode", ["after", "cleanup"])
+@pytest.mark.parametrize("mode", ["after", "standard"])
 def test_a_brief_that_still_says_an_old_mode_is_read_as_review(mode):
     assert ready.short_of(brief(mode=mode), HEAD) == ready.NO_REVIEW
     assert ready.short_of(brief(mode=mode) + review(HEAD, (FIRST,)), HEAD) == ready.NO_FIXED
