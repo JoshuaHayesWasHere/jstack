@@ -7,8 +7,9 @@ Each comes from what jbus already holds, and none asks GitHub anything:
 - `brief-versions.jsonl`: `queue._store`, the one writer of a stored brief, adds a line each time
   the brief's sha (`judgement.brief_sha`) changes, and a line with no sha when the brief is taken
   away. It writes the line before the brief, and no line whose sha is the slug's last already, so
-  a store that dies between the two loses no version and writes none twice. The text of each version is kept once, by its sha, in `brief-versions/`, and the line
-  holds the sha and the size: the store keeps no text.
+  a store that dies between the two loses no version and writes none twice. The text of each
+  version is kept once, by its sha, in `brief-versions/`, and the line holds the sha and the
+  size: the store keeps no text.
 - `row-pulls.jsonl`: the step `history.pulls` adds a line the first time the pass's world shows a
   pull request under a row's slug as open, and again the first time it shows it merged. A row
   whose pull request was closed and opened again, or redone, has a line for each.
