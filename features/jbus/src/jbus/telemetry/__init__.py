@@ -3,9 +3,10 @@
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
-`jbus.spent` keep, five snapshots, and the machine's log of its passes. Its views give the KPIs
-(`jbus.telemetry.schema`). It keeps a row forever, and keeps no text of a message: ids, times,
-counts, labels and the length of each text.
+`jbus.spent` keep, five snapshots, the machine's log of its passes, and the messages of T3
+Code's threads (`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.schema`).
+It keeps a row forever, and keeps no text of a message: ids, times, counts, labels and the
+length of each text.
 
 A build reads only what is new. A log is read on from `cursors`, the file's inode, the hash of
 its first line and the offset its last build read to, and only to its last newline, so a line
@@ -45,7 +46,7 @@ from typing import Any
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import records, schema
+from jbus.telemetry import messages, records, schema
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
@@ -124,10 +125,10 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
     if held and held[0] == name:
         return
     connection.execute("BEGIN")
-    for source in SOURCES:
-        found = connection.execute(f"SELECT project, key, {source.at} FROM {source.table}")
+    for table, at in (*((source.table, source.at) for source in SOURCES), (messages.TABLE, "at")):
+        found = connection.execute(f"SELECT project, key, {at} FROM {table}")
         connection.executemany(
-            f"UPDATE {source.table} SET day = ? WHERE project = ? AND key = ?",
+            f"UPDATE {table} SET day = ? WHERE project = ? AND key = ?",
             [(records.day(at, zone), project, key) for project, key, at in found.fetchall()],
         )
     connection.execute("INSERT OR REPLACE INTO meta (name, value) VALUES ('zone', ?)", (name,))
@@ -290,6 +291,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
                 continue
             read = _log if source.kind == "log" else _snapshot
             read(connection, name, source, file, zone, built)
+        messages.read(connection, config, zone, built, most)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",

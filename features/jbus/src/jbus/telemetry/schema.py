@@ -28,10 +28,19 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `weekly_lead_time`, `weekly_change_failure` and `weekly_restore` (S7): each week's number,
   the median and the 85th percentile as `statistics.median` and the scorecard's `pct` take
   them. A week starts on Sunday, in the user's zone.
+- `ask_ledger`: each message the user typed (`TYPED`) and what followed it, the first of: a
+  `row`, an act that cites the message by id and names a row; an `answer`, an act that cites it
+  and answers a gate; a `reply`, the assistant's first message in its thread within `WAIT`
+  minutes. An act counts whenever it came, since it names the message; a reply is only matched
+  by time. With none, it is `waiting` until `WAIT` minutes have passed by the last build, then
+  `unanswered`: a lost ask.
+- `weekly_lost_asks` (S3): each week's typed messages that are settled, the lost ones among
+  them, those still waiting, and the rate, with no labels.
 """
 
 from __future__ import annotations
 
+from jbus.telemetry import messages
 from jbus.telemetry.records import SOURCES, Source
 
 
@@ -132,13 +141,26 @@ PASSES = (
 """Whether jbus read an act's words in T3 Code itself (`party.Evidence.checked`), and each pass's
 seconds, the machine's, under the project `''`. An act a store read before this has no `checked`."""
 
-MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES)
+MESSAGES = messages.TABLE_SQL + "CREATE INDEX acts_ref ON acts (ref);\n"
+"""The messages of T3 Code's threads (`jbus.telemetry.messages`), and the index by which an act
+finds the message it cites."""
+
+MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES, MESSAGES)
 """`MIGRATIONS[n]` takes a store from version `n` to `n + 1`. Append, never edit one."""
 
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 GREEN = "('success', 'skipped', 'neutral')"
 WEEK = "date({day}, '-6 days', 'weekday 0')"
 """The Sunday a local date's week starts on."""
+WAIT = 120
+"""The minutes a typed message waits for a reply before it is a lost ask: in the audit week
+(2026-10-25 to 10-31) each of the user's 603 messages had its first reply within 2 hours, 597
+within 5 minutes."""
+TYPED = (
+    "role = 'user' AND created_by = 'user' AND id NOT LIKE 'limit-resume:%' AND kind <> 'dropped'"
+)
+"""A message the user typed: T3 Code's `createdBy` is the user, it is not T3 Code's resume after
+a usage limit, and its text is not one T3 Code or an agent put in the user's turn."""
 
 
 def _quantiles(table: str, value: str) -> str:
@@ -280,6 +302,34 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "FROM main_spells s LEFT JOIN ("
         + _quantiles("main_spells", "minutes_to_green")
         + ") q ON q.week = s.week GROUP BY s.week",
+    ),
+    (
+        "ask_ledger",
+        f"WITH typed AS (SELECT * FROM messages WHERE {TYPED}), "
+        "links AS (SELECT t.project, t.key, CASE WHEN a.gate IS NOT NULL OR a.verb = 'answer' "
+        "THEN 'answer' ELSE 'row' END AS joined, a.at AS joined_at, a.id AS link FROM typed t "
+        "JOIN acts a ON a.ref = t.thread || '/' || t.id "
+        "WHERE a.gate IS NOT NULL OR a.verb = 'answer' OR a.subject IS NOT NULL "
+        "UNION ALL SELECT t.project, t.key, 'reply', r.at, r.id FROM typed t JOIN messages r "
+        "ON r.thread = t.thread AND r.role = 'assistant' AND r.at > t.at "
+        f"AND julianday(r.at) <= julianday(t.at) + {WAIT} / 1440.0), "
+        "ranked AS (SELECT *, row_number() OVER (PARTITION BY project, key ORDER BY "
+        "CASE joined WHEN 'row' THEN 1 WHEN 'answer' THEN 2 ELSE 3 END, joined_at) AS place "
+        "FROM links) "
+        "SELECT t.project, t.id, t.thread, t.at, t.day, "
+        f"{WEEK.format(day='t.day')} AS week, t.kind, coalesce(k.joined, CASE WHEN "
+        "julianday((SELECT max(at) FROM builds)) - julianday(t.at) >= "
+        f"{WAIT} / 1440.0 THEN 'unanswered' ELSE 'waiting' END) AS joined, k.joined_at, k.link, "
+        "round((julianday(k.joined_at) - julianday(t.at)) * 1440.0, 1) AS minutes "
+        "FROM typed t LEFT JOIN ranked k ON k.project = t.project AND k.key = t.key "
+        "AND k.place = 1",
+    ),
+    (
+        "weekly_lost_asks",
+        "SELECT week, sum(joined <> 'waiting') AS typed, sum(joined = 'unanswered') AS lost, "
+        "sum(joined = 'waiting') AS waiting, "
+        "1.0 * sum(joined = 'unanswered') / nullif(sum(joined <> 'waiting'), 0) AS rate "
+        "FROM ask_ledger GROUP BY week",
     ),
 )
 """Each view by its name, in an order in which each reads only views made before it."""

@@ -28,10 +28,15 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
+| `messages` | T3 Code's store, read only | a message of a T3 Code thread, the user's or the assistant's, keyed by its id |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
 Each table also has `day`, the local date of its main time in the zone that `jsettings` gives.
 `builds` records each build: when, how long in milliseconds, the bytes it read and the rows it added.
+
+`messages` reads T3 Code's `statev2.sqlite` on from the last message it read.
+Its `project` is the jbus project of the thread, or T3 Code's own id of a project jbus does not know.
+A user's message has a `kind`: `text`, `command`, `answer`, `resume`, or `dropped` for a text that T3 Code or an agent put in the user's turn.
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.
@@ -81,6 +86,8 @@ F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with 
 | `run_attempts` | F2 for each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
 | `carried_words` | F4 for each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
+| `ask_ledger` | each message you typed and what it joined: a `row` or an `answer`, an act that cites the message by id, else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
+| `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
@@ -89,6 +96,10 @@ To read one, open the file with any SQLite reader:
 ```sh
 sqlite3 ~/.local/state/jbus/telemetry.sqlite 'SELECT * FROM weekly_lead_time ORDER BY week'
 ```
+
+A lost ask is an `unanswered` message: no act cites it, and no reply came in its thread within the wait.
+The wait is counted to the last build, so a view read twice gives the same answer.
+A reply counts as an answer, so a message answered in words whose work never became a row is not lost here.
 
 The spells come from `ci.jsonl`, so S6 and S7 count only the projects whose table says `ci_report = true`, and only the runs their ledger holds.
 
