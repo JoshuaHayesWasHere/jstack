@@ -5,7 +5,8 @@ It loads only when a user types it, and the tests run each shell block it gives.
 
 Paths:
 - `features/sharpen/`
-Tests: none
+Tests:
+- `features/sharpen/tests/test_sharpen_skill.py`
 
 ## Sub-features
 
