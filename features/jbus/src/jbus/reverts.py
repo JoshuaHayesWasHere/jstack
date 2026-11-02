@@ -49,6 +49,7 @@ from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
 from jbus.ci.numbers import Facts, time
 from jbus.passes import Pass
+from jbus.watch import task_brief
 from jmerge import reverts as kept
 
 EVENTS = {"revert": "quiet"}
@@ -209,7 +210,7 @@ def revert(run: Pass, red: Culprit) -> bool:
             run.condition(red.slug, line, key=f"listed {red.red}")
             return True
     branch, head, url = (said.get(key, "") for key in ("headRefName", "headRefOid", "url"))
-    home = below.line(_brief(run, red.slug), "Home:") or "root"
+    home = below.line(task_brief(run, red.slug), "Home:") or "root"
     tasks = run.home / "tasks"
     tasks.mkdir(parents=True, exist_ok=True)
     (tasks / f"{branch}.md").write_text(brief(branch, red, url, home))
@@ -243,11 +244,6 @@ def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) 
     if said.get("state") == "OPEN" and checks(said) == "failed":
         return f"its revert {one.pull} has a failed check"
     return ""
-
-
-def _brief(run: Pass, slug: str) -> str:
-    path = run.home / "tasks" / f"{slug}.md"
-    return path.read_text(errors="replace") if path.exists() else ""
 
 
 QUIET = (Keep.OPENED, Keep.UNREAD)

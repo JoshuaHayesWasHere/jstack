@@ -149,7 +149,7 @@ Merges(p) ==
     \* with no hold, nothing waits for its own check to prove it first.
     /\ mainRed' = ((mainRed /\ ~fixes[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF fixes[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py `_file(run, slug, sha,`: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/culprits.py `_file(run, run.red.slug, run.red.sha, run.red.red, why)`: main's red tip after a briefed merge is filed.
     \* A green tip withdraws a fix row that never launched (features/jbus/src/jbus/watch.py `_withdraw(run, fixes, tip)`), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = ((fixRow /\ ~fixes[p]) \/ breaks[p])
