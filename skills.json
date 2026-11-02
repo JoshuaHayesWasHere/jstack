@@ -564,6 +564,13 @@
       "hidden": true
     },
     {
+      "name": "retro",
+      "kind": "skill",
+      "path": "features/skill-library/skills/retro/SKILL.md",
+      "source": "jstack",
+      "description": "Audit what happened over a past window from the raw records: build a dataset you can rerun, freeze a codebook before reading any outcome, sharpen the prompt, and send scouts, with a second labeller, a red team, and rates that show their row mix. Use for /retro, 'audit what happened over <window>', 'take a census of', 'what went wrong last week'."
+    },
+    {
       "name": "scout",
       "kind": "skill",
       "path": "features/scout/SKILL.md",
@@ -642,6 +649,13 @@
       "path": "features/writing/skills/unslop/SKILL.md",
       "source": "pstack",
       "description": "Cut AI tells from writing. Use when the user says text reads like AI, asks to unslop it, or before prose ships to people."
+    },
+    {
+      "name": "unstick",
+      "kind": "skill",
+      "path": "features/home/skills/unstick/SKILL.md",
+      "source": "jstack",
+      "description": "Find why rows of the jbus queue have not moved, from jbus's own records: each stalled row's cause and age, the reversible step that moves it taken at once, and the rest parked as gates. Use for /unstick, 'why are we stalled', 'why is nothing moving', 'why do these crewmates look stalled'."
     },
     {
       "name": "why",
