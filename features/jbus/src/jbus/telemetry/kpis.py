@@ -244,7 +244,7 @@ KPIS: tuple[Kpi, ...] = (
         "s",
         30,
         "lower",
-        Lacks("a record of each pass: its time is in the journal, and pass.json holds the last"),
+        Measured("weekly_pass_time", "median", "n"),
     ),
     Kpi(
         "Waiting for jmerge, PR p50 minutes",

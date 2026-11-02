@@ -93,6 +93,7 @@ F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with 
 | `weekly_first_round` | each week's `n`, `first_round` and `share`, in percent |
 | `weekly_merges` | each week's rows `merged` |
 | `weekly_doors` | each week's door acts `done`, and `not_yours`, those a home, a bot or jbus did |
+| `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).

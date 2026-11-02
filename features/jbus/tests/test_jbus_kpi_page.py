@@ -11,6 +11,7 @@ calls no `gh`.
 
 import contextlib
 import io
+import json
 from datetime import timedelta
 from html.parser import HTMLParser
 
@@ -145,6 +146,19 @@ def test_a_pull_request_with_a_red_check_or_a_wait_on_a_crews_fix_is_not_first_r
 
     assert rows["Crew first-round share"][4] == "0% n 1 missed"
     assert rows["Crew first-round share"][5] == "0% n 1 missed"
+
+
+def test_the_pass_time_is_each_weeks_median_of_the_passes_jbus_recorded(machine):
+    with open(machine.state_dir / "passes.jsonl", "a") as handle:
+        for seconds, when in ((20, NOW), (40, NOW), (90, NOW), (50, NOW - timedelta(days=7))):
+            handle.write(json.dumps({"at": when.isoformat(timespec="seconds"), "seconds": seconds}))
+            handle.write("\n")
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["jbus pass, median seconds"][4] == "50 s n 1 missed"
+    assert rows["jbus pass, median seconds"][5] == "40 s n 3 missed"
 
 
 def test_a_kpi_with_no_instrument_yet_says_so(machine):

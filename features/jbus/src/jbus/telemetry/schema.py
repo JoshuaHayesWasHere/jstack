@@ -335,6 +335,12 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "WHERE doors > 0 AND outcome = 'done' AND day IS NOT NULL GROUP BY 1",
     ),
     (
+        "pass_times",
+        f"SELECT {WEEK.format(day='day')} AS week, seconds FROM passes "
+        "WHERE day IS NOT NULL AND seconds IS NOT NULL",
+    ),
+    ("weekly_pass_time", _quantiles("pass_times", "seconds")),
+    (
         "weekly_restore",
         "SELECT s.week, count(*) AS spells, q.median, q.most, "
         "sum(s.green_at IS NULL) AS still_open, sum(s.minutes_to_green < 0) AS negative "
