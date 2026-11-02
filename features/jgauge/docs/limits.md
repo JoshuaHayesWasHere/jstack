@@ -120,7 +120,7 @@ This page records the pool numbers and changes none of them.
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
 | A window is full | `features/jroles/src/jroles/ledger.py:32` | `FULL = 100.0` | #111 | An instance is out only while a window is full | The provider's, not the machine's | Kept |
-| A reading that ends a cap early | `features/jroles/src/jroles/ledger.py:48` | `EARLY = 10.0` | ask-retry-on-cap, the 2026-10-31 hold | The usage endpoint's own reading at or under it replaces a full window, since the provider reset that window ahead of time | The endpoint read 0% from 15:00 with the same reset, and `merge` kept 100 | New |
+| A reading that ends a cap early | `features/jroles/src/jroles/ledger.py:56` | `EARLY = 10.0` | ask-retry-on-cap, the 2026-10-31 hold | The usage endpoint's own reading at or under it replaces a full window, since the provider reset that window ahead of time | The endpoint read 0% from 15:00 with the same reset, and `merge` kept 100 | New |
 | How old a ledger row may be | `features/jroles/src/jroles/ledger.py:33` | `BLIND = timedelta(hours=1)` | #111 | A stale row does not hold a launch | The provider's | Kept |
 
 ## Timers, waits and locks
@@ -149,8 +149,9 @@ This page records the pool numbers and changes none of them.
 | jmerge in a pass | `features/jbus/src/jbus/wake.py:80` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the longest thing `jmerge` runs | Kept |
 | jmerge's judge | `features/jmerge/src/jmerge/cli.py:60` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
 | Judged again | `features/jmerge/src/jmerge/cli.py:55` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
-| A wait after a 429 with no `Retry-After` | `features/jgauge/src/jgauge/limits.py:52` | `RETRY = timedelta(minutes=10)` | ask-retry-on-cap | The usage endpoint is not asked again before then, and the ledger keeps its last good value | Design choice | New |
+| A wait after a 429 with no `Retry-After` | `features/jgauge/src/jgauge/limits.py:54` | `RETRY = timedelta(minutes=10)` | ask-retry-on-cap | The usage endpoint is not asked again before then, and the ledger keeps its last good value | Design choice | New |
 | An owed ask's read of its thread | `features/jbus/src/jbus/owed.py:68` | `WINDOW, PAGES, CHARS = 100, 5, 600` | ask-retry-on-cap | A pass reads at most this much to find an ask | Design choice | New |
+| How old a stop may be when jbus first sees it, for its ask to be owed | `features/jbus/src/jbus/owed.py:69` | `RECENT = timedelta(days=1)` | ask-retry-on-cap | A first pass sends no old asks into threads that moved on | Design choice | New |
 | A failover's items | `features/jbus/src/jbus/failover.py:85` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `features/jbus/src/jbus/threads.py:53` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
 | Carry-ons a thread gets | `features/jbus/src/jbus/threads.py:61` | `CARRY_ONS = 2` | Before this repo's history | A thread is not woken forever | Design choice | Kept |

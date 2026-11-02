@@ -231,6 +231,13 @@ def test_a_command_that_prints_a_limit_line_is_no_stop(kitchen, free):
     assert asks(kitchen) == []
 
 
+def test_a_stop_found_long_after_it_owes_nothing(kitchen, free):
+    """The first pass on a machine finds threads that failed weeks ago, and sends none of them."""
+    stopped(free, [said(ASK), *limit()])
+    kitchen.poll(NOW + owed.RECENT + timedelta(minutes=1))
+    assert asks(kitchen) == [] and resent(kitchen) == []
+
+
 def test_a_settled_thread_owes_nothing(kitchen, free):
     stopped(free, [said(ASK), *limit()])
     kitchen.poll(NOW)
