@@ -207,6 +207,7 @@ In a checkout, `sh install.sh` runs the same code as `jinstall`, before any comm
 | The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |
 
 In a checkout, each file of a skill links to its file there, so an edit is live with no install.
+Codex's layout is the exception for `SKILL.md`, a copy that the next install brings up to date.
 A new skill appears on the next install, once `make trees` has listed it in `skills.json`.
 jleak's git hooks also go into the checkout that jstack is installed from, where each is a `hard` need.
 

@@ -24,7 +24,8 @@ A layout holds these entries:
 skill's own link, `realpath ~/.claude/skills/<name>/../../templates`.
 
 Each entry is a symlink to its file in the source. So an edit to the source is live with no
-install, and a new file appears on the next install. Placing some Markdown files in the layout
+install, except in a copy, and a new file appears on the next install. A harness whose agent
+reads no linked SKILL.md gets a copy of each (`Harness.copies`). Placing some Markdown files in the layout
 would break their relative links, so the assembly writes a rewritten copy of each of those files
 instead (`links`). In the copy, a link to a target that the layout holds points where the layout
 puts the target, and a link to a target that the layout leaves out becomes the target's GitHub
@@ -189,10 +190,15 @@ def _readme(source: Path, harness: Harness, flagged: dict[str, tuple[str, ...]])
         f"| [{name}](skills/{name}/SKILL.md) | {said[name]} | {', '.join(lacks)} |\n"
         for name, lacks in ((name, flagged.get(name, ())) for name in skills(source))
     )
+    copied = (
+        "Each skill's SKILL.md is a copy instead, which the next install brings up to date. "
+        if harness.copies
+        else ""
+    )
     return (
         f"{HEADER.format(source=source)}# jstack for {harness.title}\n\n"
         f"This folder is jstack as {harness.title} reads it. Each file is a link to its file in "
-        f"{source}, so an edit there is live, and the next install adds a new skill. "
+        f"{source}, so an edit there is live, and the next install adds a new skill. {copied}"
         f"`~/{harness.root}` links each skill here.\n\n"
         f"The last column names what a skill asks for that {harness.title} does not have.\n\n"
         f"| Skill | What it is for | What {harness.title} leaves out |\n|---|---|---|\n{rows}"
