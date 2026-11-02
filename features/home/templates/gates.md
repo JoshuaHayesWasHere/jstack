@@ -24,6 +24,8 @@ There is one exception. When the default is irreversible or slow to revert, the 
 | publishes | a public release, a tag, a package, a public repo or post | the exact artifact and where it goes, then hold for the user |
 
 Everything else acts at once on its default: a merge (reverted by `gh pr revert`), a branch, a brief, a config edit with its backup, a launch. `jbus gate` refuses a gate with no filled `Default:` line, a default that is not the recommended option, a `Holds:` line with no filled `Fail-safe:` line, a case not in the table, and a `Fail-safe:` line with no `Holds:` line.
+`jbus gate` asks nothing a rule already settles: a gate with no `Holds:` line whose question asks whether to swarm, whether a `Review: none` pull request merges, whether to write `Fixed:` after a check ended 124, which base a pull request goes on, whether to add a `cross-cutting` label, or whether to wait for the fix of a red that is its base's is refused as `settled:`, with the rule that settles it and what to do instead.
+It refuses as `not sent:` a gate with no `Holds:` line whose default waits for the user's word, since the first pass closes it at once and nobody is left to give that word: the default says what is done with no word.
 
 A home that marks a gate `Status: answered` in its own `gates.md` closes a gate with no `Holds:` line, and never one that holds.
 Only the user's own answer, read by jbus in T3 Code with `jbus --as user answer <n> --message <thread>/<message>`, closes a gate that holds, and that message names the gate's number or its row.

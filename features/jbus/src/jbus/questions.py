@@ -78,6 +78,14 @@ for a gate that a home's `gates.md` numbered), more than one `## ` line, a missi
 placeholder. jbus reads the labels from the template, the one copy, so a skill pipes the gate
 and checks none of this itself.
 
+`jbus gate` also asks nothing that a rule already settles (`refusal`). A gate with no `Holds:`
+line whose question is a shape of `SETTLED` (a swarm, a `Review: none` merge, exit 124's
+`Fixed:` line, a merge base, a cross-cutting label, a red that is its base's) says `settled:`
+with the rule and what to do instead, and the thread does that and asks nothing. One whose
+default waits for the user's word says `not sent:`: a pass closes it at once, so nobody would
+give that word. A gate that holds is asked whatever its shape. Only `jbus gate` checks this,
+so a question a pass raises (`park`) is never refused by it.
+
 While homes still keep a `gates.md`, a pass also closes a record when it finds the same gate
 in such a file with `Status: answered` (`closed_in_files`), because that home took the
 answer and carried it to the thread itself. It never closes a gate that holds that way: only
@@ -384,6 +392,109 @@ def _held(lines: str) -> tuple[str, str]:
     else:
         return (holds[0], safe[0]) if holds else ("", "")
     raise Refused(f"not sent: {what}.")
+
+
+@dataclass(frozen=True)
+class Settled:
+    """A shape of gate that a rule already settles, so `jbus gate` asks nothing of it: the
+    `shape` it is known by, the patterns that `asks` all match in its question, the one it
+    matches `unless`, the `rule` that settles it with where it is written, and what the thread
+    does in its place (`do`)."""
+
+    shape: str
+    asks: tuple[re.Pattern[str], ...]
+    rule: str
+    do: str
+    unless: re.Pattern[str] | None = None
+
+    def matches(self, question: str) -> bool:
+        return all(one.search(question) for one in self.asks) and not (
+            self.unless and self.unless.search(question)
+        )
+
+
+def _words(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern, re.I)
+
+
+_RED = _words(r"\b(red|fails?|failing)\b")
+SETTLED = (
+    Settled(
+        "swarm",
+        (_words(r"/swarm\b"),),
+        "only a home launches threads, and a swarm is the user's to type in the repo's home "
+        "(features/arena-swarm/skills/swarm/SKILL.md)",
+        "start nothing, and do the work in this thread, with read-only subagents where it fans out",
+    ),
+    Settled(
+        "Review: none",
+        (re.compile(r"Review: none"),),
+        "jmerge holds a pull request whose brief says Review: none for the user's word, and jbus "
+        "lists it under Needs you (features/jmerge/src/jmerge/ready.py, REVIEW_NONE)",
+        "write the Result's Reviewer: none line, and end your turn",
+    ),
+    Settled(
+        "exit 124",
+        (_words(r"\bFixed\b"), _words(r"\b124\b|short lane|time limit|timed out|\blimit\b")),
+        "a check that ends 124 ran past the short lane's time limit, which says nothing of the "
+        "change (features/crew/do-the-task.md, On 124)",
+        "go on as on exit 0: open the pull request or write the Fixed: line, with the Checked: "
+        "line's exit 124, and let CI's check on the pull request be the proof",
+    ),
+    Settled(
+        "a red that is its base's",
+        (_RED, _words(r"\b(main|base)\b"), _words(r"\b(wait|hold)\b")),
+        "a red of main or of the base is a fault outside the task, and jmerge merges its fix "
+        "before anything else (templates/a-fault-outside.md; features/jmerge/docs/jmerge.md, "
+        "Main is not red)",
+        "carry no fix of it here: the pull request waits for that fix to merge, then rebases as "
+        "the crew's A conflict says",
+    ),
+    Settled(
+        "merge base",
+        (_words(r"\b(base|stacked)\b"), _words(r"#\d+|pull request|\bPR\b")),
+        "a pull request's base is the home's to give, by the brief's Stacked on: line, and jmerge "
+        "merges into each merge base the project names as it merges into main "
+        "(features/crew/do-the-task.md; features/jmerge/src/jmerge/rows.py, bases)",
+        "open or keep the pull request on the base that the crew's block prints, and leave its "
+        "merge to jmerge",
+        unless=_RED,
+    ),
+    Settled(
+        "cross-cutting",
+        (_words(r"\bcross-cutting\b"), _words(r"\blabel"), _words(r"#\d+|pull request")),
+        "a diff that touches two features is labelled cross-cutting by its crew when it opens "
+        "(features/crew/do-the-task.md)",
+        "label it yourself with gh pr edit --add-label cross-cutting",
+    ),
+)
+WAITS_FOR_WORD = re.compile(
+    r"\b(?:for|until|once) (?:your|the user's|the owner's) (?:by-hand )?"
+    r"(?:word|answer|merge|go-ahead|say-so)\b"
+    r"|\b(?:for|until|once) [A-Z][\w-]*'s (?:by-hand )?(?:word|go-ahead|say-so)\b"
+    r"|\bfor (?:you|the user|the owner) to (?:merge|answer|say|decide)\b"
+)
+WAITS = (
+    "the Default: line waits for the user's word, and a pass closes a gate with no Holds: line "
+    "with its default at once, so nobody is left to give that word. Write as the default what "
+    "is done with no word, which the user's answer can still take back, or, where the default "
+    "is one of the six cases of the gates table, add Holds: and Fail-safe: under Undo:"
+)
+
+
+def refusal(question: str, default: str, holds: bool) -> str:
+    """Return why `jbus gate` asks nothing of a gate with this question and default, or "" for
+    one it asks. A gate that holds is asked whatever its shape. One that does not is `settled:`
+    when a rule of `SETTLED` answers its question, and `not sent:` when its default waits for
+    the user's word (`WAITS_FOR_WORD`)."""
+    if holds:
+        return ""
+    for one in SETTLED:
+        if one.matches(question):
+            return f"settled: {one.shape}: {one.rule}. Ask nothing, and {one.do}."
+    if WAITS_FOR_WORD.search(default):
+        return f"not sent: {WAITS}."
+    return ""
 
 
 def _labels() -> list[str]:
@@ -964,6 +1075,10 @@ def _asked(args: argparse.Namespace, config: Config) -> tuple[Question, bool]:
     if gone:
         raise Refused(f"refused: {gone}, and a removed slug asks nothing")
     text = re.sub(r"^Asked by: [^,\n]*", lambda _: f"Asked by: {args.slug}", text, flags=re.M)
+    holds = any(line.startswith("Holds:") for line in text.splitlines())
+    why = refusal(mirror.question(text), below.line(text, "Default:"), holds)
+    if why:
+        raise Refused(why)
     return park(run, args.slug, text)
 
 

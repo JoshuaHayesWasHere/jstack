@@ -186,6 +186,8 @@ The line under it, `Gate: question <number>`, is all the Result keeps of the gat
 Where it says `asked: already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
 Go by it, and take the default back where it differs.
 On `not asked: not sent:`, nothing was queued: fill in the line it names and run it again.
+A default that waits for the user's word is not sent: a pass closes a gate with no `Holds:` line at once, so write as the default what is done with no word.
+On `not asked: settled:`, a rule already answers the question, and the line names the rule and what to do instead: do that, and send nothing to the home and no gate line to the Result.
 On any other `not asked`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread "Telling the home" finds, and with no home there put them in the Result above its `Left:` line, the one place left that can hold them.
 An answer that differs from the default comes back as a message here, from jbus.
 A review finding you cannot settle without the user's word is such a question.

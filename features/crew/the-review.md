@@ -125,6 +125,7 @@ fi
 ```
 
 On `tell the home`, add the line, then send the thread that hears of a pull request ("Telling the home") one line: `<slug>: <pull request url> at <full head commit> is green and has no review (<the brief says Review: none, or no launch tool in this session>): it waits for the user's word`. The pull request is green by now, since that is when this section is reached. On `send nothing`, the line is there and the home has been told, or jbus merges and it was not to be: one message, not one per wake.
+A pull request whose brief says `Review: none` is parked as no gate: `jmerge` holds it for the user's word and jbus lists it under Needs you, so `jbus gate` refuses that line as `settled`.
 
 The findings come as one message in this thread, from jbus and not from the reviewer, which writes its section in the brief and sends nothing.
 The message comes once every reviewer of the head has written its section and `jmerge` says the pull request waits on your answers, so the findings of all of them are handled together, and pushed once.
