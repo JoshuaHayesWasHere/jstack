@@ -103,4 +103,4 @@ Variant against base over the cases: 3 higher, 39 tied, 0 lower, sign test p 0.2
 - `lead`: 0 of 153 answers settled by the judge (base 0, base-again 0, variant 0).
 - `steps`: 6 of 378 answers settled by the judge (base 3, base-again 3, variant 0).
 
-**Verdict of this run: the variant regresses**, by the rule in `README.md`: in each family its mean is no lower than base minus the noise floor, and the sign test against base shows no loss under 0.05.
+**Verdict of this run: the variant regresses**, by the rule in `README.md`: in `lead` its mean is lower than base minus the noise floor, or the sign test against base shows a loss under 0.05.
