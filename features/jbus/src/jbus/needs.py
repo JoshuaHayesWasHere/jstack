@@ -75,8 +75,10 @@ def lines(
             found += of(config, project, now)
         except Unknown as why:
             unknown.append(f"not known: {why}")
+    if not found and unknown:
+        return [*unknown, f"nothing else known waits on {user} in {scope}"]
     if not found:
-        return [f"nothing waits on {user} in {scope}", *unknown]
+        return [f"nothing waits on {user} in {scope}"]
     names = sorted({one.project for one in found}, key=[p.name for p in projects].index)
     head = f"waiting on {user}: {len(found)}, in {', '.join(names)}"
     return [head, *(line for one in found for line in one.lines()), *unknown]

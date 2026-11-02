@@ -110,3 +110,11 @@ def test_all_projects_or_one(kitchen):
     kitchen.poll()
     assert needs(kitchen)[0] == "waiting on user: 1, in demo"
     assert needs(kitchen, "--project", other.name) == ["nothing waits on user in other"]
+
+
+def test_a_project_no_pass_has_listed_is_not_said_to_have_nothing_waiting(kitchen):
+    other = kitchen.second()
+    assert needs(kitchen, "--project", other.name) == [
+        "not known: other: no pass has listed what waits there yet",
+        "nothing else known waits on user in other",
+    ]

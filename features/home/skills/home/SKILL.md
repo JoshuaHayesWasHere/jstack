@@ -211,7 +211,7 @@ fi
 ```
 
 It names every project of jbus's config, since the user asks every home the same question.
-A line `nothing waits on <user> in any project` opens the reply as it is, and a `not known:` line says which project no pass has listed yet.
+A line `nothing waits on <user> in any project` opens the reply as it is, and a `not known:` line, which comes first, says which project no pass has listed yet.
 A start's `## waiting on you` part, from step 4 of "When a home starts", is the same list for this home's project, with a count for each other project.
 
 ## Gates

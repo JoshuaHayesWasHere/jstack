@@ -24,10 +24,9 @@ when the records were taken, or a row approved on the user's word (basis `word`,
 `answer` or `pick`). Any other item needed no one: a question closed by silence or cleared, a row
 approved by a rule, an entry's go or a bot, or removed with no go. An ask is answered when the
 list at that time holds every item that waited on the user, so a list that says nothing waits
-answers an ask at which nothing did. Under today's settle rule that is every ask: a gate the user
-answered that the list leaves out had no `Holds:` line, so its default stood and the answer
-corrected it. The replay counts the asks at which such a gate was open, since a correction is
-what the list does not prompt.
+answers an ask at which nothing did. An ask is not answered where the user later answered a gate
+the list leaves out: it had no `Holds:` line, so its default stood and the answer corrected it,
+and a correction is what the list does not prompt.
 """
 
 from __future__ import annotations
@@ -158,9 +157,10 @@ def replay(dataset: Path) -> dict:
                 noise.add(key)
         shown.update(listed)
         counted["asks with a gate left out that the user answered later"] += left_out
-        counted["answered"] += 1
-        name = "answered with items" if listed else "answered with nothing waits"
-        counted[name] += 1
+        if not left_out:
+            counted["answered"] += 1
+            name = "answered with items" if listed else "answered with nothing waits"
+            counted[name] += 1
     counted["items shown"] = len(shown)
     counted["items shown that needed no one"] = len(noise)
     counted["corrections, no Holds: line"] = len(corrected)

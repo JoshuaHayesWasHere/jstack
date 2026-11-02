@@ -73,8 +73,8 @@ def test_the_replay_counts_the_asks_it_answers_and_the_items_that_needed_no_one(
     )
     assert loaded().replay(dataset) == {
         "asks": 2,
-        "answered": 2,
-        "answered with items": 1,
+        "answered": 1,
+        "answered with items": 0,
         "answered with nothing waits": 1,
         "asks with a gate left out that the user answered later": 1,
         "items shown": 3,

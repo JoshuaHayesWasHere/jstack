@@ -52,6 +52,7 @@ That rule keeps a gate that holds, a gate with no default or one that names a do
 Each item is one line with what it holds, then its fail-safe where it has one, then the reply that answers it: `answer: say "<project> question <n>: default", or say what to do instead`.
 A row a home can clear by itself is left out, such as a row at `gate` or a leftover its home still has.
 A refused go is left out too: most refusals are a sha that did not match, and the home tries again by itself.
-With nothing open it prints `nothing waits on <you> in any project`, and a project no pass has listed yet is a `not known:` line.
+With nothing open it prints `nothing waits on <you> in any project`.
+A project no pass has listed yet is a `not known:` line, and the line that follows it says `nothing else known waits`, so it never reads as nothing waiting.
 `jbus queue show` prints the same lines above the table, a home's start opens its status with them for its own project, and the home and ketchup skills open a status reply with them.
 `features/jbus/scripts/needs_replay.py` replays the list over a week's records, and counts the asks it answers and the items it shows that needed no one.
