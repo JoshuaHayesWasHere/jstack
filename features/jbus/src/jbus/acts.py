@@ -10,12 +10,15 @@ the act's id and its `subject`, so the feed (`jbus.cursor`) gives events and act
 - A go given with `seen`, the id of the last event the party read (`wake.entries`, the feed's
   cursor), is refused as stale when `events.jsonl` has an event for the row after that one, or
   has no event of that id. An `act` event names no row, so an act is no change to the row.
-- A go for a brief whose `Holds:` lines name a door (`party.doors`), from a party the door
-  does not open for (`party.opens`), approves nothing. It parks a gate that holds for the user
-  instead (`questions.park`), and the act is `gated`. The user's own go later closes that gate.
+- A go for a brief that holds for a door (`party.doors`: its `Holds:` lines and the commands it
+  runs), from a party the door does not open for (`party.opens`), approves nothing. It parks a
+  gate that holds for the user instead (`questions.park`), and the act is `gated`. The user's
+  own go later closes that gate, on words that name the row or its gate and were said after its
+  brief was stored (`_unbound`); other words of the user's are `refused`.
 - A go whose row's go already holds for that brief is a `noop`.
-- An answer to a gate that holds, from a party the door does not open for, is `refused`, and
-  the gate stays open.
+- An answer to a gate that holds, from a party the door does not open for, or on words of the
+  user's that name neither the gate nor its row or came before it, is `refused`, and the gate
+  stays open.
 
 Every other verb (`party.Verb`) is given by its caller as `does`, which does the verb and returns
 its line, or raises `Refused`: `queue hold`, `remove` and `withdraw`, a word, the view's go of a

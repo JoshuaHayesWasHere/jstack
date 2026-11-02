@@ -52,6 +52,20 @@ That prints `sent: <project>, to the <scope> home at <thread>, word <id>` for ea
 A fault found in another home's work is no word: it is a queued row of that home's ("Scoped homes").
 jbus posts a word that any other thread records to this home once, in the form the block above prints.
 
+### A door word from the bot
+
+A word the bot carried, or one this home typed, never opens a door, whatever it says: "deploy to prod" from the bot's chat is no go for a prod deploy.
+When such a word asks for a door, record it as a word all the same, and queue the work as a row whose brief has `Holds: <the case>` above its `Done when:`.
+Then answer through the bot with one line: this is a door, send `go <slug>` in T3 Code, with the link to this thread.
+Once the user's own message names the row, approve it on that message, and jbus closes the gate the word parked:
+
+```sh
+jbus --project <project> --as user queue approve <slug> --sha <sha12> --message <thread id>/<message id>
+```
+
+jbus refuses a message of the user's that names neither the row nor its gate's number, or that was said before the brief was stored, and says what to send.
+This home never runs a door's command itself, a prod migration or deploy, a force-push, a release, a tailnet or DNS change, or a delete: the `door-command` hook refuses it, and the row's crew runs it on the user's own go.
+
 ### A go given in a question box
 
 The user's pick in a question box this home asked, Claude Code's AskUserQuestion, is their go for each row a label they picked names.
@@ -70,7 +84,7 @@ jbus reads the box from T3 Code, and who answered it, when and with which labels
 It refuses, each in one line, an item that is not a question box, a box nobody answered yet, a box an agent answered through T3 Code's MCP server, and an answer none of whose picked labels names the row.
 Text the user typed in place of a label approves nothing, since it may say no as well as yes: read what it says and act on it as their answer, and approve no row on it.
 The row then reads `your pick in a question box, <time>, in <thread>: "<label>", for "<question>"; run <time> by the <repo> home`.
-A brief with a `Holds:` line is a door, and a pick opens it no more than a message does: jbus parks its gate for the user's own word, as for any go of this home's.
+A brief that holds for a door is opened by a pick only when the user's own pick names the row, as by their own message: jbus parks a gate for any go of this home's on it.
 
 ### A plan entry's go
 
@@ -89,7 +103,7 @@ Its line reads `your go for the plan entry <entry>, <time>, in <where>; run <tim
 So ask the user nothing for a row of an entry with a go: queue it with `--entry`.
 The go stops holding when the entry's heading or `Done when:` lines change, when the entry closes, or when the user's word stops it, which this home runs as `jbus plan stop <entry>`.
 A row not yet launched then waits for the user's go, and a launched one goes on.
-A brief that is a case of `gates.md` names the case on a `Holds: <case>` line in its head, and its row waits for the user's word under every setting.
+A brief that is a case of `gates.md` names the case on a `Holds: <case>` line in its head, and its row waits for the user's word under every setting, as does one whose `Done when:` or `Proves it:` runs a door's command.
 
 Under the setting `go = "silence"`, a home parks its pick for a new row as a gate with `Default: approve`, piped to `jbus gate <slug>` as "Gates" says, instead of asking.
 The gate shows in `jbus view` and the digest, and waits `go_quiet_minutes`, 30 unless the settings say otherwise.

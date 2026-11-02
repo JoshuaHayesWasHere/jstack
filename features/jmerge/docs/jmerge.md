@@ -438,7 +438,7 @@ A push drops the accept, as it drops the hold, and so do the merge and a close.
 
 Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).
 `--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.
-An accept opens a door when the brief has `Holds:` lines, and when the pull request touches a protected path, the case "changes access or secrets".
+An accept opens a door when the brief holds for one, by a `Holds:` line or a command it runs, and when the pull request touches a protected path, the case "changes access or secrets".
 Only you open a door, on your own message: `--as user` with `--message`.
 Any other party's accept on a door, a home's or one on typed words, parks a gate for you, `may jmerge merge pull request <number> of <slug>? It holds for <cases>`, and merges nothing.
 `--message` in a checkout that is no project of jbus's is refused, and there the accept runs on `--by` and `--at` alone and nothing logs it.

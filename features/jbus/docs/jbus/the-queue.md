@@ -298,10 +298,17 @@ Its go on a row whose brief holds keeps a word of the view's and parks a gate fo
 A door is an action that is irreversible or slow to revert, one of the six cases of the table in [Questions](questions.md#act-unless-stopped-and-the-gates-that-hold), and `party.DOORS` is that table.
 A brief holds for a door when a line of its head, above its first `## `, is `Holds: <case>`, with several cases split by commas.
 A line that names a case the table does not have holds for every door.
+A brief also holds for each door that a command of its `Done when:` or `Proves it:` lines walks through, by the table's `runs` (`party.walks`), whether or not a `Holds:` line names it: `DSQL_STAGE=prod db/apply.sh dsql <file>`, `infra/deploy-backend.sh prod`, `scripts/deploy <service>`, `git push --force`, `gh release create` and the like.
+A segment of those lines that says never, do not, not run or without runs nothing, and a command with `--dry-run`, `DRY_RUN=1` or `--help` walks through no door.
+`jbus queue add` prints `holds: <case>, from <the command>` for each such door that no `Holds:` line names, so the home writes the line.
 An act on a door goes through only for you, on words jbus read itself.
 A go on such a brief from the bot, a home or the view approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
 Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, or `--pick <thread>/<item>` for your answer to a question box, approves the row and closes that gate.
+That message or pick names the row's slug or its gate's number, and was said after the brief was stored: an older one, or one about other work, is refused with what to send.
+An answer to a gate that holds is held to the same: your message names the gate's number or its row, and was said after the gate was asked.
 `jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
+No plan entry's go, follow-up rule or close by silence approves such a row either.
+A home's or a scout's own shell command that walks through a door is refused before it runs by the `door-command` hook (`jbus.door`), and so is a crew's whose row did not go on your own word read in T3 Code.
 
 A second go that the row's go already holds for is a `noop`, and writes nothing to the row.
 A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is refused as stale when the project's event log has an event for the row after that one, or has no event of that id.

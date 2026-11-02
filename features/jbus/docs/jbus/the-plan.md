@@ -38,7 +38,7 @@ While the go holds, the entry's line in `jbus plan` ends `| go <time>`.
 
 Under the setting `go = "entry"`, the default, jbus approves each row queued with `--entry <entry>` while the go holds: when it is queued, on each pass, and again after an edit of its brief.
 The row's go reads `your go for the plan entry <entry>, ...`, and its record names the entry and your message.
-A row whose brief names a case of a gate that holds on a `Holds:` line waits for your own word under every setting.
+A row whose brief holds for a door, by a `Holds:` line or a command it runs ([Doors](the-queue.md#doors)), waits for your own word under every setting.
 
 The go stops holding when the entry's heading or `Done when:` lines change, when the entry closes, or on `jbus plan stop <entry>`.
 A row that has not launched then waits for your go, and one that launched goes on.
