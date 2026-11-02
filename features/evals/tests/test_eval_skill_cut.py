@@ -389,7 +389,7 @@ ROW_CASE = {
 
 @pytest.mark.parametrize("skill", ROW_CASE)
 def test_each_router_row_has_a_case(skill):
-    text = (REPO / "features" / skill / "SKILL.md").read_text()
+    text = run.as_read(run.resolve("HEAD"), f"skills/{skill}/SKILL.md")
     whens = re.findall(r"^\| (?!When\b|-)(.+?) \| .+? \|$", text, re.M)
     ids = {case["id"] for case in run.steps_cases() if case["file"] == f"skills/{skill}/SKILL.md"}
     assert whens
