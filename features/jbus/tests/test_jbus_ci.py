@@ -118,6 +118,84 @@ def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):
     assert (nine["inode"].value, nine["inode"].shown, nine["inode"].met) == (None, "no data", None)
 
 
+def hosted(job, sha, branch, conclusion, *, pr=None, event="pull_request", tests=(), **more):
+    """A job of a GitHub-hosted runner that ran, created at `NOW - 1 day + job minutes`."""
+    created = NOW - timedelta(days=1) + timedelta(minutes=job)
+    return {
+        "run": job,
+        "job": job,
+        "attempt": 1,
+        "name": "check",
+        "sha": sha,
+        "branch": branch,
+        "pr": pr,
+        "event": event,
+        "created": iso(created),
+        "started": iso(created + timedelta(minutes=1)),
+        "completed": iso(created + timedelta(minutes=6)),
+        "conclusion": conclusion,
+        "runner": f"GitHub Actions {job}",
+        "kind": "hosted",
+        "steps": 5,
+        "tests": list(tests),
+        "signs": [],
+        **dict.fromkeys(ledger.TELEMETRY),
+        **more,
+    }
+
+
+def test_a_week_of_hosted_jobs_only_has_a_number_for_each_of_the_nine_targets_and_says_so():
+    flaky_test = "tests/test_a.py::test_b"
+    jobs = [
+        hosted(1, "h1", "one", "success", pr=1, tmp_inode_pct=40),
+        hosted(2, "h2", "two", "failure", pr=2, tests=[flaky_test]),
+        hosted(3, "h3", "three", "failure", pr=3, tests=[flaky_test]),
+        hosted(4, "h4", "four", "failure", pr=4, tests=["tests/test_c.py::test_d"]),
+        hosted(5, "m1", "main", "success", event="push"),
+    ]
+    merged = iso(NOW - timedelta(hours=12))
+    pulls = [
+        {
+            "number": 1,
+            "branch": "one",
+            "head": "h1",
+            "created": iso(NOW - timedelta(days=2)),
+            "merged": merged,
+            "closed": merged,
+            "merge_commit": "m1",
+            "pushes": [iso(NOW - timedelta(hours=20))],
+        }
+    ]
+    week = numbers.compute(numbers.Facts(jobs, pulls, [], NOW), NOW - timedelta(days=7), NOW)
+    assert [(one.key, one.shown) for one in week] == [
+        ("queue", "1 vs 5 min"),
+        ("waste", "60.0%"),
+        ("own", "33% (1 of 3: 1 own, 2 flake)"),
+        ("rebases", "1.00 (1 over 1)"),
+        ("stale", "0 of 1"),
+        ("green", "6 min"),
+        ("mainred", "0 min"),
+        ("flaky", "1"),
+        ("inode", "40%"),
+    ]
+    jobs_of = {one.key: one.runners for one in week}
+    assert jobs_of["queue"] == "hosted 2"
+    assert jobs_of["waste"] == "hosted 5"
+    assert jobs_of["own"] == jobs_of["flaky"] == "hosted 3"
+    assert jobs_of["green"] == jobs_of["inode"] == "hosted 1"
+    assert jobs_of["rebases"] == jobs_of["stale"] == "pull requests, any runner"
+    text = report.body(
+        numbers.Facts(jobs, pulls, [], NOW),
+        week,
+        NOW - timedelta(days=7),
+        NOW,
+        UTC,
+        report.jsettings.DEFAULTS,
+    )
+    assert "| queue p50 under exec p50 | 1 vs 5 min | hosted 2 | queue under exec | met |" in text
+    assert "no data" not in text
+
+
 def test_every_number_says_how_it_was_counted(nine):
     for one in nine.values():
         assert one.how and one.target and one.name
