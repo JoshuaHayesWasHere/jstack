@@ -634,7 +634,7 @@ class Attribution:
     harness's row gives them (`Harness.attribution`). The install sets these keys and touches
     no other key of the file.
     due: the file is there, or `made`, which the main Claude home's settings.json is. Another
-      Claude home with no settings.json is a mirror that `jroles mirror` has not linked yet, and
+      Claude home with no settings.json is a mirror that `jroles mirror` has not written yet, and
       a machine with no `~/.cursor/cli-config.json` has not run Cursor's CLI.
     missing: none of the keys is in the file.
     old: a key is not set, or is set to another value: the detail names the first.

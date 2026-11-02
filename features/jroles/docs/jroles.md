@@ -220,8 +220,8 @@ Each extra account is a `claudeAgent` instance in T3 Code's `providerInstances`.
 It has its own Claude home at its `config.homePath`, such as `~/.claude_work` for an instance `claudeAgent_work` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
 `jroles mirror` makes each such home a mirror of `~/.claude`.
 It replaces every entry of the extra home with a symlink into `~/.claude`, except the login's own files.
-So under both accounts, Claude Code reads and writes the same memory, transcripts, history, skills, plugins, `settings.json` and `CLAUDE.md`.
-The two homes differ only in the login.
+So under both accounts, Claude Code reads and writes the same memory, transcripts, history, skills, plugins and `CLAUDE.md`.
+The two homes differ in the login, and in the skills a thread lists (see [The skill listing of a mirror](jroles/skill-listing.md)).
 It also copies the shared keys of `~/.claude.json` into the extra home's `.claude.json`.
 It changes `~/.claude` too.
 `jroles mirror` moves an entry that only the extra home has into `~/.claude`, and puts a link to it in the mirror.
@@ -229,7 +229,7 @@ It changes `~/.claude` too.
 The install (`jinstall`) runs `jroles mirror` every 5 minutes: on Linux through `jroles-mirror.timer`, and on macOS through a launchd agent made from it.
 When T3's settings list no extra Claude home, `jroles mirror` has nothing to mirror and changes nothing.
 
-The mirror shares every entry of `~/.claude` as a symlink: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `settings.json`, `CLAUDE.md`, and any entry that `~/.claude` gains later, from the next run on.
+The mirror shares every entry of `~/.claude` but `settings.json` as a symlink: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `CLAUDE.md`, and any entry that `~/.claude` gains later, from the next run on.
 `jroles mirror` never links the entries that belong to one login, and each mirror keeps its own copy of them: `.credentials.json`, `.claude.json`, `sessions`, `session-env`, `shell-snapshots`, `cache`, `backups`, `debug`, `statsig`, `telemetry`, `ide`, `stats-cache.json`, `.last-cleanup` and `.last-update-result.json`.
 
 `<home>/.claude.json` stays a file, because it holds that home's account keys.
@@ -251,6 +251,7 @@ A run reads each mirror, then changes only what differs:
 | A link into `~/.claude` whose entry is gone | Removes it | `removed   dangling <entry>` |
 | Shared keys of `.claude.json` that differ | Writes the file again, mode 600 | `synced    shared keys of ~/.claude.json into <file>` |
 | Less skill use than the pool, in a mirror or in `~/.claude.json` | Writes the pool into the file | `pooled    skillUsage into <file>` |
+| A `settings.json` that is a link, or that differs from `~/.claude`'s trimmed | Writes `~/.claude/settings.json` trimmed, in the mode of `~/.claude`'s | `trimmed   <file>: ~/.claude/settings.json with no plugin, bundled or account skill listed` |
 
 A run with nothing to do prints nothing and writes nothing.
 A run changes each mirror under that mirror's own lock, `<home>/.jroles-mirror.lock`, and under the main home's lock, `~/.claude/.jroles-mirror.lock`.
