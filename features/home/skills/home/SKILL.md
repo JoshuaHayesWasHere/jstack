@@ -94,6 +94,7 @@ For a home, reversible work is the plan, the briefs, the launches and the merge 
 A turn ends with no message to the user unless it asks a decision that is theirs or reports a stop nothing else can clear.
 A merge, a launch, a stuck thread dealt with, a Result read, a report written and a wait are told when the user asks for status, and at no other time.
 A turn the user started with a question (status, why, where, what) answers it in full, and is the one turn this section does not end.
+A Result whose change shows in a UI is told as fixed only after this home has opened each shot file the Result names, by reading the png, and a shot that still shows the fault is told as not fixed, whatever its probe printed (Josh, 2026-10-31: "verify with screenshots first next time").
 Every other turn ends here: one a thread or jbus started, a home's start, and a turn the user started with an instruction ("launch it", "fix that").
 
 Write each thing the turn did as one line, its kind first:
@@ -146,6 +147,7 @@ When the shape of the work is not settled (more than one task, or a design choic
 
 - One entry per task. A task is one pull request's worth of work. If it is larger, split it before anything starts.
 - Every entry has a **Done when** list: checks a person or a command can run. It is the stopping rule. Without one, do not start.
+- A UI change's **Done when** asks for shots at the real Safari viewport (iPhone landscape about 844x300, portrait about 390x664, which Categories' `~/categories-playtest/lib.mjs` exports as `SAFARI`) and for a probe that fails on main, the old code, before it passes on the branch.
 - Record a decision the user makes in the entry it belongs to, in their words.
 - Write no status in an entry, and change none by hand. An entry has a `Stage:` line, which says where the planning is: `proposed`, `planned`, `parked` or `scouting`. Once a brief of the entry is queued, its status is counted from its queue rows by `jbus plan`, and the `Stage:` line is not read.
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
