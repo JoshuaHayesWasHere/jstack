@@ -162,7 +162,9 @@ def _label(
         return "not labelled, no gate was asked in it"
     slug = f"{PREFIX}{first}"
     state = config.state(project)
-    if queue.fresh(state, slug) is None and slug not in queue.removed_slugs(state):
+    if slug in queue.removed_slugs(state):
+        return f"not labelled, and its scout row {slug} was removed"
+    if queue.fresh(state, slug) is None:
         text = request(first, start, end, keys, config.user)
         try:
             queue.add(state, slug, 0, [], text, entry=ENTRY, user=config.user, ran_by=queue.PASS)
