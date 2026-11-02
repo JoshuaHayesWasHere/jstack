@@ -16,13 +16,14 @@ a playbook of the role, it prints, by role:
 
 - `crewmate` and `scout`: its path; a `has` or `lacks` line for each line its `Run by:`
   asks a brief to have; its numbered steps under a line that names them; a `no principle`
-  line for each cited principle `skills.json` does not list; and each principle it
-  cites, once and in full, under a line that names them all.
+  line for each cited principle `skills.json` does not list; and the name and path of each
+  principle it cites, once each, under a line that says so. A principle's text is read at
+  its path, by the step that cites it, and is not printed.
 - `home`: its path, and an `asks of its brief:` line for each line its `Run by:` asks.
 - `expert`: its path.
 - `reviewer`: the lines a reviewer reads of the crewmate's playbook, in place of the path:
-  its name, and the first paragraph of each principle it cites. A brief is a crewmate's,
-  so the reviewer opens a crewmate's playbook.
+  its name, and the name and path of each principle it cites. A brief is a crewmate's, so
+  the reviewer opens a crewmate's playbook.
 
 `--named` prints the name alone, as the line gives it, and opens nothing.
 """
@@ -53,7 +54,6 @@ WHOSE = {
     "an expert": "an expert's",
 }
 CITED = re.compile(r"principles/[a-z0-9-]*\.md")
-CHECKLIST = "a checklist to copy into your todo list as printed"
 STEP = re.compile(r"^[0-9]+\. ")
 
 
@@ -98,7 +98,7 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
     principles = skills.listed("principle", repo)
     found = {one: principles.get(_named(one)) for one in cited}
     if role == "reviewer":
-        return _reviewed(name, {one: path for one, path in found.items() if path is not None})
+        return [f"Playbook: {name}, the steps the crewmate worked by.", *_cited(name, found)]
     if role == "expert":
         return [str(path.resolve())]
     if role == "home":
@@ -110,50 +110,29 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
         said.append(f"{has} the line the playbook asks for: {line}")
     steps = _steps(playbook)
     if steps:
-        said.append(f"the steps of playbooks/{name}.md, {CHECKLIST}:")
+        said.append(f"the steps of playbooks/{name}.md, to work in order:")
         said += steps
-    there = []
-    for one in cited:
-        if found[one] is not None:
-            there.append(one)
-        else:
-            said.append(f"no principle: playbooks/{name}.md cites {one}, which is not there")
-    if there:
-        names = " ".join(_named(one) for one in there)
-        said.append(f"the principles playbooks/{name}.md cites, each in full below: {names}")
-        for one in there:
-            said += ["", f"==> {one} <==", *found[one].read_text().splitlines()]
-    return said
+    said += (
+        f"no principle: playbooks/{name}.md cites {one}, which is not there"
+        for one, path in found.items()
+        if path is None
+    )
+    return said + _cited(name, found)
+
+
+def _cited(name: str, found: dict[str, Path | None]) -> list[str]:
+    """Return the line that heads the principles the playbook cites, and one line for each
+    that is there, its name and its path, in the order the playbook first cites them."""
+    there = [f"- {_named(one)}: {path.resolve()}" for one, path in found.items() if path]
+    if not there:
+        return []
+    return [f"the principles playbooks/{name}.md cites, each read in full at its path:", *there]
 
 
 def _named(cited: str) -> str:
     """Return the name of the principle a citation names. Each layout has a stub for the
     principle at `principles/<name>.md`, and a citation of that stub gives `<name>`."""
     return cited.removeprefix("principles/").removesuffix(".md")
-
-
-def _reviewed(name: str, cited: dict[str, Path]) -> list[str]:
-    """Return the reviewer's lines: the playbook's name, and each cited principle's first
-    paragraph, joined. That paragraph is the lines after the principle's `# ` title, up to the
-    first blank line under them."""
-    said = [f"Playbook: {name}, the steps the crewmate worked by."]
-    first = []
-    for one, path in cited.items():
-        lines = path.read_text().splitlines()
-        title = next((at for at, line in enumerate(lines) if line.startswith("# ")), None)
-        if title is None:
-            continue
-        paragraph: list[str] = []
-        for line in lines[title + 1 :]:
-            if line.strip():
-                paragraph.append(line)
-            elif paragraph:
-                break
-        if paragraph:
-            first.append(f"- {_named(one)}: {' '.join(paragraph)}")
-    if first:
-        said += ["The principles it cites, and when each applies:", *first]
-    return said
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:
