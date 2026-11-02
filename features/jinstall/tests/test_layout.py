@@ -238,12 +238,18 @@ def test_a_new_skill_is_in_every_layout_on_the_next_install_and_an_edit_is_live(
     for harness in HARNESSES:
         link = user.home / harness.root / "brand-new"
         assert os.readlink(link) == str(laid(user.home, harness.name) / "skills" / "brand-new")
-        assert os.path.realpath(link / "SKILL.md") == str(skill)
+        if harness.copies:
+            assert (link / "SKILL.md").read_bytes() == skill.read_bytes()
+        else:
+            assert os.path.realpath(link / "SKILL.md") == str(skill)
     skill.write_text(skill.read_text() + "\nOne more line.\n")
     read = (user.home / ".claude" / "skills" / "brand-new" / "SKILL.md").read_text()
     assert read.endswith("\nOne more line.\n")
     code, lines, _ = said("--check")
-    assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == []
+    codex = f"old hard layout codex {laid(user.home, 'codex')} -> stale: skills/brand-new/SKILL.md"
+    assert [line for line in lines if not line.startswith("ok ") and "commands" not in line] == [
+        codex
+    ]
 
 
 @pytest.mark.parametrize("broken", ["conflicted", "missing", "wrong shape"])
@@ -314,6 +320,18 @@ def test_codex_finds_beside_each_hidden_skill_a_policy_that_bars_implicit_invoca
         assert [name for name in exposed if (user.home / root / name / "agents").exists()] == []
     claude = user.home / ".claude" / "skills"
     assert [name for name in hidden if (claude / name / "agents").exists()] == []
+
+
+def test_codex_finds_each_skill_md_as_a_file_and_not_a_link(user):
+    """codex-cli 0.165.0 lists no skill whose SKILL.md is a symlink, so the Codex layout copies
+    each one, with the bytes of its source. Claude Code's layout still links it."""
+    user.run()
+    for name in layout.skills(REPO):
+        codex = user.home / ".codex" / "skills" / name / "SKILL.md"
+        assert codex.is_file() and not codex.is_symlink(), name
+    grilling = user.home / ".codex" / "skills" / "grilling" / "SKILL.md"
+    assert grilling.read_bytes() == (REPO / "features" / "grilling" / "SKILL.md").read_bytes()
+    assert (user.home / ".claude" / "skills" / "grilling" / "SKILL.md").is_symlink()
 
 
 def test_uninstall_takes_every_layout_away(user):

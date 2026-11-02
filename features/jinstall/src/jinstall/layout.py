@@ -8,7 +8,8 @@ generator writes that file from `features/`, and it lists each skill, principle,
 template and hook at its path in the source.
 
 A layout holds these entries:
-- every skill as `skills/<name>/`, flat, with each file of its folder, and for a skill that
+- every skill as `skills/<name>/`, flat, with each file of its folder, its SKILL.md a copy where
+  the harness reads no linked one (`Harness.copies`), and for a skill that
   skills.json marks `hidden`, the file the harness reads to keep its agent from loading the skill
   by itself (`Harness.hides`);
 - every playbook as `playbooks/<name>.md`;
@@ -212,7 +213,7 @@ def assemble(source: Path, harness: Harness) -> Assembled:
         text = (source / at).read_text(encoding="utf-8")
         moved, dangling = links.rewrite(text, at, to, placed, source, base.rstrip("/"))
         faults += [f"{at} links to {href}, which is not in the tree" for href in dangling]
-        if moved != text:
+        if moved != text or (harness.copies and to.endswith("/SKILL.md")):
             entries[to] = Written(moved.encode())
     for stub, name in stubs.items():
         entries[stub] = Written(_stub(name))
