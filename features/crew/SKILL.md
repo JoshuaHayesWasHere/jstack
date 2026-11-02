@@ -95,7 +95,7 @@ Never merge: `jmerge`, run by jbus, merges.
 - The user may steer in this thread at any time. What they say here overrides the brief; record it in the Result.
 
 1. Before your first test run: read `$T/../skills/crew/test-slots.md` now.
-2. Once every **Done when** line holds, with the work committed, and before you open the pull request: read `$T/../skills/crew/do-the-task.md` now. It holds the block that runs the check, and the blocks for the pull request's base and label.
+2. Once every **Done when** line holds, with the work committed, and before you open the pull request: read `$T/../skills/crew/do-the-task.md` now.
 3. Opening the pull request: `features/writing/playbooks/opening-a-pr.md`, from `$T/..`, then "Stay on the pull request" below.
 
 | When | Do |
@@ -140,8 +140,8 @@ With a pull request open, the thread stays on it. With no pull request, after st
 
 ## Stay on the pull request
 
-Once the pull request is open: read `$T/../skills/crew/stay-on-the-pr.md` now, before anything else. It holds the steps, what wakes this thread, and the `jbus wakes` block.
-Then read `$T/../skills/crew/the-checks.md` now, once: "The checks" says whether its checks have passed.
+Once the pull request is open: read `$T/../skills/crew/stay-on-the-pr.md` now, before anything else.
+Then read `$T/../skills/crew/the-checks.md` now, once.
 
 | When | Do |
 |---|---|
