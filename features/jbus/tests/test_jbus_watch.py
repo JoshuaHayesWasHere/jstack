@@ -11,7 +11,7 @@ import pytest
 
 import jbus
 import jbus.queue
-from jbus import poll
+from jbus import poll, watch
 from jmerge import judgement, reverts
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
@@ -49,6 +49,37 @@ def test_every_merge_a_pass_sees_is_kept_and_known_once_github_lists_it_no_more(
     kitchen.poll(NOW + timedelta(minutes=3))
     assert rows(kitchen)["alpha"]["status"] == "merged"
     assert [line for line in kitchen.log("gh") if "--head" in line] == []
+
+
+def heads(kitchen):
+    return [line for line in kitchen.log("gh") if "--head alpha" in line]
+
+
+def test_a_row_found_unmerged_by_name_is_not_asked_for_again_on_each_pass(kitchen):
+    """A pass asked GitHub by name for every row that never merged, each pass: 141 calls and 70 s
+    of a 158 s pass on 2026-11-02. It asks again once the slug's pull request was open and is
+    gone, or after `watch.UNMERGED_FOR`."""
+    add(kitchen, "alpha", approve=False)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=2))
+    assert len(heads(kitchen)) == 1
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.poll(NOW + timedelta(minutes=4))
+    assert len(heads(kitchen)) == 1
+    kitchen.set("open.json", [])
+    kitchen.set("merged.json", [{**kitchen.merged("alpha", 7, "a" * 40), "old": True}])
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(heads(kitchen)) == 2
+    assert rows(kitchen)["alpha"]["status"] == "merged"
+
+
+def test_a_row_found_unmerged_is_asked_for_again_after_a_while(kitchen):
+    add(kitchen, "alpha", approve=False)
+    kitchen.poll()
+    kitchen.poll(NOW + watch.UNMERGED_FOR - timedelta(minutes=1))
+    assert len(heads(kitchen)) == 1
+    kitchen.poll(NOW + watch.UNMERGED_FOR)
+    assert len(heads(kitchen)) == 2
 
 
 def test_a_first_pass_that_could_not_ask_t3_code_is_not_the_first_whole_pass(kitchen):

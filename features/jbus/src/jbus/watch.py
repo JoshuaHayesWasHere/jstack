@@ -289,6 +289,42 @@ def tied(run: Pass) -> dict[str, str]:
     return found
 
 
+UNMERGED = "unmerged.json"
+UNMERGED_FOR = timedelta(hours=6)
+
+
+class Missed:
+    """The slugs that `look` asked GitHub for by name and found no merge for, kept in
+    `UNMERGED`, so a pass does not ask again for each row that never merged.
+
+    A slug's pull request merges after it was open, and a pass sees every open pull request
+    (the open list) and the last hundred merged, so a slug seen open is asked again once it is
+    gone from both. A slug's answer is kept for `UNMERGED_FOR`, and only for what was asked: its
+    branch, or the address its brief names (`by`), so a brief that names a new address is asked
+    again at once.
+    """
+
+    def __init__(self, run: Pass, world: World) -> None:
+        self.path, self.now = run.state / UNMERGED, run.now
+        self.was: dict[str, dict[str, str]] = read_json(self.path, {})
+        self.known = {
+            slug: one
+            for slug, one in self.was.items()
+            if slug not in world.open and self.now - when(one["at"]) < UNMERGED_FOR
+        }
+
+    def knows(self, slug: str, by: str) -> bool:
+        one = self.known.get(slug)
+        return one is not None and one["by"] == by
+
+    def add(self, slug: str, by: str) -> None:
+        self.known[slug] = {"by": by, "at": self.now.isoformat()}
+
+    def keep(self) -> None:
+        if self.known != self.was:
+            write_json(self.path, self.known)
+
+
 def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     """Ask T3 Code and GitHub. If either one is silent, there is no world to act on.
 
@@ -297,7 +333,8 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     The list of merged pull requests is the last hundred. `look` keeps every merge it sees in
     `merged.json` of the project's state, a record of the merges written on each one. When the
     queue names a slug that is in neither, `look` asks GitHub for it by name, and keeps the merge
-    it finds that way too, so the slug stays merged.
+    it finds that way too, so the slug stays merged. It keeps a slug it found no merge for too
+    (`Missed`), and does not ask for it again on each pass.
 
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
@@ -358,17 +395,23 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
         if kept | world.merged != kept:
             kept |= world.merged
             write_json(run.state / "merged.json", kept)
+        missed = Missed(run, world)
         for slug in sorted(named - set(world.open) - set(world.merged)):
             if slug not in kept:
-                if slug in url_of:
-                    found = _named(run, url_of[slug])
+                by = url_of.get(slug, "")
+                if missed.knows(slug, by):
+                    continue
+                if by:
+                    found = _named(run, by)
                 else:
                     found = pulls(run, "merged", MERGED, "--head", slug, "--limit", "1")
                 if not found:
+                    missed.add(slug, by)
                     continue
                 kept[slug] = found[0]
                 write_json(run.state / "merged.json", kept)
             world.merged[slug] = kept[slug]
+        missed.keep()
     except Silent as silent:
         run.say(f"wait {run.project.name}: could not ask GitHub{silent}")
         said = str(silent).removeprefix(": ")

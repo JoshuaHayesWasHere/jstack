@@ -713,7 +713,7 @@ def test_a_dependency_merged_long_ago_is_asked_for_by_name_and_stays_merged(kitc
     assert (rows(kitchen)["alpha"]["status"], rows(kitchen)["alpha"]["pr"]) == ("merged", "#7")
     kitchen.poll(NOW + timedelta(minutes=3))
     asked = [line.split("--head ")[1].split()[0] for line in kitchen.log("gh") if "--head" in line]
-    assert sorted(asked) == ["alpha", "beta", "gamma", "gamma"]
+    assert sorted(asked) == ["alpha", "beta", "gamma"]
     assert rows(kitchen)["alpha"]["status"] == "merged"
 
 

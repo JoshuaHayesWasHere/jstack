@@ -59,6 +59,8 @@ DROPPED = {
     ("Service", "Type"): "launchd runs each agent as a process, a oneshot included",
     ("Service", "SuccessExitStatus"): "the view, the one unit with it, gets no agent",
     ("Service", "RestartForceExitStatus"): "the view, the one unit with it, gets no agent",
+    ("Service", "LogLevelMax"): "launchd writes no line of a start or an end to the agent's log",
+    ("Service", "SyslogLevel"): "launchd writes what the command prints to the agent's log",
     ("Timer", "OnBootSec"): "launchd starts an interval agent one interval after it loads",
     ("Timer", "OnActiveSec"): "launchd starts an interval agent one interval after it loads",
     ("Timer", "AccuracySec"): "launchd has no accuracy to set",
