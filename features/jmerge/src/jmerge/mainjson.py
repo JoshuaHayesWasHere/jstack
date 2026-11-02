@@ -21,9 +21,9 @@ tests the red run's logs name, as `failures` reads them: `tell` asks once for ea
 with `FIX`. A file that is missing or cannot be read means nothing is known. When a pass of `tell`
 has not yet sent its message, it keeps the record's commit so that the next pass looks at that
 commit again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green
-while T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's message, that
-pass does the same. Older records, written before the file kept `broken`, name a failed tip only by
-its `check`, and that tip is red too.
+while T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's
+message, that pass does the same. Older records, written before the file kept `broken`, name a
+failed tip only by its `check`, and that tip is red too.
 """
 
 from __future__ import annotations
