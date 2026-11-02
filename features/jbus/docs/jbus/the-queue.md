@@ -218,6 +218,8 @@ jbus also gives this approval itself, so that a follow-up never asks you and no 
 A row is a follow-up of P when it names P (a line `Follows: P` in its brief's head), when it is a fix row jbus filed or, when it is queued, does work for P's plan entry, and when P passes the parent check above.
 A fix row jbus filed is one that jbus's own pass queued (the row's `queued_by`) and whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, with the `Follows:` line jbus writes where a row's merge turned the check red.
 Such a fix that names no parent, as for a red check no row's merge caused, is approved by the same rule on the red run its `Task:` line quotes, and reads `the follow-up rule, jbus filed it from the red run "<the run>"; run <time> by jbus's pass; you did not speak of this row`.
+The day's warnings row, `warnings-<day>`, is a row jbus filed too: its pass queues it, its brief's `Decisions:` line begins `none, jbus filed this from the warnings of later reviews`, and it names no parent.
+It is approved by the same rule as it is queued, on the later reviews that line names, and reads `the follow-up rule, jbus filed it from the warnings of later reviews kept <days>, in <n> pull requests, ...`.
 The same brief queued by a home or a person is not jbus's, and waits for your go.
 Each pass approves every waiting fix row jbus filed whose parent's go holds, before anything launches, and asks again until a round approves none, so a follow-up of a follow-up goes on the same pass.
 `queue add` approves such a row in the same write, and so does an `approve` of P, for the waiting rows that name P; there a row that does work for P's plan entry (the same `--entry` as P) is a follow-up too.
@@ -261,6 +263,17 @@ The crew rebases onto that sha when main is red.
 The sha is the last tip of main whose check passed, `green` in `main.json`.
 When jbus knows no such tip, it writes no `Green main:` line.
 jbus also writes the launch's own `Thread:` line.
+
+### The day's warnings row
+
+A review after the first sends its crew only its errors, and an info is dropped.
+Its warnings hold no merge: once the pull request merged, each pass keeps them in `day-warnings.json`, once each, with the day it first kept them (`features/jbus/src/jbus/daywarnings.py`).
+It keeps none that the crew answered by id anyway, and none of a brief that says `Review: cleanup`, the row itself.
+Once a day has ended, the pass files every kept warning of an earlier day that no row holds as one row, `warnings-<the latest of those days>`, with each warning's path:line and its pull request, `Size: S`, `Review: cleanup` and `Home: root`.
+Under 3 such warnings it files nothing, and they carry to the next day's row, so a thin day neither launches a row nor loses a warning.
+A day with no warning files nothing.
+The row gets one review, of its own diff, in which only an error goes to its crew, and none of its findings is kept, so no follow-up of a follow-up is queued.
+The first pass to run it keeps the warnings of every pull request merged since #833 (636ac8b20), which dropped them with no row.
 
 ### Who acts, and the acts log
 

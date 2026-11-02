@@ -71,7 +71,7 @@ It reads a brief or a request by its path, by its path from the repo's home fold
 
 - `role <skill>: <what to type> (<file>)`: who takes the work. A brief under `tasks/` is a crewmate's, `/crew <slug>`; a request under `scouts/` is a scout's, `/scout <slug>`; a question is the home's, `/home`.
 - `playbook <name>: <file> (<why>)`: the steps the role works through, from the file's `Playbook:` line, else the `Run by:` row of that role that fits, else that role's default. `playbook none` is no playbook.
-- `tip <skill>: ...`: up to three skills whose `tip:` phrases the words say, the rule the tips hook uses.
+- `tip <skill>: ...`: up to three skills whose `tip:` phrases the words say.
 - `named <skill>: ...`: a skill the words name, as `/<name>` or as `skills/<name>`.
 - `unknown <name>: ...`: a name the words give that is no skill or playbook here. Say so: it may be a built-in command, a skill of another tool, or a typo.
 - `setup: ...`: where getting set up starts on this checkout.

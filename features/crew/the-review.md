@@ -23,7 +23,7 @@ What decides whether there is a reviewer to launch is this, run with the block a
 B="$H/tasks/<slug>.md"
 mode=$(awk '/^Review:/ {print $(2); exit}' "$B")
 case $mode in
-none | twice) ;;
+none | twice | cleanup) ;;
 *) mode=review ;;
 esac
 if [ "$mode" = none ]; then
@@ -36,7 +36,7 @@ fi
 ```
 
 It prints the brief's mode, then what to do.
-The mode is the brief's `Review:` line, the first line that starts with it: `none`, `twice`, or `review` for anything else, an old `after` included.
+The mode is the brief's `Review:` line, the first line that starts with it: `none`, `twice`, `cleanup`, or `review` for anything else, an old `after` included.
 A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
 The same words inside the task's text or a result do not count.
 
@@ -44,8 +44,14 @@ The same words inside the task's text or a result do not count.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
 - `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
   Once the `Fixed:` line names the head you pushed, launch the second review of that head by the launch block below with `second`, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
-  The second review's `error` findings come to this thread, and its `warning` and `info` ones are dropped: answer each error by id, push the fix and write the `Fixed:` line as for the first, and launch no third review.
+  The second review's `error` findings come to this thread: answer each error by id, push the fix and write the `Fixed:` line as for the first, and launch no third review.
+  Its `warning` findings go to the day's warnings row once the pull request merged, and its `info` ones are dropped.
   `jmerge` merges once the second review is written and its findings are answered, and the `fixed and green` line below is sent once they are.
+- `cleanup`: the brief is the day's warnings row, `warnings-<day>`, which jbus filed, and it gets one review, of its own diff alone.
+  Launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line: a fix for them gets no review.
+  Only an `error` of that review comes to this thread, whatever its bucket or tag, and every other finding is dropped, so a review with no error asks no line of you and `jmerge` merges it on its checks.
+  No finding of it goes to another day's row, so no follow-up of a follow-up is queued.
+  The `fixed and green` line below is sent once the `Fixed:` line is written, with no block of "A second pass" run for it.
 - `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
 To launch them, run the block below, and make one `t3_thread_launch` call for each `launch:` line it prints, with the JSON after `launch: ` as the call's arguments, as printed: `$T/../skills/pr-review/SKILL.md` "Launching" says what a reviewer does with its number.
@@ -151,7 +157,8 @@ A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations 
 
 In a first review, a finding's bucket is the lead's reading, and it sets the default; its severity is a field and decides nothing.
 After the first review, the severity alone decides, as the reviewer wrote it: a review of a later head, the scoped review of your fix or of a rebase, sends this thread its `error` findings, whatever their bucket or tag, and each is answered and fixed as an `Act on` one is.
-Its `warning` and `info` findings are dropped: no bucket, `Act on` included, and no `(risk: <area>)` tag brings one back into this pull request, no fix push is owed for one, and no row is filed for one.
+Its `warning` findings go to the day's warnings row, `warnings-<day>`, which jbus files from the briefs once the pull request merged (`jbus.daywarnings`), and its `info` findings are dropped.
+No bucket, `Act on` included, and no `(risk: <area>)` tag brings a warning or an info back into this pull request, and no fix push is owed for one.
 An `Act on` finding is handled as above: fixed, or not fixed with a reason of its own.
 A `Consider` finding is declined by default: end it `Finding F<n>: not fixed, <the finding in a few words>, because consider: left for a follow-up`.
 One worth doing later is a row, queued as `$T/a-fault-outside.md` says, and any other is nothing.

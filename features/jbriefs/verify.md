@@ -1,13 +1,11 @@
 # jbriefs reads a brief
 
-`jbriefs` reads a brief, a scout's request or a question and says what it asks for: `jbriefs pick` names the role, the playbook and the skills, and `features/skill-library/hooks/skill-tips.sh` gives the one tip a prompt matches. jbus reads a brief's meaning through it when a row is queued.
+`jbriefs` reads a brief, a scout's request or a question and says what it asks for: `jbriefs pick` names the role, the playbook and the skills. jbus reads a brief's meaning through it when a row is queued.
 
 Paths:
 - `features/jbriefs/src/jbriefs/`
-- `features/skill-library/hooks/skill-tips.sh`
 - `features/jbriefs/docs/jbriefs.md`
 - `features/skill-library/skills/poteto-help/`
-- `features/skill-library/docs/skill-tips.md`
 Tests: none
 
 ## Sub-features

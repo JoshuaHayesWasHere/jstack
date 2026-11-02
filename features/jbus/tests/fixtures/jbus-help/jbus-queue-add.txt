@@ -12,7 +12,10 @@ begins `none, jbus filed this from a red `; or, when it is queued, a row whose
 --entry is P's plan entry), and when P's go holds (P is a row of the queue, or
 went as merged, and its go is the user's word or this rule's); a fix jbus
 filed that names no parent is approved by the same rule on the red run its
-brief's Task: line quotes; any other row waits for the user's go.
+brief's Task: line quotes, and the day's warnings row, a row jbus's pass
+queued whose brief's Decisions: line begins `none, jbus filed this from the
+warnings of later reviews`, on the later reviews that line names; any other
+row waits for the user's go.
 
 positional arguments:
   slug

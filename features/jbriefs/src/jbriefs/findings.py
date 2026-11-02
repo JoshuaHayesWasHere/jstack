@@ -40,8 +40,8 @@ counts only when its reason cites a `path:line`, a command in backticks, or a ga
 Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier
 finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks the user
 with the default "fix it". In a first review, severity is a field and decides nothing. In a
-later review, severity alone decides: an error holds the merge, and a warning or an info is
-dropped (`_LATER`).
+later review, severity alone decides: an error holds the merge, a warning is kept for the day's
+warnings row (`jbus.daywarnings`), and an info is dropped (`_LATER`).
 
 The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
 declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
@@ -93,24 +93,23 @@ _UPHELD = "Declines: upheld "
 _NOT_UPHELD = "Declines: not upheld "
 _ID = re.compile(r"F\d+")
 OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", "overruled"
-REVIEW, NONE, TWICE = "review", "none", "twice"
-MODES = (NONE, TWICE)
-HOLDS, ASKS, DROPPED, UNSENT = "holds", "asks", "dropped", "unsent"
-ROUTES = (HOLDS, ASKS, DROPPED, UNSENT)
+REVIEW, NONE, TWICE, CLEANUP = "review", "none", "twice", "cleanup"
+MODES = (NONE, TWICE, CLEANUP)
+CLEANUP_DECIDED = "none, jbus filed this from the warnings of later reviews "
+HOLDS, ASKS, KEPT, DROPPED, UNSENT = "holds", "asks", "kept", "dropped", "unsent"
+ROUTES = (HOLDS, ASKS, KEPT, DROPPED, UNSENT)
 """Where a finding goes: to the crew, holding the merge until it has an answer that counts
-(`HOLDS`), to the crew, holding nothing (`ASKS`), nowhere (`DROPPED`), or never sent, as a
-Noted, Dismissed or superseded finding (`UNSENT`). Every finding that goes anywhere goes to the
-row's own crew while its pull request is open: no finding is left for another row."""
-_LATER = ("error",)
-"""The severities of a later review's findings that hold the merge: the severity is trusted as
-the review wrote it, whatever its bucket or tag, and a warning or an info is `DROPPED`, with no
-row filed for it. A `review` brief and a `twice` brief both fix an error in the pull request."""
+(`HOLDS`) or holding nothing (`ASKS`), to the day's warnings row once merged (`KEPT`), nowhere
+(`DROPPED`), or never sent, as a Noted, Dismissed or superseded finding (`UNSENT`)."""
+_LATER = {REVIEW: {"error": HOLDS, "warning": KEPT}, CLEANUP: {"error": HOLDS}}
+"""A later review's route by severity, whatever the bucket or tag, else `DROPPED` (Josh, 10-29
+and 11-01). Every review of a `cleanup` brief, the day's row, is later and keeps nothing."""
 
 
 def mode_of(text: str) -> str:
-    """A brief's review mode, from its first `Review:` line: `none`, `twice`, or `review`. Any
-    other word reads as `review`, and so does a brief with no such line. Older briefs use other
-    words, such as `after`, which went with the rows that held a review's leftover findings."""
+    """A brief's review mode, from its first `Review:` line: `none`, `twice`, `cleanup`, or
+    `review`. Any other word reads as `review`, and so does a brief with no such line. Older
+    briefs use other words, such as `after`, which went with a review that held no merge."""
     line = next((one for one in text.splitlines() if one.startswith("Review:")), "")
     said = "".join(line.split()[1:2])
     return said if said in MODES else REVIEW
@@ -576,12 +575,14 @@ def _judge(findings: list[Finding], text: str) -> None:
         given.setdefault(said, one.id)
 
 
-def _later(sections: list[Section]) -> list[Section]:
+def _later(sections: list[Section], every: bool = False) -> list[Section]:
     """The sections, each marked `later` where it is a review after the first: a scoped pass,
     or a section whose seat, the `#<n>` of its `By:` line, already ran at another head. So a
     seat that writes its first section late, at a head the fix pushed, is still a first review.
     A section with no number is later where its head is not the first ran section's. With no
-    section that ran, none is later."""
+    section that ran, none is later. With `every`, a `cleanup` brief's, each one is."""
+    if every:
+        return [replace(one, later=True) for one in sections]
     first = next((one.head for one in sections if one.ran and one.head), "")
     if not first:
         return sections
@@ -596,12 +597,12 @@ def _later(sections: list[Section]) -> list[Section]:
     return marked
 
 
-def _route(later: bool, one: Finding) -> str:
+def _route(mode: str, later: bool, one: Finding) -> str:
     """Where one finding goes, by `ROUTES`."""
     if one.superseded or one.bucket == DISMISSED:
         return UNSENT
     if later:
-        return HOLDS if one.severity in _LATER else DROPPED
+        return _LATER.get(mode, _LATER[REVIEW]).get(one.severity, DROPPED)
     if one.bucket not in SENT:
         return UNSENT
     return HOLDS if one.bucket == ACT_ON or one.risk else ASKS
@@ -610,8 +611,8 @@ def _route(later: bool, one: Finding) -> str:
 def triage(text: str) -> Triage:
     """The brief's findings after `triage` merges them, gives each its id, sets each beside the
     dismissals that contradict it, routes each one, and attaches each one's answer."""
-    sections = _later(_sections(text))
     mode = mode_of(text)
+    sections = _later(_sections(text), mode == CLEANUP)
     stale = _superseded(sections)
     findings: list[Finding] = []
     for section in sections:
@@ -636,7 +637,7 @@ def triage(text: str) -> Triage:
         ]
         one.contradicts = min(near, key=lambda pair: (pair[0], int(pair[1][1:])))[1] if near else ""
     for one in findings:
-        one.route = _route(sections[one.lead.section].later, one)
+        one.route = _route(mode, sections[one.lead.section].later, one)
     answers, old = _answers(text)
     unnumbered = iter(old)
     for one in findings:
@@ -689,6 +690,8 @@ def _shown(one: Finding) -> list[str]:
         lines.append(f"  dismissed: {lead.reason or 'no reason given'}")
     elif one.superseded:
         lines.append("  superseded: its reviewer wrote this head's section again")
+    elif one.route == KEPT:
+        lines.append("  goes to: the day's warnings row once the pull request merged, not here")
     elif one.route == DROPPED:
         lines.append("  goes to: nowhere, dropped, and this thread answers nothing for it")
     elif one.answer is not None:
