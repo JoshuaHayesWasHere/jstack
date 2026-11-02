@@ -117,7 +117,7 @@ def test_a_project_that_raises_leaves_the_other_its_pass_and_nothing_launches(ki
     assert "wait: crews out not known (demo: the pass raised)" in said
 
 
-def test_a_step_that_reads_what_the_machine_shares_runs_one_project_at_a_time(kitchen, monkeypatch):
+def test_a_step_marked_shared_runs_in_one_project_at_a_time(kitchen, monkeypatch):
     kitchen.second()
     meet, inside, most, guard = meeting(), [], [], threading.Lock()
     real = slotwait.wake, failover.failover
@@ -147,11 +147,6 @@ def test_a_step_that_reads_what_the_machine_shares_runs_one_project_at_a_time(ki
     assert merged == [True, True]
     assert len(most) >= 2
     assert max(most) == 1
-
-
-def test_each_step_named_one_at_a_time_is_a_step_of_a_pass():
-    names = {step.name for steps in poll.RANKED.values() for step in steps}
-    assert poll.ONE_AT_A_TIME <= names
 
 
 def test_a_line_is_said_whole_while_the_projects_run_side_by_side(kitchen, monkeypatch):

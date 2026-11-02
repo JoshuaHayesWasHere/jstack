@@ -522,5 +522,6 @@ STEPS = (
         "failover.failover",
         lambda half: failover(half.run, half.client, half.seen.world),
         ("client", "world"),
+        shared=True,
     ),
 )

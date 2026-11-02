@@ -10,8 +10,8 @@ Most of a pass is waiting on `gh` and `git`, so the projects' halves run side by
 in a thread of its own with its own `Pass`, `Half` and `t3.Client`, and a project's steps keep their
 order. All first halves end before the launches, the chores run alone, and `halves` keeps the order
 of the config. What a project writes is under its own state directory, what the machine shares is
-kept under a lock file (`jsettings.store.locked`), and the steps of `ONE_AT_A_TIME` decide from what
-the machine shares, so they run one at a time. Each client's session ends with the pass.
+kept under a lock file (`jsettings.store.locked`), and a step marked `shared` decides from what
+the machine shares, so it runs in one project at a time. Each client's session ends with the pass.
 """
 
 from __future__ import annotations
@@ -44,13 +44,9 @@ from jbus import (
 from jsettings import store
 
 LAUNCH = "the launch"
-ONE_AT_A_TIME = frozenset(
-    {"slotwait.wake", "slotwait.wake_capped", "slotwait.wake_ended", "failover.failover"}
-)
-"""The steps that read what the machine shares, act on it and record that they did: the free test
-slots and who was woken for them, and the usage caps a thread's next instance is chosen by. A
-project's step sees all that an earlier project's step recorded this pass."""
-_MACHINE = threading.Lock()
+_SHARED = threading.Lock()
+"""Held while a step marked `shared` runs, so a project's step sees all that another project's
+step recorded this pass."""
 
 
 @dataclass
@@ -112,8 +108,8 @@ def steps(half: Half, slot: str) -> None:
         }
         if not all(has[need] for need in step.needs):
             continue
-        if step.name in ONE_AT_A_TIME:
-            with _MACHINE:
+        if step.shared:
+            with _SHARED:
                 step.run(half)
         else:
             step.run(half)
