@@ -189,7 +189,10 @@ def test_a_release_links_every_skill_hook_and_status_line_into_its_layouts_and_c
         assert [link.name for link in links] == names
         for link in links:
             assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
-            assert os.path.realpath(link / "SKILL.md").startswith(f"{released.source}/")
+            if harness.copies:
+                assert not (link / "SKILL.md").is_symlink()
+            else:
+                assert os.path.realpath(link / "SKILL.md").startswith(f"{released.source}/")
     settings = json.loads((home / ".claude" / "settings.json").read_text())
     commands = [
         hook["command"]
@@ -375,7 +378,10 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
     for harness in HARNESSES:
         for link in (home / harness.root).iterdir():
             assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
-            assert os.path.realpath(link / "SKILL.md").startswith(f"{source}/")
+            if harness.copies:
+                assert not (link / "SKILL.md").is_symlink()
+            else:
+                assert os.path.realpath(link / "SKILL.md").startswith(f"{source}/")
 
 
 def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_from_git(tmp_path):
