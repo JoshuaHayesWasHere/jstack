@@ -30,7 +30,7 @@ import re
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from jbriefs import findings
+from jbriefs import findings, meets
 from jbriefs.home import home_of, thread_of
 from jbus import END_TURN, mirror, outbox, rebase, verbs
 from jbus.expedite import ANSWERED, TABLE, Short
@@ -75,9 +75,9 @@ class Notice:
         return f"review|{slug}|{self.head[:12]}"
 
 
-def _judged(brief: str, head: str, heard: frozenset[str]) -> str:
+def _judged(brief: str, head: str, heard: frozenset[meets.Waiver]) -> str:
     """Return what jmerge's judge says the pull request is short of, as far as its review goes,
-    with the waivers whose words are in `heard`. The judge asks for each skill's artifact before it
+    with the `Waived:` lines in `heard`. The judge asks for each skill's artifact before it
     reads the review, so a Result that still lacks one would hide the findings it owes an answer:
     the review is judged as if the brief named no skill."""
     said = ready.short_of(brief, head, heard)
@@ -86,10 +86,10 @@ def _judged(brief: str, head: str, heard: frozenset[str]) -> str:
     return ready.short_of(_SKILLS.sub("Skills: none", brief, count=1), head, heard)
 
 
-def due(brief: str, head: str, heard: frozenset[str] = frozenset()) -> Notice | None:
+def due(brief: str, head: str, heard: frozenset[meets.Waiver] = frozenset()) -> Notice | None:
     """Return the notice that the newest review of the brief owes its crew while the pull request's
-    head is `head`, or None where the crew owes no line for it. `heard` holds the references of
-    the `Waived:` lines whose words jbus checked (`outbox.heard`), as `jmerge` counts them."""
+    head is `head`, or None where the crew owes no line for it. `heard` holds the `Waived:`
+    lines whose words jbus checked (`outbox.heard`), as `jmerge` counts them."""
     triage = findings.triage(brief)
     ran = [one for one in triage.sections if one.ran and one.head]
     if not ran or mirror.delivered(brief):

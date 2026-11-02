@@ -201,7 +201,7 @@ def test_a_waiver_on_the_user_s_own_word_owes_the_crew_no_line_and_one_on_an_age
     """jmerge counts a `Waived:` line only on a word jbus checked as the user's own of the row,
     and jbus's notice judges the brief the same: a waived `no` owes the crew nothing, and one an
     agent's message names still owes it the fix a `no` is owed."""
-    kitchen.t3.says("mcp:a-home", "a-message-of-his", "waive the docs line of alpha", **more)
+    kitchen.t3.says("mcp:a-home", "a-message-of-his", "waive the docs say it for alpha", **more)
     kitchen.brief("alpha", TWICE + judged_no() + "\n## Result\n" + WAIVED)
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll()
@@ -215,7 +215,7 @@ def test_the_outbox_judges_a_waived_brief_as_jmerge_does_before_it_holds_for_a_r
     """A `twice` brief whose first review was clean and said `no` owes a second review of the fix,
     and the outbox holds the crew's messages while that review is out. With the `no` waived on the
     user's own word no second review is owed, so nothing waits on one; on an agent's word it is."""
-    kitchen.t3.says("mcp:a-home", "a-message-of-his", "waive the docs line of alpha", **more)
+    kitchen.t3.says("mcp:a-home", "a-message-of-his", "waive the docs say it for alpha", **more)
     seats = f"Reviewer: mcp:r1 #1\nSecond reviewer: mcp:r2\nFixed: {HEAD}\n"
     result = "\n## Result\n" + seats + WAIVED
     kitchen.brief("alpha", TWICE + judged_no("d" * 40) + result)

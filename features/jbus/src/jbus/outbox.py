@@ -136,12 +136,12 @@ def waiting(run: Pass, client: Client, thread: str, row: str) -> bool:
     return any(one.thread == thread and not one.woken for one in waiters.read(slot.locks_dir()))
 
 
-def heard(run: Pass, row: str, brief: str) -> frozenset[str]:
-    """Return the references of the brief's `Waived:` lines whose word jbus checked as the user's
-    own, or the bot's, of this row (`jmerge.rows.heard`), the waivers `jmerge` counts. jbus's own
-    callers of `ready.short_of` pass them, so jbus judges a waived row as `jmerge` does."""
-    refs = meets.refs(brief)
-    return frozenset(ref for ref in refs if not rows.heard(run.project.checkout, ref, row))
+def heard(run: Pass, row: str, brief: str) -> frozenset[meets.Waiver]:
+    """Return the brief's `Waived:` lines whose word jbus checked as the user's own, or the bot's,
+    of this row, waiving the line each names (`jmerge.rows.heard`): the waivers `jmerge` counts.
+    jbus's own callers of `ready.short_of` pass them, so jbus judges a waived row as `jmerge` does."""
+    checkout = run.project.checkout
+    return frozenset(one for one in meets.waivers(brief) if not rows.heard(checkout, one, row))
 
 
 def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
