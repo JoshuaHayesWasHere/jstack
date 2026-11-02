@@ -39,7 +39,8 @@ The section "Accept a held pull request" lists what `jmerge` checks before it me
 
 ## What a merge does
 
-For each ready pull request, `jmerge` runs `gh pr merge <number> --squash --match-head-commit <head>`, then `git pull --ff-only` in the main checkout.
+For each ready pull request, `jmerge` runs `gh pr merge <number> --squash --match-head-commit <head>`, then `git fetch origin <default branch>` and `git merge --ff-only origin/<default branch>` in the main checkout.
+It pulls by ref and never reads FETCH_HEAD, so another fetch in that checkout cannot break the pull.
 `jmerge` writes the squash commit's message itself.
 The subject is the pull request's title and ` (#<number>)`.
 The body lists the branch's commit messages as GitHub's default does.
