@@ -1031,6 +1031,9 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     ]
     gate, _ = steps(CHECK.read_text(), "full")
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in gate][1:] == [
+        "actions/checkout",
+        "actions/cache",
+        "python3 scripts/select_tests.py --failed-on-main 30 ~/.cache/jstack/failed-on-main.json",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
         'echo "::warning::green-tree, the lookup ended ${{ needs.full-shard.outputs.lookup }} and'
@@ -2209,6 +2212,8 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
     assert job_section("reuse", "outputs") == {
         "name": "${{ steps.reuse.outputs.name }}",
         "reused": "${{ steps.reuse.outputs.reused }}",
+        "failed": "${{ steps.failed.outputs.tests }}",
+        "lookup": "${{ steps.failed.outcome }}",
     }
     assert [
         (result, name)
@@ -2230,7 +2235,7 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
 def test_the_reuse_lookup_is_plain_python_after_a_checkout_of_two_commits():
     """It reads the merge's base, HEAD^1, so the checkout has two commits of history, and it runs
     before any `uv sync`, with nothing but the runner's python3."""
-    (checkout, look, _), keys = steps(CHECK.read_text(), "reuse")
+    (checkout, look, *_), keys = steps(CHECK.read_text(), "reuse")
     assert checkout["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert look["run"] == "PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse"
     assert (look["id"], look["continue-on-error"]) == ("reuse", True)

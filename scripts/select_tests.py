@@ -88,16 +88,40 @@ cross-cutting and the catch-all, do not count, since Linux runs them. It prints 
 changed path is one every test depends on, or the list itself. It writes nothing to the
 summary or the outputs.
 
+Every test that failed on main in the last 30 days runs on each pull request's check, whatever
+the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
+reds. `$FAILED_ON_MAIN` names them, space-separated, and the selection adds each one that is a
+test file the check runs. The summary then gets one more line: `failed on main: <n> test files,
+<k> added to the selection: <the files>`, the files the rules had not selected already. Where the
+variable is not set, as on a desk, the selection and the summary are what the rules make.
+
+`select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per
+line: the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's
+run of `check.yml` on main, created in the last `<days>` days, with every attempt of a run that
+was run again, since a rerun that passed hides a flaky test. It reads GitHub's REST API at
+`$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails, naming the answer,
+where GitHub refuses. A completed job and its log never change, so the JSON file `<kept>` keeps
+the red jobs of each run's attempt and the files each one's log named, for the runs still in the
+window: a lookup with it reads only the list of runs, about 8 pages for a month. It reads the
+pages, the job lists and the logs `READS` at a time. Storage holds no log for some red jobs, and
+such a job names no test.
+
 The diff is two-dot. So for a pull request, `<base>` is where it branched from main (`git
 merge-base`) or the parent of its merge commit. A base that main has moved past adds main's own
 changes to the diff, which selects more tests and never fewer.
 """
 
 import ast
+import json
 import os
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from functools import cache
 from pathlib import Path
 from types import SimpleNamespace
@@ -126,6 +150,12 @@ DECLARED = "READ_SET"
 CHECKING = ("TYPE_CHECKING", "typing.TYPE_CHECKING")
 BY_NAME = {"import_module", "__import__"}
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
+FAILED_ON_MAIN = "FAILED_ON_MAIN"
+WORKFLOW = "check.yml"
+PER_PAGE = 100
+READS = 8
+FAILING = re.compile(r"^(?:\S+Z )?(?:FAILED|ERROR) (\S+?\.py)(?:::|\s|$)", re.M)
+COLOR = re.compile(r"\x1b\[[0-9;]*m")
 
 
 class Unread(Exception):
@@ -899,16 +929,120 @@ def unowned():
     return frozenset(collected() - owned)
 
 
-def selection(changed):
+def selection(changed, failed=()):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
     each cause the number of files it selected, or the path that forced `all`. They are what
-    the rules select and the test files no rule owns, counted as cross-cutting."""
+    the rules select, the test files no rule owns, counted as cross-cutting, and the `failed`
+    test files that the check runs. `why["added"]` lists the failed ones nothing else
+    selected."""
     tests, why = ruled(changed)
     if tests == ["all"]:
         return tests, why
     lone = unowned()
     why = {**why, "cross-cutting": len(set(cross_cutting()) & collected() | lone)}
-    return sorted(set(tests) | lone), why
+    chosen = set(tests) | lone
+    added = set(failed) & collected() - chosen
+    return sorted(chosen | added), {**why, "added": sorted(added)}
+
+
+def ask(path, gone=None, **query):
+    """The answer GitHub's REST API gives to a GET of the repo's `path`, or `gone` where it
+    answers 404 and `gone` is given. A log's answer is a redirect to storage that refuses the
+    token, so the token goes to GitHub alone."""
+    api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    url = f"{api}/repos/{os.environ['GITHUB_REPOSITORY']}/{path}"
+    if query:
+        url += "?" + urllib.parse.urlencode(query)
+    request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    request.add_unredirected_header("Authorization", f"Bearer {os.environ['GITHUB_TOKEN']}")
+    try:
+        with urllib.request.urlopen(request, timeout=60) as answer:
+            return answer.read()
+    except urllib.error.HTTPError as error:
+        if error.code == 404 and gone is not None:
+            return gone
+        sys.exit(f"select_tests.py: GitHub answered {error.code} to {path}: {error.read()[:200]!r}")
+    except urllib.error.URLError as error:
+        sys.exit(f"select_tests.py: GitHub did not answer {path}: {error.reason}")
+
+
+def side_by_side(read, items):
+    """`{item: read(item)}`, the reads made at once: each is a wait on GitHub."""
+    with ThreadPoolExecutor(max_workers=READS) as pool:
+        return dict(zip(items, pool.map(read, items), strict=True))
+
+
+def red_runs(days):
+    """The completed push runs of `WORKFLOW` on main created in the last `days` days that
+    failed or were run again, each as `<id>/<attempt>`."""
+    since = (datetime.now(UTC) - timedelta(days=days)).date().isoformat()
+
+    def page(number):
+        return json.loads(
+            ask(
+                f"actions/workflows/{WORKFLOW}/runs",
+                branch="main",
+                event="push",
+                status="completed",
+                created=f">={since}",
+                exclude_pull_requests="true",
+                per_page=PER_PAGE,
+                page=number,
+            )
+        )
+
+    first = page(1)
+    rest = side_by_side(page, range(2, -(-first["total_count"] // PER_PAGE) + 1))
+    runs = [run for one in (first, *rest.values()) for run in one["workflow_runs"]]
+    return sorted(
+        {
+            f"{run['id']}/{run['run_attempt']}"
+            for run in runs
+            if run["conclusion"] == "failure" or run["run_attempt"] > 1
+        }
+    )
+
+
+def named_in(log):
+    """The test files a log's `FAILED` and `ERROR` lines of pytest's name."""
+    return sorted(set(FAILING.findall(COLOR.sub("", log))))
+
+
+def red_jobs(run):
+    """The ids of the jobs that failed in any attempt of a run, given as `<id>/<attempt>`."""
+    listed = ask(f"actions/runs/{run.split('/')[0]}/jobs", filter="all", per_page=PER_PAGE)
+    return [str(job["id"]) for job in json.loads(listed)["jobs"] if job["conclusion"] == "failure"]
+
+
+def logged(job):
+    """The test files a job's log names. Storage holds no log for some red jobs, and such a
+    job names none."""
+    return named_in(ask(f"actions/jobs/{job}/logs", gone=b"").decode(errors="replace"))
+
+
+def failed_on_main(days, kept_path):
+    """The test files a red job of main's runs of the last `days` days named, sorted. `kept`
+    holds what earlier lookups read, and is left with the runs still in the window."""
+    kept = json.loads(kept_path.read_text()) if kept_path.is_file() else {"runs": {}, "jobs": {}}
+    window = red_runs(days)
+    runs = {run: kept["runs"].get(run) for run in window}
+    runs |= side_by_side(red_jobs, [run for run, jobs in runs.items() if jobs is None])
+    red = sorted({job for jobs in runs.values() for job in jobs})
+    jobs = {job: kept["jobs"].get(job) for job in red}
+    jobs |= side_by_side(logged, [job for job, tests in jobs.items() if tests is None])
+    kept_path.parent.mkdir(parents=True, exist_ok=True)
+    kept_path.write_text(json.dumps({"runs": runs, "jobs": jobs}, indent=1, sort_keys=True) + "\n")
+    return sorted({test for tests in jobs.values() for test in tests})
+
+
+def told(tests, why, failed):
+    """The summary's line on the tests that failed on main."""
+    if tests == ["all"]:
+        return f"failed on main: {len(failed)} test files, and the whole suite runs"
+    added = why["added"]
+    return f"failed on main: {len(failed)} test files, {len(added)} added to the selection" + (
+        f": {' '.join(added)}" if added else ""
+    )
 
 
 def on_a_mac(path):
@@ -965,11 +1099,17 @@ def unmapped(changed):
 
 
 def main(argv):
+    if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
+        print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
+        return
     listed = None
     if argv[:1] == ["--within"] and len(argv) == 4:
         listed, argv = argv[1], argv[2:]
     if len(argv) != 2:
-        sys.exit("usage: select_tests.py [--within <list>] <base> <head>")
+        sys.exit(
+            "usage: select_tests.py [--within <list>] <base> <head>\n"
+            "       select_tests.py --failed-on-main <days> <kept>"
+        )
     diff = subprocess.run(
         ["git", "diff", "--name-only", "--no-renames", *argv],
         cwd=ROOT,
@@ -988,8 +1128,10 @@ def main(argv):
             tests = ["all"]
         print("\n".join(tests))
         return
+    failed = os.environ.get(FAILED_ON_MAIN)
+    failed = None if failed is None else failed.split()
     try:
-        tests, why = selection(changed)
+        tests, why = selection(changed, failed or ())
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
@@ -997,6 +1139,8 @@ def main(argv):
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             file.write(summary(tests, why, changed) + "\n")
+            if failed is not None:
+                file.write(told(tests, why, failed) + "\n")
             for one in unmapped(changed):
                 file.write(
                     f"warning: {one} is in no module set, so no import of it selects a test\n"
