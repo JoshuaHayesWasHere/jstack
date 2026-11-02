@@ -216,9 +216,18 @@ def plan(main: Main, mirror: Mirror, usage: dict | None = None) -> tuple[Step, .
     if found is not None:
         steps.append(Step("json", JSON, found[1], usage))
     at, made = mirror.home / SETTINGS, trimmed(main)
-    if made is not None and (at.is_symlink() or not at.is_file() or _read(at) != made):
+    if made is not None and (at.is_symlink() or _own(at) != made):
         steps.append(Step("settings", SETTINGS))
     return tuple(steps)
+
+
+def _own(at: Path) -> object:
+    """The mirror's own settings.json, or None when it is missing or cannot be read, so a run
+    writes over a half-written copy instead of refusing."""
+    try:
+        return _read(at) if at.is_file() else None
+    except Refused:
+        return None
 
 
 def trimmed(main: Main) -> dict | None:

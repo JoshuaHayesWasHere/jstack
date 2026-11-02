@@ -274,6 +274,18 @@ For a home whose `skillUsage` is behind only because of skills used since the la
 The longest gap between two runs is 7 minutes, counting the timer's accuracy and the time a run takes.
 For a home that lacks a skill whose last use is older than that gap, `--check` prints `would pool skillUsage <skills> into <file>` and exits 1.
 When an entry of `skillUsage` is not an object of numbers, `jroles mirror` says so on stderr, `<file>: skillUsage <skill> is malformed`, and exits 2.
+A run then combines no `skillUsage` until someone fixes the entry.
+For a mirror with nothing to do, `--check` prints `ok <home> mirrors ~/.claude`.
+`jroles mirror --instance <id>` reads or mirrors only that instance, and exits 2 for an id that is not a mirror.
+`features/jroles/units/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`.
+On Linux the install (`jinstall`) links and enables both units with the jbus units.
+On macOS it writes them as launchd agents under `~/Library/LaunchAgents`.
+`jinstall --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while the mirror differs.
+
+Before `jbus` launches a crew on a mirror instance, or moves a capped thread onto one, it runs `jroles mirror --check --instance <id>`.
+If the check finds a difference, `jbus` runs `jroles mirror --instance <id>` once and checks again.
+`jbus` skips an instance that still differs for the rest of the pass, and prints `wait <slug>: <id> is not mirrored`.
+The launch or the move goes to the next instance of the pool with headroom, or waits for a later pass.
 
 ### The skill listing of a mirror
 
@@ -290,16 +302,5 @@ Each is a setting, and `jroles mirror` writes the mirror's `settings.json` as `~
 The mirror's other `skillOverrides` and every other key are `~/.claude`'s.
 `plugins` and `skills` stay links, so a thread can still read a plugin's or an account skill's `SKILL.md` by its path.
 A plugin you enable later, or an account skill Claude Code syncs later, is off in the mirror from the next run on, and `--check` prints `would write <home>/settings.json as ~/.claude/settings.json, trimmed` until then.
-A change written to the mirror's `settings.json` lasts until the next run, which writes it from `~/.claude`'s again: change `~/.claude/settings.json` instead.
-A run then combines no `skillUsage` until someone fixes the entry.
-For a mirror with nothing to do, `--check` prints `ok <home> mirrors ~/.claude`.
-`jroles mirror --instance <id>` reads or mirrors only that instance, and exits 2 for an id that is not a mirror.
-`features/jroles/units/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`.
-On Linux the install (`jinstall`) links and enables both units with the jbus units.
-On macOS it writes them as launchd agents under `~/Library/LaunchAgents`.
-`jinstall --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while the mirror differs.
-
-Before `jbus` launches a crew on a mirror instance, or moves a capped thread onto one, it runs `jroles mirror --check --instance <id>`.
-If the check finds a difference, `jbus` runs `jroles mirror --instance <id>` once and checks again.
-`jbus` skips an instance that still differs for the rest of the pass, and prints `wait <slug>: <id> is not mirrored`.
-The launch or the move goes to the next instance of the pool with headroom, or waits for a later pass.
+A change written to the mirror's `settings.json`, a copy the home held before it was a mirror included, lasts until the next run, which writes it from `~/.claude`'s again and keeps no backup of it: change `~/.claude/settings.json` instead.
+A mirror copy that is not valid JSON is written again on the next run, like any other copy that differs.

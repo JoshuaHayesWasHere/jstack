@@ -234,7 +234,20 @@ def test_a_write_to_a_mirrors_settings_lasts_until_the_next_run_and_never_reache
     mirror(capsys)
     assert listed(prime)["enabledPlugins"]["typesafe@typesafe-ai"] is False
     assert listed(main) == skills
-    assert not list(main.glob("settings.json*.mirror.*"))
+    assert not list(prime.glob("settings.json.mirror.*"))
+
+
+def test_a_mirrors_settings_that_cannot_be_read_is_written_again_and_stops_no_other_step(
+    home, capsys, skills
+):
+    main, prime = home / ".claude", home / ".claude_prime"
+    mirror(capsys)
+    write(prime / "settings.json", "{ half written")
+    (prime / "CLAUDE.md").unlink()
+    code, said, _ = mirror(capsys)
+    assert code == 0
+    assert listed(prime)["enabledPlugins"]["typesafe@typesafe-ai"] is False
+    assert os.readlink(prime / "CLAUDE.md") == str(main / "CLAUDE.md")
 
 
 def test_claude_json_keeps_each_mirrors_account_and_takes_mains_servers_and_projects(home, capsys):
