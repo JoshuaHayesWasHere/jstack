@@ -1,11 +1,11 @@
-"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and seven tools.
+"""jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
 
 `login` registers jbus with the server, sends the user to the server's approval page, keeps the
 token that the server issues, and records when the server issued it (`jsettings.t3.expiry` says
 when that token runs out). `Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no
 other tool: a test scans this package for any other tool name.
 
-Three of the seven tools can change a thread, and `Client.call` allows each of them only in
+Three of the eight tools can change a thread, and `Client.call` allows each of them only in
 the forms below (`_held`):
 
 - `t3_thread_organize`, to settle or archive a thread that the call names.
@@ -15,6 +15,9 @@ the forms below (`_held`):
 - `t3_thread_send`, as a queued message with a retry key, to a thread that the sender adds to
   `recipients`. Every such message goes through `jbus.outbox.send`, which adds its thread, holds
   a message to a capped thread, and logs each send and hold.
+
+`orchestrator_capabilities` only reads: which provider instances T3 Code can run, and why not
+where it cannot, such as an instance that is signed out (`jbus.failover`).
 
 `Client.message` reads one message by its id, with `t3_thread_read`. T3 Code gives who wrote
 the message, its text and its time, and that is why jbus counts the user's word as checked.
@@ -66,6 +69,7 @@ TOOLS = (
     "t3_thread_send",
     "link_pull_request",
     "t3_thread_organize",
+    "orchestrator_capabilities",
 )
 MISSING = "t3-tool "
 SCOPE = "orchestration:read orchestration:operate"

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from jbus import alert
 from jroles import ledger
 from test_jbus_kitchen import NOW, SELECTION, approved, asks
 from test_jbus_resume import THREAD, crew
@@ -649,3 +650,121 @@ def test_a_numbered_reviewer_is_told_to_read_its_brief(kitchen):
     assert f"read `{kitchen.home / 'tasks' / 'alpha.md'}` and the pull request" in carry["message"]
     assert f"jbriefs --skills {kitchen.home / 'tasks' / 'alpha.md'}" in carry["message"]
     assert failovers(kitchen)[0].startswith("failover review alpha: five_hour limit")
+
+
+NOT_LOGGED_IN = "Not logged in · Please run /login"
+NO_AUTH = (
+    "Claude could not authenticate. For subscription login, run `claude auth login` on this "
+    "environment's machine, then start a new thread. For API-key authentication, check this "
+    "instance's configured credentials."
+)
+TYPES = {NOT_LOGGED_IN: "assistant_message", NO_AUTH: "error"}
+SIGNED_OUT = ["Provider is not authenticated."]
+LAPSED = datetime(2026, 10, 17, 17, 24, 4, tzinfo=UTC)
+
+
+def lapsed_on(thread, texts=(NOT_LOGGED_IN, NO_AUTH), run="run-1", ran_on="claudeAgent", at=LAPSED):
+    """End the thread's last turn as a turn on a signed-out instance ends: at once, on `texts`.
+    The texts are the two items of the login lapse of 2026-11-02, when from about 16:47 to 17:30
+    UTC claudeAgent could not sign in, recorded from crew reviewer-reads-trim's run 25. The
+    replay keeps the texts and moves the clock to the kitchen's."""
+    items = [
+        {"runId": run, "itemId": f"{run}:{n}", "type": TYPES[text], "text": text}
+        for n, text in enumerate(texts)
+    ]
+    thread.update(
+        status="failed",
+        latestRunId=run,
+        itemCount=len(items) + 2,
+        runs=[
+            {
+                "runId": run,
+                "status": "failed",
+                "providerInstanceId": ran_on,
+                "completedAt": at.isoformat(),
+            }
+        ],
+        read_items=items,
+    )
+
+
+def keys(kitchen):
+    return [given["clientRequestId"] for given in sends(kitchen)]
+
+
+@pytest.mark.parametrize("text", [NOT_LOGGED_IN, NO_AUTH])
+def test_a_run_that_failed_on_either_login_text_is_a_lapse_and_moves_to_an_instance_signed_in(
+    kitchen, text
+):
+    """Neither a crash, which the resume path would carry on where it failed, nor a cap, which
+    the ledger would keep: the thread goes on the pool's first instance that can sign in."""
+    kitchen.t3.constraints["claudeAgent"] = SIGNED_OUT
+    thread = crew(kitchen)
+    lapsed_on(thread, (text,))
+    for minutes in (1, 4, 7):
+        kitchen.poll(LAPSED + timedelta(minutes=minutes))
+    assert configures(kitchen) == [
+        {"threadId": THREAD, "modelSelection": {**SELECTION, "instanceId": PRIME}}
+    ]
+    assert keys(kitchen) == [f"lapse|{THREAD}|run-1"]
+    (carry,) = sends(kitchen)
+    assert "could not sign in" in carry["message"] and f"now on {PRIME}" in carry["message"]
+    assert text in carry["message"]
+    assert kitchen.lines("failover") == [
+        f"failover alpha: claudeAgent could not sign in, carry-on on claudeAgent to {PRIME}, "
+        "model claude-sonnet-5-5, effort=high, fastMode=True"
+    ]
+    assert kitchen.lines("resume") == [] and kitchen.lines("stall") == []
+    assert ledger.read(["claudeAgent", PRIME]) == {}
+
+
+def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_is_told_once(
+    kitchen,
+):
+    for instance in ("claudeAgent", PRIME):
+        kitchen.t3.constraints[instance] = SIGNED_OUT
+    thread = crew(kitchen)
+    lapsed_on(thread)
+    for minutes in (1, 4, 7, 30):
+        kitchen.poll(LAPSED + timedelta(minutes=minutes))
+    assert sends(kitchen) == [] and configures(kitchen) == []
+    assert kitchen.lines("resume") == []
+    assert kitchen.lines("stall") == [
+        f"signed out: claudeAgent and {PRIME} cannot sign in, so the threads that failed on a "
+        "login lapse wait: sign one in again"
+    ]
+    (told,) = kitchen.log("notify")
+    assert told.endswith(kitchen.lines("stall")[0])
+    kitchen.t3.constraints["claudeAgent"] = []
+    kitchen.poll(LAPSED + timedelta(minutes=33))
+    kitchen.poll(LAPSED + timedelta(minutes=36))
+    assert configures(kitchen) == [] and keys(kitchen) == [f"lapse|{THREAD}|run-1"]
+    assert "now on claudeAgent" in sends(kitchen)[0]["message"]
+    assert len(kitchen.log("notify")) == 1 and len(kitchen.lines("stall")) == 1
+    assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))
+
+
+def test_one_carry_on_goes_per_failed_run_and_none_while_its_instance_just_failed_to_sign_in(
+    kitchen, pools
+):
+    """T3 Code may say an instance can run while its turns still fail to sign in, as claudeAgent
+    did on 2026-11-02 between 17:17 and 17:29. A run that failed on it a minute ago says more than
+    that: the next carry-on waits until `HOLD` has passed since that run."""
+    pools.write_text("crew: claudeAgent claude-sonnet-5-5 claudeAgent\n")
+    thread = crew(kitchen)
+    lapsed_on(thread)
+    kitchen.poll(LAPSED + timedelta(minutes=1))
+    assert sends(kitchen) == []
+    kitchen.poll(LAPSED + timedelta(minutes=6))
+    assert keys(kitchen) == [f"lapse|{THREAD}|run-1"]
+    again = LAPSED + timedelta(minutes=6, seconds=1)
+    lapsed_on(thread, run="run-2", at=again)
+    for minutes in (1, 4):
+        kitchen.poll(again + timedelta(minutes=minutes))
+    assert keys(kitchen) == [f"lapse|{THREAD}|run-1"]
+    for minutes in (6, 9):
+        kitchen.poll(again + timedelta(minutes=minutes))
+    assert keys(kitchen) == [f"lapse|{THREAD}|run-1", f"lapse|{THREAD}|run-2"]
+    assert configures(kitchen) == [] and kitchen.lines("resume") == []
+    assert len(kitchen.log("notify")) == 1 and len(kitchen.lines("stall")) == 1
+    assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))

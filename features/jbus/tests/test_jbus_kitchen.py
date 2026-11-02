@@ -147,9 +147,11 @@ class Wakes:
 
 
 class T3(Server):
-    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls.
+    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the nine tools that jbus calls.
     A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send. Each
-    `initialize` opens a session of `sessions`, and a `DELETE` ends one into `ended`."""
+    `initialize` opens a session of `sessions`, and a `DELETE` ends one into `ended`.
+    `constraints` holds why T3 Code cannot run a provider instance, by its id: an instance it
+    names with none can run, and one it does not name is not listed."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
@@ -159,6 +161,7 @@ class T3(Server):
         self.challenges, self.registered, self.at_work = {}, [], set()
         self.sessions, self.ended = [], []
         self.said, self.forgot, self.wakes = {}, set(), {}
+        self.constraints = {"claudeAgent": [], "claudeAgent_claude_prime": []}
         super().__init__()
 
     def thread(
@@ -360,6 +363,13 @@ class T3(Server):
             }
         elif tool == "link_pull_request":
             made = {"url": given["url"], "alreadyLinked": False}
+        elif tool == "orchestrator_capabilities":
+            made = {
+                "providers": [
+                    {"providerInstanceId": at, "models": [], "constraints": list(why)}
+                    for at, why in self.constraints.items()
+                ]
+            }
         elif tool == "t3_thread_organize":
             (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if given["action"] == "archive":
