@@ -375,3 +375,96 @@ def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_noth
     assert rows(kitchen)["qw-deploy-main-to-prod"]["approved"] == ""
     kitchen.poll()
     assert kitchen.t3.launches == []
+
+
+DELETES = "deletes data"
+STALE = "stale-worktrees"
+
+
+def deletes(kitchen):
+    """A row whose brief holds for deletes data, as stale-worktrees-1102's did on 2026-11-02."""
+    queued(kitchen, STALE, brief(STALE, f"Holds: {DELETES}\n"))
+    return sha12(stored(kitchen, STALE))
+
+
+WORDINGS = [
+    "go {slug}",
+    "approve {slug} (brief sha {sha})",
+    "answer question 7 ({slug}): yes, go",
+]
+
+
+@pytest.mark.parametrize("wording", WORDINGS, ids=["go", "tree-approve", "tree-answer"])
+def test_the_homes_approve_on_the_users_own_message_opens_the_door_at_once(kitchen, wording):
+    """Josh sent "approve stale-worktrees-1102 (brief sha fd285a40568d)" from T3 Code, and the
+    home's plain `jbus queue approve --message` on it parked a question and approved nothing."""
+    sha = deletes(kitchen)
+    ref = josh(kitchen, wording.format(slug=STALE, sha=sha))
+    code, said = approve(kitchen, STALE, "--message", ref)
+    assert code == 0, said
+    assert said.startswith(f"approved {STALE}: brief {sha}"), said
+    assert questions.read(kitchen.state) == []
+    assert rows(kitchen)[STALE]["approval"]["checked"] is True
+    kitchen.poll()
+    assert f"crew: {STALE}" in [launch["title"] for launch in kitchen.t3.launches]
+
+
+def test_a_message_that_is_not_the_users_own_opens_no_door(kitchen):
+    deletes(kitchen)
+    ref = f"{HOME}/agent-go"
+    kitchen.t3.says(HOME, "agent-go", f"go {STALE}", type="assistant_message", createdBy="agent")
+    code, said = approve(kitchen, STALE, "--message", ref)
+    assert code == 1
+    assert said.startswith(f"refused: message {ref} is not user's own"), said
+    assert rows(kitchen)[STALE]["approved"] == ""
+
+
+def test_a_bot_carried_word_naming_the_row_opens_no_door(kitchen):
+    deletes(kitchen)
+    code, said = kitchen.main("word", "--to", "demo", "--evidence", BOT, "--words", f"go {STALE}")
+    assert code == 0, said
+    said = approve(kitchen, STALE, "--word", said.split()[-1])[1]
+    assert said.startswith(f"gated {STALE}: its brief holds for {DELETES}"), said
+    assert rows(kitchen)[STALE]["approved"] == ""
+
+
+def test_the_homes_approve_on_a_message_said_before_the_brief_was_stored_opens_no_door(kitchen):
+    sha = deletes(kitchen)
+    ref = josh(kitchen, f"go {STALE}", at=datetime.now(UTC) - timedelta(days=1))
+    code, said = approve(kitchen, STALE, "--message", ref)
+    assert code == 1
+    assert f"before {STALE}'s brief was stored at " in said, said
+    assert f"jbus queue approve {STALE} --sha {sha} --message <thread>/<message>" in said
+    assert "--as user" not in said and f'sends "go {STALE}"' not in said
+    assert rows(kitchen)[STALE]["approved"] == ""
+
+
+def test_a_gated_go_names_the_command_that_opens_it_and_the_users_approve_closes_its_gate(
+    kitchen,
+):
+    sha = deletes(kitchen)
+    said = typed_word(kitchen, None, STALE)
+    (asked,) = questions.read(kitchen.state)
+    assert said.startswith(f"gated {STALE}: its brief holds for {DELETES}"), said
+    assert f"jbus queue approve {STALE} --sha {sha} --message <thread>/<message>" in said
+    shown = f"{asked.undo}\n{asked.context}\n" + "\n".join(one.follows for one in asked.options)
+    assert "--as user" not in shown and '"go ' not in shown
+    code, said = approve(kitchen, STALE, "--message", josh(kitchen, f"approve {STALE}"))
+    assert code == 0, said
+    assert questions.question(kitchen.state, asked.number).answer.closed_by == questions.CLEARED
+
+
+def test_the_users_answer_to_a_may_go_gate_approves_the_row(kitchen):
+    """Question 158: the user's answer, `jbus --as user answer`, recorded their message and the
+    row still waited, so the home's approve refused again."""
+    deletes(kitchen)
+    typed_word(kitchen, None, STALE)
+    (asked,) = questions.read(kitchen.state)
+    ref = josh(kitchen, f"approve {STALE} (brief sha {sha12(stored(kitchen, STALE))})")
+    number = str(asked.number)
+    code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", ref)
+    assert code == 0, said
+    assert f"approved {STALE}: brief " in said, said
+    assert rows(kitchen)[STALE]["approval"]["checked"] is True
+    code, said = approve(kitchen, STALE, "--message", ref)
+    assert code == 0 and said.startswith("already"), said
