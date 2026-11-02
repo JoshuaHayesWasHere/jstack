@@ -8,7 +8,8 @@ each text of a record into its length (`<name>_len`), so no table holds what a m
 A source is a `log` or a `snapshot`:
 
 - A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
-  `outbox.jsonl`, `ci.jsonl` and the home's `merge.log`. A row's key is the hash of the line, as
+  `outbox.jsonl`, `ci.jsonl`, the home's `merge.log`, and the machine's `passes.jsonl`, the
+  seconds of each pass (`jbus.record`). A row's key is the hash of the line, as
   JSON with sorted keys (as text for `merge.log`), and of how many equal lines come before it, as
   `jbus.wake.entries` names an event. So two equal lines are two rows, and a line read again,
   as after the daily trim rewrites `events.jsonl`, is the row it was.
@@ -33,6 +34,8 @@ from typing import Any, Literal
 
 Row = dict[str, Any]
 """One row of a table, by column."""
+MACHINE = ""
+"""The project of a row that is the machine's, as `jbus.alert.MACHINE` names its owner."""
 
 STAMP = "%Y-%m-%dT%H:%M:%S.%fZ"
 _WORDED = re.compile(r"(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::(\d{2}))?(?: (\S+))?")
@@ -147,6 +150,15 @@ def _acts(one: Row, zone: tzinfo | None) -> Row:
         "picks": _count(evidence.get("picks")),
         "words_len": _length(evidence.get("words")),
         "line_len": _length(one.get("line")),
+        "checked": evidence.get("checked") if isinstance(evidence.get("checked"), bool) else None,
+    }
+
+
+def _passes(one: Row, zone: tzinfo | None) -> Row:
+    seconds = one.get("seconds")
+    return {
+        "at": utc(one.get("at"), zone),
+        "seconds": seconds if isinstance(seconds, int | float) else None,
     }
 
 
@@ -412,8 +424,9 @@ def _sends(text: str) -> Iterable[Row]:
 class Source:
     """A file of a project's records and the table it fills.
 
-    `where` is `state`, the project's jbus state (`Config.state`), or `home`, its home's
-    (`Config.home`). `columns` are the table's own columns besides `project`, `key` and `day`,
+    `where` is `state`, the project's jbus state (`Config.state`), `home`, its home's
+    (`Config.home`), or `machine`, jbus's own state directory, whose rows are the machine's, of
+    the project `MACHINE`. `columns` are the table's own columns besides `project`, `key` and `day`,
     each with its SQLite type, and `row` makes them of one record. A log's `text` is True where
     its lines are text, not JSON. A snapshot's `records` reads its records from the file, and
     `natural` names the column that is its key. `at` names the column whose local date is
@@ -425,7 +438,7 @@ class Source:
     columns: tuple[tuple[str, str], ...]
     row: Callable[[Any, tzinfo | None], Row]
     at: str = "at"
-    where: Literal["state", "home"] = "state"
+    where: Literal["state", "home", "machine"] = "state"
     text: bool = False
     records: Callable[[str], Iterable[Row]] = json_lines
     natural: str = ""
@@ -456,8 +469,9 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         "waiting",
         *SPENT,
         *KINDS,
+        "checked",
     }
-    real = {"slowest_s", "tail_s"}
+    real = {"slowest_s", "tail_s", "seconds"}
     return tuple(
         (
             name,
@@ -501,6 +515,7 @@ SOURCES: tuple[Source, ...] = (
             "picks",
             "words_len",
             "line_len",
+            "checked",
         ),
         _acts,
     ),
@@ -706,6 +721,7 @@ SOURCES: tuple[Source, ...] = (
         records=_sends,
         natural="word",
     ),
+    Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
 )
 """Each source by its table. A source added here has its table made by a migration of its own
 (`jbus.telemetry.schema.MIGRATIONS`), never by the first."""

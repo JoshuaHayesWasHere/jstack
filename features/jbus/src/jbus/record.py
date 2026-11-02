@@ -2,9 +2,11 @@
 
 The pass writes the record twice, under the pass's lock. `Record.start` writes the start with no
 end, so a pass that hangs or dies shows as started and not ended. `Record.end` writes the end and
-the seconds the pass took. For each project it also writes what the pass saw of the project's open
-rows: how many unsettled threads each row has, the thread's status and last update as T3 Code gave
-them, and the pull request's checks as GitHub gave them. A row stays open until its pull request
+the seconds the pass took, and adds the start and the seconds to `passes.jsonl`, the log of every
+pass that the telemetry store keeps and the pass time's alert reads (`jbus.kpis`). For each
+project it also writes what the pass saw of the project's open rows: how many unsettled threads
+each row has, the thread's status and last update as T3 Code gave them, and the pull request's
+checks as GitHub gave them. A row stays open until its pull request
 merges. Beside the rows, the record lists the project's `threads`: every thread that is not settled,
 a crew's or not, with its role and its liveness (`live`).
 
@@ -41,12 +43,13 @@ from jbriefs.home import thread_of
 from jbus import Config, alert, owed, passes, project, read_json, signin, wake, write_json
 from jbus.queue import Row
 from jbus.watch import NEVER, World, checks
-from jsettings import t3
+from jsettings import store, t3
 
 if TYPE_CHECKING:
     from jbus.poll import Half
 
 Say = Callable[[str], None]
+PASSES = "passes.jsonl"
 
 
 def clock() -> float:
@@ -110,7 +113,10 @@ class Record:
         not answer."""
         seen = {name: {"seen": stamp(self.now), **found} for name, found in saw.items()}
         before = {name: source for name, source in self.silent.items() if name not in saw}
-        self._write(round(clock() - self.began, 1), self.kept | seen, before | silent)
+        seconds = round(clock() - self.began, 1)
+        self._write(seconds, self.kept | seen, before | silent)
+        line = {"at": stamp(self.now), "seconds": seconds}
+        store.append_jsonl(self.config.state_dir / PASSES, [line], mode=0o600)
 
 
 def _time(given: Any) -> str | None:

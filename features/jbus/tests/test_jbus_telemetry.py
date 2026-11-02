@@ -509,3 +509,30 @@ def test_a_pass_builds_the_store_with_what_its_project_logged_before_it(kitchen)
         held = store.execute("SELECT count(*) FROM events WHERE project = 'demo'").fetchone()[0]
     assert logged and held >= len(logged)
     assert SECRET.encode() not in (kitchen.state_dir / telemetry.FILE).read_bytes()
+
+
+def test_a_store_made_at_version_1_migrates_to_every_column_each_source_names(machine):
+    from jbus.telemetry import records as kept
+    from jbus.telemetry import schema
+
+    old, new = machine.root / "old.sqlite", machine.root / "new.sqlite"
+    with contextlib.closing(sqlite3.connect(old)) as store:
+        store.executescript(f"BEGIN;\n{schema.MIGRATIONS[0]}PRAGMA user_version = 1;\nCOMMIT;")
+    for path in (old, new):
+        telemetry.connect(path).close()
+        with contextlib.closing(sqlite3.connect(path)) as store:
+            assert store.execute("PRAGMA user_version").fetchone() == (len(schema.MIGRATIONS),)
+            for source in kept.SOURCES:
+                columns = {row[1] for row in store.execute(f"PRAGMA table_info({source.table})")}
+                assert {name for name, _ in source.columns} <= columns, source.table
+
+
+def test_a_pass_logs_its_seconds_and_the_next_build_keeps_them_as_the_machines(kitchen):
+    kitchen.poll()
+    lines = (kitchen.state_dir / "passes.jsonl").read_text().splitlines()
+    assert len(lines) == 1
+    assert isinstance(json.loads(lines[0])["seconds"], float)
+    kitchen.poll()
+    with contextlib.closing(sqlite3.connect(kitchen.state_dir / telemetry.FILE)) as store:
+        held = store.execute("SELECT project, seconds IS NOT NULL FROM passes").fetchall()
+    assert held == [("", 1)]
