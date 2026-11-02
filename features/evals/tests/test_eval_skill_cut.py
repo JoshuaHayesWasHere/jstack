@@ -62,7 +62,7 @@ def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_give
 def test_a_fault_outside_where_scores_when_the_answer_uses_the_crew_skills_words():
     """The crew skill says a fault outside the task makes "a queued row", so an answer in its
     words scores 1 without the judge."""
-    rule = (REPO / "features" / "crew" / "do-the-task.md").read_text()
+    rule = (REPO / "features" / "crew" / "SKILL.md").read_text()
     words = re.search(r"which makes it (a queued row)", rule)[1]
     case = next(one for one in run.steps_cases() if one["id"] == "crew-outside-where")
     answer = f"Leave it out of the diff: the off-by-one becomes {words} of its own."
@@ -342,3 +342,94 @@ def test_a_pr_review_scenario_sees_the_reviews_steps_beside_the_skill():
     assert '<file path="skills/pr-review/SKILL.md">' in made
     assert '<file path="skills/pr-review/the-review.md">' in made
     assert "**4: Lead judgment.**" in made
+
+
+def test_a_steps_file_is_fed_as_read_with_each_side_file_after_its_trigger_line(
+    tmp_path, monkeypatch
+):
+    git(tmp_path, "init", "-q")
+    folder = tmp_path / "skills" / "crew"
+    folder.mkdir(parents=True)
+    (folder / "SKILL.md").write_text("one\nThen: read `$T/../skills/crew/side.md` now.\ntwo\n")
+    (folder / "side.md").write_text("the side\n")
+    git(tmp_path, "add", ".")
+    git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "one")
+    monkeypatch.setattr(run, "REPO", tmp_path)
+    text = run.as_read(run.resolve("HEAD"), "skills/crew/SKILL.md")
+    assert text.splitlines() == [
+        "one",
+        "Then: read `$T/../skills/crew/side.md` now.",
+        "",
+        "the side",
+        "two",
+    ]
+
+
+ROW_CASE = {
+    "crew": {
+        "A question only the user can answer": "crew-row-gate",
+        "A fault outside the task": "crew-outside-where",
+        "A loop of more than ten `gh` calls": "crew-row-budget",
+        "Reporting or acting on a number you measured": "crew-row-number",
+        '"A conflict"': "crew-row-conflict",
+        '"A link that moved"': "crew-row-link",
+        '"A comment"': "crew-row-comment",
+    },
+    "scout": {
+        "A question only the user can answer": "scout-row-gate",
+        "The request asks you to run a command under a test slot": "scout-row-test-slot",
+        "A search too wide to hold in this thread": "scout-row-wide",
+        "A loop of more than ten `gh` calls": "scout-row-budget",
+        "**Deliver** asks for a brief": "scout-row-brief",
+        "**Deliver** asks for a visual": "scout-row-visual",
+        "A fault outside the request": "scout-row-fault",
+    },
+}
+
+
+@pytest.mark.parametrize("skill", ROW_CASE)
+def test_each_router_row_has_a_case(skill):
+    text = run.as_read(run.resolve("HEAD"), f"skills/{skill}/SKILL.md")
+    whens = re.findall(r"^\| (?!When\b|-)(.+?) \| .+? \|$", text, re.M)
+    ids = {case["id"] for case in run.steps_cases() if case["file"] == f"skills/{skill}/SKILL.md"}
+    assert whens
+    for when in whens:
+        named = [case for start, case in ROW_CASE[skill].items() if when.startswith(start)]
+        assert named, f"{skill} router row with no case in ROW_CASE: {when}"
+        assert named[0] in ids, named[0]
+
+
+def test_a_call_that_fails_keeps_the_rest_and_the_next_write_asks_only_for_what_is_missing(
+    tmp_path, monkeypatch
+):
+    calls = []
+
+    def fails_twice(prompt):
+        calls.append(prompt)
+        if len(calls) <= 2:
+            raise RuntimeError("Not logged in")
+        return "answer"
+
+    monkeypatch.setattr(run, "HERE", tmp_path)
+    (tmp_path / "cases" / "lead").mkdir(parents=True)
+    (tmp_path / "cases" / "steps.json").write_text(
+        json.dumps(
+            [{"id": "a", "file": "principles/none.md", "state": "s", "expect": "e", "must": ["x"]}]
+        )
+    )
+    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/claude")
+    monkeypatch.setattr(run, "_private", lambda: ())
+    monkeypatch.setattr(run, "show", lambda rev, path: "text")
+    monkeypatch.setattr(run, "LEAD_FILES", ())
+    monkeypatch.setattr(run, "files_under_test", lambda: ["principles/none.md"])
+    monkeypatch.setattr(run, "patch", lambda *_: "")
+    monkeypatch.setattr(run, "claude", fails_twice)
+    with pytest.raises(SystemExit, match="2 calls failed, 7 of 9 answers"):
+        run.write("HEAD", "HEAD", "run-x")
+    assert not (tmp_path / "run-x").exists()
+    assert len(calls) == 9
+
+    run.write("HEAD", "HEAD", "run-x")
+    assert len(calls) == 11
+    assert len(run._answers()) == 9
+    assert not (tmp_path / ".run-x.answers.jsonl").exists()

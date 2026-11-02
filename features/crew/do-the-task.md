@@ -1,34 +1,3 @@
-## Do the task
-
-- The **Done when** list is the whole target. Write the tests for it first where the repo has tests.
-- The brief is trusted. Read the files it names; where it names none, read only what the task needs. Do not check its findings again, and do not explore beyond it. If a finding turns out wrong, say so in the result and read only what that needs.
-- Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
-- GitHub's API allowance is one for jbus, `jmerge` and every thread, and a loop of `gh` calls can spend it for all of them, merges included.
-  Before a loop of more than ten `gh` calls, such as a fetch for each job, run or pull request, run `uv run --project "$T/../source" jbus budget --calls <n>` with the calls it will make: it reads `gh api rate_limit`, which spends nothing.
-  While it says `held` and ends 75, make none of those calls, since the allowance is at the floor jbus keeps for merges: fetch less, or stop and say so in the Result.
-- While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
-
-  ```sh
-  uv run --project "$T/../source" jgauge test-slot --short --thread <thread id> -- <the targeted tests>
-  ```
-
-  The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one.
-  A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once.
-  Only jstack's selected check, below, runs the check in the short lane.
-
-  `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
-  With `--thread` the call waits for no slot.
-  When every slot of the lane is taken it registers this thread as a waiter, prints one line saying so, and ends 76.
-  Then end your turn at once, with one line: `Waiting on a test slot: jbus will wake this thread when one is free.`
-  Never poll for a slot, never loop on the call, never wait in a background job, and never end the turn with nothing said: `jbus poll` sends this thread one message when a slot of the lane is free, and that message is the wake.
-  On it, run the same command again.
-  If the slots are taken again by then, the call registers this thread again and you stop again: each wait is woken once.
-  On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.
-
-  Every suite you run, a targeted one or the whole one, goes through `jgauge test-slot --thread <thread id>` with this thread's own id, and never runs outside a slot.
-  The slot then records the run as this thread's, and while it holds the slot jbus counts this thread as at work and sends its home no leftover for it.
-  A turn that ends while that run still holds the slot ends with one line: `My test run holds a slot: jbus will wake this thread when it ends.`
-  jbus's message that the run ended, which names the command and its exit code, is the cue to read what the run printed and go on.
 - Once every **Done when** line holds, with the work committed, run the check of the change, once.
   In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the check is the lint and only the tests that cover the files the branch changed since it left its base, in the short lane.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
@@ -107,12 +76,6 @@
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one run of the check command, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself.
   While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite.
   A repo with no heavy suite has nothing more here: its check command is the whole of it.
-- Write each Markdown prose line you add or change as one sentence, and leave old lines as they are: jstack's check (`features/writing/scripts/prose_lint.py`) fails a new line that holds two.
-- Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
-- When every **Done when** line holds, stop.
-  Do not go looking for more to improve.
-  A leftover of the task inside the brief's **Where**, a review's finding included, is cleared in this pull request before the Result: no row is filed for it.
-  A fault you find outside the task stays out of the diff: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
 - If the brief says to open a pull request, open it once the checks pass, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
 
   ```sh
@@ -155,40 +118,3 @@
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
   jbus drops the line, and bases the pull request on the default branch, where the link's own change has no need of its base's: the base is then the default branch.
   On `no base`, open no pull request: write what it printed on the Result's `Left:` line and in what you tell the home.
-
-The user may steer in this thread at any time. What they say here overrides the brief; record it in the result.
-
-A question only the user can answer does not wait.
-A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in.
-The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
-Do not act on that one.
-Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer.
-Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept.
-A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or, when it has no `Holds:` line, closes it with its default in the first pass that sees it.
-Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark.
-Run this in this worktree, with the block at the top and the filled-in lines in place of the line in angle brackets:
-
-```sh
-if command -v jbus > /dev/null; then
-    jbus gate '<slug>' << 'THE_GATE_ENDS_HERE'
-<the gate, filled in>
-Context: <what the user needs to know to answer it, in one line, with the links to it>
-Option: <an option's short name> (default, recommended): <what follows from it>
-THE_GATE_ENDS_HERE
-else
-    echo "not asked: jbus is not installed here"
-fi
-```
-
-`jbus gate` checks the lines against `$T/gates.md`, the one copy of their shape, and prints every line to go by.
-It speaks for the project whose repo this worktree is of, and refuses a repo its config does not name.
-On `asked:`, jbus holds the question: send the home nothing.
-The line under it, `Gate: question <number>`, is all the Result keeps of the gate: add it to the Result as a line of its own, as printed, and no line of the gate itself.
-Where it says `asked: already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
-Go by it, and take the default back where it differs.
-On `not asked: not sent:`, nothing was queued: fill in the line it names and run it again.
-A default that waits for the user's word is not sent: a pass closes a gate with no `Holds:` line at once, so write as the default what is done with no word.
-On `not asked: settled:`, a rule already answers the question, and the line names the rule and what to do instead: do that, and send nothing to the home and no gate line to the Result.
-On any other `not asked`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread "Telling the home" finds, and with no home there put them in the Result above its `Left:` line, the one place left that can hold them.
-An answer that differs from the default comes back as a message here, from jbus.
-A review finding you cannot settle without the user's word is such a question.

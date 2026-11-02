@@ -1,7 +1,7 @@
 """The two blocks that stop a crewmate from taking a stranger's words as orders.
 Each test runs a block as an agent runs it, against a `gh` that records what the block asks it. One
 block is the playbook's, which opens a pull request and locks it. The other is the crew
-skill's, which tells the crewmate, for each comment, who wrote it."""
+skill's `a-comment.md`, which tells the crewmate, for each comment, who wrote it."""
 
 import json
 import os
@@ -142,7 +142,7 @@ def test_a_strangers_comment_is_counted_and_none_of_its_words_are_printed(run):
             one("ada", "a draft", state="PENDING"),
         ],
     }
-    said, _ = run(block("features/crew/SKILL.md", "remarks()"), owner="ada", lists=lists)
+    said, _ = run(block("features/crew/a-comment.md", "remarks()"), owner="ada", lists=lists)
     assert said == [
         "by the owner, ada: 2, and jbus sends this thread each one once",
         "by anybody else: 3, not shown and not acted on",
@@ -155,7 +155,7 @@ def test_the_owner_is_the_one_github_names_and_not_a_name_in_the_tree(run):
         "pulls/7/comments": [],
         "pulls/7/reviews": [],
     }
-    said, asked = run(block("features/crew/SKILL.md", "remarks()"), owner="grace", lists=lists)
+    said, asked = run(block("features/crew/a-comment.md", "remarks()"), owner="grace", lists=lists)
     assert said == [
         "by the owner, grace: 0, and jbus sends this thread each one once",
         "by anybody else: 1, not shown and not acted on",
@@ -172,7 +172,7 @@ def test_the_owner_is_the_one_github_names_and_not_a_name_in_the_tree(run):
     ids=["no owner", "a list missing"],
 )
 def test_with_no_answer_from_github_no_comment_is_shown(run, said, why):
-    printed, _ = run(block("features/crew/SKILL.md", "remarks()"), **said)
+    printed, _ = run(block("features/crew/a-comment.md", "remarks()"), **said)
     (line,) = printed
     assert line.startswith("not known: ") and why in line and line.endswith("is acted on")
 
@@ -180,7 +180,7 @@ def test_with_no_answer_from_github_no_comment_is_shown(run, said, why):
 def test_with_github_s_budget_at_its_floor_nothing_is_asked_and_no_comment_is_shown(run):
     lists = {"issues/7/comments": [one("ada", "a")], "pulls/7/comments": [], "pulls/7/reviews": []}
     printed, asked = run(
-        block("features/crew/SKILL.md", "remarks()"), owner="ada", lists=lists, budget=0
+        block("features/crew/a-comment.md", "remarks()"), owner="ada", lists=lists, budget=0
     )
     (line,) = printed
     assert line.startswith("not known: GitHub's core budget has 0 of 5000 calls left")
