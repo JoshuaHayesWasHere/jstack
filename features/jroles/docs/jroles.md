@@ -212,6 +212,7 @@ For `review`, the role with several lines, each line is a pool.
 If all the instances of any one line are full, `jgauge room` waits.
 For a role with no pool, `jgauge room` reads the file that `LIMITS` names.
 `jgauge room --instance <id>` reads only that instance's file.
+`jroles --check` launches nothing: it prints a line for each role whose pool has one instance while T3's settings list another of its provider, with the role map line to send to infra, and exits 1 when there is one.
 
 ## Mirrors
 

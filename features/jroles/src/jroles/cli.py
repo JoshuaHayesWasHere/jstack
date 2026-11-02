@@ -50,17 +50,23 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["mirror"]:
         return mirror.main(argv[1:])
-    if argv == ["--check"]:
-        return _check()
     parser = argparse.ArgumentParser(
         prog="jroles",
         description=__doc__.split("\n\n")[1],
-        epilog="jroles --check: report each role on one account while T3 lists another. "
-        "jroles mirror [--check] [--instance ID]: keep each extra Claude home a mirror",
+        epilog="jroles mirror [--check] [--instance ID]: keep each extra Claude home a mirror",
     )
-    parser.add_argument("role", choices=(*ROLES, "mirror"))
+    parser.add_argument("role", nargs="?", choices=(*ROLES, "mirror"))
     parser.add_argument("--thread", default="", help="register this thread to wake at the reset")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="launch nothing: report each role on one account while T3 lists another, and exit 1",
+    )
     args = parser.parse_args(argv)
+    if args.check and args.role is None and not args.thread:
+        return _check()
+    if args.check or args.role is None:
+        parser.error("give a role, or --check alone")
     role, now = args.role, now or datetime.now(UTC)
     try:
         routed = pool.routes(role, now)
