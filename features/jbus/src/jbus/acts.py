@@ -325,13 +325,17 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
             since: datetime | None = datetime.fromisoformat(asked.asked_at)
         except ValueError:
             since = None
-        unbound = _unbound(run, said, asked.slug, [number], since, f"question {number} was asked")
+        what = f"question {number} was asked"
+        unbound = _unbound(run, said, asked.slug, [number], since, what)
+        if not unbound and _may_go(asked) and not keeps:
+            what = f"{asked.slug}'s brief was stored"
+            unbound = _unbound(run, said, asked.slug, [number], _stored(run, asked.slug), what)
         if unbound:
             line = (
                 f"refused: question {number} holds for {', '.join(action.doors)}, and {unbound}: "
                 f"jbus answer {number} --message <thread>/<message>, on {run.user.user}'s own "
                 f"message in T3 Code that names {asked.slug} or question {number} and was said "
-                "after it was asked, closes it"
+                f"after {what}, closes it"
             )
             return action, "refused", line, number
     try:
