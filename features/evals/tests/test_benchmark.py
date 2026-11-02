@@ -586,7 +586,9 @@ def assert_the_ledger_is_printed_before_and_after(said):
     assert said.count("limits.other seven_day 7") == 2
 
 
-def test_the_replays_today_side_says_main_is_red_with_no_model(tmp_path, machine):
+def test_the_replays_today_side_lets_a_pull_request_through_a_red_main_with_no_model(
+    tmp_path, machine
+):
     out = tmp_path / "out"
     ran = subprocess.run(
         [REPLAY, REPO, out, "--runs", "1", "--events", "redmain"],
@@ -595,7 +597,7 @@ def test_the_replays_today_side_says_main_is_red_with_no_model(tmp_path, machine
         text=True,
     )
     assert ran.returncode == 0, ran.stderr
-    assert re.search(r"^  wait 7 .*main is red at \w+, its fix merges first$", ran.stdout, re.M)
+    assert re.search(r"^  ready 7 ", ran.stdout, re.M)
     assert_the_ledger_is_printed_before_and_after(ran.stdout)
     assert not machine["called"].exists()
     assert not (out / "b.jsonl").exists()
@@ -643,7 +645,7 @@ def test_every_events_today_side_says_what_jbus_and_jmerge_decide(tmp_path, mach
     said = dict(zip(parts[1::2], parts[2::2], strict=True))
     assert "  ready 7 " in said["plain"]
     assert "pull/7: it conflicts with its base" in said["conflict"]
-    assert "pull/7: main is red at " in said["redmain"]
+    assert "  ready 7 " in said["redmain"]
     assert "pull/7: its findings are not handled" in said["findings"]
     assert "  dry run, nothing written: " in said["limit"]
     assert "  launched alpha: " in said["launch"]

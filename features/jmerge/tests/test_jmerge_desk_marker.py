@@ -131,7 +131,7 @@ def merged_on_the_desk(kitchen):
     return tip
 
 
-def test_a_tree_only_check_fast_passed_runs_the_whole_suite_on_main_and_main_red_holds_the_next(
+def test_a_tree_only_check_fast_passed_runs_the_whole_suite_on_main_and_its_red_holds_no_next(
     tmp_path,
 ):
     kitchen = kitchen_of(tmp_path, "make check-fast")
@@ -141,10 +141,8 @@ def test_a_tree_only_check_fast_passed_runs_the_whole_suite_on_main_and_main_red
     assert "so the suite runs" in line
     main_judged(kitchen, tip, passed)
     kitchen.crew("next", 9, {"a.txt": "next\n"}, checks=(fresh.AFTER,))
-    assert kitchen.run() == [
-        f"wait 9 {fresh.url(9)}: main is red at {tip[:12]}, its fix merges first"
-    ]
-    assert kitchen.tip() == tip
+    assert [line.split()[:2] for line in kitchen.run()] == [["merged", "9"]]
+    assert kitchen.tip() != tip
 
 
 def test_a_tree_the_whole_suite_passed_on_the_desk_skips_mains_suite(tmp_path):

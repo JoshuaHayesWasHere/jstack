@@ -144,17 +144,19 @@ def replay(tmp_path):
 
 def red_then_fixed(replay):
     """Main breaks on two whole-tree tests. Three pull requests that touch neither, and one that
-    breaks a test of its own, go red over it, and wait on main's fix. Then main is fixed."""
+    breaks a test of its own, go red over it, and are held by their own red, with no merge of the
+    red main into them asked of GitHub while it is red. Then main is fixed."""
     heads = [
         replay.crew("one", 333, {"one.txt": "ours\n"}),
         replay.crew("two", 340, {"two.txt": "ours\n"}),
         replay.crew("three", 341, {"a.txt": "ours\n" + LINES}),
         replay.crew("broken", 339, {"tests/broken-its-own": ""}),
     ]
-    red = ready.MAIN_RED.format(sha=replay.main_at(WHOLE_TREE, BROKE, "failed")[:12])
+    replay.main_at(WHOLE_TREE, BROKE, "failed")
     assert replay.run() == [
-        f"wait {number} {url(number)}: {red}" for number in (333, 339, 340, 341)
+        f"wait {number} {url(number)}: check has failed" for number in (333, 339, 340, 341)
     ]
+    assert replay.updated() == []
     fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
     return heads, fix
 
@@ -239,8 +241,8 @@ def test_a_red_base_is_not_judged_again_until_it_is_green(replay):
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     red = replay.main_at({"b.txt": "theirs\n"}, FIXED, "failed")
-    assert replay.run() == [f"wait 333 {url(333)}: {ready.MAIN_RED.format(sha=red[:12])}"]
-    assert replay.updated() == []
+    assert replay.run() == [f"wait 333 {url(333)}: check has failed"]
+    assert red and replay.updated() == []
 
 
 def test_a_failed_check_over_a_base_that_has_not_moved_since_is_the_pull_request_s_own(replay):

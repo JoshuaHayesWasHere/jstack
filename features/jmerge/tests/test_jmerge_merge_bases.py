@@ -106,11 +106,10 @@ def test_a_red_main_holds_no_pull_request_into_a_named_base(side):
     assert merged_numbers(side.run()) == [7]
 
 
-def test_a_red_main_still_holds_a_pull_request_into_main(merged):
+def test_a_red_main_holds_no_pull_request_into_main_either(merged):
     queue_of(merged.home, [row("alpha", pr="#7")], SIDE)
     main_says(merged.home, red=RED, green="a" * 40)
-    (said,) = merged.run()
-    assert said == f"wait 7 {merge.URL}: main is red at {RED[:12]}, its fix merges first"
+    assert merged_numbers(merged.run()) == [7]
 
 
 def test_a_sweep_keeps_a_branch_that_is_a_merge_base(side):

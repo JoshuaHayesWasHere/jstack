@@ -33,7 +33,6 @@ CANARIES = {
     "NoGuard": ["NoMergeTurnsMainRed"],
     "NoRejudge": ["FlowsWhenGreen"],
     "NoSweep": ["FlowsWhenGreen", "MachineNotLeftFull"],
-    "NoProof": ["MainFixWaitsOnlyOnYou"],
 }
 
 # Today's code breaks three rules. A check that selects a test reading the whole tree only by
@@ -58,8 +57,9 @@ CONTROLS = {
 
 
 # FlowToday.tla's `Draft`: today a draft that waits on your word stays a draft. The control that
-# marks it ready holds FlowsWhenGreen, so that draft is the rule's only break today, and breaks
-# its NoLift probe, so your word lifts a hold there.
+# marks it ready holds FlowsWhenGreen, so that draft is the rule's only break today, and breaks its
+# NoLift probe, so your word lifts a hold there. It still breaks MainFixWaitsOnlyOnYou, on a fix
+# stacked on a pull request whose check failed over the red main: that one waits until main is green.
 DRAFT = "held"
 PROBES = ["NoLift"]
 READIED = {

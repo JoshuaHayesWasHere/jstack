@@ -13,14 +13,14 @@ passes, the file no longer keeps `broken`. So `red` here is `broken` while the t
 ended, or was cancelled, changes neither.
 
 Two readers go through `read`. A launch names `green` on the brief's `Green main:` line
-(`jbus.dispatch`), and while `red` is set, `jmerge` merges no pull request but a fix
-(`jmerge.rows.red`). A fix is a pull request whose own check, at a head that contains the red tip,
-ran each test in `failed` and passed it, or the brief `main-red-<sha12>` that `jbus.watch` files
-ahead of every row, whose slug starts with `FIX`. `failed` is the tests the red run's logs name, as
-`failures` reads them: `tell` asks once for each red tip. A file that is missing or cannot be read
-means nothing is known, and `jmerge` then merges as it did before. When a pass of `tell` has not
-yet sent its message, it keeps the record's commit so that the next pass looks at that commit
-again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green while T3
+(`jbus.dispatch`), and while `red` is set, `jmerge` asks for no merge of main into a pull request
+whose check failed (`jmerge.cli.Repo.again`). A red main holds no pull request. `failed` is the
+tests the red run's logs name, as `failures` reads them: `tell` asks once for each red tip, and
+`jbus.watch` reads them to tell a flake from a culprit's own red (`jbus.reverts`). The brief
+`main-red-<sha12>` that `jbus.watch` files for a red with no clear culprit has a slug that starts
+with `FIX`. A file that is missing or cannot be read means nothing is known. When a pass of `tell`
+has not yet sent its message, it keeps the record's commit so that the next pass looks at that
+commit again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green while T3
 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's message, that
 pass does the same. Older records, written before the file kept `broken`, name a failed tip only by
 its `check`, and that tip is red too.

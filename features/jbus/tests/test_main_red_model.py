@@ -1,6 +1,6 @@
 """These tests run the exhaustive check of main.json's red-main contract
 (`features/jbus/tests/main_red_model.py`). The check walks every order of events within its
-bounds, with the real `mainmoved.tell` and `rows.red`.
+bounds, with the real `mainmoved.tell` and `mainjson.read`.
 
 Each test checks one property in the world where that property must hold, and fails there with
 its trace. The first walks found three faults: F1, a lost send, and F2 and F3, each a tip that no
@@ -28,10 +28,10 @@ def holds(options, prop):
 
 
 def test_the_walk_reaches_every_event_the_model_has():
-    """If a check never reached a lost send, a held merge, a refused check or a rerun that
-    passes, it proves nothing about them."""
+    """If a check never reached a lost send, a refused check or a rerun that passes, it proves
+    nothing about them."""
     found = walk(EVERY)
-    kinds = {"jmerge merges", "jmerge holds", "another merge", "no send", "rerun passes"}
+    kinds = {"merge", "no send", "rerun passes"}
     kinds |= {
         f"settles {answer}" for answer in ("green", "failed", "cancelled", "refused", "nojob")
     }
@@ -39,11 +39,11 @@ def test_the_walk_reaches_every_event_the_model_has():
     assert found.events == kinds
 
 
-def test_s1_a_failed_tip_seen_by_a_pass_holds_every_merge():
+def test_s1_a_failed_tip_seen_by_a_pass_is_read_as_red():
     holds(ONE_AT_A_TIME, "S1")
 
 
-def test_s1_a_failed_tip_holds_every_merge_whatever_lands_after_it():
+def test_s1_a_failed_tip_is_read_as_red_whatever_lands_after_it():
     holds(EVERY, "S1")
 
 
@@ -63,11 +63,11 @@ def test_s2_a_green_tip_ends_the_red_in_every_order():
     holds(EVERY, "S2")
 
 
-def test_s3_a_check_that_proves_the_fix_of_a_red_tip_seen_one_at_a_time_is_not_held():
+def test_s3_the_tests_kept_are_the_red_tip_s_own_one_at_a_time():
     holds(ONE_AT_A_TIME, "S3")
 
 
-def test_s3_a_check_that_proves_the_fix_is_not_held_in_every_order():
+def test_s3_the_tests_kept_are_the_red_tip_s_own_in_every_order():
     holds(EVERY, "S3")
 
 

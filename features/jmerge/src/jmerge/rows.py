@@ -86,6 +86,12 @@ def heard(checkout: Path, waiver: meets.Waiver, slug: str) -> str:
         return str(error)
 
 
+def main(checkout: Path) -> mainjson.Main:
+    """What jbus's `main.json` says of main in the project of `checkout`, or nothing known."""
+    state = _state(checkout)
+    return mainjson.read(state) if isinstance(state, Path) else mainjson.Main()
+
+
 def reverts(checkout: Path) -> dict[str, reverting.Revert]:
     """The reverts jbus opened for a red main in the project of `checkout` (`jmerge.reverts`),
     or none where jbus has no project of it."""

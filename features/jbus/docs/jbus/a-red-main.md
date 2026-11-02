@@ -3,12 +3,27 @@
 A pass watches the check of the default branch, `main`, after each merge.
 When main's check fails, the pass reports `retro <slug>: main check failed at <sha12>, <n> merges since the last green`, with the slug of the briefed merge of the day before.
 With no such merge it reports `retro main-red-<sha12>: main check failed at <sha12>, <n> merges since the last green, and no briefed merge came in the day before it`.
-While main is red, every pull request waits except a fix of it, and jbus files a brief for that fix.
-A fix is the `main-red-<sha12>` row jbus files, or any pull request whose head contains the red tip and whose own check ran and passed each test that failed there.
+While main is red, no pull request waits on it and no launch does: a pull request red at its own head is held by its own checks.
+Once the tip is red after its one rerun, jbus reverts its one clear culprit, or files a brief for the fix.
+
+## The revert
+
+One culprit is clear when the red tip is the merge commit of a briefed pull request and the commit under it was green, so it is the one merge since the last green (`features/jbus/src/jbus/reverts.py`).
+Then jbus runs `gh pr revert`, which makes a new commit on a new branch, and never pushes to main.
+It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew and its home.
+`jmerge` merges the revert by the normal path once its checks are green, with no review.
+
+jbus reverts nothing, and files the brief below, which says why, when:
+
+- two reds overlap: more than one merge came since the last green, and the brief names every red tip among them;
+- the tip is no briefed merge's commit, such as a merge by hand;
+- the tip is itself a revert, jbus's or anyone's;
+- jbus reverted the same row before, so a row is never reverted twice;
+- each test that failed there is a flake by `jbus ci`'s rule.
 
 ## The fix's brief
 
-If `<sha12>` is still main's tip when the pass reads main, the pass writes `tasks/main-red-<sha12>.md` in the home's state.
+If `<sha12>` is still main's tip when the pass reads main and no revert of it is open or to open, the pass writes `tasks/main-red-<sha12>.md` in the home's state.
 The brief holds:
 
 - the URL of each failed job;
@@ -46,11 +61,11 @@ The pass that tells a red pull request that main is green again writes it (`feat
 |---|---|
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
-| `failed` | The tests that failed at `broken`, read once from the red run's logs. A pull request whose own check passed each of them is a fix. |
+| `failed` | The tests that failed at `broken`, read once from the red run's logs. jbus reads them to tell a flake from a culprit's own red. |
 | `fixed` | The green tip, written by a pass that still owes a crew its message and keeps the old commit to look at again. Main reads as green from that pass on. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.
-`jmerge` reads the file ("Main is not red, or it is the fix of a red main" in [jmerge](../../../jmerge/docs/jmerge.md)).
+`jmerge` reads the file to ask for no merge of a red main into a red pull request ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).
 
 ## A cancelled run
 

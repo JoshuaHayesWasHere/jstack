@@ -103,7 +103,7 @@ for event in $events; do
           jq -n --arg red $red --arg now "$now" '[{sha: $red, commit: {message: "feat: alpha (#6)", committer: {date: $now}}}]' > "$S/gh/commits.json"
           jq -n --arg red $red '{($red): [{name: "check", status: "completed", conclusion: "failure", id: 901, html_url: "https://example.test/o/r/actions/runs/77/job/901"}]}' > "$S/gh/checks.json"
           printf 'FAILED tests/test_a.py::test_one\n' > "$S/gh/logs/901"
-          expect="held 7 (main red)" ;;
+          expect="merged 7 (a red main holds no pull request)" ;;
         findings)
           printf "$brief" | sed 's/^Verdict: clean/Verdict: findings/; s/^none$/- warning src\/beta\/a.py:1 a made up one (bucket: Act on)/' > "$T/beta.md"
           expect="held 7 (findings not handled)" ;;

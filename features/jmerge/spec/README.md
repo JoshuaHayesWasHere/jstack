@@ -6,12 +6,14 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
 - `FlowToday.tla` models the code as of main 859203e0, and each of its conditions names the file that checks it and quotes the code, with no line number.
   `test_flow_spec.py` finds the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
   It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416, #426 and #427 since and cut down to what the four rules read.
-  Since #583 and #584 it has main's fix as `jmerge.rows.red` takes it: the `main-red-` row, or a pull request whose own check proved the fix, and the row's crew may end with no pull request, its fix in an open one.
-  Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red, which holds it as main's red while the fix jbus filed for that run is open.
+  Since #583 and #584 it has main's fix: the `main-red-` row, or a pull request that carries the fix, and the row's crew may end with no pull request, its fix in an open one.
+  Since red-main-no-hold a red main holds no pull request, so a merged fix ends the red whether or not its own check proved it, and jbus's revert of a clear culprit (`jbus.reverts`) is not modeled.
+  Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red.
   Since cut 11 of the simplify pass it has a row's go, which jbus asks at launch and jmerge at merge (`rows.py` `ROW_HELD`, `NO_GO`), and a hold for your word, as a change that touches a protected path has (`ready.py` `TOUCHES`).
   A crew opens its pull request as a draft, and the draft's check waits on its review: jmerge marks it ready only once the draft is all it waits on.
 - `FlowDesign.tla` models the design: cross-cutting-guard (`Check`), rejudge-red-prs (`Rejudge`) and crew-leftover-procs (`Sweep`), with today's fix path.
-- `canary/` holds the design with each fix taken out: `NoGuard`, `NoRejudge`, `NoSweep` and `NoProof`, which has `rows.red` as it was before #583.
+- `canary/` holds the design with each fix taken out: `NoGuard`, `NoRejudge` and `NoSweep`.
+  `NoProof`, the red hold as it was before #583, went with the hold.
 - `flow_canaries.py` runs TLC on all of it, and `FlowToday.map.py` labels the chart in `FlowToday-statechart/`.
 
 ## Check the rules
@@ -34,15 +36,11 @@ It breaks `NoMergeTurnsMainRed` because a check can still miss a test that reads
 `scripts/select_tests.py` runs every test no rule owns (#397), and each test whose `READ_SET` matches the changed path (#426).
 `testing/tests/test_cross_cutting.py` makes a test that globs or walks the tree declare a read set, but it sees only the reads it knows.
 A test that reads the path another way, or past its read set, is selected by chance, so the model keeps that chance.
-It breaks `MainFixWaitsOnlyOnYou` once main's fix row has closed with its fix in an open pull request, whose check proves the fix only when it ran each test main failed.
-`scripts/select_tests.py` selects by the diff and not by `main.json`'s `failed`, so a fix's check runs those tests by the same chance, and a red whose logs name no failed test is proved by nothing.
-Then nothing can merge, and no row is left for you to approve, as on 2026-10-27.
-When that pull request is still a draft its check never runs at all: jmerge judges main's red before the draft, so it never marks it ready while main is red.
-`MainFixWaitsOnlyOnYou` counts your word for a pull request too, so a fix that waits on your `--accept` waits on you.
-It breaks the same rule when the pull request that carries the fix also breaks a test of its own: its check fails over the red main, its crew reads the failure as main's, and jmerge judges it again only once main is green.
+It breaks `MainFixWaitsOnlyOnYou` on the same draft: main is red, its fix row's go is given, and the pull request that carries the fix is that draft, so nothing but your word could move it, and your word cannot.
+The control that marks such a draft ready still breaks it, on a fix stacked on a pull request whose check failed over the red main: jmerge merges no red main into that pull request, so it and the fix on it wait until main is green.
+Until red-main-no-hold it broke the rule another way as well: while main was red only a fix whose own check proved it merged, so a fix row closed with its fix in an open pull request whose check ran other tests left nothing to merge and nothing for you to approve, as on 2026-10-27.
 The design holds all four, in the words they had before the holds: its check runs every test that reads the tree, and the crew of a fix reads a failure over the red it fixes as its own.
 `NoGuard` breaks `NoMergeTurnsMainRed`, `NoRejudge` breaks `FlowsWhenGreen`, and `NoSweep` breaks `FlowsWhenGreen` and `MachineNotLeftFull`.
-`NoProof` breaks `MainFixWaitsOnlyOnYou`: the main-red row ends with its fix in an open pull request, whose check proves the fix, and `rows.red` before #583 holds it all the same.
 Two controls run the model with an earlier `Gap`, `FlowToday.tla`'s constant, which `FlowToday.cfg` sets to `turn`, the code since #427.
 With `ended`, the code from #416 to #427, which stops an idle process a crew left only once its row ended, it breaks all four rules.
 With `busy`, the code before #416, which stops only a process that uses CPU, it breaks all four too.

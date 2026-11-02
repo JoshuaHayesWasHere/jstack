@@ -1,34 +1,20 @@
 """This module is an exhaustive check of main.json's red-main contract. It walks every order of
 merges, check answers, T3 Code answers and jbus passes within the bounds below, breadth first. The
-model runs the real `jbus.mainmoved.tell` as jbus's step and the real `jmerge.rows.red` as jmerge's
-read.
+model runs the real `jbus.mainmoved.tell` as jbus's step and the real `jmerge.mainjson.read` as what
+its readers read. A red main holds no pull request ("Main is not red" in
+`features/jmerge/docs/jmerge.md`), so any merge may land at any time, but `jmerge.cli.Repo.again`
+and `jbus.watch` still read the record, and each property below is about what they read:
 
-The model checks three properties on the record after every pass. Each comes from the rule "Main is
-not red" in `features/jmerge/docs/jmerge.md`:
-
-- **S1, no merge onto a known red main.** Take the newest tip whose check has settled
-  (`mainjson.SETTLED`: `green` or `failed`). If that check failed, `rows.red` is not empty for a
-  slug that is not a fix. The harm when it breaks: jmerge merges pull requests onto a main whose
-  check failed, so each one lands on a base whose check failed, and so does every merge after it.
-- **S2, no stuck red.** When `rows.red` names a tip, neither that tip nor any tip that landed after
-  it has a `green` check. The harm when it breaks: jmerge holds every pull request as "main is red"
-  after a fix has made main green, and the queue stops until somebody looks.
-- **S3, no held fix.** When `rows.red` names a tip, an open pull request whose own check, at a head
-  that contains that tip, ran each test that failed there and passed it is held neither by
-  `rows.red` nor as main's red by `rows.browser_red`, whatever its slug (`fl-fix` here) and whether
-  or not the fix row jbus filed for a red browser run is open. The harm when it breaks: the fix
-  that another row wrote waits behind the red it fixes, and once the filed fix row closes nothing
-  can merge, as on 2026-10-27 from 17:28.
-
-S1 also holds the open pull request `fl-fix` wherever its check did not prove the fix: its head
-lacks the red tip, its check ran another test file, or its check failed.
-
-The pull request `fl-fix` is not part of the state, since nothing `tell` reads depends on it.
-`proof` stands for what `jmerge.cli` reads of its check, and the real `rows.red` and
-`rows.browser_red` judge that. After each pass the properties judge it at every head the state
-allows, over each tip on main, with each of four checks (`CHECKS`): one that ran the whole suite and
-passed, one that ran the failing tests' file and passed, one that ran another file and passed, and
-one that failed.
+- **S1, a known red is read as red.** Take the newest tip whose check has settled
+  (`mainjson.SETTLED`: `green` or `failed`). If that check failed, `read` names a red tip. The harm
+  when it breaks: jmerge asks GitHub to merge a red main into each red pull request, and each one
+  goes red again, a CI round spent for nothing.
+- **S2, no stuck red.** When `read` names a tip, neither that tip nor any tip that landed after it
+  has a `green` check. The harm when it breaks: every pull request red over the old red stays red
+  after a fix has made main green, and is never judged again.
+- **S3, the red tip's own tests.** When the record keeps `failed` beside `broken`, those are the
+  tests that failed at that tip. The harm when it breaks: `jbus.reverts` judges a red tip by another
+  tip's tests, and a flake's revert or a culprit's escape is a wrong one.
 
 The model has at most `TIPS` tips on main, at most `EVENTS` events, and zero or one open red pull
 request that jbus launched (`alpha`). The first tip, M0, is green and is there from the start.
@@ -36,19 +22,12 @@ request that jbus launched (`alpha`). The first tip, M0, is green and is there f
 Each kind of step matches the code as follows:
 
 - **pass**: one run of `tell` under the pass lock (`fcntl.flock` in
-  `features/jbus/src/jbus/poll.py`). No two passes overlap, so a pass is one indivisible step. In a
-  pass, jmerge reads `main.json` before `tell` writes it: `features/jbus/src/jbus/poll.py` runs
-  `merge.merge`, and `tell` runs later, in the `after-expedite` slot
-  (`features/jbus/src/jbus/mainmoved.py`). So the model writes a merge in a pass as the event
-  `lands, jmerge merges` followed by the event `pass`. That merge reads the record the last pass
-  wrote, as a merge between passes does.
-- **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`. This event
-  may come between any two passes. The merge always reads a whole record, never a half-written one,
-  because `write_json` writes a temporary file and `os.replace`s it
-  (`write_json` in `features/jbus/src/jbus/__init__.py`). The model allows it only where
-  `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py`, `red`).
-- **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
-  `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
+  `features/jbus/src/jbus/poll.py`). No two passes overlap, so a pass is one indivisible step. A
+  merge may come between any two passes, including the one a pass itself runs before `tell`, in the
+  `after-expedite` slot (`features/jbus/src/jbus/mainmoved.py`). A reader always reads a whole
+  record, never a half-written one, because `write_json` writes a temporary file and `os.replace`s
+  it (`write_json` in `features/jbus/src/jbus/__init__.py`).
+- **lands**: a merge, by jmerge, by hand or by `--accept`. No read of the record stops one.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
   (`features/jbus/src/jbus/watch.py`): `green`, `failed`, `cancelled` (a later attempt that
   was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
@@ -74,8 +53,9 @@ and `main.json` are real files in a temporary state directory, and the real code
 
 The model does not cover a message `rebase.held` keeps back (`held` in `main.json`), a pull request
 that conflicts or that GitHub has not judged, more than one open pull request, a red pull request
-with no thread (a gate), a remote that cannot be read, `checks.json`'s cache, or more tips or events
-than the bounds allow. A walk that passes proves the model within the bounds, not the whole system.
+with no thread (a gate), a remote that cannot be read, `checks.json`'s cache, `jbus.reverts`'s own
+rule (`features/jbus/tests/test_jbus_reverts.py`), or more tips or events than the bounds allow. A
+walk that passes proves the model within the bounds, not the whole system.
 
 Run it as `uv run pytest features/jbus/tests/test_main_red_model.py -q`, or add `--runxfail` to
 print the traces of the findings. `uv run python features/jbus/tests/main_red_model.py` prints every
@@ -102,24 +82,18 @@ from jbriefs import parse as briefs
 from jbus import dispatch, mainmoved, read_json, rebase, write_json
 from jbus.t3 import T3Error, T3Refused
 from jbus.watch import World
-from jmerge import mainjson, rows
+from jmerge import mainjson
 
 RULE = "features/jmerge/docs/jmerge.md"
 TIPS = 4
 EVENTS = 10
-MERGED = "beta"
 RED_PR = "alpha"
-FIX_PR = "fl-fix"
 THREAD = "mcp:thread-1"
 HEAD = "c" * 40
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
 SETTLES = ("green", "failed", "cancelled", "refused", "nojob")
 ANSWERS, LOSES, REFUSES = "answers", "loses the send", "refuses the send"
 TEST_FILE = "features/m/tests/test_m.py"
-OTHER_FILE = "features/o/tests/test_o.py"
-CHECKS = ("ran every test", "ran the failing file", "ran another file", "failed")
-PROVES = CHECKS[:2]
-BROWSER_RUN = "41"
 
 
 def sha(tip: int) -> str:
@@ -269,10 +243,9 @@ class Files:
         (self.state / "sent.json").write_text(state.sent)
 
     def red(self, state: State) -> str:
-        """Return jmerge's read, `rows.red(mainjson.read(state), slug)`, for a slug that is no
-        fix."""
+        """Return the red tip its readers read, `mainjson.read(state).red`."""
         self.put(state)
-        return rows.red(mainjson.read(self.state), MERGED)
+        return mainjson.read(self.state).red
 
     def tell(self, state: State, answer: str) -> tuple[State, bool]:
         """Run one pass, the real `tell` over the state's files. Also return whether a send went
@@ -295,116 +268,30 @@ def failing(tip: int) -> str:
     return f"{TEST_FILE}::test_M{tip}"
 
 
-def browser_runs(tip: int) -> list[dict[str, Any]]:
-    """Return main's last browser run, red at `tip`, as GitHub lists browser.yml's runs."""
-    return [
-        {
-            "id": BROWSER_RUN,
-            "event": "schedule",
-            "head_branch": "main",
-            "head_sha": sha(tip),
-            "status": "completed",
-            "conclusion": "failure",
-            "created_at": "2026-10-20T07:00:00Z",
-        }
-    ]
-
-
-def proof(main: mainjson.Main, head: int, check: str) -> rows.Ran:
-    """Return what `jmerge.cli` reads of `fl-fix`'s check at a head over the tip `head`: `over`
-    is the red tip where the head contains it, and the rest is what the check's logs say it ran
-    and failed. The check that failed failed the tests `main.json` names."""
-    tip = next((tip for tip in range(TIPS) if sha(tip) == main.red), None)
-    over = main.red if tip is not None and tip <= head else ""
-    if check == CHECKS[0]:
-        return rows.Ran(over=over, every=True)
-    if check == CHECKS[3]:
-        return rows.Ran(over=over, every=True, failed=frozenset(main.failed))
-    return rows.Ran(over=over, paths=frozenset({TEST_FILE if check == CHECKS[1] else OTHER_FILE}))
-
-
-def held(files: Files, head: int, check: str) -> list[str]:
-    """Return jmerge's holds on `fl-fix` as main's red, at a head over the tip `head` whose check
-    is `check`: `rows.red`, and `rows.browser_red` where main's browser run is red at the same
-    tip and failed the same tests, with its filed fix row open and closed."""
-    main = mainjson.read(files.state)
-    ran = proof(main, head, check)
-    holds = [rows.red(main, FIX_PR, ran)]
-    tip = next((tip for tip in range(TIPS) if sha(tip) == main.red), None)
-    if tip is not None:
-        for fixing in ({BROWSER_RUN}, set()):
-            runs = browser_runs(tip)
-            said = rows.browser_red(HEAD, FIX_PR, runs, "main", fixing, ran, main.failed)
-            holds.append(said if said.startswith("main is red") else "")
-    return [one for one in holds if one]
-
-
 def s1(state: State, files: Files) -> bool:
-    """Return whether S1 holds on the state that a pass leaves: a known red main holds `beta`,
-    and `fl-fix` at each head whose check does not prove the fix of that tip."""
+    """Return whether S1 holds on the state that a pass leaves: a known red main is read as red."""
     settled = [tip for tip, check in enumerate(state.checks) if check in mainjson.SETTLED]
-    if not settled or state.checks[settled[-1]] != "failed":
-        return True
-    if files.red(state) == "":
-        return False
-    for head in range(len(state.checks)):
-        for check in CHECKS:
-            proved = check in PROVES and head >= settled[-1]
-            if not proved and not held(files, head, check)[:1]:
-                return False
-    return True
+    return not settled or state.checks[settled[-1]] != "failed" or files.red(state) != ""
 
 
 def s2(state: State, files: Files) -> bool:
     """Return whether S2 holds on the state that a pass leaves."""
-    if not files.red(state):
+    red = files.red(state)
+    if not red:
         return True
-    red = mainjson.read(files.state).red
     tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
     return "green" not in state.checks[tip:]
 
 
 def s3(state: State, files: Files) -> bool:
-    """Return whether S3 holds on the state that a pass leaves: while jmerge reads main as red,
-    `fl-fix` is not held as main's red at any head over the red tip whose check proves the fix."""
-    if not files.red(state):
-        return True
-    red = mainjson.read(files.state).red
-    tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
-    return not any(
-        held(files, head, check) for head in range(tip, len(state.checks)) for check in PROVES
-    )
-
-
-def held_fix(state: State, files: Files) -> str:
-    """Return the line that ends an S3 trace: the first head and check at which jmerge holds
-    `fl-fix`, and what it says."""
-    red = mainjson.read(files.state).red
-    tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
-    for head in range(tip, len(state.checks)):
-        for check in PROVES:
-            if said := held(files, head, check):
-                return f"jmerge holds {FIX_PR}, its head over M{head}, its check {check}: {said[0]}"
-    return ""
-
-
-def let_through(state: State, files: Files) -> str:
-    """Return the line that ends an S1 trace: the pull request jmerge lets merge onto the red
-    main, and for `fl-fix` the head and check it lets through."""
-    if files.red(state) == "":
-        return f"jmerge lets {MERGED} merge onto the red main"
-    settled = [tip for tip, check in enumerate(state.checks) if check in mainjson.SETTLED]
-    for head in range(len(state.checks)):
-        for check in CHECKS:
-            proved = check in PROVES and head >= settled[-1]
-            if not proved and not held(files, head, check)[:1]:
-                return f"jmerge lets {FIX_PR} merge, its head over M{head}, its check {check}"
-    return ""
+    """Return whether S3 holds on the state that a pass leaves: the tests kept beside `broken` are
+    that tip's own."""
+    record = json.loads(state.record) if state.record else {}
+    broken, failed = record.get("broken"), record.get("failed")
+    return not broken or failed is None or failed == [failing(int(broken[0]))]
 
 
 PROPERTIES = {"S1": s1, "S2": s2, "S3": s3}
-SAID = {"S1": let_through, "S3": held_fix}
-"""The line a property's trace ends with, where the state alone does not say what broke."""
 
 
 @dataclass(frozen=True)
@@ -424,12 +311,7 @@ def steps(state: State, files: Files, options: Options) -> Iterator[Step]:
     ready = not options.one_at_a_time or (state.checks[-1] != "pending" and state.looked)
     if landed < TIPS and ready:
         after = State((*state.checks, "pending"), state.record, state.sent, state.pull, False)
-        held = files.red(state)
-        if not held:
-            yield Step("jmerge merges", f"M{landed} lands: jmerge merges {MERGED}", after)
-        else:
-            yield Step("jmerge holds", f"jmerge holds {MERGED}: {held}", state)
-        yield Step("another merge", f"M{landed} lands: another merge (the fix, or by hand)", after)
+        yield Step("merge", f"M{landed} lands: a merge", after)
     for tip, check in enumerate(state.checks):
         if check != "pending":
             continue
@@ -514,8 +396,7 @@ def walk(options: Options) -> Found:
                         continue
                     found.broken[prop] += 1
                     if prop not in found.traces:
-                        said = SAID[prop](step.after, files) if prop in SAID else ""
-                        found.traces[prop] = trace(parents, key) + ([name(said)] if said else [])
+                        found.traces[prop] = trace(parents, key)
         found.states = len(parents)
     found.seconds = time.monotonic() - began
     return found

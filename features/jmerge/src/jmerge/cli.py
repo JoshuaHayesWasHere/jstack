@@ -170,6 +170,10 @@ class Repo:
         return rows.reverts(self.main)
 
     @functools.cached_property
+    def main_state(self) -> mainjson.Main:
+        return rows.main(self.main)
+
+    @functools.cached_property
     def bases(self) -> tuple[str, ...]:
         return rows.bases(self.main)
 
@@ -669,11 +673,14 @@ class Repo:
         check is its own fault, `red`, unless the base moved since the check started. Then GitHub
         merges the base into it, and its check at the updated head decides, unless the last two
         runs of a check that failed, whichever required check it is, failed a same test of its
-        own (`rejudge.Repeated`): a merge would fail it again."""
+        own (`rejudge.Repeated`): a merge would fail it again. Nor is a red main merged in while
+        jbus's `main.json` names it red: its head would be red again, a CI round spent for nothing,
+        so the check waits as its own until main is green."""
         moved = None if one.started is None else self.moved(one.base, one.started)
         if (
             moved is None
             or not moved[1]
+            or (one.base == self.trunk and bool(self.main_state.red))
             or any(self.base_merge.repeats(one, moved[0], check) for check in one.failed)
         ):
             return red
