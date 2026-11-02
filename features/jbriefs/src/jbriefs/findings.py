@@ -41,9 +41,7 @@ Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gav
 finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks the user
 with the default "fix it". In a first review, severity is a field and decides nothing. In a
 later review, severity alone decides: an error holds the merge, a warning is kept for the day's
-warnings row that jbus files (`jbus.daywarnings`), and an info is dropped (`_LATER`). That row
-says `Review: cleanup` and gets one review, of its own diff, in which only an error goes to its
-crew: none of its findings is kept, so no follow-up of a follow-up is queued.
+warnings row (`jbus.daywarnings`), and an info is dropped (`_LATER`).
 
 The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
 declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
@@ -98,25 +96,14 @@ OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", 
 REVIEW, NONE, TWICE, CLEANUP = "review", "none", "twice", "cleanup"
 MODES = (NONE, TWICE, CLEANUP)
 CLEANUP_DECIDED = "none, jbus filed this from the warnings of later reviews "
-"""How the `Decisions:` line of the day's warnings row begins: only a brief that jbus filed so
-may say `Review: cleanup` (`jbriefs.parse.reviewed`), and jbus approves it by the follow-up rule
-(`jbus.queue.filed`)."""
 HOLDS, ASKS, KEPT, DROPPED, UNSENT = "holds", "asks", "kept", "dropped", "unsent"
 ROUTES = (HOLDS, ASKS, KEPT, DROPPED, UNSENT)
 """Where a finding goes: to the crew, holding the merge until it has an answer that counts
-(`HOLDS`), to the crew, holding nothing (`ASKS`), to the day's warnings row once the pull request
-merged, holding nothing (`KEPT`), nowhere (`DROPPED`), or never sent, as a Noted, Dismissed or
-superseded finding (`UNSENT`)."""
-_LATER = {
-    REVIEW: {"error": HOLDS, "warning": KEPT},
-    CLEANUP: {"error": HOLDS},
-}
-"""The route of a later review's finding by its severity, which is trusted as the review wrote it,
-whatever its bucket or tag, and any other severity is `DROPPED` (Josh, 2026-10-29: after the
-second review fix errors in the pull request, file follow-ups for medium and low, ignore info).
-A `review` brief and a `twice` brief both fix an error in the pull request and keep a warning for
-the day's row (Josh, 2026-11-01: one follow-up row a day). Every review of a `cleanup` brief, the
-day's row, routes by its own line: an error holds and the rest is dropped, so it keeps nothing."""
+(`HOLDS`) or holding nothing (`ASKS`), to the day's warnings row once merged (`KEPT`), nowhere
+(`DROPPED`), or never sent, as a Noted, Dismissed or superseded finding (`UNSENT`)."""
+_LATER = {REVIEW: {"error": HOLDS, "warning": KEPT}, CLEANUP: {"error": HOLDS}}
+"""A later review's route by severity, whatever the bucket or tag, else `DROPPED` (Josh, 10-29
+and 11-01). Every review of a `cleanup` brief, the day's row, is later and keeps nothing."""
 
 
 def mode_of(text: str) -> str:
@@ -588,12 +575,14 @@ def _judge(findings: list[Finding], text: str) -> None:
         given.setdefault(said, one.id)
 
 
-def _later(sections: list[Section]) -> list[Section]:
+def _later(sections: list[Section], every: bool = False) -> list[Section]:
     """The sections, each marked `later` where it is a review after the first: a scoped pass,
     or a section whose seat, the `#<n>` of its `By:` line, already ran at another head. So a
     seat that writes its first section late, at a head the fix pushed, is still a first review.
     A section with no number is later where its head is not the first ran section's. With no
-    section that ran, none is later."""
+    section that ran, none is later. With `every`, a `cleanup` brief's, each one is."""
+    if every:
+        return [replace(one, later=True) for one in sections]
     first = next((one.head for one in sections if one.ran and one.head), "")
     if not first:
         return sections
@@ -612,7 +601,7 @@ def _route(mode: str, later: bool, one: Finding) -> str:
     """Where one finding goes, by `ROUTES`."""
     if one.superseded or one.bucket == DISMISSED:
         return UNSENT
-    if later or mode == CLEANUP:
+    if later:
         return _LATER.get(mode, _LATER[REVIEW]).get(one.severity, DROPPED)
     if one.bucket not in SENT:
         return UNSENT
@@ -622,8 +611,8 @@ def _route(mode: str, later: bool, one: Finding) -> str:
 def triage(text: str) -> Triage:
     """The brief's findings after `triage` merges them, gives each its id, sets each beside the
     dismissals that contradict it, routes each one, and attaches each one's answer."""
-    sections = _later(_sections(text))
     mode = mode_of(text)
+    sections = _later(_sections(text), mode == CLEANUP)
     stale = _superseded(sections)
     findings: list[Finding] = []
     for section in sections:
@@ -702,10 +691,7 @@ def _shown(one: Finding) -> list[str]:
     elif one.superseded:
         lines.append("  superseded: its reviewer wrote this head's section again")
     elif one.route == KEPT:
-        lines.append(
-            "  goes to: the day's warnings row once the pull request merged, and this thread "
-            "answers nothing for it"
-        )
+        lines.append("  goes to: the day's warnings row once the pull request merged, not here")
     elif one.route == DROPPED:
         lines.append("  goes to: nowhere, dropped, and this thread answers nothing for it")
     elif one.answer is not None:
@@ -753,8 +739,7 @@ def left(said: Triage) -> str:
     if shape is None:
         return (
             "write nothing: the last review sends this thread no finding, since only an error "
-            "of a later review comes here, its warnings go to the day's warnings row, and the "
-            "Fixed: line stays as it is"
+            "of a later review comes here, and the Fixed: line stays as it is"
         )
     pushed, why = shape
     return f"write Fixed: {'<the head you pushed>, ' if pushed else 'none needed, <reason>: '}{why}"
@@ -768,7 +753,7 @@ def fixed_shape(said: Triage) -> tuple[bool, str] | None:
     last = _last_round(said) if said.sections else set()
     if not last or said.roster.owed(said.sections) or any(not one.ended for one in sent):
         return None
-    if not owes(said, last) and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
+    if not owes(said, last) and any(said.sections[n].later for n in last):
         return None
     recent = [one for one in sent if one.lead.section in last]
     if (
@@ -784,11 +769,9 @@ def fixed_shape(said: Triage) -> tuple[bool, str] | None:
 
 def owes(said: Triage, last: set[int]) -> bool:
     """Whether the round of the sections `last` owes the crew a line. A first review in it
-    owes one on `Verdict: findings`, whatever it sent. A later review, and every review of a
-    `cleanup` brief, owes one only for a finding it sends the crew, an error (`_route`)."""
-    first = said.mode != CLEANUP and any(
-        not said.sections[n].later and said.sections[n].verdict == "findings" for n in last
-    )
+    owes one on `Verdict: findings`, whatever it sent. A later review owes one only for a
+    finding it sends the crew, an error (`_route`)."""
+    first = any(not said.sections[n].later and said.sections[n].verdict == "findings" for n in last)
     return first or any(one.sent and one.lead.section in last for one in said.findings)
 
 
