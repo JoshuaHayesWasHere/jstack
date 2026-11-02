@@ -419,7 +419,8 @@ def fake_gh(stub, args, cwd):
     there, it fails and says nothing.
     `pr revert` opens the revert of a merged pull request, as GitHub does on its own branch
     `revert-<number>-<branch>` with the head `e` * 40, and adds it to the open ones; with
-    `gh-no-revert` there, it fails and says what that file holds.
+    `gh-no-revert` there, it fails and says what that file holds. `pr close` takes a pull
+    request out of the open ones, or fails and says what `gh-no-close` holds where it is there.
     With `-i` it prints the status and an ETag of what it gives before it, and with `-H
     If-None-Match:` that ETag it gives 304 and nothing more, and exits 1, as gh does.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
@@ -434,7 +435,9 @@ def fake_gh(stub, args, cwd):
     changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
     The runs of the browser workflow are in `browser-runs.json`, and the runs of each other
     workflow in `workflow-runs.json` by its file. A run's jobs come from `run-jobs.json` by the
-    run's id, and the call fails where that entry is null.
+    run's id, and the call fails where that entry is null. A compare of two commits gives the
+    status of its head against its base from `compare.json` by `<base>...<head>`, or `ahead`, a
+    head that holds its base.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -491,6 +494,19 @@ def fake_gh(stub, args, cwd):
         )
         (stub / "open.json").write_text(json.dumps(opened))
         said = opened[-1]["url"]
+    elif args[:2] == ["pr", "close"]:
+        if (stub / "gh-no-close").exists():
+            return 1, "", (stub / "gh-no-close").read_text()
+        opened = json.loads((stub / "open.json").read_text())
+        left = [p for p in opened if args[2] not in (str(p["number"]), p["url"])]
+        (stub / "open.json").write_text(json.dumps(left))
+        said = ""
+    elif args[0] == "api" and "/compare/" in args[1]:
+        kept = stub / "compare.json"
+        said = (json.loads(kept.read_text()) if kept.exists() else {}).get(
+            args[1].split("/compare/")[1], {"status": "ahead"}
+        )
+        said = json.dumps(said)
     elif args[:2] == ["pr", "edit"]:
         if (stub / "gh-edit-refused").exists():
             return 1, "", ""

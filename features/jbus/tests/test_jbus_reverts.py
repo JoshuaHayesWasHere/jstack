@@ -119,6 +119,45 @@ def test_two_overlapping_reds_revert_nothing_and_file_one_row_naming_both_tips(k
     assert first[:12] in task and second[:12] in task
 
 
+def test_a_red_two_merges_made_together_reverts_nothing_and_files_its_row(kitchen):
+    """#864 merged a minute before #866 and renamed a helper #866's new tests still used: main
+    was green at #864, and #866's own check passed over a main that lacked it. Neither merge is
+    the one clear culprit, so the red gets its fix row and no revert."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    under = json.loads((kitchen.stub / "commits.json").read_text())[-1]["sha"]
+    kitchen.set("compare.json", {f"{under}...{'d' * 40}": {"status": "diverged"}})
+    passes(kitchen)
+    assert asked(kitchen, "pr revert") == []
+    assert kept.read(kitchen.state) == {}
+    (row,) = main_red(kitchen)
+    assert row["slug"] == f"{mainjson.FIX}{red[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert reverts.Keep.SKEW in text
+
+
+def test_a_revert_jbus_opened_is_closed_once_main_is_green_without_it(kitchen):
+    """A fix row lands first and main's check passes at it: the revert jbus opened would only
+    sit in conflict with main, so jbus closes it, with a comment that names the green commit."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    made = kept.read(kitchen.state)[red]
+    fixed = move(kitchen, "success")
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    kitchen.set(
+        "commits.json", [kitchen.commit(fixed, "fix: main (#878)", ago=timedelta(0))] + commits
+    )
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    kitchen.set("push-runs.json", {**pushed, fixed: [{**DONE, "id": 601, "conclusion": "success"}]})
+    kitchen.poll(NOW + timedelta(minutes=30))
+    kitchen.poll(NOW + timedelta(minutes=33))
+    (closed,) = asked(kitchen, "pr close")
+    assert closed.startswith(f"pr close {made.pull} --comment ")
+    assert fixed[:12] in closed
+    opened = json.loads((kitchen.stub / "open.json").read_text())
+    assert made.pull not in [pull["url"] for pull in opened]
+    assert list(kept.read(kitchen.state)) == [red], "the record keeps the row from a second revert"
+
+
 def test_a_revert_that_goes_red_is_not_reverted(kitchen):
     (red,) = red_merges(kitchen, ("revert-7-alpha", 9, 'Revert "feat: alpha"'))
     passes(kitchen)
