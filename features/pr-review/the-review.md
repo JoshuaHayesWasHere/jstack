@@ -133,13 +133,18 @@ Judge it against what the reading was not given: the brief's decisions, and the 
 - **Noted**: true but not actionable, since it depends on context, optimizes early or matters little at this stage.
 - **Dismissed**: wrong, a nitpick, or missing context.
 
-Filter the list, since a reading that finds nothing critical fills itself with nits:
+Hold back what a reading that finds nothing critical fills itself with:
 
 - A "what if this is passed" finding stands only when a caller can pass it: trace the call site in the repo.
 - A different approach the reader prefers, or an abstraction the code needs in no second way, is no finding unless it shows a concrete problem with the change.
 - A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
-- A finding with a concrete path to the failure deserves weight, and one on security or correctness deserves more scrutiny before it is dismissed.
 - More than five **Act on** findings is a sign the list is not filtered hard enough.
+
+Send what the reading is for, and never hold a finding back because it is uncomfortable:
+
+- A finding that names a concrete path to the failure, not a hypothetical one, deserves weight.
+- A finding that shows the code does what you did not expect has found a gap in your picture of it, and that is the reason to read adversarially.
+- A finding on security or correctness deserves more scrutiny before it is dismissed, even when one reader alone raised it.
 
 - **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on)` or `(bucket: Consider)`, in the forms "Outside the diff" gives. The bucket tag is what `jmerge` reads: an **Act on** finding holds the merge until the crewmate answers it by id, a **Consider** one does not. A finding on security, auth, billing, data, migrations or concurrency ends with one more tag, `(risk: <that area>)`: the crewmate may not decline it without a gate that asks the user. Write no id: `jbriefs --findings` gives each finding its id, and merges this reviewer's with another's of the same place. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there, `<severity> <file>:<line> <what is wrong> (principle: <name>) (dismissed: <the reason>)`: it is what lets the user overrule the lead, and where another reviewer raised the same finding, `jbriefs --findings` prints the dismissal beside it. Neither goes to the crewmate.
