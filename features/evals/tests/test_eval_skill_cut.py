@@ -250,6 +250,25 @@ def test_a_skill_is_read_before_and_after_its_move_into_a_features_skills_folder
     assert run.show("HEAD", "skills/demo/SKILL.md") == "after\n"
 
 
+def test_the_variant_patch_holds_the_diff_of_a_file_named_as_it_was_before_its_move(
+    tmp_path, monkeypatch
+):
+    commit = ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm")
+    git(tmp_path, "init", "-q")
+    (tmp_path / "features" / "lib" / "skills" / "demo").mkdir(parents=True)
+    skill = tmp_path / "features" / "lib" / "skills" / "demo" / "SKILL.md"
+    skill.write_text("the base\n")
+    git(tmp_path, "add", ".")
+    git(tmp_path, *commit, "one")
+    skill.write_text("the variant\n")
+    git(tmp_path, "add", ".")
+    git(tmp_path, *commit, "two")
+    monkeypatch.setattr(run, "REPO", tmp_path)
+    said = run.patch("HEAD~1", "HEAD", ["skills/demo/SKILL.md"])
+    assert "-the base\n+the variant\n" in said
+    assert run.patch("HEAD", "HEAD", ["skills/demo/SKILL.md"]) == ""
+
+
 def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeypatch):
     for name in ("cases", "run-1"):
         shutil.copytree(EVAL / name, tmp_path / name)

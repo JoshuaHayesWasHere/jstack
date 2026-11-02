@@ -70,7 +70,7 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that each `merged` line of jbus's is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | The note of each home archived here, dated, with what it had out and its `Was home:` line, and older notes. A start reads only the last `Was home:` line ("The home before this one"). | Unbounded |
 | `$M/plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that no home, jbus or tree counts the scope. `/home <scope>` moves it back. | Open tasks only |
-| `$H/fresh-check` | The repo's check command, a crewmate's one run of the check and the line `jbus queue add` holds a brief's check line to, and the switch that has `jmerge` prove a pull request over today's main on GitHub. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
+| `$H/fresh-check` | The repo's check command, a crewmate's one run of the check and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
 | `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
 | `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `features/home/docs/state.md`). | Short |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
@@ -193,6 +193,26 @@ When a thread this home sent out sends it a message, when the user asks for stat
 
 Each time this home wakes, at its start and on a thread's message, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
 No bot outside watches the homes or the queue: this home clears its own blockers, and raises to the user only what the user has to decide.
+
+## What waits on the user
+
+jbus holds the one list of what only the user can do, and `jbus needs` prints it: each open gate that holds, each row waiting on the user's word and each pull request `jmerge` holds for it, with what it holds and the reply that answers it.
+It leaves out a refused go and a row this home can clear by itself, which are this home's to fix.
+A status reply, a `/ketchup` in a home, and any turn a wake started that tells the user something, open with what this block prints, as it prints it, before anything else.
+The list comes from jbus and never from this home's memory of what it asked.
+Run it in one call with the block at the top:
+
+```sh
+if command -v jbus > /dev/null; then
+    uv run --project "$T/../source" jbus needs
+else
+    echo "no jbus: jbus is not installed here, so what waits on the user is not known"
+fi
+```
+
+It names every project of jbus's config, since the user asks every home the same question.
+A line `nothing waits on <user> in any project` opens the reply as it is, and a `not known:` line, which comes first, says which project no pass has listed yet.
+A start's `## waiting on you` part, from step 4 of "When a home starts", is the same list for this home's project, with a count for each other project.
 
 ## Gates
 

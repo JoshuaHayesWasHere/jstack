@@ -2,9 +2,11 @@
 
 A home's start prints its part of what jbus and the home's files hold, each part under its own
 heading and cut short (`status`). First come the files to read whole: the user's standing rules,
-the home's note, and the repo's context pack. Then `## plan`, the lines of `jbus plan`. Then
-`## queue`, what waits on the user and the home's open rows. Then `## questions`, the home's open
-questions. Then `## merged`, what `jmerge` merged since the home's `merge-seen` mark. Last,
+the home's note, and the repo's context pack. Then `## waiting on you`, what waits on the user in
+this project as `jbus needs` prints it, uncut, and a count for each other project that has
+something waiting. Then `## plan`, the lines of `jbus plan`. Then `## queue`, the home's open
+rows. Then `## questions`, the home's open questions. Then `## merged`, what `jmerge` merged
+since the home's `merge-seen` mark. Last,
 `## to read`, each brief's or request's last Result or Report heading that is not in the home's
 `read-seen`. That last part is the one that writes: it marks read a heading whose brief is done,
 with `Left: none`, and merged, and on the home's first start it marks every heading there is.
@@ -28,7 +30,7 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home
-from jbus import plan, questions, queue, waiting
+from jbus import needs, plan, questions, queue, verbs
 from jsettings import paths
 
 SEP = "\037"
@@ -182,8 +184,6 @@ def _queue(here: Home, found: Bus) -> list[str]:
         said = queue.noted(state, rows)
     except queue.Unparsable as error:
         return [clip(f"refused: {error}")]
-    user = found.config.user.user
-    listed = [one["line"] for one in waiting.read(state) or []]
     still = sorted((row for row in rows if not queue.over(row)), key=queue.order)
     ours = (
         f"{row['slug']} | {row.get('status', '')} | {row.get('pr', '')} | {row.get('why', '')}"
@@ -196,11 +196,29 @@ def _queue(here: Home, found: Bus) -> list[str]:
         said = f"{counted} not shown: jbus queue show --all\n{said}"
     ending = [line for line in said.splitlines() if line.strip()]
     return [
-        *([f"waiting on {user}:"] if listed else []),
-        *atmost((clip(line) for line in listed), 3, more),
         *atmost((clip(line) for line in ours), 10, more),
         *atmost((clip(line) for line in ending), 2, more),
     ]
+
+
+def _needs(found: Bus) -> list[str]:
+    """What waits on the user, as `jbus needs` prints it for this home's project, never cut, and
+    one line for the other projects of the config that have something waiting."""
+    if found.why or found.config is None or found.project is None:
+        return [found.why]
+    config, now = found.config, verbs.clock()
+    said = needs.lines(config, [found.project], found.project.name, now)
+    elsewhere = []
+    for other in config.projects:
+        try:
+            count = len(needs.of(config, other, now)) if other != found.project else 0
+        except needs.Unknown:
+            count = 0
+        if count:
+            elsewhere.append(f"{other.name} {count}")
+    if elsewhere:
+        said.append(f"elsewhere: {', '.join(elsewhere)}: jbus needs")
+    return said
 
 
 def _questions(here: Home, found: Bus) -> list[str]:
@@ -321,6 +339,8 @@ def _whole(here: Home) -> list[str]:
 def status(here: Home, found: Bus) -> list[str]:
     return [
         *_whole(here),
+        "## waiting on you",
+        *_needs(found),
         "## plan",
         *_plan(here, found),
         "## queue",

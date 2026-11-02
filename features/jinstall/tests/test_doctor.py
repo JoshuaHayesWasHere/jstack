@@ -6,6 +6,7 @@ runs. A few tests are the exception: they give a kind a machine that no argument
 can produce."""
 
 import hashlib
+import json
 import os
 import re
 import shlex
@@ -538,6 +539,30 @@ def test_a_second_claude_home_is_old_until_jroles_mirror_makes_it_a_mirror(user)
     (old,) = line_for(user.doctor()[1], f"mirror {home}")
     assert old.startswith(f"old optional mirror {home} -> would ") and "jroles mirror" in old
     mirror.run(mirror.Main.of(user.home), mirror.Mirror(PRIME, home))
+    code, said = user.doctor()
+    assert (code, said[-1]) == (0, "doctor: ok")
+    assert line_for(said, f"mirror {home}") == [f"ok optional mirror {home}"]
+
+
+def test_an_install_after_the_mirror_keeps_the_mirrors_listing_trimmed_and_mains_whole(user):
+    """The install writes its keys into a mirror's own settings.json, and no path it writes
+    links that file to `~/.claude`'s again or turns a plugin back on there."""
+    from jroles import mirror
+
+    declared(user, {PRIME: prime(str(user.home / ".claude_prime"))})
+    main, home = user.settings, user.home / ".claude_prime"
+    enabled = {"typesafe@typesafe-ai": True}
+    user.write(main, json.loads(main.read_text()) | {"enabledPlugins": enabled})
+    mirror.run(mirror.Main.of(user.home), mirror.Mirror(PRIME, home))
+    settings = home / "settings.json"
+    user.write(settings, json.loads(settings.read_text()) | {"attribution": {"commit": "x"}})
+    user.run()
+    assert not settings.is_symlink()
+    trimmed = json.loads(settings.read_text())
+    assert trimmed["enabledPlugins"] == {"typesafe@typesafe-ai": False}
+    assert trimmed["disableBundledSkills"] is True
+    assert trimmed["attribution"] == {"commit": "", "pr": ""}
+    assert json.loads(main.read_text())["enabledPlugins"] == enabled
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
     assert line_for(said, f"mirror {home}") == [f"ok optional mirror {home}"]

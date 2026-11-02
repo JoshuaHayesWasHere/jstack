@@ -331,8 +331,8 @@ def _attribution(home: Path, providers: dict) -> list[tuple[Path, dict, bool]]:
     """Each settings file that gets the keys that turn off the AI co-author trailer, with the
     keys and whether the install makes the file when it is not there. Every Claude home gets
     Claude Code's keys: `~/.claude`, made, and each home T3's settings list, only while its
-    settings.json is there. A home whose settings.json is a link to `~/.claude`'s, as
-    `jroles mirror` makes it, reads and writes that one file."""
+    settings.json is there. A mirror's settings.json is its own file, which `jroles mirror`
+    writes from `~/.claude`'s, so the keys go into both."""
     found = []
     for harness in HARNESSES:
         if not harness.attribution:

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import jsettings
+from jbriefs import meets
 from jmerge import bus, judgement, mainjson, ready
 from jmerge.bus import Migrations, Row
 from jmerge.checks import NOT_RED
@@ -73,6 +74,15 @@ def stored(checkout: Path, slug: str) -> str | None:
     judged against (`judgement.has_go`), or nothing."""
     state = _state(checkout)
     return bus.found().stored(state, slug) if isinstance(state, Path) else None
+
+
+def heard(checkout: Path, waiver: meets.Waiver, slug: str) -> str:
+    """`Bus.heard` of the bus there is, with a bus that cannot be asked read as a refusal, so no
+    waiver counts on a word nobody checked."""
+    try:
+        return bus.found().heard(checkout, waiver, slug)
+    except jsettings.Refused as error:
+        return str(error)
 
 
 def main(checkout: Path) -> mainjson.Main:

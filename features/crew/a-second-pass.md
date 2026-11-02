@@ -2,6 +2,7 @@
 
 A brief that says `Review: twice` runs none of this section: its second review is the one "The review" launches after its one fix round, and on a wake that finds it green, the `fixed and green` line is sent once that review's findings are answered.
 A brief that says `Review: cleanup` runs none of it either: the day's warnings row gets one review, and a fix for its errors gets none.
+Both run it once their last round's `Meets the brief:` line is not `yes`: the first branch of the block gives the scoped review that line is owed, in either mode.
 
 The reviewer reviews once and you fix once.
 Whether anybody reviews the fix depends on what it changed, whichever files the findings named.
@@ -70,7 +71,17 @@ scoped() {
         echo "scoped: launch the scoped reviewer$again, with /pr-review run <slug> scoped $old..$saw $from..$head"
     fi
 }
-if [ "$decided" = needed ] && [ "$saw" != "$since" ]; then
+read -r meets met count judged << EOF
+$(uv run --project "$T/../source" jbriefs --meets "$B")
+EOF
+if [ "$meets" = no ] || [ "$meets" = unread ] || [ "$meets" = miscounted ]; then
+    if [ "$asked" != "$judged" ]; then
+        echo "write Scoped review: needed since $judged, the review's Meets the brief line is $meets"
+    else
+        said=$(scoped)
+        echo "${said:-meets: the review at $judged says $meets of the brief: push the fix, then run this block again}"
+    fi
+elif [ "$decided" = needed ] && [ "$saw" != "$since" ]; then
     said=$(scoped)
     echo "${said:-had: the second pass is written, and it is the last}"
 elif [ "$decided" = needed ] && [ "$launched" = yes ]; then
@@ -105,6 +116,11 @@ else
 fi
 ```
 
+The first branch reads the last round's judgement of the brief, as `jmerge` reads it (`jbriefs --meets`, `jbriefs.meets`).
+A round whose `Meets the brief:` line says `no`, or that `jmerge` cannot read, or whose count is not the brief's, is owed a scoped review whatever the fix changed, also one under `tests/` alone and also after a scoped pass: `jmerge` holds the pull request until a later round's own line says `yes`.
+That round re-judges the lines the `no` named and carries the rest, so it is never a whole second review.
+On `meets: ...`, push the fix for the unmet lines first, and run the block again: it then gives the launch.
+The only other way out is the user's `Waived:` line ("The review").
 The last branches decide, once: the files that differ between the head the review saw (its `Head:` line) and the head checked out here, which is the one you pushed.
 With no difference, nothing was pushed.
 One file outside `tests/` is enough, and the line names the first five.

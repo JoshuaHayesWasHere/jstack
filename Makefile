@@ -34,8 +34,8 @@ TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n"
 # Workers take the next test as each finishes (`worksteal`), so a slow file does not hold up
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`
 # writes every test's time there, which CI's summary line reads. `SHARD=K/N` runs only the K-th
-# of N parts of the tests the run selected (testing/shard.py): CI's check and full each run as
-# four jobs side by side, one for each part.
+# of N parts of the tests the run selected, split by time (testing/shard.py): CI's check runs as
+# eight jobs side by side and its full run as four, one for each part.
 PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
 
 # The lint of `check` and `check-fast`. comment_lint.py only warns; generate-jstack-trees.py fails

@@ -6,7 +6,8 @@ Source: pstack, `pstack/skills/poteto-mode/playbooks/eval.md`
 
 <!-- card: Decide by building | 3 | Finding out whether a variant a model reaches by reading files (a playbook, a principle, a doc) changes what it does. | plain: `Candidates:`; plain: `Judge:`; plain: `Pull request: ask first` -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 

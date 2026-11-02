@@ -6,7 +6,8 @@ Source: pstack, `pstack/skills/poteto-mode/playbooks/opening-a-pr.md`
 
 <!-- card: In every task | 1 | Opening the pull request, as the last step of every other crewmate playbook. It is never picked for a brief. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
@@ -28,14 +29,19 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    The squash lands the title on the default branch, and a commit body never repeats the subject.
    A commit and a pull request carry no AI co-author trailer, and CI refuses one.
 5. Write the body as a one-minute briefing for a reviewer who has the diff, under about 40 lines.
-   Copy `features/pr-review/templates/pr-body.md` and fill each `<...>`: it has the headings, their order and what goes under each.
+   Copy `features/pr-review/templates/pr-body.md`, which has the headings in order, and fill each `<...>`.
    Drop a heading with nothing to say, but never Scope.
-   Write it as `features/writing/skills/technical-writing/SKILL.md` says (every layer but the mode), then run `features/writing/skills/unslop/SKILL.md` over it: read each in full when you reach this step.
-6. When the brief asks for a pull request, push and open it as a draft, on the base that the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief: the default branch, or for a link jbus stacked the branch its `Stacked on:` line names.
+   Write each line of the title and the body as one sentence: step 6 lints both.
+6. When the brief asks for a pull request, push and open it as a draft, on the base the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief.
    On `no base`, open none.
-   Open it with this, which locks its conversation right after:
+   Open it with this, with `skills/crew/SKILL.md`'s top block: it lints, then locks.
 
    ```sh
+   lint="$T/../source/features/writing/scripts/prose_lint.py"
+   if ! printf '%s\n' '<the title>' | python3 -I -S "$lint" - || ! cat '<the file the body is in>' | python3 -I -S "$lint" -; then
+       echo "not opened: the prose lint refused, as it says above"
+       exit 1
+   fi
    said=$(gh pr create --draft --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
    url=$(printf '%s\n' "$said" | grep -o 'https://[^ ]*/pull/[0-9][0-9]*' | head -n 1)
    if [ -z "$url" ]; then
@@ -57,7 +63,9 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
 Never done here, and who does it:
 
 - **Merge.** The home merges a pull request that is reviewed, fixed and green. Anything else waits for the user's word.
-- **Review.** One reviewer, in a new thread, reviews once. You launch it as `skills/crew/SKILL.md` "The review" says, fix what you agree with, and say why for the rest: push back when a finding drifts from what the brief asks. A fix that changes a file no finding named gets one more pass, the last, as `skills/crew/SKILL.md` "A second pass" says.
+- **Review**: one reviewer, in a new thread, reviews once, launched as `skills/crew/SKILL.md` "The review" says.
+  Fix what you agree with, and push back, with a reason, on the rest.
+  A fix that changes a file no finding named gets one last pass ("A second pass").
 - **Poll.** jbus wakes this thread when its pull request needs it: no loop, no watcher of your own.
 
 **Hand over:** the open pull request and the Result, to the reviewer and the home, as step 7 says. With no pull request, the Result alone, to the home.

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
+from jbriefs import chains
 from jbriefs import parse as briefs
 from jbus import (
     acts,
@@ -24,6 +25,7 @@ from jbus import (
     boxes,
     dispatch,
     item,
+    needs,
     party,
     passes,
     plan,
@@ -32,11 +34,11 @@ from jbus import (
     scouts,
     t3,
     verbs,
-    waiting,
     wake,
     watch,
     word,
 )
+from jmerge import judgement
 from jmerge.asked import Silent
 
 
@@ -197,9 +199,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         print(queue.rename(state, args.slug, args.new, at, by, _asks(config, project)))
     try:
         table = queue.shown(queue.load(state), args.verb == "show" and args.all)
-        listed = waiting.read(state) or [] if args.verb == "show" else []
-        if listed:
-            print(f"waiting on {config.user.user}:", *(one["line"] for one in listed), "", sep="\n")
+        if args.verb == "show":
+            said = needs.lines(config, [project], project.name, verbs.clock())
+            if said[0].startswith("waiting on "):
+                print(*said, "", sep="\n")
         print(table, end="")
         if args.verb == "show":
             print(queue.noted(state, queue.load(state)), end="")
@@ -213,7 +216,8 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
     """Print what a brief that `add` queues, or that `check` passes, is warned of
     (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
     that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
-    all the same, and the line tells the home to write it."""
+    all the same, and the line tells the home to write it. It warns as well of each `Where:` path
+    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`)."""
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
@@ -222,6 +226,14 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
         print(f"warning: {slug}'s {warned}")
     for case, command in party.undeclared(text):
         print(f"holds: {case}, from {command}")
+    for other in sorted(chains.builds_on(judgement.body(text))):
+        shared = briefs.shared_where(text, queue.brief(config.state(project), other) or "")
+        if shared:
+            print(
+                f"warning: {slug} shares {', '.join(shared)} with {other}, which it builds on: "
+                "join the rows where they are one change, take the shared path out of one where "
+                f"{slug} has no need of {other}'s code, and leave it where it does"
+            )
 
 
 def _check(config: jbus.Config, project: jbus.Project, given: str | None, home: str | None) -> int:

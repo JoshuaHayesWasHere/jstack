@@ -26,6 +26,11 @@ reason with its sentence:
 - `declines`, `the scoped review has not ruled on the declines of <ids>`: run the crew
   skill's block of "A second pass". The block launches the one scoped pass that a blocking
   decline needs, even where the crew pushed nothing;
+- `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
+  line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
+  brief has: run the crew skill's block of "A second pass", which gives the scoped review the
+  line is owed, after a fix for a `no`. A `Waived:` line on the user's own word is the only other
+  way out, and `jmerge` already counts it before it gives `meets-no`;
 - `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each finding and answer
   it `fixed`, or, where the crew still stands by the decline, tell its home. The stall for this
   reason goes to the home's thread on the one list (`jbus.wakes`) and never to the user. Only a
@@ -109,9 +114,12 @@ FILE = "expedite.json"
 REVIEW = "review: "
 NO_RANGE = "its crew kept no head before its rebase, so the hold is the user's"
 _OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)
-NO_FIX_RANGE = (
+SECOND_PASS = (
     'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
-    "the Result says a scoped review of the fix is owed, and jbus could not work out its two "
+)
+NO_FIX_RANGE = (
+    SECOND_PASS
+    + "the Result says a scoped review of the fix is owed, and jbus could not work out its two "
     "ranges."
 )
 RERUN = "rerun.md"
@@ -283,9 +291,37 @@ TABLE = (
         "declines",
         "wait",
         ready.DECLINES_UNRULED,
-        'Run the block of the crew skill\'s "A second pass" in your worktree and do what it '
-        "prints: each blocking decline is ruled on by one scoped pass, also where nothing was "
-        "pushed, and the block writes the `Scoped review:` line and gives the launch.",
+        SECOND_PASS + "each blocking decline is ruled on by one scoped pass, also where nothing "
+        "was pushed, and the block writes the `Scoped review:` line and gives the launch.",
+        reviewed=True,
+    ),
+    Short(
+        "meets-no",
+        "wait",
+        ready.MEETS_NO,
+        SECOND_PASS + "the last review says the brief is not met, so fix each `Done when` line "
+        "the reason names and push, and the block gives the one scoped review whose own "
+        "`Meets the brief:` line must say yes. Never write or rewrite a review's line yourself: "
+        "only the user's `Waived:` line, as the crew skill's \"The review\" says, clears a line "
+        "otherwise.",
+        reviewed=True,
+    ),
+    Short(
+        "meets-unread",
+        "wait",
+        ready.MEETS_UNREAD,
+        SECOND_PASS + "the last review has no `Meets the brief:` line `jmerge` reads, so the block "
+        "gives the one scoped review whose own line judges the brief. Never write or rewrite a "
+        "review's line yourself.",
+        reviewed=True,
+    ),
+    Short(
+        "meets-miscounted",
+        "wait",
+        ready.MEETS_MISCOUNTED,
+        SECOND_PASS + "the last review's `Meets the brief:` line counts other `Done when` lines "
+        "than the brief has, so the block gives the one scoped review whose own line counts the "
+        "brief's. Never write or rewrite a review's line yourself.",
         reviewed=True,
     ),
     Short(

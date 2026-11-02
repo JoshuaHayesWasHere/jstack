@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import acts, digest, queue, waiting, wake
+from jbus import acts, digest, queue, verbs, waiting, wake
 from jbus.view import state as view
 from test_jbus_blocking import Second, relayed
 from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen, asks
@@ -28,6 +28,12 @@ def kitchen(tmp_path, monkeypatch):
     monkeypatch.setattr(queue, "clock", lambda: NOW)
     yield made
     made.close()
+
+
+def past_grace(kitchen, now):
+    """Read what waits at `now`: `queue show` lists a row to approve only once its grace is over,
+    as a decision is raised (`blockers.APPROVE_GRACE_SECONDS`)."""
+    kitchen.monkeypatch.setattr(verbs, "clock", lambda: now)
 
 
 def remove(kitchen, slug, *word):
@@ -128,6 +134,7 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
     assert kitchen.lines("gate") == ["gate beta: left or right?"]
     assert asks(kitchen) == [] and own.read_text() == before
     assert not [line for told in kitchen.wakes.listed for line in told if "alpha" in line]
+    past_grace(kitchen, LATER + timedelta(minutes=3))
     shown = kitchen.main("queue", "show")[1]
     assert "alpha" not in shown and "approve beta" in shown
     kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
@@ -147,6 +154,7 @@ def test_the_waiting_list_drops_a_removed_row_at_once_and_sends_no_event_for_it(
     kitchen.quiet()
     add(kitchen, "alpha", approve=False)
     kitchen.poll()
+    past_grace(kitchen, LATER)
     assert "approve alpha" in kitchen.main("queue", "show")[1]
     assert remove(kitchen, "alpha")[0] == 0
     assert "alpha" not in kitchen.main("queue", "show")[1]

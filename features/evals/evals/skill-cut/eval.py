@@ -237,6 +237,14 @@ def show(rev: str, path: str) -> str:
     return git("show", f"{rev}:{last}")
 
 
+def patch(base: str, variant: str, paths: list[str]) -> str:
+    """The diff of the files under test from `base` to `variant`, under every path each has had
+    (`spellings`): a case names a file as it was before its move, and the diff of that name alone
+    is empty once the file has moved."""
+    every = dict.fromkeys(each for path in paths for each in spellings(path))
+    return git("diff", base, variant, "--", *every)
+
+
 def step5(skill: str) -> str:
     """Step 5 of the interrogate skill and the output format under it, to the end of the file."""
     found = re.search(r"^## Step 5\b.*", skill, re.M | re.S)
@@ -405,9 +413,7 @@ def write(base: str, variant: str, name: str | None = None) -> None:
             },
         }
         (fresh / "run.json").write_text(json.dumps(ran, indent=2) + "\n")
-        (fresh / "variant.patch").write_text(
-            git("diff", revs["base"], revs["variant"], "--", *paths)
-        )
+        (fresh / "variant.patch").write_text(patch(revs["base"], revs["variant"], paths))
         if cases != cases_sha():
             raise SystemExit("eval.py: write: cases/ changed while the run was written")
         fresh.rename(made)

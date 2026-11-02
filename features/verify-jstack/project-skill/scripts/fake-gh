@@ -10,6 +10,7 @@
 #   rate-limit.json  what `gh api rate_limit` gives, GitHub's API budget: a full one when it is not
 # A commit asked for by its sha lists no changed files. The repo's owner is sandbox-owner, and a
 # pull request has no comment, line comment or review.
+# `gh pr edit <number> --base <branch>` bases that pull request of open.json on the branch.
 # Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. It never merges: `gh pr merge`
 # and anything else it does not know exit 64.
 G=${VERIFY_JSTACK_SANDBOX:?source the sandbox env.sh first}/gh
@@ -44,6 +45,12 @@ case "$1 $2" in
   -* | '') jq -c '.[0] // error("no pull request")' "$G/open.json" ;;
   *) jq -c --arg pr "$3" 'map(select((.number | tostring) == $pr or .url == $pr or .headRefName == $pr)) | .[0] // error("no pull request")' "$G/open.json" ;;
   esac
+  ;;
+"pr edit")
+  base=$(arg_after --base "$@")
+  [ -n "$base" ] || exit 64
+  jq --arg pr "$3" --arg base "$base" 'map(if (.number | tostring) == $pr then .baseRefName = $base else . end)' "$G/open.json" >"$G/open.json.new" &&
+    mv "$G/open.json.new" "$G/open.json"
   ;;
 "repo view") echo main ;;
 "api --paginate") ;;

@@ -9,9 +9,8 @@ card: "Run the pipeline | 4 | Starts one review thread per pull request. It read
 
 # pr-review
 
-A pull request is reviewed by a **reviewer**: a new thread that knows the brief and the pull request and nothing of the conversation that wrote the code. The thread `/pr-review` is typed in never reviews. It launches the reviewer, gives the user the link, and goes back to what it was doing.
-
-There is one pass per pull request: the reviewer reviews once and the crewmate fixes once. A fix that changes files under `tests/` only is not reviewed: what stands behind it is the pull request's own checks. A fix that changes any other file gets one scoped pass, of the fix alone, by another reviewer, and that pass is the last ("A scoped pass"). The crewmate's own check decides which it is (the crew skill, "A second pass"). The reviewer finds, and fixes nothing: what to do with a finding is for the thread that did the work.
+This is the reviewer's text: a thread started with `/pr-review run <slug>`, which only a launcher sends, reviews that brief's pull request, as "The reviewer" says.
+Any other message makes this thread a launcher.
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
@@ -21,56 +20,18 @@ T=$(realpath ~/.claude/skills/pr-review/../../templates)
 
 `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
 
-## Which part this thread plays
-
-| The message | Typed in | This thread |
-|---|---|---|
-| `/pr-review run <slug>` | a thread a launcher made | is the **reviewer** for that brief: go to "The reviewer" |
-| `/pr-review <slug>` | anywhere | launches one reviewer, for that brief, whatever its `Review:` line says |
-| `/pr-review` | a home (the repo's main checkout) | launches a reviewer for every brief that is ready |
-| `/pr-review` | a crewmate's thread (a worktree whose branch has a brief) | launches one reviewer, for that crewmate's pull request |
-
-Only a launcher sends the `run` form. `git rev-parse --git-dir` and `--git-common-dir` give the same path in the main checkout and different paths in a worktree. In a worktree the slug is the brief in `$H/tasks/` whose result names the current branch.
-
-## The brief's `Review:` line
-
-A brief may carry one line that says whether its pull request gets a review. The home writes it, when it writes the brief; nothing here changes it, but for the one case under "A brief the user names". It is a field of its own, like `Thread:`: a line that starts with `Review:`, and its value is the word after that. The same words inside the task's text, a `Done when` line or a result do not count. Read it with this, and no other way:
-
-```sh
-awk '/^Review:/ {print $(2); exit}' "$H/tasks/<slug>.md"
-```
-
-It prints the value, or nothing for a brief with no such line.
-
-| The brief has | The launcher | The reviewer |
-|---|---|---|
-| `Review: none` | passes the brief over, unless the user named it | does nothing: it says so and stops |
-| anything else, no `Review:` line included | launches a reviewer | reviews, as "The review" says |
-
-The line has two meanings and no more: `none`, and a review. A word a brief from before carries after `review` is read as `review`.
-
-A reviewer runs no test step and no suite, whatever the brief says.
-The tests are CI's `check`, which runs beside the review and has passed before `jmerge` merges, and the crewmate's own runs (the crew skill, "Do the task").
-The one thing a reviewer runs is a targeted proof of the fact the change is safe because of ("The review", step 5).
-
-## What a review covers
-
-A review covers the lines the pull request changes, and reads them the way a tech lead would: not only "does this work", but whether it is the right change, whole, and no wider than it had to be.
-
-- A bug or weakness in code the pull request did not change is not sent to the crewmate and not written in `## Review`: only its count is kept ("Outside the diff").
-- New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
-
-The questions a review answers are the `SCOPE` text in "The review", the one copy of them, and the reviewer adds "Wider than the brief" and "In flight".
-The things to look for under the fourth and fifth are adapted from pstack's reviewer (`THIRD_PARTY.md`), the two under the sixth from the Karpathy guidelines (`THIRD_PARTY.md`), and they widen nothing: each is asked of the changed lines only.
-"In flight" is the one place a reviewer looks beyond the diff, and only for files shared with other work, never for bugs.
-
 ## Launching
 
-When this thread launches a reviewer, for `/pr-review` in a home or a crewmate's thread, `/pr-review <slug>`, or the crew skill's launch, and when a step names "A brief the user names": read `$T/../skills/pr-review/launching.md` now.
+When this thread launches a reviewer, for `/pr-review` in a home or a crewmate's thread, `/pr-review <slug>`, or the crew skill's launch: read `$T/../skills/pr-review/launching.md` now.
 
 ## The reviewer
 
 This thread is a **reviewer**. It reads the diff, judges what it found, proves one fact, reports, and ends. It starts no subagent and no other thread: the review is this one thread. It never edits a file, commits, pushes, or changes the pull request, and it never reads the crewmate's thread.
+
+A reviewer runs no test step and no suite, whatever the brief says.
+The tests are CI's `check`, which runs beside the review and has passed before `jmerge` merges, and the crewmate's own runs (the crew skill, "Do the task").
+The one thing a reviewer runs is a targeted proof of the fact the change is safe because of ("The review", step 5).
+New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
 
 ### Start
 

@@ -288,7 +288,9 @@ def test_queue_show_prints_what_waits_on_the_user_above_the_table(kitchen):
     ]
     assert stat.S_IMODE((kitchen.state / "waiting-on-user.json").stat().st_mode) == 0o600
     code, said = kitchen.main("queue", "show")
-    assert code == 0 and said.startswith(f"waiting on user:\n{HAND}\n\n| slug |")
+    answer = '  answer: say "demo #286: merge it", or say what to do instead'
+    head = f"waiting on user: 1, in demo\ndemo {HAND}, a pull request jmerge holds for your word"
+    assert code == 0 and said.startswith(f"{head}\n{answer}\n\n| slug |")
     assert said.count(HAND) == 1
     kitchen.set("open.json", [])
     kitchen.set("merged.json", [kitchen.merged("ps-agnostic", 286, "a" * 40)])
