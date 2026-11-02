@@ -74,7 +74,33 @@ Each now has a query:
 | F5, no tokens per row | `SELECT spent_on, role, slug, units FROM spend_rows WHERE slug IS NOT NULL` |
 | F8, spend stored nowhere | `SELECT project, spent_on, units, runs FROM spend_days` |
 
-F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with Codex, is the next step.
+`spend_rows` is Claude's alone, by day, from T3 Code's count of each run; each call's tokens to its row and role, Codex's too, are in `call_rows` and `row_spend` ("Token usage" below).
+
+## Token usage
+
+The store also keeps the token usage of every Claude and Codex call that a T3 Code thread made, by its thread:
+
+| Table | Source | One row is |
+|---|---|---|
+| `sessions` | T3 Code's store | a native Claude or Codex session, with its thread and the project, role and slug its title gives |
+| `calls` | Claude Code transcripts and Codex rollouts | a call: its session, its subagent where one made it, its model, its time and four counts |
+
+Claude Code deletes a transcript 120 days after its last write, and each pass copies the calls written since the last one, so a call is in the store long before its transcript is gone.
+A Claude call is one message, counted with its final counts once Claude Code wrote them.
+A Codex call is one `token_count` event.
+`input` is the input not read from the cache, for both.
+
+| View | Gives |
+|---|---|
+| `call_rows` | each call with its thread, project, role and slug, and its spend in the units of `jgauge spend` |
+| `row_spend` | each merged row's spend by role and provider: calls, the four counts and units |
+
+`jgauge spend` reads T3 Code's own count of each run, which leaves out the calls of a run's subagents.
+A day of it is the day's Claude calls with no `agent`:
+
+```sh
+sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows WHERE provider = 'claude' AND agent IS NULL AND thread IS NOT NULL AND day = '2026-11-01'"
+```
 
 ## The KPI views
 

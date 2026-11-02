@@ -32,7 +32,6 @@ itself is never rebuilt, since the sources no longer have every row it keeps.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sqlite3
@@ -42,11 +41,10 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, tzinfo
 from pathlib import Path
-from typing import Any
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import kpis, messages, records, schema
+from jbus.telemetry import cursors, kpis, messages, records, schema, tokens
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
@@ -132,6 +130,11 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
             f"UPDATE {table} SET day = ? WHERE project = ? AND key = ?",
             [(records.day(at, zone), project, key) for project, key, at in found.fetchall()],
         )
+    found = connection.execute("SELECT provider, call, at FROM calls")
+    connection.executemany(
+        "UPDATE calls SET day = ? WHERE provider = ? AND call = ?",
+        [(records.day(at, zone), provider, call) for provider, call, at in found.fetchall()],
+    )
     connection.execute("INSERT OR REPLACE INTO meta (name, value) VALUES ('zone', ?)", (name,))
     connection.execute("COMMIT")
 
@@ -153,13 +156,6 @@ def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
             yield records.MACHINE, source, config.state_dir / source.file
 
 
-def _head(handle: Any) -> str:
-    """The hash of a file's first whole line, or nothing where it has none yet."""
-    handle.seek(0)
-    first = handle.readline()
-    return hashlib.sha256(first).hexdigest()[:16] if first.endswith(b"\n") else ""
-
-
 def _insert(source: Source, update: bool) -> str:
     names = ["project", "key", *(name for name, _ in source.columns), "day"]
     marks = ", ".join("?" for _ in names)
@@ -179,28 +175,13 @@ def _values(source: Source, project: str, key: str, row: records.Row, zone: tzin
     )
 
 
-def _cursor(connection: sqlite3.Connection, project: str, table: str) -> tuple | None:
-    return connection.execute(
-        "SELECT inode, offset, head, size, mtime FROM cursors WHERE project = ? AND source = ?",
-        (project, table),
-    ).fetchone()
-
-
-def _keep_cursor(connection, project: str, table: str, *values: Any) -> None:
-    connection.execute(
-        "INSERT OR REPLACE INTO cursors (project, source, inode, offset, head, size, mtime) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (project, table, *values),
-    )
-
-
 def _log(connection, project: str, source: Source, file: Path, zone, built: Built) -> None:
     """Read a log on from its cursor, or from its start where the file is not the one the
     cursor names, and keep each whole line it has not kept."""
     with open(file, "rb") as handle:
         size, inode = os.fstat(handle.fileno()).st_size, os.fstat(handle.fileno()).st_ino
-        head = _head(handle)
-        held = _cursor(connection, project, source.table)
+        head = cursors.head(handle)
+        held = cursors.held(connection, project, source.table)
         start = held[1] if held and held[0] == inode and held[2] == head and held[1] <= size else 0
         if held and start == size and held[0] == inode:
             return
@@ -230,7 +211,7 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
     before = connection.total_changes
     connection.executemany(_insert(source, update=False), rows)
     built.rows[source.table] += connection.total_changes - before
-    _keep_cursor(connection, project, source.table, inode, start + end, head, size, None)
+    cursors.keep(connection, project, source.table, inode, start + end, head, size, None)
     connection.execute("COMMIT")
     built.bytes += end
 
@@ -249,7 +230,7 @@ def _seen(connection, table: str, project: str, canon: str) -> int:
 def _snapshot(connection, project: str, source: Source, file: Path, zone, built: Built) -> None:
     """Read a snapshot that changed since the last build, and update each record's row."""
     stat = file.stat()
-    held = _cursor(connection, project, source.table)
+    held = cursors.held(connection, project, source.table)
     if held and (held[0], held[3], held[4]) == (stat.st_ino, stat.st_size, stat.st_mtime_ns):
         return
     text = file.read_text(errors="replace")
@@ -267,7 +248,7 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
     before = connection.total_changes
     connection.executemany(_insert(source, update=True), rows)
     built.rows[source.table] += connection.total_changes - before
-    _keep_cursor(
+    cursors.keep(
         connection, project, source.table, stat.st_ino, None, None, stat.st_size, stat.st_mtime_ns
     )
     connection.execute("COMMIT")
@@ -293,6 +274,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
             read = _log if source.kind == "log" else _snapshot
             read(connection, name, source, file, zone, built)
         messages.read(connection, config, zone, built, most)
+        _tokens(config, connection, zone, most, built)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",
@@ -309,6 +291,20 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
     return built
 
 
+def _tokens(config, connection, zone, most: int | None, built: Built) -> None:
+    """Copy the sessions T3 names, then the new calls of their transcripts, oldest file first,
+    within what is left of `most`."""
+    found = tokens.sessions(config)
+    built.rows["sessions"] += tokens.keep_sessions(connection, found)
+    for one in tokens.transcripts({(each.provider, each.session) for each in found}):
+        changed, read, left = tokens.read(
+            connection, one, zone, None if most is None else most - built.bytes
+        )
+        built.rows["calls"] += changed
+        built.bytes += read
+        built.left += left
+
+
 def copied(config: jbus.Config, project: jbus.Project) -> int:
     """How far into the project's `events.jsonl` as it is now the store has read: the cursor's
     offset where its inode and first line are the file's, else 0. `Box.forget` drops no line
@@ -318,10 +314,10 @@ def copied(config: jbus.Config, project: jbus.Project) -> int:
         return 0
     try:
         with open(file, "rb") as handle:
-            inode, head = os.fstat(handle.fileno()).st_ino, _head(handle)
+            inode, head = os.fstat(handle.fileno()).st_ino, cursors.head(handle)
         reader = sqlite3.connect(f"file:{store}?mode=ro", uri=True, timeout=BUSY_MS / 1000)
         try:
-            held = _cursor(reader, project.name, TRIMMED.table)
+            held = cursors.held(reader, project.name, TRIMMED.table)
         finally:
             reader.close()
     except (OSError, sqlite3.Error):
