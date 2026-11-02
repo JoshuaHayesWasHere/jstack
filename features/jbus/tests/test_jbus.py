@@ -23,6 +23,9 @@ from test_jbus_kitchen import FIXTURE, NOW, REPO
 
 
 def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
+    """No module of jbus names a model's provider, but `telemetry.tokens`, which reads the
+    agents' own transcripts into the telemetry store and must name each to find it. It imports
+    no client, which the first assert checks of it as of every module."""
     source = "\n".join(
         path.read_text() for path in sorted((REPO / "features/jbus/src/jbus").rglob("*.py"))
     )
@@ -43,7 +46,13 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
         "jroles",
         "jpack",
     }, roots
-    named = source.replace(queue.SESSION, "")
+    readers = REPO / "features/jbus/src/jbus/telemetry/tokens.py"
+    named = "\n".join(
+        path.read_text()
+        for path in sorted((REPO / "features/jbus/src/jbus").rglob("*.py"))
+        if path != readers
+    )
+    named = named.replace(queue.SESSION, "")
     named = named.replace(f'AGENT = "{strays.AGENT}"', "", 1)
     named = named.replace(f'LAPSE = re.compile(r"{failover.LAPSE.pattern}")', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)

@@ -42,6 +42,10 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `weekly_pr_to_merge`, `weekly_first_round`, `weekly_merges` and `weekly_doors`: each week's
   open-to-merge median, share merged in the first round, rows merged, and door acts done, with
   `not_yours` those a home, a bot or jbus did and the user did not.
+- `call_rows`: each agent call with its session's thread, project, role and slug, and
+  its spend in `jgauge spend`'s units (`UNITS`).
+- `row_spend`: each merged row's spend by the role and the provider of the threads that spent
+  it: calls, the four counts and units.
 """
 
 from __future__ import annotations
@@ -151,9 +155,29 @@ MESSAGES = messages.TABLE_SQL + "CREATE INDEX acts_ref ON acts (ref);\n"
 """The messages of T3 Code's threads (`jbus.telemetry.messages`), and the index by which an act
 finds the message it cites."""
 
-MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES, MESSAGES)
+TOKENS = (
+    "CREATE TABLE sessions (provider TEXT NOT NULL, session TEXT NOT NULL, thread TEXT, "
+    "instance TEXT, project TEXT, role TEXT, slug TEXT, PRIMARY KEY (provider, session)) "
+    "WITHOUT ROWID;\n"
+    "CREATE INDEX sessions_row ON sessions (project, slug);\n"
+    "CREATE TABLE calls (provider TEXT NOT NULL, call TEXT NOT NULL, session TEXT NOT NULL, "
+    "agent TEXT, at TEXT, model TEXT, input INTEGER NOT NULL, cache_write INTEGER NOT NULL, "
+    "cache_read INTEGER NOT NULL, output INTEGER NOT NULL, final INTEGER NOT NULL, day TEXT, "
+    "PRIMARY KEY (provider, call)) WITHOUT ROWID;\n"
+    "CREATE INDEX calls_session ON calls (provider, session);\n"
+    "CREATE INDEX calls_day ON calls (day);\n"
+)
+"""Each agent call's token usage, and the thread of each session (`tokens`)."""
+
+MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES, MESSAGES, TOKENS)
 """`MIGRATIONS[n]` takes a store from version `n` to `n + 1`. Append, never edit one."""
 
+UNITS = (
+    "(c.input + c.cache_write * 1.25 + c.cache_read * 0.1 + c.output * 5) "
+    "* (CASE WHEN c.model LIKE '%opus%' THEN 5.0 / 3 ELSE 1 END)"
+)
+"""A call's spend in `jgauge spend`'s units (`jgauge.spend.units`): uncached input x1, cache
+write x1.25, cache read x0.1, output x5, and x5/3 on Opus, by the call's own model."""
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 GREEN = "('success', 'skipped', 'neutral')"
 WEEK = "date({day}, '-6 days', 'weekday 0')"
@@ -277,6 +301,22 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "FROM lead_times l WHERE l.pr IS NOT NULL",
     ),
     ("weekly_lead_time", _quantiles("lead_times", "minutes")),
+    (
+        "call_rows",
+        "SELECT c.provider, c.call, c.session, c.agent, c.at, c.day, c.model, c.input, "
+        "c.cache_write, c.cache_read, c.output, c.final, s.thread, s.instance, s.project, "
+        "s.role, s.slug, "
+        f"{UNITS} AS units FROM calls c "
+        "LEFT JOIN sessions s ON s.provider = c.provider AND s.session = c.session",
+    ),
+    (
+        "row_spend",
+        "SELECT l.project, l.slug, l.pr, l.merged_at, l.day, l.week, c.role, c.provider, "
+        "count(*) AS calls, sum(c.input) AS input, sum(c.cache_write) AS cache_write, "
+        "sum(c.cache_read) AS cache_read, sum(c.output) AS output, sum(c.units) AS units "
+        "FROM lead_times l JOIN call_rows c ON c.project = l.project AND c.slug = l.slug "
+        "GROUP BY l.project, l.slug, c.role, c.provider",
+    ),
     (
         "weekly_change_failure",
         "SELECT week, sum(opened_spell) AS failures, count(*) AS merged, "
