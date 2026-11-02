@@ -10,12 +10,15 @@ or the machine (`alert.MACHINE`).
   now (`main_spells`). It alerts over 30.
 - `capped`: the minutes today in which every instance `jgauge spend` counts was capped, from the
   usage-limit failures in T3 Code's store. It alerts over 30.
+- `lost-asks`: the asks lost today, each a message the user typed that `ask_ledger` says is
+  `unanswered`, counted on the day it was lost, `schema.WAIT` minutes after it was typed, so an
+  ask typed before midnight and lost after it is the next day's. It alerts on 1.
 - `pass-time`: the 90th percentile of the seconds of jbus's passes that started in the last hour
   (`passes`). It alerts over 60, and only once the store holds a pass an hour old, so a whole hour
   is read.
 
-The first, second and fourth read the telemetry store (`jbus.telemetry`), which the chore before
-this one brings up to date. A count that cannot be read, with no store or no T3 Code store, is no
+All but `capped` read the telemetry store (`jbus.telemetry`), which the chore before this one
+brings up to date. A count that cannot be read, with no store or no T3 Code store, is no
 count, and its alert stays as it was.
 
 An alert is an alert of the one list (`jbus.alert`), so it reaches its owner's home as every
@@ -23,27 +26,23 @@ other alert does. A crossing opens it once, under a key of its threshold and own
 day for a daily count. While it is open, a pass that finds the count still crossed leaves it as
 it was, whatever the count has become. A daily alert ends with its day, and the next day's
 crossing is a new alert. An alert whose count is no longer crossed ends with a `recovered` line,
-and the next crossing opens it again. A lost ask has no threshold here yet: no record says that
-an ask was lost.
+and the next crossing opens it again.
 """
 
 from __future__ import annotations
 
-import contextlib
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
 import jbus
-import jsettings
 from jbus import alert, boxes, telemetry, verbs
-from jbus.telemetry import records
+from jbus.telemetry import records, schema
 from jgauge import spend
 
 Say = Callable[[str], None]
 HOUR = timedelta(hours=1)
-WEEK = timedelta(days=7)
 
 
 @dataclass(frozen=True)
@@ -117,22 +116,26 @@ def _main_red(look: Look) -> dict[str, float]:
 
 
 def _capped(look: Look) -> dict[str, float]:
-    where = boxes.store()
-    if not where.is_file():
-        return {}
-    week = {"week": _stamp(look.now - WEEK), "until": _stamp(look.now)}
     try:
-        with contextlib.closing(sqlite3.connect(f"file:{where}?mode=ro", uri=True)) as t3:
-            caps = t3.execute(spend.CAPS).fetchall()
-            instances = {name for (name,) in t3.execute(spend.INSTANCES, week)}
-    except sqlite3.Error:
+        found, instances = spend.caps(boxes.store(), look.now)
+    except spend.Refused:
         return {}
-    found = [
-        spend.Cap(instance, jsettings.when(at), jsettings.when(reset), "")
-        for instance, at, reset, _ in caps
-    ]
     spans = spend.capped_spans(found, instances)
     return {alert.MACHINE: _minutes(spans, look.begins, look.now)}
+
+
+def _lost_asks(look: Look) -> dict[str, float]:
+    if look.store is None:
+        return {}
+    lost = f"julianday(at) + {schema.WAIT} / 1440.0"
+    found = dict(
+        look.store.execute(
+            f"SELECT project, count(*) FROM ask_ledger WHERE joined = 'unanswered' "
+            f"AND {lost} >= julianday(?) AND {lost} < julianday(?) GROUP BY project",
+            (_stamp(look.begins), _stamp(look.ends)),
+        ).fetchall()
+    )
+    return {project.name: found.get(project.name, 0) for project in look.config.projects}
 
 
 def _pass_time(look: Look) -> dict[str, float]:
@@ -204,6 +207,17 @@ THRESHOLDS: tuple[Threshold, ...] = (
         _capped,
         lambda minutes, day: f"every instance capped {minutes:.0f} min on {day}",
         "over the threshold of 30 min",
+    ),
+    Threshold(
+        "lost-asks",
+        0,
+        True,
+        _lost_asks,
+        lambda n, day: (
+            f"{_count(n, 'ask', 'asks')} lost on {day}, with no act citing it and no reply "
+            f"within {schema.WAIT} min"
+        ),
+        "and the threshold alerts on 1",
     ),
     Threshold(
         "pass-time",
