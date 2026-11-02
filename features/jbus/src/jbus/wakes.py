@@ -3,7 +3,8 @@
 The items are the entries of `state.wrongs` an agent owns, the needs a home passes on
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
-(`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`) and the open alerts
+(`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`), the dated lines that
+land in a home's notes (`jbus.notes`) and the open alerts
 whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
 tool T3 Code stopped serving (`jbus.t3.contract`), a snapshot that failed, a home that stalled. The
 hourly count of what is stale (`jbus.stale`) is one
@@ -41,6 +42,7 @@ from jbus import (
     blockers,
     clock,
     leftover,
+    notes,
     outbox,
     plan,
     prose,
@@ -86,6 +88,12 @@ BRIEF = (
 PROSE = (
     "A line of {file} defers an action on an event no code watches, so a home must remember "
     "this: make it a row with `--depends`, or delete the line."
+)
+NOTES = (
+    "Dated lines in {file}: {dated}. {user}'s word of 2026-10-28 is that a home adds no entries "
+    "there: a rule written there is read by no code and goes stale. Move each entry into the plan, "
+    "a brief or code, and take it out of the file once it is moved. Deleting the file is a "
+    "deletes-data door."
 )
 LATE = "Its home, thread {thread}, has not acted on it in {minutes} min since jbus told it."
 _QUOTED = re.compile(r'\bjbus "([^"]+)"')
@@ -388,6 +396,21 @@ def prose_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     return items
 
 
+def notes_items(run: Pass, record: dict[str, Any]) -> list[Item]:
+    """Each home's notes that hold a dated line (`jbus.notes`), the item of its home's thread
+    named by the newest new line, and the root home's too once its home has not acted on it in
+    `leftover.CLOSE_MINUTES`, as a leftover is."""
+    root, items = root_of(run), []
+    for key, one in notes.read(run.state).items():
+        thread = (thread_of(run.home / one.scope) if one.scope else "") or root
+        line, text = (
+            f"{key}: {one.last}",
+            NOTES.format(file=one.file, dated=one.dated, user=run.user.user),
+        )
+        items += _with_late(run, record, root, Item(key, thread, line, text=text))
+    return items
+
+
 def stale_items(run: Pass) -> list[Item]:
     """The hourly count of what is stale, an item of the root home's while it is above none."""
     line = stale.line(run.project.name, stale.read(run.state))
@@ -416,7 +439,9 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         pass
     else:
         items += owed_items(run, record, rows) + brief_items(run, rows)
-    items += prose_items(run, record) + alert_items(run) + stale_items(run)
+    items += (
+        prose_items(run, record) + notes_items(run, record) + alert_items(run) + stale_items(run)
+    )
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)

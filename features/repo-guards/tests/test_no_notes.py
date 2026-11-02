@@ -7,7 +7,8 @@ of a fix, then forgotten. Each fact it held lives where code reads it: the check
 prefix in `$H/<scope>/prefix`, and a rule in a queued row that codes it.
 
 So no skill, playbook, doc or source file under `features/` names `notes.md`. The tests and the
-recorded evals under `features/evals/evals/` are data about the past and are not read.
+recorded evals under `features/evals/evals/` are data about the past and are not read. `jbus.notes`
+is the one source that names it: it enforces the word, waking a home whose file takes a new entry.
 """
 
 import subprocess
@@ -16,6 +17,7 @@ from testing.paths import REPO
 
 READ_SET = ("features/",)
 NAME = "notes.md"
+ENFORCER = "features/jbus/src/jbus/notes.py"
 
 
 def naming(repo=REPO):
@@ -32,6 +34,7 @@ def naming(repo=REPO):
         for file in listed
         if file
         and "/tests/" not in file
+        and file != ENFORCER
         and not file.startswith("features/evals/evals/")
         and (repo / file).is_file()
         and NAME in (repo / file).read_text(errors="ignore")
