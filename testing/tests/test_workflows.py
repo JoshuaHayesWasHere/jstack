@@ -998,21 +998,25 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
     bin.mkdir()
     (bin / "uv").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/uv"\n')
     (bin / "uv").chmod(0o755)
+    (bin / "df").write_text('#!/bin/sh\n[ -n "$NODF" ] || printf "IUse%%\\n 37%%\\n"\n')
+    (bin / "df").chmod(0o755)
     tree = "ab" * 20
     said = {}
-    for full in ("true", "false"):
-        summary = tmp_path / f"summary-{full}"
+    for full, df in (("true", True), ("false", True), ("true", False)):
+        summary = tmp_path / f"summary-{full}-{df}"
         env = {"PATH": f"{bin}:/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(summary)}
-        env |= {"FULL": full, "NAME": f"green-tree-{tree}"}
+        env |= {"FULL": full, "NAME": f"green-tree-{tree}", "NODF": "" if df else "yes"}
         subprocess.run(["sh", "-c", report["run"]], env=env, check=True)
-        said[full] = summary.read_text()
+        said[full, df] = summary.read_text()
     assert said == {
-        "true": f"full suite: yes, tree {tree}\n",
-        "false": f"full suite: no, tree {tree}\n",
+        ("true", True): f"full suite: yes, tree {tree}\n",
+        ("false", True): f"full suite: no, tree {tree}\n",
+        ("true", False): f"full suite: yes, tree {tree}\n",
     }
     assert (tmp_path / "uv").read_text().splitlines() == [
+        f"run jbus ci --notice full=true tree={tree} tmp_inode_pct=37",
+        f"run jbus ci --notice full=false tree={tree} tmp_inode_pct=37",
         f"run jbus ci --notice full=true tree={tree}",
-        f"run jbus ci --notice full=false tree={tree}",
     ]
 
 

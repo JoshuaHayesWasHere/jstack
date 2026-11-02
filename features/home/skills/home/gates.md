@@ -12,6 +12,8 @@ The record says it was not the user's word (`by jbus`, the time, `settled at onc
 A later answer from the user still replaces that close, and one that differs goes back to the thread as any other.
 
 The one exception is a default that is **irreversible or slow to revert**: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Such a gate does not act. Its thread does the fail-safe and adds two lines under `Undo:`: `Holds: <the case>`, word for word from the table, and `Fail-safe: <what was prepared, with its path or link>`. The action then waits for the user's answer, and silence never closes it. `jbus gate` refuses a `Holds:` line with no filled `Fail-safe:` line, a case that is not in the table, and a `Fail-safe:` line with no `Holds:` line.
+Only the user can close a gate that holds.
+So an action the user already approved in their own words, such as a spend they said go to while planning, is no gate: put their word in the brief's `Decisions:` and approve the row on it.
 
 | Case | Examples | Fail-safe |
 |---|---|---|

@@ -116,8 +116,36 @@ def test_staleness_only_rebases_are_22_of_38_where_the_plan_counted_21_by_hand(n
     assert nine["stale"].met is False
 
 
-def test_the_rule_finds_2_flaky_tests_where_the_plan_named_9_by_hand(nine):
-    assert (nine["flaky"].value, nine["flaky"].met) == (2.0, True)
+def test_the_rule_finds_1_flaky_test_where_the_plan_named_9_by_hand(nine):
+    """The relay test failed on js-item-model and jstack-help. The room test beside it in
+    jstack-help's red failed there alone, so it is no flake."""
+    assert (nine["flaky"].value, nine["flaky"].met) == (1.0, True)
+
+
+def red(job, branch, *tests):
+    at = iso(NOW - timedelta(hours=job))
+    return {
+        "job": job,
+        "run": job,
+        "attempt": 1,
+        "branch": branch,
+        "event": "pull_request",
+        "kind": "local",
+        "conclusion": "failure",
+        "steps": 3,
+        "sha": f"{job:040d}",
+        "created": at,
+        "started": at,
+        "completed": at,
+        "tests": list(tests),
+        "signs": [],
+    }
+
+
+def test_a_test_that_failed_on_one_branch_is_no_flake_beside_one_that_failed_on_two():
+    jobs = [red(1, "beta", "test_both", "test_beta_only"), red(2, "gamma", "test_both")]
+    found = numbers.flaky(numbers.Facts(jobs, [], [], NOW), START, NOW)
+    assert (found.value, found.shown, found.n) == (1.0, "1", 2)
 
 
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):

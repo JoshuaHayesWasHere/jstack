@@ -391,7 +391,6 @@ def both_homes_start(homes):
     two_homes_work(homes)
     read_before_the_note(homes, "tasks/root-done.md", "tasks/root-gone.md")
     read_before_the_note(homes, "tasks/sc-gone.md", own=homes.scope_dir)
-    (homes.home_dir / "standing.md").write_text("1. A standing rule.\n")
     homes.home_starts(ROOT)
     homes.home_starts(SCOPED, SCOPE)
 
@@ -399,16 +398,15 @@ def both_homes_start(homes):
 def test_each_home_is_given_only_its_own_results_to_read(homes):
     both_homes_start(homes)
     before = homes.state()
-    assert homes.to_read(ROOT) == ["standing.md", "handoff.md", *ROOTS]
+    assert homes.to_read(ROOT) == ["handoff.md", *ROOTS]
     assert homes.to_read(SCOPED) == [
-        "standing.md",
         f"{SCOPE}/handoff.md",
         "tasks/sc-done.md",
         "tasks/sc-open.md",
         "scouts/sc-ask.md",
         "scouts/sc-named.md",
     ]
-    assert homes.to_read(ROOT) == ["standing.md", "handoff.md", *ROOTS]
+    assert homes.to_read(ROOT) == ["handoff.md", *ROOTS]
     assert homes.changed(before) == []
 
 
@@ -416,10 +414,10 @@ def test_a_result_marked_read_is_shown_again_only_for_a_new_result(homes):
     both_homes_start(homes)
     before = homes.state()
     homes.marks(ROOT, homes.start(ROOT)["to read"])
-    assert homes.to_read(ROOT) == ["standing.md", "handoff.md"]
+    assert homes.to_read(ROOT) == ["handoff.md"]
     with (homes.home_dir / "tasks" / "root-open.md").open("a") as brief:
         brief.write("\n## Review\nFinding: fixed, a thing\n")
-    assert homes.to_read(ROOT) == ["standing.md", "handoff.md"]
+    assert homes.to_read(ROOT) == ["handoff.md"]
     with (homes.home_dir / "tasks" / "root-open.md").open("a") as brief:
         brief.write("\n## Result, follow-up (today, a steer)\n")
     assert homes.start(ROOT)["to read"] == [

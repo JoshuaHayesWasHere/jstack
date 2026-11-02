@@ -173,14 +173,15 @@ jobs:
           FAILED_ON_MAIN: ${{ needs.reuse.outputs.failed }}
         run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
-      # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had.
+      # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had, and
+      # /tmp's inode use once the suite ran, for the CI report's /tmp inode peak.
       - name: full suite
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
         env:
           FULL: ${{ steps.suite.outputs.selection == 'all' }}
           NAME: ${{ steps.tree.outputs.name }}
-        run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}"'
+        run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && INODES=$(df --output=ipcent /tmp | tail -n 1 | tr -dc 0-9) && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}" ${INODES:+tmp_inode_pct="$INODES"}'
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
   # whatever the parts did, and passes only when all eight passed: a part that failed, was
   # cancelled or never ran fails it, where a skipped required check would count as passed.

@@ -4,7 +4,8 @@ The items are the entries of `state.wrongs` an agent owns, the needs a home pass
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
 (`jbus.plan.buildable`), the deferred lines of a home's plan (`jbus.prose`), the dated lines that
-land in a home's notes (`jbus.notes`) and the open alerts
+land in a home's notes (`jbus.notes`), the files that hold a standing rule (`jbus.rules`), the
+root home's, and the open alerts
 whose owner is the project (`jbus.alert`): an alert, a health incident, the sign-in running out, a
 tool T3 Code stopped serving (`jbus.t3.contract`), a snapshot that failed, a home that stalled. The
 hourly count of what is stale (`jbus.stale`) is one
@@ -48,6 +49,7 @@ from jbus import (
     prose,
     queue,
     read_json,
+    rules,
     stale,
     verbs,
     write_json,
@@ -411,6 +413,20 @@ def notes_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     return items
 
 
+def rule_items(run: Pass) -> list[Item]:
+    """The files of the project that hold a standing rule (`jbus.rules`), each the root home's."""
+    root = root_of(run)
+    return [
+        Item(
+            key=f"{rules.KEY}:{path}",
+            to=root,
+            line=f"{rules.KEY} {path}",
+            text=rules.TEXT.format(path=path, user=run.user.user),
+        )
+        for path in rules.found(run.config, run.project)
+    ]
+
+
 def stale_items(run: Pass) -> list[Item]:
     """The hourly count of what is stale, an item of the root home's while it is above none."""
     line = stale.line(run.project.name, stale.read(run.state))
@@ -440,7 +456,11 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     else:
         items += owed_items(run, record, rows) + brief_items(run, rows)
     items += (
-        prose_items(run, record) + notes_items(run, record) + alert_items(run) + stale_items(run)
+        prose_items(run, record)
+        + notes_items(run, record)
+        + rule_items(run)
+        + alert_items(run)
+        + stale_items(run)
     )
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):

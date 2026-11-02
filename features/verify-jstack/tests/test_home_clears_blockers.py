@@ -170,8 +170,6 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
 
     cleared = run(demo, "jbus clear")
     added = run(demo, "jbus queue add beta-fix --priority 1", fix("beta-fix", "check:beta"))
-    standing = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "standing.md"
-    standing.write_text("1. A home approves the fix of its own row's red check.\n")
     sha = brief_sha(demo, "beta-fix")
     ruled = run(demo, f"jbus queue approve beta-fix --sha {sha} --rule 1 --follows beta")
     run(demo, "jbus poll")
@@ -379,7 +377,7 @@ def red_pull(sandbox, slug, path):
 
 
 def red_fix(sandbox, slug, key, path):
-    """Queue a fix of the key, approve it on the standing rule, launch it and fail its check."""
+    """Queue a fix of the key, approve it by the follow-up rule, launch it and fail its check."""
     added = run(sandbox, f"jbus queue add {slug} --priority 1", fix(slug, key))
     assert added.returncode == 0, added.stdout + added.stderr
     sha = brief_sha(sandbox, slug)
@@ -394,8 +392,6 @@ def test_a_fix_whose_own_check_failed_is_not_at_work_and_the_next_try_then_the_c
     launched(demo, "rho")
     red_pull(demo, "rho", "src/rho/a.py")
     end_thread(demo, "rho", "idle")
-    standing = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "standing.md"
-    standing.write_text("1. A home approves the fix of its own row's red check.\n")
 
     red_fix(demo, "rho-fix", "check:rho", "src/rho/b.py")
     second = run(demo, "jbus clear").stdout
