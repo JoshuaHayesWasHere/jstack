@@ -32,6 +32,8 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
 - `fake_t3.py` answers `t3_thread_launch` with a thread id, and makes no worktree and starts no agent. On the real machine T3 Code does both.
 - `fake_t3.py` answers `t3_thread_configure` with what it keeps for the thread: the selection the launch or the last move gave it, or a made-up one, and it moves no run and has no limits of its own.
   On the real machine T3 Code keeps the selection, and a usage limit ends a run because the provider says so.
+- `fake_t3.py` answers `orchestrator_capabilities` with each instance of `t3/capabilities.json` and its constraints, none until a drive writes some, and `t3_thread_read` with the `recentRuns` a drive keeps on the thread in `t3/threads.json`.
+  On the real machine T3 Code lists each instance it has, and gives one `Provider is not authenticated.` when its provider's sign-in lapsed.
 - `fake_t3.py` takes each wake jbus sends the home thread, `mcp:sandbox-home`, and writes the lines of its items to `t3/wake.jsonl`.
   On the real machine the wake queues in the project's home thread, which T3 Code can refuse.
 - `notify-send` is a script that appends to `notify.log`. The real machine shows a notification on a desktop session.
@@ -111,13 +113,36 @@ jq 'map(.status = "failed" | .latestRunId = "run-1")' "$T/threads.json" > "$T/t"
 record usage-limit jbus poll
 ```
 
+To stop that thread on a login lapse instead, sign its instance out and fail its run with the provider's words.
+The run ends ten minutes before the pass, since a pass counts an instance a run failed to sign in on less than five minutes ago (`failover.HOLD`) as signed out whatever T3 Code says, and so only the constraint holds the thread here.
+Each `jbus poll` while the constraint is there sends the thread nothing, and the first prints `signed out: claudeAgent cannot sign in, ...` once.
+Once the drive clears the constraint, the next pass prints `failover alpha: claudeAgent could not sign in, carry-on on claudeAgent, ...`, and `t3/calls.jsonl` has its one `t3_thread_send` keyed `lapse|mcp:sandbox-thread-1|run-1`.
+A pass after it sends nothing more.
+Leave the pull request out of this drive: a pass tells the crew of a green one, and that send is not the carry-on.
+
+```sh
+# Add, approve and launch the row as above, with no roles file, then:
+T="$VERIFY_JSTACK_SANDBOX/t3"
+ended=$(date -u -d '-10 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-10M +%Y-%m-%dT%H:%M:%SZ)
+jq --arg at "$ended" '."mcp:sandbox-thread-1" = [{runId: "run-1", itemId: "run-1:error", type: "error", text: "Not logged in · Please run /login", updatedAt: $at}]' "$T/messages.json" > "$T/m" && mv "$T/m" "$T/messages.json"
+jq --arg at "$ended" 'map(.status = "failed" | .latestRunId = "run-1" | .recentRuns = [{runId: "run-1", ordinal: 1, status: "failed", providerInstanceId: "claudeAgent", model: "claude-sandbox", requestedAt: $at, startedAt: $at, completedAt: $at}])' "$T/threads.json" > "$T/t" && mv "$T/t" "$T/threads.json"
+jq '.claudeAgent = ["Provider is not authenticated."]' "$T/capabilities.json" > "$T/c" && mv "$T/c" "$T/capabilities.json"
+record login-lapse jbus poll
+record login-lapse jbus poll
+jq '.claudeAgent = []' "$T/capabilities.json" > "$T/c" && mv "$T/c" "$T/capabilities.json"
+record login-lapse jbus poll
+record login-lapse jbus poll
+jq -c 'select(.tool == "t3_thread_send") | .arguments.clientRequestId' "$T/calls.jsonl"
+```
+
 What a drive sets up and reads, all under `$VERIFY_JSTACK_SANDBOX`:
 
 | Path | What it is | A drive |
 |---|---|---|
 | `gh/open.json`, `gh/merged.json`, `gh/commits.json`, `gh/checks.json`, `gh/logs/` | what GitHub would answer | edits them (`open-pull.sh` writes `open.json`) |
 | `gh/calls.log` | every `gh` call jbus and jmerge made | reads it |
-| `t3/threads.json` | the threads T3 Code has, each with its `modelSelection` | edits a thread's `status`, `latestRunId` or `settled` between passes |
+| `t3/threads.json` | the threads T3 Code has, each with its `modelSelection` and its `recentRuns` | edits a thread's `status`, `latestRunId`, `recentRuns` or `settled` between passes |
+| `t3/capabilities.json` | each provider instance T3 Code lists, by its id, with its constraints | gives an instance `Provider is not authenticated.` to sign it out, and clears it to sign it in |
 | `t3/messages.json` | a thread's items, by thread id: the user's messages that `jbus word --message <thread>/<message>` reads, and the items of a run a pass reads for a usage limit | writes one before a drive keeps the user's word or stops a thread on a limit |
 | `t3/calls.jsonl` | every tool call jbus made, with its arguments | reads it |
 | `t3/wake.jsonl` | every wake sent to a home thread, with the thread and the lines it carried | reads it |
