@@ -52,4 +52,3 @@ def test_a_start_opens_its_status_with_the_same_list(bus):
     said = parts(bus.home(STATUS))
     assert said["waiting on you"] == LISTED
     assert not any(line.startswith("waiting on") for line in said["queue"])
-
