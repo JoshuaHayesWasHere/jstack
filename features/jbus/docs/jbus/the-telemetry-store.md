@@ -88,6 +88,13 @@ F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with 
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
 | `ask_ledger` | each message you typed and what it joined: a `row` or an `answer`, an act that cites the message by id, else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
+| `weekly_typed_per_row` | each week's messages you `typed`, resumes apart, rows `merged`, and `per_row` |
+| `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its merge line: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round |
+| `weekly_pr_to_merge` | each week's open-to-merge `n`, `median` and `p85` |
+| `weekly_first_round` | each week's `n`, `first_round` and `share`, in percent |
+| `weekly_merges` | each week's rows `merged` |
+| `weekly_doors` | each week's door acts `done`, and `not_yours`, those a home, a bot or jbus did |
+| `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
@@ -102,6 +109,25 @@ The wait is counted to the last build, so a view read twice gives the same answe
 A reply counts as an answer, so a message answered in words whose work never became a row is not lost here.
 
 The spells come from `ci.jsonl`, so S6 and S7 count only the projects whose table says `ci_report = true`, and only the runs their ledger holds.
+`pr_times` reads `ci-prs.jsonl` too, so it has the same projects.
+A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`, and `jmerge` has labelled its waits since 2026-10-28, so `first_round` counts an earlier fix round only when a check failed.
+
+## The KPI page
+
+`jbus kpis` writes `kpis.html` in jbus's state directory: one static page that answers "is the vision met this week".
+It reads the store alone, calls no `gh` and runs no service, so it costs nothing to build again.
+
+```sh
+jbus telemetry && jbus kpis
+```
+
+Each of the 23 KPIs is a row: what it counts, its target, and last week and this week so far, each with its value, the count `n` it is of, and `met`, `missed`, `tracked` where it has no target yet, or `no data` where nothing in the week counts.
+A KPI the store has no instrument for yet says so, and names what it needs.
+A week starts on Sunday, as the views' does.
+The page names no project, row, path or thread, and the store holds no text of a message, so `jleak` finds nothing in it.
+
+The KPIs, their targets and the view each reads are `KPIS` in `jbus.telemetry.kpis`, one place.
+To measure a KPI that lacks an instrument, add the record and its weekly view as "Change the store" says, then give the KPI a `Measured` in place of its `Lacks`.
 
 ## The KPI alerts
 

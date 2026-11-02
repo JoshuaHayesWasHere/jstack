@@ -36,6 +36,12 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
   `unanswered`: a lost ask.
 - `weekly_lost_asks` (S3): each week's typed messages that are settled, the lost ones among
   them, those still waiting, and the rate, with no labels.
+- `pr_times`: each pull request `ci-prs.jsonl` holds and `jmerge` logged as merged, in the week
+  of its merge line, with its minutes from open to merge, and `first_round` where no check of
+  the pull request failed and `jmerge` never waited on a crew's fix round (`CREW_FIX`).
+- `weekly_pr_to_merge`, `weekly_first_round`, `weekly_merges` and `weekly_doors`: each week's
+  open-to-merge median, share merged in the first round, rows merged, and door acts done, with
+  `not_yours` those a home, a bot or jbus did and the user did not.
 """
 
 from __future__ import annotations
@@ -161,6 +167,12 @@ TYPED = (
 )
 """A message the user typed: T3 Code's `createdBy` is the user, it is not T3 Code's resume after
 a usage limit, and its text is not one T3 Code or an agent put in the user's turn."""
+CREW_FIX = (
+    "('no-fixed', 'fix-unreviewed', 'content-changed', 'dropped', 'scoped-unruled', "
+    "'unruled-drops', 'declines-unruled')"
+)
+"""The labels of `merge.log`'s waits on a crew's fix round: findings not handled, a fix not
+reviewed, content changed after its review, and drops a rebase made and no one ruled on."""
 
 
 def _quantiles(table: str, value: str) -> str:
@@ -296,6 +308,39 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "ON s.project = a.project AND s.word = a.id WHERE a.verb = 'word'",
     ),
     (
+        "pr_times",
+        "WITH merged_lines AS (SELECT project, number, min(day) AS day FROM merges "
+        "WHERE verb = 'merged' AND number IS NOT NULL GROUP BY project, number) "
+        "SELECT c.project, c.number AS pr, c.created AS opened, c.merged AS merged_at, m.day, "
+        f"{WEEK.format(day='m.day')} AS week, "
+        "round((julianday(c.merged) - julianday(c.created)) * 1440.0, 4) AS minutes, "
+        "NOT EXISTS (SELECT 1 FROM ci_jobs j WHERE j.project = c.project AND j.pr = c.number "
+        f"AND j.event = 'pull_request' AND j.conclusion IN {RED}) "
+        "AND NOT EXISTS (SELECT 1 FROM merges w WHERE w.project = c.project "
+        f"AND w.number = c.number AND w.verb = 'wait' AND w.label IN {CREW_FIX}) AS first_round "
+        "FROM ci_prs c JOIN merged_lines m ON m.project = c.project AND m.number = c.number "
+        "WHERE c.merged IS NOT NULL AND c.created IS NOT NULL",
+    ),
+    ("weekly_pr_to_merge", _quantiles("pr_times", "minutes")),
+    (
+        "weekly_first_round",
+        "SELECT week, count(*) AS n, sum(first_round) AS first_round, "
+        "100.0 * sum(first_round) / count(*) AS share FROM pr_times GROUP BY week",
+    ),
+    ("weekly_merges", "SELECT week, count(*) AS merged FROM lead_times GROUP BY week"),
+    (
+        "weekly_doors",
+        f"SELECT {WEEK.format(day='day')} AS week, count(*) AS done, "
+        "sum(coalesce(party, '') != 'user') AS not_yours FROM acts "
+        "WHERE doors > 0 AND outcome = 'done' AND day IS NOT NULL GROUP BY 1",
+    ),
+    (
+        "pass_times",
+        f"SELECT {WEEK.format(day='day')} AS week, seconds FROM passes "
+        "WHERE day IS NOT NULL AND seconds IS NOT NULL",
+    ),
+    ("weekly_pass_time", _quantiles("pass_times", "seconds")),
+    (
         "weekly_restore",
         "SELECT s.week, count(*) AS spells, q.median, q.most, "
         "sum(s.green_at IS NULL) AS still_open, sum(s.minutes_to_green < 0) AS negative "
@@ -330,6 +375,13 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "sum(joined = 'waiting') AS waiting, "
         "1.0 * sum(joined = 'unanswered') / nullif(sum(joined <> 'waiting'), 0) AS rate "
         "FROM ask_ledger GROUP BY week",
+    ),
+    (
+        "weekly_typed_per_row",
+        "WITH typed AS (SELECT week, count(*) AS typed FROM ask_ledger WHERE kind <> 'resume' "
+        "GROUP BY week) SELECT m.week, coalesce(t.typed, 0) AS typed, m.merged, "
+        "1.0 * coalesce(t.typed, 0) / m.merged AS per_row FROM weekly_merges m "
+        "LEFT JOIN typed t ON t.week = m.week",
     ),
 )
 """Each view by its name, in an order in which each reads only views made before it."""
