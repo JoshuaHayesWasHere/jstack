@@ -192,6 +192,32 @@ A `no` owes you a fix for each unmet line and a scoped review whose own line say
 Never write a review's line yourself, and never rewrite one: the judgement is the reviewer's.
 The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief that rests on the user's own message, or the bot's word, that names this row, says it waives and quotes that line, which jbus checks: your own message, the home's, or the user's go waives nothing.
 
+A fix is one or more new commits on the head GitHub has, never an amend, a squash or a rebase: a rewritten head is a force-push, which costs a new run and a new look at what the review saw, and a default branch that moved is no reason for one ("A conflict").
+Push it with this, the one way a fix, a failed check's included, is pushed:
+
+```sh
+G=$(git rev-parse --git-dir)
+branch=$(git symbolic-ref -q --short HEAD)
+if [ -f "$G/crew-before-rebase" ]; then
+    echo "no push: a rebase is not pushed yet, push it with the block of A conflict"
+elif [ -z "$branch" ] || ! git fetch -q origin "$branch"; then
+    echo "no push: could not fetch origin's $branch"
+elif ! git merge-base --is-ancestor FETCH_HEAD HEAD; then
+    echo "no push: this head does not hold origin's $branch at $(git rev-parse FETCH_HEAD)"
+elif git push -q origin "HEAD:refs/heads/$branch"; then
+    echo "pushed $(git rev-parse HEAD)"
+else
+    echo "the push was refused: origin did not take a plain push of $branch"
+fi
+```
+
+On `no push: this head does not hold`, nothing was pushed and nothing is forced, and there are three ways out by what made the head differ.
+An amend or a squash goes back with `git reset --soft FETCH_HEAD`, then one `git commit`.
+A rebase that no conflict asked for goes back with `git rebase --onto FETCH_HEAD <the last commit under the fix>`.
+A commit GitHub added by merging the base comes in with `git merge --no-edit FETCH_HEAD`.
+Then run the block again.
+A rebase for a conflict is pushed by the block of "A conflict", and a fix pushed after it starts from the head that block pushed.
+
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
 Before it, run the check command at that head with the block of "Do the task" (in jstack `make check-fast BASE=origin/main`), which adds `Checked: <the command> exit <its exit> at <the full head>` to the Result itself, and write `Fixed:` only after exit 0 there, or after the run past the lane's time limit that "Do the task" lets CI's check prove, since `jmerge` marks the draft ready on the `Fixed:` line and CI's run must not be the first check that head gets; on another exit, write no `Fixed:` and park a gate ("Do the task") that names what failed and whether it fails on the default branch too.
 

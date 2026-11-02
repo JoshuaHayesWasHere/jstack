@@ -81,7 +81,7 @@ After each but `held`, end your turn.
   Give the block a time limit of 10 minutes (`timeout: 600000` in Claude Code), and run it again, in this turn, until it prints another word.
 
 - `fix`: the failure is in the pull request's own change.
-  Only this one gets a commit: fix it, run the check command, push, and add one line to the Result saying what failed and what you did.
+  Only this one gets a commit: fix it, run the check command, push with the block of "The review" that pushes a fix, and add one line to the Result saying what failed and what you did.
   Then go by what has reviewed the pull request.
   Where the block of "The review" prints `launch a reviewer`, launch it now, on the push.
   Where the brief has a `## Review` section, write no line about the push: `jmerge` compares the head the review covers with the one you pushed by `git range-diff`, and the review carries over or one scoped review is asked for ("A conflict").
