@@ -3,9 +3,9 @@
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
-`jbus.spent` keep, and five snapshots. Its views give the KPIs (`jbus.telemetry.schema`). It
-keeps a row forever, and keeps no text of a message: ids, times, counts, labels and the length
-of each text.
+`jbus.spent` keep, five snapshots, and the machine's log of its passes. Its views give the KPIs
+(`jbus.telemetry.schema`). It keeps a row forever, and keeps no text of a message: ids, times,
+counts, labels and the length of each text.
 
 A build reads only what is new. A log is read on from `cursors`, the file's inode, the hash of
 its first line and the offset its last build read to, and only to its last newline, so a line
@@ -37,7 +37,7 @@ import os
 import sqlite3
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, tzinfo
 from pathlib import Path
@@ -137,6 +137,18 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
 def _file(config: jbus.Config, project: jbus.Project, source: Source) -> Path:
     base = config.state(project) if source.where == "state" else config.home(project)
     return base / source.file
+
+
+def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
+    """Each record file the store reads, with the project its rows are of: every project's own,
+    then the machine's."""
+    for project in config.projects:
+        for source in SOURCES:
+            if source.where != "machine":
+                yield project.name, source, _file(config, project, source)
+    for source in SOURCES:
+        if source.where == "machine":
+            yield records.MACHINE, source, config.state_dir / source.file
 
 
 def _head(handle: Any) -> str:
@@ -270,16 +282,14 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
     try:
         zone = config.user.zone
         _zone(connection, zone)
-        for project in config.projects:
-            for source in SOURCES:
-                file = _file(config, project, source)
-                if not file.is_file():
-                    continue
-                if most is not None and built.bytes >= most:
-                    built.left += 1
-                    continue
-                read = _log if source.kind == "log" else _snapshot
-                read(connection, project.name, source, file, zone, built)
+        for name, source, file in _files(config):
+            if not file.is_file():
+                continue
+            if most is not None and built.bytes >= most:
+                built.left += 1
+                continue
+            read = _log if source.kind == "log" else _snapshot
+            read(connection, name, source, file, zone, built)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",

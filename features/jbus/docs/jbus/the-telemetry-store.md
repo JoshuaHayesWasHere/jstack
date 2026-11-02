@@ -27,6 +27,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_days` | `spend.jsonl` | a project's Claude spend of one local day (`spent_on`), in units, tokens and units by kind |
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
+| `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
 Each table also has `day`, the local date of its main time in the zone that `jsettings` gives.
@@ -34,6 +35,7 @@ Each table also has `day`, the local date of its main time in the zone that `jse
 
 No table holds the text of a message.
 A row keeps ids, times, counts and labels, and in place of each text, its length in a column that ends `_len`, such as `acts.words_len`.
+`acts.checked` says whether jbus read the act's words in T3 Code itself.
 What the user said stays in T3 Code's store.
 The file is readable by you alone.
 
@@ -90,6 +92,23 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite 'SELECT * FROM weekly_lead_time ORD
 
 The spells come from `ci.jsonl`, so S6 and S7 count only the projects whose table says `ci_report = true`, and only the runs their ledger holds.
 
+## The KPI alerts
+
+Each pass, after the build, `jbus.kpis` reads each threshold as a count against its limit, never a burn rate:
+
+| Alert | Count | Alerts | Owner |
+|---|---|---|---|
+| `doors` | the one-way doors opened today without the user's word: a `done` act on a door whose words jbus did not read in T3 Code | on 1 | the project |
+| `main-red` | the minutes main's push check was red today, a spell still open counted up to now | over 30 | the project |
+| `capped` | the minutes today with every Claude instance capped, as `jgauge spend` counts them | over 30 | the machine |
+| `pass-time` | the 90th percentile of the seconds of the passes of the last hour, once the store holds a pass an hour old | over 60 | the machine |
+
+An alert goes on jbus's one list of alerts, so the owner's home hears of it as it hears of any other.
+A crossing alerts once: a later pass that finds it still crossed sends nothing, whatever the count has become.
+A daily alert ends with its day, and a crossing the next day is a new alert.
+An alert whose count falls back under its limit ends with a `recovered` line.
+Lost asks have no alert yet, since no record says that an ask was lost.
+
 ## How it stays current
 
 Each pass runs a build after its launches and before any project's second half.
@@ -110,5 +129,6 @@ It never writes over a file, and it never replaces the store, which holds rows t
 
 `PRAGMA user_version` is the schema's version.
 A change to a table is a new migration at the end of `MIGRATIONS` in `jbus.telemetry.schema`, run once on each store.
+The first migration is written out as SQL, so a column a `Source` gains is a later migration and never an edit of it.
 A new KPI is a new view in `VIEWS`, with a test beside it, and no migration: the views hold no rows, so each build makes them again.
 A new record file is a `Source` in `jbus.telemetry.records`, with its allow-list of columns, and a migration that makes its table.
