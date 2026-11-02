@@ -87,6 +87,7 @@ def test_each_command_of_the_table_walks_through_its_door(command, case):
         "scripts/deploy --help",
         "git push --force-with-lease=main:abc origin x",
         "git fetch origin --tags",
+        "git branch -d merged-old",
         "tailscale serve status",
         "tailscale funnel 443 off",
         "git commit -m fix the deploy script",
@@ -108,6 +109,18 @@ def test_a_segment_that_says_the_command_is_never_run_holds_nothing():
         "- do not `twine upload`\n",
     )
     assert party.doors(said) == ()
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "run `infra/deploy-backend.sh prod` from a checkout, never `sam deploy` by hand",
+        "`terraform apply` without -target",
+        "never `sam build` by hand, then `infra/deploy-backend.sh prod`",
+    ],
+)
+def test_an_aside_hides_only_the_command_it_is_about_not_a_door_beside_it(line):
+    assert party.doors(brief("alpha").replace("- it is done\n", f"- {line}\n")) == (PROD,)
 
 
 def test_a_command_outside_done_when_and_proves_it_holds_nothing():
@@ -249,7 +262,7 @@ SHUT = [
     (bot_route_go, "gated deploy-prod: its brief holds for touches prod or real users"),
     (bot_route_answer, "holds (touches prod or real users): only user's own word"),
     (batch, "refused: approve deploy-prod in a batch: its brief holds for touches prod"),
-    (entry_go, ""),
+    (entry_go, "went epic: your go for the plan entry epic"),
     (follow_up, "gated deploy-prod: its brief holds for touches prod or real users"),
     (silence_close, "deploy-prod waits for the user's go after question"),
     (view_answer, "keeps the go of deploy-prod, whose brief holds for touches prod"),

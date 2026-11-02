@@ -147,6 +147,9 @@ def test_a_session_the_store_does_not_know_and_a_thread_of_no_role_are_let_throu
         "grep -rn deploy infra/",
         "git push --force-with-lease=x:abc origin x",
         f"jbus queue add x --priority 1 <<'EOF'\n# x: a task\nDone when:\n- `{MIGRATE}`\nEOF",
+        'git commit -m "deploy hook for prod"',
+        'gh pr create --title "deploy prod fix" --body "scripts/deploy caveman"',
+        "git branch -d merged-old",
     ],
 )
 def test_a_dry_run_and_a_command_that_only_names_a_door_pass_for_a_home(home, command):
@@ -162,6 +165,10 @@ def test_a_dry_run_and_a_command_that_only_names_a_door_pass_for_a_home(home, co
         "git push origin main -f",
         "git push origin --tags",
         "tailscale funnel 443",
+        'DSQL_STAGE="prod" db/apply.sh dsql x.up.sql',
+        f"bash <<'EOF'\n{MIGRATE}\nEOF",
+        f"ssh yelena <<EOF\n{MIGRATE}\nEOF",
+        f'cat <<< "x"\n{MIGRATE}',
     ],
 )
 def test_a_door_inside_a_compound_or_a_quoted_command_is_still_read(home, command):
