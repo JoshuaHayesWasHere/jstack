@@ -96,6 +96,10 @@ The section "Protected paths" describes one more hold.
   The sweep keeps a brief's branch that is a merge base (`it is a merge base of the project`).
   A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
   Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
+  A link's draft on its base's branch, while the base is open, is marked ready once it is reviewed and fixed, as any draft is, so CI checks it while it is stacked, beside its base's own check; once ready, it waits on its stack as above.
+  Its check at the moved head then adds no round of the suite in series where the move is a clean replay: the check's `reuse` job finds that a passed run already checked the same two trees, the base's and GitHub's merge of the head over it, and `check` passes on that run in the time the lookup takes (`jmerge.reuse`).
+  Where the move checks other trees (its base took commits after the link's check, main moved before its base merged, or the replay changed its patch), the suite runs, and the link waits on its check as any pull request does.
+  The repo's ruleset requires `check` at the head itself, so `jmerge` counts no other head's run: the reuse is CI's own run at the moved head.
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
   If the review had findings, the Result has a `Fixed:` line that names the head or says `none needed`.

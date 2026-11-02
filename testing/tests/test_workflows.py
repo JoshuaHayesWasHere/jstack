@@ -122,17 +122,13 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_a_pull_request_into_a_merge_base_on_each_push_to_main_and_by_hand():
-    """A pull request into main, or into `t3code-jstack`, the merge base jstack's project names
-    for the sidebar, gets a run, so jmerge can merge it there on a green check. A pull request
-    into any other branch, such as a parent row's branch, starts none: its work is checked once
-    it reaches one of those gates. Of a pull request, a push, a reopen and the mark that it is
-    ready start one."""
+def test_the_check_runs_on_a_pull_request_into_any_branch_on_each_push_to_main_and_by_hand():
+    """A pull request into any branch gets a run: one into main or a merge base, so jmerge can
+    merge it there on a green check, and one stacked on a parent row's branch, so it is checked
+    while it is stacked and its move onto main reuses the pass (`reuse`). Of a pull request, a
+    push, a reopen and the mark that it is ready start one."""
     assert block("on") == {
-        "pull_request": {
-            "branches": ["main", "t3code-jstack"],
-            "types": ["opened", "synchronize", "reopened", "ready_for_review"],
-        },
+        "pull_request": {"types": ["opened", "synchronize", "reopened", "ready_for_review"]},
         "push": {"branches": ["main"]},
         "workflow_dispatch": None,
     }
@@ -194,7 +190,13 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
         "borders.yml": {"borders": HOSTED},
         "browser.yml": {"browser": HOSTED},
-        "check.yml": {"check-shard": HOSTED, "check": HOSTED, "full-shard": HOSTED, "full": HOSTED},
+        "check.yml": {
+            "reuse": HOSTED,
+            "check-shard": HOSTED,
+            "check": HOSTED,
+            "full-shard": HOSTED,
+            "full": HOSTED,
+        },
         "macos-nightly.yml": {"macos": MACOS},
         "macos.yml": {"macos": MACOS},
         "pstack-drift.yml": {"drift": HOSTED},
@@ -487,6 +489,7 @@ def cap(text, job):
 CAPS = {
     ("borders.yml", "borders"): "5",
     ("browser.yml", "browser"): "15",
+    ("check.yml", "reuse"): "5",
     ("check.yml", "check-shard"): "30",
     ("check.yml", "check"): "5",
     ("check.yml", "full-shard"): "30",
@@ -524,16 +527,17 @@ TLC = "~/.cache/jstack/tlc"
 EVENTS = ("pull_request", "push", "workflow_dispatch")
 
 
-def ran_on(job, draft=False):
-    """Return the events a job of the check runs on, for a pull request that is a draft or not.
-    This function works them out from the job's `if`."""
+def ran_on(job, draft=False, reused=""):
+    """Return the events a job of the check runs on, for a pull request that is a draft or not,
+    in a run that is not cancelled and whose `reuse` gave `reused`. This function works them out
+    from the job's `if`."""
     inside, when = False, None
     for line in CHECK.read_text().splitlines():
         indent = len(line) - len(line.lstrip())
         if indent <= 2 and line.strip() and not line.lstrip().startswith("#"):
             inside = indent == 2 and line.strip() == f"{job}:"
         elif inside and indent == 4 and line.startswith("    if: "):
-            when = line.partition(": ")[2]
+            when = line.partition(": ")[2].strip('"')
     return [
         e
         for e in EVENTS
@@ -541,6 +545,8 @@ def ran_on(job, draft=False):
             when,
             {
                 "always()": True,
+                "!cancelled()": True,
+                "needs.reuse.outputs.reused": reused,
                 "github.event_name": e,
                 "github.event.pull_request.draft": draft if e == "pull_request" else None,
             },
@@ -550,13 +556,15 @@ def ran_on(job, draft=False):
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
     assert jobs(CHECK.read_text()) == {
+        "reuse": HOSTED,
         "check-shard": HOSTED,
         "check": HOSTED,
         "full-shard": HOSTED,
         "full": HOSTED,
     }
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    assert [ran_on(job) for job in ("check-shard", "check", "full-shard", "full")] == [
+    assert [ran_on(job) for job in ("reuse", "check-shard", "check", "full-shard", "full")] == [
+        pull,
         pull,
         pull,
         push,
@@ -568,9 +576,9 @@ def test_a_draft_runs_no_job_until_it_is_marked_ready():
     """A crew opens its pull request as a draft and marks it ready once its fix round is pushed,
     so a push of work in progress runs nothing, and `ready_for_review` runs the check once."""
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("check-shard", "check", "full-shard", "full")
-    assert [ran_on(job, draft=True) for job in named] == [[], [], push, push]
-    assert [ran_on(job, draft=False) for job in named] == [pull, pull, push, push]
+    named = ("reuse", "check-shard", "check", "full-shard", "full")
+    assert [ran_on(job, draft=True) for job in named] == [[], [], [], push, push]
+    assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, push, push]
 
 
 def job_section(job, key):
@@ -615,10 +623,10 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     count = len(PARTS[parts])
     assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS[parts]}}
     assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of {count}"
-    assert job_line(gate, "needs") == parts
+    assert job_line(gate, "needs") == (["reuse", "check-shard"] if gate == "check" else parts)
     assert job_line(gate, "if").startswith("always() && ")
     (every, *_), _ = steps(CHECK.read_text(), gate)
-    assert every["env"] == {"PARTS": f"${{{{ needs.{parts}.result }}}}"}
+    assert every["env"]["PARTS"] == f"${{{{ needs.{parts}.result }}}}"
     ran = {
         result: subprocess.run(
             ["sh", "-c", every["run"]], env={"PARTS": result}, capture_output=True, text=True
@@ -2154,3 +2162,174 @@ def test_a_range_that_cannot_be_read_fails_the_check(tmp_path):
     )
     assert ran.returncode == 2
     assert ran.stdout.startswith("::error::no-ai-trailers: the commits could not be read: ")
+
+
+def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
+    """A pull request's run whose two trees a passed check already checked skips the eight parts,
+    and `check`, the required check, passes on the reuse. A lookup that failed or found nothing
+    runs them, and `check` then passes only when every part did."""
+    assert ran_on("check-shard", reused="true") == []
+    assert (
+        ran_on("check-shard", reused="false")
+        == ran_on("check-shard", reused="")
+        == ["pull_request"]
+    )
+    assert job_line("check-shard", "needs") == "reuse"
+    (every, *_), _ = steps(CHECK.read_text(), "check")
+    assert every["env"]["REUSED"] == "${{ needs.reuse.outputs.reused }}"
+    passes = [
+        (reused, result)
+        for reused in ("true", "false", "")
+        for result in RESULTS
+        if subprocess.run(
+            ["sh", "-c", every["run"]],
+            env={"PARTS": result, "REUSED": reused},
+            capture_output=True,
+            text=True,
+        ).returncode
+        == 0
+    ]
+    assert passes == [("true", result) for result in RESULTS] + [
+        ("false", "success"),
+        ("", "success"),
+    ]
+
+
+def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse_leaves_none():
+    found, _ = steps(CHECK.read_text(), "check")
+    _, mark, upload, *_ = found
+    assert job_section("reuse", "outputs") == {
+        "name": "${{ steps.reuse.outputs.name }}",
+        "reused": "${{ steps.reuse.outputs.reused }}",
+    }
+    assert [
+        (result, name)
+        for result in RESULTS
+        for name in ("checked-tree-a-b", "")
+        if worked(
+            mark["if"],
+            {"needs.check-shard.result": result, "needs.reuse.outputs.name": name},
+        )
+    ] == [("success", "checked-tree-a-b")]
+    assert mark["env"] == {"NAME": "${{ needs.reuse.outputs.name }}"}
+    assert [o for o in OUTCOMES if worked(upload["if"], {"steps.checked.outcome": o})] == [
+        "success"
+    ]
+    assert upload["continue-on-error"] is True
+    assert upload["with"]["name"] == "${{ needs.reuse.outputs.name }}"
+
+
+def test_the_reuse_lookup_is_plain_python_after_a_checkout_of_two_commits():
+    """It reads the merge's base, HEAD^1, so the checkout has two commits of history, and it runs
+    before any `uv sync`, with nothing but the runner's python3."""
+    (checkout, look), keys = steps(CHECK.read_text(), "reuse")
+    assert checkout["with"] == {"persist-credentials": False, "fetch-depth": "2"}
+    assert look["run"] == "PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse"
+    assert (look["id"], look["continue-on-error"]) == ("reuse", True)
+    assert look["env"] == {"GH_TOKEN": "${{ github.token }}"}
+
+
+def reuse(tmp_path, answers, **env):
+    """Run the lookup in a new repo of two commits, a base and a merge over it, against a `gh`
+    that answers from `answers`, which maps a path to its answer or is a function of the
+    artifact's name that gives them. Return its outputs, what it printed, and the artifact's
+    name."""
+    repo, bin, said = tmp_path / "repo", tmp_path / "bin", tmp_path / "said"
+    for made in (repo, bin, said):
+        made.mkdir()
+    git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(repo)]
+    subprocess.run([*git, "init", "-q"], check=True)
+    for text in ("base\n", "merge\n"):
+        (repo / "file").write_text(text)
+        subprocess.run([*git, "add", "file"], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", text.strip()], check=True)
+
+    def tree(commit):
+        done = subprocess.run([*git, "rev-parse", f"{commit}^{{tree}}"], capture_output=True)
+        return done.stdout.decode().strip()
+
+    name = f"checked-tree-{tree('HEAD^1')}-{tree('HEAD')}"
+    if callable(answers):
+        answers = answers(name)
+    for path, body in answers.items():
+        (said / path.replace("/", "_")).write_text(json.dumps(body))
+    (bin / "git").symlink_to(shutil.which("git"))
+    (bin / "gh").write_text(
+        f"#!{sys.executable}\n"
+        "import pathlib, sys\n"
+        f"here = pathlib.Path({str(tmp_path)!r})\n"
+        "with open(here / 'asked', 'a') as asked:\n"
+        "    asked.write(' '.join(sys.argv[1:]) + '\\n')\n"
+        "answer = here / 'said' / sys.argv[2].partition('?')[0].replace('/', '_')\n"
+        "if not answer.exists():\n"
+        "    sys.exit('HTTP 403: Resource not accessible by integration')\n"
+        "print(answer.read_text())\n"
+    )
+    (bin / "gh").chmod(0o755)
+    ran = subprocess.run(
+        [sys.executable, "-m", "jmerge.reuse"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": str(bin),
+            "PYTHONPATH": str(REPO / "features" / "jmerge" / "src"),
+            "GITHUB_OUTPUT": str(tmp_path / "output"),
+            "GITHUB_REPOSITORY": "owner/repo",
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_RUN_ATTEMPT": "1",
+            **env,
+        },
+    )
+    assert ran.returncode == 0, ran.stderr
+    outputs = dict(line.split("=", 1) for line in (tmp_path / "output").read_text().splitlines())
+    return outputs, ran.stdout.strip(), name
+
+
+def test_the_trees_a_passed_check_checked_are_reused_and_the_log_names_its_run(tmp_path):
+    """The stacked link's move onto main, a clean replay: the run at the moved head checks the
+    base and merge trees its stacked run passed, so it reuses that pass."""
+    outputs, printed, name = reuse(tmp_path, {ARTIFACTS: marker(), RUN: run()})
+    assert outputs == {"name": name, "reused": "true"}
+    assert printed == f"reuse: {name}: passed the check in {URL}, so the suite is skipped"
+    asked = (tmp_path / "asked").read_text().splitlines()
+    assert asked == [f"api {ARTIFACTS}?name={name}&per_page=100", f"api {RUN}"]
+
+
+@pytest.mark.parametrize(
+    ("answers", "why"),
+    [
+        ({ARTIFACTS: {"artifacts": []}}, "no passed check left a marker of them"),
+        ({ARTIFACTS: marker(), RUN: run(conclusion="failure")}, "no passed check left a marker"),
+        (
+            {ARTIFACTS: marker(), RUN: run(head_repository={"id": 2})},
+            "only a fork's run passed them",
+        ),
+    ],
+)
+def test_trees_no_passed_check_of_this_repo_checked_run_the_suite(tmp_path, answers, why):
+    """A move that is no clean replay checks other trees, whose name no run left: the suite runs
+    as it always did. So does a pair only a failed run, or a fork's, left."""
+    outputs, printed, name = reuse(tmp_path, answers)
+    assert outputs == {"name": name, "reused": "false"}
+    assert printed.startswith(f"reuse: {name}: {why}"), printed
+
+
+@pytest.mark.parametrize(
+    ("env", "why"),
+    [
+        ({"GITHUB_RUN_ATTEMPT": "2"}, "a run again always runs the suite"),
+        ({"GITHUB_EVENT_NAME": "push"}, "only a pull request's check reuses a pass"),
+    ],
+)
+def test_a_run_again_and_a_push_never_reuse_and_ask_nothing(tmp_path, env, why):
+    outputs, printed, _ = reuse(tmp_path, {ARTIFACTS: marker(), RUN: run()}, **env)
+    assert outputs["reused"] == "false"
+    assert why in printed
+    assert not (tmp_path / "asked").exists()
+
+
+def test_a_lookup_that_cannot_ask_runs_the_suite_and_warns(tmp_path):
+    outputs, printed, name = reuse(tmp_path, {})
+    assert outputs == {"name": name, "reused": "false"}
+    assert printed.startswith(f"::warning::reuse: {name}: could not ask (HTTP 403"), printed
