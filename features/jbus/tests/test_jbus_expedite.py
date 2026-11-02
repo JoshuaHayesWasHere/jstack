@@ -42,6 +42,9 @@ RENUMBER = ready.MIGRATION_TAKEN.format(
     name="0005_insulin", number="0005", default="main", free="0006"
 )
 BROWSER_RED = ready.BROWSER_RED.format(head="c" * 12)
+MEETS_NO = ready.MEETS_NO.format(head="c" * 12, met=1, count=2, lines="2")
+MEETS_UNREAD = ready.MEETS_UNREAD.format(head="c" * 12)
+MEETS_MISCOUNTED = ready.MEETS_MISCOUNTED.format(head="c" * 12, said=3, count=2)
 ENDED = ("completed", "failed", "interrupted", "cancelled")
 
 
@@ -178,6 +181,24 @@ SAYS = {
         "them. `jmerge` merges once the browser run of the new head passes."
     ),
 }
+SECOND_PASS = (
+    'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
+)
+SAYS |= {
+    "meets-no": SECOND_PASS
+    + "the last review says the brief is not met, so fix each `Done when` line the reason names "
+    "and push, and the block gives the one scoped review whose own `Meets the brief:` line must "
+    "say yes. Never write or rewrite a review's line yourself: only the user's `Waived:` line, "
+    'as the crew skill\'s "The review" says, clears a line otherwise.',
+    "meets-unread": SECOND_PASS
+    + "the last review has no `Meets the brief:` line `jmerge` reads, so the block gives the one "
+    "scoped review whose own line judges the brief. Never write or rewrite a review's line "
+    "yourself.",
+    "meets-miscounted": SECOND_PASS
+    + "the last review's `Meets the brief:` line counts other `Done when` lines than the brief "
+    "has, so the block gives the one scoped review whose own line counts the brief's. Never "
+    "write or rewrite a review's line yourself.",
+}
 
 
 def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():
@@ -229,6 +250,9 @@ def said_to(short, kind, reason, sentence):
         ("twice", NO_TWICE),
         ("renumber", RENUMBER),
         ("browser", BROWSER_RED),
+        ("meets-no", MEETS_NO),
+        ("meets-unread", MEETS_UNREAD),
+        ("meets-miscounted", MEETS_MISCOUNTED),
     ],
 )
 def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reason, short, kitchen):
@@ -278,6 +302,20 @@ def test_a_fix_review_owed_is_not_asked_for_while_a_reviewer_is_at_work(short, k
     reviewer["status"] = "completed"
     short.passes(1)
     assert [sent["clientRequestId"] for sent in sends(kitchen)] == [f"fix|alpha|{short.head[:12]}"]
+
+
+@pytest.mark.parametrize("reason", [MEETS_NO, MEETS_UNREAD, MEETS_MISCOUNTED])
+def test_a_review_s_meets_line_is_not_asked_about_while_its_scoped_reviewer_is_at_work(
+    reason, short, kitchen
+):
+    kind = ready.code_of(reason)
+    reviewer = kitchen.t3.thread("alpha", title="review: alpha, scoped")
+    short.out(reason)
+    short.passes(5)
+    assert sends(kitchen) == []
+    reviewer["status"] = "completed"
+    short.passes(1)
+    assert sends(kitchen) == [said_to(short, kind, reason, SAYS[kind])]
 
 
 @pytest.mark.parametrize("since", ["-", "d" * 40])

@@ -4,7 +4,8 @@ anything: its one output is the `## Review` section in the brief.
 
 `tell` reads each open pull request's brief on each pass. The review it reads is the newest head
 that a section ran at, with every section of that head, one for each reviewer. It asks jmerge's
-judge, `ready.short_of`, what the pull request is short of at its head. Only where that reason is a
+judge, `ready.short_of`, what the pull request is short of at its head, with the `Waived:` lines
+`jmerge` counts (`outbox.heard`). Only where that reason is a
 line the crew owes (`OWED`: findings to answer, or a `Fixed:` line) does it send the crew one
 message, through `jbus.outbox`, with needs `act`, under the key `review|<slug>|<head 12>` of the
 head the sections reviewed. The message names the sections by their `By:` lines and the findings
@@ -74,26 +75,27 @@ class Notice:
         return f"review|{slug}|{self.head[:12]}"
 
 
-def _judged(brief: str, head: str) -> str:
-    """Return what jmerge's judge says the pull request is short of, as far as its review goes. The
-    judge asks for each skill's artifact before it reads the review, so a Result that still lacks
-    one would hide the findings it owes an answer: the review is judged as if the brief named no
-    skill."""
-    said = ready.short_of(brief, head)
+def _judged(brief: str, head: str, heard: frozenset[str]) -> str:
+    """Return what jmerge's judge says the pull request is short of, as far as its review goes,
+    with the waivers whose words are in `heard`. The judge asks for each skill's artifact before it
+    reads the review, so a Result that still lacks one would hide the findings it owes an answer:
+    the review is judged as if the brief named no skill."""
+    said = ready.short_of(brief, head, heard)
     if ready.code_of(said) != ready.SKILLS_UNRUN.code:
         return said
-    return ready.short_of(_SKILLS.sub("Skills: none", brief, count=1), head)
+    return ready.short_of(_SKILLS.sub("Skills: none", brief, count=1), head, heard)
 
 
-def due(brief: str, head: str) -> Notice | None:
+def due(brief: str, head: str, heard: frozenset[str] = frozenset()) -> Notice | None:
     """Return the notice that the newest review of the brief owes its crew while the pull request's
-    head is `head`, or None where the crew owes no line for it."""
+    head is `head`, or None where the crew owes no line for it. `heard` holds the references of
+    the `Waived:` lines whose words jbus checked (`outbox.heard`), as `jmerge` counts them."""
     triage = findings.triage(brief)
     ran = [one for one in triage.sections if one.ran and one.head]
     if not ran or mirror.delivered(brief):
         return None
     reviewed = ran[-1].head
-    reason = _judged(brief, head)
+    reason = _judged(brief, head, heard)
     row = next((one for one in TABLE if one.reason.code == ready.code_of(reason)), None)
     if row is None or row.kind not in OWED:
         return None
@@ -124,7 +126,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
     for slug, pull in sorted(world.open.items()):
         brief = task_brief(run, slug)
         head = pull.get("headRefOid", "")
-        notice = due(brief, head) if brief and head else None
+        notice = due(brief, head, outbox.heard(run, slug, brief)) if brief and head else None
         key = notice.key(slug) if notice else ""
         if not notice or key in sent:
             continue
