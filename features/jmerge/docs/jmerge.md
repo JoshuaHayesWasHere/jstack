@@ -139,6 +139,21 @@ The section "Protected paths" describes one more hold.
   Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
 - A brief whose `Review:` line says anything else, an old `after` included, is read as `review`.
+- **The last review round says the brief is met.**
+  The reviewer's judgement of the brief is a typed line of each `## Review` section, `Meets the brief: yes, <n> of <n>` or `no, <m> of <n>`, with an item under it for each `Done when` line it does not take as met (`features/pr-review/templates/review.md`).
+  `<n>` is the count of the brief's `Done when` lines, and an `after-merge <k>` or `waiting <k>` item, a line only provable once merged or only waiting on CI, is not unmet.
+  `features/jbriefs/src/jbriefs/meets.py` is its one parser and the one rule, and `jbriefs --meets <brief>` prints what it reads.
+  The last round counts: of the sections that ran, those at the head and of the kind, scoped or not, of the last one, each reviewer's last.
+  So a later round, the scoped review of the fix or a pass at the same head that rules on the declines, takes the place of an earlier `no`, and a stale first-round `no` holds nothing.
+  The pull request waits with `its review at <head12> says the brief is not met, <m> of <n>: Done when <k> unmet, ...` (`meets-no`) while that round says `no`.
+  It waits with `its review at <head12> has no Meets the brief line of the shape ...` (`meets-unread`) where a section of the round has no line of that shape, today's free text `yes` included, and with `its review at <head12> counts <said> Done when lines, and its brief has <n>` (`meets-miscounted`) where its count is not the brief's: a skipped or skimmed check is no pass.
+  The way out is a fix and a scoped review whose own line says `yes`: the crew skill's "A second pass" gives that review for any round whose line is not `yes`, whatever the fix changed.
+  In a `Review: twice` brief, a clean first review whose line is not `yes` waits as one with findings does, for a fix and its second review.
+  The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief, which names the line by its words, whole or by a start no other line has.
+  `jmerge` asks jbus of each such word once a run (`jmerge.bus.Bus.heard`, `jbus.port.Port.heard`): the user's own message in T3 Code, read by the check `jbus queue approve --message` reads a word with, or a word the bot gave over `POST /act`, and its words name the row's slug, say they waive, and quote the words the `Waived:` line names the line by (`jbriefs.meets.quotes`).
+  A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes.
+  The rule does not apply to a brief that says `Review: none`, to one with no review that ran, or to one with no `Done when` list.
+  `jmerge` judges it after every other wait of the review, so a pull request short of a `Fixed:` line or a scoped review says that first.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
   A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check`.

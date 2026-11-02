@@ -8,6 +8,7 @@ import subprocess
 
 import pytest
 
+import crew_helpers as crew
 import test_home_merge as merge
 import test_jmerge_rangediff as rebases
 import test_jmerge_run as jrun
@@ -528,3 +529,47 @@ def test_the_fixed_line_that_marks_the_draft_ready_comes_after_a_green_check_at_
     assert ran.returncode == 0 and "\nBASE = origin/main\n" in ran.stdout
     recipe = ran.stdout.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
     assert "scripts/select_tests.py '$(BASE)' HEAD" in recipe
+
+
+MEETS_BRIEF = crew.BRIEF.replace(
+    "Decisions:", "Done when:\n- the rule holds\n- the docs say it\nDecisions:", 1
+)
+MEETS_NO = "Meets the brief: no, 1 of 2\n- unmet 2: the docs say it\n"
+
+
+def judged(fix, head, line, scoped=False):
+    review = fix.reviewed(head).replace("Findings:", f"{line}Findings:")
+    scope = f"Scope: range-diff {fix.start}..{fix.saw} {fix.start}..{head}\n"
+    return review.replace("Head:", f"{scope}Head:") if scoped else review
+
+
+def test_a_review_that_says_the_brief_is_not_met_owes_a_scoped_review_of_a_tests_only_fix(
+    tmp_path, monkeypatch
+):
+    """A `no` is owed a scoped review whatever the fix changed, and so is a scoped pass's `no`:
+    the block gives a scoped round again until a round's own line says yes."""
+    monkeypatch.setattr(crew, "BRIEF", MEETS_BRIEF)
+    fix = Fix(tmp_path, ["tests/c.py"], opened=True)
+    first = judged(fix, fix.saw, MEETS_NO)
+    needed = f"Scoped review: needed since {fix.saw}, the review's Meets the brief line is no"
+    assert fix.says("", first) == [f"write {needed}"]
+    written = needed + f"\nFixed: {fix.fixed}\n"
+    assert fix.says(written, first) == [launch(fix, fix.saw, fix.fixed)]
+    yes = judged(fix, fix.fixed, "Meets the brief: yes, 2 of 2\n", scoped=True)
+    assert fix.says(written, first + yes) == [
+        "had: the review of the fix is written, and this head is owed none"
+    ]
+    again = judged(fix, fix.fixed, MEETS_NO, scoped=True)
+    owed_again = f"Scoped review: needed since {fix.fixed}, the review's Meets the brief line is no"
+    assert fix.says(written, first + again) == [f"write {owed_again}"]
+    assert fix.says(written + owed_again + "\n", first + again) == [
+        f"meets: the review at {fix.fixed} says no of the brief: push the fix, then run this "
+        "block again"
+    ]
+
+
+def test_a_review_with_no_line_jmerge_reads_owes_a_scoped_review_too(tmp_path, monkeypatch):
+    monkeypatch.setattr(crew, "BRIEF", MEETS_BRIEF)
+    fix = Fix(tmp_path, [], opened=True)
+    needed = f"Scoped review: needed since {fix.saw}, the review's Meets the brief line is unread"
+    assert fix.says("") == [f"write {needed}"]
