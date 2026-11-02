@@ -219,7 +219,7 @@ def test_capped_minutes_alert_over_30_in_a_day_with_every_instance_capped(machin
     said = machine.look(later)
 
     line = (
-        "alert: kpi capped: every Claude instance capped 31 min on 2026-11-02, "
+        "alert: kpi capped: every instance capped 31 min on 2026-11-02, "
         "over the threshold of 30 min"
     )
     assert said == [line]

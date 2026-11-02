@@ -8,8 +8,8 @@ or the machine (`alert.MACHINE`).
   door by a party whose words jbus did not read in T3 Code itself (`party.opens`). It alerts on 1.
 - `main-red`: the minutes main's push check was red today, a red spell still open counted up to
   now (`main_spells`). It alerts over 30.
-- `capped`: the minutes today in which every Claude instance was capped, as `jgauge spend` counts
-  them from T3 Code's store. It alerts over 30.
+- `capped`: the minutes today in which every instance `jgauge spend` counts was capped, from the
+  usage-limit failures in T3 Code's store. It alerts over 30.
 - `pass-time`: the 90th percentile of the seconds of jbus's passes that started in the last hour
   (`passes`). It alerts over 60, and only once the store holds a pass an hour old, so a whole hour
   is read.
@@ -202,7 +202,7 @@ THRESHOLDS: tuple[Threshold, ...] = (
         30,
         True,
         _capped,
-        lambda minutes, day: f"every Claude instance capped {minutes:.0f} min on {day}",
+        lambda minutes, day: f"every instance capped {minutes:.0f} min on {day}",
         "over the threshold of 30 min",
     ),
     Threshold(
