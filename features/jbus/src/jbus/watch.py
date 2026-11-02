@@ -1235,14 +1235,14 @@ def _changed(run: Pass, red: list[dict]) -> list[str]:
     return [file for file in dict.fromkeys(files) if file]
 
 
-def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
+def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
     approval. Where a briefed merge turned main red, the brief follows that row and a pass
     approves it on the row's go; otherwise the user approves it like any other row. Its priority
     is one above the first row of the queue, so once approved it is the next launch there.
     `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
     it added the row, the next pass files the brief again. If the queue refuses the brief, that
-    is a condition."""
+    is a condition. `kept` says why jbus reverted nothing (`_revert`), which its task names."""
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
@@ -1261,7 +1261,8 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     text = fix_brief(
         f"{name}: main's check failed at {sha[:12]}, {after}",
         f'"main check failed at {sha[:12]}, {len(red)} merges since the last green" '
-        + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)"),
+        + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)")
+        + (f". jbus reverts nothing: {kept}" if kept else ""),
         [
             "- each failed test named under Read passes on main, and the failed job passes at "
             "the commit that merges the fix",
@@ -1566,19 +1567,36 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
         run.say(said)
 
 
+@dataclass(frozen=True)
+class RedTip:
+    """Main's tip, red after its one rerun, as `_retro` read it for `jbus.culprits.judge`, which
+    reverts its one clear culprit or files its fix row (`_file`): the slug its row is filed after,
+    the tip, the merges since the last green, newest first, the pull request merged at the tip and
+    its slug, and the check answers `_check` keeps."""
+
+    slug: str
+    sha: str
+    red: list[dict]
+    pull: dict[str, Any] | None
+    culprit: str
+    known: dict[str, str]
+
+
 def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     """Report a red main within a day of a merge, and a revert of one. Both lines name the
     merged slug. A red tip of main with no briefed merge in the day before it is reported too,
-    under the name of its fix row: `jmerge` holds every merge on it all the same.
+    under the name of its fix row.
 
     A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
     only a second cancelled run, or a run GitHub would not start again. It reports a red main
     once for each commit. A merge into another branch than main, a merge base's, did not land on
     main, so it takes no blame for it. `_retro` files and queues a brief for the fix once, and
-    only for main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
-    is no longer main, so there is nothing to fix. Once main's tip is green at a later commit
-    than the one a fix row was filed for, the red is gone: `_withdraw` takes out a row that never
-    launched, and reports once a row that did, which its crew and pull request keep. With no
+    only for main's tip as this pass reads it: it hands the tip to `jbus.culprits.judge` as
+    `Pass.red`, which reverts its one clear culprit or files its row (`_file`). A red commit
+    that a later commit superseded is no longer main, so there is nothing to fix. Once main's
+    tip is green at a later commit than the one a fix row was filed for, the red is gone:
+    `_withdraw` takes out a row that never launched, and reports once a row that did, which its
+    crew and pull request keep. With no
     briefed merge and no open fix row, `_retro` asks GitHub nothing until `main.json` keeps a
     red tip.
     """
@@ -1643,7 +1661,9 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
         if place == 0 and not run.first and slug not in run.removed:
-            _file(run, slug, sha, commits[place : place + since])
+            pull = by_commit.get(sha)
+            culprit = slug_of.get(pull["number"], "") if pull else ""
+            run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit, known)
     write_json(run.state / "checks.json", known)
 
 

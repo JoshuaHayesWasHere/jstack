@@ -17,8 +17,8 @@ and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip fol
 either. It keeps the last tip whose check passed as `green`.
 
 `tell` keeps beside `broken` the tests that failed there, as `failed_at` reads them from the red
-run's logs once for each red tip: `jmerge.rows.red` lets through a pull request whose own check
-ran each of them and passed it.
+run's logs once for each red tip: `jbus.reverts` reads them to tell a flake from a culprit's own
+red.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a

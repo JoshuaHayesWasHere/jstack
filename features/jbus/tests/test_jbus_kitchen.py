@@ -394,6 +394,9 @@ def fake_gh(stub, args, cwd):
 
     `pr edit` changes nothing and says nothing: the log is its record. With `gh-edit-refused`
     there, it fails and says nothing.
+    `pr revert` opens the revert of a merged pull request, as GitHub does on its own branch
+    `revert-<number>-<branch>` with the head `e` * 40, and adds it to the open ones; with
+    `gh-no-revert` there, it fails and says what that file holds.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
@@ -443,6 +446,26 @@ def fake_gh(stub, args, cwd):
         pushed = stub / "head-now.json"
         now = json.loads(pushed.read_text()) if pushed.exists() else {}
         said = json.dumps(dict(found[0], **now.get(str(found[0]["number"]), {})))
+    elif args[:2] == ["pr", "revert"]:
+        if (stub / "gh-no-revert").exists():
+            return 1, "", (stub / "gh-no-revert").read_text()
+        merged = json.loads((stub / "merged.json").read_text())
+        (pull,) = [p for p in merged if args[2] in (str(p["number"]), p["url"])]
+        opened = json.loads((stub / "open.json").read_text())
+        number = 900 + len(opened)
+        opened.append(
+            {
+                "number": number,
+                "url": f"https://example.test/pull/{number}",
+                "title": f'Revert "{pull["title"]}"',
+                "headRefName": f"revert-{pull['number']}-{pull['headRefName']}",
+                "headRefOid": "e" * 40,
+                "baseRefName": "main",
+                "statusCheckRollup": [],
+            }
+        )
+        (stub / "open.json").write_text(json.dumps(opened))
+        said = opened[-1]["url"]
     elif args[:2] == ["pr", "edit"]:
         if (stub / "gh-edit-refused").exists():
             return 1, "", ""

@@ -27,7 +27,7 @@ stateDiagram-v2
     state "2 waiting to launch" as s3
   }
   state "Main red from outside" as g1 {
-    state "1 a draft, its review<br/>first, 1 passed, holds<br/>main's fix, not proved" as s4
+    state "1 a draft, its review<br/>first, 1 holds main's fix,<br/>red from its own break" as s4
     state "1 a draft, its review<br/>first, 1 waiting for a<br/>check" as s5
   }
   [*] --> s3

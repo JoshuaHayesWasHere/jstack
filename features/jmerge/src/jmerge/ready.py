@@ -248,6 +248,8 @@ MIGRATION_REBASING = Reason(
     "it adds a migration, and #{number}, which merges before it, is being rebased",
 )
 MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
+"""No judgement gives this reason since red-main-no-hold (2026-11-02): a red main holds no pull
+request. It stays so that the lines of older logs keep their code."""
 BASE_MERGE_ASKED = Reason(
     "check",
     "GitHub was asked to merge {base} at {tip} into it: its check failed before {base} moved",
@@ -1121,6 +1123,9 @@ BROWSER = "browser"
 and is no required check: a head with no run of it waits for none (`browser`)."""
 BROWSER_FAILED = "failed"
 BROWSER_PENDING = "pending"
+MAIN_BROWSER_RED = Reason("check", "its browser run failed at {head}, as main's did at {sha}")
+"""Declared before `BROWSER_RED`, whose text starts its own, so that `code_of` reads a line of
+it with no code as this one: jbus tells no crew to fix main's red."""
 BROWSER_RED = Reason("check", "its browser run failed at {head}")
 
 

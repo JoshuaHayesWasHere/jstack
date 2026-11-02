@@ -8,7 +8,6 @@ config:
 stateDiagram-v2
   %% second model (against): the design
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef plainPath fill:#f4f6f7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   classDef group1 fill:#e8eef9,stroke:#74777d,color:#1b2631
   classDef group1Path fill:#e8eef9,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
@@ -18,17 +17,17 @@ stateDiagram-v2
   class legendGroup1 group1
   class legendWrong plainWrong
   state "Main green" as g0 {
-    state "1 a draft, its review<br/>first, 1 waiting to launch" as s0
-    state "2 a draft, its review<br/>first" as s1
+    state "1 a draft, its review<br/>first, 1 a draft, waiting<br/>on your word" as s0
+    state "1 a draft, waiting on your<br/>word, 1 waiting to launch" as s1
     state "2 waiting to launch" as s2
   }
-  state "Main red from outside: 2 a<br/>draft, its review first" as s3
+  state "Main red from outside: 1 a<br/>draft, its review first, 1<br/>a draft, waiting on your<br/>word" as s3
   [*] --> s2
-  s2 --> s0 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
-  s0 --> s1 : 2. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
-  s1 --> s3 : 3. something outside breaks<br/>main
+  s2 --> s1 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  s1 --> s0 : 2. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  s0 --> s3 : 3. something outside breaks<br/>main
   s3 --> s3 : 4. you approve main's fix, and<br/>its crew puts it in an open<br/>pull request
-  class s0 group1Path
-  class s1 plainPath
+  class s0 plainWrong
+  class s1 group1Path
   class s2 group1Path
   class s3 plainWrong

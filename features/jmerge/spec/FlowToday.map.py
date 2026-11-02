@@ -159,7 +159,7 @@ def cause(v, facts, invariant):
         if any(v["fixes"][p] and ("rv" in v and v["rv"][p] == "draft") for p in ("a", "b")):
             return (
                 "main's fix row closed with its fix in an open draft, which jmerge never marks "
-                "ready while main is red, so its check never runs to prove the fix"
+                "ready while it waits on your word, and jmerge --accept refuses a draft"
             )
         if any(v["fixes"][p] and v["ci"][p] == "fail" for p in ("a", "b")):
             return (

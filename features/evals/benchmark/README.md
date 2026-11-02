@@ -56,7 +56,7 @@ features/evals/benchmark/replay.sh "$PWD" /tmp/replay --runs 1 --events redmain
 ```
 
 The events are `plain`, `conflict`, `redmain`, `findings`, `limit`, `launch` and `batch`, and all of them run by default.
-On `redmain` it prints `wait 7 ...: main is red at <sha12>, its fix merges first`.
+On `redmain` it prints `ready 7 ...`, since a red main holds no pull request.
 On `limit` it prints jbus's own dry run over a recorded usage-limit failure, which writes nothing and moves no thread: today's move is decided, and not made.
 
 Add `--spend` to also run setup B, a home agent with no jbus, on each event.

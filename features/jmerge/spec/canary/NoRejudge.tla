@@ -45,13 +45,12 @@ Check(p) ==
 Merge(p) ==
     /\ st[p] = "open"
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
-    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py `if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):`
     /\ st' = [st EXCEPT ![p] = "merged"]
-    /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
-    /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
-    /\ fixes' = IF proved[p] THEN NoFix ELSE fixes
-    /\ proved' = IF proved[p] THEN NoFix ELSE proved
+    /\ mainRed' = ((mainRed /\ ~fixes[p]) \/ breaks[p])
+    /\ redBy' = IF breaks[p] THEN "merge" ELSE IF fixes[p] THEN "none" ELSE redBy
+    /\ fixRow' = ((fixRow /\ ~fixes[p]) \/ breaks[p])
+    /\ fixes' = IF fixes[p] THEN NoFix ELSE fixes
+    /\ proved' = IF fixes[p] THEN NoFix ELSE proved
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, full>>
 
 \* The crew fixes its own broken change: only when it sees the failure as its own.
@@ -78,7 +77,7 @@ Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `def judge(`, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py `def red_only`, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py `moved = None if one.started is None else self.moved(one.base, one.started) if ( moved is None`, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem)`, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or (one.base == self.trunk and bool(self.main_state.red))`, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full, fixRow, fixes, proved>>

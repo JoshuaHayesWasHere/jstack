@@ -23,8 +23,8 @@ Paths:
 - `features/jinstall/docs/configuration.md`
 Tests: none
 
-`features/jbus/tests/test_main_red_model.py` checks the red wait over every order of events.
-The red wait is `main.json` as `mainmoved.tell` writes it and `rows.red` reads it.
+`features/jbus/tests/test_main_red_model.py` checks main's red record over every order of events.
+The record is `main.json` as `mainmoved.tell` writes it and `mainjson.read` reads it.
 `scripts/select_tests.py` selects the test by its imports.
 `features/jbus/project-skill/verify-main-red/SKILL.md`, which the install links as the checkout's `.claude/skills/verify-main-red` and `.cursor/skills/verify-main-red`, says how to run it and read what it finds.
 

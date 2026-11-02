@@ -86,7 +86,7 @@ COLUMNS = (
     "why",
     "since",
 )
-ROUTINE = ("merged", "stale", "retro", "gate", "stall", "waiting", "recovered")
+ROUTINE = ("merged", "stale", "retro", "revert", "gate", "stall", "waiting", "recovered")
 
 
 def since(given: str | None, user: jsettings.Settings) -> datetime | None:

@@ -112,14 +112,17 @@ def test_a_browser_run_still_going_is_waited_for_as_any_pending_run(replay):
     assert replay.run() == [f"wait 557 {url(557)}: browser has not passed"]
 
 
-def test_a_red_main_s_own_browser_run_has_is_main_s_and_waits_as_a_red_main(replay):
+def test_a_browser_red_main_s_run_has_too_is_held_as_its_own_red_naming_main_s(replay):
+    """It is red at its own head, so it is held, but by no `main is red` wait: the line names main's
+    red run, and jbus tells no crew to fix it."""
     red = "2" * 40
     main_ran(
         replay, ("schedule", "main", "success", "1" * 40), ("schedule", "main", "failure", red)
     )
     filed(replay, 2)
-    opened(replay, BROWSER_RED)
-    assert replay.run() == [f"wait 557 {url(557)}: {ready.MAIN_RED.format(sha=red[:12])}"]
+    head = opened(replay, BROWSER_RED)
+    held = ready.MAIN_BROWSER_RED.format(head=head[:12], sha=red[:12])
+    assert replay.run() == [f"wait 557 {url(557)}: {held}"]
     (asked,) = (replay.kitchen.home.stub / "asked-runs").read_text().splitlines()
     assert "branch=main" in asked and "status=completed" in asked
 

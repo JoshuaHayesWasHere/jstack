@@ -86,183 +86,185 @@ stateDiagram-v2
     state "1 merged, 1 passed,<br/>waiting to merge" as s45
     state "1 merged, 1 waiting for a<br/>check" as s46
     state "1 merged, 1 waiting to<br/>launch" as s47
-    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s48
-    state "1 passed, waiting to<br/>merge, 1 waiting to launch" as s49
-    state "1 waiting for a check, 1<br/>waiting to launch" as s50
-    state "2 a draft, its review<br/>first" as s51
-    state "2 a draft, waiting on your<br/>word" as s52
-    state "2 its row held" as s53
-    state "2 passed, waiting to merge" as s54
-    state "2 waiting for a check" as s55
-    state "2 waiting to launch" as s56
-    state "both merged" as s57
+    state "1 passed, waiting to<br/>merge, 1 waiting to launch" as s48
+    state "1 waiting for a check, 1<br/>waiting to launch" as s49
+    state "2 a draft, its review<br/>first" as s50
+    state "2 a draft, waiting on your<br/>word" as s51
+    state "2 its row held" as s52
+    state "2 waiting for a check" as s53
+    state "2 waiting to launch" as s54
+    state "both merged" as s55
   }
   state "Main red from a merge, its<br/>browser red" as g3 {
-    state "1 a draft, its review<br/>first, 1 merged" as s58
-    state "1 a draft, waiting on your<br/>word, 1 merged" as s59
+    state "1 a draft, its review<br/>first, 1 merged" as s56
+    state "1 a draft, waiting on your<br/>word, 1 merged" as s57
+    state "1 holds main's fix, red<br/>from its own break, 1<br/>merged" as s58
+    state "1 its browser run red, 1<br/>merged" as s59
     state "1 its row held, 1 merged" as s60
-    state "both merged" as s61
+    state "1 merged, 1 passed, holds<br/>main's fix, not proved" as s61
+    state "1 merged, 1 passed, holds<br/>main's fix, proved" as s62
+    state "1 merged, 1 passed, its<br/>row held" as s63
+    state "1 merged, 1 red only from<br/>main's break" as s64
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s65
+    state "both merged" as s66
   }
   state "Main red from a merge" as g4 {
-    state "1 a draft, its review<br/>first, 1 merged" as s62
-    state "1 a draft, waiting on your<br/>word, 1 merged" as s63
-    state "1 its row held, 1 merged" as s64
-    state "both merged" as s65
+    state "1 a draft, its review<br/>first, 1 merged" as s67
+    state "1 a draft, waiting on your<br/>word, 1 merged" as s68
+    state "1 holds main's fix, red<br/>from its own break, 1<br/>merged" as s69
+    state "1 its browser run red, 1<br/>merged" as s70
+    state "1 its row held, 1 merged" as s71
+    state "1 merged, 1 passed, holds<br/>main's fix, not proved" as s72
+    state "1 merged, 1 passed, holds<br/>main's fix, proved" as s73
+    state "1 merged, 1 passed, its<br/>row held" as s74
+    state "1 merged, 1 red only from<br/>main's break" as s75
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s76
+    state "1 merged, 1 waiting for a<br/>check" as s77
+    state "both merged" as s78
   }
   state "Main red from outside" as g5 {
-    state "1 a draft, its review<br/>first, 1 a draft, waiting<br/>on your word" as s66
-    state "1 a draft, its review<br/>first, 1 holds main's fix,<br/>red from its own break" as s67
-    state "1 a draft, its review<br/>first, 1 its row held" as s68
-    state "1 a draft, its review<br/>first, 1 merged" as s69
-    state "1 a draft, its review<br/>first, 1 passed, holds<br/>main's fix, not proved" as s70
-    state "1 a draft, its review<br/>first, 1 passed, holds<br/>main's fix, proved" as s71
-    state "1 a draft, its review<br/>first, 1 passed, its row<br/>held" as s72
-    state "1 a draft, its review<br/>first, 1 passed, waiting<br/>to merge" as s73
-    state "1 a draft, its review<br/>first, 1 red only from<br/>main's break" as s74
-    state "1 a draft, its review<br/>first, 1 red, its own<br/>break hidden behind main's" as s75
-    state "1 a draft, its review<br/>first, 1 waiting for a<br/>check" as s76
-    state "1 a draft, its review<br/>first, 1 waiting to launch" as s77
-    state "1 a draft, waiting on your<br/>word, 1 holds main's fix,<br/>red from its own break" as s78
-    state "1 a draft, waiting on your<br/>word, 1 its row held" as s79
-    state "1 a draft, waiting on your<br/>word, 1 merged" as s80
-    state "1 a draft, waiting on your<br/>word, 1 passed, holds<br/>main's fix, not proved" as s81
-    state "1 a draft, waiting on your<br/>word, 1 passed, holds<br/>main's fix, proved" as s82
-    state "1 a draft, waiting on your<br/>word, 1 passed, its row<br/>held" as s83
-    state "1 a draft, waiting on your<br/>word, 1 passed, waiting to<br/>merge" as s84
-    state "1 a draft, waiting on your<br/>word, 1 red only from<br/>main's break" as s85
-    state "1 a draft, waiting on your<br/>word, 1 red, its own break<br/>hidden behind main's" as s86
-    state "1 a draft, waiting on your<br/>word, 1 waiting for a<br/>check" as s87
-    state "1 a draft, waiting on your<br/>word, 1 waiting to launch" as s88
-    state "1 holds main's fix, red<br/>from its own break, 1 its<br/>row held" as s89
-    state "1 holds main's fix, red<br/>from its own break, 1<br/>merged" as s90
-    state "1 its row held, 1 merged" as s91
-    state "1 its row held, 1 passed,<br/>holds main's fix, not<br/>proved" as s92
-    state "1 its row held, 1 passed,<br/>holds main's fix, proved" as s93
-    state "1 its row held, 1 passed,<br/>its row held" as s94
-    state "1 its row held, 1 passed,<br/>waiting to merge" as s95
-    state "1 its row held, 1 red only<br/>from main's break" as s96
-    state "1 its row held, 1 red, its<br/>own break hidden behind<br/>main's" as s97
-    state "1 its row held, 1 waiting<br/>for a check" as s98
-    state "1 its row held, 1 waiting<br/>to launch" as s99
-    state "1 merged, 1 passed, holds<br/>main's fix, not proved" as s100
-    state "1 merged, 1 passed, holds<br/>main's fix, proved" as s101
-    state "1 merged, 1 passed, its<br/>row held" as s102
-    state "1 merged, 1 passed,<br/>waiting to merge" as s103
-    state "1 merged, 1 red only from<br/>main's break" as s104
-    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s105
-    state "1 merged, 1 waiting for a<br/>check" as s106
-    state "1 merged, 1 waiting to<br/>launch" as s107
-    state "1 passed, waiting to<br/>merge, 1 red only from<br/>main's break" as s108
-    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break hidden behind main's" as s109
-    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s110
-    state "1 passed, waiting to<br/>merge, 1 waiting to launch" as s111
-    state "1 red only from main's<br/>break, 1 red, its own<br/>break hidden behind main's" as s112
-    state "1 red only from main's<br/>break, 1 waiting for a<br/>check" as s113
-    state "1 red only from main's<br/>break, 1 waiting to launch" as s114
-    state "1 red, its own break<br/>hidden behind main's, 1<br/>waiting for a check" as s115
-    state "1 waiting for a check, 1<br/>waiting to launch" as s116
-    state "2 a draft, its review<br/>first" as s117
-    state "2 a draft, waiting on your<br/>word" as s118
-    state "2 its row held" as s119
-    state "2 passed, waiting to merge" as s120
-    state "2 red only from main's<br/>break" as s121
-    state "2 red, its own break<br/>hidden behind main's" as s122
-    state "2 waiting for a check" as s123
-    state "2 waiting to launch" as s124
-    state "both merged" as s125
+    state "1 a draft, its review<br/>first, 1 a draft, waiting<br/>on your word" as s79
+    state "1 a draft, its review<br/>first, 1 holds main's fix,<br/>red from its own break" as s80
+    state "1 a draft, its review<br/>first, 1 its row held" as s81
+    state "1 a draft, its review<br/>first, 1 merged" as s82
+    state "1 a draft, its review<br/>first, 1 passed, holds<br/>main's fix, not proved" as s83
+    state "1 a draft, its review<br/>first, 1 passed, holds<br/>main's fix, proved" as s84
+    state "1 a draft, its review<br/>first, 1 passed, its row<br/>held" as s85
+    state "1 a draft, its review<br/>first, 1 red only from<br/>main's break" as s86
+    state "1 a draft, its review<br/>first, 1 red, its own<br/>break hidden behind main's" as s87
+    state "1 a draft, its review<br/>first, 1 waiting for a<br/>check" as s88
+    state "1 a draft, its review<br/>first, 1 waiting to launch" as s89
+    state "1 a draft, waiting on your<br/>word, 1 holds main's fix,<br/>red from its own break" as s90
+    state "1 a draft, waiting on your<br/>word, 1 its row held" as s91
+    state "1 a draft, waiting on your<br/>word, 1 merged" as s92
+    state "1 a draft, waiting on your<br/>word, 1 passed, holds<br/>main's fix, not proved" as s93
+    state "1 a draft, waiting on your<br/>word, 1 passed, holds<br/>main's fix, proved" as s94
+    state "1 a draft, waiting on your<br/>word, 1 passed, its row<br/>held" as s95
+    state "1 a draft, waiting on your<br/>word, 1 red only from<br/>main's break" as s96
+    state "1 a draft, waiting on your<br/>word, 1 red, its own break<br/>hidden behind main's" as s97
+    state "1 a draft, waiting on your<br/>word, 1 waiting for a<br/>check" as s98
+    state "1 a draft, waiting on your<br/>word, 1 waiting to launch" as s99
+    state "1 holds main's fix, red<br/>from its own break, 1 its<br/>row held" as s100
+    state "1 holds main's fix, red<br/>from its own break, 1<br/>merged" as s101
+    state "1 its row held, 1 merged" as s102
+    state "1 its row held, 1 passed,<br/>holds main's fix, not<br/>proved" as s103
+    state "1 its row held, 1 passed,<br/>holds main's fix, proved" as s104
+    state "1 its row held, 1 passed,<br/>its row held" as s105
+    state "1 its row held, 1 red only<br/>from main's break" as s106
+    state "1 its row held, 1 red, its<br/>own break hidden behind<br/>main's" as s107
+    state "1 its row held, 1 waiting<br/>for a check" as s108
+    state "1 its row held, 1 waiting<br/>to launch" as s109
+    state "1 merged, 1 passed, holds<br/>main's fix, not proved" as s110
+    state "1 merged, 1 passed, holds<br/>main's fix, proved" as s111
+    state "1 merged, 1 passed, its<br/>row held" as s112
+    state "1 merged, 1 red only from<br/>main's break" as s113
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s114
+    state "1 merged, 1 waiting for a<br/>check" as s115
+    state "1 merged, 1 waiting to<br/>launch" as s116
+    state "1 red only from main's<br/>break, 1 red, its own<br/>break hidden behind main's" as s117
+    state "1 red only from main's<br/>break, 1 waiting for a<br/>check" as s118
+    state "1 red only from main's<br/>break, 1 waiting to launch" as s119
+    state "1 red, its own break<br/>hidden behind main's, 1<br/>waiting for a check" as s120
+    state "1 waiting for a check, 1<br/>waiting to launch" as s121
+    state "2 a draft, its review<br/>first" as s122
+    state "2 a draft, waiting on your<br/>word" as s123
+    state "2 its row held" as s124
+    state "2 red only from main's<br/>break" as s125
+    state "2 red, its own break<br/>hidden behind main's" as s126
+    state "2 waiting for a check" as s127
+    state "2 waiting to launch" as s128
+    state "both merged" as s129
   }
-  state "Main red from a merge,<br/>machine full: 1 merged, 1<br/>waiting to launch" as s126
-  [*] --> s55
-  [*] --> s56
-  s56 --> s19 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s56 --> s29 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s56 --> s124 : something outside breaks main
-  s56 --> s43 : you hold its row
-  s56 --> s36 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  state "Main red from a merge,<br/>machine full: 1 merged, 1<br/>waiting to launch" as s130
+  [*] --> s53
+  [*] --> s54
+  s54 --> s19 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s54 --> s29 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s54 --> s128 : something outside breaks main
+  s54 --> s43 : you hold its row
+  s54 --> s36 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
   s19 --> s21 : its review is written and<br/>fixed, and jmerge marks it<br/>ready
-  s29 --> s50 : its review is written and<br/>fixed, and jmerge marks it<br/>ready
-  s29 --> s51 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s29 --> s77 : something outside breaks main
+  s29 --> s49 : its review is written and<br/>fixed, and jmerge marks it<br/>ready
+  s29 --> s50 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s29 --> s89 : something outside breaks main
   s29 --> s24 : you hold its row
-  s124 --> s99 : you hold its row
-  s43 --> s53 : you hold its row
+  s128 --> s109 : you hold its row
+  s43 --> s52 : you hold its row
   s29 --> s22 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
   s36 --> s22 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s124 --> s88 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s128 --> s99 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
   s43 --> s31 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s36 --> s52 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s36 --> s51 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
   s21 --> s20 : its check runs
-  s50 --> s49 : its check runs
-  s50 --> s28 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s50 --> s116 : something outside breaks main
-  s50 --> s42 : you hold its row
-  s51 --> s117 : something outside breaks main
-  s77 --> s68 : you hold its row
-  s99 --> s119 : you hold its row
+  s49 --> s48 : its check runs
+  s49 --> s28 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s49 --> s121 : something outside breaks main
+  s49 --> s42 : you hold its row
+  s50 --> s122 : something outside breaks main
+  s89 --> s81 : you hold its row
+  s109 --> s124 : you hold its row
   s43 --> s13 : main's nightly browser run<br/>fails, and jbus files its fix
-  s50 --> s35 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s77 --> s66 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s99 --> s79 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s88 --> s118 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s49 --> s47 : it merges
-  s49 --> s27 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s49 --> s111 : something outside breaks main
-  s49 --> s41 : you hold its row
-  s28 --> s76 : something outside breaks main
-  s116 --> s114 : its check runs
-  s116 --> s98 : you hold its row
-  s51 --> s15 : main's nightly browser run<br/>fails, and jbus files its fix
+  s49 --> s35 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s22 --> s79 : something outside breaks main
+  s89 --> s79 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s109 --> s91 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s99 --> s123 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s48 --> s47 : it merges
+  s48 --> s27 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s48 --> s41 : you hold its row
+  s28 --> s88 : something outside breaks main
+  s121 --> s119 : its check runs
+  s121 --> s108 : you hold its row
+  s50 --> s15 : main's nightly browser run<br/>fails, and jbus files its fix
   s24 --> s2 : main's nightly browser run<br/>fails, and jbus files its fix
-  s53 --> s17 : main's nightly browser run<br/>fails, and jbus files its fix
-  s49 --> s34 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s116 --> s87 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s52 --> s17 : main's nightly browser run<br/>fails, and jbus files its fix
+  s48 --> s34 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s121 --> s98 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
   s22 --> s0 : main's nightly browser run<br/>fails, and jbus files its fix
   s31 --> s6 : main's nightly browser run<br/>fails, and jbus files its fix
-  s52 --> s16 : main's nightly browser run<br/>fails, and jbus files its fix
+  s51 --> s16 : main's nightly browser run<br/>fails, and jbus files its fix
   s28 --> s23 : its check runs
   s42 --> s37 : its check runs
   s35 --> s30 : its check runs
-  s20 --> s126 : it merges
+  s20 --> s130 : it merges
   s47 --> s25 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s47 --> s107 : something outside breaks main
+  s47 --> s116 : something outside breaks main
   s47 --> s39 : you hold its row
-  s27 --> s73 : something outside breaks main
-  s111 --> s95 : you hold its row
-  s76 --> s74 : its check runs
+  s88 --> s86 : its check runs
   s28 --> s26 : its check runs
-  s114 --> s96 : you hold its row
+  s119 --> s106 : you hold its row
   s42 --> s40 : its check runs
   s47 --> s32 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s111 --> s84 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
   s35 --> s33 : its check runs
-  s114 --> s85 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s27 --> s62 : it merges
-  s41 --> s64 : it merges
-  s76 --> s75 : its check runs
+  s119 --> s96 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s27 --> s67 : it merges
+  s41 --> s71 : it merges
+  s88 --> s87 : its check runs
+  s108 --> s107 : its check runs
+  s34 --> s68 : it merges
   s98 --> s97 : its check runs
-  s34 --> s63 : it merges
-  s87 --> s86 : its check runs
   s25 --> s46 : its review is written and<br/>fixed, and jmerge marks it<br/>ready
-  s25 --> s69 : something outside breaks main
-  s107 --> s91 : you hold its row
-  s76 --> s70 : its check runs
-  s76 --> s72 : its check runs
-  s76 --> s71 : its check runs
+  s25 --> s82 : something outside breaks main
+  s116 --> s102 : you hold its row
+  s88 --> s83 : its check runs
+  s88 --> s85 : its check runs
+  s88 --> s84 : its check runs
   s23 --> s1 : main's nightly browser run<br/>fails, and jbus files its fix
-  s98 --> s92 : its check runs
-  s98 --> s94 : its check runs
-  s98 --> s93 : its check runs
+  s108 --> s103 : its check runs
+  s108 --> s105 : its check runs
+  s108 --> s104 : its check runs
   s37 --> s9 : main's nightly browser run<br/>fails, and jbus files its fix
-  s107 --> s80 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
-  s87 --> s81 : its check runs
-  s87 --> s83 : its check runs
-  s87 --> s82 : its check runs
+  s116 --> s92 : jbus launches its crew, which<br/>opens its pull request as a<br/>draft
+  s98 --> s93 : its check runs
+  s98 --> s95 : its check runs
+  s98 --> s94 : its check runs
   s30 --> s5 : main's nightly browser run<br/>fails, and jbus files its fix
-  s76 --> s67 : its check runs
-  s98 --> s89 : its check runs
-  s87 --> s78 : its check runs
+  s67 --> s77 : its review is written and<br/>fixed, and jmerge marks it<br/>ready
+  s88 --> s80 : its check runs
+  s108 --> s100 : its check runs
+  s98 --> s90 : its check runs
   s46 --> s45 : its check runs
-  s46 --> s106 : something outside breaks main
+  s46 --> s115 : something outside breaks main
   s25 --> s3 : main's nightly browser run<br/>fails, and jbus files its fix
   s39 --> s11 : main's nightly browser run<br/>fails, and jbus files its fix
   s26 --> s4 : main's nightly browser run<br/>fails, and jbus files its fix
@@ -270,38 +272,45 @@ stateDiagram-v2
   s32 --> s7 : main's nightly browser run<br/>fails, and jbus files its fix
   s33 --> s8 : main's nightly browser run<br/>fails, and jbus files its fix
   s46 --> s38 : its check runs
-  s62 --> s58 : main's nightly browser run<br/>fails, and jbus files its fix
-  s64 --> s60 : main's nightly browser run<br/>fails, and jbus files its fix
-  s63 --> s59 : main's nightly browser run<br/>fails, and jbus files its fix
-  s45 --> s57 : it merges
-  s45 --> s103 : something outside breaks main
-  s106 --> s104 : its check runs
+  s77 --> s75 : its check runs
+  s67 --> s56 : main's nightly browser run<br/>fails, and jbus files its fix
+  s71 --> s60 : main's nightly browser run<br/>fails, and jbus files its fix
+  s68 --> s57 : main's nightly browser run<br/>fails, and jbus files its fix
+  s77 --> s70 : its check runs
+  s77 --> s76 : its check runs
+  s45 --> s55 : it merges
+  s115 --> s113 : its check runs
   s46 --> s44 : its check runs
-  s45 --> s65 : it merges
-  s106 --> s105 : its check runs
-  s57 --> s125 : something outside breaks main
-  s106 --> s100 : its check runs
-  s106 --> s102 : its check runs
-  s106 --> s101 : its check runs
+  s45 --> s78 : it merges
+  s115 --> s114 : its check runs
+  s77 --> s72 : its check runs
+  s77 --> s74 : its check runs
+  s77 --> s73 : its check runs
+  s77 --> s69 : its check runs
+  s55 --> s129 : something outside breaks main
+  s115 --> s110 : its check runs
+  s115 --> s112 : its check runs
+  s115 --> s111 : its check runs
   s38 --> s10 : main's nightly browser run<br/>fails, and jbus files its fix
-  s106 --> s90 : its check runs
-  s57 --> s18 : main's nightly browser run<br/>fails, and jbus files its fix
+  s115 --> s101 : its check runs
+  s75 --> s64 : main's nightly browser run<br/>fails, and jbus files its fix
+  s70 --> s59 : main's nightly browser run<br/>fails, and jbus files its fix
+  s76 --> s65 : main's nightly browser run<br/>fails, and jbus files its fix
+  s55 --> s18 : main's nightly browser run<br/>fails, and jbus files its fix
   s44 --> s14 : main's nightly browser run<br/>fails, and jbus files its fix
-  s65 --> s61 : main's nightly browser run<br/>fails, and jbus files its fix
-  s55 --> s48 : in the design, its check runs
-  s55 --> s123 : in the design, something<br/>outside breaks main
-  s48 --> s54 : in the design, its check runs
-  s48 --> s110 : in the design, something<br/>outside breaks main
-  s123 --> s113 : in the design, its check runs
-  s123 --> s115 : in the design, its check runs
-  s54 --> s120 : in the design, something<br/>outside breaks main
-  s110 --> s108 : in the design, its check runs
-  s113 --> s121 : in the design, its check runs
-  s110 --> s109 : in the design, its check runs
-  s113 --> s112 : in the design, its check runs
-  s115 --> s122 : in the design, its check runs
-  s117 --> s117 : you approve main's fix, and<br/>its crew puts it in an open<br/>pull request
-  s76 --> s76 : you approve main's fix, and<br/>its crew puts it in an open<br/>pull request
+  s78 --> s66 : main's nightly browser run<br/>fails, and jbus files its fix
+  s74 --> s63 : main's nightly browser run<br/>fails, and jbus files its fix
+  s72 --> s61 : main's nightly browser run<br/>fails, and jbus files its fix
+  s73 --> s62 : main's nightly browser run<br/>fails, and jbus files its fix
+  s69 --> s58 : main's nightly browser run<br/>fails, and jbus files its fix
+  s53 --> s127 : in the design, something<br/>outside breaks main
+  s127 --> s118 : in the design, its check runs
+  s127 --> s120 : in the design, its check runs
+  s118 --> s125 : in the design, its check runs
+  s118 --> s117 : in the design, its check runs
+  s120 --> s126 : in the design, its check runs
+  s79 --> s79 : you approve main's fix, and<br/>its crew puts it in an open<br/>pull request
+  s88 --> s88 : you approve main's fix, and<br/>its crew puts it in an open<br/>pull request
   class s0 plain
   class s1 plain
   class s2 plain
@@ -350,82 +359,86 @@ stateDiagram-v2
   class s45 group1
   class s46 group1
   class s47 group1
-  class s48 group1Fixed
+  class s48 group1
   class s49 group1
-  class s50 group1
-  class s51 plain
-  class s52 plainWrong
-  class s53 plain
-  class s54 group1Fixed
-  class s55 group1Fixed
-  class s56 group1
-  class s57 group0
-  class s58 plainWrong
-  class s59 plainWrong
+  class s50 plain
+  class s51 plainWrong
+  class s52 plain
+  class s53 group1Fixed
+  class s54 group1
+  class s55 group0
+  class s56 plainWrong
+  class s57 plainWrong
+  class s58 group2Wrong
+  class s59 group2Wrong
   class s60 group2Wrong
-  class s61 group2Wrong
-  class s126 group1Wrong
+  class s61 plainWrong
   class s62 plainWrong
-  class s63 plainWrong
-  class s64 plainWrong
-  class s65 plainWrong
-  class s66 plainWrong
-  class s67 group3Wrong
-  class s68 plain
+  class s63 group2Wrong
+  class s64 group2Wrong
+  class s65 group2Wrong
+  class s66 group2Wrong
+  class s130 group1Wrong
+  class s67 plainWrong
+  class s68 plainWrong
   class s69 plainWrong
-  class s70 group3Wrong
-  class s71 plain
-  class s72 plain
+  class s70 group1Wrong
+  class s71 plainWrong
+  class s72 plainWrong
   class s73 plainWrong
   class s74 plainWrong
   class s75 plainWrong
-  class s76 group1
-  class s77 group1
-  class s78 group3Wrong
-  class s79 plain
-  class s80 plainWrong
-  class s81 group3Wrong
+  class s76 plainWrong
+  class s77 group1Wrong
+  class s78 plainWrong
+  class s79 plainWrong
+  class s80 group3Wrong
+  class s81 plain
   class s82 plain
   class s83 plain
-  class s84 plainWrong
-  class s85 plainWrong
+  class s84 plain
+  class s85 plain
   class s86 plainWrong
-  class s87 group1
+  class s87 plainWrong
   class s88 group1
-  class s89 group3
-  class s90 plain
-  class s91 group2
-  class s92 group3
+  class s89 group1
+  class s90 group3Wrong
+  class s91 plain
+  class s92 plainWrong
   class s93 plain
-  class s94 group2
-  class s95 group2
-  class s96 group2
-  class s97 group2
+  class s94 plain
+  class s95 plain
+  class s96 plainWrong
+  class s97 plainWrong
   class s98 group1
-  class s99 plain
+  class s99 group1
   class s100 group3
-  class s101 plain
+  class s101 plainWrong
   class s102 group2
-  class s103 group2
-  class s104 group2
+  class s103 plain
+  class s104 plain
   class s105 group2
-  class s106 group1
-  class s107 group1
-  class s108 group2Fixed
-  class s109 group2Fixed
-  class s110 group1Fixed
-  class s111 group1
-  class s112 group2Fixed
-  class s113 group1Fixed
-  class s114 group1
-  class s115 group1Fixed
+  class s106 group2
+  class s107 group2
+  class s108 group1
+  class s109 plain
+  class s110 plain
+  class s111 plain
+  class s112 group2
+  class s113 group2
+  class s114 group2
+  class s115 group1
   class s116 group1
-  class s117 plainWrong
-  class s118 plainWrong
-  class s119 group2
-  class s120 group2Fixed
-  class s121 group2Fixed
-  class s122 group2Fixed
-  class s123 group1Fixed
-  class s124 group1
-  class s125 group2
+  class s117 group2Fixed
+  class s118 group1Fixed
+  class s119 group1
+  class s120 group1Fixed
+  class s121 group1
+  class s122 plain
+  class s123 plainWrong
+  class s124 group2
+  class s125 group2Fixed
+  class s126 group2Fixed
+  class s127 group1Fixed
+  class s128 group1
+  class s129 group2

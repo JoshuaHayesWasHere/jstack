@@ -460,7 +460,6 @@ def test_a_hand_merge_that_takes_the_number_after_the_judgment_has_it_renumbered
 
 RED = "c" * 40
 FIX = "main-red-cccccccccccc"
-RED_LINE = f"wait 7 {merge.URL}: main is red at cccccccccccc, its fix merges first"
 
 
 def record(red="", green=""):
@@ -489,20 +488,11 @@ def fix_and_other(two):
     return two
 
 
-def test_a_red_main_merges_its_fix_and_holds_every_other_pull_request(fix_and_other):
+def test_a_red_main_lets_both_through_as_a_green_one_does(fix_and_other):
+    """A red main holds no pull request (red-main-no-hold): the fix and the other merge alike."""
     main_says(fix_and_other.home, red=RED, green="a" * 40)
-    said = fix_and_other.run()
-    assert said[0] == RED_LINE
-    assert merged_numbers(said) == [8]
-    assert (fix_and_other.tree.exists(), fix_and_other.branches()[1]) == (True, ["alpha", "main"])
-
-
-def test_a_hold_for_a_red_main_shows_in_check_and_merges_nothing_but_the_fix(fix_and_other):
-    main_says(fix_and_other.home, red=RED, green="a" * 40)
-    said = fix_and_other.run("--check")
-    assert said[0] == RED_LINE
-    assert said[1].startswith("ready ")
-    assert merged_numbers(said) == []
+    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
+    assert merged_numbers(fix_and_other.run()) == [7, 8]
 
 
 def test_a_green_main_lets_both_through(fix_and_other):
@@ -515,19 +505,10 @@ def test_a_repo_whose_main_jbus_never_judged_merges_as_it_did(fix_and_other):
     assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
 
 
-def test_the_held_pull_request_merges_once_main_is_green_again(fix_and_other):
-    path = main_says(fix_and_other.home, red=RED, green="a" * 40)
-    assert merged_numbers(fix_and_other.run()) == [8]
-    path.write_text(json.dumps(record(green="d" * 40)))
-    listed = json.loads((fix_and_other.home.stub / "list.json").read_text())
-    (fix_and_other.home.stub / "list.json").write_text(json.dumps(listed[:1]))
-    assert merged_numbers(fix_and_other.run()) == [7]
-
-
 def test_a_main_the_state_cannot_name_is_no_red_main(fix_and_other):
     main_says(fix_and_other.home).write_text("not json")
     assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
 
 
-def test_the_red_main_wait_lands_on_the_check_step_and_not_in_unknown():
+def test_the_red_main_wait_of_an_older_log_lands_on_the_check_step_and_not_in_unknown():
     assert judgement.step(f"wait: {ready.MAIN_RED.format(sha='cccccccccccc')}") == "check"

@@ -137,9 +137,7 @@ Merges(p) ==
     \* Its row's go: a row you held, or whose go does not hold for its brief, waits on your approval.
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
-    \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
-    \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
-    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py `if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):`
+    \* A red main holds no pull request (red-main-no-hold): only its own checks do.
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
     /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py `if state != ready.BROWSER_FAILED:`
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
@@ -147,16 +145,17 @@ Merges(p) ==
     \* A merge_after row merges after its row.
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `row.get("merge_after", [])`
     /\ st' = [st EXCEPT ![p] = "merged"]
-    \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
-    /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
-    /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py `_file(run, slug, sha,`: main's red tip after a briefed merge is filed.
+    \* A merged fix ends the red once main's new tip is checked green, which this step takes as one:
+    \* with no hold, nothing waits for its own check to prove it first.
+    /\ mainRed' = ((mainRed /\ ~fixes[p]) \/ breaks[p])
+    /\ redBy' = IF breaks[p] THEN "merge" ELSE IF fixes[p] THEN "none" ELSE redBy
+    \* features/jbus/src/jbus/culprits.py `_file(run, run.red.slug, run.red.sha, run.red.red, why)`: main's red tip after a briefed merge is filed.
     \* A green tip withdraws a fix row that never launched (features/jbus/src/jbus/watch.py `_withdraw(run, fixes, tip)`), and in this model
     \* a queued fix row has not launched.
-    /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
-    /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~proved[p]) THEN BOOLEAN ELSE {named}
-    /\ fixes' = IF proved[p] THEN NoFix ELSE fixes
-    /\ proved' = IF proved[p] THEN NoFix ELSE proved
+    /\ fixRow' = ((fixRow /\ ~fixes[p]) \/ breaks[p])
+    /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~fixes[p]) THEN BOOLEAN ELSE {named}
+    /\ fixes' = IF fixes[p] THEN NoFix ELSE fixes
+    /\ proved' = IF fixes[p] THEN NoFix ELSE proved
     \* No browser break merges past the hold above.
     /\ viewBroken' = (viewBroken \/ brBreaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine, brBreaks, brFail, brHold, Row>>
@@ -185,7 +184,6 @@ Ready(p) ==
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `for other in row.get("merge_after", []):`
     \* A draft has no check of its own yet, so it proves no fix, and has no browser run.
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem)`
     /\ Draft = "held" => ~needs[p]          \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`
     /\ rv' = [rv EXCEPT ![p] = "ready"]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
@@ -242,7 +240,7 @@ Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `def judge(`, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py `def red_only`, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py `moved = None if one.started is None else self.moved(one.base, one.started) if ( moved is None`, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem)`, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or (one.base == self.trunk and bool(self.main_state.red))`, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,

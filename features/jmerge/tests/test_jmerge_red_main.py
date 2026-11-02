@@ -1,12 +1,13 @@
-"""While main is red, `jmerge` merges its fix and holds the rest. The fix was known only by its
-slug, `main-red-<sha12>`, the row jbus files for the red. On 2026-10-27 from 17:28 the code that
-fixed main came from two flow rows, #576 and #579 (`fl-`), so both were held, and once the
-filed `main-red-` row closed with no pull request, nothing could merge and main could not move.
+"""A red main holds no pull request (red-main-no-hold, Josh's pick of 2026-11-02, "Yes,
+guess-free reverts"). Until then every pull request into main waited as `main is red at <sha12>,
+its fix merges first` while jbus's `main.json` named a red tip: 4.7% of the PR-hours of the
+merge-velocity audit, and the replayed p90 went from 304 to 203 minutes without it. A pull request
+red at its own head is still held by its own checks, and jbus reverts the one clear culprit of a
+red main (`jbus.reverts`), whose pull request merges here by the normal path with no review
+(`jmerge.reverts`).
 
-The fix is now also the pull request whose own check proves it: at a head that contains the red
-tip, every check passed, and its jobs' logs say they ran each test that failed there
-(`rows.ran_in`, of the tests `main.json` keeps). The slug still makes a fix. A pull request whose
-check ran other tests, failed, or ran at a head without the red tip waits as before.
+What a job's log says it ran (`rows.ran_in`) and the tests a red run failed
+(`mainjson.failures`) still tell a pull request's own browser red from main's.
 
 The tests run the command against a real origin and a fake `gh` (`test_jmerge_rejudge.Replay`)
 that also gives each job's log."""
@@ -16,7 +17,7 @@ import json
 import pytest
 
 import test_home_merge as merge
-from jmerge import mainjson, ready, rows
+from jmerge import mainjson, ready, reverts, rows
 from test_jmerge_browser import RUNS, filed, main_ran
 from test_jmerge_fresh import git, url, write
 from test_jmerge_rejudge import BROKE, STARTED, Replay
@@ -26,6 +27,7 @@ LOGS = """\
         job=${2%/logs}
         cat "$STUB/job-${job##*/}.log" ;;
 """
+CHECK = "not browser"
 FAILED = "features/a/tests/test_a.py::test_red"
 SELECTED = (
     "2026-10-27T17:40:01.1Z + uv run pytest -n 4 --dist worksteal --durations=25 "
@@ -52,12 +54,6 @@ def red_main(replay, failed=(FAILED,)):
     return tip
 
 
-def closed_fix_row(replay, tip):
-    """The `main-red-` row jbus filed for the red ended with no pull request."""
-    row = {"slug": f"{mainjson.FIX}{tip[:12]}", "status": "done"}
-    (replay.state / "queue.json").write_text(json.dumps([row]))
-
-
 def job(number, conclusion="SUCCESS", name="check 1 of 4", log=SELECTED, replay=None):
     """A job of the pull request's check, and its log."""
     if replay is not None:
@@ -72,32 +68,62 @@ def flow_fix(replay, *checks, slug="fl-red-fix", number=576):
     return replay.kitchen.crew(slug, number, files, checks=checks)
 
 
-def test_a_flow_row_s_green_pull_request_whose_check_ran_the_failed_test_merges_past_a_red_main(
-    replay,
-):
-    """The replay of #576: an `fl-` row's pull request, green over the red tip, whose check ran
-    the file of the test that failed there. The filed `main-red-` row closed with no pull
-    request."""
-    tip = red_main(replay)
-    closed_fix_row(replay, tip)
-    flow_fix(replay, job(11, replay=replay), job(12, name="check", log=PARTS, replay=replay))
-    assert [line.split()[:2] for line in replay.run()] == [["merged", "576"]]
-
-
-def test_a_check_that_ran_the_whole_suite_proves_the_fix(replay):
+def test_a_green_pull_request_merges_while_main_is_red(replay):
+    """Its check ran no test that failed at the red tip, and no `main-red-` row is open: it
+    merged all the same, since main's red is not its own."""
     red_main(replay)
-    flow_fix(
-        replay, job(11, log=WHOLE, replay=replay), job(12, name="check", log=PARTS, replay=replay)
-    )
-    assert [line.split()[:2] for line in replay.run()] == [["merged", "576"]]
-
-
-def test_a_check_that_ran_other_tests_does_not_prove_the_fix(replay):
-    tip = red_main(replay)
     flow_fix(
         replay, job(11, log=OTHER, replay=replay), job(12, name="check", log=PARTS, replay=replay)
     )
-    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
+    assert [line.split()[:2] for line in replay.run()] == [["merged", "576"]]
+
+
+def test_a_pull_request_red_at_its_own_head_is_still_held_while_main_is_red(replay):
+    red_main(replay)
+    flow_fix(replay, job(13, "FAILURE", "check", replay=replay))
+    (said,) = replay.run()
+    assert said.startswith(f"wait 576 {url(576)}: ") and "has failed" in said
+    assert "main is red" not in said
+
+
+def revert_pull(replay, recorded=True, number=900):
+    """The pull request jbus opened to revert the culprit of a red main: green, with a brief that
+    names it and no review. `reverts.json` keeps it where `recorded`."""
+    branch = f"revert-576-fl-red-{number}"
+    head = replay.kitchen.crew(branch, number, {"a.txt": "back\n"}, checks=(merge.PASSED,))
+    pull = url(number)
+    (replay.kitchen.home.tasks / f"{branch}.md").write_text(
+        f"# {branch}: revert #576, which turned main red\nTask: jbus reverts it\n"
+        f"Pull request: opened by jbus\n\n## Result\nStatus: done\n"
+        f"Branch: {branch}   Pull request: {pull}\n"
+    )
+    if recorded:
+        made = reverts.Revert("r" * 40, "fl-red", branch, head, pull)
+        (replay.state / reverts.NAME).write_text(json.dumps({made.red: reverts.record(made)}))
+    return head
+
+
+def test_the_revert_jbus_opened_merges_by_the_normal_path_with_no_review(replay):
+    red_main(replay)
+    revert_pull(replay)
+    said = replay.run()
+    assert [line.split()[:2] for line in said] == [["merged", "900"]], said
+
+
+def test_a_pull_request_on_a_revert_s_branch_that_jbus_did_not_open_waits_for_its_review(replay):
+    red_main(replay)
+    revert_pull(replay, recorded=False)
+    assert replay.run() == [f"wait 900 {url(900)}: {ready.NO_REVIEW}"]
+
+
+def test_a_revert_pushed_to_since_jbus_opened_it_waits_for_its_review(replay):
+    red_main(replay)
+    revert_pull(replay)
+    made = reverts.read(replay.state)["r" * 40]
+    moved = reverts.Revert(made.red, made.slug, made.branch, "e" * 40, made.pull)
+    (replay.state / reverts.NAME).write_text(json.dumps({moved.red: reverts.record(moved)}))
+    (said,) = replay.run()
+    assert said.startswith(f"wait 900 {url(900)}: ")
 
 
 NARROWED = [
@@ -110,60 +136,6 @@ NARROWED = [
 """Commands that run less than the suite, or none of it, with options other than by name."""
 
 
-@pytest.mark.parametrize("log", NARROWED)
-def test_a_check_whose_command_leaves_out_or_stops_tests_does_not_prove_the_fix(replay, log):
-    """A changed Makefile `PYTEST` or workflow may run the check so: an option jmerge does not
-    know may narrow the run, so the command proves nothing."""
-    tip = red_main(replay)
-    flow_fix(
-        replay, job(11, log=log, replay=replay), job(12, name="check", log=PARTS, replay=replay)
-    )
-    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
-
-
-def test_a_passed_browser_run_does_not_prove_the_fix_its_check_did_not(replay):
-    """The browser run's `pytest -m browser` names no path, but it ran only the browser tests:
-    only the check's own parts say what ran of the rest."""
-    tip = red_main(replay)
-    browser = "2026-10-27T17:41:00Z uv run pytest -m browser\n"
-    flow_fix(
-        replay,
-        job(11, log=OTHER, replay=replay),
-        job(12, name="check", log=PARTS, replay=replay),
-        job(14, name="browser", log=browser, replay=replay),
-    )
-    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
-
-
-def test_a_check_whose_part_failed_does_not_prove_the_fix(replay):
-    """A part that failed may have stopped before it ran the red test, so its check proves
-    nothing, though another part's log names that test's file."""
-    tip = red_main(replay)
-    flow_fix(replay, job(11, replay=replay), job(13, "FAILURE", "check 3 of 4", replay=replay))
-    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
-
-
-def test_a_head_without_the_red_tip_does_not_prove_the_fix(replay):
-    """Its check ran over a main before the red: it says nothing of the red."""
-    flow_fix(replay, job(11, replay=replay), job(12, name="check", log=PARTS, replay=replay))
-    tip = red_main(replay)
-    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
-
-
-def test_a_red_main_whose_failed_tests_are_not_known_lets_only_its_fix_row_through(replay):
-    tip = red_main(replay, failed=())
-    flow_fix(
-        replay, job(11, log=WHOLE, replay=replay), job(12, name="check", log=PARTS, replay=replay)
-    )
-    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
-
-
-def test_the_filed_fix_row_still_merges_by_its_slug(replay):
-    tip = red_main(replay, failed=())
-    flow_fix(replay, merge.PASSED | {"startedAt": STARTED}, slug=f"{mainjson.FIX}{tip[:12]}")
-    assert [line.split()[:2] for line in replay.run()] == [["merged", "576"]]
-
-
 @pytest.mark.parametrize(
     "log",
     [
@@ -174,7 +146,7 @@ def test_the_filed_fix_row_still_merges_by_its_slug(replay):
 )
 def test_a_log_s_one_pytest_command_says_what_ran(log):
     """bash's trace quotes, dash's does not, and make echoes the command it runs."""
-    ran = rows.ran_in(log, rows.CHECK)
+    ran = rows.ran_in(log, CHECK)
     assert ran is not None
     assert ran.covers(FAILED) == ("--shard=2/4" in log or "test_a.py" in log)
     assert not ran.covers("features/c/tests/test_c.py::test_other") or ran.every
@@ -192,7 +164,7 @@ def test_a_log_s_one_pytest_command_says_what_ran(log):
     ],
 )
 def test_a_log_with_no_command_two_or_one_that_narrows_says_nothing(log):
-    assert rows.ran_in(log, rows.CHECK) is None
+    assert rows.ran_in(log, CHECK) is None
 
 
 def test_a_run_is_read_for_the_marker_its_caller_expects():
@@ -200,7 +172,7 @@ def test_a_run_is_read_for_the_marker_its_caller_expects():
     none of the rest, so each says nothing to the other's reader."""
     browser = "2026-10-27T17:41:00Z uv run pytest -m browser\n"
     assert rows.ran_in(browser, rows.BROWSER) == rows.Ran(every=True)
-    assert rows.ran_in(browser, rows.CHECK) is None
+    assert rows.ran_in(browser, CHECK) is None
     assert rows.ran_in(WHOLE, rows.BROWSER) is None
 
 
@@ -253,8 +225,8 @@ def test_a_browser_run_that_passed_main_s_failed_browser_test_is_held_by_its_own
 ):
     """Main's last browser run failed a shot test, and the row jbus filed for it is open. A flow
     row's browser run that ran every browser test and passed that one is the fix of main's red,
-    whatever its slug: it is held by its own red only. One that failed it too waits as for a red
-    main."""
+    whatever its slug: it is held by its own red only. One that failed it too is held by its
+    own red as main's, and says so."""
     main = browser.kitchen.home.main
     git(main, "pull", "-q", "--ff-only")
     write(main, {"b.txt": "red\n"})
@@ -271,6 +243,6 @@ def test_a_browser_run_that_passed_main_s_failed_browser_test_is_held_by_its_own
     own = job(32, "FAILURE", "browser", BROWSER_LOG.format(failed=fails), browser)
     head = flow_fix(browser, job(12, name="check", log=PARTS, replay=browser), own)
     own_red = ready.BROWSER_RED.format(head=head[:12])
-    main_red = ready.MAIN_RED.format(sha=red[:12])
+    main_red = ready.MAIN_BROWSER_RED.format(head=head[:12], sha=red[:12])
     expected = own_red if fails != BROWSER_FAILED else main_red
     assert browser.run() == [f"wait 576 {url(576)}: {expected}"]

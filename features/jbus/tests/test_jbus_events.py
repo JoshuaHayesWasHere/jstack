@@ -232,6 +232,7 @@ TABLE = {
     "slot-end": "quiet",
     "pool-wake": "quiet",
     "retro": "quiet",
+    "revert": "quiet",
     "cancelled": "quiet",
     "snapshot": "quiet",
     "jmerge": "quiet",

@@ -22,7 +22,7 @@ from jmerge import judgement
 from jsettings import proc
 
 if TYPE_CHECKING:
-    from jbus.watch import World
+    from jbus.watch import RedTip, World
 
 CONDITION = "condition"
 
@@ -84,7 +84,8 @@ class Pass:
     `limited` is the slugs whose last run ended on a usage limit (`jbus.failover`). The pass sends
     their threads no carry-on, since the failover sends one. `world` is what the pass saw of T3
     Code and GitHub, once it has looked (`watch.look`), or None before then or where it could not
-    look.
+    look. `red` is main's tip, red after its one rerun, that `watch` hands to `jbus.culprits` in
+    the pass that files its row or reverts its culprit.
     """
 
     config: Config
@@ -98,6 +99,7 @@ class Pass:
     told: set[str] = field(default_factory=set)
     limited: set[str] = field(default_factory=set)
     world: World | None = None
+    red: RedTip | None = None
 
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)

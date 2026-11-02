@@ -30,15 +30,15 @@ Needs: `home`, `demo`, `config`, `tasks`, `t3/threads.json`, `gh/open.json`, `gh
 
 The replay makes its own sandbox for each run of each event, so it is run from a shell that has sourced no `env.sh`, and needs none of its own.
 
-### The replay's today side says main is red
+### The replay's today side lets a pull request through a red main
 
 - **Run the event.**
   Run `features/evals/benchmark/replay.sh "$PWD" /tmp/replay --runs 1 --events redmain`.
-  It prints the limits ledger, then `today: redmain, run 1, <n> ms, expect held 7 (main red)`, then `wait 7 https://example.test/pull/7: main is red at <sha12>, its fix merges first`, then the ledger again.
+  It prints the limits ledger, then `today: redmain, run 1, <n> ms, expect merged 7 (a red main holds no pull request)`, then `ready 7 <head> beta beta`, then the ledger again.
 - **Check that no model ran.**
   `/tmp/replay/today.jsonl` has `"tokens":0`, and there is no `/tmp/replay/b.jsonl`.
 - **Proof.**
-  Keep `/tmp/replay/redmain.1.today.txt` and `/tmp/replay/redmain.1.today-gh.log`, which has no `pr merge` line.
+  Keep `/tmp/replay/redmain.1.today.txt` and `/tmp/replay/redmain.1.today-gh.log`, which has no `pr merge` line, as `jmerge --check` merges nothing.
 
 ### The upkeep ledger says jbus's share beside the baseline's 0.54
 
