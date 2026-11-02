@@ -8,8 +8,8 @@ kind of remark, the login and the link, and says the remark is reviewer or bot o
 word reaches a crew only from `jbus word` or in the crew's own thread.
 
 For each open pull request of a slug that jbus launched, `tell` reads GitHub's three lists of
-remarks. It sends the slug's crew each remark whose author is the repo's owner, one message
-each. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
+remarks, every pull request's at the same moment. It sends the slug's crew each remark whose
+author is the repo's owner, one message each, in the order of the pull requests. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
 and writes the owner nowhere in the tree. When GitHub gives no answer, jbus relays nothing.
 
 jbus counts a remark by anybody else and reads it no further. It does not keep or log the
@@ -34,7 +34,7 @@ from typing import Any
 
 from jbriefs.home import thread_of
 from jbus import outbox, read_json, verbs, write_json
-from jbus.passes import Pass
+from jbus.passes import Pass, side_by_side
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _api
 
@@ -159,8 +159,8 @@ def tell(run: Pass, client: Client, world: World) -> None:
         run.say(f"wait {run.project.name}: GitHub did not say who owns the repo, no comment read")
         return
     counted: dict[str, int] = read_json(run.state / "remarks.json", {})
-    for slug, number, thread in crews:
-        found = read(run, number)
+    read_all = side_by_side(lambda crew: read(run, crew[1]), crews)
+    for (slug, number, thread), found in zip(crews, read_all, strict=True):
         if found is None:
             run.say(f"wait {slug}: GitHub did not give the comments on #{number}")
             continue

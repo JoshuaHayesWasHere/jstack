@@ -17,8 +17,7 @@ the machine shares, so they run one at a time. Each client's session ends with t
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -176,13 +175,6 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     alert.flush(run)
 
 
-def side_by_side[T, U](work: Callable[[T], U], items: Sequence[T]) -> list[U]:
-    """Run `work` on each item in a thread of its own, and return what it gave in the items' order.
-    `work` catches what it can raise (`guarded`)."""
-    with ThreadPoolExecutor(max_workers=max(len(items), 1)) as pool:
-        return list(pool.map(work, items))
-
-
 def _whole(say: Callable[[str], None]) -> Callable[[str], None]:
     """Return `say` taking one line at a time, so no project's line lands inside another's."""
     saying = threading.Lock()
@@ -252,7 +244,7 @@ def poll(
                 lock.callback(own.close)
             return first_half(run, own)
 
-        halves = side_by_side(lambda p: guarded(p.name, lambda: first(p)), config.projects)
+        halves = passes.side_by_side(lambda p: guarded(p.name, lambda: first(p)), config.projects)
         halves = [half for half in halves if half is not None]
         if raised:
             say(f"wait: crews out not known ({', '.join(sorted(raised))}: the pass raised)")
@@ -260,7 +252,7 @@ def poll(
             guarded(LAUNCH, lambda: rotation.share(config, halves, say))
         for chore in CHORES:
             guarded(chore.name, lambda chore=chore: chore.run(config, client, now, say))
-        side_by_side(
+        passes.side_by_side(
             lambda half: guarded(half.run.project.name, lambda: second_half(half, half.client)),
             halves,
         )
