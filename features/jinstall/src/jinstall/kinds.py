@@ -687,6 +687,74 @@ class Attribution:
 
 
 @dataclass(frozen=True)
+class SettingsEnv:
+    """The variables of `env` in a Claude home's settings.json that the harness's row gives
+    (`Harness.env`). The install sets these variables and touches no other key of the file, nor
+    any other variable of `env`.
+    due: the file is there, or `made`, as for Attribution.
+    missing: none of the variables is set.
+    old: a variable is not set, or is set to another value: the detail names the first.
+    foreign: the file is not one JSON object, or its `env` is not one.
+    drop: take out each variable that holds exactly the install's value, and `env` once it is
+      empty."""
+
+    file: Path
+    wanted: dict
+    made: bool = False
+
+    def _env(self, machine: Machine) -> dict | None:
+        was = machine.read_object(self.file)
+        if not isinstance(was, JsonObject):
+            return None
+        env = was.value.get("env", {})
+        return env if isinstance(env, dict) else None
+
+    def probe(self, machine: Machine) -> Found:
+        env = self._env(machine)
+        if env is None:
+            return Found.foreign("not a settings file")
+        if not any(key in env for key in self.wanted):
+            return Found.missing()
+        for key, want in self.wanted.items():
+            if key not in env:
+                return Found.old(f"env.{key} is not set")
+            if env[key] != want:
+                return Found.old(f"env.{key} is {json.dumps(env[key])}")
+        return Found.ok()
+
+    def due(self, machine: Machine) -> bool:
+        return self.made or self.file.exists()
+
+    def put(self, machine: Machine) -> None:
+        def change(value: dict) -> bool:
+            env = value.setdefault("env", {})
+            if not isinstance(env, dict):
+                raise Refused(f"{self.file}: env is not an object")
+            env.update(self.wanted)
+            return True
+
+        rewrite(machine, self.file, change)
+
+    def drop(self, machine: Machine) -> Dropped:
+        def change(value: dict) -> bool:
+            env = value.get("env")
+            if not isinstance(env, dict):
+                return False
+            ours = [key for key, want in self.wanted.items() if env.get(key, None) == want]
+            for key in ours:
+                del env[key]
+            if ours and not env:
+                del value["env"]
+            return bool(ours)
+
+        if self._env(machine) is None:
+            return Dropped()
+        if rewrite(machine, self.file, change):
+            return Dropped(removed=(f"env {self.file}",))
+        return Dropped()
+
+
+@dataclass(frozen=True)
 class Commands:
     """The commands on PATH. In a checkout, `tool` and `names` come from pyproject.toml
     (`[project].name` and the keys of `[project.scripts]`). In a release, they come from the

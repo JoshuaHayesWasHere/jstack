@@ -2,6 +2,12 @@
   "$schema": "../../schemas/feature.schema.json",
   "name": "home",
   "description": "The home: plans with the user, writes each brief and launches its thread.",
+  "hidden": [
+    "handoff",
+    "home",
+    "new-home",
+    "nohome"
+  ],
   "hooks": [
     {
       "event": "SessionStart",

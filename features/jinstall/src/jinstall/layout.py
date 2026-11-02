@@ -8,7 +8,9 @@ generator writes that file from `features/`, and it lists each skill, principle,
 template and hook at its path in the source.
 
 A layout holds these entries:
-- every skill as `skills/<name>/`, flat, with each file of its folder;
+- every skill as `skills/<name>/`, flat, with each file of its folder, and for a skill that
+  skills.json marks `hidden`, the file the harness reads to keep its agent from loading the skill
+  by itself (`Harness.hides`);
 - every playbook as `playbooks/<name>.md`;
 - every principle as `principles/<name>.md`, a stub that points at its skill;
 - the templates;
@@ -129,6 +131,12 @@ def skills(source: Path) -> list[str]:
     )
 
 
+def hidden(source: Path) -> list[str]:
+    """The name of every skill that the source's `skills.json` marks `hidden`: one that a model
+    may not load by itself."""
+    return sorted(item["name"] for item in catalog(source) if item.get("hidden"))
+
+
 def _skill_files(source: Path, skill: PurePosixPath) -> Iterator[PurePosixPath]:
     """Every file of the skill folder `skill`, as source paths, except what `NOT_THE_SKILL`
     names. `NOT_THE_SKILL` names a feature's other parts and its playbooks, which the layout
@@ -208,6 +216,10 @@ def assemble(source: Path, harness: Harness) -> Assembled:
             entries[to] = Written(moved.encode())
     for stub, name in stubs.items():
         entries[stub] = Written(_stub(name))
+    if harness.hides:
+        path, text = harness.hides
+        for name in hidden(source):
+            entries[f"skills/{name}/{path}"] = Written(text.encode())
     flagged = {
         name: tuple(
             sorted(set().union(*(terms.used(_text(source, f), harness.name) for f in files)))

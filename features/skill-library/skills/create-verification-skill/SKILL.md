@@ -1,8 +1,7 @@
 ---
 name: create-verification-skill
-description: "Generate a project-local verification skill, `.claude/skills/verify-<app>/`, that drives the repo's app the way a user does, in any language, framework or platform. Use for /create-verification-skill, \"make a verify skill for this repo\", or when a repo has no scripted way to prove UI, CLI or service behavior."
+description: "Generate a project-local verify-[app] skill that drives the repo's app the way a user does. Use for 'make a verify skill for this repo', or when a repo has no scripted way to prove UI, CLI or service behavior."
 tip: writes the repo's verify skill, which launches the app, drives a feature and keeps the evidence | make a verify skill | verification skill | drive the app | how do we prove it works | no way to drive the app
-disable-model-invocation: true
 card: "Distrust the change | 6 | Writes the repo's verify skill in `.claude/skills/verify-<app>/`: how to launch the app, check it, drive each feature the way a user does, keep the evidence and clean up, with a map of the features. It runs the skill once end to end before it hands it over. | Reach for it when a repo has no scripted way to prove a change works in the real app. | op: the operator; plain: a brief with the `authoring-a-skill` playbook"
 ---
 

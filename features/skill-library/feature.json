@@ -1,5 +1,9 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "skill-library",
-  "description": "The skills any thread may load by name."
+  "description": "The skills any thread may load by name.",
+  "hidden": [
+    "maintain-verification-skill",
+    "make-bot-ui"
+  ]
 }

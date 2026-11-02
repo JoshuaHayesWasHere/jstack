@@ -1,7 +1,7 @@
 # The sharpen skill
 
 `sharpen` rewrites a task's prompt to ask for the deeper version, and does not do the task.
-It loads only when a user types it, and the tests run each shell block it gives.
+A model may load it by itself from its description, and the tests run each shell block it gives.
 
 Paths:
 - `features/sharpen/`

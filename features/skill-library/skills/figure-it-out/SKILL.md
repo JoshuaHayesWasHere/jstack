@@ -1,8 +1,7 @@
 ---
 name: figure-it-out
-description: "Frame a task no playbook fits (a large migration, an ambitious multi-part change, work reviewed after stepping away) and, in a home, turn it into plan entries whose crewmates each keep a decision log. Use for /figure-it-out or 'figure it out'."
+description: "Frame a task no playbook fits (a large migration, an ambitious multi-part change, work reviewed after stepping away) and, in a home, plan it as entries. Use for 'figure it out'."
 tip: frames a task no playbook fits and plans it as entries with a decision log | figure it out | figure-it-out | no playbook fits | large migration | ambitious change
-disable-model-invocation: true
 card: "Settle the shape before code | 5 | Frames a task no playbook fits: done as a check that can fail, the scope counted, the rigor and why, the riskiest unit first and the check built before the work. In a home it plans the units as entries, each crewmate keeping a decision log. | Reach for it when a large or many-part task matches no playbook. | op: the operator; model: a home"
 ---
 

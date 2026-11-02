@@ -1,8 +1,7 @@
 ---
 name: grilling
-description: Grill the user relentlessly about a plan, decision, or idea, until nothing is left assumed. Use for /grilling, or when a home plans work whose shape is not settled.
+description: "Question the user about a plan, decision or idea, one round at a time through the question form, until nothing is left assumed. Use for 'grill me', 'walk me through these one by one', 'ask me the questions', or open choices left to decide."
 tip: questions a plan until nothing is left assumed | grill me | poke holes | what am i missing | challenge my plan
-disable-model-invocation: true
 card: "Settle the shape before code | 1 | Questions the operator about a plan, a decision or an idea, round after round, until nothing is left assumed. | Reach for it when the work is more than one task, or a design choice is not made yet. | op: the operator; model: a home"
 ---
 

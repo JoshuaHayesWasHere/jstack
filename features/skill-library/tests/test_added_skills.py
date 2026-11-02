@@ -1,7 +1,6 @@
-"""The skills added after the first eleven. Each loads only when the user types it, and the tests
-run its shell blocks. Each subagent a skill starts is a read-only Explore agent, of a type that
-the Agent tool accepts. The tests of what one skill's blocks print are in the folder of the
-feature that holds the skill."""
+"""The skills added after the first eleven. The tests run their shell blocks. Each subagent a
+skill starts is a read-only Explore agent, of a type that the Agent tool accepts. The tests of
+what one skill's blocks print are in the folder of the feature that holds the skill."""
 
 import os
 import re

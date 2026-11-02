@@ -1,8 +1,9 @@
-"""Every skill loads only when the user types it. Its frontmatter sets
-`disable-model-invocation: true`, gives a description, and gives the skill the name of its
-folder. Every skill jstack ships has the name of its folder, in each of jstack's skill trees,
-and so does each skill entry of skills.json. The fixtures show that the checks catch a skill
-whose name is not its folder's."""
+"""A skill its feature.json lists as `hidden` loads only when the user types it: its frontmatter
+sets `disable-model-invocation: true`. Every other skill sets no such key, so a model may load it
+by itself. Each skill gives a description and the name of its folder. Every skill jstack ships has
+the name of its folder, in each of jstack's skill trees, and so does each skill entry of
+skills.json. The fixtures show that the checks catch a skill whose key disagrees with the list,
+either way, and a skill whose name is not its folder's."""
 
 import json
 import re
@@ -18,7 +19,7 @@ from testing.paths import REPO, skills
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 SHIPPED = sorted(SKILLS)
 NAMED_TREE = REPO / "testing" / "tests" / "fixtures" / "skills" / "named-tree"
-NO_KEY = REPO / "testing" / "tests" / "fixtures" / "skills" / "no-key" / "SKILL.md"
+FIXTURES = REPO / "testing" / "tests" / "fixtures" / "skills"
 KEY = "disable-model-invocation"
 
 
@@ -51,16 +52,30 @@ def misnamed_entries(root):
     ]
 
 
-def problems(path):
-    """What stops the skill at `path` from being one that loads only when it is typed."""
+def hidden(root):
+    """The name of each skill that `root`/skills.json marks `hidden`, as its feature.json lists
+    it, or no name where there is no skills.json."""
+    listed = root / "skills.json"
+    if not listed.is_file():
+        return frozenset()
+    items = json.loads(listed.read_text())["items"]
+    return frozenset(item["name"] for item in items if item.get("hidden"))
+
+
+def problems(path, hidden=frozenset()):
+    """Where the frontmatter of the skill at `path` disagrees with `hidden`, the skills that load
+    only when typed: a hidden skill sets the key to true, and any other skill does not set it."""
     fields = front(path.read_text())
     if fields is None:
         return ["has no frontmatter"]
     found = []
     if not fields.get("description"):
         found.append("has no description")
-    if KEY not in fields:
-        found.append(f"does not set {KEY}")
+    if path.parent.name not in hidden:
+        if KEY in fields:
+            found.append(f"sets {KEY}, and its feature.json does not list it as hidden")
+    elif KEY not in fields:
+        found.append(f"is hidden in its feature.json, and does not set {KEY}")
     elif fields[KEY] != "true":
         found.append(f"sets {KEY} to {fields[KEY]}")
     return found
@@ -71,8 +86,8 @@ def test_the_glob_finds_the_skills():
 
 
 @pytest.mark.parametrize("path", SKILLS, ids=lambda path: path.parent.name)
-def test_lint_a_skill_loads_only_when_typed(path):
-    assert problems(path) == []
+def test_lint_a_skill_sets_the_key_as_its_feature_lists_it(path):
+    assert problems(path, hidden(REPO)) == []
 
 
 def holds_this_test(root):
@@ -89,27 +104,41 @@ def holds_this_test(root):
 
 
 @pytest.mark.parametrize("mended", [False, True], ids=["broken", "mended"])
-def test_lint_fails_on_the_broken_fixture_and_passes_it_mended(tmp_path, mended):
-    """The test gives the lint a skills folder that holds only the fixture, and has it run as
-    CI runs it."""
+@pytest.mark.parametrize(
+    ("fixture", "listed"), [("no-key", True), ("extra-key", False)], ids=["no-key", "extra-key"]
+)
+def test_lint_fails_on_the_broken_fixture_and_passes_it_mended(tmp_path, fixture, listed, mended):
+    """The test gives the lint a skills folder that holds only the fixture, and a skills.json
+    that lists it as hidden or not, and has it run as CI runs it. The fixture disagrees with the
+    list, and mending it adds the key it lacks or takes out the key it has."""
     holds_this_test(tmp_path)
-    skill = tmp_path / "skills" / NO_KEY.parent.name / NO_KEY.name
+    source = FIXTURES / fixture / "SKILL.md"
+    skill = tmp_path / "skills" / fixture / "SKILL.md"
     skill.parent.mkdir(parents=True)
-    first, *rest = NO_KEY.read_text().splitlines(keepends=True)
-    skill.write_text("".join([first, *([f"{KEY}: true\n"] if mended else []), *rest]))
+    item = {"name": fixture, "kind": "skill", "path": f"skills/{fixture}/SKILL.md"}
+    (tmp_path / "skills.json").write_text(
+        json.dumps({"items": [item | ({"hidden": True} if listed else {})]})
+    )
+    first, *rest = source.read_text().splitlines(keepends=True)
+    if mended and listed:
+        rest = [f"{KEY}: true\n", *rest]
+    elif mended:
+        rest = [line for line in rest if not line.startswith(f"{KEY}:")]
+    skill.write_text("".join([first, *rest]))
     done = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", "only_when_typed"],
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", "as_its_feature"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
     )
     failed = re.findall(r"^FAILED (\S+)", done.stdout, re.M)
+    module = "tests/test_skill_frontmatter.py::"
     expected = (
         []
         if mended
-        else ["tests/test_skill_frontmatter.py::test_lint_a_skill_loads_only_when_typed[no-key]"]
+        else [f"{module}test_lint_a_skill_sets_the_key_as_its_feature_lists_it[{fixture}]"]
     )
-    assert (done.returncode, failed) == (0 if mended else 1, expected)
+    assert (done.returncode, failed) == (0 if mended else 1, expected), done.stdout
 
 
 GOOD = """\
@@ -123,15 +152,31 @@ disable-model-invocation: true
 """
 
 
-def check(tmp_path, text):
+def check(tmp_path, text, hidden=frozenset({"a-skill"})):
     path = tmp_path / "a-skill" / "SKILL.md"
     path.parent.mkdir()
     path.write_text(text)
-    return problems(path)
+    return problems(path, hidden)
 
 
 def test_a_skill_hidden_from_the_model_has_no_problem(tmp_path):
     assert check(tmp_path, GOOD) == []
+
+
+def test_a_skill_the_model_may_load_has_no_key_and_no_problem(tmp_path):
+    assert check(tmp_path, GOOD.replace(f"{KEY}: true\n", ""), hidden=frozenset()) == []
+
+
+def test_a_key_on_a_skill_not_listed_hidden_is_a_problem(tmp_path):
+    assert check(tmp_path, GOOD, hidden=frozenset()) == [
+        f"sets {KEY}, and its feature.json does not list it as hidden"
+    ]
+
+
+def test_the_list_comes_from_skills_json(tmp_path):
+    items = [{"name": "a-skill", "kind": "skill", "hidden": True}, {"name": "b", "kind": "skill"}]
+    (tmp_path / "skills.json").write_text(json.dumps({"items": items}))
+    assert hidden(tmp_path) == {"a-skill"}
 
 
 @pytest.mark.parametrize(
@@ -149,7 +194,7 @@ def test_a_quoted_description_with_a_colon_is_read(tmp_path):
 
 def test_a_key_in_the_text_and_not_the_frontmatter_is_a_problem(tmp_path):
     text = GOOD.replace(f"{KEY}: true\n", "") + f"\n{KEY}: true\n"
-    assert check(tmp_path, text) == [f"does not set {KEY}"]
+    assert check(tmp_path, text) == [f"is hidden in its feature.json, and does not set {KEY}"]
 
 
 def test_a_name_that_is_not_the_folder_is_a_problem(tmp_path):

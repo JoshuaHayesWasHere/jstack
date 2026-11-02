@@ -1,7 +1,6 @@
 ---
 name: principle-build-the-lever
 description: "Apply when a need repeats: the second time you meet the same edit, migration, analysis, or check, not the first. Build the tool that does it or proves it (codemod, script, generator, or a skill your subagents follow) instead of working by hand again. The tool is the artifact a reviewer can rerun."
-disable-model-invocation: true
 ---
 
 # Build the Lever

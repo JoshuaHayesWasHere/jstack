@@ -1,8 +1,7 @@
 ---
 name: why
-description: "Use for /why, 'why does X work this way', 'why we picked Y', design rationale, regressions, postmortems, or data-backed thresholds. Finds the MCP servers this session has and queries each evidence category (source control, issue tracker, long-form docs, real-time chat, infrastructure observability, error tracking, product analytics warehouse) in parallel, then returns a cited read on decisions and tradeoffs. Use how for runtime behavior."
+description: "Find why code is the way it is, from its history and every evidence source this session can query, with citations. Use for 'why does X work this way', 'why did we pick Y', regressions and postmortems. Use how for runtime behavior."
 tip: finds why the code is the way it is, with cited evidence | why does * work this way | why did we pick | why did we choose | design rationale | postmortem | post mortem
-disable-model-invocation: true
 card: "Understand what is there | 2 | Explains why something was built this way, with a cited read of the decisions and tradeoffs from source control, issues and docs. | Reach for it when you need the rationale, or are looking into a regression. | op: the operator; plain: a step of `architect`"
 ---
 

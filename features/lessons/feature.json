@@ -1,5 +1,9 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "lessons",
-  "description": "Turns a mistake agents keep making into a rule they cannot break."
+  "description": "Turns a mistake agents keep making into a rule they cannot break.",
+  "hidden": [
+    "correct",
+    "reflect"
+  ]
 }

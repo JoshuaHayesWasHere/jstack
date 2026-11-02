@@ -1,16 +1,14 @@
 ---
 name: typescript-best-practices
-description: TypeScript best practices. Use for /typescript-best-practices, typed before reading or editing .ts or .tsx files.
+description: "TypeScript best practices. Use before reading or editing .ts or .tsx files."
+paths: "**/*.ts, **/*.tsx"
 tip: loads the TypeScript rules before a .ts or .tsx edit | typescript | tsx | ts file
-disable-model-invocation: true
 card: "House standards for text and code | 4 | TypeScript practices a thread loads before it reads or edits `.ts` and `.tsx` files. | Reach for it when the task touches TypeScript. | op: the operator"
 ---
 
 # TypeScript best practices
 
 Source: pstack, `pstack/skills/typescript-best-practices/SKILL.md`
-
-The source's frontmatter has `paths:` for `**/*.ts` and `**/*.tsx`, which loads it whenever such a file is read. That line is dropped here: a skill in this repo loads only when it is typed, so nothing brings these rules in by a file's path. Type `/typescript-best-practices` at the start of TypeScript work, or have the brief tell the crewmate to read this file.
 
 Run this first:
 

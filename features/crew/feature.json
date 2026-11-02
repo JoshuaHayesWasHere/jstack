@@ -1,5 +1,8 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "crew",
-  "description": "The crewmate: does the one task of a brief in its own worktree and opens its pull request."
+  "description": "The crewmate: does the one task of a brief in its own worktree and opens its pull request.",
+  "hidden": [
+    "crew"
+  ]
 }

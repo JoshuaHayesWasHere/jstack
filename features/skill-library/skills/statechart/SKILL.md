@@ -1,8 +1,7 @@
 ---
 name: statechart
-description: "Draw what an app's user sees as a Mermaid statechart from a TLA+ model. States are gray if they work, red if still wrong, and green if fixed. Each bug TLC finds is a numbered path. Use for /statechart, \"show the PM the bug\", or to turn an agreed chart into a TLA+ skeleton."
+description: "Draw what an app's user sees as a Mermaid statechart from a TLA+ model, each bug TLC finds a numbered path. Use for 'show the PM the bug', or to turn an agreed chart into a TLA+ skeleton."
 tip: draws what the user sees as a statechart from a TLA+ model, each bug a numbered path | statechart | state chart | show the pm the bug | draw the state machine | chart from the tla spec
-disable-model-invocation: true
 card: "Distrust the change | 9 | Draws what an app's user sees as a Mermaid statechart from a TLA+ model checked by TLC, with each bug a numbered path, or turns a chart the PM agreed to into a TLA+ skeleton. | Reach for it when a product call rests on a state machine, or a bug TLC found has to be shown to someone who does not read TLA+. | op: the operator"
 ---
 

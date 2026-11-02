@@ -72,10 +72,10 @@ A path that starts with `~` is under your home directory.
 | `~/.claude/skills/<skill>` | A link for each skill, into Claude Code's layout | Always |
 | `~/.codex/skills/<skill>` | A link for each skill, into Codex's layout | Always |
 | `~/.agents/skills/<skill>` | A link for each skill, into Cursor's layout | Always |
-| `~/.claude/settings.json` | The hook entries, the status line, and the keys that turn off the AI co-author trailer | Always. A status line of your own stays. |
+| `~/.claude/settings.json` | The hook entries, the status line, the keys that turn off the AI co-author trailer, and the budget of the skill listing in `env` ([The skill listing](#the-skill-listing)) | Always. A status line of your own stays. |
 | `~/.codex/hooks.json` | Codex's hook entries | Always |
 | `~/.cursor/cli-config.json` | The keys that turn off Cursor's AI co-author trailer | Once Cursor's CLI has made the file |
-| `settings.json` of each Claude home that T3 Code's `providerInstances` lists | The keys that turn off the AI co-author trailer | Once the home has the file |
+| `settings.json` of each Claude home that T3 Code's `providerInstances` lists | The keys that turn off the AI co-author trailer, and the budget of the skill listing | Once the home has the file |
 | `~/.config/jstack/outbound.toml` | jleak's private patterns file, made once from jleak's example, for you to fill in ([jleak](../../jleak/docs/jleak.md#the-private-patterns)) | Where there is none |
 | `~/.config/systemd/user/<unit>` | A link for each unit of `jbus`, `jgauge` and `jroles`. The install enables the timers, and the CI report, relay and backup units only where their config asks for them. | Once the `jbus` config is there |
 | `~/Library/LaunchAgents/jstack.<unit>.plist`, on macOS in place of the line above | A launchd agent for each timer, and for the relay, made from the same units ([On macOS](#on-macos)). The install loads each into launchd with `launchctl bootstrap`, and the CI report, relay and backup agents only where their config asks for them. | Once the `jbus` config is there |
@@ -111,6 +111,8 @@ When a Markdown file links to a file the layout leaves out, such as a page of `d
 The install's `--check` names such a file stale once its source changes.
 The `README.md` of each layout names, for each skill, the tools and paths it asks for that the harness leaves out.
 Codex and Cursor have none of Claude Code's own tools, its home folder or its settings file.
+A skill that its feature's `feature.json` lists as `hidden` sets `disable-model-invocation: true`, which Claude Code and Cursor read, and loads only when it is typed.
+Codex reads `agents/openai.yaml` beside a skill instead, so the Codex and Cursor layouts hold one with `allow_implicit_invocation: false` beside each hidden skill: Codex reads `~/.agents/skills` as well as `~/.codex/skills`.
 `--check` prints one line for each layout, `ok` when it is as the install assembles it, and `old` with the first file that is stale.
 
 ## Hook entries
@@ -176,6 +178,13 @@ The install writes no `settings.json` for a declared home that has none yet, bec
 `--check` prints `attribution <file>` as `missing`, or as `old` with the first key that differs.
 `--uninstall` takes out only a key that still holds the install's value.
 A setting alone does not stop an agent that types the trailer into its own commit, so jleak's [AI trailer guards](../../jleak/docs/jleak.md#ai-trailers) refuse the command and clean the message.
+
+## The skill listing
+
+Claude Code lists each skill a model may load, with its description, and cuts the listing to a budget of 1% of the context window: about 8,000 characters in a session of 200k tokens.
+Past the budget it drops the descriptions of the skills used least, which would be jstack's.
+The install sets `SLASH_COMMAND_TOOL_CHAR_BUDGET` to `32000` in `env` of each Claude home's `settings.json`, the files of [AI co-author trailers](#ai-co-author-trailers), and leaves every other variable of `env` as it is.
+`--check` prints `env <file>` as `missing`, or as `old` with the variable that differs, and `--uninstall` takes it out while it still holds the install's value.
 
 ## Working on jstack
 

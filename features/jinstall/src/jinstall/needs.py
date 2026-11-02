@@ -40,6 +40,7 @@ from jinstall.kinds import (
     RelayKeys,
     RetiredHook,
     Roles,
+    SettingsEnv,
     StateRepo,
     StatusLine,
     T3Code,
@@ -159,6 +160,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                                               co-author trailer, in each Claude home's
                                               settings.json (~/.claude and each declared
                                               home) and in each harness's settings file
+      hard      env <file>                    SettingsEnv, the variables of Claude Code's row
+                                              (`Harness.env`) in each Claude home's
+                                              settings.json, as for attribution
       optional  units ~/.config/systemd/user  Units, which enables the ci, relay and
                                               snapshot units only while the ci report, relay
                                               and state repo needs above are ok (`OPTED`); on
@@ -303,6 +307,11 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"attribution {file}", Level.HARD, Attribution(file, wanted, made))
         for file, wanted, made in _attribution(home, providers)
     ]
+    claude = _claude_settings(home, providers) if CLAUDE_CODE.env else []
+    found += [
+        Need(f"env {file}", Level.HARD, SettingsEnv(file, CLAUDE_CODE.env, file == claude[0]))
+        for file in claude
+    ]
     names = sorted(templates(machine))
     opted = {"jbus-ci.timer": CiReport(jbus), "jbus-relay.service": RelayKeys(relay)}
     opted["jbus-snapshot.timer"] = StateRepo(state)
@@ -328,14 +337,21 @@ def _attribution(home: Path, providers: dict) -> list[tuple[Path, dict, bool]]:
     for harness in HARNESSES:
         if not harness.attribution:
             continue
-        files = [home / harness.settings]
         if harness is CLAUDE_CODE:
-            files += [each / "settings.json" for each in claude_homes(providers, home)]
+            files = _claude_settings(home, providers)
+        else:
+            files = [home / harness.settings]
         made = harness is CLAUDE_CODE
-        found += [
-            (file, harness.attribution, made and file == files[0]) for file in dict.fromkeys(files)
-        ]
+        found += [(file, harness.attribution, made and file == files[0]) for file in files]
     return found
+
+
+def _claude_settings(home: Path, providers: dict) -> list[Path]:
+    """The settings.json of every Claude home: `~/.claude`'s first, and each home T3's settings
+    list, once each."""
+    files = [home / CLAUDE_CODE.settings]
+    files += [each / "settings.json" for each in claude_homes(providers, home)]
+    return list(dict.fromkeys(files))
 
 
 def _project(repo: Path, local: tuple[dict, ...]) -> list[Need]:

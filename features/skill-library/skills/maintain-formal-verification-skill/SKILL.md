@@ -1,8 +1,7 @@
 ---
 name: maintain-formal-verification-skill
-description: "Bring a project's formal verification back in line with the code after the code changes: find the commits that touched verified code, update the model, harness, or properties to describe the code as it is now, rerun, and say whether each failure is drift in the verification or a bug in the code. Use for /maintain-formal-verification-skill, \"is the model still true to the code\", or after merges and refactors that touched verified code without rechecking it."
+description: "Bring a project's formal verification back in line after the code changed: update the model, rerun, and say whether each failure is drift or a bug. Use for 'is the model still true to the code', or after merges touched verified code."
 tip: brings a formal verify skill back in line with the code after changes that skipped it | is the model still true to the code | maintain the formal verification | formal verification drift | recheck the model
-disable-model-invocation: true
 card: "Distrust the change | 8 | Brings a formal verify skill back in line with the code: reads every change to covered code since the sync commit, updates the model or harness from the code, reruns, and says of each failure whether it is drift or a bug. | Reach for it after merges or refactors touched verified code without rechecking it. | op: the operator"
 ---
 

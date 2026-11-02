@@ -157,6 +157,7 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
             if (skill := _project_skill(root, at, one, where, faults))
         ),
         nameable=tuple(manifest.get("nameable", ())),
+        hidden=tuple(manifest.get("hidden", ())),
     )
 
 
@@ -216,7 +217,8 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
                 continue
             feature = tree.feature(owners[0])
             nameable = kind == "playbook" and name in feature.nameable
-            item = Item(name, kind, relative, feature.name, description, nameable)
+            hidden = kind == "skill" and name in feature.hidden
+            item = Item(name, kind, relative, feature.name, description, nameable, hidden)
             if (kind, name) in found:
                 faults.append(f"{relative}: the {kind} {name} is also {found[kind, name].path}")
                 continue
@@ -226,6 +228,11 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
             if ("playbook", name) not in found or found["playbook", name].feature != feature.name:
                 faults.append(
                     f"{FEATURES}/{feature.name}/{MANIFEST}: nameable {name} is no playbook it owns"
+                )
+        for name in feature.hidden:
+            if ("skill", name) not in found or found["skill", name].feature != feature.name:
+                faults.append(
+                    f"{FEATURES}/{feature.name}/{MANIFEST}: hidden {name} is no skill it owns"
                 )
     return tuple(sorted(found.values(), key=lambda one: (one.kind, one.name)))
 

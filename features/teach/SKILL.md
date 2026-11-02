@@ -1,8 +1,7 @@
 ---
 name: teach
-description: "Explain a body of work plainly so a person actually understands it. Runs the `how` and `why` skills and weaves what they find into one clear explanation. Use for /teach, 'teach me this', 'help me really understand X', 'explain this change or subsystem to me'."
+description: "Explain a body of work plainly until the user understands it, using how and why. Use for 'teach me this', 'help me really understand X', or explaining a change or subsystem."
 tip: explains a body of work plainly until you understand it | teach me | help me understand | explain this to me | i don't understand
-disable-model-invocation: true
 card: "Understand what is there | 3 | Runs `how` and `why` and weaves what they find into one plain explanation. | Reach for it when a person has to really understand a change or a subsystem. | op: the operator"
 ---
 
@@ -12,7 +11,13 @@ Source: pstack, `pstack/skills/teach/SKILL.md`
 
 **You explain what a thing is, how it works, and why it's built that way, in one plain account at the person's pace. The goal is that they understand it, not that you change anything.**
 
-Teach sits on top of `how` and `why`. Get your bearings on what the work is and what it touches, then run `how` for how it works and `why` for why it's that way. Those are real runs that do their own digging. Neither skill loads by itself, so to run one, read its file and do what it says: `../how/SKILL.md` and `../why/SKILL.md`, from this file's directory. Blend what they find into one plain explanation, lead with what matters to the person, and go deeper when they ask. Reword freely for teaching, with one exception. Keep `why`'s confidence language intact (its hedges are findings, not style).
+Teach sits on top of `how` and `why`.
+Get your bearings on what the work is and what it touches, then run `how` for how it works and `why` for why it's that way.
+Those are real runs that do their own digging.
+To run one, read its file and do what it says: `../how/SKILL.md` and `../why/SKILL.md`, from this file's directory.
+Blend what they find into one plain explanation, lead with what matters to the person, and go deeper when they ask.
+Reword freely for teaching, with one exception.
+Keep `why`'s confidence language intact (its hedges are findings, not style).
 
 1. Decide the few things they should walk away understanding. Choose them from why they're asking (about to change it, reviewing it, debugging it, new to it) and what they already know, both read from the conversation, not quizzed out of them. Skip what they plainly already know. Put the depth where their question is.
 2. Let `how` and `why` do the work, don't redo it. Read the code yourself to get oriented, then run `how` for how it works and `why` for why. Run them in parallel and combine the results; or, with no subagent tool, do it in this thread, one after the other. One step starts at most ten subagents, the two skills' counted together: `how` takes up to four explorers, so `why` gets six investigators at most beside it, and the categories left out are skipped in writing as its own contract says. Match the size to the question. Run both for a subsystem, maybe one is enough for a small change. Keep `why` narrow by default since its full sweep is slow. Put the narrowing in the ask itself (a scoped question, git plus a source or two) so `why` records the skipped categories per its own contract, and widen it only when the reasons are the point.
