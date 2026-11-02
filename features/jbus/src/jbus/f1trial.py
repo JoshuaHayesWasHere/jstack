@@ -162,8 +162,9 @@ def kept(text: str) -> bool:
 
 def heard(where: Path, state: Path, project: str, now: datetime) -> list[Word]:
     """Return the user's words of the last `WINDOW`, read only. Raise `sqlite3.Error` or
-    `OSError` when the store cannot be read."""
-    from jbus import acts  # acts reads questions, which logs here
+    `OSError` when the store cannot be read. `acts` is imported here since it reads `questions`,
+    which calls this module."""
+    from jbus import acts
 
     if not where.is_file():
         raise FileNotFoundError(f"T3 Code keeps no store at {where}")
@@ -192,7 +193,7 @@ def line(run: Pass, one: Question, words: Sequence[Word] | Exception) -> dict[st
         return said | {"error": f"{type(words).__name__}: {words}"}
     try:
         hits = held(run.project.project_id, one, words)
-    except Exception as error:  # the trial changes no close, whatever it raises
+    except Exception as error:
         return said | {"error": f"{type(error).__name__}: {error}"}
     return said | {
         "held": bool(hits),
@@ -201,7 +202,8 @@ def line(run: Pass, one: Question, words: Sequence[Word] | Exception) -> dict[st
 
 
 def log(run: Pass, closed: Iterable[Question]) -> None:
-    """Add one line to the trial's log for each question that silence closed this pass."""
+    """Add one line to the trial's log for each question that silence closed this pass. Whatever
+    the read or the rule raises goes on the line, so the trial changes no close."""
     closed = list(closed)
     if not closed:
         return
@@ -209,7 +211,7 @@ def log(run: Pass, closed: Iterable[Question]) -> None:
         words: Sequence[Word] | Exception = heard(
             boxes.store(), run.state, run.project.project_id, run.now
         )
-    except Exception as error:  # the trial changes no close, whatever it raises
+    except Exception as error:
         words = error
     lines = [line(run, one, words) for one in closed]
     try:
