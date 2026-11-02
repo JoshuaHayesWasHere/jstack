@@ -17,22 +17,28 @@ so it is the one merge since the last green. It reverts nothing, and says which 
 - `FLAKES`: each test that failed at the tip is a flake by `jbus ci`'s rule (`flaky`).
 
 A red tip jbus already opened a revert for is `OPENED`: nothing more is done for it, no row
-either, while its revert's pull request goes the normal path. A tip whose failed tests
-`mainmoved.tell` has not read yet is `UNREAD`, since a pass runs `watch` before it: the next pass
-judges it, and nothing is done for it in this one.
+either, while its revert's pull request goes the normal path, and `stuck` says when it no longer
+does: closed unmerged, in conflict or with a failed check, and the tip gets its row. A tip whose
+failed tests `mainmoved.tell` has not read yet is `UNREAD`, since a pass runs `watch` before it:
+the next pass judges it, and nothing is done for it in this one. Once the tip is older than
+`READ_WAIT` its logs are taken as unreadable, `NOT_READ`, and it gets its row.
 
 `revert` acts on a clear culprit. `gh pr revert` makes the revert on GitHub, a new commit on a new
 branch, so jbus never pushes to main or force-pushes anything. It keeps the revert in
 `reverts.json` (`jmerge.reverts`), writes the brief `tasks/<branch>.md` that ties the pull request
-to its slug, with the culprit's home, and tells the culprit's crew and its home. `jmerge` merges
-the revert by the normal path, its checks green, with no review.
+to its slug, with the culprit's home, and logs a routine event for its home's digest. `tell` tells
+the culprit's crew, from every pass until the message goes, so a capped thread or a T3 Code that
+gives no answer loses it to nothing. `opened` asks GitHub for the revert's branch first, so a pass
+that stopped between GitHub's answer and the record finds its revert and opens no second one, and
+the brief is written before the record, so a revert on record has a brief. `jmerge` merges the
+revert by the normal path, its checks green, with no review.
 """
 
 from __future__ import annotations
 
 import enum
 import json
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -47,6 +53,9 @@ from jbus.t3 import Client
 from jmerge import reverts as kept
 
 EVENTS = {"revert": "quiet"}
+READ_WAIT = timedelta(hours=1)
+"""How long after a red tip landed its failed tests may stay unread, a CI round and its rerun with
+room to spare, before they are taken as unreadable."""
 FLAKE_WINDOW = timedelta(days=7)
 """How far back `flaky` reads `jbus ci`'s ledger for the tests that failed on another branch."""
 REVERTED = 'Revert "'
@@ -63,6 +72,7 @@ class Keep(enum.StrEnum):
     OF_A_REVERT = "it is a revert, and a revert that goes red is not reverted"
     TWICE = "jbus reverted this row before, and a row is never reverted twice"
     FLAKES = "each test that failed there is a flake by jbus ci's rule"
+    NOT_READ = "the tests that failed there could not be read from its logs"
 
 
 @dataclass(frozen=True)
@@ -78,13 +88,15 @@ class Culprit:
 class Red:
     """What `watch._retro` read of a red tip of main, after its one rerun: the tip, the merges
     since the last green, newest first, the briefed pull request merged at the tip and its slug,
-    and the tests that failed there, None where `main.json` keeps none for the tip yet."""
+    and the tests that failed there, None where `main.json` keeps none for the tip yet, and how
+    long ago the tip landed."""
 
     tip: str
     since: Sequence[str]
     pull: dict[str, Any] | None
     slug: str
     failed: Sequence[str] | None
+    age: timedelta = timedelta(0)
 
 
 def culprit(red: Red, made: dict[str, kept.Revert], flakes: Collection[str]) -> Culprit | Keep:
@@ -103,7 +115,7 @@ def culprit(red: Red, made: dict[str, kept.Revert], flakes: Collection[str]) -> 
     if red.slug in {one.slug for one in made.values()}:
         return Keep.TWICE
     if red.failed is None:
-        return Keep.UNREAD
+        return Keep.NOT_READ if red.age > READ_WAIT else Keep.UNREAD
     if red.failed and all(test in flakes for test in red.failed):
         return Keep.FLAKES
     return Culprit(red.tip, red.slug, red.pull)
@@ -127,7 +139,7 @@ def flaky(run: Pass, branch: str) -> frozenset[str]:
 
 
 MESSAGE = (
-    "jbus: main went red at {red} when your pull request #{number} merged, and stayed red after "
+    "jbus: main went red at {red} when your pull request merged, and stayed red after "
     "its one rerun. It was the one merge since the last green, so jbus opened {revert} to revert "
     "it (Josh's rule of 2026-11-02, guess-free reverts), which merges with no review. Do not push "
     "to the revert's branch. Find the cause in main's failed run at {red}, and bring your change "
@@ -164,53 +176,101 @@ def brief(branch: str, red: Culprit, url: str, home: str) -> str:
     )
 
 
-def revert(run: Pass, client: Client | None, red: Culprit) -> bool:
-    """Open the revert of `red` and tell its crew and home. Return False where GitHub did not
-    open it, so the caller files the fix row instead."""
-    url = str(red.pull.get("url", ""))
-    asked = run.run(
-        "gh",
-        "pr",
-        "revert",
-        url,
-        "--body",
-        f"jbus reverts this: main went red at {red.red[:12]} and stayed red after its one rerun, "
-        "and it was the one merge since the last green.",
-    )
-    lines = asked.stdout.strip().splitlines()
-    opened = lines[-1].strip() if asked.returncode == 0 and lines else ""
-    viewed = run.run("gh", "pr", "view", opened, "--json", "url,headRefName,headRefOid")
+FIELDS = "url,headRefName,headRefOid"
+"""What `revert` reads of a revert's pull request."""
+
+
+def opened(run: Pass, red: Culprit) -> dict[str, str]:
+    """The revert GitHub already has for `red`, by the branch it names `revert-<number>-<branch>`,
+    or nothing."""
+    branch = f"revert-{red.pull.get('number')}-{red.pull.get('headRefName')}"
+    asked = run.run("gh", "pr", "list", "--state", "open", "--head", branch, "--json", FIELDS)
     try:
-        said = json.loads(viewed.stdout) if opened and viewed.returncode == 0 else {}
+        found = json.loads(asked.stdout) if asked.returncode == 0 else []
     except ValueError:
-        said = {}
-    branch, head = str(said.get("headRefName") or ""), str(said.get("headRefOid") or "")
-    if not (branch and head):
-        why = (asked.stderr or viewed.stderr or "no answer").strip()
-        run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")
-        return False
-    made = kept.Revert(red.red, red.slug, branch, head, opened)
-    path = run.state / kept.NAME
-    write_json(
-        path,
-        {
-            **{r: kept.record(one) for r, one in kept.read(run.state).items()},
-            red.red: kept.record(made),
-        },
-    )
+        found = []
+    return found[0] if found else {}
+
+
+def revert(run: Pass, client: Client | None, red: Culprit) -> bool:
+    """Open the revert of `red`, or take the one GitHub has, and tell its crew. Return False where
+    GitHub did not open it, so the caller files the fix row instead."""
+    said = opened(run, red)
+    if not said:
+        url = str(red.pull.get("url", ""))
+        asked = run.run(
+            "gh",
+            "pr",
+            "revert",
+            url,
+            "--body",
+            f"jbus reverts this: main went red at {red.red[:12]} and stayed red after its one "
+            "rerun, and it was the one merge since the last green.",
+        )
+        lines = asked.stdout.strip().splitlines()
+        made = lines[-1].strip() if asked.returncode == 0 and lines else ""
+        if not made:
+            why = (asked.stderr or "no answer").strip()
+            run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")
+            return False
+        viewed = run.run("gh", "pr", "view", made, "--json", FIELDS)
+        try:
+            said = json.loads(viewed.stdout) if viewed.returncode == 0 else {}
+        except ValueError:
+            said = {}
+        if not (said.get("headRefName") and said.get("headRefOid")):
+            line = f"its revert {made} opened, and GitHub does not say its branch yet"
+            run.condition(red.slug, line, key=f"listed {red.red}")
+            return True
+    branch, head, url = (said.get(key, "") for key in ("headRefName", "headRefOid", "url"))
     home = below.line(_brief(run, red.slug), "Home:") or "root"
     tasks = run.home / "tasks"
     tasks.mkdir(parents=True, exist_ok=True)
-    (tasks / f"{branch}.md").write_text(brief(branch, red, opened, home))
-    line = f"revert {red.slug}: main red at {red.red[:12]}, jbus opened {opened} to revert it"
+    (tasks / f"{branch}.md").write_text(brief(branch, red, url, home))
+    write_json(
+        run.state / kept.NAME,
+        {
+            **{r: kept.record(one) for r, one in kept.read(run.state).items()},
+            red.red: kept.record(kept.Revert(red.red, red.slug, branch, head, url)),
+        },
+    )
+    line = f"revert {red.slug}: main red at {red.red[:12]}, jbus opened {url} to revert it"
     run.find(red.slug, "revert", line, key=f"opened {red.red}")
     run.say(line)
-    thread = thread_of(run.home, red.slug)
-    if client is not None and thread:
-        message = MESSAGE.format(red=red.red[:12], number=red.pull.get("number"), revert=opened)
-        key = rebase.mark("revert", red.slug, red.red[:12])
-        rebase.once(run, client, ASK, key, thread, red.slug, message, at=red.red[:12])
+    tell(run, client)
     return True
+
+
+def tell(run: Pass, client: Client | None) -> None:
+    """Tell the crew of each revert on record whose message has not gone (`rebase.once`, by its
+    mark in `sent.json`). A later pass tries again where it could not go."""
+    if client is None:
+        return
+    for one in kept.read(run.state).values():
+        thread = thread_of(run.home, one.slug)
+        if thread:
+            message = MESSAGE.format(red=one.red[:12], revert=one.pull)
+            key = rebase.mark("revert", one.slug, one.red[:12])
+            rebase.once(run, client, ASK, key, thread, one.slug, message, at=one.red[:12])
+
+
+def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) -> str:
+    """Why the revert on record for a red tip will not merge by itself, or nothing: its pull
+    request closed unmerged, conflicts or has a failed check. Nothing where GitHub gives no
+    answer, as the next pass asks again."""
+    fields = "state,mergeable,statusCheckRollup"
+    asked = run.run("gh", "pr", "view", one.pull, "--json", fields)
+    try:
+        said = json.loads(asked.stdout) if asked.returncode == 0 else {}
+    except ValueError:
+        said = {}
+    if said.get("state") == "CLOSED":
+        return f"its revert {one.pull} closed unmerged"
+    if said.get("state") == "OPEN" and said.get("mergeable") == "CONFLICTING":
+        return f"its revert {one.pull} conflicts with main"
+    if said.get("state") == "OPEN" and checks(said) == "failed":
+        return f"its revert {one.pull} has a failed check"
+    return ""
 
 
 def _brief(run: Pass, slug: str) -> str:

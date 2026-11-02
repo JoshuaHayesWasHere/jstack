@@ -175,7 +175,70 @@ def test_a_revert_github_does_not_open_files_the_row(kitchen):
     assert [line for line in kitchen.lines("condition") if "its revert was not opened" in line]
 
 
+def test_a_crew_the_message_could_not_reach_is_told_by_a_later_pass(kitchen):
+    red_merges(kitchen, ("alpha", 7, None))
+    kitchen.t3.down.add("demo")
+    passes(kitchen)
+    assert kept.read(kitchen.state)
+    kitchen.t3.down.discard("demo")
+    kitchen.poll(NOW + timedelta(minutes=30))
+    kitchen.poll(NOW + timedelta(minutes=33))
+    sent = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    told = [given for given in sent if given["threadId"] == "mcp:alpha-crew"]
+    assert len(told) == 1 and "revert" in told[0]["message"]
+
+
+def test_a_revert_github_opened_but_did_not_describe_is_taken_up_and_not_opened_again(kitchen):
+    """`gh pr view` gives no answer once the revert opened: the next pass finds it by its branch
+    (`gh pr list --head`), keeps it, and opens no second one."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    (kitchen.stub / "gh-view-down").write_text("no answer\n")
+    passes(kitchen, 4)
+    assert len(asked(kitchen, "pr revert")) == 1
+    assert list(kept.read(kitchen.state)) == [red]
+    assert [line for line in kitchen.lines("condition") if "does not say its branch yet" in line]
+    assert main_red(kitchen) == []
+
+
+def test_a_red_whose_tests_stay_unread_gets_its_row_once_the_wait_is_over(kitchen):
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    kitchen.set("logs.json", {"91": None})
+    passes(kitchen)
+    assert main_red(kitchen) == []
+    kitchen.poll(NOW + reverts.READ_WAIT)
+    (row,) = main_red(kitchen)
+    assert row["slug"] == f"{mainjson.FIX}{red[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert reverts.Keep.NOT_READ in text
+    assert asked(kitchen, "pr revert") == []
+
+
+def test_a_revert_that_goes_red_gets_the_fix_row(kitchen):
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    assert main_red(kitchen) == []
+    made = kept.read(kitchen.state)[red]
+    pulls = json.loads((kitchen.stub / "open.json").read_text())
+    failed = [{"status": "COMPLETED", "conclusion": "FAILURE", "name": "check"}]
+    for pull in pulls:
+        if pull["url"] == made.pull:
+            pull["statusCheckRollup"] = failed
+    kitchen.set("open.json", pulls)
+    kitchen.poll(NOW + timedelta(minutes=30))
+    (row,) = main_red(kitchen)
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert f"its revert {made.pull} has a failed check" in text
+    assert len(asked(kitchen, "pr revert")) == 1
+
+
+def test_a_revert_goes_to_the_home_s_digest(kitchen):
+    from jbus import digest
+
+    assert "revert" in digest.ROUTINE
+
+
 def test_a_launch_does_not_wait_on_a_red_main(kitchen):
+    """A guard, and no test of a change: `jbus.dispatch` never waited on a red main."""
     kitchen.quiet()
     red = move(kitchen, "failure")
     record = mainjson.record(main=red, at=iso(NOW), check="failed", broken=red, failed=[TEST])

@@ -1575,7 +1575,7 @@ def _retro(
 ) -> None:
     """Report a red main within a day of a merge, and a revert of one. Both lines name the
     merged slug. A red tip of main with no briefed merge in the day before it is reported too,
-    under the name of its fix row: `jmerge` holds every merge on it all the same.
+    under the name of its fix row.
 
     A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
     only a second cancelled run, or a run GitHub would not start again. It reports a red main
@@ -1588,6 +1588,9 @@ def _retro(
     briefed merge and no open fix row, `_retro` asks GitHub nothing until `main.json` keeps a
     red tip.
     """
+    from jbus import reverts
+
+    reverts.tell(run, client)
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
         key=lambda s: world.merged[s]["mergedAt"],
@@ -1674,10 +1677,14 @@ def _revert(
     record = mainjson.load(run.state) or {}
     failed = record.get("failed") if record.get("broken") == sha else None
     slug = slug_of.get(pull["number"], "") if pull else ""
-    one = reverts.Red(sha, [commit["sha"] for commit in red], pull, slug, failed)
+    landed = when(red[0]["commit"]["committer"]["date"])
+    one = reverts.Red(sha, [commit["sha"] for commit in red], pull, slug, failed, run.now - landed)
     branch = str((pull or {}).get("headRefName", ""))
     flakes = reverts.flaky(run, branch) if pull and failed else frozenset[str]()
-    found = reverts.culprit(one, kept_reverts.read(run.state), flakes)
+    made = kept_reverts.read(run.state)
+    found = reverts.culprit(one, made, flakes)
+    if found == reverts.Keep.OPENED and (stuck := reverts.stuck(run, made[sha], checks)):
+        return stuck
     if found in reverts.QUIET:
         return None
     if isinstance(found, reverts.Culprit):

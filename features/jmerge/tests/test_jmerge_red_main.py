@@ -27,6 +27,7 @@ LOGS = """\
         job=${2%/logs}
         cat "$STUB/job-${job##*/}.log" ;;
 """
+CHECK = "not browser"
 FAILED = "features/a/tests/test_a.py::test_red"
 SELECTED = (
     "2026-10-27T17:40:01.1Z + uv run pytest -n 4 --dist worksteal --durations=25 "
@@ -145,7 +146,7 @@ NARROWED = [
 )
 def test_a_log_s_one_pytest_command_says_what_ran(log):
     """bash's trace quotes, dash's does not, and make echoes the command it runs."""
-    ran = rows.ran_in(log, rows.CHECK)
+    ran = rows.ran_in(log, CHECK)
     assert ran is not None
     assert ran.covers(FAILED) == ("--shard=2/4" in log or "test_a.py" in log)
     assert not ran.covers("features/c/tests/test_c.py::test_other") or ran.every
@@ -163,7 +164,7 @@ def test_a_log_s_one_pytest_command_says_what_ran(log):
     ],
 )
 def test_a_log_with_no_command_two_or_one_that_narrows_says_nothing(log):
-    assert rows.ran_in(log, rows.CHECK) is None
+    assert rows.ran_in(log, CHECK) is None
 
 
 def test_a_run_is_read_for_the_marker_its_caller_expects():
@@ -171,7 +172,7 @@ def test_a_run_is_read_for_the_marker_its_caller_expects():
     none of the rest, so each says nothing to the other's reader."""
     browser = "2026-10-27T17:41:00Z uv run pytest -m browser\n"
     assert rows.ran_in(browser, rows.BROWSER) == rows.Ran(every=True)
-    assert rows.ran_in(browser, rows.CHECK) is None
+    assert rows.ran_in(browser, CHECK) is None
     assert rows.ran_in(WHOLE, rows.BROWSER) is None
 
 

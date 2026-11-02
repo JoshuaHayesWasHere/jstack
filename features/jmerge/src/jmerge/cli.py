@@ -1839,19 +1839,6 @@ def passed(rollup: list[dict]) -> bool:
     )
 
 
-def checked(rollup: list[dict]) -> list[dict]:
-    """The runs in `rollup` of the required check and its parts, as `check 1 of 4` is of
-    `check`."""
-    return [
-        one
-        for one in rollup
-        if any(
-            (one.get("name") or "") == name or (one.get("name") or "").startswith(f"{name} ")
-            for name in ready.REQUIRED
-        )
-    ]
-
-
 def jobs(rollup: list[dict], ended: tuple[str, ...] = PASSED) -> list[str]:
     """The ids of the jobs of the checks in `rollup` that ended so, from their links."""
     return [
