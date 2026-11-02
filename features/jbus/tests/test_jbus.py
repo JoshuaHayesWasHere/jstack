@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import queue, strays, t3, wake
+from jbus import failover, queue, strays, t3, wake
 from test_jbus_kitchen import FIXTURE, NOW, REPO
 
 
@@ -45,6 +45,7 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
     }, roots
     named = source.replace(queue.SESSION, "")
     named = named.replace(f'AGENT = "{strays.AGENT}"', "", 1)
+    named = named.replace(f'LAPSE = re.compile(r"{failover.LAPSE.pattern}")', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)
     assert set(re.findall(r"\bt3_[a-z_]+\b", source)) == {t for t in t3.TOOLS if t[:3] == "t3_"}
 

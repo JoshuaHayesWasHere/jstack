@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from jbus import alert
 from jroles import ledger
 from test_jbus_kitchen import NOW, SELECTION, approved, sends
 from test_jbus_resume import THREAD, crew
@@ -730,16 +731,17 @@ def test_while_no_instance_of_the_pool_can_sign_in_nothing_is_sent_and_the_user_
     assert kitchen.lines("resume") == []
     assert kitchen.lines("stall") == [
         f"signed out: claudeAgent and {PRIME} cannot sign in, so the threads that failed on a "
-        "login lapse wait: sign in again with `claude auth login`"
+        "login lapse wait: sign one in again"
     ]
     (told,) = kitchen.log("notify")
-    assert "cannot sign in" in told and "claude auth login" in told
+    assert told.endswith(kitchen.lines("stall")[0])
     kitchen.t3.constraints["claudeAgent"] = []
     kitchen.poll(LAPSED + timedelta(minutes=33))
     kitchen.poll(LAPSED + timedelta(minutes=36))
     assert configures(kitchen) == [] and keys(kitchen) == [f"lapse|{THREAD}|run-1"]
     assert "now on claudeAgent" in sends(kitchen)[0]["message"]
     assert len(kitchen.log("notify")) == 1 and len(kitchen.lines("stall")) == 1
+    assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))
 
 
 def test_one_carry_on_goes_per_failed_run_and_none_while_its_instance_just_failed_to_sign_in(
@@ -764,3 +766,5 @@ def test_one_carry_on_goes_per_failed_run_and_none_while_its_instance_just_faile
         kitchen.poll(again + timedelta(minutes=minutes))
     assert keys(kitchen) == [f"lapse|{THREAD}|run-1", f"lapse|{THREAD}|run-2"]
     assert configures(kitchen) == [] and kitchen.lines("resume") == []
+    assert len(kitchen.log("notify")) == 1 and len(kitchen.lines("stall")) == 1
+    assert not any(key.startswith("signed-out ") for key in alert.streaks(kitchen.state_dir))

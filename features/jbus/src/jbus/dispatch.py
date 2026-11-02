@@ -44,7 +44,7 @@ from __future__ import annotations
 import itertools
 import os
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -261,13 +261,15 @@ def mirrored_choice(
     here: str | None = None,
     kept: ledger.Ledger | None = None,
     full: float = ledger.FULL,
+    skip: Mapping[str, str] | None = None,
 ) -> pool.Choice:
     """Return the pool's choice for `instances`, skipping every instance that is not
-    mirrored. The choice reads the ledger `kept`, or the ledger on disk where the caller gives
-    none. `here` is the instance a thread is on already: choosing it is no move, so the
-    function does not check its mirror. `full` is the level at which an instance counts as
+    mirrored, and every instance that `skip` names, for the reason it gives. The choice reads
+    the ledger `kept`, or the ledger on disk where the caller gives none. `here` is the
+    instance a thread is on already: choosing it is no move, so the function does not check
+    its mirror. `full` is the level at which an instance counts as
     full: a real cap for a move, and the user's headroom for a launch."""
-    skip: dict[str, str] = {}
+    skip = dict(skip or {})
     kept = ledger.read(instances) if kept is None else kept
     while True:
         choice = pool.choose(instances, kept, run.now, skip, full)
