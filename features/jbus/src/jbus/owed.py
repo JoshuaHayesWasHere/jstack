@@ -10,7 +10,8 @@ of the project once a run (`looked`). A scratch home's threads get the same look
 An ask is a `user_message` the user wrote (`createdBy: user`) in a run whose last items name the
 stop (`stop_of`), and that stopped within `RECENT` of the look: the first pass on a machine, or
 after jbus was down, sends no one's old words into a thread that has long moved on. What jbus or a
-home sent a thread is no ask: its sender asks again by itself. Each
+home sent a thread is no ask, since its sender asks again by itself, but for the user's own word
+that jbus carried to a home (`jbus.word`, `CARRIED`): no sender asks again for that. Each
 ask is one record of `owed.json` in the project's state, with the thread, the run, the words, the
 cause, the line T3 Code ended on, the instance the run was on and when it frees. The record is what
 `jbus status` shows (`blocked`), and the `ask-owed` and `ask-resent` events go in the project's log.
@@ -55,7 +56,7 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbus import outbox, verbs
+from jbus import outbox, t3, verbs, word
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused, listed
 from jgauge import limits
@@ -88,6 +89,9 @@ _AUTH = re.compile(
     re.I,
 )
 _WORDS = re.compile(r"[^\w/]+")
+_HEAD = word.MESSAGE[: word.MESSAGE.index("{at}")]
+CARRIED = re.compile("^" + re.escape(_HEAD).replace(re.escape("{by}"), ".+?"))
+"""How a word of the user's that `jbus.word` carried to a home begins."""
 _CAP_RULE = "cap: until "
 
 
@@ -160,11 +164,13 @@ def _words(text: str) -> str:
 
 
 def _users(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the user's own messages among the items: typed by them, or their word as jbus
+    carried it."""
     return [
         item
         for item in items
         if item.get("type") == "user_message"
-        and item.get("createdBy") == "user"
+        and (item.get("createdBy") == "user" or CARRIED.match(str(item.get("text") or "")))
         and not _words(str(item.get("text") or "")).startswith("/compact")
     ]
 
@@ -356,7 +362,10 @@ def _settle(run: Pass, client: Client, ask: Ask, carried: bool) -> None:
     """Close the ask if nothing is owed any more, and otherwise send it if its account is free."""
     try:
         thread, items, runs = _since(client, ask)
-    except T3Refused:
+    except T3Refused as error:
+        if not t3.GONE.search(str(error)):
+            run.say(f"wait {ask.row}: T3 Code refused to read its thread ({error})")
+            return
         ask.state, ask.closed = ENDED, run.now.isoformat()
         return
     if thread.get("settled") or thread.get("archived"):
@@ -367,6 +376,9 @@ def _settle(run: Pass, client: Client, ask: Ask, carried: bool) -> None:
         run.say(f"owed {ask.row}: the user asked again, so its ask is not sent")
         return
     if thread.get("snoozed") or (carried and thread.get("status") == "failed"):
+        return
+    if ask.key in run.box.sent():
+        ask.state, ask.closed = SENT, run.now.isoformat()
         return
     if ask.cause == AUTH and not _renewed(run, client, ask):
         run.say(f"wait {ask.row}: its ask waits for {ask.instance} to be signed in again")

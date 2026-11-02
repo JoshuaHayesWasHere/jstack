@@ -12,6 +12,7 @@ import pytest
 
 import jbus
 from jbus import owed, record
+from jbus.t3 import T3Refused
 from jroles import ledger
 from test_jbus_failover import POOL, PRIME
 from test_jbus_kitchen import NOW, sends
@@ -181,6 +182,50 @@ def test_a_re_send_runs_once_over_passes_and_over_a_crash_before_its_mark(kitche
     assert [one["clientRequestId"] for one in resent(kitchen)] == [key, key]
     assert list(kitchen.t3.messages).count(key) == 1
     assert [one.state for one in asks(kitchen)] == ["sent"]
+
+
+def test_a_crash_after_the_mark_sends_nothing_again(kitchen, free):
+    stopped(free, [said(ASK), *limit()])
+    kitchen.poll(NOW)
+    kitchen.poll(AFTER)
+    (sent,) = resent(kitchen)
+    (kept,) = json.loads((kitchen.state / owed.FILE).read_text())["asks"]
+    kept["state"] = "owed"
+    (kitchen.state / owed.FILE).write_text(json.dumps({"asks": [kept], "looked": {}}))
+    kitchen.poll(AFTER + timedelta(minutes=2))
+    assert resent(kitchen) == [sent]
+    assert [one.state for one in asks(kitchen)] == ["sent"]
+
+
+def test_a_read_refused_for_another_reason_keeps_the_ask(kitchen, free, monkeypatch):
+    stopped(free, [said(ASK), *limit()])
+    kitchen.poll(NOW)
+
+    def refused(client, ask):
+        raise T3Refused("refused: the server is busy")
+
+    monkeypatch.setattr(owed, "_since", refused)
+    lines = kitchen.poll(AFTER)
+    assert [one.state for one in asks(kitchen)] == ["owed"]
+    assert any("refused to read its thread" in line for line in lines)
+    monkeypatch.undo()
+    kitchen.poll(AFTER + timedelta(minutes=1))
+    assert len(resent(kitchen)) == 1
+
+
+def test_the_user_s_word_jbus_carried_is_owed_when_its_turn_stops(kitchen, free):
+    """A word that went past an out-of-date ledger into a capped account, as `outbox.capped` lets
+    it: its turn stops on the limit, and the word is owed like a typed ask."""
+    carried = (
+        "jbus: this is user's own word, said 2026-10-12 10:55 ET and carried to this home by "
+        "jbus. Take it as said by user in this thread.\n\nhold every merge until I say"
+    )
+    stopped(free, [said(carried, by="agent"), *limit()])
+    kitchen.poll(NOW)
+    assert [one.text for one in asks(kitchen)] == [carried]
+    kitchen.poll(AFTER)
+    (sent,) = resent(kitchen)
+    assert sent["message"].endswith("hold every merge until I say")
 
 
 @pytest.mark.parametrize("again", [ASK, ASK.upper() + "  ", "Continue where you left off."])
