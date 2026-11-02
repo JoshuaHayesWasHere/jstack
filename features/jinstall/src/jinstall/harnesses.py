@@ -23,6 +23,11 @@ A row has, last, the file the layout writes into the folder of each skill that s
 `policy.allow_implicit_invocation` in `agents/openai.yaml` beside the skill. Codex reads
 `~/.agents/skills`, Cursor's root, as well as its own, so Cursor's layout carries the file too.
 
+A row says, after that, whether its layout copies each skill's SKILL.md rather than linking it.
+codex-cli 0.165.0 lists no skill whose SKILL.md is a symlink, though it follows a linked folder,
+so the Codex layout writes each SKILL.md as a copy, which the install's `--check` names stale once
+its source changes.
+
 Codex has no such setting: codex-cli 0.163.0 warns that `commit_attribution` in config.toml is
 an unrecognized setting and ignores it, and whether it adds the trailer is a flag of the account's
 workspace. Cursor's CLI reads `attribution` in `~/.cursor/cli-config.json`, as the
@@ -42,6 +47,7 @@ class Harness:
     attribution: dict = field(default_factory=dict, hash=False)
     env: dict = field(default_factory=dict, hash=False)
     hides: tuple[str, str] | None = None
+    copies: bool = False
 
 
 HIDES = ("agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
@@ -56,7 +62,7 @@ HARNESSES = (
         {"attribution": {"commit": "", "pr": ""}, "includeCoAuthoredBy": False},
         env={"SLASH_COMMAND_TOOL_CHAR_BUDGET": "32000"},
     ),
-    Harness("codex", "Codex", ".codex/skills", ".codex/hooks.json", hides=HIDES),
+    Harness("codex", "Codex", ".codex/skills", ".codex/hooks.json", hides=HIDES, copies=True),
     Harness(
         "cursor",
         "Cursor",

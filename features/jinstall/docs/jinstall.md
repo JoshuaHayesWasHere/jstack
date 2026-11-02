@@ -106,6 +106,7 @@ The install assembles one layout for each harness, `claude-code`, `codex` and `c
 A layout holds `skills/<name>/`, `playbooks/`, `principles/`, `templates/`, the hooks of its harness in `hooks/`, a `README.md`, and `source`, a link to the checkout or the release.
 `skills/` and `templates/` are siblings, so `realpath ~/.claude/skills/<name>/../../templates` finds the templates.
 Each file of a skill is a link to its file in the source.
+Codex lists no skill whose `SKILL.md` is a link, so the Codex layout writes each `SKILL.md` as a copy, which `--check` names stale once its source changes.
 A new release replaces the source in place, so the links stay where they are.
 When a Markdown file links to a file the layout leaves out, such as a page of `docs/`, the install writes that link pointed at GitHub.
 The install's `--check` names such a file stale once its source changes.
@@ -206,6 +207,7 @@ In a checkout, `sh install.sh` runs the same code as `jinstall`, before any comm
 | The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |
 
 In a checkout, each file of a skill links to its file there, so an edit is live with no install.
+Codex's layout is the exception for `SKILL.md`, a copy that the next install brings up to date.
 A new skill appears on the next install, once `make trees` has listed it in `skills.json`.
 jleak's git hooks also go into the checkout that jstack is installed from, where each is a `hard` need.
 
