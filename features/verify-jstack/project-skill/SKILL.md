@@ -26,6 +26,8 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
 
 - `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, `sandbox-owner` as the repo's owner, no comment or review on a pull request, no pull request for `pr list --base`, nothing for `api --paginate`, a commit's check runs from `gh/checks.json` (none until a drive writes some) and a job's log from `gh/logs/<job id>`.
   The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
+- `fake-gh` answers `gh pr edit <number> --base <branch>` by changing that pull request's `baseRefName` in `gh/open.json`.
+  The real machine asks GitHub, which also reruns the pull request's checks against the new base.
 - `fake_t3.py` is the T3 Code server and takes a token Launch made up and wrote to `config/t3.json`. The real machine signs in with `jbus t3 login`, approved in T3 Code.
 - `fake_t3.py` answers `t3_thread_launch` with a thread id, and makes no worktree and starts no agent. On the real machine T3 Code does both.
 - `fake_t3.py` answers `t3_thread_configure` with what it keeps for the thread: the selection the launch or the last move gave it, or a made-up one, and it moves no run and has no limits of its own.
