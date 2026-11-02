@@ -1,4 +1,4 @@
-From 2aa22bcfda3c6b204b67ecb0ae09260927c836b9 Mon Sep 17 00:00:00 2001
+From 14e880d788d690660c5ee823f175ee10441b13b2 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Mon, 2 Nov 2026 01:12:38 -0500
 Subject: [PATCH] fix(cursor): a Cursor instance's agent runs its commands in
@@ -10,11 +10,12 @@ now makes each SDK call under an async scope where process.env.SHELL reads the
 instance's SHELL, and leaves that scope for callbacks into T3, so T3's terminals and
 other providers keep the server's shell. An instance with no SHELL is unchanged.
 ---
- .../src/server/CursorAgentSdk.test.ts         | 68 ++++++++++++++++++-
- .../src/server/CursorAgentSdk.ts              | 65 ++++++++++--------
+ .../src/server/CursorAgentSdk.test.ts         | 68 +++++++++++++++++-
+ .../src/server/CursorAgentSdk.ts              | 65 ++++++++++-------
+ .../provider-cursor/src/server/driver.test.ts | 72 +++++++++++++++++++
  packages/provider-cursor/src/server/driver.ts | 10 ++-
  .../src/server/instanceShell.ts               | 44 ++++++++++++
- 4 files changed, 158 insertions(+), 29 deletions(-)
+ 5 files changed, 230 insertions(+), 29 deletions(-)
  create mode 100644 packages/provider-cursor/src/server/instanceShell.ts
 
 diff --git a/packages/provider-cursor/src/server/CursorAgentSdk.test.ts b/packages/provider-cursor/src/server/CursorAgentSdk.test.ts
@@ -252,17 +253,100 @@ index 5986d09506..3af9a7d808 100644
                      } catch (cause) {
                        if (!isCursorCancellationError(cause)) {
                          throw cause;
+diff --git a/packages/provider-cursor/src/server/driver.test.ts b/packages/provider-cursor/src/server/driver.test.ts
+index 5a3202fd20..25f77270b5 100644
+--- a/packages/provider-cursor/src/server/driver.test.ts
++++ b/packages/provider-cursor/src/server/driver.test.ts
+@@ -173,6 +173,78 @@ it.layer(layerTest)("CursorDriver", (it) => {
+       }).pipe(Effect.scoped),
+   );
+ 
++  it.effect(
++    "opens a Cursor agent in the SHELL its instance environment sets, and in the server's with none",
++    () =>
++      Effect.gen(function* () {
++        const fileSystem = yield* FileSystem.FileSystem;
++        const workspace = yield* fileSystem.makeTempDirectoryScoped({ prefix: "cursor-shell-" });
++        const me = vi.spyOn(Cursor, "me").mockResolvedValue({
++          apiKeyName: "T3 Code",
++          createdAt: "2026-01-01T00:00:00.000Z",
++        });
++        const models = vi
++          .spyOn(Cursor.models, "list")
++          .mockResolvedValue([{ id: "auto", displayName: "Auto" }]);
++        yield* Effect.addFinalizer(() =>
++          Effect.sync(() => {
++            me.mockRestore();
++            models.mockRestore();
++          }),
++        );
++        const openShell = (name: string, shell: ReadonlyArray<{ name: string; value: string }>) =>
++          Effect.gen(function* () {
++            const instanceId = ProviderInstanceId.make(`cursor-shell-${name}`);
++            const opened: Array<string | undefined> = [];
++            const instance = yield* CursorDriver.create({
++              instanceId,
++              displayName: "Cursor",
++              enabled: true,
++              environment: [
++                { name: "CURSOR_API_KEY", value: "shell-key", sensitive: true },
++                ...shell.map((variable) => ({ ...variable, sensitive: false })),
++              ],
++              config: CursorDriver.defaultConfig(),
++            }).pipe(
++              Effect.provideService(CursorAgentSdk.CursorAgentSdkRunner, {
++                assertComplete: Effect.void,
++                open: (request) =>
++                  Effect.sync(() => {
++                    opened.push(request.shell);
++                    return {
++                      agentId: `native-cursor-shell-${name}`,
++                      listMessages: Effect.succeed([]),
++                      send: () => Effect.die("This test only opens a session"),
++                      close: Effect.void,
++                    };
++                  }),
++              }),
++            );
++            const threadId = ThreadId.make(`cursor-shell-thread-${name}`);
++            const modelSelection = { instanceId, model: "auto" };
++            const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
++              runtimeMode: "full-access",
++              interactionMode: "default",
++              cwd: workspace,
++            });
++            const runtime = yield* instance.orchestrationAdapter.openSession({
++              threadId,
++              providerSessionId: ProviderSessionId.make(`cursor-shell-session-${name}`),
++              modelSelection,
++              runtimePolicy,
++            });
++            yield* runtime.ensureThread({ threadId, modelSelection, runtimePolicy });
++            return opened;
++          });
++
++        expect(yield* openShell("bash", [{ name: "SHELL", value: "/usr/bin/bash" }])).toEqual([
++          "/usr/bin/bash",
++        ]);
++        expect(yield* openShell("none", [])).toEqual([undefined]);
++        expect(yield* openShell("empty", [{ name: "SHELL", value: "" }])).toEqual([undefined]);
++      }).pipe(Effect.scoped),
++  );
++
+   it.effect("budgets handoffs for the SDK model across catalog refreshes and option changes", () =>
+     Effect.gen(function* () {
+       const fileSystem = yield* FileSystem.FileSystem;
 diff --git a/packages/provider-cursor/src/server/driver.ts b/packages/provider-cursor/src/server/driver.ts
-index de7251fb56..fe8fb8dea7 100644
+index de7251fb56..caef9036b3 100644
 --- a/packages/provider-cursor/src/server/driver.ts
 +++ b/packages/provider-cursor/src/server/driver.ts
 @@ -101,6 +101,10 @@ export const CursorDriver: ProviderDriver<
      const keychain = yield* CursorKeychain.CursorKeychain;
      const sdkRunner = yield* CursorAgentSdk.CursorAgentSdkRunner;
      const processEnv = yield* mergeProviderInstanceEnvironment(environment);
-+    // The SDK's commands run in the instance's SHELL; with none set, in the server's.
++    // The SDK's commands run in the instance's SHELL; with none set, or an empty one, in the server's.
 +    const shell = environment?.some((variable) => variable.name === "SHELL")
-+      ? processEnv.SHELL
++      ? processEnv.SHELL || undefined
 +      : undefined;
      const continuationIdentity = defaultProviderContinuationIdentity({
        driverKind: DRIVER_KIND,

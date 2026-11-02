@@ -19,8 +19,9 @@ A project added to T3 is a root row at once, before it has a thread, and asks on
 Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
 A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.
 Upstream T3 Code knows nothing of jbus, so the tree is a patch series that this feature keeps, and `t3code-jstack` is T3 Code nightly built with it.
-The series also makes a Cursor instance's agent run its commands in the `SHELL` of the instance's environment, so that it can run bash while your login shell and T3's terminals stay zsh.
-With no `SHELL` there, it runs the server's shell, as upstream does.
+The series also makes a Cursor instance's agent run its commands in bash or zsh, whichever the `SHELL` of the instance's environment names, so that it can run bash while your login shell and T3's terminals stay zsh.
+The Cursor SDK runs only those two, so another `SHELL` there falls back as the SDK chooses.
+With no `SHELL` there, or an empty one, it runs the server's shell, as upstream does.
 It is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doctor` lists it only where T3 Code is a nightly build.
 
 ## Install it
