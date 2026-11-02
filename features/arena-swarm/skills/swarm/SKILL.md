@@ -15,4 +15,4 @@ Open it with the block of "A playbook of the home's own" in `skills/home/SKILL.m
 What follows `/swarm` is the task to fan out, and with nothing after it, ask the user what to fan out.
 
 In any other thread, start nothing: a swarm is many threads, and only a home launches threads.
-A crewmate or a scout parks a gate whose question is whether to run `/swarm <the task>`, with the default that no swarm runs, and a thread with no jbus tells the user to type it in the repo's home.
+A crewmate or a scout asks nothing about it either: it does the work in its own thread, with read-only subagents where the work fans out, and `jbus gate` refuses a gate that asks whether to swarm.
