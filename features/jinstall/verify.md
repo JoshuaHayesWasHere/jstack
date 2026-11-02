@@ -4,7 +4,7 @@
 
 - a layout for each harness under `~/.local/share/jstack/harness/` (Claude Code, Codex and Cursor)
 - a link for each skill in `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`, into its own harness's layout
-- the start hook and the tips hook in `~/.claude/settings.json`
+- the start hook and the guard hooks in `~/.claude/settings.json`
 - the start hook in `~/.codex/hooks.json`
 - the six commands, as the `uv` tool `jstack`
 - the limits writer, as `statusLine`

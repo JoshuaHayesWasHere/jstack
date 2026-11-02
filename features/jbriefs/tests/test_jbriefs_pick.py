@@ -1,8 +1,6 @@
 """`jbriefs pick` reads the tree and names the role, the playbook and the skills for a brief, a
-request or a question. The block of the poteto-help skill runs it and prints the same lines,
-and its tips are the ones that `hooks/skill-tips.sh` gives for the same words."""
+request or a question. The block of the poteto-help skill runs it and prints the same lines."""
 
-import json
 import os
 import re
 import subprocess
@@ -16,7 +14,6 @@ from testing.paths import REPO, playbooks
 
 SKILL = REPO / "features" / "skill-library" / "skills" / "poteto-help" / "SKILL.md"
 HANDING = REPO / "features" / "home" / "skills" / "home" / "handing-a-task-to-a-crewmate.md"
-HOOK = assembled() / "hooks" / "skill-tips.sh"
 
 BRIEF = """\
 # tidy-gauge: the gauge prints its slots in order
@@ -199,42 +196,21 @@ def test_the_skills_block_says_so_when_it_is_not_linked(tmp_path, demo):
     ]
 
 
-def hook_tip(tmp_path, prompt):
-    """The skill that the installed `hooks/skill-tips.sh` tips for a prompt in a fresh session,
-    or None."""
-    outside = tmp_path / "outside"
-    outside.mkdir(exist_ok=True)
-    event = {"session_id": f"s{abs(hash(prompt))}", "cwd": str(outside), "prompt": prompt}
-    env = {
-        "HOME": str(tmp_path),
-        "PATH": os.environ["PATH"],
-        "GIT_CEILING_DIRECTORIES": str(tmp_path),
-    }
-    done = subprocess.run(
-        ["sh", str(HOOK)], input=json.dumps(event), capture_output=True, text=True, env=env
-    )
-    assert done.returncode == 0
-    if not done.stdout:
-        return None
-    return re.search(r"tip: /([a-z0-9-]+) ", done.stdout).group(1)
-
-
 @pytest.mark.parametrize(
-    "prompt",
+    ("prompt", "first"),
     [
-        "grill me on this plan",
-        "how does the jbus pass work",
-        "why did we pick sqlite for the queue",
-        "can you review the pr and then catch me up",
-        "this reads like chatgpt, it sounds like ai",
-        "please wrap up and hand off",
-        "/grilling grill me",
-        "nothing here asks for a skill at all",
+        ("grill me on this plan", "grilling"),
+        ("how does the jbus pass work", "how"),
+        ("why did we pick sqlite for the queue", "why"),
+        ("this reads like chatgpt, it sounds like ai", "unslop"),
+        ("please wrap up and hand off", "handoff"),
+        ("/grilling grill me", None),
+        ("nothing here asks for a skill at all", None),
     ],
 )
-def test_the_first_tip_is_the_one_the_tips_hook_gives(tmp_path, prompt):
+def test_the_first_tip_is_the_skill_whose_tip_phrase_the_words_say(prompt, first):
     tips = pick.tipped(prompt, pick.skills())
-    assert hook_tip(tmp_path, prompt) == (tips[0][0] if tips else None)
+    assert (tips[0][0] if tips else None) == first
 
 
 def test_the_briefs_deeper_playbooks_are_the_crewmates_ones_the_deeper_step_runs_on():

@@ -146,7 +146,6 @@ Cross-cutting:
 - `features/repo-guards/tests/test_skill_args.py`
 - `features/repo-guards/tests/test_skill_frontmatter.py`
 - `features/repo-guards/tests/test_skill_size.py`
-- `features/skill-library/tests/test_skill_tips.py`
 - `features/jbriefs/tests/test_skills_named.py`
 - `features/repo-guards/tests/test_templates.py`
 - `testing/tests/test_test_plugins.py`
