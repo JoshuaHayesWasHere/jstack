@@ -112,13 +112,13 @@ Each pass, after the build, `jbus.kpis` reads each threshold as a count against 
 | `doors` | the one-way doors opened today without the user's word: a `done` act on a door whose words jbus did not read in T3 Code | on 1 | the project |
 | `main-red` | the minutes main's push check was red today, a spell still open counted up to now | over 30 | the project |
 | `capped` | the minutes today with every Claude instance capped, as `jgauge spend` counts them | over 30 | the machine |
+| `lost-asks` | the asks lost today: a typed message `ask_ledger` calls `unanswered`, counted on the day its wait ran out | on 1 | the project |
 | `pass-time` | the 90th percentile of the seconds of the passes of the last hour, once the store holds a pass an hour old | over 60 | the machine |
 
 An alert goes on jbus's one list of alerts, so the owner's home hears of it as it hears of any other.
 A crossing alerts once: a later pass that finds it still crossed sends nothing, whatever the count has become.
 A daily alert ends with its day, and a crossing the next day is a new alert.
 An alert whose count falls back under its limit ends with a `recovered` line.
-Lost asks have no alert yet, since no record says that an ask was lost.
 
 ## How it stays current
 
