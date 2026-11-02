@@ -22,6 +22,7 @@ C=$H/reports/retro-$start-codebook.md
 A=$H/reports/retro-$start.md
 D=$H/reports/retro-$start-data
 S=$(realpath ~/.claude/skills/retro 2> /dev/null)/scripts/retro_data.py
+echo "retro: $days days from $start, the dataset in $D"
 ```
 
 ## 1. Name the window and the question
@@ -34,8 +35,11 @@ It is the only input of step 3.
 This builds every table from jbus's records and T3 Code's messages, read-only, and builds it again to show that the counts hold:
 
 ```sh
-base=$(python3 -c 'import datetime, sys; print(datetime.date.fromisoformat(sys.argv[1]) - datetime.timedelta(days=int(sys.argv[2])))' "$start" "$days")
-if ! first=$(uv run --script "$S" build --start "$start" --days "$days" --base-start "$base" --out "$D"); then
+if [ ! -f "${S:-}" ] || [ -z "${D:-}" ]; then
+    echo "no dataset: run the block at the top first, with the window filled in"
+elif ! base=$(python3 -c 'import datetime, sys; print(datetime.date.fromisoformat(sys.argv[1]) - datetime.timedelta(days=int(sys.argv[2])))' "$start" "$days" 2> /dev/null); then
+    echo "no dataset: $start is not a day or $days is not a number of days"
+elif ! first=$(uv run --script "$S" build --start "$start" --days "$days" --base-start "$base" --out "$D"); then
     echo "no dataset: the build failed"
 elif [ "$(uv run --script "$S" build --start "$start" --days "$days" --base-start "$base" --out "$D")" != "$first" ]; then
     echo "not rerunnable: a second build printed other counts"
@@ -63,7 +67,11 @@ It holds:
 Then freeze it:
 
 ```sh
-uv run --script "$S" freeze "$C"
+if [ ! -f "${S:-}" ] || [ -z "${C:-}" ]; then
+    echo "not frozen: run the block at the top first, with the window filled in"
+else
+    uv run --script "$S" freeze "$C"
+fi
 ```
 
 It prints `frozen: <sha256>`, writes it beside the codebook, and makes the codebook read-only.
