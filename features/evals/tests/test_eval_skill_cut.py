@@ -365,13 +365,38 @@ def test_a_steps_file_is_fed_as_read_with_each_side_file_after_its_trigger_line(
     ]
 
 
-def test_each_router_row_has_a_case():
-    ids = {case["id"] for case in run.steps_cases()}
-    crew = ("gate", "budget", "telling", "no-pr", "conflict", "link", "comment", "number")
-    scout = ("gate", "test-slot", "wide", "budget", "brief", "visual", "fault")
-    assert {f"crew-row-{row}" for row in crew} <= ids
-    assert {f"scout-row-{row}" for row in scout} <= ids
-    assert "crew-outside-where" in ids
+ROW_CASE = {
+    "crew": {
+        "A question only the user can answer": "crew-row-gate",
+        "A fault outside the task": "crew-outside-where",
+        "A loop of more than ten `gh` calls": "crew-row-budget",
+        "Reporting or acting on a number you measured": "crew-row-number",
+        '"A conflict"': "crew-row-conflict",
+        '"A link that moved"': "crew-row-link",
+        '"A comment"': "crew-row-comment",
+    },
+    "scout": {
+        "A question only the user can answer": "scout-row-gate",
+        "The request asks you to run a command under a test slot": "scout-row-test-slot",
+        "A search too wide to hold in this thread": "scout-row-wide",
+        "A loop of more than ten `gh` calls": "scout-row-budget",
+        "**Deliver** asks for a brief": "scout-row-brief",
+        "**Deliver** asks for a visual": "scout-row-visual",
+        "A fault outside the request": "scout-row-fault",
+    },
+}
+
+
+@pytest.mark.parametrize("skill", ROW_CASE)
+def test_each_router_row_has_a_case(skill):
+    text = (REPO / "features" / skill / "SKILL.md").read_text()
+    whens = re.findall(r"^\| (?!When\b|-)(.+?) \| .+? \|$", text, re.M)
+    ids = {case["id"] for case in run.steps_cases() if case["file"] == f"skills/{skill}/SKILL.md"}
+    assert whens
+    for when in whens:
+        named = [case for start, case in ROW_CASE[skill].items() if when.startswith(start)]
+        assert named, f"{skill} router row with no case in ROW_CASE: {when}"
+        assert named[0] in ids, named[0]
 
 
 def test_a_call_that_fails_keeps_the_rest_and_the_next_write_asks_only_for_what_is_missing(
