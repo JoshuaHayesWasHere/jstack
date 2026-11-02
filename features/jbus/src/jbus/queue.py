@@ -48,13 +48,15 @@ queued follow-up down the chain from it.
 jbus gives that go itself, to a row that the follow-up rule names a follow-up (`follow_up`, the rule
 as jbus applies it is `FOLLOW_UP`), at the end of a batch (`_followers`, `_by_rule`): a row the
 batch queued new, or queued again where its go was by rule, and a waiting row whose parent the batch
-approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting fix row jbus
-filed (`filed`). A filer queues its row
+approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting row jbus filed
+(`filed`): a fix of a red check, or the day's warnings row (`jbus.daywarnings`). A filer queues
+its row
 as jbus's pass (`PASS`, kept as the row's `queued_by`) with no approval, and the batch or the pass
 approves it. So no home approves a follow-up, and
 nothing of it reaches the user. A fix jbus filed from a red check that no row's merge turned red
 names no parent: its ground is the red run its brief names (`red_run`), and its record has no
-`follows`.
+`follows`. Nor does the day's warnings row, whose ground is the later reviews its `Decisions:`
+line names (`filed_ground`): each warning in it is of a pull request that merged on its own go.
 A row whose go an edit voided is approved again only where its edit kept the parent its go named,
 and a row the user's word approved waits for the user again.
 
@@ -125,7 +127,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbriefs import chains, meaning, skills
+from jbriefs import chains, findings, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbriefs.home import thread_of
@@ -180,6 +182,9 @@ FOLLOW_REF = "follow-up"
 FOLLOWED = "a follow-up approved by rule has no go without its parent's"
 RED_DECIDED = "none, jbus filed this from a red "
 FROM_RED = "jbus filed it from the red run "
+FILED_DECIDED = (RED_DECIDED, findings.CLEANUP_DECIDED)
+"""How the `Decisions:` line of each kind of row jbus files begins: a fix of a red check, and the
+day's warnings row."""
 FOLLOW_UP = (
     "a row is a follow-up of the row P, and jbus approves it by the follow-up rule "
     f"({FOLLOW_RULE}) when it is queued and on each pass, when it names P (its brief's head has a "
@@ -187,8 +192,10 @@ FOLLOW_UP = (
     f"queued whose brief's Decisions: line begins `{RED_DECIDED}`; or, when it is queued, a row "
     "whose --entry is P's plan entry), and when P's go holds (P is a row of the queue, or went "
     "as merged, and its go is the user's word or this rule's); a fix jbus filed that names no "
-    "parent is approved by the same rule on the red run its brief's Task: line quotes; any other "
-    "row waits for the user's go"
+    "parent is approved by the same rule on the red run its brief's Task: line quotes, and the "
+    "day's warnings row, a row jbus's pass queued whose brief's Decisions: line begins "
+    f"`{findings.CLEANUP_DECIDED.strip()}`, on the later reviews that line names; any other row "
+    "waits for the user's go"
 )
 SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
@@ -917,14 +924,28 @@ def _ruled(row: Row) -> bool:
     return made is not None and made.basis == RULE
 
 
-def filed(row: Row, text: str) -> bool:
-    """Return whether jbus filed the row from a red check: jbus's pass queued its brief (`PASS`),
-    and the brief's `Decisions:` line says so (`RED_DECIDED`). Who queued it is the record `add`
-    keeps, so a filer needs no slug of its own here, and the same brief queued by a home is not
-    one."""
+def _decided(text: str) -> str:
     decided = [" ".join(lines) for label, lines in briefs.fields(text) if label == "Decisions"]
+    return decided[0] if decided else ""
+
+
+def filed(row: Row, text: str) -> bool:
+    """Return whether jbus filed the row, from a red check or as the day's warnings row: jbus's
+    pass queued its brief (`PASS`), and the brief's `Decisions:` line says so (`FILED_DECIDED`).
+    Who queued it is the record `add` keeps, so a filer needs no slug of its own here, and the
+    same brief queued by a home is not one."""
     by = row.get("queued_by") or {}
-    return by.get("by") == PASS["by"] and bool(decided) and decided[0].startswith(RED_DECIDED)
+    return by.get("by") == PASS["by"] and _decided(text).startswith(FILED_DECIDED)
+
+
+def filed_ground(text: str) -> str:
+    """Return the ground of the go of a row jbus filed that names no parent: the red run a fix's
+    brief names (`red_run`), or the later reviews the day's warnings row's `Decisions:` line
+    names."""
+    decided = _decided(text)
+    if decided.startswith(findings.CLEANUP_DECIDED):
+        return "jbus filed it from " + decided.removeprefix("none, jbus filed this from ")
+    return f'{FROM_RED}"{red_run(text)}"'
 
 
 def red_run(text: str) -> str:
@@ -1468,7 +1489,7 @@ def _do(
         elif ruled:
             if not filed(row, text):
                 raise Refused(f"refused: {verb.slug} names no parent, and jbus did not file it")
-            ground = f'{FROM_RED}"{red_run(text)}"'
+            ground = filed_ground(text)
             rests = Said(f"{FOLLOW_RULE}; {ground}", "", "", True)
         else:
             rests = said[verb.basis, verb.ref]

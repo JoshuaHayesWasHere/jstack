@@ -111,6 +111,7 @@ ORDER = [
     "close 30 waiting.cadence",
     "close 40 chores.began (world)",
     "close 50 chores.daily",
+    "close 55 daywarnings.keep (sight, world)",
     "close 60 chores.sweep (budget)",
     "close 70 packs.check",
     "close 80 ci.keep (world, budget)",
