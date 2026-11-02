@@ -541,6 +541,9 @@ def test_with_no_proc_to_read_a_slot_held_under_a_process_is_found_by_ps_and_lso
     assert strays.in_slot(found) == {10}
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
+)
 def test_a_scout_on_the_pilots_control_arm_stops_what_its_session_started(
     kitchen, tmp_path, stray, temp
 ):
