@@ -12,6 +12,8 @@ origin's main, which `mainmoved.tell` reads for the tests that failed there."""
 import json
 from datetime import timedelta
 
+import pytest
+
 import jbus.queue
 from jbus import reverts
 from jmerge import mainjson
@@ -23,6 +25,7 @@ from test_jbus_queue import go as queue_go
 from test_jbus_watch import main_red
 
 TEST = "features/a/tests/test_a.py::test_x"
+OTHER = "features/a/tests/test_a.py::test_y"
 LOG = f"FAILED {TEST} - assert 1\n= 1 failed, 9 passed in 2.0s =\n"
 DONE = {"status": "completed"}
 
@@ -123,8 +126,9 @@ def test_a_revert_that_goes_red_is_not_reverted(kitchen):
     assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
 
 
-def flaky_elsewhere(kitchen):
-    """`jbus ci`'s ledger: `TEST` failed this week on two other branches, with no runner fault."""
+def flaky_elsewhere(kitchen, beside=("gamma", [TEST])):
+    """`jbus ci`'s ledger: `TEST` failed this week on beta, and `beside` names the other branch's
+    red and its tests, by default `TEST` on gamma: two other branches, with no runner fault."""
     at = iso(NOW - timedelta(days=1))
     job = {
         "event": "pull_request",
@@ -141,8 +145,8 @@ def flaky_elsewhere(kitchen):
         "name": "check",
     }
     jobs = [
-        {**job, "run": 1, "job": 11, "branch": "beta"},
-        {**job, "run": 2, "job": 12, "branch": "gamma"},
+        {**job, "run": 1, "job": 11, "branch": "beta", "tests": [TEST, OTHER]},
+        {**job, "run": 2, "job": 12, "branch": beside[0], "tests": beside[1]},
     ]
     kitchen.state.mkdir(parents=True, exist_ok=True)
     (kitchen.state / "ci.jsonl").write_text("".join(json.dumps(one) + "\n" for one in jobs))
@@ -154,6 +158,19 @@ def test_a_tip_whose_failed_tests_are_flakes_by_jbus_ci_s_rule_is_not_reverted(k
     passes(kitchen)
     assert asked(kitchen, "pr revert") == []
     assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
+
+
+@pytest.mark.parametrize(
+    "beside", [("gamma", [OTHER]), ("alpha", [TEST])], ids=["one-branch", "own-branch"]
+)
+def test_a_tip_whose_failed_test_failed_on_one_other_branch_alone_is_reverted(kitchen, beside):
+    """`TEST` shares beta's red with `OTHER`, a flake of two branches, or its second branch is
+    alpha's own: it failed on one branch besides the culprit's, so it is no flake."""
+    flaky_elsewhere(kitchen, beside)
+    red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    assert len(asked(kitchen, "pr revert")) == 1
+    assert main_red(kitchen) == []
 
 
 def test_a_row_is_never_reverted_twice(kitchen):
