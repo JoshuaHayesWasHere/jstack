@@ -10,8 +10,8 @@ answers:
    `<home>/.credentials.json`, while that token has not expired. Claude Code makes the same
    call for `/usage`. `JGAUGE_USAGE_URL` names another address, for a test.
 2. The answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`),
-   `cachedUsageUtilization`, while it is younger than `jroles.ledger.FRESH` and belongs to the account signed
-   in there.
+   `cachedUsageUtilization`, while it is younger than `jroles.ledger.FRESH` and belongs to the
+   account signed in there.
 
 The command never refreshes, writes or prints a token, and it never writes either file. A
 refresh token rotates on each refresh, so a refresh here would conflict with the sessions signed
@@ -26,7 +26,8 @@ value stays, and nothing marks the account free or capped on a guess. The comman
 time in `<ledger file>.retry` (the answer's `Retry-After`, or `RETRY`) and does not ask the endpoint
 again before it. The file also says that the last read of a home failed, for any reason, and a good
 answer from the endpoint removes it. `unread` is what `jbus.outbox` asks of that: the ledger's
-reading is out of date only while such a file stands and the ledger is older than `jroles.ledger.FRESH`.
+reading is out of date only while such a file stands and the ledger is older than
+`jroles.ledger.FRESH`.
 
 The endpoint returns a slightly different reset on each call (21:29:59.74, then 21:30:00.31).
 The command floors it to the second, as the other writers do, and the ledger's merge takes
@@ -169,8 +170,8 @@ def _keep_retry(instance: str, until: datetime) -> None:
 
 def unread(instance: str, now: datetime) -> str:
     """Why the instance's ledger is out of date, or nothing while its reading stands: its last read
-    failed and the ledger has not been read for `ledger.FRESH`. An instance `jgauge limits` does not read
-    has no retry file, so its ledger is never out of date by this."""
+    failed and the ledger has not been read for `ledger.FRESH`. An instance `jgauge limits` does
+    not read has no retry file, so its ledger is never out of date by this."""
     if not retry_file(instance).exists():
         return ""
     return ledger.stale(ledger.file_of(instance), now) or ""
