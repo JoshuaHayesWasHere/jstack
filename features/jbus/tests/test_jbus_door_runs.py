@@ -347,3 +347,18 @@ def test_an_edit_that_adds_a_door_takes_the_rows_go_back(kitchen):
     assert rows(kitchen)["plain"]["approved"] == ""
     kitchen.poll()
     assert "crew: plain" not in [launch["title"] for launch in kitchen.t3.launches]
+
+
+def test_a_carried_go_on_winnifreds_prod_deploy_brief_is_gated_and_launches_nothing(kitchen):
+    text = WINNIFRED.replace("Home: 123s\n", "Home: root\n")
+    queued(kitchen, "qw-deploy-main-to-prod", text)
+    said = carried_word(kitchen, None, "qw-deploy-main-to-prod")
+    (asked,) = questions.read(kitchen.state)
+    assert said.startswith(
+        f"gated qw-deploy-main-to-prod: its brief holds for {PROD}, so it waits for user's own "
+        f"word: question {asked.number}\n"
+    )
+    assert asked.holds == PROD
+    assert rows(kitchen)["qw-deploy-main-to-prod"]["approved"] == ""
+    kitchen.poll()
+    assert kitchen.t3.launches == []
