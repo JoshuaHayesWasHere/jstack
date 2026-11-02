@@ -36,6 +36,7 @@ from jmerge import (
     sweep,
     trailers,
 )
+from jmerge import reverts as reverting
 from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 from jmerge.joblog import failed_in
@@ -165,8 +166,8 @@ class Repo:
         return frozenset(one for one in meets.waivers(text) if self.words[(one, slug)])
 
     @functools.cached_property
-    def main_state(self) -> mainjson.Main:
-        return rows.main(self.main)
+    def reverts(self) -> dict[str, reverting.Revert]:
+        return rows.reverts(self.main)
 
     @functools.cached_property
     def bases(self) -> tuple[str, ...]:
@@ -726,10 +727,12 @@ class Repo:
         stacked = stacks.of(text)
         short = self.lift(ready.held(one, default, stacked, self.bases), lifted)
         short = short or self.on_stack(one, default, stacked)
-        heard = self.heard(text, brief.stem)
-        short = short or self.lift(ready.short_of(text, one.head, heard), lifted)
+        reverted = not short and self.reverted(brief.stem, one)
+        if not short and not reverted:
+            heard = self.heard(text, brief.stem)
+            short = self.lift(ready.short_of(text, one.head, heard), lifted)
         rebase: ready.Rebase | None = None
-        covered = ready.to_range_diff(text, one.head)
+        covered = None if reverted else ready.to_range_diff(text, one.head)
         under = ready.under_fix(text, one.head)
         lost: tuple[ready.Drop, ...] = ()
         if not short and covered:
@@ -812,38 +815,23 @@ class Repo:
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
-        """The red hold on a pull request into main: main's hold, and its browser run's. A pull
-        request into another merge base has neither: main's red says nothing of that branch, and
-        no fix of main can merge into it."""
+        """The hold on a pull request into main for its own browser run (`browser_red`). A red
+        main holds no pull request: a pull request red at its own head is held by its own checks,
+        and jbus reverts the one clear culprit of a red main (`jmerge.reverts`). A pull request
+        into another merge base has no browser hold either, since main's browser runs say nothing
+        of that branch."""
         if one.base != default:
             return ""
-        main, ran = self.main_state, rows.UNPROVED
-        if main.red and main.failed and not mainjson.fix_of(slug):
-            ran = self.proved(one, main.red, main.failed)
-        return rows.red(main, slug, ran) or browser_red(self, one, default, slug)
+        return browser_red(self, one, default, slug)
 
-    def proved(self, one: ready.PullRequest, red: str, failed: tuple[str, ...]) -> rows.Ran:
-        """What the pull request's own check proved of the red tip `red` (`rows.Ran`), once a
-        run for each head. A check proves nothing until every check of the head has passed, and
-        nothing where the head lacks `red`. Then each passed job's log says what it ran
-        (`rows.ran_in`), and the logs are read until they cover every test in `failed`. Only the
-        jobs of the required check count (`checked`): a browser run's `pytest -m browser` names no
-        path and ran no test of the rest."""
-        key = (one.number, one.head, red, "check")
-        if key not in self.proofs:
-            self.proofs[key] = rows.UNPROVED
-            rollup = self.reds.get(ROLLUP.format(number=one.number), [])
-            if passed(rollup) and self.has(one) and not self.outside(red, one.head):
-                every, paths = False, frozenset[str]()
-                for job in jobs(checked(rollup)):
-                    found = rows.ran_in(self.job_log(job) or "", rows.CHECK)
-                    if found is not None:
-                        every, paths = every or found.every, paths | found.paths
-                    ran = rows.Ran(over=red, every=every, paths=paths)
-                    self.proofs[key] = ran
-                    if all(map(ran.covers, failed)):
-                        break
-        return self.proofs[key]
+    def reverted(self, slug: str, one: ready.PullRequest) -> bool:
+        """Whether the pull request is a revert jbus opened for a red main (`jmerge.reverts`), at
+        the head jbus opened it at or one whose range-diff from that head is clean, as after a
+        merge of main into it. Such a pull request needs no review."""
+        revert = reverting.of_branch(self.reverts, slug)
+        if revert is None or one.url != revert.pull:
+            return False
+        return one.head == revert.head or self.range_diff(revert.head, one.head, one.base).clean
 
     def proved_browser(self, one: ready.PullRequest, red: str) -> rows.Ran:
         """What the pull request's own browser run proved of main's red browser run at `red`:

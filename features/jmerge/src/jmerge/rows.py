@@ -9,6 +9,7 @@ from pathlib import Path
 import jsettings
 from jbriefs import meets
 from jmerge import bus, judgement, mainjson, ready
+from jmerge import reverts as reverting
 from jmerge.bus import Migrations, Row
 from jmerge.checks import NOT_RED
 from jsettings import store
@@ -85,9 +86,11 @@ def heard(checkout: Path, waiver: meets.Waiver, slug: str) -> str:
         return str(error)
 
 
-def main(checkout: Path) -> mainjson.Main:
+def reverts(checkout: Path) -> dict[str, reverting.Revert]:
+    """The reverts jbus opened for a red main in the project of `checkout` (`jmerge.reverts`),
+    or none where jbus has no project of it."""
     state = _state(checkout)
-    return mainjson.read(state) if isinstance(state, Path) else mainjson.Main()
+    return reverting.read(state) if isinstance(state, Path) else {}
 
 
 @dataclass(frozen=True)
@@ -122,15 +125,6 @@ def proves(red: str, failed: Sequence[str], ran: Ran) -> bool:
     ran each test that failed there and passed it. Where no failed test is known, nothing
     proves the fix."""
     return bool(red) and ran.over == red and bool(failed) and all(map(ran.covers, failed))
-
-
-def red(main: mainjson.Main, slug: str, ran: Ran = UNPROVED) -> str:
-    """The hold on a pull request into main while main is red: none for a fix, the pull request
-    whose check proves it (`proves`, of the tests `main.json` names at the red tip), or the brief
-    jbus filed for it (`mainjson.fix_of`)."""
-    if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):
-        return ""
-    return ready.MAIN_RED.format(sha=main.red[: mainjson.SHA])
 
 
 _STAMP = r"^(?:\S+Z )?"
@@ -261,16 +255,18 @@ def browser_red(
     ran: Ran = UNPROVED,
     failed: Sequence[str] = (),
 ) -> str:
-    """The hold on a pull request whose own browser run failed at `head`. The red is main's where
-    main's last browser run failed too and its fix is open (`main_browser_red`, of `runs`, main's
-    browser.yml runs as GitHub lists them, and `fixing`, from `browser_fixing`), and it waits as
-    for a red main, unless it is the fix of that red. The fix is the pull request whose browser
-    run proves it (`proves`, of `failed`, the tests main's run failed, and `ran`, what its own run
-    ran and failed), or the row jbus files for it (`BROWSER_FIX`). Otherwise the red is the pull
-    request's own, which jbus tells its crew (`jbus.expedite.TABLE`)."""
+    """The hold on a pull request whose own browser run failed at `head`: it is red at its own
+    head, whatever main is. The red came from main where main's last browser run failed too and
+    its fix is open (`main_browser_red`, of `runs`, main's browser.yml runs as GitHub lists them,
+    and `fixing`, from `browser_fixing`), unless the pull request is the fix of that red: then it
+    is held as `MAIN_BROWSER_RED`, which names main's red run and which jbus tells no crew to fix.
+    The fix is the pull request whose browser run proves it (`proves`, of `failed`, the tests
+    main's run failed, and `ran`, what its own run ran and failed), or the row jbus files for it
+    (`BROWSER_FIX`). Otherwise the red is the pull request's own, which jbus tells its crew
+    (`jbus.expedite.TABLE`)."""
     red = "" if slug.startswith(BROWSER_FIX) else main_browser_red(runs, default, fixing)
     if red and not proves(red, failed, ran):
-        return ready.MAIN_RED.format(sha=red[: mainjson.SHA])
+        return ready.MAIN_BROWSER_RED.format(head=head[: mainjson.SHA], sha=red[: mainjson.SHA])
     return ready.BROWSER_RED.format(head=head[: mainjson.SHA])
 
 
