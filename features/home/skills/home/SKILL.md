@@ -72,7 +72,7 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$M/plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that no home, jbus or tree counts the scope. `/home <scope>` moves it back. | Open tasks only |
 | `$H/fresh-check` | The repo's check command, a crewmate's one run of the check and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
 | `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
-| `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `features/home/docs/state.md`). | Short |
+| `$H/standing.md` | None. A standing rule of the user's is code, the text of the skill step that needs it, or a queued row, and never a line in a file a thread reads at its start: not here, and not in Claude Code's auto-memory. `jbus rules` lists each such file, and jbus wakes the root home for each until it is gone. | Absent |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
 | `$H/scouts/<slug>.md` | A scout's request, and its report, whichever home wrote it. | One page |
 | `$H/reports/` | The visuals a scout or a home makes for the user. | Unbounded |
@@ -148,7 +148,8 @@ When the shape of the work is not settled (more than one task, or a design choic
 - One entry per task. A task is one pull request's worth of work. If it is larger, split it before anything starts.
 - Every entry has a **Done when** list: checks a person or a command can run. It is the stopping rule. Without one, do not start.
 - A UI change's **Done when** asks for shots at the real Safari viewport (iPhone landscape about 844x300, portrait about 390x664, which Categories' `~/categories-playtest/lib.mjs` exports as `SAFARI`) and for a probe that fails on main, the old code, before it passes on the branch.
-- Record a decision the user makes in the entry it belongs to, in their words.
+- Record a decision the user makes in the entry it belongs to, in their words, above its `Done when:` list.
+  A line added inside that list, or a changed heading, voids the entry's go and every row under it waits for the user again: after a plan edit, `jbus plan` says `go void` for such an entry.
 - Write no status in an entry, and change none by hand. An entry has a `Stage:` line, which says where the planning is: `proposed`, `planned`, `parked` or `scouting`. Once a brief of the entry is queued, its status is counted from its queue rows by `jbus plan`, and the `Stage:` line is not read.
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
 - The user gives the go once per entry, never per row, and to an entry that has a row: queue its first row, a scout's if it needs design, then record the go with `jbus plan go <entry> --message <thread>/<message>`, which refuses an entry with no row.
