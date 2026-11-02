@@ -1,4 +1,4 @@
-"""One sentence per line, for new prose: `prose_lint.py <base>`.
+"""One sentence per line, for new prose: `prose_lint.py <base>`, or `prose_lint.py -`.
 
 It reads what a pull request adds or changes with `git diff --unified=0 --find-renames
 <base>...HEAD`, in the Markdown files of `docs/`, `features/`, `skills/`, `playbooks/` and
@@ -20,6 +20,9 @@ lines under it up to a blank line. Nor is a page that a `.gitattributes` at HEAD
 closing quote, bracket or emphasis after it, then a space and a word that starts with a
 capital, a backtick, a quote or a bracket. A `code` span, a link's address, a decimal, a path
 and an abbreviation such as "e.g." end nothing.
+
+With `-` it judges every line of the Markdown text it reads on stdin, as a pull request's
+title and body before they are sent, and names a fault `<stdin>:<line>`.
 
 The base is the one `make check-fast` hands `scripts/select_tests.py`: `origin/main` on a
 desk, and `HEAD^1` in a pull request's CI, the tip of main in GitHub's merge commit. It needs
@@ -202,10 +205,20 @@ def faults(base):
     return found
 
 
+def text_faults(text):
+    """Each prose line of a whole Markdown text that holds more than one sentence."""
+    lines = text.splitlines()
+    return [
+        ("<stdin>", number, line)
+        for number, (line, judged) in enumerate(zip(lines, prose(lines), strict=True), 1)
+        if judged and len(sentences(LIST_MARK.sub("", line))) > 1
+    ]
+
+
 def main(argv):
     if len(argv) != 1:
-        sys.exit("usage: prose_lint.py <base>")
-    found = faults(argv[0])
+        sys.exit("usage: prose_lint.py <base> | prose_lint.py -")
+    found = text_faults(sys.stdin.read()) if argv[0] == "-" else faults(argv[0])
     for path, number, line in found:
         print(f"{path}:{number}: more than one sentence, break it at sentence ends: {line}")
     if found:
