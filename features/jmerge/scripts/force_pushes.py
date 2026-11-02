@@ -53,7 +53,7 @@ DOCS = "other docs"
 PARENT = "code, a cleanup row against the row it cleans up"
 WAVE = "code, two rows of one wave"
 ROWS = "code, two other rows"
-UNKNOWN = "not known: GitHub gave no commit for the push"
+UNKNOWN = "not known: GitHub gave no commit for the push, or git could not read it"
 REASONS = (
     REBASED,
     REWRITTEN,
@@ -158,15 +158,23 @@ def causes(pulls: list[dict], events: list[dict], since: datetime, until: dateti
     return counted
 
 
+def ran(repo: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+
+
 def git(repo: Path, *args: str) -> str:
-    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True).stdout
+    return ran(repo, *args).stdout
 
 
-def merged_over(repo: Path, main: str, head: str) -> tuple[str, list[str]]:
-    """The tree of `head` merged over `main`, and the files of it that conflict."""
+def merged_over(repo: Path, main: str, head: str) -> tuple[str, list[str]] | None:
+    """The tree of `head` merged over `main`, and the files of it that conflict, or None where git
+    could not merge them: merge-tree ends 0 on a clean merge, 1 on a conflict, and else on a fault."""
     command = ["-c", "merge.conflictStyle=diff3", "merge-tree", "--write-tree", "--name-only"]
-    said = git(repo, *command, "--no-messages", main, head).splitlines()
-    return said[0] if said else "", said[1:]
+    said = ran(repo, *command, "--no-messages", main, head)
+    lines = said.stdout.splitlines()
+    if said.returncode not in (0, 1) or not lines:
+        return None
+    return lines[0], lines[1:]
 
 
 def kind_of_file(repo: Path, tree: str, path: str) -> str:
@@ -206,12 +214,20 @@ def reason_of(
     branches: dict[int, str],
 ) -> tuple[str, list[str]]:
     """What lay under one push from `before` to `after`, and the files of that kind that conflicted
-    over main at the told event, or over main at the push."""
-    tree, files = merged_over(repo, at_push, before)
-    files = sorted({*files, *merged_over(repo, at_event, before)[1]})
+    over main at the told event, or over main at the push. A commit git cannot read, or a merge
+    or merge base it cannot work out, is not known, never a push with no conflict."""
+    commits = (before, after, at_push, at_event)
+    if any(ran(repo, "cat-file", "-e", f"{c}^{{commit}}").returncode for c in commits):
+        return UNKNOWN, []
+    pushed, told_then = merged_over(repo, at_push, before), merged_over(repo, at_event, before)
+    if pushed is None or told_then is None:
+        return UNKNOWN, []
+    tree, files = pushed[0], sorted({*pushed[1], *told_then[1]})
     if not files:
-        moved = git(repo, "merge-base", before, at_push) != git(repo, "merge-base", after, at_push)
-        return (REBASED if moved else REWRITTEN), []
+        bases = [ran(repo, "merge-base", head, at_push) for head in (before, after)]
+        if any(base.returncode for base in bases):
+            return UNKNOWN, []
+        return (REBASED if bases[0].stdout != bases[1].stdout else REWRITTEN), []
     kinds = {path: kind_of_file(repo, tree, path) for path in files}
     hardest = max(kinds.values(), key=HARDEST.index)
     hard = [path for path, kind in kinds.items() if kind == hardest]
@@ -248,9 +264,10 @@ def pushed_commits(repo: Path, numbers: list[int]) -> dict[tuple[int, datetime],
 
 
 def main_at(repo: Path) -> list[tuple[datetime, str]]:
-    """Each commit of `origin/main` with when it landed, the oldest first."""
+    """Each commit of `origin/main` with when it landed, the oldest first, in the order of its first
+    parents, so two that landed in one second keep their order."""
     log = git(repo, "log", "--first-parent", "--format=%cI %H", "origin/main").splitlines()
-    return sorted((when(line.split()[0]), line.split()[1]) for line in log)
+    return [(when(line.split()[0]), line.split()[1]) for line in reversed(log)]
 
 
 def explained(

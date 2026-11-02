@@ -4,7 +4,7 @@ cause jbus told its crew last before it."""
 import importlib.util
 import subprocess
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -164,3 +164,43 @@ def test_the_table_adds_up_to_each_cause(repo):
     )
     assert lines[-1] == "| all | 3 | 0 | |"
     assert f"| {pushes.ROWS} | 2 | 0 | `code.py` 2 |" in lines
+
+
+def test_a_commit_git_cannot_read_is_not_known_and_never_a_push_with_no_conflict(repo):
+    head, main = branch_over(repo, {"mine.txt": "mine\n"}, {"theirs.txt": "theirs\n"})
+    gone = "0" * 40
+    assert reason(repo, gone, main, head) == pushes.UNKNOWN
+    assert reason(repo, head, main, gone) == pushes.UNKNOWN
+    assert pushes.reason_of(repo, head, head, gone, main, "row", {}) == (pushes.UNKNOWN, [])
+
+
+def test_explained_joins_each_told_push_to_its_commits_and_main_then(repo, monkeypatch):
+    """The path the table is made by: a push of a merged pull request, the event jbus told before
+    it, the commits GitHub gives for it and the main of that moment, from `origin/main`."""
+    head, main = branch_over(repo, {"code.py": "two\n"}, {"code.py": "three\n"})
+    git(repo, "update-ref", "refs/remotes/origin/main", main)
+    landed = datetime.fromisoformat(git(repo, "log", "-1", "--format=%cI", main))
+    told_at, pushed_at = landed + timedelta(minutes=1), landed + timedelta(minutes=5)
+    stamp = lambda moment: moment.isoformat().replace("+00:00", "Z")  # noqa: E731
+    pulls = [
+        pull(7, "row", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1))),
+        pull(8, "lost", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1))),
+    ]
+    rebase = "jbus: main moved under your pull request #7 (it conflicts with its base)."
+    events = [
+        event("rebase", "row", stamp(told_at), "told (#7)", rebase),
+        event("failed", "lost", stamp(told_at), "told (#8)"),
+    ]
+    asked = []
+
+    def from_github(_repo, numbers):
+        asked.append(numbers)
+        return {(7, pushes.when(stamp(pushed_at))): (head, head)}
+
+    monkeypatch.setattr(pushes, "pushed_commits", from_github)
+    since, until = landed - timedelta(days=1), landed + timedelta(days=1)
+    counted, files = pushes.explained(repo, pulls, events, since, until)
+    assert asked == [[7, 8]]
+    assert counted["conflict"] == Counter({pushes.ROWS: 1})
+    assert counted["crew fix"] == Counter({pushes.UNKNOWN: 1})
+    assert files[pushes.ROWS] == Counter({"code.py": 1})
