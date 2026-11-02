@@ -25,7 +25,9 @@ jstack writes no repo's pack, and jbus edits none.
 
 ## How a home reads it
 
-The home skill's start ("See where things stand") prints `read whole: <checkout>/docs/context/INDEX.md` after the files it reads whole, when the file is there. The home reads the index whole and opens a note only when a step needs it. When what it knows disagrees, the first in this order wins:
+The home skill's start ("See where things stand") prints `read whole: <checkout>/docs/context/INDEX.md` after the files it reads whole, when the file is there.
+The home reads the index whole and opens a note only when a step needs it.
+When what it knows disagrees, the first in this order wins:
 
 1. The user's word, and a standing rule of the user's, which is code, a skill step's text or a queued row.
 2. The source at its current revision.
