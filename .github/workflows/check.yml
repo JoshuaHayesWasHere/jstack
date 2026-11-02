@@ -108,7 +108,7 @@ jobs:
             tlc-${{ matrix.shard }}-
       # scripts/select_tests.py adds its selection to the job summary, as one line, and gives
       # this step the output `selection`: `all` where it ran the whole suite, which it does
-      # when its selection is 80% of the test files or more.
+      # only for a change the whole suite rests on, however many test files a selection holds.
       - name: make check-fast
         id: suite
         run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8
