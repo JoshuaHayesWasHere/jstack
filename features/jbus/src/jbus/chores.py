@@ -5,8 +5,9 @@ the pass sends the day's snapshot, and runs the sweep that is due.
 Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the last
 Result of each brief written in `SNAPSHOT_DAYS`. For each pull request that merged
 `wake.PRUNE_AFTER` ago, it then prunes the record of what it sent. It forgets the log's lines older
-than `wake.LOG_KEEP`. Last, it records that the day's look at what `jmerge` would sweep is due. Each
-pass runs that look again until `jmerge` has run.
+than `wake.LOG_KEEP` that the telemetry store has copied (`jbus.telemetry.copied`), so a line the
+store has not read stays. Last, it records that the day's look at what `jmerge` would sweep is
+due. Each pass runs that look again until `jmerge` has run.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from jbus import merge, mirror, passes, queue, verbs, wake, watch
+from jbus import merge, mirror, passes, queue, telemetry, verbs, wake, watch
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -50,7 +51,7 @@ def daily(half: Half) -> None:
                     and run.now - watch.when(pull["mergedAt"]) >= wake.PRUNE_AFTER
                 }
             )
-        run.box.forget(run.now - wake.LOG_KEEP)
+        run.box.forget(run.now - wake.LOG_KEEP, telemetry.copied(run.config, run.project))
 
 
 def sweep(half: Half) -> None:

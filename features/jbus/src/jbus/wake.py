@@ -257,13 +257,27 @@ class Box:
         by (`entries`). `log` takes no lock and writes nothing."""
         return entries(self.state)
 
-    def forget(self, before: datetime) -> None:
-        """Drop the log's lines from before this moment."""
+    def forget(self, before: datetime, copied: int) -> None:
+        """Drop the log's lines from before this moment that end within its first `copied`
+        bytes, which the telemetry store holds (`jbus.telemetry.copied`). A line past them stays,
+        however old, until the store has read it."""
         with locked(self.state, LOCK):
             path = self.state / LOG
-            records = _records(path)
-            kept = [one for one in records if datetime.fromisoformat(one["at"]) >= before]
-            if len(kept) < len(records):
+            try:
+                lines = path.read_bytes().splitlines(keepends=True)
+            except OSError:
+                return
+            kept, dropped, read = [], False, 0
+            for line in lines:
+                read += len(line)
+                record = _record(line)
+                if record is None:
+                    continue
+                if read <= copied and datetime.fromisoformat(record["at"]) < before:
+                    dropped = True
+                    continue
+                kept.append(record)
+            if dropped:
                 temporary = path.with_name(path.name + ".tmp")
                 handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
                 try:
@@ -394,21 +408,23 @@ class Box:
         return sent
 
 
+def _record(line: bytes | str) -> dict[str, Any] | None:
+    """The record a line of the log holds, with a time, or None for any other line."""
+    try:
+        record = json.loads(line)
+        datetime.fromisoformat(record["at"])
+    except (ValueError, KeyError, TypeError):
+        return None
+    return record
+
+
 def _records(path: Path) -> list[dict[str, Any]]:
     """Return the log's lines that are a record with a time, and leave out any other line."""
     try:
         lines = path.read_text().splitlines()
     except OSError:
         return []
-    records = []
-    for line in lines:
-        try:
-            record = json.loads(line)
-            datetime.fromisoformat(record["at"])
-        except (ValueError, KeyError, TypeError):
-            continue
-        records.append(record)
-    return records
+    return [record for line in lines if (record := _record(line)) is not None]
 
 
 def entries(state: Path) -> list[dict[str, Any]]:
