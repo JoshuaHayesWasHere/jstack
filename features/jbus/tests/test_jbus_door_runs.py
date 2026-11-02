@@ -8,6 +8,7 @@ deployed prod on 2026-10-30 with no `Holds:` line, and the table the scout repla
 audit. The tests run the real commands, the bot's route and the pass against the kitchen's fakes.
 """
 
+import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -467,3 +468,25 @@ def test_the_users_answer_to_a_may_go_gate_approves_the_row(kitchen):
     assert rows(kitchen)[STALE]["approval"]["checked"] is True
     code, said = approve(kitchen, STALE, "--message", ref)
     assert code == 0 and said.startswith("already"), said
+
+
+def test_an_answer_to_a_may_go_gate_said_before_the_brief_now_stored_approves_nothing(kitchen):
+    """The user's message came after the gate was asked, and the brief was stored again after
+    the message: an answer that differs would approve a brief the message was not said of."""
+    deletes(kitchen)
+    typed_word(kitchen, None, STALE)
+    (asked,) = questions.read(kitchen.state)
+    ref = josh(kitchen, f"approve {STALE}")
+    queued(
+        kitchen,
+        STALE,
+        brief(STALE, f"Holds: {DELETES}\n").replace("- it is done\n", "- all done\n"),
+    )
+    later = (datetime.now(UTC) + timedelta(minutes=2)).timestamp()
+    os.utime(queue.brief_path(kitchen.state, STALE), (later, later))
+    number = str(asked.number)
+    code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", ref)
+    assert code == 1
+    assert f"before {STALE}'s brief was stored at " in said, said
+    assert questions.question(kitchen.state, asked.number).answer is None
+    assert rows(kitchen)[STALE]["approved"] == ""
