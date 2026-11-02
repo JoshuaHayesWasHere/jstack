@@ -247,7 +247,7 @@ SHUT = [
     (carried_word, "gated deploy-prod: its brief holds for touches prod or real users"),
     (typed_word, "gated deploy-prod: its brief holds for touches prod or real users"),
     (bot_route_go, "gated deploy-prod: its brief holds for touches prod or real users"),
-    (bot_route_answer, "keeps the go of deploy-prod, whose brief holds for touches prod"),
+    (bot_route_answer, "holds (touches prod or real users): only user's own word"),
     (batch, "refused: approve deploy-prod in a batch: its brief holds for touches prod"),
     (entry_go, ""),
     (follow_up, "gated deploy-prod: its brief holds for touches prod or real users"),
@@ -290,7 +290,7 @@ def test_a_message_of_joshs_that_names_another_row_is_refused_and_says_what_to_s
     sha = sha12(stored(kitchen, "deploy-prod"))
     assert (code, said) == (
         1,
-        f'refused: deploy-prod\'s brief holds for {PROD}, and message {ref} ("go on the '
+        f"refused: deploy-prod's brief holds for {PROD}, and message {ref} (\"go on the "
         'skills") names neither deploy-prod nor its gate: user sends "go deploy-prod" in T3 '
         f"Code, and jbus --as user queue approve deploy-prod --sha {sha} --message "
         "<thread>/<message> records it\n",
@@ -326,9 +326,7 @@ def test_an_answer_to_a_held_gate_names_its_number_or_its_row(kitchen):
     (asked,) = questions.read(kitchen.state)
     number = str(asked.number)
     unrelated = josh(kitchen, "yes", name="plain-yes")
-    code, said = kitchen.main(
-        "--as", "user", "answer", number, "--differs", "--message", unrelated
-    )
+    code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", unrelated)
     assert code == 1 and "names neither deploy-prod nor question" in said, said
     assert questions.question(kitchen.state, asked.number).answer is None
     named = josh(kitchen, f"go on {number}, deploy it", name="named")
