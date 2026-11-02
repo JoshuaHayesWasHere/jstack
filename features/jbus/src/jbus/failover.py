@@ -62,11 +62,11 @@ A thread that has not failed moves too: `jbus.outbox` moves one on a capped inst
 is due it, by the same pool.
 
 `held` tells each project's root home once of a pool with every instance capped, with the first
-reset, through an alert of the one list (`jbus.wakes`). A home on that pool hears at the reset, since
-the outbox holds a message into a cap, so the alert stays open for `TOLD` past it. A reset that
-passes with the pool still full is a new hold, under a key of its own reset, since the home's list
-reads a line whose only change is a time as nothing new (`jbus.wakes.words`), and is told again. `jbus status` shows the same pools
-as they stand now (`jroles.pool.held`).
+reset, through an alert of the one list (`jbus.wakes`). A home on that pool hears at the reset,
+since the outbox holds a message into a cap, so the alert stays open for `TOLD` past it. A reset
+that passes with the pool still full is a new hold, under a key of its own reset, since the home's
+list reads a line whose only change is a time as nothing new (`jbus.wakes.words`), and is told
+again. `jbus status` shows the same pools as they stand now (`jroles.pool.held`).
 """
 
 from __future__ import annotations
@@ -81,7 +81,6 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-import jroles
 from jbriefs.home import ids, scopes, thread_of
 from jbus import alert, dispatch, outbox, owed, roles, threads, verbs
 from jbus.passes import Pass

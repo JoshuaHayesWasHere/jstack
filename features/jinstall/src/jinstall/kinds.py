@@ -1766,7 +1766,8 @@ class Roles:
 class Pools:
     """The role map's pools against T3's instances, by the rule `jroles --check` reads
     (`jroles.pool.lone`).
-    ok: no role is on one account while T3 lists another. A map that cannot be read is `Roles`' line.
+    ok: no role is on one account while T3 lists another. A map that cannot be read is `Roles`'
+    line.
     old: a role is, and the detail gives the fix to send to infra, who own the map. The doctor only
     probes it: nothing here writes the map."""
 

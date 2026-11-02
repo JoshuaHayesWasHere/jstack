@@ -877,7 +877,9 @@ def test_a_role_on_one_account_with_another_listed_is_a_hard_problem_with_the_fi
     roles.write_text("crew: claudeAgent claude-opus-5-5\n")
     code, said = user.doctor()
     (line,) = line_for(said, "role pools")
-    assert code == 1 and line.startswith("old hard role pools -> crew has one instance, claudeAgent")
+    assert code == 1 and line.startswith(
+        "old hard role pools -> crew has one instance, claudeAgent"
+    )
     assert f"crew: claudeAgent claude-opus-5-5 claudeAgent,{prime} effort=medium" in line
     roles.write_text(f"crew: claudeAgent claude-opus-5-5 claudeAgent,{prime}\n")
     (line,) = line_for(user.doctor()[1], "role pools")

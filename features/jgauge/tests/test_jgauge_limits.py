@@ -322,7 +322,9 @@ def test_a_window_the_endpoint_gives_as_null_is_not_open_and_the_reading_is_kept
     assert code == 0
     (line,) = [one for one in out.splitlines() if one.startswith("claudeAgent ")]
     assert "seven_day 4%" in line
-    assert "five_hour not open: the answer gives it null, as it does until a session opens it" in line
+    assert (
+        "five_hour not open: the answer gives it null, as it does until a session opens it" in line
+    )
     assert machine.file("claudeAgent").read_text() == f"seven_day 4 {WEEK_AT}\n"
     assert "stale" not in out
 

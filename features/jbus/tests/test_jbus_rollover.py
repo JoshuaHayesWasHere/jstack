@@ -73,7 +73,9 @@ def test_a_message_to_a_thread_on_the_capped_instance_moves_it_and_goes(kitchen)
     (key,) = sent(kitchen, "failed")
     assert key.startswith("failed|")
     (line,) = [one for one in said if one.startswith("rollover alpha: ")]
-    assert line.endswith(f"claudeAgent to {PRIME}: claudeAgent is capped until {RESETS.isoformat()}")
+    assert line.endswith(
+        f"claudeAgent to {PRIME}: claudeAgent is capped until {RESETS.isoformat()}"
+    )
 
 
 def test_a_thread_with_a_turn_running_is_not_moved_under_it(kitchen):
