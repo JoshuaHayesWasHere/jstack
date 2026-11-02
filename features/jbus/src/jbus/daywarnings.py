@@ -61,7 +61,15 @@ class Kept:
 
     @property
     def path(self) -> str:
-        return self.place.rpartition(":")[0] if ":" in self.place else self.place
+        place = self.place.rpartition(":")[0] if ":" in self.place else self.place
+        return place.strip("`")
+
+    @property
+    def line(self) -> str:
+        """The warning's line of the row's `Done when:`. Its words are the reviewer's, so they are
+        quoted: a quote is somebody's words, which `queue.asks` does not read as the brief's."""
+        what = self.what.replace('"', "'")
+        return f'- {self.slug} {self.id} warning {self.place}: "{what}" ({self.pull})'
 
 
 def kept(slug: str, text: str, pull: str, day: str) -> list[Kept]:
@@ -93,34 +101,34 @@ def due(ledger: dict[str, Any], today: str) -> tuple[str, list[Kept]] | None:
 
 def brief(day: str, warnings: list[Kept]) -> str:
     """Return the day's warnings row's brief, in the shape of
-    `features/jbriefs/templates/brief.md`."""
+    `features/jbriefs/templates/brief.md`, which `queue.add` takes whatever the warnings name.
+    A warning on a shared doc, such as the README, makes the row a docs sweep, whose title names
+    docs, since only a docs sweep may claim one (`queue.conduct`). A warning that names no file
+    is of its pull request as a whole, so where no warning names a file `Where:` is the repo."""
     pulls = list(dict.fromkeys(one.pull for one in warnings))
-    where = [
-        path
-        for path in dict.fromkeys(one.path for one in warnings)
-        if path not in ("", "-") and not queue.shared_doc(f"`{path}`")
-    ]
+    where = [path for path in dict.fromkeys(one.path for one in warnings) if path not in ("", "-")]
     days = sorted({one.day for one in warnings})
     span = days[0] if len(days) == 1 else f"{days[0]} to {days[-1]}"
+    lines = [one.line for one in warnings]
+    docs = any(queue.shared_doc(text) for text in [*lines, *(f"`{path}`" for path in where)])
     return "\n".join(
         [
-            f"# {PREFIX}{day}: fix the warnings that later reviews found, kept {span}",
+            f"# {PREFIX}{day}: fix the warnings that later reviews found, kept {span}"
+            + (", and the docs they name" if docs else ""),
             "Task: each warning below is a finding of a review after the first, of a pull request "
-            "that has merged: it held no merge and went to no crew, and this row fixes it (Josh, "
-            '2026-11-01: "batch them into one follow-up row a day").',
+            "that has merged: it held no merge and went to no crew, and this row fixes it, as the "
+            "one follow-up row of the day.",
             "Done when:",
-            *(
-                f"- {one.slug} {one.id} warning {one.place}: {one.what} ({one.pull})"
-                for one in warnings
-            ),
+            *lines,
             "- Each warning above is fixed, or the Result says why it stands, citing a path:line.",
             "- The check command (`$H/fresh-check`) passes.",
             "Proves it: CI's `check` job on the pull request, and a test for each warning fixed "
             "where one can be written.",
             "Size: S",
-            f"Where: {', '.join(f'`{path}`' for path in where) or 'the files the warnings name'}",
+            f"Where: {', '.join(f'`{path}`' for path in where) or '`.`'}",
             f"Decisions: {findings.CLEANUP_DECIDED}kept {span}, in {len(pulls)} pull requests, "
-            "and the user has not seen it",
+            'and the user has not seen it (Josh, 2026-11-01: "batch them into one follow-up row '
+            'a day")',
             "Design: none, each warning names its own fix",
             "Pull request: open one when done",
             f"Review: {findings.CLEANUP}",

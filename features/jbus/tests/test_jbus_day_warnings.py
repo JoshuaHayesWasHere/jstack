@@ -89,11 +89,11 @@ def test_a_days_warnings_are_one_row_filed_once_the_day_ends_and_approved_by_rul
     brief = text(kitchen, f"warnings-{TODAY}")
     done = brief.split("Done when:\n")[1].split("\n- Each warning")[0].splitlines()
     assert done == [
-        "- alpha F3 warning src/alpha/c.py:7: a test asserts what the code computed "
+        '- alpha F3 warning src/alpha/c.py:7: "a test asserts what the code computed" '
         "(https://example.test/pull/7)",
-        "- beta F2 warning src/beta/c.py:7: a test asserts what the code computed "
+        '- beta F2 warning src/beta/c.py:7: "a test asserts what the code computed" '
         "(https://example.test/pull/8)",
-        "- beta F3 warning src/beta/d.py:2: a name hides its unit (https://example.test/pull/8)",
+        '- beta F3 warning src/beta/d.py:2: "a name hides its unit" (https://example.test/pull/8)',
     ]
     assert "\nSize: S\n" in brief
     assert "\nReview: cleanup\n" in brief
@@ -153,3 +153,29 @@ def test_the_days_rows_own_review_an_open_pull_request_and_one_before_since_keep
     for days in range(3):
         kitchen.poll(NOW + days * DAY)
     assert filed(kitchen) == []
+
+
+@pytest.mark.parametrize(
+    "found",
+    [
+        (
+            "warning README.md:3 the install step is out of date (bucket: Act on)",
+            "warning `docs/setup.md`:1 it names the old flag (bucket: Act on)",
+            "warning src/{slug}/c.py:7 the readme example breaks (bucket: Act on)",
+        ),
+        (
+            "warning - the pull request names no test (bucket: Act on)",
+            'warning - ask the user which "mode" to keep (bucket: Act on)',
+            "warning - the title says more than it does (bucket: Consider)",
+        ),
+    ],
+    ids=["shared docs", "no file, and words that ask"],
+)
+def test_a_days_row_is_queued_whatever_its_warnings_name(kitchen, found):
+    """A warning's place and words are the reviewer's: a shared doc, no file at all, or words
+    that would ask the user are still one row, and `queue add` refuses none of them."""
+    reviewed(kitchen, "alpha", 7, found)
+    merged(kitchen, ("alpha", 7))
+    kitchen.poll()
+    kitchen.poll(NOW + DAY)
+    assert filed(kitchen) == [f"warnings-{TODAY}"]
