@@ -5,9 +5,9 @@ an info is dropped (`jbriefs.findings.KEPT`). Once a day has ended, the pass fil
 warnings row, `warnings-<day>`, of every warning kept from a pull request that merged, each with
 its path:line and the pull request it came from, `Size: S` and `Review: cleanup`, and approves
 it by the follow-up rule as it queues it, so nothing of it reaches the user. A day with no warning
-files nothing, and a day's warnings under `BAR` carry to the next day's row. The row's own review keeps
-nothing, so no follow-up of a follow-up is queued. The real pass runs against the kitchen's fakes,
-with `SINCE`, the merge of #833, set before the kitchen's clock."""
+files nothing, and a day's warnings under `BAR` carry to the next day's row. The row's own review
+keeps nothing, so no follow-up of a follow-up is queued. The real pass runs against the kitchen's
+fakes, with `SINCE`, the merge of #833, set before the kitchen's clock."""
 
 import json
 from datetime import timedelta
