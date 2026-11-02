@@ -33,6 +33,8 @@ What it has to plan on arrives as a message, and the rest it reads when the user
 
 On each message, do this without waiting for a word from the user.
 
+First run the block of "What waits on the user": a turn this wake ends with something for the user opens with what it printed.
+
 1. Read what landed: the last result, the review or the report the message is about, from disk.
    Not the thread that sent it.
    A gate that came as a message is one jbus could not take: do what the end of "Gates" says for it.
@@ -50,7 +52,8 @@ On each message, do this without waiting for a word from the user.
 
 If a result says the task is not done, the fix is a new message from the user in the crewmate's own thread, or a new brief. The home does not take the task over.
 
-When the user asks for status, run the merge step of "Merging a pull request that is ready" and relay what it printed, and for a brief with no result yet, one `t3_thread_list` call gives the state of the crewmates still out: `running`, `waiting` (it is at one of the four pauses and has asked in its own thread), `failed` or `interrupted`.
+When the user asks for status, open the reply with what the block of "What waits on the user" prints.
+Then run the merge step of "Merging a pull request that is ready" and relay what it printed, and for a brief with no result yet, one `t3_thread_list` call gives the state of the crewmates still out: `running`, `waiting` (it is at one of the four pauses and has asked in its own thread), `failed` or `interrupted`.
 Report that state with the thread's link.
 No message brought what finished since: run the block of step 4 of "When a home starts" and read the last result of each brief it prints that this thread has not read.
 Then run the block of "Show the open ones" ("Gates") and show what it prints.

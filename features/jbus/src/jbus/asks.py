@@ -24,6 +24,7 @@ from jbus import (
     boxes,
     dispatch,
     item,
+    needs,
     party,
     passes,
     plan,
@@ -32,7 +33,6 @@ from jbus import (
     scouts,
     t3,
     verbs,
-    waiting,
     wake,
     watch,
     word,
@@ -197,9 +197,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         print(queue.rename(state, args.slug, args.new, at, by, _asks(config, project)))
     try:
         table = queue.shown(queue.load(state), args.verb == "show" and args.all)
-        listed = waiting.read(state) or [] if args.verb == "show" else []
-        if listed:
-            print(f"waiting on {config.user.user}:", *(one["line"] for one in listed), "", sep="\n")
+        if args.verb == "show":
+            said = needs.lines(config, [project], project.name, verbs.clock())
+            if said[0].startswith("waiting on "):
+                print(*said, "", sep="\n")
         print(table, end="")
         if args.verb == "show":
             print(queue.noted(state, queue.load(state)), end="")
