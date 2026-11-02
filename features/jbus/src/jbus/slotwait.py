@@ -303,7 +303,12 @@ def _got_end(one: Holder, turn: dict[str, Any]) -> bool:
 
 STEPS = (
     verbs.Step(
-        "before-watch", 40, "slotwait.wake", lambda half: wake(half.run, half.client), ("client",)
+        "before-watch",
+        40,
+        "slotwait.wake",
+        lambda half: wake(half.run, half.client),
+        ("client",),
+        shared=True,
     ),
     verbs.Step(
         "before-watch",
@@ -311,6 +316,7 @@ STEPS = (
         "slotwait.wake_capped",
         lambda half: wake_capped(half.run, half.client),
         ("client",),
+        shared=True,
     ),
     verbs.Step(
         "before-watch",
@@ -318,5 +324,6 @@ STEPS = (
         "slotwait.wake_ended",
         lambda half: wake_ended(half.run, half.client),
         ("client",),
+        shared=True,
     ),
 )

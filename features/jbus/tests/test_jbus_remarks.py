@@ -3,11 +3,14 @@
 answers who owns the repo and what was written on the pull request."""
 
 import json
+import threading
+import time
 from datetime import timedelta
 
 import pytest
 
 import jbus
+from jbus import remarks
 from test_jbus_kitchen import NOW, sends
 from test_jbus_queue import add, gates
 
@@ -212,3 +215,34 @@ def test_a_send_that_t3_code_refuses_is_a_gate_and_is_not_said_to_be_given(opene
     opened.t3.refuse_send = False
     opened.poll(NOW + timedelta(minutes=3))
     assert opened.t3.messages == {}
+
+
+def test_two_pull_requests_are_read_at_once_and_told_in_their_order(kitchen, monkeypatch):
+    barrier, met, real = threading.Barrier(2), [], remarks.read
+
+    def reading(run, number):
+        try:
+            barrier.wait(20)
+            met.append(True)
+        except threading.BrokenBarrierError:
+            met.append(False)
+        if number == 8:
+            time.sleep(0.1)
+        return real(run, number)
+
+    monkeypatch.setattr(remarks, "read", reading)
+    kitchen.brief("beta", "Thread: mcp:thread-8\n")
+    kitchen.brief("gamma", "Thread: mcp:thread-9\n")
+    opened = [kitchen.opened("beta", 8), kitchen.opened("gamma", 9)]
+    kitchen.set("open.json", [{**pull, "mergeable": "MERGEABLE"} for pull in opened])
+    kitchen.set("repo.json", {"owner": {"login": OWNER}})
+    kitchen.set(
+        "remarks.json",
+        {
+            "issues/8/comments": [one(1, OWNER, "use a table here")],
+            "issues/9/comments": [one(2, OWNER, "name it plainly")],
+        },
+    )
+    kitchen.poll()
+    assert met == [True, True]
+    assert [given["threadId"] for given in sends(kitchen)] == ["mcp:thread-8", "mcp:thread-9"]

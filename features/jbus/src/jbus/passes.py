@@ -10,7 +10,8 @@ from __future__ import annotations
 import argparse
 import functools
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -20,6 +21,9 @@ from jbus import Config, Project, queue, read_json, verbs
 from jbus.wake import COMMAND_TIMEOUT, Box
 from jmerge import judgement
 from jsettings import proc
+
+WIDE = 16
+"""The most calls `side_by_side` runs at one moment."""
 
 if TYPE_CHECKING:
     from jbus.watch import RedTip, World
@@ -172,3 +176,10 @@ def _slug(parser: argparse.ArgumentParser) -> None:
 
 
 VERBS = (verbs.Verb("done", "send a result now, its lines on stdin", _slug, _done),)
+
+
+def side_by_side[T, U](work: Callable[[T], U], items: Sequence[T]) -> list[U]:
+    """Run `work` on each item, up to `WIDE` at one moment, and return what it gave in the items'
+    order. What `work` raises, `side_by_side` raises once every item has run."""
+    with ThreadPoolExecutor(max_workers=max(min(len(items), WIDE), 1)) as pool:
+        return list(pool.map(work, items))

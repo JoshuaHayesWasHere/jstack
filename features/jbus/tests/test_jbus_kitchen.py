@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 import urllib.parse
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -99,6 +100,9 @@ class Server:
             def do_POST(self):
                 owner.answer(self, self.rfile.read(int(self.headers.get("content-length", 0))))
 
+            def do_DELETE(self):
+                owner.answer(self, b"")
+
             def log_message(self, *_):
                 pass
 
@@ -144,7 +148,8 @@ class Wakes:
 
 class T3(Server):
     """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls.
-    A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send."""
+    A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send. Each
+    `initialize` opens a session of `sessions`, and a `DELETE` ends one into `ended`."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
@@ -152,6 +157,7 @@ class T3(Server):
         self.status, self.on_list, self.down, self.lose_read = 200, None, set(), False
         self.dropped, self.listings, self.lose_listing = set(), 0, False
         self.challenges, self.registered, self.at_work = {}, [], set()
+        self.sessions, self.ended = [], []
         self.said, self.forgot, self.wakes = {}, set(), {}
         super().__init__()
 
@@ -233,7 +239,14 @@ class T3(Server):
             return self.reply(handler, given)
         if handler.headers.get("authorization") != f"Bearer {TOKEN}":
             return self.reply(handler, {"error": "invalid_mcp_credential"}, 401)
+        if handler.command == "DELETE":
+            self.ended.append(handler.headers.get("mcp-session-id"))
+            return self.reply(handler, b"", 204)
         asked = json.loads(body)
+        session = handler.headers.get("mcp-session-id") or "a-session"
+        if asked.get("method") == "initialize":
+            session = f"session-{uuid.uuid4().hex[:8]}"
+            self.sessions.append(session)
         if "id" not in asked:
             return self.reply(handler, b"", 202)
         if self.status != 200 and asked.get("params", {}).get("name") == "t3_thread_launch":
@@ -242,13 +255,13 @@ class T3(Server):
         if asked["method"] == "tools/call" and asked["params"]["name"] not in LISTED:
             refused = {"code": -32602, "message": f"Tool '{asked['params']['name']}' not found"}
             said = {"jsonrpc": "2.0", "id": asked["id"], "error": refused}
-            return self.reply(handler, said, headers=[("mcp-session-id", "a-session")])
+            return self.reply(handler, said, headers=[("mcp-session-id", session)])
         result = self.result(asked)
         if result is None:
             handler.close_connection = True
             return handler.connection.shutdown(2)
         said = {"jsonrpc": "2.0", "id": asked["id"], "result": result}
-        self.reply(handler, said, headers=[("mcp-session-id", "a-session")])
+        self.reply(handler, said, headers=[("mcp-session-id", session)])
 
     def result(self, asked):
         if asked["method"] == "initialize":
