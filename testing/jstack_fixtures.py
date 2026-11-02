@@ -92,10 +92,10 @@ def no_health(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def no_claude_homes(request, monkeypatch):
-    """A pass reads the machine's Claude homes for rule files, so only `test_jbus_rules` does."""
+def no_agent_homes(request, monkeypatch):
+    """A pass reads the machine's agent homes for rule files, so only `test_jbus_rules` does."""
     if request.module.__name__ != "test_jbus_rules":
-        monkeypatch.setattr(rule_files, "claude_homes", lambda: [])
+        monkeypatch.setattr(rule_files, "agent_homes", lambda: [])
 
 
 @pytest.fixture(autouse=True)

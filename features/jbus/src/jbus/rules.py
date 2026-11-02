@@ -7,13 +7,13 @@ file that holds one goes stale, and nothing runs it. So a rule file is any of:
 
 - a `standing.md` of a project's home, or of one of its scoped homes, with any text in it. One
   in a home directory no project has is the machine's, so it is the infra project's;
-- a file with any text in it in a Claude Code auto-memory directory,
-  `<Claude home>/projects/<name>/memory/`, for each Claude home T3 Code runs
-  (`jroles.inventory`). `<name>` is the checkout's path with each character that is not a letter
-  or a digit made `-`, as Claude Code names it. A directory no project's checkout names is the
-  machine's, so it is the infra project's (`jbus.Config.owner`).
+- a file with any text in it in an agent's auto-memory directory,
+  `<agent home>/projects/<name>/memory/`, for each agent home T3 Code runs
+  (`jroles.inventory.agent_homes`). `<name>` is the checkout's path with each character that is
+  not a letter or a digit made `-`, as the agent names it. A directory no project's checkout
+  names is the machine's, so it is the infra project's (`jbus.Config.owner`).
 
-Two Claude homes can hold the same file, as one mounted on the other does: it is listed once.
+Two agent homes can hold the same file, as one mounted on the other does: it is listed once.
 
 `found` lists a project's rule files. Each is an item of the one list (`jbus.wakes`), the root
 home's, keyed `rulefile:<path>`, which asks for its rules to move to code, a skill's text or a
@@ -41,16 +41,13 @@ TEXT = (
 _NOT_NAME = re.compile(r"[^A-Za-z0-9]")
 
 
-def claude_homes() -> list[Path]:
-    """Each Claude home T3 Code runs, `~/.claude` at least (`jroles.inventory`)."""
-    home = Path.home()
-    declared = inventory.declared(inventory.path(), home)
-    listed = inventory.claude_instances(declared if isinstance(declared, dict) else {}, home)
-    return sorted(set(listed.values()))
+def agent_homes() -> list[Path]:
+    """Each agent home T3 Code runs (`jroles.inventory.agent_homes`)."""
+    return inventory.agent_homes()
 
 
 def memory_name(checkout: Path) -> str:
-    """The name Claude Code gives the project directory of a checkout."""
+    """The name the agent gives the project directory of a checkout."""
     return _NOT_NAME.sub("-", str(checkout))
 
 
@@ -65,8 +62,8 @@ def _held(path: Path) -> bool:
 def _memories(config: jbus.Config, project: jbus.Project) -> list[Path]:
     names = {memory_name(one.checkout): one.name for one in config.projects}
     files, seen = [], set()
-    for claude in claude_homes():
-        for directory in sorted((claude / "projects").glob("*/memory")):
+    for agent in agent_homes():
+        for directory in sorted((agent / "projects").glob("*/memory")):
             owner = names.get(directory.parent.name)
             if owner != project.name and (owner or not _machines(config, project)):
                 continue
