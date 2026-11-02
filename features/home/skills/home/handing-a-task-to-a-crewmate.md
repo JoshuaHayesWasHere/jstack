@@ -37,6 +37,9 @@
    Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's code in hand when it starts, code it changes, calls or imports?
    Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.
    The row launches once that row has merged, or once it has opened its pull request: jbus then launches it stacked on that pull request's branch, writes its `Stacked on:` line, and moves it onto the default branch once that row merged.
+   jbus moves it sooner, with no one deciding, once its own pull request is open and its own change has no need of that row's: its commits merge cleanly onto the default branch without that row's, and its added lines use no `def`, `class` or constant that row introduced.
+   jbus then bases it on the default branch and drops its `Stacked on:` line, and it merges on its own.
+   A row that conflicts without its base, or uses such a name, stays stacked.
    A row that builds on two rows whose pull requests are both open waits until one of them merged, since a stack sits on one branch.
    Every other order is only about merging, such as two rows that touch the same files or that must land in a set order: the row is queued with `--merge-after <that row>`, and has no `Builds on:` line.
    It launches at once, and `jmerge` holds its pull request until that row has merged.
