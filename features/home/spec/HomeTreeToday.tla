@@ -49,14 +49,14 @@ OpenPr(k) ==
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* Its checks pass (jmerge/cli.py `short = short or ready.short_on_github(`) and its
 \* review is written (jmerge/cli.py
-\* `short = short or self.lift(ready.short_of(text, one.head), lifted)`).
+\* `short = short or self.lift(ready.short_of(text, one.head, heard), lifted)`).
 PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A check turns red or a review goes stale (jmerge/cli.py
 \* `short = short or ready.short_on_github(`, jmerge/cli.py
-\* `short = short or self.lift(ready.short_of(text, one.head), lifted)`): the
+\* `short = short or self.lift(ready.short_of(text, one.head, heard), lifted)`): the
 \* pull request is not ready, and jmerge judges it again. A merge it had begun fails at the head
 \* it checked, and its run gives the merge lock back as it returns (jmerge/cli.py
 \* `finally: lock.give()`).

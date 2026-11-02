@@ -76,15 +76,12 @@ def test_a_body_may_drop_a_heading_with_nothing_to_say(name):
     assert body_problems(build(TEMPLATE.read_text(), drop=[name]), dropped=[name]) == []
 
 
-def test_the_playbook_step_names_a_template_that_builds_a_body_and_two_skills_that_load():
+def test_the_playbook_step_names_a_template_that_builds_a_body_and_no_skill():
     step = re.search(r"^5\. .*?(?=^\d\. )", PLAYBOOK.read_text(), re.M | re.S).group()
     named = [REPO / name for name in re.findall(r"`((?:features|skills)/[^`]+\.md)`", step)]
-    templates = [path for path in named if path in listed("template", REPO).values()]
-    skills = [path for path in named if path not in templates]
-    assert templates == [TEMPLATE]
-    assert skills == [listed("skill", REPO)[path.parent.name] for path in skills]
-    assert [body_problems(build(path.read_text())) for path in templates] == [[]]
-    assert [skill_problems(path) for path in skills] == [[], []]
+    assert named == [path for path in named if path in listed("template", REPO).values()]
+    assert named == [TEMPLATE]
+    assert body_problems(build(TEMPLATE.read_text())) == []
 
 
 @pytest.mark.parametrize("path", SKILLS, ids=lambda path: path.parent.name)

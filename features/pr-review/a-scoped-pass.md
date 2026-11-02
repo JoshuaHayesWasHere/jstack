@@ -99,6 +99,9 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    `jmerge` waits on a ruling that is missing, and on a decline not upheld: that one is the crew's to fix, then its home's, and it is the user's only for a finding on one of review-triage's categories, `(risk: <area>)`, which `jmerge` holds for the user.
 6. Report as "After the review" says for a first pass: the head checked again, what is outside the pull request's diff dropped, and `$T/review.md` appended, filled in, with nothing sent.
    The section has one line more, right under `Verdict:`, the `Scope:` line the block of step 1 printed, and under it the `Drops:` lines of step 4 and the `Declines:` lines of step 5.
+   Its `Meets the brief:` line is written as a first pass writes it, with the brief's whole count, since `jmerge` reads the last round's line and no earlier one.
+   It re-judges only the lines the round before it named `unmet`, against the fix or the rebase, and carries every line that round met: a scoped pass is never a whole second review, and its `yes` is what clears the earlier `no`.
+   A pass over a rebase whose content changed carries the earlier round's line as it was, but for a line the changed content breaks.
    Then settle this thread as a first pass does.
 
 `jmerge` merges the rebased head once a `## Review` names it on its `Head:` line, with its findings handled as any review's. A new rebase after that is compared again, from this head. A fixed head is merged the same way.

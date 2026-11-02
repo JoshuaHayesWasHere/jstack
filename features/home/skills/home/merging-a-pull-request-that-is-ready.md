@@ -3,6 +3,8 @@
 A pull request that is reviewed, fixed and green is merged, and the user is told of it when they ask for status, as "How a turn ends" says.
 Nobody has to give the word for that one.
 A pull request that is anything short of ready is never merged without the user's word.
+A pull request whose last review round says `Meets the brief: no` is short of ready, and so is one whose round has no such typed line or a count that is not its brief's: `jmerge` holds it by its own reason (`meets-no`, `meets-unread`, `meets-miscounted`), on every path that merges, a follow-up row's included.
+Its way out is its crew's fix and a scoped review whose own line says `yes`, or the user's `Waived: <the Done when line>, <thread>/<message>` line in the brief, which jbus checks is the user's own message, or the bot's word, naming the row, saying it waives and quoting that line: a home writes that line only from such a message, and its own word waives nothing.
 Neither is one that changes a protected path (a secret, or the list of protected paths itself), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
 
 The home merges nothing itself, and runs no command that merges.
@@ -109,7 +111,7 @@ Two more things keep a ready pull request from the command, and only the user li
   A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none.
   Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `features/jbus/src/jbus/merge.py`.
   A `*` matches within one part of a path.
-  `jmerge` refuses to run, and merges nothing, while that file or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
+  `jmerge` refuses to run, and merges nothing, while that file is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
   The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it.
   A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not.
   GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else.

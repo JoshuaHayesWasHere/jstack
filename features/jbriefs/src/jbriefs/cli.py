@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import findings, home, page, parse, pick, skills
+from jbriefs import findings, home, meets, page, parse, pick, skills
 
 
 def default_out() -> Path:
@@ -79,6 +79,14 @@ def main(argv: list[str] | None = None) -> int:
         help="print the findings of every ## Review section of the brief as one triaged list, "
         "each with its id, its reviewers, its bucket and its answer; write no page",
     )
+    parser.add_argument(
+        "--meets",
+        type=Path,
+        metavar="BRIEF",
+        help="print what the last review round says of the brief, as jmerge reads it: yes, no, "
+        "unread, miscounted or none, the lines met (or -), the brief's Done when count and the "
+        "head (or -); write no page",
+    )
     told = parser.add_mutually_exclusive_group()
     told.add_argument(
         "--left",
@@ -110,6 +118,14 @@ def main(argv: list[str] | None = None) -> int:
             for line in findings.listed(said):
                 print(line)
             print(f"next: {findings.left(said)}")
+        return 0
+    if args.meets:
+        try:
+            text = args.meets.expanduser().read_text(encoding="utf-8", errors="replace")
+        except OSError as error:
+            print(f"jbriefs: {args.meets} cannot be read: {error.strerror}", file=sys.stderr)
+            return 1
+        print(meets.shown(meets.reading(text)))
         return 0
     if args.skills_run:
         said = skills.shown(args.skills_run.expanduser().read_text())
