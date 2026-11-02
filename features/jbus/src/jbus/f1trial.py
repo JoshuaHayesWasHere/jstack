@@ -142,6 +142,8 @@ def held(project: str, one: Question, words: Sequence[Word]) -> tuple[Hit, ...]:
         shared = gate & terms(word.text)
         if len(shared) >= SHARED and shared & default:
             hits.append(Hit(word.id, tuple(sorted(shared))))
+    if not hits:
+        return ()
     weight = {t: math.log(len(words) / max(seen[t], 1)) for t in gate}
     return tuple(sorted(hits, key=lambda hit: -sum(weight[t] for t in hit.terms)))
 
