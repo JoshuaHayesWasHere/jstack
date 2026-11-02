@@ -114,11 +114,11 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Your typed messages per merged row",
         "attention",
-        "messages you typed, not resume clicks, over rows merged",
+        "messages you typed, not resume clicks, over rows merged in the week",
         "",
         0.5,
         "lower",
-        Lacks(f"a count of typed messages a day as a record; {NO_TEXT}"),
+        Measured("weekly_typed_per_row", "per_row", "merged"),
     ),
     Kpi(
         "'What needs me' asks",
@@ -235,7 +235,7 @@ KPIS: tuple[Kpi, ...] = (
         "",
         0,
         "lower",
-        Lacks("the ask ledger (ask-ledger)"),
+        Measured("weekly_lost_asks", "lost", "typed", empty=0),
     ),
     Kpi(
         "jbus pass, median seconds",

@@ -88,6 +88,7 @@ F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with 
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
 | `ask_ledger` | each message you typed and what it joined: a `row` or an `answer`, an act that cites the message by id, else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
+| `weekly_typed_per_row` | each week's messages you `typed`, resumes apart, rows `merged`, and `per_row` |
 | `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its merge line: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round |
 | `weekly_pr_to_merge` | each week's open-to-merge `n`, `median` and `p85` |
 | `weekly_first_round` | each week's `n`, `first_round` and `share`, in percent |

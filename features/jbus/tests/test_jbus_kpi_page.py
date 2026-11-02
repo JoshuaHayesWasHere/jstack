@@ -20,7 +20,7 @@ import pytest
 from jbus import cli
 from jbus.telemetry import kpis
 from jleak import cli as jleak_cli
-from test_jbus_telemetry import NOW, SECRET, Machine, job, records, snapshots
+from test_jbus_telemetry import NOW, SECRET, T3, Machine, act_citing, job, records, snapshots
 
 THIS = "2026-10-28"
 """A day of the fixture's this week, which starts on Sunday 2026-10-25."""
@@ -159,6 +159,28 @@ def test_the_pass_time_is_each_weeks_median_of_the_passes_jbus_recorded(machine)
 
     assert rows["jbus pass, median seconds"][4] == "50 s n 1 missed"
     assert rows["jbus pass, median seconds"][5] == "40 s n 3 missed"
+
+
+def test_the_ask_ledger_gives_typed_messages_per_merged_row_and_the_lost_asks(machine):
+    t3, home, crew = T3(), "mcp:home-a", "mcp:crew-a"
+    t3.thread(home, "alpha-id")
+    t3.thread(crew, "alpha-id")
+    t3.say("m-row", home, NOW)
+    act_citing(machine, "alpha", home, "m-row", NOW + timedelta(minutes=1))
+    t3.say("m-lost", home, NOW + timedelta(hours=1))
+    t3.say("m-resume", crew, NOW + timedelta(hours=2), text="continue where you left off.")
+    t3.say("r-resume", crew, NOW + timedelta(hours=2, seconds=5), role="assistant")
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    typed = rows["Your typed messages per merged row"]
+    assert typed[4] == "0 n 1 met"
+    assert typed[5] == "2 n 1 missed"
+    lost = rows["Lost asks (S3)"]
+    assert lost[4] == "0 n 0 met"
+    assert lost[5] == "1 n 3 missed"
+    assert SECRET not in (machine.root / "page" / "kpis.html").read_text()
 
 
 def test_a_kpi_with_no_instrument_yet_says_so(machine):

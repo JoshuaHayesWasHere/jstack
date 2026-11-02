@@ -376,5 +376,12 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "1.0 * sum(joined = 'unanswered') / nullif(sum(joined <> 'waiting'), 0) AS rate "
         "FROM ask_ledger GROUP BY week",
     ),
+    (
+        "weekly_typed_per_row",
+        "WITH typed AS (SELECT week, count(*) AS typed FROM ask_ledger WHERE kind <> 'resume' "
+        "GROUP BY week) SELECT m.week, coalesce(t.typed, 0) AS typed, m.merged, "
+        "1.0 * coalesce(t.typed, 0) / m.merged AS per_row FROM weekly_merges m "
+        "LEFT JOIN typed t ON t.week = m.week",
+    ),
 )
 """Each view by its name, in an order in which each reads only views made before it."""
