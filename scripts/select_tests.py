@@ -57,13 +57,12 @@ spells no path and is on no list. A change it reads in some other way (a glob, a
 with it unrun. So every change also runs each such test, the catch-all, and the summary counts
 it with the cross-cutting tests.
 
-It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more. Such a
-run costs about what the whole suite does, and a whole run leaves the tree's marker. It also
-prints `all` when a changed path is one that every test depends on. Those paths are
-`pyproject.toml`, `uv.lock` and the root `conftest.py`. They also include each plugin of
-`testing/` that the root `conftest.py` names in `pytest_plugins` (as
-`testing/jstack_fixtures.py`), with the modules that plugin uses at its top level. And they
-include each module that a plugin uses in an autouse fixture.
+It prints `all` when a changed path is one that every test depends on, and never for the size of
+what it selected: a selection of nearly every test file still names its files, and main's full
+run catches what a selection misses. Those paths are `pyproject.toml`, `uv.lock` and the root
+`conftest.py`. They also include each plugin of `testing/` that the root `conftest.py` names
+in `pytest_plugins` (as `testing/jstack_fixtures.py`), with the modules that plugin uses at its
+top level. And they include each module that a plugin uses in an autouse fixture.
 
 When `pytest_plugins` names a test module, pytest loads that module for its fixtures. A module
 that only other fixtures use selects the tests that ask for those fixtures, directly or
@@ -75,9 +74,9 @@ With `$GITHUB_STEP_SUMMARY` set, it adds one line to that file: `check-fast sele
 files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n>
 forced-by=<path>`. The keys are always these, in this order. Each cause's count is the number of
 files it selected on its own, so the counts overlap. `forced-by` names the path that made the
-selection `all`. It is `share` when the selection's size made it `all`, and `-` otherwise. A
-collector reads that line. With `$GITHUB_OUTPUT` set, it gives the step the output `selection`,
-`all` or `some`: the check workflow leaves the tree's marker on a pass of `all`.
+selection `all`, and it is `-` otherwise. A collector reads that line. With `$GITHUB_OUTPUT`
+set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
+tree's marker on a pass of `all`.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -86,8 +85,8 @@ only from a changed module of the tests, or of one whose text names Darwin (`DAR
 every test imports the CLI of a feature, so through any other module a change would reach nearly
 the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
 cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
-changed path is one every test depends on, or the list itself, but never for the selection's
-size. It writes nothing to the summary or the outputs.
+changed path is one every test depends on, or the list itself. It writes nothing to the
+summary or the outputs.
 
 The diff is two-dot. So for a pull request, `<base>` is where it branched from main (`git
 merge-base`) or the parent of its merge commit. A base that main has moved past adds main's own
@@ -937,20 +936,10 @@ def within(entries, changed, listed):
 
 
 CAUSES = ("imports", "names", "features", "cross-cutting")
-WHOLE = 0.8
 
 
 def total():
     return len([one for one in modules().values() if TEST.fullmatch(one)])
-
-
-def whole(tests, why):
-    """The selection as the check runs it: `all` when it holds `WHOLE` of the test files or
-    more. Such a selection costs about what the whole suite does, and running the whole suite
-    leaves the tree's marker."""
-    if tests != ["all"] and len(tests) >= WHOLE * total():
-        return ["all"], {**why, "forced-by": "share"}
-    return tests, why
 
 
 def summary(tests, why, changed):
@@ -1004,7 +993,6 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
-    tests, why = whole(tests, why)
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:

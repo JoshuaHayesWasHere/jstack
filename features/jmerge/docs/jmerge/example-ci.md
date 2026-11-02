@@ -13,7 +13,7 @@ Every job runs on GitHub's hosted runner, `ubuntu-24.04`, and never on the machi
 A pull request's check runs as eight jobs side by side, `check 1 of 8` to `check 8 of 8`.
 Each one runs `make check-fast BASE=HEAD^1 SHARD=<n>/8`, which runs the lint and an eighth of the tests that its change selects, split by each test's time (`testing/shard.py`).
 The job `check` passes only when all eight passed.
-It runs the whole suite instead when that selection is 80% of the test files or more, or when the change touches a file every test depends on.
+It runs the whole suite instead only when the change touches a file every test depends on, however many test files the selection holds.
 When the whole suite passes, the job `check` uploads the artifact `green-tree-<tree>` for the tree it checked out, which is GitHub's merge of the head over main.
 A marker means the whole suite passed on that tree, so a run of only some tests uploads no marker.
 The job summary says `full suite: yes` or `no` and `tree <tree>`, and `jbus ci --notice` writes the same to `ci.jsonl` as the job's `full` and `tree`.
