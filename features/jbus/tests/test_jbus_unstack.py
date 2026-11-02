@@ -45,8 +45,20 @@ class OpenStack:
 
 @pytest.fixture
 def signed_stack(stacked, monkeypatch):
+    """The stack, with `two`'s brief left with no `Builds on:` line, as a row queued before
+    `jbus queue add` asked a depends for one, so only `need` says whether it needs `one`."""
     signed(monkeypatch)
+    builds_on(stacked, "")
     return stacked
+
+
+def builds_on(kitchen, line):
+    """Put `line` in place of any `Builds on:` line of `two`'s brief, or leave it none."""
+    path = kitchen.home / "tasks" / "two.md"
+    lines = path.read_text().splitlines(keepends=True)
+    kept = [one for one in lines if not one.startswith("Builds on:")]
+    at = next(n for n, one in enumerate(kept) if one.startswith("Where:")) + 1
+    path.write_text("".join([*kept[:at], *([line] if line else []), *kept[at:]]))
 
 
 def stays(stack):
@@ -83,6 +95,28 @@ def test_a_link_with_no_need_of_its_open_base_moves_onto_main_and_merges_without
     kitchen.poll(NOW + timedelta(minutes=3))
     assert stack.origin("two") == moved and edits(kitchen) == ["pr edit 11 --base main"]
     assert asks(kitchen) == []
+
+
+def test_a_link_whose_brief_builds_on_its_open_base_stays_stacked_though_need_finds_nothing(
+    signed_stack,
+):
+    """`two` needs `one` through a string, which `need` does not see: its brief's `Builds on:`
+    line names `one`, so it stays stacked. The same link with no such line moves (above)."""
+    builds_on(signed_stack, "Builds on: one: the tool name one adds to the table\n")
+    stack = OpenStack(signed_stack, "one.py", "def table_of(rows):\n", "two.txt", "two\n")
+    said = stack.kitchen.poll(NOW) + stack.kitchen.poll(NOW + timedelta(minutes=3))
+    stays(stack)
+    assert [line for line in said if line.startswith("unstack two")] == [
+        "unstack two: stays stacked on one, since its brief's Builds on: line names it"
+    ]
+
+
+def test_a_link_whose_brief_builds_on_another_row_still_moves(signed_stack):
+    builds_on(signed_stack, "Builds on: three: the table three adds\n")
+    stack = OpenStack(signed_stack, "one.py", "def table_of(rows):\n", "two.txt", "two\n")
+    stack.kitchen.poll(NOW)
+    assert edits(stack.kitchen) == ["pr edit 11 --base main"]
+    assert head_line(stack.kitchen) is None
 
 
 def test_a_link_that_conflicts_without_its_base_stays_stacked(signed_stack):
