@@ -131,7 +131,7 @@ It never writes `home-thread`, here or at a home's start: a repo it adds is one 
 
 ## 4. What the repo lacks for a merge
 
-jmerge merges a pull request once a check named `check` has passed on it, and reads the repo's check command from `fresh-check`.
+jmerge merges a pull request once a check named `check` has passed on it, and `fresh-check` holds the repo's check command, which a crewmate runs and `jbus queue add` holds a brief's check line to.
 This step writes either one that is missing, and names what only the user can do.
 Run it with the `checkout:` line of step 1 in place of `<the checkout>`, and the repo's check command in place of `<the check command>`: the one the repo's own instructions name (its `README`, `CLAUDE.md` or `AGENTS.md`, its `package.json`'s `test` script), or `none` where it names none.
 Where its `Makefile` has a `check` target, the block takes `make check` itself, so leave the placeholder as it is there:
@@ -255,9 +255,9 @@ case $C in
     elif [ "$K" = none ]; then
         nameless
     elif [ -d "$H" ] && printf '%s\n' "$K" 2> /dev/null > "$H/fresh-check"; then
-        say "done, wrote $K to $H/fresh-check, the repo's check command, which also has jmerge prove each pull request over today's main"
+        say "done, wrote $K to $H/fresh-check, the repo's check command, which a crewmate runs and jbus queue add holds a brief's check line to"
     else
-        need "echo '$K' > $H/fresh-check, the one line jmerge runs as the repo's local check"
+        need "echo '$K' > $H/fresh-check, the one line that names the repo's check command"
     fi
     if [ "$lacks" -eq 0 ] && [ "$told" -eq 0 ]; then
         echo "4 to merge: already, it has origin, a default branch, a workflow with a check named check, and fresh-check"
