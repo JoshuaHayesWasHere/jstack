@@ -38,6 +38,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import time
 from math import comb
 from pathlib import Path
 
@@ -125,11 +126,18 @@ first line, then one line saying why.
 """
 
 
+TRIES = 5
+TRY_AGAIN_AFTER = 60
+
+
 def claude(prompt: str, model: str = MODEL) -> str:
-    """One call, no tools, at medium effort, with the model named and two more tries for a call
-    that fails."""
+    """One call, no tools, at medium effort, with the model named and four more tries for a call
+    that fails, a minute apart: a failed call ends the run and loses its answers, and a login that
+    lapses for a moment fails every try made at once."""
     said = ""
-    for _ in range(3):
+    for attempt in range(TRIES):
+        if attempt:
+            time.sleep(TRY_AGAIN_AFTER)
         ran = subprocess.run(
             [
                 "claude",

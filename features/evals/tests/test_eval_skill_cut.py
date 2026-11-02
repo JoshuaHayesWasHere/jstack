@@ -159,6 +159,20 @@ def test_run_rescores_a_kept_run_and_refuses_anything_else(capsys):
     assert "--run" in capsys.readouterr().err
 
 
+def test_a_call_that_fails_is_tried_again_after_a_wait(monkeypatch):
+    """A login that lapses for a moment fails every try made at once, and one failed call ends the
+    run with all its answers lost."""
+    ran = iter(
+        subprocess.CompletedProcess([], code, out, err)
+        for code, out, err in [(1, "", "Not logged in"), (1, "", "Not logged in"), (0, "ok\n", "")]
+    )
+    waits = []
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: next(ran))
+    monkeypatch.setattr(run.time, "sleep", waits.append)
+    assert run.claude("the prompt") == "ok"
+    assert waits == [run.TRY_AGAIN_AFTER, run.TRY_AGAIN_AFTER]
+
+
 def test_write_with_no_claude_writes_nothing(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "HERE", tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path / "no-bin"))
