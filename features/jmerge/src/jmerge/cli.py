@@ -19,7 +19,7 @@ from typing import NamedTuple
 
 import jsettings
 from jbriefs import home as home_rule
-from jbriefs import parse
+from jbriefs import meets, parse
 from jmerge import (
     bus,
     checks,
@@ -169,6 +169,7 @@ class Repo:
         self.logs: dict[str, str | None] = {}
         self.open: list[ready.PullRequest] = []
         self.heads: dict[int, bool] = {}
+        self.words: dict[tuple[str, str], bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(merged and merged.run))
@@ -181,6 +182,14 @@ class Repo:
 
     def stored(self, slug: str) -> str | None:
         return rows.stored(self.main, slug)
+
+    def heard(self, text: str, slug: str) -> frozenset[str]:
+        """The references of the brief's `Waived:` lines whose words jbus checked as the user's
+        own, or the bot's, of this row (`rows.heard`), each asked once a run."""
+        for ref in meets.refs(text):
+            if (ref, slug) not in self.words:
+                self.words[(ref, slug)] = not rows.heard(self.main, ref, slug)
+        return frozenset(ref for ref in meets.refs(text) if self.words[(ref, slug)])
 
     @functools.cached_property
     def main_state(self) -> mainjson.Main:
@@ -744,7 +753,8 @@ class Repo:
         stacked = stacks.of(text)
         short = self.lift(ready.held(one, default, stacked, self.bases), lifted)
         short = short or self.on_stack(one, default, stacked)
-        short = short or self.lift(ready.short_of(text, one.head), lifted)
+        heard = self.heard(text, brief.stem)
+        short = short or self.lift(ready.short_of(text, one.head, heard), lifted)
         rebase: ready.Rebase | None = None
         covered = ready.to_range_diff(text, one.head)
         under = ready.under_fix(text, one.head)

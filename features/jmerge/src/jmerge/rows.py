@@ -75,6 +75,15 @@ def stored(checkout: Path, slug: str) -> str | None:
     return bus.found().stored(state, slug) if isinstance(state, Path) else None
 
 
+def heard(checkout: Path, ref: str, slug: str) -> str:
+    """`Bus.heard` of the bus there is, with a bus that cannot be asked read as a refusal, so no
+    waiver counts on a word nobody checked."""
+    try:
+        return bus.found().heard(checkout, ref, slug)
+    except jsettings.Refused as error:
+        return str(error)
+
+
 def main(checkout: Path) -> mainjson.Main:
     state = _state(checkout)
     return mainjson.read(state) if isinstance(state, Path) else mainjson.Main()

@@ -760,6 +760,7 @@ def test_a_section_that_was_not_run_is_replaced_by_the_same_reviewers_clean_run_
     assert "## Review\nBy: claudeAgent claude-opus-5-5\nVerdict: not run\n" in gave_up
     assert ready.short_of(gave_up, KEPT) == ready.NO_VERDICT
     clean = f"\n## Review\nBy: claudeAgent claude-opus-5-5\nVerdict: clean\nHead: {KEPT}\n"
+    clean += "Meets the brief: yes, 1 of 1\n"
     assert ready.short_of(gave_up + clean, KEPT) == ""
     other = clean.replace("claudeAgent claude-opus-5-5", "cursor grok-4.7 xhigh")
     pair = gave_up.replace("Reviewer: mcp:9\n", "Reviewer: mcp:9\nReviewer: mcp:8\n") + other
@@ -1759,7 +1760,8 @@ AFTER_THE_FIX = (
 )
 SCOPED_SECTION = (
     f"\n## Review\nVerdict: clean\nScope: range-diff x..{WAS} x..{FIX}\n"
-    f"Head: {FIX}   Unchanged by the review: yes\nFindings:\n- none\nSent to: not sent, clean\n"
+    f"Head: {FIX}   Unchanged by the review: yes\nMeets the brief: yes, 1 of 1\nFindings:\n- none\n"
+    "Sent to: not sent, clean\n"
 )
 
 
@@ -1831,7 +1833,7 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
         "Head": f"{made.head}   Unchanged by the review: yes",
         "Patch-id": "0" * 40,
         "Reviewers": "1, 1   Proof: uv run pytest tests/test_a.py, exit 0, 1 passed",
-        "Meets the brief": "yes",
+        "Meets the brief": "yes, 0 of 0",
         "In flight": "none",
         "Dropped": "0",
         "Noted": "0",

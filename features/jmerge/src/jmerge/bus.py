@@ -64,6 +64,13 @@ class Bus(Protocol):
     def stored(self, state: Path, slug: str) -> str | None:
         """The brief of `slug` as jbus stores it, the text its go is judged against."""
 
+    def heard(self, checkout: Path, ref: str, slug: str) -> str:
+        """Why the word `ref` does not waive a `Done when` line of the row `slug`, or nothing
+        where it does: it is the user's own message in T3 Code, read now by the check `jbus queue
+        approve --message` reads a word with, or a word the bot gave over `POST /act`, and its
+        words name the slug. A home's or a crew's own message, and a word a home typed for the
+        bot, waive nothing."""
+
     def acting(
         self, checkout: Path, message: str | None, at: str | None, as_: str, user: Any
     ) -> Acting | None:
