@@ -43,14 +43,17 @@ Four logs keep what jbus's snapshots overwrite, each written from what jbus alre
 
 - `brief-versions.jsonl`: the queue's one writer of a stored brief adds a line each time the brief's sha changes, and keeps each version's text once in `brief-versions/<sha>.md` beside it, out of the store.
 - `row-pulls.jsonl`: a pass adds a line for each pull request it sees under a row's slug, once open and once merged.
-- `runs.jsonl`: the pass's list of the repo's last 40 workflow runs, which it asks for already, adds each completed attempt once. An attempt that ends and is rerun between two passes is not seen.
-- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role and row. The first time, it keeps the last 30 days.
+- `runs.jsonl`: the pass's list of the repo's last 40 workflow runs, which it asks for already, adds each completed attempt once.
+  An attempt that ends and is rerun between two passes is not seen.
+- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role and row.
+  The first time, it keeps the last 30 days.
 
 A writer reads its log before it adds, and adds no line whose key the log holds, so each log only grows and holds each line once.
 
 ## The audit's data faults
 
-The week audit could not answer six questions from the records it had. Each now has a query:
+The week audit could not answer six questions from the records it had.
+Each now has a query:
 
 | Fault | Query |
 |---|---|
