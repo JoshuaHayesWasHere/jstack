@@ -18,6 +18,9 @@ takes. Where the move is no clean replay of the same trees (the base took commit
 link's check, main moved before the base merged, the replay changed the patch), the pair differs,
 and the suite runs as it always did.
 
+The pair fixes the files and not the title, the body or a commit's message, so the check of those
+for an AI co-author trailer runs in the same job on every run, a reuse included.
+
 The step's outputs are `name`, the artifact a passed run leaves, and `reused`: `true` only where a
 successful run of the check in this repo, not a fork's, left that artifact. A manual run and a run
 again always run the suite. The script never fails: one that cannot ask runs the suite, and says

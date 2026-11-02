@@ -66,6 +66,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse
+      # A pull request whose title, body or any commit from base to head credits an AI tool as a
+      # co-author fails here, with each line named. It runs on every run, a reuse included: the
+      # two trees fix the files, and not the title, the body or a commit's message, which a push
+      # that keeps the trees can still change. It reads no test, so it runs here, once, and
+      # `check` fails when this job did. The commits come from GitHub's compare API, not this
+      # checkout's two commits of history, and the patterns need only the runner's python3.
+      - name: no AI co-author trailer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py
   # A pull request's check is the fast one: the lint, and the tests its change reaches. On
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
   # commits of history are enough and the diff is read from the local git, with no cap on
@@ -138,15 +148,6 @@ jobs:
       - name: make check-fast
         id: suite
         run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8
-      # A pull request whose title, body or any commit from base to head credits an AI tool as a
-      # co-author fails here, with each line named. It runs whatever the suite said, so a red
-      # suite does not hide it, and in the first part only, since it reads no test. The commits
-      # come from GitHub's compare API, not this checkout's two commits of history.
-      - name: no AI co-author trailer
-        if: "!cancelled() && steps.suite.outcome != 'skipped' && matrix.shard == 1"
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: uv run python scripts/no_ai_trailers.py
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
       # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had.
       - name: full suite
@@ -166,12 +167,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      # The parts are skipped only on a reuse, and then it passes on the pass it reuses.
+      # The parts are skipped only on a reuse, and then it passes on the pass it reuses. The
+      # `reuse` job, which runs the trailer check, passed in either case.
       - name: every part passed
         env:
           PARTS: ${{ needs.check-shard.result }}
+          REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reused }}
-        run: '[ "$REUSED" = true ] || [ "$PARTS" = success ] || { echo "::error::the parts of the check ended $PARTS, not success"; exit 1; }'
+        run: '[ "$REUSE" = success ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, and the parts of the check ended $PARTS, not success"; exit 1; }'
       # The pass of the two trees, for a later run of them to reuse (`reuse`). A reuse leaves
       # none: the run it reused left one. One that cannot be kept costs that reuse and nothing
       # else.

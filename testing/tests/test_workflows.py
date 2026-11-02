@@ -629,7 +629,10 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert every["env"]["PARTS"] == f"${{{{ needs.{parts}.result }}}}"
     ran = {
         result: subprocess.run(
-            ["sh", "-c", every["run"]], env={"PARTS": result}, capture_output=True, text=True
+            ["sh", "-c", every["run"]],
+            env={"PARTS": result, "REUSE": "success"},
+            capture_output=True,
+            text=True,
         )
         for result in RESULTS
     }
@@ -2037,15 +2040,17 @@ CLAUDE = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
 
 
-def test_a_pull_requests_check_fails_on_an_ai_trailer_after_the_suite_whatever_it_said():
-    found, _ = steps(CHECK.read_text(), "check-shard")
+def test_every_pull_request_run_checks_for_an_ai_trailer_a_reuse_included():
+    """The two trees a reuse keys on fix the files, not the title, the body or a commit's
+    message, so the trailer check runs in `reuse`, on every run, and no part runs it again."""
+    found, _ = steps(CHECK.read_text(), "reuse")
     (trailer,) = [step for step in found if step.get("name") == "no AI co-author trailer"]
-    assert trailer["run"] == "uv run python scripts/no_ai_trailers.py"
-    assert trailer["if"] == (
-        "!cancelled() && steps.suite.outcome != 'skipped' && matrix.shard == 1"
+    assert trailer["run"] == (
+        "PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py"
     )
+    assert "if" not in trailer and "continue-on-error" not in trailer
     assert trailer["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
-    assert found.index(trailer) > [step.get("id") for step in found].index("suite")
+    assert "no_ai_trailers" not in " ".join(map(str, steps(CHECK.read_text(), "check-shard")[0]))
 
 
 class Compare:
@@ -2167,7 +2172,8 @@ def test_a_range_that_cannot_be_read_fails_the_check(tmp_path):
 def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
     """A pull request's run whose two trees a passed check already checked skips the eight parts,
     and `check`, the required check, passes on the reuse. A lookup that failed or found nothing
-    runs them, and `check` then passes only when every part did."""
+    runs them, and `check` then passes only when every part did. A `reuse` job that failed, as
+    on an AI co-author trailer, fails `check` whatever the parts did."""
     assert ran_on("check-shard", reused="true") == []
     assert (
         ran_on("check-shard", reused="false")
@@ -2177,21 +2183,23 @@ def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
     assert job_line("check-shard", "needs") == "reuse"
     (every, *_), _ = steps(CHECK.read_text(), "check")
     assert every["env"]["REUSED"] == "${{ needs.reuse.outputs.reused }}"
+    assert every["env"]["REUSE"] == "${{ needs.reuse.result }}"
     passes = [
-        (reused, result)
+        (reuse, reused, result)
+        for reuse in RESULTS
         for reused in ("true", "false", "")
         for result in RESULTS
         if subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "REUSED": reused},
+            env={"PARTS": result, "REUSE": reuse, "REUSED": reused},
             capture_output=True,
             text=True,
         ).returncode
         == 0
     ]
-    assert passes == [("true", result) for result in RESULTS] + [
-        ("false", "success"),
-        ("", "success"),
+    assert passes == [("success", "true", result) for result in RESULTS] + [
+        ("success", "false", "success"),
+        ("success", "", "success"),
     ]
 
 
@@ -2222,7 +2230,7 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
 def test_the_reuse_lookup_is_plain_python_after_a_checkout_of_two_commits():
     """It reads the merge's base, HEAD^1, so the checkout has two commits of history, and it runs
     before any `uv sync`, with nothing but the runner's python3."""
-    (checkout, look), keys = steps(CHECK.read_text(), "reuse")
+    (checkout, look, _), keys = steps(CHECK.read_text(), "reuse")
     assert checkout["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert look["run"] == "PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse"
     assert (look["id"], look["continue-on-error"]) == ("reuse", True)
@@ -2284,6 +2292,51 @@ def reuse(tmp_path, answers, **env):
     assert ran.returncode == 0, ran.stderr
     outputs = dict(line.split("=", 1) for line in (tmp_path / "output").read_text().splitlines())
     return outputs, ran.stdout.strip(), name
+
+
+def pair(git, base, head):
+    """The artifact a pull request's check names, as GitHub's merge of `head` over `base` and the
+    lookup give it: the base's tree and the merge's."""
+    from jmerge import green
+
+    def said(*args):
+        return subprocess.run([*git, *args], check=True, capture_output=True, text=True).stdout
+
+    merged = said("merge-tree", "--write-tree", base, head).split()[0]
+    return green.checked(said("rev-parse", f"{base}^{{tree}}").strip(), merged)
+
+
+@pytest.mark.parametrize("main_moved", [False, True])
+def test_a_clean_move_onto_main_checks_the_pair_its_stacked_run_checked(tmp_path, main_moved):
+    """The premise the reuse rests on, on real commits: a child stacked on beta, beta squashed onto
+    main, and the child's own commit replayed onto the squash. Its run at the moved head checks
+    the pair its stacked run checked. Where main took a commit before beta merged, the squash
+    holds it, and the pair differs, so the suite runs."""
+    git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(tmp_path)]
+
+    def commit(name, text, *more):
+        (tmp_path / name).write_text(text)
+        subprocess.run([*git, "add", name], check=True)
+        subprocess.run([*git, "commit", "-q", "-m", name, *more], check=True)
+        return subprocess.run(
+            [*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True)
+    start = commit("a", "start\n")
+    subprocess.run([*git, "switch", "-q", "-c", "beta"], check=True)
+    commit("b", "beta one\n")
+    beta = commit("b", "beta two\n")
+    child = commit("c", "the child\n")
+    stacked = pair(git, beta, child)
+    subprocess.run([*git, "switch", "-q", "--detach", start], check=True)
+    if main_moved:
+        commit("d", "another task\n")
+    subprocess.run([*git, "merge", "-q", "--squash", beta], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "beta (#8)"], check=True)
+    subprocess.run([*git, "cherry-pick", child], check=True, capture_output=True)
+    moved = pair(git, "HEAD^", "HEAD")
+    assert (moved == stacked) is not main_moved
 
 
 def test_the_trees_a_passed_check_checked_are_reused_and_the_log_names_its_run(tmp_path):
