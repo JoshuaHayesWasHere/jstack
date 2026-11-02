@@ -3,7 +3,12 @@ selection picks: `scripts/select_tests.py --failed-on-main <days> <kept>` reads 
 of main's red check jobs, and `$FAILED_ON_MAIN` adds them to the selection.
 
 The lookup runs as CI runs it, `python3 -I -S`, against a stand-in for GitHub's REST API on a local
-port (`$GITHUB_API_URL`). The selection runs the script on this repo, as `make check-fast` does."""
+port (`$GITHUB_API_URL`). The selection runs the script on this repo, as `make check-fast` does.
+
+`RUNS` are the push runs of check.yml on main, each with its latest attempt, conclusion and time.
+150 green pushes fill a second page, so a red on it is found only by a lookup that reads every
+page. `JOBS` are each run's jobs over every attempt, and `LOGS` what the red ones' logs say.
+Storage holds no log for job 14, as it holds none for some red jobs on GitHub."""
 
 import importlib.util
 import json
@@ -31,8 +36,6 @@ def log(*lines):
     return "".join(f"2026-11-02T19:59:57.4118902Z {line}\n" for line in lines)
 
 
-# Runs of check.yml on main: id, latest attempt, conclusion, created. 150 green pushes fill a
-# second page, so a red on it is found only by a lookup that reads every page.
 RUNS = [
     {"id": 1, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(2)},
     {"id": 2, "run_attempt": 2, "conclusion": "success", "created_at": stamp(5)},
@@ -43,8 +46,6 @@ RUNS = [
     ),
     {"id": 4, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(20)},
 ]
-# Each run's jobs over every attempt: the red ones' logs name the failing tests. Storage no longer
-# holds job 14's log, as it holds none for some red jobs on GitHub.
 JOBS = {
     1: [
         {"id": 11, "conclusion": "failure", "run_attempt": 1},
