@@ -86,4 +86,4 @@ Preconditions:
 - The stand-in answers a branch's check runs from the key of `gh/checks.json` that is the branch's name, as it answers a commit's from its sha.
 - Every line of `jmerge --check` exits 0, `wait` and `hold` included. Assert on the line, not the exit code.
 - `jmerge` without `--check` appends each line to `merge.log` in the repo's state. `--check` writes nothing.
-- `--check` runs no `fresh-check` command.
+- `jmerge` reads no `fresh-check` file: a green pull request whose head merges cleanly over a moved main is `ready` on the check it has.
