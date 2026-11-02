@@ -459,20 +459,18 @@ TWO_CITED = (
 
 
 @pytest.mark.parametrize("skill", READERS)
-def test_each_principle_the_playbook_cites_is_printed_once_in_full_after_it(skill, tmp_path):
+def test_each_principle_the_playbook_cites_is_named_once_with_its_path_after_it(skill, tmp_path):
     repo = cited(tmp_path, TWO_CITED)
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    at = said.index(
-        f"the principles playbooks/{name}.md cites, each in full below: second-rule first-rule"
-    )
-    printed = "\n".join(said[at:]) + "\n"
+    at = said.index(f"the principles playbooks/{name}.md cites, each read in full at its path:")
     assert said[0] == str((repo / "playbooks" / f"{name}.md").resolve())
-    for rule in ("first-rule", "second-rule"):
-        assert printed.count(PRINCIPLES[rule]) == 1
-        assert said.count(f"==> principles/{rule}.md <==") == 1
-    assert PRINCIPLES["unused-rule"] not in printed
-    assert printed.index(PRINCIPLES["second-rule"]) < printed.index(PRINCIPLES["first-rule"])
+    named = [line.split(": ", 1) for line in said[at + 1 :]]
+    assert [rule for rule, _ in named] == ["- second-rule", "- first-rule"]
+    for rule, path in named:
+        assert Path(path).read_text() == PRINCIPLES[rule.removeprefix("- ")]
+    printed = "\n".join(said)
+    assert not any(text.strip() in printed for text in PRINCIPLES.values())
 
 
 @pytest.mark.parametrize("skill", READERS)
@@ -484,7 +482,7 @@ def test_a_playbook_that_cites_no_principle_prints_its_steps_and_nothing_more(sk
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
     assert said == [
         str((repo / "playbooks" / f"{name}.md").resolve()),
-        f"the steps of playbooks/{name}.md, a checklist to copy into your todo list as printed:",
+        f"the steps of playbooks/{name}.md, to work in order:",
         "1. Do it.",
     ]
 
@@ -497,9 +495,10 @@ def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill,
     assert said[1:4] == [
         "1. One (`principles/gone-rule.md`, `principles/first-rule.md`).",
         f"no principle: playbooks/{name}.md cites principles/gone-rule.md, which is not there",
-        f"the principles playbooks/{name}.md cites, each in full below: first-rule",
+        f"the principles playbooks/{name}.md cites, each read in full at its path:",
     ]
-    assert "\n".join(said).count(PRINCIPLES["first-rule"].strip()) == 1
+    assert said[4].startswith("- first-rule: /")
+    assert said[5:] == []
 
 
 @pytest.mark.parametrize(
@@ -507,25 +506,23 @@ def test_a_cited_principle_that_is_not_there_is_said_and_the_rest_printed(skill,
     ["sh", pytest.param("zsh", marks=pytest.mark.skipif(not shutil.which("zsh"), reason="no zsh"))],
 )
 @pytest.mark.parametrize("skill", READERS)
-def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
+def test_a_real_playbook_prints_the_real_principles_it_cites_by_path_under_sh_and_zsh(
     skill, shell, tmp_path
 ):
     """This runs the skill's call as an agent runs it, with the real `uv`. The skill once held
     a copy of the block where it now has the call. Under zsh that copy put every cited
-    principle on one `==>` line, because zsh does not split words."""
+    principle on one line, because zsh does not split words."""
     name = "authoring-a-skill" if skill == "crew" else "investigation"
     playbook = PLAYBOOK[name].read_text()
     names = list(dict.fromkeys(re.findall(r"principles/([a-z0-9-]+)\.md", playbook)))
     assert len(names) >= 2
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, shell=shell, real=True)
-    assert (
-        f"the principles playbooks/{name}.md cites, each in full below: {' '.join(names)}" in said
-    )
-    printed = "\n".join(said) + "\n"
-    for rule in names:
-        skill = REPO / "features" / "principles" / "skills" / rule / "SKILL.md"
-        assert printed.count(skill.read_text()) == 1
-        assert said.count(f"==> principles/{rule}.md <==") == 1
+    at = said.index(f"the principles playbooks/{name}.md cites, each read in full at its path:")
+    named = [line.split(": ", 1) for line in said[at + 1 :]]
+    assert [rule for rule, _ in named] == [f"- {rule}" for rule in names]
+    for rule, path in named:
+        skill = REPO / "features" / "principles" / "skills" / rule[2:] / "SKILL.md"
+        assert Path(path).read_text() == skill.read_text()
 
 
 NUMBERED = re.compile(r"^\d+\. \S.*(?:\n[ \t]+\S.*)*", re.M)
@@ -553,9 +550,7 @@ def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_ch
     steps = [joined(step[0]) for step in NUMBERED.finditer(PLAYBOOK[name].read_text())]
     assert [int(step.split(".")[0]) for step in steps] == list(range(1, len(steps) + 1))
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
-    at = said.index(
-        f"the steps of playbooks/{name}.md, a checklist to copy into your todo list as printed:"
-    )
+    at = said.index(f"the steps of playbooks/{name}.md, to work in order:")
     assert said[at + 1 : at + 1 + len(steps)] == steps
     following = said[at + 1 + len(steps) :][:1]
     assert not following or following[0].startswith(f"the principles playbooks/{name}.md cites")

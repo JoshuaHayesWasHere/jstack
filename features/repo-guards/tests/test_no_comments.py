@@ -197,7 +197,6 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "features/jbus/units/jbus.timer",
         "features/jroles/units/jroles-mirror.timer",
         "features/jmerge/src/jmerge/protected.txt",
-        "features/jmerge/src/jmerge/ci-paths.txt",
     } <= set(files)
 
 

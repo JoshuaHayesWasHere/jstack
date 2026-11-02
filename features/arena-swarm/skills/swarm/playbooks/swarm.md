@@ -6,8 +6,8 @@ Source: pstack, `pstack/skills/swarm/SKILL.md`
 
 <!-- card: Fan out to threads | 2 | A task that splits into slices no one worker has to hold together, or a race of several workers on one brief. A scout takes each slice that reads, a crewmate each slice that writes, and the home builds the one table. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own.
-A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
 Read a principle in full when a step you are doing names it.

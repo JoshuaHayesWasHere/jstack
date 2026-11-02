@@ -7,7 +7,9 @@
 same ledger.
 
 `--report` also writes `reports/ci-week-<date>.md` in the project's home over the last
-`WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`).
+`WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`). The
+report also gives S8, the wrong closes of gates, for each week a scout labelled, and queues the
+scout that labels the week that ended last (`jbus.ci.wrongcloses`).
 `--each` runs it for every project whose table says `ci_report = true`, and for none when no
 project does. `jbus-ci.timer` runs `jbus ci --report --each` every Monday at 09:00, in the
 machine's own zone.
@@ -33,7 +35,7 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import verbs
-from jbus.ci import collect, ledger, notice, numbers, report
+from jbus.ci import collect, ledger, notice, numbers, report, wrongcloses
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -101,7 +103,7 @@ def run(args: argparse.Namespace, _: jbus.Config | None) -> int:
 
 def one(args: argparse.Namespace, config: jbus.Config, project: jbus.Project) -> int:
     """Collect and count the CI of one project, and with `--report` write its week and alert."""
-    state, now = config.state(project), datetime.now(UTC)
+    state, now = config.state(project), verbs.clock()
     try:
         counts = collect.collect(collect.Cli(), repo_of(project.checkout), state, now, args.days)
     except collect.Unavailable as error:
@@ -121,7 +123,8 @@ def one(args: argparse.Namespace, config: jbus.Config, project: jbus.Project) ->
     week = now - timedelta(days=WEEK)
     this_week = numbers.compute(facts, week, now)
     zone = config.user.zone or UTC
-    text = report.body(facts, this_week, week, now, zone, config.user)
+    closes = wrongcloses.scorecard(config, project, now, print)
+    text = report.body(facts, this_week, week, now, zone, config.user, closes)
     path = report.write(config.home(project), text, now, config.user)
     print(f"ci: report {path}")
     return report.escalate(config, project, this_week, path, now, print)

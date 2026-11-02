@@ -461,14 +461,7 @@ def test_the_intent_is_the_brief_from_task_to_the_end_of_decisions_then_the_scop
     assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
 
 
-def applies(name):
-    """The paragraph a principle opens with, under its title, as one line."""
-    skill = REPO / "features" / "principles" / "skills" / name / "SKILL.md"
-    text = skill.read_text().split("\n---\n\n", 1)[1]
-    return " ".join(text.split("\n\n")[1].splitlines())
-
-
-def test_a_playbook_gives_the_reviewers_its_name_and_when_each_principle_it_cites_applies(
+def test_a_playbook_gives_the_reviewers_its_name_and_the_path_of_each_principle_it_cites(
     reviewer,
 ):
     reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
@@ -480,11 +473,14 @@ def test_a_playbook_gives_the_reviewers_its_name_and_when_each_principle_it_cite
         "principle-prove-it-works",
         "principle-sequence-verifiable-units",
     ]
-    assert all(applies(name).startswith("Apply ") for name in cited)
-    lens = "\n".join(f"- {name}: {applies(name)}" for name in cited)
+    skills = REPO / "features" / "principles" / "skills"
+    paths = {name: (skills / name / "SKILL.md").resolve() for name in cited}
+    assert all(path.read_text().startswith("---\nname: ") for path in paths.values())
+    lens = "\n".join(f"- {name}: {path}" for name, path in paths.items())
     assert intent(reviewer) == (
         f"{INTENT}\n\nPlaybook: bug-fix, the steps the crewmate worked by.\n"
-        f"The principles it cites, and when each applies:\n{lens}\n\n{scope()}\n"
+        f"the principles playbooks/bug-fix.md cites, each read in full at its path:\n{lens}\n\n"
+        f"{scope()}\n"
     )
 
 
