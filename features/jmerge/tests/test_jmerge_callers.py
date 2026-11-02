@@ -1,23 +1,24 @@
 """`jmerge` judges a pull request's passing check against what main changed since the check
-started. A change to main counts when it touches the pull request's own paths or CI's paths
-(`features/jmerge/tests/test_jmerge_fresh.py`), and only then. A file of main's that imports
-the pull request's files, one they import, or one that names their path does not count, in a
-repo with a fresh-check file as in one without.
+started. Only a change to the pull request's own paths has its head merged over main with
+`git merge-tree` (`features/jmerge/tests/test_jmerge_fresh.py`), and a clean merge merges on the
+check it has. A file of main's that imports the pull request's files, one they import, one that
+names their path, or one that CI reads leaves its check counted.
 
 The tests run the command against a real origin, as
 `features/jmerge/tests/test_jmerge_fresh.py` does."""
 
 import pytest
 
-from test_jmerge_fresh import GH, STALE, Kitchen, url
-from test_jmerge_rejudge import MOVED, UPDATE
+from jmerge import ready
+from test_jmerge_fresh import GH, Kitchen, url
+from test_jmerge_rejudge import UPDATE
 
 CORE = "def f():\n    return 1\n"
 CALLER = "from pkg import core\n\nassert core.f() == 1\n"
 
 
-@pytest.fixture(params=[False, True], ids=["no-fresh-check", "fresh-check"])
-def kitchen(tmp_path, request):
+@pytest.fixture
+def kitchen(tmp_path):
     kitchen = Kitchen(
         tmp_path,
         {
@@ -27,11 +28,8 @@ def kitchen(tmp_path, request):
             "Makefile": "check:\n",
         },
     )
-    if request.param:
-        (kitchen.home.state / "fresh-check").write_text("true\n")
     gh = kitchen.home.stub / "gh"
     gh.write_text(GH.replace("    *) exit 64 ;;\n", UPDATE + "    *) exit 64 ;;\n"))
-    kitchen.fresh = request.param
     return kitchen
 
 
@@ -64,22 +62,20 @@ def test_main_changing_a_file_that_names_the_pull_requests_path_leaves_its_check
     assert said in (kitchen.home.state / "merge.log").read_text()
 
 
-def test_main_changing_the_pull_requests_own_file_still_makes_it_wait(kitchen):
+def test_main_changing_a_path_ci_reads_leaves_its_check_counted(kitchen):
     kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
-    (kitchen.home.stub / "branch-7").write_text("two")
-    main = kitchen.on_main({"src/pkg/core.py": "# theirs\n" + CORE, "src/pkg/caller.py": CALLER})
-    if kitchen.fresh:
-        assert kitchen.run() == [f"wait 7 {url(7)}: {MOVED.format(tip=main[:12])}"]
-        assert (kitchen.home.stub / "updated").read_text().split() == ["7"]
-    else:
-        assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('src/pkg/core.py')}"]
+    kitchen.on_main({"Makefile": "check:\n\ttrue\n"})
+    merged_on_its_check(kitchen)
 
 
-def test_main_changing_a_ci_path_still_makes_it_wait(kitchen):
+def test_main_changing_the_pull_requests_own_file_cleanly_leaves_its_check_counted(kitchen):
     kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
-    (kitchen.home.stub / "branch-7").write_text("two")
-    main = kitchen.on_main({"Makefile": "check:\n\ttrue\n"})
-    if kitchen.fresh:
-        assert kitchen.run() == [f"wait 7 {url(7)}: {MOVED.format(tip=main[:12])}"]
-    else:
-        assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('Makefile')}"]
+    kitchen.on_main({"src/pkg/core.py": "# theirs\n" + CORE, "src/pkg/caller.py": CALLER})
+    merged_on_its_check(kitchen)
+
+
+def test_main_changing_the_pull_requests_own_lines_makes_it_wait_for_a_rebase(kitchen):
+    kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
+    kitchen.on_main({"src/pkg/core.py": CORE + "\n# theirs\n"})
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_CONFLICT}"]
+    assert not (kitchen.home.stub / "updated").exists()

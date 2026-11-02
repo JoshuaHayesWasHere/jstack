@@ -4,7 +4,10 @@ Verdict: clean | findings
 Head: <the pull request's head commit, in full>   Unchanged by the review: yes | no
 Patch-id: <`git patch-id --stable` of the diff from the base to that head>
 Reviewers: 1, <how many findings the reading gave>   Proof: <the command that ran>, exit <its exit code>, <the last line or two it printed> | unproven, <the fact>
-Meets the brief: yes | no, and then each `Done when` line a finding says is not met
+Meets the brief: yes, <n> of <n> | no, <m> of <n>
+- unmet <k>: <a Done when line the change does not meet, k its number in the brief's list, as the brief words it>
+- after-merge <k>: <a Done when line only provable once the pull request is merged>
+- waiting <k>: <a Done when line that only waits on CI>
 In flight: none | <each pull request or brief that shares a file, and the files>
 Findings:
 - <severity> <file>:<line> <what is wrong> (principle: <name> | none) (bucket: Act on | Consider) (risk: <area>, only on security, auth, billing, data, migrations or concurrency) (or the one word "none")
