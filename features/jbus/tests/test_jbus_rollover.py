@@ -4,12 +4,14 @@ by hand with `t3_thread_configure`. The tests run the real pass against the kitc
 the cap in the ledger (`jroles.ledger`) as the usage hooks write it. A pool with every instance
 capped holds the bus: its home is told once with the reset, and `jbus status` shows it."""
 
+import json
 import os
 from datetime import timedelta
 
 import pytest
 
-from jbus import digest
+import jbus
+from jbus import digest, dispatch
 from jroles import ledger
 from jroles.cli import main as jroles
 from test_jbus_capped_sends import ended, sent
@@ -111,9 +113,20 @@ def test_a_new_row_launches_on_the_second_instance(kitchen):
     assert given["modelSelection"]["instanceId"] == PRIME
 
 
-def test_a_launch_on_an_account_nobody_reads_counts_as_usable_and_says_so(kitchen):
+def test_a_launch_on_an_account_nobody_reads_counts_as_usable_and_says_so(
+    kitchen, tmp_path, monkeypatch
+):
     """The second instance's ledger is hours old, so nobody knows its use: the launch goes there
     all the same, since a blind account beats a stopped bus, and the events say so once a day."""
+    settings = tmp_path / "t3" / "userdata" / "settings.json"
+    settings.parent.mkdir(parents=True)
+    instances = {
+        "claudeAgent": {"driver": "claudeAgent"},
+        PRIME: {"driver": "claudeAgent", "config": {"homePath": "~/.claude_prime"}},
+    }
+    settings.write_text(json.dumps({"providerInstances": instances}))
+    monkeypatch.setenv("T3CODE_HOME", str(tmp_path / "t3"))
+    monkeypatch.setattr(dispatch, "mirrored", lambda *_: True)
     cap("claudeAgent")
     second = ledger.file_of(PRIME)
     second.write_text("")
@@ -130,7 +143,6 @@ def test_a_launch_on_an_account_nobody_reads_counts_as_usable_and_says_so(kitche
 
 def test_with_every_instance_capped_the_home_is_told_once_with_the_reset(kitchen):
     """The home is on another provider, so it can be told while the pool is capped."""
-    (kitchen.home).mkdir(parents=True, exist_ok=True)
     home(kitchen, selection={**SELECTION, "provider": "codex", "instanceId": "codex"})
     cap("claudeAgent", PRIME)
     for minutes in (0, 3, 6, 39):
@@ -164,9 +176,7 @@ def test_a_second_hold_tells_the_home_again(kitchen):
     assert len(told) == 2
 
 
-def test_status_shows_the_bus_held_on_the_pool_and_not_once_it_has_room(kitchen, monkeypatch):
-    import jbus
-
+def test_status_shows_the_bus_held_on_the_pool_and_not_once_it_has_room(kitchen):
     kitchen.poll(NOW)
     cap("claudeAgent", PRIME)
     held = digest.status(jbus.load(), now=NOW)["held"]

@@ -56,6 +56,7 @@ FULL = 100.0
 EARLY = 10.0
 BLIND = timedelta(hours=1)
 SAME = 300
+FRESH = timedelta(minutes=15)
 
 _ROW = re.compile(r"(five_hour|seven_day) (\d+(?:\.\d+)?) (\d+)")
 _ITEM = re.compile(r":(five_hour|seven_day):(\d+)$")
@@ -175,6 +176,25 @@ def capped_until(
         if named == instance and record.full(now, full)
     ]
     return datetime.fromtimestamp(max(resets), UTC) if resets else None
+
+
+def age(file: Path, now: datetime) -> timedelta | None:
+    """How long ago the file was last written, or None when there is no file."""
+    try:
+        return now - datetime.fromtimestamp(file.stat().st_mtime, UTC)
+    except OSError:
+        return None
+
+
+def stale(file: Path, now: datetime) -> str | None:
+    """Why the file is not a fresh reading, or None while it is younger than `FRESH`."""
+    old = age(file, now)
+    if old is None:
+        return f"no {file}"
+    if old >= FRESH:
+        minutes = old.total_seconds() / 60
+        return f"{file} was written {minutes:.0f} min ago, {FRESH.seconds // 60} min or more"
+    return None
 
 
 @dataclass(frozen=True)

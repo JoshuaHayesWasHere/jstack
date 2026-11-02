@@ -579,13 +579,13 @@ def word_goes(kitchen):
 def test_a_word_is_not_held_behind_a_ledger_that_failed_to_read_and_the_cap_stays(kitchen):
     """The Categories home on 2026-10-31: the ledger held prime full and its reader answered 429.
     The word goes, and the ledger still says what it last read, so nothing marks prime free."""
-    out_of_date(kitchen, limits.FRESH + timedelta(minutes=1))
+    out_of_date(kitchen, ledger.FRESH + timedelta(minutes=1))
     assert len(word_goes(kitchen)) == 1
     assert ledger.capped_until(ledger.read([PRIME]), PRIME, datetime.now(UTC))
 
 
 def test_a_word_waits_at_a_cap_read_lately_though_the_last_read_failed(kitchen):
-    out_of_date(kitchen, limits.FRESH - timedelta(minutes=5))
+    out_of_date(kitchen, ledger.FRESH - timedelta(minutes=5))
     assert word_goes(kitchen) == []
 
 
@@ -596,7 +596,7 @@ def test_a_word_waits_at_a_cap_with_no_failed_read_however_old(kitchen):
 
 
 def test_only_the_user_s_word_goes_past_a_ledger_that_failed_to_read(kitchen):
-    desk = out_of_date(kitchen, limits.FRESH + timedelta(minutes=1))
+    desk = out_of_date(kitchen, ledger.FRESH + timedelta(minutes=1))
     config = jbus.load()
     run = passes.Pass(config, config.project("demo"), datetime.now(UTC))
     client = t3.Client(config.server, config.token_path)

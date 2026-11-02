@@ -16,6 +16,11 @@ role, says so on stderr, and exits 75. The launch then waits for the first reset
 pass of `jbus poll` after it wakes the thread once. A run with `--thread` that finds headroom takes
 the thread out of the waiters.
 
+`jroles --check` launches nothing. It prints a line for each role whose pool has one instance while
+T3's settings list another of its provider, with the fix to send to infra (`jroles.pool.lone`), and
+exits 1 when there is one. A selection on a Claude instance whose ledger is not fresh is still
+printed, since that instance counts as usable, and stderr says so (`jroles.pool.unread`).
+
 `jroles mirror [--check] [--instance <id>]` is not a role. For each extra Claude home that
 T3's settings list, it makes that home a mirror of `~/.claude` (`jroles.mirror`).
 """
@@ -30,14 +35,27 @@ from datetime import UTC, datetime
 from jroles import ROLES, Refused, mirror, pool, waits
 
 
+def _check() -> int:
+    try:
+        said = pool.check()
+    except Refused as refused:
+        said = [str(refused)]
+    for line in said:
+        print(line)
+    return 1 if said else 0
+
+
 def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["mirror"]:
         return mirror.main(argv[1:])
+    if argv == ["--check"]:
+        return _check()
     parser = argparse.ArgumentParser(
         prog="jroles",
         description=__doc__.split("\n\n")[1],
-        epilog="jroles mirror [--check] [--instance ID]: keep each extra Claude home a mirror",
+        epilog="jroles --check: report each role on one account while T3 lists another. "
+        "jroles mirror [--check] [--instance ID]: keep each extra Claude home a mirror",
     )
     parser.add_argument("role", choices=(*ROLES, "mirror"))
     parser.add_argument("--thread", default="", help="register this thread to wake at the reset")
@@ -64,6 +82,8 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
         if len(instances) > 1 or choice.why:
             why = choice.why or f"the first of {','.join(instances)} with headroom"
             print(f"jroles: {role} on {choice.instance}: {why}", file=sys.stderr)
+        if unread := pool.unread(choice.instance, now):
+            print(f"jroles: {unread}", file=sys.stderr)
     for one in routed:
         print(json.dumps(one.as_json()))
     return 0

@@ -13,6 +13,7 @@ A streak is the failures in a row of one thing, under a key:
 - `health <check>` for an incident `jbus.health` found;
 - `sign-in` for jbus's sign-in to T3 Code running out (`jbus.signin`);
 - `home-stall <home>` for a home quiet with work out (`jbus.children`);
+- `pool-held <project> <instances>` for a pool with every instance capped (`jbus.failover.held`);
 - `t3-tool <tool>` for a tool jbus calls that T3 Code stopped serving (`jbus.t3.contract`);
 - `once <digest>` for a line raised once, which ends by itself after `LASTS` (`deliver`).
 

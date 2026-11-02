@@ -70,6 +70,7 @@ from jbus import (
     waiting,
 )
 from jbus.wake import Box
+from jroles import pool
 from jsettings import t3
 
 DAY = timedelta(days=1)
@@ -96,12 +97,14 @@ def since(given: str | None, user: jsettings.Settings) -> datetime | None:
     return user.local(datetime.fromisoformat(given)) if given else None
 
 
-def status(config: Config) -> dict[str, Any]:
+def status(config: Config, now: datetime | None = None) -> dict[str, Any]:
     """Return what `jbus status` prints: the status file, the record of the pass, the streaks
-    as they are now, and the homes that are not on the bus now."""
+    as they are now, the homes that are not on the bus now, and the pools that hold the bus now,
+    with every instance capped (`jroles.pool.held`)."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
+        "held": [one.as_json() for one in pool.held(now or datetime.now(UTC))],
         "pass": record.read(config),
     }
 
