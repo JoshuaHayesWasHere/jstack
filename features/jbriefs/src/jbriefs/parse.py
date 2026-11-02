@@ -463,6 +463,17 @@ def covers(patterns: tuple[str, ...], path: str) -> bool:
     return any(_glob(pattern).fullmatch(parent) for pattern in patterns for parent in parents)
 
 
+def shared_where(text: str, other: str) -> tuple[str, ...]:
+    """The paths that both briefs' `Where:` lines cover (`covers`), the narrower where one names a
+    directory and the other a file under it. A brief whose `Where:` is the whole repo (`.`) says
+    nothing of what it shares."""
+    mine, theirs = where(text), where(other)
+    if "." in mine or "." in theirs:
+        return ()
+    found = (path for path in (*mine, *theirs) if covers(mine, path) and covers(theirs, path))
+    return tuple(dict.fromkeys(found))
+
+
 def wheres(text: str) -> str:
     """Why a brief's `Where:` line names no path, as one line. It quotes the `Where:` line. It
     is an empty string when it names one.

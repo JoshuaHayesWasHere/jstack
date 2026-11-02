@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
+from jbriefs import chains
 from jbriefs import parse as briefs
 from jbus import (
     acts,
@@ -37,6 +38,7 @@ from jbus import (
     watch,
     word,
 )
+from jmerge import judgement
 from jmerge.asked import Silent
 
 
@@ -213,7 +215,9 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
     """Print what a brief that `add` queues, or that `check` passes, is warned of
     (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
     that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
-    all the same, and the line tells the home to write it."""
+    all the same, and the line tells the home to write it. It warns as well of each `Where:` path
+    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`), the
+    pair that a stack holds apart for that row's whole review."""
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
@@ -222,6 +226,14 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
         print(f"warning: {slug}'s {warned}")
     for case, command in party.undeclared(text):
         print(f"holds: {case}, from {command}")
+    for other in sorted(chains.builds_on(judgement.body(text))):
+        shared = briefs.shared_where(text, queue.brief(config.state(project), other) or "")
+        if shared:
+            print(
+                f"warning: {slug} shares {', '.join(shared)} with {other}, which it stacks on: a "
+                f"stack holds it behind {other}'s whole review, so join the two rows if they are "
+                "one change, or take the shared path out of one of them"
+            )
 
 
 def _check(config: jbus.Config, project: jbus.Project, given: str | None, home: str | None) -> int:
