@@ -6,7 +6,8 @@ Source: pstack, `pstack/skills/poteto-mode/playbooks/opening-a-pr.md`
 
 <!-- card: In every task | 1 | Opening the pull request, as the last step of every other crewmate playbook. It is never picked for a brief. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 

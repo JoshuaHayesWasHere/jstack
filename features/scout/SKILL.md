@@ -33,14 +33,26 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
    ```
 
    `--porcelain` prints the lines of `git status --short`, with every path from the repo's root, so the note reads the same from any directory. In a worktree of its own it prints nothing. If it prints anything, the checkout is not clean: say so now. The lines are kept in `$H/scouts/<slug>.start`, since they are not yours and you leave them alone. Make no branch: a scout has nothing to commit.
-3. See whether the request names a playbook. Run this in one call with the block at the top and `S` set to the slug:
+3. See whether the request names a playbook.
+   Run this in a call of its own, with the block at the top, `S` set to the slug and nothing else in it: a call that also prints another file, with `cat` or the like, can come back cut off behind a file, and the steps with it:
 
    ```sh
    B="$H/scouts/$S.md"
    uv run --project "$T/../source" jbus playbook scout "$B"
    ```
 
-   It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the report. On `not a scout's`, the file is for a crewmate or the home: do the same again. When its first line is a path, read that file now. Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo. A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the request to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the report. On `lacks the line`, the request stands as the home wrote it: say what it printed in the report. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
+   It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook.
+   On `no playbook`, do the same, and say what it printed in the report.
+   On `not a scout's`, the file is for a crewmate or the home: do the same again.
+   When its first line is a path, read that file now.
+   Under the path it prints the playbook's numbered steps: work them in order.
+   A step you do not do is reported as `skip: <reason>`.
+   A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo.
+   A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the request to have.
+   Last, it prints the name and path of each principle the playbook cites, once each, under a line that says so: a step's citation points to one, and you read it in full at its path when you do that step.
+   On `no principle`, a citation names a file `principles/` does not have: say what it printed in the report.
+   On `lacks the line`, the request stands as the home wrote it: say what it printed in the report.
+   The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
    Then see whether the request names skills. Run this with the block at the top and `S` set to the slug:
 
    ```sh

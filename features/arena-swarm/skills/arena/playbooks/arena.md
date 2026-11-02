@@ -6,8 +6,8 @@ Source: pstack, `pstack/skills/arena/SKILL.md`
 
 <!-- card: Fan out to threads | 1 | One artifact where a single attempt would lock in the wrong shape. Two runner crews make it apart, a judge crew scores both, and a graft crew picks a base and grafts the other's best into it. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own.
-A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
 Read a principle in full when a step you are doing names it.

@@ -6,7 +6,8 @@ Source: pstack, `pstack/skills/poteto-mode/playbooks/autonomous-run.md`
 
 <!-- card: Long or wide runs | 1 | One task driven to its "Done when" with nobody watching, where each line of it can be checked by a command. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 

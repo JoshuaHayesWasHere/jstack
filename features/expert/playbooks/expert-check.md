@@ -6,7 +6,8 @@ Source: this repo
 
 <!-- card: An expert runs it | 2 | A `check` ask: one brief, review or pull request judged against the subject. It ends in a verdict in four parts, each point tied to the rule it rests on. -->
 
-Copy the numbered steps below into your todo list, word for word, before any todo of your own. A step you do not do stays in the list as `skip: <reason>`.
+Work the numbered steps below in order.
+Report a step you do not do as `skip: <reason>`.
 
 A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
 
