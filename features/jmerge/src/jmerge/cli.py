@@ -1215,7 +1215,7 @@ class Repo:
         before = _run(self.main, "git", "rev-parse", "HEAD").stdout.strip()
         pulled = _run(self.main, "git", "fetch", "-q", "origin", self.trunk)
         if not pulled.returncode:
-            pulled = _run(self.main, "git", "merge", "-q", "--ff-only", f"origin/{self.trunk}")
+            pulled = _run(self.main, *("git", "merge"), "-q", "--ff-only", f"origin/{self.trunk}")
         self.numbers_on.clear()
         if pulled.returncode:
             notes.append(lines.not_pulled(lines.said(pulled)))
