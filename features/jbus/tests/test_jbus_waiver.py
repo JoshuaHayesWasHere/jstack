@@ -1,9 +1,9 @@
-"""A brief's `Waived: <the Done when line>, <thread>/<message>` line lets a pull request whose review
-says the brief is not met merge only on a word jbus checked (`jbus.port.Port.heard`): the user's
-own message in T3 Code, read by the check `jbus queue approve --message` reads a word with, or a
-word the bot gave over `POST /act`. A crew's or a home's own message, and a word of the bot's that
-a home typed, waive nothing, and neither does a word that does not name the row. The tests run
-the real port against the faked T3 Code server of `test_jbus_kitchen`."""
+"""A brief's `Waived: <the Done when line>, <thread>/<message>` line lets a pull request whose
+review says the brief is not met merge only on a word jbus checked (`jbus.port.Port.heard`): the
+user's own message in T3 Code, read by the check `jbus queue approve --message` reads a word with,
+or a word the bot gave over `POST /act`. A crew's or a home's own message, and a word of the
+bot's that a home typed, waive nothing, and neither does a word that does not name the row. The
+tests run the real port against the faked T3 Code server of `test_jbus_kitchen`."""
 
 from datetime import timedelta
 
