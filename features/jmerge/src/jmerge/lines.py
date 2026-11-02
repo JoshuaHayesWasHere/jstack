@@ -151,9 +151,9 @@ def not_installed(why: str) -> str:
 
 
 def not_pulled(why: str) -> str:
-    """The note of a merge after which `git pull --ff-only` failed in the main checkout. The
-    checkout stays behind the default branch, and nothing that follows the pull runs, until
-    someone pulls it."""
+    """The note of a merge after which the fetch of the default branch, or the fast-forward of
+    the main checkout to it, failed. The checkout stays behind the default branch, and nothing
+    that follows the pull runs, until someone pulls it."""
     return NOT_PULLED.format(why=why)
 
 

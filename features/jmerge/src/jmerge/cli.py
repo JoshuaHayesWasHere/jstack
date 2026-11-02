@@ -1213,7 +1213,9 @@ class Repo:
             commit = one.head
             notes.append("that commit is its head, GitHub did not give the merge commit")
         before = _run(self.main, "git", "rev-parse", "HEAD").stdout.strip()
-        pulled = _run(self.main, "git", "pull", "--ff-only")
+        pulled = _run(self.main, "git", "fetch", "-q", "origin", self.trunk)
+        if not pulled.returncode:
+            pulled = _run(self.main, *("git", "merge"), "-q", "--ff-only", f"origin/{self.trunk}")
         self.numbers_on.clear()
         if pulled.returncode:
             notes.append(lines.not_pulled(lines.said(pulled)))
