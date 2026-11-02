@@ -1,8 +1,7 @@
 ---
 name: how
-description: "Use for /how, \"how does X work\", code walkthroughs before changing something, and placement / ownership / layering questions (\"where should this live\", \"which package owns this\", \"is this the right layer\"). Explains subsystem architecture, runtime flow, onboarding mental models. Use why for motivation."
+description: "Explain how a subsystem works, its runtime flow and where code belongs, before changing it. Use for 'how does X work', a walkthrough, or 'where should this live'. Use why for motivation."
 tip: explains how a subsystem works before you change it | how does * work | how do * work | where should this live | which package owns | walk me through the code
-disable-model-invocation: true
 card: "Understand what is there | 1 | Explains how a subsystem works: its architecture, its runtime flow and where things live. | Reach for it when you are about to change something, or ask which layer owns it. | op: the operator; plain: a step of `architect`"
 ---
 

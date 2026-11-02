@@ -1,7 +1,7 @@
 # The ketchup skill
 
 `ketchup` catches you up on this chat since your last message.
-It loads only when a user types it, and the tests run each shell block it gives.
+A model may load it by itself from its description, and the tests run each shell block it gives.
 
 Paths:
 - `features/ketchup/`

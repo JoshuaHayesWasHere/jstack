@@ -1,8 +1,7 @@
 ---
 name: unslop
-description: Cut AI tells from any writing. Use for /unslop, or when a playbook step names this skill.
+description: "Cut AI tells from writing. Use when the user says text reads like AI, asks to unslop it, or before prose ships to people."
 tip: cuts the AI tells from any writing | sounds like ai | ai slop | sounds robotic | reads like chatgpt | too wordy
-disable-model-invocation: true
 card: "House standards for text and code | 2 | Cuts the tells of machine writing from any text. | Reach for it when a text is about to be read by a person. | op: the operator; plain: a step of `opening-a-pr`"
 ---
 

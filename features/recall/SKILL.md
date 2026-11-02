@@ -1,8 +1,7 @@
 ---
 name: recall
-description: "Reconstruct your recent working context from your own chat history, the home's record, live state, and the shared record (user reports, prior fixes, incidents), then hand back a tight current-state brief. Use for /recall, 'recall my work on X', 'catch me up', 'what have I been working on', 'where did I leave off', before starting or resuming work."
+description: "Rebuild where the user left off across past sessions, from chat history and the home's record. Use for 'where did I leave off', 'what was I working on', 'recall my work on X'. For this chat alone, use ketchup."
 tip: rebuilds where you left off from your chat history and the home's record | where did i leave off | what have i been working on | what was i working on | recall my work
-disable-model-invocation: true
 card: "Catch up and keep track | 1 | Rebuilds your recent working context from the chat history, the home's record and live state, and hands back a short current-state brief. | Reach for it when you start or resume work and ask where you left off. | op: the operator"
 ---
 

@@ -1,7 +1,7 @@
 # The no-comments skill
 
 `no-comments` hunts down every comment that has no reason to stay.
-It loads only when a user types it, and the tests run each shell block it gives.
+A model may load it by itself from its description, and the tests run each shell block it gives.
 
 Paths:
 - `features/no-comments/`

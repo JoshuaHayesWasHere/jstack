@@ -10,6 +10,19 @@ that turn the trailer off, or none when the harness has no such setting. For Cla
 other Claude home gets the same keys in its own settings.json (`needs`).
 `terms.LEAVES_OUT` holds what each harness leaves out.
 
+A row has the variables the install sets in `env` of each Claude home's settings.json, or none.
+Claude Code lists every skill a model may load, with its description, in a listing it cuts to a
+budget of 1% of the context window, about 8,000 characters in a session of 200k tokens, and it
+drops the descriptions of the skills used least first. jstack's 50 skills a model may load bring
+the listing to about 29,000 characters, so `SLASH_COMMAND_TOOL_CHAR_BUDGET` sets the budget to
+the listing's size, which keeps jstack's descriptions in it.
+
+A row has, last, the file the layout writes into the folder of each skill that skills.json marks
+`hidden`, by its path in that folder and its text, or none. Claude Code and Cursor read
+`disable-model-invocation: true` in the skill's frontmatter. Codex does not: it reads
+`policy.allow_implicit_invocation` in `agents/openai.yaml` beside the skill. Codex reads
+`~/.agents/skills`, Cursor's root, as well as its own, so Cursor's layout carries the file too.
+
 Codex has no such setting: codex-cli 0.163.0 warns that `commit_attribution` in config.toml is
 an unrecognized setting and ignores it, and whether it adds the trailer is a flag of the account's
 workspace. Cursor's CLI reads `attribution` in `~/.cursor/cli-config.json`, as the
@@ -27,8 +40,11 @@ class Harness:
     project: str = ""
     settings: str = ""
     attribution: dict = field(default_factory=dict, hash=False)
+    env: dict = field(default_factory=dict, hash=False)
+    hides: tuple[str, str] | None = None
 
 
+HIDES = ("agents/openai.yaml", "policy:\n  allow_implicit_invocation: false\n")
 HARNESSES = (
     Harness(
         "claude-code",
@@ -38,8 +54,9 @@ HARNESSES = (
         ".claude/skills",
         ".claude/settings.json",
         {"attribution": {"commit": "", "pr": ""}, "includeCoAuthoredBy": False},
+        env={"SLASH_COMMAND_TOOL_CHAR_BUDGET": "32000"},
     ),
-    Harness("codex", "Codex", ".codex/skills", ".codex/hooks.json"),
+    Harness("codex", "Codex", ".codex/skills", ".codex/hooks.json", hides=HIDES),
     Harness(
         "cursor",
         "Cursor",
@@ -49,6 +66,7 @@ HARNESSES = (
         attribution={
             "attribution": {"attributeCommitsToAgent": False, "attributePRsToAgent": False}
         },
+        hides=HIDES,
     ),
 )
 CLAUDE_CODE = HARNESSES[0]

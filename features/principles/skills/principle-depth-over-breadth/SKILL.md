@@ -1,7 +1,6 @@
 ---
 name: principle-depth-over-breadth
 description: "Apply when scoping research, perf, analysis or outcome work: before a brief goes out, and before you plan how to do one. Go one level under the task, to the data, the instruments and the judge a field-leading expert would use, instead of adding a second task beside it."
-disable-model-invocation: true
 ---
 
 # Depth over Breadth

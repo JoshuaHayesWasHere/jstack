@@ -1,8 +1,7 @@
 ---
 name: blast-radius
-description: "Find what a change could break somewhere else before it ships, beyond the diff, and prove the one fact it's safe because of by running real code instead of writing it up. Use for /blast-radius, 'blast radius of X', 'what could this break', or reviewing a small diff you don't trust."
+description: "Find what a change could break beyond its diff, and prove the one fact it is safe because of by running real code. Use for 'blast radius of X', 'what could this break', or a small diff you do not trust."
 tip: finds what a small diff could break elsewhere | blast radius | what could this break | what would this break | what else could break
-disable-model-invocation: true
 card: "Distrust the change | 1 | Finds what a change could break beyond its diff, and proves the one fact it is safe because of by running real code. | Reach for it when a small diff is one you do not trust. Every review runs it. | op: the operator; rev: a reviewer"
 ---
 

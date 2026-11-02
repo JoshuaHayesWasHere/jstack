@@ -1,7 +1,7 @@
 # The typescript-best-practices skill
 
 `typescript-best-practices` loads the TypeScript rules before a .ts or .tsx edit.
-It loads only when a user types it, and the tests run each shell block it gives.
+A model may load it by itself from its description, and the tests run each shell block it gives.
 
 Paths:
 - `features/typescript-best-practices/`

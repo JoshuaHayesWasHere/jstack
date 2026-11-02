@@ -1,8 +1,7 @@
 ---
 name: sharpen
-description: "Make a task deeper, not bigger, then rewrite the prompt. Use for /sharpen."
+description: "Rewrite a task's prompt to ask for the deeper version, not a bigger one, without doing the task. Use for 'sharpen this', 'make this prompt better', or a long hand-typed brief or audit ask before it goes out."
 tip: rewrites a task's prompt to ask for the deeper version, and does not do the task | sharpen this | sharpen the task | go deeper | deeper version | more ambitious | what would an expert do | how would an expert approach
-disable-model-invocation: true
 card: "Settle the shape before code | 4 | Makes a task deeper, not bigger: what an expert would do, from what raw material, with which methods and tools, and what outside the agent shows the result is right. Then it rewrites the prompt to ask for that, and does not do the task. | Reach for it before a research, perf, analysis or outcome task goes out. | op: the operator"
 ---
 

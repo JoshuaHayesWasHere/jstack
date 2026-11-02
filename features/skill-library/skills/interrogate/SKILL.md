@@ -1,8 +1,7 @@
 ---
 name: interrogate
-description: "Use for /interrogate, \"interrogate\", \"adversarial review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Two reviewers that do not see each other challenge changes, and the lead filters what they found."
+description: "Adversarially review a change with two reviewers that do not see each other, then filter what they found. Use for 'challenge this', 'stress test this code', 'find blind spots' or 'tear this apart'."
 tip: has two reviewers who do not see each other challenge a change | adversarial review | stress test this | find blind spots | tear this apart | challenge this
-disable-model-invocation: true
 card: "Distrust the change | 2 | Two reviewers that do not see each other challenge a change, and the lead filters what they found. | Reach for it when a design or a change needs adversarial pressure. | op: the operator; rev: a reviewer"
 ---
 

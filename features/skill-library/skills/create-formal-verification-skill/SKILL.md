@@ -1,8 +1,7 @@
 ---
 name: create-formal-verification-skill
-description: "Generate a project-local skill that formally verifies the code where a bug costs the most and tests reach the least, in any language, with whichever verification tool fits. Use for /create-formal-verification-skill, \"model-check this race\", \"prove this invariant\", or when concurrency, retries, state machines, parsers, or unsafe code need more than tests."
+description: "Generate a project-local skill that formally verifies the code where a bug costs most and tests reach least. Use for 'model-check this race', 'prove this invariant', or concurrency, retries, state machines and parsers that need more than tests."
 tip: finds the part of the code where a bug costs most and tests reach least, and verifies it | model-check this race | prove this invariant | formally verify | formal verification
-disable-model-invocation: true
 card: "Distrust the change | 5 | Finds the part of the code where a bug costs the most and tests reach the least, verifies one property of it with the tool that fits, and leaves a project-local skill that rechecks it on every change. | Reach for it when a race, a retry, a state machine, a parser or unsafe code needs more than tests. | op: the operator"
 ---
 

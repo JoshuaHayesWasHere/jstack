@@ -1,7 +1,7 @@
 # The benchmark-checklist skill
 
 `benchmark-checklist` vets a measured number before it is reported or acted on.
-It loads only when a user types it, and the tests run each shell block it gives.
+A model may load it by itself from its description, and the tests run each shell block it gives.
 
 Paths:
 - `features/benchmark-checklist/`

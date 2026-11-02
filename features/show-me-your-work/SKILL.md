@@ -1,8 +1,7 @@
 ---
 name: show-me-your-work
-description: Keep a decision log for long or unattended work, one TSV row per decision (what, why, evidence, result), so the user can review it after stepping away. Use for /show-me-your-work, or when a playbook step names this skill.
+description: "Keep a decision log, one TSV row per decision, for long or unattended work. Use when the user will step away and review later, or asks to see your work or your decisions."
 tip: keeps a decision log you can review after stepping away | decision log | while i'm away | i'm stepping away | unattended | overnight
-disable-model-invocation: true
 card: "Catch up and keep track | 4 | Keeps a decision log for long or unattended work, one row per decision: what, why, the evidence and the result. | Reach for it when a run goes on with nobody watching and will be reviewed later. | op: the operator; plain: a step of `autonomous-run`, `hillclimb`"
 ---
 

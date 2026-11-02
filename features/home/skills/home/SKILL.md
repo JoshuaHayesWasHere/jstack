@@ -168,6 +168,8 @@ The home does no research of its own: it reads only its state directory, `$H`. N
 
 Before writing a brief, when a task may need research first, and when a step elsewhere names a step of this section: read `$T/../skills/home/sending-a-scout.md` now.
 
+A typed ask for several scouts at once, "N scouts" or "swarm this", is the user's approval to swarm: read `$T/../skills/swarm/SKILL.md` and do what it says, since swarm never loads by itself.
+
 ## A playbook of the home's own
 
 A row `the home` runs, in what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, is steps for this thread: how to run a queue of tasks, not how to do one. Its name is kept on a `Playbook:` line in the head of `$M/plan.md`, above the first `## ` heading, so the next home works by it too. Open it when a home starts with that line in its plan, and when you take one up. Run this after the block at the top and the block that finds this home, with the playbook's name in place of `<name>`, or with nothing in its place to take the name the plan has:
