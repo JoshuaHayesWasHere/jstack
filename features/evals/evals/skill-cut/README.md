@@ -6,7 +6,12 @@ Does cutting text out of a skill, a reference or a principle change what an agen
 
 Two families of cases, both committed in `cases/` before the first run.
 
-- **`lead`**: a pull request review's lead judgment, from real reviews (`cases/lead/<slug>.md`). Each case is one pull request's first review: the intent the reviewer was given and the readers' findings, word for word, as the reviewer thread holds them, with the private patterns of `jleak` taken out. The model is the lead: it gets step 5 of `skills/interrogate/SKILL.md` and `skills/interrogate/references/lead-judgment.md` as they are at the revision under test, judges the findings, and buckets each one as Act on, Consider, Noted or Dismissed. The key (`cases/lead/<slug>.key.json`) is that review as it shipped in the brief's `## Review` section: each finding was sent (Act on or Consider become the section's `Findings:` lines), noted (counted, not listed) or dismissed (one line each), and whether the crewmate fixed it. A finding the shipped review dropped as outside the diff is in the case and not scored. Each key entry says which line of the shipped Review it was matched to, so a person can check it.
+- **`lead`**: a pull request review's lead judgment, from real reviews (`cases/lead/<slug>.md`).
+  Each case is one pull request's first review: the intent the reviewer was given and the readers' findings, word for word, as the reviewer thread holds them, with the private patterns of `jleak` taken out.
+  The model is the lead: it gets what a reviewer judges by at the revision under test, step 4 of `skills/pr-review/the-review.md`, with step 5 of `skills/interrogate/SKILL.md` and `skills/interrogate/references/lead-judgment.md` where that step names them to read, and it buckets each finding as Act on, Consider, Noted or Dismissed.
+  The key (`cases/lead/<slug>.key.json`) is that review as it shipped in the brief's `## Review` section: each finding was sent (Act on or Consider become the section's `Findings:` lines), noted (counted, not listed) or dismissed (one line each), and whether the crewmate fixed it.
+  A finding the shipped review dropped as outside the diff is in the case and not scored.
+  Each key entry says which line of the shipped Review it was matched to, so a person can check it.
 - **`steps`**: a thread in a state, and the question "what do you do next" (`cases/steps.json`). Three or more scenarios for each file the cut briefs name: the home, crew, scout, pr-review, handoff and expert skills, and the two principles #634 cuts (`type-system-discipline`, `migrate-callers-then-delete-legacy-apis`). The model gets the file as it is at the revision under test, the state, and the question. The key is the step or command the file prescribes, as prose (`expect`) and as regular expressions (`must`, all of which must match).
 
 Each run has three arms: **base**, **base again** (the same prompts at the same revision, which is the noise floor), and **variant**. Every case runs three times in each arm. The candidate is `claude-opus-5-5` at medium effort with no tools, the model homes, crewmates and reviewers run on.
@@ -37,7 +42,7 @@ Fixed before the first run, and not changed after it. For each family, a case's 
   2. the two-sided sign test of the variant against base over the family's cases (a case counts as a loss when its variant score is below its base score, a win when above, ties left out) does not show a loss under 0.05: it is not true that losses outnumber wins with p under 0.05.
 - The variant does not regress when it does not regress in either family. Otherwise the variant **regresses**, and that is the finding: the eval is not tuned until it passes.
 
-The `lead` family reads only the interrogate step and its reference, and the `steps` family only its eight files: a variant that changes none of the files a family reads ties base on that family by construction, and `results.md` says which files differ between the two revisions.
+The `lead` family reads only the review's step 4 and the two interrogate texts it may name, and the `steps` family only its eight files, with the review's steps beside each pr-review case, since a reviewer reads them once its start is done: a variant that changes none of the files a family reads ties base on that family by construction, and `results.md` says which files differ between the two revisions.
 
 ## Run it
 

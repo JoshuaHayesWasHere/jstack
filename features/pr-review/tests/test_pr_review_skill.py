@@ -24,7 +24,6 @@ from testing.paths import REPO
 SKILL = REPO / "features" / "pr-review" / "SKILL.md"
 REVIEW = REPO / "features" / "pr-review" / "templates" / "review.md"
 INTERROGATE = REPO / "features" / "skill-library" / "skills" / "interrogate"
-BLAST_RADIUS = REPO / "features" / "skill-library" / "skills" / "blast-radius" / "SKILL.md"
 
 BRIEF = """\
 # a-task: a title
@@ -873,27 +872,21 @@ def test_a_review_starts_no_subagent_only_its_own_thread(reviewer):
     assert reviewer.prompt().is_file()
 
 
-def test_each_text_the_review_sends_its_reader_to_is_there(reviewer):
-    """The section holds none of pstack's text. It names the files instead, so each file it
-    names has to exist."""
+def test_the_review_sends_its_reader_to_no_other_skill_and_its_block_fills_from_files_there(
+    reviewer,
+):
+    """A reviewer skipped the reads of interrogate's step 5, lead-judgment and blast-radius in
+    about 85 of 100 reviews, so the section holds the rules it needs and names no read of them.
+    The block still fills the prompt from interrogate's references, so each one it names exists."""
     text = section("### The review")
-    skills = set(re.findall(r"`\$T/\.\./(skills/[a-z-]+/SKILL\.md)`", text))
-    assert skills == {"skills/interrogate/SKILL.md", "skills/blast-radius/SKILL.md"}
+    reads = [line for line in text.splitlines() if re.search(r"\bread\b[^.]*\bnow\b", line, re.I)]
+    assert reads == []
+    for read in ("skills/interrogate/SKILL.md", "lead-judgment.md", "skills/blast-radius/"):
+        assert read not in text
     named = r"`references/([a-z-]+\.md)`|\"\$I/([a-z-]+\.md)\"|refs \"/([a-z-]+\.md)\""
     references = {"".join(found) for found in re.findall(named, text)}
-    assert references == {
-        "reviewer-prompt.md",
-        "rubric.md",
-        "code-quality-review.md",
-        "lead-judgment.md",
-    }
-    assert references == {path.name for path in (INTERROGATE / "references").iterdir()}
-    steps = re.findall(r"^## Step (\d),", (INTERROGATE / "SKILL.md").read_text(), re.M)
-    assert steps == ["1", "2", "3", "4", "5"]
-    blast = BLAST_RADIUS.read_text()
-    assert "### How sure are you" in blast
-    assert re.search(r"^2\. Find the one fact it's safe because of\.", blast, re.M)
-    assert re.search(r"^5\. Prove the one fact\.", blast, re.M)
+    assert references == {"reviewer-prompt.md", "rubric.md", "code-quality-review.md"}
+    assert references <= {path.name for path in (INTERROGATE / "references").iterdir()}
     made = reviewer.prompt().read_text()
     assert (INTERROGATE / "references" / "rubric.md").read_text() in made
 

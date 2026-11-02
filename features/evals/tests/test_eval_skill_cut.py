@@ -159,6 +159,20 @@ def test_run_rescores_a_kept_run_and_refuses_anything_else(capsys):
     assert "--run" in capsys.readouterr().err
 
 
+def test_a_call_that_fails_is_tried_again_after_a_wait(monkeypatch):
+    """A login that lapses for a moment fails every try made at once, and one failed call ends the
+    run with all its answers lost."""
+    ran = iter(
+        subprocess.CompletedProcess([], code, out, err)
+        for code, out, err in [(1, "", "Not logged in"), (1, "", "Not logged in"), (0, "ok\n", "")]
+    )
+    waits = []
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: next(ran))
+    monkeypatch.setattr(run.time, "sleep", waits.append)
+    assert run.claude("the prompt") == "ok"
+    assert waits == [run.TRY_AGAIN_AFTER, run.TRY_AGAIN_AFTER]
+
+
 def test_write_with_no_claude_writes_nothing(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "HERE", tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path / "no-bin"))
@@ -291,3 +305,40 @@ def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
     ).stdout
     assert run.show("HEAD", path) == now
     assert run.show("HEAD", "principles/principle-type-system-discipline.md") == now
+
+
+def test_the_lead_judges_by_the_reviews_step_4_and_the_reads_it_names_at_that_revision():
+    """Before reviewer-reads-trim, step 4 sent the reviewer to interrogate's step 5 and
+    lead-judgment, so the lead gets both; a step 4 that names neither is given alone, as a
+    reviewer reads it."""
+    files = {
+        run.STEP5: "# Interrogate\n\n## Step 5, Lead Judgment\n\nJudge the list.\n",
+        run.REFERENCE: "# Lead Judgment Framework\n",
+    }
+    case = f"lead/{run.lead_cases()[0]}"
+    files[run.THE_REVIEW] = (
+        "### The review\n\n**4: Lead judgment.**\nJudge the list.\n\n**5: The one safety fact.**\n"
+    )
+    made = run.prompt(case, files)
+    assert made.count("<text path=") == 1
+    assert "**4: Lead judgment.**" in made
+    assert "# Lead Judgment Framework" not in made
+    assert "**5: " not in made
+    reads = (
+        "**4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its "
+        "`references/lead-judgment.md` now, and judge the list of step 3 as they say.\n\n"
+    )
+    files[run.THE_REVIEW] = "### The review\n\n" + reads + "**5. The one safety fact.**\n"
+    made = run.prompt(case, files)
+    assert made.count("<text path=") == 3
+    assert "## Step 5, Lead Judgment" in made
+    assert "# Lead Judgment Framework" in made
+
+
+def test_a_pr_review_scenario_sees_the_reviews_steps_beside_the_skill():
+    (case,) = [one for one in run.steps_cases() if one["id"] == "pr-review-severity"]
+    files = {path: run.show("HEAD", path) for path in run.files_under_test()}
+    made = run.prompt(f"steps/{case['id']}", files)
+    assert '<file path="skills/pr-review/SKILL.md">' in made
+    assert '<file path="skills/pr-review/the-review.md">' in made
+    assert "**4: Lead judgment.**" in made

@@ -38,6 +38,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import time
 from math import comb
 from pathlib import Path
 
@@ -69,35 +70,30 @@ TRIALS = 3
 WORKERS = 6
 ARMS = ("base", "base-again", "variant")
 FAMILIES = ("lead", "steps")
+THE_REVIEW = "skills/pr-review/the-review.md"
 STEP5 = "skills/interrogate/SKILL.md"
 REFERENCE = "skills/interrogate/references/lead-judgment.md"
-LEAD_FILES = (STEP5, REFERENCE)
+LEAD_FILES = (THE_REVIEW, STEP5, REFERENCE)
+# A reviewer reads the review's steps once "Start" is done, so a pr-review case sees them too.
+READ_WITH = {"skills/pr-review/SKILL.md": (THE_REVIEW,)}
 
 LEAD = """You are the lead reviewer of a pull request's review. The readers below read the diff \
 against the intent and listed what they found; you have the intent and their findings, not the \
-code. Do the lead judgment as the step and its reference below say.
+code. Do the lead judgment as the texts below say.
 
-<step path="{step_path}">
-{step}
-</step>
-
-<reference path="{reference_path}">
-{reference}
-</reference>
+{texts}
 
 {case}
 
-Write your judgment as the step says. Then end your answer with a block that starts with a line \
+Write your judgment as the texts say. Then end your answer with a block that starts with a line \
 `BUCKETS` and has one line for every finding id above, in the order they are listed, each as \
 `<id>: <bucket>`, where the bucket is one of Act on, Consider, Noted, Dismissed. Findings you \
 merged get the same bucket.
 """
 
-STEPS = """You are a thread working under the file below, which is loaded in full.
+STEPS = """You are a thread working under the files below, which are loaded in full.
 
-<file path="{path}">
 {text}
-</file>
 
 {state}
 
@@ -130,11 +126,18 @@ first line, then one line saying why.
 """
 
 
+TRIES = 5
+TRY_AGAIN_AFTER = 60
+
+
 def claude(prompt: str, model: str = MODEL) -> str:
-    """One call, no tools, at medium effort, with the model named and two more tries for a call
-    that fails."""
+    """One call, no tools, at medium effort, with the model named and four more tries for a call
+    that fails, a minute apart: a failed call ends the run and loses its answers, and a login that
+    lapses for a moment fails every try made at once."""
     said = ""
-    for _ in range(3):
+    for attempt in range(TRIES):
+        if attempt:
+            time.sleep(TRY_AGAIN_AFTER)
         ran = subprocess.run(
             [
                 "claude",
@@ -245,6 +248,26 @@ def patch(base: str, variant: str, paths: list[str]) -> str:
     return git("diff", base, variant, "--", *every)
 
 
+def step4(review: str) -> str:
+    """Step 4 of the review, the lead judgment, as `the-review.md` gives it to a reviewer."""
+    found = re.search(r"^\*\*4[.:] Lead judgment\.\*\*.*?(?=^\*\*5[.:] )", review, re.M | re.S)
+    if not found:
+        raise SystemExit(f"eval.py: {THE_REVIEW} has no step 4, Lead judgment, at this revision")
+    return found[0].strip()
+
+
+def lead_texts(files: dict[str, str]) -> list[tuple[str, str]]:
+    """What a reviewer judges the findings by at a revision: step 4 of the review, then step 5 of
+    the interrogate skill and its lead-judgment reference where step 4 names them to read."""
+    step = step4(files[THE_REVIEW])
+    texts = [(THE_REVIEW, step)]
+    if "interrogate/SKILL.md" in step:
+        texts.append((STEP5, step5(files[STEP5])))
+    if "lead-judgment.md" in step:
+        texts.append((REFERENCE, files[REFERENCE].strip()))
+    return texts
+
+
 def step5(skill: str) -> str:
     """Step 5 of the interrogate skill and the output format under it, to the end of the file."""
     found = re.search(r"^## Step 5\b.*", skill, re.M | re.S)
@@ -276,7 +299,10 @@ def case_ids() -> dict[str, str]:
 
 
 def files_under_test() -> list[str]:
-    return sorted({*LEAD_FILES, *(case["file"] for case in steps_cases())})
+    named = [case["file"] for case in steps_cases()]
+    return sorted(
+        {*LEAD_FILES, *named, *(more for one in named for more in READ_WITH.get(one, ()))}
+    )
 
 
 def cases(staging: str) -> None:
@@ -317,15 +343,16 @@ def prompt(case: str, files: dict[str, str]) -> str:
     if family == "lead":
         body = (HERE / "cases" / "lead" / f"{name}.md").read_text()
         body = body.split("\n", 1)[1].strip()
-        return LEAD.format(
-            step_path=STEP5,
-            step=step5(files[STEP5]),
-            reference_path=REFERENCE,
-            reference=files[REFERENCE].strip(),
-            case=body,
+        texts = "\n\n".join(
+            f'<text path="{path}">\n{text}\n</text>' for path, text in lead_texts(files)
         )
+        return LEAD.format(texts=texts, case=body)
     found = next(one for one in steps_cases() if one["id"] == name)
-    return STEPS.format(path=found["file"], text=files[found["file"]].strip(), state=found["state"])
+    text = "\n\n".join(
+        f'<file path="{path}">\n{files[path].strip()}\n</file>'
+        for path in (found["file"], *READ_WITH.get(found["file"], ()))
+    )
+    return STEPS.format(text=text, state=found["state"])
 
 
 def _sha(text: str) -> str:
@@ -624,11 +651,16 @@ def report() -> None:
             f"by the judge ({per})."
         )
     holds = all(said["holds"] for said in verdicts.values())
+    failed = ", ".join(f"`{family}`" for family, said in verdicts.items() if not said["holds"])
     lines += [
         "",
-        f"**Verdict of this run: the variant {'does not regress' if holds else 'regresses'}**, by "
-        "the rule in `README.md`: in each family its mean is no lower than base minus the noise "
-        "floor, and the sign test against base shows no loss under 0.05.",
+        "**Verdict of this run: the variant does not regress**, by the rule in `README.md`: in "
+        "each family its mean is no lower than base minus the noise floor, and the sign test "
+        "against base shows no loss under 0.05."
+        if holds
+        else "**Verdict of this run: the variant regresses**, by the rule in `README.md`: in "
+        f"{failed} its mean is lower than base minus the noise floor, or the sign test against "
+        "base shows a loss under 0.05.",
     ]
     (RUN / "results.md").write_text("\n".join(lines) + "\n")
     print(f"report: the variant {'does not regress' if holds else 'regresses'}, results.md written")
