@@ -11,9 +11,10 @@ jbus tries it on new gates and changes nothing by it.
 At each close by silence (`questions.silent`), jbus reads the user's words and runs F1 (`held`).
 It then adds one line to `f1-trial.jsonl` in the project's state directory for each question it
 closed: the question's `number`, `slug` and `asked_at`, the pass's time `at`, whether F1 would
-have `held` it, and each matched word as its `id` and the shared `terms`, rarest first. When the
-read or the rule fails, the line has the `error` in place of `held` and `words`. The line holds
-ids and terms, never the text of a word, and nothing in it changes how the gate closed.
+hold it (`would_hold`), and each matched word as its `id` and the shared `terms`, rarest first.
+When the read or the rule fails, the line has the `error` in place of `would_hold` and `words`.
+The line holds ids and terms, never the text of a word, and nothing in it changes how the gate
+closed.
 
 The words are read only, from two places. The first is T3 Code's store (`boxes.store`): every
 message its user created in the last `WINDOW`, as the scout's dataset keeps them (`kept`), with
@@ -196,7 +197,7 @@ def line(run: Pass, one: Question, words: Sequence[Word] | Exception) -> dict[st
     except Exception as error:
         return said | {"error": f"{type(error).__name__}: {error}"}
     return said | {
-        "held": bool(hits),
+        "would_hold": bool(hits),
         "words": [{"id": hit.id, "terms": list(hit.terms)} for hit in hits],
     }
 

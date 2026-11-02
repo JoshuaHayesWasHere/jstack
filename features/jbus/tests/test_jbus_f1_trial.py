@@ -107,7 +107,7 @@ def test_a_close_f1_would_hold_logs_the_gate_and_the_matched_word_and_closes_as_
         "number": 1,
         "slug": "alpha",
         "asked_at": "2026-10-12T15:00:00+00:00",
-        "held": True,
+        "would_hold": True,
         "words": [{"id": "m-0", "terms": ["ledger", "widget"]}],
     }
     assert "Always keep" not in (kitchen.state / "f1-trial.jsonl").read_text()
@@ -116,13 +116,13 @@ def test_a_close_f1_would_hold_logs_the_gate_and_the_matched_word_and_closes_as_
 def test_a_close_f1_would_not_hold_is_logged_as_not_held(kitchen):
     said(RULE)
     (line,) = closed(kitchen, KEEPS)
-    assert (line["number"], line["held"], line["words"]) == (1, False, [])
+    assert (line["number"], line["would_hold"], line["words"]) == (1, False, [])
 
 
 def test_a_close_where_f1_errors_logs_the_error_and_closes_as_ever(kitchen):
     store().write_text("not a database")
     (line,) = closed(kitchen, REMOVES)
-    assert (line["number"], "held" in line) == (1, False)
+    assert (line["number"], "would_hold" in line) == (1, False)
     assert line["error"].startswith("DatabaseError: ")
 
 
