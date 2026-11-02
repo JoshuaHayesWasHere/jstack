@@ -1,5 +1,5 @@
-"""When a thread stops on a usage limit or a login lapse, `failover` moves it to another
-instance of its pool, and the thread carries on there.
+"""When a thread stops on a usage limit, `failover` moves it to another instance of its pool,
+and the thread carries on there.
 
 A turn that ends `failed` on a usage limit cannot carry on where it was. The instance it ran
 on is capped until the window resets, and a carry-on sent there fails the same way and spends
@@ -47,22 +47,9 @@ key, `failover|<thread>|<run>`, in `sent.json`. It keys a stall by the reset ins
 crash between the two calls is safe: the configure call sets the same selection again, and
 the send call uses the key as its retry key. `failover` puts the slug of each crew it reads
 in `Pass.limited`, and `threads.resume` leaves that crew alone, since the carry-ons of
-`threads.resume` are not for a limit or a lapse. jbus keeps the events of a reviewer or a
-scout under the id of that thread, not under the slug, so they never count as the events of
-the crew of that slug.
-
-A turn that fails on a login lapse cannot carry on where it was either: a signed-out instance
-ends each turn within a second with an item whose text `LAPSE` matches (`lapse_of`). That is
-no cap, so `failover` writes nothing to the ledger. It asks T3 Code once a pass which
-instances can run (`orchestrator_capabilities`): one whose constraints include `Provider is
-not authenticated.` cannot, and nor can one that a run failed to sign in on less than `HOLD`
-ago, whatever T3 Code says, since T3 Code may not have looked again yet. It sends the thread
-on to the first instance of its pool that can, as for a cap, with one carry-on keyed
-`lapse|<thread>|<run>`. While no instance of the pool can sign in, it sends nothing, and tells
-the user once with an alert of the machine's, `signed-out <pool>` (`jbus.alert`), with one
-quiet `stall` in the project's log. Only the user can sign in again. The alert ends on the
-first pass that finds an instance of the pool signed in and no thread of the pool still
-waiting on one.
+`threads.resume` are not for a limit. jbus keeps the events of a reviewer or a scout under
+the id of that thread, not under the slug, so they never count as the events of the crew of
+that slug.
 
 `jbus failover --replay <items.json> --thread <id>` tries one recorded cap on one live
 thread. It moves the cap to now (`recorded`), lets it fill the window the ledger has running,
@@ -111,16 +98,6 @@ CARRY_ON = (
     "with the model and options it had. Carry on from where you stopped: {where} Do not start "
     "over."
 )
-LAPSE_CARRY_ON = (
-    "jbus: your last turn stopped because {ran} could not sign in ({text}). This thread is now "
-    "on {instance}, with the model and options it had. Carry on from where you stopped: {where} "
-    "Do not start over."
-)
-LAPSE = re.compile(r"Not logged in · Please run /login|Claude could not authenticate\.")
-LAPSE_KEY = "lapse"
-SIGNED_OUT = "signed-out "
-HOLD = timedelta(minutes=5)
-UNLISTED = "T3 Code does not list it"
 CREW = (
     "read `{brief}` and your worktree's `git status` and `git log` first, keep what is committed."
 )
@@ -210,36 +187,12 @@ def _over(run: Pass, world: World) -> dict[str, set[str]]:
     return {"crew": done["crew: "], "reviewer": done["review: "], "scout": done["scout: "]}
 
 
-@dataclass(frozen=True)
-class Lapse:
-    """A `Lapse` is a run that failed because its instance could not sign in: the provider's
-    words for it, and when the run ended."""
-
-    text: str
-    ended: datetime
-
-
-def lapse_of(items: list[dict[str, Any]], ended: datetime) -> Lapse | None:
-    """Return the login lapse that a run's items name, or None for a run that hit none. An
-    instance that is signed out ends a turn at once with an assistant message, an error item, or
-    both, whose text starts with one of the provider's words in `LAPSE`. An item counts only
-    where its text starts with them, so a turn that only quotes them is no lapse."""
-    for item in items:
-        text = str(item.get("text") or "").strip()
-        if LAPSE.match(text):
-            return Lapse(text, ended)
-    return None
-
-
-def failure_of(
-    client: Client, thread: dict[str, Any], run: Pass
-) -> tuple[ledger.Cap | Lapse, str] | None:
-    """Return what the thread's last run failed on, a usage limit or a login lapse, and the
-    instance that run was on, or None for a run that failed on neither. It reads both from the
-    last items the thread wrote. The failure is the run's instance's, not the thread's instance's
-    now: a thread that the user moved by hand after the failure is on another one. When the text
-    of a cap gives a reset, it reads that reset relative to the time the run ended, not to the
-    time of the pass. A run whose items name a cap is a cap, whatever else they say."""
+def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.Cap, str] | None:
+    """Return the usage limit the thread's last run ended on and the instance that run was on, or
+    None. It reads both from the last items the thread wrote. The cap is on the run's instance, not
+    on the thread's instance now: a thread that the user moved by hand after the failure is on
+    another one. When the text gives a reset, it reads that reset relative to the time the run
+    ended, not to the time of the pass."""
     items = thread.get("itemCount")
     asked = {
         "threadId": thread["threadId"],
@@ -267,37 +220,25 @@ def failure_of(
         run_of.get("completedAt"),
         *sorted((i.get("updatedAt") or "" for i in last), reverse=True),
     ]
-    ended = owed.when(stamps) or run.now
-    found = ledger.cap_of(last, ended) or lapse_of(last, ended)
+    found = ledger.cap_of(last, owed.when(stamps) or run.now)
     return (found, run_of.get("providerInstanceId") or "") if found else None
 
 
 def failover(run: Pass, client: Client, world: World) -> None:
     """Move each thread that failed on a usage limit to an instance that is not capped, and
-    each thread that failed on a login lapse to one that can sign in, and tell it to carry on.
-    See the module for the rules."""
-    found = _failed(run, client, world)
-    if found is not None:
-        carry_lapses(run, client, *found)
-
-
-def _failed(run: Pass, client: Client, world: World) -> tuple[list[Lapsed], dict[str, bool]] | None:
-    """Handle each thread that failed on a usage limit, and return the ones that failed on a
-    login lapse with the mirror checks of the pass, or None where T3 Code did not list the
-    failed threads."""
+    tell it to carry on. See the module for the rules."""
     try:
         failed = owed.failed(run, client)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the failed threads could not be listed ({error})")
-        return None
+        return
     listed = [thread for thread in failed if not thread.get("snoozed")]
     found = movers(run, listed)
-    lapsed: list[Lapsed] = []
-    checked: dict[str, bool] = {}
     if not found:
-        return lapsed, checked
+        return
     over = _over(run, world)
     sent = run.box.sent()
+    checked: dict[str, bool] = {}
     for thread in listed:
         at, ended = thread["threadId"], thread["latestRunId"]
         mover = found.get(at)
@@ -306,216 +247,21 @@ def _failed(run: Pass, client: Client, world: World) -> tuple[list[Lapsed], dict
         crew = {mover.slug} if mover.role == "crew" else set()
         if crew & run.gated:
             continue
-        key, lapse_key = f"failover|{at}|{ended}", f"{LAPSE_KEY}|{at}|{ended}"
-        if key in sent or lapse_key in sent:
+        key = f"failover|{at}|{ended}"
+        if key in sent:
             run.limited |= crew
             continue
         try:
-            failure = failure_of(client, thread, run)
-            if failure is None:
+            capped = limit_of(client, thread, run)
+            if capped is None:
                 continue
             run.limited |= crew
-            if isinstance(failure[0], Lapse):
-                lapsed.append(Lapsed(thread, mover, failure[0], failure[1], lapse_key))
-                continue
-            handle(run, client, thread, mover, (failure[0], failure[1]), key, checked)
+            handle(run, client, thread, mover, capped, key, checked)
         except T3Refused as error:
             what = "T3 Code refused the failover"
             run.gate(mover.subject(at), what, str(error), key=f"{what} {at} {ended}")
         except T3Error as error:
             run.say(f"wait {mover.name}: the failover could not be made ({error})")
-    return lapsed, checked
-
-
-@dataclass(frozen=True)
-class Lapsed:
-    """A `Lapsed` is a thread whose last run failed on a login lapse: the lapse, the instance
-    the run was on, and the retry key of its one carry-on."""
-
-    thread: dict[str, Any]
-    mover: Mover
-    lapse: Lapse
-    ran: str
-    key: str
-
-
-def signed_in(run: Pass, client: Client, lapsed: list[Lapsed]) -> dict[str, str] | None:
-    """Return why each provider instance that T3 Code lists cannot take a carry-on now, and
-    nothing for one that can, or None where T3 Code did not say. T3 Code's capabilities give the
-    why: a signed-out instance has `Provider is not authenticated.` among its constraints. A
-    run that failed to sign in on an instance less than `HOLD` ago says more than T3 Code's word
-    that it can, since T3 Code may not have looked again yet."""
-    try:
-        said = client.call("orchestrator_capabilities", {})
-    except T3Error as error:
-        run.say(f"wait {run.project.name}: T3 Code did not say which instances sign in ({error})")
-        return None
-    why = {
-        str(one["providerInstanceId"]): " ".join(str(c) for c in one.get("constraints") or [])
-        for one in said.get("providers") or []
-        if isinstance(one, dict) and one.get("providerInstanceId")
-    }
-    for one in lapsed:
-        if not why.get(one.ran, UNLISTED) and run.now - one.lapse.ended < HOLD:
-            why[one.ran] = f"a turn on it failed to sign in at {one.lapse.ended.isoformat()}"
-    return why
-
-
-def carry_lapses(run: Pass, client: Client, lapsed: list[Lapsed], checked: dict[str, bool]) -> None:
-    """Send each thread that failed on a login lapse on to the first instance of its pool that
-    can sign in, with one carry-on for the failed run. While no instance of a pool can, send
-    nothing, and tell the user once (`signed_out`). End that alert once an instance of the pool
-    can sign in and no thread of the pool waited this pass."""
-    opened = [key for key in alert.streaks(run.config.state_dir) if key.startswith(SIGNED_OUT)]
-    if not lapsed and not opened:
-        return
-    why = signed_in(run, client, lapsed)
-    if why is None:
-        return
-    waited: set[tuple[str, ...]] = set()
-    for one in lapsed:
-        try:
-            instances = carry_lapse(run, client, one, why, checked)
-        except T3Refused as error:
-            what = "T3 Code refused the failover"
-            at = one.thread["threadId"]
-            run.gate(one.mover.subject(at), what, str(error), key=f"{what} {one.key}")
-            continue
-        except T3Error as error:
-            run.say(f"wait {one.mover.name}: the failover could not be made ({error})")
-            continue
-        waited.add(instances)
-    for key in opened:
-        instances = tuple(key.removeprefix(SIGNED_OUT).split(","))
-        able = [name for name in instances if not why.get(name, UNLISTED)]
-        if able and instances not in waited:
-            alert.closed(run.config, key, f"signed in: {able[0]} can sign in again")
-
-
-def carry_lapse(
-    run: Pass, client: Client, one: Lapsed, why: dict[str, str], checked: dict[str, bool]
-) -> tuple[str, ...]:
-    """Send one thread that failed on a login lapse on, as `carry_lapses` says, and return its
-    pool. A pool whose thread went on this pass keeps its alert until a pass sees none of its
-    threads fail again, so an instance that fails to sign in now and then is told once."""
-    at, mover = str(one.thread["threadId"]), one.mover
-    configuration = client.call("t3_thread_configure", {"threadId": at})
-    selection = dict(configuration.get("modelSelection") or {})
-    if not selection.get("model"):
-        run.limited.discard(mover.slug if mover.role == "crew" else "")
-        return ()
-    here = _instance(selection)
-    instances = pool_of(run, mover.role, here)
-    skip = {
-        name: f"{name} cannot sign in ({why.get(name, UNLISTED)})"
-        for name in instances
-        if why.get(name, UNLISTED)
-    }
-    if len(skip) == len(instances):
-        signed_out(run, instances)
-        return instances
-    subject = mover.subject(at)
-    choice = dispatch.mirrored_choice(run, subject, instances, checked, here, skip=skip)
-    if choice.instance is None:
-        run.say(f"wait {mover.name}: no move: {choice.why}")
-        return instances
-    ran = one.ran or here
-    message = threads.resume_message(
-        LAPSE_CARRY_ON,
-        str(one.thread.get("title", "")),
-        run.home,
-        ran=ran,
-        text=one.lapse.text,
-        instance=choice.instance,
-        where=mover.where(run.home),
-        slug=mover.slug,
-    )
-    line = f"failover {mover.name}: {ran} could not sign in, {_way(selection, choice.instance)}"
-    _go(
-        run,
-        client,
-        one.thread,
-        mover,
-        (selection, instances),
-        choice.instance,
-        one.key,
-        message,
-        line,
-    )
-    return instances
-
-
-def signed_out(run: Pass, instances: tuple[str, ...]) -> None:
-    """Tell the user once that no instance of the pool can sign in, since only the user can sign
-    it in again: an alert of the machine's (`jbus.alert`), which the desk and the infra home get,
-    and one quiet `stall` in the project's log while it is open."""
-    names = " and ".join(
-        [", ".join(instances[:-1]), instances[-1]] if len(instances) > 1 else instances
-    )
-    line = (
-        f"signed out: {names} cannot sign in, so the threads that failed on a login lapse wait: "
-        "sign one in again"
-    )
-    key = SIGNED_OUT + ",".join(instances)
-    alert.opened(run.config, key, line, now=run.now)
-    opened = alert.streak(run.config.state_dir, key)
-    since = opened.since if opened else ""
-    if run.find("", "stall", line, key=f"{key} {since}"):
-        run.say(line)
-
-
-def _instance(selection: dict[str, Any]) -> str:
-    return selection.get("instanceId") or selection.get("provider") or ledger.BUILT_IN
-
-
-def _way(selection: dict[str, Any], to: str) -> str:
-    """Return the end of a failover's line: the instance the carry-on goes on, and the model and
-    options it keeps."""
-    options = ", ".join(f"{o.get('id')}={o.get('value')}" for o in selection.get("options") or [])
-    way = _instance(selection)
-    if to != way:
-        way = f"{way} to {to}"
-    return f"carry-on on {way}, model {selection['model']}{f', {options}' if options else ''}"
-
-
-def _go(
-    run: Pass,
-    client: Client,
-    thread: dict[str, Any],
-    mover: Mover,
-    chosen: tuple[dict[str, Any], tuple[str, ...]],
-    to: str,
-    key: str,
-    message: str,
-    line: str,
-) -> None:
-    """Put the thread on instance `to` of its pool, where it is not there yet, with its
-    selection as it was, and queue its one carry-on under the retry key `key`, with the user's
-    ask that the failed run stopped on quoted below it (`owed.quoted`). Log and say `line` once
-    it went, and close that ask (`owed.taken`)."""
-    at = str(thread["threadId"])
-    selection, instances = chosen
-    client.recipients = client.recipients | {at}
-    if to != _instance(selection):
-        client.moves[at] = (selection, instances)
-        moved = {**selection, "instanceId": to}
-        client.call("t3_thread_configure", {"threadId": at, "modelSelection": moved})
-    sent = outbox.send(
-        run,
-        client,
-        thread=at,
-        row=mover.name,
-        key=key,
-        text=message + owed.quoted(run, at),
-        template="failover",
-        needs="act",
-    )
-    if not sent:
-        return
-    run.find(mover.subject(at), "failover", line, key=key)
-    run.box.mark(key)
-    owed.taken(run, at)
-    run.say(line)
 
 
 @dataclass(frozen=True)
@@ -538,15 +284,24 @@ class Move:
 
     @property
     def instance(self) -> str:
-        return _instance(self.selection)
+        chosen = self.selection
+        return chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN
 
     def line(self) -> str:
         """Return the line jbus says and logs for the move: the failover, or the stall."""
         name, cap, choice = self.mover.name, self.cap, self.choice
         if choice.instance is None:
             return f"capped {name}: {choice.why}; it is sent on at the first reset"
-        way = _way(self.selection, choice.instance)
-        return f"failover {name}: {cap.window} limit until {cap.resets.isoformat()}, {way}"
+        options = ", ".join(
+            f"{o.get('id')}={o.get('value')}" for o in self.selection.get("options") or []
+        )
+        way = self.instance
+        if choice.instance != self.instance:
+            way = f"{self.instance} to {choice.instance}"
+        return (
+            f"failover {name}: {cap.window} limit until {cap.resets.isoformat()}, carry-on on "
+            f"{way}, model {self.selection['model']}{f', {options}' if options else ''}"
+        )
 
 
 def plan(
@@ -573,7 +328,7 @@ def plan(
     selection = dict(configuration.get("modelSelection") or {})
     if not selection.get("model"):
         return None
-    instance = _instance(selection)
+    instance = selection.get("instanceId") or selection.get("provider") or ledger.BUILT_IN
     capped = ran or instance
     instances = dispatch.pool_of(run, MAP_ROLE[mover.role], instance)
     running = ledger.read([capped]).get((capped, cap.window))
@@ -604,6 +359,10 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
         if run.find(subject, "stall", line, key=f"capped {choice.until.isoformat()}"):
             run.say(line)
         return
+    if choice.instance != move.instance:
+        client.moves[at] = (move.selection, move.pool)
+        moved = {**move.selection, "instanceId": choice.instance}
+        client.call("t3_thread_configure", {"threadId": at, "modelSelection": moved})
     message = threads.resume_message(
         CARRY_ON,
         str(move.thread.get("title", "")),
@@ -612,18 +371,23 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
         instance=choice.instance,
         where=move.mover.where(run.home),
         slug=move.mover.slug,
-    )
-    _go(
+    ) + owed.quoted(run, at)
+    sent = outbox.send(
         run,
         client,
-        move.thread,
-        move.mover,
-        (move.selection, move.pool),
-        choice.instance,
-        key,
-        message,
-        line,
+        thread=at,
+        row=move.mover.name,
+        key=key,
+        text=message,
+        template="failover",
+        needs="act",
     )
+    if not sent:
+        return
+    run.find(subject, "failover", line, key=key)
+    run.box.mark(key)
+    owed.taken(run, at)
+    run.say(line)
 
 
 def handle(

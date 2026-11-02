@@ -87,8 +87,7 @@ class Pass:
     second such message this pass.
     `failed` is the project's failed threads that are not settled, as T3 Code listed them for
     `jbus.owed` first in the pass, so `jbus.failover` lists them no second time, or None before.
-    `limited` is the slugs whose last run ended on a usage limit or a login lapse
-    (`jbus.failover`). The pass sends
+    `limited` is the slugs whose last run ended on a usage limit (`jbus.failover`). The pass sends
     their threads no carry-on, since the failover sends one. `world` is what the pass saw of T3
     Code and GitHub, once it has looked (`watch.look`), or None before then or where it could not
     look. `red` is main's tip, red after its one rerun, that `watch` hands to `jbus.culprits` in
