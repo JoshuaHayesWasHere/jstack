@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from jbriefs import below
-from jbus import mirror, queue, strays
+from jbus import mirror, priming, queue, strays
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import add
 
@@ -539,3 +539,17 @@ def test_with_no_proc_to_read_a_slot_held_under_a_process_is_found_by_ps_and_lso
     monkeypatch.setattr(strays, "_run", lambda *argv: said[argv[0]])
     found = [strays.Proc(10, 1, 0, 0, ["sh"], ""), strays.Proc(20, 1, 0, 0, ["sleep"], "")]
     assert strays.in_slot(found) == {10}
+
+
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
+)
+def test_a_scout_on_the_pilots_control_arm_stops_what_its_session_started(
+    kitchen, tmp_path, stray, temp
+):
+    kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=2), title="scout: alpha")
+    (kitchen.home / "scouts" / "alpha.md").write_text("# alpha\n\n## Report\nFound it.\n")
+    asked = priming.first_line(queue.SCOUT, "alpha", priming.CONTROL)
+    stray.append(orphan(temp, "yes", env=session_of(tmp_path, kitchen.checkout, "s", asked)))
+    kitchen.poll()
+    assert not alive(stray[0])

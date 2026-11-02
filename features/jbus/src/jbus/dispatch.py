@@ -52,7 +52,7 @@ from typing import Any
 import jroles
 import jroles.mirror
 from jbriefs.home import home_of, named
-from jbus import queue, read_json, watch, write_json
+from jbus import priming, queue, read_json, watch, write_json
 from jbus.launches import record_path, records
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
@@ -163,11 +163,12 @@ def stacked(brief: str, on: stacks.Stacked | None) -> str:
 
 
 def arguments(
-    run: Pass, slug: str, brief: str, base: str, routed: pool.Route | None
+    run: Pass, slug: str, brief: str, base: str, routed: pool.Route | None, arm: str = ""
 ) -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: the home skill's crew launch with the
-    brief in it. The model selection is the one the role map's `crew` line gives for the
-    instance that `routed` chose."""
+    brief in it, its first line the one that loads `arm`'s priming (`priming.first_line`). The
+    model selection is the one the role map's `crew` line gives for the instance that `routed`
+    chose."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
@@ -177,7 +178,7 @@ def arguments(
             "branch": slug,
             "startFromOrigin": True,
         },
-        "message": f"/crew {slug}\n\n{brief}",
+        "message": f"{priming.first_line(queue.CREW, slug, arm)}\n\n{brief}",
     }
     if run.config.runtime_mode:
         made["runtimeMode"] = run.config.runtime_mode
@@ -224,9 +225,8 @@ def settle_lost(run: Pass, client: Client) -> None:
             write_thread(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
         elif not matching and record.get("dropped"):
-            write_json(
-                path, {"key": record.get("key"), "state": "retry", "at": run.now.isoformat()}
-            )
+            retry = {"key": record.get("key"), "state": "retry", "at": run.now.isoformat()}
+            write_json(path, {**retry, **priming.recorded(record.get("priming", ""))})
             run.say(f"relaunch {slug}: its launch dropped and made no thread: once more")
         else:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
@@ -542,7 +542,13 @@ class Turns:
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
             retried = read_json(path, {}).get("state") == "retry"
-            intent = {"key": key, "state": "intent", "at": run.now.isoformat()}
+            arm = priming.arm(run, slug, queue.CREW)
+            intent = {
+                "key": key,
+                "state": "intent",
+                "at": run.now.isoformat(),
+                **priming.recorded(arm),
+            }
             write_json(path, {**intent, "retried": True} if retried else intent)
             try:
                 reply = client.call(
@@ -553,6 +559,7 @@ class Turns:
                         text,
                         on.branch if on else against(brief) or default,
                         routed,
+                        arm,
                     ),
                 )
             except T3Refused as error:
@@ -582,6 +589,7 @@ class Turns:
                     "state": "launched",
                     "thread": reply["threadId"],
                     "at": run.now.isoformat(),
+                    **priming.recorded(arm),
                 },
             )
             write_thread(run, slug, reply["threadId"])

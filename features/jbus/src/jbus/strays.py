@@ -58,7 +58,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import queue, read_json, threads, verbs, write_json
+from jbus import priming, queue, read_json, threads, verbs, write_json
 from jbus.passes import Pass
 from jbus.watch import at_work
 from jgauge import slot
@@ -398,12 +398,7 @@ def scout_of(proc: Proc, checkout: Path) -> str:
         return ""
     kept = transcript(proc, checkout)
     asked = _asked(kept) if kept else ""
-    found = re.match(
-        r"\s*(?:/scout\s+|<command-message>scout</command-message>\s*"
-        r"<command-name>/scout</command-name>\s*<command-args>)([A-Za-z0-9][A-Za-z0-9-]*)",
-        asked,
-    )
-    return found[1] if found else ""
+    return priming.asked_slug(queue.SCOUT, asked)
 
 
 def owns(task: Task, proc: Proc) -> bool:

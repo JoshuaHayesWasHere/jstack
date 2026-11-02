@@ -31,7 +31,7 @@ from __future__ import annotations
 from typing import Any
 
 import jroles
-from jbus import dispatch, queue, t3, verbs, watch, write_json
+from jbus import dispatch, priming, queue, t3, verbs, watch, write_json
 from jbus.passes import Changed, Depends
 from jbus.t3 import Client, T3Error, T3Refused
 from jmerge import judgement
@@ -40,14 +40,15 @@ from jroles import pool
 TITLE = "scout: "
 
 
-def arguments(run: Any, slug: str, routed: pool.Route | None) -> dict[str, Any]:
+def arguments(run: Any, slug: str, routed: pool.Route | None, arm: str = "") -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: a thread titled `scout: <slug>` in the
-    project's own checkout, with no worktree and no branch, told `/scout <slug>`."""
+    project's own checkout, with no worktree and no branch, told `/scout <slug>`, or on the
+    pilot's control arm told to read the control copy (`priming.first_line`)."""
     made: dict[str, Any] = {
         "projectId": run.project.project_id,
         "title": f"{TITLE}{slug}",
         "workspaceStrategy": {"type": "root"},
-        "message": f"/scout {slug}",
+        "message": priming.first_line(queue.SCOUT, slug, arm),
     }
     if run.config.runtime_mode:
         made["runtimeMode"] = run.config.runtime_mode
@@ -150,15 +151,17 @@ def _launch(half: Any) -> None:
             target.write_text(dispatch.homed(plain, text))
         sha = judgement.brief_sha(text)
         path = dispatch.record_path(run, slug, sha)
+        arm = priming.arm(run, slug, queue.SCOUT)
         launch = {
             "key": f"{run.project.name}/{slug}/{sha[:12]}",
             "role": queue.SCOUT,
             "state": "intent",
             "at": run.now.isoformat(),
+            **priming.recorded(arm),
         }
         write_json(path, launch)
         try:
-            reply = client.call("t3_thread_launch", arguments(run, slug, routed))
+            reply = client.call("t3_thread_launch", arguments(run, slug, routed, arm))
         except T3Refused as error:
             path.unlink()
             if wrote:
