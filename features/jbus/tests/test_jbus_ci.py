@@ -2,8 +2,9 @@
 
 The tests check the numbers against a recording of GitHub's Actions API for jstack, from 2026-10-14
 to 2026-10-17 (`features/jbus/tests/fixtures/ci/jstack`, which `ci_replay` replays). They run the
-collector as `jbus ci` runs it. The numbers equal the figures the plan was written from, and where
-one does not, the test says by how much and why.
+collector as `jbus ci` runs it. The plan's figures held the local runner's jobs alone. The numbers
+now count the jobs of both runners together, so a figure that differs from the plan's says by how
+much and why. The recording has no log of a hosted job, so each red hosted job is counted unread.
 """
 
 import configparser
@@ -66,22 +67,25 @@ def test_the_nine_targets_come_in_the_order_of_the_plan(nine):
     ]
 
 
-def test_a_green_job_waits_26_6_minutes_for_a_runner_and_runs_9_67_and_the_target_is_missed(nine):
+def test_a_green_job_waits_0_minutes_for_a_runner_and_runs_8_22_over_both_runners(nine):
+    """The plan's 26.6 vs 9.67 was the local runner's 75 green jobs alone. The hosted runner's 120
+    start at once, so over both the median wait is 0."""
     one = nine["queue"]
-    assert (one.shown, one.n, one.met) == ("26.6 vs 9.67 min", 75, False)
-    assert one.hosted == "0 vs 6.44 min"
+    assert (one.shown, one.n, one.met) == ("0 vs 8.22 min", 195, True)
+    assert one.runners == "local 75, hosted 120"
 
 
-def test_42_9_percent_of_the_local_runners_minutes_go_to_jobs_that_fail_or_are_cancelled(nine):
-    assert (nine["waste"].shown, nine["waste"].met) == ("42.9%", False)
-    assert nine["waste"].hosted == "31.4%"
+def test_37_1_percent_of_both_runners_minutes_go_to_jobs_that_fail_or_are_cancelled(nine):
+    """The plan's 42.9% was the local runner's alone, and the hosted runner's was 31.4%."""
+    assert (nine["waste"].shown, nine["waste"].met) == ("37.1%", False)
+    assert nine["waste"].runners == "local 130, hosted 165"
 
 
-def test_7_of_35_local_reds_are_the_pull_requests_own_and_the_rest_are_main_the_runner_or_a_flake(
-    nine,
-):
-    assert nine["own"].shown == "20% (7 of 35: 7 own, 10 main, 16 runner, 2 flake)"
-    assert nine["own"].met is False
+def test_7_of_68_reds_are_the_pull_requests_own_and_the_33_hosted_reds_are_unread(nine):
+    """The plan's 7 of 35 was the local runner's reds. The recording has no log of the 33
+    hosted reds, so they are counted unread and none of them is the pull request's own."""
+    assert nine["own"].shown == "10% (7 of 68: 7 own, 10 main, 16 runner, 2 flake, 33 unread)"
+    assert (nine["own"].met, nine["own"].runners) == (False, "local 35, hosted 33")
 
 
 def test_29_force_pushes_over_62_merged_pull_requests_is_0_47_each(nine):
@@ -89,11 +93,13 @@ def test_29_force_pushes_over_62_merged_pull_requests_is_0_47_each(nine):
     assert nine["rebases"].met is False
 
 
-def test_time_to_green_is_33_minutes_on_the_local_runner_and_8_6_on_the_hosted(nine):
-    assert (nine["green"].shown, nine["green"].hosted, nine["green"].n) == (
-        "33 min",
-        "8.6 min",
-        28,
+def test_time_to_green_is_11_minutes_over_the_62_merged_pull_requests(nine):
+    """The plan's 33 minutes was the 28 pull requests with a green local job; every merged pull
+    request had a green job on one runner or the other."""
+    assert (nine["green"].shown, nine["green"].n, nine["green"].runners) == (
+        "11 min",
+        62,
+        "local 28, hosted 36",
     )
 
 
@@ -118,10 +124,89 @@ def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):
     assert (nine["inode"].value, nine["inode"].shown, nine["inode"].met) == (None, "no data", None)
 
 
+def hosted(job, sha, branch, conclusion, *, pr=None, event="pull_request", tests=(), **more):
+    """A job of a GitHub-hosted runner that ran, created at `NOW - 1 day + job minutes`."""
+    created = NOW - timedelta(days=1) + timedelta(minutes=job)
+    return {
+        "run": job,
+        "job": job,
+        "attempt": 1,
+        "name": "check",
+        "sha": sha,
+        "branch": branch,
+        "pr": pr,
+        "event": event,
+        "created": iso(created),
+        "started": iso(created + timedelta(minutes=1)),
+        "completed": iso(created + timedelta(minutes=6)),
+        "conclusion": conclusion,
+        "runner": f"GitHub Actions {job}",
+        "kind": "hosted",
+        "steps": 5,
+        "tests": list(tests),
+        "signs": [],
+        **dict.fromkeys(ledger.TELEMETRY),
+        **more,
+    }
+
+
+def test_a_week_of_hosted_jobs_only_has_a_number_for_each_of_the_nine_targets_and_says_so():
+    flaky_test = "tests/test_a.py::test_b"
+    jobs = [
+        hosted(1, "h1", "one", "success", pr=1, tmp_inode_pct=40),
+        hosted(2, "h2", "two", "failure", pr=2, tests=[flaky_test]),
+        hosted(3, "h3", "three", "failure", pr=3, tests=[flaky_test]),
+        hosted(4, "h4", "four", "failure", pr=4, tests=["tests/test_c.py::test_d"]),
+        hosted(5, "m1", "main", "success", event="push"),
+    ]
+    merged = iso(NOW - timedelta(hours=12))
+    pulls = [
+        {
+            "number": 1,
+            "branch": "one",
+            "head": "h1",
+            "created": iso(NOW - timedelta(days=2)),
+            "merged": merged,
+            "closed": merged,
+            "merge_commit": "m1",
+            "pushes": [iso(NOW - timedelta(hours=20))],
+        }
+    ]
+    week = numbers.compute(numbers.Facts(jobs, pulls, [], NOW), NOW - timedelta(days=7), NOW)
+    assert [(one.key, one.shown) for one in week] == [
+        ("queue", "1 vs 5 min"),
+        ("waste", "60.0%"),
+        ("own", "33% (1 of 3: 1 own, 2 flake)"),
+        ("rebases", "1.00 (1 over 1)"),
+        ("stale", "0 of 1"),
+        ("green", "6 min"),
+        ("mainred", "0 min"),
+        ("flaky", "1"),
+        ("inode", "40%"),
+    ]
+    jobs_of = {one.key: one.runners for one in week}
+    assert jobs_of["queue"] == "hosted 2"
+    assert jobs_of["waste"] == "hosted 5"
+    assert jobs_of["own"] == jobs_of["flaky"] == "hosted 3"
+    assert jobs_of["green"] == jobs_of["inode"] == "hosted 1"
+    assert jobs_of["rebases"] == jobs_of["stale"] == "pull requests, any runner"
+    text = report.body(
+        numbers.Facts(jobs, pulls, [], NOW),
+        week,
+        NOW - timedelta(days=7),
+        NOW,
+        UTC,
+        report.jsettings.DEFAULTS,
+    )
+    assert "| queue p50 under exec p50 | 1 vs 5 min | hosted 2 | queue under exec | met |" in text
+    assert "| no data |" not in text
+
+
 def test_every_number_says_how_it_was_counted(nine):
     for one in nine.values():
         assert one.how and one.target and one.name
-    assert "job level" in nine["queue"].how and "local runner" in nine["queue"].how
+    assert "job level" in nine["queue"].how
+    assert all(one.runners for one in nine.values() if one.value is not None)
     assert "cancelled while it waited" in nine["queue"].how
 
 
@@ -273,7 +358,104 @@ def test_a_red_job_whose_log_could_not_be_read_is_kept_unread_and_is_never_the_p
     red = [one for one in rows if one["conclusion"] == "failure" and one["kind"] == "local"]
     assert len(rows) == 314 and red and all(one["tests"] is None for one in red)
     one = numbers.own(numbers.Facts(rows, [], [], NOW), START, NOW)
-    assert (one.value, one.met) == (0.0, False) and "35 unread" in one.shown
+    assert (one.value, one.met) == (0.0, False) and "68 unread" in one.shown
+
+
+FAILED_LOG = "2026-10-17T20:00:00.1Z FAILED tests/test_a.py::test_b - boom\n"
+
+
+def a_hosted_red():
+    base = Replay()
+    return next(
+        job
+        for jobs in base.jobs.values()
+        for job in jobs
+        if job["steps"]
+        and job["conclusion"] == "failure"
+        and collect.kind(job["labels"]) == "hosted"
+    )
+
+
+class HostedLog(Replay):
+    """The recording, with a log for one red hosted job, and the logs it was asked for."""
+
+    def __init__(self, job):
+        super().__init__()
+        self.logs[str(job)] = FAILED_LOG
+        self.read = []
+
+    def log(self, repo, job):
+        self.read.append(job)
+        return super().log(repo, job)
+
+
+def test_a_red_job_on_a_hosted_runner_has_the_failing_tests_its_log_names(tmp_path):
+    red = a_hosted_red()
+    collect.collect(HostedLog(red["id"]), REPO, tmp_path, NOW, 14)
+    row = next(one for one in ledger.read(tmp_path / ledger.JOBS) if one["job"] == red["id"])
+    assert (row["kind"], row["tests"], row["logged"]) == (
+        "hosted",
+        ["tests/test_a.py::test_b"],
+        True,
+    )
+
+
+def test_a_hosted_red_kept_before_its_log_was_read_is_read_once_by_the_next_collect(tmp_path):
+    red = a_hosted_red()
+    collect.collect(Replay(), REPO, tmp_path, NOW, 14)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    older = [{k: v for k, v in one.items() if k != "logged"} | {"tests": []} for one in rows]
+    ledger.rewrite(tmp_path / ledger.JOBS, older)
+    gh = HostedLog(red["id"])
+    collect.collect(gh, REPO, tmp_path, NOW, 14)
+    after = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
+    assert after[red["id"]]["tests"] == ["tests/test_a.py::test_b"]
+    reds = [
+        one
+        for one in after.values()
+        if one["conclusion"] == "failure" and one["steps"] and one["kind"] == "hosted"
+    ]
+    assert len(after) == len(rows) and after[red["id"]]["logged"] is True
+    assert all("logged" not in one for one in reds if one["job"] != red["id"])
+    assert red["id"] in gh.read
+    again = HostedLog(red["id"])
+    collect.collect(again, REPO, tmp_path, NOW, 14)
+    assert red["id"] not in again.read
+    assert sorted(again.read) == sorted(one["job"] for one in reds if one["job"] != red["id"])
+
+
+def test_a_re_read_keeps_what_a_local_red_held_and_retries_a_log_github_did_not_give(tmp_path):
+    """Only a hosted red was never read: a local red kept before `logged` keeps its tests, and a
+    hosted red whose log GitHub did not give is left as it was, for the next collect."""
+    red = a_hosted_red()
+    collect.collect(Replay(), REPO, tmp_path, NOW, 14)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    older = [{k: v for k, v in one.items() if k != "logged"} for one in rows]
+    for one in older:
+        if one["job"] == red["id"]:
+            one["tests"] = []
+    ledger.rewrite(tmp_path / ledger.JOBS, older)
+    local = {
+        one["job"]: one["tests"]
+        for one in older
+        if one["kind"] == "local" and one["conclusion"] == "failure" and one["steps"]
+    }
+
+    class Down(HostedLog):
+        def log(self, repo, job):
+            self.read.append(job)
+            raise Unavailable("down")
+
+    down = Down(red["id"])
+    collect.collect(down, REPO, tmp_path, NOW, 14)
+    after = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
+    assert local and {job: after[job]["tests"] for job in local} == local
+    assert not set(local) & set(down.read) and red["id"] in down.read
+    assert "logged" not in after[red["id"]] and after[red["id"]]["tests"] == []
+    gh = HostedLog(red["id"])
+    collect.collect(gh, REPO, tmp_path, NOW, 14)
+    row = next(one for one in ledger.read(tmp_path / ledger.JOBS) if one["job"] == red["id"])
+    assert (row["tests"], row["logged"]) == (["tests/test_a.py::test_b"], True)
 
 
 def test_a_log_with_colour_codes_gives_the_same_evidence_as_one_without():
@@ -370,7 +552,8 @@ def test_the_week_report_says_every_number_with_how_it_was_counted(facts, nine):
     text = report.body(
         facts, list(nine.values()), NOW - timedelta(days=7), NOW, UTC, report.jsettings.DEFAULTS
     )
-    assert "Job level only" in text and "counted apart" in text
+    assert "Job level only" in text and "its runners column says which" in text
+    assert "| 0 vs 8.22 min | local 75, hosted 120 |" in text
     assert "cancelled while it waited" in text
     for one in nine.values():
         assert f"**{one.name}**" in text
@@ -380,12 +563,10 @@ def test_the_week_report_says_every_number_with_how_it_was_counted(facts, nine):
 
 def test_only_a_missed_target_is_missed(nine):
     assert [one.key for one in report.missed(list(nine.values()))] == [
-        "queue",
         "waste",
         "own",
         "rebases",
         "stale",
-        "green",
     ]
 
 
@@ -406,7 +587,7 @@ def test_a_week_with_a_target_missed_alerts_once_and_a_week_without_alerts_nobod
     report.escalate(config, project, late, path, KITCHEN_NOW, said.append)
     kitchen.poll(KITCHEN_NOW)
     (line,) = kitchen.wakes.said
-    assert "missed" in line and "queue p50 under exec p50 26.6 vs 9.67 min" in line
+    assert "missed" in line and "wasted-minute share 37.1%" in line
     assert "flaky tests" not in line and str(path) in line
 
 

@@ -71,8 +71,8 @@ def lines(nine: list[numbers.Number]) -> list[str]:
     found = []
     for one in nine:
         verdict = "MISSED" if one.met is False else "met" if one.met else "no data"
-        hosted = f"; hosted {one.hosted}" if one.hosted else ""
-        found.append(f"{one.name}: {one.shown} (held to {one.target}) {verdict}{hosted}")
+        runners = f"; {one.runners}" if one.runners else ""
+        found.append(f"{one.name}: {one.shown} (held to {one.target}) {verdict}{runners}")
         found.append(f"  counted: {one.how} (n = {one.n})")
     return found
 

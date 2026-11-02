@@ -6,10 +6,13 @@ ledger does not keep yet, with `filter=all` so that it gets every attempt of a r
 pull request whose update the ledger has not kept, it reads the timeline, where a force-push of its
 branch is an event: one the ledger kept at the same update keeps its force-pushes. The pull
 requests come a page at a time, the latest update first, and the collector stops at the first page
-that reaches back past the time. For a red job on a local runner it reads the log once, for the
-failing tests the log names and the runner faults the log shows. Each of those reads waits for the
-reads of the stage before it and for no other, so a pass's job lists, annotations and logs are read
-side by side (`jbus.passes.side_by_side`).
+that reaches back past the time. For a red job, on a local or a hosted runner, it reads the log
+once, for the failing tests the log names and the runner faults the log shows. Each of those reads
+waits for the reads of the stage before it and for no other, so a pass's job lists, annotations and
+logs are read side by side (`jbus.passes.side_by_side`). A red hosted job kept before the collector
+read hosted logs has no `logged` field: a collect reads the log of each such job created since its
+time and rewrites the ledger with what it read, and leaves one whose log GitHub did not give as it
+was, for the next collect.
 
 `jbus ci` collects the last `days` days (`collect`) and waits for the ledger's lock. Each pass of
 jbus collects too (`keep`, from the step in `jbus.ci`): the runs created in the last `PASS_HOURS`
@@ -232,18 +235,27 @@ def row(
         "steps": steps,
         "tests": [],
         "signs": [],
+        "logged": False,
         **dict.fromkeys(ledger.TELEMETRY),
     }
     if steps:
         made.update(notice(gh, repo, job["id"]))
-    if steps and made["kind"] == "local" and job.get("conclusion") == "failure":
-        try:
-            lines = evidence(gh.log(repo, job["id"]))
-        except Unavailable:
-            made["tests"] = None
-        else:
-            made["tests"], made["signs"] = failing_tests(lines), signs(lines)
-    return made
+    return read_log(gh, repo, made) if unlogged(made) else made
+
+
+def unlogged(kept: dict[str, Any]) -> bool:
+    """Whether a kept job is red, ran a step, and has not had its log read."""
+    return kept["conclusion"] == "failure" and bool(kept.get("steps")) and not kept.get("logged")
+
+
+def read_log(gh: Gh, repo: str, kept: dict[str, Any]) -> dict[str, Any]:
+    """Return the kept job with the failing tests and the runner faults of its log, `tests`
+    None where GitHub did not give the log."""
+    try:
+        lines = evidence(gh.log(repo, kept["job"]))
+    except Unavailable:
+        return kept | {"tests": None, "signs": [], "logged": True}
+    return kept | {"tests": failing_tests(lines), "signs": signs(lines), "logged": True}
 
 
 def _pushes(gh: Gh, repo: str, number: int) -> list[str]:
@@ -354,4 +366,31 @@ def _collect(
         if job.get("status") == "completed"
     ]
     rows = side_by_side(lambda one: row(gh, repo, *one, everyone), done)
-    return Counts(len(runs), ledger.add(state / ledger.JOBS, rows), len(everyone))
+    added = ledger.add(state / ledger.JOBS, rows)
+    _reread(gh, repo, state, since)
+    return Counts(len(runs), added, len(everyone))
+
+
+def _reread(gh: Gh, repo: str, state: Path, since: datetime) -> None:
+    """Read the log of each red hosted job created since `since` that was kept before the
+    collector read hosted logs (it has no `logged` field), and rewrite the ledger with what was
+    read. A local one's log was read when it was kept, and a log GitHub does not give now leaves
+    its job as it was, for the next collect."""
+    kept = ledger.read(state / ledger.JOBS)
+    older = [
+        at
+        for at, one in enumerate(kept)
+        if "logged" not in one
+        and one["kind"] == "hosted"
+        and unlogged(one)
+        and (_time(one.get("created")) or since) >= since
+    ]
+    if not older:
+        return
+    read = side_by_side(lambda at: read_log(gh, repo, kept[at]), older)
+    given = [(at, one) for at, one in zip(older, read, strict=True) if one["tests"] is not None]
+    if not given:
+        return
+    for at, one in given:
+        kept[at] = one
+    ledger.rewrite(state / ledger.JOBS, kept)

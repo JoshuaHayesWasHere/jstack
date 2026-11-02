@@ -20,12 +20,13 @@ A run that finishes more than 3 hours after GitHub created it waits for the next
 
 It keeps what it collects in two files in the project's state directory:
 
-- `ci.jsonl`, one line per job, written once.
+- `ci.jsonl`, one line per job.
   A second run adds no line it already has.
   A line holds the run, the job and the attempt.
   It also holds the job's `name`, `sha`, `branch`, `pr`, `event`, `created`, `started`, `completed` and `conclusion`.
-  It names the `runner` and its `kind`, `hosted` or `local`, and the targets count the two kinds apart.
-  For a red job on the local runner, it lists the failing `tests` and the runner faults (`signs`).
+  It names the `runner` and its `kind`, `hosted` or `local`.
+  For a red job on either kind of runner, it lists the failing `tests` and the runner faults (`signs`) that the job's log shows, and `logged` says the log was read.
+  A red hosted job kept before `jbus ci` read the logs of hosted jobs has no `logged` field, and the next collect whose days reach it reads its log and rewrites the file, or leaves it for a later collect where GitHub did not give the log.
   A job cancelled while it waited has no runner and no start, and `jbus ci` keeps it and counts it.
 - `ci-prs.jsonl`, one line per pull request, rewritten when one changed, with the time GitHub last updated it and the times its branch was force-pushed.
 
@@ -48,17 +49,15 @@ Where `GITHUB_STEP_SUMMARY` is set, `--notice` also writes the fields there as a
 
 `jbus ci` counts each target over the period, from job-level rows only.
 A job counts once, and a run never does.
-Four targets count only the jobs of self-hosted runners, whose `kind` is `local`: queue, wasted-minute share, own-cause reds and time-to-green.
-Queue, wasted-minute share and time-to-green also show the figure for GitHub-hosted runners beside the self-hosted one.
-On a repo that runs on GitHub-hosted runners alone, these four targets read `no data`.
-The other five count every pull request, push to main or job, whatever runner it ran on.
-Flaky tests reads a red job's failing tests from the log of a self-hosted job only, so on a hosted-only repo it counts 0.
+Each target counts the jobs that ran on self-hosted runners (`kind` `local`) and on GitHub-hosted runners together, so a repo that runs on one kind alone still gets all nine numbers.
+Each number names the runners it covers, with how many jobs of each, as in `local 3, hosted 40`.
+Rebases per merged PR and staleness-only rebases count pull requests, not jobs, and say `pull requests, any runner`.
 
 | Target | Held to | Counted as |
 | --- | --- | --- |
 | queue p50 under exec p50 | the wait is under the run | median minutes from `created` to `started`, against the median from `started` to `completed`, of green jobs. A job cancelled while it waited is in neither. |
 | wasted-minute share | under 15% | execution minutes of jobs that failed or were cancelled, over all execution minutes |
-| own-cause reds | over 70% | of the failed local jobs on a run's last attempt, the share that is the pull request's own. A red job is `main` when main was red with the same failing tests when the job started. It is `runner` when its log shows a runner fault and another branch fails the same tests, and `flake` when no fault shows. Any other red job is `own`. |
+| own-cause reds | over 70% | of the failed jobs on a run's last attempt, the share that is the pull request's own. A red job is `main` when main was red with the same failing tests when the job started. It is `runner` when its log shows a runner fault and another branch fails the same tests, and `flake` when no fault shows. Any other red job is `own`. |
 | rebases per merged PR | under 0.3 | force-pushes of the branches of the pull requests merged in the period, over those pull requests |
 | staleness-only rebases | none | force-pushes whose cause was only that main had moved, read from the jbus event that came before them |
 | time-to-green p50 | under 15 min | median minutes from the first job on a merged pull request's final head to the last green one |
@@ -78,6 +77,7 @@ With `Persistent=true`, a run the machine slept through starts once the machine 
 The service runs `jbus ci --report --each`.
 For each project that asks, it collects the jobs and pull requests, then writes `reports/ci-week-<date>.md` in that project's home.
 The report has the nine targets over the last 7 days, each with how it was counted.
+Beside each number it names the runners that number covers.
 It gives the number of local jobs and the number of hosted jobs.
 It also gives how many jobs were cancelled while they waited.
 It gives main's red minutes by day.
