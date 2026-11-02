@@ -67,6 +67,21 @@ class Route:
         finally:
             link.close()
 
+    def answer(self, body, project="demo"):
+        """`POST /answer` on the view, as its own page sends it: the user over a page."""
+        import http.client
+
+        link = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        origin = f"http://127.0.0.1:{self.port}"
+        sent = {"Host": origin.removeprefix("http://"), "Origin": origin}
+        sent["Content-Type"] = "application/json"
+        try:
+            link.request("POST", f"/answer?project={project}", json.dumps(body), sent)
+            answer = link.getresponse()
+            return answer.status, json.loads(answer.read())
+        finally:
+            link.close()
+
     def get(self, path):
         import http.client
 

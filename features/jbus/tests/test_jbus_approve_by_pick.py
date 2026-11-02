@@ -57,9 +57,11 @@ def shown(kitchen, kind="user_input_request", labels=LABELS):
     )
 
 
-def stored(tmp_path, monkeypatch, answers, status="resolved", commands=(APP,)):
+def stored(
+    tmp_path, monkeypatch, answers, status="resolved", commands=(APP,), resolved=None
+):
     """Write T3 Code's store with the request and the commands that resolved it, as T3 Code
-    keeps them, and point `T3CODE_HOME` at it."""
+    keeps them, and point `T3CODE_HOME` at it. `resolved` is when the user answered."""
     home = tmp_path / "t3"
     (home / "userdata").mkdir(parents=True)
     db = sqlite3.connect(home / "userdata" / "statev2.sqlite")
@@ -80,7 +82,7 @@ def stored(tmp_path, monkeypatch, answers, status="resolved", commands=(APP,)):
             command_type text);
         """
     )
-    resolved = "2026-10-12T14:30:00.000Z" if status == "resolved" else None
+    resolved = (resolved or "2026-10-12T14:30:00.000Z") if status == "resolved" else None
     payload = {"id": REQUEST, "kind": "user_input", "status": status}
     if status == "resolved":
         payload |= {"resolvedAt": resolved, "answers": answers}
