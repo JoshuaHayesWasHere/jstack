@@ -82,6 +82,7 @@ class Run:
     trigger: str
     text: str
     capped: bool
+    project_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -252,6 +253,52 @@ def report(
     return out
 
 
+COLUMNS = dict(
+    zip(KINDS, ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped"), strict=True)
+)
+"""The name of each kind's units in a day's spend line."""
+THREADS = {"crew: ": "crew", "review: ": "review", "home: ": "home", "scout: ": "scout"}
+"""The role of a thread by the start of its title, which jbus gives it, then the row's slug."""
+
+
+def _sums(runs: list[Run]) -> dict[str, float | int]:
+    return {
+        "units": round(sum(units(run) for run in runs)),
+        "runs": len(runs),
+        "input": sum(run.tokens.input for run in runs),
+        "cached": sum(run.tokens.cached for run in runs),
+        "written": sum(run.tokens.written for run in runs),
+        "output": sum(run.tokens.output for run in runs),
+    }
+
+
+def role(title: str) -> tuple[str, str]:
+    """The role and the slug a thread's title names, or `other` and no slug for a title jbus did
+    not give: such a title is the user's, so none of it is kept."""
+    for prefix, name in THREADS.items():
+        if title.startswith(prefix):
+            return name, title[len(prefix) :].strip()
+    return "other", ""
+
+
+def day_lines(runs: list[Run], day: str) -> tuple[dict, list[dict]]:
+    """A day's spend of `runs`, the runs that started on it: one line of its totals and its units
+    by kind, and one line for each role and slug. No line holds a title or a message, only the
+    slug of a thread jbus named."""
+    by_kind: dict[str, float] = defaultdict(float)
+    for run in runs:
+        by_kind[kind(run)] += units(run)
+    total = {"day": day, **_sums(runs), **{COLUMNS[k]: round(by_kind[k]) for k in KINDS}}
+    groups: dict[tuple[str, str], list[Run]] = defaultdict(list)
+    for run in runs:
+        groups[role(run.title)].append(run)
+    rows = [
+        {"day": day, "role": name, "slug": slug, **_sums(grouped)}
+        for (name, slug), grouped in sorted(groups.items())
+    ]
+    return total, rows
+
+
 def _at(stamp: str) -> datetime:
     return jsettings.when(stamp)
 
@@ -279,7 +326,7 @@ WITH r AS (
     GROUP BY a.run_id
 )
 SELECT r.run_id, r.provider_instance_id, json_extract(r.payload_json, '$.modelSelection.model'),
-    t.title, coalesce(pr.title, ''), r.ordinal, r.status,
+    t.title, coalesce(pr.title, ''), t.project_id, r.ordinal, r.status,
     coalesce(json_extract(r.payload_json, '$.startedAt'), r.requested_at),
     coalesce(u.input, 0), coalesce(u.cached, 0), coalesce(u.written, 0), coalesce(u.output, 0),
     coalesce(u.partial, 0),
@@ -357,6 +404,7 @@ def read(
             trigger=trigger(message),
             text=text,
             capped=bool(limited) or (status == "failed" and bool(partial)),
+            project_id=project_id,
         )
         for (
             run_id,
@@ -364,6 +412,7 @@ def read(
             model,
             title,
             in_project,
+            project_id,
             ordinal,
             status,
             start,

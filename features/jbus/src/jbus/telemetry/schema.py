@@ -19,6 +19,12 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
   the latest attempt of each run, the latest run of each commit, and each red spell from the
   first commit whose check failed to the next commit whose check passed (`minutes_to_green`).
 - `change_failures` (S6): each merged row, and whether its pull request opened a spell.
+- `brief_at_launch` (fault F1): each launch of a row, the sha of the brief stored then
+  (`brief-versions.jsonl`), and how many versions came after it.
+- `run_attempts` (fault F2): each workflow run of every project, its attempts, when and at which
+  attempt it first failed, and how its last attempt ended (`runs.jsonl`).
+- `carried_words` (fault F4): each word the user had a home carry (`acts.jsonl`'s `word`), and
+  the thread it went to and when (`word-sends.json`), with no word of its text.
 - `weekly_lead_time`, `weekly_change_failure` and `weekly_restore` (S7): each week's number,
   the median and the 85th percentile as `statistics.median` and the scorecard's `pct` take
   them. A week starts on Sunday, in the user's zone.
@@ -39,6 +45,12 @@ def _table(source: Source) -> str:
     )
 
 
+def _tables(*names: str) -> str:
+    """The SQL that makes the tables of these sources."""
+    by = {source.table: source for source in SOURCES}
+    return "".join(_table(by[name]) for name in names)
+
+
 FIRST = (
     "CREATE TABLE cursors (project TEXT NOT NULL, source TEXT NOT NULL, inode INTEGER, "
     "offset INTEGER, head TEXT, size INTEGER, mtime INTEGER, PRIMARY KEY (project, source)) "
@@ -46,12 +58,33 @@ FIRST = (
     "CREATE TABLE meta (name TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;\n"
     "CREATE TABLE builds (at TEXT NOT NULL, ms INTEGER, bytes INTEGER, rows INTEGER, "
     "left INTEGER);\n"
-    + "".join(_table(source) for source in SOURCES)
+    + _tables(
+        "events",
+        "acts",
+        "items",
+        "transitions",
+        "outbox",
+        "ci_jobs",
+        "merges",
+        "questions",
+        "queue",
+        "merged",
+        "ci_prs",
+    )
     + "CREATE INDEX transitions_slug ON transitions (project, slug, to_status);\n"
     "CREATE INDEX ci_jobs_run ON ci_jobs (project, run, attempt);\n"
 )
 
-MIGRATIONS: tuple[str, ...] = (FIRST,)
+RECORDS = (
+    _tables("brief_versions", "row_pulls", "runs", "spend_days", "spend_rows", "word_sends")
+    + "CREATE INDEX brief_versions_slug ON brief_versions (project, slug, at);\n"
+    "CREATE INDEX row_pulls_slug ON row_pulls (project, slug);\n"
+    "CREATE INDEX runs_run ON runs (project, run, attempt);\n"
+)
+"""The records jbus keeps of what its snapshots overwrite (`jbus.history`, `jbus.spent`), and
+`word-sends.json`."""
+
+MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS)
 """`MIGRATIONS[n]` takes a store from version `n` to `n + 1`. Append, never edit one."""
 
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
@@ -166,6 +199,31 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "weekly_change_failure",
         "SELECT week, sum(opened_spell) AS failures, count(*) AS merged, "
         "1.0 * sum(opened_spell) / count(*) AS rate FROM change_failures GROUP BY week",
+    ),
+    (
+        "brief_at_launch",
+        "SELECT t.project, t.slug, t.at AS launched_at, t.day, (SELECT v.sha FROM brief_versions v "
+        "WHERE v.project = t.project AND v.slug = t.slug AND v.at <= t.at "
+        "ORDER BY v.at DESC, v.key DESC LIMIT 1) AS sha, (SELECT count(*) FROM brief_versions v "
+        "WHERE v.project = t.project AND v.slug = t.slug AND v.at > t.at AND v.sha != '') "
+        "AS changed_after FROM transitions t WHERE t.to_status = 'launched'",
+    ),
+    (
+        "run_attempts",
+        "SELECT project, run, max(workflow) AS workflow, max(sha) AS sha, max(branch) AS branch, "
+        "max(event) AS event, max(pr) AS pr, count(*) AS attempts, min(day) AS day, "
+        f"min(CASE WHEN conclusion IN {RED} THEN updated END) AS first_fail_at, "
+        f"min(CASE WHEN conclusion IN {RED} THEN attempt END) AS first_fail_attempt, "
+        "max(updated) AS last_at, (SELECT r.conclusion FROM runs r WHERE r.project = runs.project "
+        "AND r.run = runs.run ORDER BY r.attempt DESC LIMIT 1) AS last_conclusion "
+        "FROM runs GROUP BY project, run",
+    ),
+    (
+        "carried_words",
+        "SELECT a.project, a.id AS word, a.at AS kept_at, a.said_at, a.said_in, a.source, "
+        "a.party, a.route, a.subject, a.outcome, a.words_len, s.thread, s.sent_at, "
+        "coalesce(s.waiting, 0) AS waiting, a.day FROM acts a LEFT JOIN word_sends s "
+        "ON s.project = a.project AND s.word = a.id WHERE a.verb = 'word'",
     ),
     (
         "weekly_restore",

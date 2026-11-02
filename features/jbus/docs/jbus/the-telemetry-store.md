@@ -21,6 +21,12 @@ The store has one table for each record file of each project, with a `project` c
 | `queue` | `queue.json` | a row of the queue, with its approval's times |
 | `merged` | `merged.json` | a merged pull request of a row |
 | `ci_prs` | `ci-prs.jsonl` | a pull request the CI ledger keeps |
+| `brief_versions` | `brief-versions.jsonl` | a change of a stored brief's sha, or its removal (no sha) |
+| `row_pulls` | `row-pulls.jsonl` | a pull request a row had, the first time a pass saw it open, and again merged |
+| `runs` | `runs.jsonl` | a completed attempt of a workflow run, of every project |
+| `spend_days` | `spend.jsonl` | a project's Claude spend of one local day (`spent_on`), in units, tokens and units by kind |
+| `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
+| `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
 Each table also has `day`, the local date of its main time in the zone that `jsettings` gives.
@@ -31,6 +37,35 @@ A row keeps ids, times, counts and labels, and in place of each text, its length
 What the user said stays in T3 Code's store.
 The file is readable by you alone.
 
+## The records jbus keeps for the store
+
+Four logs keep what jbus's snapshots overwrite, each written from what jbus already holds, so none costs a call to GitHub (`jbus.history`, `jbus.spent`):
+
+- `brief-versions.jsonl`: the queue's one writer of a stored brief adds a line each time the brief's sha changes, and keeps each version's text once in `brief-versions/<sha>.md` beside it, out of the store.
+- `row-pulls.jsonl`: a pass adds a line for each pull request it sees under a row's slug, once open and once merged.
+- `runs.jsonl`: the pass's list of the repo's last 40 workflow runs, which it asks for already, adds each completed attempt once.
+  An attempt that ends and is rerun between two passes is not seen.
+- `spend.jsonl` and `spend-rows.jsonl`: once a pass, a chore reads T3 Code's store for each local day that ended six hours ago and is not kept yet, and keeps one line for the day and one for each role and row.
+  The first time, it keeps the last 30 days.
+
+A writer reads its log before it adds, and adds no line whose key the log holds, so each log only grows and holds each line once.
+
+## The audit's data faults
+
+The week audit could not answer six questions from the records it had.
+Each now has a query:
+
+| Fault | Query |
+|---|---|
+| F1, no brief history | `SELECT slug, launched_at, sha, changed_after FROM brief_at_launch` |
+| F2, the latest CI attempt only | `SELECT project, run, attempts, first_fail_attempt, first_fail_at, last_conclusion FROM run_attempts WHERE attempts > 1` |
+| F3, one pull request a row | `SELECT project, slug, group_concat(DISTINCT number) FROM row_pulls GROUP BY project, slug` |
+| F4, carried words missing | `SELECT project, word, kept_at, said_in, thread, sent_at, waiting FROM carried_words` |
+| F5, no tokens per row | `SELECT spent_on, role, slug, units FROM spend_rows WHERE slug IS NOT NULL` |
+| F8, spend stored nowhere | `SELECT project, spent_on, units, runs FROM spend_days` |
+
+F5's spend is Claude's alone, by day: a turn's tokens to its row and role, with Codex, is the next step.
+
 ## The KPI views
 
 | View | Gives |
@@ -40,6 +75,9 @@ The file is readable by you alone.
 | `change_failures` | S6 for each merged row: whether its pull request opened a spell |
 | `weekly_lead_time` | each week's S5: `n`, `median` and `p85` |
 | `weekly_change_failure` | each week's S6: `failures`, `merged` and `rate` |
+| `brief_at_launch` | F1 for each launch of a row: the sha of the brief stored then, and how many versions came after |
+| `run_attempts` | F2 for each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
+| `carried_words` | F4 for each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
 
 A week starts on Sunday.
