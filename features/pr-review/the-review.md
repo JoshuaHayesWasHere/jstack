@@ -1,6 +1,9 @@
 ### The review
 
-The review is pstack's, in two parts. One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found. The other is its blast radius: the one fact the change is safe because of, proven by running real code. jstack's copies are `$T/../skills/interrogate/SKILL.md` and `$T/../skills/blast-radius/SKILL.md`. This section says which of their steps a reviewer does and what becomes of the answer, and repeats none of their text: read each where a step names it.
+The review is pstack's, in two parts.
+One is its interrogate: a reading of the diff against the intent, and a lead's judgment of what it found.
+The other is its blast radius: the one fact the change is safe because of, proven by running real code.
+This section holds each rule of theirs that a reviewer follows, and says what becomes of the answer.
 
 The review is in the crewmate's own worktree, on the pull request's branch at the head under review, which is why the launcher put it there: it reads the code around the diff there, and the proof runs the real code there.
 Nothing in the worktree changes, and nothing goes to `origin`.
@@ -121,7 +124,21 @@ echo "$D/prompt.md"
 
 **3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
 
-**4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its `references/lead-judgment.md` now, and judge the list of step 3 as they say: merge the findings that say the same thing, then put each in one of pstack's four buckets. Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
+**4. Lead judgment.** Judge the list of step 3 as a pragmatic senior engineer, not as a tally: merge the findings that say the same thing, then put each in one of pstack's four buckets.
+Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
+
+- **Act on**: a real issue of correctness, security or maintainability, given what the task is for, that would block a real pull request.
+- **Consider**: legitimate, but not plainly worth what it costs to address in this pull request.
+- **Noted**: true but not actionable, since it depends on context, optimizes early or matters little at this stage.
+- **Dismissed**: wrong, a nitpick, or missing context.
+
+Filter the list, since a reading that finds nothing critical fills itself with nits:
+
+- A "what if this is passed" finding stands only when a caller can pass it: trace the call site in the repo.
+- A different approach the reader prefers, or an abstraction the code needs in no second way, is no finding unless it shows a concrete problem with the change.
+- A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
+- A finding with a concrete path to the failure deserves weight, and one on security or correctness deserves more scrutiny before it is dismissed.
+- More than five **Act on** findings is a sign the list is not filtered hard enough.
 
 - **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on)` or `(bucket: Consider)`, in the forms "Outside the diff" gives. The bucket tag is what `jmerge` reads: an **Act on** finding holds the merge until the crewmate answers it by id, a **Consider** one does not. A finding on security, auth, billing, data, migrations or concurrency ends with one more tag, `(risk: <that area>)`: the crewmate may not decline it without a gate that asks the user. Write no id: `jbriefs --findings` gives each finding its id, and merges this reviewer's with another's of the same place. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there, `<severity> <file>:<line> <what is wrong> (principle: <name>) (dismissed: <the reason>)`: it is what lets the user overrule the lead, and where another reviewer raised the same finding, `jbriefs --findings` prints the dismissal beside it. Neither goes to the crewmate.
@@ -132,7 +149,10 @@ echo "$D/prompt.md"
   An `info` is dropped.
 - A brief that says `Review: cleanup` is that day's row, and its one review is of its own diff alone: an `error` goes to the crewmate and holds the merge, whatever the bucket or tag, and a `warning` or an `info` is dropped, so none of its findings goes to another row.
 
-**5. The one safety fact.** Read `$T/../skills/blast-radius/SKILL.md` now, its "How sure are you" list and its steps 2 and 5: find the one fact this change is safe because of, and prove it by running real code at this head. Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
+**5. The one safety fact.** Most changes that look risky are safe because of a single fact, such as "this call only drops cache entries that are already dead": find the one fact this change is safe because of.
+Prove it by running real code at this head, with a script or test that calls the code and fails loud if the fact is false.
+Saying so, pointing at a line, or walking the bad case through by hand is not a proof.
+Then run this with the block at the top, which sets `T`, and with the directory of the prompt file, the head kept at the start and the one command that proves the fact in place of the words in angle brackets:
 
 ```sh
 D='<the directory of the prompt file>'

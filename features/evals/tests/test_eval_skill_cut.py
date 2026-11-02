@@ -291,3 +291,36 @@ def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
     ).stdout
     assert run.show("HEAD", path) == now
     assert run.show("HEAD", "principles/principle-type-system-discipline.md") == now
+
+
+def test_the_lead_judges_by_the_reviews_step_4_and_the_reads_it_names_at_that_revision():
+    """Before reviewer-reads-trim, step 4 sent the reviewer to interrogate's step 5 and
+    lead-judgment, so the lead gets both; a step 4 that names neither is given alone, as a
+    reviewer reads it."""
+    files = {path: run.show("HEAD", path) for path in run.LEAD_FILES}
+    now = (run.REPO / "features" / "pr-review" / "the-review.md").read_text()
+    files[run.THE_REVIEW] = now
+    case = f"lead/{run.lead_cases()[0]}"
+    made = run.prompt(case, files)
+    assert made.count("<text path=") == 1
+    assert "**4. Lead judgment.**" in made
+    assert "# Lead Judgment Framework" not in made
+    assert "**5. " not in made
+    reads = (
+        "**4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its "
+        "`references/lead-judgment.md` now, and judge the list of step 3 as they say.\n\n"
+    )
+    files[run.THE_REVIEW] = "### The review\n\n" + reads + "**5. The one safety fact.**\n"
+    made = run.prompt(case, files)
+    assert made.count("<text path=") == 3
+    assert "## Step 5, Lead Judgment" in made
+    assert "# Lead Judgment Framework" in made
+
+
+def test_a_pr_review_scenario_sees_the_reviews_steps_beside_the_skill():
+    (case,) = [one for one in run.steps_cases() if one["id"] == "pr-review-severity"]
+    files = {path: run.show("HEAD", path) for path in run.files_under_test()}
+    made = run.prompt(f"steps/{case['id']}", files)
+    assert '<file path="skills/pr-review/SKILL.md">' in made
+    assert '<file path="skills/pr-review/the-review.md">' in made
+    assert "**4. Lead judgment.**" in made
