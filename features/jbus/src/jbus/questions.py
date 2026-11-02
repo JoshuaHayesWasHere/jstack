@@ -127,7 +127,19 @@ import jbus
 import jsettings
 from jbriefs import below, skills
 from jbriefs.home import thread_of
-from jbus import END_TURN, Config, Refused, locked, mirror, outbox, queue, t3, verbs, write_json
+from jbus import (
+    END_TURN,
+    Config,
+    Refused,
+    f1trial,
+    locked,
+    mirror,
+    outbox,
+    queue,
+    t3,
+    verbs,
+    write_json,
+)
 from jbus.party import CASES, Evidence, Party
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -629,7 +641,8 @@ def silent(run: Pass) -> None:
     first pass that sees it (`QUIET` is no time at all), or, for a go gate under the setting
     `go = "silence"`, once its quiet window (`go_quiet_minutes`) has passed. The thread acted on
     the default when it asked the question, so jbus sends nothing. jbus writes one quiet `note`
-    event for each question it closes."""
+    event for each question it closes, and one line of the F1 trial's log (`f1trial`), which
+    changes no close."""
     if not path(run.state).exists():
         return
     at = jsettings.stamp(run.now)
@@ -662,6 +675,7 @@ def silent(run: Pass) -> None:
                 )
                 if went:
                     run.say(f"queue {run.project.name}: {went}")
+    f1trial.log(run, (one for was, one in zip(records, closed, strict=True) if was is not one))
 
 
 def go_gate(one: Question) -> bool:
