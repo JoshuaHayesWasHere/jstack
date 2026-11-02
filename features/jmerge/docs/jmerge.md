@@ -141,7 +141,7 @@ The section "Protected paths" describes one more hold.
 - A brief whose `Review:` line says anything else, an old `after` included, is read as `review`.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
-  A repo names its required checks in a `required-checks` file in its state directory, beside `fresh-check`.
+  A repo names its required checks in a `required-checks` file in its state directory.
   The file has one check name per line, and `jmerge` ignores blank lines and the spaces around a name.
   With no such file, or one that names no check, the only required check is `check` (`ready.REQUIRED`).
   A check that the repo's workflows never run then blocks no merge.
@@ -163,7 +163,7 @@ The section "Protected paths" describes one more hold.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
-  It judges them before the fresh check, so a run never asks GitHub to update a pull request that must wait.
+  It judges them before today's main, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red, or it is the fix of a red main.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).
   While `main.json` names a red tip and main's tip is not green, `jmerge` merges only a fix of it.
@@ -182,7 +182,7 @@ The section "Protected paths" describes one more hold.
   The brief `main-red-<sha12>` that jbus files for the red is still a fix by its slug.
   A pull request whose check ran other tests, failed, or ran at a head without the red tip waits.
   `jmerge` reads the logs only for a green pull request into a red main, once a run for each head, and stops once they cover every failed test.
-  `jmerge` judges this after the queue row's wait and before the fresh check.
+  `jmerge` judges this after the queue row's wait and before today's main.
   The wait ends when jbus sees a green tip.
   After the fix merges and the check of main's new tip passes, the other pull requests stop waiting on the next run.
   A repo with no jbus config, no project or no `main.json` has no such wait.
@@ -207,8 +207,8 @@ The section "Protected paths" describes one more hold.
   A draft's browser run is waived as its failed checks are, and a reviewed draft is marked ready.
   `jmerge` judges this after main's red, so a pull request short of a review or a rebase line says that first.
 - **Its migration is the next in line.** See "Migrations".
-- **Its passing check still counts over today's main.**
-  See "Fresh against main".
+- **Its head still merges cleanly over today's main.**
+  See "Merges cleanly over today's main".
 - **Its rebase kept every line.** See "After a rebase".
 - **The repo's merge is on.**
   While `~/.local/state/home/<repo>/merge-off` exists, `jmerge` merges nothing.
@@ -259,41 +259,24 @@ These rules make no pull request wait in a repo with no `migrations` key, and no
 Each reason is a constant of `features/jmerge/src/jmerge/ready.py` (`MIGRATION_TAKEN`, `MIGRATION_MERGING`, `MIGRATION_REBASING`) with a rule in `rules()` of `features/jbus/src/jbus/merge.py`.
 The rule for a taken number is on the `rebase` step, and the rules for the two waits on another pull request are on the `check` step.
 
-## Fresh against main
+## Merges cleanly over today's main
 
+A green check stands for its own head, and a move of main does not send it through CI again.
 A check starts when the earliest run of the first required check at the head starts.
 When the repo names no required checks, that check is `check`.
 After a `git fetch` in the main checkout, `jmerge` lists the paths that the first-parent commits of the default branch changed since that start.
-A pull request waits when one of those paths is one of these:
-
-- a path the pull request also changes
-- a CI path in `features/jmerge/src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`)
-
-The wait reads:
-
-```
-wait <number> <url>: main changed <up to five paths, then "and <k> more"> after its check started at <HH:MM> <zone>; it needs a fresh check
-```
-
-`main` there is the name of the base branch.
-If main moved only on other paths, the check still counts, and nobody rebases for it.
-That holds in a repo with a `fresh-check` file as in one without.
-A file of main's that imports the pull request's files, one they import, or one that names their path is such an other path.
-
-A repo opts in to proving a pull request over today's main with a `fresh-check` file in its state directory.
-`jmerge` reads only that the file has a line in it: no suite runs on this machine for a merge, and the command on that line is not run.
-An empty `fresh-check` file counts as no file.
-`jmerge` merges the head over today's main with `git merge-tree`.
-When it merges cleanly, `jmerge` asks GitHub to merge main into the branch, as "A failed check over a base that moved" says.
-The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`.
-`--check` asks nothing, and says `<base> moved after its check started: GitHub is to merge <base> at <tip12> into it`.
-GitHub's check at the updated head decides by the normal path: it waits while that check runs, waits while it is red, and merges once it passed there.
-That check runs on the merge result, so a caller main added that the pull request breaks fails there.
-A head that does not merge over today's main waits with `it conflicts with today's main`, and GitHub is not asked.
-A pull request that waits on something else, such as a line its rebase dropped or a hold that only the user can lift, asks GitHub nothing.
-`jmerge` judges whether it is fresh only once it has no other reason to wait.
+When none of them is a path the pull request changes, its check counts, and nobody rebases for it.
+When one of them is, `jmerge` merges the head over today's main with `git merge-tree`.
+A clean merge merges the pull request on the check it has: GitHub is asked for no update of its branch, and no second CI round runs.
+A head that does not merge over today's main waits with `it conflicts with today's main`, on the `rebase` step, and GitHub is asked nothing.
+A file of main's that imports the pull request's files, one they import, one that names their path, or one that CI reads leaves its check counted as well.
+Main's own full run at the merge commit is what checks the combined tree: it catches a break that a clean merge hides, such as a caller main added that the pull request breaks, and the red-main hold ("Main is not red") holds the queue until its fix merges.
+A pull request whose check failed at its own head is not merged by this rule: its green check is the one that counts, and a red one is judged as "A failed check over a base that moved" says.
+`jmerge` judges this only once the pull request has no other reason to wait.
+`jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
 `jmerge` neither pushes nor reads a green-tree marker: `jmerge --sweep` removes the desk refs it pushed before fl-gh-recheck after seven days.
 Nothing writes `fresh.json` or `fresh.lock` in the state directory any more, and nothing reads them.
+Before this rule, a green pull request whose path main changed waited with `<base> changed <paths> after its check started at <time>; it needs a fresh check`, or had GitHub merge main into its branch for a second check: 205 of the 239 reruns that asked for passed, and each cost one CI round in line behind the last.
 
 ## A failed check over a base that moved
 
@@ -369,9 +352,8 @@ A `CI fix:` line that a brief from before this rule still has is read as no line
 
 ## Protected paths
 
-`jmerge` reads two lists from its own package directory, never from a pull request: `protected.txt` and `features/jmerge/src/jmerge/ci-paths.txt`.
-The last list holds the paths that decide whether a check still counts ([Fresh against main](#fresh-against-main)).
-Each list holds patterns and nothing else.
+`jmerge` reads one list from its own package directory, never from a pull request: `features/jmerge/src/jmerge/protected.txt`.
+The list holds patterns and nothing else.
 
 ### Patterns
 
@@ -386,7 +368,7 @@ A line that starts with `#` is a comment, and the shipped lists have none.
   With one, it is the whole path from the root of the repo: `features/jbus/src/jbus/merge.py`, `/Makefile`.
 - `*` matches any run of characters between two `/`, and never a `/` itself.
 
-`jmerge` merges nothing and exits non-zero while a list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part.
+`jmerge` merges nothing and exits non-zero while the list is missing or has a pattern it cannot read: `**`, a leading `!`, a `\`, or an empty, `.` or `..` part.
 It prints `jmerge: <list> has a pattern that cannot be read, so nothing is merged: <pattern> (the grammar: features/jmerge/docs/jmerge.md#patterns)`.
 
 ### The lists

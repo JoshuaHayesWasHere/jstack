@@ -192,6 +192,8 @@ MAIN_CHANGED = Reason(
     "check",
     "{default} changed {paths} after its check started at {since}; it needs a fresh check",
 )
+"""The wait an older `jmerge` wrote for a check that main moved under, which the last week of a
+log still has, and which jbus still reads as a rebase (`jbus.rebase.STALE`)."""
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 NO_GO = Reason(
     "hold",
@@ -252,7 +254,6 @@ _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
 _RULED = "{id}: {why}"
-_MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 
 
@@ -1070,44 +1071,6 @@ def needs_the_user(
 @dataclass(frozen=True)
 class Judged:
     tip: str = ""
-    fresh: str = ""
-
-
-def stale_paths(
-    pr_files: tuple[str, ...],
-    renamed_from: tuple[str, ...],
-    main_paths: tuple[str, ...],
-    ci_paths: tuple[str, ...],
-) -> tuple[str, ...]:
-    ours = {*pr_files, *renamed_from}
-    stale = (
-        path
-        for path in main_paths
-        if path in ours or any(_protects(pattern, path) for pattern in ci_paths)
-    )
-    return tuple(dict.fromkeys(stale))
-
-
-def short_on_main(
-    stale: tuple[str, ...],
-    since: datetime,
-    default: str = "main",
-    *,
-    user: Settings,
-) -> str:
-    if not stale:
-        return ""
-    paths = _first_five(stale)
-    return MAIN_CHANGED.format(default=default, paths=paths, since=user.clock(since))
-
-
-def _first_five(paths: tuple[str, ...]) -> str:
-    more = _MORE.format(more=len(paths) - 5) if len(paths) > 5 else ""
-    return " ".join(paths[:5]) + more
-
-
-def fresh_command(text: str) -> str:
-    return "".join(text.strip().splitlines()[:1]).strip()
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")

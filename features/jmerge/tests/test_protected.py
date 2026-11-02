@@ -65,12 +65,6 @@ def test_the_file_has_the_patterns_and_none_of_its_comments():
         "/dns/",
     )
     assert {pattern for pattern, _, _ in PATHS} == set(PATTERNS)
-    assert ready.patterns_of((SOURCE / "ci-paths.txt").read_text()) == (
-        ".github/workflows/",
-        "/pyproject.toml",
-        "/uv.lock",
-        "/Makefile",
-    )
 
 
 @pytest.mark.parametrize(("pattern", "protected", "near"), PATHS)
@@ -132,7 +126,7 @@ def test_the_shipped_lists_hold_patterns_and_nothing_else():
         assert ready.patterns_of("\n".join(lines)) == tuple(lines), name
 
 
-LISTS = ["protected.txt", "ci-paths.txt"]
+LISTS = ["protected.txt"]
 
 
 @pytest.mark.parametrize("name", LISTS)

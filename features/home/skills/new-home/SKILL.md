@@ -282,7 +282,6 @@ A runner that lacks the toolchain the command needs fails that check: the templa
 A branch `jstack-check` that is there already is never written over.
 
 Where `fresh-check` is missing or empty, the block writes the check command there, and never changes one that has a line.
-With that file `jmerge` also proves a pull request over today's main on GitHub ("Fresh against main" in `features/jmerge/docs/jmerge.md`).
 `off`, `merge-off` and `home-thread` are the user's three switches for a repo: the line names them, and this skill writes none of them.
 
 ## 5. The home's thread

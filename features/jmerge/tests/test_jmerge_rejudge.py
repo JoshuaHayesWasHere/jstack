@@ -2,8 +2,8 @@
 is judged again over today's base: `jmerge` asks GitHub to merge the base into the branch
 (`PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`), once for a head and a base tip, and the
 pull request goes on by the normal path once GitHub's new check passes. A change broken on its
-own fails again at the updated head, as its own. Where the repo has a `fresh-check` file, a green
-pull request whose base moved under it takes the same path, and no suite runs on this machine.
+own fails again at the updated head, as its own. A green pull request whose base moved under it
+does not take that path: it merges on its own check while its head still merges cleanly.
 
 The replay is 2026-10-23: main red on two whole-tree tests, pull requests that touched neither
 red on them, then main fixed. The tests run the command as `test_jmerge_fresh` does, against a
@@ -51,7 +51,6 @@ UPDATE = """\
         git -C "$ORIGIN" update-ref "refs/heads/$branch" "$commit"
         echo '{"message":"Updating pull request branch."}' ;;
 """
-CHECK = "! ls tests/broken-* > /dev/null 2>&1"
 WHOLE_TREE = {"tests/broken-module-size": "", "tests/broken-view-sources": ""}
 ASKED = "GitHub was asked to merge main at {tip} into it: its check failed before main moved"
 
@@ -60,13 +59,11 @@ class Replay:
     """A kitchen whose fake `gh` can update a branch, and whose home has a jbus config, so that
     `jmerge` reads jbus's `main.json`."""
 
-    def __init__(self, tmp_path, fresh=True):
+    def __init__(self, tmp_path):
         self.kitchen = kitchen = Kitchen(tmp_path, {"a.txt": LINES, "Makefile": "check:\n"})
         gh = kitchen.home.stub / "gh"
         gh.write_text(GH.replace("    *) exit 64 ;;\n", UPDATE + "    *) exit 64 ;;\n"))
         self.state = order.queue_of(kitchen.home, []).parent
-        if fresh:
-            (kitchen.home.state / "fresh-check").write_text(f"{CHECK}\n")
         self.told = []
         self.said = []
 
@@ -163,8 +160,8 @@ def red_then_fixed(replay):
 
 
 def test_the_replay_every_pull_request_red_only_on_its_base_merges_and_none_runs_here(replay):
-    """With a `fresh-check` file, GitHub updates each branch and no suite runs on this machine:
-    the change broken on its own fails at its updated head, as its own, and waits."""
+    """GitHub updates each branch and no suite runs on this machine: the change broken on its
+    own fails at its updated head, as its own, and waits."""
     (_, _, _, broken), fix = red_then_fixed(replay)
     replay.passes()
     assert merged(replay.said) == [333, 340, 341]
@@ -175,11 +172,10 @@ def test_the_replay_every_pull_request_red_only_on_its_base_merges_and_none_runs
     assert replay.said[-1] == f"wait 339 {url(339)}: check has failed"
     assert replay.told == []
     assert replay.kitchen.at_main("one.txt") == "ours"
-    assert not (replay.kitchen.home.state / "fresh.json").exists()
 
 
-def test_with_no_fresh_check_file_github_s_update_alone_moves_it_on(tmp_path):
-    replay = Replay(tmp_path, fresh=False)
+def test_github_s_update_alone_moves_it_on(tmp_path):
+    replay = Replay(tmp_path)
     (one, *_), fix = red_then_fixed(replay)
     said = replay.run()
     assert f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}" in said
@@ -190,7 +186,7 @@ def test_with_no_fresh_check_file_github_s_update_alone_moves_it_on(tmp_path):
 
 
 def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     (replay.kitchen.home.stub / "refuse").write_text("")
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
@@ -209,7 +205,7 @@ def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
 def test_a_failure_to_ask_github_is_asked_again_on_the_next_run(tmp_path, status):
     """A 5xx or a rate limit is no answer about the branch: it keeps no record, and the next run
     asks again."""
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     (replay.kitchen.home.stub / "down").write_text(status)
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
@@ -233,7 +229,7 @@ def test_a_red_pull_request_short_of_anything_else_says_so_and_asks_nothing(repl
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
     assert replay.run() == [f"wait 333 {url(333)}: {ready.ROW_HELD}"]
-    assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
+    assert replay.updated() == []
     order.queue_of(replay.kitchen.home, [order.row("one", pr="#333")])
     fix = git(replay.kitchen.origin, "rev-parse", "refs/heads/main")
     assert replay.run() == [f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}"]
@@ -244,7 +240,7 @@ def test_a_red_base_is_not_judged_again_until_it_is_green(replay):
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     red = replay.main_at({"b.txt": "theirs\n"}, FIXED, "failed")
     assert replay.run() == [f"wait 333 {url(333)}: {ready.MAIN_RED.format(sha=red[:12])}"]
-    assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
+    assert replay.updated() == []
 
 
 def test_a_failed_check_over_a_base_that_has_not_moved_since_is_the_pull_request_s_own(replay):
@@ -252,11 +248,11 @@ def test_a_failed_check_over_a_base_that_has_not_moved_since_is_the_pull_request
     replay.main_at({"c.txt": "theirs\n"}, "2026-10-23T12:30:00Z", "green")
     replay.crew("one", 333, {"one.txt": "ours\n"})
     assert replay.run() == [f"wait 333 {url(333)}: check has failed"]
-    assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
+    assert replay.updated() == []
 
 
 def test_a_check_run_asks_github_for_nothing(tmp_path):
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
@@ -278,14 +274,12 @@ PENDING = {**merge.RUNNING, "startedAt": "2099-01-01T00:00:00Z"}
 FAILED_AFTER = {**merge.FAILED, "startedAt": "2099-01-01T00:00:00Z"}
 REQUIRED = "check\nborders\nmacos\n"
 MACOS_RED = {**merge.run("FAILURE", "macos"), "startedAt": STARTED}
-MOVED = "GitHub was asked to merge main at {tip} into it: main moved after its check started"
 
 
-@pytest.fixture(params=[False, True], ids=["no-fresh-check", "fresh-check"])
-def moved(tmp_path, request):
-    """A pull request that passed its check before main changed its own file under it, in a
-    repo with a `fresh-check` file as in one without."""
-    replay = Replay(tmp_path, fresh=request.param)
+@pytest.fixture
+def moved(tmp_path):
+    """A pull request that passed its check before main changed its own file under it."""
+    replay = Replay(tmp_path)
     head = replay.crew("one", 333, {"a.txt": "ours\n" + LINES}, check=PASSED_BEFORE)
     return replay, head
 
@@ -381,7 +375,7 @@ def test_a_pull_request_red_twice_on_the_same_test_of_its_own_is_not_given_main_
     its own runs: #529's was macos, while its check passed. A check main never runs, as jstack's
     macos runs on pull requests alone, has no run of main to tell its own tests from main's, so it
     is given today's main: a test main broke on macOS alone would otherwise hold it for good."""
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     gh = replay.kitchen.home.stub / "gh"
     gh.write_text(gh.read_text().replace("    *) exit 64 ;;\n", RUNS + "    *) exit 64 ;;\n"))
     if check == "check":
@@ -416,7 +410,7 @@ def side(tmp_path):
     """2026-10-27, #529: a pull request reviewed clean at its head, then fixed for a failed check
     by a push of its crew's, whose check and borders then passed and whose required macos check
     failed on a test main was red on, in a repo that requires check, borders and macos."""
-    replay = Replay(tmp_path, fresh=False)
+    replay = Replay(tmp_path)
     (replay.kitchen.home.state / "required-checks").write_text(REQUIRED)
     reviewed = replay.crew("one", 529, {"one.txt": "ours\n"}, check=PASSED_BEFORE)
     tree = replay.kitchen.tmp / "trees" / "one"

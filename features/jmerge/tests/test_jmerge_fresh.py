@@ -1,11 +1,9 @@
-"""`jmerge` merges a pull request only when its passing check still applies to today's main.
-When a pull request's check started before main changed one of its files, or a file that CI
-reads, the pull request waits for a fresh check. Where the repo asks for it, that check is
-GitHub's, at the head GitHub merged today's main into (`test_jmerge_rejudge.py`), and otherwise
-it is a rebase. When a
-rebase drops a line, the pull request waits until its crew says why
-(`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after
-its merge.
+"""`jmerge` merges a pull request on its passing check while its head still merges over today's
+main. When main changed one of its files after its check started, `git merge-tree` of the head
+onto main decides: a clean merge merges on the check it has, and a conflict waits for a rebase
+(`test_jmerge_rejudge.py`). When a rebase drops a line, the pull request waits until its crew
+says why (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved
+after its merge.
 
 The tests run the command against a real origin with several crewmates' worktrees, and a
 fake `gh` whose merge is a squash of the head over the origin's main."""
@@ -26,11 +24,10 @@ from testing.paths import REPO
 
 SOURCE = REPO / "features" / "jmerge" / "src"
 PROTECTED = ready.patterns_of((SOURCE / "jmerge" / "protected.txt").read_text())
-CI = ready.patterns_of((SOURCE / "jmerge" / "ci-paths.txt").read_text())
 BEFORE = "1999-06-01T12:00:00Z"
 STARTED = {**merge.PASSED, "startedAt": "2000-01-01T12:00:00Z"}
 AFTER = {**merge.PASSED, "startedAt": f"{date.today().year + 1}-01-01T00:00:00Z"}
-STALE = "main changed {} after its check started at 07:00 ET; it needs a fresh check"
+CONFLICT = f"{ready.FRESH_CONFLICT}"
 assert BEFORE < STARTED["startedAt"] < AFTER["startedAt"]
 
 GH = """\
@@ -225,43 +222,41 @@ def test_two_ready_pull_requests_on_other_files_both_merge_each_judged_after_the
     assert git(kitchen.home.main, "rev-parse", "HEAD") == kitchen.tip() == second.split()[3]
 
 
-def test_a_second_one_that_changes_a_file_the_first_merge_changed_waits_with_it_named(kitchen):
+def test_a_second_one_whose_file_the_first_merge_changed_merges_on_its_check_when_clean(kitchen):
     kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES, "b.txt": "theirs\n" + LINES})
     two = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     first, second = kitchen.run()
-    assert first.startswith("merged 6 one ")
-    assert second == f"wait 7 {url(7)}: {STALE.format('b.txt')}"
-    assert kitchen.calls() == [kitchen.calls()[0]] and " 6 " in kitchen.calls()[0]
-    assert git(kitchen.origin, "rev-parse", "refs/heads/two") == two
-    kitchen.checked("two", AFTER)
-    (said,) = [line for line in kitchen.run() if " 7 " in line]
-    assert said.startswith("merged 7 two ")
+    assert first.startswith("merged 6 one ") and second.startswith("merged 7 two ")
+    assert f"--match-head-commit {two} " in kitchen.calls()[1]
     assert kitchen.at_main("b.txt") == ("theirs\n" + LINES + "ours\n").strip()
 
 
-def test_a_first_merge_that_changed_only_a_file_ci_reads_makes_the_second_wait(kitchen):
-    kitchen.crew("one", 6, {"Makefile": "check:\n\ttrue\n"})
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
+def test_a_second_one_that_conflicts_with_the_first_merge_waits_for_its_rebase(kitchen):
+    kitchen.crew("one", 6, {"b.txt": LINES + "theirs\n"})
+    two = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     first, second = kitchen.run()
     assert first.startswith("merged 6 one ")
-    assert second == f"wait 7 {url(7)}: {STALE.format('Makefile')}"
+    assert second == f"wait 7 {url(7)}: {CONFLICT}"
+    assert kitchen.calls() == [kitchen.calls()[0]] and " 6 " in kitchen.calls()[0]
+    assert git(kitchen.origin, "rev-parse", "refs/heads/two") == two
 
 
-def test_a_file_main_renamed_is_changed_under_the_pull_request_that_changes_it(kitchen):
+def test_a_file_main_renamed_under_the_pull_request_is_merged_over_as_git_merges_it(kitchen):
     kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     kitchen.on_main({}, rename=("b.txt", "c.txt"))
-    assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
-    assert kitchen.calls() == []
+    (said,) = kitchen.run()
+    assert said.startswith("merged 7 two ")
+    assert kitchen.at_main("c.txt") == (LINES + "ours").strip()
 
 
 def test_a_file_the_pull_request_renamed_is_one_of_its_paths(kitchen):
     """GitHub lists a rename under its new path alone, so `jmerge` asks for the file's old path."""
-    kitchen.crew("two", 7, {"b.txt": None, "c.txt": LINES}, renamed=True)
+    kitchen.crew("two", 7, {"b.txt": None, "c.txt": LINES + "ours\n"}, renamed=True)
     (kitchen.home.stub / "left-7").write_text("b.txt\n")
     kitchen.pulls["two"] |= {"files": [merge.file("c.txt", renamed=True)], "changedFiles": 1}
     kitchen.checked("two", STARTED)
-    kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
+    kitchen.on_main({"b.txt": LINES + "theirs\n"})
+    assert kitchen.run("--check") == [f"wait 7 {url(7)}: {CONFLICT}"]
 
 
 def test_a_main_that_moved_on_other_files_leaves_the_check_standing(kitchen):
@@ -272,33 +267,23 @@ def test_a_main_that_moved_on_other_files_leaves_the_check_standing(kitchen):
     assert said.startswith("merged 7 two ")
 
 
-def test_more_than_five_files_are_counted_not_named(kitchen):
-    files = {f"f{n}.txt": "ours\n" for n in range(7)}
-    kitchen.crew("two", 7, files)
-    kitchen.on_main({path: "theirs\n" for path in files})
-    named = "f0.txt f1.txt f2.txt f3.txt f4.txt and 2 more"
-    assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format(named)}"]
-
-
-def test_a_protected_pull_request_is_held_for_the_user_and_starts_no_fresh_check(kitchen):
-    (kitchen.home.state / "fresh-check").write_text("true\n")
+def test_a_protected_pull_request_is_held_for_the_user_over_a_moved_main(kitchen):
     kitchen.crew("two", 7, {"secrets/prod.json": "{}\n", "b.txt": LINES + "ours\n"})
     kitchen.on_main({"b.txt": "theirs\n" + LINES})
     held = [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
     assert kitchen.run() == held
-    assert not (kitchen.home.state / "fresh.json").exists()
     kitchen.checked("two", AFTER)
     assert kitchen.run() == held
     assert kitchen.calls() == []
 
 
-def repo(kitchen, monkeypatch, merged=None):
+def repo(kitchen, monkeypatch):
     """The command's own view of the repo, in this process, with the fake `gh`."""
     home = kitchen.home
     monkeypatch.setenv("PATH", f"{home.stub}:{os.environ['PATH']}")
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
-    return cli.Repo(home.main, home.state, merge.ME, False, PROTECTED, CI, merged=merged, user=ET)
+    return cli.Repo(home.main, home.state, merge.ME, False, PROTECTED, user=ET)
 
 
 def test_a_merge_by_hand_between_the_judgment_and_the_merge_has_it_judged_again(
@@ -319,13 +304,13 @@ def test_a_merge_by_hand_between_the_judgment_and_the_merge_has_it_judged_again(
     ]
 
 
-def test_a_merge_by_hand_that_changed_its_file_keeps_it_from_the_merge(kitchen, monkeypatch):
+def test_a_merge_by_hand_that_conflicts_with_it_keeps_it_from_the_merge(kitchen, monkeypatch):
     kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     one = ready.pull_request(kitchen.pulls["two"])
     here = repo(kitchen, monkeypatch)
     slug, _, _, note, judged = here.waits(one, "main")
-    by_hand = kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    assert here.merge(one, slug, note, judged) == (f"wait 7 {url(7)}: {STALE.format('b.txt')}")
+    by_hand = kitchen.on_main({"b.txt": LINES + "theirs\n"})
+    assert here.merge(one, slug, note, judged) == f"wait 7 {url(7)}: {CONFLICT}"
     assert kitchen.tip() == by_hand
     assert not (kitchen.home.stub / "calls").exists()
 
@@ -397,10 +382,7 @@ def test_a_resolution_that_dropped_a_line_the_pull_request_added_waits_on_its_cr
     assert notes.calls() == []
 
 
-def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
-    """While the pull request waits for its crew, `jmerge` runs no check, because a check
-    could not end the wait."""
-    (notes.home.state / "fresh-check").write_text("true\n")
+def test_a_pull_request_held_on_a_drop_waits_on_its_crew_over_a_moved_main(notes):
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     notes.rebase(
         "two", {"n.txt": "one\ntwo\nthree\ntheirs\n"}, {"n.txt": "one\ntwo\nthree\nours\n"}
@@ -410,8 +392,6 @@ def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
     notes.on_main({"n.txt": "zero\none\ntwo\nthree\ntheirs\n"})
     held = f"wait 7 {url(7)}: the rebase dropped 1 of main's lines in n.txt {unsaid(notes)}"
     assert notes.run() == [held]
-    assert not (notes.home.state / "fresh.json").exists()
-    assert not (notes.home.state / "fresh").exists()
 
 
 def test_a_line_the_pull_request_deletes_is_not_one_the_rebase_dropped(notes):
@@ -552,14 +532,6 @@ def test_a_sweep_deletes_a_marker_on_the_origin_that_is_more_than_seven_days_old
     assert [line for line in kitchen.run("--sweep") if "green-tree" in line] == [removed]
     assert markers(kitchen) == kept
     assert [line for line in kitchen.run("--sweep") if "green-tree" in line] == []
-
-
-def test_a_repo_with_no_fresh_check_file_runs_none(kitchen):
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
-    kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
-    assert not (kitchen.home.state / "fresh.json").exists()
-    assert not (kitchen.home.state / "fresh").exists()
 
 
 def test_a_remote_branch_that_moved_after_the_merge_is_kept(kitchen):
