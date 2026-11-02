@@ -545,8 +545,6 @@ def fake_gh(stub, args, cwd):
     else:
         return 2, "", ""
     if "-i" in args:
-        import hashlib
-
         etag = f'W/"{hashlib.sha256(said.encode()).hexdigest()}"'
         asked = args[args.index("-H") + 1] if "-H" in args else ""
         if asked == f"If-None-Match: {etag}":
@@ -598,7 +596,7 @@ shell block of a skill, a `jbus` run as a command. It is the same function, alon
 
 SCRIPT = """\
 #!{python}
-import json, sys, time
+import hashlib, json, sys, time
 from pathlib import Path
 
 
@@ -1010,7 +1008,7 @@ def test_a_fake_uses_only_the_names_its_script_imports(fake):
         inner = [const for const in code.co_consts if inspect.iscode(const)]
         return set(code.co_names).union(*map(names, inner))
 
-    imported = {"json", "sys", "time", "Path"}
+    imported = {"hashlib", "json", "sys", "time", "Path"}
     assert all(f"import {name}" in SCRIPT or f", {name}" in SCRIPT for name in imported)
     assert names(fake.__code__) & set(globals()) <= imported
 

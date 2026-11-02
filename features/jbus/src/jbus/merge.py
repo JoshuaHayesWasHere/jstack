@@ -123,18 +123,16 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
     return lines
 
 
-def tick(run: Pass) -> bool:
-    """Run `jmerge` for the merge tick (`jbus.tick`) and send its lines as `merge` does, and say
-    whether it ran to its end.
+def tick(run: Pass) -> Said:
+    """Run `jmerge` for the merge tick (`jbus.tick`), send its lines as `merge` does, and return
+    them, `failed` where it did not run to its end.
 
     It runs with `--if-free`, so a run of the pass's under way makes it do nothing, and it leaves
     the `jmerge` streak alone: the tick runs every few seconds, and the pass's own run each
     minute is what counts a `jmerge` that does not run. A run that did not end, busy or failed,
     is the tick's to try again.
     """
-    ran = run.run("jmerge", "--if-free", timeout=JMERGE_TIMEOUT)
-    _sent(run, ran)
-    return ran.returncode == 0
+    return _sent(run, run.run("jmerge", "--if-free", timeout=JMERGE_TIMEOUT))
 
 
 def _shown(half: Half) -> None:

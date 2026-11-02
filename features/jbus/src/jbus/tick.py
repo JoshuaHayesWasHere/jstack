@@ -10,7 +10,9 @@ GitHub for the repo's last completed workflow runs, with the ETag it kept (`SEEN
 
 The tick keeps the ETag only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that
 was busy with the pass's own run, or one that failed leaves the change to the next tick. The pass
-runs `jmerge` as it always did, so what the tick misses the next pass does. One run of `jmerge`
+runs `jmerge` as it always did, so what the tick misses the next pass does. A merge of the
+tick's that changed a skill is kept for the next pass's `reload.tell` before the ETag is
+(`reload.keep`), since `jmerge` prints its `merged` line once. One run of `jmerge`
 runs at a time, by its run lock (`jmerge.lock`). A tick reads GitHub's API budget before it asks
 GitHub anything, and asks nothing while it is held (`jbus.budget`): the pass still merges then.
 """
@@ -20,7 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import jbus
-from jbus import merge, passes, verbs, watch
+from jbus import merge, passes, reload, verbs, watch
 from jsettings import budget, store
 
 if TYPE_CHECKING:
@@ -74,7 +76,9 @@ def tick(config: jbus.Config, say=print) -> int:
         etag = _ended(run)
         if etag is None:
             continue
-        if merge.tick(run):
+        said = merge.tick(run)
+        reload.keep(run, said)
+        if not said.failed:
             store.write_json(run.state / SEEN, {"etag": etag})
             say(f"tick {project.name}: a run ended, and jmerge ran")
         else:

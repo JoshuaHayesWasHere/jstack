@@ -7,12 +7,14 @@ The pass runs `jmerge` as it always did. The tests run the real tick and pass ag
 """
 
 import json
+from datetime import timedelta
 
 import pytest
 
 import jbus
 from jbus import merge, tick
-from test_jbus_kitchen import Kitchen, rate_limit
+from test_jbus_kitchen import NOW, Kitchen, rate_limit
+from test_jbus_row_ends import sends
 
 
 @pytest.fixture
@@ -140,3 +142,18 @@ def test_the_tick_leaves_the_jmerge_streak_to_the_pass(watched):
         ended(watched, run_id)
         ticks(watched)
     assert watched.lines("alert") == []
+
+
+def test_a_skill_the_tick_merged_is_told_to_each_thread_out_on_the_next_pass(watched):
+    """jmerge prints a `merged` line once, so the tick keeps a merge that changed a skill for
+    `reload.tell` (`reload.json`), and the next pass tells each thread out that loaded it."""
+    crew = watched.t3.thread("alpha")
+    watched.set(
+        "jmerge.txt", 'merged 7 alpha abc1234def5 "a skill", skills changed: crew, revert: x\n'
+    )
+    ended(watched, 2)
+    ticks(watched)
+    watched.set("jmerge.txt", "")
+    watched.poll(NOW + timedelta(minutes=1))
+    told = [one for one in sends(watched) if one["threadId"] == crew["threadId"]]
+    assert len(told) == 1 and "skills: crew." in told[0]["message"]
