@@ -207,11 +207,11 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         ),
         Need(f"config {config}", Level.OPTIONAL, JstackConfig(config)),
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
+        Need("role pools", Level.HARD, Pools(roles)),
         Need(f"state repo {state}", Level.OPTIONAL, StateRepo(state)),
         Need(f"ci report {jbus}", Level.OPTIONAL, CiReport(jbus)),
         Need(f"relay {relay}", Level.OPTIONAL, RelayKeys(relay)),
     ]
-    found.append(Need("role pools", Level.HARD, Pools(roles)))
     providers = inventory.declared(inventory.path(machine.env, home), home)
     providers = {} if isinstance(providers, str) else providers
     found += [

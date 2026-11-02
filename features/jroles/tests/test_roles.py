@@ -4,10 +4,11 @@ They put what it prints into the skills' own launch blocks and check it against 
 schema."""
 
 import json
+import os
 
 import pytest
 
-from jroles import ROLES
+from jroles import ROLES, ledger
 from jroles.cli import main
 from test_tool_calls import LAUNCHES, errors
 
@@ -309,6 +310,12 @@ def pooled(tmp_path, monkeypatch, capsys, t3_settings):
     (tmp_path / "config" / "jstack").mkdir(parents=True)
     (tmp_path / "config" / "jstack" / "roles").write_text(POOL_MAP)
     t3_settings.write_text(json.dumps({"providerInstances": INVENTORY, "other": 1}))
+    read = datetime(2026, 10, 17, 19, 45, tzinfo=UTC).timestamp()
+    for instance in ("claudeAgent", PRIME):
+        (tmp_path / "state").mkdir(exist_ok=True)
+        file = ledger.file_of(instance)
+        file.touch()
+        os.utime(file, (read, read))
 
     def ask(role, at=datetime(2026, 10, 17, 19, 45, tzinfo=UTC)):
         code = main([role], now=at)
@@ -360,6 +367,28 @@ def test_a_capped_first_instance_sends_the_role_to_the_next_until_its_reset(pool
     )
     code, out, _ = pooled("crew", datetime(2026, 10, 18, 20, 1, tzinfo=UTC))
     assert json.loads(out)["instanceId"] == "claudeAgent"
+
+
+def test_a_pool_that_rolls_onto_an_unread_account_still_goes_and_says_so(pooled):
+    """On 2026-11-02 claudeAgent's ledger went unread for two days. A choice that lands on an
+    account whose ledger is old or missing goes there, since a blind account beats a stopped bus,
+    and says it cannot see that account's use."""
+    from datetime import UTC, datetime
+
+    cap("claudeAgent", WEEKLY)
+    file = ledger.file_of(PRIME)
+    old = datetime(2026, 10, 17, 19, 0, tzinfo=UTC).timestamp()
+    os.utime(file, (old, old))
+    code, out, err = pooled("crew")
+    assert (code, json.loads(out)["instanceId"]) == (0, PRIME)
+    assert err.splitlines()[1] == (
+        f"jroles: {PRIME}'s use is unread ({file} was written 45 min ago, 15 min or more), "
+        "so it counts as usable"
+    )
+    file.unlink()
+    assert pooled("crew")[2].splitlines()[1] == (
+        f"jroles: {PRIME}'s use is unread (no {file}), so it counts as usable"
+    )
 
 
 def test_a_pool_with_every_instance_capped_waits_for_the_first_reset(pooled):

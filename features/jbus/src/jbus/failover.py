@@ -64,7 +64,8 @@ is due it, by the same pool.
 `held` tells each project's root home once of a pool with every instance capped, with the first
 reset, through an alert of the one list (`jbus.wakes`). A home on that pool hears at the reset, since
 the outbox holds a message into a cap, so the alert stays open for `TOLD` past it. A reset that
-passes with the pool still full is a new hold, and is told again. `jbus status` shows the same pools
+passes with the pool still full is a new hold, under a key of its own reset, since the home's list
+reads a line whose only change is a time as nothing new (`jbus.wakes.words`), and is told again. `jbus status` shows the same pools
 as they stand now (`jroles.pool.held`).
 """
 
@@ -409,9 +410,9 @@ def handle(
 def held(run: Pass) -> None:
     """Tell the project's home once of each pool that holds the bus: see the module."""
     for one in pool.held(run.now):
-        key = f"pool-held {run.project.name} {'+'.join(sorted(one.instances))}"
-        told = alert.streak(run.config.state_dir, key)
-        if told and told.ends and datetime.fromisoformat(told.ends) - TOLD > run.now:
+        instances = "+".join(sorted(one.instances))
+        key = f"pool-held {run.project.name} {instances} {one.until.isoformat()}"
+        if alert.streak(run.config.state_dir, key):
             continue
         line = (
             f"pool held: {', '.join(one.roles)} cannot launch: {one.why}. "

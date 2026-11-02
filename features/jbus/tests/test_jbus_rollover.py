@@ -136,7 +136,7 @@ def test_a_launch_on_an_account_nobody_reads_counts_as_usable_and_says_so(
     said = kitchen.poll(NOW)
     (given,) = kitchen.t3.launches
     assert given["modelSelection"]["instanceId"] == PRIME
-    (line,) = [one for one in said if one.startswith(f"note demo: {PRIME}'s ledger")]
+    (line,) = [one for one in said if one.startswith(f"note demo: {PRIME}'s use is unread")]
     assert "180 min ago" in line and "counts as usable" in line
     assert line in kitchen.lines("note")
 

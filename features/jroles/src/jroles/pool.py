@@ -213,7 +213,7 @@ def unread(instance: str, now: datetime) -> str:
     why = ledger.stale(ledger.file_of(instance), now) if instance in known else None
     if why is None:
         return ""
-    return f"{instance}'s ledger is no fresh reading ({why}): its use is unread, and it counts as usable"
+    return f"{instance}'s use is unread ({why}), so it counts as usable"
 
 
 @dataclass(frozen=True)
