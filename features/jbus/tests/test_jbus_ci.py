@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from ci_replay import FOLDER, Replay
+from jbus import passes
 from jbus.ci import collect, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
@@ -280,6 +281,53 @@ def test_a_log_with_colour_codes_gives_the_same_evidence_as_one_without():
     coloured = "2026-10-17T20:00:00.1Z \x1b[31mFAILED\x1b[0m tests/test_a.py::test_b - boom\n"
     assert collect.evidence(coloured) == collect.evidence(plain)
     assert collect.failing_tests(collect.evidence(coloured)) == ["tests/test_a.py::test_b"]
+
+
+def test_a_pass_reads_the_logs_of_its_red_jobs_at_one_moment_and_keeps_what_it_kept_one_by_one(
+    tmp_path,
+):
+    """Each log read waits until as many reads as the pass runs at one moment have begun, so a
+    collector that read them one by one would wait 5 s on each. What it keeps is what the
+    collector kept when it read them one by one."""
+
+    class Red(Replay):
+        """The recording's runs that have a red job on a local runner."""
+
+        def __init__(self):
+            super().__init__()
+            red = {
+                str(job["run_id"])
+                for jobs in self.jobs.values()
+                for job in jobs
+                if str(job["id"]) in self.logs
+            }
+            self.runs = [run for run in self.runs if str(run["id"]) in red]
+            self.reads, self.reading, self.peak = 0, 0, 0
+            self.moment = threading.Condition()
+
+        def log(self, repo, job):
+            with self.moment:
+                self.reads += 1
+                self.reading += 1
+                self.peak = max(self.peak, self.reading)
+                self.moment.notify_all()
+                self.moment.wait_for(
+                    lambda: self.reading >= passes.WIDE or self.reads == 42, timeout=5
+                )
+            try:
+                return super().log(repo, job)
+            finally:
+                with self.moment:
+                    self.reading -= 1
+
+    gh = Red()
+    counts = collect.keep(gh, REPO, tmp_path, NOW)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    red = [one for one in rows if one["tests"] is not None and one["conclusion"] == "failure"]
+    assert gh.peak == passes.WIDE
+    assert (counts.runs, counts.jobs, counts.pulls, gh.reads) == (37, 44, 4, 42)
+    assert len(red) == 42 and sum(1 for one in red if one["tests"]) == 40
+    assert sorted({sign for one in red for sign in one["signs"]}) == ["browser", "bus", "space"]
 
 
 def test_the_notice_a_job_prints_is_the_annotation_the_collector_reads(tmp_path):
