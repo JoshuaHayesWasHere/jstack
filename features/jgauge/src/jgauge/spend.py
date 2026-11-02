@@ -253,7 +253,9 @@ def report(
     return out
 
 
-COLUMNS = dict(zip(KINDS, ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped")))
+COLUMNS = dict(
+    zip(KINDS, ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped"), strict=True)
+)
 """The name of each kind's units in a day's spend line."""
 THREADS = {"crew: ": "crew", "review: ": "review", "home: ": "home", "scout: ": "scout"}
 """The role of a thread by the start of its title, which jbus gives it, then the row's slug."""
