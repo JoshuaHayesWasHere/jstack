@@ -2,9 +2,10 @@
 answers its first review as before, and pushes its fix. The review after that, the scoped pass of
 the fix, routes each finding by the severity it wrote, whatever its bucket or tag: an error waits
 on its answer by id and a push, a warning holds nothing and is kept for the day's warnings row
-(`jbus.daywarnings`), and an info is dropped. A brief that still says `after` is read as `review`. The tests drive it through
-`ready.short_of`, the function `jmerge` calls before a merge, through `jbriefs --findings
---left`, the crew's count, and through `jmerge --check` against a real origin and a fake `gh`."""
+(`jbus.daywarnings`), and an info is dropped. A brief that still says `after` is read as
+`review`. The tests drive it through `ready.short_of`, the function `jmerge` calls before a merge,
+through `jbriefs --findings --left`, the crew's count, and through `jmerge --check` against a real
+origin and a fake `gh`."""
 
 import subprocess
 import sys

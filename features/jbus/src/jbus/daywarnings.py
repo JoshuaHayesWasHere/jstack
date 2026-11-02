@@ -92,7 +92,8 @@ def due(ledger: dict[str, Any], today: str) -> tuple[str, list[Kept]] | None:
 
 
 def brief(day: str, warnings: list[Kept]) -> str:
-    """Return the day's warnings row's brief, in the shape of `features/jbriefs/templates/brief.md`."""
+    """Return the day's warnings row's brief, in the shape of
+    `features/jbriefs/templates/brief.md`."""
     pulls = list(dict.fromkeys(one.pull for one in warnings))
     where = [
         path

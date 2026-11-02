@@ -3,9 +3,9 @@
 A review after the first sends its crew only its errors: a warning holds nothing and is kept, and
 an info is dropped (`jbriefs.findings.KEPT`). Once a day has ended, the pass files the day's
 warnings row, `warnings-<day>`, of every warning kept from a pull request that merged, each with
-its path:line and the pull request it came from, `Size: S` and `Review: cleanup`, and approves it
-by the follow-up rule as it queues it, so nothing of it reaches the user. A day with no warning files
-nothing, and a day's warnings under `BAR` carry to the next day's row. The row's own review keeps
+its path:line and the pull request it came from, `Size: S` and `Review: cleanup`, and approves
+it by the follow-up rule as it queues it, so nothing of it reaches the user. A day with no warning
+files nothing, and a day's warnings under `BAR` carry to the next day's row. The row's own review keeps
 nothing, so no follow-up of a follow-up is queued. The real pass runs against the kitchen's fakes,
 with `SINCE`, the merge of #833, set before the kitchen's clock."""
 
@@ -143,7 +143,10 @@ def test_the_days_rows_own_review_an_open_pull_request_and_one_before_since_keep
     reviewed(kitchen, "warnings-2026-10-11", 6, (WARNING, WARNING, WARNING), mode="cleanup")
     reviewed(kitchen, "early", 5, (WARNING, WARNING, WARNING))
     reviewed(kitchen, "alpha", 7, (WARNING, WARNING, WARNING))
-    pulls = [kitchen.merged("warnings-2026-10-11", 6, "6" * 40), kitchen.merged("early", 5, "5" * 40)]
+    pulls = [
+        kitchen.merged("warnings-2026-10-11", 6, "6" * 40),
+        kitchen.merged("early", 5, "5" * 40),
+    ]
     pulls[1]["mergedAt"] = "2026-09-01T12:00:00Z"
     (kitchen.stub / "merged.json").write_text(json.dumps(pulls))
     (kitchen.stub / "open.json").write_text(json.dumps([kitchen.opened("alpha", 7)]))
