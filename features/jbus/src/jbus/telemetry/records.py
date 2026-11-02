@@ -265,7 +265,7 @@ def _queue(one: Row, zone: tzinfo | None) -> Row:
         "priority": _number(one.get("priority")),
         "thread": _text(one.get("thread")),
         "pr": _pull(one.get("pr")),
-        "held": bool(one.get("held")),
+        "on_hold": bool(one.get("held")),
         "role": _text(one.get("role")),
         "updated": utc(one.get("updated"), zone),
         "approval_basis": _text(approval.get("basis")),
@@ -371,7 +371,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         "priority",
         "pushes",
         "holds",
-        "held",
+        "on_hold",
         "keeps",
     }
     real = {"slowest_s", "tail_s"}
@@ -522,7 +522,7 @@ SOURCES: tuple[Source, ...] = (
             "priority",
             "thread",
             "pr",
-            "held",
+            "on_hold",
             "role",
             "updated",
             "approval_basis",
