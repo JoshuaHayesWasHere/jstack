@@ -99,7 +99,7 @@ def test_time_to_green_is_11_minutes_over_the_62_merged_pull_requests(nine):
     assert (nine["green"].shown, nine["green"].n, nine["green"].runners) == (
         "11 min",
         62,
-        "local 30, hosted 36",
+        "local 28, hosted 36",
     )
 
 

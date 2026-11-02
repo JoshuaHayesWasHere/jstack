@@ -461,7 +461,7 @@ def green(facts: Facts, start: datetime, end: datetime) -> Number:
         ok = [j for j in ran if j["conclusion"] == "success"]
         if ok:
             found.append(minutes(min(j["created"] for j in ran), max(j["completed"] for j in ok)))
-            counted += ran
+            counted += [j for j in ran if _ran(j)]
     how = (
         "minutes from the first job on a merged pull request's final head to the last green "
         "one, median over the pull requests merged in the period"
