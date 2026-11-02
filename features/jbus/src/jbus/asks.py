@@ -216,8 +216,7 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
     (`jbriefs.parse.warnings`), one `warning:` line each, and each door its commands walk through
     that no `Holds:` line names (`party.undeclared`), one `holds:` line each: the row holds for it
     all the same, and the line tells the home to write it. It warns as well of each `Where:` path
-    the brief shares with a queued row its `Builds on:` line names (`briefs.shared_where`), the
-    pair that a stack holds apart for that row's whole review."""
+    XX
     try:
         check = (config.home(project) / "fresh-check").read_text()
     except OSError:
@@ -230,9 +229,9 @@ def _warn(config: jbus.Config, project: jbus.Project, slug: str, text: str) -> N
         shared = briefs.shared_where(text, queue.brief(config.state(project), other) or "")
         if shared:
             print(
-                f"warning: {slug} shares {', '.join(shared)} with {other}, which it stacks on: a "
-                f"stack holds it behind {other}'s whole review, so join the two rows if they are "
-                "one change, or take the shared path out of one of them"
+                f"warning: {slug} shares {', '.join(shared)} with {other}, which it builds on: "
+                "join the rows where they are one change, take the shared path out of one where "
+                f"{slug} has no need of {other}'s code, and leave it where it does"
             )
 
 

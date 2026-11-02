@@ -1450,7 +1450,7 @@ def test_a_row_that_stacks_on_a_row_sharing_a_where_path_is_warned_and_still_que
     add(kitchen, "alpha")
     said = stacks_on(kitchen, "beta", "alpha", "`src/alpha/`")
     assert "beta shares src/alpha with alpha" in said
-    assert "join the two rows" in said
+    assert "join the rows where they are one change" in said
     assert rows(kitchen)["beta"]["depends"] == ["alpha"]
 
 
@@ -1485,3 +1485,8 @@ def test_queue_check_warns_of_a_shared_where_path_as_add_does(kitchen):
 def test_a_where_of_the_whole_repo_is_no_shared_path(kitchen):
     add(kitchen, "alpha")
     assert " shares " not in stacks_on(kitchen, "beta", "alpha", "`.`")
+
+
+def test_a_parent_whose_where_is_the_whole_repo_shares_no_path(kitchen):
+    add(kitchen, "alpha", text=brief("alpha").replace("`src/alpha/`, a new test", "`.`"))
+    assert " shares " not in stacks_on(kitchen, "beta", "alpha", "`src/beta/`")

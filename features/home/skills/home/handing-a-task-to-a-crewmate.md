@@ -44,12 +44,13 @@
    Every other order is only about merging, such as two rows that touch the same files or that must land in a set order: the row is queued with `--merge-after <that row>`, and has no `Builds on:` line.
    It launches at once, and `jmerge` holds its pull request until that row has merged.
    A brief stacks only on a parent whose code it changes, calls or imports: a stack holds a row behind its parent's whole review, so a stack with no code edge is a wait for nothing.
-   Two rows that edit the same file and are one change are one row, not a stack: a row that only finishes another's work (a `-rest`, a numbered part) goes in that row's brief, or the crew clears it in its own pull request.
-   `jbus queue add` and `jbus queue check` print `warning: <slug> shares <paths> with <row>, which it stacks on` for each `Where:` path the brief shares with a row its `Builds on:` line names: join the two rows, or take the shared path out of one of them.
-   The row is queued all the same, and a row that does need the other's code stays stacked on it.
    A plan layer is no such need, and neither is docs order or a file two rows share.
    A Result is no such need either: the home queues the row once that Result is written, with the lines it rests on in its brief's `Rests on:`, and no `Builds on:` line for it.
    Sibling work of one plan layer queues unstacked, with no `Builds on:` line for the layer under it, and is chained with `--merge-after` only where the order of the merges matters.
+   Two rows that share a file and are one change are one row, not a stack: a row that only finishes another's work (a `-rest`, a numbered part) goes in that row's brief, or the crew clears it in its own pull request.
+   `jbus queue add` and `jbus queue check` print `warning: <slug> shares <paths> with <row>, which it builds on` for each `Where:` path the brief shares with a row its `Builds on:` line names.
+   Where the two are one change, join the rows, and where the row has no need of the other's code, take the shared path out of one of them.
+   Where it does need that code, leave it: the row is queued all the same and stays stacked.
    `jbus queue add` refuses a brief whose `Builds on:` line gives a plan layer as its reason, such as `launch-caps: its merged code, the base of layer 2`.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.
    A `--merge-after` names a row that is already queued, so a chain is queued from its first link up.
