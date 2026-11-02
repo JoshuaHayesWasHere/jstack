@@ -11,7 +11,7 @@ in a thread of its own with its own `Pass`, `Half` and `t3.Client`, and a projec
 order. All first halves end before the launches, the chores run alone, and `halves` keeps the order
 of the config. What a project writes is under its own state directory, what the machine shares is
 kept under a lock file (`jsettings.store.locked`), and the steps of `ONE_AT_A_TIME` decide from what
-the machine shares, so they run one at a time.
+the machine shares, so they run one at a time. Each client's session ends with the pass.
 """
 
 from __future__ import annotations
@@ -220,6 +220,7 @@ def poll(
         client = None
         try:
             client = t3.Client(config.server, config.token_path)
+            lock.callback(client.close)
         except jbus.Refused as error:
             say(str(error))
         now = now or datetime.now(UTC)
@@ -247,6 +248,8 @@ def poll(
             run = passes.Pass(config, project, now, say)
             record.heartbeat(run, last)
             own = t3.Client(config.server, config.token_path) if client else None
+            if own is not None:
+                lock.callback(own.close)
             return first_half(run, own)
 
         halves = side_by_side(lambda p: guarded(p.name, lambda: first(p)), config.projects)

@@ -123,6 +123,23 @@ class Session:
             )
             self._rpc("notifications/initialized", None, notify=True)
 
+    def close(self) -> None:
+        """End the session at the server, which otherwise keeps it. A session the server cannot
+        end now is left to it: `close` does not raise."""
+        if self._session is None:
+            return
+        headers = {
+            "authorization": f"Bearer {self._bearer}",
+            "mcp-session-id": self._session,
+            "mcp-protocol-version": PROTOCOL,
+        }
+        self._session = None
+        request = urllib.request.Request(self.url, headers=headers, method="DELETE")
+        try:
+            urllib.request.urlopen(request, timeout=self._timeout).close()
+        except (OSError, ValueError):
+            pass
+
 
 def _seconds(value: Any) -> float | None:
     real = isinstance(value, int | float) and not isinstance(value, bool)

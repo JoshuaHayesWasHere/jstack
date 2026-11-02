@@ -179,3 +179,23 @@ def test_a_line_is_said_whole_while_the_projects_run_side_by_side(kitchen, monke
     assert poll.poll(jbus.load(), NOW, say) == 0
     assert len(most) >= 10
     assert max(most) == 1
+
+
+def test_every_t3_code_session_a_pass_opens_ends_with_the_pass(kitchen):
+    kitchen.second()
+    kitchen.poll()
+    assert len(kitchen.t3.sessions) == 3
+    assert sorted(kitchen.t3.ended) == sorted(kitchen.t3.sessions)
+
+
+def test_a_project_that_raises_still_ends_its_session(kitchen, monkeypatch):
+    kitchen.second()
+
+    def merging(run):
+        raise OSError("no disk")
+
+    monkeypatch.setattr(poll.merge, "merge", merging)
+    kitchen.t3.write(NOW)
+    assert poll.poll(jbus.load(), NOW, lambda _: None) == 1
+    assert kitchen.t3.sessions
+    assert sorted(kitchen.t3.ended) == sorted(kitchen.t3.sessions)
