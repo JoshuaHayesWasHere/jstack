@@ -37,7 +37,7 @@ from jroles import ROLES, Refused, mirror, pool, waits
 
 def _check() -> int:
     try:
-        said = pool.check()
+        said = pool.problems()
     except Refused as refused:
         said = [str(refused)]
     for line in said:

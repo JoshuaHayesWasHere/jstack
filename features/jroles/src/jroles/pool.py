@@ -188,7 +188,7 @@ def _line(role: str, one: Selection, others: list[str]) -> str:
     return f"{role}: {' '.join(words)}"
 
 
-def check() -> list[str]:
+def problems() -> list[str]:
     """What `jroles --check` reports: the map's pools of one (`lone`), or why it cannot tell."""
     where = jsettings.config_home() / "roles"
     try:
