@@ -193,6 +193,28 @@ def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitch
     assert mainjson.read(kitchen.state).red == ""
 
 
+@pytest.mark.parametrize("now", ["failure", "success"])
+def test_one_tip_gets_one_verdict_from_watch_and_from_main_json(kitchen, now):
+    """`checks.json` says main's tip failed, and GitHub says now what a rerun ended as. `watch`
+    once judged the tip from `checks.json` while `mainmoved` asked again, so a rerun that passed
+    was red to one and green to the other. Now `watch.retro` reads the tip as `main.json` keeps
+    it, whose one judge is `mainmoved`: both say red, or both say green."""
+    red = main_of(kitchen, "failure")[0]
+    jbus.write_json(kitchen.state / "checks.json", {red: "failed"})
+    checks(kitchen, red, now)
+    for minutes in (0, 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    retro = f"retro alpha: main check failed at {red[:12]}, 1 merges since the last green"
+    said = retro in kitchen.lines("retro")
+    rows = [row["slug"] for row in main_red(kitchen)]
+    if now == "failure":
+        assert kept(kitchen) == mainjson.Main(red=red) and said
+        assert rows == [f"{mainjson.FIX}{red[:12]}"]
+    else:
+        assert kept(kitchen) == mainjson.Main(green=red) and not said
+        assert rows == []
+
+
 def test_main_json_keeps_the_tests_that_failed_at_the_red_tip(kitchen):
     """`tell` keeps beside `broken` the tests its run's logs name, which `jmerge` reads to know a
     fix by its own check. The run's `full` job gathers its parts and names nothing of its own."""
@@ -593,18 +615,20 @@ def test_a_fix_row_another_row_merges_after_is_kept_and_not_said_to_be_withdrawn
 
 def test_a_fix_row_left_on_its_own_green_and_launched_is_named_once_on_a_later_green(kitchen):
     """The line for a row left on a rerun's green and the line for a launched row each have
-    their own key: the first does not stop the second, and the second is sent once."""
+    their own key: the first does not stop the second, and the second is sent once. The row
+    launches while main is red: once a rerun turns its own commit green, `dispatch` launches it
+    no more (`dispatch._rerun`)."""
     red = main_of(kitchen, "failure")[0]
     kitchen.poll()
     name = f"{mainjson.FIX}{red[:12]}"
+    assert go(kitchen, name)[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert launched(kitchen) == [f"crew: {name}"]
     checks(kitchen, red, "success")
     jbus.write_json(kitchen.state / "checks.json", {})
-    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=6))
     kept_line = f"retro {name}: main is green again at {red[:12]}, and its row is left as it is"
     assert kitchen.lines("retro").count(kept_line) == 1
-    assert go(kitchen, name)[0] == 0
-    kitchen.poll(NOW + timedelta(minutes=6))
-    assert launched(kitchen) == [f"crew: {name}"]
     green = main_of(kitchen, "failure", "success")[1]
     kitchen.poll(NOW + timedelta(minutes=9))
     kitchen.poll(NOW + timedelta(minutes=12))
@@ -688,7 +712,7 @@ def test_a_push_run_that_is_not_rerun_is_red_at_once(kitchen, attempt, refused):
 
 
 def test_a_failed_push_run_at_a_new_tip_is_rerun_while_a_fix_row_is_open(kitchen):
-    """The merge of a fix is the likeliest tip to flake: an open fix row has `_retro` ask about
+    """The merge of a fix is the likeliest tip to flake: an open fix row has `retro` ask about
     main's tip first, and that ask reruns it too, so no second row is filed."""
     old = failed_once(kitchen, attempt=2)
     kitchen.poll()

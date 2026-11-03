@@ -21,6 +21,10 @@ All but `capped` read the telemetry store (`jbus.telemetry`), which the chore be
 brings up to date. A count that cannot be read, with no store or no T3 Code store, is no
 count, and its alert stays as it was.
 
+Before the store is built, the chore `the capped read` appends the pass's read of which instances
+the ledger has capped to the record of capped spells (`jgauge.limits.note`), from which the store
+gives the KPI page its capped minutes. The `capped` alert still reads T3 Code's store.
+
 An alert is an alert of the one list (`jbus.alert`), so it reaches its owner's home as every
 other alert does. A crossing opens it once, under a key of its threshold and owner, and of the
 day for a daily count. While it is open, a pass that finds the count still crossed leaves it as
@@ -39,7 +43,7 @@ from datetime import UTC, date, datetime, time, timedelta
 import jbus
 from jbus import alert, boxes, telemetry, verbs
 from jbus.telemetry import records, schema
-from jgauge import spend
+from jgauge import limits, spend
 
 Say = Callable[[str], None]
 HOUR = timedelta(hours=1)
@@ -267,5 +271,6 @@ def _judge(
 
 
 CHORES = (
+    verbs.Chore(33, "the capped read", lambda _config, _, now, _say: limits.note(now, "pass")),
     verbs.Chore(36, "the KPI thresholds", lambda config, _, now, say: look(config, now, say)),
 )

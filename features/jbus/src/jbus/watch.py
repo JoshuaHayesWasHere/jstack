@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
@@ -1075,7 +1075,6 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         line = f"merged {slug} #{pull['number']} {commit[:12]}"
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
-    _retro(run, world, rows)
     for nightly in watched(run):
         _nightly_red(run, nightly)
 
@@ -1700,36 +1699,38 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
 
 @dataclass(frozen=True)
 class RedTip:
-    """Main's tip, red after its one rerun, as `_retro` read it for `jbus.culprits.judge`, which
+    """Main's tip, red after its one rerun, as `retro` read it for `jbus.culprits.judge`, which
     reverts its one clear culprit or files its fix row (`_file`): the slug its row is filed after,
     the tip, the merges since the last green, newest first, the pull request merged at the tip and
-    its slug, and the check answers `_check` keeps."""
+    its slug."""
 
     slug: str
     sha: str
     red: list[dict]
     pull: dict[str, Any] | None
     culprit: str
-    known: dict[str, str]
 
 
-def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
+def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[str], str]) -> None:
     """Report a red main within a day of a merge, and a revert of one. Both lines name the
     merged slug. A red tip of main with no briefed merge in the day before it is reported too,
     under the name of its fix row.
 
-    A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
-    only a second cancelled run, or a run GitHub would not start again. It reports a red main
-    once for each commit. A merge into another branch than main, a merge base's, did not land on
-    main, so it takes no blame for it. `_retro` files and queues a brief for the fix once, and
-    only for main's tip as this pass reads it: it hands the tip to `jbus.culprits.judge` as
-    `Pass.red`, which reverts its one clear culprit or files its row (`_file`). A red commit
-    that a later commit superseded is no longer main, so there is nothing to fix. Once main's
-    tip is green at a later commit than the one a fix row was filed for, the red is gone:
-    `_withdraw` takes out a row that never launched, and reports once a row that did, which its
-    crew and pull request keep. With no
-    briefed merge and no open fix row, `_retro` asks GitHub nothing until `main.json` keeps a
-    red tip.
+    `retro` judges no commit of its own: `mainmoved`, whose `tell` runs before it in a pass, is
+    the one judge. Main's tip is red where `main.json` names it red, and green where `main.json`
+    names it green, so `retro` and every reader of `main.json` give one verdict for one tip. An
+    older commit is judged by `check`, which is `mainmoved.main_check`, the one writer of
+    `checks.json`. A main whose run was cancelled is not red: `mainmoved` asks for its run
+    again, and `retro` reports only a second cancelled run, or a run GitHub would not start
+    again. It reports a red main once for each commit. A merge into another branch than main, a
+    merge base's, did not land on main, so it takes no blame for it. `retro` files and queues a
+    brief for the fix once, and only for main's tip as this pass reads it: it hands the tip to
+    `jbus.culprits.judge` as `Pass.red`, which reverts its one clear culprit or files its row
+    (`_file`). A red commit that a later commit superseded is no longer main, so there is
+    nothing to fix. Once main's tip is green at a later commit than the one a fix row was filed
+    for, the red is gone: `_withdraw` takes out a row that never launched, and reports once a
+    row that did, which its crew and pull request keep. With no briefed merge and no open fix
+    row, `retro` asks GitHub nothing until `main.json` keeps a red tip.
     """
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
@@ -1738,7 +1739,8 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     fixes = [
         row for row in rows if mainjson.fix_of(row["slug"]) and row.get("status") not in queue.FINAL
     ]
-    if not slugs and not fixes and not mainjson.read(run.state).red:
+    main = mainjson.read(run.state)
+    if not slugs and not fixes and not main.red:
         return
     branch = _default_branch(run)
     merges = [
@@ -1750,9 +1752,8 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     commits = _api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
     if not isinstance(commits, list):
         return
-    known: dict[str, str] = read_json(run.state / "checks.json", {})
     tip = commits[0]["sha"] if commits else ""
-    if fixes and _check(run, known, tip, rerun=True) == "green":
+    if fixes and tip and main.green == tip:
         _withdraw(run, fixes, tip)
     by_commit = {(p.get("mergeCommit") or {}).get("oid"): p for p in merges}
     for place, commit in enumerate(commits):
@@ -1772,7 +1773,13 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             if place != 0:
                 continue
         slug = slug_of[pull["number"]] if pull else ""
-        answer = _check(run, known, sha, again=bool(slug), rerun=place == 0)
+        if place != 0:
+            answer = check(sha)
+        elif sha == main.red:
+            answer = "failed"
+        else:
+            kept = read_json(run.state / "checks.json", {}).get(sha, "pending")
+            answer = "pending" if kept == "failed" else kept
         if slug and answer in ("cancelled", "refused"):
             twice = f"main check cancelled twice at {sha[:12]}"
             unasked = f"main check cancelled at {sha[:12]}, and GitHub did not run it again"
@@ -1782,7 +1789,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             continue
         since = 1
         for older in commits[place + 1 : place + 20]:
-            if _check(run, known, older["sha"]) == "green":
+            if older["sha"] == main.green or check(older["sha"]) == "green":
                 break
             since += 1
         owner = slug or f"{mainjson.FIX}{sha[:12]}"
@@ -1794,8 +1801,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         if place == 0 and not run.first and slug not in run.removed:
             pull = by_commit.get(sha)
             culprit = slug_of.get(pull["number"], "") if pull else ""
-            run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit, known)
-    write_json(run.state / "checks.json", known)
+            run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit)
 
 
 STEPS = (

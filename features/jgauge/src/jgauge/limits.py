@@ -35,6 +35,13 @@ resets a few minutes apart as one window. A window that is null or has no reset 
 command writes no line for it, keeps the other window's reading, and says so. An account resting
 between sessions answers `five_hour: null`, with `seven_day` as usual, and that is a reading.
 An answer with no such key at all is not one, and its `stale` line names the keys it has.
+
+Each run of the command, and each jbus pass, then reads which of the homes the ledger has capped,
+and `note` appends that read to `SPELLS` in jbus's state directory: the time, who read, the
+instances read, and the time each capped one is free again. The ledger keeps only the current
+value, and these reads are the record of capped spells that `jbus telemetry` compiles and
+`jbus kpis` sums. The command runs every 2 minutes and jbus's pass every minute, so a spell's
+start and end are each known to within the minute or two between reads.
 """
 
 from __future__ import annotations
@@ -49,6 +56,7 @@ from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from pathlib import Path
 
+from jgauge import sample
 from jroles import inventory, ledger
 
 URL = "https://api.anthropic.com/api/oauth/usage"
@@ -56,6 +64,7 @@ BETA = "oauth-2025-04-20"
 RETRY = timedelta(minutes=10)
 TIMEOUT_SECONDS = 10
 NOT_OPEN = "the answer gives it null, as it does until a session opens it"
+SPELLS = "capped.jsonl"
 
 
 @dataclass(frozen=True)
@@ -286,7 +295,42 @@ def run(now: datetime, get: Fetch = fetch) -> list[str]:
             shut = (window for window in ledger.WINDOWS if window not in open_now)
             shares = ", ".join([shares, *(f"{window} not open: {NOT_OPEN}" for window in shut)])
         said.append(f"{home.instance} from the {source}: {shares}, into {file}")
+    note(now, "limits")
     return said
+
+
+def spells() -> Path:
+    """The log of every read of which instances are capped, in jbus's state directory."""
+    return sample.jbus_state() / SPELLS
+
+
+def note(now: datetime, reader: str) -> dict | None:
+    """Append one read of which homes the ledger has capped now, and return it: `at`, `reader`,
+    the `instances` read, and `capped`, each capped instance with the time it is free again.
+    Nothing is appended, and None returned, when the inventory cannot be read, names no home, or
+    the log cannot be written."""
+    try:
+        names = sorted(home.instance for home in homes())
+    except Stale:
+        return None
+    if not names:
+        return None
+    kept = ledger.read(names)
+    until = {name: ledger.capped_until(kept, name, now) for name in names}
+    record = {
+        "at": now.astimezone(UTC).isoformat(timespec="seconds"),
+        "reader": reader,
+        "instances": names,
+        "capped": {name: at.isoformat() for name, at in until.items() if at is not None},
+    }
+    file = spells()
+    try:
+        file.parent.mkdir(parents=True, exist_ok=True)
+        with open(file, "a") as handle:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+    except OSError:
+        return None
+    return record
 
 
 def renewed(home: Home, since: datetime, now: datetime) -> bool:

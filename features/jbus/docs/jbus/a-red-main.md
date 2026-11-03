@@ -6,6 +6,10 @@ With no such merge it reports `retro main-red-<sha12>: main check failed at <sha
 While main is red, no pull request waits on it and no launch does: a pull request red at its own head is held by its own checks.
 Once the tip is red after its one rerun, jbus reverts its one clear culprit, or files a brief for the fix.
 
+One module judges whether main's tip is red: `mainmoved` writes `checks.json`, the answer GitHub gave for each commit of main, and `main.json`, the red tip and the green one (`features/jbus/src/jbus/mainmoved.py`).
+It runs in every pass whose GitHub budget is above jbus's floor, with T3 Code or without, so `main.json` reads green at the tip that ended a red even while T3 Code cannot be reached, and the crews are told once it can.
+The `retro` lines, the revert and the fix's brief come after it in the pass, and read main's tip as `main.json` keeps it, so every reader gives one verdict for one tip.
+
 ## The revert
 
 One culprit is clear when the red tip is the merge commit of a briefed pull request and the commit under it was green, so it is the one merge since the last green (`features/jbus/src/jbus/reverts.py`).
@@ -24,7 +28,7 @@ Where the outcome is the fix's brief, the brief says which case holds.
 | jbus reverted the same row before. A row is never reverted twice. | The fix's brief. |
 | Each test that failed at the tip is a flake by `jbus ci`'s rule. | The fix's brief. |
 | Two merges went red together (`SKEW`): the culprit's own check passed over a main that lacked the merge under the red tip. | The fix's brief. |
-| The tests that failed at the tip are not read yet (`UNREAD`). | Nothing in this pass. The next pass judges the tip again. |
+| The tests that failed at the tip could not be read yet (`UNREAD`). | Nothing in this pass. The next pass judges the tip again. |
 | The tip is older than `READ_WAIT` (1 hour) and its failed tests still could not be read from its logs (`NOT_READ`). | The fix's brief. |
 | GitHub has not said what main the culprit's own check passed over, and the tip is older than `READ_WAIT` (`UNANSWERED`). | The fix's brief. Before `READ_WAIT`, the tip waits as `UNREAD` does. |
 | jbus already opened a revert for the tip (`OPENED`). | Nothing, no brief either, while the revert goes the normal path. |
@@ -33,7 +37,8 @@ Where the outcome is the fix's brief, the brief says which case holds.
 
 `close` closes a revert jbus opened that is still open once main's check passes at a later tip without it, as when the fix's row merged first.
 Its comment names that green tip.
-The record in `reverts.json` stays, so the row is still never reverted twice.
+The record in `reverts.json` stays while the culprit's slug can still merge, so the row is still never reverted twice.
+Once main is green, the revert's pull request is no longer open, and the culprit's slug is over (no pull request of it open, no thread of it unsettled, and its row final or gone), the next pass drops the record.
 
 ## The fix's brief
 

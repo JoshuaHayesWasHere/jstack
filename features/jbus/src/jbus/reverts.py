@@ -5,7 +5,7 @@ A red main holds no pull request (`jmerge`, "Main is not red"). Josh chose guess
 merge that turned it red only when one culprit is clear, and otherwise files the fix row that a
 red main got before (`watch._file`), for the owner to fix.
 
-`culprit` is the rule, a pure function of what `watch._retro` reads of main. One culprit is clear
+`culprit` is the rule, a pure function of what `watch.retro` reads of main. One culprit is clear
 when the red tip is the merge commit of a briefed pull request and the commit under it was green,
 so it is the one merge since the last green. It reverts nothing, and says which `Keep` holds:
 
@@ -25,9 +25,9 @@ culprit. Where GitHub does not say, the tip waits as `UNREAD` does, and gets its
 A red tip jbus already opened a revert for is `OPENED`: nothing more is done for it, no row
 either, while its revert's pull request goes the normal path, and `stuck` says when it no longer
 does: closed unmerged, in conflict or with a failed check, and the tip gets its row. A tip whose
-failed tests `mainmoved.tell` has not read yet is `UNREAD`, since a pass runs `watch` before it:
-the next pass judges it, and nothing is done for it in this one. Once the tip is older than
-`READ_WAIT` its logs are taken as unreadable, `NOT_READ`, and it gets its row.
+failed tests `mainmoved.tell` could not read yet, earlier in the same pass, is `UNREAD`: the next
+pass judges it, and nothing is done for it in this one. Once the tip is older than `READ_WAIT` its
+logs are taken as unreadable, `NOT_READ`, and it gets its row.
 
 `revert` acts on a clear culprit. `gh pr revert` makes the revert on GitHub, a new commit on a new
 branch, so jbus never pushes to main or force-pushes anything. It keeps the revert in
@@ -40,7 +40,12 @@ revert and opens no second one, and the brief is written before the record, so a
 has a brief. `jmerge` merges the revert by the normal path, its checks green, with no review.
 `close` closes a revert jbus opened that is still open once main's check passes at a later tip
 without it, as when a fix row merged first, with a comment that names the green tip: it would
-only sit in conflict with main. Its record stays, so the row is still never reverted twice.
+only sit in conflict with main. Its record stays while its culprit's slug can still merge, so the
+row is still never reverted twice. `close` drops a record once main is green, the revert's pull
+request is no longer open, and its culprit's slug is over: no pull request of it is open, no
+thread of it is unsettled and its row, if the queue still has one, is final. A slug that is over
+merges nothing more, so its record holds nothing, and `TWICE` no longer files a fix row for a
+later red that is due a revert.
 """
 
 from __future__ import annotations
@@ -53,7 +58,7 @@ from datetime import timedelta
 from typing import Any
 
 from jbriefs import below
-from jbus import verbs, write_json
+from jbus import queue, verbs, write_json
 from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
 from jbus.ci.numbers import Facts, flake_branches
@@ -101,7 +106,7 @@ class Culprit:
 
 @dataclass(frozen=True)
 class Red:
-    """What `watch._retro` read of a red tip of main, after its one rerun: the tip, the merges
+    """What `watch.retro` read of a red tip of main, after its one rerun: the tip, the merges
     since the last green, newest first, the briefed pull request merged at the tip and its slug,
     and the tests that failed there, None where `main.json` keeps none for the tip yet, and how
     long ago the tip landed."""
@@ -269,17 +274,27 @@ def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) 
     return ""
 
 
-def close(run: Pass, world: World) -> None:
+def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
     """Close each revert jbus opened that is still open once main's check passed at a later tip
     without it, with a comment that names that tip. `main.json` keeps the red tip until a later
     tip is green, and a revert is opened only while it does, so its `green` is then the later
-    tip. A pull request GitHub would not close is a condition, and the next pass tries again."""
+    tip. A pull request GitHub would not close is a condition, and the next pass tries again.
+    A revert no longer open whose culprit's slug is over is dropped from the record (`over`);
+    with no queue read (`rows` is None) none is."""
     main = mainjson.read(run.state)
     if main.red or not main.green:
         return
     urls = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
-    for one in kept.read(run.state).values():
-        if one.pull.rstrip("/") not in urls:
+    made = kept.read(run.state)
+    ended = [red for red, one in made.items() if one.pull.rstrip("/") not in urls]
+    gone = [red for red in ended if rows is not None and over(made[red].slug, world, rows)]
+    if gone:
+        write_json(
+            run.state / kept.NAME,
+            {red: kept.record(one) for red, one in made.items() if red not in gone},
+        )
+    for one in made.values():
+        if one.red in ended:
             continue
         comment = (
             f"jbus closes this: main's check passed at {main.green[:12]}, a later tip than the "
@@ -295,10 +310,22 @@ def close(run: Pass, world: World) -> None:
         run.say(line)
 
 
+def over(slug: str, world: World, rows: list[dict[str, Any]]) -> bool:
+    """Whether the culprit's slug can merge nothing more: no pull request of it is open, no
+    thread of it is unsettled, and its row, if the queue has one, is final."""
+    row = next((row for row in rows if row.get("slug") == slug), None)
+    final = row is None or row.get("status") in queue.FINAL
+    return final and slug not in world.open and not world.threads.get(slug)
+
+
 QUIET = (Keep.OPENED, Keep.UNREAD)
 """The `Keep`s for which a pass files no row: the revert is open, or the next pass judges it."""
 STEPS = (
     verbs.Step(
-        "tellers", 43, "reverts.close", lambda half: close(half.run, half.seen.world), ("world",)
+        "after-expedite",
+        13,
+        "reverts.close",
+        lambda half: close(half.run, half.seen.world, half.rows),
+        ("world",),
     ),
 )

@@ -21,8 +21,10 @@ from html.parser import HTMLParser
 
 import pytest
 
+import test_jbus_telemetry_tokens as token_records
 from jbus import cli
 from jbus.telemetry import kpis
+from jgauge import spend
 from jleak import cli as jleak_cli
 from test_jbus_telemetry import NOW, SECRET, T3, Machine, act_citing, job, records, snapshots
 from test_jbus_telemetry_gate_labels import S, W, gates, label
@@ -330,11 +332,38 @@ def test_the_what_needs_me_asks_are_the_weeks_typed_messages_that_ask_it(machine
     assert "need me" not in (machine.root / "page" / "kpis.html").read_text()
 
 
+def test_dollars_per_merged_row_is_an_estimate_from_the_dated_price_table(
+    tmp_path, monkeypatch, t3_settings
+):
+    """The week's dollars per merged row, its calls at `jgauge.spend`'s prices, and the page says
+    it is an estimate from the price table, with the table's date."""
+    tokens = token_records.Machine(tmp_path, monkeypatch, t3_settings)
+    tokens.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    tokens.merged("row-a")
+    counts = (1_000, 100_000, 2_000_000, 50_000)
+    tokens.claude("s1", token_records.said(token_records.NOW, "m1", counts))
+    tokens.run()
+
+    out = tmp_path / "page" / "kpis.html"
+    code, said = run("--week", "2026-10-28", "--out", str(out))
+    assert code == 0, said
+    cells = Cells()
+    cells.feed(out.read_text())
+    row = cells.rows["Dollars per merged row"]
+    expected = spend.dollars("claude-opus-5-5", *counts)
+    assert expected is not None
+    assert row[1].startswith(
+        f"an estimate at API list prices, from jgauge.spend's price table of {spend.PRICED_ON}:"
+    )
+    assert row[4] == "n/a n 0 no data"
+    assert row[5] == f"${round(expected, 1):g} n 1 tracked"
+
+
 def test_a_kpi_with_no_instrument_yet_says_so(machine):
     _, rows, _ = page(machine)
 
-    dollars = rows["Dollars per merged row"]
-    assert dollars[4].startswith("no instrument yet: needs ")
+    lacking_one = next(kpi.name for kpi in kpis.KPIS if isinstance(kpi.source, kpis.Lacks))
+    assert rows[lacking_one][4].startswith("no instrument yet: needs ")
     lacking = [name for name, row in rows.items() if row[4].startswith("no instrument yet")]
     assert len(lacking) == sum(isinstance(kpi.source, kpis.Lacks) for kpi in kpis.KPIS)
 
