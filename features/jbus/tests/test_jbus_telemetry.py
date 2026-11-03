@@ -20,7 +20,9 @@ from pathlib import Path
 import pytest
 
 import jbus
+import test_jbus_telemetry_tokens as token_records
 from jbus import cli, telemetry, wake
+from jgauge import spend as jgauge_spend
 
 SECRET = "the user said this and it stays out"
 NOW = datetime(2026, 10, 28, 15, 0, tzinfo=UTC)
@@ -868,3 +870,125 @@ def test_the_most_cap_leaves_the_messages_past_it_for_the_next_build(machine, mo
     with contextlib.closing(machine.store()) as store:
         held = store.execute("SELECT id FROM messages ORDER BY id").fetchall()
     assert held == [(f"m-{n}",) for n in range(5)]
+
+
+def spent(day, at, units, sends=0, homes=0, capped=0):
+    """A day's line of `spend.jsonl`, as `jbus.spent` keeps it."""
+    return {
+        "day": day,
+        "at": iso(at),
+        "units": units,
+        "runs": 1,
+        "input": 0,
+        "cached": 0,
+        "written": 0,
+        "output": 0,
+        "first": units - sends - homes - capped,
+        "reviews": 0,
+        "fixes": 0,
+        "sends": sends,
+        "homes": homes,
+        "scouts": 0,
+        "capped": capped,
+    }
+
+
+def test_the_weeks_spend_gives_the_coordination_and_capped_shares_of_each_days_last_line(machine):
+    """Each week of the days spent, by every project's last line of each day: jbus's sends and
+    the homes over all units, and the runs that failed on a cap over all units. A week of days
+    with no run has no share."""
+    later = NOW + timedelta(days=2)
+    machine.append(
+        "alpha",
+        "spend.jsonl",
+        spent("2026-10-27", NOW, 1000, sends=100, homes=50, capped=10),
+        spent("2026-10-27", later, 2000, sends=200, homes=100, capped=20),
+        spent("2026-10-20", NOW - timedelta(days=7), 500, capped=50),
+        spent("2026-10-13", NOW - timedelta(days=14), 0),
+    )
+    machine.append("beta", "spend.jsonl", spent("2026-10-28", later, 1000, homes=100))
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        weeks = store.execute(
+            "SELECT week, units, coordination, capped FROM weekly_spend ORDER BY week"
+        ).fetchall()
+    assert weeks == [
+        ("2026-10-11", 0, None, None),
+        ("2026-10-18", 500, 0, 10),
+        ("2026-10-25", 3000, pytest.approx(100 * 400 / 3000), pytest.approx(100 * 20 / 3000)),
+    ]
+
+
+def test_a_merged_row_is_finished_with_no_further_word_unless_a_typed_word_after_its_go_names_it(
+    machine,
+):
+    """S1: a merged row is quiet unless a message the user typed after its go, and by its merge,
+    is cited by an act of the row's project on the row, or was typed in the row's own thread. A
+    word before the go, after the merge, or T3 Code's resume after a cap is no further word."""
+    rows = [(f"alpha-{n}", n, NOW + timedelta(hours=1)) for n in ("one", "two", "three", "four")]
+    for slug, _, _ in rows:
+        records(machine, "alpha", NOW, slug, len(slug))
+    snapshots(machine, "alpha", rows)
+    queue = json.loads((machine.state("alpha") / "queue.json").read_text())
+    machine.write("alpha", "queue.json", [{**row, "thread": f"mcp:{row['slug']}"} for row in queue])
+    t3, home = T3(), "mcp:home-a"
+    for thread in (home, *(f"mcp:{slug}" for slug, _, _ in rows)):
+        t3.thread(thread, "alpha-id")
+    t3.say("m-one", home, NOW)
+    act_citing(machine, "alpha", home, "m-one", NOW + timedelta(minutes=1), "hold", "alpha-one")
+    t3.say("m-two", "mcp:alpha-two", NOW)
+    t3.say("m-go", home, NOW - timedelta(hours=2))
+    act_citing(machine, "alpha", home, "m-go", NOW - timedelta(hours=2), "go", "alpha-three")
+    t3.say("m-resume", "mcp:alpha-three", NOW, text="continue where you left off.")
+    t3.say("m-after", "mcp:alpha-four", NOW + timedelta(hours=2))
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        words = store.execute("SELECT slug, words FROM row_words ORDER BY slug").fetchall()
+        weeks = store.execute("SELECT week, merged, quiet, share FROM weekly_no_word").fetchall()
+    assert words == [("alpha-four", 0), ("alpha-one", 1), ("alpha-three", 0), ("alpha-two", 1)]
+    assert weeks == [("2026-10-25", 4, 2, 50.0)]
+
+
+def test_spend_per_merged_row_is_each_weeks_row_spend_over_its_rows_that_spent(
+    tmp_path, monkeypatch, t3_settings
+):
+    """Each merge week, the units the threads of its merged rows spent, over the rows with any
+    spend recorded, in millions: a row merged with no call recorded is left out, and a home's
+    spend is no row's."""
+    tokens = token_records.Machine(tmp_path, monkeypatch, t3_settings)
+    sonnet = "claude-sonnet-5-5"
+    for session, title, plain in (
+        ("s1", "crew: row-a", 1_000_000),
+        ("s2", "review: row-a", 500_000),
+        ("s3", "crew: row-b", 3_000_000),
+        ("s4", "crew: row-d", 500_000),
+        ("s9", "home: alpha", 9_000_000),
+    ):
+        tokens.thread(f"mcp:{session}", title, "claudeAgent", session)
+        tokens.claude(
+            session,
+            token_records.said(NOW, f"m-{session}", (plain, 0, 0, 0), sonnet, session=session),
+        )
+    merged = {"row-a": NOW, "row-b": NOW - timedelta(days=7), "row-d": NOW, "row-e": NOW}
+    state = tokens.state_dir / "alpha"
+    (state / "queue.json").write_text(json.dumps([{"slug": slug} for slug in merged]))
+    (state / "merged.json").write_text(
+        json.dumps(
+            {
+                slug: {"number": n, "mergedAt": iso(at + timedelta(hours=1))}
+                for n, (slug, at) in enumerate(merged.items(), 1)
+            }
+        )
+    )
+    tokens.run()
+
+    with tokens.store() as store:
+        weeks = store.execute(
+            "SELECT week, rows, per_row FROM weekly_row_spend ORDER BY week"
+        ).fetchall()
+    assert weeks == [
+        ("2026-10-18", 1, pytest.approx(3 * jgauge_spend.PLAIN)),
+        ("2026-10-25", 2, pytest.approx(1 * jgauge_spend.PLAIN)),
+    ]
