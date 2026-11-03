@@ -9,9 +9,7 @@ partway loses none, until every thread that was out when the merge landed is tol
 thread for every merge kept, under the key `reload|<commit 12>...|<thread>`, and each
 `reload|<commit 12>|<thread>` marked in `sent.json` once T3 Code took it. Once every one is
 told, the merge itself is marked, `reload|<commit 12>`, and a `merged` line printed again for it
-adds nothing. The tick's `keep` may write the file while a pass's `tell` asks T3 Code for the
-threads out, so each read and write of it holds the lock `reload.lock`, and `tell` writes back
-what it left owed with each merge `keep` added since it read the file. So a thread hears of a merge once, but for the case below, and a send that got no
+adds nothing. So a thread hears of a merge once, but for the case below, and a send that got no
 answer, or that the outbox held, goes on a later pass. A send T3 Code took with no answer,
 retried once another merge has landed, goes under a new key and may tell that thread of the
 first merge twice: a key of the first merges alone would let T3 Code drop the message as a
@@ -19,6 +17,10 @@ repeat, and the later merge with it. A thread started after the merge loaded the
 not told. A thread is told only of the skills it loaded (`loaded`): the ones its role loads
 (`LOADS`), and each that its brief's `Skills:` line names. A thread whose title gives no role
 (`roles.OTHER`) is the user's own and is not told.
+
+The tick's `keep` may write the file while a pass's `tell` asks T3 Code for the threads out, so
+each read and write of it holds the lock `reload.lock`, and `tell` writes back what it left owed
+with each merge `keep` added since it read the file.
 """
 
 from __future__ import annotations

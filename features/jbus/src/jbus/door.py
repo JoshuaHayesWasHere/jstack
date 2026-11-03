@@ -37,8 +37,9 @@ from jsettings import paths
 _HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)(\w+)\1")
 _SEPARATOR = set(";&|\n()`")
 _SHELL = r"(?:\S*/)?(?:ba|z|da|k)?sh"
-_RUNS_TEXT = re.compile(rf"(?:^|\s){_SHELL}(?:\s+-\w+)*\s+-c\s*$|\bssh\s|\beval\s*$")
-"""What runs the quoted text after it as a command: `bash -c`, `ssh <host>`, `eval`."""
+_RUNS_TEXT = re.compile(rf"(?:^|\s){_SHELL}(?:\s+-\w+)*\s+-[a-z]*c\s*$|\bssh\s|\beval\s*$")
+"""What runs the quoted text after it as a command: `bash -c`, with `-c` alone or last of a group
+of flags as in `bash -lc`, `ssh <host>`, `eval`."""
 _FEEDS = re.compile(rf"(?:^|[;&|(]\s*|\s){_SHELL}\b[^<]*$|\bssh\s[^<]*$")
 """What runs a heredoc's body as commands: a shell, or `ssh <host>`, before the `<<`."""
 
@@ -62,12 +63,13 @@ def _unfold(command: str) -> str:
 
 
 def pieces(command: str) -> list[str]:
-    """The commands of a shell command line, each as one backticked command. It is cut at each
+    """The commands of a shell command line, each as one backticked command. A backslash before a
+    newline joins the two lines, as the shell does, and the line is cut at each other
     separator. A quoted string is read as commands of its own after what runs it (`_RUNS_TEXT`),
     as part of its word after `=` or as the command's first word, and otherwise it is an
     argument, a commit message or a title, which runs nothing and is left out."""
     found: list[str] = []
-    text, at, now = _unfold(command), 0, ""
+    text, at, now = _unfold(command).replace("\\\n", " "), 0, ""
 
     def cut() -> None:
         nonlocal now

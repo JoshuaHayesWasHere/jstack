@@ -145,8 +145,8 @@ class Waiver:
 
 def waivers(text: str) -> tuple[Waiver, ...]:
     """Each `Waived: <the Done when line>, <thread>/<message>` line of the brief. The line is named
-    by its words, spaces and case aside, whole or by a start no other line has. A line that names
-    none, or two, waives nothing."""
+    by its words, spaces and case aside, whole or by a start of whole words no other line has. A
+    line that names none, or two, waives nothing."""
     items = [_plain(one) for one in done_when(head_lines(text))]
     found = []
     for line in text.splitlines():
@@ -157,18 +157,23 @@ def waivers(text: str) -> tuple[Waiver, ...]:
         if not said or not _REF.fullmatch(ref):
             continue
         whole = [k for k, one in enumerate(items, 1) if one == said]
-        start = [k for k, one in enumerate(items, 1) if one.startswith(said)]
+        start = [k for k, one in enumerate(items, 1) if re.match(rf"{re.escape(said)}(?!\w)", one)]
         if whole or len(start) == 1:
             found.append(Waiver((whole or start)[0], ref, said))
     return tuple(dict.fromkeys(found))
 
 
+_NOT = r"(?<!\bnot )(?<!n't )(?<!\bnever )"
+"""What before `waive` says not to."""
+
+
 def quotes(words: str, waiver: Waiver) -> bool:
-    """Whether a word is of this waiver: it says it waives, and quotes the words the `Waived:`
-    line names its `Done when` line by. A word about the row that waives nothing, or waives
-    another line, is not."""
+    """Whether a word is of this waiver: it says to waive, and quotes after `waive` the words the
+    `Waived:` line names its `Done when` line by, whole words. A word about the row that waives
+    nothing, says not to, or waives another line, is not."""
     said = _plain(words)
-    return bool(re.search(r"\bwaiv", said)) and waiver.named in said
+    named = re.escape(waiver.named)
+    return re.search(rf"{_NOT}\bwaive[sd]?\s+[\"'`]?{named}(?!\w)", said) is not None
 
 
 @dataclass(frozen=True)

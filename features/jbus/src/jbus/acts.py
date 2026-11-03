@@ -378,12 +378,14 @@ def _unbound(
     run: Pass, said: Evidence, slug: str, numbers: list[int], since: datetime | None, what: str
 ) -> str:
     """Why the user's own words do not open a door for this row, or nothing where they do: they
-    name the row's slug (`queue.names`) or one of its gates' `numbers`, and were said no earlier
+    name the row's slug (`queue.names`) or one of its gates by its number, as `question 3`,
+    `gate 3`, `q3` or `#3` (a number alone may count anything), and were said no earlier
     than the minute of `since`, when `what` says the brief was stored or the question asked. An
     older message, or one about something else, was not said of this door."""
     kind = "pick" if said.source == "t3-pick" else "message"
     named = queue.names(said.words, slug) or any(
-        re.search(rf"(?<![\w.-]){number}(?![\w.-])", said.words) for number in numbers
+        re.search(rf"(?:\bquestion\s+|\bgate\s+|\bq\s*|#){number}(?![\w.-])", said.words, re.I)
+        for number in numbers
     )
     if not named:
         gate = f"question {numbers[0]}" if what.startswith("question") else "its gate"
