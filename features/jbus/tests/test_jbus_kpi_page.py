@@ -26,7 +26,18 @@ from jbus import cli
 from jbus.telemetry import kpis
 from jgauge import spend
 from jleak import cli as jleak_cli
-from test_jbus_telemetry import NOW, SECRET, T3, Machine, act_citing, job, records, snapshots
+from test_jbus_telemetry import (
+    NOW,
+    SECRET,
+    T3,
+    Machine,
+    act_citing,
+    iso,
+    job,
+    records,
+    snapshots,
+    wait,
+)
 from test_jbus_telemetry_gate_labels import S, W, gates, label
 
 THIS = "2026-10-28"
@@ -291,6 +302,51 @@ def test_the_pass_time_is_each_weeks_median_of_the_passes_jbus_recorded(machine)
 
     assert rows["jbus pass, median seconds"][4] == "50 s n 1 missed"
     assert rows["jbus pass, median seconds"][5] == "40 s n 3 missed"
+
+
+def test_the_jmerge_wait_is_each_weeks_median_of_jmerge_records_or_else_of_the_checks(machine):
+    """`records` logs a 40-second wait held 30 seconds for its review for each merged pull
+    request, alpha's 10 this week and beta's 11 last week. A merge with no record of jmerge's,
+    alpha's 12, is counted from its last passed check to its merge, and a record, once there,
+    takes its place."""
+    merged = NOW + timedelta(hours=1)
+    with (machine.state("alpha") / "ci-prs.jsonl").open("a") as listed:
+        listed.write(
+            json.dumps({"number": 12, "head": "h12", "created": iso(NOW), "merged": iso(merged)})
+            + "\n"
+        )
+    machine.append("alpha", "merge.log", f"{NOW:%Y-%m-%d %H:%M} merged 12 alpha-two", home=True)
+    ended = merged - timedelta(seconds=45)
+    one = job(7, "h12", 12, "success", ended - timedelta(minutes=5))
+    machine.append("alpha", "ci.jsonl", {**one, "event": "pull_request"})
+    machine.append(
+        "alpha",
+        "merge-waits.jsonl",
+        wait(20, NOW, 6),
+        wait(21, NOW, 30, {"no-review": 20, "main-red": 4}),
+        home=True,
+    )
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    waiting = rows["Waiting for jmerge, PR p50 minutes"]
+    assert waiting[3] == "≤ 0.2 min"
+    assert waiting[4] == "0.7 min n 1 missed"
+    assert waiting[5] == "0.6 min n 4 missed"
+    with machine.store() as store:
+        held = store.execute(
+            "SELECT code, sum(seconds) FROM jmerge_blockers WHERE week = '2026-10-25' "
+            "GROUP BY code ORDER BY 2 DESC"
+        ).fetchall()
+    assert held == [("no-review", 50.0), ("main-red", 4.0)]
+
+    machine.append("alpha", "merge-waits.jsonl", wait(12, merged, 3), home=True)
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["Waiting for jmerge, PR p50 minutes"][5] == "0.3 min n 4 missed"
 
 
 def test_the_ask_ledger_gives_typed_messages_per_merged_row_and_the_lost_asks(machine):

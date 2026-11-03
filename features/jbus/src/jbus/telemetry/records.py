@@ -8,12 +8,13 @@ each text of a record into its length (`<name>_len`), so no table holds what a m
 A source is a `log` or a `snapshot`:
 
 - A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
-  `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`,
-  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and
-  `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`). A row's key is the
-  hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
-  lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
-  and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
+  `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`
+  and `merge-waits.jsonl` (`jmerge.waits`), and the machine's `passes.jsonl`, the seconds of
+  each pass (`jbus.record`), and `drift.jsonl`, each probe of a standing word in each run
+  (`jbus.drift`). A row's key is the hash of the line, as JSON with sorted keys (as text for
+  `merge.log`), and of how many equal lines come before it, as `jbus.wake.entries` names an
+  event. So two equal lines are two rows, and a line read again, as after the daily trim
+  rewrites `events.jsonl`, is the row it was.
   The machine's `capped.jsonl`, each read of which instances are capped (`jgauge.limits.note`),
   is a log too.
 - A snapshot is written whole each time: `questions.json`, `queue.json`, `merged.json`,
@@ -28,6 +29,7 @@ zone of its own to bucket by.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -208,6 +210,27 @@ def _merges(line: str, zone: tzinfo | None) -> Row:
         "slug": found[4] if merged else None,
         "label": label[1] if label else None,
         "line_len": len(line),
+    }
+
+
+def _merge_waits(one: Row, zone: tzinfo | None) -> Row:
+    """A line of `merge-waits.jsonl` (`jmerge.waits`): a merged pull request's wait from ready
+    to the second its merge began, the seconds each code held it, and the code that held it
+    longest."""
+    held = {
+        code: seconds
+        for code, seconds in _dict(one.get("blockers")).items()
+        if isinstance(seconds, int | float) and not isinstance(seconds, bool)
+    }
+    return {
+        "at": utc(one.get("began"), zone),
+        "number": _number(one.get("number")),
+        "head": _text(one.get("head")),
+        "ready": utc(one.get("ready"), zone),
+        "ready_by": _text(one.get("ready_by")),
+        "seconds": one["seconds"] if isinstance(one.get("seconds"), int | float) else None,
+        "blocker": max(sorted(held), key=held.__getitem__) if held else None,
+        "blockers": json.dumps(held, sort_keys=True),
     }
 
 
@@ -454,6 +477,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
     )
 
 
+_WAITS = _columns("at", "number", "head", "ready", "ready_by", "seconds", "blocker", "blockers")
 SOURCES: tuple[Source, ...] = (
     Source(
         "events",
@@ -738,6 +762,7 @@ SOURCES: tuple[Source, ...] = (
         _capped_reads,
         where="machine",
     ),
+    Source("merge_waits", "merge-waits.jsonl", "log", _WAITS, _merge_waits, where="home"),
 )
 """Each source by its table. A source added here has its table made by a migration of its own
 (`jbus.telemetry.migrations`), never by the first."""

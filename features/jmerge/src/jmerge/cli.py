@@ -36,6 +36,7 @@ from jmerge import (
     rows,
     sweep,
     trailers,
+    waits,
 )
 from jmerge import reverts as reverting
 from jmerge import stacked as stacks
@@ -148,6 +149,8 @@ class Repo:
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, asks)
+        self.spells = waits.Spells(state, asks)
+        self.began: dict[int, datetime] = {}
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
 
@@ -956,6 +959,7 @@ class Repo:
         merge or a close drops the pull request's record in `base-merges.json` too."""
         heads = {str(one.number): one.head for one in listed}
         self.base_merge.open_only(heads)
+        self.spells.open_only({one.number for one in listed})
         self.holds_are({number: head for number, head in self.holds().items() if number in heads})
         self.accepts_are(
             {
@@ -993,6 +997,22 @@ class Repo:
         if ran.returncode:
             return found._replace(why=ready.UNREADIED.format(said=lines.said(ran)))
         return found._replace(why=ready.READIED.format(head=one.head))
+
+    def timed(self, line: str) -> None:
+        """Keep the wait of the open pull request a line is about (`waits.Spells`): a `wait` or
+        `hold` is a sighting of it held by the line's code, and a `merged` line ends its wait at
+        the second its merge began."""
+        said = lines.one(line)
+        one = next((one for one in self.open if said and one.number == said.number), None)
+        if said is None or one is None:
+            return
+        now = datetime.now(UTC)
+        began = self.began.pop(one.number, now)
+        if said.word == "merged":
+            self.spells.merged(one, began)
+        elif said.word in ("wait", "hold"):
+            coded = lines.one(lines.logged(line))
+            self.spells.saw(one, (coded.code if coded else "") or ready.UNKNOWN, now)
 
     def hold(self, one: ready.PullRequest) -> None:
         self.holds_are({**self.holds(), str(one.number): one.head})
@@ -1179,6 +1199,7 @@ class Repo:
         if messages is None:
             return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
+        self.began[one.number] = datetime.now(UTC)
         ran = _run(
             self.main,
             "gh",
@@ -1738,6 +1759,7 @@ def _merging(
         print(line, flush=True)
         said = lines.one(line)
         if not args.check and state.is_dir():
+            repo.timed(line)
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
             kept = lines.logged(line)
             if waits:
