@@ -37,7 +37,7 @@ To get the same report as JSON, add `--format json`.
 Run `jgauge spend --day <YYYY-MM-DD>`, or `jgauge spend --since <time> --until <time>` for any span, in local time.
 Add `--project <name>` to count only one T3 project's threads.
 It prints the spend of every Claude run that started in the period, in units.
-Run `jgauge spend` with `--help` to print the rate of each kind of token.
+The help of `jgauge spend` prints the rate of each kind of token.
 The rates are set in `features/jgauge/src/jgauge/spend.py` sets them (`PLAIN, WRITTEN, CACHED, OUTPUT` and `OPUS`).
 The spend is split by kind of run, by instance and by five-hour window.
 The kinds are first crew run, reviews, fix rounds, jbus sends, homes, scouts and capped failures.
