@@ -1,15 +1,17 @@
 """The arm each launch of a row is on, from jbus's launch records: the store's `launch_arms`.
 
 jbus writes one record for each launch of a row, `launches/<project>/<slug>/<sha 12>.json` in its
-state directory (`jbus.launches.records`), first as an `intent` and then as `launched`. Each
-record names, by dial, the arm the launch is on (`arms`, `jbus.priming.recorded`), `off` while the
-dial's pilot is not started. The store keeps one row for each dial of each launched record, keyed
-by the record's key and the dial, and never updates one: a row launched again under the same
-brief, which keeps its arm, is the row it was.
+state directory (`jbus.launches.records`), first as an `intent` and then as `launched`. A record
+written while a dial ran names, by dial, the arm the launch is on (`arms`), `off` while the dial's
+pilot was not started. crew-router-pilot was that dial, and it ended with the pilot's read
+(priming-pilot-read), so no record jbus writes now names one. The store keeps one row for each
+dial of each launched record, keyed by the record's key and the dial, and never updates one: a
+row launched again under the same brief, which keeps its arm, is the row it was.
 
-A record from before `arms` that names `priming`, the pilot's own field since it started, gives
-that arm of `jbus.priming.DIAL`. A record that names neither is a launch from before the store
-could tell: its one row has no dial and no arm, and `covered` 0. No arm is guessed for it.
+A record from before `arms` that names `priming`, the pilot's own field, gives that arm of
+`crew-router-pilot`. A record that names neither names no dial: from before the store could tell,
+or from after the pilot ended. Its one row has no dial and no arm, and `covered` 0. No arm is
+guessed for it.
 
 A build reads only the records whose time is at or after the newest one it read (`cursors`, under
 the machine's project), and of those only the launched ones, so an `intent` is read again once it
@@ -25,13 +27,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
-from jbus import priming, queue, read_json
+from jbus import queue, read_json
 from jbus.telemetry import cursors, records
 
 if TYPE_CHECKING:
     from jbus.telemetry import Built
 
 TABLE = "launch_arms"
+PILOT = "crew-router-pilot"
+"""The dial a record's `priming` field is the arm of."""
+PILOT_ARMS = ("trimmed", "control")
 COLUMNS = ("slug", "role", "dial", "arm", "covered", "thread", "at")
 TABLE_SQL = (
     f"CREATE TABLE {TABLE} (project TEXT NOT NULL, key TEXT NOT NULL, slug TEXT, role TEXT, "
@@ -58,8 +63,8 @@ def rows(record: dict[str, Any], slug: str, zone: tzinfo | None) -> list[tuple[s
         for dial, arm in (said.items() if isinstance(said, dict) else ())
         if isinstance(dial, str) and isinstance(arm, str)
     }
-    if not named and record.get("priming") in priming.ARMS:
-        named = {priming.DIAL: record["priming"]}
+    if not named and record.get("priming") in PILOT_ARMS:
+        named = {PILOT: record["priming"]}
     common = {
         "slug": slug,
         "role": _text(record.get("role")) or queue.CREW,
