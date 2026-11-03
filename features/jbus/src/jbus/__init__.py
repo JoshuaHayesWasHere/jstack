@@ -183,7 +183,6 @@ class Config:
     dispatch: bool
     max_running: int
     warn_days: int
-    wake_alert: int
     room_passes: int
     projects: tuple[Project, ...]
     config_dir: Path
@@ -433,7 +432,6 @@ def load(directory: Path | None = None) -> Config:
         max_per_home=_cap(raw, "max_per_home", MAX_PER_HOME, path),
         max_per_project=_cap(raw, "max_per_project", MAX_PER_PROJECT, path),
         warn_days=int(raw.get("warn_days", 5)),
-        wake_alert=int(raw.get("wake_alert", 12)),
         room_passes=int(raw.get("room_passes", 10)),
         projects=tuple(projects),
         config_dir=directory,

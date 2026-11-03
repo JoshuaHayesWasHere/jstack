@@ -88,7 +88,6 @@ NAMED = (
     "overlap_cap",
     "rotation.json",
     "warn_days",
-    "wake_alert",
     "jbus status",
     "jgauge test-slot",
     "X-Automation-Key",
@@ -210,7 +209,6 @@ def test_the_defaults_the_configuration_page_gives_are_the_loaders(tmp_path):
         "dispatch": str(config.dispatch).lower(),
         "room_passes": str(config.room_passes),
         "warn_days": str(config.warn_days),
-        "wake_alert": str(config.wake_alert),
     }
     assert not re.search(r"^\| `loud` \|", said, re.M)
     assert project.state == project.name
