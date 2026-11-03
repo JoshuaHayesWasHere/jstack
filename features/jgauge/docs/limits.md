@@ -92,7 +92,7 @@ The one stall came from a review that the reviewer had not written, and the mach
 | Short test slots, `short_slots` | `features/jgauge/src/jgauge/sizes.py`, `~/.config/jstack/machine.toml` | `SHORT_PER_CORES = 8` | A targeted run or a reviewer's proof never waits behind a suite | `jgauge.sizes` derives it as `clamp(cores // 8, 2, 8)`, 3 on yelena. There were 9 waits for a short slot on the busy night. |
 | Short lane's time limit | `features/jgauge/src/jgauge/slot.py` | `SHORT_LIMIT_SECONDS = 120.0` | A full suite cannot sit in the short lane | Design choice, not a machine size: a whole suite takes 89 s alone |
 | Desk test workers | `Makefile` | `PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)` | One check's share of the machine | A share, the same on any machine. 6 workers: 89 to 94 s, 5.2 cores busy. |
-| Runner test workers | `Makefile` | `PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)` | A runner's check time on its quota | A share of the container's quota. 6 workers on a quota of 4, not measured on yelena. |
+| Runner test workers | `Makefile` | `PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)` | A runner's check time on its quota | A share of the container's quota. 6 workers on a quota of 4, not run again for these measurements. |
 | Runners and each one's share | `hosts/yelena/runners/*.conf` in infra, `CPUS=4`, `MEMORY=4g` | 7 full, 2 fast | CI beside the desk | infra's machine config, not jstack's. The slice's 20 CPUs at CPUWeight 50 give way to the desk. |
 
 ## Room
