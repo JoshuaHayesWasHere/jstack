@@ -3,8 +3,9 @@
 jbus, jmerge and jgauge are what revert or fix a red main ("Main is not red" in
 `features/jmerge/docs/jmerge.md`), so a main that breaks must not break them. They do not
 run from the live checkout, where any branch or any red tip of main may be checked out. They
-run from the green copy: a clone of the checkout at `${XDG_DATA_HOME:-~/.local/share}/jstack/green`
-(`path`), which `install.sh` makes (`make`) once jbus's config names the checkout as a project.
+run from the green copy at `${XDG_DATA_HOME:-~/.local/share}/jstack/green` (`path`), which
+`install.sh` makes (`make`) once jbus's config names the checkout as a project. The copy is a link
+to a tree of its own for each tip, a clone of the checkout at `green.d/<sha>` beside it (`trees`).
 uv's tool `jstack`, whose commands the units run, is an editable install of the copy, and each
 harness's layout links its `source` to it, so `uv run --project "$T/../source" jbus` in a home
 or a wake runs it too.
@@ -12,13 +13,17 @@ or a wake runs it too.
 The copy keeps the checkout it was made from in `.git/jstack-checkout` (`of`), and fetches from
 the checkout's own origin. Each pass of that checkout's project moves it (`move`) to `green`,
 the last tip of main whose required check passed, which `jbus.mainmoved.tell` keeps in
-`main.json` (`jmerge.mainjson`), which only ever names a later tip of main. Before it says the
-move is done, it imports the copy's commands (`IMPORTS`) with the pass's own Python. A copy that
-does not import goes back to the tip it was at, the pass raises a condition for that tip, and
-`green.json` in the project's state keeps it as `refused`, so no later pass tries it again. So a
-main whose check failed never reaches the copy, and neither does a tip whose check passed but
-which does not import here. When the move changed `pyproject.toml` or `uv.lock`, it installs the
-tool again, as `install.sh` does, so a new command or package root is on the tool's path.
+`main.json` (`jmerge.mainjson`), which only ever names a later tip of main. The move makes the
+new tip's tree beside the one the link names and imports its commands (`IMPORTS`) with the pass's
+own Python, or, where the tip changed `pyproject.toml` or `uv.lock`, in an environment uv makes as
+the tool's install will. Only then does it point the link at the new tree, in one rename, so a
+command that starts runs one tip or the other and never a tree half way between them. A tree that
+does not import is removed, the pass raises a condition for that tip, and `green.json` in the
+project's state keeps it as `refused`, so no later pass tries it again. So a main whose check
+failed never reaches the copy, nor does a tip whose check passed but which fails to import
+here. When the move changed `pyproject.toml` or `uv.lock`, it installs the tool again, as
+`install.sh` does, so a new dependency, command or package root is on the tool's path. The tree
+the link named before stays until the next move, for a command that still runs in it.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
@@ -27,6 +32,7 @@ tree's own code, and the copy moves no file of it.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import subprocess
@@ -90,16 +96,21 @@ def sources(copy: Path) -> list[Path]:
     return [one for one in (copy / "src", *sorted(copy.glob("features/*/src"))) if one.is_dir()]
 
 
-def imports(copy: Path) -> str:
+def imports(copy: Path, fresh: bool = False) -> str:
     """Import the copy's commands with this Python and its packages, the copy's roots first.
+    With `fresh`, import them in a new environment that uv makes from the copy's
+    `pyproject.toml`, as `uv tool install --editable` does, and not with this Python's packages.
     Return "" when they import, or the last line the import printed."""
+    python = [sys.executable]
+    if fresh:
+        python = ["uv", "run", "--isolated", "--no-project", "--with-editable", str(copy), "python"]
     env = {
         **os.environ,
         "PYTHONPATH": os.pathsep.join(str(one) for one in sources(copy)),
         "PYTHONSAFEPATH": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
     }
-    said = proc.run(sys.executable, "-c", IMPORTS, cwd=copy, env=env, timeout=120)
+    said = proc.run(*python, "-c", IMPORTS, cwd=copy, env=env, timeout=600)
     return "" if said.returncode == 0 else _said(said)
 
 
@@ -116,20 +127,52 @@ def fetch(copy: Path, sha: str, source: str = "origin") -> bool:
     return _has(copy, sha)
 
 
+def trees(copy: Path) -> Path:
+    """Where the copy's trees are, one for each tip it was at: `<copy>.d`, beside it."""
+    return copy.with_name(f"{copy.name}.d")
+
+
 def make(checkout: Path, copy: Path, sha: str) -> str:
     """Make `copy` a green copy of `checkout` at `sha`. Return "" when it is made, or why it is
     not.
 
-    It is a repo of its own and not a worktree, which the checkout would list, and a test or
-    a sandbox that installs from the checkout would add one there. It holds no history, only
-    each commit it was at: it fetches `sha` from the checkout, and every later tip from the
-    checkout's origin, which its own `origin` names."""
-    if copy.exists():
+    Each tree is a repo of its own and not a worktree, which the checkout would list, and a test
+    or a sandbox that installs from the checkout would add one there. It holds no history, only
+    its one commit, which it fetches from the checkout, or else from the checkout's origin, which
+    its own `origin` names."""
+    if copy.exists() or copy.is_symlink():
         return f"{copy} is there already"
-    copy.mkdir(parents=True)
-    if why := _fill(checkout, copy, sha):
-        shutil.rmtree(copy)
+    tree = trees(copy) / sha
+    if why := _grow(checkout, tree, sha):
+        return why
+    _point(copy, tree)
+    return ""
+
+
+def _grow(checkout: Path, tree: Path, sha: str) -> str:
+    """Make `tree` a clone of `checkout` at `sha`. Return "" when it is made, or why not, with no
+    tree left then."""
+    if tree.exists():
+        shutil.rmtree(tree)
+    tree.mkdir(parents=True)
+    why = _fill(checkout, tree, sha)
+    if why:
+        shutil.rmtree(tree)
+        with contextlib.suppress(OSError):
+            tree.parent.rmdir()
     return why
+
+
+def _point(copy: Path, tree: Path) -> None:
+    """Point the link `copy` at `tree` in one rename."""
+    new = copy.with_name(f".{copy.name}.new")
+    new.unlink(missing_ok=True)
+    new.symlink_to(os.path.relpath(tree, copy.parent))
+    os.replace(new, copy)
+
+
+def _built(tree: Path) -> list[bytes | None]:
+    return [(tree / one).read_bytes() if (tree / one).is_file() else None for one in BUILT]
 
 
 def _fill(checkout: Path, copy: Path, sha: str) -> str:
@@ -172,22 +215,23 @@ def move(run: Pass, copy: Path | None = None) -> None:
     refused = read_json(run.state / FILE, {}).get("refused")
     if not green or not held or green in (held, refused):
         return
-    if not fetch(copy, green):
-        run.condition("green", MOVE_FAILED, f"{green[:12]} is not in the copy's origin")
+    tree = trees(copy) / green
+    if why := _grow(run.project.checkout, tree, green):
+        run.condition("green", MOVE_FAILED, f"to {green[:12]}: {why}", key=green[:12])
         return
-    moved = _checkout(copy, green)
-    if moved.returncode != 0:
-        why = f"to {green[:12]}: {_said(moved)}"
-        run.condition("green", MOVE_FAILED, why, key=green[:12])
-        return
-    if broke := imports(copy):
-        _checkout(copy, held)
+    changed = _built(copy) != _built(tree)
+    if broke := imports(tree, fresh=changed):
+        shutil.rmtree(tree)
         write_json(run.state / FILE, {"refused": green})
         why = f"at {green[:12]}, so it stays at {held[:12]}: {broke}"
         run.condition("green", NO_IMPORT, why, key=green[:12])
         run.say(f"green {run.project.name}: {green[:12]} does not import, kept {held[:12]}")
         return
-    changed = _git(copy, "diff", "--quiet", held, green, "--", *BUILT).returncode != 0
+    before = copy.resolve()
+    _point(copy, tree)
+    for old in trees(copy).iterdir():
+        if old.is_dir() and old.resolve() not in (before, tree.resolve()):
+            shutil.rmtree(old)
     if changed and (why := _reinstall(copy)):
         run.condition("green", MOVE_FAILED, f"uv tool install at {green[:12]}: {why}")
     run.say(

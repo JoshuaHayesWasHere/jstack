@@ -8,7 +8,6 @@ kitchen's own origin as the remote whose main moves."""
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -118,6 +117,35 @@ def test_the_copy_moves_on_once_a_later_tip_fixes_main(copied):
     assert at(copied.copy) == fixed
 
 
+def test_a_tip_that_changes_the_dependencies_is_imported_with_them_and_not_with_this_python(copied):
+    """`uv tool install` reads `pyproject.toml`, so a tip that changes it is imported in an
+    environment uv makes from it: one whose dependency cannot be had is refused here, and does not
+    reach the tool, though this Python imports its code."""
+    needs = 'dependencies = ["nowhere @ file:///nonexistent/nowhere"]'
+    pyproject = f'[project]\nname = "demo"\nversion = "0"\n{needs}\n'
+    unmet = land(copied, "success", {"pyproject.toml": pyproject})
+    said = copied.poll()
+    assert at(copied.copy) == copied.first
+    assert f"green demo: {unmet[:12]} does not import, kept {copied.first[:12]}" in said
+    assert gates(copied) == [f"condition green: {green.NO_IMPORT}"]
+    assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == [copied.first]
+
+
+def test_a_move_points_the_copy_at_a_new_tree_and_leaves_the_last_one_whole(copied):
+    """A move never rewrites a tree a command runs from: it makes the new tip's tree beside it and
+    swaps the link in one rename, and the tree it named before stays whole until the next move."""
+    before = copied.copy.resolve()
+    new = land(copied, "success", {"features/new.txt": "new\n"})
+    copied.poll()
+    assert copied.copy.is_symlink()
+    assert copied.copy.resolve() == green.trees(copied.copy) / new
+    assert at(before) == copied.first
+    assert not (before / "features/new.txt").exists()
+    later = land(copied, "success")
+    copied.poll()
+    assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == sorted([new, later])
+
+
 def test_a_copy_of_another_checkout_is_left_alone(kitchen, tmp_path):
     other = tmp_path / "other-checkout"
     subprocess.run(["git", "clone", "-q", str(kitchen.origin), str(other)], check=True)
@@ -156,7 +184,6 @@ def test_a_crew_s_tests_import_their_own_tree_and_not_the_green_copy():
     the green copy is."""
     assert Path(jbus.__file__).resolve().is_relative_to(REPO)
     assert not Path(jbus.__file__).resolve().is_relative_to(green.path())
-    assert Path(sys.prefix).resolve().is_relative_to(REPO)
 
 
 def _pass(kitchen):

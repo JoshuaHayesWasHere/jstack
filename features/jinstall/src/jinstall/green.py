@@ -2,11 +2,12 @@
 
 jbus reverts or fixes a red main, so it must not run from a main that broke (`jbus.green`). When
 jbus's config names the checkout `install.sh` runs from as a project, `attach` gives the machine a
-green copy, a clone of the checkout at `${XDG_DATA_HOME:-~/.local/share}/jstack/green`, and the
-install points everything that runs at it: uv's tool `jstack` is an editable install of it, and
-each layout, its skills, hooks and `source` link, and each unit is assembled from it
-(`Machine.source`). The checkout keeps what a developer works on: its project skills, its
-generated files, its own git hooks. jbus moves the copy forward to main's green tip on each pass.
+green copy at `${XDG_DATA_HOME:-~/.local/share}/jstack/green`, a link to a clone of the checkout
+at one tip, and the install points everything that runs at it: uv's tool `jstack` is an editable
+install of it, and each layout, its skills, hooks and `source` link, and each unit is assembled
+from it (`Machine.source`). The checkout keeps what a developer works on: its project skills,
+its generated files, its own git hooks. jbus moves the copy forward to main's green tip on each
+pass.
 
 A checkout that jbus does not watch has no green copy: nothing would move it, so its install
 runs from the checkout as before. Neither does a run of `jinstall` from a release.
@@ -126,5 +127,6 @@ class GreenCopy:
         changed = machine.run(["git", "-C", str(self.path), "status", "--porcelain"])
         if changed.code != 0 or changed.out.strip():
             return Dropped(kept=(f"green copy {self.path} -> it holds changes of its own",))
-        shutil.rmtree(self.path)
+        self.path.unlink()
+        shutil.rmtree(copies.trees(self.path), ignore_errors=True)
         return Dropped(removed=(f"green copy {self.path}",))

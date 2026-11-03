@@ -211,15 +211,19 @@ Then the install points at the copy everything that runs:
 - The units, the hooks and jleak's git hooks link into the copy.
 
 The checkout keeps what a developer works on: its project skills, its generated files, and its own git hooks.
-The copy is a repo of its own, not a worktree, so `git worktree list` in the checkout does not list it.
+The copy is a link to a tree for one tip, `~/.local/share/jstack/green.d/<sha>`.
+Each tree is a repo of its own, not a worktree, so `git worktree list` in the checkout does not list it.
 Its `.git/jstack-checkout` names the checkout it was made from, and `jinstall` run from the copy acts for that checkout.
 `install.sh`, `--check` and the doctor print `ok hard green copy <path> -> at <sha>, which each jbus pass moves to main's green tip`.
-`--uninstall` removes the copy, unless it holds changes of its own.
+`--uninstall` removes the copy and its trees, unless the tree it names holds changes of its own.
 
 #### How the copy moves
 
 Each jbus pass of the project moves the copy to the green tip `main.json` keeps (`jbus.green`), with no step of yours.
-It fetches that one commit from the checkout's origin, checks it out, and imports the commands from it.
+It makes a tree for that one commit beside the tree the copy names, fetched from the checkout or else from its origin, and imports the commands from it.
+Where the tip changes `pyproject.toml` or `uv.lock`, it imports them in an environment uv makes from the tip, as the tool's install will.
+Only then does it point the copy at the new tree, in one rename, so a command that starts runs one tip or the other, never a tree half way between them.
+The tree the copy named before stays until the next move, for a command that still runs in it.
 The pass log, the journal of `jbus.service`, keeps one line for each move:
 
 ```text
@@ -227,7 +231,7 @@ green jstack: the commands now run from 1a2b3c4d5e6f, in place of 0f9e8d7c6b5a
 ```
 
 A tip whose check failed is not green, so the copy never reaches it.
-A tip whose check passed but that does not import on this machine is put back at once: the pass prints `green jstack: <sha> does not import, kept <sha>`, raises the condition `the green copy does not import`, and tries that tip no more.
+A tip whose check passed but that does not import on this machine is dropped at once: the pass removes its tree, prints `green jstack: <sha> does not import, kept <sha>`, raises the condition `the green copy does not import`, and tries that tip no more.
 The copy moves on at the next green tip.
 When a move changes `pyproject.toml` or `uv.lock`, the pass installs the tool again from the copy.
 A new skill is linked by the next `install.sh`, as in any checkout.
