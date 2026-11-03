@@ -497,10 +497,10 @@ def test_a_week_of_merged_rows_and_no_spell_has_no_stall_minute(machine):
 def test_a_kpi_with_no_instrument_yet_says_so(machine):
     _, rows, _ = page(machine)
 
-    lacking_one = next(kpi.name for kpi in kpis.KPIS if isinstance(kpi.source, kpis.Lacks))
-    assert rows[lacking_one][4].startswith("no instrument yet: needs ")
+    lacks = [kpi.name for kpi in kpis.KPIS if isinstance(kpi.source, kpis.Lacks)]
+    assert all(rows[name][4].startswith("no instrument yet: needs ") for name in lacks)
     lacking = [name for name, row in rows.items() if row[4].startswith("no instrument yet")]
-    assert len(lacking) == sum(isinstance(kpi.source, kpis.Lacks) for kpi in kpis.KPIS)
+    assert sorted(lacking) == sorted(lacks)
 
 
 def test_the_page_holds_no_record_text_no_project_and_no_path_and_jleak_finds_nothing(machine):
