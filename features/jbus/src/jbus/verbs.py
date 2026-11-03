@@ -34,6 +34,11 @@ refuses one at once. `typed_at` is how a verb takes the `--at` an agent types fo
 said something: as `jsettings` words a time, and within `TYPED_MINUTES` of `clock`, since a time
 further off is a guess and not a reading of `date` or of the message.
 
+`reads` reads off the sources which verbs can reach `here`, which reach neither `here` nor
+`project`, and which verbs the calls of `piped` name. `jbus.pages` prints the three lists into
+`features/jbus/docs/jbus/the-verbs.md`, so a new verb changes its own module and no line of the
+page by hand.
+
 This module imports none of jbus's features, so that each feature can import this module. It
 imports `jbus.party`, the shapes of who acts, and `jbus.sources`, which import nothing of jbus.
 """
@@ -235,6 +240,142 @@ def load_verb(one: Listed) -> Verb:
         if declared.name == one.name:
             return declared
     raise ValueError(f"{one.module} declares {one.name} in its source and not once imported")
+
+
+@dataclass(frozen=True)
+class Reads:
+    """What the verbs that the modules under some paths declare read, each list sorted.
+
+    `here` is every verb whose run can reach `here`, and so act on the project whose repo it is
+    run in. `none` is every verb whose run reaches neither `here` nor `project`. `piped` is every
+    verb that a call of `piped` names, as typed, such as `queue add`.
+    """
+
+    here: tuple[str, ...]
+    none: tuple[str, ...]
+    piped: tuple[str, ...]
+
+
+_Function = tuple[str, str]
+_HERE: _Function = (__name__, "here")
+_PROJECT: _Function = (__name__, "project")
+_PIPED: _Function = (__name__, "piped")
+
+
+def _imported(module: str, packages: set[str], node: ast.ImportFrom) -> str:
+    """Return the module that a `from ... import` in `module` imports from."""
+    if not node.level:
+        return node.module or ""
+    base = module if module in packages else module.rpartition(".")[0]
+    for _ in range(node.level - 1):
+        base = base.rpartition(".")[0]
+    return f"{base}.{node.module}" if node.module else base
+
+
+def _namer(
+    module: str, tree: ast.Module, names: set[str], packages: set[str]
+) -> Callable[[ast.AST], _Function | None]:
+    """Return what reads the function that a name or an attribute of `module` names, as its module
+    and its name: a function of the module, or one of a module of `names` that it imports."""
+    defined = {
+        one.name for one in tree.body if isinstance(one, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    modules: dict[str, str] = {}
+    functions: dict[str, _Function] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname and alias.name in names:
+                    modules[alias.asname] = alias.name
+        elif isinstance(node, ast.ImportFrom):
+            source = _imported(module, packages, node)
+            for alias in node.names:
+                if f"{source}.{alias.name}" in names:
+                    modules[alias.asname or alias.name] = f"{source}.{alias.name}"
+                elif source in names:
+                    functions[alias.asname or alias.name] = (source, alias.name)
+
+    def named(node: ast.AST) -> _Function | None:
+        if isinstance(node, ast.Name):
+            return (module, node.id) if node.id in defined else functions.get(node.id)
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            if node.value.id in modules:
+                return modules[node.value.id], node.attr
+        return None
+
+    return named
+
+
+def _declared(tree: ast.Module) -> list[ast.Call]:
+    """Return the calls of a module's `VERBS`, the shape that `_listed` holds it to."""
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        if isinstance(node.value, ast.Tuple) and "VERBS" in {ast.unparse(one) for one in targets}:
+            return [one for one in node.value.elts if isinstance(one, ast.Call)]
+    return []
+
+
+def reads(paths: Iterable[str]) -> Reads:
+    """Return what the verbs that the modules under `paths` declare read, off their sources, and
+    import none of them.
+
+    A verb's run reaches a function that it names, called or not, and each function that such a
+    function names in turn: one of its own module, or one that it imports from a module under
+    `paths`. So a verb that calls `here` under one option alone is among `here`'s, and a verb in
+    `none` takes no project, whatever it is given. A method of a class is not followed.
+    """
+    trees = {
+        name: ast.parse(source)
+        for name, source in sources.modules(paths, f"{jbus.__name__}.", deep=True)
+    }
+    names = set(trees)
+    packages = {name.rpartition(".")[0] for name in names}
+    edges: dict[_Function, set[_Function]] = {}
+    runs: dict[str, set[_Function]] = {}
+    piped_by: set[str] = set()
+    for module, tree in trees.items():
+        named = _namer(module, tree, names, packages)
+
+        def uses(expression: ast.AST, named=named) -> set[_Function]:
+            return {one for node in ast.walk(expression) if (one := named(node)) is not None}
+
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                edges[(module, node.name)] = uses(node)
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and named(node.func) == _PIPED
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                piped_by.add(node.args[0].value)
+        for call in _declared(tree):
+            run = [one.value for one in call.keywords if one.arg == "run"] or call.args[3:4]
+            runs[call.args[0].value] = uses(run[0]) if run else set()
+
+    def reached(start: set[_Function]) -> set[_Function]:
+        seen: set[_Function] = set()
+        left = list(start)
+        while left:
+            one = left.pop()
+            if one not in seen:
+                seen.add(one)
+                left.extend(edges.get(one, ()))
+        return seen
+
+    reach = {name: reached(start) for name, start in runs.items()}
+    return Reads(
+        here=tuple(sorted(name for name, seen in reach.items() if _HERE in seen)),
+        none=tuple(sorted(name for name, seen in reach.items() if not {_HERE, _PROJECT} & seen)),
+        piped=tuple(sorted(piped_by)),
+    )
 
 
 def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:

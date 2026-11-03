@@ -1,11 +1,12 @@
-"""`python -m jbus.pages [--check]`: build the list of events of `features/jbus/docs/jbus/`
-out of the code.
+"""`python -m jbus.pages [--check]`: build the lists of `features/jbus/docs/jbus/` out of the code.
 
-Run it in this repo's root. It writes the built part of one page,
-`features/jbus/docs/jbus/events-and-wakes.md`: the text between `<!-- built: events -->`
-and the `<!-- built: end -->` after it. That part lists the kinds of event for each level, sorted
-and one on a line, read from `wake.LOUDNESS`, so that two pull requests that each add a kind merge
-with no conflict. It leaves the rest of the page, which a person wrote by hand, as it is. A second
+Run it in this repo's root. It writes the built parts of two pages: the text between
+`<!-- built: <part> -->` and the `<!-- built: end -->` after it. Each part is a list, sorted and one
+on a line, so that two pull requests that each add to it merge with no conflict. The part `events`
+of `features/jbus/docs/jbus/events-and-wakes.md` lists the kinds of event for each level, read from
+`wake.LOUDNESS`. The parts `here`, `none` and `piped` of `features/jbus/docs/jbus/the-verbs.md`
+list the verbs that `verbs.reads` finds acting on the repo's project, taking no project, and
+reading stdin. It leaves the rest of each page, which a person wrote by hand, as it is. A second
 run changes nothing.
 `scripts/generate-jstack-trees.py` writes the index of `features/jbus/docs/jbus.md` from the
 tree, and needs no import of jbus.
@@ -21,9 +22,13 @@ import re
 import sys
 from pathlib import Path
 
-from jbus import LEVELS, wake
+import jbus
+from jbus import LEVELS, verbs, wake
 
 EVENTS_PAGE = "features/jbus/docs/jbus/events-and-wakes.md"
+VERBS_PAGE = "features/jbus/docs/jbus/the-verbs.md"
+PARTS = {EVENTS_PAGE: ("events",), VERBS_PAGE: ("here", "none", "piped")}
+PATHS = jbus.__path__
 RUN = "uv run python -m jbus.pages"
 BUILT = re.compile(
     r"(?P<begin><!-- built: (?P<part>\w+) -->\n)(?P<body>.*?)(?P<end><!-- built: end -->)", re.S
@@ -55,18 +60,31 @@ def events() -> str:
     return "".join(parts)
 
 
+def listed(names: tuple[str, ...]) -> str:
+    """Return the verbs, one on a line, as `jbus <verb>`."""
+    return "".join(f"- `jbus {name}`\n" for name in names)
+
+
 def build(root: Path) -> dict[str, str]:
     """Return each page that has a built part, by its path, with that part built again from
-    the code."""
-    makers = {"events": events}
+    the code, the verbs from the modules under `PATHS`."""
+    said = verbs.reads(PATHS)
+    makers = {
+        "events": events,
+        "here": lambda: listed(said.here),
+        "none": lambda: listed(said.none),
+        "piped": lambda: listed(said.piped),
+    }
     built = {}
-    for name, part in ((EVENTS_PAGE, "events"),):
+    for name, parts in PARTS.items():
         try:
             text = (root / name).read_text(encoding="utf-8")
         except OSError as error:
             raise Refused(f"{name}: {error.strerror}, run this in the repo's root") from error
-        if not any(found["part"] == part for found in BUILT.finditer(text)):
-            raise Refused(f"{name}: has no `<!-- built: {part} -->` part")
+        there = {one["part"] for one in BUILT.finditer(text)}
+        for part in parts:
+            if part not in there:
+                raise Refused(f"{name}: has no `<!-- built: {part} -->` part")
 
         def fill(found: re.Match[str], name: str = name) -> str:
             if found["part"] not in makers:
