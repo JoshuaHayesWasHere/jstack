@@ -12,6 +12,7 @@ names a red tip, only the fix of that main, the brief `main-red-<sha12>`, merges
 other pull request waits until main is green."""
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -439,7 +440,7 @@ def test_a_hand_merge_that_takes_the_number_after_the_judgment_has_it_renumbered
     listing(home, (8, BETA_URL, "beta", adds("0005_beta"), "MERGEABLE"))
     listed = json.loads((home.stub / "list.json").read_text())
     for check in listed[0]["statusCheckRollup"]:
-        check["startedAt"] = "2000-01-01T00:00:00Z"
+        check["startedAt"] = f"{date.today().year + 1}-01-01T00:00:00Z"
     (home.stub / "list.json").write_text(json.dumps(listed))
     one = ready.pull_request(listed[0])
     monkeypatch.setenv("JBUS_CONFIG_DIR", str(home.user / ".config" / "jbus"))

@@ -1,6 +1,6 @@
 """`jmerge` run as a command on a pull request whose review proved its safety fact: a secret
 path is still the user's, and jbus sends it as a gate; a check is judged by its start and by
-what main changed since. The other test files run `jmerge` with this file's helpers.
+whether main changed since. The other test files run `jmerge` with this file's helpers.
 
 The tests run the command against the fake `gh` and real origin of `test_home_merge`, from a
 copy of the package, `rules`."""
@@ -125,16 +125,23 @@ def test_a_main_that_changed_its_file_into_a_conflict_after_its_check_waits(prov
     assert merges(proven_merged) == []
 
 
+def moved(proven_merged):
+    """The line of a pull request whose check started before main's tip, in a run that asks
+    GitHub nothing."""
+    tip = merge.git(proven_merged.home.main, "rev-parse", "HEAD")
+    return f"wait 7 {merge.URL}: " + ready.BASE_MOVED_DUE.format(base="main", tip=tip[:12])
+
+
 @pytest.mark.parametrize("path", ["docs/other.md", "Makefile"])
-def test_a_main_that_moved_only_on_other_files_leaves_the_check_standing(
+def test_a_main_that_moved_only_on_other_files_waits_for_a_check_over_it(
     proven_merged, rules, path
 ):
     on_main(proven_merged, path)
     proven_merged.home.open_pull_request(
         proven_merged.head, checks=(STARTED,), files=["a.txt", SKILL]
     )
-    (said,) = jmerge(proven_merged, rules)
-    assert said.startswith("merged 7 alpha ")
+    assert jmerge(proven_merged, rules, "--check") == [moved(proven_merged)]
+    assert merges(proven_merged) == []
 
 
 def test_a_check_that_started_after_main_changed_the_file_is_fresh(proven_merged, rules):
@@ -242,7 +249,7 @@ def test_a_main_that_moved_while_it_was_judged_has_it_judged_again_before_the_me
     assert not (proven_merged.home.stub / "calls").exists()
 
 
-def test_a_main_that_moved_on_another_path_while_it_was_judged_does_not_keep_it(
+def test_a_main_that_moved_on_another_path_while_it_was_judged_waits_for_a_check_over_it(
     proven_merged, monkeypatch
 ):
     proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
@@ -250,4 +257,5 @@ def test_a_main_that_moved_on_another_path_while_it_was_judged_does_not_keep_it(
     here = repo(proven_merged, monkeypatch)
     *_, judged = here.waits(one, "main")
     on_main(proven_merged, "docs/other.md")
-    assert here.merge(one, "alpha", "", judged).startswith("merged 7 alpha ")
+    assert here.merge(one, "alpha", "", judged) == moved(proven_merged)
+    assert not (proven_merged.home.stub / "calls").exists()
