@@ -60,7 +60,7 @@ Two lines with the same provider and model are two reviewers, and only their num
 It waits until it has a section for each number that the `Reviewer:` lines name.
 The round's verdict is the worst verdict among those sections.
 Once a `Reviewer:` line has a number, `jmerge` treats the unnumbered `Reviewer:` lines as a launch that the numbered lines replaced.
-`jmerge` no longer waits on the unnumbered reviewers, and their sections are not part of the round's verdict.
+`jmerge` does not wait on the unnumbered reviewers, and their sections are not part of the round's verdict.
 The findings in those sections still need answers.
 When no `Reviewer:` line of a brief has a number, `jmerge` matches sections to reviewers by their `By:` lines.
 A scoped pass or a second pass has one reviewer, from the first `review` line, and that reviewer writes `#1`.
@@ -132,43 +132,24 @@ The selection names that instance as its `instanceId`.
 So every launch goes to `claudeAgent` until that account reaches its `headroom` (see The ledger).
 Launches then go to `claudeAgent_work`, and go back to `claudeAgent` once `claudeAgent`'s window has reset.
 `jroles` does not rotate through the pool launch by launch.
-A thread stays on the account it started on, and moves only when a cap stops its turn.
+A thread stays on the account it started on.
+It moves when a usage limit or a login lapse stops its turn, and when `jbus` has a message for it while its instance is capped (`jbus.outbox`).
 [A usage limit](../../jbus/docs/working-on-jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit), in the jbus docs, describes the move.
 One instance is a pool of one.
 A line that names no instance uses the provider's built-in instance as its pool, and its selection names no instance.
 
-A capped thread can move in either direction between the instances of its pool.
-A thread capped on `claudeAgent` goes on to `claudeAgent_work`, and one capped on `claudeAgent_work` goes back to `claudeAgent` while `claudeAgent` has headroom.
-In any project of `~/.config/jbus/config.toml`, a thread can move if its turn failed on a usage limit and the thread is not settled.
-The rule applies to a crew, a reviewer and a scout, which `jbus` finds by a title that starts with `crew: `, `review: ` or `scout: `.
-It also applies to the homes that a `home-id` names: the root home and each scope's home.
-A thread with no work left stays on its instance:
-
-- a crew whose task merged or ended clean
-- a reviewer whose task is over and whose brief's last Review has a verdict
-- a scout whose Report is written
-
-A scoped or second-pass reviewer of a task that is still running still has its own pass to run.
-A thread's pool comes from the first map line that names the thread's instance.
-The search covers the thread's own role's lines first, then every other role's lines.
-So a Claude reviewer whose `review` lines name Codex and Cursor moves within the `crew` line's Claude pool.
-A thread on an instance that no line names has a pool of one instance, and waits for that instance's reset.
-A thread moves only on a cap.
-It then stays on the account it moved to until that account caps.
-`jbus` does not move it back once the first account is free, because each move is a handoff that loses some context.
-With both accounts capped, `jbus` sends the thread nothing.
-`jbus` reports the wait once, as a `stall`.
-On its first pass after the first reset, `jbus` tells the thread to carry on.
-`jbus failover --replay <items.json> --thread <id>` replays a recorded cap on one live thread, and moves that thread as a real cap would.
-It sets the reset as far from now as the recorded reset was from the recording.
-It does not write the cap to the ledger.
-`jbus failover --replay <items.json> --thread <id> --dry-run` prints the move and writes nothing.
+A thread can move in either direction between the instances of its pool.
+`jbus` moves it to the first instance of its pool with headroom, with its model and options.
+It stays there until a usage limit or a login lapse stops it there, since each move loses some context.
+[A usage limit](../../jbus/docs/working-on-jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit), in the jbus docs, says which threads move, how `jbus` finds a thread's pool, and what `jbus failover --replay` does.
+[A login lapse](../../jbus/docs/working-on-jbus/tying-a-crewmate-to-its-thread.md#a-login-lapse) says how a lapse moves a thread.
 
 For a pool of more than one, and for any launch that a cap moved, `jroles` says on stderr which instance it chose and why.
 For example: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_work with headroom`, or `jroles: crew on claudeAgent_work: claudeAgent is capped until 2026-10-18T20:00:00+00:00`.
 While every instance of the pool is capped, `jroles` prints nothing on stdout and exits 75.
 On stderr it prints a line such as `jroles: crew waits: claudeAgent and claudeAgent_work are both capped until ...`.
 The launch waits for the first reset.
+With `--thread <id>`, `jroles` registers that thread in `pool-waiters.json`, beside the ledger, and `jbus poll` sends it one message once the first reset has passed (`jroles.waits`).
 
 To add an instance to a pool, first add it through T3 Code's own Settings, which lists it in `providerInstances` ([configuration](../../jinstall/docs/configuration.md#provider-instances)).
 Then add its id to the role line.
