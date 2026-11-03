@@ -17,11 +17,9 @@ jbus then writes `Thread: <id>` in the head of that file, the one line it writes
 A row launched stacked starts its worktree from its base's branch, and its brief has `Stacked on: <slug> <branch>` in its head in place of `Green main:`.
 Its crew opens its pull request on that branch, and `jmerge` waits on it as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>`.
 
-While the base is open, jbus tells the link's crew nothing, whatever the base's head does (`jbus.stack`).
-It takes the link off its stack instead when the link has no need of the base's code: its own commits merge cleanly without the base's onto the branch the base goes on, and its added lines use no `def`, `class` or top-level constant that the base adds.
-jbus then moves those commits onto that branch, bases the pull request there and drops the brief's `Stacked on:` line, so the link merges on its own.
-A link stays stacked when it conflicts without its base, uses such a name, or has a base that is itself still stacked.
-It also stays stacked while its brief's `Builds on:` line names its open base, since the home wrote that need down.
+A stack is made by a depends only.
+`jbus queue add` refuses a brief whose own `Stacked on:` line names a row its depends does not, with `refused: <slug> cannot be stacked on <row>: its depends does not name <row>`, and says to add `--depends <row>`.
+While the base is open, the link stays on its stack, and jbus tells its crew nothing, whatever the base's head does (`jbus.stack`).
 
 Once its base merged, jbus moves the link once.
 It bases the link's pull request on the branch the base merged into, where GitHub has not done so itself on deleting the base's branch.
