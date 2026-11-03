@@ -29,5 +29,9 @@ def test_the_homes_start_shows_a_bot_chat_word_with_the_message_it_answers(home)
 
 
 def test_a_bot_chat_word_with_no_answers_shows_its_words_alone(home):
-    assert home.kitchen.main("word", "--to", "demo", *CHAT)[0] == 0
-    assert home.word(ROOT).endswith(": Telemetry")
+    from test_jbus_queue import add
+
+    add(home.kitchen, "tm-telemetry", approve=False)
+    named = ("--evidence", "bot-chat:t107u/bf6bc991", "--words", "Telemetry [for: tm-telemetry]")
+    assert home.kitchen.main("word", "--to", "demo", *named)[0] == 0
+    assert home.word(ROOT).endswith(": Telemetry [for: tm-telemetry]")
