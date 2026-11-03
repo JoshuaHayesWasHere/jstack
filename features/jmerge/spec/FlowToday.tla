@@ -32,12 +32,11 @@ PRs == {"a", "b"}
 \*   b's brief took a out of its Builds on: line.
 \* on: what a pull request sits on, "main" or the other one (its brief's `Stacked on:` line, #411).
 \* fixRow: a main-red-<sha> row is queued for main's fix.
-\* named: the red run's logs name the tests that failed there, which main.json keeps as `failed`.
 \* missed[p]: p's last check passed without running a test its change breaks: the selection
 \*   missed it.
 \* fixes[p]: p's head carries main's fix, which the main-red row's crew put there and not in a pull
-\*   request of its own. proved[p]: p's check ran over main's red tip, ran each test that failed
-\*   there, and passed it (rows.proves).
+\*   request of its own. Whether its check proved the fix (rows.proves) holds no step since
+\*   red-main-no-hold, so the model keeps no record of it.
 \* brBreaks[p]: the change breaks a browser test. brFail[p]: its own browser run failed.
 \* viewBroken: main's code fails a browser test. brHold: main's last browser run failed and the
 \*   browser-red row jbus filed for it is open (rows.main_browser_red with browser_fixing), which
@@ -59,10 +58,10 @@ PRs == {"a", "b"}
 \* revert: "open" while jbus's revert of a culprit is open (#862), else "none".
 \* editsLeft: the edits still to come of b's brief that take a out of its Builds on: line, once.
 VARIABLES st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, full, fixRow, link, on, busy, idle,
-    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, meets,
+    fixes, brBreaks, brFail, viewBroken, brHold, go, needs, meets,
     rerun, culprit, judged, revert, editsLeft
 vars == <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, full, fixRow, link, on, busy, idle,
-    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, meets,
+    fixes, brBreaks, brFail, viewBroken, brHold, go, needs, meets,
     rerun, culprit, judged, revert, editsLeft>>
 
 Init ==
@@ -81,9 +80,7 @@ Init ==
     /\ on = [p \in PRs |-> "main"]
     /\ busy = FALSE
     /\ idle = [p \in PRs |-> FALSE]
-    /\ named = FALSE
     /\ fixes = [p \in PRs |-> FALSE]
-    /\ proved = [p \in PRs |-> FALSE]
     /\ brBreaks \in [PRs -> BOOLEAN]
     /\ brFail = [p \in PRs |-> FALSE]
     /\ viewBroken = FALSE
@@ -98,7 +95,7 @@ Init ==
     /\ editsLeft = 1
 
 Machine == <<full, busy, idle>>
-Fix == <<named, fixes, proved>>
+Fix == <<fixes>>
 Browser == <<brBreaks, brFail, viewBroken, brHold>>
 Row == <<go, needs, meets>>
 Judge == <<rerun, culprit, judged, revert>>
@@ -144,15 +141,13 @@ Check(p) ==
     /\ \E sel \in BOOLEAN :
         /\ ci' = [ci EXCEPT ![p] =
                 IF sel /\ ((mainRed /\ ~fixes[p]) \/ breaks[p]) THEN "fail" ELSE "pass"]
-        \* features/jmerge/src/jmerge/rows.py `ran.over == red and bool(failed)`, the head holds the red tip and ran each failed test
-        /\ proved' = [proved EXCEPT ![p] = sel /\ mainRed /\ fixes[p] /\ ~breaks[p] /\ named]
         \* The check passed without the test the change breaks: its selection missed it.
         /\ missed' = [missed EXCEPT ![p] = ~sel /\ breaks[p]]
     /\ ranRed' = [ranRed EXCEPT ![p] = mainRed]
     \* browser.yml runs every browser test, so its run fails exactly when one fails.
     /\ brFail' = [brFail EXCEPT ![p] = viewBroken \/ brBreaks[p]]
     /\ UNCHANGED <<st, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   named, fixes, brBreaks, viewBroken, brHold, Row, Judge, editsLeft>>
+                   fixes, brBreaks, viewBroken, brHold, Row, Judge, editsLeft>>
 
 \* A merge of a pull request whose check passed, by jmerge on its own or on your word.
 Merges(p) ==
@@ -185,9 +180,7 @@ Merges(p) ==
     \* A green tip withdraws a fix row that never launched (features/jbus/src/jbus/watch.py `_withdraw(run, fixes, tip)`), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = (fixRow /\ mainRed')
-    /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~fixes[p]) THEN BOOLEAN ELSE {named}
     /\ fixes' = IF fixes[p] THEN NoFix ELSE fixes
-    /\ proved' = IF fixes[p] THEN NoFix ELSE proved
     \* No browser break merges past the hold above.
     /\ viewBroken' = (viewBroken \/ brBreaks[p])
     /\ UNCHANGED <<ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, brBreaks, brFail, brHold, Row,
@@ -212,10 +205,9 @@ MeetsFix(p) ==
     /\ ~meets[p]                            \* features/jbus/src/jbus/expedite.py `"meets-no",`, features/jmerge/src/jmerge/ready.py `MEETS_NO = Reason(`
     /\ meets' = [meets EXCEPT ![p] = TRUE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
-    /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   named, fixes, Browser, go, needs, Judge, editsLeft>>
+                   fixes, Browser, go, needs, Judge, editsLeft>>
 
 \* Its base merged: jbus moves the stacked pull request onto main and rebases its own commits
 \* onto main itself, or tells its crew to ("A link that moved"), and its check runs again. Since
@@ -229,9 +221,8 @@ Restack(p) ==
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ \E reuse \in IF ci[p] = "pass" THEN BOOLEAN ELSE {FALSE} :   \* .github/workflows/check.yml `run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse`
          ci' = [ci EXCEPT ![p] = IF reuse THEN "pass" ELSE "none"]
-    /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine,
-                   named, fixes, Browser, go, needs, meets, Judge, editsLeft>>
+                   fixes, Browser, go, needs, meets, Judge, editsLeft>>
 
 \* The home edits b's brief, on your word, and its Builds on: line no longer names a. The edit
 \* voids b's go, which you give again by approving it (#399).
@@ -261,9 +252,8 @@ CrewFix(p) ==
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ told' = [told EXCEPT ![p] = FALSE]
-    /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
-    /\ UNCHANGED <<st, ranRed, missed, mainRed, redBy, outsideLeft, fixRow, link, on, named, fixes, Browser,
+    /\ UNCHANGED <<st, ranRed, missed, mainRed, redBy, outsideLeft, fixRow, link, on, fixes, Browser,
                    go, needs, meets, Judge, editsLeft>>
 
 \* Its own browser run failed, and the red is its own: main's last browser run passed, or the fix
@@ -275,10 +265,9 @@ BrowserFix(p) ==
     /\ brBreaks' = [brBreaks EXCEPT ![p] = FALSE]
     /\ brFail' = [brFail EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
-    /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   named, fixes, viewBroken, brHold, go, needs, meets, Judge, editsLeft>>
+                   fixes, viewBroken, brHold, go, needs, meets, Judge, editsLeft>>
 
 \* jmerge judges a red pull request again: a check that failed over a base that has moved since
 \* it started, and is green now, is checked again over today's base (#350): GitHub merges the
@@ -353,8 +342,7 @@ RevertMerges ==
     /\ judged' = FALSE
     /\ fixRow' = FALSE
     /\ fixes' = NoFix
-    /\ proved' = NoFix
-    /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, named, Browser, Row,
+    /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, Browser, Row,
                    rerun, editsLeft>>
 
 \* jbus closes its revert still open once main's check passed at a later tip without it (#899).
@@ -386,7 +374,6 @@ FixMain ==
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
           /\ fixes' = NoFix
-          /\ proved' = NoFix
           /\ culprit' = "none"
           /\ judged' = FALSE
           /\ rerun' = FALSE
@@ -396,9 +383,8 @@ FixMain ==
           /\ Unordered(q)                     \* features/jbus/src/jbus/watch.py `in another open pull request only where that`
           /\ fixes' = [fixes EXCEPT ![q] = TRUE]
           /\ ci' = [ci EXCEPT ![q] = "none"]
-          /\ proved' = [proved EXCEPT ![q] = FALSE]
           /\ UNCHANGED <<mainRed, redBy, culprit, judged, rerun>>
-    /\ UNCHANGED <<st, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, named, Browser,
+    /\ UNCHANGED <<st, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, Browser,
                    go, needs, meets, revert, editsLeft>>
 
 \* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py `prefix="browser-red-"`),
@@ -452,12 +438,11 @@ OutsideBreak ==
           /\ rerun' = TRUE
           /\ culprit' = "none"
           /\ judged' = FALSE
-          /\ named' \in BOOLEAN
           /\ UNCHANGED <<viewBroken>>
        \/ /\ ~viewBroken
           /\ viewBroken' = TRUE
-          /\ UNCHANGED <<mainRed, redBy, named, rerun, culprit, judged>>
-    /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, fixRow, link, on, Machine, fixes, proved, brBreaks, brFail,
+          /\ UNCHANGED <<mainRed, redBy, rerun, culprit, judged>>
+    /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, fixRow, link, on, Machine, fixes, brBreaks, brFail,
                    brHold, Row, revert, editsLeft>>
 
 System == Sweep \/ Nightly \/ RerunEnds \/ JudgeRed \/ RevertMerges \/ RevertCloses \/ FixMain \/ FixBrowser
@@ -482,7 +467,6 @@ TypeOK ==
     /\ on \in [PRs -> {"main"} \cup PRs]
     /\ full = (busy \/ \E p \in PRs : idle[p])
     /\ brHold => viewBroken
-    /\ \A p \in PRs : proved[p] => mainRed /\ fixes[p]
     /\ go \in [PRs -> BOOLEAN]
     /\ culprit \in {"none", "skew", "many"} \cup PRs
     /\ revert \in {"none", "open"}
@@ -513,7 +497,7 @@ MainFixWaitsOnlyOnYou == (Settled /\ Red) => ENABLED YourWord
 
 \* For the chart only (FlowToday.chart.cfg): no change breaks a browser test of its own, though
 \* main's view may still break from outside, and no brief is edited.
-\* The chart reader holds TLC's whole state graph in memory, and the whole model (15M states)
+\* The chart reader holds TLC's whole state graph in memory, and the whole model (8M states)
 \* does not fit; with the edit and an outside break both in it, TLC 2.19's -continue run of the
 \* rule then named NoMergeTurnsMainRed threw while it printed a path. flow_canaries.py checks every rule on the
 \* whole model.
