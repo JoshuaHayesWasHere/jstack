@@ -434,10 +434,11 @@ def fake_gh(stub, args, cwd):
     `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
     changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
     The runs of the browser workflow are in `browser-runs.json`, and the runs of each other
-    workflow in `workflow-runs.json` by its file. A run's jobs come from `run-jobs.json` by the
-    run's id, and the call fails where that entry is null. A compare of two commits gives the
-    status of its head against its base from `compare.json` by `<base>...<head>`, or `ahead`, a
-    head that holds its base.
+    workflow in `workflow-runs.json` by its file. The files of `.github/workflows/` at the default
+    branch, asked for in GraphQL, are `workflows.json`, each file's name to its text. A run's jobs
+    come from `run-jobs.json` by the run's id, and the call fails where that entry is null. A
+    compare of two commits gives the status of its head against its base from `compare.json` by
+    `<base>...<head>`, or `ahead`, a head that holds its base.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -501,6 +502,11 @@ def fake_gh(stub, args, cwd):
         left = [p for p in opened if args[2] not in (str(p["number"]), p["url"])]
         (stub / "open.json").write_text(json.dumps(left))
         said = ""
+    elif args[:2] == ["api", "graphql"] and ".github/workflows" in args[-1]:
+        kept = stub / "workflows.json"
+        files = json.loads(kept.read_text()) if kept.exists() else {}
+        entries = [{"name": name, "object": {"text": text}} for name, text in files.items()]
+        said = json.dumps({"data": {"repository": {"object": {"entries": entries}}}})
     elif args[0] == "api" and "/compare/" in args[1]:
         kept = stub / "compare.json"
         said = (json.loads(kept.read_text()) if kept.exists() else {}).get(

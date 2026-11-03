@@ -8,8 +8,8 @@ requests stay in the answer. When only GitHub was silent, the answer from `look`
 many crews are out. The machine has one such count: `jbus poll` adds it up over every project.
 `watch` sends a line for what a home would have seen: a merge; a thread that ran past its
 timebox, waits on a request, or ended with no Result and on no wait that jbus owns
-(`World.awaits`); a main branch whose check failed after a merge; a red run of a nightly workflow
-(`NIGHTLIES`); and a revert. `watch` names no cause and changes nothing.
+(`World.awaits`); a main branch whose check failed after a merge; a red run of a scheduled workflow
+(`watched`); and a revert. `watch` names no cause and changes nothing.
 A finding that no rule covers becomes a gate. `status` gives the table's derived column for a slug.
 `why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull request,
 what stopped the slug's launch, or what the slug's Result leaves.
@@ -1062,7 +1062,7 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
     _retro(run, world, rows)
-    for nightly in NIGHTLIES:
+    for nightly in watched(run):
         _nightly_red(run, nightly)
 
 
@@ -1353,7 +1353,8 @@ class Nightly:
     the project's state that keeps the runs jbus has seen, and `run` how the run is named. The
     rest are the brief's own lines: `failed` what failed, `where` its `Where:` when the log
     names no test, `done` and `proves` how the fix is shown, `pull` its `Pull request:`, and
-    `home` the scoped home it is filed under, or an empty string for the root home. `title`,
+    `home` the scoped home it is filed under, or an empty string for the root home, and `filed`
+    the red the brief's `Decisions:` line says it was filed from. `title`,
     where it is set, is the title of the runs jbus files for: a run of the workflow with any
     other title checked out another ref, and is that ref's concern. `branch`, where it is set, is
     the branch those runs check out: until one run of it there has passed, its red runs are that
@@ -1372,6 +1373,7 @@ class Nightly:
     home: str = ""
     title: str = ""
     branch: str = ""
+    filed: str = "nightly run"
 
 
 BROWSER = Nightly(
@@ -1402,10 +1404,74 @@ MACOS = Nightly(
     branch="main",
 )
 NIGHTLIES = (BROWSER, MACOS)
-"""The nightly workflows, each with its own rule for a red run (`_nightly_red`)."""
+"""The nightly workflows with their own brief for a red run (`_nightly_red`). Every other
+scheduled workflow gets the brief `scheduled` gives it (`watched`)."""
+WORKFLOWS = (
+    "query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) {"
+    ' object(expression: "HEAD:.github/workflows") { ... on Tree {'
+    " entries { name object { ... on Blob { text } } } } } } }"
+)
+"""The GraphQL query for the text of each file of `.github/workflows/` at the default branch,
+which `HEAD:` names on GitHub, in one call."""
+SCHEDULE = re.compile(r"^\s+schedule:\s*(#.*)?$", re.MULTILINE)
+"""A workflow's `schedule:` trigger, a key under `on:` with its crons under it."""
 NIGHTLY_RELEASE = ("push", "release")
 """The events of a nightly's run off the default branch that are still filed: a release's tag,
 since no nightly runs on a push to a branch (`_nightly_red`)."""
+
+
+def scheduled(file: str) -> Nightly:
+    """The rule for a red run of the scheduled workflow `file` that is none of `NIGHTLIES`: its
+    row is `red-<stem>-<day>`, a slug no other filer's prefix starts, filed for the root home."""
+    stem = file.rsplit(".", 1)[0]
+    return Nightly(
+        file=file,
+        prefix=f"red-{stem}-",
+        seen=f"scheduled-{stem}-runs.json",
+        run=f"the {stem} run",
+        failed=f"{file} failed",
+        where=f"what the failed jobs of `.github/workflows/{file}` run",
+        done=f"the failure named under Read is fixed, and a run of {file} on the fix's branch "
+        "passes where the workflow can be run by hand",
+        proves=f"the commands the failed jobs of {file} run pass on the fix's branch, and so does "
+        f"a manual run of {file} (`gh workflow run {file} --ref <the fix's branch>`) where it "
+        "has a `workflow_dispatch:` trigger",
+        filed="scheduled run",
+    )
+
+
+def watched(run: Pass) -> list[Nightly]:
+    """The workflows whose red run on the default branch jbus files a fix row for: `NIGHTLIES`,
+    with their own rule, and each other file of `.github/workflows/` with a `schedule:` trigger
+    at the default branch (`scheduled`). jbus asks GitHub for the files on each pass, since no
+    step of a pass is sure to fetch; where GitHub does not answer, it watches `NIGHTLIES` alone."""
+    asked = run.run(
+        "gh",
+        "api",
+        "graphql",
+        "-F",
+        "owner={owner}",
+        "-F",
+        "repo={repo}",
+        "-f",
+        f"query={WORKFLOWS}",
+    )
+    try:
+        entries = json.loads(asked.stdout)["data"]["repository"]["object"]["entries"]
+    except (ValueError, KeyError, TypeError):
+        entries = []
+    if asked.returncode != 0 or not isinstance(entries, list):
+        entries = []
+    own = {nightly.file for nightly in NIGHTLIES}
+    found = sorted(
+        entry["name"]
+        for entry in entries
+        if isinstance(entry, dict)
+        and str(entry.get("name", "")).endswith((".yml", ".yaml"))
+        and entry["name"] not in own
+        and SCHEDULE.search((entry.get("object") or {}).get("text") or "")
+    )
+    return [*NIGHTLIES, *map(scheduled, found)]
 
 
 def ran_at(one: dict[str, Any]) -> str:
@@ -1558,7 +1624,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
                         "its evidence",
                     ],
                     nightly.proves,
-                    "nightly run",
+                    nightly.filed,
                     [(job, url, failed.tests) for job, url, failed in rest],
                     [ran_at(one)],
                     nowhere=nightly.where,

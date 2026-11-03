@@ -1220,3 +1220,73 @@ def test_a_red_night_whose_log_counts_failures_it_does_not_name_says_how_many(ki
     said = "the macOS nightly run 77 failed on 2026-10-12, 4 tests failed, none named"
     assert said in (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
     assert kitchen.lines("retro") == [f"retro macos-red-2026-10-12: {said}"]
+
+
+DRIFT = 'name: drift\non:\n  schedule:\n    - cron: "0 13 * * 1"\n  workflow_dispatch:\njobs: {}\n'
+LINT = "name: lint\non:\n  push:\n    branches: [main]\n  pull_request:\njobs: {}\n"
+DRIFT_JOB = "https://example.test/o/r/actions/runs/66/job/611"
+DRIFT_LOG = (
+    "2026-10-12T07:09:02.0000000Z FAILED features/jdrift/tests/test_pin.py::test_pin - KeyError\n"
+    "2026-10-12T07:09:03.0000000Z ===== 1 failed, 9 passed in 4.00s =====\n"
+)
+
+
+def scheduled_runs(kitchen, runs, flows=None):
+    """Give the project the workflows `flows` at its default branch, by default drift.yml, which
+    has a `schedule:` trigger and is neither nightly, and lint.yml, which has none; set the runs of
+    each workflow by its file, and a failed job and its log for each run."""
+    kitchen.quiet()
+    kitchen.set("workflows.json", flows or {"drift.yml": DRIFT, "lint.yml": LINT})
+    kitchen.set("workflow-runs.json", runs)
+    job = {"id": 611, "name": "drift", "status": "completed", "conclusion": "failure"}
+    every = [one["id"] for flow in runs.values() for one in flow]
+    kitchen.set("run-jobs.json", {str(n): [job | {"html_url": DRIFT_JOB}] for n in every})
+    kitchen.set("logs.json", {"611": DRIFT_LOG})
+
+
+def test_a_red_run_of_any_scheduled_workflow_on_main_files_one_row_a_day(kitchen):
+    """A scheduled workflow that is neither nightly gets the nightlies' rule: one fix row a day,
+    queued by jbus's pass and not by the user's word."""
+    first = browser_run(66, ago=timedelta(hours=3))
+    scheduled_runs(kitchen, {"drift.yml": [first]})
+    kitchen.poll()
+    [row] = red_rows(kitchen, "red-drift-")
+    assert row["slug"] == "red-drift-2026-10-12"
+    assert row["queued_by"] == jbus.queue.PASS
+    assert "you did not speak of this row" in row["approved"]
+    text = (kitchen.home / "tasks" / "red-drift-2026-10-12.md").read_text()
+    for said in (
+        "the drift run 66 failed on 2026-10-12, 1 test named",
+        "features/jdrift/tests/test_pin.py::test_pin",
+        DRIFT_JOB,
+        "\nHome: root\n",
+        f"\nDecisions: {jbus.queue.RED_DECIDED}scheduled run ",
+    ):
+        assert said in text
+    second = browser_run(67, ago=timedelta(minutes=30))
+    kitchen.set("workflow-runs.json", {"drift.yml": [second, first]})
+    job = {"id": 612, "name": "drift", "status": "completed", "conclusion": "failure"}
+    kitchen.set("run-jobs.json", {"67": [job | {"html_url": DRIFT_JOB}]})
+    kitchen.set("logs.json", {"612": DRIFT_LOG})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in red_rows(kitchen, "red-drift-")] == ["red-drift-2026-10-12"]
+    assert kitchen.lines("retro") == [
+        "retro red-drift-2026-10-12: the drift run 66 failed on 2026-10-12, 1 test named"
+    ]
+
+
+def test_a_workflow_with_no_schedule_and_a_pull_requests_run_file_nothing(kitchen):
+    pull = {"event": "pull_request", "head_branch": "fix-pin"}
+    scheduled_runs(kitchen, {"lint.yml": [browser_run(65)], "drift.yml": [browser_run(66, **pull)]})
+    kitchen.poll()
+    assert [row for row in jbus.queue.load(kitchen.state) if "red-" in row["slug"]] == []
+    assert list((kitchen.home / "tasks").glob("*red-*")) == []
+    assert "actions/workflows/lint.yml" not in (kitchen.stub / "gh.log").read_text()
+
+
+def test_a_scheduled_browser_yml_keeps_its_own_rule(kitchen):
+    browser_runs(kitchen, browser_run())
+    kitchen.set("workflows.json", {"browser.yml": DRIFT})
+    kitchen.poll()
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+    assert red_rows(kitchen, "red-browser-") == []
