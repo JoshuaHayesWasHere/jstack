@@ -132,17 +132,10 @@ def _capped_reads(one: Row, zone: tzinfo | None) -> Row:
 
 
 def _stalls(one: Row, zone: tzinfo | None) -> Row:
+    times = {name: utc(one.get(name), zone) for name in ("at", "since", "until")}
+    texts = {name: _text(one.get(name)) for name in ("thread", "role", "slug", "became")}
     minutes = one.get("minutes")
-    return {
-        "at": utc(one.get("at"), zone),
-        "thread": _text(one.get("thread")),
-        "role": _text(one.get("role")),
-        "slug": _text(one.get("slug")),
-        "since": utc(one.get("since"), zone),
-        "until": utc(one.get("until"), zone),
-        "minutes": minutes if isinstance(minutes, int | float) else None,
-        "became": _text(one.get("became")),
-    }
+    return {**times, **texts, "minutes": minutes if isinstance(minutes, int | float) else None}
 
 
 def _items(one: Row, zone: tzinfo | None) -> Row:
