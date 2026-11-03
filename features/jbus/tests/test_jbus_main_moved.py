@@ -584,3 +584,23 @@ def test_the_main_moved_message_goes_out_inside_once(launched, monkeypatch):
     launched.poll()
     assert (f"mainmoved|alpha|#7|{main[:12]}", True) in spied
     assert all(inside for _, inside in spied)
+
+
+def test_494_a_red_pull_request_gets_no_main_moved_message_as_main_goes_red_to_green(launched):
+    """#494 (`skills-no-outside-instructions`): red into main while main went red to green three
+    times, it got a main-moved message each time, and each time jmerge asked GitHub to merge main
+    in within minutes (`jmerge.cli.Repo.again`), so the crew's turn bought nothing. Each green now
+    reads green to jmerge, whose base merge wakes the pull request, and jbus sends no message of
+    its own."""
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    for minutes in (0, 6, 12):
+        if minutes:
+            red = move(launched, "failure")
+            launched.poll(NOW + timedelta(minutes=minutes))
+            assert rows.main(launched.checkout).red == red
+        fixed = move(launched)
+        launched.poll(NOW + timedelta(minutes=minutes + 3))
+        assert rows.main(launched.checkout) == mainjson.Main(green=fixed)
+    assert sends(launched) == [] and launched.lines("mainmoved") == []
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    assert [key for key in sent if key.startswith(("mainmoved|", "moved|"))] == []
