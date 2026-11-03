@@ -1086,7 +1086,7 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         names = list(migrations.MIGRATIONS)
         rewound = names[names.index("v007_asks") :]
         later = "".join(
-            f"DROP TABLE {table};"
+            f"DROP TABLE {table}; DELETE FROM cursors WHERE source = '{table}';"
             for name in rewound[1:]
             for table in re.findall(
                 r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", migrations.MIGRATIONS[name]
