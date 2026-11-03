@@ -54,9 +54,11 @@ was not red when main moved. `tell` puts the held message's slug on `held` in `m
 beside the commit, the red tip and the green tip that ended the red (`broken` and
 `fixed`). Each pass looks at those slugs again, and at no others, until main moves again.
 
-jbus tells a crew to rebase a head once, here or in `rebase.tell`. `tell` skips a red head
-that is also in conflict and already has `rebase|<slug>|<head 12>`. It marks a head it tells
-with that key, and the rebase message marks this module's key for the commit main is at.
+jbus tells a crew about a head once, here or in `rebase.tell`. `tell` skips a red head that is
+also in conflict and was already told (`rebase.rebased_or_moved`). It marks a head it tells with
+`moved|<slug>|<head 12>`, a kind of its own and not `rebase|`: this message is no rebase jbus
+asked for, so the pull request keeps its one rebase (`rebase.SECOND`). The rebase message marks
+this module's key for the commit main is at.
 `tell` also marks with `failed|<slug>|<head 12>` each head it tells, and each head whose
 message T3 Code refused and jbus then sent to a gate instead. This message says what to do about the
 failed check, so `rebase.github` does not say it again. It writes no `failure|` key beside it, since
@@ -256,7 +258,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
             continue
         if key in sent:
             continue
-        if rebase.mark("rebase", slug, head) in sent:
+        if rebase.rebased_or_moved(sent, slug, head):
             if mergeable == MERGEABLE_UNKNOWN:
                 owed = True
                 continue
@@ -285,7 +287,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
         went = rebase.once(run, client, ASK, key, thread, slug, message, at=fixed[:12], told=told)
         owed = owed or went == rebase.OWED
         if went == rebase.SENT:
-            run.box.mark(rebase.mark("rebase", slug, head))
+            run.box.mark(rebase.mark(rebase.MOVED, slug, head))
         if went in (rebase.SENT, rebase.REFUSED_SEND):
             run.box.mark(rebase.mark("failed", slug, head))
     if not owed:
