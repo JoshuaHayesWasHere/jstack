@@ -13,8 +13,10 @@ A file is its week's whole truth for its home, and a scout may write it again, a
 labelled `open` has closed. So a file read again replaces every label it gave before, in one
 transaction with its cursor, keyed `gate_labels/<its name>` under the project of the home: the
 one table whose rows the store does not keep forever. A file is read again when its inode, size
-or time changed, as a snapshot is. A gate labelled twice in a week keeps the last label read. A
-file whose name is no date is no week's, and is not read.
+or time changed, as a snapshot is. A gate a file names twice keeps its last label there, and a
+gate two homes label in one week keeps a row of each: the view `gate_outcomes` counts the label of
+the first home by name, so a build read on and a build from nothing count the same one. A file
+whose name is no date is no week's, and is not read.
 """
 
 from __future__ import annotations
@@ -37,7 +39,7 @@ FOLDER = Path("reports") / "gate-labels"
 TABLE_SQL = (
     f"CREATE TABLE IF NOT EXISTS {TABLE} (home TEXT NOT NULL, week TEXT NOT NULL, key TEXT NOT "
     "NULL, outcome TEXT, klass TEXT, outcome_evidence_len INTEGER, note_len INTEGER, "
-    "PRIMARY KEY (week, key)) WITHOUT ROWID;\n"
+    "PRIMARY KEY (home, week, key)) WITHOUT ROWID;\n"
 )
 
 
@@ -92,9 +94,7 @@ def read(connection: sqlite3.Connection, config: jbus.Config, built: Built) -> N
         found = rows(project, week, text)
         connection.execute("BEGIN")
         connection.execute(f"DELETE FROM {TABLE} WHERE home = ? AND week = ?", (project, week))
-        connection.executemany(
-            f"INSERT OR REPLACE INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?)", found.values()
-        )
+        connection.executemany(f"INSERT INTO {TABLE} VALUES (?, ?, ?, ?, ?, ?, ?)", found.values())
         cursors.keep(
             connection, project, source, stat.st_ino, None, None, stat.st_size, stat.st_mtime_ns
         )

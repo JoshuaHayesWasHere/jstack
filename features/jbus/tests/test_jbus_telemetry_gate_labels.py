@@ -183,3 +183,20 @@ def test_the_labels_in_each_projects_home_count_in_their_week(machine):
     found = weekly(machine)
     assert (found["labels"], found["silence"], found["silence_wrong"]) == (2, 2, 1)
     assert labels.FOLDER.as_posix() == wrongcloses.LABELS.as_posix()
+
+
+def test_a_gate_two_homes_label_in_one_week_counts_once_whichever_file_was_read_last(machine):
+    gates(machine, "alpha", ALPHA)
+    label(machine, "alpha", WEEK, [("alpha#1", "corrected")])
+    beta = label(machine, "beta", WEEK, [("alpha#1", "stood")])
+    machine.build()
+    beta.write_text(beta.read_text() + "alpha#2\taudit\tstood\t\t\t\n")
+    machine.build()
+
+    found = weekly(machine)
+    assert (found["silence"], found["silence_wrong"]) == (2, 1)
+    code, out = machine.run("--rebuild", str(machine.root / "again.sqlite"))
+    assert code == 0, out
+    with contextlib.closing(machine.store(machine.root / "again.sqlite")) as store:
+        again = store.execute("SELECT silence, silence_wrong FROM weekly_wrong_closes").fetchall()
+    assert again == [(2, 1)]
