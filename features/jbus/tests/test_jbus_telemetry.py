@@ -641,7 +641,7 @@ def test_the_change_failure_rate_counts_only_projects_whose_push_checks_the_stor
         assert store.execute("SELECT project FROM ci_projects").fetchall() == [("alpha",)]
 
 
-def test_a_day_with_merged_rows_and_no_push_check_kept_is_a_gap_the_rate_leaves_out(machine):
+def test_a_merged_row_with_no_push_check_kept_is_a_gap_the_rate_leaves_out(machine):
     gap = NOW - timedelta(days=2)
     machine.append("alpha", "ci.jsonl", job(1, "c1", 1, "success", NOW))
     merged_rows(machine, "alpha", [("a-1", 1, NOW), ("a-0", 9, gap)])

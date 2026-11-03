@@ -9,8 +9,9 @@ says. The targets are the report's, which the user confirms or changes here.
 A week starts on Sunday in the user's zone, as the views' `week` does. Each week of the two gets
 its own `Reading`: its value, how many it is of, and its `Status`. This week is the one so far.
 
-The page reads only the store: it calls no `gh` and no service. It names no project, no row,
-no path and no thread, and the store holds no text of a message, so `jleak` finds nothing in it.
+The page reads only the store: it calls no `gh` and no service. It names no row, no path and no
+thread, and no project but those a KPI says it covers, the projects whose push checks the store
+keeps. The store holds no text of a message, so `jleak` finds nothing in it.
 """
 
 from __future__ import annotations
@@ -28,12 +29,28 @@ before the records the KPI needs do, so its value would not count what a later w
 
 
 @dataclass(frozen=True)
+class Covers:
+    """The projects a KPI counts, `projects` a view of `project`, and the days of a week whose
+    rows it lacks the records of, `gaps` a view of `day`, `week` and `rows`, how many: `kept`
+    names those records."""
+
+    projects: str
+    gaps: str
+    kept: str
+
+
+ROWS = "jbus's row records"
+"""The records a KPI over merged rows reads, whose first day `rows_since` gives."""
+
+
+@dataclass(frozen=True)
 class Measured:
     """A KPI one of the store's weekly views gives: `value` and `n`, how many the value is of, as
     SQL over one week's row of `view`, and `empty`, the value of a week the view has no row for:
     0 for a count, None where there is nothing to count. `since` names a view whose one row's
     `day` is the first day the KPI's `records` cover, where a week that begins before it would
-    count something other than a later week does."""
+    count something other than a later week does. `covers` is the projects and days it counts,
+    where it counts only some."""
 
     view: str
     value: str
@@ -41,6 +58,7 @@ class Measured:
     empty: float | None = None
     since: str | None = None
     records: str = ""
+    covers: Covers | None = None
 
 
 @dataclass(frozen=True)
@@ -88,16 +106,24 @@ KPIS: tuple[Kpi, ...] = (
         "min",
         30,
         "lower",
-        Measured("weekly_lead_time", "median", "n"),
+        Measured("weekly_lead_time", "median", "n", since="rows_since", records=ROWS),
     ),
     Kpi(
         "Change failure rate, push checks (DORA)",
         "main",
-        "merged rows whose pull request opened a red spell of main's push checks (S6)",
+        "merged rows whose pull request opened a red spell of main's push checks (S6), of the "
+        "projects and days whose push checks the store keeps",
         "%",
         2,
         "lower",
-        Measured("weekly_change_failure", "100.0 * rate", "merged"),
+        Measured(
+            "weekly_change_failure",
+            "100.0 * rate",
+            "merged",
+            covers=Covers("ci_projects", "ci_gaps", "push check of main"),
+            since="rows_since",
+            records=ROWS,
+        ),
     ),
     Kpi(
         "Time to restore main, median (DORA)",
@@ -115,7 +141,7 @@ KPIS: tuple[Kpi, ...] = (
         "",
         None,
         "higher",
-        Measured("weekly_merges", "merged", "merged", empty=0),
+        Measured("weekly_merges", "merged", "merged", empty=0, since="rows_since", records=ROWS),
     ),
     Kpi(
         "Your typed messages per merged row",
@@ -124,7 +150,7 @@ KPIS: tuple[Kpi, ...] = (
         "",
         0.5,
         "lower",
-        Measured("weekly_typed_per_row", "per_row", "merged"),
+        Measured("weekly_typed_per_row", "per_row", "merged", since="rows_since", records=ROWS),
     ),
     Kpi(
         "'What needs me' asks",
@@ -146,7 +172,7 @@ KPIS: tuple[Kpi, ...] = (
         "%",
         95,
         "higher",
-        Measured("weekly_no_word", "share", "merged"),
+        Measured("weekly_no_word", "share", "merged", since="rows_since", records=ROWS),
     ),
     Kpi(
         "Gates closed by silence that were wrong (S8)",
@@ -318,12 +344,32 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
         (week.isoformat(),),
     ).fetchone()
     value, n = (row[0], row[1] or 0) if row else (source.empty, 0)
+    note = _covered(store, source.covers, week) if source.covers else ""
     if value is None:
-        return Reading(None, n, "no data")
+        return Reading(None, n, "no data", note)
     if kpi.target is None:
-        return Reading(value, n, "tracked")
+        return Reading(value, n, "tracked", note)
     met = value <= kpi.target if kpi.better == "lower" else value >= kpi.target
-    return Reading(value, n, "met" if met else "missed")
+    return Reading(value, n, "met" if met else "missed", note)
+
+
+def _covered(store: sqlite3.Connection, covers: Covers, week: date) -> str:
+    """Which projects the KPI counts, and the days of the week it has none of their records of."""
+    projects = [
+        one for (one,) in store.execute(f"SELECT project FROM {covers.projects} ORDER BY 1")
+    ]
+    if not projects:
+        return f"covers no project, since the store keeps no {covers.kept}"
+    gaps = store.execute(
+        f"SELECT day, sum(rows) FROM {covers.gaps} WHERE week = ? GROUP BY day ORDER BY day",
+        (week.isoformat(),),
+    ).fetchall()
+    if not gaps:
+        return f"covers {', '.join(projects)}"
+    rows = sum(count for _, count in gaps)
+    days = ", ".join(day for day, _ in gaps)
+    lacks = f"no {covers.kept} kept for {rows} merged row{'s' * (rows != 1)}, on {days}"
+    return f"covers {', '.join(projects)}; {lacks}"
 
 
 def _number(value: float) -> str:

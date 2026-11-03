@@ -309,5 +309,5 @@ def test_the_change_failure_rate_names_the_projects_it_covers_and_the_days_it_la
     _, rows, _ = page(machine)
 
     assert rows["Change failure rate, push checks (DORA)"][5] == (
-        "0% n 1 met: covers alpha; no push check of main kept on 2026-10-26"
+        "0% n 1 met: covers alpha; no push check of main kept for 1 merged row, on 2026-10-26"
     )
