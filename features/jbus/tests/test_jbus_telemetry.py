@@ -105,7 +105,9 @@ def act_citing(machine, project, thread, message, at, verb="go", subject="alpha-
     )
 
 
-def word(machine, project, name, said, source="bot-chat", ref="winifred-chef/voice:call-1"):
+def word(
+    machine, project, name, said, source="bot-chat", ref="winifred-chef/voice:call-1", text=SECRET
+):
     """A word as `jbus word` keeps it: an act whose verb is `word`, said at `said`."""
     machine.append(
         project,
@@ -119,7 +121,7 @@ def word(machine, project, name, said, source="bot-chat", ref="winifred-chef/voi
                 "said_at": iso(said),
                 "said_in": f"{source} {ref}",
                 "source": source,
-                "words": SECRET,
+                "words": text,
             },
             "gate": None,
             "id": name,
@@ -696,8 +698,8 @@ def test_a_pass_builds_the_store_with_what_its_project_logged_before_it(kitchen)
     assert SECRET.encode() not in (kitchen.state_dir / telemetry.FILE).read_bytes()
 
 
-def test_a_store_made_at_version_1_migrates_to_every_column_each_source_names(machine):
-    from jbus.telemetry import migrations
+def test_a_store_made_at_version_1_migrates_to_every_column_each_table_names(machine):
+    from jbus.telemetry import messages, migrations
     from jbus.telemetry import records as kept
 
     old, new = machine.root / "old.sqlite", machine.root / "new.sqlite"
@@ -707,9 +709,10 @@ def test_a_store_made_at_version_1_migrates_to_every_column_each_source_names(ma
         telemetry.connect(path).close()
         with contextlib.closing(sqlite3.connect(path)) as store:
             assert store.execute("PRAGMA user_version").fetchone() == (len(migrations.MIGRATIONS),)
-            for source in kept.SOURCES:
-                columns = {row[1] for row in store.execute(f"PRAGMA table_info({source.table})")}
-                assert {name for name, _ in source.columns} <= columns, source.table
+            tables = [(source.table, source.columns) for source in kept.SOURCES]
+            for table, named in [*tables, (messages.TABLE, messages.COLUMNS)]:
+                columns = {row[1] for row in store.execute(f"PRAGMA table_info({table})")}
+                assert {name for name, _ in named} <= columns, table
 
 
 def schema_of(path):
@@ -872,6 +875,90 @@ def test_a_word_said_in_the_bots_chat_is_a_typed_message_and_joins_like_one(mach
         ("alpha", "w-waiting", "text", "waiting", None),
     ]
     assert weeks[0] == ("2026-10-25", 4, 1, 0)
+
+
+ASKS = "Does anything need me? Is everything moving?"
+"""A message that asks what needs the user, as the user typed one on 2026-10-30."""
+TELLS = "rename archlinux to Yelena, and ship it"
+
+
+def test_a_typed_message_keeps_whether_it_asks_what_needs_the_user_and_no_word_of_it(machine):
+    """Each message the user typed, and each word said through the bots' chat, keeps one label
+    as it is read: `needs` where it asks what needs the user, `other` where it does not. An
+    assistant's message has none, and no table or byte of the store holds the text."""
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-asks", home, NOW, text=ASKS)
+    t3.say("m-tells", home, NOW + timedelta(minutes=1), text=TELLS)
+    t3.say("m-why", home, NOW + timedelta(minutes=2), text="why do these need me?")
+    t3.say("m-quoted", home, NOW + timedelta(minutes=3), text='cut the "what needs me" asks')
+    t3.say("m-command", home, NOW + timedelta(minutes=4), text="/crew what needs me")
+    t3.say("r-asks", home, NOW + timedelta(minutes=5), text=ASKS, role="assistant")
+    word(machine, "alpha", "w-asks", NOW + timedelta(minutes=6), text="anything else need me?")
+    word(machine, "alpha", "w-tells", NOW + timedelta(minutes=7), text=TELLS)
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        labels = store.execute("SELECT key, kind, asks FROM messages ORDER BY at").fetchall()
+        ledger = store.execute("SELECT id, asks FROM ask_ledger ORDER BY at").fetchall()
+    assert labels == [
+        ("m-asks", "text", "needs"),
+        ("m-tells", "text", "other"),
+        ("m-why", "text", "other"),
+        ("m-quoted", "text", "other"),
+        ("m-command", "command", "other"),
+        ("r-asks", None, None),
+        ("word:w-asks", "text", "needs"),
+        ("word:w-tells", "text", "other"),
+    ]
+    assert dict(ledger)["m-asks"] == "needs" and dict(ledger)["w-tells"] == "other"
+    for path in machine.state_dir.glob(f"{telemetry.FILE}*"):
+        held = path.read_bytes()
+        assert not [text for text in (ASKS, TELLS, "need me") if text.encode() in held]
+
+
+def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machine):
+    """A store read before messages kept what they ask is migrated, reads every message and
+    every word again, and ends with the labels a store built from nothing has."""
+    from jbus.telemetry import migrations, views
+
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-asks", home, NOW, text=ASKS)
+    t3.say("m-tells", home, NOW + timedelta(minutes=1), text=TELLS)
+    word(machine, "alpha", "w-asks", NOW + timedelta(minutes=2), text="what needs me?")
+    word(machine, "beta", "w-tells", NOW + timedelta(minutes=3), text=TELLS)
+    records(machine, "alpha", NOW, "alpha-one", 10)
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        signed = store.execute("SELECT value FROM meta WHERE name = 'messages'").fetchone()[0]
+        views = "".join(f"DROP VIEW {name};" for name, _ in reversed(views.VIEWS))
+        store.executescript(
+            f"{views}ALTER TABLE messages DROP COLUMN asks; ALTER TABLE acts DROP COLUMN asks; "
+            f"PRAGMA user_version = {len(migrations.MIGRATIONS) - 1};"
+        )
+        store.execute(
+            "UPDATE meta SET value = ? WHERE name = 'messages'",
+            ("1 " + signed.split(" ", 1)[1],),
+        )
+        store.commit()
+
+    machine.build()
+
+    code, out = machine.run("--rebuild", str(machine.root / "again.sqlite"))
+    assert code == 0, out
+    built, again = dump(machine.state_dir / telemetry.FILE), dump(machine.root / "again.sqlite")
+    assert built == again
+    with contextlib.closing(machine.store()) as store:
+        labels = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
+        acts = store.execute("SELECT id, asks FROM acts WHERE verb = 'word' ORDER BY id").fetchall()
+    assert labels == [
+        ("m-asks", "needs"),
+        ("m-tells", "other"),
+        ("word:w-asks", "needs"),
+        ("word:w-tells", "other"),
+    ]
+    assert acts == [("w-asks", "needs"), ("w-tells", "other")]
 
 
 def test_a_word_carried_into_a_t3_thread_or_said_in_one_is_one_ask(machine):

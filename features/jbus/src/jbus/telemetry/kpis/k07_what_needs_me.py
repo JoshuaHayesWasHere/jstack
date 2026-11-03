@@ -1,16 +1,11 @@
-from jbus.telemetry.kpis import Kpi, Lacks
-
-NO_TEXT = "the store keeps no text of a message (2026-11-02)"
+from jbus.telemetry.kpis import Kpi, Measured
 
 KPI = Kpi(
     "'What needs me' asks",
     "attention",
-    "times you asked what needs you",
+    "messages you typed that ask what needs you, by one pattern, as they were read",
     "",
     0,
     "lower",
-    Lacks(
-        "a label of what each message asks, recorded as it is written: the ask ledger "
-        f"joins a message to its row, answer or reply, not to what it asked; {NO_TEXT}"
-    ),
+    Measured("weekly_needs_asks", "asks", "typed", empty=0),
 )

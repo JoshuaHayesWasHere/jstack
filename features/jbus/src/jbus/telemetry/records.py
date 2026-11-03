@@ -32,6 +32,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, tzinfo
 from typing import Any, Literal
 
+from jbus.telemetry import asks
+
 Row = dict[str, Any]
 """One row of a table, by column."""
 MACHINE = ""
@@ -151,7 +153,15 @@ def _acts(one: Row, zone: tzinfo | None) -> Row:
         "words_len": _length(evidence.get("words")),
         "line_len": _length(one.get("line")),
         "checked": evidence.get("checked") if isinstance(evidence.get("checked"), bool) else None,
+        "asks": _asks(action.get("verb"), evidence.get("words")),
     }
+
+
+def _asks(verb: object, words: object) -> str | None:
+    """What a word asks, by the rule of a T3 Code message's; no other act has a label."""
+    if verb != "word":
+        return None
+    return asks.label(words if isinstance(words, str) else None)
 
 
 def _passes(one: Row, zone: tzinfo | None) -> Row:
@@ -543,6 +553,7 @@ SOURCES: tuple[Source, ...] = (
             "words_len",
             "line_len",
             "checked",
+            "asks",
         ),
         _acts,
     ),

@@ -22,7 +22,7 @@ SQL = (
     "CASE joined WHEN 'row' THEN 1 WHEN 'answer' THEN 2 ELSE 3 END, joined_at) AS place "
     "FROM links) "
     "SELECT t.project, t.id, t.thread, t.at, t.day, "
-    f"{WEEK.format(day='t.day')} AS week, t.kind, coalesce(k.joined, CASE WHEN "
+    f"{WEEK.format(day='t.day')} AS week, t.kind, t.asks, coalesce(k.joined, CASE WHEN "
     "julianday((SELECT max(at) FROM builds)) - julianday(t.at) >= "
     f"{WAIT} / 1440.0 THEN 'unanswered' ELSE 'waiting' END) AS joined, k.joined_at, k.link, "
     "round((julianday(k.joined_at) - julianday(t.at)) * 1440.0, 1) AS minutes "
