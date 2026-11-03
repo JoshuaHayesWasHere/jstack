@@ -302,7 +302,8 @@ def test_the_last_round_of_a_pull_request_that_merged_before_a_pass_saw_it_settl
     """A round a launched reviewer still owes a section of is not settled while the pull request
     is open. Once the pass's world shows it merged, no section is still to come: its last round
     gets its line on that pass, and a later pass writes it no second time."""
-    launched = "Reviewer: mcp:rev-1 #1\nReviewer: mcp:rev-2 #2\nReviewer: mcp:rev-3 #3\n"
+    seats = "".join(f"Reviewer: mcp:rev-{n} #{n}\n" for n in (1, 2, 3))
+    launched = "\n## Result\n" + seats
     first = section("clean", "- none", head="d" * 40)
     last = section("clean", "- none")
     kitchen.brief("alpha", "Thread: mcp:crew\n" + launched + first + last)
