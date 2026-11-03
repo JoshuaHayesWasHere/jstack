@@ -214,6 +214,7 @@ TABLE = {
     "clock": "quiet",
     "hold-stall": "quiet",
     "home-stall": "quiet",
+    "hook": "quiet",
     "merged": "quiet",
     "gate answered": "quiet",
     "result": "quiet",

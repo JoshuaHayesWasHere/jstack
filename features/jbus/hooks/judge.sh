@@ -1,17 +1,3 @@
-# The one way a refusing hook judges a tool call. Such a hook sets `hook` (its name), `input`
-# (what the harness gave it on stdin) and `source` (jstack's source tree), sources this file, and
-# calls `judge <module> [<argument>...]`, which ends the hook.
-#
-# The module reads the call on stdin and ends 0 to let it through, or 2 to refuse it with its
-# reason on stderr. A hook that cannot judge refuses: a module that ends any other way, one that
-# runs past JSTACK_HOOK_SECONDS (25 by default, inside the 30 the harness gives the hook), and a
-# machine with no python 3.12 or newer each refuse the call too.
-#
-# Each refusal adds one quiet `hook` event (`jbus.door.EVENTS`) to the jbus log of the repo the
-# call ran in, where jbus keeps one: the hook, the head of the call and the reason. It is written
-# here and not in Python, so a refusal for want of Python is logged too, and it is plain ASCII,
-# since jbus reads the log as UTF-8 and a cut could split a character.
-
 refuse() {
   printf '%s: refused: %s\n' "$hook" "$1" >&2
   logged "$1"
@@ -48,17 +34,17 @@ judge() {
   if command -v timeout >/dev/null 2>&1; then
     set -- timeout -k 2 "$seconds" "$@"
   fi
-  said=$(mktemp) || refuse "no temporary file to keep what $module says"
-  printf '%s' "$input" | PYTHONDONTWRITEBYTECODE=1 "$@" 2>"$said"
+  exec 3>&1
+  said=$(printf '%s' "$input" | PYTHONDONTWRITEBYTECODE=1 "$@" 2>&1 >&3)
   code=$?
-  cat "$said" >&2
-  reason=$(cat "$said")
-  last=$(tail -n 1 "$said")
-  rm -f "$said"
+  exec 3>&-
+  [ -z "$said" ] || printf '%s\n' "$said" >&2
+  last=${said##*
+}
   case $code in
   0) exit 0 ;;
   2)
-    logged "$reason"
+    logged "$said"
     exit 2
     ;;
   124 | 137) refuse "$module ran past $seconds seconds, so it judged nothing" ;;
@@ -66,7 +52,6 @@ judge() {
   esac
 }
 
-# The value of `"<key>": "<value>"` in the call, its first, with its escapes read.
 field() {
   printf '%s' "$input" |
     sed -n -E "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"(([^\"\\\\]|\\\\.)*)\".*/\\1/p" |
@@ -74,13 +59,15 @@ field() {
     sed -e 's/\\[nrt]/ /g' -e 's/\\\(.\)/\1/g'
 }
 
-# `$1` as the inside of a JSON string, printable ASCII only, cut to `$2` characters.
 plain() {
   printf '%s' "$1" | LC_ALL=C tr -c '\040-\176' ' ' | LC_ALL=C cut -c "1-$2" |
     sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
 logged() {
+  for tool in git sed head tr cut date dirname basename; do
+    command -v "$tool" >/dev/null 2>&1 || return 0
+  done
   cwd=$(field cwd)
   common=$(git -C "${cwd:-.}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
     return 0
