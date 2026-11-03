@@ -8,6 +8,7 @@ private patterns are made-up words in a file that the test writes for itself.
 
 import json
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -371,10 +372,13 @@ def test_a_pull_request_command_with_no_private_patterns_file_is_refused(pattern
 
 
 def refused_from(root, hooks, given):
-    """Copy the command hook to `<root>/<hooks>`, feed it `given`, and give its exit
-    code and stderr."""
+    """Copy the command hook to `<root>/<hooks>`, and the judge it sources to its place in
+    `root`, feed it `given`, and give its exit code and stderr."""
     (root / hooks).mkdir(parents=True)
     (root / hooks / COMMAND.name).write_text(COMMAND.read_text())
+    judge = Path("features") / "jbus" / "hooks" / "judge.sh"
+    (root / judge).parent.mkdir(parents=True, exist_ok=True)
+    (root / judge).write_text((REPO / judge).read_text())
     done = subprocess.run(
         ["sh", str(root / hooks / COMMAND.name)],
         input=json.dumps(given),
@@ -393,14 +397,14 @@ def test_a_check_that_breaks_refuses_the_command(patterns, tmp_path):
     given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
     code, said = refused_from(broken, "features/jleak/hooks", given)
     assert code == 2
-    assert "no checkout and no release" not in said
+    assert "outbound-command: refused: jleak ended 1" in said
 
 
 def test_a_hook_that_is_in_no_checkout_and_no_release_refuses_the_command(patterns, tmp_path):
     given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
-    code, said = refused_from(tmp_path / "elsewhere", "hooks", given)
+    code, said = refused_from(tmp_path / "elsewhere", "features/jleak/hooks", given)
     assert code == 2
-    assert "is no checkout and no release, so the command is refused" in said
+    assert "is no checkout and no release, so it cannot judge the call" in said
 
 
 def test_what_the_hook_cannot_read_is_refused_only_when_it_may_be_a_command_it_checks(patterns):

@@ -19,6 +19,10 @@ left out where it is an argument such as a commit message or a title. A heredoc'
 out, since it is text a command reads, but where it feeds a shell or `ssh`, whose commands it is.
 A command that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a
 script of its own, which is why the go path is the main check.
+
+The hook judges through `features/jbus/hooks/judge.sh`, as each refusing hook of jstack does: a
+call it cannot judge is refused, and each refusal is a quiet `hook` event in the repo's jbus log,
+which the shell writes, so it is declared here.
 """
 
 from __future__ import annotations
@@ -33,6 +37,8 @@ import jsettings
 from jbriefs import home, sends
 from jbus import party
 from jsettings import paths
+
+EVENTS = {"hook": "quiet"}
 
 _HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)(\w+)\1")
 _SEPARATOR = set(";&|\n()`")
