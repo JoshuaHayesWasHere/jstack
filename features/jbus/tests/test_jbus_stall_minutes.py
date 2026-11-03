@@ -110,3 +110,33 @@ def test_a_thread_that_writes_between_two_passes_and_is_quiet_again_is_two_spell
         iso(NOW - 12 * MIN),
         iso(again),
     ]
+
+
+def test_a_gap_with_no_pass_before_the_spell_adds_none_of_its_minutes(kitchen):
+    thread = hanging(kitchen, minutes=2, queued=0)
+    kitchen.poll()
+    assert written(kitchen)[0]["live"] == "moving"
+    after = NOW + 5 * 60 * MIN
+    kitchen.poll(after)
+    assert written(kitchen)[0]["live"] == "hung"
+    thread |= {"updatedAt": iso(after + MIN), "itemCount": 41}
+    kitchen.poll(after + 2 * MIN)
+
+    assert [(one["since"], one["until"], one["minutes"]) for one in ended(kitchen)] == [
+        (iso(NOW - 2 * MIN), iso(after + MIN), 3.0)
+    ]
+
+
+def test_a_gap_with_no_pass_inside_a_spell_adds_none_of_its_minutes(kitchen):
+    thread = hanging(kitchen, minutes=12, queued=0)
+    kitchen.poll()
+    kitchen.poll(NOW + MIN)
+    after = NOW + MIN + 5 * 60 * MIN
+    kitchen.poll(after)
+    thread |= {"updatedAt": iso(after + MIN), "itemCount": 41}
+    kitchen.poll(after + 2 * MIN)
+    kitchen.poll(after + 3 * MIN)
+
+    assert [(one["since"], one["until"], one["minutes"]) for one in ended(kitchen)] == [
+        (iso(NOW - 12 * MIN), iso(after + MIN), 14.0)
+    ]
