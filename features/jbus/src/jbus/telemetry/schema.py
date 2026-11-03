@@ -41,8 +41,8 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
   of its merge line, with its minutes from open to merge, and `first_round` where no check of
   the pull request failed and `jmerge` never waited on a crew's fix round (`CREW_FIX`).
   `first_round` is None for a pull request `ci.jsonl` kept no `pull_request` check of: whether
-  one failed is not known, as for every one merged from 2026-10-21 to 2026-10-25 and many
-  merged on 2026-10-20, 2026-10-26 and 2026-10-27.
+  one failed is not known, as for every one merged from 2026-10-21 to 2026-10-25, among other
+  days the ledger kept no checks of.
 - `fix_rounds_since`: the first day `merge.log` has a wait labelled as a crew's fix round, the
   day `first_round` can first tell a fix round with no red check from a first round.
 - `weekly_pr_to_merge`, `weekly_first_round`, `weekly_merges` and `weekly_doors`: each week's

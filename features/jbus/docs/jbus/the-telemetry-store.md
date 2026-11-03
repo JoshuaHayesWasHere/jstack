@@ -142,7 +142,7 @@ The spells come from `ci.jsonl`, so S6 and S7 count only the projects whose tabl
 `pr_times` reads `ci-prs.jsonl` too, so it has the same projects.
 A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`, and `jmerge` has labelled its waits since 2026-10-28, so `first_round` counts an earlier fix round only when a check failed.
 The KPI page shows no first-round share for a week that begins before `fix_rounds_since`, since such a week would count a fix round with no red check as a first round.
-`ci.jsonl` kept no `pull_request` check of the pull requests merged from 2026-10-21 to 2026-10-25, nor of many merged on 2026-10-20, 2026-10-26 and 2026-10-27, and `first_round` is none for those: whether a check of theirs failed is not known.
+`ci.jsonl` kept no `pull_request` check of some merged pull requests, such as every one merged from 2026-10-21 to 2026-10-25, and `first_round` is none for those: whether a check of theirs failed is not known.
 
 ## The KPI page
 
