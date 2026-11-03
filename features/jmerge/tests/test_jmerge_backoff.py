@@ -43,7 +43,7 @@ def limited(tmp_path, said=""):
     (replay.kitchen.home.stub / "limited").write_text(said)
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     return replay, fix
 
 
@@ -140,7 +140,7 @@ def test_no_run_log_is_read_twice_for_one_head_and_base_tip(tmp_path, second, as
     started = rejudging.STARTED
     checked(replay, "one", [(80, "2026-10-23T12:00:00Z", (OURS,)), (81, started, second)])
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
 
     def reads():
         return [call for call in calls(replay) if call.startswith("run ")]
@@ -202,7 +202,7 @@ def test_an_answer_github_left_unsettled_is_not_kept_and_the_next_run_reads_agai
     )
     UNSETTLED[unsettled](stub)
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
 
     def lists():
         return [call for call in calls(replay) if call.startswith("run list")]

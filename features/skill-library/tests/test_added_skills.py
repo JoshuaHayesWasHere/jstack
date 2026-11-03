@@ -28,15 +28,64 @@ BEFORE = {
     "unslop",
 }
 ADDED = sorted(name for name in SKILLS if name not in BEFORE)
-BUILT_IN = set(
-    """
-    add-dir agents bashes bug clear code-review compact config context copy cost diff doctor
-    effort exit export fast feedback help hooks ide init insights login logout loop mcp
-    memory model permissions plan plugin pr-comments quit release-notes rename resume review
-    rewind run sandbox schedule security-review simplify skills stats status statusline
-    tasks terminal-setup theme todos upgrade usage vim workflows
-    """.split()
-)
+BUILT_IN = {
+    "add-dir",
+    "agents",
+    "bashes",
+    "bug",
+    "clear",
+    "code-review",
+    "compact",
+    "config",
+    "context",
+    "copy",
+    "cost",
+    "diff",
+    "doctor",
+    "effort",
+    "exit",
+    "export",
+    "fast",
+    "feedback",
+    "help",
+    "hooks",
+    "ide",
+    "init",
+    "insights",
+    "login",
+    "logout",
+    "loop",
+    "mcp",
+    "memory",
+    "model",
+    "permissions",
+    "plan",
+    "plugin",
+    "pr-comments",
+    "quit",
+    "release-notes",
+    "rename",
+    "resume",
+    "review",
+    "rewind",
+    "run",
+    "sandbox",
+    "schedule",
+    "security-review",
+    "simplify",
+    "skills",
+    "stats",
+    "status",
+    "statusline",
+    "tasks",
+    "terminal-setup",
+    "theme",
+    "todos",
+    "upgrade",
+    "usage",
+    "vim",
+    "workflows",
+}
 NOT_IN_A_SUBAGENT_CALL = {"model", "effort", "isolation"}
 SUBAGENT_CALLS = [
     call for call in CALLS if call.tool == "Agent" and call.where.split(":")[0] in ADDED
@@ -44,7 +93,7 @@ SUBAGENT_CALLS = [
 
 
 def test_each_skill_listed_as_here_before_the_understanding_skills_is_still_a_skill():
-    assert BEFORE <= set(SKILLS)
+    assert set(SKILLS) >= BEFORE
 
 
 def front(text):

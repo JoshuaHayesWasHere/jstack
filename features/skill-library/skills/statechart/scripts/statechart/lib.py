@@ -707,9 +707,29 @@ def join_and(items):
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
 
-OPENS_A_PHRASE = set(
-    "a an the your my our their its this that to of in on at for with from by and or".split()
-)
+OPENS_A_PHRASE = {
+    "a",
+    "an",
+    "the",
+    "your",
+    "my",
+    "our",
+    "their",
+    "its",
+    "this",
+    "that",
+    "to",
+    "of",
+    "in",
+    "on",
+    "at",
+    "for",
+    "with",
+    "from",
+    "by",
+    "and",
+    "or",
+}
 
 
 def join_labels(labels):
@@ -947,9 +967,9 @@ def parse_mermaid(text):
                     )
                 info[c["name"]] = {"all": inner, "initial": initial, "depth": depth}
                 every += inner
-            for t in q["transitions"]:
-                if t["from"] != "[*]" and t["to"] != "[*]":
-                    transitions.append(t)
+            transitions.extend(
+                t for t in q["transitions"] if t["from"] != "[*]" and t["to"] != "[*]"
+            )
             return every
 
         states(p, "", 0)
@@ -1034,7 +1054,7 @@ def parse_mermaid(text):
                         f"a %% when line names {display(state_id)}, which is in the step's own"
                         " region; a guard reads other regions"
                     )
-                states[at["name"]] = sorted(set([*states.get(at["name"], []), *at["all"]]))
+                states[at["name"]] = sorted({*states.get(at["name"], []), *at["all"]})
             t["guard"] = {"not": t["when"]["not"], "states": states}
             del t["when"]
     return {"regions": regions, "nevers": nevers}

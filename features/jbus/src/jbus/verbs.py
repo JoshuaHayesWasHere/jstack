@@ -297,9 +297,9 @@ def _namer(
     def named(node: ast.AST) -> _Function | None:
         if isinstance(node, ast.Name):
             return (module, node.id) if node.id in defined else functions.get(node.id)
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            if node.value.id in modules:
-                return modules[node.value.id], node.attr
+        named_module = isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+        if named_module and node.value.id in modules:
+            return modules[node.value.id], node.attr
         return None
 
     return named

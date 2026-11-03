@@ -151,7 +151,7 @@ def test_jmerge_ends_before_systemd_stops_the_pass():
     service.read(REPO / "features" / "jbus" / "units" / "jbus.service")
     started = service["Service"]["TimeoutStartSec"]
     assert re.fullmatch(r"\d+min", started)
-    assert wake.JMERGE_TIMEOUT < int(started.removesuffix("min")) * 60
+    assert int(started.removesuffix("min")) * 60 > wake.JMERGE_TIMEOUT
 
 
 def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):

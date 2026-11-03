@@ -797,9 +797,10 @@ def read_sets():
     the tests it imports."""
     found = {}
     for name, path in modules().items():
-        if TEST.fullmatch(path):
-            if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
-                found[path] = patterns
+        if not TEST.fullmatch(path):
+            continue
+        if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
+            found[path] = patterns
     return found
 
 
@@ -1192,7 +1193,7 @@ def failed_on_main(days, kept_path):
         kept |= json.loads(kept_path.read_text())
     today = datetime.now(UTC).date()
     window = [(today - timedelta(days=back)).isoformat() for back in range(days + 1)]
-    listed = {day: None for day in window[:SETTLED]}
+    listed = dict.fromkeys(window[:SETTLED])
     listed |= {day: kept["days"].get(day) for day in window[SETTLED:]}
     listed |= side_by_side(red_runs, [day for day, runs in listed.items() if runs is None])
     runs = {run: kept["runs"].get(run) for day in window for run in listed[day]}

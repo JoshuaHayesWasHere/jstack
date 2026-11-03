@@ -1331,7 +1331,7 @@ def request_faults(slug: str, text: str) -> list[str]:
     title = held[0][1][0] if held and held[0][0] == briefs.TITLE else ""
     if not title.startswith(f"{slug}: ") or not title.removeprefix(f"{slug}: ").strip():
         found.append(f"first line is not # {slug}: <what to find out>")
-    fields = {label: lines for label, lines in reversed(held)}
+    fields = dict(reversed(held))
     labels, placeholders = request_template()
     for label in labels:
         if label not in fields:
@@ -1346,9 +1346,11 @@ def request_faults(slug: str, text: str) -> list[str]:
             found.append(f"{label}: line is the template's own text")
         elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
             found.append(f"Out of bounds: line does not start {READ_ONLY}")
-    for label in CREWMATE_ONLY:
-        if label in fields:
-            found.append(f"a {label}: line, which only a crewmate's brief has")
+    found += [
+        f"a {label}: line, which only a crewmate's brief has"
+        for label in CREWMATE_ONLY
+        if label in fields
+    ]
     if long := briefs.overlong(text, "Request"):
         found.append(long)
     return [*found, *asks(text, "request")]

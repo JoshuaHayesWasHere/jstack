@@ -24,7 +24,7 @@ SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
-OWNED = "scripts/".split()
+OWNED = ["scripts/"]
 ALSO = ("install.sh",)
 
 README = """\
@@ -1081,8 +1081,8 @@ def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_o
     script = "features/skill-library/skills/statechart/scripts/statechart/lib.py"
 
     for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
-        assert STATECHART_TESTS <= set(selected)
-        assert STATECHART_TESTS <= set(why["imports"])
+        assert set(selected) >= STATECHART_TESTS
+        assert set(why["imports"]) >= STATECHART_TESTS
 
 
 MERGED = {

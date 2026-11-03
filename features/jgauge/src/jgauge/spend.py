@@ -90,12 +90,26 @@ FIRST, REVIEWS, FIXES, SENDS, HOMES, SCOUTS, CAPPED = KINDS = (
 )
 
 TRIGGERS = {
-    **dict.fromkeys("failed refailed rereview unreviewed unfixed remark".split(), FIXES),
+    **dict.fromkeys(["failed", "refailed", "rereview", "unreviewed", "unfixed", "remark"], FIXES),
     **dict.fromkeys(
-        (
-            "restack rebase mainmoved conflict drops limit-resume failover slot-wake wake"
-            " hold-stall home-stall clock twice word unpushed unruled"
-        ).split(),
+        [
+            "restack",
+            "rebase",
+            "mainmoved",
+            "conflict",
+            "drops",
+            "limit-resume",
+            "failover",
+            "slot-wake",
+            "wake",
+            "hold-stall",
+            "home-stall",
+            "clock",
+            "twice",
+            "word",
+            "unpushed",
+            "unruled",
+        ],
         SENDS,
     ),
 }

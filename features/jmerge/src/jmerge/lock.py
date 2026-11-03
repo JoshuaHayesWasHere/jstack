@@ -11,10 +11,10 @@ Each lock is a `flock` on a file in the home's state directory, so a run that di
 from __future__ import annotations
 
 import fcntl
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import IO
 
 FILE = "merge.lock"
 
@@ -22,24 +22,24 @@ FILE = "merge.lock"
 class MergeLock:
     def __init__(self, state: Path) -> None:
         self.path = state / FILE
-        self.held: IO[str] | None = None
+        self.held: int | None = None
 
     def take(self) -> bool:
         """Take the lock if no other run holds it, and say whether this run holds it now."""
         if self.held is not None:
             return True
-        held = open(self.path, "a")
+        held = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o666)
         try:
             fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            held.close()
+            os.close(held)
             return False
         self.held = held
         return True
 
     def give(self) -> None:
         if self.held is not None:
-            self.held.close()
+            os.close(self.held)
             self.held = None
 
 

@@ -435,7 +435,7 @@ def test_a_row_the_home_closes_as_the_message_says_is_done(kitchen, made, why):
     assert column(kitchen) == ("left", "", why)
     closing = re.search(r"with three lines: `([^`]+)`, `([^`]+)` and `([^`]+)`", sent["message"])
     status, branch, left = (one.replace("<its branch>", "alpha") for one in closing.groups())
-    path.write_text(path.read_text() + follow + "\n".join((status, branch, left)) + "\n")
+    path.write_text(path.read_text() + follow + f"{status}\n{branch}\n{left}\n")
     kitchen.poll(later(2))
     assert column(kitchen) == ("done", "", "")
     assert listed(kitchen) == [] and leftover.read(kitchen.state) == {}

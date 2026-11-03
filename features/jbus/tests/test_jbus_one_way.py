@@ -56,9 +56,9 @@ def _live_outside_at_work(name, tree):
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module == "jbus.watch":
             found += [node.lineno for one in node.names if one.name == "LIVE"]
-        if isinstance(node, ast.Attribute) and node.attr == "LIVE":
-            if isinstance(node.value, ast.Name) and node.value.id == "watch":
-                found.append(node.lineno)
+        live = isinstance(node, ast.Attribute) and node.attr == "LIVE"
+        if live and isinstance(node.value, ast.Name) and node.value.id == "watch":
+            found.append(node.lineno)
     return found
 
 

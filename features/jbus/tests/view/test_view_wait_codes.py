@@ -24,7 +24,7 @@ week of a log, each with its code, its step and a text of it."""
 
 def _filled(template):
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
-    return template.format(**{name: "x1" for name in fields})
+    return template.format(**dict.fromkeys(fields, "x1"))
 
 
 def _waits():
@@ -71,19 +71,19 @@ def test_a_failed_check_and_one_still_running_have_their_own_texts_and_codes():
     """The one reason the scout found the view could not tell apart: `<check> has not passed`,
     once for a red check and for one queued or running alike. Each has its own text now, so a
     line with no code, as `jmerge` prints it, is read as the one it is."""
-    pull = dict(
-        number=7,
-        url=PULL.format(7),
-        title="t",
-        branch="b",
-        head="c" * 40,
-        base="main",
-        mergeable="MERGEABLE",
-        waiting=("check",),
-        files=(),
-        renamed=False,
-        changed=0,
-    )
+    pull = {
+        "number": 7,
+        "url": PULL.format(7),
+        "title": "t",
+        "branch": "b",
+        "head": "c" * 40,
+        "base": "main",
+        "mergeable": "MERGEABLE",
+        "waiting": ("check",),
+        "files": (),
+        "renamed": False,
+        "changed": 0,
+    }
     red = ready.short_on_github(ready.PullRequest(**pull, failed=("check",)))
     running = ready.short_on_github(ready.PullRequest(**pull))
     assert (red, running) == ("check has failed", "check has not passed")

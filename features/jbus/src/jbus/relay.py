@@ -532,10 +532,11 @@ class Relay:
         with self.beat_lock:
             with self.refuse_lock:
                 refused = self._recent()
-            failing = []
-            for lane in [*self.lanes, self.pager.lane]:
-                if lane.failing:
-                    failing.append({**lane.failing, "waiting": len(lane._waiting())})
+            failing = [
+                {**lane.failing, "waiting": len(lane._waiting())}
+                for lane in [*self.lanes, self.pager.lane]
+                if lane.failing
+            ]
             made = {
                 "beat": _now(),
                 "started": self.started,
@@ -581,7 +582,7 @@ class Relay:
                     length = int(self.headers.get("Content-Length") or 0)
                 except ValueError:
                     length = -1
-                if not 0 < length:
+                if not length > 0:
                     relay.say("relay: refused a POST with no length")
                     return self._answer(400)
                 if length > LIMIT:
@@ -606,6 +607,7 @@ class Relay:
                     relay.say(f"relay: could not spool event {event_id(body)}: {error}")
                     return self._answer(503)
                 self._answer(202, {"id": id})
+                return None
 
             def _ack(self, body: Body) -> None:
                 id = body.get("id")
@@ -621,6 +623,7 @@ class Relay:
                     relay.say(f"relay: an ack named event {id}, which holds no open item")
                     return self._answer(404)
                 self._answer(200, {"id": id, "seen": seen})
+                return None
 
             def log_message(self, format: str, *args: Any) -> None:
                 pass

@@ -158,10 +158,7 @@ def refusal(state: Path, sender: str, to: str) -> str:
         return ""
     if to_home is not None:
         stale = to != to_home.live()
-        if from_home is None:
-            what = _row(to_home.name)
-        else:
-            what = _channel(from_home, to_home)
+        what = _row(to_home.name) if from_home is None else _channel(from_home, to_home)
         if stale and to != sender:
             return f"{_handed_off(to_home)}, and {what}"
         return what
