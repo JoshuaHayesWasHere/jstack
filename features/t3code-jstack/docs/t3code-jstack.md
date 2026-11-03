@@ -1,28 +1,12 @@
 # t3code-jstack
 
-T3 Code's sidebar lists threads.
-jstack's tree sidebar draws a jstack project from jbus's state instead: one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
-A domain home with no live work is one line, its name and its age, with nothing to unfold.
-A home lists only its open rows: a task leaves the tree once it merges or is done, and the project row counts what merged since you last opened its root home.
-A task in review says which part it is in, "review 1", "fixing", "review 2", "checks" or "rebase".
-A crew task's row draws its stage as one ring filled by thirds, crew, review and merge, empty while it is queued.
-A scout's row draws a diamond, hollow while queued, half filled while it scouts and filled once its report is in, beside the word "queued", "scouting" or "report in", which it reads from jbus's `work.json`.
-One colour, sky, marks live work only: a ring or diamond at work, and the badge of a project with live work under it.
-Live is a launched task that does not ask you, is not quiet, stalled or held, and is not a scout whose report is in.
-Amber marks what asks you, and every other mark and badge is neutral.
-The tree keeps to two type sizes and one weight: every name is 13px and every word beside it 11px, all at 400, and its levels step by ink and row height.
-A row's "Open brief" draws the brief as what it says: its one line, chips for Size, Review, Playbook, Pull request and Home, what it must not touch, then its lines in its order, with the rest under "More" and the Markdown one click away.
-A Builds on or Follows link in it selects that row in the tree.
-A task whose crew sits idle past the quiet threshold while its pull request waits says "stalled" and for how long, beside its stage, and one jmerge or jbus holds is shown with "held" and for how long, its reason on hover and at the head of its menu.
-Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
-A project added to T3 is a root row at once, before it has a thread, and asks once whether to start a jstack home for it.
-Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
-A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.
-Upstream T3 Code knows nothing of jbus, so the tree is a patch series that this feature keeps, and `t3code-jstack` is T3 Code nightly built with it.
+`t3code-jstack` is T3 Code nightly built with a patch series that this feature keeps.
+The series adds jstack's tree sidebar, which draws each jstack project from jbus's state in place of T3 Code's list of threads ([What the tree shows](#what-the-tree-shows)).
+Upstream T3 Code knows nothing of jbus, so only this build has the tree.
 The series also makes a Cursor instance's agent run its commands in bash or zsh, whichever the `SHELL` of the instance's environment names, so that it can run bash while your login shell and T3's terminals stay zsh.
 The Cursor SDK runs only those two, so another `SHELL` there falls back as the SDK chooses.
 With no `SHELL` there, or an empty one, it runs the server's shell, as upstream does.
-It is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doctor` lists it only where T3 Code is a nightly build.
+`t3code-jstack` is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doctor` lists it only where T3 Code is a nightly build.
 
 ## Install it
 
@@ -35,7 +19,7 @@ It is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doc
 
 ## Stay up to date
 
-`yay` no longer updates T3 Code, because `t3code-jstack` is a local package.
+`yay` does not update T3 Code, because `t3code-jstack` is a local package.
 `jinstall --setup` does: the doctor reads `old` when upstream has a newer nightly or jstack's patches changed, and setup builds and installs the newer one.
 
 Each build tries three tags in turn: upstream's newest nightly, the nightly of the running build, and the tag in the PKGBUILD.
@@ -84,3 +68,23 @@ The patches come from a T3 Code checkout with a `jstack` branch cut from the nig
 4. Run `jinstall --setup` to build and install it.
 
 When the doctor says a nightly does not take the patches, rebase the checkout's `jstack` branch onto that tag, write the series again, and set `_tag` and `pkgver` to it.
+
+## What the tree shows
+
+The tree draws one row for the project and its root home, the domain homes under it, and each scout, crew and review as a quiet row with its stage.
+A domain home with no live work is one line, its name and its age, with nothing to unfold.
+A home lists only its open rows: a task leaves the tree once it merges or is done, and the project row counts what merged since you last opened its root home.
+A task in review says which part it is in, "review 1", "fixing", "review 2", "checks" or "rebase".
+A crew task's row draws its stage as one ring filled by thirds, crew, review and merge, empty while it is queued.
+A scout's row draws a diamond, hollow while queued, half filled while it scouts and filled once its report is in, beside the word "queued", "scouting" or "report in", which it reads from jbus's `work.json`.
+One colour, sky, marks live work only: a ring or diamond at work, and the badge of a project with live work under it.
+Live is a launched task that does not ask you, is not quiet, stalled or held, and is not a scout whose report is in.
+Amber marks what asks you, and every other mark and badge is neutral.
+The tree keeps to two type sizes and one weight: every name is 13px and every word beside it 11px, all at 400, and its levels step by ink and row height.
+A row's "Open brief" draws the brief as what it says: its one line, chips for Size, Review, Playbook, Pull request and Home, what it must not touch, then its lines in its order, with the rest under "More" and the Markdown one click away.
+A Builds on or Follows link in it selects that row in the tree.
+A task whose crew sits idle past the quiet threshold while its pull request waits says "stalled" and for how long, beside its stage, and one jmerge or jbus holds is shown with "held" and for how long, its reason on hover and at the head of its menu.
+Every other T3 project is a root row of the same size over its threads, and "No project" is pinned last.
+A project added to T3 is a root row at once, before it has a thread, and asks once whether to start a jstack home for it.
+Root rows sort into an active group and an idle one below a divider, on their own, and within each group a root row keeps the place you drag it to, or move it to with Alt+ArrowUp and Alt+ArrowDown.
+A row's menu, by right-click, the ContextMenu key or Shift+F10, holds what the row can do, and a home's actions go to the home as your own message: New crew task and New scout fill its composer, New child home asks the root home for a scope, Archive home sends `/handoff`, and Start a home starts a root home in a project with none.

@@ -2,7 +2,8 @@
 
 `jroles <role>` picks the first instance of the role's pool with headroom in the ledger, and a launch, by `jbus` or by hand, goes to that instance ([jroles](../jroles.md#pools)).
 `jgauge room` makes a launch wait on the plan only while every instance of that pool is full ([jroles](../jroles.md#the-ledger)).
-A thread already running moves only when its turn fails on a usage limit.
+A thread already running moves when its turn fails on a usage limit or a login lapse.
+It also moves when `jbus` has a message for it while its instance is capped.
 It then moves to the first instance of its pool with headroom ([jroles](../jroles.md#pools)).
 To see what a cap would do to one thread, replay a recorded cap with `jbus failover --replay <items.json> --thread <id> --dry-run`.
 It prints the move and writes nothing.

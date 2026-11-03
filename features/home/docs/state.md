@@ -21,7 +21,7 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 
 | File | Holds |
 |---|---|
-| `handoff.md` | A note a home left when the `handoff` skill still started the next home, where one is left. A start reads it, and the next archive moves it to `log/`. |
+| `handoff.md` | A leftover note from an earlier home, where one is left. A start reads it, and the next archive moves it to `log/`. |
 | `plan.md` | One entry per open task, each with a "Done when" list and your decisions. It holds no status: `jbus plan` counts one from the entry's queue rows. |
 | `plan-done.md` | The sections of the entries that are finished, moved there by `jbus plan close <entry>`. |
 | `gates.md` | Each question only you can answer, with the default taken. |

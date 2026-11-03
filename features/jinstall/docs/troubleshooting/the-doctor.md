@@ -38,7 +38,7 @@ The one exception is an optional git hook of a repo's own, whose `old` line leav
 | Line | Meaning | Do this |
 |---|---|---|
 | `missing hard uv -> https://docs.astral.sh/uv/getting-started/installation/` | The release's `install.sh` found no `uv`, and could not install it. Nothing else ran. | Install `uv` from the page the line names, then run the `curl` line again. |
-| `jinstall: no checkout above it and no source in <path>` | The `jinstall` that ran is not a release's command, and no checkout of jstack is around it. Nothing ran. | Install the release again, as [jinstall](../jinstall.md#install) shows. |
+| `jinstall: no checkout above it and no source in <path>` | The `jinstall` that ran is not a release's command, and no checkout of jstack is around it. Nothing ran. | Install the release again, as the [Quickstart](../../../../README.md#quickstart) shows. |
 | `install.sh: <name>: <error>` | The line goes to stderr. The install could not put the part `<name>`. The part's own line says what is there now. The release's `jinstall` prints the same line, with the same `install.sh:` prefix. | Find the part's line in the tables below. |
 
 ## Every other page

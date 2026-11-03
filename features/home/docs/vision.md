@@ -47,7 +47,7 @@ A home is quiet unless something is wrong, a real result landed, or a thing wait
 It never spends his tokens on a wake that asks nothing.
 A stall is dug into, not waited on.
 
-Code holds when a thread has stalled: `features/jbus/src/jbus/live.py:27-28` calls a thread quiet when it has written nothing for 10 minutes and hung at 20.
+Code holds when a thread has stalled: `features/jbus/src/jbus/live.py:26-27` calls a thread quiet when it has written nothing for 10 minutes and hung at 20.
 
 ## Designs Josh turned down
 

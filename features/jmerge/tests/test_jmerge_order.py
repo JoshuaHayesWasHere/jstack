@@ -508,7 +508,3 @@ def test_a_repo_whose_main_jbus_never_judged_merges_as_it_did(fix_and_other):
 def test_a_main_the_state_cannot_name_is_no_red_main(fix_and_other):
     main_says(fix_and_other.home).write_text("not json")
     assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
-
-
-def test_the_red_main_wait_of_an_older_log_lands_on_the_check_step_and_not_in_unknown():
-    assert judgement.step(f"wait: {ready.MAIN_RED.format(sha='cccccccccccc')}") == "check"
