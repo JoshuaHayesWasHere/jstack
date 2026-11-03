@@ -559,7 +559,10 @@ def test_the_notice_a_job_prints_is_the_annotation_the_collector_reads(tmp_path)
     "pairs,kept",
     [
         (["selection=212"], {"selection": 212, "reason": None}),
-        (["selection=all", "reason=pyproject.toml"], {"selection": "all", "reason": "pyproject.toml"}),
+        (
+            ["selection=all", "reason=pyproject.toml"],
+            {"selection": "all", "reason": "pyproject.toml"},
+        ),
     ],
 )
 def test_the_selection_a_check_notices_is_kept_on_its_row(tmp_path, pairs, kept):
