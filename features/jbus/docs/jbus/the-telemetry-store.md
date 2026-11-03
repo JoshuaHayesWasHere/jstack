@@ -118,9 +118,10 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `ask_ledger` | each message you typed or word you said and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
 | `weekly_typed_per_row` | each week's messages you `typed`, resumes apart, rows `merged`, and `per_row` |
-| `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its merge line: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round |
+| `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its merge line: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round, or none where `ci.jsonl` kept no `pull_request` check of it |
+| `fix_rounds_since` | the first `day` of a wait in `merge.log` labelled as a crew's fix round |
 | `weekly_pr_to_merge` | each week's open-to-merge `n`, `median` and `p85` |
-| `weekly_first_round` | each week's `n`, `first_round` and `share`, in percent |
+| `weekly_first_round` | each week's `n` of pull requests whose checks were kept, `first_round` and `share`, in percent |
 | `weekly_merges` | each week's rows `merged` |
 | `weekly_doors` | each week's door acts `done`, and `not_yours`, those a home, a bot or jbus did |
 | `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
@@ -140,6 +141,8 @@ A reply counts as an answer, so a message answered in words whose work never bec
 The spells come from `ci.jsonl`, so S6 and S7 count only the projects whose table says `ci_report = true`, and only the runs their ledger holds.
 `pr_times` reads `ci-prs.jsonl` too, so it has the same projects.
 A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`, and `jmerge` has labelled its waits since 2026-10-28, so `first_round` counts an earlier fix round only when a check failed.
+The KPI page shows no first-round share for a week that begins before `fix_rounds_since`, since such a week would count a fix round with no red check as a first round.
+`ci.jsonl` kept no `pull_request` check of the pull requests merged from 2026-10-21 to 2026-10-27, and `first_round` is none for those: whether a check of theirs failed is not known.
 
 ## The KPI page
 
@@ -150,7 +153,7 @@ It reads the store alone, calls no `gh` and runs no service, so it costs nothing
 jbus telemetry && jbus kpis
 ```
 
-Each of the 23 KPIs is a row: what it counts, its target, and last week and this week so far, each with its value, the count `n` it is of, and `met`, `missed`, `tracked` where it has no target yet, or `no data` where nothing in the week counts.
+Each of the 23 KPIs is a row: what it counts, its target, and last week and this week so far, each with its value, the count `n` it is of, and `met`, `missed`, `tracked` where it has no target yet, `no data` where nothing in the week counts, or `not covered`, with why, where the week begins before the records the KPI needs.
 A KPI the store has no instrument for yet says so, and names what it needs.
 A week starts on Sunday, as the views' does.
 The page names no project, row, path or thread, and the store holds no text of a message, so `jleak` finds nothing in it.

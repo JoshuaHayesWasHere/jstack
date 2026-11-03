@@ -40,10 +40,15 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `pr_times`: each pull request `ci-prs.jsonl` holds and `jmerge` logged as merged, in the week
   of its merge line, with its minutes from open to merge, and `first_round` where no check of
   the pull request failed and `jmerge` never waited on a crew's fix round (`CREW_FIX`).
+  `first_round` is None for a pull request `ci.jsonl` kept no `pull_request` check of: whether
+  one failed is not known, as for those merged from 2026-10-21 to 2026-10-27.
+- `fix_rounds_since`: the first day `merge.log` has a wait labelled as a crew's fix round, the
+  day `first_round` can first tell a fix round with no red check from a first round.
 - `weekly_pr_to_merge`, `weekly_first_round`, `weekly_merges` and `weekly_doors`: each week's
-  open-to-merge median, share merged in the first round, rows merged, and door acts done, with
-  `not_yours` those a home, a bot or jbus did and the user did not, save one done on a message
-  the user typed, as the home does on `--message`, which is the user's.
+  open-to-merge median, share merged in the first round of those whose checks were kept, rows
+  merged, and door acts done, with `not_yours` those a home, a bot or jbus did and the user did
+  not, save one done on a message the user typed, as the home does on `--message`, which is the
+  user's.
 - `call_rows`: each agent call with its session's thread, project, role and slug, and
   its spend in `jgauge spend`'s units (`UNITS`).
 - `row_spend`: each merged row's spend by the role and the provider of the threads that spent
@@ -359,18 +364,26 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "SELECT c.project, c.number AS pr, c.created AS opened, c.merged AS merged_at, m.day, "
         f"{WEEK.format(day='m.day')} AS week, "
         "round((julianday(c.merged) - julianday(c.created)) * 1440.0, 4) AS minutes, "
+        "CASE WHEN EXISTS (SELECT 1 FROM ci_jobs j WHERE j.project = c.project "
+        "AND j.pr = c.number AND j.event = 'pull_request') THEN "
         "NOT EXISTS (SELECT 1 FROM ci_jobs j WHERE j.project = c.project AND j.pr = c.number "
         f"AND j.event = 'pull_request' AND j.conclusion IN {RED}) "
         "AND NOT EXISTS (SELECT 1 FROM merges w WHERE w.project = c.project "
-        f"AND w.number = c.number AND w.verb = 'wait' AND w.label IN {CREW_FIX}) AS first_round "
+        f"AND w.number = c.number AND w.verb = 'wait' AND w.label IN {CREW_FIX}) "
+        "END AS first_round "
         "FROM ci_prs c JOIN merged_lines m ON m.project = c.project AND m.number = c.number "
         "WHERE c.merged IS NOT NULL AND c.created IS NOT NULL",
     ),
     ("weekly_pr_to_merge", _quantiles("pr_times", "minutes")),
     (
+        "fix_rounds_since",
+        f"SELECT min(day) AS day FROM merges WHERE verb = 'wait' AND label IN {CREW_FIX}",
+    ),
+    (
         "weekly_first_round",
-        "SELECT week, count(*) AS n, sum(first_round) AS first_round, "
-        "100.0 * sum(first_round) / count(*) AS share FROM pr_times GROUP BY week",
+        "SELECT week, count(first_round) AS n, sum(first_round) AS first_round, "
+        "100.0 * sum(first_round) / nullif(count(first_round), 0) AS share FROM pr_times "
+        "GROUP BY week",
     ),
     ("weekly_merges", "SELECT week, count(*) AS merged FROM lead_times GROUP BY week"),
     (
