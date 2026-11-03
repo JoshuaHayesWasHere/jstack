@@ -133,16 +133,20 @@ KPIS: tuple[Kpi, ...] = (
         "",
         0,
         "lower",
-        Lacks(f"each ask labelled as it is written (ask-ledger); {NO_TEXT}"),
+        Lacks(
+            "a label of what each message asks, recorded as it is written: the ask ledger "
+            f"joins a message to its row, answer or reply, not to what it asked; {NO_TEXT}"
+        ),
     ),
     Kpi(
         "Rows finished with no further word",
         "autonomy",
-        "rows done with no message of yours naming them (S1)",
+        "merged rows with no message you typed after their go naming them: cited by an act on "
+        "the row, or typed in its crew's thread (S1)",
         "%",
         95,
         "higher",
-        Lacks("each message joined to its row (ask-ledger)"),
+        Measured("weekly_no_word", "share", "merged"),
     ),
     Kpi(
         "Gates closed by silence that were wrong (S8)",
@@ -165,20 +169,21 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Spend per merged row (M units)",
         "cost",
-        "jgauge spend units over rows merged",
+        "jgauge spend units of a merged row's own threads, of every provider, over the "
+        "week's merged rows with any call recorded",
         "M",
         None,
         "lower",
-        Lacks("a daily spend record: jgauge spend keeps nothing (record-gaps, tokens-per-row)"),
+        Measured("weekly_row_spend", "per_row", "rows"),
     ),
     Kpi(
         "Coordination share of spend",
         "cost",
-        "jbus sends and homes over all spend",
+        "jbus sends and homes over all spend, of the runs jgauge spend counts",
         "%",
         20,
         "lower",
-        Lacks("spend by role as a record (tokens-per-row)"),
+        Measured("weekly_spend", "coordination", "days"),
     ),
     Kpi(
         "Dollars per merged row",
@@ -212,7 +217,7 @@ KPIS: tuple[Kpi, ...] = (
         "%",
         5,
         "lower",
-        Lacks("row-to-PR history and a Fixes: link (record-gaps)"),
+        Lacks("a record of the merged row a later row fixes or reverts: no record names it"),
     ),
     Kpi(
         "Capped minutes (every instance capped)",
@@ -226,11 +231,12 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Capped-failure share of spend",
         "reliability",
-        "spend of runs that failed on a cap or a sign-in lapse",
+        "spend of runs that failed on a usage limit or part way, over all spend, of the runs "
+        "jgauge spend counts",
         "%",
         1,
         "lower",
-        Lacks("a daily spend record (record-gaps)"),
+        Measured("weekly_spend", "capped", "days"),
     ),
     Kpi(
         "Stall minutes per merged row",

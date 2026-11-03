@@ -1,4 +1,5 @@
-"""Each KPI threshold sends one jbus alert when it is crossed, and none when it is not.
+"""Each KPI threshold sends one jbus alert when it is crossed, and none when it is not, and no KPI
+of the page's registry says it lacks a row that has merged.
 
 The tests write the records jbus writes, of two projects, `alpha` and `beta`, and T3 Code's store
 of usage-limit failures, build the telemetry store, and run the pass's look at the thresholds
@@ -16,6 +17,7 @@ import pytest
 
 import jbus
 from jbus import alert, kpis, telemetry, wake
+from jbus.telemetry import kpis as page_kpis
 
 NOW = datetime(2026, 11, 2, 20, 0, tzinfo=UTC)
 """15:00 in New York, the user's zone: the local day began at 05:00 UTC."""
@@ -391,3 +393,17 @@ def test_with_no_store_and_no_t3_store_nothing_is_read_and_nothing_alerts(machin
     kpis.look(jbus.load(), NOW, said.append)
     assert said == []
     assert machine.alerts() == []
+
+
+MERGED = ("telemetry-store", "ask-ledger", "ask-ledger-words", "record-gaps", "tokens-per-row")
+"""The telemetry rows the queue holds as merged on 2026-11-02, each of which a KPI's `needs` once
+named as what it lacked: a row that merges is added here."""
+
+
+def test_no_kpi_lacks_a_row_that_has_merged():
+    named = {
+        kpi.name: [slug for slug in MERGED if slug in kpi.source.needs]
+        for kpi in page_kpis.KPIS
+        if isinstance(kpi.source, page_kpis.Lacks)
+    }
+    assert {name: slugs for name, slugs in named.items() if slugs} == {}
