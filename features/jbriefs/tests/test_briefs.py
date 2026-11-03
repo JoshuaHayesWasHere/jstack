@@ -856,7 +856,9 @@ def test_reviewer_lines_are_read_by_kind_and_a_scoped_one_by_its_head():
 
 
 def test_a_reviewer_line_in_the_head_is_guidance_and_names_no_reviewer():
-    head = "# alpha: a task\nReviewer: check that the ask is one question\n\n## Result\nStatus: done\n"
+    head = (
+        "# alpha: a task\nReviewer: check that the ask is one question\n\n## Result\nStatus: done\n"
+    )
     assert below.reviewers(head, "Reviewer") == []
     assert findings.roster(head) == findings.Legacy(0)
     launched = head + "Reviewer: mcp:one #1\n"

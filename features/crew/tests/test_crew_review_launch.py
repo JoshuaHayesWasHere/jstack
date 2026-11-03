@@ -63,7 +63,8 @@ def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
             id="a Reviewer line of guidance in the head is no reviewer",
         ),
         pytest.param(
-            with_field("Reviewer: check that the ask is one question") + "Reviewer: mcp:1111-aaaa #1\n",
+            with_field("Reviewer: check that the ask is one question")
+            + "Reviewer: mcp:1111-aaaa #1\n",
             "review",
             False,
             id="a Reviewer line in the Result is one, whatever the head says",

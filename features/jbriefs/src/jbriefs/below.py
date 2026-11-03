@@ -33,7 +33,9 @@ def results(brief: str) -> list[str]:
     """The brief's lines from its first `## Result` on, where a crew and a reviewer write. A
     `Reviewer:` line above it is the home's guidance for the reviewer, and no reviewer."""
     lines = brief.splitlines()
-    return lines[next((at for at, one in enumerate(lines) if one.startswith("## Result")), len(lines)) :]
+    return lines[
+        next((at for at, one in enumerate(lines) if one.startswith("## Result")), len(lines)) :
+    ]
 
 
 def reviewers(brief: str, kind: str, head: str | None = None) -> list[str]:
