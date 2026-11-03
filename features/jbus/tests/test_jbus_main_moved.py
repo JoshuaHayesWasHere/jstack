@@ -12,8 +12,8 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jmerge import mainjson
-from test_jbus_kitchen import NOW, sends_in_once
+from jmerge import mainjson, rows
+from test_jbus_kitchen import NOW, PROJECT, sends_in_once
 from test_jbus_queue import add, gates, go
 from test_jbus_watch import beside_a_dispatched_browser_run
 
@@ -102,6 +102,26 @@ def message(slug, number, main, why):
         'if it has none, without waiting for green ("The review"), and handle the rest as '
         '"Stay on the pull request" says.'
     )
+
+
+def test_a_main_that_turns_green_while_t3_code_is_down_is_green_at_once_and_told_later(launched):
+    """A pass with no T3 Code still judges main: the red ends at the green tip, so `jmerge` no
+    longer holds a red pull request's merge of main (`jmerge.cli.Repo.again` reads the record as
+    `rows.main`). The message to the crew is owed, and the first pass with T3 Code sends it."""
+    red = tip(launched)
+    assert rows.main(launched.checkout) == mainjson.Main(red=red)
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    launched.t3.down.add(PROJECT)
+    main = move(launched)
+    launched.poll()
+    assert rows.main(launched.checkout) == mainjson.Main(green=main)
+    assert sends(launched) == []
+    launched.t3.down.clear()
+    launched.poll(NOW + timedelta(minutes=3))
+    assert [one["clientRequestId"] for one in sends(launched)] == [
+        f"mainmoved|alpha|#7|{main[:12]}"
+    ]
+    assert rows.main(launched.checkout) == mainjson.Main(green=main)
 
 
 def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is_not(launched):

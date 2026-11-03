@@ -952,8 +952,10 @@ class Repo:
 
     def open_only(self, listed: list[ready.PullRequest]) -> None:
         """Keep only the holds of pull requests still open, and the accepts of those still open at
-        the head they were accepted at: a merge or a close drops both, and a push an accept."""
+        the head they were accepted at: a merge or a close drops both, and a push an accept. A
+        merge or a close drops the pull request's record in `base-merges.json` too."""
         heads = {str(one.number): one.head for one in listed}
+        self.base_merge.open_only(heads)
         self.holds_are({number: head for number, head in self.holds().items() if number in heads})
         self.accepts_are(
             {

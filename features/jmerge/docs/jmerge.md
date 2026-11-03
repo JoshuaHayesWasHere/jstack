@@ -304,6 +304,7 @@ A check that main never runs, as `macos` and `borders` run on pull requests alon
 That is on purpose: a test that main broke on macOS alone would otherwise read as the pull request's own, and hold it for good.
 A pull request whose runs failed no test id, or a test that main's check also failed there, is asked for as before, and so is one whose runs or logs GitHub does not give.
 It keeps that answer for a head and a base tip in `base-merges.json`, so the logs are read again only once either moves.
+A run drops the record of each pull request that is no longer open, once it merged or closed, so the file holds open pull requests alone.
 The review stands across the merge, as across a rebase: the range-diff of the reviewed head and the new head shows no content, since it leaves out the merge commit.
 
 ## A required check with no run at the head

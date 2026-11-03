@@ -89,6 +89,7 @@ NO_THREAD = "red pull request with no thread to tell"
 REFUSED = "T3 Code refused the main-moved message"
 MERGEABLE_UNKNOWN, MERGEABLE_CONFLICTING = "UNKNOWN", "CONFLICTING"
 WAITING = 10
+CHECKS = "checks.json"
 ACCOUNT, ACCOUNT_FILE = "ci-account", "account.json"
 DECISION = "\n".join(
     (
@@ -129,14 +130,15 @@ def main_check(run: Pass, sha: str, again: bool = False, rerun: bool = False) ->
     """Return whether the checks of a commit on main passed, as `watch._check` answers.
 
     It goes through the answers `checks.json` keeps, so it asks GitHub for a final answer
-    once. With `again`, it asks again about a kept `failed` or `NO_JOB`, since a rerun of the
-    check on the same commit may have passed. With `rerun`, a failed push run at its first
+    once. This module is the file's one writer. With `again`, it asks again about a kept
+    `failed` or `NO_JOB`, since a rerun of the check on the same commit may have passed, and it
+    reruns a cancelled run once (`watch._check`). With `rerun`, a failed push run at its first
     attempt is rerun once, and the commit is `pending` until the rerun ends."""
-    known: dict[str, str] = read_json(run.state / "checks.json", {})
+    known: dict[str, str] = read_json(run.state / CHECKS, {})
     if again and known.get(sha) in ("failed", NO_JOB):
         del known[sha]
-    answer = _check(run, known, sha, rerun=rerun)
-    write_json(run.state / "checks.json", known)
+    answer = _check(run, known, sha, again=again, rerun=rerun)
+    write_json(run.state / CHECKS, known)
     return answer
 
 
@@ -200,12 +202,14 @@ def account(run: Pass, unrun: str, passed: str) -> None:
         run.condition(ACCOUNT, f"the decision about CI that starts no job was not kept: {refused}")
 
 
-def tell(run: Pass, client: Client, world: World) -> None:
+def tell(run: Pass, client: Client | None, world: World | None) -> None:
     """Send the crew of a red pull request one message when main goes from red to green: the
     commit that fixed main may fix the pull request too.
 
     It tells only the crew of a pull request open under a slug jbus launched. Whoever works
-    on any other pull request is not jbus's crew.
+    on any other pull request is not jbus's crew. A pass with no T3 Code (`client` or `world`
+    is None) still judges main's tips: it owes every message, so `main.json` reads green at
+    the tip that ended the red, and a later pass with T3 Code tells the crews.
     """
     asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     default = asked.stdout.strip().removeprefix("origin/")
@@ -243,9 +247,10 @@ def tell(run: Pass, client: Client, world: World) -> None:
             unrun = tip
     account(run, unrun, green)
     fixed = (green or owed_at) if red and not broken else ""
-    owed, held = False, []
+    blind = client is None or world is None
+    owed, held = bool(last and fixed and blind), []
     sent = run.box.sent()
-    for slug, pull in world.open.items() if last and fixed else ():
+    for slug, pull in world.open.items() if last and fixed and not blind else ():
         if asked_before and slug not in kept:
             continue
         why = RED if checks(pull) == "failed" else ""
@@ -316,6 +321,14 @@ STEPS = (
         10,
         "mainmoved.tell",
         lambda half: tell(half.run, half.client, half.seen.world),
-        ("client", "world"),
+    ),
+    verbs.Step(
+        "after-expedite",
+        11,
+        "watch.retro",
+        lambda half: watch.retro(
+            half.run, half.seen.world, half.rows or [], lambda sha: main_check(half.run, sha)
+        ),
+        ("world",),
     ),
 )
