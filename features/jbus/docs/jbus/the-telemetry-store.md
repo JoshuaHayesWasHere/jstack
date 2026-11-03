@@ -111,7 +111,7 @@ A Codex call is one `token_count` event.
 | View | Gives |
 |---|---|
 | `call_rows` | each call of `calls`: `provider`, `call`, `session`, `agent`, `at`, `day`, `model`, the four counts (`input`, `cache_write`, `cache_read`, `output`) and `final`; its session's `thread`, `instance`, `project`, `role` and `slug`; its spend in the `units` of `jgauge spend`; and `dollars`, an estimate at the API list prices of `jgauge.spend.PRICES`, the dated table of `PRICED_ON`, none for a model the table does not price |
-| `row_spend` | each merged row's spend by role and provider: `project`, `slug`, `pr`, `merged_at`, `day` and `week` from `lead_times`, `role`, `provider`, `calls`, the four counts summed (`input`, `cache_write`, `cache_read`, `output`), `units`, the `dollars` of its priced calls and `unpriced`, the calls with no price |
+| `row_spend` | each merged row's spend by role and provider: `project`, `slug`, `pr`, `merged_at`, `day` and `week` from `lead_times`, `role`, `provider`, `calls`, the four counts summed (`input`, `cache_write`, `cache_read`, `output`), `units`, the `dollars` of its priced calls, the estimate at `jgauge.spend.PRICES` that `call_rows` gives, and `unpriced`, the calls with no price |
 
 `jgauge spend` reads T3 Code's own count of each run, which leaves out the calls of a run's subagents.
 A day of it is the day's Claude calls with no `agent`:
