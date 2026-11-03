@@ -107,7 +107,6 @@ It is in the log, which `jbus events` prints and the view shows.
 - `stall`
 - `sweep`
 - `unplaced`
-- `unstack`
 - `waiting`
 - `waiting-on-user`
 

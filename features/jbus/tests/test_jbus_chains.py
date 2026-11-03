@@ -64,6 +64,33 @@ def test_a_depends_its_brief_builds_on_is_queued(kitchen):
     assert rows(kitchen)["beta"]["depends"] == ["alpha"]
 
 
+HAND_STACK = (
+    "beta cannot be stacked on alpha: its depends does not name alpha. A stack is made by a "
+    "depends alone: add --depends alpha"
+)
+
+
+def test_a_stacked_on_line_naming_a_row_its_depends_does_not_is_refused_and_nothing_is_queued(
+    kitchen,
+):
+    assert queue_add(kitchen, "alpha")[0] == 0
+    stacked = brief("beta").replace("Home: root\n", "Home: root\nStacked on: alpha alpha\n")
+    code, said = queue_add(kitchen, "beta", text=stacked)
+    assert code != 0
+    assert HAND_STACK in said
+    assert "beta" not in rows(kitchen)
+
+
+def test_a_stacked_on_line_naming_a_row_its_depends_names_is_queued(kitchen):
+    assert queue_add(kitchen, "alpha")[0] == 0
+    stacked = brief("beta", "Builds on: alpha: the parser alpha adds\n").replace(
+        "Home: root\n", "Home: root\nStacked on: alpha alpha\n"
+    )
+    code, said = queue_add(kitchen, "beta", "--depends", "alpha", text=stacked)
+    assert code == 0, said
+    assert rows(kitchen)["beta"]["depends"] == ["alpha"]
+
+
 def test_a_builds_on_line_names_a_slug_whole_and_not_a_slug_it_starts_with(kitchen):
     for slug in ("alpha", "alpha-two"):
         assert queue_add(kitchen, slug)[0] == 0

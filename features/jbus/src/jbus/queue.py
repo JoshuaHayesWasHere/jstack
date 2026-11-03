@@ -133,7 +133,9 @@ from jbriefs import parse as briefs
 from jbriefs.home import thread_of
 from jbus import Refused, history, party, verbs, write_json
 from jmerge import judgement
+from jmerge import stacked as stacks
 from jmerge.judgement import bound
+from jsettings import brief as brief_head
 from jsettings import store
 
 EVENTS = {"queue": "quiet"}
@@ -1081,6 +1083,21 @@ def _builds_on(rows: list[Row], verb: Add) -> None:
             )
 
 
+def _stacked_on(verb: Add) -> None:
+    """Refuse a brief whose `Stacked on:` line names a row its depends does not. A stack is made
+    by a depends alone: jbus launches the row stacked on that row's open pull request and writes
+    the line itself (`jmerge.stacked`), so a line the depends does not back is a hand stack, which
+    nothing takes the row off again."""
+    words = (brief_head.head(verb.text, stacks.LINE) or "").split()
+    base = words[0] if words else ""
+    if base and base not in verb.depends:
+        raise Refused(
+            f"refused: {verb.slug} cannot be stacked on {base}: its depends does not name {base}. "
+            f"A stack is made by a depends alone: add --depends {base}, and a Builds on: line "
+            f"that names {base}, or take the Stacked on: line out"
+        )
+
+
 def _merge_after(batch: _Batch, verb: Add) -> None:
     """Refuse an order that jmerge could not keep. There are three such orders. In the first, a row
     merges after itself. In the second, a row merges after a slug that was removed or that has no
@@ -1402,6 +1419,7 @@ def _do(
                 raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
         _merge_after(batch, verb)
         _builds_on(rows, verb)
+        _stacked_on(verb)
         if verb.entry and not _SLUG.fullmatch(verb.entry):
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():

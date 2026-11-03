@@ -34,7 +34,7 @@ On a project's first pass, jbus records the Results, Reviews, Reports, questions
 jbus writes these things to GitHub, and no others:
 
 - a rerun of a check that was cancelled, and of main's red check at its first attempt;
-- a new base for a stacked pull request, when its base merged or when it comes off its stack ([What a pass launches](jbus/what-a-pass-launches.md));
+- a new base for a stacked pull request, when its base merged ([What a pass launches](jbus/what-a-pass-launches.md));
 - a push of a stacked link's own commits moved onto its new base, under a lease;
 - a revert of the one clear culprit of a red main, a pull request `gh pr revert` opens, and the close of that revert, with a comment, once main is green without it ([A red main](jbus/a-red-main.md)).
 
