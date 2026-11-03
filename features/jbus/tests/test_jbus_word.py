@@ -466,7 +466,8 @@ def test_a_word_sent_whose_record_was_not_written_goes_again_under_the_same_key(
 
 
 BOT = "bot-chat:t36u/a-phone"
-READ = ("--evidence", BOT, "--words", "read vision.md")
+ASKED = "What do you want me to do first?"
+READ = ("--evidence", BOT, "--words", "read vision.md", "--answers", ASKED)
 
 
 def test_a_word_on_the_bots_chat_goes_to_the_home_with_its_evidence(kitchen):
@@ -475,7 +476,9 @@ def test_a_word_on_the_bots_chat_goes_to_the_home_with_its_evidence(kitchen):
     code, out = kitchen.main("word", "--to", "demo", *READ)
     assert code == 0 and out.startswith("sent: demo, to home-1, word "), out
     (sent,) = sends(kitchen)
-    assert sent["threadId"] == "home-1" and sent["message"].endswith("\n\nread vision.md")
+    assert sent["threadId"] == "home-1" and sent["message"].endswith(
+        "\n\nread vision.md" + word.ANSWERS.format(answers=ASKED)
+    )
     (one,) = [each for each in acts.read(kitchen.state) if each["action"]["verb"] == "word"]
     assert (one["party"]["kind"], one["evidence"]["source"], one["evidence"]["ref"]) == (
         "home",
