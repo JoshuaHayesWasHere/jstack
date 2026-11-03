@@ -226,11 +226,7 @@ Roster = Legacy | Numbered
 
 def roster(text: str) -> Roster:
     """Whom the round waits for, read from the results' `Reviewer:` lines that name a thread."""
-    named = [
-        line.strip()
-        for line in below.results(text)
-        if line.startswith("Reviewer:") and "".join(line.split()[1:2]) not in ("", "none", "none,")
-    ]
+    named = [said for said in below.reviewers(text, "Reviewer") if below.launched(said)]
     seats = frozenset(int(found[1]) for line in named if (found := _SEAT.search(line)))
     return Numbered(seats) if seats else Legacy(len(named))
 
