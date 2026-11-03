@@ -983,6 +983,7 @@ def test_a_store_labelled_by_the_old_rules_gains_the_labels_a_rebuild_has(machin
     import re
 
     from jbus.telemetry import asks, migrations
+    from jbus.telemetry.migrations import v008_asks_marks
 
     t3, home = T3(), "mcp:home-a"
     t3.thread(home, "alpha-id")
@@ -999,7 +1000,7 @@ def test_a_store_labelled_by_the_old_rules_gains_the_labels_a_rebuild_has(machin
         machine.build()
     with contextlib.closing(machine.store()) as store:
         before = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
-        store.execute(f"PRAGMA user_version = {len(migrations.MIGRATIONS) - 1}")
+        store.execute(f"PRAGMA user_version = {migrations.MIGRATIONS.index(v008_asks_marks.SQL)}")
         store.commit()
     assert dict(before)["m-ticked"] == dict(before)["word:w-ticked"] == "needs"
 
