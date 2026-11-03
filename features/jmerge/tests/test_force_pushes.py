@@ -174,6 +174,17 @@ def test_a_commit_git_cannot_read_is_not_known_and_never_a_push_with_no_conflict
     assert pushes.reason_of(repo, head, head, gone, main, "row", {}) == (pushes.UNKNOWN, [])
 
 
+def test_a_merge_or_a_merge_base_git_cannot_work_out_is_not_known(repo):
+    """conflict-rebase-cut F6: a commit that shares no history with the head is readable, but git
+    can neither merge the head over it, as main at the told event, nor find its merge base with
+    main, as the head after the push."""
+    head, main = branch_over(repo, {"mine.txt": "mine\n"}, {"theirs.txt": "theirs\n"})
+    git(repo, "checkout", "-q", "--orphan", "alone")
+    alone = commit(repo, {"alone.txt": "alone\n"}, "alone")
+    assert pushes.reason_of(repo, head, head, main, alone, "row", {}) == (pushes.UNKNOWN, [])
+    assert pushes.reason_of(repo, head, alone, main, main, "row", {}) == (pushes.UNKNOWN, [])
+
+
 def stamp(moment):
     return moment.isoformat().replace("+00:00", "Z")
 
