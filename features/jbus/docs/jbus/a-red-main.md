@@ -7,7 +7,7 @@ While main is red, no pull request waits on it and no launch does: a pull reques
 Once the tip is red after its one rerun, jbus reverts its one clear culprit, or files a brief for the fix.
 
 One module judges whether main's tip is red: `mainmoved` writes `checks.json`, the answer GitHub gave for each commit of main, and `main.json`, the red tip and the green one (`features/jbus/src/jbus/mainmoved.py`).
-It runs in every pass, with T3 Code or without, so `main.json` reads green at the tip that ended a red even while T3 Code cannot be reached, and the crews are told once it can.
+It runs in every pass whose GitHub budget is above jbus's floor, with T3 Code or without, so `main.json` reads green at the tip that ended a red even while T3 Code cannot be reached, and the crews are told once it can.
 The `retro` lines, the revert and the fix's brief come after it in the pass, and read main's tip as `main.json` keeps it, so every reader gives one verdict for one tip.
 
 ## The revert

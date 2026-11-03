@@ -209,7 +209,8 @@ def tell(run: Pass, client: Client | None, world: World | None) -> None:
     It tells only the crew of a pull request open under a slug jbus launched. Whoever works
     on any other pull request is not jbus's crew. A pass with no T3 Code (`client` or `world`
     is None) still judges main's tips: it owes every message, so `main.json` reads green at
-    the tip that ended the red, and a later pass with T3 Code tells the crews.
+    the tip that ended the red, and a later pass with T3 Code tells the crews. A pass whose
+    GitHub budget is at jbus's floor, or not known, runs no `tell` (`jbus.budget`).
     """
     asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     default = asked.stdout.strip().removeprefix("origin/")
@@ -321,6 +322,7 @@ STEPS = (
         10,
         "mainmoved.tell",
         lambda half: tell(half.run, half.client, half.seen.world),
+        ("budget",),
     ),
     verbs.Step(
         "after-expedite",
