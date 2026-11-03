@@ -1,14 +1,15 @@
 """The outbox holds a message that needs `act` while its receiver cannot act on it now, by the rules
-of `jbus.outbox.RULES`: `busy`, `slot` and `review`. A wake still reaches a waiting thread, and a
-message that needs `decide` is held by no rule. The tests send through the real outbox against the
-kitchen's fakes, and run the real pass where a sender's next message is what they are about."""
+of `jbus.outbox.RULES`: `held`, `busy`, `slot` and `review`. A wake still reaches a waiting
+thread, and a message that needs `decide` is held by no rule. The tests send through the real
+outbox against the kitchen's fakes, and run the real pass where a sender's next message is what
+they are about."""
 
 import fcntl
 import json
 import os
 
 import jbus
-from jbus import clock, expedite, outbox, passes, slotwait, t3, watch, word
+from jbus import clock, expedite, outbox, passes, queue, slotwait, t3, watch, word
 from jgauge import slot, waiters
 from test_jbus_github import failed, keys, launched, pull
 from test_jbus_github import passes as at
@@ -185,3 +186,20 @@ def take(lane):
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         taken.append(fd)
     return taken
+
+
+def test_a_held_row_s_crew_gets_no_rebase_or_fix_and_every_other_message(launched):
+    """A held row's crew is sent no rebase and no fix (`outbox.FIXES`), a hold by hand alike, and
+    still gets the user's answer, its review's findings and its wakes. A row not held loses
+    nothing."""
+    run, client = run_of(launched)
+    others = ("answer", "reviewed", "slot-wake", "word")
+    assert send(run, client, "mcp:thread-1", "rebase")
+    queue.hold(launched.state, "alpha")
+    for template in sorted(outbox.FIXES):
+        run, client = run_of(launched)
+        assert not send(run, client, "mcp:thread-1", template), template
+    for template in others:
+        run, client = run_of(launched)
+        assert send(run, client, "mcp:thread-1", template), template
+    assert held(launched) == [(template, "held") for template in sorted(outbox.FIXES)]

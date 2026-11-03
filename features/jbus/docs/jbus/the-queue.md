@@ -184,6 +184,17 @@ If its pull request is open, `jmerge` leaves it unmerged, with `wait <number> <u
 A row with no go is held by `jmerge` too: it leaves the row's pull request unmerged, with `wait <number> <url>: its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`, until a go is given.
 A pull request that no row names is judged as any other.
 
+### A check that failed twice
+
+jbus holds a row itself when its pull request fails a required check at two heads (`jbus.stall.twice`).
+Each head counts once, a push or GitHub's merge of main alike, and a required check is one the home's `required-checks` names.
+A head whose check ran on main's red tip, the `broken` tip of `main.json`, is not counted: main failed there, not the row.
+At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
+The row's `why` says `check failed twice` while it is held.
+A held row's crewmate gets no rebase and no fix message from jbus, at the second head or a third, any held row alike (`jbus.outbox.FIXES`); your answers, its review's findings and its wakes still reach it.
+The hold is lifted as any hold is, with `jbus queue approve`, and the count then starts again from none.
+The heads are kept in `fails.json` in the project's state.
+
 An approval names its brief.
 `--sha` is required with a basis of your word, and it is the first 12 characters of the sha256 of the brief you were shown.
 If the stored brief has another sha, `approve` prints `refused: <slug>'s brief is <sha12>, not <given>`.

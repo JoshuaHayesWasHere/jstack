@@ -73,6 +73,10 @@ NO_JOB = "nojob"
 RERUNS = "reruns.json"
 """The push runs on main whose failed jobs jbus asked GitHub to rerun, by id: when it asked,
 and whether GitHub took the rerun."""
+FAILS = "fails.json"
+"""The heads at which each row's pull request failed a required check, kept by `jbus.stall.twice`,
+and whether jbus held the row for it."""
+TWICE = "check failed twice"
 RERUN_WAIT = timedelta(minutes=30)
 """How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")
@@ -983,10 +987,18 @@ def unread(run: Pass, read: bool) -> str:
     return STOP if run.config.stop_path.exists() else UNREAD
 
 
+def failed_twice(run: Pass, slug: str) -> bool:
+    """Say whether jbus held the row because its check failed at two heads (`jbus.stall.twice`)."""
+    kept = read_json(run.state / FAILS, {})
+    one = kept.get(slug) if isinstance(kept, dict) else None
+    return isinstance(one, dict) and bool(one.get("held_at"))
+
+
 def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unread: str) -> str:
     """Return why a row waits, or nothing. `found` is its derived columns, as `status` gave them.
 
-    A row with a pull request waits for what `jmerge` says of it. A row that was not launched waits
+    A held row whose check failed at two heads waits for `TWICE` (`jbus.stall.twice`). A row with
+    a pull request waits for what `jmerge` says of it. A row that was not launched waits
     for what `dispatch` recorded (`Pass.reasons`), or for its approval. Where `dispatch` read no
     row, it recorded nothing, and an approved row waits for what is `unread`: dispatch that is off,
     or the stop file. A pass that is `UNREAD` says nothing of the row, so the row's stored reason
@@ -996,6 +1008,8 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
     """
     if found.get("why"):
         return found["why"]
+    if row.get("held") and failed_twice(run, row["slug"]):
+        return TWICE
     if found["status"] == "pr":
         said = waits.said.get(found["pr"].removeprefix("#"))
         if said is None and waits.failed and row.get("status") == "pr":

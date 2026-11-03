@@ -23,6 +23,10 @@ written from that, and `jbus.owed` keeps the ask and sends it again when the acc
 `send` also holds a message that needs `act` while its receiver cannot act on it now, by the rules
 of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
 
+- `held`: the row is held in the queue (`jbus queue hold`, or jbus's own at a check that failed
+  at two heads, `jbus.stall.twice`), so its crew gets no rebase and no fix message (`FIXES`) until
+  it is approved again. It holds no other template: a held row's crew still gets the user's
+  answers, its review's findings and every other message;
 - `slot`: the thread waits on a test slot and is not woken yet (`jgauge.waiters`);
 - `review`: the thread is the row's crew, and the row's pull request waits on a review that a
   reviewer the crew launched has not written at its head, as jmerge's judge says
@@ -31,7 +35,7 @@ of `RULES`, the one table of them. A new rule is a row of that table, and no sen
 - `busy`: the thread has a turn running (`watch.at_work`), or this pass already sent it a message
   that needs `act` (`Pass.told`), so a thread gets at most one such message a pass.
 
-The two that read local files come first, and `busy`, which asks T3 Code, last.
+The three that read local files come first, and `busy`, which asks T3 Code, last.
 
 A row spares what the receiver must still get while it waits. `slot` and `review` spare the wakes:
 a slot's wake and a pool's (`jbus.slotwait`) and the stall clock's line (`jbus.clock`), so a waiting
@@ -60,7 +64,7 @@ from typing import TYPE_CHECKING, Literal
 import jsettings
 from jbriefs import meets
 from jbriefs.home import thread_of
-from jbus import dispatch, review, roles
+from jbus import dispatch, queue, review, roles
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import limits, slot, waiters
@@ -94,6 +98,9 @@ ASKS = frozenset(
 """The templates that ask for the review itself: `jbus.expedite`'s kinds whose reason is a review
 not written, and `jbus.rebase`'s asks for a scoped review. `review` never holds them, since the
 review it waits on is what they ask for."""
+FIXES = frozenset({"rebase", "mainmoved", "restack", "failed", "refailed", "conflict", "drops"})
+"""The templates of a rebase or a fix message to a crew: `jbus.rebase`'s, `jbus.mainmoved`'s and
+`jbus.stack`'s. `held` holds these and no other."""
 USERS = frozenset({"word", "item"})
 """The templates of the user's word and steer to a home (`jbus.word`, `jbus.steer`). No rule
 holds them."""
@@ -102,11 +109,13 @@ holds them."""
 @dataclass(frozen=True)
 class Rule:
     """`Rule` is one row of `RULES`: its name, which `outbox.jsonl` keeps for a message it held,
-    whether it holds a message to a thread about a row now, and the templates it spares."""
+    whether it holds a message to a thread about a row now, the templates it spares, and the only
+    templates it holds, where it names them."""
 
     name: str
     holds: Callable[[Pass, Client, str, str], bool]
     spares: frozenset[str]
+    only: frozenset[str] | None = None
 
 
 def selection_of(client: Client, thread: str) -> dict:
@@ -235,7 +244,13 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     return unwritten and review.reviewing(brief)
 
 
+def on_hold(run: Pass, client: Client, thread: str, row: str) -> bool:
+    """Say whether the row is held in the queue, as the table is now."""
+    return bool((queue.fresh(run.state, row) or {}).get("held"))
+
+
 RULES = (
+    Rule("held", on_hold, frozenset(), FIXES),
     Rule("slot", waiting, WAKES | USERS),
     Rule("review", reviewing, WAKES | ASKS | USERS),
     Rule("busy", busy, USERS),
@@ -248,7 +263,11 @@ def held(run: Pass, client: Client, thread: str, row: str, template: str, needs:
     thread about the row now, or nothing. A message that needs `decide` is held by none."""
     if needs != "act" or not thread:
         return ""
-    rules = (rule for rule in RULES if template not in rule.spares)
+    rules = (
+        rule
+        for rule in RULES
+        if template not in rule.spares and (rule.only is None or template in rule.only)
+    )
     return next((rule.name for rule in rules if rule.holds(run, client, thread, row)), "")
 
 

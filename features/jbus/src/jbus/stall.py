@@ -23,6 +23,17 @@ everything else that waits on the user.
 (`live`). `hung` sends one `stall` event for that thread and that run, and writes one line of
 `hung.jsonl`. A later pass adds a line that says what became of the turn: it wrote again by itself,
 someone interrupted it, or it ended. jbus interrupts nothing and sends the thread nothing.
+
+`twice` ends a row's loop of failed checks. It keeps, in `fails.json`, each head at which the row's
+pull request failed a required check (`rebase.ran_and_failed`, a check the home's `required-checks`
+names, or jmerge's default where it names none). A row that is held already is not counted. A head
+whose base is main's red tip, the `broken` tip of `main.json`, is kept apart and counted for
+nothing: main failed there, not the row. At the second head, a push or a merge of main alike,
+`twice` holds the row (`jbus queue hold`) and pages the Chef once, a gate `check failed twice` that
+names the row, the pull request, both heads and the failed jobs at each. The outbox then sends the
+crew of a held row no rebase and no fix message (`outbox.FIXES`), so none goes out at a third
+head. The row's `why` says `check failed twice` while it is held. The hold is lifted as any
+hold is, by an approve, and the count starts again from none.
 """
 
 from __future__ import annotations
@@ -32,14 +43,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbus import alert, queue, read_json, verbs, waiting, write_json
+from jbus import Refused, alert, cancelled, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import World, task_brief
-from jmerge import judgement
+from jbus.watch import FAILS, TWICE, World, task_brief
+from jmerge import judgement, mainjson
 from jmerge import stacked as stacks
 from jmerge.lines import READY
 from jsettings import store
@@ -327,9 +338,95 @@ def _keep(run: Pass, line: dict[str, Any]) -> bool:
     return True
 
 
+def _failure(red: rebase.Red, names: list[str]) -> dict[str, Any]:
+    """Return what `fails.json` keeps of a failed head: when, the failed checks and their jobs."""
+    return {"checks": names, "jobs": [f"{repo} job {job}" for repo, job in red.jobs]}
+
+
+def _on_red(run: Pass, red: str, head: str) -> bool | None:
+    """Say whether the head holds main's red tip: its check ran on a main that was red. None where
+    GitHub gave no compare, so the head is judged again on a later pass."""
+    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{red}...{head}")
+    try:
+        said = json.loads(asked.stdout) if asked.returncode == 0 else None
+    except ValueError:
+        said = None
+    if not isinstance(said, dict) or "status" not in said:
+        return None
+    return said["status"] in ("ahead", "identical")
+
+
+def _said(head: str, one: dict[str, Any]) -> str:
+    jobs = ", ".join(one.get("jobs") or ()) or "no job GitHub gave"
+    return f"{head[:12]}: {', '.join(one.get('checks') or ())} failed ({jobs})"
+
+
+def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
+    """Count, for each row's open pull request, the heads at which a required check failed, and
+    hold the row and page the Chef once at the second (`TWICE`). A head on main's red tip is not
+    counted. A held row is counted no further; once its hold is lifted, its count starts again."""
+    path = run.state / FAILS
+    was: dict[str, Any] = read_json(path, {})
+    table = {row["slug"]: row for row in rows}
+    red = mainjson.read(run.state).red
+    required = cancelled.required(run)
+    kept: dict[str, Any] = {}
+    for slug, pull in world.open.items():
+        row, head = table.get(slug), str(pull.get("headRefOid") or "")
+        if row is None or not head or not rebase.crew(run, slug):
+            continue
+        one = dict(was.get(slug) or {})
+        if one.get("held_at") and not row.get("held"):
+            one = {}
+        heads, on_red = dict(one.get("heads") or {}), list(one.get("red") or ())
+        kept[slug] = {**one, "heads": heads, "red": on_red}
+        if row.get("held") or head in heads or head in on_red:
+            continue
+        found = rebase.ran_and_failed(run, pull)
+        names = [name for name in found.names if name in required]
+        if not names:
+            continue
+        on = _on_red(run, red, head) if red else False
+        if on is None:
+            run.say(f"wait {slug}: GitHub gave no compare of {head[:12]} with main's red tip")
+            continue
+        if on:
+            on_red.append(head)
+            run.say(
+                f"failed {slug}: #{pull['number']} at {head[:12]} is on main's red tip, not counted"
+            )
+            continue
+        heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}
+        if len(heads) < 2:
+            continue
+        try:
+            said = queue.hold(run.state, slug)
+        except Refused as error:
+            run.say(f"wait {slug}: {TWICE}, and it could not be held ({error})")
+            continue
+        kept[slug]["held_at"] = run.now.isoformat()
+        number, url = pull["number"], pull.get("url", "")
+        at = "; ".join(_said(failed, heads[failed]) for failed in heads)
+        text = (
+            f"#{number} {url} of {slug} failed a required check at two heads: {at}. jbus {said}, "
+            "and sends its crew no rebase and no fix until the row is approved again."
+        )
+        run.gate(slug, TWICE, text, key=f"{TWICE} {' '.join(failed[:12] for failed in heads)}")
+    if kept != was:
+        write_json(path, kept)
+
+
+def _twice(half: Half) -> None:
+    if half.rows is not None:
+        twice(half.run, half.seen.world, half.rows)
+
+
 def _tell(half: Half) -> None:
     """Tell what waits on the user, and store the roots for `waiting.keep`."""
     half.roots = tell(half.run, half.client, half.seen.world, half.table, half.users)
 
 
-STEPS = (verbs.Step("close", 10, "stall.tell", _tell),)
+STEPS = (
+    verbs.Step("tellers", 90, "stall.twice", _twice, ("world",)),
+    verbs.Step("close", 10, "stall.tell", _tell),
+)
