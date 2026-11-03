@@ -16,12 +16,21 @@ jbus then writes `Thread: <id>` in the head of that file, the one line it writes
 
 A row launched stacked starts its worktree from its base's branch, and its brief has `Stacked on: <slug> <branch>` in its head in place of `Green main:`.
 Its crew opens its pull request on that branch, and `jmerge` waits on it as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>`.
-Each pass after that tells its crew once for each move of its base's head, to rebase onto the base's branch.
-Once its base merged, jbus bases its pull request on the default branch, where GitHub has not done so itself on deleting the base's branch, and moves the link's own commits onto it itself in the same pass, with no message to its crew.
+
+While the base is open, jbus tells the link's crew nothing, whatever the base's head does (`jbus.stack`).
+It takes the link off its stack instead when the link has no need of the base's code: its own commits merge cleanly without the base's onto the branch the base goes on, and its added lines use no `def`, `class` or top-level constant that the base adds.
+jbus then moves those commits onto that branch, bases the pull request there and drops the brief's `Stacked on:` line, so the link merges on its own.
+A link stays stacked when it conflicts without its base, uses such a name, or has a base that is itself still stacked.
+It also stays stacked while its brief's `Builds on:` line names its open base, since the home wrote that need down.
+
+Once its base merged, jbus moves the link once.
+It bases the link's pull request on the branch the base merged into, where GitHub has not done so itself on deleting the base's branch.
+A base merged into another branch than the default leaves its link on that branch.
+jbus moves the link's own commits onto that branch itself in the same pass, with no message to its crew.
 It rebases them in a scratch worktree of its own, pushes them with a lease at the head it read, and moves the crew's worktree, where it is clean, to the pushed head.
 A crew whose thread is at work is left until a later pass.
 A rebase that conflicts, a push the lease refuses, a crew's worktree with work in it, or a reviewer still out leaves the branch as it was, and the crew is told to move its own commits instead.
-Once the link moved or that message went, the line says `Stacked on: <slug> <default> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
+Once the link moved or that message went, the line says `Stacked on: <slug> <branch> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
 A link still on its base's branch gets no message to rebase onto main: its branch holds its base's commits too.
 
 - **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval: <lines>`.
@@ -29,7 +38,8 @@ A link still on its base's branch gets no message to rebase onto main: its branc
   Approve it again.
   An edit that keeps its meaning fingerprint is no change.
 - **A brief is not checked again.**
-  `add` runs its checks (`Design:`, `Proves it:`, `Skills:`, `Size:`, `Where:`, `Playbook:`) when it first queues a row, and a launch runs none of them.
+  `add` runs its checks when it first queues a row: the eight lines a brief must have, the checks of `Task:`, `Design:`, `Proves it:`, `Skills:`, `Size:`, `Review:`, `Playbook:`, `Where:`, `Instruments:` and `Builds on:`, the load check and the brief's conduct ([The table](the-queue.md#the-table)).
+  A launch runs none of them.
   A row with a go is grandfathered, whatever a check added since says of its brief.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass.
   After `room_passes` passes in a row with no room, jbus records `condition <slug>: no room for <n> passes: <why>` once.
@@ -49,9 +59,8 @@ If T3 Code does not answer for one project, that pass launches nothing in any pr
 Once the count is reached, each pass prints one line for every row that waits, `max_running is <n> across all projects: <slug> waits, since <time>`.
 The time is when the row began to wait for a slot.
 
-Two more caps hold inside each project, and both are top-level keys of `~/.config/jbus/config.toml`, beside `max_running`.
-`max_per_project` caps the crewmates out in one project, 24 when the config does not set it.
-`max_per_home` caps the crewmates out for one home of a project, the root home or one scope, 6 when the config does not set it.
+`max_per_project` and `max_per_home` hold inside each project, and both are top-level keys of `~/.config/jbus/config.toml`, beside `max_running`.
+A home is the root home or one scope of the project.
 A config that sets either to anything but a whole number of 1 or more is refused.
 A crewmate out counts toward the home its queued brief names on its `Home:` line (`jbriefs.home.home_of`), and toward the root home when that brief is gone.
 A row whose home is full waits, and the rows of the project's other homes still take its turns.

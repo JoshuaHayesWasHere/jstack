@@ -18,7 +18,11 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `main_runs`, `main_checks` and `main_spells`: the push checks on main that `ci.jsonl` holds,
   the latest attempt of each run, the latest run of each commit, and each red spell from the
   first commit whose check failed to the next commit whose check passed (`minutes_to_green`).
-- `change_failures` (S6): each merged row, and whether its pull request opened a spell.
+- `ci_projects`: each project whose push checks on main the store holds; `ci_rows`, each merged
+  row of one of them, `kept` where the store holds a push check of main for its pull request;
+  and `ci_gaps`, each day with merged rows that are not `kept`, and how many.
+- `change_failures` (S6): each `kept` row of `ci_rows`, and whether its pull request opened a
+  spell: a row whose push check was not kept could never fail, so it is not counted.
 - `brief_at_launch` (fault F1): each launch of a row, the sha of the brief stored then
   (`brief-versions.jsonl`), and how many versions came after it.
 - `run_attempts` (fault F2): each workflow run of every project, its attempts, when and at which
@@ -38,7 +42,9 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `weekly_lost_asks` (S3): each week's typed messages that are settled, the lost ones among
   them, those still waiting, and the rate, with no labels.
 - `pr_times`: each pull request `ci-prs.jsonl` holds and `jmerge` logged as merged, in the week
-  of its merge line, with its minutes from open to merge, and `first_round` where no check of
+  of its first merge line from a minute before it opened on (a line is stamped to the minute),
+  since `merge.log` can hold an older repo's lines of the same number, as jstack's does from
+  2026-10-10 to 10-14. It has its minutes from open to merge, and `first_round` where no check of
   the pull request failed and `jmerge` never waited on a crew's fix round (`CREW_FIX`).
   `first_round` is None for a pull request `ci.jsonl` kept no `pull_request` check of: whether
   one failed is not known, as for every one merged from 2026-10-21 to 2026-10-25, among other
@@ -50,6 +56,8 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
   merged, and door acts done, with `not_yours` those a home, a bot or jbus did and the user did
   not, save one done on a message the user typed, as the home does on `--message`, which is the
   user's.
+- `rows_since`: the first day of jbus's row records (`items.jsonl`), before which no week has
+  its rows: a week that begins before it would count only part of itself.
 - `call_rows`: each agent call with its session's thread, project, role and slug, and
   its spend in `jgauge spend`'s units (`UNITS`).
 - `row_spend`: each merged row's spend by the role and the provider of the threads that spent
@@ -314,11 +322,23 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "LEFT JOIN ends e ON e.project = g.project AND e.spell = g.spell AND e.place = 1 "
         "WHERE g.opens = 1",
     ),
+    ("ci_projects", "SELECT DISTINCT project FROM main_runs"),
+    (
+        "ci_rows",
+        "SELECT l.*, EXISTS (SELECT 1 FROM main_runs r WHERE r.project = l.project "
+        "AND r.pr = l.pr) AS kept FROM lead_times l "
+        "JOIN ci_projects p ON p.project = l.project WHERE l.pr IS NOT NULL",
+    ),
+    (
+        "ci_gaps",
+        "SELECT project, day, week, count(*) AS rows FROM ci_rows WHERE NOT kept "
+        "GROUP BY project, day",
+    ),
     (
         "change_failures",
         "SELECT l.project, l.slug, l.pr, l.merged_at, l.day, l.week, EXISTS (SELECT 1 FROM "
         "main_spells s WHERE s.project = l.project AND s.start_pr = l.pr) AS opened_spell "
-        "FROM lead_times l WHERE l.pr IS NOT NULL",
+        "FROM ci_rows l WHERE l.kept",
     ),
     ("weekly_lead_time", _quantiles("lead_times", "minutes")),
     (
@@ -369,8 +389,9 @@ VIEWS: tuple[tuple[str, str], ...] = (
     ),
     (
         "pr_times",
-        "WITH merged_lines AS (SELECT project, number, min(day) AS day FROM merges "
-        "WHERE verb = 'merged' AND number IS NOT NULL GROUP BY project, number) "
+        "WITH merged_lines AS (SELECT c.project, c.number, min(m.day) AS day FROM ci_prs c "
+        "JOIN merges m ON m.project = c.project AND m.number = c.number AND m.verb = 'merged' "
+        "AND julianday(m.at) >= julianday(c.created) - 1 / 1440.0 GROUP BY c.project, c.number) "
         "SELECT c.project, c.number AS pr, c.created AS opened, c.merged AS merged_at, m.day, "
         f"{WEEK.format(day='m.day')} AS week, "
         "round((julianday(c.merged) - julianday(c.created)) * 1440.0, 4) AS minutes, "
@@ -396,6 +417,7 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "GROUP BY week",
     ),
     ("weekly_merges", "SELECT week, count(*) AS merged FROM lead_times GROUP BY week"),
+    ("rows_since", "SELECT min(day) AS day FROM items"),
     (
         "weekly_doors",
         f"SELECT {WEEK.format(day='a.day')} AS week, count(*) AS done, "
