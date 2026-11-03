@@ -27,14 +27,14 @@ zone of its own to bucket by.
 from __future__ import annotations
 
 import hashlib
-import json
 import re
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, tzinfo
 from typing import Any, Literal
 
 from jbus.telemetry import asks
+from jbus.telemetry.readers import json_lines, keyed, listed, questions
 
 Row = dict[str, Any]
 """One row of a table, by column."""
@@ -432,42 +432,6 @@ def _review_rounds(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
-def json_lines(text: str) -> Iterator[Row]:
-    """Each line of a JSON-lines file that is an object, in order."""
-    for line in text.splitlines():
-        try:
-            one = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(one, dict):
-            yield one
-
-
-def _question_records(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    found = held.get("records", []) if isinstance(held, dict) else []
-    return [one for one in found if isinstance(one, dict)]
-
-
-def _queue_rows(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    return [one for one in held if isinstance(one, dict)] if isinstance(held, list) else []
-
-
-def _keyed(name: str) -> Callable[[str], Iterable[Row]]:
-    """The records of a snapshot that is one JSON object of records by key, each with its key
-    as the field `name`: `merged.json` by slug, `word-sends.json` by word, `reverts.json` by red
-    tip."""
-
-    def records(text: str) -> Iterable[Row]:
-        held = json.loads(text)
-        if not isinstance(held, dict):
-            return []
-        return [{**one, name: key} for key, one in held.items() if isinstance(one, dict)]
-
-    return records
-
-
 @dataclass(frozen=True)
 class Source:
     """A file of a project's records and the table it fills.
@@ -661,7 +625,7 @@ SOURCES: tuple[Source, ...] = (
         ),
         _questions,
         at="asked_at",
-        records=_question_records,
+        records=questions,
         natural="number",
     ),
     Source(
@@ -687,7 +651,7 @@ SOURCES: tuple[Source, ...] = (
         ),
         _queue,
         at="approval_ran_at",
-        records=_queue_rows,
+        records=listed,
         natural="slug",
     ),
     Source(
@@ -697,7 +661,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("slug", "number", "merged_at", "merge_commit", "state", "title_len"),
         _merged,
         at="merged_at",
-        records=_keyed("slug"),
+        records=keyed("slug"),
         natural="slug",
     ),
     Source(
@@ -775,7 +739,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("word", "thread", "sent_at", "waiting"),
         _word_sends,
         at="sent_at",
-        records=_keyed("id"),
+        records=keyed("id"),
         natural="word",
     ),
     Source(
@@ -785,7 +749,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("red", "slug", "branch", "pr"),
         _reverts,
         at="",
-        records=_keyed("red"),
+        records=keyed("red"),
         natural="red",
     ),
     Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
