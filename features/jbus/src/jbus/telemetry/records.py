@@ -9,7 +9,8 @@ A source is a `log` or a `snapshot`:
 
 - A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
   `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`,
-  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`). A row's key is the
+  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and
+  `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`). A row's key is the
   hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
   lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
   and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
@@ -169,6 +170,18 @@ def _passes(one: Row, zone: tzinfo | None) -> Row:
     return {
         "at": utc(one.get("at"), zone),
         "seconds": seconds if isinstance(seconds, int | float) else None,
+    }
+
+
+def _drift(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "at": utc(one.get("at"), zone),
+        "probe": _text(one.get("probe")),
+        "word": _text(one.get("word")),
+        "status": _text(one.get("status")),
+        "found": _number(one.get("found")),
+        "sha": _text(one.get("sha")),
+        "error": _text(one.get("error")),
     }
 
 
@@ -507,6 +520,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         "met",
         "done_when",
         *SEVERITIES,
+        "found",
     }
     real = {"slowest_s", "tail_s", "seconds"}
     return tuple(
@@ -778,6 +792,14 @@ SOURCES: tuple[Source, ...] = (
             *SEVERITIES,
         ),
         _review_rounds,
+    ),
+    Source(
+        "drift",
+        "drift.jsonl",
+        "log",
+        _columns("at", "probe", "word", "status", "found", "sha", "error"),
+        _drift,
+        where="machine",
     ),
 )
 """Each source by its table. A source added here has its table made by a migration of its own
