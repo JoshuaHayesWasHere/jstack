@@ -76,7 +76,10 @@ forced-by=<path>`. The keys are always these, in this order. Each cause's count 
 files it selected on its own, so the counts overlap. `forced-by` names the path that made the
 selection `all`, and it is `-` otherwise. A collector reads that line. With `$GITHUB_OUTPUT`
 set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
-tree's marker on a pass of `all`.
+tree's marker on a pass of `all`. It also gives `files`, `all` or how many test files it
+printed, and `forced_by`, the path that made it `all` or nothing: the check notices both to
+`jbus ci`, which keeps them in ci.jsonl as `selection` and `reason`. With `$SELECTED` set, it
+writes what it printed to that file too, which the check keeps as an artifact.
 
 `select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
 `<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
@@ -1223,7 +1226,10 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
-    print("\n".join(tests))
+    printed = "\n".join(tests)
+    print(printed)
+    if os.environ.get("SELECTED"):
+        Path(os.environ["SELECTED"]).write_text(printed + "\n")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             file.write(summary(tests, why, changed) + "\n")
@@ -1236,7 +1242,10 @@ def main(argv):
             file.write("\n")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-            file.write(f"selection={'all' if tests == ['all'] else 'some'}\n")
+            chosen = "all" if tests == ["all"] else "some"
+            file.write(f"selection={chosen}\n")
+            file.write(f"files={'all' if chosen == 'all' else len(tests)}\n")
+            file.write(f"forced_by={why.get('forced-by', '')}\n")
     if count is not None:
         handed(tests, count)
 
