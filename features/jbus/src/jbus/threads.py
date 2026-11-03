@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
 EVENTS = {"resume": "quiet"}
 RUNS = 20
+TAIL = 100
 REVIEW = "## Review"
 CARRY_ON = (
     "jbus: this thread ended ({status}) before writing its Result. Carry on with your brief "
@@ -218,6 +219,28 @@ def _silent(now: datetime, updated: Any) -> float | None:
         return None
 
 
+def _tail(thread: str, items: Any) -> dict[str, Any]:
+    """Return the arguments of a read that gives a thread's active run, the runs behind it and
+    the last `TAIL` items of its timeline, each cut to one character, as `_subagents` needs them."""
+    asked = {"threadId": thread, "view": "activity", "limit": TAIL, "maxCharsPerItem": 1}
+    if type(items) is int and items > TAIL:
+        asked["afterPosition"] = items - TAIL - 1
+    return asked | {"runLimit": RUNS}
+
+
+def _subagents(read: dict[str, Any]) -> str | None:
+    """Return the `updatedAt` of the running subagent item a read gave that updated last, or None
+    where the read gave none."""
+    times = []
+    for one in [one for one in read.get("items") or [] if isinstance(one, dict)]:
+        if (one.get("type"), one.get("status")) == ("subagent", "running"):
+            try:
+                times.append((when(one.get("updatedAt")), one["updatedAt"]))
+            except (TypeError, ValueError):
+                continue
+    return max(times)[1] if times else None
+
+
 def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[Out] | None:
     """Return every thread of the project that is not settled, oldest first, each with its role, its
     slug and its liveness (`live.judge`). Return None where T3 Code could not list the threads.
@@ -231,6 +254,12 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     read gives the active run a later `startedAt`, `out` counts the silence from that time. So a
     turn that just started on a thread that ended long ago is not hung at once.
 
+    A subagent's item updates in place: its status text and `updatedAt` move, the count of items
+    does not. So where a read gives a subagent item that is still running, and that item updated
+    later than `wrote`, `out` counts that update as the thread's last write. A scout that waits on
+    its own subagents through a long run is not hung while they work. A subagent that finished
+    writes nothing more, and a wake queued behind the turn moves no item, so neither counts.
+
     An answered request moves neither the count of items nor `updatedAt`, and T3 Code keeps no time
     for the answer. So a pass that reads a request count of 0, where the pass before kept one above
     0 and the count of items has not changed, counts the answer as the thread's last write, and
@@ -239,8 +268,9 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     not hung 3 minutes after the answer.
 
     `out` reads a thread only when the thread is `quiet` or `hung` by the listed data alone. The
-    read gives the active run, when it started, the runs queued behind it and the requests that
-    wait. A pass with no quiet thread reads no thread. `out` also reads the threads in `also`,
+    read gives the active run, when it started, the runs queued behind it, the requests that wait
+    and the last `TAIL` items of the thread's timeline, each cut to one character, for the
+    subagents. A pass with no quiet thread reads no thread. `out` also reads the threads in `also`,
     whatever their state.
 
     `run` is the run that a read gave as active, and nothing for a thread that was not read. T3
@@ -269,7 +299,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
         word = judge(facts).word
         if word in ("quiet", "hung") or at in also:
             try:
-                read = client.call("t3_thread_read", {"threadId": at, "limit": 1, "runLimit": RUNS})
+                read = client.call("t3_thread_read", _tail(at, items))
             except T3Error as error:
                 run.say(f"wait {slug or title}: its thread could not be read ({error})")
                 word = "quiet" if word == "hung" else word
@@ -284,9 +314,10 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
                 behind = [r for r in recent if r.get("runId") != active]
                 queued = sum(r.get("status") in STARTING for r in behind)
                 pending = said.get("pendingRequestCount")
-                since = _silent(run.now, started)
-                if since is not None and (silent is None or since < silent):
-                    wrote, silent = started, since
+                for moved in (started, _subagents(read)):
+                    since = _silent(run.now, moved)
+                    if since is not None and (silent is None or since < silent):
+                        wrote, silent = moved, since
                 kept, asked = asked, pending if type(pending) is int else asked
                 if kept and not asked:
                     wrote, silent = record.stamp(run.now), 0

@@ -2,8 +2,8 @@
 out from what T3 Code reports about the thread.
 
 `judge` does all of the work. It reads no clock and no file: the pass gives it the thread's
-status, the minutes since the thread last wrote an item or had a request answered
-(`threads.out`), how many runs are queued behind
+status, the minutes since the thread last wrote an item, had a request answered or had a running
+subagent update its item (`threads.out`), how many runs are queued behind
 the one that is active, and how many requests wait for an answer.
 
 The word is one of `LIVENESS`:
