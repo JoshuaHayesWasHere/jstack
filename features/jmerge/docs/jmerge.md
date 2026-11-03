@@ -69,6 +69,13 @@ The code is fixed for a reason whatever its text says: a `Reason` in `features/j
 `check has failed` (`check-failed`) is a check every latest run of which failed, `check has not passed` (`not-passed`) one that is queued, running or passed, and a reason no rule names is `unknown`.
 jbus and the view read a pull request's step from the code, and from the text on a line logged before the codes and on a line as `jmerge` prints it, which `ready.code_of` gives the same code.
 
+For each pull request it merges, `jmerge` also appends one line to `merge-waits.jsonl` beside `merge.log`, which `jbus telemetry` reads (`features/jmerge/src/jmerge/waits.py`).
+The line holds the second the pull request was ready, the second its merge began, the seconds between, and the seconds each reason's code held it.
+A pull request is ready once every required check has passed at its head and it is no draft, and its wait starts then, not when it opened.
+A push, a check run again or a turn back to a draft starts its wait over.
+From one run that sees it wait to the next, the wait is the code of the reason the first run gave, so a reason that clears and comes back adds only the seconds it held.
+`merge-waits.json` keeps the waits of the open pull requests between runs, and `--check` writes neither file.
+
 A pull request that waits does not make `jmerge` exit non-zero.
 `jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, or when it refuses an `--accept`.
 

@@ -17,6 +17,7 @@ The store has one table for each record file of each project, with a `project` c
 | `outbox` | `outbox.jsonl` | a message jbus sent or held |
 | `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
+| `merge_waits` | the home's `merge-waits.jsonl` | a pull request `jmerge` merged: the second it was ready, the second its merge began, its `seconds` between, and the seconds each code held it (`blockers`), the longest of them `blocker` |
 | `questions` | `questions.json` | a gate and its answer |
 | `queue` | `queue.json` | a row of the queue, with its approval's times and `follows`, the parent a follow-up's go names |
 | `merged` | `merged.json` | a merged pull request of a row |
@@ -158,6 +159,9 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `capped_spells` | each read of `capped_reads` and the `minutes` it holds every instance capped: up to the next read of either reader, or its `ends_at`, whichever is first, so two readers' reads of the same minutes count once |
 | `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since the pass reads every minute and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
+| `jmerge_waits` | each pull request `jmerge` merged, from the second its required checks passed at the head it merged at to the second its merge began: `seconds`, `minutes`, `blocker` and `blockers`, by `jmerge`'s record (`how` is `jmerge`), else by its last passed `pull_request` job to GitHub's merge time (`how` is `checks`) |
+| `jmerge_blockers` | each code that held a recorded wait, and its `seconds` |
+| `weekly_jmerge_wait` | each week's waits for `jmerge`: `n`, and the `median` and `p85` of their minutes |
 | `weekly_row_spend` | each merge `week`'s `rows` with any call recorded in `row_spend`, their `units`, and `per_row` in millions; their `dollars`, the estimate at `jgauge.spend.PRICES` that `row_spend` sums, the `unpriced` calls it leaves out, and `dollars_per_row` |
 | `spend_kept` | each project's last line of each day `jgauge spend` counted, of `spend_days`, read by `weekly_spend` |
 | `weekly_spend` | each week of the days `jgauge spend` counted, each project's last line of a day (`spend_kept`): `days`, `units`, and in percent the `coordination` share, jbus's sends and the homes, and the `capped` share, runs that failed on a usage limit or part way |
@@ -197,6 +201,9 @@ A merge line counts for a pull request only from a minute before it opened on, s
 A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`.
 `merge.log` has no such labels before 2026-10-28, so for a pull request merged before then `first_round` counts a fix round only when a check failed.
 The KPI page shows no first-round share for a week that begins before `fix_rounds_since`, since such a week would count a fix round with no red check as a first round.
+`jmerge` records each wait in `merge-waits.jsonl` from 2026-11-03 on.
+A merge before that, or one with no record, is inferred from `ci.jsonl` and `ci-prs.jsonl`, and only for a project whose ledger keeps its `pull_request` checks.
+An inferred wait ends when GitHub's merge ended, so it counts the merge call's own seconds, and it names no blocker.
 `ci.jsonl` kept no `pull_request` check of 33 of the 48 jstack pull requests merged on 2026-10-20, of every one from 2026-10-21 to 2026-10-25, of 58 of 100 on 10-26 and of 46 of 49 on 10-27, the whole set in the store built on 2026-11-03, and `first_round` is none for those: whether a check of theirs failed is not known.
 
 ## The KPI page

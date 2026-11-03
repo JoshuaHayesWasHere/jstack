@@ -44,6 +44,7 @@ TABLES = (
     "ci_prs",
     "reverts",
     "messages",
+    "merge_waits",
 )
 
 
@@ -297,6 +298,21 @@ def records(machine, project, at, slug, number):
         f"{at:%Y-%m-%d %H:%M} merged {number} {slug} {'a' * 40}",
         home=True,
     )
+    machine.append(project, "merge-waits.jsonl", wait(number, at, 40, {"no-review": 30}), home=True)
+
+
+def wait(number, began, seconds, blockers=None):
+    """`jmerge`'s line of a pull request merged at `began` that was ready `seconds` before."""
+    return {
+        "at": iso(began),
+        "began": iso(began),
+        "blockers": blockers or {},
+        "head": "a" * 40,
+        "number": number,
+        "ready": iso(began - timedelta(seconds=seconds)),
+        "ready_by": "check",
+        "seconds": seconds,
+    }
 
 
 def snapshots(machine, project, rows):
