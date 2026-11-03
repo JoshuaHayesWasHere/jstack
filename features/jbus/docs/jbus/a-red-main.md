@@ -89,3 +89,17 @@ jbus asks GitHub to run it again (`gh run rerun <id>`) while GitHub's `run_attem
 It says `retro <slug>: main check cancelled twice at <sha>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha>, and GitHub did not run it again` when GitHub refuses.
 A job that `timeout-minutes` stops also ends `cancelled`, not `timed_out`.
 So jbus runs a suite that hangs on main again, and then reports `cancelled twice`, never `main check failed`.
+
+## A red scheduled run
+
+A scheduled run of a workflow is not main's check, but its red on main still gets a fix row.
+jbus watches every workflow with a `schedule:` trigger: on each pass it asks GitHub for the files of `.github/workflows/` at the default branch, and each file with a `schedule:` key under `on:` is watched, with no setup in the home.
+The nightlies keep their own rule and brief: `browser.yml` files `browser-red-<day>`, and `macos-nightly.yml` files `macos-red-<day>` for the `macos` home (`NIGHTLIES` in `features/jbus/src/jbus/watch.py`).
+Any other scheduled workflow, such as `pstack-drift.yml`, files `red-<stem>-<day>` for the root home, where `<stem>` is its file's name less `.yml`.
+It files only for its scheduled and manual runs: where the workflow also runs on a push to main, that run is main's check, and its red is the red main above.
+
+A red run is one that failed or timed out on the default branch in the last 3 days.
+jbus files one row a day for each workflow, queued by its pass and approved by the follow-up rule on the red run, and a further red run of that day files no other.
+A pull request's run, a manual run on another branch and a workflow with no `schedule:` trigger file nothing.
+A project's first pass only records the runs it sees.
+Where GitHub does not answer for the files, the pass watches the nightlies alone.
