@@ -17,6 +17,7 @@ from pathlib import Path
 import jleak
 from jinstall import launchd
 from jinstall.agents import Agents
+from jinstall.green import GreenCopy
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import (
     Attribution,
@@ -230,6 +231,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"mirror {each.home}", Level.OPTIONAL, Mirrored(each))
         for each in mirrors(providers, home)
     ]
+    if machine.green is not None:
+        found.append(Need(f"green copy {machine.green}", Level.HARD, GreenCopy(machine.green)))
     if repo is not None:
         found.append(Need("generated files are current", Level.HARD, Generated()))
     found += [

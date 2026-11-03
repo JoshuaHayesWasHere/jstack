@@ -38,6 +38,7 @@ A path that starts with `~` is under your home directory.
 | Path | What the install puts there | When |
 |---|---|---|
 | `~/.local/share/uv/tools/jstack`, and the ten commands in `~/.local/bin` | The tool itself, which `uv tool install` puts, not `jinstall` | Before `jinstall` runs |
+| `~/.local/share/jstack/green` | The green copy of the checkout, which every command runs from ([The green copy](#the-green-copy)). It is under `$XDG_DATA_HOME` when that is set. | From a checkout that jbus's config names as a project |
 | `~/.local/share/jstack/harness/<harness>/` | One layout of the skills, playbooks, templates and hooks for each harness: `claude-code`, `codex` and `cursor` ([The layouts](#the-layouts)). It is under `$XDG_DATA_HOME` when that is set. | Always |
 | `~/.claude/skills/<skill>` | A link for each skill, into Claude Code's layout | Always |
 | `~/.codex/skills/<skill>` | A link for each skill, into Codex's layout | Always |
@@ -168,13 +169,16 @@ This section is for a checkout of jstack's repo.
 | | A release | A checkout |
 |---|---|---|
 | Runs as | `jinstall [<verb>]` | `sh install.sh [<verb>]`, or `jinstall` of an editable install |
-| The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
-| Units link to | `<tool venv>/share/jstack/features/<feature>/units/` | `<checkout>/features/<feature>/units/` |
-| The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
+| The layouts are assembled from | `<tool venv>/share/jstack` | `<source>` |
+| Units link to | `<tool venv>/share/jstack/features/<feature>/units/` | `<source>/features/<feature>/units/` |
+| The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of `<source>` |
 | Also checked | nothing more | the generated files are current (`generated files are current`) |
-| The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |
+| The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<source>/features/jleak/hooks/` |
 
-In a checkout, each file of a skill links to its file there, so an edit is live with no install.
+`<source>` is the checkout's green copy once jbus's config names the checkout as a project, and the checkout itself before that ([The green copy](#the-green-copy)).
+
+In a checkout that jbus does not watch, each file of a skill links to its file there, so an edit is live with no install.
+In a watched checkout, each file of a skill links to its file in the green copy, so an edit is live once it is on main and green.
 Codex's layout is the exception for `SKILL.md`, a copy that the next install brings up to date.
 A new skill appears on the next install, once `make trees` has listed it in `skills.json`.
 jleak's git hooks also go into the checkout that jstack is installed from, where each is a `hard` need.
@@ -190,3 +194,56 @@ An install from a release makes none of these links.
 Neither does a run under a HOME that is not your own, when the checkout is outside that HOME.
 A linked worktree gets none either.
 Under your own HOME, `install.sh` refuses to run from a worktree, so a worktree reads a project skill from its feature's folder.
+
+### The green copy
+
+jbus, jmerge and jgauge are what revert or fix a red main ("Main is not red" in [What ready means](../../jmerge/docs/jmerge.md#what-ready-means)).
+So a main that breaks must not break them.
+Once jbus's config names the checkout that `install.sh` runs from as a project, the commands of this machine do not run from that checkout.
+They run from the green copy, `~/.local/share/jstack/green`: one commit of the checkout's repo, the last tip of main whose required check passed.
+
+The install makes the copy where it is missing.
+It starts at the green tip jbus keeps for the project in `main.json`, or at the checkout's own commit when jbus keeps none yet.
+Then the install points at the copy everything that runs:
+
+- uv's tool `jstack` is an editable install of the copy, so the units' `~/.local/bin/jbus`, `jmerge` and `jgauge` run its code.
+- Each layout is assembled from the copy, and its `source` link names the copy, so `uv run --project "$T/../source" jbus` in a home, a wake or a crew's skill runs the copy too.
+- The units, the hooks and jleak's git hooks link into the copy.
+
+The checkout keeps what a developer works on: its project skills, its generated files, and its own git hooks.
+The copy is a repo of its own, not a worktree, so `git worktree list` in the checkout does not list it.
+Its `.git/jstack-checkout` names the checkout it was made from, and `jinstall` run from the copy acts for that checkout.
+`--check` and the doctor print `ok hard green copy <path> -> at <sha>`.
+`--uninstall` removes the copy, unless it holds changes of its own.
+
+#### How the copy moves
+
+Each jbus pass of the project moves the copy to the green tip `main.json` keeps (`jbus.green`), with no step of yours.
+It fetches that one commit from the checkout's origin, checks it out, and imports the commands from it.
+The pass log, the journal of `jbus.service`, keeps one line for each move:
+
+```text
+green jstack: the commands run from 1a2b3c4d5e6f, moved from 0f9e8d7c6b5a
+```
+
+A tip whose check failed is not green, so the copy never reaches it.
+A tip whose check passed but that does not import on this machine is put back at once: the pass prints `green jstack: <sha> does not import, kept <sha>`, raises the condition `the green copy does not import`, and tries that tip no more.
+The copy moves on at the next green tip.
+When a move changes `pyproject.toml` or `uv.lock`, the pass installs the tool again from the copy.
+A new skill is linked by the next `install.sh`, as in any checkout.
+
+So when a commit breaks main, even `import jbus`, the passes go on from the copy, and jbus reverts or fixes the red main as before.
+
+#### Run jbus from your tree on purpose
+
+The copy is what runs this machine's passes, wakes and homes.
+To run a command from the tree you work in, a checkout or a crew's worktree, run it through uv in that tree:
+
+```sh
+uv run jbus queue show
+uv run pytest -q features/jbus/tests/
+```
+
+`uv run` uses the tree's own `.venv`, so it runs that tree's code, and the copy does not change it.
+A crew's tests run its own tree the same way.
+To run a tree's code for the whole machine, merge it: the copy takes it once its check passes on main.

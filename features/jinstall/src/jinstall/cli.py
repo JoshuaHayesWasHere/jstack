@@ -1,8 +1,9 @@
 """`jinstall [--check | --uninstall | --doctor | --setup | --repo [<path>]]`: the verbs of
 `install.sh`, as the command a release installs. When it runs from inside a checkout (an
-editable install), it acts for that checkout. Otherwise it acts for the source tree that the
-release's wheel installed, and it assembles each harness's layout from that tree as `install.sh`
-does."""
+editable install), it acts for that checkout, and when it runs from a checkout's green copy
+(`jinstall.green`), for the checkout the copy was made from. Otherwise it acts for the source
+tree that the release's wheel installed, and it assembles each harness's layout from that tree
+as `install.sh` does."""
 
 import argparse
 import sys
@@ -10,6 +11,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from jbriefs import skills
+from jinstall import green
 from jinstall.__main__ import Verb, act
 from jinstall.machine import Machine
 
@@ -45,7 +47,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"jinstall: no checkout above it and no source in {sys.prefix}", file=sys.stderr)
         return 1
     repo = Path(args.repo).absolute() if args.repo is not None else None
-    return act(Machine.here(checkout, release), verb, repo)
+    return act(green.attach(Machine.here(checkout, release)), verb, repo)
 
 
 if __name__ == "__main__":

@@ -90,7 +90,10 @@ class Machine:
     `checkout` is the git checkout that jstack's install runs from, or None for a release. A
     release's source is `release`, the tree its wheel installed (`jbriefs.skills.packaged`).
 
-    `platform` is Python's `sys.platform`: `linux`, `darwin` for macOS, `win32` for Windows."""
+    `platform` is Python's `sys.platform`: `linux`, `darwin` for macOS, `win32` for Windows.
+
+    `green` is the green copy of the checkout, which the commands run from once jbus watches the
+    checkout's main (`jinstall.green`), or None where they run from the checkout or a release."""
 
     checkout: Path | None
     home: Path
@@ -99,12 +102,13 @@ class Machine:
     account: Path
     release: Path | None = None
     platform: str = sys.platform
+    green: Path | None = None
 
     @property
     def source(self) -> Path:
-        """The tree the install assembles each harness's layout from: the checkout, or else
-        the release's tree."""
-        source = self.checkout if self.checkout is not None else self.release
+        """The tree the install assembles each harness's layout from, and that uv's tool is an
+        editable install of: the green copy, else the checkout, or else the release's tree."""
+        source = self.green or (self.checkout if self.checkout is not None else self.release)
         assert source is not None, "a machine has a checkout or a release"
         return source
 

@@ -24,6 +24,12 @@ if [ -n "$from" ]; then
   exec "$bin/jinstall" "$@"
 fi
 
+# The local path: jinstall runs from this checkout. Once jbus's config names the checkout as a
+# project, jinstall makes the green copy, ${XDG_DATA_HOME:-~/.local/share}/jstack/green, at main's
+# last green tip, and installs the commands, layouts and units from that copy, not from here. Each
+# jbus pass then moves the copy to main's newer green tip and logs the move with its sha. To run
+# jbus from this tree on purpose, type `uv run jbus ...` here. See "The green copy" in
+# features/jinstall/docs/jinstall.md.
 repo=$(cd "$here" && pwd -P) || exit 1
 
 python_312() {
