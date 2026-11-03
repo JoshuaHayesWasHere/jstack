@@ -222,7 +222,7 @@ The section "Protected paths" describes one more hold.
   A draft's browser run is waived as its failed checks are, and a reviewed draft is marked ready.
   `jmerge` judges this after the queue row, so a pull request short of a review, a rebase line or its queue row's go says that first.
 - **Its migration is the next in line.** See "Migrations".
-- **Its head still merges cleanly over today's main.**
+- **Its check ran over today's main.**
   See "Merges cleanly over today's main".
 - **Its rebase kept every line.** See "After a rebase".
 - **The repo's merge is on.**
@@ -232,6 +232,7 @@ The section "Protected paths" describes one more hold.
 
 Before a merge, when the start of the pull request's check is known, `jmerge` runs `git ls-remote` to see whether main is still the commit it judged against.
 If main moved, `jmerge` judges the pull request again, at most twice, before it prints `main moved while it was judged`.
+A main that moved after the pull request's check started has it wait for a check over the new tip, as "Merges cleanly over today's main" says.
 
 ## Migrations
 
@@ -276,17 +277,22 @@ The rule for a taken number is on the `rebase` step, and the rules for the two w
 
 ## Merges cleanly over today's main
 
-A green check stands for its own head, and a move of main does not send it through CI again.
+A green check counts only over the main it ran over, so `jmerge` merges no pull request on a check that main has moved past.
 A check starts when the earliest run of the first required check at the head starts.
 When the repo names no required checks, that check is `check`.
 After a `git fetch` in the main checkout, `jmerge` lists the paths that the first-parent commits of the default branch changed since that start.
-When none of them is a path the pull request changes, its check counts, and nobody rebases for it.
-When one of them is, `jmerge` merges the head over today's main with `git merge-tree`.
-A clean merge merges the pull request on the check it has: GitHub is asked for no update of its branch, and no second CI round runs.
+When there are none, the check ran over today's main, and it counts.
+When there are any, whatever their paths, `jmerge` merges the head over today's main with `git merge-tree`.
 A head that does not merge over today's main waits with `it conflicts with today's main`, on the `rebase` step, and GitHub is asked nothing.
-A file of main's that imports the pull request's files, one they import, one that names their path, or one that CI reads leaves its check counted as well.
-Main's own full run at the merge commit is what checks the combined tree: it catches a break that a clean merge hides, such as a caller main added that the pull request breaks, and jbus then reverts its one clear culprit or files its fix ("Main is not red").
-A pull request whose check failed at its own head is not merged by this rule: its green check is the one that counts, and a red one is judged as "A failed check over a base that moved" says.
+A clean merge has GitHub merge main into the branch, as "A failed check over a base that moved" does, with `update-branch` and `expected_head_sha`, once for a head and a tip of main.
+The line is `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, on the `check` step, and `--check` says `<base> moved after its check started: GitHub is to merge <base> at <tip12> into it`.
+GitHub's check at the new head ran over today's main, and it decides by the normal path: the pull request merges once that check passes, and waits as `check has failed` if it fails.
+The review stands across that merge, as across a rebase: its range-diff shows no content.
+No path rule is safe: on 2026-11-03 #923 and #935 each added a new `v007_` file, neither touched a path main had changed since its check, each check passed alone, and main went red once both had merged on those checks.
+So two pull requests ready together merge one after the other, each on a check over the one before it, at the cost of a CI round for each.
+`jmerge` asks for the update while `main.json` names main red as well, since the fix of a red main must run over it: a pull request that the red tip fails is then held by its own failed check, as "A failed check over a base that moved" says.
+Main's own full run at the merge commit still runs the whole suite, which a pull request's check, of the tests its change selects, does not.
+A pull request whose check failed at its own head is judged as "A failed check over a base that moved" says.
 `jmerge` judges this only once the pull request has no other reason to wait.
 `jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
 `jmerge` neither pushes nor reads a green-tree marker, and `jmerge --sweep` removes a `refs/jstack/green-tree/` ref once it is seven days old (`sweep.MARKER_DAYS`).

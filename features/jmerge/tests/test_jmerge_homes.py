@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from test_jmerge_fresh import LINES, Kitchen, url
+from test_jmerge_fresh import AFTER, LINES, Kitchen, url
 
 ROOT, SCOPED = "mcp:the-root-home", "mcp:the-flow-home"
 
@@ -19,15 +19,16 @@ ROOT, SCOPED = "mcp:the-root-home", "mcp:the-flow-home"
 @pytest.fixture
 def kitchen(tmp_path):
     """A repo with a root home and a scoped home, `flow`, and two ready pull requests: number 6
-    of the root home's and number 7 of the scoped home's. Nobody's id is in `home-thread`."""
+    of the root home's and number 7 of the scoped home's, whose checks started after every move
+    of main. Nobody's id is in `home-thread`."""
     kitchen = Kitchen(tmp_path, {"a.txt": LINES, "b.txt": LINES})
     state = kitchen.home.state
     (state / "home-thread").unlink()
     (state / "home-id").write_text(f"{ROOT}\n")
     (state / "flow").mkdir()
     (state / "flow" / "home-id").write_text(f"{SCOPED}\n")
-    kitchen.crew("root-task", 6, {"a.txt": "ours\n" + LINES})
-    kitchen.crew("fl-task", 7, {"b.txt": LINES + "ours\n"})
+    kitchen.crew("root-task", 6, {"a.txt": "ours\n" + LINES}, checks=(AFTER,))
+    kitchen.crew("fl-task", 7, {"b.txt": LINES + "ours\n"}, checks=(AFTER,))
     brief = kitchen.home.tasks / "fl-task.md"
     title, rest = brief.read_text().split("\n", 1)
     brief.write_text(f"{title}\nHome: flow\n{rest}")
