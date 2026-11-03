@@ -1,17 +1,18 @@
 """How a store of an older schema is brought up to this one: one module a migration.
 
-`PRAGMA user_version` is the schema's version. A migration is a module of this package,
-`v<NNN>_<slug>.py`, whose `SQL` takes a store from version `NNN - 1` to `NNN`, and `MIGRATIONS`
-holds them in the order of the modules' names (`jbus.telemetry.entries`), so `MIGRATIONS[n]` takes
-a store from version `n` to `n + 1`. `jbus.telemetry.migrate` runs the ones a store has not had,
-each once, in one transaction with its new version.
+A migration is a module of this package, `v<NNN>_<slug>.py`, whose `SQL` changes the store's
+tables, and `MIGRATIONS` holds each one's `SQL` by its name, in the order of the names
+(`jbus.telemetry.entries`). The store keeps the name of each migration it has run in its
+`migrations` table, and `jbus.telemetry.migrate` runs each one it has not, in name order, each
+once, in one transaction with its name.
 
-A store knows only its version, not which migrations it had, so a new migration's name sorts after
-every migration a store can have had: its `NNN` is one more than the last one's. Two changes that
-each add the same `NNN` are refused when the second is collected, never run out of order. A
-migration that has merged is never edited, renamed or removed. The store holds rows its sources
-no longer have (the daily trim, a snapshot's dropped record), so it is never dropped and built
-again: a change to a table is a new migration, such as `ALTER TABLE <t> ADD COLUMN <c>`.
+`NNN` only orders the names: it need not be free or one more than the last. Two changes that each
+add a `v010_` both run, on a store that has run neither in name order, and on a store that has
+run one of them the other alone, so a migration changes only what is there at every name before
+it, never what another of its `NNN` makes. A migration that has merged is never edited, renamed
+or removed. The store holds rows its sources no longer have (the daily trim, a snapshot's dropped
+record), so it is never dropped and built again: a change to a table is a new migration, such as
+`ALTER TABLE <t> ADD COLUMN <c>`.
 """
 
 from __future__ import annotations
@@ -19,9 +20,8 @@ from __future__ import annotations
 from jbus.telemetry import entries
 from jbus.telemetry.records import SOURCES, Source
 
-MIGRATION_MODULE = r"v(\d{3})_[a-z0-9_]+"
-"""The name of a migration's module: the version it brings a store to, three digits, and its
-slug."""
+MIGRATION_MODULE = r"v\d{3}_[a-z0-9_]+"
+"""The name of a migration's module: three digits that order it, and its slug."""
 
 
 def _table(source: Source) -> str:
@@ -40,15 +40,11 @@ def tables(*names: str) -> str:
     return "".join(_table(by[name]) for name in names)
 
 
-def _collect(package: str, path: list[str]) -> tuple[str, ...]:
-    """Each migration's `SQL` in order, refused where the versions are not 1, 2, 3 and on."""
+def _collect(package: str, path: list[str]) -> dict[str, str]:
+    """Each migration's `SQL` by its module's name, in the order of the names."""
     found = entries.modules(package, path, MIGRATION_MODULE)
-    for version, module in enumerate(found, 1):
-        name = module.__name__.rpartition(".")[2]
-        if not name.startswith(f"v{version:03d}_"):
-            raise ImportError(f"{package}: {name} is migration {version}: name it v{version:03d}_")
-    return tuple(module.SQL for module in found)
+    return {module.__name__.rpartition(".")[2]: module.SQL for module in found}
 
 
-MIGRATIONS: tuple[str, ...] = _collect(__name__, __path__)
-"""`MIGRATIONS[n]` takes a store from version `n` to `n + 1`."""
+MIGRATIONS: dict[str, str] = _collect(__name__, __path__)
+"""Each migration's `SQL` by its name, in the order a store runs them."""

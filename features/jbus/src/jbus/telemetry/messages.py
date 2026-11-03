@@ -2,15 +2,17 @@
 
 T3 Code keeps every message of every thread in its own store (`boxes.store()`), and jbus reads
 it read only. A row here is one message, of the user or of the assistant: its id, its thread,
-who wrote it, when, and the `kind` of a user's message. It keeps no text: as a user's message is
-read, `kind` is worked out of its first few hundred characters, and only the label and the
-text's length are kept. The view `ask_ledger` (`jbus.telemetry.views.ask_ledger`) joins each
-message the user typed to the row, the answer or the reply that followed it.
+who wrote it, when, and, of a user's message, its `kind` and what it `asks`
+(`jbus.telemetry.asks`). It keeps no text: as a user's message is read, `kind` and `asks` are
+worked out of its first few hundred characters, and only the labels and the text's length are
+kept. The view `ask_ledger` (`jbus.telemetry.views.ask_ledger`) joins each message the user typed
+to the row, the answer or the reply that followed it.
 
 A word the user said where T3 Code has no message of theirs, through the bots' chat or the view,
 is a message too: `jbus word` keeps it as an act (`jbus.word`), and each build writes a row for
 each such act of the store's `acts`, keyed `word:<id>`, from the user, at the time it was said, in
-the thread jbus carried it to (`word_sends`), with `creation_source` `word:<the act's source>`.
+the thread jbus carried it to (`word_sends`), with `creation_source` `word:<the act's source>` and
+the `asks` the act was labelled with as it was read (`jbus.telemetry.records`).
 A word recorded from the user's own T3 message (`t3-message`) is that message and no row of its
 own, and the message jbus carries a word in is written by T3 Code's agent, so neither is a second
 ask.
@@ -38,7 +40,7 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import boxes
-from jbus.telemetry import records
+from jbus.telemetry import asks, records
 
 if TYPE_CHECKING:
     from datetime import tzinfo
@@ -46,22 +48,21 @@ if TYPE_CHECKING:
     from jbus.telemetry import Built
 
 TABLE = "messages"
-RULES = 1
-"""The version of `kind`'s rules: a change to `kind` raises it, and the next build reads every
-message again, so each row is labelled by the rules of today."""
+RULES = 3
+"""The version of the rules of `kind` and `asks`: a change to either raises it, and the next
+build reads every message again, so each row is labelled by the rules of today."""
 BATCH = 5000
-HEAD = 400
-"""How much of a user's message `kind` reads."""
 COLUMNS = records._columns(
-    "id", "thread", "role", "at", "project_id", "created_by", "creation_source", "kind", "text_len"
-)
-TABLE_SQL = (
-    f"CREATE TABLE {TABLE} (project TEXT NOT NULL, key TEXT NOT NULL, "
-    + ", ".join(f"{name} {kind}" for name, kind in COLUMNS)
-    + f", day TEXT, PRIMARY KEY (project, key)) WITHOUT ROWID;\n"
-    f"CREATE INDEX {TABLE}_day ON {TABLE} (day);\n"
-    f"CREATE INDEX {TABLE}_thread ON {TABLE} (thread, role, at);\n"
-    f"CREATE INDEX {TABLE}_key ON {TABLE} (key);\n"
+    "id",
+    "thread",
+    "role",
+    "at",
+    "project_id",
+    "created_by",
+    "creation_source",
+    "kind",
+    "text_len",
+    "asks",
 )
 DROPPED = (
     "<task-notification>",
@@ -91,7 +92,7 @@ where m.rowid > ? order by m.rowid limit ?
 
 WORDS = f"""
 SELECT a.project, '{WORD}' || a.id, a.id, s.thread, 'user', coalesce(a.said_at, a.at), NULL,
-'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len
+'user', '{WORD}' || coalesce(nullif(a.source, ''), 'unknown'), 'text', a.words_len, a.asks
 FROM acts a LEFT JOIN word_sends s ON s.project = a.project AND s.word = a.id
 WHERE a.verb = 'word' AND coalesce(a.source, '') <> 't3-message'
 """
@@ -163,7 +164,7 @@ def _t3(
                 built.left += 1
                 return
             try:
-                found = t3.execute(_READ, (HEAD, start, BATCH)).fetchall()
+                found = t3.execute(_READ, (asks.HEAD, start, BATCH)).fetchall()
             except sqlite3.Error:
                 return
             if not found:
@@ -171,6 +172,7 @@ def _t3(
             rows = []
             for rowid, mid, thread, role, at, project_id, by, source, head, length, size in found:
                 stamp = records.utc(at)
+                sort = kind(mid, head) if role == "user" else None
                 rows.append(
                     (
                         names.get(project_id) or project_id or "",
@@ -182,8 +184,9 @@ def _t3(
                         project_id,
                         by,
                         source,
-                        kind(mid, head) if role == "user" else None,
+                        sort,
                         length,
+                        (asks.label(head) if sort == "text" else "other") if sort else None,
                         records.day(stamp, zone),
                     )
                 )

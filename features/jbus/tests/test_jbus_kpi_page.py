@@ -25,6 +25,7 @@ from jbus import cli
 from jbus.telemetry import kpis
 from jleak import cli as jleak_cli
 from test_jbus_telemetry import NOW, SECRET, T3, Machine, act_citing, job, records, snapshots
+from test_jbus_telemetry_gate_labels import S, W, gates, label
 
 THIS = "2026-10-28"
 """A day of the fixture's this week, which starts on Sunday 2026-10-25."""
@@ -312,6 +313,23 @@ def test_the_ask_ledger_gives_typed_messages_per_merged_row_and_the_lost_asks(ma
     assert SECRET not in (machine.root / "page" / "kpis.html").read_text()
 
 
+def test_the_what_needs_me_asks_are_the_weeks_typed_messages_that_ask_it(machine):
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-asks", home, NOW, text="what needs me?")
+    t3.say("m-again", home, NOW + timedelta(hours=1), text="Does anything need me?")
+    t3.say("m-tells", home, NOW + timedelta(hours=2), text="ship it")
+    t3.say("m-why", home, NOW + timedelta(hours=3), text="why do these need me?")
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    asks = rows["'What needs me' asks"]
+    assert asks[4] == "0 n 0 met"
+    assert asks[5] == "2 n 4 missed"
+    assert "need me" not in (machine.root / "page" / "kpis.html").read_text()
+
+
 def test_a_kpi_with_no_instrument_yet_says_so(machine):
     _, rows, _ = page(machine)
 
@@ -404,3 +422,30 @@ def test_the_change_failure_rate_names_the_projects_it_covers_and_the_days_it_la
     assert rows["Change failure rate, push checks (DORA)"][5] == (
         "0% n 1 met: covers alpha; no push check of main kept for 1 merged row, on 2026-10-26"
     )
+
+
+def test_s8_shows_a_labelled_weeks_wrong_closes_and_says_why_a_week_with_no_labels_has_none(
+    machine,
+):
+    gates(machine, "alpha", [S, S, S, S, W, None])
+    label(
+        machine,
+        "alpha",
+        "2026-10-18",
+        [
+            ("alpha#1", "stood"),
+            ("alpha#2", "stood"),
+            ("alpha#3", "stood"),
+            ("alpha#4", "corrected"),
+            ("alpha#5", "other_done"),
+            ("alpha#6", "open"),
+        ],
+    )
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    s8 = rows["Gates closed by silence that were wrong (S8)"]
+    assert s8[3] == "≤ 5%"
+    assert s8[4] == "25% n 4 missed: your word 1 of 1"
+    assert s8[5] == "n/a n 0 not covered: no scout's gate labels kept for the week"

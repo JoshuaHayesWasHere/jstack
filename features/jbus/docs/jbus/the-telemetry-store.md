@@ -64,9 +64,10 @@ A writer reads its log before it adds, and adds no line whose key the log holds,
 
 Two more records are what an A/B or a simulator of a dial needs (the kpi-lab build order: records first):
 
-- The arm of each launch: each launch record names, under `arms`, the arm of each dial the row launched on, `off` while that dial's pilot is not started (`jbus.priming.recorded`).
+- The arm of each launch: a launch record written while a dial ran names, under `arms`, the arm of each dial the row launched on, `off` while that dial's pilot was not started.
+  crew-router-pilot was that dial, and it ended with its read, so a record jbus writes now names none.
   The store reads the records whose time is at or after the newest it read, keeps the launched ones once by their key and dial, and never updates a row (`jbus.telemetry.launches`).
-  A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither reads `covered` 0, with no arm guessed.
+  A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither, from before the store could tell or after the pilot ended, reads `covered` 0, with no arm guessed.
 - `review-rounds.jsonl`: a pass adds a line for each review round of an open pull request's brief once the round is settled, that is a later round began or no reviewer the crew launched still owes its section (`jbus.reviewed.rounds`), once by row, pull request and round number.
   A round is the sections in a row that ran at one head, and a scoped pass is a round of its own.
   A pull request that merges before a pass sees its last round settled has no line for that round.
@@ -132,8 +133,9 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `run_attempts` | each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
 | `carried_words` | each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
-| `ask_ledger` | each message you typed or word you said and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
+| `ask_ledger` | each message you typed or word you said, what it `asks`, and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
+| `weekly_needs_asks` | each week's messages you `typed`, waiting or not, and the `asks` among them whose label is `needs` |
 | `weekly_typed_per_row` | each week's messages you `typed`, resumes apart, rows `merged`, and `per_row` |
 | `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its first merge line from a minute before it opened on: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round, or none where `ci.jsonl` kept no `pull_request` check of it |
 | `fix_rounds_since` | the first `day` of a wait in `merge.log` labelled as a crew's fix round |
@@ -155,6 +157,10 @@ To read one, open the file with any SQLite reader:
 ```sh
 sqlite3 ~/.local/state/jbus/telemetry.sqlite 'SELECT * FROM weekly_lead_time ORDER BY week'
 ```
+
+What a message asks is one label: `needs` where it asks what needs you, else `other`.
+A build works the label out of the text as it reads it and keeps only the label, in `messages.asks` and in `acts.asks` for a word.
+`features/jbus/src/jbus/telemetry/asks.py` writes the rule, what it leaves out on purpose and what it misses.
 
 A lost ask is an `unanswered` message: no act cites it, and no reply came in its thread within the wait.
 The wait is counted to the last build, so a view read twice gives the same answer.
@@ -225,10 +231,11 @@ It never writes over a file, and it never replaces the store, which holds rows t
 
 ## Change the store
 
-`PRAGMA user_version` is the schema's version.
 A change to a table is a new migration, a module of its own in `jbus.telemetry.migrations`, run once on each store.
-Its name is `v<NNN>_<slug>.py`, where `NNN` is the version it brings a store to, one more than the last migration's.
-A store knows only its version, so the migrations run in the order of their names, and two of the same `NNN`, or a gap, fail the import.
+Its name is `v<NNN>_<slug>.py`, where `NNN` only orders it: it need not be free, or one more than the last migration's.
+The store keeps the name of each migration it has run in its `migrations` table, and runs each one it has not, in the order of their names.
+So two changes that each add a `v010_` both run, and a migration changes only what the migrations named before it made.
+A store that counted its migrations by `PRAGMA user_version`, as stores did before, is moved to the table once, with the names of as many of them as its version.
 A migration that has merged is never edited, renamed or removed.
 The first migration is written out as SQL, so a column a `Source` gains is a later migration and never an edit of it.
 A new view is a module of its own in `jbus.telemetry.views`, named as the view, whose `SQL` is its `SELECT`, with a test beside it, and no migration: the views hold no rows, so each build makes them again.

@@ -130,7 +130,7 @@ def test_the_notice_waits_while_the_crew_is_at_work_and_goes_after(kitchen):
 
 
 def test_a_review_of_two_seats_is_told_once_both_are_written(kitchen):
-    seats = "Reviewer: mcp:r1 #1\nReviewer: mcp:r2 #2\n"
+    seats = "\n## Result\nReviewer: mcp:r1 #1\nReviewer: mcp:r2 #2\n"
     other = section(findings="- error src/alpha/b.py:9 a second thing").replace("#1", "#2")
     brief = kitchen.brief("alpha", "Thread: mcp:crew\n" + seats + section())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
@@ -277,7 +277,7 @@ def test_each_settled_review_round_is_logged_once_with_its_verdict_and_findings_
 
 
 def test_a_round_is_logged_once_every_reviewer_launched_for_it_wrote_its_section(kitchen):
-    launched = "Reviewer: mcp:rev-1 #1\nReviewer: mcp:rev-2 #2\n"
+    launched = "\n## Result\nReviewer: mcp:rev-1 #1\nReviewer: mcp:rev-2 #2\n"
     one = section("clean", "- none")
     kitchen.brief("alpha", "Thread: mcp:crew\n" + launched + one)
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])

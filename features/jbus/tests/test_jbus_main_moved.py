@@ -19,6 +19,7 @@ from test_jbus_watch import beside_a_dispatched_browser_run
 
 HEAD = "c" * 40
 RED = "red: checks failed"
+CHANGED = "main changed src/jbus/cli.py after its check started at 07:00 ET; it needs a fresh check"
 
 
 @pytest.fixture
@@ -296,6 +297,36 @@ def test_a_red_head_the_rebase_message_went_to_earlier_is_still_told(launched):
     assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
 
 
+def test_a_crew_told_main_moved_still_has_its_one_rebase(launched):
+    """The main-moved message is no rebase, so a later stale head is told to rebase, with no
+    condition. A head stale again after that real rebase is the condition, as before."""
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
+    main = move(launched)
+    launched.poll()
+    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
+    assert "moved|alpha|cccccccccccc" in jbus.read_json(launched.state / "sent.json", [])
+
+    def stale(head, minutes):
+        for thread in launched.t3.threads:
+            thread["status"] = "completed"
+        launched.set("open.json", [{**pull(launched, "alpha", 7), "headRefOid": head}])
+        launched.set("jmerge.txt", f"wait 7 https://example.test/pull/7: {CHANGED}\n")
+        launched.poll(NOW + timedelta(minutes=minutes))
+
+    stale("d" * 40, 3)
+    every = [
+        given["clientRequestId"] for tool, given in launched.t3.calls if tool == "t3_thread_send"
+    ]
+    assert "rebase|alpha|dddddddddddd" in every
+    assert gates(launched) == []
+    stale("e" * 40, 6)
+    every = [
+        given["clientRequestId"] for tool, given in launched.t3.calls if tool == "t3_thread_send"
+    ]
+    assert "rebase|alpha|eeeeeeeeeeee" not in every
+    assert mine(gates(launched)) == ["condition alpha: stale again after its one rebase"]
+
+
 def test_a_refused_message_is_not_sent_again_while_another_is_owed(launched):
     red, unjudged = pull(launched, "alpha", 7, "FAILURE"), pull(launched, "beta", 8)
     launched.set("open.json", [red, {**unjudged, "mergeable": "UNKNOWN"}])
@@ -478,19 +509,20 @@ def test_a_message_told_writes_its_key_and_the_two_it_stands_for(launched):
     sent = jbus.read_json(launched.state / "sent.json", [])
     assert {
         f"mainmoved|alpha|#7|{main[:12]}",
-        "rebase|alpha|cccccccccccc",
+        "moved|alpha|cccccccccccc",
         "failed|alpha|cccccccccccc",
     } <= set(sent)
+    assert "rebase|alpha|cccccccccccc" not in sent
 
 
-def test_a_refused_message_writes_its_key_and_failed_and_not_rebase(launched):
+def test_a_refused_message_writes_its_key_and_failed_and_not_moved(launched):
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
     main = move(launched)
     launched.t3.refuse_send = True
     launched.poll()
     sent = jbus.read_json(launched.state / "sent.json", [])
     assert {f"mainmoved|alpha|#7|{main[:12]}", "failed|alpha|cccccccccccc"} <= set(sent)
-    assert "rebase|alpha|cccccccccccc" not in sent
+    assert "moved|alpha|cccccccccccc" not in sent
 
 
 def test_a_lost_message_writes_no_key_and_says_why_it_waits(launched):
@@ -500,7 +532,7 @@ def test_a_lost_message_writes_no_key_and_says_why_it_waits(launched):
     said = launched.poll()
     sent = jbus.read_json(launched.state / "sent.json", [])
     assert f"mainmoved|alpha|#7|{main[:12]}" not in sent
-    assert "rebase|alpha|cccccccccccc" not in sent and "failed|alpha|cccccccccccc" not in sent
+    assert "moved|alpha|cccccccccccc" not in sent and "failed|alpha|cccccccccccc" not in sent
     assert any(
         line.startswith("wait alpha: its crew could not be told that main moved") for line in said
     )

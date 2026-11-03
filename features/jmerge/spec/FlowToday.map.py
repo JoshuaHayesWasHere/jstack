@@ -112,7 +112,6 @@ STEPS = {
     "RevertMerges": "jmerge merges jbus's revert, and main is green",
     "RevertCloses": "main is green without it, and jbus closes its revert",
     "MeetsFix": "jbus tells its crew the brief is not met, and its crew meets it",
-    "Unstack": "jbus takes it off the stack, onto main",
     "HomeEdits": "you have its brief edited so it no longer builds on the other",
     "BrowserFix": "its crew fixes what its browser run found",
     "Nightly": "main's nightly browser run fails, and jbus files its fix",

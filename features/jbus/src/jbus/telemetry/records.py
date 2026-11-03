@@ -9,7 +9,8 @@ A source is a `log` or a `snapshot`:
 
 - A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
   `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`,
-  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`). A row's key is the
+  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and
+  `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`). A row's key is the
   hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
   lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
   and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
@@ -31,6 +32,8 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, tzinfo
 from typing import Any, Literal
+
+from jbus.telemetry import asks
 
 Row = dict[str, Any]
 """One row of a table, by column."""
@@ -151,7 +154,15 @@ def _acts(one: Row, zone: tzinfo | None) -> Row:
         "words_len": _length(evidence.get("words")),
         "line_len": _length(one.get("line")),
         "checked": evidence.get("checked") if isinstance(evidence.get("checked"), bool) else None,
+        "asks": _asks(action.get("verb"), evidence.get("words")),
     }
+
+
+def _asks(verb: object, words: object) -> str | None:
+    """What a word asks, by the rule of a T3 Code message's; no other act has a label."""
+    if verb != "word":
+        return None
+    return asks.label(words if isinstance(words, str) else None)
 
 
 def _passes(one: Row, zone: tzinfo | None) -> Row:
@@ -160,6 +171,11 @@ def _passes(one: Row, zone: tzinfo | None) -> Row:
         "at": utc(one.get("at"), zone),
         "seconds": seconds if isinstance(seconds, int | float) else None,
     }
+
+
+def _drift(one: Row, zone: tzinfo | None) -> Row:
+    texts = {name: _text(one.get(name)) for name in ("probe", "word", "status", "sha", "error")}
+    return {"at": utc(one.get("at"), zone), **texts, "found": _number(one.get("found"))}
 
 
 def _items(one: Row, zone: tzinfo | None) -> Row:
@@ -497,6 +513,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         "met",
         "done_when",
         *SEVERITIES,
+        "found",
     }
     real = {"slowest_s", "tail_s", "seconds"}
     return tuple(
@@ -543,6 +560,7 @@ SOURCES: tuple[Source, ...] = (
             "words_len",
             "line_len",
             "checked",
+            "asks",
         ),
         _acts,
     ),
@@ -767,6 +785,14 @@ SOURCES: tuple[Source, ...] = (
             *SEVERITIES,
         ),
         _review_rounds,
+    ),
+    Source(
+        "drift",
+        "drift.jsonl",
+        "log",
+        _columns("at", "probe", "word", "status", "found", "sha", "error"),
+        _drift,
+        where="machine",
     ),
 )
 """Each source by its table. A source added here has its table made by a migration of its own

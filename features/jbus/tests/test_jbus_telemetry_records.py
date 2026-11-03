@@ -18,7 +18,7 @@ from datetime import timedelta
 
 from jbus import telemetry
 from jbus.telemetry import migrations
-from test_jbus_telemetry import NOW, SECRET, iso, machine
+from test_jbus_telemetry import NOW, SECRET, counted, iso, machine
 
 __all__ = ["machine"]
 
@@ -175,14 +175,14 @@ def test_the_store_answers_each_of_the_audits_data_faults(machine):
 
 def test_a_store_of_the_first_schema_gains_the_records_tables_and_keeps_its_rows(machine):
     path = machine.state_dir / telemetry.FILE
+    counted(path, 1)
     with contextlib.closing(sqlite3.connect(path)) as old:
-        old.executescript(f"BEGIN;\n{migrations.MIGRATIONS[0]}PRAGMA user_version = 1;\nCOMMIT;")
         old.execute("INSERT INTO meta (name, value) VALUES ('kept', 'yes')")
         old.commit()
     kept(machine, "alpha", NOW)
     machine.build()
     with contextlib.closing(machine.store()) as store:
-        assert store.execute("PRAGMA user_version").fetchone() == (len(migrations.MIGRATIONS),)
+        assert telemetry.ran(store) == set(migrations.MIGRATIONS)
         assert store.execute("SELECT value FROM meta WHERE name = 'kept'").fetchone() == ("yes",)
         assert store.execute("SELECT count(*) FROM runs").fetchone() == (2,)
 

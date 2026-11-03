@@ -8,8 +8,9 @@
 \* Since fl-statechart-1102 (the scout's FlowNow.tla at a978b7ba9) it has jbus's rerun of a red
 \* push run (#672), its revert of a red main's one clear culprit and the close of a stale revert
 \* (#862, #899), the fix rows' go by rule (#547), a stacked link checked while stacked and its pass
-\* kept on a clean move (#868), the unstack of a link whose brief no longer names its base (#846,
-\* #877), and the hold of a review round that says the brief is not met (#843, #850).
+\* kept on a clean move (#868), and the hold of a review round that says the brief is not met
+\* (#843, #850). Since fl-stack-by-depends-only it has no unstack: a link stays on its stack
+\* until its base merged, and a stack is made by a depends alone.
 \* Since fl-rules-1103 its Accept is Repo.accept as #709 left it, which marks a held draft ready and
 \* keeps its lift, and two of its rules say the flow the merged pull requests chose since.
 EXTENDS Naturals
@@ -291,21 +292,6 @@ HomeEdits(p) ==
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, on, Machine,
                    Fix, Browser, needs, rv, meets, kept, Judge>>
 
-\* While its base is open, jbus takes a stacked link off its stack where its own change has no
-\* need of the base's (#846), and a link whose Builds on: line names its base stays stacked (#877).
-\* The model takes the change of a link whose brief no longer names its base to need none of it.
-Unstack(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py `def unstack(run: Pass, client: Client, world: World) -> None:`
-    /\ on[p] # "main"
-    /\ st[on[p]] = "open"                   \* features/jbus/src/jbus/stack.py `base = world.open.get(stacked.slug) if stacked and not stacked.at else None`
-    /\ link # "depends"                     \* features/jbus/src/jbus/stack.py `if stacked.slug in builds_on(brief):`
-    /\ on' = [on EXCEPT ![p] = "main"]
-    /\ ci' = [ci EXCEPT ![p] = "none"]
-    /\ proved' = [proved EXCEPT ![p] = FALSE]
-    /\ kept' = [kept EXCEPT ![p] = FALSE]   \* features/jmerge/src/jmerge/cli.py `if isinstance(kept, dict) and heads.get(number) == kept.get("head")`, a push drops the kept lift
-    /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine,
-                   named, fixes, Browser, go, needs, rv, meets, Judge, editsLeft>>
-
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus tells the
 \* crew's own thread once its turn ends, so no room is asked for, and its turn may leave a
 \* process running.
@@ -525,7 +511,7 @@ OutsideBreak ==
 
 System == Sweep \/ Nightly \/ RerunEnds \/ JudgeRed \/ RevertMerges \/ RevertCloses \/ FixMain \/ FixBrowser
     \/ \E p \in PRs :
-        Launch(p) \/ Ready(p) \/ MeetsFix(p) \/ Check(p) \/ Merge(p) \/ Restack(p) \/ Unstack(p)
+        Launch(p) \/ Ready(p) \/ MeetsFix(p) \/ Check(p) \/ Merge(p) \/ Restack(p)
         \/ CrewFix(p) \/ BrowserFix(p) \/ Rejudge(p)
 
 \* Your word: a row's go, and the lift of a hold that waits on you.
@@ -578,7 +564,7 @@ MachineNotLeftFull == Settled => ~full
 MainFixWaitsOnlyOnYou == (Settled /\ Red) => ENABLED YourWord
 
 \* For the chart only (FlowToday.chart.cfg): no change breaks a browser test of its own, though
-\* main's view may still break from outside, and no brief is edited, so the chart has no Unstack.
+\* main's view may still break from outside, and no brief is edited.
 \* The chart reader holds TLC's whole state graph in memory, and the whole model (11M states)
 \* does not fit; with the edit and an outside break both in it, TLC 2.19's -continue run of the
 \* rule then named NoMergeTurnsMainRed threw while it printed a path. flow_canaries.py checks every rule on the

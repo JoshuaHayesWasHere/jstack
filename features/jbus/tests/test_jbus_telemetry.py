@@ -12,6 +12,7 @@ import importlib
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import stat
@@ -105,7 +106,9 @@ def act_citing(machine, project, thread, message, at, verb="go", subject="alpha-
     )
 
 
-def word(machine, project, name, said, source="bot-chat", ref="winifred-chef/voice:call-1"):
+def word(
+    machine, project, name, said, source="bot-chat", ref="winifred-chef/voice:call-1", text=SECRET
+):
     """A word as `jbus word` keeps it: an act whose verb is `word`, said at `said`."""
     machine.append(
         project,
@@ -119,7 +122,7 @@ def word(machine, project, name, said, source="bot-chat", ref="winifred-chef/voi
                 "said_at": iso(said),
                 "said_in": f"{source} {ref}",
                 "source": source,
-                "words": SECRET,
+                "words": text,
             },
             "gate": None,
             "id": name,
@@ -696,27 +699,36 @@ def test_a_pass_builds_the_store_with_what_its_project_logged_before_it(kitchen)
     assert SECRET.encode() not in (kitchen.state_dir / telemetry.FILE).read_bytes()
 
 
-def test_a_store_made_at_version_1_migrates_to_every_column_each_source_names(machine):
+def counted(path, version):
+    """A store as a jbus that counted its migrations by `PRAGMA user_version` left it, at this
+    version."""
     from jbus.telemetry import migrations
+
+    with contextlib.closing(sqlite3.connect(path)) as store:
+        for number, sql in enumerate(list(migrations.MIGRATIONS.values())[:version], 1):
+            store.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number};\nCOMMIT;")
+
+
+def test_a_store_made_at_version_1_migrates_to_every_column_each_table_names(machine):
+    from jbus.telemetry import messages, migrations
     from jbus.telemetry import records as kept
 
     old, new = machine.root / "old.sqlite", machine.root / "new.sqlite"
-    with contextlib.closing(sqlite3.connect(old)) as store:
-        store.executescript(f"BEGIN;\n{migrations.MIGRATIONS[0]}PRAGMA user_version = 1;\nCOMMIT;")
+    counted(old, 1)
     for path in (old, new):
         telemetry.connect(path).close()
         with contextlib.closing(sqlite3.connect(path)) as store:
-            assert store.execute("PRAGMA user_version").fetchone() == (len(migrations.MIGRATIONS),)
-            for source in kept.SOURCES:
-                columns = {row[1] for row in store.execute(f"PRAGMA table_info({source.table})")}
-                assert {name for name, _ in source.columns} <= columns, source.table
+            assert telemetry.ran(store) == set(migrations.MIGRATIONS)
+            tables = [(source.table, source.columns) for source in kept.SOURCES]
+            for table, named in [*tables, (messages.TABLE, messages.COLUMNS)]:
+                columns = {row[1] for row in store.execute(f"PRAGMA table_info({table})")}
+                assert {name for name, _ in named} <= columns, table
 
 
 def schema_of(path):
     with contextlib.closing(sqlite3.connect(path)) as store:
-        version = store.execute("PRAGMA user_version").fetchone()[0]
         found = store.execute("SELECT type, name, sql FROM sqlite_master ORDER BY name")
-        return version, found.fetchall()
+        return telemetry.ran(store), found.fetchall()
 
 
 def test_a_store_at_each_earlier_version_migrates_to_the_schema_a_new_store_has(machine):
@@ -724,14 +736,45 @@ def test_a_store_at_each_earlier_version_migrates_to_the_schema_a_new_store_has(
 
     new = machine.root / "new.sqlite"
     telemetry.connect(new).close()
-    assert schema_of(new)[0] == len(migrations.MIGRATIONS)
-    for version in range(len(migrations.MIGRATIONS)):
+    assert schema_of(new)[0] == set(migrations.MIGRATIONS)
+    for version in range(len(migrations.MIGRATIONS) + 1):
         old = machine.root / f"at-{version}.sqlite"
-        with contextlib.closing(sqlite3.connect(old)) as store:
-            for number, sql in enumerate(migrations.MIGRATIONS[:version]):
-                store.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number + 1};\nCOMMIT;")
+        counted(old, version)
         telemetry.connect(old).close()
         assert schema_of(old) == schema_of(new), version
+
+
+@pytest.mark.parametrize("version", [0, 7, 9])
+def test_a_store_counted_by_version_keeps_the_names_of_its_migrations_once(machine, version):
+    """A store at `user_version` n is moved to the table once with the first n names, and runs
+    only the migrations after them: a migration it had run again would fail its CREATE."""
+    from jbus.telemetry import migrations
+
+    names = list(migrations.MIGRATIONS)
+    path = machine.root / f"at-{version}.sqlite"
+    counted(path, version)
+    with contextlib.closing(sqlite3.connect(path)) as store:
+        if version:
+            store.executescript("INSERT INTO meta (name, value) VALUES ('kept', 'yes');")
+        tables_before = {name for (name,) in store.execute("SELECT name FROM sqlite_master")}
+
+    with contextlib.closing(sqlite3.connect(path, isolation_level=None)) as store:
+        telemetry.migrate(store)
+        moved = sorted(name for (name,) in store.execute("SELECT name FROM migrations"))
+        telemetry.migrate(store)
+        again = sorted(name for (name,) in store.execute("SELECT name FROM migrations"))
+        version_after = store.execute("PRAGMA user_version").fetchone()[0]
+        tables = {name for (name,) in store.execute("SELECT name FROM sqlite_master")}
+        held = store.execute("SELECT value FROM meta WHERE name = 'kept'").fetchall()
+
+    assert moved == again == names
+    assert version_after == version
+    assert tables >= tables_before | {"migrations", "cursors", "acts", "gate_labels", "drift"}
+    if version:
+        assert names[version - 1] == {7: "v007_asks", 9: "v009_drift"}[version]
+        assert held == [("yes",)]
+    else:
+        assert tables_before == set()
 
 
 def migrations_with(tmp_path, monkeypatch, name, files):
@@ -749,6 +792,59 @@ def migrations_with(tmp_path, monkeypatch, name, files):
     return importlib.import_module(name)
 
 
+def test_a_store_moved_to_names_is_a_store_the_counting_code_finds_migrated(machine):
+    """A jbus still on the counting code, a branch not rebased yet, opens the store the moved
+    code keeps and runs nothing, since the move leaves the version the store had."""
+    from jbus.telemetry import migrations
+
+    path = machine.root / "shared.sqlite"
+    counted(path, len(migrations.MIGRATIONS))
+    telemetry.connect(path).close()
+    with contextlib.closing(sqlite3.connect(path, isolation_level=None)) as store:
+        version = store.execute("PRAGMA user_version").fetchone()[0]
+        for sql in list(migrations.MIGRATIONS.values())[version:]:
+            store.executescript(f"BEGIN;\n{sql}COMMIT;")
+        assert version == len(migrations.MIGRATIONS)
+
+
+def test_a_connection_that_loses_the_race_to_migrate_finds_the_store_migrated(machine, monkeypatch):
+    """Two passes that open the store at once: the one that read the table of names before the
+    other's move and migrations committed fails each, finds them done, and goes on."""
+    from jbus.telemetry import migrations
+
+    path = machine.root / "raced.sqlite"
+    counted(path, 7)
+    telemetry.connect(path).close()
+    real, calls = telemetry.ran, []
+
+    def stale(connection):
+        calls.append(1)
+        return {1: None, 3: set()}.get(len(calls), real(connection))
+
+    monkeypatch.setattr(telemetry, "ran", stale)
+    with contextlib.closing(sqlite3.connect(path, isolation_level=None)) as store:
+        telemetry.migrate(store)
+        assert not store.in_transaction
+        assert real(store) == set(migrations.MIGRATIONS)
+    assert len(calls) == 3 + len(migrations.MIGRATIONS)
+
+
+def test_a_migration_that_fails_with_no_other_connection_to_blame_is_raised(
+    machine, tmp_path, monkeypatch
+):
+    from jbus.telemetry import migrations
+
+    found = migrations_with(
+        tmp_path, monkeypatch, "broken_migrations", {"v999_broken.py": 'SQL = "NOT SQL;\\n"\n'}
+    )
+    monkeypatch.setattr(telemetry, "migrations", found)
+    path = machine.root / "broken.sqlite"
+    with pytest.raises(sqlite3.Error):
+        telemetry.connect(path)
+    with contextlib.closing(sqlite3.connect(path)) as store:
+        assert telemetry.ran(store) == set(migrations.MIGRATIONS)
+
+
 def test_a_migration_is_added_by_a_module_after_the_last_one(tmp_path, monkeypatch):
     from jbus.telemetry import migrations
 
@@ -756,17 +852,46 @@ def test_a_migration_is_added_by_a_module_after_the_last_one(tmp_path, monkeypat
     file = f"v{len(migrations.MIGRATIONS) + 1:03d}_added.py"
     found = migrations_with(tmp_path, monkeypatch, "added_migrations", {file: added})
 
-    assert found.MIGRATIONS == (*migrations.MIGRATIONS, "CREATE TABLE added (x TEXT);\n")
+    assert found.MIGRATIONS == {
+        **migrations.MIGRATIONS,
+        file[:-3]: "CREATE TABLE added (x TEXT);\n",
+    }
 
 
-@pytest.mark.parametrize("past", [0, 2, None])
-def test_a_migration_that_is_not_one_after_the_last_is_refused(tmp_path, monkeypatch, past):
+def test_two_migrations_of_one_number_both_run_once_whichever_a_store_had(
+    machine, tmp_path, monkeypatch
+):
+    """Two changes that each add a migration of the same number, and a gap before them, both
+    run: on a store that had neither, and on one that had the first to merge."""
     from jbus.telemetry import migrations
 
     last = len(migrations.MIGRATIONS)
-    file = f"v{last + 1}_short.py" if past is None else f"v{last + past:03d}_again.py"
+    files = {
+        f"v{last + 3:03d}_{side}.py": f'SQL = "CREATE TABLE {side} (x TEXT);\\n"\n'
+        for side in ("left", "right")
+    }
+    found = migrations_with(tmp_path, monkeypatch, "twin_migrations", files)
+    assert list(found.MIGRATIONS)[last:] == [f"v{last + 3:03d}_left", f"v{last + 3:03d}_right"]
+    monkeypatch.setattr(telemetry, "migrations", found)
+
+    neither, right = machine.root / "neither.sqlite", machine.root / "right.sqlite"
+    counted(right, last)
+    with contextlib.closing(sqlite3.connect(right, isolation_level=None)) as store:
+        telemetry.migrate(store)
+        store.execute(f"DELETE FROM migrations WHERE name = 'v{last + 3:03d}_left'")
+        store.execute("DROP TABLE left")
+    for path in (neither, right):
+        telemetry.connect(path).close()
+        telemetry.connect(path).close()
+        with contextlib.closing(sqlite3.connect(path)) as store:
+            assert telemetry.ran(store) == set(found.MIGRATIONS), path
+            for table in ("left", "right"):
+                assert store.execute(f"SELECT count(*) FROM {table}").fetchone() == (0,)
+
+
+def test_a_migration_not_named_with_three_digits_is_refused(tmp_path, monkeypatch):
     with pytest.raises(ImportError):
-        migrations_with(tmp_path, monkeypatch, "refused_migrations", {file: 'SQL = ""\n'})
+        migrations_with(tmp_path, monkeypatch, "refused_migrations", {"v12_short.py": 'SQL = ""\n'})
 
 
 def test_a_pass_logs_its_seconds_and_the_next_build_keeps_them_as_the_machines(kitchen):
@@ -872,6 +997,154 @@ def test_a_word_said_in_the_bots_chat_is_a_typed_message_and_joins_like_one(mach
         ("alpha", "w-waiting", "text", "waiting", None),
     ]
     assert weeks[0] == ("2026-10-25", 4, 1, 0)
+
+
+ASKS = "Does anything need me? Is everything moving?"
+"""A message that asks what needs the user, as the user typed one on 2026-10-30."""
+TELLS = "rename archlinux to Yelena, and ship it"
+TICKED = "the `what needs me` KPI"
+BRACKETED = "(what needs me) is the KPI"
+"""Two mentions of the ask that do not ask it, as a quoted one does not."""
+
+
+def test_a_typed_message_keeps_whether_it_asks_what_needs_the_user_and_no_word_of_it(machine):
+    """Each message the user typed, and each word said through the bots' chat, keeps one label
+    as it is read: `needs` where it asks what needs the user, `other` where it does not. An
+    assistant's message has none, and no table or byte of the store holds the text."""
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-asks", home, NOW, text=ASKS)
+    t3.say("m-tells", home, NOW + timedelta(minutes=1), text=TELLS)
+    t3.say("m-why", home, NOW + timedelta(minutes=2), text="why do these need me?")
+    t3.say("m-quoted", home, NOW + timedelta(minutes=3), text='cut the "what needs me" asks')
+    t3.say("m-command", home, NOW + timedelta(minutes=4), text="/crew what needs me")
+    t3.say("r-asks", home, NOW + timedelta(minutes=5), text=ASKS, role="assistant")
+    word(machine, "alpha", "w-asks", NOW + timedelta(minutes=6), text="anything else need me?")
+    word(machine, "alpha", "w-tells", NOW + timedelta(minutes=7), text=TELLS)
+    t3.say("m-ticked", home, NOW + timedelta(minutes=8), text=TICKED)
+    t3.say("m-bracketed", home, NOW + timedelta(minutes=9), text=BRACKETED)
+    t3.say("m-plain", home, NOW + timedelta(minutes=10), text="what needs me?")
+    machine.build()
+
+    with contextlib.closing(machine.store()) as store:
+        labels = store.execute("SELECT key, kind, asks FROM messages ORDER BY at").fetchall()
+        ledger = store.execute("SELECT id, asks FROM ask_ledger ORDER BY at").fetchall()
+    assert labels == [
+        ("m-asks", "text", "needs"),
+        ("m-tells", "text", "other"),
+        ("m-why", "text", "other"),
+        ("m-quoted", "text", "other"),
+        ("m-command", "command", "other"),
+        ("r-asks", None, None),
+        ("word:w-asks", "text", "needs"),
+        ("word:w-tells", "text", "other"),
+        ("m-ticked", "text", "other"),
+        ("m-bracketed", "text", "other"),
+        ("m-plain", "text", "needs"),
+    ]
+    assert dict(ledger)["m-asks"] == "needs" and dict(ledger)["w-tells"] == "other"
+    for path in machine.state_dir.glob(f"{telemetry.FILE}*"):
+        held = path.read_bytes()
+        assert not [text for text in (ASKS, TELLS, "need me") if text.encode() in held]
+
+
+def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machine):
+    """A store read before messages kept what they ask is migrated, reads every message and
+    every word again, and ends with the labels a store built from nothing has."""
+    from jbus.telemetry import migrations, views
+
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-asks", home, NOW, text=ASKS)
+    t3.say("m-tells", home, NOW + timedelta(minutes=1), text=TELLS)
+    word(machine, "alpha", "w-asks", NOW + timedelta(minutes=2), text="what needs me?")
+    word(machine, "beta", "w-tells", NOW + timedelta(minutes=3), text=TELLS)
+    records(machine, "alpha", NOW, "alpha-one", 10)
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        signed = store.execute("SELECT value FROM meta WHERE name = 'messages'").fetchone()[0]
+        views = "".join(f"DROP VIEW {name};" for name, _ in reversed(views.VIEWS))
+        names = list(migrations.MIGRATIONS)
+        rewound = names[names.index("v007_asks") :]
+        later = "".join(
+            f"DROP TABLE {table};"
+            for name in rewound[1:]
+            for table in re.findall(
+                r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", migrations.MIGRATIONS[name]
+            )
+        )
+        unrun = "".join(f"DELETE FROM migrations WHERE name = '{name}';" for name in rewound)
+        store.executescript(
+            f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
+            f"ALTER TABLE acts DROP COLUMN asks; {unrun}"
+        )
+        store.execute(
+            "UPDATE meta SET value = ? WHERE name = 'messages'",
+            ("1 " + signed.split(" ", 1)[1],),
+        )
+        store.commit()
+
+    machine.build()
+
+    code, out = machine.run("--rebuild", str(machine.root / "again.sqlite"))
+    assert code == 0, out
+    built, again = dump(machine.state_dir / telemetry.FILE), dump(machine.root / "again.sqlite")
+    assert built == again
+    with contextlib.closing(machine.store()) as store:
+        labels = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
+        acts = store.execute("SELECT id, asks FROM acts WHERE verb = 'word' ORDER BY id").fetchall()
+    assert labels == [
+        ("m-asks", "needs"),
+        ("m-tells", "other"),
+        ("word:w-asks", "needs"),
+        ("word:w-tells", "other"),
+    ]
+    assert acts == [("w-asks", "needs"), ("w-tells", "other")]
+
+
+def test_a_store_labelled_by_the_old_rules_gains_the_labels_a_rebuild_has(machine, monkeypatch):
+    """A store whose messages and words were labelled before a mention in backticks or
+    parentheses was left out reads every one of them again, and ends as a rebuild does."""
+    import re
+
+    from jbus.telemetry import asks, migrations
+    from jbus.telemetry.migrations import v010_asks_marks
+
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-ticked", home, NOW, text=TICKED)
+    t3.say("m-bracketed", home, NOW + timedelta(minutes=1), text=BRACKETED)
+    t3.say("m-plain", home, NOW + timedelta(minutes=2), text="what needs me?")
+    word(machine, "alpha", "w-ticked", NOW + timedelta(minutes=3), text=TICKED)
+    word(machine, "alpha", "w-plain", NOW + timedelta(minutes=4), text="what needs me?")
+    old = re.compile(asks.NEEDS.pattern.replace("`(", "", 1))
+    assert old.pattern != asks.NEEDS.pattern
+    with monkeypatch.context() as then:
+        then.setattr(asks, "NEEDS", old)
+        then.setattr(telemetry.messages, "RULES", telemetry.messages.RULES - 1)
+        machine.build()
+    with contextlib.closing(machine.store()) as store:
+        before = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
+        store.execute(f"PRAGMA user_version = {migrations.MIGRATIONS.index(v010_asks_marks.SQL)}")
+        store.commit()
+    assert dict(before)["m-ticked"] == dict(before)["word:w-ticked"] == "needs"
+
+    machine.build()
+
+    code, out = machine.run("--rebuild", str(machine.root / "again.sqlite"))
+    assert code == 0, out
+    assert dump(machine.state_dir / telemetry.FILE) == dump(machine.root / "again.sqlite")
+    with contextlib.closing(machine.store()) as store:
+        labels = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
+        acts = store.execute("SELECT id, asks FROM acts WHERE verb = 'word' ORDER BY id").fetchall()
+    assert labels == [
+        ("m-ticked", "other"),
+        ("m-bracketed", "other"),
+        ("m-plain", "needs"),
+        ("word:w-ticked", "other"),
+        ("word:w-plain", "needs"),
+    ]
+    assert acts == [("w-plain", "needs"), ("w-ticked", "other")]
 
 
 def test_a_word_carried_into_a_t3_thread_or_said_in_one_is_one_ask(machine):

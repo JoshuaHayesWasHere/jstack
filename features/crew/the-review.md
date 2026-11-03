@@ -28,7 +28,7 @@ none | twice | cleanup) ;;
 esac
 if [ "$mode" = none ]; then
     echo "none: launch no reviewer, the brief asks for no review"
-elif grep -qE '^(## Review$|Reviewer:)' "$B"; then
+elif awk '/^## Result/ {result = 1} result && /^(## Review$|Reviewer:)/ {had = 1} END {exit !had}' "$B"; then
     echo "$mode: launch no reviewer, this pull request has had its one"
 else
     echo "$mode: launch a reviewer"
@@ -39,6 +39,7 @@ It prints the brief's mode, then what to do.
 The mode is the brief's `Review:` line, the first line that starts with it: `none`, `twice`, `cleanup`, or `review` for anything else, an old `after` included.
 A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
 The same words inside the task's text or a result do not count.
+A `## Review` or `Reviewer:` line counts only at or after the first `## Result`: a `Reviewer:` line in the brief's head is the home's guidance for the reviewer, not a reviewer.
 
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
@@ -117,7 +118,7 @@ A pull request with no reviewer never turns ready and sends no `fixed and green`
 
 ```sh
 B="$H/tasks/<slug>.md"
-if grep -q '^Reviewer: none' "$B"; then
+if awk '/^## Result/ {result = 1} result && /^Reviewer: none/ {had = 1} END {exit !had}' "$B"; then
     echo "send nothing: the home was told of this pull request when that line was written"
 else
     echo "tell the home: it is green and has no review"

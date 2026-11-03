@@ -4,16 +4,18 @@ The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a rea
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
 `jbus.spent` keep, five snapshots, the machine's log of its passes, each
-launch's arm (`jbus.telemetry.launches`), and the messages of T3 Code's threads
-(`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.views`).
-It keeps a row forever, and keeps no text of a message: ids, times, counts, labels and the
-length of each text.
+launch's arm (`jbus.telemetry.launches`), the messages of T3 Code's threads
+(`jbus.telemetry.messages`), and the gate labels a scout writes each week
+(`jbus.telemetry.labels`). Its views give the KPIs (`jbus.telemetry.views`). It keeps a row
+forever, save a gate label its week's file replaces, and keeps no text of a message: ids, times,
+counts, labels and the length of each text.
 
 A build reads only what is new. A log is read on from `cursors`, the file's inode, the hash of
 its first line and the offset its last build read to, and only to its last newline, so a line
 still being written waits for the next build. A log whose inode or first line changed, or that
 is shorter than the offset, is read again from the start: its rows are keyed by their content
-(`records.key`), so a line read twice is one row. A snapshot is read again when its inode, size
+(`records.key`), so a line read twice is one row, the one today's `records` makes of it, and a
+row that would not change is not written. A snapshot is read again when its inode, size
 or time changed. Each file's rows and its cursor are written in one transaction, so a build
 stopped at any point leaves each file either read or not, and the next build reads on from
 there. So a build run twice adds nothing the second time, and a build run each pass ends as a
@@ -45,7 +47,17 @@ from pathlib import Path
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import cursors, kpis, launches, messages, migrations, records, tokens, views
+from jbus.telemetry import (
+    cursors,
+    kpis,
+    labels,
+    launches,
+    messages,
+    migrations,
+    records,
+    tokens,
+    views,
+)
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
@@ -54,6 +66,8 @@ PASS_BYTES = 16 * 2**20
 """How much of the record files a pass reads at most; a file is read whole once begun."""
 BUSY_MS = 30_000
 TRIMMED = next(source for source in SOURCES if source.table == "events")
+RAN = "migrations"
+"""The store's table of the name of each migration it has run (`jbus.telemetry.migrations`)."""
 
 
 @dataclass
@@ -85,8 +99,8 @@ def _zone_name(zone: tzinfo | None) -> str:
 
 
 def connect(where: Path) -> sqlite3.Connection:
-    """Open the store at `where`, made private where it is new, in WAL mode, with its tables
-    at this schema's version and its views made again."""
+    """Open the store at `where`, made private where it is new, in WAL mode, with every
+    migration run on it and its views made again."""
     where.parent.mkdir(parents=True, exist_ok=True)
     os.close(os.open(where, os.O_WRONLY | os.O_CREAT, 0o600))
     connection = sqlite3.connect(where, timeout=BUSY_MS / 1000, isolation_level=None)
@@ -97,15 +111,50 @@ def connect(where: Path) -> sqlite3.Connection:
     return connection
 
 
+def ran(connection: sqlite3.Connection) -> set[str] | None:
+    """The name of each migration the store has run, or None where it keeps no table of them."""
+    if not connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (RAN,)
+    ).fetchone():
+        return None
+    return {name for (name,) in connection.execute(f"SELECT name FROM {RAN}")}
+
+
 def migrate(connection: sqlite3.Connection) -> None:
-    """Run each migration the store has not had, each with its new version in one transaction."""
-    version = connection.execute("PRAGMA user_version").fetchone()[0]
-    for number, sql in enumerate(migrations.MIGRATIONS[version:], version + 1):
-        try:
-            connection.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number};\nCOMMIT;")
-        except sqlite3.Error:
-            if connection.in_transaction:
-                connection.execute("ROLLBACK")
+    """Run each migration the store has not, in name order, each in one transaction with its
+    name. A store that counted its migrations by `PRAGMA user_version`, as stores did before
+    they kept their names, is moved once to the table, with the names of as many of them as
+    its version. The move keeps that version, so a jbus still on the counting code, such as a
+    branch not rebased yet, finds every migration it knows run and runs none."""
+    if ran(connection) is None:
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        names = "".join(_kept(name) for name in list(migrations.MIGRATIONS)[:version])
+        _once(
+            connection,
+            f"CREATE TABLE {RAN} (name TEXT PRIMARY KEY) WITHOUT ROWID;\n{names}",
+            None,
+        )
+    done = ran(connection) or set()
+    for name, sql in migrations.MIGRATIONS.items():
+        if name not in done:
+            _once(connection, f"{_kept(name)}{sql}", name)
+
+
+def _kept(name: str) -> str:
+    return f"INSERT INTO {RAN} (name) VALUES ('{name}');\n"
+
+
+def _once(connection: sqlite3.Connection, sql: str, name: str | None) -> None:
+    """Run `sql` in one transaction, which keeps the migration `name`, or makes the table of
+    names where `name` is None. Where it fails because another connection did it first, the
+    store has it, and that is no error."""
+    try:
+        connection.executescript(f"BEGIN IMMEDIATE;\n{sql}COMMIT;")
+    except sqlite3.Error:
+        if connection.in_transaction:
+            connection.execute("ROLLBACK")
+        held = ran(connection)
+        if held is None or (name is not None and name not in held):
             raise
 
 
@@ -156,14 +205,17 @@ def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
             yield records.MACHINE, source, config.state_dir / source.file
 
 
-def _insert(source: Source, update: bool) -> str:
+def _insert(source: Source) -> str:
+    """Insert a row, or make the held row of its key the one read now, leaving a row that would
+    not change unwritten, so `total_changes` counts only what a read changed."""
     names = ["project", "key", *(name for name, _ in source.columns), "day"]
     marks = ", ".join("?" for _ in names)
-    sql = f"INSERT INTO {source.table} ({', '.join(names)}) VALUES ({marks})"
-    if not update:
-        return sql.replace("INSERT", "INSERT OR IGNORE", 1)
     sets = ", ".join(f"{name} = excluded.{name}" for name in names[2:])
-    return f"{sql} ON CONFLICT (project, key) DO UPDATE SET {sets}"
+    same = " AND ".join(f"{source.table}.{name} IS excluded.{name}" for name in names[2:])
+    return (
+        f"INSERT INTO {source.table} ({', '.join(names)}) VALUES ({marks}) "
+        f"ON CONFLICT (project, key) DO UPDATE SET {sets} WHERE NOT ({same})"
+    )
 
 
 def _values(source: Source, project: str, key: str, row: records.Row, zone: tzinfo | None):
@@ -209,7 +261,7 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
         rows.append(_values(source, project, key, source.row(record, zone), zone))
     connection.execute("BEGIN")
     before = connection.total_changes
-    connection.executemany(_insert(source, update=False), rows)
+    connection.executemany(_insert(source), rows)
     built.rows[source.table] += connection.total_changes - before
     cursors.keep(connection, project, source.table, inode, start + end, head, size, None)
     connection.execute("COMMIT")
@@ -246,7 +298,7 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
             rows.append(_values(source, project, str(natural), row, zone))
     connection.execute("BEGIN")
     before = connection.total_changes
-    connection.executemany(_insert(source, update=True), rows)
+    connection.executemany(_insert(source), rows)
     built.rows[source.table] += connection.total_changes - before
     cursors.keep(
         connection, project, source.table, stat.st_ino, None, None, stat.st_size, stat.st_mtime_ns
@@ -275,6 +327,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
             read(connection, name, source, file, zone, built)
         messages.read(connection, config, zone, built, most)
         launches.read(connection, config, zone, built)
+        labels.read(connection, config, built)
         _tokens(config, connection, zone, most, built)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
