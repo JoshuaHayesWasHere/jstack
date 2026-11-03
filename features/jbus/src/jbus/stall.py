@@ -23,6 +23,9 @@ everything else that waits on the user.
 (`live`). `hung` sends one `stall` event for that thread and that run, and writes one line of
 `hung.jsonl`. A later pass adds a line that says what became of the turn: it wrote again by itself,
 someone interrupted it, or it ended. jbus interrupts nothing and sends the thread nothing.
+
+`hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
+the stall minutes the telemetry store reads (`jbus.telemetry.schema`'s `weekly_stall`).
 """
 
 from __future__ import annotations
@@ -55,6 +58,8 @@ STALL = "stall"
 PASSES = 10
 REVIEWING = 30
 HUNG = "hung.jsonl"
+SPELLS = "stalls.jsonl"
+STALLED = ("quiet", "hung")
 WROTE, INTERRUPTED, ENDED = "wrote again", "interrupted", "ended"
 BECAME = {"interrupted": INTERRUPTED, "cancelled": INTERRUPTED} | dict.fromkeys(
     ("completed", "failed", "rolled_back"), ENDED
@@ -294,6 +299,7 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
     """
     if out is None:
         return
+    spells(run, out)
     at = jsettings.stamp(run.now, z=True)
     by_id = {one["id"]: one for one in out}
     for (thread, at_run), call in _calls(run).items():
@@ -316,15 +322,85 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
             run.find(one["slug"], STALL, line, key=key)
 
 
-def _keep(run: Pass, line: dict[str, Any]) -> bool:
-    """Add one line to `hung.jsonl`. When `_keep` cannot write the line, it says so, and the pass
-    goes on."""
+def _keep(run: Pass, line: dict[str, Any], file: str = HUNG) -> bool:
+    """Add one line to `hung.jsonl`, or to `file`. When `_keep` cannot write the line, it says so,
+    and the pass goes on."""
     try:
-        store.append_jsonl(run.state / HUNG, [line], mode=0o600)
+        store.append_jsonl(run.state / file, [line], mode=0o600)
     except OSError as error:
-        run.say(f"wait {run.project.name}: {HUNG} could not be written ({error})")
+        run.say(f"wait {run.project.name}: {file} could not be written ({error})")
         return False
     return True
+
+
+def _open_spells(run: Pass) -> dict[str, dict[str, Any]]:
+    """Return each spell of `stalls.jsonl` that no later line ends, by its thread."""
+    try:
+        lines = (run.state / SPELLS).read_text(errors="replace").splitlines()
+    except OSError:
+        return {}
+    still: dict[str, dict[str, Any]] = {}
+    for line in lines:
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(one, dict) or not isinstance(one.get("since"), str):
+            continue
+        if "minutes" in one:
+            still.pop(str(one.get("thread")), None)
+        else:
+            still[str(one.get("thread"))] = one
+    return still
+
+
+def _moment(said: object) -> datetime | None:
+    """The moment a stored time names, or None where it names no moment with its zone."""
+    try:
+        found = datetime.fromisoformat(str(said))
+    except ValueError:
+        return None
+    return found if found.tzinfo else None
+
+
+def spells(run: Pass, out: list[dict[str, Any]]) -> None:
+    """Keep `stalls.jsonl`, one spell for each stretch a running row's thread is `quiet` or `hung`.
+
+    A row's thread is one whose title names a slug and that is not a home's. The pass that first
+    sees the thread quiet or hung adds `{"at", "thread", "role", "slug", "since"}`, where `since`
+    is when the thread last wrote (`threads.out`'s `wrote`), so the spell holds the whole silence.
+    The passes after it add nothing while the thread stays quiet or hung since that write. The
+    pass that sees the spell end adds the same line with `until`, `minutes` and `became`: the
+    liveness it turned to, or `gone` where T3 Code no longer lists the thread. A thread that wrote
+    again ends the spell at its write, and one that did not (it waits on the user's answer, its
+    turn ended, or it is gone) at this pass. A thread that waits on a request is `waiting`, never
+    quiet, so no spell counts time the user owes an answer. A spell is counted once, on the line
+    that ends it, however many passes saw it. The open spells are read back from the file, so a
+    pass that died is picked up by the next one, as `hung.jsonl`'s calls are.
+    """
+    at = jsettings.stamp(run.now, z=True)
+    by_id = {one["id"]: one for one in out}
+    stalled = {
+        one["id"]: one
+        for one in out
+        if one["live"] in STALLED and one["slug"] and one["role"] != "home" and one["wrote"]
+    }
+    for thread, spell in _open_spells(run).items():
+        one, since = by_id.get(thread), _moment(spell["since"])
+        wrote = _moment(one["wrote"]) if one else None
+        moved = since is not None and wrote is not None and since < wrote <= run.now
+        if thread in stalled and not moved:
+            del stalled[thread]
+            continue
+        end = wrote if moved else run.now
+        minutes = round((end - since).total_seconds() / 60, 1) if since and end else None
+        until = one["wrote"] if moved and one else at
+        became = one["live"] if one else "gone"
+        ended = {"at": at, "until": until, "minutes": minutes, "became": became}
+        _keep(run, spell | ended, SPELLS)
+    for thread, one in stalled.items():
+        line = {"at": at, "thread": thread, "role": one["role"], "slug": one["slug"]}
+        _keep(run, {**line, "since": one["wrote"]}, SPELLS)
 
 
 def _tell(half: Half) -> None:

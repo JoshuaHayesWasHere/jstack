@@ -9,8 +9,9 @@ A source is a `log` or a `snapshot`:
 
 - A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
   `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`,
-  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and
-  `drift.jsonl`, each probe of a standing word in each run (`jbus.drift`). A row's key is the
+  `stalls.jsonl`, each spell a row's thread was quiet or hung (`jbus.stall.spells`), the
+  machine's `passes.jsonl`, the seconds of each pass (`jbus.record`), and `drift.jsonl`,
+  each probe of a standing word in each run (`jbus.drift`). A row's key is the
   hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
   lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
   and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
@@ -119,6 +120,13 @@ def _capped_reads(one: Row, zone: tzinfo | None) -> Row:
         "capped": len(capped),
         "ends_at": min(frees) if every else None,
     }
+
+
+def _stalls(one: Row, zone: tzinfo | None) -> Row:
+    times = {name: utc(one.get(name), zone) for name in ("at", "since", "until")}
+    texts = {name: _text(one.get(name)) for name in ("thread", "role", "slug", "became")}
+    minutes = one.get("minutes")
+    return {**times, **texts, "minutes": minutes if isinstance(minutes, int | float) else None}
 
 
 def _items(one: Row, zone: tzinfo | None) -> Row:
@@ -433,7 +441,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         *SEVERITIES,
         "found",
     }
-    real = {"slowest_s", "tail_s", "seconds"}
+    real = {"slowest_s", "tail_s", "seconds", "minutes"}
     return tuple(
         (
             name,
@@ -730,6 +738,13 @@ SOURCES: tuple[Source, ...] = (
         _columns("at", "reader", "instances", "capped", "ends_at"),
         _capped_reads,
         where="machine",
+    ),
+    Source(
+        "stalls",
+        "stalls.jsonl",
+        "log",
+        _columns("at", "thread", "role", "slug", "since", "until", "minutes", "became"),
+        _stalls,
     ),
 )
 """Each source by its table. A source added here has its table made by a migration of its own

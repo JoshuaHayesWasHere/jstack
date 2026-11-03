@@ -28,6 +28,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
+| `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became` |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
@@ -172,6 +173,11 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `gate_outcomes` | each gate's label of a week, the first home's by name where two homes label one gate, with `closed_by`, and whether its outcome is `known` and `wrong` as `gate-labels.md` says, read by `weekly_wrong_closes` |
 | `weekly_wrong_closes` | each labelled week's S8 over its `labels`: of the gates silence closed, the known closes (`silence`), the wrong ones (`silence_wrong`) and `silence_share`, in percent, and the same of those your word closed (`word`, `word_wrong` and `word_share`) |
 | `weekly_first_load` | each week from the first `first_loads` row on: `kb`, the crew first load of the latest install by the week's end in KB of 1,000 bytes, and `installs`, how many the week ran on |
+| `stall_spells` | each spell of `stalls` a pass saw end, with its `minutes`, `role` and `slug`, in the `week` of that pass, read by `weekly_stall` |
+| `stalls_since` | the first `day` of the stall record, `stalls.jsonl` |
+| `stall_projects` | each project with a row merged since `stalls_since` |
+| `stall_gaps` | each day with rows merged before `stalls_since`, and how many `rows` |
+| `weekly_stall` | each week's rows `merged` since `stalls_since`, the `minutes` and `spells` of `stall_spells`, the spells that ended in the week, and `per_row` |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
@@ -197,6 +203,8 @@ A merge line counts for a pull request only from a minute before it opened on, s
 A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`.
 `merge.log` has no such labels before 2026-10-28, so for a pull request merged before then `first_round` counts a fix round only when a check failed.
 The KPI page shows no first-round share for a week that begins before `fix_rounds_since`, since such a week would count a fix round with no red check as a first round.
+A stall spell runs from the thread's last write to its next write, or to the pass that saw it wait on the user, end or go, and counts in the week that pass falls in.
+`stalls.jsonl` begins with its first line, so stall minutes count only the rows merged from that day on, and the KPI page names the days of a week with rows merged before it.
 `ci.jsonl` kept no `pull_request` check of 33 of the 48 jstack pull requests merged on 2026-10-20, of every one from 2026-10-21 to 2026-10-25, of 58 of 100 on 10-26 and of 46 of 49 on 10-27, the whole set in the store built on 2026-11-03, and `first_round` is none for those: whether a check of theirs failed is not known.
 
 ## The KPI page
