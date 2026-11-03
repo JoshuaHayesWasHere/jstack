@@ -159,6 +159,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since the pass reads every minute and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
 | `weekly_row_spend` | each merge `week`'s `rows` with any call recorded in `row_spend`, their `units`, and `per_row` in millions; their `dollars`, the estimate at `jgauge.spend.PRICES` that `row_spend` sums, the `unpriced` calls it leaves out, and `dollars_per_row` |
+| `weekly_unpriced` | each merge week's calls on its merged rows whose model `jgauge.spend.PRICES` does not price, Codex's apart: each model as `name` with its `count` of calls, which the dollars per merged row KPI names beside its value |
 | `spend_kept` | each project's last line of each day `jgauge spend` counted, of `spend_days`, read by `weekly_spend` |
 | `weekly_spend` | each week of the days `jgauge spend` counted, each project's last line of a day (`spend_kept`): `days`, `units`, and in percent the `coordination` share, jbus's sends and the homes, and the `capped` share, runs that failed on a usage limit or part way |
 | `row_words` | S1 for each merged row with a go: the messages you typed, resumes apart, after its go and by its merge that name it, cited by an act of the row's project on the row or typed in its crew's thread |
