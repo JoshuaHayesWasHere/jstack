@@ -321,8 +321,8 @@ def _declared(tree: ast.Module) -> list[ast.Call]:
 
 
 def reads(paths: Iterable[str]) -> Reads:
-    """Return what the verbs that the modules under `paths` declare read, off their sources, and
-    import none of them.
+    """Return what the verbs that the modules under `paths` declare read, off their sources alone,
+    with no module of them imported.
 
     A verb's run reaches a function that it names, called or not, and each function that such a
     function names in turn: one of its own module, or one that it imports from a module under
