@@ -1191,10 +1191,6 @@ def _log_failed(run: Pass, job: object) -> Failed | None:
     return None if log is None else failed_in(log)
 
 
-def _failed_tests(run: Pass, job: object) -> list[str]:
-    return list((_log_failed(run, job) or Failed()).tests)
-
-
 def tests_said(jobs: list[tuple[str, str, Failed]]) -> str:
     """Return how many tests the failed jobs report, and how many of them they name."""
     count = sum(failed.count for _, _, failed in jobs)
@@ -1357,8 +1353,10 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
     is one above the first row of the queue, so once approved it is the next launch there.
     A red tip whose failed jobs and tests are the ones an open fix row names is the same break,
     with more merges on top of it: `_file` files no row for it and adds the tip to that row's
-    brief (`_add_tip`). `_file` writes the brief whenever the queue has no row for it. So if a
-    pass stopped before it added the row, the next pass files the brief again. If the queue
+    brief (`_add_tip`). Only a run known by its tests (`mainjson.failures`) is the same break:
+    a job that names none, a lint or a timeout, may fail for another reason at each tip.
+    `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
+    it added the row, the next pass files the brief again. If the queue
     refuses the brief, that is a condition. `kept` says why jbus reverted nothing (`_revert`),
     which its task names."""
     name = f"{mainjson.FIX}{sha[:12]}"
@@ -1367,12 +1365,14 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
     if any(sha[:12] in brief for _, brief in _open_reds(run)):
         return
     runs, pushed = _judged(run, sha)
-    jobs = [
-        (r.get("name") or "?", r.get("html_url") or "", _failed_tests(run, r.get("id")))
+    logs = [
+        (r.get("name") or "?", r.get("html_url") or "", _log_failed(run, r.get("id")) or Failed())
         for r in runs
         if r.get("status") == "completed" and r.get("conclusion") not in NOT_RED
     ]
-    if same := _same_red(run, failure_of(jobs)):
+    jobs = [(name, url, list(failed.tests)) for name, url, failed in logs]
+    known = mainjson.failures([(name, failed.tests, failed.count) for name, _, failed in logs])
+    if known and (same := _same_red(run, failure_of(jobs))):
         _add_tip(run, *same, sha, red)
         return
     reran = [

@@ -107,6 +107,23 @@ def test_merges_onto_a_red_main_that_fail_as_it_does_file_no_second_row(kitchen)
     assert shas[-1][:12] not in (kitchen.home / "tasks" / f"{first}.md").read_text()
 
 
+def test_red_tips_whose_failed_job_names_no_test_each_file_a_row(kitchen):
+    """A job whose log names no failed test, a lint or a timeout, is not known by its tests, so
+    two red tips of it may be two breaks: the later one files its own row."""
+    first = main_of(kitchen, "failure")
+    another_job(kitchen, first[0])
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=1))
+    shas = main_of(kitchen, "failure", "failure")
+    another_job(kitchen, shas[0])
+    another_job(kitchen, shas[1])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=4))
+    assert sorted(row["slug"] for row in main_red(kitchen)) == sorted(
+        f"{mainjson.FIX}{sha[:12]}" for sha in (first[0], shas[1])
+    )
+
+
 def another_job(kitchen, sha):
     """Main's red tip `sha` fails `lint`, not the `full` job `main_of` fails."""
     runs = json.loads((kitchen.stub / "check-runs.json").read_text())
