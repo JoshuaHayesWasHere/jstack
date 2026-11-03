@@ -59,12 +59,10 @@ class Measured:
     SQL over one week's row of `view`, and `empty`, the value of a week the view has no row for:
     0 for a count, None where there is nothing to count. `since` names a view whose one row's
     `day` is the first day the KPI's `records` cover, where a week that begins before it would
-    count something other than a later week does, and `partial` reads the week the records
-    begin in, from that day, where it is not `not covered`. `covers` is the projects and days it
-    counts, where it counts only some. `missing`, where it is set, says why a week the view has
-    no row for has no value: the records the KPI needs are kept a week at a time, and none for
-    that week. `detail` is SQL over the week's row of `view` that gives the note of a week with a
-    value."""
+    count something other than a later week does. `covers` is the projects and days it counts,
+    where it counts only some. `missing`, where it is set, says why a week the view has no row for
+    has no value: the records the KPI needs are kept a week at a time, and none for that week.
+    `detail` is SQL over the week's row of `view` that gives the note of a week with a value."""
 
     view: str
     value: str
@@ -73,6 +71,7 @@ class Measured:
     since: str | None = None
     records: str = ""
     partial: bool = False
+    """Read the week the records begin in, from that day, where it would be `not covered`."""
     covers: Covers | None = None
     missing: str | None = None
     detail: str | None = None
