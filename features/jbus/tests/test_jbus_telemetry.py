@@ -727,9 +727,8 @@ def test_a_store_made_at_version_1_migrates_to_every_column_each_table_names(mac
 
 def schema_of(path):
     with contextlib.closing(sqlite3.connect(path)) as store:
-        version = store.execute("PRAGMA user_version").fetchone()[0]
         found = store.execute("SELECT type, name, sql FROM sqlite_master ORDER BY name")
-        return version, telemetry.ran(store), found.fetchall()
+        return telemetry.ran(store), found.fetchall()
 
 
 def test_a_store_at_each_earlier_version_migrates_to_the_schema_a_new_store_has(machine):
@@ -737,7 +736,7 @@ def test_a_store_at_each_earlier_version_migrates_to_the_schema_a_new_store_has(
 
     new = machine.root / "new.sqlite"
     telemetry.connect(new).close()
-    assert schema_of(new)[:2] == (0, set(migrations.MIGRATIONS))
+    assert schema_of(new)[0] == set(migrations.MIGRATIONS)
     for version in range(len(migrations.MIGRATIONS) + 1):
         old = machine.root / f"at-{version}.sqlite"
         counted(old, version)
@@ -769,7 +768,7 @@ def test_a_store_counted_by_version_keeps_the_names_of_its_migrations_once(machi
         held = store.execute("SELECT value FROM meta WHERE name = 'kept'").fetchall()
 
     assert moved == again == names
-    assert version_after == 0
+    assert version_after == version
     assert tables >= tables_before | {"migrations", "cursors", "acts", "gate_labels", "drift"}
     if version:
         assert names[version - 1] == {7: "v007_asks", 9: "v009_drift"}[version]
@@ -791,6 +790,59 @@ def migrations_with(tmp_path, monkeypatch, name, files):
     monkeypatch.syspath_prepend(str(root))
     monkeypatch.setattr(sys, "modules", dict(sys.modules))
     return importlib.import_module(name)
+
+
+def test_a_store_moved_to_names_is_a_store_the_counting_code_finds_migrated(machine):
+    """A jbus still on the counting code, a branch not rebased yet, opens the store the moved
+    code keeps and runs nothing, since the move leaves the version the store had."""
+    from jbus.telemetry import migrations
+
+    path = machine.root / "shared.sqlite"
+    counted(path, len(migrations.MIGRATIONS))
+    telemetry.connect(path).close()
+    with contextlib.closing(sqlite3.connect(path, isolation_level=None)) as store:
+        version = store.execute("PRAGMA user_version").fetchone()[0]
+        for sql in list(migrations.MIGRATIONS.values())[version:]:
+            store.executescript(f"BEGIN;\n{sql}COMMIT;")
+        assert version == len(migrations.MIGRATIONS)
+
+
+def test_a_connection_that_loses_the_race_to_migrate_finds_the_store_migrated(machine, monkeypatch):
+    """Two passes that open the store at once: the one that read the table of names before the
+    other's move and migrations committed fails each, finds them done, and goes on."""
+    from jbus.telemetry import migrations
+
+    path = machine.root / "raced.sqlite"
+    counted(path, 7)
+    telemetry.connect(path).close()
+    real, calls = telemetry.ran, []
+
+    def stale(connection):
+        calls.append(1)
+        return {1: None, 3: set()}.get(len(calls), real(connection))
+
+    monkeypatch.setattr(telemetry, "ran", stale)
+    with contextlib.closing(sqlite3.connect(path, isolation_level=None)) as store:
+        telemetry.migrate(store)
+        assert not store.in_transaction
+        assert real(store) == set(migrations.MIGRATIONS)
+    assert len(calls) == 3 + len(migrations.MIGRATIONS)
+
+
+def test_a_migration_that_fails_with_no_other_connection_to_blame_is_raised(
+    machine, tmp_path, monkeypatch
+):
+    from jbus.telemetry import migrations
+
+    found = migrations_with(
+        tmp_path, monkeypatch, "broken_migrations", {"v999_broken.py": 'SQL = "NOT SQL;\\n"\n'}
+    )
+    monkeypatch.setattr(telemetry, "migrations", found)
+    path = machine.root / "broken.sqlite"
+    with pytest.raises(sqlite3.Error):
+        telemetry.connect(path)
+    with contextlib.closing(sqlite3.connect(path)) as store:
+        assert telemetry.ran(store) == set(migrations.MIGRATIONS)
 
 
 def test_a_migration_is_added_by_a_module_after_the_last_one(tmp_path, monkeypatch):

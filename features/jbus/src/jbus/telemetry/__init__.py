@@ -124,14 +124,14 @@ def migrate(connection: sqlite3.Connection) -> None:
     """Run each migration the store has not, in name order, each in one transaction with its
     name. A store that counted its migrations by `PRAGMA user_version`, as stores did before
     they kept their names, is moved once to the table, with the names of as many of them as
-    its version, and its version set to 0."""
+    its version. The move keeps that version, so a jbus still on the counting code, such as a
+    branch not rebased yet, finds every migration it knows run and runs none."""
     if ran(connection) is None:
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         names = "".join(_kept(name) for name in list(migrations.MIGRATIONS)[:version])
         _once(
             connection,
-            f"CREATE TABLE {RAN} (name TEXT PRIMARY KEY) WITHOUT ROWID;\n{names}"
-            "PRAGMA user_version = 0;\n",
+            f"CREATE TABLE {RAN} (name TEXT PRIMARY KEY) WITHOUT ROWID;\n{names}",
             None,
         )
     done = ran(connection) or set()
