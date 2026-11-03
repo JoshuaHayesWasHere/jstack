@@ -5,8 +5,9 @@ The tests write two projects' records as jbus writes them, compile them with the
 `jbus telemetry`, build the page with the real `jbus kpis`, and read the page as its reader
 does: its table's cells. A KPI the store measures shows its target, each week's value and
 whether it met the target; one the store has no instrument for says so. The page holds no text a
-record carried, no project's name and no path, `jleak` finds nothing in it, and building it
-calls no `gh`.
+record carried, no row and no path, and names only the projects a KPI says it covers, the projects
+whose push checks of main the change failure rate counts. `jleak` finds nothing else in it, and
+building it calls no `gh`.
 """
 
 import contextlib
@@ -259,6 +260,26 @@ def test_the_page_holds_no_record_text_no_project_and_no_path_and_jleak_finds_no
     patterns.write_text(
         f"[patterns]\nproject = '\\b(?:alpha|beta)\\b'\nhome-path = '{machine.root}'\n"
         f"said = '{SECRET}'\n"
+    )
+    with contextlib.redirect_stdout(io.StringIO()):
+        assert jleak_cli.main(["--patterns", str(patterns), str(out)]) == 0
+
+
+def test_a_page_that_names_the_project_it_covers_names_no_other_and_jleak_finds_nothing(machine):
+    machine.append("alpha", "ci.jsonl", job(1, "c1", 10, "success", NOW + timedelta(hours=1)))
+    machine.build()
+
+    out, _, _ = page(machine)
+    text = out.read_text()
+
+    assert "covers alpha" in text
+    assert "beta" not in text
+    assert "alpha-one" not in text
+    assert str(machine.root) not in text
+    assert SECRET not in text
+    patterns = machine.root / "outbound.toml"
+    patterns.write_text(
+        f"[patterns]\nproject = '\\bbeta\\b'\nhome-path = '{machine.root}'\nsaid = '{SECRET}'\n"
     )
     with contextlib.redirect_stdout(io.StringIO()):
         assert jleak_cli.main(["--patterns", str(patterns), str(out)]) == 0
