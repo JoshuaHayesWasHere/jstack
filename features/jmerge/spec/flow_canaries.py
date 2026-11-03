@@ -1,8 +1,9 @@
 """Check the merge flow's rules with TLC: today's code breaks the rules it breaks today, the design
 holds all four, and each canary (the design with one fix taken out) breaks the rule that rests on
 that fix. Two controls run today's code with an earlier gap of jbus.strays, the code before #427
-and the code before #416, and each breaks all four rules. A third marks ready a draft that waits
-on your word, and holds FlowsWhenGreen while your word lifts a hold. Run it from the repo root:
+and the code before #416, and each breaks the rules it breaks. A probe checks by name the case
+README.md names: main's fix in the merge_after follow-up of a pull request whose check failed over
+the red main. Run it from the repo root:
 
     python3 features/jmerge/spec/flow_canaries.py
 
@@ -26,7 +27,23 @@ sys.path.insert(
 
 tools = importlib.import_module("statechart.tools")
 
-RULES = ["FlowsWhenGreen", "NoMergeTurnsMainRed", "MachineNotLeftFull", "MainFixWaitsOnlyOnYou"]
+# The design's rules, in the words they had before the code's flow changed them.
+DESIGN_RULES = [
+    "FlowsWhenGreen",
+    "NoMergeTurnsMainRed",
+    "MachineNotLeftFull",
+    "MainFixWaitsOnlyOnYou",
+]
+
+# Today's rules, in the words of the flow the merged pull requests chose: a merge may turn main
+# red through a test its check's selection missed, and then jbus reruns, reverts or files the fix
+# row (#849, #862, #899).
+RULES = [
+    "FlowsWhenGreen",
+    "MergeRedsMainOnlyOnAMissedTest",
+    "MachineNotLeftFull",
+    "MainFixWaitsOnlyOnYou",
+]
 
 # Each fix of the design, as a canary that takes it out, and the rules that rest on it.
 CANARIES = {
@@ -35,48 +52,37 @@ CANARIES = {
     "NoSweep": ["FlowsWhenGreen", "MachineNotLeftFull"],
 }
 
-# Today's code breaks three rules. A check that selects a test reading the whole tree only by
-# chance merges a change that breaks it. And a draft that waits on your word stays a draft:
-# jmerge marks a draft ready only when the draft is all it waits on, and judges your word first,
-# while jmerge --accept refuses a draft. So work settles short of merged with nothing you can
-# do, and so does main's fix once jbus's crew puts it in that draft: since #547 jbus approves
-# the fix row by rule, so the only waits left that are yours are your word's.
-# Since #427 jbus.strays stops what a crew left, busy or idle, once its turn ended, so no
-# leftover keeps the machine full.
-TODAY_BREAKS = ["FlowsWhenGreen", "NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
+# Today's code breaks one rule. Since #709 jmerge --accept marks ready a draft held for your
+# word, so held work moves on your word, and a merge turns main red only through a test its
+# check's selection missed, which jbus then reruns and reverts or files the fix row for. But
+# main's fix can settle in a pull request nothing moves and your word cannot either: in the
+# merge_after follow-up of a pull request whose check failed over the red main, or in one whose
+# own break its crew reads as main's red. Since #547 jbus approves the fix row by rule, so those
+# waits are not yours. Since #427 jbus.strays stops what a crew left, busy or idle, once its turn
+# ended, so no leftover keeps the machine full.
+TODAY_BREAKS = ["MainFixWaitsOnlyOnYou"]
 
 # What jbus.strays stops of an idle process a finished turn left (FlowToday.tla's `Gap`), and
 # the rules the code breaks with it. Before #427 an idle one is stopped only once its row ended,
 # and before #416 never: either keeps the machine full, so nothing new starts, a follow-up that
-# merges after its row waits on a row that never launches, and main's fix cannot launch.
+# merges after its row waits on a row that never launches, and main's fix cannot launch. A full
+# machine stops no judgement of main's red, so MergeRedsMainOnlyOnAMissedTest holds with both.
 TODAY = "turn"
+GAP_BREAKS = ["FlowsWhenGreen", "MachineNotLeftFull", "MainFixWaitsOnlyOnYou"]
 CONTROLS = {
-    "today, before #427 (idle swept once its row ended)": ("ended", RULES),
-    "today, before #416 (busy leftovers only)": ("busy", RULES),
+    "today, before #427 (idle swept once its row ended)": ("ended", GAP_BREAKS),
+    "today, before #416 (busy leftovers only)": ("busy", GAP_BREAKS),
 }
 
-
-# FlowToday.tla's `Draft`: today a draft that waits on your word stays a draft. The control that
-# marks it ready holds FlowsWhenGreen, so that draft is the rule's only break today, and breaks its
-# NoLift probe, so your word lifts a hold there. It still breaks MainFixWaitsOnlyOnYou, on a fix
-# in the merge_after follow-up of a pull request whose check failed over the red main: jmerge
-# judges that one again only once main is green, and the follow-up merges only after it.
-DRAFT = "held"
-PROBES = ["NoLift"]
-READIED = {
-    "today, a draft held for your word marked ready": (
-        "readied",
-        ["NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"],
-        PROBES,
-    ),
-}
+# A probe, checked on today's code: the case README.md names, main's fix in the merge_after
+# follow-up of a pull request whose check failed over the red main, settles with nothing your
+# word can do. jmerge judges that pull request again only once main is green, and the follow-up
+# merges only after it.
+PROBES = ["FixAfterARedCheckWaitsOnlyOnYou"]
 
 
-def config(rules, gap=None, draft=DRAFT):
-    lines = [
-        "SPECIFICATION Spec",
-        *([f'CONSTANT Gap = "{gap}"', f'CONSTANT Draft = "{draft}"'] if gap else []),
-    ]
+def config(rules, gap=None):
+    lines = ["SPECIFICATION Spec", *([f'CONSTANT Gap = "{gap}"'] if gap else [])]
     lines += ["INVARIANT TypeOK", *(f"INVARIANT {rule}" for rule in rules)]
     return "\n".join(lines) + "\n"
 
@@ -141,7 +147,7 @@ def verdict(out, rule=None):
 def finished(out):
     """Whether TLC ran to its verdict, so its output is kept: it found no error or broke a rule,
     and did not fail or stop short."""
-    return any(verdict(out, rule) != "error" for rule in [None, *RULES, *PROBES])
+    return any(verdict(out, rule) != "error" for rule in [None, *DESIGN_RULES, *RULES, *PROBES])
 
 
 def states(out):
@@ -150,19 +156,22 @@ def states(out):
 
 
 def runs():
-    """Each run: its label, the module, the config, the rule it is about, and what it must say."""
-    yield "design: every rule", "FlowDesign", config(RULES), None, "holds"
+    """Each TLC run: what its lines start with, the module, the config, the rules it reports, and
+    what each must say. The rules of a model that must hold share one run, since a rule that holds
+    alone holds beside others and each run of today's model covers its whole state graph; each rule
+    that must break has a run of its own, so TLC prints its own shortest story."""
+    yield "design", "FlowDesign", config(DESIGN_RULES), ["every rule"], "holds"
     for canary, rules in CANARIES.items():
         for rule in rules:
-            yield f"canary {canary}: {rule}", canary, config([rule]), rule, "breaks"
+            yield f"canary {canary}", canary, config([rule]), [rule], "breaks"
     for label, (gap, breaks) in {"today": (TODAY, TODAY_BREAKS), **CONTROLS}.items():
-        for rule in RULES:
-            want = "breaks" if rule in breaks else "holds"
-            yield f"{label}: {rule}", "FlowToday", config([rule], gap), rule, want
-    for label, (draft, breaks, probes) in READIED.items():
-        for rule in [*RULES, *probes]:
-            want = "breaks" if rule in [*breaks, *probes] else "holds"
-            yield f"{label}: {rule}", "FlowToday", config([rule], TODAY, draft), rule, want
+        holds = [rule for rule in RULES if rule not in breaks]
+        if holds:
+            yield label, "FlowToday", config(holds, gap), holds, "holds"
+        for rule in [rule for rule in RULES if rule in breaks]:
+            yield label, "FlowToday", config([rule], gap), [rule], "breaks"
+    for probe in PROBES:
+        yield "today", "FlowToday", config([probe], TODAY), [probe], "breaks"
 
 
 def main():
@@ -173,15 +182,16 @@ def main():
         print(e, file=sys.stderr)
         return 2
     wrong = 0
-    for label, module, cfg, rule, want in runs():
+    for label, module, cfg, rules, want in runs():
         started = time.monotonic()
         out = tlc(tlc_tools, module, cfg)
-        got = verdict(out, rule)
         took = time.monotonic() - started
-        mark = "ok" if got == want else "WRONG"
-        print(f"{mark:5} {label} {got} ({states(out)}, {took:.1f} s)", flush=True)
-        if got != want:
-            wrong += 1
+        said = [(rule, verdict(out, rule)) for rule in rules]
+        for rule, got in said:
+            mark = "ok" if got == want else "WRONG"
+            print(f"{mark:5} {label}: {rule} {got} ({states(out)}, {took:.1f} s)", flush=True)
+            wrong += got != want
+        if any(got != want for _, got in said):
             print(out, file=sys.stderr)
     print(f"{wrong} wrong" if wrong else "every run says what it should")
     return 1 if wrong else 0

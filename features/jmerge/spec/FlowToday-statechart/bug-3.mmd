@@ -10,38 +10,46 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1 fill:#e8eef9,stroke:#74777d,color:#1b2631
   classDef group1Path fill:#e8eef9,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
     state "Moving" as legendGroup1
-    state "Waits on you" as legendGroup2
     state "Breaks a rule today" as legendWrong
   }
   class legendGroup1 group1
-  class legendGroup2 group2
   class legendWrong plainWrong
   state "Main green" as g0 {
-    state "1 a draft, waiting on your<br/>word, 1 waiting to launch" as s0
-    state "2 a draft, waiting on your<br/>word" as s1
-    state "2 waiting to launch" as s2
+    state "1 a draft, its review<br/>first, 1 waiting for a<br/>check" as s0
+    state "1 a draft, its review<br/>first, 1 waiting to launch" as s1
+    state "1 waiting for a check, 1<br/>waiting to launch" as s2
+    state "2 waiting for a check" as s3
+    state "2 waiting to launch" as s4
   }
   state "Main red from outside" as g1 {
-    state "1 a draft, waiting on your<br/>word, 1 a draft, waiting<br/>on your word, holds main's<br/>fix" as s3
-    state "2 a draft, waiting on your<br/>word" as s4
+    state "1 passed, holds main's<br/>fix, stacked on the other,<br/>1 red only from main's<br/>break" as s5
+    state "1 red only from main's<br/>break, 1 waiting for a<br/>check, holds main's fix" as s6
+    state "1 waiting for a check, 1<br/>waiting for a check, holds<br/>main's fix" as s7
+    state "2 waiting for a check" as s8
   }
-  state "Main red from outside, its<br/>fix row filed: 2 a draft,<br/>waiting on your word" as s5
-  state "Main red from outside, its<br/>run rerun: 2 a draft,<br/>waiting on your word" as s6
-  [*] --> s2
-  s2 --> s0 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
-  s0 --> s1 : 2. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
-  s1 --> s6 : 3. something outside breaks<br/>main
-  s6 --> s4 : 4. jbus reruns main's failed<br/>run, and it fails again
-  s4 --> s5 : 5. jbus judges main's red, and<br/>files its fix row
-  s5 --> s3 : 6. jbus approves main's fix<br/>row by rule, and its crew puts<br/>the fix in an open pull<br/>request
+  state "Main red from outside, its<br/>fix row filed: 2 waiting<br/>for a check" as s9
+  state "Main red from outside, its<br/>run rerun: 2 waiting for a<br/>check" as s10
+  [*] --> s4
+  s4 --> s1 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  s1 --> s2 : 2. its review is written and<br/>fixed, and jmerge marks it<br/>ready
+  s2 --> s0 : 3. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  s0 --> s3 : 4. its review is written and<br/>fixed, and jmerge marks it<br/>ready
+  s3 --> s10 : 5. something outside breaks<br/>main
+  s10 --> s8 : 6. jbus reruns main's failed<br/>run, and it fails again
+  s8 --> s9 : 7. jbus judges main's red, and<br/>files its fix row
+  s9 --> s7 : 8. jbus approves main's fix<br/>row by rule, and its crew puts<br/>the fix in an open pull<br/>request
+  s7 --> s6 : 9. its check runs
+  s6 --> s5 : 10. its check runs
   class s0 group1Path
-  class s1 plainWrong
+  class s1 group1Path
   class s2 group1Path
-  class s5 group1Path
-  class s6 group1Path
-  class s3 group2Wrong
+  class s3 group1Path
   class s4 group1Path
+  class s9 group1Path
+  class s10 group1Path
+  class s5 plainWrong
+  class s6 group1Path
+  class s7 group1Path
+  class s8 group1Path
