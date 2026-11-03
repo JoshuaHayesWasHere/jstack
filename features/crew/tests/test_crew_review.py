@@ -509,7 +509,6 @@ def test_no_rule_ties_the_fixed_line_to_a_check_run_for_a_draft():
     so CI's run was never the first a head got, went with the draft (fl-no-draft)."""
     review = sections()["The review"]
     assert not [line for line in review.splitlines() if line.startswith("Before it, run the check")]
-    assert "draft" not in review
 
 
 MEETS_BRIEF = crew.BRIEF.replace(

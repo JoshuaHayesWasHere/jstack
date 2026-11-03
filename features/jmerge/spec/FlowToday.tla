@@ -397,7 +397,7 @@ FixMain ==
           /\ fixes' = [fixes EXCEPT ![q] = TRUE]
           /\ ci' = [ci EXCEPT ![q] = "none"]
           /\ proved' = [proved EXCEPT ![q] = FALSE]
-                /\ UNCHANGED <<mainRed, redBy, culprit, judged, rerun>>
+          /\ UNCHANGED <<mainRed, redBy, culprit, judged, rerun>>
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, named, Browser,
                    go, needs, meets, revert, editsLeft>>
 
