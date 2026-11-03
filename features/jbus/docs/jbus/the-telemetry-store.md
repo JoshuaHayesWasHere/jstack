@@ -64,9 +64,10 @@ A writer reads its log before it adds, and adds no line whose key the log holds,
 
 Two more records are what an A/B or a simulator of a dial needs (the kpi-lab build order: records first):
 
-- The arm of each launch: each launch record names, under `arms`, the arm of each dial the row launched on, `off` while that dial's pilot is not started (`jbus.priming.recorded`).
+- The arm of each launch: a launch record written while a dial ran names, under `arms`, the arm of each dial the row launched on, `off` while that dial's pilot was not started.
+  crew-router-pilot was that dial, and it ended with its read, so a record jbus writes now names none.
   The store reads the records whose time is at or after the newest it read, keeps the launched ones once by their key and dial, and never updates a row (`jbus.telemetry.launches`).
-  A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither reads `covered` 0, with no arm guessed.
+  A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither, from before the store could tell or after the pilot ended, reads `covered` 0, with no arm guessed.
 - `review-rounds.jsonl`: a pass adds a line for each review round of an open pull request's brief once the round is settled, that is a later round began or no reviewer the crew launched still owes its section (`jbus.reviewed.rounds`), once by row, pull request and round number.
   A round is the sections in a row that ran at one head, and a scoped pass is a round of its own.
   A pull request that merges before a pass sees its last round settled has no line for that round.
