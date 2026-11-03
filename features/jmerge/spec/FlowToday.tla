@@ -375,7 +375,7 @@ RerunEnds ==
 \* revert at a time). A tip whose revert is open gets no row.
 JudgeRed ==
     /\ mainRed                              \* features/jbus/src/jbus/culprits.py `if run.red is not None:`
-    /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit, known)`, after its one rerun
+    /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit)`, after its one rerun
     /\ ~judged
     /\ judged' = TRUE
     /\ IF culprit \in PRs /\ revert = "none"
@@ -486,7 +486,7 @@ OutsideBreak ==
     /\ \/ /\ ~mainRed
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
-          \* features/jbus/src/jbus/watch.py `if not slugs and not fixes and not mainjson.read(run.state).red:`, features/jbus/src/jbus/watch.py `no briefed merge came in`: since #392 the fix row is filed for a
+          \* features/jbus/src/jbus/watch.py `if not slugs and not fixes and not main.red:`, features/jbus/src/jbus/watch.py `no briefed merge came in`: since #392 the fix row is filed for a
           \* red tip with no briefed merge in the day before it too, under the row's own name,
           \* once its rerun failed and jbus.culprits judged it (JudgeRed).
           /\ rerun' = TRUE

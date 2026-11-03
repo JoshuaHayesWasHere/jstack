@@ -80,9 +80,6 @@ ORDER = [
     "tellers 20 questions.tell (sight, client)",
     "tellers 30 questions.propose (sight, client)",
     "tellers 40 watch.watch (client, world)",
-    "tellers 42 culprits.judge",
-    "tellers 43 reverts.close (world)",
-    "tellers 45 culprits.tell (client)",
     "tellers 50 threads.tie (client, world)",
     "tellers 52 reviewed.tell (client, world)",
     "tellers 55 failover.failover (client, world)",
@@ -93,7 +90,11 @@ ORDER = [
     "tellers 100 rebase.tell (client, world)",
     "after-expedite 1 expedite.tell",
     "after-expedite 5 strays.stop (client, world)",
-    "after-expedite 10 mainmoved.tell (client, world)",
+    "after-expedite 10 mainmoved.tell (budget)",
+    "after-expedite 11 watch.retro (world)",
+    "after-expedite 12 culprits.judge",
+    "after-expedite 13 reverts.close (world)",
+    "after-expedite 14 culprits.tell (client)",
     "after-expedite 15 clock.tick (client, world)",
     "after-expedite 16 clock.held (client, world)",
     "after-expedite 17 children.watch (client)",
@@ -184,12 +185,12 @@ BEFORE = {
     "t3 down": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
-        "questions.read expedite.told",
+        "questions.read expedite.told mainmoved.tell",
         [("jmerge", JMERGE), ("condition", "condition demo: T3 Code could not be asked")],
     ),
     "signed out": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
-        "watch.look mirror.scan expedite.told",
+        "watch.look mirror.scan expedite.told mainmoved.tell",
         [
             ("jmerge", JMERGE),
             ("condition", "condition demo: T3 Code could not be asked"),
@@ -207,7 +208,7 @@ BEFORE = {
     ),
     "blind": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
-        "watch.look expedite.told",
+        "watch.look expedite.told mainmoved.tell",
         [("jmerge", JMERGE), ("condition", "condition demo: removed.json does not parse")],
     ),
     "word-sends.json": (
@@ -315,7 +316,10 @@ WATCH_READS = ["queue.load", "questions.read", "queue.load", "questions.read"]
 WATCHED = {
     "questions.json": WATCH_READS[:2],
     "queue.json": WATCH_READS[:1],
+    **{fixture: [] for fixture in ("t3 down", "signed out", "blind")},
 }
+"""What `children.watch` reads after `mainmoved.tell`, by fixture: nothing in a pass with no T3
+Code, where `mainmoved.tell` still judges main and `children.watch` does not run."""
 
 
 def moved(before, fixture="short"):

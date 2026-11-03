@@ -751,7 +751,15 @@ class Kitchen:
         test wrote over or took off PATH, and a call that passes its own `env`, asks for `check`, or
         does not capture what is printed. A fake called here ignores `timeout`. One that ends on an
         exception ends as a Python does: the traceback on stderr, and exit 1.
+
+        `git ls-remote origin` answers main's tip from `commits.json` where a test wrote commits
+        there, as GitHub's list of main's commits starts at the tip `ls-remote` gives: so
+        `mainmoved`, which reads the tip from git, and `watch.retro`, which reads the list, see one
+        main.
         """
+        listed = self.listed_tip(command)
+        if listed is not None:
+            return listed
         fake = None
         if isinstance(command, (list, tuple)) and how.get("capture_output"):
             if not how.keys() - {"capture_output", "cwd", "text", "timeout"}:
@@ -768,6 +776,21 @@ class Kitchen:
         if not how.get("text"):
             out, err = out.encode(), err.encode()
         return subprocess.CompletedProcess(command, code, out, err)
+
+    def listed_tip(self, command):
+        """What `git ls-remote origin <ref>` answers where `commits.json` lists commits, or None."""
+        if not isinstance(command, (list, tuple)) or list(command[:3]) != [
+            "git",
+            "ls-remote",
+            "origin",
+        ]:
+            return None
+        kept = self.stub / "commits.json"
+        commits = json.loads(kept.read_text()) if kept.exists() else []
+        if not isinstance(commits, list) or not commits:
+            return None
+        ref = command[3] if len(command) > 3 else "HEAD"
+        return subprocess.CompletedProcess(command, 0, f"{commits[0]['sha']}\t{ref}\n", "")
 
     def machine(self, plan=FRESH, **readings):
         """Write the machine and the plan that `jgauge room` reads: idle and under its limits, or

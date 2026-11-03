@@ -16,6 +16,7 @@ import pytest
 
 import jbus.queue
 from jbus import reverts
+from jbus.watch import World
 from jmerge import mainjson
 from jmerge import reverts as kept
 from test_jbus_chains import queue_add
@@ -135,9 +136,9 @@ def test_a_red_two_merges_made_together_reverts_nothing_and_files_its_row(kitche
     assert reverts.Keep.SKEW in text
 
 
-def test_a_revert_jbus_opened_is_closed_once_main_is_green_without_it(kitchen):
-    """A fix row lands first and main's check passes at it: the revert jbus opened would only
-    sit in conflict with main, so jbus closes it, with a comment that names the green commit."""
+def fixed_first(kitchen):
+    """Main red at alpha's merge with its revert open, then a fix row's merge on top whose
+    check passes. Return the red tip, the revert on record and the green fix."""
     (red,) = red_merges(kitchen, ("alpha", 7, None))
     passes(kitchen)
     made = kept.read(kitchen.state)[red]
@@ -148,14 +149,51 @@ def test_a_revert_jbus_opened_is_closed_once_main_is_green_without_it(kitchen):
     )
     pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
     kitchen.set("push-runs.json", {**pushed, fixed: [{**DONE, "id": 601, "conclusion": "success"}]})
+    return red, made, fixed
+
+
+def test_a_revert_jbus_opened_is_closed_once_main_is_green_without_it(kitchen):
+    """A fix row lands first and main's check passes at it: the revert jbus opened would only
+    sit in conflict with main, so jbus closes it, with a comment that names the green commit.
+    While it is open, its record stays."""
+    red, made, fixed = fixed_first(kitchen)
+    assert list(kept.read(kitchen.state)) == [red], "an open revert keeps its record"
     kitchen.poll(NOW + timedelta(minutes=30))
-    kitchen.poll(NOW + timedelta(minutes=33))
     (closed,) = asked(kitchen, "pr close")
     assert closed.startswith(f"pr close {made.pull} --comment ")
     assert fixed[:12] in closed
     opened = json.loads((kitchen.stub / "open.json").read_text())
     assert made.pull not in [pull["url"] for pull in opened]
-    assert list(kept.read(kitchen.state)) == [red], "the record keeps the row from a second revert"
+    assert list(kept.read(kitchen.state)) == [red], "the pass that closes it keeps its record"
+
+
+def test_a_closed_revert_whose_culprit_is_over_is_dropped_on_the_next_pass(kitchen):
+    """alpha merged, has no pull request open, no thread unsettled and no row: it merges nothing
+    more, so the record of its closed revert holds nothing and goes, and a later red that alpha's
+    slug names is not held as `TWICE`."""
+    red, _, _ = fixed_first(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=30))
+    kitchen.poll(NOW + timedelta(minutes=33))
+    assert kept.read(kitchen.state) == {}
+
+
+def test_a_closed_revert_whose_culprit_still_has_a_thread_keeps_its_record(kitchen):
+    """alpha's crew is still at work, told to bring its change back: alpha can merge again, so
+    the record stays, and the row is still never reverted twice."""
+    red, _, _ = fixed_first(kitchen)
+    kitchen.t3.thread("alpha")
+    for minutes in (30, 33, 36):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert list(kept.read(kitchen.state)) == [red]
+
+
+def test_over_needs_no_open_pull_request_no_live_thread_and_a_final_row():
+    world = World(open={}, threads={})
+    assert reverts.over("alpha", world, [])
+    assert reverts.over("alpha", world, [{"slug": "alpha", "status": "merged"}])
+    assert not reverts.over("alpha", world, [{"slug": "alpha", "status": "queued"}])
+    assert not reverts.over("alpha", World(open={"alpha": {}}), [])
+    assert not reverts.over("alpha", World(threads={"alpha": [{}]}), [])
 
 
 def test_a_revert_that_goes_red_is_not_reverted(kitchen):

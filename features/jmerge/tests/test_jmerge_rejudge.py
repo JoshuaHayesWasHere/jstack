@@ -17,7 +17,7 @@ import pytest
 import test_home_merge as merge
 import test_jmerge_order as order
 from jbus import rebase
-from jmerge import judgement, mainjson, ready
+from jmerge import judgement, mainjson, ready, rejudge
 from test_jmerge_fresh import GH, LINES, Kitchen, git, url, write
 
 BROKE = "2026-10-23T12:00:00Z"
@@ -201,6 +201,25 @@ def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
     replay.run()
     assert replay.run()[-1] == f"wait 333 {url(333)}: {refused.format(tip=later[:12])}"
     assert replay.updated() == ["333", "333"]
+
+
+def test_the_record_of_a_pull_request_goes_on_the_run_after_it_closes_and_stays_while_open(
+    tmp_path,
+):
+    """`base-merges.json` keeps GitHub's answer for an open pull request, so a `repeated` or a
+    refusal is not asked again, and drops it on the first run that no longer lists it open."""
+    replay = Replay(tmp_path)
+    (replay.kitchen.home.stub / "refuse").write_text("")
+    replay.crew("one", 333, {"one.txt": "ours\n"})
+    replay.main_at(WHOLE_TREE, BROKE, "failed")
+    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    path = replay.kitchen.home.state / rejudge.NAME
+    for _ in range(2):
+        replay.run()
+        assert list(json.loads(path.read_text())) == ["333"]
+    (replay.kitchen.home.stub / "list.json").write_text("[]")
+    replay.run()
+    assert json.loads(path.read_text()) == {}
 
 
 @pytest.mark.parametrize("status", ["502", "429", "403"])
