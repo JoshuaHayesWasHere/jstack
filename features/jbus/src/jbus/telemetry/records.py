@@ -26,14 +26,13 @@ zone of its own to bucket by.
 from __future__ import annotations
 
 import hashlib
-import json
 import re
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, tzinfo
 from typing import Any, Literal
 
-from jbus.telemetry import asks
+from jbus.telemetry import asks, files
 
 Row = dict[str, Any]
 """One row of a table, by column."""
@@ -174,8 +173,15 @@ def _passes(one: Row, zone: tzinfo | None) -> Row:
 
 
 def _drift(one: Row, zone: tzinfo | None) -> Row:
-    texts = {name: _text(one.get(name)) for name in ("probe", "word", "status", "sha", "error")}
-    return {"at": utc(one.get("at"), zone), **texts, "found": _number(one.get("found"))}
+    return {
+        "at": utc(one.get("at"), zone),
+        "probe": _text(one.get("probe")),
+        "word": _text(one.get("word")),
+        "status": _text(one.get("status")),
+        "found": _number(one.get("found")),
+        "sha": _text(one.get("sha")),
+        "error": _text(one.get("error")),
+    }
 
 
 def _items(one: Row, zone: tzinfo | None) -> Row:
@@ -421,42 +427,6 @@ def _review_rounds(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
-def json_lines(text: str) -> Iterator[Row]:
-    """Each line of a JSON-lines file that is an object, in order."""
-    for line in text.splitlines():
-        try:
-            one = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(one, dict):
-            yield one
-
-
-def _question_records(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    found = held.get("records", []) if isinstance(held, dict) else []
-    return [one for one in found if isinstance(one, dict)]
-
-
-def _queue_rows(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    return [one for one in held if isinstance(one, dict)] if isinstance(held, list) else []
-
-
-def _merged_pulls(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    if not isinstance(held, dict):
-        return []
-    return [{**pull, "slug": slug} for slug, pull in held.items() if isinstance(pull, dict)]
-
-
-def _sends(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    if not isinstance(held, dict):
-        return []
-    return [{**sent, "id": word} for word, sent in held.items() if isinstance(sent, dict)]
-
-
 @dataclass(frozen=True)
 class Source:
     """A file of a project's records and the table it fills.
@@ -477,7 +447,7 @@ class Source:
     at: str = "at"
     where: Literal["state", "home", "machine"] = "state"
     text: bool = False
-    records: Callable[[str], Iterable[Row]] = json_lines
+    records: Callable[[str], Iterable[Row]] = files.json_lines
     natural: str = ""
 
 
@@ -650,7 +620,7 @@ SOURCES: tuple[Source, ...] = (
         ),
         _questions,
         at="asked_at",
-        records=_question_records,
+        records=files.questions,
         natural="number",
     ),
     Source(
@@ -675,7 +645,7 @@ SOURCES: tuple[Source, ...] = (
         ),
         _queue,
         at="approval_ran_at",
-        records=_queue_rows,
+        records=files.queue,
         natural="slug",
     ),
     Source(
@@ -685,7 +655,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("slug", "number", "merged_at", "merge_commit", "state", "title_len"),
         _merged,
         at="merged_at",
-        records=_merged_pulls,
+        records=files.merged,
         natural="slug",
     ),
     Source(
@@ -763,7 +733,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("word", "thread", "sent_at", "waiting"),
         _word_sends,
         at="sent_at",
-        records=_sends,
+        records=files.sends,
         natural="word",
     ),
     Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
