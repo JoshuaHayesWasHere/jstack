@@ -36,6 +36,49 @@ OPUS = 5 / 3
 """The weight on a run whose model's name holds `OPUS_NAME`, case and all."""
 OPUS_NAME = "opus"
 
+
+@dataclass(frozen=True)
+class Price:
+    """A model's list price in dollars per million tokens: uncached input, cache write, cache
+    read and output, the four classes the rates above weigh."""
+
+    plain: float
+    written: float
+    cached: float
+    output: float
+
+
+PRICED_ON = date(2026, 10, 6)
+"""The date of the price list `PRICES` is copied from: the claude-api skill's model table,
+cached 2026-10-06, read on 2026-11-03."""
+PRICES: dict[str, Price] = {
+    "claude-opus-5-5": Price(4, 8, 0.20, 20),
+    "claude-sonnet-5-5": Price(2, 4, 0.20, 10),
+    "claude-haiku-5-5": Price(0.10, 0.20, 0.01, 0.50),
+}
+"""Each priced model's list price, by its exact id, the one place a price is named. A cache write
+is priced at the one-hour cache's 2x input, not the five-minute 1.25x: the store keeps one count
+of written tokens, and of the cache writes in 200 Claude Code transcripts read on 2026-11-03,
+98.9% were to the one-hour cache. Haiku's higher price for a prompt over 100K tokens is not
+counted. A model not here, every Codex model among them, is unpriced: its calls have no dollars.
+What a subscription bills is not per token, so a sum of these is an estimate at API list prices."""
+
+
+def dollars(model: str, plain: int, written: int, cached: int, output: int) -> float | None:
+    """A call's dollars at `PRICES`, from its uncached input, cache write, cache read and output
+    tokens, or None for a model the table does not price."""
+    price = PRICES.get(model)
+    if price is None:
+        return None
+    spent = (
+        plain * price.plain
+        + written * price.written
+        + cached * price.cached
+        + output * price.output
+    )
+    return spent / 1e6
+
+
 FIRST, REVIEWS, FIXES, SENDS, HOMES, SCOUTS, CAPPED = KINDS = (
     "first crew run",
     "reviews",

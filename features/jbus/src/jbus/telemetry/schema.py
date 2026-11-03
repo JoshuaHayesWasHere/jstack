@@ -1,5 +1,6 @@
 """The SQL the store's views share: the Sunday a week starts on, the conclusions of a red and a
-green check, a message the user typed, a call's spend and each week's quantiles.
+green check, a message the user typed, a call's spend in units and in dollars, and each week's
+quantiles.
 
 The store's tables are made by its migrations (`jbus.telemetry.migrations`), and each view is a
 module of its own (`jbus.telemetry.views`), whose docstring says what it counts.
@@ -17,6 +18,17 @@ UNITS = (
 """A call's spend in `jgauge spend`'s units, built from `jgauge.spend`'s rates as
 `jgauge.spend.units` weighs a run: `c.input` is the uncached input, and Opus goes by the call's
 own model. `instr` matches case and all, as Python's `in` does, where `LIKE` would not."""
+DOLLARS = (
+    "(CASE c.model "
+    + " ".join(
+        f"WHEN '{model}' THEN c.input * {price.plain!r} + c.cache_write * {price.written!r} "
+        f"+ c.cache_read * {price.cached!r} + c.output * {price.output!r}"
+        for model, price in spend.PRICES.items()
+    )
+    + " END) / 1e6"
+)
+"""A call's estimated dollars at `jgauge.spend.PRICES`, as `jgauge.spend.dollars` gives them, by
+the call's exact model: NULL for a model the table does not price."""
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 GREEN = "('success', 'skipped', 'neutral')"
 WEEK = "date({day}, '-6 days', 'weekday 0')"
