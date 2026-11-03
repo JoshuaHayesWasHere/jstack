@@ -16,7 +16,17 @@ import pytest
 from testing.paths import REPO
 
 SCRIPT = REPO / "scripts" / "check-jstack-docs.py"
-ROOTS = ("skills", "features", "templates", "playbooks", "hooks", "docs")
+ROOTS = (
+    "skills",
+    "features",
+    "templates",
+    "playbooks",
+    "hooks",
+    "docs",
+    "scripts",
+    "testing",
+    ".github",
+)
 
 
 def ran(root):
@@ -188,6 +198,46 @@ def test_a_path_that_is_gone_is_found_and_one_somewhere_else_is_not_read(small):
     assert ran(small) == [
         "FAIL docs/a.md:1 skills/gone/SKILL.md is named and the tree has no such path",
         "FAIL docs/a.md:2 skills/alpha/missing.md is named and the tree has no such path",
+    ]
+
+
+def test_a_repo_path_that_is_gone_is_found_in_contributing_security_and_the_docs(small):
+    make(
+        small,
+        {
+            "scripts/real.py": "",
+            "testing/real.py": "",
+            ".github/workflows/real.yml": "",
+            "CONTRIBUTING.md": (
+                "Run `scripts/real.py` and `testing/real.py`, see `.github/workflows/real.yml`.\n"
+                "Edit `features/x/y.py` and `features/jroles/docs/jroles.md`.\n"
+                "Not `features/*/docs` or `features/<name>/src`.\n"
+                "And `scripts/deploy` is elsewhere.\n"
+            ),
+            "SECURITY.md": "Report it as `.github/SECURITY.yml` says, and `scripts/gone.sh`.\n",
+            "docs/a.md": "`testing/gone.py` and [real](../scripts/real.py)\n",
+        },
+    )
+    assert ran(small) == [
+        "FAIL CONTRIBUTING.md:2 features/x/y.py is named and the tree has no such path",
+        "FAIL SECURITY.md:1 .github/SECURITY.yml is named and the tree has no such path",
+        "FAIL SECURITY.md:1 scripts/gone.sh is named and the tree has no such path",
+        "FAIL docs/a.md:1 testing/gone.py is named and the tree has no such path",
+    ]
+
+
+def test_a_skill_names_a_file_beside_it_and_a_page_may_not(small):
+    make(
+        small,
+        {
+            "features/crew/SKILL.md": "# Crew\n\n`scripts/runs.sh` and `scripts/gone.sh`\n",
+            "features/crew/scripts/runs.sh": "#!/bin/sh\n",
+            "docs/a.md": "[crew](../features/crew/SKILL.md) `scripts/runs.sh`\n",
+        },
+    )
+    assert ran(small) == [
+        "FAIL docs/a.md:1 scripts/runs.sh is named and the tree has no such path",
+        "FAIL features/crew/SKILL.md:3 scripts/gone.sh is named and the tree has no such path",
     ]
 
 

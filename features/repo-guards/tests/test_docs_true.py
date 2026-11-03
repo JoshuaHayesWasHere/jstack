@@ -43,7 +43,13 @@ from testing.paths import REPO
 
 README = REPO / "README.md"
 DOCS = REPO / "docs"
-PAGES = (README, *sorted(DOCS.glob("**/*.md")), *sorted(REPO.glob("features/*/docs/**/*.md")))
+FRONT = tuple(REPO / name for name in ("CONTRIBUTING.md", "SECURITY.md"))
+PAGES = (
+    README,
+    *FRONT,
+    *sorted(DOCS.glob("**/*.md")),
+    *sorted(REPO.glob("features/*/docs/**/*.md")),
+)
 RUNS = REPO / "features/evals/evals"
 SKILLS = tuple(
     path
