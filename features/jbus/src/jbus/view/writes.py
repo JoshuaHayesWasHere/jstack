@@ -63,7 +63,6 @@ def reader(sources: Sources) -> jbus.Config:
         dispatch=False,
         max_running=0,
         warn_days=0,
-        wake_alert=0,
         room_passes=0,
         projects=tuple(
             jbus.Project(name, nowhere, name, "", "", "") for name in state.projects(sources)

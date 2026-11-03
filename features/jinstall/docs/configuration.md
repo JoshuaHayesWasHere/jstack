@@ -127,7 +127,6 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `max_per_project` | 24 | How many crewmates one project may have out at once, across its homes. `jbus` refuses a value that is not a whole number of 1 or more. |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
-| `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
 | `home_thread` | Empty | The thread that gets a project's wakes when the project's home has no thread in its `home-id`. |
 | `blocking_url` | Empty | The second target, for what blocks, which jbus-relay fans out. `jbus` POSTs to it each blocking item as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh. It POSTs no event there. With no `blocking_url`, `jbus` POSTs nothing more. [jbus](../../jbus/docs/jbus/what-blocks.md) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, which `jbus` sends in two headers, `Authorization: Bearer` and `X-Automation-Key`. Set both or neither, because `jbus` refuses half a pair. Keep both secret. |
