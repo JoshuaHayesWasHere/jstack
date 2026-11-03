@@ -327,7 +327,8 @@ def reads(paths: Iterable[str]) -> Reads:
     A verb's run reaches a function that it names, called or not, and each function that such a
     function names in turn: one of its own module, or one that it imports from a module under
     `paths`. So a verb that calls `here` under one option alone is among `here`'s, and a verb in
-    `none` takes no project, whatever it is given. A method of a class is not followed.
+    `none` reaches neither `here` nor `project`, whatever it is given: it may still read the
+    project that `--project` names, by `config.project`. A method of a class is not followed.
     """
     trees = {
         name: ast.parse(source)
