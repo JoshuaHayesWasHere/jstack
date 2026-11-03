@@ -233,7 +233,8 @@ green jstack: the commands now run from 1a2b3c4d5e6f, in place of 0f9e8d7c6b5a
 A tip whose check failed is not green, so the copy never reaches it.
 A tip whose check passed but that does not import on this machine is dropped at once: the pass removes its tree, prints `green jstack: <sha> does not import, kept <sha>`, raises the condition `the green copy does not import`, and tries that tip no more.
 The copy moves on at the next green tip.
-When a move changes `pyproject.toml` or `uv.lock`, the pass installs the tool again from the copy.
+Each move installs the tool again from the copy, since the tool's editable paths name the tree the copy points at, not the copy.
+Where uv cannot install it, the copy goes back to the tree the tool runs, the pass raises the condition `the green copy could not move`, and the next pass tries again.
 A new skill is linked by the next `install.sh`, as in any checkout.
 
 So when a commit breaks main, even `import jbus`, the passes go on from the copy, and jbus reverts or fixes the red main as before.

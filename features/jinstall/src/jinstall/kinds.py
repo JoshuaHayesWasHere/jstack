@@ -809,15 +809,17 @@ class Commands:
         return f"lacks {' '.join(lacking)}" if lacking else ""
 
     def _stale(self, machine: Machine, checkout: Path) -> list[str]:
-        """Each package root in the checkout's pyproject.toml that the tool's paths lack."""
+        """Each package root in the checkout's pyproject.toml that the tool's paths lack. The
+        paths are compared resolved, since the build of an editable install writes the real
+        path of a tree that a link names, as the green copy is."""
         try:
             wheel = tomllib.loads((checkout / "pyproject.toml").read_text())["tool"]["hatch"]
             listed = wheel["build"]["targets"]["wheel"]["packages"]
         except (OSError, ValueError, KeyError, TypeError):
             return []
         roots = sorted({checkout / Path(package).parent for package in listed})
-        paths = machine.tool_paths(self.tool)
-        return [str(root) for root in roots if root not in paths]
+        paths = {path.resolve() for path in machine.tool_paths(self.tool)}
+        return [str(root) for root in roots if root.resolve() not in paths]
 
     def _points(self, machine: Machine, checkout: Path) -> list[str]:
         """Each group of entry points that the checkout's pyproject.toml and the tool's

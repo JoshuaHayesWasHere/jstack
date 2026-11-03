@@ -20,6 +20,18 @@ from test_jbus_queue import gates
 
 REPO = Path(__file__).resolve().parents[3]
 BROKEN = 'raise ImportError("jbus.telemetry.migrations: v007_drift is migration 8")\n'
+REINSTALL = green._reinstall
+DEMO = """[project]
+name = "greendemo"
+version = "0"
+[project.scripts]
+greendemo = "greendemo:main"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[tool.hatch.build.targets.wheel]
+packages = ["src/greendemo"]
+"""
 
 
 def tip(kitchen):
@@ -59,6 +71,15 @@ def at(copy):
     return subprocess.run(
         ["git", "-C", str(copy), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
+
+
+@pytest.fixture(autouse=True)
+def installs(monkeypatch):
+    """The trees a move installed the tool from, in place of uv's tool install, which the one
+    test of the real install puts back."""
+    done = []
+    monkeypatch.setattr(green, "_reinstall", lambda copy: done.append(copy.resolve()) or "")
+    return done
 
 
 @pytest.fixture
@@ -144,6 +165,44 @@ def test_a_move_points_the_copy_at_a_new_tree_and_leaves_the_last_one_whole(copi
     later = land(copied, "success")
     copied.poll()
     assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == sorted([new, later])
+
+
+def test_the_tool_runs_each_new_tip_once_it_moves_and_keeps_the_trees_it_may_run(
+    copied, tmp_path, monkeypatch
+):
+    """uv's editable install names the tree the link points at, not the link, so each move
+    installs the tool again from the new tree, and the command runs the new tip at once."""
+    monkeypatch.setattr(green, "_reinstall", REINSTALL)
+    monkeypatch.setattr(green, "IMPORTS", "import greendemo")
+    monkeypatch.setenv("UV_TOOL_DIR", str(tmp_path / "tools"))
+    monkeypatch.setenv("UV_TOOL_BIN_DIR", str(tmp_path / "bin"))
+    tips = []
+    for word in ("one", "two", "three"):
+        files = {"src/greendemo/__init__.py": f"def main():\n    print({word!r})\n"}
+        if word == "one":
+            files["pyproject.toml"] = DEMO
+        tips.append(land(copied, "success", files))
+        copied.poll()
+        ran = subprocess.run([tmp_path / "bin" / "greendemo"], capture_output=True, text=True)
+        assert ran.stdout.strip() == word, ran.stderr
+    kept = sorted(path.name for path in green.trees(copied.copy).iterdir())
+    assert kept == sorted(tips[1:])
+
+
+def test_a_tool_install_that_fails_puts_the_link_back_and_the_next_pass_tries_again(
+    copied, monkeypatch, installs
+):
+    monkeypatch.setattr(green, "_reinstall", lambda copy: "error: no wheel")
+    new = land(copied, "success")
+    said = copied.poll()
+    assert at(copied.copy) == copied.first
+    assert sorted(path.name for path in green.trees(copied.copy).iterdir()) == [copied.first]
+    assert gates(copied) == [f"condition green: {green.MOVE_FAILED}"]
+    assert not [line for line in said if line.startswith("green ")]
+    monkeypatch.setattr(green, "_reinstall", lambda copy: installs.append(copy.resolve()) or "")
+    copied.poll()
+    assert at(copied.copy) == new
+    assert installs == [green.trees(copied.copy) / new]
 
 
 def test_a_copy_of_another_checkout_is_left_alone(kitchen, tmp_path):

@@ -21,9 +21,11 @@ command that starts runs one tip or the other and never a tree half way between 
 does not import is removed, the pass raises a condition for that tip, and `green.json` in the
 project's state keeps it as `refused`, so no later pass tries it again. So a main whose check
 failed never reaches the copy, nor does a tip whose check passed but which fails to import
-here. When the move changed `pyproject.toml` or `uv.lock`, it installs the tool again, as
-`install.sh` does, so a new dependency, command or package root is on the tool's path. The tree
-the link named before stays until the next move, for a command that still runs in it.
+here. Then it installs the tool again, as `install.sh` does: the editable install's paths name
+the tree itself and not the link, so the tool runs the new tip only once it is installed from
+it. Where uv cannot install it, the link goes back to the tree the tool runs, the new tree goes,
+and the next pass tries again. The tree the link named before stays until the next move, for a
+command that still runs in it.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
@@ -56,7 +58,7 @@ IMPORTS = (
 module of jbus that declares a step of a pass, as `jbus steps` imports them."""
 
 BUILT = ("pyproject.toml", "uv.lock")
-"""The files whose change makes `move` install the tool again."""
+"""The files whose change makes `move` import the new tip in an environment uv makes for it."""
 
 FILE = "green.json"
 """The project's record of the tip the copy would not import, `{"refused": <sha>}`."""
@@ -229,11 +231,15 @@ def move(run: Pass, copy: Path | None = None) -> None:
         return
     before = copy.resolve()
     _point(copy, tree)
+    if why := _reinstall(copy):
+        _point(copy, before)
+        shutil.rmtree(tree)
+        why = f"uv tool install at {green[:12]}: {why}"
+        run.condition("green", MOVE_FAILED, why, key=green[:12])
+        return
     for old in trees(copy).iterdir():
         if old.is_dir() and old.resolve() not in (before, tree.resolve()):
             shutil.rmtree(old)
-    if changed and (why := _reinstall(copy)):
-        run.condition("green", MOVE_FAILED, f"uv tool install at {green[:12]}: {why}")
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )
