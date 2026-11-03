@@ -118,6 +118,7 @@ ORDER = [
     "close 27 wakes.tell (sight, client, world, budget)",
     "close 30 waiting.cadence",
     "close 40 chores.began (world)",
+    "close 45 green.move",
     "close 50 chores.daily",
     "close 55 daywarnings.keep (sight, world)",
     "close 60 chores.sweep (budget)",

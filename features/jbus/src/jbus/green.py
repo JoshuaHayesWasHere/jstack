@@ -1,9 +1,9 @@
 """`move` keeps the copy of jstack that this machine's commands run from at main's last green tip.
 
 jbus, jmerge and jgauge are what revert or fix a red main ("Main is not red" in
-`features/jmerge/docs/jmerge.md`), so a main that breaks must not break them. They do not run
-from the live checkout, where any branch or any red tip of main may be checked out. They run
-from the green copy: a clone of the checkout at `${XDG_DATA_HOME:-~/.local/share}/jstack/green`
+`features/jmerge/docs/jmerge.md`), so a main that breaks must not break them. They do not
+run from the live checkout, where any branch or any red tip of main may be checked out. They
+run from the green copy: a clone of the checkout at `${XDG_DATA_HOME:-~/.local/share}/jstack/green`
 (`path`), which `install.sh` makes (`make`) once jbus's config names the checkout as a project.
 uv's tool `jstack`, whose commands the units run, is an editable install of the copy, and each
 harness's layout links its `source` to it, so `uv run --project "$T/../source" jbus` in a home
