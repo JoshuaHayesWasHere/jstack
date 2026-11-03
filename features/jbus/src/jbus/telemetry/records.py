@@ -770,4 +770,4 @@ SOURCES: tuple[Source, ...] = (
     ),
 )
 """Each source by its table. A source added here has its table made by a migration of its own
-(`jbus.telemetry.schema.MIGRATIONS`), never by the first."""
+(`jbus.telemetry.migrations`), never by the first."""

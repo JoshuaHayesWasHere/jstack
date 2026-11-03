@@ -11,8 +11,11 @@ building it calls no `gh`.
 """
 
 import contextlib
+import importlib
 import io
 import json
+import shutil
+import sys
 from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 
@@ -152,6 +155,42 @@ report: a KPI added since may come anywhere among them, and these keep their ord
 def test_the_kpis_keep_the_order_of_the_scouts_report():
     names = [kpi.name for kpi in kpis.KPIS]
     assert [name for name in names if name in ORDER] == list(ORDER)
+
+
+def package_with(tmp_path, monkeypatch, name, files):
+    """A copy of the KPIs' package named `name`, with these modules added, imported."""
+    root = tmp_path / "packages"
+    shutil.copytree(kpis.__path__[0], root / name, ignore=shutil.ignore_patterns("__pycache__"))
+    for file, text in files.items():
+        (root / name / file).write_text(text)
+    monkeypatch.syspath_prepend(str(root))
+    monkeypatch.setattr(sys, "modules", dict(sys.modules))
+    return importlib.import_module(name)
+
+
+def added(name):
+    return (
+        "from jbus.telemetry.kpis import Kpi, Lacks\n\n"
+        f"KPI = Kpi({name!r}, 'speed', 'what it counts', '', None, 'lower', Lacks('a record'))\n"
+    )
+
+
+def test_a_kpi_is_added_by_a_module_and_takes_the_place_its_name_sorts_to(tmp_path, monkeypatch):
+    found = package_with(
+        tmp_path,
+        monkeypatch,
+        "added_kpis",
+        {"k24_last.py": added("Added last"), "k10_added.py": added("Added before the doors")},
+    )
+
+    doors = ORDER.index("Doors opened without your own word")
+    after = [*ORDER[:doors], "Added before the doors", *ORDER[doors:], "Added last"]
+    assert [kpi.name for kpi in found.KPIS] == after
+
+
+def test_a_module_not_named_as_a_kpis_is_refused(tmp_path, monkeypatch):
+    with pytest.raises(ImportError, match="last_one not named as"):
+        package_with(tmp_path, monkeypatch, "stray_kpis", {"last_one.py": added("Stray")})
 
 
 def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_not(machine):

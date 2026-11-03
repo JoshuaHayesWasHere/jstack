@@ -5,7 +5,7 @@ on the build. It has one table for each record file of each project (`jbus.telem
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
 `jbus.spent` keep, five snapshots, the machine's log of its passes, each
 launch's arm (`jbus.telemetry.launches`), and the messages of T3 Code's threads
-(`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.schema`).
+(`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.views`).
 It keeps a row forever, and keeps no text of a message: ids, times, counts, labels and the
 length of each text.
 
@@ -45,7 +45,7 @@ from pathlib import Path
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import cursors, kpis, launches, messages, records, schema, tokens
+from jbus.telemetry import cursors, kpis, launches, messages, migrations, records, tokens, views
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
@@ -100,11 +100,9 @@ def connect(where: Path) -> sqlite3.Connection:
 def migrate(connection: sqlite3.Connection) -> None:
     """Run each migration the store has not had, each with its new version in one transaction."""
     version = connection.execute("PRAGMA user_version").fetchone()[0]
-    for number in range(version, len(schema.MIGRATIONS)):
+    for number, sql in enumerate(migrations.MIGRATIONS[version:], version + 1):
         try:
-            connection.executescript(
-                f"BEGIN;\n{schema.MIGRATIONS[number]}PRAGMA user_version = {number + 1};\nCOMMIT;"
-            )
+            connection.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number};\nCOMMIT;")
         except sqlite3.Error:
             if connection.in_transaction:
                 connection.execute("ROLLBACK")
@@ -112,8 +110,8 @@ def migrate(connection: sqlite3.Connection) -> None:
 
 
 def _views(connection: sqlite3.Connection) -> None:
-    drops = "".join(f"DROP VIEW IF EXISTS {name};\n" for name, _ in reversed(schema.VIEWS))
-    makes = "".join(f"CREATE VIEW {name} AS {sql};\n" for name, sql in schema.VIEWS)
+    drops = "".join(f"DROP VIEW IF EXISTS {name};\n" for name, _ in reversed(views.VIEWS))
+    makes = "".join(f"CREATE VIEW {name} AS {sql};\n" for name, sql in views.VIEWS)
     connection.executescript(f"BEGIN;\n{drops}{makes}COMMIT;")
 
 

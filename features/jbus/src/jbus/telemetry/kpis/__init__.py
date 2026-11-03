@@ -1,10 +1,14 @@
 """The KPIs that say whether jstack meets its vision, and the static page of them that `jbus kpis`
 builds out of the telemetry store: each KPI against its target, this week and last.
 
-`KPIS` is the registry, one `Kpi` each, in the order of the telemetry-plane scout's report
-(`scouts/telemetry-plane.md` in the home, its section 2). A KPI is `Measured` by a weekly view of
-the store (`jbus.telemetry.schema.VIEWS`), or `Lacks` the instrument it needs, which the page
-says. The targets are the report's, which the user confirms or changes here.
+Each KPI is a module of this package, `k<NN>_<slug>.py`, whose `KPI` is one `Kpi`, and `KPIS`
+holds them in the order of the modules' names (`jbus.telemetry.entries`). `NN` is the KPI's place
+on the page: the first 23 are in the order of the telemetry-plane scout's report
+(`scouts/telemetry-plane.md` in the home, its section 2), and a KPI added since takes a number
+after them, or between two where it belongs there. Two KPIs of the same number are in the order
+of their slugs. A KPI is `Measured` by a weekly view of the store (`jbus.telemetry.views`), or
+`Lacks` the instrument it needs, which the page says. The targets are the report's, which the
+user confirms or changes in the KPI's module.
 
 A week starts on Sunday in the user's zone, as the views' `week` does. Each week of the two gets
 its own `Reading`: its value, how many it is of, and its `Status`. This week is the one so far.
@@ -22,6 +26,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Literal
 
+from jbus.telemetry import entries
+
 Status = Literal["met", "missed", "tracked", "no data", "not covered"]
 """A measured KPI's week: at its target or past it, `tracked` where it has no target,
 `no data` where nothing in the week counts toward it, and `not covered` where the week begins
@@ -38,6 +44,9 @@ class Covers:
     gaps: str
     kept: str
 
+
+KPI_MODULE = r"k\d\d_[a-z0-9_]+"
+"""The name of a KPI's module: its place on the page, two digits, and its slug."""
 
 ROWS = "jbus's row records"
 """The records a KPI over merged rows reads, whose first day `rows_since` gives."""
@@ -85,240 +94,6 @@ class Reading:
     n: int
     status: Status
     note: str = ""
-
-
-NO_TEXT = "the store keeps no text of a message (2026-11-02)"
-
-KPIS: tuple[Kpi, ...] = (
-    Kpi(
-        "PR open to merge, median",
-        "speed",
-        "minutes from a pull request's opening to its merge, of those jmerge merged",
-        "min",
-        10,
-        "lower",
-        Measured("weekly_pr_to_merge", "median", "n"),
-    ),
-    Kpi(
-        "Lead time, go to merge, median (DORA)",
-        "speed",
-        "minutes from a row's go to its merge (S5)",
-        "min",
-        30,
-        "lower",
-        Measured("weekly_lead_time", "median", "n", since="rows_since", records=ROWS),
-    ),
-    Kpi(
-        "Change failure rate, push checks (DORA)",
-        "main",
-        "merged rows whose pull request opened a red spell of main's push checks (S6), of the "
-        "projects and days whose push checks the store keeps",
-        "%",
-        2,
-        "lower",
-        Measured(
-            "weekly_change_failure",
-            "100.0 * rate",
-            "merged",
-            covers=Covers("ci_projects", "ci_gaps", "push check of main"),
-            since="rows_since",
-            records=ROWS,
-        ),
-    ),
-    Kpi(
-        "Time to restore main, median (DORA)",
-        "main",
-        "minutes from a push check's first failure on main to its next pass (S7)",
-        "min",
-        15,
-        "lower",
-        Measured("weekly_restore", "median", "spells"),
-    ),
-    Kpi(
-        "Merges a week (DORA frequency)",
-        "speed",
-        "rows merged in the week",
-        "",
-        None,
-        "higher",
-        Measured("weekly_merges", "merged", "merged", empty=0, since="rows_since", records=ROWS),
-    ),
-    Kpi(
-        "Your typed messages per merged row",
-        "attention",
-        "messages you typed, not resume clicks, over rows merged in the week",
-        "",
-        0.5,
-        "lower",
-        Measured("weekly_typed_per_row", "per_row", "merged", since="rows_since", records=ROWS),
-    ),
-    Kpi(
-        "'What needs me' asks",
-        "attention",
-        "times you asked what needs you",
-        "",
-        0,
-        "lower",
-        Lacks(
-            "a label of what each message asks, recorded as it is written: the ask ledger "
-            f"joins a message to its row, answer or reply, not to what it asked; {NO_TEXT}"
-        ),
-    ),
-    Kpi(
-        "Rows finished with no further word",
-        "autonomy",
-        "merged rows with no message you typed after their go naming them: cited by an act on "
-        "the row, or typed in its crew's thread (S1)",
-        "%",
-        95,
-        "higher",
-        Measured("weekly_no_word", "share", "merged", since="rows_since", records=ROWS),
-    ),
-    Kpi(
-        "Gates closed by silence that were wrong (S8)",
-        "attention",
-        "closes by silence later corrected, over closes with a known outcome",
-        "%",
-        5,
-        "lower",
-        Lacks("a scout's labels each week (gate-labels)"),
-    ),
-    Kpi(
-        "Doors opened without your own word",
-        "safety",
-        "door acts done by a home, a bot or jbus, not by you",
-        "",
-        0,
-        "lower",
-        Measured("weekly_doors", "not_yours", "done", empty=0),
-    ),
-    Kpi(
-        "Spend per merged row (M units)",
-        "cost",
-        "jgauge spend units of a merged row's own threads, of every provider, over the "
-        "week's merged rows with any call recorded",
-        "M",
-        None,
-        "lower",
-        Measured("weekly_row_spend", "per_row", "rows"),
-    ),
-    Kpi(
-        "Coordination share of spend",
-        "cost",
-        "jbus sends and homes over all spend, of the runs jgauge spend counts",
-        "%",
-        20,
-        "lower",
-        Measured("weekly_spend", "coordination", "days"),
-    ),
-    Kpi(
-        "Dollars per merged row",
-        "cost",
-        "billed dollars over rows merged",
-        "$",
-        None,
-        "lower",
-        Lacks("cost_usd from the agents' OpenTelemetry (design C) or a price table"),
-    ),
-    Kpi(
-        "Crew first-round share",
-        "quality",
-        "merged pull requests with no red check and no wait on a crew's fix round, of those "
-        "whose pull_request checks the CI ledger kept",
-        "%",
-        50,
-        "higher",
-        Measured(
-            "weekly_first_round",
-            "share",
-            "n",
-            since="fix_rounds_since",
-            records="jmerge's waits labelled as a crew's fix round",
-        ),
-    ),
-    Kpi(
-        "Redo rate",
-        "quality",
-        "merged rows a later row fixes or reverts within 7 days",
-        "%",
-        5,
-        "lower",
-        Lacks("a record of the merged row a later row fixes or reverts: no record names it"),
-    ),
-    Kpi(
-        "Capped minutes (every instance capped)",
-        "reliability",
-        "minutes a day with every agent instance capped",
-        "min",
-        0,
-        "lower",
-        Lacks("a record of capped spells: the limits files hold the current value only"),
-    ),
-    Kpi(
-        "Capped-failure share of spend",
-        "reliability",
-        "spend of runs that failed on a usage limit or part way, over all spend, of the runs "
-        "jgauge spend counts",
-        "%",
-        1,
-        "lower",
-        Measured("weekly_spend", "capped", "days"),
-    ),
-    Kpi(
-        "Stall minutes per merged row",
-        "speed",
-        "minutes a running row was quiet or hung",
-        "min",
-        None,
-        "lower",
-        Lacks("a record of how long a row was quiet: hung.jsonl stopped on 2026-10-26"),
-    ),
-    Kpi(
-        "Lost asks (S3)",
-        "attention",
-        "asks of yours with no row, answer or reply",
-        "",
-        0,
-        "lower",
-        Measured("weekly_lost_asks", "lost", "typed", empty=0),
-    ),
-    Kpi(
-        "jbus pass, median seconds",
-        "speed",
-        "wall clock of one jbus pass",
-        "s",
-        30,
-        "lower",
-        Measured("weekly_pass_time", "median", "n"),
-    ),
-    Kpi(
-        "Waiting for jmerge, PR p50 minutes",
-        "speed",
-        "minutes a green pull request waits for jmerge",
-        "min",
-        0.25,
-        "lower",
-        Lacks("jmerge's waits in seconds: merge.log stamps minutes, not when a blocker cleared"),
-    ),
-    Kpi(
-        "Crew first load, KB (jstack's own)",
-        "cost",
-        "skill and playbook read before a crew's work",
-        "KB",
-        16,
-        "lower",
-        Lacks("the installed files' size as a record a week: it is measured by hand"),
-    ),
-    Kpi(
-        "Drift: standing words broken (S4)",
-        "attention",
-        "probed standing instructions broken at the week's end",
-        "",
-        0,
-        "lower",
-        Lacks("the probes run each week: they are a fixed list run by hand"),
-    ),
-)
 
 
 def week_of(day: date) -> date:
@@ -509,3 +284,9 @@ def page(found: Board, now: datetime) -> str:
         f"<th>last week, {last_span}</th><th>this week, {this_span}</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table></body></html>\n"
     )
+
+
+KPIS: tuple[Kpi, ...] = tuple(
+    module.KPI for module in entries.modules(__name__, __path__, KPI_MODULE)
+)
+"""Each module's `KPI`, in the order of the modules' names."""

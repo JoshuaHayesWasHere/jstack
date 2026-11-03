@@ -4,8 +4,8 @@ T3 Code keeps every message of every thread in its own store (`boxes.store()`), 
 it read only. A row here is one message, of the user or of the assistant: its id, its thread,
 who wrote it, when, and the `kind` of a user's message. It keeps no text: as a user's message is
 read, `kind` is worked out of its first few hundred characters, and only the label and the
-text's length are kept. The view `ask_ledger` (`jbus.telemetry.schema`) joins each message the
-user typed to the row, the answer or the reply that followed it.
+text's length are kept. The view `ask_ledger` (`jbus.telemetry.views.ask_ledger`) joins each
+message the user typed to the row, the answer or the reply that followed it.
 
 A word the user said where T3 Code has no message of theirs, through the bots' chat or the view,
 is a message too: `jbus word` keeps it as an act (`jbus.word`), and each build writes a row for
