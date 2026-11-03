@@ -373,9 +373,6 @@ def test_a_rule_broken_before_tlc_throws_a_java_exception_keeps_its_paths_with_a
         )
 
 
-# The tail of a -continue run of FlowToday.tla's NoMergeTurnsMainRed under TLC 2.19, which
-# printed 50957 broken paths before it threw. The second exception's message has a colon of its
-# own, and no class name before it.
 ARRAYCOPY_TAIL = """Error: Invariant NoMergeTurnsMainRed is violated.
 Error: Evaluating invariant NoMergeTurnsMainRed failed.
 arraycopy: length -4890 is negative
@@ -403,7 +400,8 @@ Finished in 28s at (2026-11-03 02:21:28)
 
 def test_an_exception_message_with_a_colon_is_not_taken_for_its_class():
     """a broken rule TLC failed to print keeps its paths with a warning when the exception's
-    message has a colon and no class name before it"""
+    message has a colon and no class name before it, as in the tail of a -continue run of
+    FlowToday.tla's NoMergeTurnsMainRed under TLC 2.19 that printed 50957 broken paths"""
     assert tlc_output_warning(ARRAYCOPY_TAIL, "tlc.out") == (
         "TLC found that NoMergeTurnsMainRed is broken, and then failed with"
         " java.lang.ArrayIndexOutOfBoundsException: arraycopy: length -4890 is negative. TLC"
