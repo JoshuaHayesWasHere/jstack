@@ -1,7 +1,7 @@
 # Gate labels
 
-A gate label says what happened after a gate closed, so the week's report can give S8, the wrong closes of gates.
-A scout labels each week's gates by this page, and the report reads what it wrote.
+A gate label says what happened after a gate closed, so the week's report and the KPI page can give S8, the wrong closes of gates.
+A scout labels each week's gates by this page, and the report and the telemetry store read what it wrote.
 `jbus ci --report` queues that scout as the row `scout-gate-labels-<the week's first day>`, and its request lists the gates to label.
 
 ## The file
@@ -20,7 +20,7 @@ The file is tab-separated, with a header line and one row per gate.
 | `klass` | one of the classes below |
 | `note` | what a later reader needs to check the label, or nothing |
 
-S8 reads `key` and `outcome`.
+S8 reads `key` and `outcome`, and takes the week from the file's name, not from its `week` column.
 A file may have more columns, and the report reads none of them.
 Who closed the gate is no label: the report takes it from the gate's record in jbus.
 
@@ -37,6 +37,13 @@ The chosen option is the default where silence closed the gate, and the user's a
 
 S8 counts `corrected` and `other_done` as wrong, over the gates labelled `stood`, `corrected` or `other_done`.
 It counts only the gates that silence or the user's word closed, each closer apart.
+
+## Where S8 shows
+
+`jbus ci --report` gives a line for each labelled week, and queues the scout for the week that ended last where it has no file.
+`jbus telemetry` keeps each file's labels in the store's `gate_labels` table, and a file written again replaces the labels it gave before.
+Its view `weekly_wrong_closes` gives each labelled week's wrong closes, of silence's closes and of the user's word's.
+`jbus kpis` shows silence's share as S8, with the user's word's beside it, and says "not covered" for a week with no file.
 
 ## Classes
 

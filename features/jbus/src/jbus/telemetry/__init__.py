@@ -4,10 +4,11 @@ The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a rea
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
 `jbus.spent` keep, five snapshots, the machine's log of its passes, each
-launch's arm (`jbus.telemetry.launches`), and the messages of T3 Code's threads
-(`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.views`).
-It keeps a row forever, and keeps no text of a message: ids, times, counts, labels and the
-length of each text.
+launch's arm (`jbus.telemetry.launches`), the messages of T3 Code's threads
+(`jbus.telemetry.messages`), and the gate labels a scout writes each week
+(`jbus.telemetry.labels`). Its views give the KPIs (`jbus.telemetry.views`). It keeps a row
+forever, save a gate label its week's file replaces, and keeps no text of a message: ids, times,
+counts, labels and the length of each text.
 
 A build reads only what is new. A log is read on from `cursors`, the file's inode, the hash of
 its first line and the offset its last build read to, and only to its last newline, so a line
@@ -45,7 +46,17 @@ from pathlib import Path
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import cursors, kpis, launches, messages, migrations, records, tokens, views
+from jbus.telemetry import (
+    cursors,
+    kpis,
+    labels,
+    launches,
+    messages,
+    migrations,
+    records,
+    tokens,
+    views,
+)
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
@@ -275,6 +286,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
             read(connection, name, source, file, zone, built)
         messages.read(connection, config, zone, built, most)
         launches.read(connection, config, zone, built)
+        labels.read(connection, config, built)
         _tokens(config, connection, zone, most, built)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(
