@@ -1,17 +1,21 @@
 """Check what README.md, the docs and the skills say about the tree: `check-jstack-docs.py [root]`.
 
 This is a stdlib port of pstack's check-pstack-docs.mjs, and `make check` and `make check-fast`
-run it. It reads the tree once and checks each page against it:
+run it. It reads the tree once and checks each page of `docs_of` against it: README.md,
+CATALOG.md, CONTRIBUTING.md, SECURITY.md, every page of the docs and every skill's `SKILL.md`.
 
 - slash commands: a `/<name>` in prose, or as the first word of a code span or of a line of a
   fenced block, is a skill under `skills/` or in `EXTERNAL`. The same holds for
   "the `<name>` skill".
-- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/gates.md`)
-  exists. The script skips a path that holds a placeholder or a glob. It also skips a path with
-  a `/` before it, since such a path points somewhere else. A harness reads a skill from its
-  layout. So a skill may also name a playbook, a template, a hook or a skill's file at the place
-  where the layout puts it (`playbooks/<p>.md`, `templates/<t>`, `hooks/<h>`,
-  `skills/<n>/<file>`), even after a move has put the file somewhere else in the source tree.
+- paths: a path that starts at a folder of `ROOTS` (`skills/<n>/SKILL.md`, `templates/gates.md`,
+  `features/jbus/src/jbus/digest.py`, `scripts/`, `testing/`, `.github/`) exists, or is in
+  `ELSEWHERE` with the reason it is not in this tree. The script skips a path that holds a
+  placeholder or a glob. It also skips a path with a `/` before it, since such a path points
+  somewhere else. A skill may name a file beside its own `SKILL.md` (`scripts/runs.sh`). A harness
+  reads a skill from its layout. So a skill may also name a playbook, a template, a hook or a
+  skill's file at the place where the layout puts it (`playbooks/<p>.md`, `templates/<t>`,
+  `hooks/<h>`, `skills/<n>/<file>`), even after a move has put the file somewhere else in the
+  source tree.
 - links and anchors: a relative Markdown link outside code points at a file that exists. A link
   with a `#anchor` into a Markdown file points at a heading of that file, as GitHub slugs the
   heading. The script skips fences and adds `-N` to a repeated heading.
@@ -52,11 +56,29 @@ EXTERNAL = {
     "tmp": "the machine's temporary folder",
     "proc": "the machine's process folder",
 }
+# Paths that start at a folder of `ROOTS` and are no path of this tree, each with the reason.
+ELSEWHERE = {
+    "scripts/deploy": "another repo's deploy command, an example of a door in the-queue.md",
+}
 PROSE_SLASH = re.compile(r"(?<![\w/.~<>$-])/([a-z][a-z0-9-]*)(?![\w/-]|\.\w)")
 NAMED_SKILL = re.compile(r"`([a-z][a-z0-9-]*)` skills?\b|\bskills? `([a-z][a-z0-9-]*)`")
 PRINCIPLE = "principle-"
-ROOTS = ("skills", "templates", "playbooks", "principles", "hooks", "docs")
-TREE_PATH = re.compile(rf"(?<![\w/.~<>*$-])((?:{'|'.join(ROOTS)})/[\w.-]+(?:/[\w.-]+)*)")
+ROOTS = (
+    "skills",
+    "templates",
+    "playbooks",
+    "principles",
+    "hooks",
+    "docs",
+    "features",
+    "scripts",
+    "testing",
+    ".github",
+)
+TREE_PATH = re.compile(
+    rf"(?<![\w/.~<>*$-])((?:{'|'.join(map(re.escape, ROOTS))})/[\w.-]+(?:/[\w.-]+)*)"
+)
+FRONT = ("README.md", "CATALOG.md", "CONTRIBUTING.md", "SECURITY.md")
 LINK = re.compile(r"\]\(<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\)")
 SCHEME = re.compile(r"([a-z][a-z0-9+.-]*:|//)", re.I)
 HEADING = re.compile(r"#{1,6}\s+(.*?)\s*#*\s*$")
@@ -236,11 +258,11 @@ def playbook_files(root: Path) -> list[Path]:
 
 
 def docs_of(root: Path) -> list[Doc]:
-    """The README, the catalog where there is one, every page of the docs tree, and each
-    skill's `SKILL.md`, in that order."""
+    """The README and each other page of `FRONT` the tree has, every page of the docs tree, and
+    each skill's `SKILL.md`, in that order."""
     pages = [
         root / "README.md",
-        *(page for page in [root / "CATALOG.md"] if page.is_file()),
+        *(root / name for name in FRONT[1:] if (root / name).is_file()),
         *sorted((root / "docs").rglob("*.md")),
         *sorted(root.glob("features/*/docs/**/*.md")),
         *skill_files(root),
@@ -304,8 +326,9 @@ def paths(tree: Tree, doc: Doc) -> Found:
     for line in doc.lines:
         for path in TREE_PATH.findall(re.sub(r"\]\([^)]*\)", "]", line.text)):
             path = path.rstrip(".,:;")
-            there = (tree.root / path).exists() or tree.principle(path)
-            if not there and not (doc.is_skill and tree.laid(path)):
+            there = (tree.root / path).exists() or tree.principle(path) or path in ELSEWHERE
+            beside = doc.is_skill and ((doc.path.parent / path).exists() or tree.laid(path))
+            if not there and not beside:
                 why = f"{path} is named and the tree has no such path"
                 found.append((line.number, why))
     return found

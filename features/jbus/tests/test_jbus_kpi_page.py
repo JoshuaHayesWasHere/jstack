@@ -5,14 +5,15 @@ The tests write two projects' records as jbus writes them, compile them with the
 `jbus telemetry`, build the page with the real `jbus kpis`, and read the page as its reader
 does: its table's cells. A KPI the store measures shows its target, each week's value and
 whether it met the target; one the store has no instrument for says so. The page holds no text a
-record carried, no project's name and no path, `jleak` finds nothing in it, and building it
-calls no `gh`.
+record carried, no row and no path, and names only the projects a KPI says it covers, the projects
+whose push checks of main the change failure rate counts. `jleak` finds nothing else in it, and
+building it calls no `gh`.
 """
 
 import contextlib
 import io
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 
 import pytest
@@ -24,6 +25,12 @@ from test_jbus_telemetry import NOW, SECRET, T3, Machine, act_citing, job, recor
 
 THIS = "2026-10-28"
 """A day of the fixture's this week, which starts on Sunday 2026-10-25."""
+FIRST = datetime(2026, 10, 14, 15, 0, tzinfo=UTC)
+"""The fixture's first row record, a Wednesday: the week of 2026-10-11 begins before it."""
+
+
+def first_item(at):
+    return {"at": at.isoformat(timespec="seconds"), "id": "w0.1", "item": "w0", "verb": "proposed"}
 
 
 class Cells(HTMLParser):
@@ -82,6 +89,7 @@ def machine(tmp_path, monkeypatch):
     snapshots(found, "alpha", [("alpha-one", 10, NOW + timedelta(hours=1))])
     records(found, "beta", last, "beta-one", 11)
     snapshots(found, "beta", [("beta-one", 11, last + timedelta(hours=1))])
+    found.append("beta", "items.jsonl", first_item(FIRST))
     found.append(
         "alpha",
         "acts.jsonl",
@@ -100,8 +108,12 @@ def machine(tmp_path, monkeypatch):
 
 
 def page(machine):
+    return page_of(machine, THIS)
+
+
+def page_of(machine, week):
     out = machine.root / "page" / "kpis.html"
-    code, said = run("--week", THIS, "--out", str(out))
+    code, said = run("--week", week, "--out", str(out))
     assert code == 0, said
     cells = Cells()
     cells.feed(out.read_text())
@@ -125,7 +137,9 @@ def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_
     assert doors[4] == "0 n 0 met"
     assert doors[5] == "1 n 1 missed"
     assert rows["Time to restore main, median (DORA)"][5] == "n/a n 0 no data"
-    assert rows["Change failure rate, push checks (DORA)"][5] == "0% n 1 met"
+    assert rows["Change failure rate, push checks (DORA)"][5] == (
+        "n/a n 0 no data: covers no project, since the store keeps no push check of main"
+    )
     assert rows["Merges a week (DORA frequency)"][5] == "1 n 1 tracked"
     assert rows["Crew first-round share"][5] == (
         "n/a n 0 not covered: jmerge's waits labelled as a crew's fix round have no line yet"
@@ -251,6 +265,26 @@ def test_the_page_holds_no_record_text_no_project_and_no_path_and_jleak_finds_no
         assert jleak_cli.main(["--patterns", str(patterns), str(out)]) == 0
 
 
+def test_a_page_that_names_the_project_it_covers_names_no_other_and_jleak_finds_nothing(machine):
+    machine.append("alpha", "ci.jsonl", job(1, "c1", 10, "success", NOW + timedelta(hours=1)))
+    machine.build()
+
+    out, _, _ = page(machine)
+    text = out.read_text()
+
+    assert "covers alpha" in text
+    assert "beta" not in text
+    assert "alpha-one" not in text
+    assert str(machine.root) not in text
+    assert SECRET not in text
+    patterns = machine.root / "outbound.toml"
+    patterns.write_text(
+        f"[patterns]\nproject = '\\bbeta\\b'\nhome-path = '{machine.root}'\nsaid = '{SECRET}'\n"
+    )
+    with contextlib.redirect_stdout(io.StringIO()):
+        assert jleak_cli.main(["--patterns", str(patterns), str(out)]) == 0
+
+
 def test_building_the_page_calls_no_gh(machine):
     page(machine)
 
@@ -266,3 +300,35 @@ def test_with_no_store_it_refuses_and_writes_nothing(tmp_path, monkeypatch):
     assert code == 2
     assert said.startswith("refused: no telemetry store")
     assert not out.exists()
+
+
+def test_a_week_that_begins_before_the_row_records_shows_no_value_and_says_why(machine):
+    _, rows, _ = page_of(machine, "2026-10-21")
+
+    why = "n/a n 0 not covered: jbus's row records begin on 2026-10-14, after the week does"
+    for name in (
+        "Lead time, go to merge, median (DORA)",
+        "Merges a week (DORA frequency)",
+        "Change failure rate, push checks (DORA)",
+        "Your typed messages per merged row",
+    ):
+        assert rows[name][4] == why, name
+    assert rows["Lead time, go to merge, median (DORA)"][5] == "59 min n 1 missed"
+    assert rows["Merges a week (DORA frequency)"][5] == "1 n 1 tracked"
+
+
+def test_the_change_failure_rate_names_the_projects_it_covers_and_the_days_it_lacks(machine):
+    machine.append("alpha", "ci.jsonl", job(1, "c1", 10, "success", NOW + timedelta(hours=1)))
+    snapshots(
+        machine,
+        "alpha",
+        [("alpha-one", 10, NOW + timedelta(hours=1)), ("alpha-two", 12, NOW - timedelta(days=2))],
+    )
+    machine.write("alpha", "queue.json", [{"slug": "alpha-one"}, {"slug": "alpha-two"}])
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["Change failure rate, push checks (DORA)"][5] == (
+        "0% n 1 met: covers alpha; no push check of main kept for 1 merged row, on 2026-10-26"
+    )

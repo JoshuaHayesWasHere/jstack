@@ -617,6 +617,71 @@ def test_spells_restore_and_change_failure_follow_the_push_checks_on_main(machin
     assert failure == [("2026-10-25", 2, 5)]
 
 
+def merged_rows(machine, project, rows):
+    """Merged rows of (slug, number, merged time), each with its pull request in `ci-prs.jsonl`."""
+    snapshots(machine, project, rows)
+    machine.write(project, "queue.json", [{"slug": slug} for slug, _, _ in rows])
+
+
+def test_the_change_failure_rate_counts_only_projects_whose_push_checks_the_store_holds(machine):
+    machine.append(
+        "alpha",
+        "ci.jsonl",
+        job(1, "c1", 1, "failure", NOW),
+        job(2, "c2", 2, "success", NOW + timedelta(minutes=10)),
+    )
+    merged_rows(machine, "alpha", [("a-1", 1, NOW), ("a-2", 2, NOW + timedelta(minutes=9))])
+    merged_rows(machine, "beta", [("b-1", 3, NOW), ("b-2", 4, NOW + timedelta(minutes=9))])
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        failure = store.execute(
+            "SELECT week, failures, merged FROM weekly_change_failure"
+        ).fetchall()
+        assert failure == [("2026-10-25", 1, 2)]
+        assert store.execute("SELECT project FROM ci_projects").fetchall() == [("alpha",)]
+
+
+def test_a_merged_row_with_no_push_check_kept_is_a_gap_the_rate_leaves_out(machine):
+    gap = NOW - timedelta(days=2)
+    machine.append("alpha", "ci.jsonl", job(1, "c1", 1, "success", NOW))
+    merged_rows(machine, "alpha", [("a-1", 1, NOW), ("a-0", 9, gap)])
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        failure = store.execute(
+            "SELECT week, failures, merged FROM weekly_change_failure"
+        ).fetchall()
+        assert failure == [("2026-10-25", 0, 1)]
+        gaps = store.execute("SELECT project, day, week FROM ci_gaps").fetchall()
+        assert gaps == [("alpha", "2026-10-26", "2026-10-25")]
+
+
+def test_a_prs_merge_day_is_its_own_merge_line_not_an_older_repos_of_the_same_number(machine):
+    opened = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    machine.append(
+        "alpha",
+        "merge.log",
+        f"2026-10-12 12:00 merged 7 old-row {'a' * 40}",
+        f"2026-10-28 12:00 merged 7 new-row {'b' * 40}",
+        home=True,
+    )
+    (machine.state("alpha") / "ci-prs.jsonl").write_text(
+        json.dumps(
+            {
+                "number": 7,
+                "branch": "new-row",
+                "created": iso(opened),
+                "merged": iso(opened + timedelta(days=1, hours=1)),
+                "pushes": [],
+            }
+        )
+        + "\n"
+    )
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        times = store.execute("SELECT pr, day, week, minutes FROM pr_times").fetchall()
+    assert times == [(7, "2026-10-28", "2026-10-25", 1500.0)]
+
+
 def test_a_pass_builds_the_store_with_what_its_project_logged_before_it(kitchen):
     box = wake.Box(kitchen.state, jbus.load().project("demo"))
     box.record("note", "a note", SECRET)

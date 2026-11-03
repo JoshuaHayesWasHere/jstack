@@ -4,7 +4,6 @@
 
 A wake is what jbus sends a home when a pass finds an item for it.
 It goes to one place, the project's home thread through T3 Code, and jbus has no webhook.
-A config that still has `wake`, `webhook_url` or `webhook_key`, at the top or in a `[[project]]`, loads, and jbus ignores those keys.
 
 A wake is one `wakes` message, a `t3_thread_send` to the thread in the home's `home-id`, in queue mode.
 A project whose home has no thread sends its wakes to the thread in a top-level `home_thread = "<thread id>"`, where the config has one.
@@ -116,7 +115,7 @@ It is in the log, which `jbus events` prints and the view shows.
 
 A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).
 A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
-The routine events, `merged`, `stale`, `retro`, `gate`, `stall`, `waiting` and `recovered`, go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
+The routine events, `merged`, `stale`, `retro`, `revert`, `gate`, `stall`, `waiting` and `recovered` (`jbus.digest.ROUTINE`), go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
 A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
 
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
