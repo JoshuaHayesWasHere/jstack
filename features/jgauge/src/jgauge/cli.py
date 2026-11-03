@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from datetime import UTC, date, datetime, timedelta
+from fractions import Fraction
 from pathlib import Path
 
 import jroles
@@ -139,6 +140,12 @@ def _local(asked: str) -> datetime:
     except ValueError as error:
         raise argparse.ArgumentTypeError(f"{asked!r} is not an ISO date and time") from error
     return at.astimezone()
+
+
+def _rate(rate: float) -> str:
+    """A spend rate as the help prints it: `1.25` as it is, and `5/3` as a fraction."""
+    short = f"{rate:g}"
+    return short if float(short) == rate else str(Fraction(rate).limit_denominator(1000))
 
 
 def _day(asked: str) -> date:
@@ -390,9 +397,11 @@ def parser() -> argparse.ArgumentParser:
         help="print Claude spend by kind, instance and five-hour window, and the minutes each"
         " day with every Claude instance capped",
         description="Read T3 Code's store read-only and print the Claude spend of a period in"
-        " units (uncached input x1, cache write x1.25, cache read x0.1, output x5, Opus x5/3),"
-        " by kind of run, by instance and by five-hour window, then each day's minutes with"
-        " every Claude instance capped, from the runs' usage-limit failures and their resets."
+        f" units (uncached input x{_rate(spend.PLAIN)}, cache write x{_rate(spend.WRITTEN)},"
+        f" cache read x{_rate(spend.CACHED)}, output x{_rate(spend.OUTPUT)},"
+        f" Opus x{_rate(spend.OPUS)}), by kind of run, by instance and by five-hour window,"
+        " then each day's minutes with every Claude instance capped, from the runs' usage-limit"
+        " failures and their resets."
         " Times are local.",
     )
     spent.add_argument(

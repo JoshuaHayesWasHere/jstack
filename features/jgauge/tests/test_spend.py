@@ -8,14 +8,17 @@ A run spends TOKENS unless it says otherwise: 3,000,000 input tokens (1,800,000 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 from datetime import datetime
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
 
 from jgauge import cli
+from jgauge import spend as jspend
 
 SCHEMA = """
 create table projection_projects (project_id text primary key, title text not null);
@@ -272,3 +275,32 @@ def test_the_store_is_left_as_it_was(store, capsys):
 
     assert store.path.read_bytes() == before
     assert sorted(p.name for p in store.path.parent.iterdir()) == ["statev2.sqlite"]
+
+
+def help_rates(capsys) -> dict[str, float]:
+    with pytest.raises(SystemExit):
+        cli.main(["spend", "--help"])
+    shown = " ".join(capsys.readouterr().out.split())
+    kinds = {"uncached input": "PLAIN", "cache write": "WRITTEN", "cache read": "CACHED"}
+    kinds |= {"output": "OUTPUT", "Opus": "OPUS"}
+    rates = {}
+    for words, name in kinds.items():
+        found = re.search(rf"\b{words} x([0-9.]+(?:/[0-9]+)?)", shown)
+        assert found, f"the help names no rate for {words}"
+        rates[name] = float(Fraction(found[1]))
+    return rates
+
+
+def test_the_help_names_the_rates_spend_weighs_by(capsys):
+    names = ("PLAIN", "WRITTEN", "CACHED", "OUTPUT", "OPUS")
+    named = {name: getattr(jspend, name) for name in names}
+
+    assert help_rates(capsys) == pytest.approx(named)
+
+
+def test_the_help_follows_a_change_to_the_rates(capsys, monkeypatch):
+    changed = {"PLAIN": 2, "WRITTEN": 3.5, "CACHED": 0.25, "OUTPUT": 7, "OPUS": 4 / 3}
+    for name, rate in changed.items():
+        monkeypatch.setattr(jspend, name, rate)
+
+    assert help_rates(capsys) == pytest.approx(changed)
