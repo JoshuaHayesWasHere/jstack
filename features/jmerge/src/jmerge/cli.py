@@ -49,9 +49,9 @@ LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
     "files,changedFiles,isDraft"
 )
-# The most open pull requests `gh pr list` is asked for, the cap jbus's own lists use. Left
-# unsaid, `gh` gives 30.
 LIMIT = 100
+"""The most open pull requests `gh pr list` is asked for, the cap jbus's own lists use. Left
+unsaid, `gh` gives 30."""
 PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
 REQUIRED_CHECKS = "required-checks"
