@@ -12,6 +12,7 @@ import importlib
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import stat
@@ -921,7 +922,14 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
     """A store read before messages kept what they ask is migrated, reads every message and
     every word again, and ends with the labels a store built from nothing has."""
     from jbus.telemetry import migrations, views
+    from jbus.telemetry.migrations import v007_asks
 
+    before = migrations.MIGRATIONS.index(v007_asks.SQL)
+    later = "".join(
+        f"DROP TABLE {name};"
+        for sql in migrations.MIGRATIONS[before + 1 :]
+        for name in re.findall(r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", sql)
+    )
     t3, home = T3(), "mcp:home-a"
     t3.thread(home, "alpha-id")
     t3.say("m-asks", home, NOW, text=ASKS)
@@ -934,8 +942,8 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         signed = store.execute("SELECT value FROM meta WHERE name = 'messages'").fetchone()[0]
         views = "".join(f"DROP VIEW {name};" for name, _ in reversed(views.VIEWS))
         store.executescript(
-            f"{views}ALTER TABLE messages DROP COLUMN asks; ALTER TABLE acts DROP COLUMN asks; "
-            f"PRAGMA user_version = {len(migrations.MIGRATIONS) - 1};"
+            f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
+            f"ALTER TABLE acts DROP COLUMN asks; PRAGMA user_version = {before};"
         )
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",
