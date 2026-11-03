@@ -12,7 +12,7 @@ calls no `gh`.
 import contextlib
 import io
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 
 import pytest
@@ -24,6 +24,12 @@ from test_jbus_telemetry import NOW, SECRET, T3, Machine, act_citing, job, recor
 
 THIS = "2026-10-28"
 """A day of the fixture's this week, which starts on Sunday 2026-10-25."""
+FIRST = datetime(2026, 10, 14, 15, 0, tzinfo=UTC)
+"""The fixture's first row record, a Wednesday: the week of 2026-10-11 begins before it."""
+
+
+def first_item(at):
+    return {"at": at.isoformat(timespec="seconds"), "id": "w0.1", "item": "w0", "verb": "proposed"}
 
 
 class Cells(HTMLParser):
@@ -82,6 +88,7 @@ def machine(tmp_path, monkeypatch):
     snapshots(found, "alpha", [("alpha-one", 10, NOW + timedelta(hours=1))])
     records(found, "beta", last, "beta-one", 11)
     snapshots(found, "beta", [("beta-one", 11, last + timedelta(hours=1))])
+    found.append("beta", "items.jsonl", first_item(FIRST))
     found.append(
         "alpha",
         "acts.jsonl",
@@ -100,8 +107,12 @@ def machine(tmp_path, monkeypatch):
 
 
 def page(machine):
+    return page_of(machine, THIS)
+
+
+def page_of(machine, week):
     out = machine.root / "page" / "kpis.html"
-    code, said = run("--week", THIS, "--out", str(out))
+    code, said = run("--week", week, "--out", str(out))
     assert code == 0, said
     cells = Cells()
     cells.feed(out.read_text())
@@ -125,7 +136,9 @@ def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_
     assert doors[4] == "0 n 0 met"
     assert doors[5] == "1 n 1 missed"
     assert rows["Time to restore main, median (DORA)"][5] == "n/a n 0 no data"
-    assert rows["Change failure rate, push checks (DORA)"][5] == "0% n 1 met"
+    assert rows["Change failure rate, push checks (DORA)"][5] == (
+        "n/a n 0 no data: covers no project, since the store keeps no push check of main"
+    )
     assert rows["Merges a week (DORA frequency)"][5] == "1 n 1 tracked"
     assert rows["Crew first-round share"][5] == (
         "n/a n 0 not covered: jmerge's waits labelled as a crew's fix round have no line yet"
@@ -266,3 +279,35 @@ def test_with_no_store_it_refuses_and_writes_nothing(tmp_path, monkeypatch):
     assert code == 2
     assert said.startswith("refused: no telemetry store")
     assert not out.exists()
+
+
+def test_a_week_that_begins_before_the_row_records_shows_no_value_and_says_why(machine):
+    _, rows, _ = page_of(machine, "2026-10-21")
+
+    why = "n/a n 0 not covered: jbus's row records begin on 2026-10-14, after the week does"
+    for name in (
+        "Lead time, go to merge, median (DORA)",
+        "Merges a week (DORA frequency)",
+        "Change failure rate, push checks (DORA)",
+        "Your typed messages per merged row",
+    ):
+        assert rows[name][4] == why, name
+    assert rows["Lead time, go to merge, median (DORA)"][5] == "59 min n 1 missed"
+    assert rows["Merges a week (DORA frequency)"][5] == "1 n 1 tracked"
+
+
+def test_the_change_failure_rate_names_the_projects_it_covers_and_the_days_it_lacks(machine):
+    machine.append("alpha", "ci.jsonl", job(1, "c1", 10, "success", NOW + timedelta(hours=1)))
+    snapshots(
+        machine,
+        "alpha",
+        [("alpha-one", 10, NOW + timedelta(hours=1)), ("alpha-two", 12, NOW - timedelta(days=2))],
+    )
+    machine.write("alpha", "queue.json", [{"slug": "alpha-one"}, {"slug": "alpha-two"}])
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["Change failure rate, push checks (DORA)"][5] == (
+        "0% n 1 met: covers alpha; no push check of main kept on 2026-10-26"
+    )
