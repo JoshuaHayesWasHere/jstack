@@ -21,10 +21,17 @@ The cause of a push is the last such event of its pull request in the two hours 
 It reads `ci-prs.jsonl` and `events.jsonl` in that state directory and prints the counts.
 
 With `--files`, it also prints a table of what lay under each `conflict` and `crew fix` push, the
-counts adding up to the two lines above it. It asks GitHub for each push's commits, one call for
-each 20 pull requests, and asks git, in the repo it runs in, which files conflicted with main at the
-told event and at the push. Run it in a worktree with `origin/main` fetched, since it fetches the
-commits GitHub no longer has on a branch."""
+counts adding up to the two lines above it, and a table of each file that conflicted under them,
+with the kinds of its hunks, read with `merge.conflictStyle=diff3`: `insert` where both sides add
+lines at one place in the base (two rows appending to one list), `renumber` where only a number
+changed, `edit` where both sides changed a line, `whole-file` where the file has no markers. The
+file with the most `insert` hunks is its top line: the next list to split into one file per entry.
+Under it, each row of `SPLITS` that does such a split says how many insert hunks its paths took
+before its merge and since, which is none where the split worked. It asks GitHub for each push's
+commits, one call for each 20 pull requests, and asks git, in the repo it runs in, which files
+conflicted with main at the told event and at the push, each over the main of its moment. Run it in
+a worktree with `origin/main` fetched, since it fetches the commits GitHub no longer has on a
+branch."""
 
 from __future__ import annotations
 
@@ -75,7 +82,30 @@ LISTS = {
 MAPS = ("/spec/", "tests/test_flow_spec.py", "tests/test_home_tree_spec.py", "main_red_model.py")
 # A push is as hard as the hardest file that conflicted, so it is cut only when all of them are.
 HARDEST = (NUMBERS, GENERATED, SPECS, LIST, DOCS, "code")
-HUNK = re.compile(r"^<{7} .*?\n(.*?)^\|{7} .*?\n.*?^={7}\n(.*?)^>{7} .*?$", re.S | re.M)
+# What one conflict hunk is, read with merge.conflictStyle=diff3: both sides add lines where the
+# base has none (two rows append to one list), the sides differ only in their numbers, or any other;
+# a conflicted file with no markers (a delete, a binary) conflicted as a whole.
+KINDS = ("insert", "renumber", "edit", "whole-file")
+# The rows that split a list two rows kept adding to into one file per entry, and the paths of the
+# list before the split and of its entries after it: after its merge none should take an insert.
+SPLITS = {
+    "tm-kpi-registry-split": (
+        "features/jbus/src/jbus/telemetry/kpis.py",
+        "features/jbus/src/jbus/telemetry/kpis/",
+        "features/jbus/src/jbus/telemetry/schema.py",
+        "features/jbus/src/jbus/telemetry/migrations/",
+        "features/jbus/src/jbus/telemetry/views/",
+    ),
+    "tm-source-modules": (
+        "features/jbus/src/jbus/telemetry/records.py",
+        "features/jbus/src/jbus/telemetry/sources/",
+        "features/jbus/docs/jbus/the-telemetry-store.md",
+        "features/jbus/tests/test_jbus_telemetry.py",
+    ),
+    "verbs-one-line-lists": ("features/jbus/docs/jbus/the-verbs.md",),
+}
+# A push a file conflicted under: when, the pull request's number, and the kinds of its hunks.
+Hit = tuple[datetime, int, list[str]]
 PUSHES = """
 query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { %s } }
 """
@@ -159,7 +189,10 @@ def causes(pulls: list[dict], events: list[dict], since: datetime, until: dateti
 
 
 def ran(repo: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+    """git's answer, a binary file it shows read with its undecodable bytes replaced."""
+    return subprocess.run(
+        ["git", *args], cwd=repo, capture_output=True, text=True, errors="replace"
+    )
 
 
 def git(repo: Path, *args: str) -> str:
@@ -177,6 +210,43 @@ def merged_over(repo: Path, main: str, head: str) -> tuple[str, list[str]] | Non
     return lines[0], lines[1:]
 
 
+def hunks_in(repo: Path, tree: str, path: str) -> list[tuple[str, str, str]]:
+    """Each conflict hunk of one file of a merged tree, as its (ours, base, theirs) text."""
+    found: list[tuple[str, str, str]] = []
+    side: dict[str, list[str]] | None = None
+    part = ""
+    for line in git(repo, "show", f"{tree}:{path}").splitlines():
+        if line.startswith("<<<<<<< "):
+            side, part = {"ours": [], "base": [], "theirs": []}, "ours"
+        elif side is None:
+            continue
+        elif line.startswith("||||||| "):
+            part = "base"
+        elif line == "=======":
+            part = "theirs"
+        elif line.startswith(">>>>>>> "):
+            found.append(tuple("\n".join(side[k]) for k in ("ours", "base", "theirs")))
+            side = None
+        else:
+            side[part].append(line)
+    return found
+
+
+def same_but_numbers(ours: str, theirs: str) -> bool:
+    return re.sub(r"\d+", "N", ours) == re.sub(r"\d+", "N", theirs)
+
+
+def hunk_kinds(repo: Path, tree: str, path: str) -> list[str]:
+    """The kind of each conflict hunk of one file of a merged tree, as `KINDS` names them."""
+    kinds = []
+    for ours, base, theirs in hunks_in(repo, tree, path):
+        if not base.strip() and ours.strip() and theirs.strip():
+            kinds.append("insert")
+        else:
+            kinds.append("renumber" if same_but_numbers(ours, theirs) else "edit")
+    return kinds or ["whole-file"]
+
+
 def kind_of_file(repo: Path, tree: str, path: str) -> str:
     """What conflicted in one file. A hunk whose two sides differ only in their digits is a cite
     of a line that moved."""
@@ -184,8 +254,8 @@ def kind_of_file(repo: Path, tree: str, path: str) -> str:
         return LIST
     if path.endswith(("uv.lock", "CATALOG.md", ".png")) or "/fixtures/" in path:
         return GENERATED
-    hunks = HUNK.findall(git(repo, "show", f"{tree}:{path}"))
-    if hunks and all(re.sub(r"\d+", "N", a) == re.sub(r"\d+", "N", b) for a, b in hunks):
+    hunks = hunks_in(repo, tree, path)
+    if hunks and all(same_but_numbers(ours, theirs) for ours, _, theirs in hunks):
         return NUMBERS
     if any(part in path for part in MAPS):
         return SPECS
@@ -212,28 +282,34 @@ def reason_of(
     at_event: str,
     branch: str,
     branches: dict[int, str],
-) -> tuple[str, list[str]]:
-    """What lay under one push from `before` to `after`, and the files of that kind that conflicted
-    over main at the told event, or over main at the push. A commit git cannot read, or a merge
-    or merge base it cannot work out, is not known, never a push with no conflict."""
+) -> tuple[str, list[str], dict[str, list[str]]]:
+    """What lay under one push from `before` to `after`, the files of that kind that conflicted
+    over main at the told event, or over main at the push, and the kinds of the hunks of every file
+    that conflicted, read where it conflicted at the told event, else at the push. A commit git
+    cannot read, or a merge or merge base it cannot work out, is not known, never a push with no
+    conflict."""
     commits = (before, after, at_push, at_event)
     if any(ran(repo, "cat-file", "-e", f"{c}^{{commit}}").returncode for c in commits):
-        return UNKNOWN, []
+        return UNKNOWN, [], {}
     pushed, told_then = merged_over(repo, at_push, before), merged_over(repo, at_event, before)
     if pushed is None or told_then is None:
-        return UNKNOWN, []
+        return UNKNOWN, [], {}
     tree, files = pushed[0], sorted({*pushed[1], *told_then[1]})
     if not files:
         bases = [ran(repo, "merge-base", head, at_push) for head in (before, after)]
         if any(base.returncode for base in bases):
-            return UNKNOWN, []
-        return (REBASED if bases[0].stdout != bases[1].stdout else REWRITTEN), []
+            return UNKNOWN, [], {}
+        return (REBASED if bases[0].stdout != bases[1].stdout else REWRITTEN), [], {}
+    hunks = {
+        path: hunk_kinds(repo, told_then[0] if path in told_then[1] else tree, path)
+        for path in files
+    }
     kinds = {path: kind_of_file(repo, tree, path) for path in files}
     hardest = max(kinds.values(), key=HARDEST.index)
     hard = [path for path, kind in kinds.items() if kind == hardest]
     if hardest != "code":
-        return hardest, hard
-    return against(repo, branch, branches, hard, at_push, before), hard
+        return hardest, hard, hunks
+    return against(repo, branch, branches, hard, at_push, before), hard, hunks
 
 
 def pushed_commits(repo: Path, numbers: list[int]) -> dict[tuple[int, datetime], tuple[str, str]]:
@@ -263,18 +339,43 @@ def pushed_commits(repo: Path, numbers: list[int]) -> dict[tuple[int, datetime],
     return found
 
 
-def main_at(repo: Path) -> list[tuple[datetime, str]]:
-    """Each commit of `origin/main` with when it landed, the oldest first, in the order of its first
-    parents, so two that landed in one second keep their order."""
-    log = git(repo, "log", "--first-parent", "--format=%cI %H", "origin/main").splitlines()
-    return [(when(line.split()[0]), line.split()[1]) for line in reversed(log)]
+def main_moves(repo: Path, pulls: list[dict]) -> list[tuple[datetime, str]]:
+    """Each commit main has been, with when it landed, the oldest first. Main was rewritten on
+    2026-10-23, so today's `origin/main` has other commits for the merges before then, which no
+    head of that time shares a history with: a pull request's merge commit is main from its merge
+    on where its first parent was main before it, and a merge into another row's branch is not. A
+    commit of today's `origin/main` that names no such pull request is main from its commit time,
+    in the order of its first parents, so two that landed in one second keep their order."""
+    log = git(repo, "log", "--first-parent", "--format=%cI %H %s", "origin/main").splitlines()
+    today = [(line.split(" ", 2) + [""])[:3] for line in reversed(log)]
+    on_main = {commit for _, commit, _ in today}
+    merges = sorted(
+        (when(one["merged"]), one["merge_commit"], int(one["number"]))
+        for one in pulls
+        if one.get("merged") and one.get("merge_commit")
+    )
+    shown = git(repo, "log", "--no-walk=unsorted", "--format=%H %P", *[c for _, c, _ in merges])
+    first_parent = {line.split()[0]: line.split()[1:2] for line in shown.splitlines()}
+    moves, numbers = [], set()
+    for merged, commit, number in merges:
+        if commit in on_main or set(first_parent.get(commit, [])) & on_main:
+            on_main.add(commit)
+            moves.append((merged, commit))
+            numbers.add(number)
+    for at, commit, subject in today:
+        named = re.search(r"\(#(\d+)\)$", subject)
+        if not (named and int(named[1]) in numbers):
+            moves.append((when(at), commit))
+    return sorted(moves, key=lambda move: move[0])
 
 
 def explained(
     repo: Path, pulls: list[dict], events: list[dict], since: datetime, until: datetime
-) -> tuple[dict[str, Counter], dict[str, Counter]]:
-    """The reason under each `conflict` and `crew fix` push, counted for each cause, and the files
-    that conflicted for each reason."""
+) -> tuple[dict[str, Counter], dict[str, Counter], dict[str, list[Hit]], int]:
+    """The reason under each `conflict` and `crew fix` push, counted for each cause, the files
+    that conflicted for each reason, for each file that conflicted each push it conflicted under
+    with the kinds of its hunks, and how many pushes that leaves out: those of a pull request
+    merged into another row's branch, which main was never the base of."""
     told_pushes = [
         (one, pushed, event)
         for one, pushed, event in pushes_of(pulls, events, since, until)
@@ -282,25 +383,33 @@ def explained(
     ]
     numbers = sorted({int(one["number"]) for one, _, _ in told_pushes})
     commits = pushed_commits(repo, numbers)
-    landed = main_at(repo)
+    landed = main_moves(repo, pulls)
     branches = {int(one["number"]): one["branch"] for one in pulls}
+    onto_main = {commit for _, commit in landed}
 
     def main_then(moment: datetime) -> str:
         return [commit for at, commit in landed if at <= moment][-1]
 
     counted: dict[str, Counter] = {cause: Counter() for cause in EXPLAINED}
     files: dict[str, Counter] = defaultdict(Counter)
+    hunks: dict[str, list[Hit]] = defaultdict(list)
+    elsewhere = 0
     for one, pushed, event in told_pushes:
         pair = commits.get((int(one["number"]), pushed))
         if pair is None:
             counted[event[1]][UNKNOWN] += 1
             continue
-        reason, conflicted = reason_of(
+        reason, conflicted, kinds = reason_of(
             repo, *pair, main_then(pushed), main_then(event[0]), one["branch"], branches
         )
         counted[event[1]][reason] += 1
         files[reason].update(conflicted)
-    return counted, files
+        if one.get("merge_commit") and one["merge_commit"] not in onto_main:
+            elsewhere += 1
+            continue
+        for path, of_path in kinds.items():
+            hunks[path].append((pushed, int(one["number"]), of_path))
+    return counted, files, hunks, elsewhere
 
 
 def table(counted: dict[str, Counter], files: dict[str, Counter]) -> list[str]:
@@ -315,6 +424,75 @@ def table(counted: dict[str, Counter], files: dict[str, Counter]) -> list[str]:
         )
     totals = [str(sum(counted[cause].values())) for cause in EXPLAINED]
     lines.append(f"| all | {totals[0]} | {totals[1]} | |")
+    return lines
+
+
+def split_of(path: str) -> str:
+    return next((row for row, paths in SPLITS.items() if path.startswith(paths)), "")
+
+
+def by_file(
+    hunks: dict[str, list[Hit]],
+    pulls: list[dict],
+    until: datetime,
+    elsewhere: int = 0,
+) -> list[str]:
+    """The Markdown table of each file that conflicted, with the pushes it conflicted under and its
+    hunks by kind, first the file the most rows took an `insert` hunk in, then the most `insert`
+    hunks: the list rows keep adding to is the top line.
+    Under it, how many pushes it leaves out, and a line for each row of `SPLITS`: the insert hunks
+    in its paths before its merge and since."""
+    counted = {
+        path: Counter(k for _, _, kinds in pushed for k in kinds) for path, pushed in hunks.items()
+    }
+    rows = {path: {number for _, number, _ in pushed} for path, pushed in hunks.items()}
+    adding = {
+        path: {number for _, number, kinds in pushed if "insert" in kinds}
+        for path, pushed in hunks.items()
+    }
+    order = sorted(
+        hunks,
+        key=lambda path: (
+            -len(adding[path]),
+            -counted[path]["insert"],
+            -counted[path].total(),
+            path,
+        ),
+    )
+    lines = ["| Conflicted file | Rows | Pushes | Hunks | Split into one file per entry by |"]
+    lines.append("|---|---|---|---|---|")
+    for path in order:
+        shown = ", ".join(f"{kind} {counted[path][kind]}" for kind in KINDS if counted[path][kind])
+        split = f" {split_of(path)} " if split_of(path) else " "
+        lines.append(f"| `{path}` | {len(rows[path])} | {len(hunks[path])} | {shown} |{split}|")
+    merges = {one["branch"]: one for one in pulls if one.get("merged")}
+    lines.append("")
+    if elsewhere:
+        pushes = "push" if elsewhere == 1 else "pushes"
+        lines.append(
+            f"Left out: {elsewhere} {pushes} of pull requests merged into another row's branch, "
+            "which main was never the base of."
+        )
+        lines.append("")
+    for row in SPLITS:
+        inserts = [
+            (at, kinds.count("insert"))
+            for path, pushed in hunks.items()
+            if split_of(path) == row
+            for at, _, kinds in pushed
+        ]
+        merged = merges.get(row)
+        if merged is None or when(merged["merged"]) >= until:
+            before = sum(n for _, n in inserts)
+            lines.append(f"- {row}, not merged: {before} insert hunks before it")
+            continue
+        at = when(merged["merged"])
+        before = sum(n for pushed, n in inserts if pushed < at)
+        since = sum(n for pushed, n in inserts if pushed >= at)
+        lines.append(
+            f"- {row} (#{merged['number']}), merged {at:%Y-%m-%dT%H:%MZ}: {before} insert hunks "
+            f"before it, {since} since"
+        )
     return lines
 
 
@@ -341,7 +519,12 @@ def main() -> int:
         print(f"{cause}: {counted[cause]}")
     if args.files:
         print()
-        print("\n".join(table(*explained(Path.cwd(), pulls, events, args.since, args.until))))
+        counted, files, hunks, elsewhere = explained(
+            Path.cwd(), pulls, events, args.since, args.until
+        )
+        print("\n".join(table(counted, files)))
+        print()
+        print("\n".join(by_file(hunks, pulls, args.until, elsewhere)))
     return 0
 
 

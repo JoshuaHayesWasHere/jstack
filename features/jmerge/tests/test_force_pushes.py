@@ -171,7 +171,7 @@ def test_a_commit_git_cannot_read_is_not_known_and_never_a_push_with_no_conflict
     gone = "0" * 40
     assert reason(repo, gone, main, head) == pushes.UNKNOWN
     assert reason(repo, head, main, gone) == pushes.UNKNOWN
-    assert pushes.reason_of(repo, head, head, gone, main, "row", {}) == (pushes.UNKNOWN, [])
+    assert pushes.reason_of(repo, head, head, gone, main, "row", {}) == (pushes.UNKNOWN, [], {})
 
 
 def test_a_merge_or_a_merge_base_git_cannot_work_out_is_not_known(repo):
@@ -181,8 +181,8 @@ def test_a_merge_or_a_merge_base_git_cannot_work_out_is_not_known(repo):
     head, main = branch_over(repo, {"mine.txt": "mine\n"}, {"theirs.txt": "theirs\n"})
     git(repo, "checkout", "-q", "--orphan", "alone")
     alone = commit(repo, {"alone.txt": "alone\n"}, "alone")
-    assert pushes.reason_of(repo, head, head, main, alone, "row", {}) == (pushes.UNKNOWN, [])
-    assert pushes.reason_of(repo, head, alone, main, main, "row", {}) == (pushes.UNKNOWN, [])
+    assert pushes.reason_of(repo, head, head, main, alone, "row", {}) == (pushes.UNKNOWN, [], {})
+    assert pushes.reason_of(repo, head, alone, main, main, "row", {}) == (pushes.UNKNOWN, [], {})
 
 
 def stamp(moment):
@@ -194,27 +194,163 @@ def test_explained_joins_each_told_push_to_its_commits_and_main_then(repo, monke
     it, the commits GitHub gives for it and the main of that moment, from `origin/main`."""
     head, main = branch_over(repo, {"code.py": "two\n"}, {"code.py": "three\n"})
     git(repo, "update-ref", "refs/remotes/origin/main", main)
+    git(repo, "checkout", "-q", "-b", "train", head)
+    into_train = commit(repo, {"train.txt": "train\n"}, "a merge into the train")
     landed = datetime.fromisoformat(git(repo, "log", "-1", "--format=%cI", main))
     told_at, pushed_at = landed + timedelta(minutes=1), landed + timedelta(minutes=5)
     pulls = [
         pull(7, "row", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1))),
         pull(8, "lost", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1))),
+        pull(10, "on-a-train", stamp(pushed_at), merged=stamp(pushed_at + timedelta(hours=1)))
+        | {"merge_commit": into_train},
     ]
     rebase = "jbus: main moved under your pull request #7 (it conflicts with its base)."
     events = [
         event("rebase", "row", stamp(told_at), "told (#7)", rebase),
         event("failed", "lost", stamp(told_at), "told (#8)"),
+        event("rebase", "on-a-train", stamp(told_at), "told (#10)", rebase),
     ]
     asked = []
 
     def from_github(_repo, numbers):
         asked.append(numbers)
-        return {(7, pushes.when(stamp(pushed_at))): (head, head)}
+        pushed = pushes.when(stamp(pushed_at))
+        return {(7, pushed): (head, head), (10, pushed): (head, head)}
 
     monkeypatch.setattr(pushes, "pushed_commits", from_github)
     since, until = landed - timedelta(days=1), landed + timedelta(days=1)
-    counted, files = pushes.explained(repo, pulls, events, since, until)
-    assert asked == [[7, 8]]
-    assert counted["conflict"] == Counter({pushes.ROWS: 1})
+    counted, files, hunks_of, elsewhere = pushes.explained(repo, pulls, events, since, until)
+    assert asked == [[7, 8, 10]]
+    assert counted["conflict"] == Counter({pushes.ROWS: 2})
     assert counted["crew fix"] == Counter({pushes.UNKNOWN: 1})
-    assert files[pushes.ROWS] == Counter({"code.py": 1})
+    assert files[pushes.ROWS] == Counter({"code.py": 2})
+    assert hunks_of == {"code.py": [(pushes.when(stamp(pushed_at)), 7, ["edit"])]}
+    assert elsewhere == 1, "#10 merged into another row's branch: main was never its base"
+    assert "1 push of pull requests merged into another row's branch" in "\n".join(
+        pushes.by_file(hunks_of, pulls, until, elsewhere)
+    )
+
+
+def hunks(repo, ours, theirs, start=None):
+    """The kinds of the hunks of each file that conflicts where a row and main each change the
+    start: a branch and a main that each commit over it."""
+    if start:
+        commit(repo, start, "start (#8)")
+    head, main = branch_over(repo, ours, theirs)
+    return pushes.reason_of(repo, head, head, main, main, "row", {})[2]
+
+
+def test_two_rows_that_each_append_to_one_list_conflict_by_an_insert(repo):
+    start = {"kinds.py": "KINDS = [\n    'one',\n]\n"}
+    ours = {"kinds.py": "KINDS = [\n    'one',\n    'two',\n]\n"}
+    theirs = {"kinds.py": "KINDS = [\n    'one',\n    'three',\n]\n"}
+    assert hunks(repo, ours, theirs, start) == {"kinds.py": ["insert"]}
+
+
+def test_two_rows_that_change_only_a_number_conflict_by_a_renumber(repo):
+    start = {"limit.py": "LIMIT = 10  # the pushes a day\n"}
+    ours = {"limit.py": "LIMIT = 11  # the pushes a day\n"}
+    theirs = {"limit.py": "LIMIT = 12  # the pushes a day\n"}
+    assert hunks(repo, ours, theirs, start) == {"limit.py": ["renumber"]}
+
+
+def test_two_rows_that_each_rewrite_a_line_conflict_by_an_edit(repo):
+    assert hunks(repo, {"code.py": "two\n"}, {"code.py": "three\n"}) == {"code.py": ["edit"]}
+
+
+def test_two_rows_that_each_add_a_file_to_one_package_do_not_conflict(repo):
+    start = {"pkg/__init__.py": "", "pkg/one.py": "ONE = 1\n"}
+    commit(repo, start, "start (#8)")
+    head, main = branch_over(repo, {"pkg/two.py": "TWO = 2\n"}, {"pkg/three.py": "THREE = 3\n"})
+    assert pushes.reason_of(repo, head, head, main, main, "row", {}) == (pushes.REWRITTEN, [], {})
+
+
+def test_a_file_with_no_markers_conflicted_as_a_whole(repo):
+    start = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "-b", "row", start)
+    git(repo, "rm", "-q", "code.py")
+    git(repo, "commit", "-qm", "row")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "main")
+    main = commit(repo, {"code.py": "three\n"}, "other (#9)")
+    assert pushes.reason_of(repo, head, head, main, main, "row", {})[2] == {
+        "code.py": ["whole-file"]
+    }
+
+
+def test_a_binary_file_that_conflicted_has_no_markers_and_conflicted_as_a_whole(repo):
+    start = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "-b", "row", start)
+    (repo / "a.png").write_bytes(b"\x89PNG\r\n\x00two")
+    git(repo, "commit", "-qam", "row")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "main")
+    (repo / "a.png").write_bytes(b"\x89PNG\r\n\x00three")
+    git(repo, "commit", "-qam", "other (#9)")
+    main = git(repo, "rev-parse", "HEAD")
+    assert pushes.reason_of(repo, head, head, main, main, "row", {})[1:] == (
+        ["a.png"],
+        {"a.png": ["whole-file"]},
+    )
+
+
+AT = datetime.fromisoformat("2026-11-02T12:00:00+00:00")
+
+
+def test_the_file_two_rows_keep_adding_to_is_the_top_line_with_the_row_that_splits_it():
+    """One row that pushed twice over one conflict adds more insert hunks than two rows that each
+    added once, but the list two rows keep adding to comes first."""
+    kpis = "features/jbus/src/jbus/telemetry/kpis.py"
+    hunks_of = {
+        "code.py": [(AT, 5, ["edit", "edit"]), (AT, 6, ["edit"])],
+        "one-row.py": [(AT, 7, ["insert", "insert"]), (AT, 7, ["insert", "insert"])],
+        kpis: [(AT, 5, ["insert", "edit"]), (AT, 6, ["insert"])],
+        "cite.md": [(AT, 5, ["renumber"])],
+    }
+    lines = pushes.by_file(hunks_of, [], UNTIL)
+    rows = [line for line in lines if line.startswith("| `")]
+    assert rows[0] == f"| `{kpis}` | 2 | 2 | insert 2, edit 1 | tm-kpi-registry-split |"
+    assert rows[1:] == [
+        "| `one-row.py` | 1 | 2 | insert 4 | |",
+        "| `code.py` | 2 | 2 | edit 3 | |",
+        "| `cite.md` | 1 | 1 | renumber 1 | |",
+    ]
+    assert "tm-kpi-registry-split, not merged: 2 insert hunks before it" in "\n".join(lines)
+
+
+def test_a_split_that_merged_says_how_many_insert_hunks_came_before_it_and_after():
+    store = "features/jbus/docs/jbus/the-telemetry-store.md"
+    later = AT + timedelta(hours=2)
+    split = pull(950, "tm-source-modules", merged=stamp(AT + timedelta(hours=1)))
+    hunks_of = {
+        store: [(AT, 5, ["insert", "insert"])],
+        "features/jbus/src/jbus/telemetry/sources/one.py": [(later, 6, ["edit"])],
+    }
+    said = "\n".join(pushes.by_file(hunks_of, [split], UNTIL))
+    assert (
+        "tm-source-modules (#950), merged 2026-11-02T13:00Z: 2 insert hunks before it, 0 since"
+    ) in said
+
+
+def test_a_push_from_before_mains_rewrite_replays_against_the_main_it_saw(repo):
+    """Main was rewritten on 2026-10-23: today's main has other commits for the merges before it.
+    A row's main then is the merge commit of the last pull request merged into main before it,
+    and a merge into another row's branch is not main."""
+    start = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "-b", "train")
+    commit(repo, {"train.txt": "a row\n"}, "a row on the train")
+    train = commit(repo, {"train.txt": "train\n"}, "into a train (#5)")
+    git(repo, "checkout", "-q", "main")
+    seen = commit(repo, {"cite.md": "see a.py:20\n"}, "seen (#6)")
+    git(repo, "checkout", "-q", "-b", "today", start)
+    rewritten = commit(repo, {"code.py": "rewritten\n"}, "seen (#6)")
+    later = commit(repo, {"code.py": "later\n"}, "a push to main with no pull request")
+    git(repo, "update-ref", "refs/remotes/origin/main", later)
+    stamps = {c: git(repo, "log", "-1", "--format=%cI", c) for c in (train, seen, later)}
+    pulls = [
+        {"number": 5, "branch": "five", "merged": stamps[train], "merge_commit": train},
+        {"number": 6, "branch": "six", "merged": stamps[seen], "merge_commit": seen},
+    ]
+    moves = [commit for _, commit in pushes.main_moves(repo, pulls)]
+    assert seen in moves and later in moves
+    assert train not in moves and rewritten not in moves
