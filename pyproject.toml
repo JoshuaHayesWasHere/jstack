@@ -13,7 +13,6 @@ dependencies = [
 # generated: scripts by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 jbriefs = "jbriefs.cli:main"
 jbus = "jbus.cli:main"
-jbus-mcp = "jbus_mcp.cli:main"
 jdrift = "jdrift.cli:main"
 jgauge = "jgauge.cli:main"
 jinstall = "jinstall.cli:main"

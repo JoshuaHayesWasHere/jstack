@@ -6,7 +6,6 @@ scripts/generate-jstack-trees.py writes this file from each features/*/feature.j
 COMMANDS = {
     "briefs": ("jbriefs", "jbriefs.cli:main"),
     "bus": ("jbus", "jbus.cli:main"),
-    "bus-mcp": ("jbus-mcp", "jbus_mcp.cli:main"),
     "drift": ("jdrift", "jdrift.cli:main"),
     "gauge": ("jgauge", "jgauge.cli:main"),
     "install": ("jinstall", "jinstall.cli:main"),

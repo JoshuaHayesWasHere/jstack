@@ -5,9 +5,6 @@
   "packages": [
     "src/jbus_mcp"
   ],
-  "commands": {
-    "jbus-mcp": "jbus_mcp.cli:main"
-  },
   "docs": [
     "docs/jbus-mcp.md"
   ]

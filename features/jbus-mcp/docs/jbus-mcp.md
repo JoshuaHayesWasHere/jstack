@@ -14,7 +14,7 @@ It runs nothing else: no merge, no `jmerge`, no `--rule`, no `--follows`, no `--
 | `jbus_queue_show` | `jbus --project <name> queue show [--all]` |
 | `jbus_queue_add` | `jbus --project <name> queue add <slug> --priority <n> [--depends <slugs>]`, with the brief on stdin |
 | `jbus_queue_approve` | `jbus --project <name> queue approve <slug> --sha <sha12> --message <thread>/<message>` |
-| `jbus_answer` | `jbus --project <name> answer <number> --message <thread>/<message> --default\|--differs` |
+| `jbus_answer` | `jbus --project <name> answer <number> --message <thread>/<message>`, with `--default` or `--differs` |
 
 The four reads are the Chef's reads of [What the Chef may run](../../jbus/docs/jbus/what-the-chef-may-run.md).
 The feed is `jbus events`, so the server never calls `jbus view` and never holds the bot's key.

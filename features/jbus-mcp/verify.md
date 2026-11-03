@@ -6,7 +6,7 @@ Paths:
 - `features/jbus-mcp/src/jbus_mcp/`
 - `features/jbus-mcp/docs/`
 - `features/jbus-mcp/deploy/`
-Tests: `features/jbus-mcp/tests/`
+Tests: none
 
 ## Sub-features
 

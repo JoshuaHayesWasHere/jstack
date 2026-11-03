@@ -171,6 +171,7 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "jsettings",
         "jbriefs",
         "jbus",
+        "jbus_mcp",
         "jdrift",
         "jinstall",
         "jleak",
