@@ -179,6 +179,9 @@ def test_a_dry_run_and_a_command_that_only_names_a_door_pass_for_a_home(home, co
         f"bash <<'EOF'\n{MIGRATE}\nEOF",
         f"ssh yelena <<EOF\n{MIGRATE}\nEOF",
         f'cat <<< "x"\n{MIGRATE}',
+        "bash -lc 'git push -f'",
+        "sh -ec 'terraform apply'",
+        "git push origin main \\\n  --force",
     ],
 )
 def test_a_door_inside_a_compound_or_a_quoted_command_is_still_read(home, command):

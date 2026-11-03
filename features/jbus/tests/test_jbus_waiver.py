@@ -52,8 +52,18 @@ def test_the_users_message_about_another_row_waives_nothing(kitchen):
 
 @pytest.mark.parametrize(
     "words",
-    ["go on alpha", "waive the tests line for alpha"],
-    ids=["its go, which waives nothing", "a waiver of another line"],
+    [
+        "go on alpha",
+        "waive the tests line for alpha",
+        "do not waive anything for alpha, the docs say it",
+        "do not waive the docs say it for alpha",
+    ],
+    ids=[
+        "its go, which waives nothing",
+        "a waiver of another line",
+        "a waive that is not of the line",
+        "a waive it says not to",
+    ],
 )
 def test_the_users_message_about_the_row_that_does_not_waive_the_line_waives_nothing(
     kitchen, words

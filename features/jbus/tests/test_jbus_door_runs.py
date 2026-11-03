@@ -328,7 +328,7 @@ def test_a_message_naming_the_parked_gates_number_opens_it_and_closes_the_gate(k
     queued(kitchen)
     carried_word(kitchen, None, "deploy-prod")
     (asked,) = questions.read(kitchen.state)
-    ref = josh(kitchen, f"yes to {asked.number}")
+    ref = josh(kitchen, f"yes to question {asked.number}")
     code, said = approve(kitchen, "deploy-prod", "--message", ref, user=True)
     assert code == 0, said
     assert questions.read(kitchen.state)[0].answer.closed_by == questions.CLEARED
@@ -343,7 +343,10 @@ def test_an_answer_to_a_held_gate_names_its_number_or_its_row(kitchen):
     code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", unrelated)
     assert code == 1 and "names neither deploy-prod nor question" in said, said
     assert questions.question(kitchen.state, asked.number).answer is None
-    named = josh(kitchen, f"go on {number}, deploy it", name="named")
+    other = josh(kitchen, f"go on the {number} skills", name="other")
+    code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", other)
+    assert code == 1 and "names neither deploy-prod nor question" in said, said
+    named = josh(kitchen, f"go on q{number}, deploy it", name="named")
     code, said = kitchen.main("--as", "user", "answer", number, "--differs", "--message", named)
     assert code == 0, said
 
