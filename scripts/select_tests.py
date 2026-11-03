@@ -78,8 +78,10 @@ selection `all`, and it is `-` otherwise. A collector reads that line. With `$GI
 set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
 tree's marker on a pass of `all`. It also gives `files`, `all` or how many test files it
 printed, and `forced_by`, the path that made it `all` or nothing: the check notices both to
-`jbus ci`, which keeps them in ci.jsonl as `selection` and `reason`. With `$SELECTED` set, it
-writes what it printed to that file too, which the check keeps as an artifact.
+`jbus ci`, which keeps them in ci.jsonl as `selection` and `reason`. With `$SELECTED` set as
+well, it writes what it printed to that file too, which the check keeps as an artifact: only
+beside `$GITHUB_OUTPUT`, which the suite's fixtures clear, so a test that runs the script in
+the check's own environment leaves the step's list alone.
 
 `select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
 `<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
@@ -1228,8 +1230,6 @@ def main(argv):
         tests, why = ["all"], {"forced-by": "unread"}
     printed = "\n".join(tests)
     print(printed)
-    if os.environ.get("SELECTED"):
-        Path(os.environ["SELECTED"]).write_text(printed + "\n")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             file.write(summary(tests, why, changed) + "\n")
@@ -1246,6 +1246,8 @@ def main(argv):
             file.write(f"selection={chosen}\n")
             file.write(f"files={'all' if chosen == 'all' else len(tests)}\n")
             file.write(f"forced_by={why.get('forced-by', '')}\n")
+        if os.environ.get("SELECTED"):
+            Path(os.environ["SELECTED"]).write_text(printed + "\n")
     if count is not None:
         handed(tests, count)
 
