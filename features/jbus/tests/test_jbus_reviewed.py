@@ -294,3 +294,42 @@ def test_a_round_is_logged_once_every_reviewer_launched_for_it_wrote_its_section
         "unread",
         (NOW + timedelta(minutes=3)).isoformat(),
     )
+
+
+def test_the_last_round_of_a_pull_request_that_merged_before_a_pass_saw_it_settled_is_logged_once(
+    kitchen,
+):
+    """A round a launched reviewer still owes a section of is not settled while the pull request
+    is open. Once the pass's world shows it merged, no section is still to come: its last round
+    gets its line on that pass, and a later pass writes it no second time."""
+    seats = "".join(f"Reviewer: mcp:rev-{n} #{n}\n" for n in (1, 2, 3))
+    launched = "\n## Result\n" + seats
+    first = section("clean", "- none", head="d" * 40)
+    last = section("clean", "- none")
+    kitchen.brief("alpha", "Thread: mcp:crew\n" + launched + first + last)
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.poll(NOW)
+    assert [line["round"] for line in rounds(kitchen)] == [1]
+    kitchen.set("open.json", [])
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    one, two = rounds(kitchen)
+    assert (one["round"], one["head"], one["at"]) == (1, "d" * 40, NOW.isoformat())
+    later = (NOW + timedelta(minutes=3)).isoformat()
+    assert (two["round"], two["pr"], two["head"], two["sections"], two["at"]) == (
+        2,
+        7,
+        HEAD,
+        1,
+        later,
+    )
+
+
+def test_the_rounds_of_a_pull_request_merged_before_the_window_are_not_read(kitchen):
+    """A merge older than `MERGED_WITHIN` is past the pass that saw it: its brief is not read."""
+    kitchen.brief("alpha", "Thread: mcp:crew\n" + section("clean", "- none"))
+    ago = reviewed.MERGED_WITHIN + timedelta(minutes=1)
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40, ago=ago)])
+    kitchen.poll(NOW)
+    assert rounds(kitchen) == []

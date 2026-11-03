@@ -72,7 +72,7 @@ Two more records are what an A/B or a simulator of a dial needs (the kpi-lab bui
   A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither, from before the store could tell or after the pilot ended, reads `covered` 0, with no arm guessed.
 - `review-rounds.jsonl`: a pass adds a line for each review round of an open pull request's brief once the round is settled, that is a later round began or no reviewer the crew launched still owes its section (`jbus.reviewed.rounds`), once by row, pull request and round number.
   A round is the sections in a row that ran at one head, and a scoped pass is a round of its own.
-  A pull request that merges before a pass sees its last round settled has no line for that round.
+  A pull request the pass sees merged within the week has every round settled, so the last round of one that merged before a pass saw it settled gets its line on the first pass that sees the merge.
 
 Each line keeps ids, times, counts and labels, and no text of a finding or a review.
 The spells an account was capped are `capped.jsonl`'s reads, which say which accounts each read found capped (`capped_reads`, below).
@@ -124,7 +124,12 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 
 | View | Gives |
 |---|---|
+| `item_slugs` | each item of `items.jsonl` and the slug its first record names, read by `row_goes` |
+| `row_goes` | each row's go: the time of its items' first `approved` record, read by `lead_times` |
+| `row_moves` | each row's first move to each status in `transitions.jsonl`, read by `lead_times` |
 | `lead_times` | S5 for each merged row: minutes from its go to its merge, where the go is the earliest of its first approved item, its approval and its first launch |
+| `main_runs` | each push check on main in `ci.jsonl`: the latest attempt of each run, and its `state`, `red`, `green` or `pending`, read by `main_checks`, `ci_projects` and `ci_rows` |
+| `main_checks` | each commit of `main_runs` with its latest run, and `first`, when its first run began, read by `main_spells` |
 | `main_spells` | each red spell of the push checks on main, from the first commit whose check failed to the next commit whose check passed, with `minutes_to_green` |
 | `ci_projects` | each project whose push checks on main the store holds |
 | `ci_rows` | each merged row of a project in `ci_projects`, `kept` where the store holds a push check of main for its pull request |
@@ -147,11 +152,13 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_merges` | each week's rows `merged` |
 | `rows_since` | the first `day` of jbus's row records, `items.jsonl` |
 | `weekly_doors` | each week's door acts `done`, and `not_yours`, those a home, a bot or jbus did |
+| `pass_times` | the `seconds` of each jbus pass, by `week`, read by `weekly_pass_time` |
 | `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
 | `capped_spells` | each read of `capped_reads` and the `minutes` it holds every instance capped: up to the next read of either reader, or its `ends_at`, whichever is first, so two readers' reads of the same minutes count once |
 | `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since the pass reads every minute and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
 | `weekly_row_spend` | each merge week's `rows` with any call recorded in `row_spend`, their `units`, and `per_row` in millions |
+| `spend_kept` | each project's last line of each day `jgauge spend` counted, of `spend_days`, read by `weekly_spend` |
 | `weekly_spend` | each week of the days `jgauge spend` counted, each project's last line of a day (`spend_kept`): `days`, `units`, and in percent the `coordination` share, jbus's sends and the homes, and the `capped` share, runs that failed on a usage limit or part way |
 | `row_words` | S1 for each merged row with a go: the messages you typed, resumes apart, after its go and by its merge that name it, cited by an act of the row's project on the row or typed in its crew's thread |
 | `weekly_no_word` | each week's rows `merged`, those `quiet`, with no such message, and their `share`, in percent |
@@ -159,6 +166,10 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `redo_rows` | each merged row in the week its 7 days end, `judged` once they ended by the last build, and the first row that redid it in them (`redone_by`, `how`) |
 | `weekly_redo` | each week's rows `redone` of those `judged`, those `waiting`, and the `rate`, in percent |
 | `redo_since` | the first `day` of a follow-up's go that names its parent |
+| `drift_runs` | each run of the drift probes (`jbus.drift`): its `probes`, those `broken`, that is not held, and those `unrun`, read by `weekly_drift` |
+| `weekly_drift` | each week's S4: the week's last run of `drift_runs` |
+| `gate_outcomes` | each gate's label of a week, the first home's by name where two homes label one gate, with `closed_by`, and whether its outcome is `known` and `wrong` as `gate-labels.md` says, read by `weekly_wrong_closes` |
+| `weekly_wrong_closes` | each labelled week's S8 over its `labels`: of the gates silence closed, the known closes (`silence`), the wrong ones (`silence_wrong`) and `silence_share`, in percent, and the same of those your word closed (`word`, `word_wrong` and `word_share`) |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
