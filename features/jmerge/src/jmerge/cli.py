@@ -53,6 +53,9 @@ PROTECTED = PACKAGE / "protected.txt"
 REQUIRED_CHECKS = "required-checks"
 JUDGED_AGAIN_AT_MOST = 2
 TIMEOUT_SECONDS = 120
+FETCH_TRIES = 3
+FETCH_PAUSE_SECONDS = 0.5
+LOCKED = "cannot lock ref"
 
 
 def _run(cwd: Path, *command: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -1169,6 +1172,20 @@ class Repo:
         finally:
             lock.give()
 
+    def fetch_trunk(self) -> subprocess.CompletedProcess[str]:
+        """Fetch the default branch into the main checkout after a merge. Another process (a jbus
+        pass, a tick, a crew or a home) can fetch `origin/<trunk>` in the same checkout at the same
+        moment, and git then refuses this fetch's ref update with "cannot lock ref". That race
+        clears by itself, so the fetch is tried again, up to FETCH_TRIES in all, a short pause
+        apart. Any other failure is returned at once."""
+        fetched = _run(self.main, "git", "fetch", "-q", "origin", self.trunk)
+        for _ in range(FETCH_TRIES - 1):
+            if not fetched.returncode or LOCKED not in fetched.stderr:
+                break
+            time.sleep(FETCH_PAUSE_SECONDS)
+            fetched = _run(self.main, "git", "fetch", "-q", "origin", self.trunk)
+        return fetched
+
     def merge_holding(
         self, lock, one: ready.PullRequest, slug: str, rebase: str, judged: ready.Judged
     ) -> str:
@@ -1236,7 +1253,7 @@ class Repo:
             commit = one.head
             notes.append("that commit is its head, GitHub did not give the merge commit")
         before = _run(self.main, "git", "rev-parse", "HEAD").stdout.strip()
-        pulled = _run(self.main, "git", "fetch", "-q", "origin", self.trunk)
+        pulled = self.fetch_trunk()
         if not pulled.returncode:
             pulled = _run(self.main, *("git", "merge"), "-q", "--ff-only", f"origin/{self.trunk}")
         self.numbers_on.clear()
