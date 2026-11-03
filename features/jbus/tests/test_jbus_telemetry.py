@@ -920,7 +920,8 @@ def test_a_typed_message_keeps_whether_it_asks_what_needs_the_user_and_no_word_o
 def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machine):
     """A store read before messages kept what they ask is migrated, reads every message and
     every word again, and ends with the labels a store built from nothing has."""
-    from jbus.telemetry import migrations, views
+    from jbus.telemetry import labels, migrations, views
+    from jbus.telemetry.migrations import v007_asks
 
     t3, home = T3(), "mcp:home-a"
     t3.thread(home, "alpha-id")
@@ -935,7 +936,8 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         views = "".join(f"DROP VIEW {name};" for name, _ in reversed(views.VIEWS))
         store.executescript(
             f"{views}ALTER TABLE messages DROP COLUMN asks; ALTER TABLE acts DROP COLUMN asks; "
-            f"PRAGMA user_version = {len(migrations.MIGRATIONS) - 1};"
+            f"DROP TABLE {labels.TABLE}; DROP TABLE drift; "
+            f"PRAGMA user_version = {migrations.MIGRATIONS.index(v007_asks.SQL)};"
         )
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",
