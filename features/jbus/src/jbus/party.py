@@ -173,7 +173,9 @@ class Pick:
 
 @dataclass(frozen=True)
 class Evidence:
-    """`picks` are the labels of a question box (`t3-pick`), and no other source has any."""
+    """`picks` are the labels of a question box (`t3-pick`), and no other source has any.
+    `answers` is the bot's message that the user's words in its chat answer (`bot-chat`), as
+    the bot or the home that carries them gives it, and no other source has any."""
 
     source: Source
     ref: str
@@ -182,6 +184,7 @@ class Evidence:
     said_in: str = ""
     checked: bool = False
     picks: tuple[Pick, ...] = ()
+    answers: str = ""
 
     @property
     def basis(self) -> str:

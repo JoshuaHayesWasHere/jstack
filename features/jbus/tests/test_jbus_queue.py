@@ -327,7 +327,7 @@ def test_a_batch_applies_every_verb_and_prints_one_line_for_each(kitchen):
             f"added alpha: priority 1, brief {alpha}",
             f"added beta: priority 2, depends alpha, old, brief {beta}",
             f"approved alpha: brief {alpha}, {GO}",
-            "held old",
+            f"held old; run {RAN} by the demo home",
         ],
     )
     table = rows(kitchen)

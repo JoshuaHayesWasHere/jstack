@@ -281,21 +281,25 @@ class Writes:
 
     def act(self, name: str, body: bytes, authorization: str) -> Answer:
         """`POST /act`, the bot's own route: a go, an answer or a word, taken as the bot, on the
-        bot's word from its chat. Only a request with the bot's key is the bot's
-        (`acts.is_bot`), wherever it comes from. A go and an answer go by `jbus.acts.act`, and a
-        word by `jbus.word.keep`, as `jbus word` keeps one, and is sent at once to its home."""
+        bot's word from its chat. A word may carry `answers`, the bot's message the user's words
+        answer, which jbus keeps on the word and carries to the home under the words. Only a
+        request with the bot's key is the bot's (`acts.is_bot`), wherever it comes from. A go
+        and an answer go by `jbus.acts.act`, and a word by `jbus.word.keep`, as `jbus word`
+        keeps one, and is sent at once to its home."""
         if not acts.is_bot(self.sources.state_dir, authorization):
             return said(401, {"error": "this route is the bot's, and takes the bot's key"})
         try:
             asked = json.loads(body)
             verb, given, seen = asked["action"], asked["evidence"], asked.get("seen") or ""
             words = " ".join(str(asked.get("words") or "").split())
+            answers = asked.get("answers", "")
             if verb == "go":
                 subject, pre = asked["slug"], asked["sha12"]
                 shaped = isinstance(subject, str) and isinstance(pre, str) and len(pre) == 12
             elif verb == "word":
                 subject, pre = "", ""
                 shaped = isinstance(asked.get("words"), str) and bool(words)
+                shaped = shaped and isinstance(answers, str)
             else:
                 number, pre = asked["number"], ""
                 shaped = verb == "answer" and isinstance(number, int) and bool(words)
@@ -310,7 +314,7 @@ class Writes:
                 400,
                 {
                     "error": "an act is {action: go, slug, sha12}, {action: answer, number, "
-                    "words, keeps} or {action: word, words}, with evidence "
+                    "words, keeps} or {action: word, words, optional answers}, with evidence "
                     f"{party.CHAT} and an optional seen"
                 },
             )
@@ -327,7 +331,7 @@ class Writes:
         project = config.project(name)
         run = passes.Pass(config, project, now, say=lambda line: None)
         if verb == "word":
-            return self._word(run, heard)
+            return self._word(run, replace(heard, answers=" ".join(answers.split())))
         action = party.Action(verb, subject, pre, seen)
         try:
             made = acts.act(

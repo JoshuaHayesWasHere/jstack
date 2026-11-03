@@ -192,7 +192,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     elif args.verb in ("hold", "remove", "withdraw"):
         run = passes.Pass(config, project, datetime.now(UTC))
         made = getattr(acts, args.verb)(args, run, _asks(config, project))
-        if made.line != f"held {args.slug}":
+        if not (made.line.startswith(f"held {args.slug}; run ") and ", and " not in made.line):
             print(made.line)
     elif args.verb == "rename":
         at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())

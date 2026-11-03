@@ -482,7 +482,7 @@ Approve(p) ==
 HoldRow(p) ==
     \* A merged row's hold holds nothing.
     /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row.get("status") in judgement.FINAL:`
-    /\ go[p]                                \* features/jbus/src/jbus/queue.py `_hold(batch.row(verb.slug))`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
+    /\ go[p]                                \* features/jbus/src/jbus/queue.py `_hold(batch.row(verb.slug), by)`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
     /\ go' = [go EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
                    Fix, Browser, needs, rv, meets, kept, Judge, editsLeft>>

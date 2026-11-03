@@ -14,7 +14,7 @@ import pytest
 import jbus
 from jbus import queue
 from jmerge import judgement
-from test_jbus_kitchen import FIX_BRIEFS, SAID, Kitchen
+from test_jbus_kitchen import FIX_BRIEFS, RAN, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
 RED, OTHER_RED = "main-red-" + "a" * 12, "main-red-" + "b" * 12
@@ -111,7 +111,9 @@ def test_a_hold_of_the_root_takes_back_the_whole_chain(kitchen):
     kitchen.quiet()
     code, said = kitchen.main("queue", "hold", "alpha")
     assert code == 0, said
-    assert said.splitlines()[0].startswith(f"held alpha, and {RED}, {OTHER_RED} with it")
+    assert said.splitlines()[0].startswith(
+        f"held alpha; run {RAN} by the demo home, and {RED}, {OTHER_RED} with it"
+    )
     kitchen.poll()
     assert (went(kitchen, RED), went(kitchen, OTHER_RED)) == ((), ())
 
