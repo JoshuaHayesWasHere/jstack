@@ -380,10 +380,13 @@ def who(ran_by: dict[str, str]) -> str:
 
 def party_of(ran_by: Mapping[str, str]) -> tuple[str, str, str]:
     """Return the party that ran a command, as `runner` found it: jbus's pass or the bot by
-    name, else the directory and the session that ran it, so a shell is its directory."""
+    name, else the session that ran it wherever it ran, so a home that runs jbus from a
+    subfolder is still the home, and a shell with no session is its directory."""
     if ran_by.get("by"):
         return (ran_by["by"], "", "")
-    return ("", ran_by.get("directory", ""), ran_by.get("session", ""))
+    if ran_by.get("session"):
+        return ("", "", ran_by["session"])
+    return ("", ran_by.get("directory", ""), "")
 
 
 @dataclass(frozen=True)

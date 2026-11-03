@@ -89,6 +89,21 @@ def test_the_same_party_approves_a_second_row_on_its_own_word(kitchen):
     assert all(rows(kitchen)[slug]["approval"]["ref"] == said for slug in ("alpha", "beta"))
 
 
+def test_one_session_in_a_subfolder_is_the_same_party(kitchen):
+    for slug in ("alpha", "beta", "gamma"):
+        add(kitchen, slug, approve=False)
+    said = keep(kitchen, *TELEMETRY)
+    home(kitchen)
+    assert approve(kitchen, "alpha", "--word", said)[0] == 0
+    assert kitchen.main("queue", "hold", "beta")[0] == 0
+    sub = kitchen.checkout / "sub"
+    sub.mkdir()
+    kitchen.monkeypatch.chdir(sub)
+    assert approve(kitchen, "gamma", "--word", said)[0] == 0
+    code, out = approve(kitchen, "beta", "--word", said)
+    assert code == 0, out
+
+
 def test_a_follow_up_rules_go_is_no_act_on_the_word(kitchen):
     add(kitchen, "alpha", approve=False)
     add(kitchen, "beta", approve=False)

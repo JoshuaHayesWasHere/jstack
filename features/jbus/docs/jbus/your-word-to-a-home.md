@@ -23,7 +23,7 @@ The same message answering another bot message is still the same word: `answers`
 ## One party acts on a word
 
 A word of yours is acted on once, by one party: the home that got it, a shell, or the bot.
-A party is the directory and the session that ran the command, jbus's pass, or the bot.
+A party is the session that ran the command, wherever it ran it, a shell with no session in its directory, jbus's pass, or the bot.
 When one party has approved a row on a word, an approve on the same word by another party is refused, and nothing is queued: `refused: word <id> was acted on by <party>: <rows>`.
 That holds for `--word <id>`, for `--message` on a message of yours in T3 Code, and for the bot's go on a message of its chat, and a word and the message it was said in are one word: the bot's go on its chat message and a home's `--word` on the word kept for that message meet.
 So a carried word another party already acted on is not acted on again: the second party tells the first, or you, instead of queuing rows beside it.
