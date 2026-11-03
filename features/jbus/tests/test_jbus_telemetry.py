@@ -8,12 +8,15 @@ views give the scorecard's numbers.
 """
 
 import contextlib
+import importlib
 import io
 import json
 import os
+import shutil
 import sqlite3
 import stat
 import statistics
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -694,19 +697,76 @@ def test_a_pass_builds_the_store_with_what_its_project_logged_before_it(kitchen)
 
 
 def test_a_store_made_at_version_1_migrates_to_every_column_each_source_names(machine):
+    from jbus.telemetry import migrations
     from jbus.telemetry import records as kept
-    from jbus.telemetry import schema
 
     old, new = machine.root / "old.sqlite", machine.root / "new.sqlite"
     with contextlib.closing(sqlite3.connect(old)) as store:
-        store.executescript(f"BEGIN;\n{schema.MIGRATIONS[0]}PRAGMA user_version = 1;\nCOMMIT;")
+        store.executescript(f"BEGIN;\n{migrations.MIGRATIONS[0]}PRAGMA user_version = 1;\nCOMMIT;")
     for path in (old, new):
         telemetry.connect(path).close()
         with contextlib.closing(sqlite3.connect(path)) as store:
-            assert store.execute("PRAGMA user_version").fetchone() == (len(schema.MIGRATIONS),)
+            assert store.execute("PRAGMA user_version").fetchone() == (len(migrations.MIGRATIONS),)
             for source in kept.SOURCES:
                 columns = {row[1] for row in store.execute(f"PRAGMA table_info({source.table})")}
                 assert {name for name, _ in source.columns} <= columns, source.table
+
+
+def schema_of(path):
+    with contextlib.closing(sqlite3.connect(path)) as store:
+        version = store.execute("PRAGMA user_version").fetchone()[0]
+        found = store.execute("SELECT type, name, sql FROM sqlite_master ORDER BY name")
+        return version, found.fetchall()
+
+
+def test_a_store_at_each_earlier_version_migrates_to_the_schema_a_new_store_has(machine):
+    from jbus.telemetry import migrations
+
+    new = machine.root / "new.sqlite"
+    telemetry.connect(new).close()
+    assert schema_of(new)[0] == len(migrations.MIGRATIONS)
+    for version in range(len(migrations.MIGRATIONS)):
+        old = machine.root / f"at-{version}.sqlite"
+        with contextlib.closing(sqlite3.connect(old)) as store:
+            for number, sql in enumerate(migrations.MIGRATIONS[:version]):
+                store.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number + 1};\nCOMMIT;")
+        telemetry.connect(old).close()
+        assert schema_of(old) == schema_of(new), version
+
+
+def migrations_with(tmp_path, monkeypatch, name, files):
+    """A copy of the migrations' package named `name`, with these modules added, imported."""
+    from jbus.telemetry import migrations
+
+    root = tmp_path / "packages"
+    shutil.copytree(
+        migrations.__path__[0], root / name, ignore=shutil.ignore_patterns("__pycache__")
+    )
+    for file, text in files.items():
+        (root / name / file).write_text(text)
+    monkeypatch.syspath_prepend(str(root))
+    monkeypatch.setattr(sys, "modules", dict(sys.modules))
+    return importlib.import_module(name)
+
+
+def test_a_migration_is_added_by_a_module_after_the_last_one(tmp_path, monkeypatch):
+    from jbus.telemetry import migrations
+
+    added = 'SQL = "CREATE TABLE added (x TEXT);\\n"\n'
+    file = f"v{len(migrations.MIGRATIONS) + 1:03d}_added.py"
+    found = migrations_with(tmp_path, monkeypatch, "added_migrations", {file: added})
+
+    assert found.MIGRATIONS == (*migrations.MIGRATIONS, "CREATE TABLE added (x TEXT);\n")
+
+
+@pytest.mark.parametrize("past", [0, 2, None])
+def test_a_migration_that_is_not_one_after_the_last_is_refused(tmp_path, monkeypatch, past):
+    from jbus.telemetry import migrations
+
+    last = len(migrations.MIGRATIONS)
+    file = f"v{last + 1}_short.py" if past is None else f"v{last + past:03d}_again.py"
+    with pytest.raises(ImportError):
+        migrations_with(tmp_path, monkeypatch, "refused_migrations", {file: 'SQL = ""\n'})
 
 
 def test_a_pass_logs_its_seconds_and_the_next_build_keeps_them_as_the_machines(kitchen):

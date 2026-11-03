@@ -11,8 +11,11 @@ building it calls no `gh`.
 """
 
 import contextlib
+import importlib
 import io
 import json
+import shutil
+import sys
 from datetime import UTC, datetime, timedelta
 from html.parser import HTMLParser
 
@@ -120,11 +123,80 @@ def page_of(machine, week):
     return out, cells.rows, said
 
 
+ORDER = (
+    "PR open to merge, median",
+    "Lead time, go to merge, median (DORA)",
+    "Change failure rate, push checks (DORA)",
+    "Time to restore main, median (DORA)",
+    "Merges a week (DORA frequency)",
+    "Your typed messages per merged row",
+    "'What needs me' asks",
+    "Rows finished with no further word",
+    "Gates closed by silence that were wrong (S8)",
+    "Doors opened without your own word",
+    "Spend per merged row (M units)",
+    "Coordination share of spend",
+    "Dollars per merged row",
+    "Crew first-round share",
+    "Redo rate",
+    "Capped minutes (every instance capped)",
+    "Capped-failure share of spend",
+    "Stall minutes per merged row",
+    "Lost asks (S3)",
+    "jbus pass, median seconds",
+    "Waiting for jmerge, PR p50 minutes",
+    "Crew first load, KB (jstack's own)",
+    "Drift: standing words broken (S4)",
+)
+"""The page's KPIs as it showed them on 2026-11-03, the order of the telemetry-plane scout's
+report: a KPI added since may come anywhere among them, and these keep their order."""
+
+
+def test_the_kpis_keep_the_order_of_the_scouts_report():
+    names = [kpi.name for kpi in kpis.KPIS]
+    assert [name for name in names if name in ORDER] == list(ORDER)
+
+
+def package_with(tmp_path, monkeypatch, name, files):
+    """A copy of the KPIs' package named `name`, with these modules added, imported."""
+    root = tmp_path / "packages"
+    shutil.copytree(kpis.__path__[0], root / name, ignore=shutil.ignore_patterns("__pycache__"))
+    for file, text in files.items():
+        (root / name / file).write_text(text)
+    monkeypatch.syspath_prepend(str(root))
+    monkeypatch.setattr(sys, "modules", dict(sys.modules))
+    return importlib.import_module(name)
+
+
+def added(name):
+    return (
+        "from jbus.telemetry.kpis import Kpi, Lacks\n\n"
+        f"KPI = Kpi({name!r}, 'speed', 'what it counts', '', None, 'lower', Lacks('a record'))\n"
+    )
+
+
+def test_a_kpi_is_added_by_a_module_and_takes_the_place_its_name_sorts_to(tmp_path, monkeypatch):
+    found = package_with(
+        tmp_path,
+        monkeypatch,
+        "added_kpis",
+        {"k24_last.py": added("Added last"), "k10_added.py": added("Added before the doors")},
+    )
+
+    doors = ORDER.index("Doors opened without your own word")
+    after = [*ORDER[:doors], "Added before the doors", *ORDER[doors:], "Added last"]
+    assert [kpi.name for kpi in found.KPIS] == after
+
+
+def test_a_module_not_named_as_a_kpis_is_refused(tmp_path, monkeypatch):
+    with pytest.raises(ImportError, match="last_one not named as"):
+        package_with(tmp_path, monkeypatch, "stray_kpis", {"last_one.py": added("Stray")})
+
+
 def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_not(machine):
     _, rows, said = page(machine)
 
     assert list(rows) == [kpi.name for kpi in kpis.KPIS]
-    assert len(rows) == 23
     lead = rows["Lead time, go to merge, median (DORA)"]
     assert lead[3] == "≤ 30 min"
     assert lead[4] == "59 min n 1 missed"

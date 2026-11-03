@@ -185,7 +185,9 @@ A week starts on Sunday, as the views' does.
 The page names no row, path or thread, and no project but those the change failure rate says it covers.
 The store holds no text of a message.
 
-The KPIs, their targets and the view each reads are `KPIS` in `jbus.telemetry.kpis`, one place.
+Each KPI, its target and the view it reads is a module of its own in `jbus.telemetry.kpis`, `k<NN>_<slug>.py`, whose `KPI` is one `Kpi`.
+The page shows them in the order of the modules' names, so `NN` is a KPI's place, and two KPIs of the same `NN` are in the order of their slugs.
+A new KPI is a new module, and no list names it.
 To measure a KPI that lacks an instrument, add the record and its weekly view as "Change the store" says, then give the KPI a `Measured` in place of its `Lacks`.
 
 ## The KPI alerts
@@ -224,7 +226,11 @@ It never writes over a file, and it never replaces the store, which holds rows t
 ## Change the store
 
 `PRAGMA user_version` is the schema's version.
-A change to a table is a new migration at the end of `MIGRATIONS` in `jbus.telemetry.schema`, run once on each store.
+A change to a table is a new migration, a module of its own in `jbus.telemetry.migrations`, run once on each store.
+Its name is `v<NNN>_<slug>.py`, where `NNN` is the version it brings a store to, one more than the last migration's.
+A store knows only its version, so the migrations run in the order of their names, and two of the same `NNN`, or a gap, fail the import.
+A migration that has merged is never edited, renamed or removed.
 The first migration is written out as SQL, so a column a `Source` gains is a later migration and never an edit of it.
-A new KPI is a new view in `VIEWS`, with a test beside it, and no migration: the views hold no rows, so each build makes them again.
+A new view is a module of its own in `jbus.telemetry.views`, named as the view, whose `SQL` is its `SELECT`, with a test beside it, and no migration: the views hold no rows, so each build makes them again.
+The SQL the views share, such as `WEEK` and `TYPED`, is in `jbus.telemetry.schema`.
 A new record file is a `Source` in `jbus.telemetry.records`, with its allow-list of columns, and a migration that makes its table.
