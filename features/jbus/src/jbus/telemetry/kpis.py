@@ -354,7 +354,7 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
 
 
 def _covered(store: sqlite3.Connection, covers: Covers, week: date) -> str:
-    """Which projects the KPI counts, and the days of the week it has none of their records of."""
+    """Which projects the KPI counts, and the days of the week with rows it lacks the records of."""
     projects = [
         one for (one,) in store.execute(f"SELECT project FROM {covers.projects} ORDER BY 1")
     ]
