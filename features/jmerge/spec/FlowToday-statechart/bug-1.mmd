@@ -17,13 +17,13 @@ stateDiagram-v2
   class legendGroup1 group1
   class legendWrong plainWrong
   state "Main green" as g0 {
-    state "1 a draft, its review<br/>first, 1 a draft, waiting<br/>on your word" as s0
-    state "1 a draft, waiting on your<br/>word, 1 waiting to launch" as s1
+    state "1 a draft, waiting on your<br/>word, 1 waiting to launch" as s0
+    state "2 a draft, waiting on your<br/>word" as s1
     state "2 waiting to launch" as s2
   }
   [*] --> s2
-  s2 --> s1 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
-  s1 --> s0 : 2. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
-  class s0 plainWrong
-  class s1 group1Path
+  s2 --> s0 : 1. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  s0 --> s1 : 2. jbus launches its crew,<br/>which opens its pull request<br/>as a draft
+  class s0 group1Path
+  class s1 plainWrong
   class s2 group1Path

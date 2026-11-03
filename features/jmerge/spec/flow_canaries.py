@@ -36,11 +36,11 @@ CANARIES = {
 }
 
 # Today's code breaks three rules. A check that selects a test reading the whole tree only by
-# chance merges a change that breaks it. Once main's fix row closed with its fix in an open
-# pull request, that fix merges only when its own check proves it, which it does only when it
-# selected the tests main failed and the red run's logs name them: otherwise nothing can merge.
-# And a draft that waits on your word stays a draft: jmerge marks a draft ready only when the
-# draft is all it waits on, and judges your word first, while jmerge --accept refuses a draft.
+# chance merges a change that breaks it. And a draft that waits on your word stays a draft:
+# jmerge marks a draft ready only when the draft is all it waits on, and judges your word first,
+# while jmerge --accept refuses a draft. So work settles short of merged with nothing you can
+# do, and so does main's fix once jbus's crew puts it in that draft: since #547 jbus approves
+# the fix row by rule, so the only waits left that are yours are your word's.
 # Since #427 jbus.strays stops what a crew left, busy or idle, once its turn ended, so no
 # leftover keeps the machine full.
 TODAY_BREAKS = ["FlowsWhenGreen", "NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
@@ -59,7 +59,8 @@ CONTROLS = {
 # FlowToday.tla's `Draft`: today a draft that waits on your word stays a draft. The control that
 # marks it ready holds FlowsWhenGreen, so that draft is the rule's only break today, and breaks its
 # NoLift probe, so your word lifts a hold there. It still breaks MainFixWaitsOnlyOnYou, on a fix
-# stacked on a pull request whose check failed over the red main: that waits until main is green.
+# in the merge_after follow-up of a pull request whose check failed over the red main: jmerge
+# judges that one again only once main is green, and the follow-up merges only after it.
 DRAFT = "held"
 PROBES = ["NoLift"]
 READIED = {
