@@ -64,7 +64,13 @@ class Rerun:
     sha: str
 
 
-Reason = Changed | Depends | Slot | Rerun
+@dataclass(frozen=True)
+class Red:
+    """A `Red` is a row that waits for main to be green: main is red, and the row neither fixes
+    main nor launches stacked on an open row (`dispatch.Turns._ready`)."""
+
+
+Reason = Changed | Depends | Slot | Rerun | Red
 
 
 @dataclass

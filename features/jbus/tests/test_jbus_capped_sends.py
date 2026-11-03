@@ -18,7 +18,7 @@ from test_jbus_held import REASON, Held
 from test_jbus_kitchen import NOW, SELECTION
 from test_jbus_leftover import ended as leaves
 from test_jbus_leftover import home, stalls
-from test_jbus_main_moved import checks, move, tip
+from test_jbus_main_moved import checks, move, red_since, tip
 from test_jbus_main_moved import pull as red
 from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import listed
@@ -116,9 +116,12 @@ def test_a_restack_message_waits_for_the_reset(kitchen):
 
 
 def test_a_main_moved_message_waits_for_the_reset(kitchen):
-    """Main was red when alpha launched, and goes green with alpha's pull request red."""
-    checks(kitchen, tip(kitchen), "failure")
+    """Main went red once alpha launched, and goes green with alpha's pull request red."""
+    was = tip(kitchen)
+    checks(kitchen, was, "")
     ended(kitchen)
+    checks(kitchen, was, "failure")
+    red_since(kitchen, was, NOW - timedelta(minutes=30))
     launched = kitchen
     launched.set("open.json", [red(launched, "alpha", 7, "FAILURE")])
     main = move(launched)

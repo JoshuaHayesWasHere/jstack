@@ -6,6 +6,7 @@
   that is red.
 - `jmerge` reads that file (`features/jmerge/tests/test_jmerge_order.py`).
 - A launched brief names the green sha on a `Green main:` line.
+- While main is red, only a row that fixes main or launches stacked on an open row launches.
 
 Like `test_jbus_watch.py`, the tests run the real pass against the fakes.
 """
@@ -20,10 +21,12 @@ import jbus.waiting
 import jbus.wake
 import test_jbus_main_moved
 from jbus import questions
+from jbus.dispatch import fixes_main
 from jmerge import mainjson
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, RESULT, approved, complete, filed_as, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
+from test_jbus_queue import brief
 from test_jbus_queue import go as queue_go
 from test_jbus_watch import main_of, main_red, reverted_before
 
@@ -369,7 +372,9 @@ def test_a_launched_brief_after_a_red_main_names_the_green_before_the_red(kitche
     kitchen.poll()
     red = move(kitchen, "failure")
     kitchen.poll(NOW + timedelta(minutes=3))
-    approved(kitchen, "beta")
+    text = complete("beta").replace("# beta: a task", "# beta: fix main", 1)
+    assert kitchen.main("queue", "add", "beta", "--priority", "1", stdin=text)[0] == 0
+    assert go(kitchen, "beta")[0] == 0
     kitchen.poll(NOW + timedelta(minutes=6))
     (given,) = kitchen.t3.launches
     assert f"Green main: {green}" in given["message"]
@@ -799,3 +804,47 @@ def test_a_failed_push_run_at_a_new_tip_is_rerun_while_a_fix_row_is_open(kitchen
     kitchen.poll(NOW + timedelta(minutes=9))
     assert reruns(kitchen) == ["run rerun --failed 501"]
     assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{old[:12]}"]
+
+
+def why_of(kitchen, slug):
+    return {row["slug"]: row for row in jbus.queue.load(kitchen.state)}[slug].get("why", "")
+
+
+def test_a_red_main_launches_only_its_fix_and_a_stacked_row_and_the_rest_once_it_is_green(
+    kitchen,
+):
+    """Josh's traffic fix, step 4: on 2026-11-03 rows kept launching onto a red main, their checks
+    failed on main's break, and three crews fixed one break. While main is red, the fix row and a
+    row stacked on an open row launch; a plain row waits, and launches once main is green."""
+    kitchen.config(max_running=8)
+    red = main_of(kitchen, "failure")[0]
+    kitchen.poll()
+    fix = f"{mainjson.FIX}{red[:12]}"
+    assert [row["slug"] for row in main_red(kitchen)] == [fix]
+    assert queue_add(kitchen, "one")[0] == 0
+    pull = {**kitchen.opened("one", 10), "headRefName": "one-branch"}
+    with (kitchen.home / "tasks" / "one.md").open("a") as one:
+        one.write(f"\n## Result\nBranch: one-branch   Pull request: {pull['url']}\n")
+    kitchen.set("open.json", [pull])
+    built = brief("two", "Builds on: one: the table one adds\n")
+    assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
+    assert queue_add(kitchen, "plain")[0] == 0
+    for slug in (fix, "two", "plain"):
+        assert queue_go(kitchen, slug)[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert sorted(launched(kitchen)) == sorted([f"crew: {fix}", "crew: two"])
+    assert why_of(kitchen, "plain") == "main is red: waits for green"
+    assert kept(kitchen).red == red
+
+    main_of(kitchen, "failure", "success")
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert kept(kitchen).red == ""
+    assert launched(kitchen)[2:] == ["crew: plain"]
+
+
+def test_a_brief_whose_heading_says_it_fixes_main_is_a_fix_of_main():
+    assert fixes_main("main-red-123456789abc", "# main-red-123456789abc: main check failed\n")
+    assert fixes_main("x", "# x: fix main's red test\nTask: t\n")
+    assert fixes_main("x", "# x: Fixes the red main\n")
+    assert not fixes_main("x", "# x: add a page\nTask: fix main's red test\n")
+    assert not fixes_main("x", "# x: fix the mainline parser\n")
