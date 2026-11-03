@@ -70,7 +70,7 @@ Two more records are what an A/B or a simulator of a dial needs (the kpi-lab bui
   A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither, from before the store could tell or after the pilot ended, reads `covered` 0, with no arm guessed.
 - `review-rounds.jsonl`: a pass adds a line for each review round of an open pull request's brief once the round is settled, that is a later round began or no reviewer the crew launched still owes its section (`jbus.reviewed.rounds`), once by row, pull request and round number.
   A round is the sections in a row that ran at one head, and a scoped pass is a round of its own.
-  A pull request that merges before a pass sees its last round settled has no line for that round.
+  A pull request the pass sees merged within the week has every round settled, so the last round of one that merged before a pass saw it settled gets its line on the first pass that sees the merge.
 
 Each line keeps ids, times, counts and labels, and no text of a finding or a review.
 The spells an account was capped or signed out are the row `tm-capped-spells`' record.
