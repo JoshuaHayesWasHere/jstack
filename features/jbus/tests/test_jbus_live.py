@@ -7,7 +7,7 @@ network.
 
 import itertools
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -457,3 +457,64 @@ def test_a_turn_just_started_on_a_thread_that_ended_long_ago_is_not_hung(kitchen
     assert kitchen.lines("stall") == []
     kitchen.poll(NOW + 25 * MIN)
     assert (written(kitchen)[0]["live"], written(kitchen)[0]["silent"]) == ("hung", 24)
+
+
+def subagent(status, minutes, at=NOW):
+    """Return a subagent item as T3 Code's activity read gives it, updated that many minutes
+    before `at`."""
+    updated = iso(at - timedelta(minutes=minutes))
+    return {"type": "subagent", "status": status, "runId": "run-1", "updatedAt": updated}
+
+
+@pytest.mark.parametrize(
+    ("items", "word", "silent"),
+    [
+        ([subagent("completed", 30), subagent("running", 3)], "moving", 3),
+        ([subagent("running", 15)], "quiet", 15),
+        ([subagent("completed", 3), subagent("completed", 1)], "hung", 25),
+        ([{"type": "assistant_message", "status": "running", "updatedAt": iso(NOW)}], "hung", 25),
+    ],
+)
+def test_a_running_subagent_that_updates_is_the_thread_writing(kitchen, items, word, silent):
+    """A subagent's item updates in place: its status text and `updatedAt` move, the count of items
+    does not. Only a subagent that is still running counts, since a finished one writes nothing
+    more."""
+    hanging(kitchen, minutes=25, queued=0, read_items=items)
+    kitchen.poll()
+    (found,) = written(kitchen)
+    assert (found["live"], found["silent"]) == (word, silent)
+
+
+def test_a_wake_behind_a_turn_whose_subagent_went_silent_is_still_hung(kitchen):
+    hanging(kitchen, minutes=25, queued=1, read_items=[subagent("running", 12)])
+    kitchen.poll()
+    (found,) = written(kitchen)
+    assert (found["live"], found["silent"], found["queued"]) == ("hung", 12, 1)
+
+
+def test_fl_statechart_1102_waiting_on_its_five_subagents_was_not_hung(kitchen):
+    """The scout fl-statechart-1102 on 2026-11-03 (UTC): its count of items stood at 47 from 01:49,
+    when its last fact-finding subagent finished, while its TLC canary subagents ran and updated
+    their items at 02:02 and 02:03. Its `updatedAt` moved at 02:09 with no item written."""
+    t = lambda clock: datetime.fromisoformat(f"2026-11-03T{clock}+00:00")  # noqa: E731
+    began = iso(t("01:40:45"))
+    one = run(1) | {"requestedAt": began, "startedAt": began}
+    made = {"activeRunId": "run-1", "latestRunId": "run-1", "runs": [one], "itemCount": 47}
+    thread = kitchen.t3.thread("fl-statechart-1102", **made)
+    thread |= {"title": "scout: fl-statechart-1102", "updatedAt": iso(t("01:49:00"))}
+    kitchen.t3.at_work.discard(thread["threadId"])
+    kitchen.poll(t("01:50:00"))
+    assert written(kitchen)[0]["live"] == "moving"
+    finished = [("01:45:36", "Nightly"), ("01:46:01", "Slots"), ("01:45:44", "Gates")]
+    finished += [("01:48:05", "Approval"), ("01:46:23", "Links"), ("01:49:00", "Main")]
+    canaries = [("02:02:15", "FlowEdges"), ("02:03:26", "FlowSides")]
+    thread["updatedAt"] = iso(t("02:09:38"))
+    thread["read_items"] = [
+        {"type": "subagent", "status": status, "title": title, "updatedAt": iso(t(clock))}
+        for status, done in (("running", canaries), ("completed", finished))
+        for clock, title in done
+    ]
+    kitchen.poll(t("02:10:00"))
+    (found,) = written(kitchen)
+    assert (found["live"], found["silent"], found["items"]) == ("moving", 6, 47)
+    assert kitchen.lines("stall") == []
