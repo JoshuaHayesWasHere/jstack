@@ -50,8 +50,8 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 - `weekly_row_spend`: each merge week's units of `row_spend` over its merged rows with any call
   recorded, in millions. A row whose transcripts went before a build read them counts low.
 - `spend_kept` and `weekly_spend`: each project's last line of each day `jgauge spend` counted
-  (`spend_days`, Claude's runs only), and each week of them: its units, and the shares of jbus's
-  sends and the homes (`coordination`) and of the runs that failed on a cap (`capped`).
+  (`spend_days`), and each week of them: its units, and the shares of jbus's sends and the homes
+  (`coordination`) and of the runs that failed on a cap (`capped`).
 - `row_words` and `weekly_no_word` (S1): each merged row with a go, and the messages the user
   typed (`ask_ledger`, not a resume) after its go and by its merge that name it: one an act of
   the row's project on the row cites, or one typed in the row's own thread (`queue.thread`, the

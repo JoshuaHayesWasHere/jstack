@@ -163,7 +163,7 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Spend per merged row (M units)",
         "cost",
-        "jgauge spend units of a merged row's own threads, Claude's and Codex's, over the "
+        "jgauge spend units of a merged row's own threads, of every provider, over the "
         "week's merged rows with any call recorded",
         "M",
         None,
@@ -173,7 +173,7 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Coordination share of spend",
         "cost",
-        "jbus sends and homes over all spend, of Claude's runs as jgauge spend counts them",
+        "jbus sends and homes over all spend, of the runs jgauge spend counts",
         "%",
         20,
         "lower",
@@ -218,8 +218,8 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Capped-failure share of spend",
         "reliability",
-        "spend of runs that failed on a usage limit or part way, over all spend, of Claude's "
-        "runs as jgauge spend counts them",
+        "spend of runs that failed on a usage limit or part way, over all spend, of the runs "
+        "jgauge spend counts",
         "%",
         1,
         "lower",
