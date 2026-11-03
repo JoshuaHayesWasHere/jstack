@@ -59,14 +59,23 @@ def calls(state):
     return [json.loads(line) for line in (state / proc.CALLS).read_text().splitlines()]
 
 
+def passed_on(*command):
+    """A helper that only passes a command on, as `jmerge.cli._run` does: never a caller."""
+    return proc.run(*command, timeout=10)
+
+
 def test_a_gh_call_logs_its_caller_endpoint_status_and_github_s_limits(gh):
-    done = proc.run("gh", "api", "repos/o/r/actions/jobs/900/logs")
+    done = passed_on("gh", "api", "repos/o/r/actions/jobs/900/logs")
     assert (done.returncode, done.stdout) == (1, "out\n")
     assert done.stderr == "gh: You have exceeded a secondary rate limit (HTTP 403)\n"
     [line] = calls(gh)
     assert line.pop("at").endswith("+00:00")
+    caller, _, above = line.pop("caller").partition(" < ")
+    assert (
+        caller == f"{__name__}.test_a_gh_call_logs_its_caller_endpoint_status_and_github_s_limits"
+    )
+    assert above and "passed_on" not in above
     assert line == {
-        "caller": f"{__name__}.test_a_gh_call_logs_its_caller_endpoint_status_and_github_s_limits",
         "endpoint": "/repos/o/r/actions/jobs/900/logs?per_page=1",
         "status": 1,
         "remaining": 4812,
@@ -83,6 +92,12 @@ def test_a_call_gh_made_no_request_for_is_logged_by_its_command(gh, monkeypatch)
     [line] = calls(gh)
     assert (line["endpoint"], line["status"], line["remaining"]) == ("pr list", 127, None)
     assert "retry_after" not in line
+
+
+def test_a_state_directory_that_cannot_be_written_costs_the_call_nothing(gh, monkeypatch):
+    monkeypatch.setenv("JBUS_STATE_DIR", "/proc/no-such-state")
+    done = proc.run("gh", "api", "rate_limit")
+    assert (done.returncode, done.stdout) == (1, "out\n")
 
 
 def test_other_commands_are_neither_logged_nor_held(gh):

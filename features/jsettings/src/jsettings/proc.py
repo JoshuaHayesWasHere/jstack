@@ -29,6 +29,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from types import CodeType, FrameType
 from urllib.parse import urlsplit
 
 TIMEOUT = 30
@@ -41,11 +42,6 @@ CALLS = "gh-calls.jsonl"
 KEPT = 16 * 2**20
 """The bytes `CALLS` grows to before it becomes `gh-calls.old.jsonl`, and a new one starts."""
 WAIT = 0.05
-
-WRAPPERS = frozenset(
-    {"jbus.passes.Pass.run", "jbus.watch._api", "jbus.watch.job_log", "jbus.watch._log_failed"}
-)
-"""The functions that only pass a call on: a call's caller is the first frame above them."""
 
 
 class Unrun(subprocess.CompletedProcess[str]):
@@ -112,8 +108,15 @@ def _run(
 @contextlib.contextmanager
 def _slot(where: Path) -> Iterator[None]:
     """Hold one of `GH_CAP` lock files in `where` while the block runs, waiting while all are
-    held. The kernel lets a slot go when its holder ends, however it ends."""
-    where.mkdir(parents=True, exist_ok=True)
+    held. The kernel lets a slot go when its holder ends, however it ends. Where the slots
+    cannot be made or opened, as in a state directory that cannot be written, the call runs
+    with no slot: a cap that cannot be kept costs the call nothing."""
+    try:
+        where.mkdir(parents=True, exist_ok=True)
+        open(where / "0", "a").close()
+    except OSError:
+        yield
+        return
     while True:
         for number in range(GH_CAP):
             with open(where / str(number), "a") as held:
@@ -127,14 +130,25 @@ def _slot(where: Path) -> Iterator[None]:
 
 
 def _caller() -> str:
-    """The module and function that asked for the call: the first frame outside this module and
-    the `WRAPPERS`."""
-    frame = sys._getframe(1)
-    while frame.f_back is not None and (
-        frame.f_globals.get("__name__") == __name__
-        or f"{frame.f_globals.get('__name__')}.{frame.f_code.co_qualname}" in WRAPPERS
-    ):
+    """Who asked for the call: the function that wrote `gh` in it, which a helper that only
+    passes a command on never does, then `<` and the function that called that one. A command
+    whose `gh` no frame wrote is of the first frame outside this module."""
+    outside = sys._getframe(1)
+    while outside.f_back is not None and outside.f_globals.get("__name__") == __name__:
+        outside = outside.f_back
+    frame: FrameType | None = outside
+    while frame is not None and not _writes_gh(frame.f_code):
         frame = frame.f_back
+    if frame is None:
+        return _name(outside)
+    return _name(frame) + (f" < {_name(frame.f_back)}" if frame.f_back is not None else "")
+
+
+def _writes_gh(code: CodeType) -> bool:
+    return any(one == "gh" or (isinstance(one, tuple) and "gh" in one) for one in code.co_consts)
+
+
+def _name(frame: FrameType) -> str:
     return f"{frame.f_globals.get('__name__')}.{frame.f_code.co_qualname}"
 
 
