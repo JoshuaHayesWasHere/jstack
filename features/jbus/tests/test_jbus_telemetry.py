@@ -42,6 +42,7 @@ TABLES = (
     "queue",
     "merged",
     "ci_prs",
+    "reverts",
     "messages",
 )
 
@@ -514,6 +515,8 @@ def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
     t3.say("m-1", "mcp:home-a", NOW)
     t3.say("r-1", "mcp:home-a", NOW + timedelta(seconds=20), text=SECRET, role="assistant")
     word(machine, "beta", "w-1", NOW)
+    revert = {"slug": "alpha-one", "branch": "revert-10", "head": "h", "pull": "#12", "why": SECRET}
+    machine.write("alpha", "reverts.json", {"r" * 40: revert})
     machine.build()
 
     found = dump(machine.state_dir / telemetry.FILE)
@@ -1076,7 +1079,7 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         unrun = "".join(f"DELETE FROM migrations WHERE name = '{name}';" for name in rewound)
         store.executescript(
             f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
-            f"ALTER TABLE acts DROP COLUMN asks; {unrun}"
+            f"ALTER TABLE acts DROP COLUMN asks; ALTER TABLE queue DROP COLUMN follows; {unrun}"
         )
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",
@@ -1107,8 +1110,7 @@ def test_a_store_labelled_by_the_old_rules_gains_the_labels_a_rebuild_has(machin
     parentheses was left out reads every one of them again, and ends as a rebuild does."""
     import re
 
-    from jbus.telemetry import asks, migrations
-    from jbus.telemetry.migrations import v010_asks_marks
+    from jbus.telemetry import asks
 
     t3, home = T3(), "mcp:home-a"
     t3.thread(home, "alpha-id")
@@ -1125,7 +1127,7 @@ def test_a_store_labelled_by_the_old_rules_gains_the_labels_a_rebuild_has(machin
         machine.build()
     with contextlib.closing(machine.store()) as store:
         before = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
-        store.execute(f"PRAGMA user_version = {migrations.MIGRATIONS.index(v010_asks_marks.SQL)}")
+        store.execute(f"DELETE FROM {telemetry.RAN} WHERE name = 'v010_asks_marks'")
         store.commit()
     assert dict(before)["m-ticked"] == dict(before)["word:w-ticked"] == "needs"
 

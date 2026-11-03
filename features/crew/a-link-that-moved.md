@@ -1,8 +1,7 @@
 ### A link that moved
 
 A link jbus stacked, a brief with a `Stacked on:` line in its head, is moved by jbus and not by the home.
-While its base is open jbus tells it nothing.
-Where the link's own commits merge cleanly onto the default branch without its base's, and its added lines use no `def`, `class` or constant its base introduced, jbus moves them there itself, bases its pull request there and drops its `Stacked on:` line, with no message: the link is then off its stack, and this section no longer applies to it.
+While its base is open jbus tells it nothing, and the link stays stacked on it until its base merged.
 Once its base merged jbus moves it itself or sends it the line once, naming the commit its base merged at once its pull request is based on the branch its base merged into.
 Such a link sends the home nothing for a conflict: on jbus's message that it is in conflict, it runs the block below at once, with the branch its `Stacked on:` line names while that line names no commit, and otherwise with the commit jbus's last line named.
 

@@ -33,14 +33,17 @@ the least `met` of `done_when`, and the count of its findings by severity, and o
 dismissed. It is written on the pass that sees the round settled: a later round has begun, or no
 reviewer the crew launched still owes its section (`review.reviewing`). A round is written once,
 by row and number, so a pass that reads it again writes nothing, and a round written to the
-brief after its line keeps the line it had. A pull request that merges before a pass sees its
-last round settled has no line for that round.
+brief after its line keeps the line it had. A row whose pull request the pass's world shows
+merged within `MERGED_WITHIN` has every round settled, since no section is still to come, so the
+last round of a pull request that merged before a pass saw it settled gets its line on the first
+pass that sees the merge. The window keeps a pass from reading the brief of every merge it keeps.
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from jbriefs import findings, meets
@@ -49,7 +52,7 @@ from jbus import END_TURN, history, mirror, outbox, rebase, review, verbs
 from jbus.expedite import ANSWERED, TABLE, Short
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import World, task_brief
+from jbus.watch import World, task_brief, when
 from jmerge import ready
 
 if TYPE_CHECKING:
@@ -122,6 +125,9 @@ def due(brief: str, head: str, heard: frozenset[meets.Waiver] = frozenset()) -> 
 
 ROUNDS = "review-rounds.jsonl"
 SEVERITIES = {"error": "errors", "warning": "warnings", "info": "infos"}
+MERGED_WITHIN = timedelta(days=7)
+"""How long after its merge a row's rounds are still read: a pass that sees the merge writes the
+last round's line, and a week covers a jbus that was down a while."""
 
 
 def _verdict(brief: str, sections: list[findings.Section]) -> tuple[str, int | None, int | None]:
@@ -139,8 +145,9 @@ def _verdict(brief: str, sections: list[findings.Section]) -> tuple[str, int | N
     return word, met, typed[0].of if typed else None
 
 
-def round_lines(brief: str, slug: str, number: int, at: str) -> list[dict]:
-    """The line of each settled review round of the brief, as `rounds` writes it."""
+def round_lines(brief: str, slug: str, number: int, at: str, merged: bool = False) -> list[dict]:
+    """The line of each settled review round of the brief, as `rounds` writes it. Every round of
+    a `merged` pull request is settled."""
     ran = [one for one in findings.triage(brief).sections if one.ran and one.head]
     grouped: list[list[findings.Section]] = []
     for one in ran:
@@ -149,7 +156,7 @@ def round_lines(brief: str, slug: str, number: int, at: str) -> list[dict]:
             grouped[-1].append(one)
         else:
             grouped.append([one])
-    if grouped and review.reviewing(brief):
+    if grouped and not merged and review.reviewing(brief):
         grouped.pop()
     lines = []
     for place, sections in enumerate(grouped, start=1):
@@ -183,13 +190,22 @@ def _round_key(one: dict) -> tuple:
 
 
 def rounds(run: Pass, world: World) -> None:
-    """Log each settled review round of each open pull request's brief once: see the module."""
+    """Log each settled review round of each open or lately merged pull request's brief once: see
+    the module."""
     at = run.now.isoformat()
+    lately = {
+        slug: pull
+        for slug, pull in world.merged.items()
+        if slug not in world.open
+        and pull.get("mergedAt")
+        and run.now - when(pull["mergedAt"]) <= MERGED_WITHIN
+    }
     lines = []
-    for slug, pull in sorted(world.open.items()):
-        brief = task_brief(run, slug)
-        if brief and isinstance(pull.get("number"), int):
-            lines += round_lines(brief, slug, pull["number"], at)
+    for pulls, merged in ((world.open, False), (lately, True)):
+        for slug, pull in sorted(pulls.items()):
+            brief = task_brief(run, slug)
+            if brief and isinstance(pull.get("number"), int):
+                lines += round_lines(brief, slug, pull["number"], at, merged)
     history.add(run.state / ROUNDS, lines, _round_key)
 
 

@@ -449,3 +449,56 @@ def test_s8_shows_a_labelled_weeks_wrong_closes_and_says_why_a_week_with_no_labe
     assert s8[3] == "≤ 5%"
     assert s8[4] == "25% n 4 missed: your word 1 of 1"
     assert s8[5] == "n/a n 0 not covered: no scout's gate labels kept for the week"
+
+
+def test_the_redo_rate_counts_the_rows_whose_7_days_end_in_the_week_a_later_row_redid(machine):
+    machine.write(
+        "beta",
+        "queue.json",
+        [
+            {"slug": "beta-one"},
+            {
+                "slug": "beta-fix",
+                "status": "queued",
+                "approval": {
+                    "basis": "rule",
+                    "follows": "beta-one",
+                    "ran_at": (NOW - timedelta(days=6)).isoformat(timespec="seconds"),
+                },
+            },
+        ],
+    )
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    redo = rows["Redo rate"]
+    assert redo[3] == "≤ 5%"
+    assert redo[4] == (
+        "n/a n 0 not covered: the parents named by follow-ups' goes begin on 2026-10-22, after "
+        "the week does"
+    )
+    assert redo[5] == "100% n 1 missed: 0 merged rows not yet judged"
+
+
+def test_the_redo_rate_says_how_many_rows_of_the_week_it_cannot_judge_yet(machine):
+    merged = datetime.now(UTC) - timedelta(days=6, hours=12)
+    records(machine, "alpha", merged, "alpha-new", 12)
+    snapshots(machine, "alpha", [("alpha-new", 12, merged)])
+    early = (merged - timedelta(days=20)).isoformat(timespec="seconds")
+    planned = {"basis": "rule", "follows": "alpha-new", "ran_at": early}
+    machine.write(
+        "alpha", "queue.json", [{"slug": "alpha-new"}, {"slug": "u", "approval": planned}]
+    )
+    machine.build()
+
+    _, rows, _ = page_of(machine, (merged + timedelta(days=7)).date().isoformat())
+
+    with contextlib.closing(machine.store()) as store:
+        waiting = store.execute(
+            "SELECT count(*) FROM redo_rows WHERE NOT judged AND week = ?",
+            (kpis.week_of((merged + timedelta(days=7)).date()).isoformat(),),
+        ).fetchone()[0]
+    assert waiting >= 1
+    shown = f"{waiting} merged row{'s' * (waiting != 1)} not yet judged"
+    assert rows["Redo rate"][5].endswith(shown)
