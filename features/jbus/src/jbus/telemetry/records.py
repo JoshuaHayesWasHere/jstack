@@ -205,14 +205,8 @@ def _merges(line: str, zone: tzinfo | None) -> Row:
 
 
 def _merge_waits(one: Row, zone: tzinfo | None) -> Row:
-    """A line of `merge-waits.jsonl` (`jmerge.waits`): a merged pull request's wait from ready
-    to the second its merge began, the seconds each code held it, and the code that held it
-    longest."""
-    held = {
-        code: seconds
-        for code, seconds in _dict(one.get("blockers")).items()
-        if isinstance(seconds, int | float) and not isinstance(seconds, bool)
-    }
+    """A line of `merge-waits.jsonl` (`jmerge.waits`), with the code that held it longest."""
+    held = {code: s for code, s in _dict(one.get("blockers")).items() if isinstance(s, int | float)}
     seconds = one.get("seconds")
     return {
         "at": utc(one.get("began"), zone),
@@ -221,7 +215,6 @@ def _merge_waits(one: Row, zone: tzinfo | None) -> Row:
         "ready": utc(one.get("ready"), zone),
         "ready_by": _text(one.get("ready_by")),
         "seconds": seconds if isinstance(seconds, int | float) else None,
-        "blocked": round(sum(held.values()), 3),
         "blocker": max(sorted(held), key=held.__getitem__) if held else None,
         "blockers": json.dumps(held, sort_keys=True),
     }
@@ -456,7 +449,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         *SEVERITIES,
         "found",
     }
-    real = {"slowest_s", "tail_s", "seconds", "blocked"}
+    real = {"slowest_s", "tail_s", "seconds"}
     return tuple(
         (
             name,
@@ -758,9 +751,7 @@ SOURCES: tuple[Source, ...] = (
         "merge_waits",
         "merge-waits.jsonl",
         "log",
-        _columns(
-            "at", "number", "head", "ready", "ready_by", "seconds", "blocked", "blocker", "blockers"
-        ),
+        _columns("at", "number", "head", "ready", "ready_by", "seconds", "blocker", "blockers"),
         _merge_waits,
         where="home",
     ),
