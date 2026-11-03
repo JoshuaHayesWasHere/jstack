@@ -42,7 +42,7 @@ the stall minutes the telemetry store reads (`jbus.telemetry.schema`'s `weekly_s
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import jsettings
@@ -50,6 +50,7 @@ from jbus import Refused, alert, cancelled, queue, read_json, rebase, verbs, wai
 from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
+from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
 from jbus.watch import FAILS, TWICE, World, task_brief
@@ -71,6 +72,7 @@ REVIEWING = 30
 HUNG = "hung.jsonl"
 SPELLS = "stalls.jsonl"
 STALLED = ("quiet", "hung")
+GAP = timedelta(minutes=20)
 WROTE, INTERRUPTED, ENDED = "wrote again", "interrupted", "ended"
 BECAME = {"interrupted": INTERRUPTED, "cancelled": INTERRUPTED} | dict.fromkeys(
     ("completed", "failed", "rolled_back"), ENDED
@@ -448,6 +450,23 @@ def _open_spells(run: Pass) -> dict[str, dict[str, Any]]:
     return still
 
 
+def _last_pass(run: Pass) -> datetime | None:
+    """The start of the last pass that ended, from the last line of `passes.jsonl` (`jbus.record`),
+    or None where there is none. The log gets a line at the end of every pass, whatever T3 Code and
+    GitHub answered, so its last line is the pass before this one. Only the file's tail is read."""
+    try:
+        with (run.config.state_dir / PASS_LOG).open("rb") as log:
+            log.seek(max(0, log.seek(0, 2) - 4096))
+            lines = log.read().decode(errors="replace").splitlines()
+    except OSError:
+        return None
+    try:
+        said = json.loads(lines[-1]) if lines else None
+    except ValueError:
+        return None
+    return _moment(said.get("at")) if isinstance(said, dict) else None
+
+
 def _moment(said: object) -> datetime | None:
     """The moment a stored time names, or None where it names no moment with its zone."""
     try:
@@ -471,8 +490,26 @@ def spells(run: Pass, out: list[dict[str, Any]]) -> None:
     quiet, so no spell counts time the user owes an answer. A spell is counted once, on the line
     that ends it, however many passes saw it. The open spells are read back from the file, so a
     pass that died is picked up by the next one, as `hung.jsonl`'s calls are.
+
+    A spell counts only the silence the passes saw. A stretch of more than `GAP` since the last
+    pass (`_last_pass`) is a gap: the machine was suspended, or jbus did not run. A shorter
+    stretch, such as a slow pass or one that found the lock busy, counts whole.
+    The minutes of a gap that fall in a spell are its `unseen` minutes, and `minutes` leaves them
+    out. A pass that comes after a gap writes an open spell's line again with its `unseen` minutes,
+    so the line read back carries them; a spell that this pass opens or ends counts its share of the
+    gap at once.
     """
     at = jsettings.stamp(run.now, z=True)
+    last = _last_pass(run)
+    gap = last if last is not None and run.now - last > GAP else None
+
+    def unseen(spell: dict[str, Any], since: datetime | None, end: datetime | None) -> float:
+        kept = spell.get("unseen")
+        before = kept if isinstance(kept, int | float) else 0.0
+        if gap is None or since is None or end is None:
+            return before
+        return round(before + max(0.0, (end - max(since, gap)).total_seconds()) / 60, 1)
+
     by_id = {one["id"]: one for one in out}
     stalled = {
         one["id"]: one
@@ -485,16 +522,20 @@ def spells(run: Pass, out: list[dict[str, Any]]) -> None:
         moved = since is not None and wrote is not None and since < wrote <= run.now
         if thread in stalled and not moved:
             del stalled[thread]
+            if gap is not None:
+                _keep(run, spell | {"unseen": unseen(spell, since, run.now)}, SPELLS)
             continue
         end = wrote if moved else run.now
-        minutes = round((end - since).total_seconds() / 60, 1) if since and end else None
+        left = unseen(spell, since, end)
+        minutes = round((end - since).total_seconds() / 60 - left, 1) if since and end else None
         until = one["wrote"] if moved and one else at
         became = one["live"] if one else "gone"
         ended = {"at": at, "until": until, "minutes": minutes, "became": became}
-        _keep(run, spell | ended, SPELLS)
+        _keep(run, spell | ({"unseen": left} if left else {}) | ended, SPELLS)
     for thread, one in stalled.items():
         line = {"at": at, "thread": thread, "role": one["role"], "slug": one["slug"]}
-        _keep(run, {**line, "since": one["wrote"]}, SPELLS)
+        left = unseen({}, _moment(one["wrote"]), run.now)
+        _keep(run, {**line, "since": one["wrote"], **({"unseen": left} if left else {})}, SPELLS)
 
 
 def _tell(half: Half) -> None:

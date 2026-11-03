@@ -208,6 +208,8 @@ The KPI page shows no first-round share for a week that begins before `fix_round
 A merge before that, or one with no record, is inferred from `ci.jsonl` and `ci-prs.jsonl`, and only for a project whose ledger keeps its `pull_request` checks.
 An inferred wait ends when GitHub's merge ended, so it counts the merge call's own seconds, and it names no blocker.
 A stall spell runs from the thread's last write to its next write, or to the pass that saw it wait on the user, end or go, and counts in the week that pass falls in.
+A spell counts only the silence the passes saw: a stretch of more than 20 minutes with no pass, as when the machine was suspended or jbus did not run, is a gap, and the part of a gap that falls in a spell is its `unseen` minutes, which `minutes` leaves out (`jbus.stall.GAP`).
+A shorter stretch between two passes counts whole, so a slow pass, or one that found the lock busy, takes nothing off a spell.
 `stalls.jsonl` begins with its first line, so stall minutes count only the rows merged from that day on, and the KPI page names the days of a week with rows merged before it.
 `ci.jsonl` kept no `pull_request` check of 33 of the 48 jstack pull requests merged on 2026-10-20, of every one from 2026-10-21 to 2026-10-25, of 58 of 100 on 10-26 and of 46 of 49 on 10-27, the whole set in the store built on 2026-11-03, and `first_round` is none for those: whether a check of theirs failed is not known.
 
