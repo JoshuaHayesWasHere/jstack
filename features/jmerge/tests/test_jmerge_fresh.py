@@ -258,12 +258,12 @@ def test_two_ready_pull_requests_on_other_files_the_second_waits_for_a_check_ove
     assert second == asked(7, kitchen.tip())
     about = f"--repo {kitchen.origin}"
     assert merge.calls(kitchen.home) == [
-        f"pr list --state open --json {merge.LIST} {about}",
+        f"pr list --state open --limit 100 --json {merge.LIST} {about}",
         f"repo view {kitchen.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
         f"pr merge 6 --squash --match-head-commit {one} --subject feat: one (#6)"
         f" --body-file - {about}",
         f"pr view 6 --json mergeCommit --jq .mergeCommit.oid {about}",
-        f"pr list --base one --state open --json number {about}",
+        f"pr list --base one --state open --limit 100 --json number {about}",
         f"api -X PUT repos/{{owner}}/{{repo}}/pulls/7/update-branch -f expected_head_sha={two}"
         " --include",
     ]

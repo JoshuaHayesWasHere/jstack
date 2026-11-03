@@ -96,7 +96,7 @@ export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 case "$1 $2" in
     "pr list")
         if [ "$3" = "--base" ]; then
-            [ "$5 $6 $7 $8" = "--state open --json number" ] || exit 64
+            [ "$5 $6 $7 $8 $9 ${10}" = "--state open --limit 100 --json number" ] || exit 64
             cat "$STUB/based-on-$4.json" 2> /dev/null || echo "[]"
         else
             cat "$STUB/list.json" 2> /dev/null
@@ -1225,12 +1225,12 @@ def test_github_is_asked_about_the_repo_of_origin(merged):
     merged.run()
     about = f"--repo {merged.origin}"
     assert calls(merged.home) == [
-        f"pr list --state open --json {LIST} {about}",
+        f"pr list --state open --limit 100 --json {LIST} {about}",
         f"repo view {merged.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
         f"pr merge 7 --squash --match-head-commit {merged.head} --subject {TITLE} (#7)"
         f" --body-file - {about}",
         f"pr view 7 --json mergeCommit --jq .mergeCommit.oid {about}",
-        f"pr list --base alpha --state open --json number {about}",
+        f"pr list --base alpha --state open --limit 100 --json number {about}",
     ]
 
 
@@ -1238,7 +1238,7 @@ def test_a_checkout_with_no_origin_leaves_the_repo_to_gh(home):
     home.open_pull_request(REVIEWED)
     home.ready()
     assert calls(home) == [
-        f"pr list --state open --json {LIST}",
+        f"pr list --state open --limit 100 --json {LIST}",
         "repo view --json defaultBranchRef --jq .defaultBranchRef.name",
     ]
 

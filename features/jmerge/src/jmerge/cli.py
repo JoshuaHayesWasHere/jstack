@@ -49,6 +49,9 @@ LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
     "files,changedFiles,isDraft"
 )
+# The most open pull requests `gh pr list` is asked for, the cap jbus's own lists use. Left
+# unsaid, `gh` gives 30.
+LIMIT = 100
 PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
 REQUIRED_CHECKS = "required-checks"
@@ -447,6 +450,8 @@ class Repo:
             branch,
             "--state",
             "open",
+            "--limit",
+            str(LIMIT),
             "--json",
             "number",
             *self.about,
@@ -1743,7 +1748,19 @@ def _merging(
     if args.sweep:
         return Sweep(repo).run(say, args.check)
 
-    asked = _run(main_checkout, "gh", "pr", "list", "--state", "open", "--json", LIST, *repo.about)
+    asked = _run(
+        main_checkout,
+        "gh",
+        "pr",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        str(LIMIT),
+        "--json",
+        LIST,
+        *repo.about,
+    )
     try:
         listed = [with_browser(repo, one) for one in json.loads(asked.stdout)]
     except (ValueError, KeyError, TypeError, AttributeError):
@@ -1756,7 +1773,13 @@ def _merging(
         return 1
     listed = [repo.in_full(one) for one in listed]
     repo.open = listed
-    if not args.check:
+    full = len(listed) >= LIMIT
+    if full:
+        say(
+            f"listed: GitHub gave {LIMIT} open pull requests, the most jmerge asks for, so it"
+            " judges those alone and keeps the records of every one"
+        )
+    if not args.check and not full:
         repo.open_only(listed)
 
     if args.accept is not None:
