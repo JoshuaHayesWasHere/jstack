@@ -71,12 +71,12 @@ RETRO = timedelta(hours=24)
 NO_JOB = "nojob"
 """What `_check` answers for a commit on main whose failed check runs started no job."""
 RERUNS = "reruns.json"
+"""The push runs on main whose failed jobs jbus asked GitHub to rerun, by id: when it asked,
+and whether GitHub took the rerun."""
 FAILS = "fails.json"
 """The heads at which each row's pull request failed a required check, kept by `jbus.stall.twice`,
 and whether jbus held the row for it."""
 TWICE = "check failed twice"
-"""The push runs on main whose failed jobs jbus asked GitHub to rerun, by id: when it asked,
-and whether GitHub took the rerun."""
 RERUN_WAIT = timedelta(minutes=30)
 """How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")

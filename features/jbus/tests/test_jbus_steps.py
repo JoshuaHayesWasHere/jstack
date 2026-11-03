@@ -320,22 +320,17 @@ WATCHED = {
 
 
 HELD = {
-    "short": ("remarks.tell", 1, 1),
-    "question": ("questions.tell", 2, 1),
     "main moved": ("mainmoved.tell", 1, 2),
     "stale": ("rebase.tell", 1, 2),
-    "word-sends.json": ("remarks.tell", 1, 1),
-    "questions.json": ("remarks.tell", 1, 1),
-    "queue.json": ("remarks.tell", 1, 1),
 }
-"""Where the outbox's `held` rule, added since, reads the table: once for each message that needs
-`act`, after the call that sends it, at the offset given, as many times as it sends."""
+"""Where the outbox's `held` rule, added since, reads the table: once for each rebase or fix
+message (`outbox.FIXES`), after the call that sends it, at the offset given, as many times."""
 
 
 def moved(before, fixture="short"):
     """Return the calls recorded before the move, with the two that moved put where they are now,
     the `queue.load` of `queue.follow_ups`, a step added since, first, the `queue.load` of the
-    outbox's `held` rule for each message that needs `act` (`HELD`), and what `children.watch`
+    outbox's `held` rule for each rebase or fix message (`HELD`), and what `children.watch`
     reads after `mainmoved.tell` since it watches the root: the queue and the questions, to know
     both parse, then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
     calls = ["queue.load", *before.split()]

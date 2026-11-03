@@ -31,8 +31,8 @@ whose base is main's red tip, the `broken` tip of `main.json`, is kept apart and
 nothing: main failed there, not the row. At the second head, a push or a merge of main alike,
 `twice` holds the row (`jbus queue hold`) and pages the Chef once, a gate `check failed twice` that
 names the row, the pull request, both heads and the failed jobs at each. The outbox then sends the
-crew of a held row no message it would act on (`outbox.RULES`), so no rebase and no fix goes out at
-a third head. The row's `why` says `check failed twice` while it is held. The hold is lifted as any
+crew of a held row no rebase and no fix message (`outbox.FIXES`), so none goes out at a third
+head. The row's `why` says `check failed twice` while it is held. The hold is lifted as any
 hold is, by an approve, and the count starts again from none.
 """
 
@@ -343,15 +343,17 @@ def _failure(red: rebase.Red, names: list[str]) -> dict[str, Any]:
     return {"checks": names, "jobs": [f"{repo} job {job}" for repo, job in red.jobs]}
 
 
-def _on_red(run: Pass, red: str, head: str) -> bool:
-    """Say whether the head holds main's red tip: its check ran on a main that was red. A compare
-    GitHub does not give says no."""
+def _on_red(run: Pass, red: str, head: str) -> bool | None:
+    """Say whether the head holds main's red tip: its check ran on a main that was red. None where
+    GitHub gave no compare, so the head is judged again on a later pass."""
     asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{red}...{head}")
     try:
-        said = json.loads(asked.stdout) if asked.returncode == 0 else {}
+        said = json.loads(asked.stdout) if asked.returncode == 0 else None
     except ValueError:
-        said = {}
-    return isinstance(said, dict) and said.get("status") in ("ahead", "identical")
+        said = None
+    if not isinstance(said, dict) or "status" not in said:
+        return None
+    return said["status"] in ("ahead", "identical")
 
 
 def _said(head: str, one: dict[str, Any]) -> str:
@@ -384,7 +386,11 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         names = [name for name in found.names if name in required]
         if not names:
             continue
-        if red and _on_red(run, red, head):
+        on = _on_red(run, red, head) if red else False
+        if on is None:
+            run.say(f"wait {slug}: GitHub gave no compare of {head[:12]} with main's red tip")
+            continue
+        if on:
             on_red.append(head)
             run.say(
                 f"failed {slug}: #{pull['number']} at {head[:12]} is on main's red tip, not counted"

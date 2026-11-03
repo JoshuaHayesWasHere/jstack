@@ -191,7 +191,7 @@ Each head counts once, a push or GitHub's merge of main alike, and a required ch
 A head whose check ran on main's red tip, the `broken` tip of `main.json`, is not counted: main failed there, not the row.
 At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.
-A held row's crewmate gets no message from jbus that it would act on, so no rebase and no fix at the second head or a third: only its slot wakes, the stall clock's line and your own word reach it (`jbus.outbox`).
+A held row's crewmate gets no rebase and no fix message from jbus, at the second head or a third, any held row alike (`jbus.outbox.FIXES`); your answers, its review's findings and its wakes still reach it.
 The hold is lifted as any hold is, with `jbus queue approve`, and the count then starts again from none.
 The heads are kept in `fails.json` in the project's state.
 

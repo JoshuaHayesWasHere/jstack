@@ -37,7 +37,7 @@ It changes only the `instanceId` of the selection that `t3_thread_configure` rea
 A message to a thread on a capped instance goes first through `outbox.capped`.
 It moves an idle crew, reviewer, scout or home thread to the first instance of its pool with headroom, with `t3_thread_configure`, and logs a `rollover` event.
 The outbox holds the message only when the thread stays: it is at work, it has no such role, or no instance of its pool has headroom.
-The outbox also holds a message that needs `act` while its row is held, its thread waits on a slot, waits on its review, or is at work.
+The outbox also holds a rebase or fix message while its row is held, and a message that needs `act` while its thread waits on a slot, waits on its review, or is at work.
 
 ### A leftover
 
