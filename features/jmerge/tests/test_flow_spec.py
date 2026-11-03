@@ -1,4 +1,4 @@
-"""The merge flow's TLA+ spec in `features/jmerge/spec/`: TLC checks that today's code breaks its
+"""The merge flow's TLA+ spec in `features/jmerge/spec/`: TLC checks that today's code holds its
 rules, the design holds all four, each canary, the design with one fix taken out, breaks the rule
 on that fix, and each control of today's code with another gap breaks the rules it should. The
 run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's conditions, and
@@ -102,7 +102,7 @@ def test_each_condition_of_the_design_s_rejudge_quotes_its_file():
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
 @pytest.mark.timeout(1200)
-def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its_own():
+def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
     ran = subprocess.run(
         [sys.executable, str(SPEC / "flow_canaries.py")], capture_output=True, text=True, cwd=REPO
     )
@@ -120,7 +120,7 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
             assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)
     assert "FixAfterARedCheckWaitsOnlyOnYou" in flow.PROBES
     for probe in flow.PROBES:
-        assert any(line.startswith(f"ok    today: {probe} breaks") for line in lines)
+        assert any(line.startswith(f"ok    today: {probe} holds") for line in lines)
 
 
 def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):

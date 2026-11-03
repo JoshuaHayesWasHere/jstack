@@ -3,6 +3,7 @@ Task: "main check failed at <sha12>, 1 merges since the last green" (jbus, the r
 Done when:
 - each failed test named under Read passes on main, and the failed job passes at the commit that merges the fix
 - the Result names the cause: the merge that broke main, or a flake with its evidence
+- the fix is in a pull request of its own, or in another open pull request only where that one waits on no other open pull request: no `merge_after` row still open (jmerge's `merges after` or `carries ... which merges after`) and not stacked on an open base (`it is stacked on`); otherwise the crew opens its own pull request with the fix, and whichever of the two merges second rebases
 Proves it: CI's check on main passes at the commit that merges the fix
 Size: S
 Where: `.` (the whole repo: the merges since the last green changed files nobody listed)

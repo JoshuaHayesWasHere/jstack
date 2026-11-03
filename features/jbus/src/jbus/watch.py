@@ -1278,10 +1278,24 @@ def _changed(run: Pass, red: list[dict]) -> list[str]:
     return [file for file in dict.fromkeys(files) if file]
 
 
+FIX_GOES = (
+    "- the fix is in a pull request of its own, or in another open pull request only where that "
+    "one waits on no other open pull request: no `merge_after` row still open (jmerge's "
+    "`merges after` or `carries ... which merges after`) and not stacked on an open base "
+    "(`it is stacked on`); otherwise the crew opens its own pull request with the fix, and "
+    "whichever of the two merges second rebases"
+)
+"""The line of main's fix brief that says where its fix may go. jmerge judges a pull request
+whose check failed over a red main again only once main is green, so a fix left in a pull
+request that merges after that one, or is stacked on it, would wait on the green it makes
+(features/jmerge/spec/FlowToday.tla `Unordered(q)`)."""
+
+
 def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
     approval. Where a briefed merge turned main red, the brief follows that row and a pass
-    approves it on the row's go; otherwise the user approves it like any other row. Its priority
+    approves it on the row's go; otherwise a pass approves it by the follow-up rule with no
+    parent, since jbus filed it (`queue.follow_up`). Its `Done when:` ends `FIX_GOES`. Its priority
     is one above the first row of the queue, so once approved it is the next launch there.
     `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
     it added the row, the next pass files the brief again. If the queue refuses the brief, that
@@ -1310,6 +1324,7 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
             "- each failed test named under Read passes on main, and the failed job passes at "
             "the commit that merges the fix",
             "- the Result names the cause: the merge that broke main, or a flake with its evidence",
+            FIX_GOES,
         ],
         "CI's check on main passes at the commit that merges the fix",
         "main",
