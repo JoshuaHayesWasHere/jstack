@@ -1,11 +1,17 @@
-from jbus.telemetry.kpis import Kpi, Lacks
+from jbus.telemetry.kpis import Covers, Kpi, Measured
 
 KPI = Kpi(
     "Stall minutes per merged row",
     "speed",
-    "minutes a running row was quiet or hung",
+    "minutes a running row's threads were quiet or hung, from their last write, over the "
+    "rows merged in the week",
     "min",
     None,
     "lower",
-    Lacks("a record of how long a row was quiet: hung.jsonl stopped on 2026-10-26"),
+    Measured(
+        "weekly_stall",
+        "per_row",
+        "merged",
+        covers=Covers("stall_projects", "stall_gaps", "stall record"),
+    ),
 )

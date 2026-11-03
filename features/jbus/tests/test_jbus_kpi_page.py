@@ -454,6 +454,46 @@ def test_dollars_per_merged_row_names_each_model_the_price_table_does_not_price(
     assert row[4] == "n/a n 0 no data"
 
 
+def spell(at, minutes, slug="alpha-one", until=True):
+    """A line of `stalls.jsonl` as `jbus.stall.spells` writes it: a spell opened, or ended."""
+    since = at - timedelta(minutes=minutes)
+    line = {"at": iso(at), "thread": "mcp:crew-a", "role": "crew", "slug": slug}
+    line["since"] = iso(since)
+    return line | ({"until": iso(at), "minutes": minutes, "became": "moving"} if until else {})
+
+
+def test_stall_minutes_are_each_weeks_ended_spells_over_its_merged_rows_since_the_record_began(
+    machine,
+):
+    machine.append(
+        "alpha",
+        "stalls.jsonl",
+        spell(NOW - timedelta(minutes=30), 12, until=False),
+        spell(NOW - timedelta(minutes=30), 12),
+        spell(NOW + timedelta(minutes=50), 33),
+        spell(NOW + timedelta(hours=2), 15, until=False),
+    )
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    stall = rows["Stall minutes per merged row"]
+    assert stall[3] == "none yet"
+    assert stall[5] == "45 min n 1 tracked: covers alpha"
+    assert stall[4] == (
+        "n/a n 0 no data: covers alpha; no stall record kept for 1 merged row, on 2026-10-21"
+    )
+
+
+def test_a_week_of_merged_rows_and_no_spell_has_no_stall_minute(machine):
+    machine.append("alpha", "stalls.jsonl", spell(NOW - timedelta(days=1), 12, until=False))
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["Stall minutes per merged row"][5] == "0 min n 1 tracked: covers alpha"
+
+
 def test_a_kpi_with_no_instrument_yet_says_so(machine):
     _, rows, _ = page(machine)
 

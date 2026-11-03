@@ -61,6 +61,8 @@ A turn is `hung` after 20 minutes, or after 10 with a run queued behind it, and 
 A thread that turns `hung` is one `stall` event for that thread and that run, and one line of `hung.jsonl` in the project's state directory.
 A later pass adds a line there with what became of it: `wrote again`, `interrupted` or `ended`.
 jbus interrupts no thread and sends a hung one nothing.
+Each spell a row's thread is `quiet` or `hung` is also kept in `stalls.jsonl`: one line when a pass first sees it, and one with its minutes when a pass sees it end.
+A thread that waits on your answer is `waiting`, so the time you owe an answer is in no spell.
 
 ## An ask that stopped on a limit or an auth error
 
