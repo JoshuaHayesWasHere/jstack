@@ -109,7 +109,10 @@ def test_the_revert_of_a_red_tip_is_opened_once(kitchen):
 
 
 def test_two_overlapping_reds_revert_nothing_and_file_one_row_naming_both_tips(kitchen):
+    """beta landed on alpha's red and failed a test alpha's red did not: a second break, so
+    neither merge is the one clear culprit."""
     first, second = red_merges(kitchen, ("alpha", 7, None), ("beta", 8, None))
+    kitchen.set("logs.json", {"91": LOG, "92": f"FAILED {TEST}\nFAILED {OTHER}\n= 2 failed =\n"})
     passes(kitchen)
     assert asked(kitchen, "pr revert") == []
     (row,) = main_red(kitchen)
