@@ -17,8 +17,6 @@ The timer runs `jbus-snapshot.service`, which runs `jbus snapshot`:
    In a tree with no `origin`, the commit stays in the tree, so you can still undo an edit back to it.
    The snapshot then succeeds with `snapshot: committed, not pushed: <tree> has no origin, so the backup is off`.
 
-A `standing.md` holds no rule, so the snapshot reads none: `jbus rules` is what flags one.
-
 The backup needs two things a fresh install does not have: a private repository of yours as the remote, which nothing else pushes to, and gitleaks on the machine.
 Without them the timer stays off, and nothing alerts.
 To turn the backup on, install gitleaks, then make the tree a repo with its remote:

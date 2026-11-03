@@ -9,7 +9,6 @@ A machine with no relay loses nothing else, and `jinstall --doctor` prints `miss
 `jbus relay` is a server, not a pass.
 Where it runs, it is the one way jbus pages you.
 jbus posts it the bodies of the second target and nothing else, and the relay sends each on to your chat bot, which pages you.
-No other bot watches the homes or the queue.
 It listens on `127.0.0.1`, on `RELAY_PORT`, which is 4390 when it is not set.
 With a port of 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound.
 It sends each body posted to it on to the relay's webhook, `RELAY_WEBHOOK_URL`, with the key `RELAY_WEBHOOK_KEY`.
@@ -64,7 +63,7 @@ jbus's bodies carry no time, so the same alert said again later has the same has
 A body that went and was not yet written to `sent/` when the relay stopped goes once more after its start.
 
 The pager is a second route, `page`, spooled as the first is, with the pager as its target.
-The relay pages in the two cases of [What blocks](what-blocks.md).
+The relay pages in the two cases of [When the relay pages you](#when-the-relay-pages-you).
 The page's body is `{"message"}`, one line, such as `demo: gate 33: tea or coffee?, blocking 47 min`.
 The line holds the project, the item's `line` and how long it has blocked, and, for a body your chat bot did not take, its event id.
 A URL in the line that carries a key, as a query or a user, is cut to `<url>`.
@@ -94,6 +93,24 @@ Until your chat bot acknowledges a body, the relay pages every item of it that s
 jbus posts to the relay only where the config names it, as a `blocking_url` that is `http://127.0.0.1:4390`, with `RELAY_INBOUND_KEY` as its `blocking_key`.
 Until it names the relay, jbus posts it nothing.
 Through `blocking_url`, jbus posts the relay what blocks (`waiting.blocking`).
+
+## When the relay pages you
+
+The relay needs nothing from the chat bot to tell that it is silent, and it pages in two cases:
+
+- **The chat bot did not take it.**
+  When a POST on the relay's `blocking` route fails or times out, the relay pages at once, with the event id.
+  It pages for each body that waits on that route, once for each event.
+  The chat bot may have got a body whose POST timed out, so this case may page once too often, but never too few times.
+- **It still blocks long after its reminder.**
+  If a `reminder` or a `refresh` still lists an item 45 minutes after it began to block, the relay pages once for it, by its `key` and when it opened.
+  That is 30 minutes after its one reminder, measured from the item's `opened` to the body's `at`.
+  The relay learns that an item closed only from a refresh that leaves it out, so this case fires on a refresh.
+  It fires between 45 minutes and about an hour and three quarters after the item began to block.
+  It does not fire in the first hour after you set the second target, because jbus posts no refresh until the next hour begins.
+  An item that a refresh dropped before then pages nothing, and an item that closes and opens again is a new item.
+
+An item the chat bot has acknowledged (a POST of its event id to the relay's `/ack`, above) does not page in the second case.
 
 ## Decisions from the chat
 

@@ -51,4 +51,4 @@ An item's risk is `review` for these, and `routine` for anything else:
 
 jbus has no verb that steers an item.
 To redirect work, write in the thread of the item's home in T3 Code, or send that home your word with `jbus word`.
-A log written before steers were removed may hold a `steered` line: `jbus item show` prints it, and it moves no item.
+A `steered` line in an item's log moves no item, and `jbus item show` prints it (`item.fold`).

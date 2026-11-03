@@ -13,17 +13,31 @@ Then jbus runs `gh pr revert`, which makes a new commit on a new branch, and nev
 It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew and its home.
 `jmerge` merges the revert by the normal path once its checks are green, with no review.
 
-jbus reverts nothing, and files the brief below, which says why, when:
+jbus reverts nothing in the cases below (`Keep` in `reverts.py`).
+Where the outcome is the fix's brief, the brief says which case holds.
 
-- two reds overlap: more than one merge came since the last green, and the brief names every red tip among them;
-- the tip is no briefed merge's commit, such as a merge by hand;
-- the tip is itself a revert, jbus's or anyone's;
-- jbus reverted the same row before, so a row is never reverted twice;
-- each test that failed there is a flake by `jbus ci`'s rule.
+| Case | Outcome |
+|---|---|
+| Two reds overlap: more than one merge came since the last green. | The fix's brief, which names every red tip among them. |
+| The tip is no briefed merge's commit, such as a merge by hand. | The fix's brief. |
+| The tip is itself a revert, jbus's or anyone's. | The fix's brief. |
+| jbus reverted the same row before. A row is never reverted twice. | The fix's brief. |
+| Each test that failed at the tip is a flake by `jbus ci`'s rule. | The fix's brief. |
+| Two merges went red together (`SKEW`): the culprit's own check passed over a main that lacked the merge under the red tip. | The fix's brief. |
+| The tests that failed at the tip are not read yet (`UNREAD`). | Nothing in this pass. The next pass judges the tip again. |
+| The tip is older than `READ_WAIT` (1 hour) and its failed tests still could not be read from its logs (`NOT_READ`). | The fix's brief. |
+| GitHub has not said what main the culprit's own check passed over, and the tip is older than `READ_WAIT` (`UNANSWERED`). | The fix's brief. Before `READ_WAIT`, the tip waits as `UNREAD` does. |
+| jbus already opened a revert for the tip (`OPENED`). | Nothing, no brief either, while the revert goes the normal path. |
+| `gh pr revert` fails on a clear culprit. | The fix's brief, which says jbus could not open its revert. |
+| The revert jbus opened is stuck: it closed unmerged, conflicts with main, or has a failed check. | The fix's brief, which names why the revert is stuck. |
+
+`close` closes a revert jbus opened that is still open once main's check passes at a later tip without it, as when the fix's row merged first.
+Its comment names that green tip.
+The record in `reverts.json` stays, so the row is still never reverted twice.
 
 ## The fix's brief
 
-If `<sha12>` is still main's tip when the pass reads main and no revert of it is open or to open, the pass writes `tasks/main-red-<sha12>.md` in the home's state.
+If `<sha12>` is still main's tip when the pass reads main and jbus has no revert of it open or to open, except a stuck one, the pass writes `tasks/main-red-<sha12>.md` in the home's state.
 The brief holds:
 
 - the URL of each failed job;
