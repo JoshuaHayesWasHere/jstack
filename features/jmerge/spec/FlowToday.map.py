@@ -1,5 +1,5 @@
 # Chart labels for FlowToday, drawn against FlowDesign.
-reader_actions = ["ApproveMainFix", "ApproveBrowserFix", "Approve", "HoldRow", "Accept"]
+reader_actions = ["Approve", "HoldRow", "Accept", "HomeEdits"]
 
 
 def _kind(v, p):
@@ -7,16 +7,18 @@ def _kind(v, p):
         return "merged"
     if v["st"][p] == "queued":
         return "its row held" if "go" in v and not v["go"][p] else "waiting to launch"
+    if "meets" in v and not v["meets"][p]:
+        return "its review says the brief is not met"
+    fix = ", holds main's fix" if v["fixes"][p] else ""
     if "rv" in v and v["rv"][p] == "draft":
-        return "a draft, " + ("waiting on your word" if v["needs"][p] else "its review first")
+        return "a draft, " + ("waiting on your word" if v["needs"][p] else "its review first") + fix
     ci = v["ci"][p]
     if ci == "none":
-        return "waiting for a check"
+        return "waiting for a check" + fix
     if "brFail" in v and v["brFail"][p]:
         return "its browser run red"
     if ci == "pass" and v["fixes"][p]:
-        proved = v["proved"][p]
-        return "passed, holds main's fix, " + ("proved" if proved else "not proved")
+        return "passed, holds main's fix, " + _waits(v, p)
     if ci == "pass" and "go" in v and not v["go"][p]:
         return "passed, its row held"
     if ci == "pass" and "needs" in v and v["needs"][p]:
@@ -50,6 +52,12 @@ def _main(v):
         where = "Main red from a merge"
     else:
         where = "Main red from outside"
+    if "rerun" in v and v["rerun"]:
+        where += ", its run rerun"
+    if v["fixRow"]:
+        where += ", its fix row filed"
+    if "revert" in v and v["revert"] == "open":
+        where += ", a revert open"
     if "brHold" in v and v["brHold"]:
         where += ", its browser red"
     return where + (", machine full" if v["full"] else "")
@@ -77,7 +85,9 @@ def group(v, facts):
         return "Done"
     if getattr(facts, "settled", False):
         red = v["mainRed"] or ("brHold" in v and v["brHold"])
-        if red and not v["full"] and (v.get("fixRow", True) or ("brHold" in v and v["brHold"])):
+        open_ = [p for p in ("a", "b") if v["st"][p] != "merged"]
+        yours = any(not v["go"][p] or v["needs"][p] for p in open_) if "go" in v else True
+        if red and not v["full"] and yours:
             return "Waits on you"
         return "Stuck"
     return "Moving"
@@ -91,8 +101,15 @@ group_colors = {
 }
 
 STEPS = {
-    "ApproveMainFix": "you approve main's fix",
-    "ApproveBrowserFix": "you approve the fix of main's browser run",
+    "FixMain": "jbus approves main's fix row by rule, and its crew fixes main",
+    "FixBrowser": "jbus approves the browser run's fix row by rule, and its crew fixes main's view",
+    "RerunEnds": "jbus reruns main's failed run, and it fails again",
+    "JudgeRed": "jbus judges main's red, and files its fix row",
+    "RevertMerges": "jmerge merges jbus's revert, and main is green",
+    "RevertCloses": "main is green without it, and jbus closes its revert",
+    "MeetsFix": "jbus tells its crew the brief is not met, and its crew meets it",
+    "Unstack": "jbus takes it off the stack, onto main",
+    "HomeEdits": "you have its brief edited so it no longer builds on the other",
     "BrowserFix": "its crew fixes what its browser run found",
     "Nightly": "main's nightly browser run fails, and jbus files its fix",
     "Launch": "jbus launches its crew, which opens its pull request as a draft",
@@ -111,8 +128,19 @@ STEPS = {
 
 
 def step(action, before, after):
-    if action == "ApproveMainFix" and after["mainRed"]:
-        return "you approve main's fix, and its crew puts it in an open pull request"
+    if action == "FixMain" and after["mainRed"]:
+        return (
+            "jbus approves main's fix row by rule, "
+            "and its crew puts the fix in an open pull request"
+        )
+    if action == "RerunEnds" and not after["mainRed"]:
+        return "jbus reruns main's failed run, and it passes: a flake"
+    opened = "revert" in after and after["revert"] == "open" and before["revert"] != "open"
+    if action == "JudgeRed" and opened:
+        return "jbus reverts the one merge that turned main red"
+    moved = [p for p in ("a", "b") if action == "Restack" and after["on"][p] != before["on"][p]]
+    if moved and after["ci"][moved[0]] == "pass":
+        return "the one it is stacked on merged, and jbus moves it onto main, its pass kept"
     return STEPS.get(action, action)
 
 
@@ -166,10 +194,15 @@ def cause(v, facts, invariant):
                 "the pull request that holds main's fix broke a test of its own, and its crew "
                 "reads that failure as main's red, which only its merge ends"
             )
+        if "link" in v and v["fixes"]["b"] and v["link"] == "after":
+            return (
+                "main's fix row closed with its fix in a follow-up that merges only after the "
+                "other, and the other cannot move: a draft that waits on your word, or a red "
+                "pull request that jmerge judges again only once main is green"
+            )
         return (
-            "main's fix row closed with its fix in an open pull request, whose check proves "
-            "the fix only if it ran each test main failed, and the selector reads the diff, "
-            "not those tests"
+            "main's fix row closed with its fix in an open pull request "
+            "that waits on another, which cannot move"
         )
     return None
 

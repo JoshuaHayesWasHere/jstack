@@ -3,11 +3,19 @@
 Two rows, a main that can go red from a merge or from outside, and a machine that a crew can leave full.
 The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and it came in with rejudge-red-prs.
 
-- `FlowToday.tla` models the code as of main 859203e0, and each of its conditions names the file that checks it and quotes the code, with no line number.
+- `FlowToday.tla` models the code as of main a978b7ba9, and each of its conditions names the file that checks it and quotes the code, with no line number.
   `test_flow_spec.py` finds the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
   It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416, #426 and #427 since and cut down to what the four rules read.
   Since #583 and #584 it has main's fix: the `main-red-` row, or a pull request that carries the fix, and the row's crew may end with no pull request, its fix in an open one.
-  Since red-main-no-hold a red main holds no pull request, so a merged fix ends the red whether or not its own check proved it, and jbus's revert of a clear culprit (`jbus.reverts`) is not modeled.
+  Since red-main-no-hold a red main holds no pull request, so a merged fix ends the red whether or not its own check proved it.
+  Since fl-flowtoday-1102 it follows the scout fl-statechart-1102's `FlowNow.tla` of main a978b7ba9 in six places.
+  jbus reruns main's failed push run once before it judges the red tip (#672), and a red from outside may be a flake that the rerun passes.
+  jbus then reverts the red tip's one clear culprit (`jbus.reverts`, #862), and jmerge merges the revert.
+  A tip with more than one merge since the last green, a culprit whose head lacks the green under the tip (a skew, #899), or a red from outside gets main's fix row instead, and jbus closes a revert still open once main is green without it (#899).
+  jbus's pass approves both fix rows it files, main's and the browser run's, by rule and not by your word (#547).
+  A stacked link is marked ready and checked while it sits on its base's open branch, and its move onto main may keep that pass (`jmerge.reuse`, #868).
+  jbus takes a link off its stack once its brief's `Builds on:` line no longer names its open base (#846, #877), which in the model takes an edit of the brief, since every depends names its base.
+  A pull request whose last review round says the brief is not met is held (`MEETS_NO`, #843), and jbus tells its crew, which meets it (#850).
   Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red.
   Since cut 11 of the simplify pass it has a row's go, which jbus asks at launch and jmerge at merge (`rows.py` `ROW_HELD`, `NO_GO`), and a hold for your word, as a change that touches a protected path has (`ready.py` `TOUCHES`).
   A crew opens its pull request as a draft, and the draft's check waits on its review: jmerge marks it ready only once the draft is all it waits on.
@@ -26,6 +34,16 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 Run it from the repo root.
 Today's code breaks three rules, `FlowsWhenGreen`, `NoMergeTurnsMainRed` and `MainFixWaitsOnlyOnYou`, and holds `MachineNotLeftFull`.
+At main 035d4e297 it prints, for today's code:
+
+```text
+ok    today: FlowsWhenGreen breaks (4909 distinct states found, 0.7 s)
+ok    today: NoMergeTurnsMainRed breaks (106934 distinct states found, 1.1 s)
+ok    today: MachineNotLeftFull holds (2573438 distinct states found, 19.0 s)
+ok    today: MainFixWaitsOnlyOnYou breaks (290878 distinct states found, 2.2 s)
+```
+
+The four verdicts are those of the spec before fl-flowtoday-1102, which modeled main 859203e0.
 `FlowsWhenGreen` says work settles merged or waiting on your word: your approval of a row, or `jmerge --accept` of a hold.
 It breaks on a draft that touches a protected path.
 `Repo.judged` returns the hold before it reaches `if one.draft:`, and jmerge marks a draft ready only when its reason is the draft (`READY_ON`), so the draft stays one.
@@ -36,8 +54,10 @@ It breaks `NoMergeTurnsMainRed` because a check can still miss a test that reads
 `scripts/select_tests.py` runs every test no rule owns (#397), and each test whose `READ_SET` matches the changed path (#426).
 `testing/tests/test_cross_cutting.py` makes a test that globs or walks the tree declare a read set, but it sees only the reads it knows.
 A test that reads the path another way, or past its read set, is selected by chance, so the model keeps that chance.
-It breaks `MainFixWaitsOnlyOnYou` on the same draft: main is red, its fix row's go is given, and the pull request that carries the fix is that draft, so nothing but your word could move it, and your word cannot.
-The control that marks such a draft ready still breaks it, on a fix stacked on a pull request whose check failed over the red main: jmerge merges no red main into that pull request, so it and the fix on it wait until main is green.
+It breaks `MainFixWaitsOnlyOnYou` on the same draft: main is red from outside, its rerun fails, jbus files the fix row and approves it by rule, and the pull request its crew puts the fix in is that draft, so nothing but your word could move it, and your word cannot.
+Since #547 no fix row waits on your approval, so of the rule's waits only your word is yours: the go of a row you held or whose brief changed, and the lift of a pull request's hold.
+The control that marks such a draft ready still breaks it, on a fix in the merge_after follow-up of a pull request whose check failed over the red main: jmerge judges that pull request again only once main is green, and the follow-up with the fix merges only after it.
+Until fl-flowtoday-1102 the control's shortest break was a fix stacked on that pull request; with #868 the shortest is the merge_after one, and the stacked one still waits for its base.
 Until red-main-no-hold it broke the rule another way as well: while main was red only a fix whose own check proved it merged, so a fix row closed with its fix in an open pull request whose check ran other tests left nothing to merge and nothing for you to approve, as on 2026-10-27.
 The design holds all four, in the words they had before the holds: its check runs every test that reads the tree, and the crew of a fix reads a failure over the red it fixes as its own.
 `NoGuard` breaks `NoMergeTurnsMainRed`, `NoRejudge` breaks `FlowsWhenGreen`, and `NoSweep` breaks `FlowsWhenGreen` and `MachineNotLeftFull`.
@@ -54,12 +74,17 @@ Then a follow-up that merges after its row launches first and its row never laun
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
-    statechart from-spec FlowToday.tla --against FlowDesign.tla --label "the design" \
+    statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label "the design" \
     --title "Does work keep flowing?" --out out --png \
     --expect-broken FlowsWhenGreen --expect-broken NoMergeTurnsMainRed --expect-broken MainFixWaitsOnlyOnYou)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
+`FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited, so the chart has no unstack.
+The chart command holds TLC's whole state graph in memory, and the whole model, 2.6M states, took more than 27 GB before earlyoom stopped it.
+With an edit and an outside break both in the cut, TLC 2.19 throws while its `-continue` run prints a path of `NoMergeTurnsMainRed`.
+`flow_canaries.py` checks every rule on the whole model.
+The chart draws no revert: the command stops each path at the first state that breaks a rule, and jbus reverts only a merge that turned main red, which breaks `NoMergeTurnsMainRed`.
 The design starts with both pull requests open, so each story says the design starts on another screen.
 
 ## What the code model leaves out
@@ -77,7 +102,14 @@ The design starts with both pull requests open, so each story says the design st
 - A draft's browser run, which is waived as its failed checks are: a draft in the model has run no check.
 - A pull request whose own browser run proves the fix of main's browser red: the browser-red row is main's only fix there.
 - A fix row that ends with no fix anywhere, which leaves main red with nothing to merge until you queue another.
-- A fix row that launched and is left to its crew once main is green: the model's fix row is queued until you approve it, and the approval is the whole of its work.
+- A fix row that launched and is left to its crew once main is green: the model's fix row is queued until jbus's pass approves it by rule and it launches, and that launch is the whole of its work.
+- A revert whose check fails (`reverts.stuck`), and a second revert of one row: the model keeps one revert open at a time, and its revert merges only while its culprit is still the red tip's, so once another merge landed on the red tip main's fix row ends the red, and jbus closes the revert.
+- What a reverted row does next: it stays merged.
+- What a culprit's head holds: TLC takes it to hold the green under the red tip or not (a skew), either way.
+- Which stacked moves are a clean replay of the trees their check passed: TLC takes either, a pass kept or the check run again.
+- A stacked link's check over its base's change: in the model it fails only on its own change and on main's red.
+- jbus.stack's test of whether a link's own change needs its base's: a link whose brief no longer names its base comes off its stack.
+- A `Waived:` line, your other way past a review round that says the brief is not met, and a round that says so after the draft's first.
 - The red that ends at a fixing merge: the code ends it once jbus sees main's new tip green.
 
 `FlowDesign.tla`'s `Sweep` clears every leftover, idle or busy, as soon as a turn ends, which the code did not until #427: from #416 it stopped a busy one, and an idle one only once its row ended.
