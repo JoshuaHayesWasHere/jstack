@@ -111,9 +111,7 @@ OTHER_HOME = Reason("", "another home's")
 REQUIRED = ("check",)
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")
-DRAFT = Reason("findings", "draft")
-UNREADIED = Reason("findings", "draft, and gh pr ready refused it: {said}")
-READIED = Reason("check", "reviewed and fixed, so marked ready, and CI runs its check at {head}")
+HAND_DRAFT = Reason("result", "a draft, which jmerge never marks ready")
 GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
 MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
@@ -124,7 +122,6 @@ NO_HEAD = Reason("second", "its review names no head to compare its rebase with"
 
 BASE = Reason("rebase", "its base is {base}, not {default}")
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
-READY_ON = (DRAFT, REVIEW_NONE)
 NO_REVIEW = Reason("review", "it has no review yet")
 SKILLS_UNRUN = Reason(
     "result",

@@ -89,7 +89,7 @@ def test_a_quote_of_one_python_line_holds_each_or_on_it():
             first = found[0][0]
             checked.append(quote)
             assert disjuncts(quote) == disjuncts(lines[first - 1]), f"{path} `{quote}`"
-    assert "ran.over == red and bool(failed)" in checked
+    assert "if row and not judgement.has_go(row, brief):" in checked
 
 
 def test_each_condition_of_the_design_s_rejudge_quotes_its_file():

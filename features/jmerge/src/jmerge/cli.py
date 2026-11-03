@@ -257,13 +257,10 @@ class Repo:
         merged into, it waits until it is based on that branch and its head holds that commit:
         its crew rebased its own commits onto it.
 
-        A draft on its base's branch while the base is open does not wait here: it is marked
-        ready once reviewed and fixed, as any draft is, so CI checks it while it is stacked,
-        beside its base's own check, and once ready it waits here. Its move onto the default
-        branch then adds no round in series where the move checks the same trees (`reuse`)."""
+        CI checks it while it is stacked, beside its base's own check, as it checks every open
+        pull request, so its move onto the default branch adds no round in series where the move
+        checks the same trees (`reuse`)."""
         if stacked is None:
-            return ""
-        if one.draft and not stacked.at and one.base == stacked.branch:
             return ""
         onto = stacked.branch if stacked.at else default
         if not stacked.at or one.base != onto:
@@ -742,7 +739,8 @@ class Repo:
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
         if brief is None:
-            return Judgement("", "wait", ready.DRAFT if one.draft else ready.NO_BRIEF, "", None)
+            why = ready.HAND_DRAFT if one.draft else ready.NO_BRIEF
+            return Judgement("", "wait", why, "", None)
         text = self.as_fixed(brief.stem, _read(brief), one)
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
@@ -774,9 +772,7 @@ class Repo:
                 lost = found
         if rebase is None and covered is None:
             lost = ready.answered(text, one.head)
-        short = short or ready.short_on_github(
-            replace(one, waiting=(), failed=()) if one.draft else one
-        )
+        short = short or ready.short_on_github(one)
         note = ""
         silent = ready.unexplained(lost, text, one.head)
         if (
@@ -816,8 +812,6 @@ class Repo:
         hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)
         if hold:
             return Judgement(brief.stem, "hold", hold, note, None)
-        if one.draft:
-            return Judgement(brief.stem, "wait", ready.DRAFT, note, None)
         if red and re.fullmatch(ready.NO_RUN.pattern, red):
             moved = None if one.started is None else self.moved(one.base, one.started)
             if moved is not None and moved[1]:
@@ -826,6 +820,8 @@ class Repo:
             return Judgement(brief.stem, "wait", red, note, None)
         if red:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
+        if one.draft:
+            return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
         short, tip = self.over_main(one)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
@@ -950,42 +946,18 @@ class Repo:
     def holds(self) -> dict[str, str]:
         return store.read_dict(self.state / "holds.json")
 
-    def accepts(self) -> dict[str, dict]:
-        """The head of each held draft whose accept lifted its holds (`accept`), and the codes of
-        those holds: it merges at that head once its check passed, with no second accept, and a
-        hold of another code holds it still."""
-        return store.read_dict(self.state / "accepted.json")
-
-    def accepts_are(self, accepts: dict[str, dict]) -> None:
-        if accepts != self.accepts() and self.state.is_dir():
-            store.write_json(self.state / "accepted.json", accepts)
-
     def open_only(self, listed: list[ready.PullRequest]) -> None:
-        """Keep only the holds of pull requests still open, and the accepts of those still open at
-        the head they were accepted at: a merge or a close drops both, and a push an accept. A
-        merge or a close drops the pull request's record in `base-merges.json` too."""
+        """Keep only the holds of pull requests still open: a merge or a close drops one, and the
+        pull request's record in `base-merges.json` too."""
         heads = {str(one.number): one.head for one in listed}
         self.base_merge.open_only(heads)
         self.spells.open_only({one.number for one in listed})
         self.holds_are({number: head for number, head in self.holds().items() if number in heads})
-        self.accepts_are(
-            {
-                number: kept
-                for number, kept in self.accepts().items()
-                if isinstance(kept, dict) and heads.get(number) == kept.get("head")
-            }
-        )
 
     def lifted(self, one: ready.PullRequest) -> frozenset[str]:
         """The codes of the holds the user's accept lifts for `one` at its head: every code in
-        the run of the accept, the codes a draft's accept lifted while it is kept, and none
-        otherwise."""
-        if self.accepted == (one.number, one.head):
-            return ready.codes()
-        kept = self.accepts().get(str(one.number))
-        if not isinstance(kept, dict) or kept.get("head") != one.head:
-            return frozenset()
-        return frozenset(kept.get("codes") or ())
+        the run of the accept, and none otherwise."""
+        return ready.codes() if self.accepted == (one.number, one.head) else frozenset()
 
     def lift(self, why: str, lifted: frozenset[str]) -> str:
         """`why`, or nothing where it is a hold `--accept` lifts and the accept lifted its code."""
@@ -993,17 +965,6 @@ class Repo:
             self.lifts.append(why)
             return ""
         return why
-
-    def readied(self, one: ready.PullRequest, found: Judgement) -> Judgement:
-        """Mark ready a draft whose review is written and whose fix is pushed, so CI runs its one
-        check now, on this head (check.yml runs none on a draft). A brief that says
-        `Review: none` is marked too, and still holds for the user's word."""
-        ran = _run(self.main, "gh", "pr", "ready", str(one.number), *self.about)
-        if found.why != ready.DRAFT:
-            return found
-        if ran.returncode:
-            return found._replace(why=ready.UNREADIED.format(said=lines.said(ran)))
-        return found._replace(why=ready.READIED.format(head=one.head))
 
     def timed(self, line: str) -> None:
         """Keep the wait of the open pull request a line is about (`waits.Spells`): a `wait` or
@@ -1038,11 +999,10 @@ class Repo:
         check: bool,
         acting: bus.Acting | None = None,
     ) -> int:
-        """Lift the hold of `one` and merge it, the user's hand-merge. A draft is marked ready
-        in place of the merge, and its lift is kept (`accepts`), so it merges once its check
-        passed. With `acting`, the accept is an act of the bus's (`jmerge.bus`): a door the party
-        may not open parks a gate and merges nothing. `check` says what it would do, and is no
-        act."""
+        """Lift the hold of `one` and merge it, the user's hand-merge. A draft is not merged:
+        the accept says what it waits on (`HAND_DRAFT`) and marks nothing ready. With `acting`,
+        the accept is an act of the bus's (`jmerge.bus`): a door the party may not open parks a
+        gate and merges nothing. `check` says what it would do, and is no act."""
         about = f"{one.number} {one.url}"
         first = self.waits(one, default)
         if first.verb != "hold":
@@ -1063,31 +1023,19 @@ class Repo:
         safe = f"safe because {proven[0]} (proven at {at[:12]})"
         self.accepted = (one.number, one.head)
         found = self.waits(one, default)
-        draft = one.draft and found.why == ready.DRAFT
-        if found.judged is None and not draft:
+        if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
             return 1
         why = " and ".join(self.lifts) or first.why
         if check:
             notes = [f"accepted: {why}", safe]
-            if draft:
-                notes.append("a draft, marked ready, and it merges once its check passed")
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
             return 0
         ran: list[str] = []
-        number = str(one.number)
 
         def does() -> str:
             ran.append(one.head)
             say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
-            if draft:
-                readied = self.readied(one, found)
-                say(lines.waits("wait", one.number, one.url, readied.why))
-                if readied.why != ready.READIED.format(head=one.head):
-                    raise jsettings.Refused(readied.why)
-                codes = sorted({ready.code_of(reason) for reason in self.lifts})
-                self.accepts_are({**self.accepts(), number: {"head": one.head, "codes": codes}})
-                return str(readied.why)
             said = self.merge(one, found.slug, found.note, found.judged)
             say(said)
             if not said.startswith("merged "):
@@ -1560,15 +1508,14 @@ def _job(repo: str, job: str) -> dict:
 def said_of_checks(pull: str) -> str:
     pr = [pull] if pull else []
     try:
-        fields = "headRefOid,statusCheckRollup,isDraft"
+        fields = "headRefOid,statusCheckRollup"
         asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", fields)
         view = json.loads(asked.stdout) if not asked.returncode else None
         rollup, head = view["statusCheckRollup"] or [], view["headRefOid"] or ""
-        draft = bool(view.get("isDraft"))
-        never = frozenset() if draft else checks.never_started(rollup, _job)
+        never = checks.never_started(rollup, _job)
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         return "wait: could not ask GitHub"
-    return checks.SAID[checks.checks(rollup, never, draft)].format(head=head)
+    return checks.SAID[checks.checks(rollup, never)].format(head=head)
 
 
 def homes_state(main_checkout: Path) -> Path:
@@ -1586,7 +1533,7 @@ def parser() -> argparse.ArgumentParser:
         "is never merged, unless its project names that branch as a merge base (jbus project "
         "bases --add): one into a merge base merges on the default branch's rules, and a red main "
         "does not hold it. "
-        "A draft is never merged, with any flag. "
+        "A draft is never merged or marked ready, with any flag. "
         "A green check stands for its own head: one whose head no longer merges over a main "
         "that changed one of its paths after its check started waits for a rebase, and one "
         "that still merges cleanly merges on that check. One whose rebase dropped "
@@ -1834,8 +1781,6 @@ def _merging(
 
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)
-        if one.draft and found.slug and found.why in ready.READY_ON and not args.check:
-            found = repo.readied(one, found)
         if found.verb == "hold" and not args.check:
             repo.hold(one)
         if found.judged is None:
@@ -1844,10 +1789,7 @@ def _merging(
             notes = [found.note]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
-            said = repo.merge(one, found.slug, found.note, found.judged)
-            say(said)
-            if said.startswith("merged "):
-                repo.accepts_are({n: h for n, h in repo.accepts().items() if n != str(one.number)})
+            say(repo.merge(one, found.slug, found.note, found.judged))
     return 0
 
 
@@ -1867,10 +1809,7 @@ def browser_red(repo: Repo, one: ready.PullRequest, default: str, slug: str) -> 
     """The wait on a pull request into main for its own browser run: one still going waits as any
     pending run, and one that failed holds it (`rows.browser_red`). It asks GitHub for main's
     browser runs once a run, and only for a pull request whose browser run failed. When GitHub
-    gives no answer, main is not known to be red, and the red is the pull request's own. A
-    draft's browser run is waived as its failed checks are (`Repo.judged`)."""
-    if one.draft:
-        return ""
+    gives no answer, main is not known to be red, and the red is the pull request's own."""
     state = ready.browser(repo.reds.get(ROLLUP.format(number=one.number), []))
     if state == ready.BROWSER_PENDING:
         return ready.NOT_PASSED.format(check=ready.BROWSER)
