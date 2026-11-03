@@ -2,7 +2,21 @@
 
 `jbus` takes one verb.
 `--project <name>` goes before the verb, as in `jbus --project demo queue show`, and names a project of the config.
-Without it, `jbus gate`, `jbus answer`, `jbus done`, `jbus plan` and `jbus link` act on the project whose repo they are run in.
+Without it, these verbs act on the project whose repo they are run in (`jbus view-shot` only with `--home`):
+
+<!-- built: here -->
+- `jbus answer`
+- `jbus clear`
+- `jbus decide`
+- `jbus done`
+- `jbus gate`
+- `jbus link`
+- `jbus out`
+- `jbus plan`
+- `jbus view-shot`
+- `jbus wakes`
+<!-- built: end -->
+
 `jbus events`, `jbus t3 launch-test`, `jbus failover` and the `jbus queue` verbs take the config's one project, or, when the config has several, the one whose repo they are run in.
 
 Each verb that jbus's help lists is in one of the three tables below.
@@ -81,6 +95,44 @@ A time with no zone is in your time zone.
 In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`.
 `jbus` refuses any other word.
 
-`jbus poll`, `jbus tick`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus budget`, `jbus view`, `jbus view-shot`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus forget`, `jbus told`, `jbus project add`, `jbus project bases` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
+These verbs take no project of their own, and read none, every project, or the one `--project` names:
+
+<!-- built: none -->
+- `jbus alarm`
+- `jbus bot`
+- `jbus budget`
+- `jbus digest`
+- `jbus flow`
+- `jbus forget`
+- `jbus health`
+- `jbus home`
+- `jbus kpis`
+- `jbus needs`
+- `jbus playbook`
+- `jbus poll`
+- `jbus project`
+- `jbus relay`
+- `jbus rules`
+- `jbus snapshot`
+- `jbus status`
+- `jbus steps`
+- `jbus telemetry`
+- `jbus tick`
+- `jbus told`
+- `jbus view`
+- `jbus word`
+<!-- built: end -->
+
+`jbus ci --notice` and `jbus t3 login` read no project either, and `jbus word` takes its own from `--to` or `--all`.
 `jbus home status` reads the project whose repo it runs in, and says so where the config names none.
-`jbus gate`, `jbus done`, `jbus told`, `jbus queue add`, `jbus queue check` and `jbus queue apply` read stdin, and wait for it when nothing is piped in.
+
+These verbs read stdin, and wait for it when nothing is piped in:
+
+<!-- built: piped -->
+- `jbus done`
+- `jbus gate`
+- `jbus queue add`
+- `jbus queue apply`
+- `jbus queue check`
+- `jbus told`
+<!-- built: end -->

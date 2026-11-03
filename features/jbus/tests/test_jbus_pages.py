@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+import jbus
 from jbus import pages, wake
 from testing.paths import REPO
 
@@ -100,6 +101,84 @@ def test_two_rows_that_each_add_a_kind_merge_with_no_conflict(tree, monkeypatch)
         text=True,
     )
     assert page.stdout == pages.build(tree)[pages.EVENTS_PAGE]
+
+
+REACHING = """from jbus import verbs, zz_helper
+
+VERBS = (verbs.Verb("zz-reach", "a verb that finds its project", verbs.nothing, zz_helper.run),)
+"""
+HELPER = """from jbus import verbs
+
+
+def run(args, config):
+    return verbs.here(config, args.project) and 0
+"""
+FREE = """from jbus import verbs
+
+
+def _run(args, config):
+    return len(verbs.piped("zz-free", "its lines"))
+
+
+VERBS = (verbs.Verb("zz-free", "a verb that takes no project", verbs.nothing, _run),)
+"""
+
+
+def verb_module(folder, name, source):
+    folder.mkdir(exist_ok=True)
+    (folder / f"{name}.py").write_text(source)
+
+
+def part(text, name):
+    return re.search(rf"<!-- built: {name} -->\n(.*?)<!-- built: end -->", text, re.S)[1]
+
+
+def test_a_verb_added_in_a_module_lands_in_its_lists_with_no_edit_of_the_page(
+    tree, monkeypatch, capsys
+):
+    extra = tree / "extra"
+    verb_module(extra, "zz_helper", HELPER)
+    verb_module(extra, "zz_reach", REACHING)
+    verb_module(extra, "zz_free", FREE)
+    monkeypatch.setattr(pages, "PATHS", [*jbus.__path__, str(extra)])
+    assert pages.main(["--check"]) == 1
+    assert f"behind: {pages.VERBS_PAGE}: run" in capsys.readouterr().out
+    assert pages.main([]) == 0
+    said = (tree / pages.VERBS_PAGE).read_text()
+    assert "- `jbus wakes`\n- `jbus zz-reach`\n" in part(said, "here")
+    assert "- `jbus word`\n- `jbus zz-free`\n" in part(said, "none")
+    assert "- `jbus told`\n- `jbus zz-free`\n" in part(said, "piped")
+    assert "zz-reach" not in part(said, "none") + part(said, "piped")
+    assert "zz-free" not in part(said, "here")
+
+
+def test_two_rows_that_each_add_a_verb_module_merge_with_no_conflict(tree, monkeypatch):
+    extra = tree / "extra"
+    monkeypatch.setattr(pages, "PATHS", [*jbus.__path__, str(extra)])
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tree, check=True)
+    start = committed(tree, "start")
+    added = {"aa_free": FREE.replace("zz-free", "aa-free"), "zz_free": FREE}
+    heads = []
+    for name, source in added.items():
+        subprocess.run(["git", "checkout", "-q", "-B", name, start], cwd=tree, check=True)
+        shutil.rmtree(extra, ignore_errors=True)
+        verb_module(extra, name, source)
+        assert pages.main([]) == 0
+        heads.append(committed(tree, name))
+    merged = subprocess.run(
+        ["git", "merge-tree", "--write-tree", *heads], cwd=tree, capture_output=True, text=True
+    )
+    assert merged.returncode == 0, merged.stdout
+    for name, source in added.items():
+        verb_module(extra, name, source)
+    page = subprocess.run(
+        ["git", "show", f"{merged.stdout.strip()}:{pages.VERBS_PAGE}"],
+        cwd=tree,
+        capture_output=True,
+        text=True,
+    )
+    assert page.stdout == pages.build(tree)[pages.VERBS_PAGE]
+    assert "- `jbus aa-free`\n" in page.stdout and "- `jbus zz-free`\n" in page.stdout
 
 
 def verbs_of(table):
