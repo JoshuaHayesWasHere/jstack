@@ -98,22 +98,29 @@ It prints ``refused: <slug>'s brief is <other>'s (<status>): rename by `jbus que
 A row that merged, failed or ended does not count, so a brief can be queued again once its first row is over.
 
 `add` checks the brief when a row is first queued, so you are never asked for a go on a brief that could not launch.
-The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, as `features/jbriefs/templates/brief.md` has them.
+The head must have the eight lines of `jbriefs.parse.REQUIRED`, `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:`, as `features/jbriefs/templates/brief.md` has them.
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-These five lines must also hold the right kind of value, and `add` makes more checks besides, in `jbriefs.parse.CHECKS` and `jbus.queue.conduct`:
+`add` then runs the eleven checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`:
 
+- `Task:` is 2,000 characters or fewer.
+- `Design:` names a file, or says `none, <why>`.
 - `Proves it:` names something outside the agent.
+- `Skills:` names only skills and principles that exist, or says `none`.
 - `Size:` is a t-shirt size.
 - `Where:` names at least one path under the repo.
   A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
   Prose and a flag are not paths.
 - `Review:` is one word, `twice`, `review` or `none`, and nothing more: the crew reads any other word as `review`, so `Review: standard` would launch a reviewer nobody asked for.
 - `Playbook:` names a crewmate's file of `playbooks/`, or `none`.
-- `Design:` names a file, or says `none, <why>`.
 - A brief for research, perf, analysis or outcome work has a filled-in `Read:` line and `Instruments:` line, as the home skill's deeper step writes them.
   It is such work when its `Playbook:` line names `perf-issue`, `hillclimb`, `runtime-forensics` or `eval`, or when its `Task:` line names research, perf, performance, analysis or outcome.
+- `Builds on:` gives no plan layer as a reason: a row builds on another only for code it changes, calls or imports.
+- No field but `Ruled out:` asks for a load on every core, such as `stress-ng --cpu 0`. A bounded load runs inside `jgauge test-slot`.
+- The brief asks you nothing mid-task: a question goes through `jbus gate`.
+- Its `Done when:` and `Where:` claim no shared doc, such as the README, unless the row's title names docs.
+- A test that its `Done when:` or `Proves it:` names does not quote the `Task:` line's account of what happened word for word.
 
 `add` refuses a brief short of any of these with one line for each fault, and queues nothing:
 
@@ -127,6 +134,8 @@ In a batch, the line is `refused: line <n>: <slug>'s brief has <k> faults, and n
 A brief `add` queues can still get a `warning: <slug>'s <why>` line, from `add` and from each `add` of a batch.
 `Review: none` beside `Pull request: open one when done` gets one: no reviewer runs, and `jmerge` leaves the pull request to wait for your word.
 So does a `Done when:` that asks for a bare `make check` where the home's `fresh-check` names another check command.
+A brief whose `Where:` shares a path with a row its `Builds on:` line names gets `warning: <slug> shares <paths> with <other>, which it builds on: ...`.
+The rest of that line says to join the two rows where they are one change, and otherwise to take the shared path out of the one that has no need of the other's code.
 
 `jbus queue check [<slug>] [--for <home>] < brief.md` runs the checks `add` runs, the `Home:` line and `--for` included, and writes nothing.
 It prints each fault on a line of its own and exits 1, or prints nothing and exits 0, with the warnings `add` would print under either.
@@ -163,7 +172,7 @@ With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.
 A row keeps its item, and `add` refuses an `--item` that names another.
 `jbus queue add <slug> --from <thread id>` says which home adds the row, and an empty id is the root home.
-`add` refuses a brief or a request with no `Home:` line, or one whose line names neither `root` nor a scope of the project's homes, as a fault of the brief beside its other faults, and queues nothing: a brief with no line once landed in the root home unseen.
+`add` refuses a brief or a request with no `Home:` line, or one whose line names neither `root` nor a scope of the project's homes, as a fault of the brief beside its other faults, and queues nothing.
 A row already queued is not checked again.
 `add` refuses a row whose brief's `Home:` line names a home other than the one adding it, and queues nothing, so two homes do not brief the same fix unseen.
 `jbus queue add --for <home>`, `root` or a scope's name, hands the row over on purpose, and `add` refuses a `--for` that is not the brief's home.
@@ -203,7 +212,7 @@ jbus queue approve <slug> --follows <parent slug>
 
 `--follows` goes with none of the bases above.
 It takes no `--sha`, since nobody read the brief's sha for a follow-up, and a `--sha` beside it is taken and not read: the go is for the brief jbus stores.
-A `--rule <n>` beside it, from the days when jbus read the rule's number out of a file, is taken and not read, so `jbus queue approve <slug> --rule 6 --follows <parent slug>` still approves.
+A `--rule <n>` beside it is taken and not read, so `jbus queue approve <slug> --rule 6 --follows <parent slug>` approves as `--follows` alone does.
 Any other mix gets the refusal above.
 jbus checks the parent and judges nothing else.
 The home decides whether the brief is really a follow-up, and you audit that call through the mark on the row and the count in the digest.
@@ -232,9 +241,9 @@ The row's `approval` field records the approval:
 
 | Field | What it holds |
 | --- | --- |
-| `basis`, `ref` | `word`, `answer`, `message`, `pick` or `bot-chat`, and the id, the number or the reference. A record made from a page's send, which no verb gives now, has `page`, and keeps its go. By rule: `rule` and `follow-up`, or the rule's number for a record made before the rule was known by what it says. |
+| `basis`, `ref` | `word`, `answer`, `message`, `pick` or `bot-chat`, and the id, the number or the reference. `page` is the basis of a go from a page's send: no verb gives it, and such a go holds. By rule: `rule`, with `follow-up` or a rule's number as `ref`. |
 | `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the follow-up rule's words and the line of the parent's go, or the line of the red run for a fix jbus filed, and the other two are empty, since you said nothing of the row. |
-| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for words it did not read itself: a typed answer, a word given on the page of `jbus view`, or a word typed before `jbus word` took only `--message`. For a row approved by rule it is `true`, since jbus read the rule itself. |
+| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for words it did not read itself: a typed answer, a word given on the page of `jbus view`, or a word whose text was typed and not read from T3 Code. For a row approved by rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
 | `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
@@ -250,8 +259,7 @@ It prints their slugs on a line above the table, `held <parent>, and <slugs> wit
 `jbus queue remove` of a parent that did not merge does the same.
 `jbus digest --json` lists each such row under its project's `by_rule`, as `{"slug", "rule", "follows", "at"}`, for the approvals run at or after `--since`.
 The length of that list is the count of rows that launched without your word for them.
-A row approved before these records existed holds only the typed string.
-It keeps its go, still launches, and prints `<the string> (typed, not checked)`.
+A row whose `approved` is a string with no `approval` record keeps its go, launches, and prints `<the string> (typed, not checked)`.
 jbus reads no time out of such a string, so the view gives no time from approval to merge for it.
 
 The sha leaves out the `Home:`, `Thread:`, `Green main:` and `Stacked on:` lines of the brief's head, the lines above its first `## `.
@@ -293,7 +301,7 @@ An act's line is JSON with `v: 1`, an `id`, the time `at`, and these:
 | `line` | What the act printed, and `gate` the number of the gate a `gated` go parked. |
 
 Each basis is one `source`: `--word` is `typed`, `--answer` is `answer`, `--message` is `t3-message`, `--pick` is `t3-pick`, and the follow-up rule is `rule`.
-An old act of a page's send keeps the source it was recorded with, which no verb takes.
+An act of a page's send has the source `lavish-page`, which no verb gives.
 The bot's words are `bot-chat`, and an answer, a hold, a work item's go and a word given on the view's page are `view`.
 The approval record in `queue.json` keeps its fields as before, so a bot's go reads `the bot's go for you, <time>, from bot-chat <address>/<device>; run <time> by the bot`.
 
@@ -408,11 +416,9 @@ Two words of five letters or more within two edits of each other also count as o
 Some such pairs differ in meaning, such as `files` and `fixes`, and some are opposites, such as `include` and `exclude`, `import` and `export`, or `maximum` and `minimum`.
 A swap between two such words keeps the go.
 
-A go recorded before the fingerprint read the title and `Task` has neither in its `meaning`, and holds for any title and `Task`.
-The fingerprint does not compare the fields such a go recorded that it no longer reads, so the go keeps holding for the brief it was run for.
-A row approved before the fingerprint existed has no `meaning` in its record.
-It keeps its go while its stored brief has the sha its row holds, line for line, as before.
-That sha is the `brief_sha` of the text, or, for a row approved before the sha left the two lines out, the sha256 of the whole text.
+A `meaning` with no title and no `Task` (`LEGACY` in `meaning.py`) holds for any title and `Task`, and the fingerprint compares only the fields it reads now.
+A record with no `meaning` holds while the stored brief has the sha its row holds.
+That sha is the `brief_sha` of the brief, or the sha256 of the whole text, its `Home:` and `Thread:` lines included.
 
 `jbus queue verify <slug>` prints, as JSON, what another reader needs to check that a brief is the one you approved.
 It prints the row's `approval` record: its basis, its reference and your words, and the `brief_sha`, `meaning` and `scope` at the go.

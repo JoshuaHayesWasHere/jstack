@@ -12,7 +12,8 @@ That is a systemd user manager on Linux, the same on WSL2 once systemd is turned
 
 ## What a pass does
 
-One pass, under one lock, does this for every project in the config:
+One pass, under one lock, works on every project in the config side by side, each project in a thread of its own with its own T3 Code client (`jbus.poll`).
+Each project's steps run in this order:
 
 1. It runs `jmerge` in the project's main checkout, and makes one event for each line `jmerge` prints about a pull request.
 2. It reads the briefs and the scout requests in the home's state directory, and makes one event for each new Result, Review, Report and question.
@@ -22,6 +23,7 @@ One pass, under one lock, does this for every project in the config:
    A required check of a row's pull request that ran and was cancelled or timed out at its head is no crewmate's: at its run's first attempt jbus runs it again once (`gh run rerun <run> --failed`) and logs `cancelled <slug>: ran #<n>'s check again, run <run> at <head>`.
    A check cancelled again at a later attempt, or one GitHub will not run again, is one stall, once for the head, that the one list takes to the brief's home, and its line is the row's why.
    A run on a head the pull request has left, one a newer push displaced, is neither run again nor told.
+   When the last review's `Meets the brief:` line says `no`, has no shape `jmerge` reads, or counts other lines than the brief has, jbus sends the crew to the crew skill's "A second pass" (`jbus.expedite`).
    It stops a process that a crew or reviewer left running once its turn ended, busy or idle, and a busy one a scout left, one whose parent is 1, that runs in the task's worktree or a temporary folder its session made (under /tmp, /var/tmp or a test slot's own folder), and that holds no test slot, and adds a `Left running:` line under the task's last Result or Report.
 5. It launches the approved rows of the queue, after it has asked every project for its open threads and pull requests ([What a pass launches](jbus/what-a-pass-launches.md)).
 6. It rewrites the queue's derived columns, says what waits on you, and sends the events meant for you to the project's home thread ([Where wakes go](jbus/events-and-wakes.md#where-wakes-go)).
@@ -29,7 +31,13 @@ One pass, under one lock, does this for every project in the config:
 jbus makes no judgment call.
 When no rule covers a case, jbus logs one line, `condition <slug>: <what>`, without posting it, and leaves that slug alone for the rest of the pass.
 On a project's first pass, jbus records the Results, Reviews, Reports, questions and merges that are already there and sends none of them.
-jbus writes three things to GitHub: a rerun of a cancelled check, a new base for a stacked pull request whose base merged, and a push of that link's commits moved onto the new base, under a lease.
+jbus writes these things to GitHub, and no others:
+
+- a rerun of a check that was cancelled, and of main's red check at its first attempt;
+- a new base for a stacked pull request, when its base merged or when it comes off its stack ([What a pass launches](jbus/what-a-pass-launches.md));
+- a push of a stacked link's own commits moved onto its new base, under a lease;
+- a revert of the one clear culprit of a red main, a pull request `gh pr revert` opens, and the close of that revert, with a comment, once main is green without it ([A red main](jbus/a-red-main.md)).
+
 jbus merges nothing itself.
 `jmerge` does the merging.
 
