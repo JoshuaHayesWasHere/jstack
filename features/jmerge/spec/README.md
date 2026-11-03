@@ -34,34 +34,35 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 ```
 
 Run it from the repo root.
-Today's code holds `FlowsWhenGreen`, `MergeRedsMainOnlyOnAMissedTest` and `MachineNotLeftFull`, and breaks `MainFixWaitsOnlyOnYou`.
-At fl-rules-1103's head it prints:
+Today's code holds all four rules: `FlowsWhenGreen`, `MergeRedsMainOnlyOnAMissedTest`, `MachineNotLeftFull` and `MainFixWaitsOnlyOnYou`.
+The probe `FixAfterARedCheckWaitsOnlyOnYou` holds too.
+At fl-spec-readme-docs's head it prints:
 
 ```text
-ok    design: every rule holds (425 distinct states found, 1.4 s)
-ok    canary NoGuard: NoMergeTurnsMainRed breaks (40 distinct states found, 1.4 s)
-ok    canary NoRejudge: FlowsWhenGreen breaks (155 distinct states found, 1.1 s)
-ok    canary NoSweep: FlowsWhenGreen breaks (303 distinct states found, 1.3 s)
-ok    canary NoSweep: MachineNotLeftFull breaks (285 distinct states found, 1.2 s)
-ok    today: FlowsWhenGreen holds (11022565 distinct states found, 156.7 s)
-ok    today: MergeRedsMainOnlyOnAMissedTest holds (11022565 distinct states found, 156.7 s)
-ok    today: MachineNotLeftFull holds (11022565 distinct states found, 156.7 s)
-ok    today: MainFixWaitsOnlyOnYou breaks (1432362 distinct states found, 9.2 s)
-ok    today, before #427 (idle swept once its row ended): MergeRedsMainOnlyOnAMissedTest holds (11022565 distinct states found, 88.7 s)
-ok    today, before #427 (idle swept once its row ended): FlowsWhenGreen breaks (837 distinct states found, 0.7 s)
-ok    today, before #427 (idle swept once its row ended): MachineNotLeftFull breaks (451 distinct states found, 0.7 s)
-ok    today, before #427 (idle swept once its row ended): MainFixWaitsOnlyOnYou breaks (27447 distinct states found, 1.2 s)
-ok    today, before #416 (busy leftovers only): MergeRedsMainOnlyOnAMissedTest holds (11022565 distinct states found, 85.7 s)
+ok    design: every rule holds (425 distinct states found, 0.6 s)
+ok    canary NoGuard: NoMergeTurnsMainRed breaks (47 distinct states found, 0.6 s)
+ok    canary NoRejudge: FlowsWhenGreen breaks (178 distinct states found, 0.6 s)
+ok    canary NoSweep: FlowsWhenGreen breaks (293 distinct states found, 0.6 s)
+ok    canary NoSweep: MachineNotLeftFull breaks (286 distinct states found, 0.6 s)
+ok    today: FlowsWhenGreen holds (10467163 distinct states found, 110.4 s)
+ok    today: MergeRedsMainOnlyOnAMissedTest holds (10467163 distinct states found, 110.4 s)
+ok    today: MachineNotLeftFull holds (10467163 distinct states found, 110.4 s)
+ok    today: MainFixWaitsOnlyOnYou holds (10467163 distinct states found, 110.4 s)
+ok    today: FixAfterARedCheckWaitsOnlyOnYou holds (10467163 distinct states found, 110.4 s)
+ok    today, before #427 (idle swept once its row ended): MergeRedsMainOnlyOnAMissedTest holds (10467163 distinct states found, 75.7 s)
+ok    today, before #427 (idle swept once its row ended): FlowsWhenGreen breaks (837 distinct states found, 0.6 s)
+ok    today, before #427 (idle swept once its row ended): MachineNotLeftFull breaks (451 distinct states found, 0.6 s)
+ok    today, before #427 (idle swept once its row ended): MainFixWaitsOnlyOnYou breaks (27447 distinct states found, 0.9 s)
+ok    today, before #416 (busy leftovers only): MergeRedsMainOnlyOnAMissedTest holds (10467163 distinct states found, 71.3 s)
 ok    today, before #416 (busy leftovers only): FlowsWhenGreen breaks (837 distinct states found, 0.6 s)
 ok    today, before #416 (busy leftovers only): MachineNotLeftFull breaks (451 distinct states found, 0.6 s)
-ok    today, before #416 (busy leftovers only): MainFixWaitsOnlyOnYou breaks (27453 distinct states found, 0.9 s)
-ok    today: FixAfterARedCheckWaitsOnlyOnYou breaks (1432394 distinct states found, 8.7 s)
+ok    today, before #416 (busy leftovers only): MainFixWaitsOnlyOnYou breaks (27447 distinct states found, 0.9 s)
 every run says what it should
 ```
 
 The rules of a model that must hold share one TLC run, so their lines share its count and time, and each rule that must break has a run of its own.
 TLC runs on two workers, so the count of a run that breaks a rule varies a little from run to run.
-Today's model has 11M states where it had 2.6M before fl-rules-1103, since a draft held for your word now moves on your word.
+Today's model has 10.5M states where it had 2.6M before fl-rules-1103, since a draft held for your word now moves on your word.
 On 2026-11-03 the home kept the code and rewrote two rules in the words of the flow the merged pull requests chose; their intent stays, and `FlowsWhenGreen` keeps its words.
 
 - `FlowsWhenGreen`: "Work never stops flowing: once nothing more happens on its own and main is green, it settles merged or waiting on your word."
@@ -77,11 +78,12 @@ On 2026-11-03 the home kept the code and rewrote two rules in the words of the f
 - `MainFixWaitsOnlyOnYou`: "While main is red and nothing else can happen, its fix waits on nothing of yours but your word: the lift of a pull request you hold, or your approval of a row whose brief you must approve."
   Since #547 jbus approves every fix row it files, main's and the browser run's, by rule, so no approval of a fix row is yours.
 
-Today's code still breaks `MainFixWaitsOnlyOnYou`, and the rule is not rewritten to hold: the break is a fault for the home.
-Its shortest story, 9 states, is the merge_after case: a is marked ready and b, its merge_after follow-up, is a draft; something outside breaks main; its rerun fails, and jbus files main's fix row and approves it by rule; the row's crew puts the fix in b; a's check fails over the red main.
-jmerge judges a again only once main is green (`features/jmerge/src/jmerge/cli.py` `or (one.base == self.trunk and bool(self.main_state.red))`, `Repo.again`), and marks b ready and merges it only after a (`features/jmerge/src/jmerge/rows.py` `for other in row.get("merge_after", []):`), so the fix waits on nothing your word can move.
-The probe `FixAfterARedCheckWaitsOnlyOnYou` checks that case by name: it breaks where main is red, b holds its fix, and a's check failed over the red main, and nothing more happens.
-The chart, on the model `ChartCut` cuts, draws the rule's other breaks.
+Until #946 today's code broke `MainFixWaitsOnlyOnYou`, and the rule was not rewritten to hold: the break was a fault in the code, and #946 fixed the code.
+Its shortest story, 9 states, was the merge_after case: a is marked ready and b, its merge_after follow-up, is a draft; something outside breaks main; its rerun fails, and jbus files main's fix row and approves it by rule; the row's crew puts the fix in b; a's check fails over the red main.
+jmerge judges a again only once main is green (`features/jmerge/src/jmerge/cli.py` `or (one.base == self.trunk and bool(self.main_state.red))`, `Repo.again`), and marks b ready and merges it only after a (`features/jmerge/src/jmerge/rows.py` `for other in row.get("merge_after", []):`), so the fix waited on nothing your word can move.
+Since #946 main's fix brief lets its crew leave the fix only in an open pull request that waits on no other (`features/jbus/src/jbus/watch.py` `FIX_GOES`), which `FlowToday.tla` models as `Unordered`, so the fix never goes in b there.
+The same pull request made the model's crew read a break of its own as its own whatever the base, as `features/crew/the-checks.md` does, which ended the case of a fix whose own break its crew read as main's red.
+The probe `FixAfterARedCheckWaitsOnlyOnYou` checks the merge_after case by name, where main is red, b holds its fix, and a's check failed over the red main, and it holds.
 The design holds all four rules in the words they had before: its check runs every test that reads the tree, and the crew of a fix reads a failure over the red it fixes as its own.
 `NoGuard` breaks `NoMergeTurnsMainRed`, `NoRejudge` breaks `FlowsWhenGreen`, and `NoSweep` breaks `FlowsWhenGreen` and `MachineNotLeftFull`.
 Two controls run the model with an earlier `Gap`, `FlowToday.tla`'s constant, which `FlowToday.cfg` sets to `turn`, the code since #427.
@@ -96,20 +98,22 @@ A full machine stops no judgement of main's red, so both hold `MergeRedsMainOnly
 
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
-W=$(mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
+W=$(TMPDIR=$D mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
     statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label "the design" \
-    --title "Does work keep flowing?" --out out --png \
-    --expect-broken MainFixWaitsOnlyOnYou)
+    --title "Does work keep flowing?" --out out --png)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
 `FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited.
-The chart command holds TLC's whole state graph in memory: the whole model, 2.6M states before fl-rules-1103, took more than 27 GB before earlyoom stopped it, and the cut, 1.18M states at fl-rules-1103's head, takes about 12 GB and 27 minutes.
+The chart command holds TLC's whole state graph in memory: the whole model, 2.6M states before fl-rules-1103, took more than 27 GB before earlyoom stopped it.
+The cut, 1.19M states since #946, needed more than 14 GB at fl-spec-readme-docs's head, and earlyoom stopped it once, so run it with that much memory free.
+TLC also keeps a disk queue of states under `TMPDIR`, and the cut's queue outgrew a `/tmp` tmpfs the machine's other work had filled, so the block puts `TMPDIR` on a disk with room (`$HOME/.cache` here).
 With an edit and an outside break both in the cut, TLC 2.19 threw while its `-continue` run printed a path of the rule then named `NoMergeTurnsMainRed`.
 `flow_canaries.py` checks every rule on the whole model.
-The chart's red boxes are the three paths that break `MainFixWaitsOnlyOnYou` on the cut: the merge_after case, a fix whose own break its crew reads as main's red, and a fix stacked on a pull request red from main's break.
-The design starts with both pull requests open, so each story says the design starts on another screen.
+The chart has no red path: since #946 no state of the cut breaks a rule, and its 103 states all work.
+The design starts with both pull requests open, so a story, when the chart has one, says the design starts on another screen.
 
 ## What the code model leaves out
 
