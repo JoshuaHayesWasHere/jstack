@@ -454,25 +454,18 @@ def _queue_rows(text: str) -> Iterable[Row]:
     return [one for one in held if isinstance(one, dict)] if isinstance(held, list) else []
 
 
-def _merged_pulls(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    if not isinstance(held, dict):
-        return []
-    return [{**pull, "slug": slug} for slug, pull in held.items() if isinstance(pull, dict)]
+def _keyed(name: str) -> Callable[[str], Iterable[Row]]:
+    """The records of a snapshot that is one JSON object of records by key, each with its key
+    as the field `name`: `merged.json` by slug, `word-sends.json` by word, `reverts.json` by red
+    tip."""
 
+    def records(text: str) -> Iterable[Row]:
+        held = json.loads(text)
+        if not isinstance(held, dict):
+            return []
+        return [{**one, name: key} for key, one in held.items() if isinstance(one, dict)]
 
-def _revert_records(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    if not isinstance(held, dict):
-        return []
-    return [{**one, "red": red} for red, one in held.items() if isinstance(one, dict)]
-
-
-def _sends(text: str) -> Iterable[Row]:
-    held = json.loads(text)
-    if not isinstance(held, dict):
-        return []
-    return [{**sent, "id": word} for word, sent in held.items() if isinstance(sent, dict)]
+    return records
 
 
 @dataclass(frozen=True)
@@ -704,7 +697,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("slug", "number", "merged_at", "merge_commit", "state", "title_len"),
         _merged,
         at="merged_at",
-        records=_merged_pulls,
+        records=_keyed("slug"),
         natural="slug",
     ),
     Source(
@@ -782,7 +775,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("word", "thread", "sent_at", "waiting"),
         _word_sends,
         at="sent_at",
-        records=_sends,
+        records=_keyed("id"),
         natural="word",
     ),
     Source(
@@ -792,7 +785,7 @@ SOURCES: tuple[Source, ...] = (
         _columns("red", "slug", "branch", "pr"),
         _reverts,
         at="",
-        records=_revert_records,
+        records=_keyed("red"),
         natural="red",
     ),
     Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
