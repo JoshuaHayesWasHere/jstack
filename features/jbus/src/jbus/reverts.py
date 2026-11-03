@@ -32,15 +32,15 @@ the next pass judges it, and nothing is done for it in this one. Once the tip is
 `revert` acts on a clear culprit. `gh pr revert` makes the revert on GitHub, a new commit on a new
 branch, so jbus never pushes to main or force-pushes anything. It keeps the revert in
 `reverts.json` (`jmerge.reverts`), writes the brief `tasks/<branch>.md` that ties the pull request
-to its slug, with the culprit's home, and logs a routine event for its home's digest. `tell` tells
-the culprit's crew, from every pass until the message goes, so a capped thread or a T3 Code that
-gives no answer loses it to nothing. `opened` asks GitHub for the revert's branch first, so a pass
-that stopped between GitHub's answer and the record finds its revert and opens no second one, and
-the brief is written before the record, so a revert on record has a brief. `jmerge` merges the
-revert by the normal path, its checks green, with no review. `close` closes a revert jbus opened
-that is still open once main's check passes at a later tip without it, as when a fix row merged
-first, with a comment that names the green tip: it would only sit in conflict with main. Its
-record stays, so the row is still never reverted twice.
+to its slug, with the culprit's home, and logs a routine event for its home's digest.
+`jbus.culprits.tell` tells the culprit's crew, from every pass until the message goes, so a capped
+thread or a T3 Code that gives no answer loses it to nothing. `opened` asks GitHub for the
+revert's branch first, so a pass that stopped between GitHub's answer and the record finds its
+revert and opens no second one, and the brief is written before the record, so a revert on record
+has a brief. `jmerge` merges the revert by the normal path, its checks green, with no review.
+`close` closes a revert jbus opened that is still open once main's check passes at a later tip
+without it, as when a fix row merged first, with a comment that names the green tip: it would
+only sit in conflict with main. Its record stays, so the row is still never reverted twice.
 """
 
 from __future__ import annotations

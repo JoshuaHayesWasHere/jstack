@@ -134,3 +134,12 @@ def test_a_gate_that_holds_is_not_closed_and_logs_nothing(kitchen):
     assert kitchen.main("gate", "alpha", stdin=holds)[0] == 0
     kitchen.poll(NOW)
     assert not (kitchen.state / "f1-trial.jsonl").exists()
+
+
+def test_a_reversing_gate_with_no_word_in_the_window_is_not_held(kitchen):
+    """gate-f1-trial F4: a window the user said nothing in holds nothing, and raises nothing."""
+    from jbus import f1trial
+
+    assert kitchen.main("gate", "alpha", stdin=REMOVES)[0] == 0
+    (one,) = questions.read(kitchen.state)
+    assert f1trial.held(PROJECT, one, []) == ()

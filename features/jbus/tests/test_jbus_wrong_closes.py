@@ -198,3 +198,19 @@ def test_a_week_already_labelled_or_with_no_gate_queues_no_scout(kitchen, monkey
     _, report = run(kitchen, monkeypatch)
     assert "- week from 2026-11-01: not labelled, no gate was asked in it" in report
     assert not [row for row in queue.load(kitchen.state) if row["slug"].startswith("scout-")]
+
+
+def test_a_week_whose_scout_row_was_removed_says_so_and_queues_none(kitchen, monkeypatch):
+    """scorecard-s8 F9: a removed scout row is the user's no, so the next report queues no
+    second one and says why the week has no number."""
+    gates(kitchen.state, [(1, "2026-11-02T16:00:00+00:00", questions.SILENCE)])
+    run(kitchen, monkeypatch)
+    slug = "scout-gate-labels-2026-11-01"
+    at = "2026-11-09 10:05 ET"
+    code, said = kitchen.main("queue", "remove", slug, "--by", "user", "--at", at)
+    assert code == 0, said
+
+    _, report = run(kitchen, monkeypatch)
+
+    assert f"- week from 2026-11-01: not labelled, and its scout row {slug} was removed" in report
+    assert not [row for row in queue.load(kitchen.state) if row["slug"] == slug]

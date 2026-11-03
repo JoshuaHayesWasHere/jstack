@@ -64,7 +64,7 @@ jbus --project <project> queue approve <slug> --sha <sha12> --message <thread id
 ```
 
 Any wording of theirs that names the row opens it, `go <slug>` or the T3 tree row's `approve <slug> (brief sha <sha12>)` alike, the first time: never ask them to send it again.
-jbus refuses a message of the user's that names neither the row nor its gate's number, or that was said before the brief was stored, and names the command that works.
+jbus refuses a message of the user's that names neither the row nor its gate by its number (`question 3`, `gate 3`, `q3` or `#3`, never a number alone), or that was said before the brief was stored, and names the command that works.
 This home never runs a door's command itself, a prod migration or deploy, a force-push, a release, a tailnet or DNS change, or a delete: the `door-command` hook refuses it, and the row's crew runs it on the user's own go.
 
 ### A go given in a question box

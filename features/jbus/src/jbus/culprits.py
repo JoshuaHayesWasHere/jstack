@@ -12,6 +12,8 @@ outbox held or T3 Code did not take is sent again by a later pass, once, by its 
 
 from __future__ import annotations
 
+import json
+
 from jbriefs.home import thread_of
 from jbus import rebase, reverts, verbs
 from jbus.passes import Pass
@@ -77,13 +79,32 @@ ASK = rebase.Ask(
 
 def tell(run: Pass, client: Client) -> None:
     """Tell the crew of each revert on record whose message has not gone (`rebase.once`, by its
-    mark in `sent.json`). A later pass tries again where it could not go."""
+    mark in `sent.json`) and whose pull request is still open. A later pass tries again where it
+    could not go. The daily prune forgets the mark of a finished row while its record stays, so a
+    revert GitHub says is no longer open is marked again and not told; one GitHub gives no
+    answer for waits for the next pass."""
     for one in kept.read(run.state).values():
         thread = thread_of(run.home, one.slug)
-        if thread:
+        key = rebase.mark("revert", one.slug, one.red[:12])
+        if not thread or key in run.box.sent():
+            continue
+        state = _state(run, one.pull)
+        if state == "OPEN":
             message = MESSAGE.format(red=one.red[:12], revert=one.pull)
-            key = rebase.mark("revert", one.slug, one.red[:12])
             rebase.once(run, client, ASK, key, thread, one.slug, message, at=one.red[:12])
+        elif state:
+            run.box.mark(key)
+
+
+def _state(run: Pass, pull: str) -> str:
+    """The state GitHub gives the pull request, `OPEN`, `MERGED` or `CLOSED`, or nothing where it
+    gives no answer."""
+    asked = run.run("gh", "pr", "view", pull, "--json", "state")
+    try:
+        said = json.loads(asked.stdout) if asked.returncode == 0 else {}
+    except ValueError:
+        said = {}
+    return str(said.get("state") or "") if isinstance(said, dict) else ""
 
 
 STEPS = (

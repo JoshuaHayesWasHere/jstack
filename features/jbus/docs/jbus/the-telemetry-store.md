@@ -152,7 +152,7 @@ A merge line counts for a pull request only from a minute before it opened on, s
 A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`.
 `merge.log` has no such labels before 2026-10-28, so for a pull request merged before then `first_round` counts a fix round only when a check failed.
 The KPI page shows no first-round share for a week that begins before `fix_rounds_since`, since such a week would count a fix round with no red check as a first round.
-`ci.jsonl` kept no `pull_request` check of some merged pull requests, such as every one merged from 2026-10-21 to 2026-10-25, and `first_round` is none for those: whether a check of theirs failed is not known.
+`ci.jsonl` kept no `pull_request` check of 33 of the 48 jstack pull requests merged on 2026-10-20, of every one from 2026-10-21 to 2026-10-25, of 58 of 100 on 10-26 and of 46 of 49 on 10-27, the whole set in the store built on 2026-11-03, and `first_round` is none for those: whether a check of theirs failed is not known.
 
 ## The KPI page
 

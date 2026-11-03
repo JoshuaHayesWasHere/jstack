@@ -180,6 +180,12 @@ def test_a_waiver_names_its_line_whole_or_by_a_start_no_other_line_has():
     )
 
 
+def test_a_waiver_that_names_its_line_by_part_of_a_word_names_none():
+    """brief-verdict-gate F6: a start cut inside a word, `the d`, is a few letters any word
+    about the row may hold, so it names no line."""
+    assert meets.waivers(brief(section(NO), result="Waived: the d, mcp:josh/m1\n")) == ()
+
+
 def test_a_twice_brief_whose_first_review_is_clean_and_says_no_takes_the_findings_path():
     """A clean first review that says `no` is owed what a first review with findings is: a fix,
     and the second review of the head it pushed, whose own line then decides."""
