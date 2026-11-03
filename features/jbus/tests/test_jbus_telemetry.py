@@ -775,13 +775,14 @@ def test_a_word_carried_into_a_t3_thread_or_said_in_one_is_one_ask(machine):
 
 def test_a_door_the_home_opens_on_a_message_the_user_typed_is_the_users(machine):
     """A door act counts as the user's when the user did it, or when the home did it on a
-    message the user typed (`--message`); on a message an agent or the home wrote, or on none,
-    it is not the user's."""
+    message the user typed (`--message`) or on a word the user said; on a message an agent or
+    the home wrote, or on none, it is not the user's."""
     t3, home = T3(), "mcp:home-a"
     t3.thread(home, "alpha-id")
     t3.say("m-typed", home, NOW)
     t3.say("m-agent", home, NOW, by="agent")
     t3.say("r-home", home, NOW + timedelta(seconds=5), role="assistant")
+    word(machine, "alpha", "w-said", NOW)
 
     def door(name, party, ref):
         machine.append(
@@ -800,6 +801,7 @@ def test_a_door_the_home_opens_on_a_message_the_user_typed_is_the_users(machine)
 
     door("by-user", "user", "")
     door("on-typed", "home", f"{home}/m-typed")
+    door("on-word", "home", "w-said")
     door("on-agent", "home", f"{home}/m-agent")
     door("on-reply", "home", f"{home}/r-home")
     door("on-none", "home", "")
@@ -807,7 +809,7 @@ def test_a_door_the_home_opens_on_a_message_the_user_typed_is_the_users(machine)
 
     with contextlib.closing(machine.store()) as store:
         weeks = store.execute("SELECT week, done, not_yours FROM weekly_doors").fetchall()
-    assert weeks == [("2026-10-25", 5, 3)]
+    assert weeks == [("2026-10-25", 6, 3)]
 
 
 def test_a_t3_store_numbered_again_or_replaced_is_read_again_and_keeps_one_row_a_message(machine):

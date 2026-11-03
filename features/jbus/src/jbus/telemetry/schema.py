@@ -42,7 +42,8 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
   the pull request failed and `jmerge` never waited on a crew's fix round (`CREW_FIX`).
 - `weekly_pr_to_merge`, `weekly_first_round`, `weekly_merges` and `weekly_doors`: each week's
   open-to-merge median, share merged in the first round, rows merged, and door acts done, with
-  `not_yours` those a home, a bot or jbus did and the user did not.
+  `not_yours` those a home, a bot or jbus did and the user did not, save one done on a message
+  the user typed, as the home does on `--message`, which is the user's.
 - `call_rows`: each agent call with its session's thread, project, role and slug, and
   its spend in `jgauge spend`'s units (`UNITS`).
 - `row_spend`: each merged row's spend by the role and the provider of the threads that spent
@@ -374,9 +375,12 @@ VIEWS: tuple[tuple[str, str], ...] = (
     ("weekly_merges", "SELECT week, count(*) AS merged FROM lead_times GROUP BY week"),
     (
         "weekly_doors",
-        f"SELECT {WEEK.format(day='day')} AS week, count(*) AS done, "
-        "sum(coalesce(party, '') != 'user') AS not_yours FROM acts "
-        "WHERE doors > 0 AND outcome = 'done' AND day IS NOT NULL GROUP BY 1",
+        f"SELECT {WEEK.format(day='a.day')} AS week, count(*) AS done, "
+        "sum(coalesce(a.party, '') != 'user' AND NOT EXISTS (SELECT 1 FROM messages t "
+        f"WHERE t.project = a.project AND {TYPED} AND a.ref = CASE WHEN "
+        f"t.key = '{messages.WORD}' || t.id THEN t.id ELSE t.thread || '/' || t.id END)) "
+        "AS not_yours FROM acts a "
+        "WHERE a.doors > 0 AND a.outcome = 'done' AND a.day IS NOT NULL GROUP BY 1",
     ),
     (
         "pass_times",
