@@ -25,8 +25,9 @@ the view shows it in the Unknown lane. `unplaced` then sends the row's home one 
 message for each row and each reason text. The fix is a new rule, and a home writes the brief
 for a rule. The message is a quiet event. The row is not the user's, so it is not in
 `waiting-on-user.json`. One reason leaves a pull request on no step by design, and jbus tells
-nobody of it (`OFF_STEP`): another home's pull request. A draft is on the step its review and
-fix are at, and once both are done on the findings step, until its crew marks it ready.
+nobody of it (`OFF_STEP`): another home's pull request. A draft, which only a hand opens, is on
+the step its review and fix are at, and once both are done on the Result step (`HAND_DRAFT`):
+jmerge never marks it ready.
 """
 
 from __future__ import annotations

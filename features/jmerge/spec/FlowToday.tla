@@ -4,15 +4,16 @@
 \* #416, #426 and #427 since, cut down to the variables FlowDesign.tla's four rules read, and with
 \* the fix a pull request's own check proves (#583, #584) and the browser run's holds (#575, #577).
 \* Since cut 11 of the simplify pass, the copy of simplify-5's RowLife.tla adds a row's go, a hold
-\* for your word, and the draft whose check waits on its review.
+\* for your word, and until fl-no-draft the draft whose check waited on its review.
 \* Since fl-statechart-1102 (the scout's FlowNow.tla at a978b7ba9) it has jbus's rerun of a red
 \* push run (#672), its revert of a red main's one clear culprit and the close of a stale revert
 \* (#862, #899), the fix rows' go by rule (#547), a stacked link checked while stacked and its pass
 \* kept on a clean move (#868), and the hold of a review round that says the brief is not met
 \* (#843, #850). Since fl-stack-by-depends-only it has no unstack: a link stays on its stack
 \* until its base merged, and a stack is made by a depends alone.
-\* Since fl-rules-1103 its Accept is Repo.accept as #709 left it, which marks a held draft ready and
-\* keeps its lift, and two of its rules say the flow the merged pull requests chose since.
+\* Since fl-rules-1103 two of its rules say the flow the merged pull requests chose since.
+\* Since fl-no-draft a crew opens its pull request ready, so its check runs beside its review, and
+\* jmerge marks no draft ready: the draft, Ready and the lift --accept kept on a draft went.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -45,10 +46,6 @@ PRs == {"a", "b"}
 \*   (Approve) and take it back (HoldRow), and jbus launches and jmerge merges only a row that has it.
 \* needs[p]: p's change waits on your word, as one that touches a protected path does, and only
 \*   your word (jmerge --accept, Accept) merges it.
-\* kept[p]: jmerge --accept marked p ready from a draft held for your word, and keeps its lift at
-\*   p's head (accepted.json), so jmerge merges it once its check passed; a push drops it.
-\* rv[p]: "none" before its crew opens it, "draft" (its crew opens it as one, its review comes
-\*   first) and "ready" (jmerge marked it ready once its review is written and fixed).
 \* meets[p]: p's last review round says the brief is met (its Meets the brief: line, #843). At most
 \*   one round in a run says it is not.
 \* busy: a process a finished turn left that uses CPU. idle[p]: one p's crew left that uses none
@@ -62,10 +59,10 @@ PRs == {"a", "b"}
 \* revert: "open" while jbus's revert of a culprit is open (#862), else "none".
 \* editsLeft: the edits still to come of b's brief that take a out of its Builds on: line, once.
 VARIABLES st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, full, fixRow, link, on, busy, idle,
-    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, rv, meets, kept,
+    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, meets,
     rerun, culprit, judged, revert, editsLeft
 vars == <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, full, fixRow, link, on, busy, idle,
-    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, rv, meets, kept,
+    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, meets,
     rerun, culprit, judged, revert, editsLeft>>
 
 Init ==
@@ -93,8 +90,6 @@ Init ==
     /\ brHold = FALSE
     /\ go = [p \in PRs |-> TRUE]
     /\ needs \in [PRs -> BOOLEAN]
-    /\ rv = [p \in PRs |-> "none"]
-    /\ kept = [p \in PRs |-> FALSE]
     /\ meets \in {[p \in PRs |-> TRUE]} \cup {[p \in PRs |-> p # q] : q \in PRs}
     /\ rerun = FALSE
     /\ culprit = "none"
@@ -105,7 +100,7 @@ Init ==
 Machine == <<full, busy, idle>>
 Fix == <<named, fixes, proved>>
 Browser == <<brBreaks, brFail, viewBroken, brHold>>
-Row == <<go, needs, rv, meets, kept>>
+Row == <<go, needs, meets>>
 Judge == <<rerun, culprit, judged, revert>>
 NoFix == [p \in PRs |-> FALSE]
 
@@ -129,18 +124,15 @@ Launch(p) ==
     /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py `on = world.stack_on(run, unmerged, brief)`
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
-    \* Its crew opens it as a draft, and its review comes before its check (features/crew/the-checks.md
-    \* `CI runs no check on a draft`).
-    /\ rv' = [rv EXCEPT ![p] = "draft"]
+    \* Its crew opens it ready, so its check runs beside its review.
     /\ Leaves(p)
     /\ UNCHANGED <<ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Fix, Browser,
-                   go, needs, meets, kept, Judge, editsLeft>>
+                   go, needs, meets, Judge, editsLeft>>
 
 \* GitHub runs the pull request's check over the base as it is now: main, or since #868 the
 \* branch of the open pull request it is stacked on.
 Check(p) ==
     /\ st[p] = "open"                       \* .github/workflows/check.yml `pull_request:`, a pull request's check
-    /\ rv[p] = "ready"                      \* features/jmerge/src/jmerge/cli.py `check.yml runs none on a draft`
     /\ ci[p] = "none"
     \* scripts/select_tests.py `lone = unowned()`, scripts/select_tests.py `if owns(patterns, path)`: the rules' tests, every test no rule owns (#397), and
     \* each test whose READ_SET matches the changed path (#426). A test that reads the tree through
@@ -201,51 +193,16 @@ Merges(p) ==
     /\ UNCHANGED <<ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, brBreaks, brFail, brHold, Row,
                    revert, editsLeft>>
 
-\* jmerge merges a pull request that waits on nothing: no hold for your word, or one whose lift
-\* jmerge --accept kept when it marked the draft ready.
+\* jmerge merges a pull request that waits on nothing: no hold for your word.
 Merge(p) ==
-    /\ ~needs[p] \/ kept[p]                 \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`, features/jmerge/src/jmerge/cli.py `kept = self.accepts().get(str(one.number))`
+    /\ ~needs[p]                            \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`
     /\ Merges(p)
 
-\* What jmerge asks of a draft before it marks it ready, but your word: Repo.judged tries the
-\* stack, the review and the row before your word's hold, and the draft last.
-Readies(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `found = repo.readied(one, found)`
-    /\ rv[p] = "draft"                      \* features/jmerge/src/jmerge/cli.py `if one.draft and found.slug and found.why in ready.READY_ON and not args.check:`
-    \* A stacked draft on its base's open branch is marked ready, so CI checks it while stacked
-    \* (#868); one whose base merged waits until jbus moved it onto main.
-    /\ on[p] \in {"main"} \cup {q \in PRs : st[q] = "open"}   \* features/jmerge/src/jmerge/cli.py `if one.draft and not stacked.at and one.base == stacked.branch:`
-    /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
-    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `for other in row.get("merge_after", []):`
-    \* Its last review round says the brief is met: the review's wait comes before the draft's.
-    /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
-
-\* You lift the hold of a pull request that waits on your word, with jmerge --accept. A pull
-\* request marked ready merges at once where nothing else holds it, and is refused otherwise.
-\* Since #709 a draft whose one wait under the hold is the draft is marked ready, and its lift is
-\* kept at its head, so jmerge merges it once its check passed (Merge).
+\* You lift the hold of a pull request that waits on your word, with jmerge --accept: it merges at
+\* once where nothing else holds it, and is refused otherwise.
 Accept(p) ==
     /\ needs[p]                             \* features/jmerge/src/jmerge/cli.py `if judgement.verb(why) == judgement.HOLD and ready.code_of(why) in lifted:`
-    \* A kept lift leaves it no hold to accept.
-    /\ ~kept[p]                             \* features/jmerge/src/jmerge/cli.py `if first.verb != "hold":`
-    /\ \/ /\ rv[p] = "ready"                 \* features/jmerge/src/jmerge/cli.py `if found.judged is None and not draft:`
-          /\ Merges(p)
-       \/ /\ Readies(p)                     \* features/jmerge/src/jmerge/cli.py `draft = one.draft and found.why == ready.DRAFT`
-          /\ rv' = [rv EXCEPT ![p] = "ready"]
-          /\ kept' = [kept EXCEPT ![p] = TRUE]
-          /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                         Machine, Fix, Browser, go, needs, meets, Judge, editsLeft>>
-
-\* Its review is written and its findings fixed, and jmerge marks the draft ready, so its check runs.
-\* jmerge marks a draft only when the one reason it waits on is the draft, so a draft held for
-\* your word stays a draft until your word (Accept).
-Ready(p) ==
-    /\ Readies(p)                           \* features/jmerge/src/jmerge/cli.py `found = repo.readied(one, found)`, by jmerge's own pass
-    \* A draft has no check of its own yet, so it proves no fix, and has no browser run.
-    /\ ~needs[p]                            \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`
-    /\ rv' = [rv EXCEPT ![p] = "ready"]
-    /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, go, needs, meets, kept, Judge, editsLeft>>
+    /\ Merges(p)                            \* features/jmerge/src/jmerge/cli.py `said = self.merge(one, found.slug, found.note, found.judged)`
 
 \* Its last review round says the brief is not met (MEETS_NO): jbus tells its crew (#850), which
 \* fixes the lines it names and pushes, and the scoped review that follows says the brief is met.
@@ -257,9 +214,8 @@ MeetsFix(p) ==
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
-    /\ kept' = [kept EXCEPT ![p] = FALSE]   \* features/jmerge/src/jmerge/cli.py `if isinstance(kept, dict) and heads.get(number) == kept.get("head")`, a push drops the kept lift
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   named, fixes, Browser, go, needs, rv, Judge, editsLeft>>
+                   named, fixes, Browser, go, needs, Judge, editsLeft>>
 
 \* Its base merged: jbus moves the stacked pull request onto main and rebases its own commits
 \* onto main itself, or tells its crew to ("A link that moved"), and its check runs again. Since
@@ -274,9 +230,8 @@ Restack(p) ==
     /\ \E reuse \in IF ci[p] = "pass" THEN BOOLEAN ELSE {FALSE} :   \* .github/workflows/check.yml `run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse`
          ci' = [ci EXCEPT ![p] = IF reuse THEN "pass" ELSE "none"]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
-    /\ kept' = [kept EXCEPT ![p] = FALSE]   \* features/jmerge/src/jmerge/cli.py `if isinstance(kept, dict) and heads.get(number) == kept.get("head")`, a push drops the kept lift
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine,
-                   named, fixes, Browser, go, needs, rv, meets, Judge, editsLeft>>
+                   named, fixes, Browser, go, needs, meets, Judge, editsLeft>>
 
 \* The home edits b's brief, on your word, and its Builds on: line no longer names a. The edit
 \* voids b's go, which you give again by approving it (#399).
@@ -290,7 +245,7 @@ HomeEdits(p) ==
     /\ link' = "none"
     /\ go' = [go EXCEPT ![p] = FALSE]       \* features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, on, Machine,
-                   Fix, Browser, needs, rv, meets, kept, Judge>>
+                   Fix, Browser, needs, meets, Judge>>
 
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus tells the
 \* crew's own thread once its turn ends, so no room is asked for, and its turn may leave a
@@ -308,9 +263,8 @@ CrewFix(p) ==
     /\ told' = [told EXCEPT ![p] = FALSE]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
-    /\ kept' = [kept EXCEPT ![p] = FALSE]   \* features/jmerge/src/jmerge/cli.py `if isinstance(kept, dict) and heads.get(number) == kept.get("head")`, a push drops the kept lift
     /\ UNCHANGED <<st, ranRed, missed, mainRed, redBy, outsideLeft, fixRow, link, on, named, fixes, Browser,
-                   go, needs, rv, meets, Judge, editsLeft>>
+                   go, needs, meets, Judge, editsLeft>>
 
 \* Its own browser run failed, and the red is its own: main's last browser run passed, or the fix
 \* jbus filed for it is over. jbus tells its crew, which fixes its change, and its checks run again.
@@ -323,9 +277,8 @@ BrowserFix(p) ==
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
-    /\ kept' = [kept EXCEPT ![p] = FALSE]   \* features/jmerge/src/jmerge/cli.py `if isinstance(kept, dict) and heads.get(number) == kept.get("head")`, a push drops the kept lift
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   named, fixes, viewBroken, brHold, go, needs, rv, meets, Judge, editsLeft>>
+                   named, fixes, viewBroken, brHold, go, needs, meets, Judge, editsLeft>>
 
 \* jmerge judges a red pull request again: a check that failed over a base that has moved since
 \* it started, and is green now, is checked again over today's base (#350): GitHub merges the
@@ -338,9 +291,8 @@ Rejudge(p) ==
     /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or (one.base == self.trunk and bool(self.main_state.red))`, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
-    /\ kept' = [kept EXCEPT ![p] = FALSE]   \* features/jmerge/src/jmerge/cli.py `if isinstance(kept, dict) and heads.get(number) == kept.get("head")`, a push drops the kept lift
     /\ UNCHANGED <<st, told, ranRed, missed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, go, needs, rv, meets, Judge, editsLeft>>
+                   Fix, Browser, go, needs, meets, Judge, editsLeft>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
 \* (features/jbus/src/jbus/strays.py `if not slug or ("crew", slug) in busy:`), and in this model a crew's turn is one step.
@@ -438,17 +390,16 @@ FixMain ==
           /\ culprit' = "none"
           /\ judged' = FALSE
           /\ rerun' = FALSE
-          /\ UNCHANGED <<ci, kept>>
+          /\ UNCHANGED ci
        \/ \E q \in PRs :
           /\ st[q] = "open"
           /\ Unordered(q)                     \* features/jbus/src/jbus/watch.py `in another open pull request only where that`
           /\ fixes' = [fixes EXCEPT ![q] = TRUE]
           /\ ci' = [ci EXCEPT ![q] = "none"]
           /\ proved' = [proved EXCEPT ![q] = FALSE]
-          /\ kept' = [kept EXCEPT ![q] = FALSE]
-          /\ UNCHANGED <<mainRed, redBy, culprit, judged, rerun>>
+                /\ UNCHANGED <<mainRed, redBy, culprit, judged, rerun>>
     /\ UNCHANGED <<st, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, named, Browser,
-                   go, needs, rv, meets, revert, editsLeft>>
+                   go, needs, meets, revert, editsLeft>>
 
 \* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py `prefix="browser-red-"`),
 \* whose run then holds as main's red each pull request whose own browser run failed.
@@ -476,7 +427,7 @@ Approve(p) ==
     /\ ~go[p]                               \* features/jbus/src/jbus/queue.py `again = row.get("approved") and judgement.approved_text(row, text) and not row.get("held")`
     /\ go' = [go EXCEPT ![p] = TRUE]
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, needs, rv, meets, kept, Judge, editsLeft>>
+                   Fix, Browser, needs, meets, Judge, editsLeft>>
 
 \* You hold a row that is not merged (`jbus queue hold`), which takes its go back.
 HoldRow(p) ==
@@ -485,7 +436,7 @@ HoldRow(p) ==
     /\ go[p]                                \* features/jbus/src/jbus/queue.py `_hold(batch.row(verb.slug), by)`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
     /\ go' = [go EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, needs, rv, meets, kept, Judge, editsLeft>>
+                   Fix, Browser, needs, meets, Judge, editsLeft>>
 
 \* Something outside the queue breaks main (a flake, a hand merge, a tool update): its check, or
 \* its view, which only browser.yml sees.
@@ -511,7 +462,7 @@ OutsideBreak ==
 
 System == Sweep \/ Nightly \/ RerunEnds \/ JudgeRed \/ RevertMerges \/ RevertCloses \/ FixMain \/ FixBrowser
     \/ \E p \in PRs :
-        Launch(p) \/ Ready(p) \/ MeetsFix(p) \/ Check(p) \/ Merge(p) \/ Restack(p)
+        Launch(p) \/ MeetsFix(p) \/ Check(p) \/ Merge(p) \/ Restack(p)
         \/ CrewFix(p) \/ BrowserFix(p) \/ Rejudge(p)
 
 \* Your word: a row's go, and the lift of a hold that waits on you.
@@ -533,17 +484,14 @@ TypeOK ==
     /\ brHold => viewBroken
     /\ \A p \in PRs : proved[p] => mainRed /\ fixes[p]
     /\ go \in [PRs -> BOOLEAN]
-    /\ rv \in [PRs -> {"none", "draft", "ready"}]
-    /\ \A p \in PRs : (rv[p] = "none") = (st[p] = "queued")
     /\ culprit \in {"none", "skew", "many"} \cup PRs
     /\ revert \in {"none", "open"}
     /\ (rerun \/ judged \/ fixRow) => mainRed
     /\ missed \in [PRs -> BOOLEAN]
-    /\ \A p \in PRs : kept[p] => needs[p] /\ rv[p] = "ready"
 
 \* "Work never stops flowing: once nothing more happens on its own and main is green, it settles merged or waiting on your word."
-\* Its words are those it had before fl-rules-1103: it holds since Accept models #709, which moves
-\* a draft held for your word, so a draft held on a protected path waits on your word.
+\* Its words are those it had before fl-rules-1103: a pull request held on a protected path is open
+\* and checked, so it waits on your word.
 FlowsWhenGreen == (Settled /\ ~Red) => (\A p \in PRs : st[p] = "merged") \/ ENABLED YourWord
 
 \* "A merge turns main red only through a test its check's selection missed, and then jbus reruns main's failed push run once and reverts the one clear culprit or files main's fix row."
@@ -565,7 +513,7 @@ MainFixWaitsOnlyOnYou == (Settled /\ Red) => ENABLED YourWord
 
 \* For the chart only (FlowToday.chart.cfg): no change breaks a browser test of its own, though
 \* main's view may still break from outside, and no brief is edited.
-\* The chart reader holds TLC's whole state graph in memory, and the whole model (11M states)
+\* The chart reader holds TLC's whole state graph in memory, and the whole model (15M states)
 \* does not fit; with the edit and an outside break both in it, TLC 2.19's -continue run of the
 \* rule then named NoMergeTurnsMainRed threw while it printed a path. flow_canaries.py checks every rule on the
 \* whole model.

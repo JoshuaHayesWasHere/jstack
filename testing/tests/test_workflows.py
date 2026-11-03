@@ -1,4 +1,4 @@
-"""The check workflow runs on main and on a pull request into main that is not a draft. The
+"""The check workflow runs on main and on each push of a pull request, a draft too. The
 next run never cancels a run on either, because each push's run is a concurrency group of its
 own. A pull request gets the job `check`, the fast one, which runs the lint and the tests its
 change reaches. A push to main, and a manual run, get the job `full`, the whole suite. Each runs
@@ -126,7 +126,8 @@ def test_the_check_runs_on_a_pull_request_into_any_branch_on_each_push_to_main_a
     """A pull request into any branch gets a run: one into main or a merge base, so jmerge can
     merge it there on a green check, and one stacked on a parent row's branch, so it is checked
     while it is stacked and its move onto main reuses the pass (`reuse`). Of a pull request, a
-    push, a reopen and the mark that it is ready start one."""
+    push, a reopen and the mark that it is ready start one: the mark is browser.yml's, which
+    has these types and skips a draft."""
     assert block("on") == {
         "pull_request": {"types": ["opened", "synchronize", "reopened", "ready_for_review"]},
         "push": {"branches": ["main"]},
@@ -572,12 +573,13 @@ def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full(
     ]
 
 
-def test_a_draft_runs_no_job_until_it_is_marked_ready():
-    """A crew opens its pull request as a draft and marks it ready once its fix round is pushed,
-    so a push of work in progress runs nothing, and `ready_for_review` runs the check once."""
+def test_a_draft_runs_the_check_as_any_pull_request_does():
+    """A crew opens its pull request ready (fl-no-draft), and the check guards no draft: a draft
+    someone opened by hand is checked on each push too, so jmerge reads its checks as any
+    pull request's."""
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
     named = ("reuse", "check-shard", "check", "full-shard", "full")
-    assert [ran_on(job, draft=True) for job in named] == [[], [], [], push, push]
+    assert [ran_on(job, draft=True) for job in named] == [pull, pull, pull, push, push]
     assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, push, push]
 
 
@@ -1635,7 +1637,8 @@ def test_a_pull_request_runs_the_browser_tests_only_for_the_view_its_tests_shots
 
 
 def test_a_draft_runs_no_browser_job_and_every_other_trigger_runs_it():
-    """As the check's jobs do, the browser job skips a draft, and runs once it is marked ready."""
+    """The browser job skips a draft, which only a hand opens, and runs once it is marked
+    ready."""
     when = job_value(BROWSER.read_text(), "browser", "if")
     assert when is not None, "the browser job has no `if`"
     events = ("pull_request", "schedule", "push", "release", "workflow_dispatch")

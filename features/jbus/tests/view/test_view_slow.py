@@ -130,8 +130,8 @@ def test_the_cause_is_the_larger_count_and_a_tie_names_the_failing_checks(scene)
     )
 
 
-def test_a_check_that_will_not_run_or_a_draft_is_in_check_and_in_none_of_the_three(scene):
-    check = checked(scene, "unrun", "draft", "failed", "failed", "passed", "passed")
+def test_a_check_that_will_not_run_is_in_check_and_in_none_of_the_three(scene):
+    check = checked(scene, "unrun", "unrun", "failed", "failed", "passed", "passed")
     assert (check["rows"], check["checks"]) == (
         6,
         {"failing": 2, "waiting": 0, "passed": 2, "stacked": 0},

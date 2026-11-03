@@ -86,8 +86,7 @@ GREEN = "passed"
 """What a nightly's `seen` keeps for a run of it that passed on its `branch`."""
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = (
-    "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,isDraft,"
-    "updatedAt"
+    "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,updatedAt"
 )
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
@@ -431,9 +430,9 @@ def checks(pull: dict[str, Any]) -> str:
     (`jmerge.checks`), counting the failed checks that the pass found whose job ran no step
     (`NEVER`). A check that never started, beside checks that passed, gives `failed`, the
     first word that `jmerge --checks` prints for such a check. `jmerge` decides a merge, not
-    `checks`. A draft's word is `draft`: CI runs no check on one."""
+    `checks`."""
     rollup, never = pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ())
-    word = reading.checks(rollup, never, bool(pull.get("isDraft")))
+    word = reading.checks(rollup, never)
     return "failed" if word == "unstarted" else word
 
 

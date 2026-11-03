@@ -28,7 +28,6 @@ from crew_helpers import (
 )
 from test_home_thread import as_read
 from testing.layouts import assembled
-from testing.paths import REPO
 
 FIXED_ONE = "Finding: fixed, it runs twice\n"
 
@@ -504,32 +503,13 @@ def test_the_lines_that_end_a_finding_change_nothing_the_other_blocks_read(endin
     ]
 
 
-def test_the_fixed_line_that_marks_the_draft_ready_comes_after_a_green_check_at_its_head():
-    """jmerge marks a draft ready on the pass that finds its `Fixed:` line, and CI checks it
-    then, so the skill has the crew run the check command at that head first, name its exit and
-    head on a `Checked:` line, and write `Fixed:` only on exit 0: CI's run is never the first
-    check a head gets.
-    make prints its rules for a goal that does nothing, since `make -n check-fast` still runs a
-    recipe that calls $(MAKE), and CI's checkout has no origin/main to diff against.
-    The goal comes on stdin, not by --eval, which macOS's make 3.81 does not have."""
+def test_no_rule_ties_the_fixed_line_to_a_check_run_for_a_draft():
+    """A crew opens its pull request ready, so CI checks every head it pushes, and jmerge marks
+    no draft ready on the `Fixed:` line: the rule that ran the check command before `Fixed:`,
+    so CI's run was never the first a head got, went with the draft (fl-no-draft)."""
     review = sections()["The review"]
-    (gate,) = [line for line in review.splitlines() if line.startswith("Before it, run the check")]
-    assert "`make check-fast BASE=origin/main`" in gate
-    assert "`Checked: <the command> exit <its exit> at <the full head>`" in gate
-    run, checked, fixed = (gate.index(word) for word in ("run the check", "Checked:", "only after"))
-    assert run < checked < fixed and "exit 0" in gate[fixed:]
-    assert review.index(gate) < review.index("- `Fixed: <full commit>`")
-    make, target, base = re.search(r"`(make check-fast BASE=origin/main)`", gate).group(1).split()
-    ran = subprocess.run(
-        [make, "-pn", "-f", "Makefile", "-f", "-", "jstack-nothing", base],
-        input="jstack-nothing: ;\n",
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-    )
-    assert ran.returncode == 0 and "\nBASE = origin/main\n" in ran.stdout
-    recipe = ran.stdout.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
-    assert "scripts/select_tests.py '$(BASE)' HEAD" in recipe
+    assert not [line for line in review.splitlines() if line.startswith("Before it, run the check")]
+    assert "draft" not in review
 
 
 MEETS_BRIEF = crew.BRIEF.replace(
