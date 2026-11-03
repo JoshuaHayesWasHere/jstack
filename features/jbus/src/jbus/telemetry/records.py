@@ -174,15 +174,8 @@ def _passes(one: Row, zone: tzinfo | None) -> Row:
 
 
 def _drift(one: Row, zone: tzinfo | None) -> Row:
-    return {
-        "at": utc(one.get("at"), zone),
-        "probe": _text(one.get("probe")),
-        "word": _text(one.get("word")),
-        "status": _text(one.get("status")),
-        "found": _number(one.get("found")),
-        "sha": _text(one.get("sha")),
-        "error": _text(one.get("error")),
-    }
+    texts = {name: _text(one.get(name)) for name in ("probe", "word", "status", "sha", "error")}
+    return {"at": utc(one.get("at"), zone), **texts, "found": _number(one.get("found"))}
 
 
 def _items(one: Row, zone: tzinfo | None) -> Row:
