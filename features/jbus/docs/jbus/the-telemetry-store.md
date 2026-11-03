@@ -33,6 +33,7 @@ The store has one table for each record file of each project, with a `project` c
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
 | `capped_reads` | the machine's `capped.jsonl` | a read of which Claude instances the ledger has capped, by `jgauge limits` or the pass (`jgauge.limits.note`): its `reader`, how many `instances` and how many `capped`, and, where every one was, `ends_at`, the first reset |
 | `messages` | T3 Code's store, read only, and the `word` acts of `acts` | a message of a T3 Code thread, the user's or the assistant's, keyed by its id, or a word you said with no T3 message, keyed `word:<id>` |
+| `first_loads` | the installed crew `SKILL.md` and `jbus playbook crewmate`'s print of each playbook, read from the jstack source jbus runs from | an install's crew first load, under the project `''`, written when its `hash` is not the latest row's: `bytes`, the skill and the largest print, and in `files` the bytes of each text counted |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
 Each table also has `day`, the local date of its main time in the zone that `jsettings` gives.
@@ -170,6 +171,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_drift` | each week's S4: the week's last run of `drift_runs` |
 | `gate_outcomes` | each gate's label of a week, the first home's by name where two homes label one gate, with `closed_by`, and whether its outcome is `known` and `wrong` as `gate-labels.md` says, read by `weekly_wrong_closes` |
 | `weekly_wrong_closes` | each labelled week's S8 over its `labels`: of the gates silence closed, the known closes (`silence`), the wrong ones (`silence_wrong`) and `silence_share`, in percent, and the same of those your word closed (`word`, `word_wrong` and `word_share`) |
+| `weekly_first_load` | each week from the first `first_loads` row on: `kb`, the crew first load of the latest install by the week's end in KB of 1,000 bytes, and `installs`, how many the week ran on |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
@@ -212,6 +214,9 @@ A KPI the store has no instrument for yet says so, and names what it needs.
 A week starts on Sunday, as the views' does.
 The page names no row, path or thread, and no project but those the change failure rate says it covers.
 The store holds no text of a message.
+
+The crew first load is what a `/crew` thread reads of jstack's before its work: the crew `SKILL.md` and the largest print of `jbus playbook crewmate`, so no crew's is larger.
+The harness's wrapper around the skill's expansion is not counted, nor the brief.
 
 Each KPI, its target and the view it reads is a module of its own in `jbus.telemetry.kpis`, `k<NN>_<slug>.py`, whose `KPI` is one `Kpi`.
 The page shows them in the order of the modules' names, so `NN` is a KPI's place, and two KPIs of the same `NN` are in the order of their slugs.
