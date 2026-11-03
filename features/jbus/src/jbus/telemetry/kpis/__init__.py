@@ -31,7 +31,8 @@ from jbus.telemetry import entries
 Status = Literal["met", "missed", "tracked", "no data", "not covered"]
 """A measured KPI's week: at its target or past it, `tracked` where it has no target,
 `no data` where nothing in the week counts toward it, and `not covered` where the week begins
-before the records the KPI needs do, so its value would not count what a later week's does."""
+before the records the KPI needs do, so its value would not count what a later week's does, or
+where those records are kept a week at a time and the week has none."""
 
 
 @dataclass(frozen=True)
@@ -59,7 +60,9 @@ class Measured:
     0 for a count, None where there is nothing to count. `since` names a view whose one row's
     `day` is the first day the KPI's `records` cover, where a week that begins before it would
     count something other than a later week does. `covers` is the projects and days it counts,
-    where it counts only some."""
+    where it counts only some. `missing`, where it is set, says why a week the view has no row for
+    has no value: the records the KPI needs are kept a week at a time, and none for that week.
+    `detail` is SQL over the week's row of `view` that gives the note of a week with a value."""
 
     view: str
     value: str
@@ -68,6 +71,8 @@ class Measured:
     since: str | None = None
     records: str = ""
     covers: Covers | None = None
+    missing: str | None = None
+    detail: str | None = None
 
 
 @dataclass(frozen=True)
@@ -114,12 +119,15 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
         if week.isoformat() < start:
             note = f"{source.records} begin on {start}, after the week does"
             return Reading(None, 0, "not covered", note)
+    detail = source.detail or "''"
     row = store.execute(
-        f"SELECT {source.value}, {source.n} FROM {source.view} WHERE week = ?",
+        f"SELECT {source.value}, {source.n}, {detail} FROM {source.view} WHERE week = ?",
         (week.isoformat(),),
     ).fetchone()
+    if row is None and source.missing:
+        return Reading(None, 0, "not covered", source.missing)
     value, n = (row[0], row[1] or 0) if row else (source.empty, 0)
-    note = _covered(store, source.covers, week) if source.covers else ""
+    note = _covered(store, source.covers, week) if source.covers else row[2] if row else ""
     if value is None:
         return Reading(None, n, "no data", note)
     if kpi.target is None:
