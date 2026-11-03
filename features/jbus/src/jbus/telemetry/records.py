@@ -14,6 +14,8 @@ A source is a `log` or a `snapshot`:
   hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
   lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
   and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
+  The machine's `capped.jsonl`, each read of which instances are capped (`jgauge.limits.note`),
+  is a log too.
 - A snapshot is written whole each time: `questions.json`, `queue.json`, `merged.json`,
   `ci-prs.jsonl` and `reverts.json`, each revert jbus opened (`jmerge.reverts`). A row's key is
   the record's own (`number`, `slug`, or a revert's red tip), and a newer snapshot updates the
@@ -177,6 +179,22 @@ def _passes(one: Row, zone: tzinfo | None) -> Row:
 def _drift(one: Row, zone: tzinfo | None) -> Row:
     texts = {name: _text(one.get(name)) for name in ("probe", "word", "status", "sha", "error")}
     return {"at": utc(one.get("at"), zone), **texts, "found": _number(one.get("found"))}
+
+
+def _capped_reads(one: Row, zone: tzinfo | None) -> Row:
+    """A read of which instances the ledger has capped (`jgauge.limits.note`): how many it read,
+    how many were capped, and, where every one was, `ends_at`, the first time one is free again."""
+    instances, capped = one.get("instances"), _dict(one.get("capped"))
+    count = _count(instances)
+    frees = [found for found in (utc(at) for at in capped.values()) if found is not None]
+    every = bool(count) and len(frees) == len(capped) >= count
+    return {
+        "at": utc(one.get("at"), zone),
+        "reader": _text(one.get("reader")),
+        "instances": count,
+        "capped": len(capped),
+        "ends_at": min(frees) if every else None,
+    }
 
 
 def _items(one: Row, zone: tzinfo | None) -> Row:
@@ -479,6 +497,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         "keeps",
         "bytes",
         "waiting",
+        "instances",
         *SPENT,
         *KINDS,
         "checked",
@@ -778,6 +797,14 @@ SOURCES: tuple[Source, ...] = (
         "log",
         _columns("at", "probe", "word", "status", "found", "sha", "error"),
         _drift,
+        where="machine",
+    ),
+    Source(
+        "capped_reads",
+        "capped.jsonl",
+        "log",
+        _columns("at", "reader", "instances", "capped", "ends_at"),
+        _capped_reads,
         where="machine",
     ),
 )
