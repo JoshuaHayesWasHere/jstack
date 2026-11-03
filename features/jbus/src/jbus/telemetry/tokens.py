@@ -349,7 +349,7 @@ def read(
             size, inode = stat.st_size, stat.st_ino
             head = cursors.head(handle)
             fits = held and held[0] == inode and held[2] == head and held[1] <= size
-            start = held[1] if fits else 0
+            start = held[1] if held and fits else 0
             handle.seek(start)
             data = handle.read(size - start if room is None else min(size - start, room))
     except OSError:

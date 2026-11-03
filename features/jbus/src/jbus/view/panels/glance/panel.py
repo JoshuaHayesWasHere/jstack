@@ -25,6 +25,7 @@ same while the user reads it and is gone on the next visit."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import quote
@@ -230,7 +231,7 @@ def _verdict(
     }
 
 
-def _last(acts: list[dict[str, Any] | None]) -> str | None:
+def _last(acts: Sequence[dict[str, Any] | None]) -> str | None:
     return max((one["at"] for one in acts if one), key=datetime.fromisoformat, default=None)
 
 

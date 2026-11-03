@@ -311,8 +311,8 @@ def rows(
 def pareto(found: Iterable[Row]) -> list[dict]:
     """Return each class of waiting by hours lost, the most first, with its share, the running
     share, how many rows waited on it, and the row that waited on it longest."""
-    hours: Counter[str] = Counter()
-    who: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    hours: defaultdict[str, float] = defaultdict(float)
+    who: defaultdict[str, defaultdict[str, float]] = defaultdict(lambda: defaultdict(float))
     for row in found:
         for span in row.spans:
             if span.what not in WORKING:
@@ -320,7 +320,7 @@ def pareto(found: Iterable[Row]) -> list[dict]:
                 who[span.what][f"{row.project}/{row.slug}"] += span.hours
     total = sum(hours.values()) or 1.0
     ranked, running = [], 0.0
-    for what, lost in hours.most_common():
+    for what, lost in sorted(hours.items(), key=lambda one: one[1], reverse=True):
         running += lost
         ranked.append(
             {
@@ -329,8 +329,8 @@ def pareto(found: Iterable[Row]) -> list[dict]:
                 "share": round(lost / total, 3),
                 "cumulative": round(running / total, 3),
                 "rows": len(who[what]),
-                "worst_row": who[what].most_common(1)[0][0],
-                "worst_row_hours": round(who[what].most_common(1)[0][1], 1),
+                "worst_row": max(who[what].items(), key=lambda one: one[1])[0],
+                "worst_row_hours": round(max(who[what].items(), key=lambda one: one[1])[1], 1),
                 "unexplained": what in UNEXPLAINED,
                 "no_record": what == NO_RECORD,
             }
@@ -367,11 +367,11 @@ def lead_times(found: Iterable[Row], spans: bool = False) -> dict:
 
 
 def _top(row: Row) -> tuple[str, float]:
-    waits: Counter[str] = Counter()
+    waits: defaultdict[str, float] = defaultdict(float)
     for span in row.spans:
         if span.what not in WORKING:
             waits[span.what] += span.hours
-    return waits.most_common(1)[0] if waits else ("", 0.0)
+    return max(waits.items(), key=lambda one: one[1]) if waits else ("", 0.0)
 
 
 def _span(span: Span) -> dict:
@@ -398,7 +398,7 @@ def behind(found: Iterable[Row]) -> dict:
     depends on with no record in the window is said as such, and so is a row with no `depends`
     known."""
     by_key = {(one.project, one.slug): one for one in found}
-    blame: Counter[str] = Counter()
+    blame: defaultdict[str, float] = defaultdict(float)
     links: list[int] = []
     for row in by_key.values():
         for span in row.spans:
@@ -411,7 +411,7 @@ def behind(found: Iterable[Row]) -> dict:
         "longest_chain": max(links, default=0),
         "heads": [
             {"class": what, "hours": round(lost, 1), "share": round(lost / total, 3)}
-            for what, lost in blame.most_common()
+            for what, lost in sorted(blame.items(), key=lambda one: one[1], reverse=True)
         ],
     }
 
@@ -422,7 +422,7 @@ def _follow(
     start: datetime,
     end: datetime,
     weight: float,
-    blame: Counter[str],
+    blame: defaultdict[str, float],
     depth: int,
     path: set[str],
 ) -> int:
@@ -692,8 +692,9 @@ def _red(pushed: list[Run], workflow: str) -> tuple[list[RedSpan], list[tuple], 
             start = None
     if start is not None:
         red.append((start.updated, ordered[-1].updated, start.id, None))  # type: ignore[arg-type]
-    if down is not None:
-        idle.append((down, ordered[-1].updated))
+    last = ordered[-1].updated if ordered else None
+    if down is not None and last is not None:
+        idle.append((down, last))
     return red, idle, ordered
 
 

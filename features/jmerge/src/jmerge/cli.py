@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import jsettings
 from jbriefs import home as home_rule
@@ -608,9 +608,10 @@ class Repo:
             _text(self.main, *names, fork, commit)
             for fork, commit in zip(forks, (covered, head), strict=True)
         ]
-        if None in patches:
+        texts = [patch for patch in patches if patch is not None]
+        if len(texts) != len(patches):
             return None
-        files = sorted({file for patch in patches for file in patch.splitlines()})
+        files = sorted({file for patch in texts for file in patch.splitlines()})
         return ready.Rebase(tuple(files), covered, head)
 
     def left_main_elsewhere(self, base: str, under: str, head: str) -> bool:
@@ -1361,14 +1362,16 @@ class Sweep:
         return self._within(commit, head)
 
     def found(self, record: sweep.Record, left: dict[str, str]) -> sweep.Found:
-        state = head = silent = ""
+        state: Literal["MERGED", "OPEN", "CLOSED", ""] = ""
+        head = silent = ""
         if record.pull and not record.short:
             asked = _run(
                 self.main, "gh", "pr", "view", record.pull, "--json", "state,headRefOid,baseRefName"
             )
             try:
                 said = json.loads(asked.stdout)
-                state = "" if asked.returncode else str(said["state"])
+                told = "" if asked.returncode else str(said["state"])
+                state = told if told in ("MERGED", "OPEN", "CLOSED") else ""
                 if state == "MERGED" and said["baseRefName"] in (self.default, *self.repo.bases):
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
@@ -1508,7 +1511,7 @@ def said_of_checks(pull: str) -> str:
     try:
         fields = "headRefOid,statusCheckRollup"
         asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", fields)
-        view = json.loads(asked.stdout) if not asked.returncode else None
+        view = json.loads(asked.stdout) if not asked.returncode else {}
         rollup, head = view["statusCheckRollup"] or [], view["headRefOid"] or ""
         never = checks.never_started(rollup, _job)
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
@@ -1731,6 +1734,7 @@ def _merging(
             if not said and backoff.is_wait(line.removeprefix("wait: ")):
                 waits = "github"
             kept = lines.logged(line)
+            last: dict = {}
             if waits:
                 last = store.read_dict(state / "merge.log.last")
                 if last.get(waits) == kept:
@@ -1768,7 +1772,7 @@ def _merging(
     default, silent = repo.default() if listed else ("", "")
     if asked.returncode or listed is None:
         silent = _why(main_checkout, asked)
-    if silent:
+    if silent or listed is None:
         say(f"wait: could not ask GitHub{silent}")
         return 1
     listed = [repo.in_full(one) for one in listed]

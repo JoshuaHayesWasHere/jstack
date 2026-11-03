@@ -305,8 +305,7 @@ def tell(
         if not text:
             continue
         before = was.get(slug)
-        same = before is not None and before.left == text
-        record = before if same else Record(text)
+        record = before if before is not None and before.left == text else Record(text)
         if slug in open_now:
             record = _judge(run, world, slug, brief, record, ids)
         kept[slug] = replace(record, busy=slug not in open_now)

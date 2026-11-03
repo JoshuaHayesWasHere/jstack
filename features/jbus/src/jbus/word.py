@@ -75,7 +75,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict, Unpack
 
 import jsettings
 from jbriefs.home import home_of, scopes, thread_of
@@ -327,7 +327,13 @@ def basis(state: Path, name: str) -> queue.Said:
     raise Refused(f"refused: {acts.path(state)} has no word {name}")
 
 
-def _change(run: Pass, one: Word, **changed: str) -> bool:
+class _Sent(TypedDict, total=False):
+    thread: str
+    sent_at: str
+    waits: str
+
+
+def _change(run: Pass, one: Word, **changed: Unpack[_Sent]) -> bool:
     """Write what became of a word, add its line to the log, and return whether it wrote
     anything. When jbus sent the word after the caller read `one`, `_change` leaves the word
     as it is."""

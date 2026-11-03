@@ -838,7 +838,9 @@ def _scoped_since(said: Said) -> bool:
 
 
 def _ruled(named: tuple[findings.Finding, ...]) -> str:
-    return " and ".join(_RULED.format(id=one.id, why=one.ruling.why) for one in named)
+    return " and ".join(
+        _RULED.format(id=one.id, why=one.ruling.why) for one in named if one.ruling is not None
+    )
 
 
 def unruled(said: Said) -> str:

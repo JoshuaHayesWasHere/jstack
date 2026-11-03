@@ -328,9 +328,10 @@ class Finding:
         `fixed`. A decline by id is `unruled` until a scoped pass rules on it, and then
         `upheld` or `overruled`. A finding that does not block, or one answered with no id,
         is `fixed` once it has an answer that counts, because nothing rules on it."""
-        if not self.ended:
+        answer = self.answer
+        if answer is None or self.refused:
             return OPEN
-        if self.answer.fixed or not self.answer.by_id or not self.blocks:
+        if answer.fixed or not answer.by_id or not self.blocks:
             return FIXED
         if self.ruling is None:
             return UNRULED
@@ -541,7 +542,8 @@ def _answers(text: str) -> tuple[dict[str, Answer], list[Answer]]:
                 by_id[ident] = Answer(True, rest)
             else:
                 declined = _DECLINE.fullmatch(rest)
-                by_id[ident] = Answer(False, *(declined.groups() if declined else (rest, "")))
+                what, reason = declined.groups() if declined else (rest, "")
+                by_id[ident] = Answer(False, what, reason)
         elif _OLD.match(line):
             fixed = line.startswith("Finding: fixed, ")
             old.append(Answer(fixed, line.split(", ", 1)[1], by_id=False))
@@ -697,7 +699,7 @@ def _shown(one: Finding) -> list[str]:
         said = f"fixed, {answer.what}" if answer.fixed else f"not fixed, {answer.what}"
         said += f", because {answer.reason}" if not answer.fixed else ""
         lines.append(f"  answer: {said}" + (f" (refused: {one.why})" if one.refused else ""))
-        if one.state in (UPHELD, OVERRULED):
+        if one.state in (UPHELD, OVERRULED) and one.ruling is not None:
             ruled = "upheld" if one.state == UPHELD else f"not upheld, {one.ruling.why}"
             lines.append(f"  ruling: {ruled}")
         elif one.state == UNRULED:

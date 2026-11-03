@@ -241,9 +241,9 @@ def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
         pass
 
 
-def _stop(child: subprocess.Popen, lane: Lane) -> int:
+def _stop(child: subprocess.Popen, program: str, lane: Lane) -> int:
     print(
-        f"test-slot: stopped {child.args[0]} at {lane.limit:g} s, the short lane's limit",
+        f"test-slot: stopped {program} at {lane.limit:g} s, the short lane's limit",
         file=sys.stderr,
         flush=True,
     )
@@ -303,7 +303,7 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
         try:
             code = child.wait(timeout=lane.limit)
         except subprocess.TimeoutExpired:
-            code = _stop(child, lane)
+            code = _stop(child, command[0], lane)
         else:
             code = code if code >= 0 else 128 - code
         return code
