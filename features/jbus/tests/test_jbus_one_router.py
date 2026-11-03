@@ -35,6 +35,7 @@ SENDERS = {
         ["_stopped", "merged", "resume"],
     ),
     "children.py": ("a home, of a child home that stalled", ["_send"]),
+    "collisions.py": ("a home, of the week's collision report", ["weekly"]),
     "clock.py": ("a crew, or a home, of a row the clock holds", ["_send"]),
     "merge.py": ("a home, of a row jmerge put on no step", ["unplaced"]),
     "stop.py": ("a home, of what a stopped thread asked or was answered", ["_send"]),
