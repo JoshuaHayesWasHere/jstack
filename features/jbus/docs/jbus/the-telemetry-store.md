@@ -60,19 +60,16 @@ Four logs keep what jbus's snapshots overwrite, each written from what jbus alre
 
 A writer reads its log before it adds, and adds no line whose key the log holds, so each log only grows and holds each line once.
 
-## The audit's data faults
+## Questions the records answer
 
-The week audit could not answer six questions from the records it had.
-Each now has a query:
-
-| Fault | Query |
+| Question | Query |
 |---|---|
-| F1, no brief history | `SELECT slug, launched_at, sha, changed_after FROM brief_at_launch` |
-| F2, the latest CI attempt only | `SELECT project, run, attempts, first_fail_attempt, first_fail_at, last_conclusion FROM run_attempts WHERE attempts > 1` |
-| F3, one pull request a row | `SELECT project, slug, group_concat(DISTINCT number) FROM row_pulls GROUP BY project, slug` |
-| F4, carried words missing | `SELECT project, word, kept_at, said_in, thread, sent_at, waiting FROM carried_words` |
-| F5, no tokens per row | `SELECT spent_on, role, slug, units FROM spend_rows WHERE slug IS NOT NULL` |
-| F8, spend stored nowhere | `SELECT project, spent_on, units, runs FROM spend_days` |
+| Which brief did a row launch with, and did it change after? | `SELECT slug, launched_at, sha, changed_after FROM brief_at_launch` |
+| Which runs took more than one attempt, and at which attempt did each first fail? | `SELECT project, run, attempts, first_fail_attempt, first_fail_at, last_conclusion FROM run_attempts WHERE attempts > 1` |
+| Which pull requests did each row open? | `SELECT project, slug, group_concat(DISTINCT number) FROM row_pulls GROUP BY project, slug` |
+| Which thread did each word a home carried go to, and when? | `SELECT project, word, kept_at, said_in, thread, sent_at, waiting FROM carried_words` |
+| What did each row spend, by role? | `SELECT spent_on, role, slug, units FROM spend_rows WHERE slug IS NOT NULL` |
+| What did each day spend? | `SELECT project, spent_on, units, runs FROM spend_days` |
 
 `spend_rows` is Claude's alone, by day, from T3 Code's count of each run; each call's tokens to its row and role, Codex's too, are in `call_rows` and `row_spend` ("Token usage" below).
 
@@ -85,7 +82,8 @@ The store also keeps the token usage of every Claude and Codex call that a T3 Co
 | `sessions` | T3 Code's store | a native Claude or Codex session, with its thread and the project, role and slug its title gives |
 | `calls` | Claude Code transcripts and Codex rollouts | a call: its session, its subagent where one made it, its model, its time and four counts |
 
-Claude Code deletes a transcript 120 days after its last write, and each pass copies the calls written since the last one, so a call is in the store long before its transcript is gone.
+Claude Code deletes a transcript whose last write is older than its `cleanupPeriodDays` setting, 30 days unless its settings say otherwise.
+Each pass copies the calls written since the last one, so a call is in the store long before its transcript is gone.
 A Claude call is one message, counted with its final counts once Claude Code wrote them.
 A Codex call is one `token_count` event.
 `input` is the input not read from the cache, for both.
@@ -114,9 +112,9 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `change_failures` | S6 for each `kept` row of `ci_rows`: whether its pull request opened a spell |
 | `weekly_lead_time` | each week's S5: `n`, `median` and `p85` |
 | `weekly_change_failure` | each week's S6: `failures`, `merged` and `rate` |
-| `brief_at_launch` | F1 for each launch of a row: the sha of the brief stored then, and how many versions came after |
-| `run_attempts` | F2 for each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
-| `carried_words` | F4 for each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
+| `brief_at_launch` | each launch of a row: the sha of the brief stored then, and how many versions came after |
+| `run_attempts` | each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
+| `carried_words` | each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
 | `ask_ledger` | each message you typed or word you said and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
@@ -151,7 +149,8 @@ S6 counts a merged row only where the store holds a push check of main for its p
 The KPI page names the projects S6 covers and the days of the week with rows it left out.
 A merge line counts for a pull request only from a minute before it opened on, since `merge.log` can hold an older repo's lines of the same number, as jstack's does from 2026-10-10 to 10-14.
 `pr_times` reads `ci-prs.jsonl` too, so it has the same projects.
-A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`, and `jmerge` has labelled its waits since 2026-10-28, so `first_round` counts an earlier fix round only when a check failed.
+A crew's fix round is a wait in `merge.log` with one of the labels `CREW_FIX` names in `jbus.telemetry.schema`.
+`merge.log` has no such labels before 2026-10-28, so for a pull request merged before then `first_round` counts a fix round only when a check failed.
 The KPI page shows no first-round share for a week that begins before `fix_rounds_since`, since such a week would count a fix round with no red check as a first round.
 `ci.jsonl` kept no `pull_request` check of some merged pull requests, such as every one merged from 2026-10-21 to 2026-10-25, and `first_round` is none for those: whether a check of theirs failed is not known.
 
