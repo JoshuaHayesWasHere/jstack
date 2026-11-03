@@ -459,7 +459,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     )
     assert kitchen.main("gate", "alpha", stdin=other)[0] == 0
     spelled = questions.read(kitchen.state)[-1].number
-    now(kitchen, f"and yes to {spelled}")
+    now(kitchen, f"and yes to question {spelled}")
     code, said = kitchen.main(
         "--as", "user", "--evidence", f"t3-message:{REF}", "answer", str(spelled), "--default"
     )
