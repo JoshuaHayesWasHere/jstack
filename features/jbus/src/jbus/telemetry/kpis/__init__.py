@@ -70,6 +70,8 @@ class Measured:
     empty: float | None = None
     since: str | None = None
     records: str = ""
+    partial: bool = False
+    """Read the week the records begin in, from that day, where it would be `not covered`."""
     covers: Covers | None = None
     missing: str | None = None
     detail: str | None = None
@@ -111,14 +113,18 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
     source = kpi.source
     if isinstance(source, Lacks):
         return None
+    begins = ""
     if source.since:
         found = store.execute(f"SELECT day FROM {source.since}").fetchone()
         start = found[0] if found else None
         if start is None:
             return Reading(None, 0, "not covered", f"{source.records} have no line yet")
         if week.isoformat() < start:
-            note = f"{source.records} begin on {start}, after the week does"
-            return Reading(None, 0, "not covered", note)
+            ends = (week + timedelta(days=7)).isoformat()
+            if not source.partial or ends <= start:
+                note = f"{source.records} begin on {start}, after the week does"
+                return Reading(None, 0, "not covered", note)
+            begins = f"from {start}, the day {source.records} begin"
     detail = source.detail or "''"
     row = store.execute(
         f"SELECT {source.value}, {source.n}, {detail} FROM {source.view} WHERE week = ?",
@@ -127,7 +133,9 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
     if row is None and source.missing:
         return Reading(None, 0, "not covered", source.missing)
     value, n = (row[0], row[1] or 0) if row else (source.empty, 0)
-    note = _covered(store, source.covers, week) if source.covers else row[2] if row else ""
+    note = (
+        _covered(store, source.covers, week) if source.covers else (row[2] if row else "") or begins
+    )
     if value is None:
         return Reading(None, n, "no data", note)
     if kpi.target is None:
