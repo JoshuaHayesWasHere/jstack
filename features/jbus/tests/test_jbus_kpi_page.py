@@ -120,11 +120,44 @@ def page_of(machine, week):
     return out, cells.rows, said
 
 
+ORDER = (
+    "PR open to merge, median",
+    "Lead time, go to merge, median (DORA)",
+    "Change failure rate, push checks (DORA)",
+    "Time to restore main, median (DORA)",
+    "Merges a week (DORA frequency)",
+    "Your typed messages per merged row",
+    "'What needs me' asks",
+    "Rows finished with no further word",
+    "Gates closed by silence that were wrong (S8)",
+    "Doors opened without your own word",
+    "Spend per merged row (M units)",
+    "Coordination share of spend",
+    "Dollars per merged row",
+    "Crew first-round share",
+    "Redo rate",
+    "Capped minutes (every instance capped)",
+    "Capped-failure share of spend",
+    "Stall minutes per merged row",
+    "Lost asks (S3)",
+    "jbus pass, median seconds",
+    "Waiting for jmerge, PR p50 minutes",
+    "Crew first load, KB (jstack's own)",
+    "Drift: standing words broken (S4)",
+)
+"""The page's KPIs as it showed them on 2026-11-03, the order of the telemetry-plane scout's
+report: a KPI added since may come anywhere among them, and these keep their order."""
+
+
+def test_the_kpis_keep_the_order_of_the_scouts_report():
+    names = [kpi.name for kpi in kpis.KPIS]
+    assert [name for name in names if name in ORDER] == list(ORDER)
+
+
 def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_not(machine):
     _, rows, said = page(machine)
 
     assert list(rows) == [kpi.name for kpi in kpis.KPIS]
-    assert len(rows) == 23
     lead = rows["Lead time, go to merge, median (DORA)"]
     assert lead[3] == "≤ 30 min"
     assert lead[4] == "59 min n 1 missed"

@@ -709,6 +709,28 @@ def test_a_store_made_at_version_1_migrates_to_every_column_each_source_names(ma
                 assert {name for name, _ in source.columns} <= columns, source.table
 
 
+def schema_of(path):
+    with contextlib.closing(sqlite3.connect(path)) as store:
+        version = store.execute("PRAGMA user_version").fetchone()[0]
+        found = store.execute("SELECT type, name, sql FROM sqlite_master ORDER BY name")
+        return version, found.fetchall()
+
+
+def test_a_store_at_each_earlier_version_migrates_to_the_schema_a_new_store_has(machine):
+    from jbus.telemetry import schema
+
+    new = machine.root / "new.sqlite"
+    telemetry.connect(new).close()
+    assert schema_of(new)[0] == len(schema.MIGRATIONS)
+    for version in range(len(schema.MIGRATIONS)):
+        old = machine.root / f"at-{version}.sqlite"
+        with contextlib.closing(sqlite3.connect(old)) as store:
+            for number, sql in enumerate(schema.MIGRATIONS[:version]):
+                store.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number + 1};\nCOMMIT;")
+        telemetry.connect(old).close()
+        assert schema_of(old) == schema_of(new), version
+
+
 def test_a_pass_logs_its_seconds_and_the_next_build_keeps_them_as_the_machines(kitchen):
     kitchen.poll()
     lines = (kitchen.state_dir / "passes.jsonl").read_text().splitlines()
