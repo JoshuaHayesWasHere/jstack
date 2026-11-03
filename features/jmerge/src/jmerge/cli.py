@@ -21,6 +21,7 @@ import jsettings
 from jbriefs import home as home_rule
 from jbriefs import meets, parse
 from jmerge import (
+    backoff,
     bus,
     checks,
     claims,
@@ -60,7 +61,7 @@ LOCKED = "cannot lock ref"
 
 def _run(cwd: Path, *command: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     limit = float(os.environ.get("JMERGE_TIMEOUT") or TIMEOUT_SECONDS)
-    done = proc.run(*command, cwd=cwd, timeout=limit, stdin=stdin)
+    done = backoff.run(*command, cwd=cwd, timeout=limit, stdin=stdin)
     if isinstance(done, proc.TimedOut):
         said = f"timed out after {limit:g} s: {shlex.join(command)}"
         return subprocess.CompletedProcess(command, 124, "", said)
@@ -466,18 +467,14 @@ class Repo:
     def files_of(self, number: int, jq: str) -> subprocess.CompletedProcess[str]:
         """What `jq` picks from each file of GitHub's files endpoint for pull request `number`,
         paged through: https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files"""
-        return subprocess.run(
-            [
-                "gh",
-                "api",
-                "--paginate",
-                f"repos/{{owner}}/{{repo}}/pulls/{number}/files",
-                "--jq",
-                jq,
-            ],
+        return backoff.run(
+            "gh",
+            "api",
+            "--paginate",
+            f"repos/{{owner}}/{{repo}}/pulls/{number}/files",
+            "--jq",
+            jq,
             cwd=self.main,
-            capture_output=True,
-            text=True,
             env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
         )
 
@@ -891,11 +888,11 @@ class Repo:
 
     def api(self, path: str) -> object:
         """GitHub's answer to `gh api <path>`, or None."""
-        asked = subprocess.run(
-            ["gh", "api", path],
+        asked = backoff.run(
+            "gh",
+            "api",
+            path,
             cwd=self.main,
-            capture_output=True,
-            text=True,
             env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
         )
         try:
@@ -907,16 +904,12 @@ class Repo:
         """A job's log, as GitHub gives it, once a run, or None. gh gives a log that holds escape
         sequences only when asked to, as `jbus.watch.job_log` does."""
         if job not in self.logs:
-            asked = subprocess.run(
-                [
-                    "gh",
-                    "api",
-                    f"repos/{{owner}}/{{repo}}/actions/jobs/{job}/logs",
-                    "--allow-escape-sequences",
-                ],
+            asked = backoff.run(
+                "gh",
+                "api",
+                f"repos/{{owner}}/{{repo}}/actions/jobs/{job}/logs",
+                "--allow-escape-sequences",
                 cwd=self.main,
-                capture_output=True,
-                text=True,
                 env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
             )
             self.logs[job] = None if asked.returncode else asked.stdout
@@ -1688,6 +1681,7 @@ def main(argv: list[str] | None = None) -> int:
     if not shutil.which("gh"):
         raise SystemExit("jmerge: gh is not installed")
     state = homes_state(main_checkout)
+    backoff.watch(state, keeps=not (args.check or args.claims or args.scope))
     if args.check or args.claims or args.scope or not state.is_dir():
         return _merging(args, user, main_checkout, state, said, typed)
     with lock.running(state, wait=not args.if_free) as free:
@@ -1729,6 +1723,8 @@ def _merging(
         if not args.check and state.is_dir():
             repo.timed(line)
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
+            if not said and backoff.is_wait(line.removeprefix("wait: ")):
+                waits = "github"
             kept = lines.logged(line)
             if waits:
                 last = store.read_dict(state / "merge.log.last")
@@ -1739,6 +1735,10 @@ def _merging(
                 log.write(f"{now:%Y-%m-%d %H:%M} {kept}\n")
             if waits:
                 store.write_json(state / "merge.log.last", last)
+
+    if waiting := backoff.gate.held():
+        say(f"wait: {waiting}")
+        return 1
 
     if args.sweep:
         return Sweep(repo).run(say, args.check)
@@ -1817,16 +1817,12 @@ def browser_red(repo: Repo, one: ready.PullRequest, default: str, slug: str) -> 
         return ""
     key = MAIN_BROWSER.format(default=default)
     if key not in repo.reds:
-        asked = subprocess.run(
-            [
-                "gh",
-                "api",
-                "repos/{owner}/{repo}/actions/workflows/browser.yml/runs"
-                f"?branch={default}&status=completed&per_page=20",
-            ],
+        asked = backoff.run(
+            "gh",
+            "api",
+            "repos/{owner}/{repo}/actions/workflows/browser.yml/runs"
+            f"?branch={default}&status=completed&per_page=20",
             cwd=repo.main,
-            capture_output=True,
-            text=True,
             env={**os.environ, **({"GH_REPO": repo.about[1]} if repo.about else {})},
         )
         try:
