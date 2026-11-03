@@ -450,7 +450,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     assert [
         (one["party"]["kind"], one["evidence"]["source"], one["outcome"]) for one in logged(kitchen)
     ] == [("home", "typed", "refused")]
-    now(kitchen, f"yes to {held}")
+    now(kitchen, f"yes to question {held}")
     code, said = kitchen.main("--as", "user", "answer", str(held), "--default", "--message", REF)
     assert code == 0, said
     assert questions.question(kitchen.state, held).answer.keeps
