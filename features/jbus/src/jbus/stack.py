@@ -278,9 +278,9 @@ def _onto(run: Pass, brief: str, merged: dict[str, Any]) -> str:
     return str(said.get("baseRefName") or "") if isinstance(said, dict) else ""
 
 
-def _rewrite(run: Pass, slug: str, stacked: stacks.Stacked | None) -> None:
+def _rewrite(run: Pass, slug: str, stacked: stacks.Stacked) -> None:
     """Write where the link sits now on its brief's `Stacked on:` line, read again just before,
-    so a line its crew added since is kept, or drop the line once it sits on no stack."""
+    so a line its crew added since is kept."""
     path = run.home / "tasks" / f"{slug}.md"
     try:
         text = path.read_text(errors="replace")

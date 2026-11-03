@@ -14,7 +14,7 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
   A tip with more than one merge since the last green, a culprit whose head lacks the green under the tip (a skew, #899), or a red from outside gets main's fix row instead, and jbus closes a revert still open once main is green without it (#899).
   jbus's pass approves both fix rows it files, main's and the browser run's, by rule and not by your word (#547).
   A stacked link is marked ready and checked while it sits on its base's open branch, and its move onto main may keep that pass (`jmerge.reuse`, #868).
-  jbus takes a link off its stack once its brief's `Builds on:` line no longer names its open base (#846, #877), which in the model takes an edit of the brief, since every depends names its base.
+  Since fl-stack-by-depends-only it has no unstack: a stacked link stays on its stack until its base merged.
   A pull request whose last review round says the brief is not met is held (`MEETS_NO`, #843), and jbus tells its crew, which meets it (#850).
   Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red.
   Since cut 11 of the simplify pass it has a row's go, which jbus asks at launch and jmerge at merge (`rows.py` `ROW_HELD`, `NO_GO`), and a hold for your word, as a change that touches a protected path has (`ready.py` `TOUCHES`).
@@ -104,7 +104,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowD
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
-`FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited, so the chart has no unstack.
+`FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited.
 The chart command holds TLC's whole state graph in memory: the whole model, 2.6M states before fl-rules-1103, took more than 27 GB before earlyoom stopped it, and the cut, 1.18M states at fl-rules-1103's head, takes about 12 GB and 27 minutes.
 With an edit and an outside break both in the cut, TLC 2.19 threw while its `-continue` run printed a path of the rule then named `NoMergeTurnsMainRed`.
 `flow_canaries.py` checks every rule on the whole model.
@@ -132,7 +132,6 @@ The design starts with both pull requests open, so each story says the design st
 - What a culprit's head holds: TLC takes it to hold the green under the red tip or not (a skew), either way.
 - Which stacked moves are a clean replay of the trees their check passed: TLC takes either, a pass kept or the check run again.
 - A stacked link's check over its base's change: in the model it fails only on its own change and on main's red.
-- jbus.stack's test of whether a link's own change needs its base's: a link whose brief no longer names its base comes off its stack.
 - A `Waived:` line, your other way past a review round that says the brief is not met, and a round that says so after the draft's first.
 - The red that ends at a fixing merge: the code ends it once jbus sees main's new tip green.
 
