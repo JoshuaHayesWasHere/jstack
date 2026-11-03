@@ -498,7 +498,10 @@ def test_fl_statechart_1102_waiting_on_its_five_subagents_was_not_hung(kitchen):
     """The scout fl-statechart-1102 on 2026-11-03 (UTC): its count of items stood at 47 from 01:49,
     when its last fact-finding subagent finished, while its TLC canary subagents ran and updated
     their items at 02:02 and 02:03. Its `updatedAt` moved at 02:09 with no item written."""
-    t = lambda clock: datetime.fromisoformat(f"2026-11-03T{clock}+00:00")  # noqa: E731
+
+    def t(clock):
+        return datetime.fromisoformat(f"2026-11-03T{clock}+00:00")
+
     began = iso(t("01:40:45"))
     one = run(1) | {"requestedAt": began, "startedAt": began}
     made = {"activeRunId": "run-1", "latestRunId": "run-1", "runs": [one], "itemCount": 47}
