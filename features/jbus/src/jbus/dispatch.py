@@ -34,6 +34,12 @@ is not the main one), `mirrored` asks `jroles mirror --check` about that instanc
 `mirrored` runs the mirror once and asks again. When the instance is still not mirrored, the pool
 skips it for the rest of the pass: the launch goes to the next instance with headroom, or waits.
 
+While `main.json` says main is red, a row launches only when it fixes main (`fixes_main`) or
+launches stacked on an open row it depends on. Every other approved row waits with the reason
+`main is red: waits for green` (`Red`), and launches on the first pass that reads main as green:
+a crew launched onto a red main finds its check failed on main's break. A red main holds no pull
+request (`jmerge.mainjson`); this rule holds back launches only.
+
 jbus never holds back a launch because another brief names the same file, since each crew
 has its own worktree and branch. The crew of the pull request that merges second rebases that
 pull request, and `jbus.rebase` tells that crew to.
@@ -43,6 +49,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import re
 from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
@@ -54,7 +61,7 @@ import jroles.mirror
 from jbriefs.home import home_of, named
 from jbus import queue, read_json, watch, write_json
 from jbus.launches import record_path, records
-from jbus.passes import Changed, Depends, Pass, Rerun, Slot
+from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
 from jmerge import judgement, mainjson
@@ -119,6 +126,15 @@ def write_missing(run: Pass) -> None:
 
 
 GREEN_MAIN = "Green main:"
+
+_FIXES_MAIN = re.compile(r"\bfix(?:es|ing)?\s+(?:the\s+)?(?:red\s+)?main\b", re.IGNORECASE)
+
+
+def fixes_main(slug: str, brief: str) -> bool:
+    """Whether the row fixes a red main: jbus filed it for one (`mainjson.fix_of`), or the first
+    line of its brief, its heading, says it fixes main, as `# x: fix main's red test` does."""
+    heading = "".join(brief.splitlines()[:1])
+    return mainjson.fix_of(slug) or bool(_FIXES_MAIN.search(heading))
 
 
 def green_main(brief: str, green: str) -> str:
@@ -416,8 +432,10 @@ class Turns:
 
         The method skips every other row. jbus never launches a row again once the row's thread
         has ended with a Result, nor a fix row of a red main whose own commit went green on a
-        rerun (`_rerun`). When a row waits because its brief changed, or waits on a slug
-        it depends on, the method adds the reason to `Pass.reasons`. A row waits on a slug until
+        rerun (`_rerun`). When a row waits because its brief changed, waits on a slug
+        it depends on, or waits for a red main to be green, the method adds the reason to
+        `Pass.reasons`. While main is red, only a row that fixes main (`fixes_main`) or launches
+        stacked on an open row is yielded. A row waits on a slug until
         that slug has merged, or has ended `done` with no pull request, or until the one slug it
         still waits on has opened its pull request: it then launches stacked on that pull
         request's branch (`World.stack_on`). Once the pass is `full`,
@@ -432,6 +450,7 @@ class Turns:
         """
         run, world = self.run, self.world
         merged = (set(world.merged) - set(world.open)) | self.reported
+        red = bool(mainjson.read(run.state).red)
         while self.left:
             row = self.left.pop(0)
             slug = row["slug"]
@@ -472,6 +491,9 @@ class Turns:
             on = world.stack_on(run, unmerged, brief)
             if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
+                continue
+            if red and on is None and not fixes_main(slug, brief):
+                run.reasons[slug] = Red()
                 continue
             yield row, brief, on
 

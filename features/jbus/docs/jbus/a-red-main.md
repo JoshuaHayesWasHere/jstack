@@ -3,7 +3,12 @@
 A pass watches the check of the default branch, `main`, after each merge.
 When main's check fails, the pass reports `retro <slug>: main check failed at <sha12>, <n> merges since the last green`, with the slug of the briefed merge of the day before.
 With no such merge it reports `retro main-red-<sha12>: main check failed at <sha12>, <n> merges since the last green, and no briefed merge came in the day before it`.
-While main is red, no pull request waits on it and no launch does: a pull request red at its own head is held by its own checks.
+While main is red, no pull request waits on it: a pull request red at its own head is held by its own checks.
+Launches do wait on it.
+While `main.json` says main is red, a row launches only when it fixes main or launches stacked on an open row it depends on (`features/jbus/src/jbus/dispatch.py`).
+A row fixes main when jbus filed it for the red (a `main-red-` slug), or when its brief's heading says it fixes main, as `# <slug>: fix main's red test` does.
+Every other approved row waits with `main is red: waits for green`, and launches on the first pass that reads main as green.
+A crew launched onto a red main finds its check failed on main's break, and several crews then fix the one break.
 Once the tip is red after its one rerun, jbus reverts its one clear culprit, or files a brief for the fix.
 
 One module judges whether main's tip is red: `mainmoved` writes `checks.json`, the answer GitHub gave for each commit of main, and `main.json`, the red tip and the green one (`features/jbus/src/jbus/mainmoved.py`).

@@ -24,15 +24,18 @@ CHANGED = "main changed src/jbus/cli.py after its check started at 07:00 ET; it 
 
 @pytest.fixture
 def launched(kitchen, request):
-    """Alpha and beta are rows that a first pass launched. That pass also records where main is,
-    red unless the test asks for `success`. Each thread's turn has ended, since jbus tells
+    """Alpha and beta are rows that a first pass launched while main's check still ran: a red
+    main launches no plain row. Main's check then ends red unless the test asks for `success`,
+    and a second pass records where main is. Each thread's turn has ended, since jbus tells
     nothing to a thread that is at work."""
     kitchen.config(max_running=2)
     add(kitchen, "alpha")
     add(kitchen, "beta", priority=2)
-    checks(kitchen, tip(kitchen), getattr(request, "param", "failure"))
+    checks(kitchen, tip(kitchen), "")
     said = kitchen.poll(NOW - timedelta(minutes=30))
     assert "launched alpha: mcp:thread-1" in said and "launched beta: mcp:thread-2" in said
+    checks(kitchen, tip(kitchen), getattr(request, "param", "failure"))
+    kitchen.poll(NOW - timedelta(minutes=29))
     for thread in kitchen.t3.threads:
         thread["status"] = "completed"
     return kitchen
