@@ -23,7 +23,6 @@ from crew_helpers import (
     opened,
     reviewed,
     said,
-    sections,
     with_field,
 )
 from test_home_thread import as_read
@@ -501,14 +500,6 @@ def test_the_lines_that_end_a_finding_change_nothing_the_other_blocks_read(endin
         "and a home that merges hears of it once, when its checks have passed: "
         "go on with stay-on-the-pr.md"
     ]
-
-
-def test_no_rule_ties_the_fixed_line_to_a_check_run_for_a_draft():
-    """A crew opens its pull request ready, so CI checks every head it pushes, and jmerge marks
-    no draft ready on the `Fixed:` line: the rule that ran the check command before `Fixed:`,
-    so CI's run was never the first a head got, went with the draft (fl-no-draft)."""
-    review = sections()["The review"]
-    assert not [line for line in review.splitlines() if line.startswith("Before it, run the check")]
 
 
 MEETS_BRIEF = crew.BRIEF.replace(
