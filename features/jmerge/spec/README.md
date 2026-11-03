@@ -64,13 +64,16 @@ TLC runs on two workers, so the count of a run that breaks a rule varies a littl
 Today's model has 11M states where it had 2.6M before fl-rules-1103, since a draft held for your word now moves on your word.
 On 2026-11-03 the home kept the code and rewrote two rules in the words of the flow the merged pull requests chose; their intent stays, and `FlowsWhenGreen` keeps its words.
 
-- `FlowsWhenGreen`: "Work never stops flowing: once nothing more happens on its own and main is green, it settles merged or waiting on your word." Its words are unchanged.
+- `FlowsWhenGreen`: "Work never stops flowing: once nothing more happens on its own and main is green, it settles merged or waiting on your word."
+  Its words are unchanged.
   It broke on a draft held on a protected path while the spec's `Accept` refused a draft, and it holds since `Accept` is the code's: `Repo.judged` returns the hold before the draft, so jmerge's own pass leaves it a draft, and since #709 `jmerge --accept` marks it ready and keeps its lift, so it merges once its check passed.
   The constant `Draft` and the probe `NoLift` went, since the code leaves them nothing to choose; the scout fl-simplify-1103 found the same, `FlowsWhenGreen` holding once the draft is marked ready.
-- `MergeRedsMainOnlyOnAMissedTest`, which was `NoMergeTurnsMainRed`: "A merge turns main red only through a test its check's selection missed, and then jbus reruns main's failed push run once and reverts the one clear culprit or files main's fix row." (#849, #862, #899)
+- `MergeRedsMainOnlyOnAMissedTest`, which was `NoMergeTurnsMainRed`: "A merge turns main red only through a test its check's selection missed, and then jbus reruns main's failed push run once and reverts the one clear culprit or files main's fix row."
+  The flow is that of #849, #862 and #899.
   A check can still miss a test that reads the changed path: `scripts/select_tests.py` runs every test no rule owns (#397), and each test whose `READ_SET` matches the changed path (#426), and `testing/tests/test_cross_cutting.py` sees only the reads it knows, so the model keeps that chance and records it as `missed`.
   Until it is judged, the red is in its one rerun (#672) or due its judgement; once judged, jbus's revert is open, or main's fix row is filed, or that row's crew put the fix in an open pull request.
-- `MachineNotLeftFull`: "Once nothing more happens on its own, the machine has room." Its words are unchanged.
+- `MachineNotLeftFull`: "Once nothing more happens on its own, the machine has room."
+  Its words are unchanged.
 - `MainFixWaitsOnlyOnYou`: "While main is red and nothing else can happen, its fix waits on nothing of yours but your word: the lift of a pull request you hold, or your approval of a row whose brief you must approve."
   Since #547 jbus approves every fix row it files, main's and the browser run's, by rule, so no approval of a fix row is yours.
 
