@@ -75,7 +75,7 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
 
 from __future__ import annotations
 
-from jbus.telemetry import messages
+from jbus.telemetry import launches, messages
 from jbus.telemetry.records import SOURCES, Source
 from jgauge import spend
 
@@ -195,7 +195,16 @@ TOKENS = (
 )
 """Each agent call's token usage, and the thread of each session (`tokens`)."""
 
-MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES, MESSAGES, TOKENS)
+LAB = (
+    _tables("review_rounds")
+    + launches.TABLE_SQL
+    + "CREATE INDEX review_rounds_slug ON review_rounds (project, slug, round_number);\n"
+)
+"""Two of the records the kpi-lab swarm found missing: the arm of each launch (`launch_arms`,
+`jbus.telemetry.launches`), and each review round of a pull request (`review_rounds`,
+`jbus.reviewed.rounds`)."""
+
+MIGRATIONS: tuple[str, ...] = (FIRST, RECORDS, PASSES, MESSAGES, TOKENS, LAB)
 """`MIGRATIONS[n]` takes a store from version `n` to `n + 1`. Append, never edit one."""
 
 UNITS = (

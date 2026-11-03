@@ -222,3 +222,75 @@ def test_the_outbox_judges_a_waived_brief_as_jmerge_does_before_it_holds_for_a_r
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     run, client = run_of(kitchen, look=True)
     assert outbox.reviewing(run, client, "mcp:crew", "alpha") is held
+
+
+def rounds(kitchen):
+    """The project's log of review rounds, `review-rounds.jsonl`, line by line."""
+    path = kitchen.state / reviewed.ROUNDS
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def met(text, line):
+    return text.replace("Findings:", f"{line}Findings:", 1)
+
+
+def test_each_settled_review_round_is_logged_once_with_its_verdict_and_findings_by_severity(
+    kitchen,
+):
+    first = met(section(head="d" * 40), "Meets the brief: no, 1 of 2\n- unmet 2: the second\n")
+    answered = "\n## Result\nFinding F1: fixed, the sum\nFixed: " + HEAD + "\n"
+    found = "- error src/alpha/b.py:9 a thing\n- info src/alpha/c.py:1 another\n"
+    dismissed = "Dismissed:\n- warning src/alpha/d.py:2 not a bug (dismissed: tested)\n"
+    second = met(section(findings=found + dismissed), "Meets the brief: yes, 2 of 2\n")
+    kitchen.brief("alpha", "Thread: mcp:crew\n" + first + answered + second)
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    for minutes in (0, 3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    at = NOW.isoformat()
+    common = {"at": at, "slug": "alpha", "pr": 7, "scoped": False, "sections": 1, "others": 0}
+    assert rounds(kitchen) == [
+        {
+            **common,
+            "round": 1,
+            "head": "d" * 40,
+            "meets": "no",
+            "met": 1,
+            "of": 2,
+            "errors": 0,
+            "warnings": 1,
+            "infos": 0,
+            "dismissed": 0,
+        },
+        {
+            **common,
+            "round": 2,
+            "head": HEAD,
+            "meets": "yes",
+            "met": 2,
+            "of": 2,
+            "errors": 1,
+            "warnings": 0,
+            "infos": 1,
+            "dismissed": 1,
+        },
+    ]
+
+
+def test_a_round_is_logged_once_every_reviewer_launched_for_it_wrote_its_section(kitchen):
+    launched = "Reviewer: mcp:rev-1 #1\nReviewer: mcp:rev-2 #2\n"
+    one = section("clean", "- none")
+    kitchen.brief("alpha", "Thread: mcp:crew\n" + launched + one)
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.poll(NOW)
+    assert rounds(kitchen) == []
+    two = one.replace(BY, BY.replace("#1", "#2"))
+    kitchen.brief("alpha", "Thread: mcp:crew\n" + launched + one + two)
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    (line,) = rounds(kitchen)
+    assert (line["round"], line["sections"], line["meets"], line["at"]) == (
+        1,
+        2,
+        "unread",
+        (NOW + timedelta(minutes=3)).isoformat(),
+    )

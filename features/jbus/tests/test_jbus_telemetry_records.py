@@ -12,6 +12,7 @@ Each fault has one query, the one the store's page (`the-telemetry-store.md`) gi
 """
 
 import contextlib
+import json
 import sqlite3
 from datetime import timedelta
 
@@ -193,3 +194,68 @@ def test_a_word_still_waiting_shows_as_waiting_with_no_thread(machine):
     with contextlib.closing(machine.store()) as store:
         rows = store.execute("SELECT word, thread, sent_at, waiting FROM carried_words").fetchall()
     assert rows == [("w1", None, None, 1)]
+
+
+def launch(machine, slug, sha, **record):
+    """Write a launch record as jbus does, under `launches/<project>/<slug>/<sha>.json`."""
+    path = machine.state_dir / "launches" / "alpha" / slug / f"{sha}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"key": f"alpha/{slug}/{sha}", **record}))
+    return path
+
+
+def test_launch_arms_keeps_each_launchs_arm_once_and_an_older_launch_reads_not_covered(machine):
+    at = iso(NOW)
+    launched = {"state": "launched", "thread": "mcp:t", "at": at}
+    path = launch(machine, "one", "a" * 12, **launched, arms={"crew-router-pilot": "control"})
+    launch(machine, "two", "b" * 12, **launched, role="scout", priming="trimmed")
+    launch(machine, "three", "c" * 12, **launched)
+    launch(machine, "four", "d" * 12, state="intent", at=at, arms={"crew-router-pilot": "off"})
+    machine.build()
+    query = "SELECT slug, role, dial, arm, covered, thread, at, day FROM launch_arms ORDER BY slug"
+    stamp = "2026-10-28T15:00:00.000000Z"
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == [
+            ("one", "crew", "crew-router-pilot", "control", 1, "mcp:t", stamp, "2026-10-28"),
+            ("three", "crew", None, None, 0, "mcp:t", stamp, "2026-10-28"),
+            ("two", "scout", "crew-router-pilot", "trimmed", 1, "mcp:t", stamp, "2026-10-28"),
+        ]
+    path.write_text(path.read_text())
+    assert "nothing new" in machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute("SELECT count(*) FROM launch_arms").fetchone() == (3,)
+
+
+def test_review_rounds_keeps_each_round_once_with_its_verdict_and_counts(machine):
+    line = {
+        "at": iso(NOW),
+        "slug": "one",
+        "pr": 7,
+        "round": 2,
+        "head": "c" * 40,
+        "scoped": True,
+        "sections": 1,
+        "meets": "yes",
+        "met": 3,
+        "of": 3,
+        "errors": 1,
+        "warnings": 0,
+        "infos": 2,
+        "others": 0,
+        "dismissed": 1,
+    }
+    machine.append("alpha", "review-rounds.jsonl", line)
+    machine.build()
+    query = (
+        "SELECT slug, pr, round_number, head, scoped, sections, meets, met, done_when, errors, "
+        "warnings, infos, others, dismissed FROM review_rounds"
+    )
+    row = ("one", 7, 2, "c" * 40, 1, 1, "yes", 3, 3, 1, 0, 2, 0, 1)
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(query).fetchall() == [row]
+    other = {**line, "slug": "two"}
+    path = machine.state("alpha") / "review-rounds.jsonl"
+    path.write_text(f"{json.dumps(other)}\n{json.dumps(line)}\n")
+    assert "review_rounds 1" in machine.build()
+    with contextlib.closing(machine.store()) as store:
+        assert store.execute(f"{query} WHERE slug = 'one'").fetchall() == [row]
