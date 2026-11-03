@@ -1,11 +1,15 @@
-from jbus.telemetry.kpis import Kpi, Lacks
+from jbus.telemetry.kpis import Kpi, Measured
+from jgauge import spend
 
 KPI = Kpi(
     "Dollars per merged row",
     "cost",
-    "billed dollars over rows merged",
+    f"an estimate at API list prices, from jgauge.spend's price table of {spend.PRICED_ON}: "
+    "the dollars of a merged row's own threads, over the week's merged rows with any call "
+    "recorded; a cache write at the one-hour price, and a call of a model the table does not "
+    "price, every Codex model's, adds no dollars",
     "$",
     None,
     "lower",
-    Lacks("cost_usd from the agents' OpenTelemetry (design C) or a price table"),
+    Measured("weekly_row_spend", "dollars_per_row", "rows"),
 )

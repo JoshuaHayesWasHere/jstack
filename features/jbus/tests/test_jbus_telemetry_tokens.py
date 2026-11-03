@@ -427,6 +427,53 @@ def test_a_calls_units_are_jgauge_spends_for_each_model_kind(machine):
         assert units == jgauge_spend.units(run), model
 
 
+def test_a_calls_dollars_are_its_tokens_times_the_price_table(machine):
+    """A call of a priced model costs each of its four counts at its class's price in
+    `jgauge.spend.PRICES`, in the store as in `jgauge.spend.dollars`; a Codex call, of a model
+    the table does not price, has no dollars and counts as unpriced."""
+    machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    machine.thread("mcp:review-a", "review: row-a", "codex", C1)
+    machine.merged("row-a")
+    machine.claude(
+        "s1",
+        said(NOW, "m1", (7, 300, 9000, 41)),
+        said(NOW, "m2", (13, 200, 7000, 59), model="claude-sonnet-5-5"),
+        said(NOW, "m3", (2, 100, 400, 9), model="claude-haiku-5-5"),
+    )
+    machine.codex(C1, *rollout(C1), counted(NOW, (3000, 2900, 77), 3077))
+    machine.run()
+
+    with machine.store() as store:
+        calls = store.execute(
+            "SELECT model, input, cache_write, cache_read, output, dollars FROM call_rows "
+            "ORDER BY call"
+        ).fetchall()
+        week = store.execute(
+            "SELECT rows, dollars, unpriced, dollars_per_row FROM weekly_row_spend"
+        ).fetchall()
+    priced = 0.0
+    for model, plain, written, cached, output, dollars in calls:
+        price = jgauge_spend.PRICES.get(model)
+        if price is None:
+            assert model == "gpt-6.1-terra"
+            assert dollars is None
+            assert jgauge_spend.dollars(model, plain, written, cached, output) is None
+            continue
+        tokens_times_table = (
+            plain * price.plain
+            + written * price.written
+            + cached * price.cached
+            + output * price.output
+        ) / 1e6
+        assert dollars == pytest.approx(tokens_times_table), model
+        assert jgauge_spend.dollars(model, plain, written, cached, output) == pytest.approx(
+            tokens_times_table
+        )
+        priced += dollars
+    assert len(calls) == 4
+    assert week == [(1, pytest.approx(priced), 1, pytest.approx(priced))]
+
+
 def test_a_call_written_across_two_builds_is_one_row_with_its_final_counts(machine):
     machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
     machine.thread("mcp:review-a", "review: row-a", "codex", C1)
