@@ -244,6 +244,30 @@ def test_a_crew_the_message_could_not_reach_is_told_by_a_later_pass(kitchen):
     assert len(told) == 1 and "revert" in told[0]["message"]
 
 
+def test_a_crew_told_of_a_revert_that_merged_is_not_told_again_once_its_mark_is_pruned(kitchen):
+    """red-main-no-hold F20: the daily prune forgets the told mark of a finished row, while the
+    revert's record stays, so a merged revert must not be told again."""
+    from jbus.wake import _prunable
+
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    made = kept.read(kitchen.state)[red]
+    pulls = json.loads((kitchen.stub / "open.json").read_text())
+    kitchen.set("open.json", [one for one in pulls if one["url"] != made.pull])
+    merged = json.loads((kitchen.stub / "merged.json").read_text())
+    landed = [dict(one, mergedAt=iso(NOW)) for one in pulls if one["url"] == made.pull]
+    kitchen.set("merged.json", [*merged, *landed])
+    sent = json.loads((kitchen.state / "sent.json").read_text())
+    (kitchen.state / "sent.json").write_text(
+        json.dumps([key for key in sent if not _prunable(key, {"alpha"})])
+    )
+    kitchen.poll(NOW + timedelta(minutes=30))
+    kitchen.poll(NOW + timedelta(minutes=33))
+    sent = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    told = [given for given in sent if given["threadId"] == "mcp:alpha-crew"]
+    assert len(told) == 1 and made.pull in told[0]["message"]
+
+
 def test_a_revert_github_opened_but_did_not_describe_is_taken_up_and_not_opened_again(kitchen):
     """`gh pr view` gives no answer once the revert opened: the next pass finds it by its branch
     (`gh pr list --head`), keeps it, and opens no second one."""
@@ -288,9 +312,14 @@ def test_a_revert_that_goes_red_gets_the_fix_row(kitchen):
 
 
 def test_a_revert_goes_to_the_home_s_digest(kitchen):
+    import jbus
     from jbus import digest
 
-    assert "revert" in digest.ROUTINE
+    red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    said = digest.build(jbus.load(), since=NOW - timedelta(hours=1), now=NOW + timedelta(hours=1))
+    (routine,) = [one for one in said["projects"]["demo"]["routine"] if one["event"] == "revert"]
+    assert routine["slug"] == "alpha" and routine["line"].startswith("revert alpha: main red at ")
 
 
 def test_a_launch_does_not_wait_on_a_red_main(kitchen):
