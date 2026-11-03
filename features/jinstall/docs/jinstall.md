@@ -1,7 +1,7 @@
 # jinstall
 
 `jinstall` installs, checks and removes jstack on a machine.
-The install below puts `jinstall` as a command that works on the source in its own tool, built from `main` or from a release's wheel, so it needs no checkout.
+The [Quickstart](../../../README.md#quickstart) install puts `jinstall` as a command that works on the source in its own tool, built from `main` or from a release's wheel, so it needs no checkout.
 
 ## Install
 
