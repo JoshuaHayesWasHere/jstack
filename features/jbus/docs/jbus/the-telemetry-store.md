@@ -18,7 +18,7 @@ The store has one table for each record file of each project, with a `project` c
 | `ci_jobs` | `ci.jsonl` | a job of a GitHub Actions run, for a project whose table says `ci_report = true` |
 | `merges` | the home's `merge.log` | a line `jmerge` logged: its verb, its pull request, a merge's slug and a wait's label |
 | `questions` | `questions.json` | a gate and its answer |
-| `queue` | `queue.json` | a row of the queue, with its approval's times |
+| `queue` | `queue.json` | a row of the queue, with its approval's times and `follows`, the parent a follow-up's go names |
 | `merged` | `merged.json` | a merged pull request of a row |
 | `ci_prs` | `ci-prs.jsonl` | a pull request the CI ledger keeps |
 | `brief_versions` | `brief-versions.jsonl` | a change of a stored brief's sha, or its removal (no sha) |
@@ -27,6 +27,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_days` | `spend.jsonl` | a project's Claude spend of one local day (`spent_on`), in units, tokens and units by kind |
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
+| `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
@@ -149,6 +150,10 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_spend` | each week of the days `jgauge spend` counted, each project's last line of a day (`spend_kept`): `days`, `units`, and in percent the `coordination` share, jbus's sends and the homes, and the `capped` share, runs that failed on a usage limit or part way |
 | `row_words` | S1 for each merged row with a go: the messages you typed, resumes apart, after its go and by its merge that name it, cited by an act of the row's project on the row or typed in its crew's thread |
 | `weekly_no_word` | each week's rows `merged`, those `quiet`, with no such message, and their `share`, in percent |
+| `redos` | each later row that redoes a merged row and `how`: a `follow-up` or `main-red` fix whose go names it, a `main-red-<sha12>` fix of the row whose merge commit that red tip is, or a `revert` jbus opened, with when it came (`at`) |
+| `redo_rows` | each merged row in the week its 7 days end, `judged` once they ended by the last build, and the first row that redid it in them (`redone_by`, `how`) |
+| `weekly_redo` | each week's rows `redone` of those `judged`, those `waiting`, and the `rate`, in percent |
+| `redo_since` | the first `day` of a follow-up's go that names its parent |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
