@@ -48,6 +48,8 @@ from jgauge import transcript
 from jroles import inventory
 
 CLAUDE, CODEX = "claude", "codex"
+PRICED = CLAUDE
+"""The provider whose models `jgauge.spend.PRICES` prices, and the only one."""
 DRIVERS = {inventory.BUILT_IN: CLAUDE, "codex": CODEX}
 """T3's driver of a provider thread, by the provider the store names."""
 COUNTS = ("input", "cache_write", "cache_read", "output")
