@@ -1,0 +1,45 @@
+# /etc/systemd/system/jbus-mcp.service: the MCP server, as its own user, on 127.0.0.1:4391.
+[Unit]
+Description=jbus-mcp: jbus as a remote MCP server for a claude.ai connector
+After=network-online.target jbus-mcp-run.socket
+Wants=network-online.target
+Requires=jbus-mcp-run.socket
+
+[Service]
+Type=simple
+User=jbus-mcp
+Group=jbus-mcp
+EnvironmentFile=/etc/jbus-mcp/jbus-mcp.env
+ExecStart=/usr/bin/python3 -I /opt/jbus-mcp/jbus-mcp serve
+StateDirectory=jbus-mcp
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

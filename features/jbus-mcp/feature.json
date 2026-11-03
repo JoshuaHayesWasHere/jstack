@@ -1,0 +1,14 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "jbus-mcp",
+  "description": "Serves jbus to a claude.ai connector as a remote MCP server, behind OAuth, through one runner that only queues and reads.",
+  "packages": [
+    "src/jbus_mcp"
+  ],
+  "commands": {
+    "jbus-mcp": "jbus_mcp.cli:main"
+  },
+  "docs": [
+    "docs/jbus-mcp.md"
+  ]
+}

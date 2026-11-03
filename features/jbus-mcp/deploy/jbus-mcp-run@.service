@@ -1,0 +1,17 @@
+# /etc/systemd/system/jbus-mcp-run@.service: one runner for one connection, as the user jbus
+# runs as. Replace @JBUS_USER@ with that user's name. The runner reads the request from the
+# connection, runs jbus with the command line the tool table builds, and writes one JSON line.
+[Unit]
+Description=jbus-mcp runner, one request
+CollectMode=inactive-or-failed
+
+[Service]
+Type=simple
+User=@JBUS_USER@
+ExecStart=/usr/bin/python3 -I /opt/jbus-mcp/jbus-mcp run
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+RuntimeMaxSec=330
+NoNewPrivileges=yes
+PrivateTmp=no

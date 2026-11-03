@@ -13,6 +13,7 @@ dependencies = [
 # generated: scripts by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 jbriefs = "jbriefs.cli:main"
 jbus = "jbus.cli:main"
+jbus-mcp = "jbus_mcp.cli:main"
 jdrift = "jdrift.cli:main"
 jgauge = "jgauge.cli:main"
 jinstall = "jinstall.cli:main"
@@ -47,6 +48,7 @@ exclude = ["/share/jstack/**/src/", "/share/jstack/**/tests/", "/share/jstack/fe
 packages = [
     "features/jbriefs/src/jbriefs",
     "features/jbus/src/jbus",
+    "features/jbus-mcp/src/jbus_mcp",
     "features/jdrift/src/jdrift",
     "features/jgauge/src/jgauge",
     "features/jinstall/src/jinstall",
@@ -84,6 +86,7 @@ testpaths = [
     "features/grilling/tests",
     "features/home/tests",
     "features/jbriefs/tests",
+    "features/jbus-mcp/tests",
     "features/jbus/tests",
     "features/jdrift/tests",
     "features/jgauge/tests",
@@ -112,6 +115,7 @@ testpaths = [
 ]
 pythonpath = [
     "features/jbriefs/src",
+    "features/jbus-mcp/src",
     "features/jbus/src",
     "features/jdrift/src",
     "features/jgauge/src",
@@ -131,6 +135,7 @@ pythonpath = [
     "features/grilling/tests",
     "features/home/tests",
     "features/jbriefs/tests",
+    "features/jbus-mcp/tests",
     "features/jbus/tests",
     "features/jdrift/tests",
     "features/jgauge/tests",
@@ -185,6 +190,7 @@ line-length = 100
 # generated: ruff by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 src = [
     "features/jbriefs/src",
+    "features/jbus-mcp/src",
     "features/jbus/src",
     "features/jdrift/src",
     "features/jgauge/src",
@@ -204,6 +210,7 @@ src = [
     "features/grilling/tests",
     "features/home/tests",
     "features/jbriefs/tests",
+    "features/jbus-mcp/tests",
     "features/jbus/tests",
     "features/jdrift/tests",
     "features/jgauge/tests",

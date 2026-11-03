@@ -1,0 +1,6 @@
+{
+  "jbus": "/home/@JBUS_USER@/.local/bin/jbus",
+  "projects": ["jstack"],
+  "timeout": 60,
+  "path": "/home/@JBUS_USER@/.local/bin:/usr/local/bin:/usr/bin"
+}

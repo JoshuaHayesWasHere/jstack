@@ -1,0 +1,17 @@
+# /etc/systemd/system/jbus-mcp-run.socket: the runner's one door. Only the jbus-mcp group may
+# connect, and each connection starts one jbus-mcp-run@.service as the user jbus runs as.
+[Unit]
+Description=jbus-mcp runner socket
+
+[Socket]
+ListenStream=/run/jbus-mcp/run.sock
+SocketUser=root
+SocketGroup=jbus-mcp
+SocketMode=0660
+DirectoryMode=0755
+Accept=yes
+MaxConnections=4
+MaxConnectionsPerSource=4
+
+[Install]
+WantedBy=sockets.target
