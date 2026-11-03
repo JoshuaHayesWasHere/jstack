@@ -312,5 +312,5 @@ def test_the_pass_asks_github_for_each_open_pull_requests_updated_at(opened):
     opened.poll()
     listed = [line for line in opened.log("gh") if line.startswith("pr list --state open --json")]
     asked = [line.split("--json ")[1].split()[0].split(",") for line in listed]
-    world = [fields for fields in asked if "statusCheckRollup" in fields and "isDraft" in fields]
+    world = [fields for fields in asked if "statusCheckRollup" in fields and "mergeable" in fields]
     assert world and all("updatedAt" in fields for fields in world)
