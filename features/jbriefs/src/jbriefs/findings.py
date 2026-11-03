@@ -64,6 +64,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, replace
 
+from jbriefs import below
+
 NEAR = 5
 ACT_ON, CONSIDER, NOTED, DISMISSED = "Act on", "Consider", "Noted", "Dismissed"
 BUCKETS = (ACT_ON, CONSIDER, NOTED, DISMISSED)
@@ -223,10 +225,10 @@ Roster = Legacy | Numbered
 
 
 def roster(text: str) -> Roster:
-    """Whom the round waits for, read from the `Reviewer:` lines that name a thread."""
+    """Whom the round waits for, read from the results' `Reviewer:` lines that name a thread."""
     named = [
         line.strip()
-        for line in text.splitlines()
+        for line in below.results(text)
         if line.startswith("Reviewer:") and "".join(line.split()[1:2]) not in ("", "none", "none,")
     ]
     seats = frozenset(int(found[1]) for line in named if (found := _SEAT.search(line)))

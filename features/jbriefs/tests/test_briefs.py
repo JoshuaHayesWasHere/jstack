@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import asks, below, cli, home, page, parse, proof, skills
+from jbriefs import asks, below, cli, findings, home, page, parse, proof, skills
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
@@ -853,6 +853,15 @@ def test_reviewer_lines_are_read_by_kind_and_a_scoped_one_by_its_head():
         False,
     ]
     assert not below.launched(below.reviewers(brief, "Second reviewer")[0])
+
+
+def test_a_reviewer_line_in_the_head_is_guidance_and_names_no_reviewer():
+    head = "# alpha: a task\nReviewer: check that the ask is one question\n\n## Result\nStatus: done\n"
+    assert below.reviewers(head, "Reviewer") == []
+    assert findings.roster(head) == findings.Legacy(0)
+    launched = head + "Reviewer: mcp:one #1\n"
+    assert below.reviewers(launched, "Reviewer") == ["mcp:one #1"]
+    assert findings.roster(launched) == findings.Numbered(frozenset({1}))
 
 
 HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
