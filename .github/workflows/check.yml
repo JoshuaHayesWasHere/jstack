@@ -256,10 +256,11 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
+    # One output, the same in every part, since every part checks out the same tree. When the
+    # parts of a matrix write one output, the last to end wins, so a part's own outcome is never
+    # an output: a lookup that failed is a warning in its part.
     outputs:
       tree: ${{ steps.tree.outputs.name }}
-      lookup: ${{ steps.tree.outcome }}
-      suite: ${{ steps.suite.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -267,24 +268,25 @@ jobs:
       # A run that ends green leaves a marker named by the tree it checked out, and a run whose
       # tree has one skips the suite: it would test the same files again. The skip is on the
       # steps, and the job's `if` is the event's alone, so a push to main always reports
-      # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact, or a
-      # ref `refs/jstack/green-tree/full/<tree>` the desk pushed after jmerge's fresh check ran
-      # `make check` on the same tree and it passed. The desk's `selected/<tree>` ref, from a
-      # fresh check of selected tests (`make check-fast`), skips nothing here: on 2026-10-23 one
-      # skipped this suite on a tree whose whole suite failed. The desk's check ran in an
-      # environment nobody locked, so a run skipped on the desk's marker still proves the lock.
+      # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact and
+      # nothing else: a ref under refs/jstack/green-tree/, which anybody with write could push,
+      # skips nothing.
       - name: green tree
         id: tree
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/green_tree.py
+      # A lookup that does not work never fails the part, so it says so here.
+      - name: green tree lookup warning
+        if: steps.tree.outcome == 'failure'
+        run: echo "::warning::green-tree, the lookup ended failure, so the suite runs and a later run of this tree may not skip it"
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           version: ${{ env.UV_VERSION }}
-        if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
+        if: steps.tree.outputs.marker != 'green'
       - run: uv sync --locked
-        if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
+        if: steps.tree.outputs.marker != 'green'
       # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
       # shell may be zsh, and GitHub's image has no zsh. It ends with `zsh --version`, so a
       # step that installed none fails.
@@ -378,11 +380,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/select_tests.py --failed-on-main 30 ~/.cache/jstack/failed-on-main.json
-      # Only after the suite ran and passed in the parts. A marker that cannot be kept costs
-      # the next run of this tree its skip and nothing else.
+      # Only after every part passed: each one ran its share of the suite and passed, or skipped
+      # it on a green run's marker of this same tree. A marker that cannot be kept costs the next
+      # run of this tree its skip and nothing else.
       - name: green tree marker
         id: marker
-        if: needs.full-shard.result == 'success' && needs.full-shard.outputs.suite == 'success' && needs.full-shard.outputs.tree != ''
+        if: needs.full-shard.result == 'success' && needs.full-shard.outputs.tree != ''
         env:
           NAME: ${{ needs.full-shard.outputs.tree }}
         run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
@@ -395,7 +398,7 @@ jobs:
           path: ${{ runner.temp }}/green-tree/${{ needs.full-shard.outputs.tree }}
           retention-days: 7
           if-no-files-found: error
-      # A lookup or an upload that does not work never fails the run, so it says so here.
-      - name: green tree warnings
-        if: needs.full-shard.outputs.lookup == 'failure' || steps.upload.outcome == 'failure'
-        run: echo "::warning::green-tree, the lookup ended ${{ needs.full-shard.outputs.lookup }} and the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"
+      # An upload that does not work never fails the run, so it says so here.
+      - name: green tree upload warning
+        if: steps.upload.outcome == 'failure'
+        run: echo "::warning::green-tree, the upload ended failure, so a later run of this tree may not skip the suite"
