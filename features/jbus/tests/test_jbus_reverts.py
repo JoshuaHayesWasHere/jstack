@@ -352,6 +352,39 @@ def test_a_revert_that_goes_red_gets_the_fix_row(kitchen):
     assert len(asked(kitchen, "pr revert")) == 1
 
 
+def test_a_revert_that_merged_under_a_main_still_red_gets_the_fix_row(kitchen):
+    """alpha's revert merged, and main is red at the revert's own merge, on another test: the
+    revert did not end the red, so the tip gets its row, which names why."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    made = kept.read(kitchen.state)[red]
+    pulls = json.loads((kitchen.stub / "open.json").read_text())
+    (revert,) = [one for one in pulls if one["url"] == made.pull]
+    again = move(kitchen, "failure")
+    kitchen.set("open.json", [one for one in pulls if one is not revert])
+    merged = json.loads((kitchen.stub / "merged.json").read_text())
+    landed = dict(revert, mergedAt=iso(NOW), mergeCommit={"oid": again})
+    kitchen.set("merged.json", [*merged, landed])
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    title = f"{revert['title']} (#{revert['number']})"
+    kitchen.set("commits.json", [kitchen.commit(again, title, ago=timedelta(0)), *commits])
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[again] = [{**DONE, "conclusion": "failure", "name": "check", "id": 95}]
+    kitchen.set("check-runs.json", runs)
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    pushed[again] = [{**DONE, "id": 505, "conclusion": "failure", "run_attempt": 2}]
+    kitchen.set("push-runs.json", pushed)
+    logs = json.loads((kitchen.stub / "logs.json").read_text())
+    kitchen.set("logs.json", {**logs, "95": f"FAILED {OTHER}\n= 1 failed =\n"})
+    kitchen.poll(NOW + timedelta(minutes=30))
+    kitchen.poll(NOW + timedelta(minutes=33))
+    (row,) = main_red(kitchen)
+    assert row["slug"] == f"{mainjson.FIX}{again[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert f"its revert {made.pull} merged, and main is still red" in text
+    assert len(asked(kitchen, "pr revert")) == 1
+
+
 def test_a_revert_goes_to_the_home_s_digest(kitchen):
     import jbus
     from jbus import digest
@@ -380,28 +413,53 @@ def test_a_plain_launch_waits_on_a_red_main(kitchen):
 
 def test_the_rule_names_one_reason_for_each_red_it_does_not_revert():
     pull = {"number": 7, "title": "feat: alpha", "url": url(7)}
-    one = reverts.Red("r" * 40, ["r" * 40], pull, "alpha", [TEST])
+    tip, under = [("r" * 40, "failed")], "g" * 40
+    two = [("q" * 40, "failed"), *tip]
+    one = reverts.Red(tip, pull, "alpha", [TEST])
     made = {"o" * 40: kept.Revert("o" * 40, "beta", "revert-5-beta", "e" * 40, url(5))}
     assert reverts.culprit(one, {}, ()) == reverts.Culprit("r" * 40, "alpha", pull)
+    assert reverts.culprit(reverts.Red(two, pull, "alpha", [TEST], under=under), {}, ()) == (
+        reverts.Culprit("r" * 40, "alpha", pull)
+    )
+    late = timedelta(hours=2)
     cases = {
         reverts.Keep.OPENED: (one, {one.tip: made["o" * 40]}, ()),
-        reverts.Keep.OVERLAP: (
-            reverts.Red(one.tip, ["r" * 40, "q" * 40], pull, "alpha", [TEST]),
-            {},
-            (),
-        ),
-        reverts.Keep.UNBRIEFED: (reverts.Red(one.tip, [one.tip], None, "", [TEST]), {}, ()),
-        reverts.Keep.OF_A_REVERT: (
-            reverts.Red(one.tip, [one.tip], pull, "revert-5-beta", [TEST]),
-            made,
-            (),
-        ),
-        reverts.Keep.TWICE: (reverts.Red(one.tip, [one.tip], pull, "beta", [TEST]), made, ()),
-        reverts.Keep.UNREAD: (reverts.Red(one.tip, [one.tip], pull, "alpha", None), {}, ()),
+        reverts.Keep.OVERLAP: (reverts.Red(two, pull, "alpha", [TEST]), {}, ()),
+        reverts.Keep.UNBRIEFED: (reverts.Red(tip, None, "", [TEST]), {}, ()),
+        reverts.Keep.OF_A_REVERT: (reverts.Red(tip, pull, "revert-5-beta", [TEST]), made, ()),
+        reverts.Keep.TWICE: (reverts.Red(tip, pull, "beta", [TEST]), made, ()),
+        reverts.Keep.UNREAD: (reverts.Red(tip, pull, "alpha", None), {}, ()),
         reverts.Keep.FLAKES: (one, {}, (TEST,)),
     }
     for why, (red, kept_reverts, flakes) in cases.items():
         assert reverts.culprit(red, kept_reverts, flakes) == why, why
-    assert reverts.culprit(reverts.Red(one.tip, [one.tip], pull, "alpha", []), {}, (TEST,)) == (
+    assert reverts.culprit(reverts.Red(tip, pull, "alpha", []), {}, (TEST,)) == (
         reverts.Culprit(one.tip, "alpha", pull)
     )
+    opened = {"q" * 40: made["o" * 40]}
+    pending = [("q" * 40, "pending"), *tip]
+    cancelled = [("q" * 40, "cancelled"), *tip]
+    for red, why in (
+        (reverts.Red(two, pull, "alpha", [TEST], under=under), None),
+        (reverts.Red(pending, pull, "alpha", [TEST], under=under), reverts.Keep.UNREAD),
+        (reverts.Red(pending, pull, "alpha", [TEST], late, under), reverts.Keep.OVERLAP),
+        (reverts.Red(cancelled, pull, "alpha", [TEST], under=under), reverts.Keep.OVERLAP),
+    ):
+        assert reverts.culprit(red, opened if why is None else {}, ()) == (
+            why or reverts.Keep.OPENED
+        )
+
+
+def test_a_red_run_s_culprit_is_its_oldest_where_no_later_tip_fails_another_test():
+    pull = {"number": 7, "title": "feat: alpha", "url": url(7)}
+    run = [("q" * 40, "failed"), ("r" * 40, "failed")]
+    red = reverts.Red(run, pull, "alpha", [TEST], under="g" * 40)
+    found = reverts.Culprit("r" * 40, "alpha", pull)
+    assert reverts.covered(found, red, [[TEST]]) == found
+    assert reverts.covered(found, red, [[TEST, OTHER]]) == reverts.Keep.OVERLAP
+    assert reverts.covered(found, red, [[]]) == reverts.Keep.OVERLAP
+    assert reverts.covered(found, red, [None]) == reverts.Keep.UNREAD
+    late = reverts.Red(run, pull, "alpha", [TEST], timedelta(hours=2), "g" * 40)
+    assert reverts.covered(found, late, [None]) == reverts.Keep.NOT_READ
+    unnamed = reverts.Red(run, pull, "alpha", [], under="g" * 40)
+    assert reverts.covered(found, unnamed, [[TEST]]) == reverts.Keep.OVERLAP
