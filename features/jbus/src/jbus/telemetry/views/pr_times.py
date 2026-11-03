@@ -3,8 +3,8 @@ merge line from a minute before it opened on (a line is stamped to the minute), 
 can hold an older repo's lines of the same number, as jstack's does from 2026-10-10 to 10-14. It has
 its minutes from open to merge, and `first_round` where no check of the pull request failed and
 `jmerge` never waited on a crew's fix round (`CREW_FIX`). `first_round` is None for a pull request
-`ci.jsonl` kept no `pull_request` check of: whether one failed is not known, as for every one merged
-from 2026-10-21 to 2026-10-25, among other days the ledger kept no checks of."""
+`ci.jsonl` kept no `pull_request` check of: whether one failed is not known, as for every one
+merged from 2026-10-21 to 2026-10-25, among other days the ledger kept no checks of."""
 
 from jbus.telemetry.schema import CREW_FIX, RED, WEEK
 
