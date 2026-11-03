@@ -82,7 +82,8 @@ The store also keeps the token usage of every Claude and Codex call that a T3 Co
 | `sessions` | T3 Code's store | a native Claude or Codex session, with its thread and the project, role and slug its title gives |
 | `calls` | Claude Code transcripts and Codex rollouts | a call: its session, its subagent where one made it, its model, its time and four counts |
 
-Claude Code deletes a transcript whose last write is older than its `cleanupPeriodDays` setting, 30 days unless its settings say otherwise. Each pass copies the calls written since the last one, so a call is in the store long before its transcript is gone.
+Claude Code deletes a transcript whose last write is older than its `cleanupPeriodDays` setting, 30 days unless its settings say otherwise.
+Each pass copies the calls written since the last one, so a call is in the store long before its transcript is gone.
 A Claude call is one message, counted with its final counts once Claude Code wrote them.
 A Codex call is one `token_count` event.
 `input` is the input not read from the cache, for both.

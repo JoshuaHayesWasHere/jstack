@@ -117,7 +117,8 @@ A `Pull request:` or `Review:` line that still offers its choices (`review | non
 - A brief for research, perf, analysis or outcome work has a filled-in `Read:` line and `Instruments:` line, as the home skill's deeper step writes them.
   It is such work when its `Playbook:` line names `perf-issue`, `hillclimb`, `runtime-forensics` or `eval`, or when its `Task:` line names research, perf, performance, analysis or outcome.
 - `Builds on:` gives no plan layer as a reason: a row builds on another only for code it changes, calls or imports.
-- No field but `Ruled out:` asks for a load on every core, such as `stress-ng --cpu 0`. A bounded load runs inside `jgauge test-slot`.
+- No field but `Ruled out:` asks for a load on every core, such as `stress-ng --cpu 0`.
+  A bounded load runs inside `jgauge test-slot`.
 - The brief asks you nothing mid-task: a question goes through `jbus gate`.
 - Its `Done when:` and `Where:` claim no shared doc, such as the README, unless the row's title names docs.
 - A test that its `Done when:` or `Proves it:` names does not quote the `Task:` line's account of what happened word for word.
