@@ -3,7 +3,7 @@
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
-`jbus.spent` keep, five snapshots, the machine's log of its passes, each
+`jbus.spent` keep, six snapshots, the machine's log of its passes, each
 launch's arm (`jbus.telemetry.launches`), the messages of T3 Code's threads
 (`jbus.telemetry.messages`), and the gate labels a scout writes each week
 (`jbus.telemetry.labels`). Its views give the KPIs (`jbus.telemetry.views`). It keeps a row
@@ -172,7 +172,8 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
     if held and held[0] == name:
         return
     connection.execute("BEGIN")
-    tables = (*((source.table, source.at) for source in SOURCES), (messages.TABLE, "at"))
+    timed = ((source.table, source.at) for source in SOURCES if source.at)
+    tables = (*timed, (messages.TABLE, "at"))
     for table, at in (*tables, (launches.TABLE, "at")):
         found = connection.execute(f"SELECT project, key, {at} FROM {table}")
         connection.executemany(

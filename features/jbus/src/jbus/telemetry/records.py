@@ -14,9 +14,10 @@ A source is a `log` or a `snapshot`:
   hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
   lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
   and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
-- A snapshot is written whole each time: `questions.json`, `queue.json`, `merged.json` and
-  `ci-prs.jsonl`. A row's key is the record's own (`number` or `slug`), and a newer snapshot
-  updates the row and never deletes one, so a record that leaves the file stays in the store.
+- A snapshot is written whole each time: `questions.json`, `queue.json`, `merged.json`,
+  `ci-prs.jsonl` and `reverts.json`, each revert jbus opened (`jmerge.reverts`). A row's key is
+  the record's own (`number`, `slug`, or a revert's red tip), and a newer snapshot updates the
+  row and never deletes one, so a record that leaves the file stays in the store.
 
 Each time is kept in UTC, in one form of fixed width (`utc`), so that text order is time order,
 and each table has the local `day` of its `at` column in the user's zone, since SQLite has no
@@ -300,6 +301,7 @@ def _queue(one: Row, zone: tzinfo | None) -> Row:
         "approval_ref": _text(approval.get("ref")),
         "approval_said_at": utc(approval.get("said_at"), zone),
         "approval_ran_at": utc(approval.get("ran_at"), zone),
+        "follows": _text(approval.get("follows")) or None,
     }
 
 
@@ -325,6 +327,15 @@ def _ci_prs(one: Row, zone: tzinfo | None) -> Row:
         "closed": utc(one.get("closed"), zone),
         "merge_commit": _text(one.get("merge_commit")),
         "pushes": _count(one.get("pushes")),
+    }
+
+
+def _reverts(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "red": _text(one.get("red")),
+        "slug": _text(one.get("slug")),
+        "branch": _text(one.get("branch")),
+        "pr": _pull(one.get("pull")),
     }
 
 
@@ -448,6 +459,13 @@ def _merged_pulls(text: str) -> Iterable[Row]:
     if not isinstance(held, dict):
         return []
     return [{**pull, "slug": slug} for slug, pull in held.items() if isinstance(pull, dict)]
+
+
+def _revert_records(text: str) -> Iterable[Row]:
+    held = json.loads(text)
+    if not isinstance(held, dict):
+        return []
+    return [{**one, "red": red} for red, one in held.items() if isinstance(one, dict)]
 
 
 def _sends(text: str) -> Iterable[Row]:
@@ -672,6 +690,7 @@ SOURCES: tuple[Source, ...] = (
             "approval_ref",
             "approval_said_at",
             "approval_ran_at",
+            "follows",
         ),
         _queue,
         at="approval_ran_at",
@@ -765,6 +784,16 @@ SOURCES: tuple[Source, ...] = (
         at="sent_at",
         records=_sends,
         natural="word",
+    ),
+    Source(
+        "reverts",
+        "reverts.json",
+        "snapshot",
+        _columns("red", "slug", "branch", "pr"),
+        _reverts,
+        at="",
+        records=_revert_records,
+        natural="red",
     ),
     Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
     Source(

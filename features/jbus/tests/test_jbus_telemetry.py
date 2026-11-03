@@ -42,6 +42,7 @@ TABLES = (
     "queue",
     "merged",
     "ci_prs",
+    "reverts",
     "messages",
 )
 
@@ -514,6 +515,8 @@ def test_no_table_and_no_byte_of_the_file_holds_the_text_of_a_message(machine):
     t3.say("m-1", "mcp:home-a", NOW)
     t3.say("r-1", "mcp:home-a", NOW + timedelta(seconds=20), text=SECRET, role="assistant")
     word(machine, "beta", "w-1", NOW)
+    revert = {"slug": "alpha-one", "branch": "revert-10", "head": "h", "pull": "#12", "why": SECRET}
+    machine.write("alpha", "reverts.json", {"r" * 40: revert})
     machine.build()
 
     found = dump(machine.state_dir / telemetry.FILE)
