@@ -34,12 +34,15 @@ names the row, the pull request, both heads and the failed jobs at each. The out
 crew of a held row no rebase and no fix message (`outbox.FIXES`), so none goes out at a third
 head. The row's `why` says `check failed twice` while it is held. The hold is lifted as any
 hold is, by an approve, and the count starts again from none.
+
+`hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
+the stall minutes the telemetry store reads (`jbus.telemetry.schema`'s `weekly_stall`).
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import jsettings
@@ -47,6 +50,7 @@ from jbus import Refused, alert, cancelled, queue, read_json, rebase, verbs, wai
 from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
+from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
 from jbus.watch import FAILS, TWICE, World, task_brief
@@ -66,6 +70,9 @@ STALL = "stall"
 PASSES = 10
 REVIEWING = 30
 HUNG = "hung.jsonl"
+SPELLS = "stalls.jsonl"
+STALLED = ("quiet", "hung")
+GAP = timedelta(minutes=20)
 WROTE, INTERRUPTED, ENDED = "wrote again", "interrupted", "ended"
 BECAME = {"interrupted": INTERRUPTED, "cancelled": INTERRUPTED} | dict.fromkeys(
     ("completed", "failed", "rolled_back"), ENDED
@@ -305,6 +312,7 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
     """
     if out is None:
         return
+    spells(run, out)
     at = jsettings.stamp(run.now, z=True)
     by_id = {one["id"]: one for one in out}
     for (thread, at_run), call in _calls(run).items():
@@ -327,13 +335,13 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
             run.find(one["slug"], STALL, line, key=key)
 
 
-def _keep(run: Pass, line: dict[str, Any]) -> bool:
-    """Add one line to `hung.jsonl`. When `_keep` cannot write the line, it says so, and the pass
-    goes on."""
+def _keep(run: Pass, line: dict[str, Any], file: str = HUNG) -> bool:
+    """Add one line to `hung.jsonl`, or to `file`. When `_keep` cannot write the line, it says so,
+    and the pass goes on."""
     try:
-        store.append_jsonl(run.state / HUNG, [line], mode=0o600)
+        store.append_jsonl(run.state / file, [line], mode=0o600)
     except OSError as error:
-        run.say(f"wait {run.project.name}: {HUNG} could not be written ({error})")
+        run.say(f"wait {run.project.name}: {file} could not be written ({error})")
         return False
     return True
 
@@ -419,6 +427,115 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
 def _twice(half: Half) -> None:
     if half.rows is not None:
         twice(half.run, half.seen.world, half.rows)
+
+
+def _open_spells(run: Pass) -> dict[str, dict[str, Any]]:
+    """Return each spell of `stalls.jsonl` that no later line ends, by its thread."""
+    try:
+        lines = (run.state / SPELLS).read_text(errors="replace").splitlines()
+    except OSError:
+        return {}
+    still: dict[str, dict[str, Any]] = {}
+    for line in lines:
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(one, dict) or not isinstance(one.get("since"), str):
+            continue
+        if "minutes" in one:
+            still.pop(str(one.get("thread")), None)
+        else:
+            still[str(one.get("thread"))] = one
+    return still
+
+
+def _last_pass(run: Pass) -> datetime | None:
+    """The start of the last pass that ended, from the last line of `passes.jsonl` (`jbus.record`),
+    or None where there is none. The log gets a line at the end of every pass, whatever T3 Code and
+    GitHub answered, so its last line is the pass before this one. Only the file's tail is read."""
+    try:
+        with (run.config.state_dir / PASS_LOG).open("rb") as log:
+            log.seek(max(0, log.seek(0, 2) - 4096))
+            lines = log.read().decode(errors="replace").splitlines()
+    except OSError:
+        return None
+    try:
+        said = json.loads(lines[-1]) if lines else None
+    except ValueError:
+        return None
+    return _moment(said.get("at")) if isinstance(said, dict) else None
+
+
+def _moment(said: object) -> datetime | None:
+    """The moment a stored time names, or None where it names no moment with its zone."""
+    try:
+        found = datetime.fromisoformat(str(said))
+    except ValueError:
+        return None
+    return found if found.tzinfo else None
+
+
+def spells(run: Pass, out: list[dict[str, Any]]) -> None:
+    """Keep `stalls.jsonl`, one spell for each stretch a running row's thread is `quiet` or `hung`.
+
+    A row's thread is one whose title names a slug and that is not a home's. The pass that first
+    sees the thread quiet or hung adds `{"at", "thread", "role", "slug", "since"}`, where `since`
+    is when the thread last wrote (`threads.out`'s `wrote`), so the spell holds the whole silence.
+    The passes after it add nothing while the thread stays quiet or hung since that write. The
+    pass that sees the spell end adds the same line with `until`, `minutes` and `became`: the
+    liveness it turned to, or `gone` where T3 Code no longer lists the thread. A thread that wrote
+    again ends the spell at its write, and one that did not (it waits on the user's answer, its
+    turn ended, or it is gone) at this pass. A thread that waits on a request is `waiting`, never
+    quiet, so no spell counts time the user owes an answer. A spell is counted once, on the line
+    that ends it, however many passes saw it. The open spells are read back from the file, so a
+    pass that died is picked up by the next one, as `hung.jsonl`'s calls are.
+
+    A spell counts only the silence the passes saw. A stretch of more than `GAP` since the last
+    pass (`_last_pass`) is a gap: the machine was suspended, or jbus did not run. A shorter
+    stretch, such as a slow pass or one that found the lock busy, counts whole.
+    The minutes of a gap that fall in a spell are its `unseen` minutes, and `minutes` leaves them
+    out. A pass that comes after a gap writes an open spell's line again with its `unseen` minutes,
+    so the line read back carries them; a spell that this pass opens or ends counts its share of the
+    gap at once.
+    """
+    at = jsettings.stamp(run.now, z=True)
+    last = _last_pass(run)
+    gap = last if last is not None and run.now - last > GAP else None
+
+    def unseen(spell: dict[str, Any], since: datetime | None, end: datetime | None) -> float:
+        kept = spell.get("unseen")
+        before = kept if isinstance(kept, int | float) else 0.0
+        if gap is None or since is None or end is None:
+            return before
+        return round(before + max(0.0, (end - max(since, gap)).total_seconds()) / 60, 1)
+
+    by_id = {one["id"]: one for one in out}
+    stalled = {
+        one["id"]: one
+        for one in out
+        if one["live"] in STALLED and one["slug"] and one["role"] != "home" and one["wrote"]
+    }
+    for thread, spell in _open_spells(run).items():
+        one, since = by_id.get(thread), _moment(spell["since"])
+        wrote = _moment(one["wrote"]) if one else None
+        moved = since is not None and wrote is not None and since < wrote <= run.now
+        if thread in stalled and not moved:
+            del stalled[thread]
+            if gap is not None:
+                _keep(run, spell | {"unseen": unseen(spell, since, run.now)}, SPELLS)
+            continue
+        end = wrote if moved else run.now
+        left = unseen(spell, since, end)
+        minutes = round((end - since).total_seconds() / 60 - left, 1) if since and end else None
+        until = one["wrote"] if moved and one else at
+        became = one["live"] if one else "gone"
+        ended = {"at": at, "until": until, "minutes": minutes, "became": became}
+        _keep(run, spell | ({"unseen": left} if left else {}) | ended, SPELLS)
+    for thread, one in stalled.items():
+        line = {"at": at, "thread": thread, "role": one["role"], "slug": one["slug"]}
+        left = unseen({}, _moment(one["wrote"]), run.now)
+        _keep(run, {**line, "since": one["wrote"], **({"unseen": left} if left else {})}, SPELLS)
 
 
 def _tell(half: Half) -> None:
