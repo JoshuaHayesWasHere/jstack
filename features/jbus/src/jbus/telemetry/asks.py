@@ -11,10 +11,11 @@ input?" ask it. Over the 1,314 messages the user typed by 2026-11-03 it matched 
 ask of what needs the user, read by hand.
 
 What it leaves out, on purpose: a question about something that needs the user ("why do these
-need me?", "why do 7 items need me"), a statement ("none of them need me"), a mention in quotes
-(`reduce the "what needs me" questions`), and a message that is not plain text (`messages.kind`):
-a slash command, whose text is a skill's or a brief's, an answer to a question box, or a
-resume. What it misses:
+need me?", "why do 7 items need me"), a statement ("none of them need me"), a mention in quotes,
+backticks or parentheses (`reduce the "what needs me" questions`, ``the `what needs me` KPI``,
+"(what needs me) is the KPI"), and a message that is not plain text (`messages.kind`): a slash
+command, whose text is a skill's or a brief's, an answer to a question box, or a resume. What it
+misses:
 
 - an ask in other words ("is there anything for me?", "status?", "what's next for me"),
 - an ask past the first `HEAD` characters of a long message (none by 2026-11-03),
@@ -22,7 +23,8 @@ resume. What it misses:
 - and a message T3 Code no longer holds when the rules last changed, which keeps no label.
 
 A change to the rule raises `messages.RULES`, so every message is read again, and appends a
-migration that clears the cursors of `acts`, as `migrations.v007_asks` does, so every word is too.
+migration that clears the cursors of `acts`, as `migrations.v007_asks` and
+`migrations.v010_asks_marks` do, so every word is too.
 """
 
 from __future__ import annotations
@@ -35,7 +37,7 @@ HEAD = 400
 """How much of a text the user typed is read for its labels, this one and `messages.kind`."""
 
 NEEDS = re.compile(
-    r"(?<![\"'“‘])\b(?:what|anyth\w*|something)(?:'s|\s+is)?(?:\s+else)?\s+"
+    r"(?<![\"'“‘`(])\b(?:what|anyth\w*|something)(?:'s|\s+is)?(?:\s+else)?\s+"
     r"(?:needs?|requires?|waiting\s+on|waits\s+on|blocked\s+on)\s+(?:me|my)\b"
 )
 """An ask of what needs the user, in the lower-cased text with its white space made single."""

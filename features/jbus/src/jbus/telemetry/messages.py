@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from jbus.telemetry import Built
 
 TABLE = "messages"
-RULES = 2
+RULES = 3
 """The version of the rules of `kind` and `asks`: a change to either raises it, and the next
 build reads every message again, so each row is labelled by the rules of today."""
 BATCH = 5000
