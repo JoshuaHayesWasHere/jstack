@@ -376,7 +376,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         if row is None or not head or not rebase.crew(run, slug):
             continue
         one = dict(was.get(slug) or {})
-        if one.get("held") and not row.get("held"):
+        if one.get("held_at") and not row.get("held"):
             one = {}
         heads, on_red = dict(one.get("heads") or {}), list(one.get("red") or ())
         kept[slug] = {**one, "heads": heads, "red": on_red}
@@ -404,7 +404,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         except Refused as error:
             run.say(f"wait {slug}: {TWICE}, and it could not be held ({error})")
             continue
-        kept[slug]["held"] = run.now.isoformat()
+        kept[slug]["held_at"] = run.now.isoformat()
         number, url = pull["number"], pull.get("url", "")
         at = "; ".join(_said(failed, heads[failed]) for failed in heads)
         text = (

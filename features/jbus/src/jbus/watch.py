@@ -991,7 +991,7 @@ def failed_twice(run: Pass, slug: str) -> bool:
     """Say whether jbus held the row because its check failed at two heads (`jbus.stall.twice`)."""
     kept = read_json(run.state / FAILS, {})
     one = kept.get(slug) if isinstance(kept, dict) else None
-    return isinstance(one, dict) and bool(one.get("held"))
+    return isinstance(one, dict) and bool(one.get("held_at"))
 
 
 def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unread: str) -> str:
