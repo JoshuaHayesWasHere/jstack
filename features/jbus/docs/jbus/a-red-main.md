@@ -48,12 +48,16 @@ The brief holds:
 - the URL of each failed job;
 - the failed test ids that its log names;
 - the merges since the last green, with the files they changed;
-- `Playbook: bug-fix` and `Size: S`.
+- `Playbook: bug-fix` and `Size: S`;
+- under `Done when:`, where the fix may go (`watch.FIX_GOES`): in a pull request of its own, or in another open pull request only where that one waits on no other open pull request.
+  That one has no `merge_after` row still open (jmerge's `merges after` or `carries ... which merges after`), and is not stacked on an open base (`it is stacked on`).
+  Otherwise the crew opens its own pull request with the fix, and whichever of the two merges second rebases.
+  jmerge judges a pull request whose check failed over the red main again only once main is green, so a fix left in a pull request that waits on that one would wait on the green it makes.
 
 The pass queues it with no go (`queue add`), at the top of its project.
 Its `priority` is one less than the lowest `priority` among the project's rows, or 0 when there are none.
 Where a briefed merge came in the day before the red, the brief has `Follows: <that slug>`, and a pass approves it on that row's go.
-Otherwise it waits for your go.
+Otherwise a pass approves it by the follow-up rule all the same, with no parent: jbus filed it (`queue.follow_up`, `if not named and filed(row, text):`).
 So once it has its go, it is the next launch in that project.
 
 - A pass files it whenever the queue has no `main-red-<sha12>` row.

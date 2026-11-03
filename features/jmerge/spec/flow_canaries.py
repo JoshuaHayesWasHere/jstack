@@ -1,9 +1,9 @@
-"""Check the merge flow's rules with TLC: today's code breaks the rules it breaks today, the design
-holds all four, and each canary (the design with one fix taken out) breaks the rule that rests on
-that fix. Two controls run today's code with an earlier gap of jbus.strays, the code before #427
-and the code before #416, and each breaks the rules it breaks. A probe checks by name the case
-README.md names: main's fix in the merge_after follow-up of a pull request whose check failed over
-the red main. Run it from the repo root:
+"""Check the merge flow's rules with TLC: today's code holds all four, as the design does, and
+each canary (the design with one fix taken out) breaks the rule that rests on that fix. Two
+controls run today's code with an earlier gap of jbus.strays, the code before #427 and the code
+before #416, and each breaks the rules it breaks. A probe checks by name, beside today's rules,
+that the case README.md names never settles: main's fix in the merge_after follow-up of a pull
+request whose check failed over the red main. Run it from the repo root:
 
     python3 features/jmerge/spec/flow_canaries.py
 
@@ -52,15 +52,15 @@ CANARIES = {
     "NoSweep": ["FlowsWhenGreen", "MachineNotLeftFull"],
 }
 
-# Today's code breaks one rule. Since #709 jmerge --accept marks ready a draft held for your
+# Today's code holds every rule. Since #709 jmerge --accept marks ready a draft held for your
 # word, so held work moves on your word, and a merge turns main red only through a test its
-# check's selection missed, which jbus then reruns and reverts or files the fix row for. But
-# main's fix can settle in a pull request nothing moves and your word cannot either: in the
-# merge_after follow-up of a pull request whose check failed over the red main, or in one whose
-# own break its crew reads as main's red. Since #547 jbus approves the fix row by rule, so those
-# waits are not yours. Since #427 jbus.strays stops what a crew left, busy or idle, once its turn
-# ended, so no leftover keeps the machine full.
-TODAY_BREAKS = ["MainFixWaitsOnlyOnYou"]
+# check's selection missed, which jbus then reruns and reverts or files the fix row for. Since
+# #547 jbus approves the fix row by rule, and its brief lets its crew leave the fix only in an open
+# pull request that waits on no other (watch.FIX_GOES), so main's fix never waits on a pull
+# request jmerge judges again only once main is green. The crew reads a break of its own as a fix
+# whatever the base (features/crew/the-checks.md). Since #427 jbus.strays stops what a crew left,
+# busy or idle, once its turn ended, so no leftover keeps the machine full.
+TODAY_BREAKS = []
 
 # What jbus.strays stops of an idle process a finished turn left (FlowToday.tla's `Gap`), and
 # the rules the code breaks with it. Before #427 an idle one is stopped only once its row ended,
@@ -74,10 +74,10 @@ CONTROLS = {
     "today, before #416 (busy leftovers only)": ("busy", GAP_BREAKS),
 }
 
-# A probe, checked on today's code: the case README.md names, main's fix in the merge_after
-# follow-up of a pull request whose check failed over the red main, settles with nothing your
-# word can do. jmerge judges that pull request again only once main is green, and the follow-up
-# merges only after it.
+# A probe, checked on today's code beside the rules that hold: the case README.md names, main's
+# fix in the merge_after follow-up of a pull request whose check failed over the red main, never
+# settles with nothing your word can do. jmerge judges that pull request again only once main is
+# green, and the follow-up merges only after it, so main's fix brief keeps the fix out of it.
 PROBES = ["FixAfterARedCheckWaitsOnlyOnYou"]
 
 
@@ -166,12 +166,11 @@ def runs():
             yield f"canary {canary}", canary, config([rule]), [rule], "breaks"
     for label, (gap, breaks) in {"today": (TODAY, TODAY_BREAKS), **CONTROLS}.items():
         holds = [rule for rule in RULES if rule not in breaks]
+        holds += PROBES if label == "today" else []
         if holds:
             yield label, "FlowToday", config(holds, gap), holds, "holds"
         for rule in [rule for rule in RULES if rule in breaks]:
             yield label, "FlowToday", config([rule], gap), [rule], "breaks"
-    for probe in PROBES:
-        yield "today", "FlowToday", config([probe], TODAY), [probe], "breaks"
 
 
 def main():

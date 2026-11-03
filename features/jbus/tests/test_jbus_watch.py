@@ -12,7 +12,7 @@ import pytest
 import jbus
 import jbus.queue
 from jbus import poll, watch
-from jmerge import judgement, reverts
+from jmerge import judgement, ready, reverts
 from test_jbus_kitchen import NOW, RESULT, TOKEN, filed_as, iso
 from test_jbus_queue import add, rows
 
@@ -257,6 +257,29 @@ def test_a_red_main_whose_merge_touched_shared_docs_is_still_queued(kitchen):
     text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
     assert "\nWhere: `src/alpha/a.py`, `tests/test_a.py`, `tests/test_b.py`\n" in text
     assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+
+
+def test_main_s_fix_never_goes_in_a_pull_request_that_waits_on_another(kitchen):
+    """jmerge judges a pull request red over a red main again only once main is green, so a fix
+    carried by a pull request that merges after it, or is stacked on it, waits on the green it
+    makes. Main's fix brief lets its crew leave the fix only in an open pull request that waits
+    on no other, by the words jmerge waits with, and otherwise has it open its own."""
+    main_after_alpha(kitchen, "failure")
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    done = text.split("\nDone when:\n")[1].split("\nProves it:")[0].splitlines()
+    assert done[-1] == (
+        "- the fix is in a pull request of its own, or in another open pull request only where "
+        "that one waits on no other open pull request: no `merge_after` row still open "
+        "(jmerge's `merges after` or `carries ... which merges after`) and not stacked on an "
+        "open base (`it is stacked on`); otherwise the crew opens its own pull request with "
+        "the fix, and whichever of the two merges second rebases"
+    )
+    assert "merges after {slug}" in ready.MERGES_AFTER
+    assert ready.CARRIES_AFTER.startswith("carries ")
+    assert "which merges after" in ready.CARRIES_AFTER
+    assert ready.STACKED_ON.startswith("it is stacked on ")
+    filed_as(text, "main")
 
 
 def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitchen):

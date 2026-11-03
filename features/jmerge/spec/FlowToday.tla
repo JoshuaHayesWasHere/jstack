@@ -299,9 +299,10 @@ CrewFix(p) ==
     /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py `sent = run.box.sent() for slug, pull in world.open.items():`, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
-    \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
-    \* message, which jbus sends it.
-    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md `judges a red pull request again by itself`
+    \* The crew's block answers `fix` whenever the check command fails in its worktree, before it
+    \* ever looks at the base (features/crew/the-checks.md `elif [ "$here" = failed ]; then`): CI
+    \* and the crew run the same selection, so a break of its own that failed CI fails there too,
+    \* whether or not its check ran over a red main.
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ told' = [told EXCEPT ![p] = FALSE]
@@ -417,6 +418,13 @@ RevertCloses ==
 \* request, its fix in an open one, as on 2026-10-27, when two flow rows held the fix. Either way
 \* the row is over, and jbus files no other for the same red tip
 \* (features/jbus/src/jbus/watch.py `if name in run.removed or queue.fresh(run.state, name) is not None:`).
+\* The fix row's brief lets its crew leave the fix only in an open pull request that waits on no
+\* other: jmerge judges a pull request whose check failed over a red main again only once main is
+\* green, so a fix in one that merges after it, or is stacked on it, would wait on that green.
+Unordered(q) ==
+    /\ on[q] = "main"                       \* features/jbus/src/jbus/watch.py `and not stacked on an open base`
+    /\ ~(q = "b" /\ link = "after" /\ st["a"] # "merged")   \* features/jbus/src/jbus/watch.py `one waits on no other open pull request: no`
+
 FixMain ==
     /\ mainRed
     /\ fixRow                               \* features/jbus/src/jbus/watch.py `queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)`, queued by jbus's pass
@@ -433,6 +441,7 @@ FixMain ==
           /\ UNCHANGED <<ci, kept>>
        \/ \E q \in PRs :
           /\ st[q] = "open"
+          /\ Unordered(q)                     \* features/jbus/src/jbus/watch.py `in another open pull request only where that`
           /\ fixes' = [fixes EXCEPT ![q] = TRUE]
           /\ ci' = [ci EXCEPT ![q] = "none"]
           /\ proved' = [proved EXCEPT ![q] = FALSE]
@@ -565,7 +574,7 @@ ChartCut == editsLeft = 1 /\ \A p \in PRs : ~brBreaks[p]
 \* A probe, no rule: the case README.md names by itself. Main's fix is in b, the merge_after
 \* follow-up of a, and a's check failed over the red main: jmerge judges a again only once main is
 \* green (Rejudge), and b merges only after a, so the fix waits on neither your word nor anything
-\* else. TLC breaks it where that case is reached and settles.
+\* else. Main's fix brief keeps the fix out of b there (Unordered), so TLC holds it.
 FixAfterARedCheck ==
     /\ mainRed /\ link = "after" /\ fixes["b"]
     /\ st["a"] = "open" /\ ci["a"] = "fail" /\ ranRed["a"]
