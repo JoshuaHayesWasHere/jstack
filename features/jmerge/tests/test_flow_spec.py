@@ -118,6 +118,11 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
         for rule in flow.RULES:
             said = "breaks" if rule in breaks else "holds"
             assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)
+    # The merge_after case README.md names: main's fix in the follow-up of a pull request whose
+    # check failed over the red main settles with nothing your word can move.
+    assert "FixAfterARedCheckWaitsOnlyOnYou" in flow.PROBES
+    for probe in flow.PROBES:
+        assert any(line.startswith(f"ok    today: {probe} breaks") for line in lines)
 
 
 def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
