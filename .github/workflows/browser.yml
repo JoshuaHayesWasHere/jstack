@@ -6,8 +6,8 @@ name: browser
 # hand, and a pull request into main that changes the view, its browser tests, their kept
 # shots or this workflow. Never on a push to main.
 #
-# The pull request trigger has check.yml's `types`, and the job's `if` skips a draft as
-# check.yml's jobs do, so a pull request runs it once it is marked ready. #464 merged with 19
+# The pull request trigger has check.yml's `types`, and the job's `if` skips a draft, which
+# since fl-no-draft only a hand opens, so such a pull request runs it once it is marked ready. #464 merged with 19
 # of these tests red, as no pull request ran them. The run is no required check: a merge does
 # not wait on it.
 #

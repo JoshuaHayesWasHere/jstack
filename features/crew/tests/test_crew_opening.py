@@ -89,6 +89,14 @@ def test_a_title_and_body_one_sentence_a_line_open_and_lock(opened):
     assert [line.split()[:2] for line in asked] == [["pr", "create"], ["pr", "lock"]]
 
 
+def test_a_crew_opens_its_pull_request_ready_and_never_as_a_draft(opened):
+    """CI checks a pull request on each push, beside its review, and jmerge marks no draft ready
+    (fl-no-draft): a draft would wait for good, so step 6 opens it ready."""
+    _, asked = opened("feat(crew): lint the text", BODY)
+    assert asked[0].startswith("pr create --base main ") and "--draft" not in asked[0]
+    assert "open it ready, never as a draft" in step(6)
+
+
 def test_step_five_names_no_skill_to_read():
     named = {REPO / path for path in re.findall(r"`([^`]+\.md)`", step(5))}
     assert named & set(listed("skill", REPO).values()) == set()

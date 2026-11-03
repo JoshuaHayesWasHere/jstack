@@ -83,8 +83,8 @@ def test_a_draft_into_a_named_base_is_never_merged(side):
     queue_of(side.home, [row("alpha", pr="#7")], SIDE)
     side.home.open_pull_request(side.head, base="side", draft=True)
     assert side.run("--check") == [merge.DRAFT]
-    assert side.run() == [merge.READIED + side.head]
-    assert [call.split()[:2] for call in merges(side)] == [["pr", "ready"]]
+    assert side.run() == [merge.DRAFT]
+    assert merges(side) == []
     assert merge.git(side.origin, "rev-parse", "side") == side.start
 
 

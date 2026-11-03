@@ -2,12 +2,12 @@ name: check
 
 on:
   pull_request:
-    # A pull request's check runs on a pull request into any branch that is not a draft. A crew
-    # opens its pull request as a draft and jmerge marks it ready once it is reviewed and fixed,
-    # so `ready_for_review` runs the check on the head that goes to the merge, and a push of work
-    # in progress runs none (the jobs' `if` skips a draft). A link jbus stacked on a parent row's
-    # branch is marked ready there too, so it is checked while it is stacked, beside its parent's
-    # own check, and its move onto main reuses that pass where it checks the same trees (`reuse`).
+    # A pull request's check runs on each push of a pull request into any branch, a draft too: a
+    # crew opens its pull request ready (fl-no-draft), so its check runs beside its review. A
+    # link jbus stacked on a parent row's branch is checked while it is stacked, beside its
+    # parent's own check, and its move onto main reuses that pass where it checks the same trees
+    # (`reuse`). `ready_for_review` stays for browser.yml, which has these types and skips a
+    # draft, so a draft someone opened by hand runs its browser tests once it is marked ready.
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
@@ -49,7 +49,7 @@ jobs:
   # lookup is plain python on the runner, with `gh` and the run's token (`actions: read`), before
   # any `uv sync`.
   reuse:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -111,7 +111,7 @@ jobs:
     needs: reuse
     # A lookup that failed reuses nothing, so the parts run: `!cancelled()` and not the implicit
     # `success()`, which would skip them and fail `check`.
-    if: "!cancelled() && github.event_name == 'pull_request' && !github.event.pull_request.draft && needs.reuse.outputs.reused != 'true'"
+    if: "!cancelled() && github.event_name == 'pull_request' && needs.reuse.outputs.reused != 'true'"
     name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
@@ -185,9 +185,8 @@ jobs:
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
   # whatever the parts did, and passes only when all eight passed: a part that failed, was
   # cancelled or never ran fails it, where a skipped required check would count as passed.
-  # On a draft it is skipped with its parts: GitHub merges no draft, and jmerge waits on one.
   check:
-    if: always() && github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: always() && github.event_name == 'pull_request'
     needs: [reuse, check-shard]
     runs-on: ubuntu-24.04
     timeout-minutes: 5

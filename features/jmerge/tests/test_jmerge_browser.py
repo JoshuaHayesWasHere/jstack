@@ -145,17 +145,15 @@ def test_main_s_browser_red_with_no_fix_filed_is_the_pull_request_s(replay):
     assert replay.run() == [f"wait 557 {url(557)}: {ready.BROWSER_RED.format(head=head[:12])}"]
 
 
-def test_a_draft_whose_browser_run_failed_is_readied_as_a_draft(replay):
-    """A draft's failed checks are waived until it is ready, and so is its browser run: a draft
-    reviewed clean is marked ready, as one whose check failed is, and asks GitHub nothing of
-    main's runs."""
+def test_a_drafts_failed_browser_run_holds_it_as_any_pull_requests(replay):
+    """CI runs a draft's checks as any open pull request's, so its failed browser run is not
+    waived: it waits on that run, as one that is not a draft does, and nothing marks it ready."""
+    main_ran(replay, ("schedule", "main", "failure", "2" * 40))
     head = opened(replay, BROWSER_RED)
     replay.kitchen.pulls["sub-no-steer"]["isDraft"] = True
-    replay.kitchen.checked("sub-no-steer", CHECKED, BROWSER_RED)
-    assert replay.run() == [f"wait 557 {url(557)}: {ready.READIED.format(head=head)}"]
+    assert replay.run() == [f"wait 557 {url(557)}: {ready.BROWSER_RED.format(head=head[:12])}"]
     calls = (replay.kitchen.home.stub / "calls").read_text().splitlines()
-    assert [call for call in calls if call.startswith("pr ready 557")]
-    assert not (replay.kitchen.home.stub / "asked-runs").exists()
+    assert not [call for call in calls if call.startswith("pr ready")]
 
 
 def test_main_s_browser_red_that_a_later_run_of_main_ended_is_not_main_s(replay):

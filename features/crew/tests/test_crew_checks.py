@@ -72,21 +72,13 @@ def test_checks_that_did_not_run_are_not_green_whatever_the_result_says_stood_in
     assert pushed.says() == unrun
 
 
-@pytest.mark.parametrize("case", ["all passed", "all skipped", "one ran and failed"])
-def test_a_drafts_checks_are_a_wait_and_its_review_launches_beside_them(case, tmp_path):
-    """CI runs no check on a draft (check.yml), so what its rollup holds is a check that was
-    skipped, or one from before it was turned back to a draft: either way it is not green, not
-    red, and not a repo whose CI starts no job."""
+@pytest.mark.parametrize("case", ["all passed", "one ran and failed"])
+def test_a_drafts_checks_are_read_as_any_pull_requests(case, tmp_path):
+    """CI checks a draft on each push as it checks any open pull request (check.yml), so its
+    rollup is read as any other's: green when its checks passed, red when one failed, and never
+    a wait for being a draft."""
     pushed = Pushed(tmp_path, ROLLUPS[case][0], draft=True)
-    printed = pushed.says()
-    assert (
-        printed == f"wait: a draft, so CI runs its check once it is marked ready, at {pushed.head}"
-    )
-    when = block("The review", "checked=").replace(
-        '<the line the block of "The checks" printed>', printed
-    )
-    ran = subprocess.run(["sh", "-c", when], capture_output=True, text=True, check=True)
-    assert ran.stdout.startswith("launch beside the checks")
+    assert pushed.says().split(":")[0] == ROLLUPS[case][1]
 
 
 def test_the_result_has_a_line_for_checks_that_did_not_run_and_none_that_stands_in(tmp_path):

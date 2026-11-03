@@ -114,7 +114,9 @@ On `no launch`, make none, and add what it printed to the Result.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 
-A pull request with no reviewer never turns ready and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open. So it tells the home, once. Run this before adding the `Reviewer: none` line, with the block at the top:
+A pull request with no reviewer is never merged and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open.
+So it tells the home, once.
+Run this before adding the `Reviewer: none` line, with the block at the top:
 
 ```sh
 B="$H/tasks/<slug>.md"
@@ -223,7 +225,6 @@ Then run the block again.
 A rebase for a conflict is pushed by the block of "A conflict", and a fix pushed after it starts from the head that block pushed.
 
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
-Before it, run the check command at that head with the block of "Do the task" (in jstack `make check-fast BASE=origin/main`), which adds `Checked: <the command> exit <its exit> at <the full head>` to the Result itself, and write `Fixed:` only after exit 0 there, or after the run past the lane's time limit that "Do the task" lets CI's check prove, since `jmerge` marks the draft ready on the `Fixed:` line and CI's run must not be the first check that head gets; on another exit, write no `Fixed:` and park a gate ("Do the task") that names what failed and whether it fails on the default branch too.
 
 - `Fixed: <full commit>`: the head you pushed, from `git rev-parse HEAD` after the push;
 - `Fixed: none needed, <reason>`: when you decline every finding.

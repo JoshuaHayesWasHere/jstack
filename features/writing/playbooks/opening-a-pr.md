@@ -32,7 +32,7 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    Copy `features/pr-review/templates/pr-body.md`, which has the headings in order, and fill each `<...>`.
    Drop a heading with nothing to say, but never Scope.
    Write each line of the title and the body as one sentence: step 6 lints both.
-6. When the brief asks for a pull request, push and open it as a draft, on the base the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief.
+6. When the brief asks for a pull request, push and open it ready, never as a draft, on the base the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief.
    On `no base`, open none.
    Open it with this, with `skills/crew/SKILL.md`'s top block: it lints, then locks.
 
@@ -42,7 +42,7 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
        echo "not opened: the prose lint refused, as it says above"
        exit 1
    fi
-   said=$(gh pr create --draft --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
+   said=$(gh pr create --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
    url=$(printf '%s\n' "$said" | grep -o 'https://[^ ]*/pull/[0-9][0-9]*' | head -n 1)
    if [ -z "$url" ]; then
        echo "not opened: $(printf '%s\n' "$said" | head -n 1)"
@@ -54,7 +54,7 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    fi
    ```
 
-   CI checks no draft: `jmerge` readies it once reviewed and fixed.
+   CI checks it on each push, beside its review, and `jmerge` marks no draft ready.
    A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there.
    Run `gh pr view` before you say anything about its state.
 7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, start the one review beside the checks, end the turn.
