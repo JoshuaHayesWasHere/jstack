@@ -193,7 +193,8 @@ case "$1 $2" in
   site=$tools/jstack/lib/python3/site-packages/jstack-0.1.0.dist-info
   mkdir -p "$site" "$bin"
   printf '{"url": "file://%s", "dir_info": {"editable": true}}' "$4" > "$site/direct_url.json"
-  for root in PACKAGE_ROOTS; do echo "$4/$root"; done > "$site/../_editable_impl_jstack.pth"
+  real=$(cd "$4" && pwd -P)
+  for root in PACKAGE_ROOTS; do echo "$real/$root"; done > "$site/../_editable_impl_jstack.pth"
   cat > "$site/entry_points.txt" << 'ENTRY_POINTS_END'
 ENTRY_POINTS
 ENTRY_POINTS_END

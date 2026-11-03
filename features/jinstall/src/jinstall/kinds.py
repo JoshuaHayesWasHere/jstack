@@ -761,9 +761,11 @@ class Commands:
     release's plugin.json and the installed package's entry points, and `version` is the
     plugin's. `was` is the tool's name before the rename.
 
-    With a checkout:
-    ok: `machine.tool_source(tool)` is this checkout, each name is in `machine.tool_bin()`,
-      and typing each name runs that file or the one in <checkout>/.venv/bin.
+    With a checkout, "the source" is `machine.source`: the checkout's green copy where it has one
+    (`jinstall.green`), or else the checkout itself.
+    ok: `machine.tool_source(tool)` is the source, each name is in `machine.tool_bin()`,
+      and typing each name runs that file or the one in the .venv/bin of the source or the
+      checkout.
     old: `lacks jdrift jroles` (an install from before the repo added them);
       `tool jgauge, from before the rename`; `an install of <other path>`;
       `stale: its editable paths lack <root>`; or
@@ -780,10 +782,10 @@ class Commands:
     missing: there is no tool of either name.
     foreign: a tool of either name that is not an editable install of a checkout (a release,
       or a tool from an index or a git url). The install neither puts over it nor drops it.
-    put: run `uv tool uninstall <was>` when its source is this checkout, then
-      `uv tool install --editable <checkout> --reinstall`. Never use --force.
-    drop: run `uv tool uninstall` on `tool`, and on `was`, each only when its source is this
-      checkout. Otherwise keep it, and name the path it is an install of.
+    put: run `uv tool uninstall <was>` when it is an install of the source or the checkout,
+      then `uv tool install --editable <the source> --reinstall`. Never use --force.
+    drop: run `uv tool uninstall` on `tool`, and on `was`, each only when it is an install of
+      the source or the checkout. Otherwise keep it, and name the path it is an install of.
 
     With no checkout, the tool is a release. The jinstall that runs is one of the release's
     commands, so this need installs and removes nothing.
@@ -807,15 +809,17 @@ class Commands:
         return f"lacks {' '.join(lacking)}" if lacking else ""
 
     def _stale(self, machine: Machine, checkout: Path) -> list[str]:
-        """Each package root in the checkout's pyproject.toml that the tool's paths lack."""
+        """Each package root in the checkout's pyproject.toml that the tool's paths lack. The
+        paths are compared resolved, since the build of an editable install writes the real
+        path of a tree that a link names, as the green copy is."""
         try:
             wheel = tomllib.loads((checkout / "pyproject.toml").read_text())["tool"]["hatch"]
             listed = wheel["build"]["targets"]["wheel"]["packages"]
         except (OSError, ValueError, KeyError, TypeError):
             return []
         roots = sorted({checkout / Path(package).parent for package in listed})
-        paths = machine.tool_paths(self.tool)
-        return [str(root) for root in roots if root not in paths]
+        paths = {path.resolve() for path in machine.tool_paths(self.tool)}
+        return [str(root) for root in roots if root.resolve() not in paths]
 
     def _points(self, machine: Machine, checkout: Path) -> list[str]:
         """Each group of entry points that the checkout's pyproject.toml and the tool's
@@ -870,22 +874,23 @@ class Commands:
                 )
         if source is None and before is None:
             return Found.missing()
-        if source is None and before != machine.checkout:
+        ours = machine.source
+        if source is None and before not in (ours, machine.checkout):
             return Found.foreign(f"tool {self.was}, an install of {before}")
         if source is None:
             return Found.old(", ".join(filter(None, [renamed, self._lacks(machine)])))
-        if source != machine.checkout:
+        if source != ours:
             return Found.old(f"an install of {source}")
-        if before == machine.checkout:
+        if before in (ours, machine.checkout):
             return Found.old(f"{renamed}, is still installed")
-        if lacking := self._stale(machine, machine.checkout):
+        if lacking := self._stale(machine, ours):
             return Found.old(f"stale: its editable paths lack {' '.join(lacking)}")
-        if differ := self._points(machine, machine.checkout):
+        if differ := self._points(machine, ours):
             why = f"stale: its entry points differ from pyproject.toml in {' '.join(differ)}"
             return Found.old(why)
         if self._lacks(machine):
             return Found.old(self._lacks(machine))
-        return self._typed(machine, machine.checkout / ".venv" / "bin")
+        return self._typed(machine, *{ours / ".venv" / "bin", machine.checkout / ".venv" / "bin"})
 
     def due(self, machine: Machine) -> bool:
         return True
@@ -899,9 +904,9 @@ class Commands:
     def put(self, machine: Machine) -> None:
         if machine.checkout is None:
             raise Refused(f"a release's commands are uv's to install: {self._install}")
-        if machine.tool_source(self.was) == machine.checkout:
+        if machine.tool_source(self.was) in (machine.source, machine.checkout):
             self._uv(machine, "tool", "uninstall", self.was)
-        self._uv(machine, "tool", "install", "--editable", str(machine.checkout), "--reinstall")
+        self._uv(machine, "tool", "install", "--editable", str(machine.source), "--reinstall")
 
     def drop(self, machine: Machine) -> Dropped:
         if machine.checkout is None:
@@ -912,7 +917,7 @@ class Commands:
         removed, kept = [], []
         for tool in (self.tool, self.was):
             source = machine.tool_source(tool)
-            if source == machine.checkout:
+            if source is not None and source in (machine.source, machine.checkout):
                 self._uv(machine, "tool", "uninstall", tool)
                 removed.append(f"commands {tool}")
             elif source is not None:

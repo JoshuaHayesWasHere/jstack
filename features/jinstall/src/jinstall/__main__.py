@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from jinstall import green
 from jinstall.kinds import Asks, Carried, Found, Seeded, State
 from jinstall.machine import Machine, Moved, Refused
 from jinstall.needs import Level, Need, needs
@@ -241,7 +242,12 @@ def parse(argv: Sequence[str]) -> tuple[Machine, Verb, Path | None]:
         raise SystemExit(2)
     verb = verbs[argv[1]] if argv[1:] else Verb.INSTALL
     path = Path(argv[2] if argv[2:] else ".").absolute() if repo else None
-    return Machine.here(Path(argv[0])), verb, path
+    return green.attach(Machine.here(Path(argv[0]))), verb, path
+
+
+def joined(note: str, report: Report) -> Report:
+    """The report with `note` before its own, as `green.make` says why it made no copy."""
+    return Report(report.lines, "\n".join(filter(None, (note, report.note))), report.code)
 
 
 def act(machine: Machine, verb: Verb, repo: Path | None = None) -> int:
@@ -256,10 +262,13 @@ def act(machine: Machine, verb: Verb, repo: Path | None = None) -> int:
         report = doctor(machine)
     elif verb is Verb.SETUP:
         with machine.alone():
-            report = setup(machine)
+            report = joined(green.make(machine), setup(machine))
     else:
         with machine.alone():
-            report = uninstall(machine) if verb is Verb.UNINSTALL else install(machine, write=True)
+            if verb is Verb.UNINSTALL:
+                report = uninstall(machine)
+            else:
+                report = joined(green.make(machine), install(machine, write=True))
     for line in report.lines:
         print(line)
     if report.note:
