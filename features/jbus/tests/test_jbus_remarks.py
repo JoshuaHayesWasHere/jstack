@@ -246,3 +246,48 @@ def test_two_pull_requests_are_read_at_once_and_told_in_their_order(kitchen, mon
     kitchen.poll()
     assert met == [True, True]
     assert [given["threadId"] for given in sends(kitchen)] == ["mcp:thread-8", "mcp:thread-9"]
+
+
+def _remark_reads(kitchen):
+    lists = ("comments", "reviews")
+    return [line for line in kitchen.log("gh") if line.split("?")[0].endswith(lists)]
+
+
+def test_a_pull_request_that_has_not_changed_since_its_last_read_is_not_read_again(opened):
+    """GitHub moves a pull request's `updatedAt` on each comment, line comment and review, so a
+    pass reads the three lists only when it moved, and a pass with nothing new asks GitHub
+    nothing about remarks, not even who owns the repo."""
+    pull = {**opened.opened("alpha", 7), "mergeable": "MERGEABLE", "updatedAt": "u1"}
+    opened.set("open.json", [pull])
+    opened.set("remarks.json", {"issues/7/comments": [one(1, OWNER, "use a table here")]})
+    opened.poll()
+    assert len(_remark_reads(opened)) == 3 and len(sends(opened)) == 1
+    before = len(opened.log("gh"))
+    opened.poll(NOW + timedelta(minutes=3))
+    asked = opened.log("gh")[before:]
+    assert len(_remark_reads(opened)) == 3
+    assert "api repos/{owner}/{repo}" not in asked
+
+
+def test_a_new_comment_moves_the_pull_request_and_is_seen_on_the_next_pass(opened):
+    pull = {**opened.opened("alpha", 7), "mergeable": "MERGEABLE", "updatedAt": "u1"}
+    opened.set("open.json", [pull])
+    opened.poll()
+    assert len(_remark_reads(opened)) == 3 and sends(opened) == []
+    opened.set("remarks.json", {"issues/7/comments": [one(1, OWNER, "use a table here")]})
+    opened.set("open.json", [{**pull, "updatedAt": "u2"}])
+    opened.poll(NOW + timedelta(minutes=3))
+    assert len(_remark_reads(opened)) == 6
+    assert [given["clientRequestId"] for given in sends(opened)] == ["remark|alpha|#7|comment 1 t1"]
+
+
+def test_a_read_github_did_not_give_is_tried_again_on_the_next_pass(opened):
+    pull = {**opened.opened("alpha", 7), "mergeable": "MERGEABLE", "updatedAt": "u1"}
+    opened.set("open.json", [pull])
+    opened.set("remarks.json", {"issues/7/comments": [one(1, OWNER, "use a table here")]})
+    opened.set("gh-no-reviews", "")
+    opened.poll()
+    assert sends(opened) == []
+    (opened.stub / "gh-no-reviews").unlink()
+    opened.poll(NOW + timedelta(minutes=3))
+    assert len(sends(opened)) == 1
