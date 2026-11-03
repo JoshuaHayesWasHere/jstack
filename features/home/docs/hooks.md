@@ -1,7 +1,7 @@
 # Hooks
 
-`install.sh` writes home's three hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
-This page says what home's three scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
+`install.sh` writes home's two hook entries, each with the path of the layout it assembled for that harness ([The layouts](../../jinstall/docs/jinstall.md#the-layouts)).
+This page says what home's two scripts do and shows each entry as the install writes it, with `<layout>` for Claude Code's layout, `~/.local/share/jstack/harness/claude-code`.
 The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/harness/codex`, in its place.
 [The catalog](../../../CATALOG.md#hooks) lists the hooks of every feature, and [jinstall](../../jinstall/docs/jinstall.md#hook-entries) says which file of each harness they go in.
 
@@ -42,13 +42,6 @@ The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.cl
 ```
 
 A thread with no hook gets no automatic home. Type `/home` there, or `$home`.
-
-## No gauge hook
-
-A home is not handed off for the size of its context, so no hook counts it.
-A long thread is compacted by its harness and goes on as the same home.
-`features/home/hooks/home-gauge.sh` did that count until 2026-10-29.
-`install.sh` takes its `PreToolUse` and `PostToolUse` entries out of `~/.claude/settings.json`, as it takes out any hook of its layout that no feature declares.
 
 ## The sends hook
 

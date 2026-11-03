@@ -71,10 +71,9 @@ jbus runs `jmerge` with no `--home`, and it merges for every home of the repo, w
 So the pull request of a brief whose `Home:` line names a scoped home is merged, held or left waiting by the same rules as the root home's, and its `merged` line is in `$H/merge.log` like any other.
 A pull request is `wait <number> <url>: another home's` only to a run of `jmerge --home`, which merges nothing: jbus never says it, and never tell the user that a scoped home's pull request is theirs to merge for that reason.
 
-jbus's run of `jmerge`, for each open pull request of this repo that is ready, it squash-merges it at the exact head it checked (`gh pr merge <number> --squash --match-head-commit <head>`), runs `git pull --ff-only` in the main checkout, and removes the crewmate's worktree and its local and remote branch.
-It writes no plan: `jbus plan` counts an entry's status from its queue rows.
+[What a merge does](../../../jmerge/docs/jmerge.md#what-a-merge-does) lists the steps of jbus's run of `jmerge` for each ready pull request: the merge, the pull of the main checkout, and the removal of the crewmate's worktree and branches.
 The skills in `~/.claude/skills` may be symlinks into the main checkout, and stay on the old text until that pull.
-It prints one line per open pull request, and appends the same lines, dated, to `$H/merge.log`:
+`jmerge` prints one line per open pull request, and appends the same lines, dated, to `$H/merge.log`:
 
 | The line | Means |
 |---|---|
@@ -87,22 +86,7 @@ It prints one line per open pull request, and appends the same lines, dated, to 
 | `wait <number> <url>: another home's` | to a run of `jmerge --home` alone: its brief's `Home:` line names another home of this repo. jbus's own run judges every home's |
 | `wait: could not ask GitHub` | nothing was looked at |
 
-Ready means all of these hold.
-The rules are in `features/jmerge/src/jmerge/ready.py`, and nowhere else:
-
-- its base is the default branch. A pull request based on another branch would be merged into that branch, and nothing of it would reach the default one: the line is `wait <number> <url>: its base is <branch>, not <default branch>`, and no flag lifts it;
-- the brief has a `## Review` section, so a review was written. A brief with `Review: none` gets no review, so it is never ready: it needs the user's word;
-- the review is clean, or the crewmate's Result has its `Fixed:` line;
-- the head is the commit the `Fixed:` line names, and after findings that is not the head the review saw: a fix is a push.
-  A crewmate that declines every finding writes `Fixed: none needed`.
-  With `Fixed: none needed`, or a clean review and no `Fixed:` line, it is the head the review saw, or a head `jmerge` compares with it after a rebase, as the next item says;
-- a rebase since the review is worked out from git, the commit the review covers to the head, and a `Rebase:` line in the brief is read as no line: `jmerge` looks for the lines the rebase dropped and runs `git range-diff`, which carries the review over or waits for a scoped review of the change (features/jmerge/docs/jmerge.md, "After a rebase");
-- the fix is reviewed where it must be: a fix that changes a file outside `tests/` gets one scoped review. A Result with the line `Scoped review: needed since <head>` is not ready until the brief has a review of a later head and every finding of every review has its `Finding:` line. That review counts as the review in the lines above. A fix under `tests/` only is not reviewed. A brief from before the scoped review has `Second pass: needed since <head>` and is read the same way;
-- the check named `check` passed at its head, whatever the other checks say.
-  It is the job the repo's workflow runs the check command in.
-  A `check` that failed, has not finished, was skipped or is not among the checks has not passed, and the line is `wait <number> <url>: check has failed` where its latest run failed and `wait <number> <url>: check has not passed` otherwise.
-  Nothing stands in for it: a pull request whose checks did not run is not green, whatever its Result says of a check command that passed in the crewmate's worktree, an older `CI: did not run` line included;
-- GitHub says `MERGEABLE`.
+[What ready means](../../../jmerge/docs/jmerge.md#what-ready-means) lists each reason a pull request waits, and the rules are in `features/jmerge/src/jmerge/ready.py`.
 
 Two more things keep a ready pull request from the command, and only the user lifts them. They are looked at last, so each is said of a pull request that is short of nothing else:
 

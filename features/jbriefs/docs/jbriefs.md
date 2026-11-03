@@ -1,6 +1,7 @@
 # jbriefs
 
-`jbriefs` shows you, on one HTML page, what every home on this machine is doing: each repo's handoff, its open plan entries, and every brief with its result.
+`jbriefs` shows you, on one HTML page, what every home on this machine is doing: each repo's open plan entries and every brief with its result.
+Where an earlier home left a `handoff.md`, the page also shows its `Next` and `Open decisions` sections.
 It reads only the files under `~/.local/state/home/`, and asks neither T3 Code nor GitHub.
 The crew, scout and pr-review skills also run it to read a brief's skills and findings.
 
