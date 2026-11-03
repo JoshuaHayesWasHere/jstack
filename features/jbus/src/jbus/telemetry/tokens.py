@@ -1,9 +1,10 @@
 """The token usage of every Claude and Codex call, copied into the store, by its thread.
 
-Claude Code deletes a transcript 120 days after its last write (`cleanupPeriodDays`), and with
-it the only record of each call's usage. Each build copies the usage of the calls written since
-the last one, so the store has each call long before its transcript is gone, and keeps it
-forever. It keeps ids, times, the model and four counts per call, and no text of a message.
+Claude Code deletes a transcript whose last write is older than its `cleanupPeriodDays` setting,
+30 days unless its settings say otherwise, and with it the only record of each call's usage.
+Each build copies the usage of the calls written since the last one, so the store has each call
+long before its transcript is gone, and keeps it forever. It keeps ids, times, the model and four
+counts per call, and no text of a message.
 
 - `sessions` is T3 Code's map of a provider's native session to its thread: one row for each
   provider thread T3's store has (`orchestration_v2_projection_provider_threads`), so a thread
