@@ -167,7 +167,8 @@ def test_one_stale_head_is_one_message_in_whichever_order_the_two_are_reached(ki
     for minutes in (3, 6):
         kitchen.poll(later(minutes))
     assert len(sends(kitchen)) == 1
-    assert f"rebase|alpha|{due.head[:12]}" in jbus.read_json(kitchen.state / "sent.json", [])
+    mark = "moved" if how and first == "mainmoved" else "rebase"
+    assert f"{mark}|alpha|{due.head[:12]}" in jbus.read_json(kitchen.state / "sent.json", [])
 
 
 @pytest.mark.parametrize("how", [{}, RED], ids=["in conflict", "red"])
