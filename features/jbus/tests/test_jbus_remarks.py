@@ -291,3 +291,26 @@ def test_a_read_github_did_not_give_is_tried_again_on_the_next_pass(opened):
     (opened.stub / "gh-no-reviews").unlink()
     opened.poll(NOW + timedelta(minutes=3))
     assert len(sends(opened)) == 1
+
+
+def test_a_remark_held_for_a_crew_at_work_is_read_again_and_given_once_its_turn_ends(opened):
+    pull = {**opened.opened("alpha", 7), "mergeable": "MERGEABLE", "updatedAt": "u1"}
+    opened.set("open.json", [pull])
+    opened.set("remarks.json", {"issues/7/comments": [one(1, OWNER, "use a table here")]})
+    opened.t3.threads[0]["status"] = "running"
+    opened.poll()
+    assert sends(opened) == []
+    opened.t3.threads[0]["status"] = "completed"
+    opened.poll(NOW + timedelta(minutes=3))
+    assert len(_remark_reads(opened)) == 6
+    assert [given["clientRequestId"] for given in sends(opened)] == ["remark|alpha|#7|comment 1 t1"]
+
+
+def test_the_pass_asks_github_for_each_open_pull_requests_updated_at(opened):
+    """The world's open list, the one that carries the checks, is what remarks.tell reads
+    `updatedAt` from."""
+    opened.poll()
+    listed = [line for line in opened.log("gh") if line.startswith("pr list --state open --json")]
+    asked = [line.split("--json ")[1].split()[0].split(",") for line in listed]
+    world = [fields for fields in asked if "statusCheckRollup" in fields and "isDraft" in fields]
+    assert world and all("updatedAt" in fields for fields in world)
