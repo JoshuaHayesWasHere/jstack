@@ -16,6 +16,7 @@ from jinstall.machine import Machine, Ran
 from test_install import User, laid, line_for
 from testing.paths import REPO
 
+MOVES = "which each jbus pass moves to main's green tip"
 COMMIT = ["-c", "user.name=a", "-c", "user.email=a@example.test", "commit", "-q"]
 
 
@@ -45,7 +46,7 @@ def owner(tmp_path):
 
 def test_the_install_of_a_watched_checkout_runs_every_command_from_its_green_copy(owner):
     code, said, err = owner.run_with_stderr()
-    assert f"ok hard green copy {owner.copy} -> at {head(REPO)[:12]}" in said, err
+    assert f"ok hard green copy {owner.copy} -> at {head(REPO)[:12]}, {MOVES}" in said, err
     assert copies.of(owner.copy) == REPO
     assert head(owner.copy) == head(REPO)
     assert owner.said(owner.uv_log) == [f"tool install --editable {owner.copy} --reinstall"]
@@ -67,7 +68,7 @@ def test_a_second_install_leaves_the_copy_where_jbus_moved_it(owner):
     subprocess.run(["git", "-C", str(owner.copy), *COMMIT, "--allow-empty", "-m", "on"], check=True)
     moved = head(owner.copy)
     code, said, _ = owner.run_with_stderr()
-    assert f"ok hard green copy {owner.copy} -> at {moved[:12]}" in said
+    assert f"ok hard green copy {owner.copy} -> at {moved[:12]}, {MOVES}" in said
     assert head(owner.copy) == moved
     assert len(owner.said(owner.uv_log)) == 1
 

@@ -109,7 +109,11 @@ class GreenCopy:
         if machine.checkout is None or made_from.resolve() != machine.checkout.resolve():
             return Found.foreign(f"the green copy of {made_from}")
         held = copies.at(self.path)
-        return Found.ok(f"at {held[:12]}") if held else Found.old("it holds no commit")
+        return (
+            Found.ok(f"at {held[:12]}, which each jbus pass moves to main's green tip")
+            if held
+            else Found.old("it holds no commit")
+        )
 
     def put(self, machine: Machine) -> None:
         assert machine.checkout is not None

@@ -81,7 +81,7 @@ def test_a_pass_moves_the_copy_to_main_s_new_green_tip_and_says_so_with_the_sha(
     new = land(copied, "success")
     said = copied.poll()
     assert at(copied.copy) == new
-    line = f"green demo: the commands run from {new[:12]}, moved from {copied.first[:12]}"
+    line = f"green demo: the commands now run from {new[:12]}, in place of {copied.first[:12]}"
     assert line in said
     assert copied.poll().count(line) == 0
 

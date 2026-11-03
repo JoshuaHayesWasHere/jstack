@@ -213,7 +213,7 @@ Then the install points at the copy everything that runs:
 The checkout keeps what a developer works on: its project skills, its generated files, and its own git hooks.
 The copy is a repo of its own, not a worktree, so `git worktree list` in the checkout does not list it.
 Its `.git/jstack-checkout` names the checkout it was made from, and `jinstall` run from the copy acts for that checkout.
-`--check` and the doctor print `ok hard green copy <path> -> at <sha>`.
+`install.sh`, `--check` and the doctor print `ok hard green copy <path> -> at <sha>, which each jbus pass moves to main's green tip`.
 `--uninstall` removes the copy, unless it holds changes of its own.
 
 #### How the copy moves
@@ -223,7 +223,7 @@ It fetches that one commit from the checkout's origin, checks it out, and import
 The pass log, the journal of `jbus.service`, keeps one line for each move:
 
 ```text
-green jstack: the commands run from 1a2b3c4d5e6f, moved from 0f9e8d7c6b5a
+green jstack: the commands now run from 1a2b3c4d5e6f, in place of 0f9e8d7c6b5a
 ```
 
 A tip whose check failed is not green, so the copy never reaches it.

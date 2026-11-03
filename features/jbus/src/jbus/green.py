@@ -20,8 +20,8 @@ main whose check failed never reaches the copy, and neither does a tip whose che
 which does not import here. When the move changed `pyproject.toml` or `uv.lock`, it installs the
 tool again, as `install.sh` does, so a new command or package root is on the tool's path.
 
-Each move prints one line, `green <project>: the commands run from <new 12>, moved from <old
-12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
+Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
+<old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
 tree's own code, and the copy moves no file of it.
 """
 
@@ -190,7 +190,9 @@ def move(run: Pass, copy: Path | None = None) -> None:
     changed = _git(copy, "diff", "--quiet", held, green, "--", *BUILT).returncode != 0
     if changed and (why := _reinstall(copy)):
         run.condition("green", MOVE_FAILED, f"uv tool install at {green[:12]}: {why}")
-    run.say(f"green {run.project.name}: the commands run from {green[:12]}, moved from {held[:12]}")
+    run.say(
+        f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
+    )
 
 
 STEPS = (verbs.Step("close", 45, "green.move", lambda half: move(half.run), ()),)
