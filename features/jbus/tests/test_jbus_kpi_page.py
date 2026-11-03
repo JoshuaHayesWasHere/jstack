@@ -359,6 +359,45 @@ def test_dollars_per_merged_row_is_an_estimate_from_the_dated_price_table(
     assert row[5] == f"${round(expected, 1):g} n 1 tracked"
 
 
+def test_dollars_per_merged_row_names_each_model_the_price_table_does_not_price(
+    tmp_path, monkeypatch, t3_settings
+):
+    """A Claude call of a model id `jgauge.spend.PRICES` has no key for adds no dollars, so the
+    week's reading names each such model of its merged rows with its calls. A call of a row not
+    merged is not named."""
+    tokens = token_records.Machine(tmp_path, monkeypatch, t3_settings)
+    tokens.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    tokens.thread("mcp:crew-b", "crew: row-b", "claudeAgent", "s2")
+    tokens.merged("row-a")
+    counts = (1_000, 100_000, 2_000_000, 50_000)
+    at = token_records.NOW
+    tokens.claude(
+        "s1",
+        token_records.said(at, "m1", counts),
+        token_records.said(at, "m2", counts, model="claude-opus-5-5[1m]"),
+        token_records.said(at, "m3", counts, model="claude-opus-5-5[1m]"),
+        token_records.said(at, "m4", counts, model="claude-nova-1"),
+    )
+    tokens.claude("s2", token_records.said(at, "m5", counts, model="claude-quill-2", session="s2"))
+    tokens.run()
+    assert "claude-opus-5-5[1m]" not in spend.PRICES
+    assert "claude-nova-1" not in spend.PRICES
+
+    out = tmp_path / "page" / "kpis.html"
+    code, said = run("--week", "2026-10-28", "--out", str(out))
+    assert code == 0, said
+    cells = Cells()
+    cells.feed(out.read_text())
+    row = cells.rows["Dollars per merged row"]
+    expected = spend.dollars("claude-opus-5-5", *counts)
+    assert expected is not None
+    assert row[5] == (
+        f"${round(expected, 1):g} n 1 tracked: no price in jgauge.spend's table for "
+        "claude-nova-1 (1 call), claude-opus-5-5[1m] (2 calls)"
+    )
+    assert row[4] == "n/a n 0 no data"
+
+
 def test_a_kpi_with_no_instrument_yet_says_so(machine):
     _, rows, _ = page(machine)
 

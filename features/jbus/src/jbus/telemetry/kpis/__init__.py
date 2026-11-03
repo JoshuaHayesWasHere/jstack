@@ -54,6 +54,17 @@ ROWS = "jbus's row records"
 
 
 @dataclass(frozen=True)
+class Aside:
+    """What a week's reading names beside its value, each with how many: `view` a view of `week`,
+    `name` and `count`, `says` what the names are, before them, and `counts` what one of a count
+    is, such as `call`."""
+
+    view: str
+    says: str
+    counts: str
+
+
+@dataclass(frozen=True)
 class Measured:
     """A KPI one of the store's weekly views gives: `value` and `n`, how many the value is of, as
     SQL over one week's row of `view`, and `empty`, the value of a week the view has no row for:
@@ -62,7 +73,8 @@ class Measured:
     count something other than a later week does. `covers` is the projects and days it counts,
     where it counts only some. `missing`, where it is set, says why a week the view has no row for
     has no value: the records the KPI needs are kept a week at a time, and none for that week.
-    `detail` is SQL over the week's row of `view` that gives the note of a week with a value."""
+    `detail` is SQL over the week's row of `view` that gives the note of a week with a value, and
+    `aside` what the week's reading names beside its value."""
 
     view: str
     value: str
@@ -75,6 +87,7 @@ class Measured:
     covers: Covers | None = None
     missing: str | None = None
     detail: str | None = None
+    aside: Aside | None = None
 
 
 @dataclass(frozen=True)
@@ -133,9 +146,12 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
     if row is None and source.missing:
         return Reading(None, 0, "not covered", source.missing)
     value, n = (row[0], row[1] or 0) if row else (source.empty, 0)
-    note = (
-        _covered(store, source.covers, week) if source.covers else (row[2] if row else "") or begins
+    detailed = (row[2] if row else "") or begins
+    notes = (
+        _covered(store, source.covers, week) if source.covers else detailed,
+        _aside(store, source.aside, week) if source.aside else "",
     )
+    note = "; ".join(one for one in notes if one)
     if value is None:
         return Reading(None, n, "no data", note)
     if kpi.target is None:
@@ -161,6 +177,20 @@ def _covered(store: sqlite3.Connection, covers: Covers, week: date) -> str:
     days = ", ".join(day for day, _ in gaps)
     lacks = f"no {covers.kept} kept for {rows} merged row{'s' * (rows != 1)}, on {days}"
     return f"covers {', '.join(projects)}; {lacks}"
+
+
+def _aside(store: sqlite3.Connection, aside: Aside, week: date) -> str:
+    """The names the week's reading gives beside its value, each with its count, or nothing."""
+    named = store.execute(
+        f"SELECT name, count FROM {aside.view} WHERE week = ? ORDER BY name",
+        (week.isoformat(),),
+    ).fetchall()
+    if not named:
+        return ""
+    each = ", ".join(
+        f"{name} ({count} {aside.counts}{'s' * (count != 1)})" for name, count in named
+    )
+    return f"{aside.says} {each}"
 
 
 def _number(value: float) -> str:
