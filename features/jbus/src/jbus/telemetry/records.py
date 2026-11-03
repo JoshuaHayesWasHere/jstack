@@ -205,16 +205,14 @@ def _merges(line: str, zone: tzinfo | None) -> Row:
 
 
 def _merge_waits(one: Row, zone: tzinfo | None) -> Row:
-    """A line of `merge-waits.jsonl` (`jmerge.waits`), with the code that held it longest."""
     held = {code: s for code, s in _dict(one.get("blockers")).items() if isinstance(s, int | float)}
-    seconds = one.get("seconds")
     return {
         "at": utc(one.get("began"), zone),
         "number": _number(one.get("number")),
         "head": _text(one.get("head")),
         "ready": utc(one.get("ready"), zone),
         "ready_by": _text(one.get("ready_by")),
-        "seconds": seconds if isinstance(seconds, int | float) else None,
+        "seconds": one["seconds"] if isinstance(one.get("seconds"), int | float) else None,
         "blocker": max(sorted(held), key=held.__getitem__) if held else None,
         "blockers": json.dumps(held, sort_keys=True),
     }
@@ -463,6 +461,7 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
     )
 
 
+_WAITS = _columns("at", "number", "head", "ready", "ready_by", "seconds", "blocker", "blockers")
 SOURCES: tuple[Source, ...] = (
     Source(
         "events",
@@ -747,14 +746,7 @@ SOURCES: tuple[Source, ...] = (
         _capped_reads,
         where="machine",
     ),
-    Source(
-        "merge_waits",
-        "merge-waits.jsonl",
-        "log",
-        _columns("at", "number", "head", "ready", "ready_by", "seconds", "blocker", "blockers"),
-        _merge_waits,
-        where="home",
-    ),
+    Source("merge_waits", "merge-waits.jsonl", "log", _WAITS, _merge_waits, where="home"),
 )
 """Each source by its table. A source added here has its table made by a migration of its own
 (`jbus.telemetry.migrations`), never by the first."""
