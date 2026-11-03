@@ -24,7 +24,7 @@ misses:
 
 A change to the rule raises `messages.RULES`, so every message is read again, and appends a
 migration that clears the cursors of `acts`, as `migrations.v007_asks` and
-`migrations.v008_asks_marks` do, so every word is too.
+`migrations.v010_asks_marks` do, so every word is too.
 """
 
 from __future__ import annotations
