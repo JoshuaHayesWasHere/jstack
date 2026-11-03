@@ -29,12 +29,21 @@ def last(text: str, heading: str) -> list[str] | None:
 REVIEWERS = ("Reviewer", "Second reviewer", "Scoped reviewer")
 
 
+def results(brief: str) -> list[str]:
+    """The brief's lines from its first `## Result` on, where a crew and a reviewer write. A
+    `Reviewer:` line above it is the home's guidance for the reviewer, and no reviewer."""
+    lines = brief.splitlines()
+    return lines[
+        next((at for at, one in enumerate(lines) if one.startswith("## Result")), len(lines)) :
+    ]
+
+
 def reviewers(brief: str, kind: str, head: str | None = None) -> list[str]:
-    """What each `<kind>:` line of the brief says, in order, for a kind of `REVIEWERS`. With
-    `head`, only the lines that end `of <head>`, as a scoped reviewer's line names the head it
-    reviews."""
+    """What each `<kind>:` line of the brief's results says, in order, for a kind of
+    `REVIEWERS`. With `head`, only the lines that end `of <head>`, as a scoped reviewer's line
+    names the head it reviews."""
     label = f"{kind}:"
-    found = [one.removeprefix(label).strip() for one in brief.splitlines() if one.startswith(label)]
+    found = [one.removeprefix(label).strip() for one in results(brief) if one.startswith(label)]
     return found if head is None else [s for s in found if s.split()[-2:] == ["of", head]]
 
 

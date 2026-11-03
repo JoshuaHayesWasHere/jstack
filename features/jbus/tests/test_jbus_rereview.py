@@ -253,7 +253,7 @@ def test_drops_the_result_explains_get_one_scoped_review_over_two_passes(launche
 def test_drops_whose_scoped_reviewer_the_result_names_at_this_head_ask_nobody(launched):
     head = "c" * 40
     brief = launched.home / "tasks/alpha.md"
-    brief.write_text(brief.read_text() + f"Scoped reviewer: mcp:reviewer, of {head}\n")
+    brief.write_text(brief.read_text() + f"\n## Result\nScoped reviewer: mcp:reviewer, of {head}\n")
     out(launched, reason=ruled(head))
     for minutes in (0, 3):
         launched.poll(NOW + timedelta(minutes=minutes))

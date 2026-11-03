@@ -56,6 +56,19 @@ def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
         (BRIEF + "Reviewer: mcp:1111-aaaa\n", "review", False),
         (BRIEF + "Reviewer: none, no launch tool in this session\n", "review", False),
         (BRIEF + "\n## Review\nVerdict: clean\n", "review", False),
+        pytest.param(
+            with_field("Reviewer: check that the ask is one question"),
+            "review",
+            True,
+            id="a Reviewer line of guidance in the head is no reviewer",
+        ),
+        pytest.param(
+            with_field("Reviewer: check that the ask is one question")
+            + "Reviewer: mcp:1111-aaaa #1\n",
+            "review",
+            False,
+            id="a Reviewer line in the Result is one, whatever the head says",
+        ),
         (with_field("Review: review+test") + "Reviewer: mcp:1111-aaaa\n", "review", False),
         (
             with_field("Review: none") + "Reviewer: none, the brief says Review: none\n",

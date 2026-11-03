@@ -45,7 +45,7 @@ The things to look for under the fourth and fifth are adapted from pstack's revi
 The brief's reviewer, if a thread has already launched one and written it in the result:
 
 ```sh
-awk '/^Reviewer:/ && $(2) !~ /^none/ {print $(2); exit}' "$H/tasks/<slug>.md"
+awk '/^## Result/ {result = 1} result && /^Reviewer:/ && $(2) !~ /^none/ {print $(2); exit}' "$H/tasks/<slug>.md"
 ```
 
 It prints that reviewer's thread id, or nothing. A line that says `Reviewer: none`, which a crewmate with no launch tool writes, is no reviewer.
@@ -60,7 +60,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
        /^## Result/ {pr = ""; done = 0; result = 1}
        result && /^Status: done/ {done = 1}
        result && $(1) == "Branch:" {pr = $(NF)}
-       /^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/) {had = 1}
+       result && (/^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/)) {had = 1}
        END {if (NR) count(); print n + 0}' "$H"/tasks/<slug>.md 2> /dev/null)
    if ! said=$(uv run --project "$T/../source" jbus budget --wait 540 --calls $((3 * ${asked:-0}))); then
        echo "$said: run this block again, in this turn"
@@ -71,7 +71,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
        pr=$(awk '/^## Result/ {pr = ""; done = 0; result = 1} result && /^Status: done/ {done = 1} result && $(1) == "Branch:" {pr = $(NF)} END {if (done) print pr}' "$B")
        case $pr in
        http*)
-           if [ "$PASS" = first ] && awk '/^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/) {had = 1} END {exit !had}' "$B"; then
+           if [ "$PASS" = first ] && awk '/^## Result/ {result = 1} result && (/^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/)) {had = 1} END {exit !had}' "$B"; then
                past="it has a review or a reviewer, and it is one pass per pull request"
            elif state=$(gh pr view "$pr" --json state | jq -r .state) && [ -z "$state" ]; then
                why="GitHub could not be asked for its pull request"
