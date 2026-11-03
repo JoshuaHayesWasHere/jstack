@@ -881,6 +881,9 @@ def test_a_word_said_in_the_bots_chat_is_a_typed_message_and_joins_like_one(mach
 ASKS = "Does anything need me? Is everything moving?"
 """A message that asks what needs the user, as the user typed one on 2026-10-30."""
 TELLS = "rename archlinux to Yelena, and ship it"
+TICKED = "the `what needs me` KPI"
+BRACKETED = "(what needs me) is the KPI"
+"""Two mentions of the ask that do not ask it, as a quoted one does not."""
 
 
 def test_a_typed_message_keeps_whether_it_asks_what_needs_the_user_and_no_word_of_it(machine):
@@ -897,6 +900,9 @@ def test_a_typed_message_keeps_whether_it_asks_what_needs_the_user_and_no_word_o
     t3.say("r-asks", home, NOW + timedelta(minutes=5), text=ASKS, role="assistant")
     word(machine, "alpha", "w-asks", NOW + timedelta(minutes=6), text="anything else need me?")
     word(machine, "alpha", "w-tells", NOW + timedelta(minutes=7), text=TELLS)
+    t3.say("m-ticked", home, NOW + timedelta(minutes=8), text=TICKED)
+    t3.say("m-bracketed", home, NOW + timedelta(minutes=9), text=BRACKETED)
+    t3.say("m-plain", home, NOW + timedelta(minutes=10), text="what needs me?")
     machine.build()
 
     with contextlib.closing(machine.store()) as store:
@@ -911,6 +917,9 @@ def test_a_typed_message_keeps_whether_it_asks_what_needs_the_user_and_no_word_o
         ("r-asks", None, None),
         ("word:w-asks", "text", "needs"),
         ("word:w-tells", "text", "other"),
+        ("m-ticked", "text", "other"),
+        ("m-bracketed", "text", "other"),
+        ("m-plain", "text", "needs"),
     ]
     assert dict(ledger)["m-asks"] == "needs" and dict(ledger)["w-tells"] == "other"
     for path in machine.state_dir.glob(f"{telemetry.FILE}*"):
@@ -966,6 +975,50 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
         ("word:w-tells", "other"),
     ]
     assert acts == [("w-asks", "needs"), ("w-tells", "other")]
+
+
+def test_a_store_labelled_by_the_old_rules_gains_the_labels_a_rebuild_has(machine, monkeypatch):
+    """A store whose messages and words were labelled before a mention in backticks or
+    parentheses was left out reads every one of them again, and ends as a rebuild does."""
+    import re
+
+    from jbus.telemetry import asks, migrations
+
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-ticked", home, NOW, text=TICKED)
+    t3.say("m-bracketed", home, NOW + timedelta(minutes=1), text=BRACKETED)
+    t3.say("m-plain", home, NOW + timedelta(minutes=2), text="what needs me?")
+    word(machine, "alpha", "w-ticked", NOW + timedelta(minutes=3), text=TICKED)
+    word(machine, "alpha", "w-plain", NOW + timedelta(minutes=4), text="what needs me?")
+    old = re.compile(asks.NEEDS.pattern.replace("`(", "", 1))
+    assert old.pattern != asks.NEEDS.pattern
+    with monkeypatch.context() as then:
+        then.setattr(asks, "NEEDS", old)
+        then.setattr(telemetry.messages, "RULES", telemetry.messages.RULES - 1)
+        machine.build()
+    with contextlib.closing(machine.store()) as store:
+        before = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
+        store.execute(f"PRAGMA user_version = {len(migrations.MIGRATIONS) - 1}")
+        store.commit()
+    assert dict(before)["m-ticked"] == dict(before)["word:w-ticked"] == "needs"
+
+    machine.build()
+
+    code, out = machine.run("--rebuild", str(machine.root / "again.sqlite"))
+    assert code == 0, out
+    assert dump(machine.state_dir / telemetry.FILE) == dump(machine.root / "again.sqlite")
+    with contextlib.closing(machine.store()) as store:
+        labels = store.execute("SELECT key, asks FROM messages ORDER BY at").fetchall()
+        acts = store.execute("SELECT id, asks FROM acts WHERE verb = 'word' ORDER BY id").fetchall()
+    assert labels == [
+        ("m-ticked", "other"),
+        ("m-bracketed", "other"),
+        ("m-plain", "needs"),
+        ("word:w-ticked", "other"),
+        ("word:w-plain", "needs"),
+    ]
+    assert acts == [("w-plain", "needs"), ("w-ticked", "other")]
 
 
 def test_a_word_carried_into_a_t3_thread_or_said_in_one_is_one_ask(machine):
