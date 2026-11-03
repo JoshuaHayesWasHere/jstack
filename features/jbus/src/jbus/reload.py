@@ -9,7 +9,9 @@ partway loses none, until every thread that was out when the merge landed is tol
 thread for every merge kept, under the key `reload|<commit 12>...|<thread>`, and each
 `reload|<commit 12>|<thread>` marked in `sent.json` once T3 Code took it. Once every one is
 told, the merge itself is marked, `reload|<commit 12>`, and a `merged` line printed again for it
-adds nothing. So a thread hears of a merge once, but for the case below, and a send that got no
+adds nothing. The tick's `keep` may write the file while a pass's `tell` asks T3 Code for the
+threads out, so each read and write of it holds the lock `reload.lock`, and `tell` writes back
+what it left owed with each merge `keep` added since it read the file. So a thread hears of a merge once, but for the case below, and a send that got no
 answer, or that the outbox held, goes on a later pass. A send T3 Code took with no answer,
 retried once another merge has landed, goes under a new key and may tell that thread of the
 first merge twice: a key of the first merges alone would let T3 Code drop the message as a
@@ -24,7 +26,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import skills
-from jbus import outbox, queue, read_json, record, roles, t3, verbs, write_json
+from jbus import locked, outbox, queue, read_json, record, roles, t3, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.watch import when
@@ -35,6 +37,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 FILE = "reload.json"
+LOCK = "reload.lock"
 LOADS = {
     "crew": {"crew"},
     "reviewer": {"pr-review"},
@@ -68,23 +71,29 @@ def owed(run: Pass, said: Iterable[str]) -> list[dict[str, Any]]:
 def keep(run: Pass, said: Iterable[str]) -> None:
     """Keep each merge of `said` that changed a skill in `reload.json`, for the next pass's
     `tell`: the merge tick's `jmerge` prints its `merged` line once, and no pass sees it."""
-    kept = owed(run, said)
-    if kept != read_json(run.state / FILE, []):
-        write_json(run.state / FILE, kept)
+    with locked(run.state, LOCK):
+        kept = owed(run, said)
+        if kept != read_json(run.state / FILE, []):
+            write_json(run.state / FILE, kept)
 
 
 def tell(run: Pass, client: Client, said: Iterable[str]) -> None:
     """Tell each thread out of a merge that changed a skill, once, as the module says."""
-    kept = owed(run, said)
-    if not kept:
-        return
-    write_json(run.state / FILE, kept)
+    with locked(run.state, LOCK):
+        kept = owed(run, said)
+        if not kept:
+            return
+        write_json(run.state / FILE, kept)
     try:
         out = t3.listed(client, run.project.project_id, settled=False)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads out could not be told of a skill ({error})")
         return
-    write_json(run.state / FILE, _told(run, client, kept, out))
+    left = _told(run, client, kept, out)
+    read = {one["commit"] for one in kept}
+    with locked(run.state, LOCK):
+        added = [one for one in read_json(run.state / FILE, []) if one["commit"] not in read]
+        write_json(run.state / FILE, left + added)
 
 
 def loaded(run: Pass, role: str, slug: str) -> set[str]:
