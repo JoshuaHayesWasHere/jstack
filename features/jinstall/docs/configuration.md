@@ -46,13 +46,23 @@ go_quiet_minutes = 30
 | `timezone_label` | The zone's abbreviation at the time printed, such as `CEST` | The word that follows a time in a printed line and in `--at`. The docs write it as `<zone>`. | `jmerge`, `jbus` |
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next instance of its pool. At the same share, `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. The value is a number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 | `retry_cap` | `2` | How many fixes a home queues for one blocker before it stops and the blocker comes to you as a decision ([Decisions](../../jbus/docs/jbus/decisions.md)). A whole number of 1 or more. | `jbus` |
-| `go` | `entry` | How a row gets your go without a word for each row. With `entry`, you give a plan entry its go once (`jbus plan go`), and jbus approves each row filed under that entry while the go holds. With `silence`, a home parks its pick for a new row as a gate whose default is `approve`, and jbus starts a row of size S or M with one pull request when that gate closes by silence. A brief that names a case of a gate that holds waits for your word under both. | `jbus` |
-| `go_quiet_minutes` | `30` | How long such a gate waits for your answer before it closes on its default. A whole number of 1 or more. | `jbus` |
+| `go` | `entry` | How a row gets your go without a word for each row: `entry` or `silence` ([The go](#the-go)). | `jbus` |
+| `go_quiet_minutes` | `30` | With `go = "silence"`, how long the gate of a pick waits for your answer before it closes on its default. A whole number of 1 or more. | `jbus` |
 
 Each value but `headroom`, `retry_cap` and `go_quiet_minutes` is one word with no space and no comma.
 The loader refuses a file with any other key, or with a `timezone` that is not an IANA name.
 `jmerge` and `jbus` then stop with the one line that says why.
 They do not fall back to the defaults.
+
+### The go
+
+With `go = "entry"`, you give a plan entry its go once with `jbus plan go`.
+jbus then approves each row filed under that entry while the go holds.
+
+With `go = "silence"`, a home parks its pick for a new row as a gate whose default is `approve`.
+When that gate closes with no answer, jbus starts the row if it is of size S or M and has one pull request.
+
+Under both, a brief that names a case of a gate that holds waits for your word.
 
 ## Roles
 
@@ -127,13 +137,13 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `max_per_project` | 24 | How many crewmates one project may have out at once, across its homes. `jbus` refuses a value that is not a whole number of 1 or more. |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
+| `infra` | The project named `infra` | The project whose home gets each open item the machine owns, and each one owned by a name no project has. With no project of that name, such an item goes to no home. |
 | `home_thread` | Empty | The thread that gets a project's wakes when the project's home has no thread in its `home-id`. |
 | `blocking_url` | Empty | The second target, for what blocks, which jbus-relay fans out. `jbus` POSTs to it each blocking item as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh. It POSTs no event there. With no `blocking_url`, `jbus` POSTs nothing more. [jbus](../../jbus/docs/jbus/what-blocks.md) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, which `jbus` sends in two headers, `Authorization: Bearer` and `X-Automation-Key`. Set both or neither, because `jbus` refuses half a pair. Keep both secret. |
 
 The model of a crew's launch is not a key here.
 `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source of a launch's model.
-`jbus` does not read a `modelSelection` key left from before.
 
 Each `[[project]]` table is one repo:
 
@@ -147,11 +157,11 @@ Each `[[project]]` table is one repo:
 | `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives. When such a pull request lands, `jmerge` gives a numbered migration its number ([jmerge](../../jmerge/docs/jmerge.md#migrations)). `jbus` refuses a directory that is absolute or has `..` in it. With none, `jmerge` holds no pull request for its migrations. |
 | `ci_report` | Off | `true` turns on the project's weekly CI report, which `jbus-ci.timer` writes each Monday at 09:00. The install enables that timer only while a project asks ([Measure the CI](../../jbus/docs/jbus/measure-the-ci.md#the-weeks-report)). `jbus` refuses a value that is not `true` or `false`. |
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. `jbus` refuses any other value. |
+| `merge_bases` | Empty | Each branch besides the default one that `jmerge` merges a pull request into, on the rules of a pull request into the default branch. `jbus project bases <name> --add <branch>` writes it, and you do not edit it by hand ([Merge bases](../../jbus/docs/jbus/add-a-project.md#merge-bases)). `jbus` refuses a value that is not a list of branch names, each named once. |
 | `generated` | None: `jmerge` makes `uv.lock` by `uv lock` | Each file of the repo a command writes, as `"<file> -> <command>"`, such as `generated = ["uv.lock -> uv lock", "schema.json -> make schema"]`. While a rebase is stopped, `jmerge --remake` takes the base's version of such a file and runs its command, and every other file it stopped on is resolved by hand ([jmerge](../../jmerge/docs/jmerge.md)). `jbus` refuses a value that is not a list of such lines. |
 
 To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` instead of editing the file by hand.
 [jbus](../../jbus/docs/jbus/add-a-project.md) says what the command writes.
-`jbus` ignores a key it does not read, such as the old `loud`, `wake`, `webhook_url` and `webhook_key`.
 
 `jbus t3 login` writes the sign-in beside the config, as `t3.json`.
 You do not write that file.

@@ -2,44 +2,14 @@
 
 `jinstall` installs, checks and removes jstack on a machine.
 The install below puts `jinstall` as a command that works on the source in its own tool, built from `main` or from a release's wheel, so it needs no checkout.
-To work on jstack itself from a checkout, see [Working on jstack](#working-on-jstack).
 
 ## Install
 
-Install with only `curl` and a shell:
+The [Quickstart](../../../README.md#quickstart) has the install commands: the script from `main`, the same by hand with `uv`, and the script of a release.
+The script's `JSTACK_GIT_URL` names another `git+` source in place of `main`, as a sandbox does with `git+file://<a clone>@main`.
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh
-```
-
-The script installs `uv` when it is missing, runs `uv tool install` on jstack's `main` from git, and then runs `jinstall --setup`.
-`JSTACK_GIT_URL` names another `git+` source in place of `main`, as a sandbox does with `git+file://<a clone>@main`.
-With `uv` already installed, you can do the same by hand:
-
-```sh
-uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@main
-jinstall --setup
-```
-
-Once a release exists, its own `install.sh` installs that release's wheel in the same way:
-
-```sh
-curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
-```
-
-### Install from a clone
-
-To work on jstack itself, install `uv` first, then clone the repo and set it up from the clone:
-
-```sh
-git clone https://github.com/JoshuaHayesWasHere/jstack
-cd jstack
-sh install.sh --setup
-```
-
-The script installs the ten commands as an editable install of the clone, so keep the clone where it is.
-Run it in the main checkout, not in a worktree.
-From then on, `jinstall` and its verbs work as this page says, and [Working on jstack](#working-on-jstack) has what a clone checks in addition.
+To work on jstack itself, install from a clone, as [Set up a checkout](../../../CONTRIBUTING.md#set-up-a-checkout) shows.
+[Working on jstack](#working-on-jstack) has what a clone's install does in addition.
 
 ## The verbs
 
@@ -47,7 +17,7 @@ From then on, `jinstall` and its verbs work as this page says, and [Working on j
 |---|---|
 | `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. Prints one line for each part. |
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
-| `jinstall --setup` | Goes through every need once, in order, and prints one of these lines for each: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. The skill links of each harness are one line, `done skills <harness>: <n> links`. When a step is left to you, the last line is `setup: <n> needs you: <name> -> <command>; ...`. |
+| `jinstall --setup` | Goes through every need once, in order, and prints one line for each. [Setup](troubleshooting/setup.md) has each line and what to do. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. Prints one line for each hook. |
 | `jinstall --uninstall` | Removes what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |
@@ -191,8 +161,6 @@ The install sets `SLASH_COMMAND_TOOL_CHAR_BUDGET` to `32000` in `env` of each Cl
 
 This section is for a checkout of jstack's repo.
 [Contributing](../../../CONTRIBUTING.md) has the setup, the checks, and how a release is cut.
-In a checkout, `sh install.sh` runs the same code as `jinstall`, before any command is on `PATH`, and takes the same verbs.
-`sh install.sh --setup` installs the commands as an editable install of the checkout.
 [The lines of a checkout](troubleshooting/working-on-jstack.md) has the lines only a checkout prints.
 
 ### A release and a checkout
@@ -216,7 +184,7 @@ jleak's git hooks also go into the checkout that jstack is installed from, where
 A skill for working on jstack itself, such as `verify-jstack`, lives in its feature and is named in that feature's `feature.json` under `projectSkills`.
 An install from a checkout links each one as `<checkout>/.claude/skills/<name>` for Claude Code and `<checkout>/.cursor/skills/<name>` for Cursor, which is where each reads a repo's own skills.
 git tracks neither folder, so a checkout has them once `install.sh` has run in it.
-The next install removes a link there whose skill no feature declares any more.
+The next install removes a link there whose skill no feature declares.
 `--check` prints one line for each link: `ok`, `missing`, or `old` with where it points.
 An install from a release makes none of these links.
 Neither does a run under a HOME that is not your own, when the checkout is outside that HOME.

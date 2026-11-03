@@ -27,6 +27,7 @@ sh install.sh --setup
 ```
 
 `install.sh` takes every verb of `jinstall`, and installs the commands as an editable install of the checkout.
+Keep the checkout where it is, and run `install.sh` in the main checkout, not in a worktree.
 `sh install.sh --check` checks the install, and every line must start with `ok`.
 In a checkout that is not installed, run a command as `uv run --project <checkout> <command>`.
 
@@ -54,18 +55,27 @@ The Python code is one `uv` project.
 | | Command |
 |---|---|
 | Check | `make check` |
-| Lint | `uv run ruff check .` and `uv run ruff format --check .` |
-| Test | `uv run pytest` |
+| Check of a change | `make check-fast` |
+| Lint | `make lint` |
+| Test | `make test`, or `make test TESTS=<files>` for some files |
 
 `make check` is the one check command.
-It runs the lint and the tests above, in that order, and stops at the first that fails.
-`make check-fast` runs the lint and only the tests a change reaches.
+It runs `make lint`, then `make test`, and stops at the first that fails.
+`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then `scripts/generate-jstack-trees.py --check`, `scripts/check-jstack-docs.py`, `uv run ruff check .` and `uv run ruff format --check .`.
+`make test` runs `uv run pytest` on several workers with `-m "not browser"`, so it leaves out the tests that open a real browser.
+`make check-browser` runs those.
+
+`make check-fast` is the check of a change against `BASE`, `origin/main` by default.
+It first runs `features/writing/scripts/prose_lint.py`, which fails a Markdown line the diff adds that holds two sentences.
+Then it runs `make lint`, and `make test` on only the tests the change reaches.
+Where `scripts/select_tests.py` selects `all`, it runs `make check` instead.
 A test reaches a file it imports, a file whose path it spells, and a file that a file it reads includes.
 A skill or page includes the file beside it that one of its lines says to read now (``read `$T/../skills/<its folder>/<name>.md` now``), so a change to that file runs the tests that read the skill, up the chain of includes.
 
 When a check fails, [A test of `make check` failed on a bound](features/repo-guards/docs/troubleshooting/a-test-of-make-check-failed-on-a-bound.md) and [`make check-fast` stopped before the tests](features/repo-guards/docs/troubleshooting/make-check-fast-stopped-before-the-tests.md) have the common causes.
 
-`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
+`features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# type:` or `# pragma`.
+It fails a `# noqa` too: write the code so that ruff reports nothing on it.
 
 `verify-jstack` drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code and GitHub.
 Its folder is `features/verify-jstack/project-skill/`, which `install.sh` links as the checkout's `.claude/skills/verify-jstack` and `.cursor/skills/verify-jstack`, both untracked.
@@ -93,11 +103,13 @@ The maintainer merges it once the findings are fixed and `check` and `borders` p
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| `check` | each pull request, and each push to `main` and to an integration branch | On a pull request, `make check-fast` and the check for AI co-author lines. On a push, `make check`. |
-| `borders` | each pull request | `scripts/lint-borders.py`: every path has one owner, and a pull request that touches two features carries the `cross-cutting` label, which a maintainer adds. |
-| `browser` | each night, a `v<version>` tag, and each published release | `make check-browser`, the tests that open a real browser. |
+| `check` | each pull request that is not a draft, each push to `main`, and by hand | On a pull request, a `reuse` job first: where a green run already checked the same tree, the pull request reuses it and runs nothing more. Otherwise it checks for AI co-author lines and runs `make check-fast BASE=HEAD^1` in 8 parts side by side, with the tests that failed on `main` in the last 30 days added to the selection. On a push to `main`, `make check` in 4 parts, skipped where a green tree marker shows the tree passed already. |
+| `macos` | each pull request | On macOS, the tests of `testing/macos-quick.txt` that the change reaches, selected by `scripts/select_tests.py --within`. |
+| `macos-nightly` | each night, and by hand | `make check` on macOS over `main`, the whole suite. |
+| `borders` | each pull request, and each change of its labels | `scripts/lint-borders.py`: every path has one owner, and a pull request that touches two features carries the `cross-cutting` label, which a maintainer adds. Then `features/jbus/scripts/kept_shots.py`: a pull request that changes a kept shot of the view changes nothing else. |
+| `browser` | each night, a `v<version>` tag, each published release, by hand, and a pull request into `main` that changes the view, its browser tests, their kept shots or `browser.yml` | `make check-browser`, the tests that open a real browser. |
 | `release` | a `v<version>` tag | Checks, builds and publishes the release. |
-| `pstack-drift` | each Monday | `make pstack-drift`: what changed upstream in the files taken from pstack. |
+| `pstack-drift` | each Monday, and by hand | `make pstack-drift`: what changed upstream in the files taken from pstack. |
 
 A pull request into `main` needs `check` and `borders` to pass before it merges.
 
@@ -116,4 +128,5 @@ It checks that the tag is the version of both `pyproject.toml` and `plugin.json`
 It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.
 The release's assets are what `make dist` writes: the wheel, the sdist, and `install.sh` with the version written in.
 
-A version bump is an ordinary pull request: run `uv version --bump <major|minor|patch>`, write the same version in `plugin.json`, and run `make trees`, which copies it into the harness.
+A version bump is an ordinary pull request: run `uv version --bump <major|minor|patch>`, and write the same version in `plugin.json`.
+`make check` fails while the two differ, since `scripts/generate-jstack-trees.py --check` holds `plugin.json` to `pyproject.toml`.
