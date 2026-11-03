@@ -3,7 +3,8 @@ is judged again over today's base: `jmerge` asks GitHub to merge the base into t
 (`PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`), once for a head and a base tip, and the
 pull request goes on by the normal path once GitHub's new check passes. A change broken on its
 own fails again at the updated head, as its own. A green pull request whose base moved under it
-does not take that path: it merges on its own check while its head still merges cleanly.
+takes the same path: its check ran over a main that is gone, and the check at the updated head
+decides.
 
 The replay is 2026-10-23: main red on two whole-tree tests, pull requests that touched neither
 red on them, then main fixed. The tests run the command as `test_jmerge_fresh` does, against a
@@ -18,39 +19,13 @@ import test_home_merge as merge
 import test_jmerge_order as order
 from jbus import rebase
 from jmerge import judgement, mainjson, ready, rejudge
-from test_jmerge_fresh import GH, LINES, Kitchen, git, url, write
+from test_jmerge_fresh import LINES, Kitchen, git, url, write
 
 BROKE = "2026-10-23T12:00:00Z"
 STARTED = "2026-10-23T13:00:00Z"
 FIXED = "2026-10-23T15:00:00Z"
 RED = {**merge.FAILED, "startedAt": STARTED}
 GREEN = {**merge.PASSED, "startedAt": "2099-01-01T00:00:00Z"}
-UPDATE = """\
-    "api -X")
-        number=${4#*/pulls/}
-        number=${number%/update-branch}
-        echo "$number" >> "$STUB/updated"
-        branch=$(cat "$STUB/branch-$number")
-        head=$(git -C "$ORIGIN" rev-parse "refs/heads/$branch")
-        if [ "$6" != "expected_head_sha=$head" ]; then
-            echo '{"message":"expected head sha did not match current head ref."}'
-            exit 1
-        fi
-        if [ -e "$STUB/refuse" ]; then
-            echo '{"message":"merge conflict between base and head"}'
-            echo "gh: merge conflict between base and head (HTTP 422)" >&2
-            exit 1
-        fi
-        if [ -e "$STUB/down" ]; then
-            echo '{"message":"Server Error"}'
-            echo "gh: Server Error (HTTP $(cat "$STUB/down"))" >&2
-            exit 1
-        fi
-        tree=$(git -C "$ORIGIN" merge-tree --write-tree refs/heads/main "$head") || exit 1
-        commit=$(git -C "$ORIGIN" commit-tree "$tree" -p "$head" -p refs/heads/main -m update)
-        git -C "$ORIGIN" update-ref "refs/heads/$branch" "$commit"
-        echo '{"message":"Updating pull request branch."}' ;;
-"""
 WHOLE_TREE = {"tests/broken-module-size": "", "tests/broken-view-sources": ""}
 ASKED = "GitHub was asked to merge main at {tip} into it: its check failed before main moved"
 
@@ -61,8 +36,6 @@ class Replay:
 
     def __init__(self, tmp_path):
         self.kitchen = kitchen = Kitchen(tmp_path, {"a.txt": LINES, "Makefile": "check:\n"})
-        gh = kitchen.home.stub / "gh"
-        gh.write_text(GH.replace("    *) exit 64 ;;\n", UPDATE + "    *) exit 64 ;;\n"))
         self.state = order.queue_of(kitchen.home, []).parent
         self.told = []
         self.said = []
@@ -70,9 +43,7 @@ class Replay:
     def crew(self, slug, number, files, check=RED):
         """A crew's pull request, reviewed clean at its head, whose check ran while main was red
         and failed, or ran as `check` says."""
-        head = self.kitchen.crew(slug, number, files, checks=(check,))
-        (self.kitchen.home.stub / f"branch-{number}").write_text(slug)
-        return head
+        return self.kitchen.crew(slug, number, files, checks=(check,))
 
     def main_at(self, files, at, check):
         """A commit on main at the time `at`, and what jbus's `main.json` says of it."""
@@ -91,19 +62,19 @@ class Replay:
         """GitHub after an update of a branch: the new head, whose check ran over today's main
         and ended as `check` says, or by default failed where its tree is broken."""
         for slug, pull in self.kitchen.pulls.items():
+            if self.merged(pull):
+                continue
             head = git(self.kitchen.origin, "rev-parse", f"refs/heads/{slug}")
             if head == pull["headRefOid"] and not check:
                 continue
             listed = git(self.kitchen.origin, "ls-tree", "-r", "--name-only", head).split()
-            broken = any(path.startswith("tests/broken-") for path in listed)
-            ran = check or (FAILED_AFTER if broken else GREEN)
+            ran = check or (FAILED_AFTER if broken(listed) else GREEN)
             pull |= {"headRefOid": head, "statusCheckRollup": merge.rollup([ran])}
-        listed = [
-            pull
-            for slug, pull in self.kitchen.pulls.items()
-            if not any(line.startswith(f"merged {pull['number']} ") for line in self.said)
-        ]
+        listed = [pull for pull in self.kitchen.pulls.values() if not self.merged(pull)]
         (self.kitchen.home.stub / "list.json").write_text(json.dumps(listed))
+
+    def merged(self, pull):
+        return any(line.startswith(f"merged {pull['number']} ") for line in self.said)
 
     def run(self, *flags):
         """One run of `jmerge`. Each line is read as jbus reads it, and what jbus would tell a
@@ -131,6 +102,14 @@ class Replay:
     def journal(self, number):
         log = (self.kitchen.home.state / "merge.log").read_text().splitlines()
         return [line for line in log if f" {number} " in line and "GitHub was asked" in line]
+
+
+def broken(listed):
+    """Whether CI fails on a tree of these paths: one with a `tests/broken-` file, or with two
+    migrations of a same number, as main had once #923 and #935 each added a v007_ file."""
+    numbers = [path.split("/")[-1].split("_")[0] for path in listed if "migrations/" in path]
+    whole_tree = any(path.startswith("tests/broken-") for path in listed)
+    return whole_tree or len(numbers) != len(set(numbers))
 
 
 def merged(said):
@@ -305,16 +284,61 @@ def moved(tmp_path):
     return replay, head
 
 
-def test_main_moving_under_a_green_pull_request_that_still_merges_cleanly_merges_it(moved):
+def moved_line(number, tip):
+    return f"wait {number} {url(number)}: " + ready.BASE_MOVED_ASKED.format(
+        base="main", tip=tip[:12]
+    )
+
+
+def test_main_moving_under_a_green_pull_request_that_still_merges_cleanly_reruns_its_check(moved):
     """The base moved after the check passed, and the head merges over today's main with no
-    conflict: `jmerge` merges it on the check it has, asks GitHub for no update of its branch,
-    and so starts no second CI round. Main's own run checks the merge."""
+    conflict: `jmerge` asks GitHub to merge main into its branch, once, and merges it on the
+    check at the new head, which ran over today's main."""
     replay, head = moved
-    replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
-    (line,) = replay.run()
-    assert line.startswith("merged 333 one "), line
-    assert replay.updated() == []
+    tip = replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
+    assert replay.run() == [moved_line(333, tip)]
+    assert replay.updated() == ["333"]
+    replay.github(PENDING)
+    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+    replay.github(GREEN)
+    replay.run()
+    assert merged(replay.said) == [333]
+    assert replay.updated() == ["333"]
     assert replay.kitchen.at_main("a.txt") == "ours\n" + LINES + "theirs"
+
+
+def test_two_pull_requests_green_alone_and_red_together_do_not_both_merge(tmp_path):
+    """#923 and #935, 2026-11-03: each added its own v007_ migration, so neither touched a path
+    main changed after its check, each check passed alone, and both merged on those checks into
+    a red main. Now the second waits for a check over the first's merge, which fails."""
+    replay = Replay(tmp_path)
+    replay.crew("one", 923, {"migrations/v007_one.py": "one\n"}, check=PASSED_BEFORE)
+    two = replay.crew("two", 935, {"migrations/v007_two.py": "two\n"}, check=PASSED_BEFORE)
+    first, second = replay.run()
+    assert first.startswith("merged 923 one ")
+    assert second == moved_line(935, replay.kitchen.tip())
+    assert replay.updated() == ["935"]
+    assert git(replay.kitchen.origin, "rev-parse", "refs/heads/two^1") == two
+    replay.passes(3)
+    assert merged(replay.said) == [923]
+    assert replay.said[-1] == f"wait 935 {url(935)}: check has failed"
+    assert replay.updated() == ["935"]
+    on_main = git(replay.kitchen.origin, "ls-tree", "-r", "--name-only", "main").split()
+    assert not broken(on_main)
+
+
+def test_two_pull_requests_on_new_files_that_pass_together_both_merge(tmp_path):
+    """The second of two such pull requests merges once its check passes over the first's merge,
+    at the head GitHub made."""
+    replay = Replay(tmp_path)
+    replay.crew("one", 923, {"migrations/v007_one.py": "one\n"}, check=PASSED_BEFORE)
+    replay.crew("two", 935, {"migrations/v008_two.py": "two\n"}, check=PASSED_BEFORE)
+    first, second = replay.run()
+    assert first.startswith("merged 923 one ") and second == moved_line(935, replay.kitchen.tip())
+    replay.passes(2)
+    assert merged(replay.said) == [923, 935]
+    assert replay.updated() == ["935"]
+    assert replay.kitchen.at_main("migrations/v008_two.py") == "two"
 
 
 def test_main_moving_into_a_conflict_with_a_green_pull_request_has_it_rebased(moved):

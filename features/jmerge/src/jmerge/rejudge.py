@@ -5,8 +5,9 @@ that same merge. So a check that failed while the base was red stays red after t
 fixed, and no push of the crew's is owed for it. `jmerge` judges such a pull request again once
 its base has moved since the check started and is not red: `BaseMerge` asks GitHub to merge the
 base into the branch, and GitHub's new check at the new head decides the rest by the normal path.
-A green pull request whose base moved under it is not sent through it: its check stands for its
-head, and it merges where the head still merges cleanly over today's base (`cli.Repo.over_main`).
+A green pull request whose base moved under it takes the same path: its check ran over a base
+that is gone, so where its head merges cleanly over today's base, GitHub merges the base into it
+too (`cli.Repo.over_main`).
 
 GitHub's endpoint merges the base into the branch and rewrites no history:
 https://docs.github.com/en/rest/pulls/pulls#update-a-pull-request-branch. `expected_head_sha`
