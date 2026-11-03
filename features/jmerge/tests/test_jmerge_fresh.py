@@ -264,7 +264,8 @@ def test_two_ready_pull_requests_on_other_files_the_second_waits_for_a_check_ove
         f" --body-file - {about}",
         f"pr view 6 --json mergeCommit --jq .mergeCommit.oid {about}",
         f"pr list --base one --state open --json number {about}",
-        f"api -X PUT repos/{{owner}}/{{repo}}/pulls/7/update-branch -f expected_head_sha={two}",
+        f"api -X PUT repos/{{owner}}/{{repo}}/pulls/7/update-branch -f expected_head_sha={two}"
+        " --include",
     ]
     updated = kitchen.updated("two", AFTER)
     (said,) = kitchen.run()
