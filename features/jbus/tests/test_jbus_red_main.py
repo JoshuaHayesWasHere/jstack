@@ -818,7 +818,6 @@ def test_a_red_main_launches_only_its_fix_and_a_stacked_row_and_the_rest_once_it
     row stacked on an open row launch; a plain row waits, and launches once main is green."""
     kitchen.config(max_running=8)
     red = main_of(kitchen, "failure")[0]
-    checks(kitchen, tip(kitchen), "failure")
     kitchen.poll()
     fix = f"{mainjson.FIX}{red[:12]}"
     assert [row["slug"] for row in main_red(kitchen)] == [fix]
@@ -835,10 +834,9 @@ def test_a_red_main_launches_only_its_fix_and_a_stacked_row_and_the_rest_once_it
     kitchen.poll(NOW + timedelta(minutes=3))
     assert sorted(launched(kitchen)) == sorted([f"crew: {fix}", "crew: two"])
     assert why_of(kitchen, "plain") == "main is red: waits for green"
-    assert kept(kitchen).red == tip(kitchen)
+    assert kept(kitchen).red == red
 
     main_of(kitchen, "failure", "success")
-    move(kitchen, "success")
     kitchen.poll(NOW + timedelta(minutes=6))
     assert kept(kitchen).red == ""
     assert launched(kitchen)[2:] == ["crew: plain"]
