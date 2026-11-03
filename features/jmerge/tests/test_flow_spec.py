@@ -101,7 +101,7 @@ def test_each_condition_of_the_design_s_rejudge_quotes_its_file():
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its_own():
     ran = subprocess.run(
         [sys.executable, str(SPEC / "flow_canaries.py")], capture_output=True, text=True, cwd=REPO
@@ -118,6 +118,9 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
         for rule in flow.RULES:
             said = "breaks" if rule in breaks else "holds"
             assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)
+    assert "FixAfterARedCheckWaitsOnlyOnYou" in flow.PROBES
+    for probe in flow.PROBES:
+        assert any(line.startswith(f"ok    today: {probe} breaks") for line in lines)
 
 
 def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
@@ -187,7 +190,7 @@ def test_a_run_whose_inputs_are_kept_starts_no_java_and_a_canary_s_change_runs_i
     monkeypatch.setenv("JGAUGE_TEST_SLOT", "test")
     monkeypatch.setenv("LOG", str(log))
     found = tools.Tlc(jar=str(tmp_path / "tla2tools.jar"), java=str(java))
-    _, module, cfg, rule, want = next(run for run in flow.runs() if run[4] == "breaks")
+    _, module, cfg, (rule,), want = next(run for run in flow.runs() if run[4] == "breaks")
     out = flow.tlc(found, module, cfg)
     assert flow.verdict(out, rule) == want
     assert flow.tlc(found, module, cfg) == out

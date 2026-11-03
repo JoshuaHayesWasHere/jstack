@@ -21,7 +21,7 @@ def _kind(v, p):
         return "passed, holds main's fix, " + _waits(v, p)
     if ci == "pass" and "go" in v and not v["go"][p]:
         return "passed, its row held"
-    if ci == "pass" and "needs" in v and v["needs"][p]:
+    if ci == "pass" and "needs" in v and v["needs"][p] and not v["kept"][p]:
         return "passed, waiting on your word"
     if ci == "pass":
         return "passed, " + _waits(v, p)
@@ -86,7 +86,11 @@ def group(v, facts):
     if getattr(facts, "settled", False):
         red = v["mainRed"] or ("brHold" in v and v["brHold"])
         open_ = [p for p in ("a", "b") if v["st"][p] != "merged"]
-        yours = any(not v["go"][p] or v["needs"][p] for p in open_) if "go" in v else True
+        yours = (
+            any(not v["go"][p] or (v["needs"][p] and not v["kept"][p]) for p in open_)
+            if "go" in v
+            else True
+        )
         if red and not v["full"] and yours:
             return "Waits on you"
         return "Stuck"
@@ -117,6 +121,7 @@ STEPS = {
     "Approve": "you approve its row",
     "HoldRow": "you hold its row",
     "Accept": "you say the word, and it merges",
+    "AcceptDraft": "you say the word, and jmerge marks the draft ready and keeps your word",
     "Check": "its check runs",
     "CrewFix": "its crew fixes its change",
     "Merge": "it merges",
@@ -133,6 +138,8 @@ def step(action, before, after):
             "jbus approves main's fix row by rule, "
             "and its crew puts the fix in an open pull request"
         )
+    if action == "Accept" and before["rv"] != after["rv"]:
+        return STEPS["AcceptDraft"]
     if action == "RerunEnds" and not after["mainRed"]:
         return "jbus reruns main's failed run, and it passes: a flake"
     opened = "revert" in after and after["revert"] == "open" and before["revert"] != "open"
@@ -157,21 +164,16 @@ def cause(v, facts, invariant):
                 "the pull request went red while main was red, "
                 "and nothing checks it again once main is fixed"
             )
-        if "a draft, waiting on your word" in kinds:
-            return (
-                "a draft that touches a path that needs you is held before jmerge marks it ready, "
-                "and jmerge --accept refuses a draft, so your word cannot move it"
-            )
         if "red, its own break hidden behind main's" in kinds:
             return (
                 "its own break failed while main was red too, so its "
                 "crew reads it as main's and waits for a message nothing sends"
             )
         return None
-    if invariant == "NoMergeTurnsMainRed":
+    if invariant == "MergeRedsMainOnlyOnAMissedTest":
         return (
-            "its check missed a test that reads the changed path past what the selector sees, "
-            "so a change that breaks that test merges"
+            "main went red other than through a test its check missed, "
+            "or jbus did not rerun it and then revert the merge or file its fix row"
         )
     if invariant == "MachineNotLeftFull":
         return (
@@ -184,11 +186,6 @@ def cause(v, facts, invariant):
                 "an idle process a crew left fills the machine, "
                 "so even an approved fix for main cannot start"
             )
-        if any(v["fixes"][p] and ("rv" in v and v["rv"][p] == "draft") for p in ("a", "b")):
-            return (
-                "main's fix row closed with its fix in an open draft, which jmerge never marks "
-                "ready while it waits on your word, and jmerge --accept refuses a draft"
-            )
         if any(v["fixes"][p] and v["ci"][p] == "fail" for p in ("a", "b")):
             return (
                 "the pull request that holds main's fix broke a test of its own, and its crew "
@@ -197,8 +194,8 @@ def cause(v, facts, invariant):
         if "link" in v and v["fixes"]["b"] and v["link"] == "after":
             return (
                 "main's fix row closed with its fix in a follow-up that merges only after the "
-                "other, and the other cannot move: a draft that waits on your word, or a red "
-                "pull request that jmerge judges again only once main is green"
+                "other, and the other is red from main's break, which jmerge judges again only "
+                "once main is green"
             )
         return (
             "main's fix row closed with its fix in an open pull request "
