@@ -146,8 +146,9 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
     if row is None and source.missing:
         return Reading(None, 0, "not covered", source.missing)
     value, n = (row[0], row[1] or 0) if row else (source.empty, 0)
+    detailed = (row[2] if row else "") or begins
     notes = (
-        _covered(store, source.covers, week) if source.covers else (row[2] if row else "") or begins,
+        _covered(store, source.covers, week) if source.covers else detailed,
         _aside(store, source.aside, week) if source.aside else "",
     )
     note = "; ".join(one for one in notes if one)
