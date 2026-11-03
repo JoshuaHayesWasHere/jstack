@@ -60,9 +60,12 @@ it with the cross-cutting tests.
 It prints `all` when a changed path is one that every test depends on, and never for the size of
 what it selected: a selection of nearly every test file still names its files, and main's full
 run catches what a selection misses. Those paths are `pyproject.toml`, `uv.lock` and the root
-`conftest.py`. They also include each plugin of `testing/` that the root `conftest.py` names
-in `pytest_plugins` (as `testing/jstack_fixtures.py`), with the modules that plugin uses at its
-top level. And they include each module that a plugin uses in an autouse fixture.
+`conftest.py`. They are also this script, the `Makefile` and `.github/workflows/check.yml`,
+since a pull request's check picks and runs its tests by its own new version of them: a change
+that made the script pick fewer tests would otherwise pick fewer for itself. They also include
+each plugin of `testing/` that the root `conftest.py` names in `pytest_plugins` (as
+`testing/jstack_fixtures.py`), with the modules that plugin uses at its top level. And they
+include each module that a plugin uses in an autouse fixture.
 
 When `pytest_plugins` names a test module, pytest loads that module for its fixtures. A module
 that only other fixtures use selects the tests that ask for those fixtures, directly or
@@ -143,7 +146,14 @@ SCRIPTS = "scripts"
 PATHS = ("features/*/spec", "features/skill-library/skills/statechart/scripts")
 """The folders a test puts on `sys.path` and imports from by name. A test that loads a file by
 its path, as the skill-cut eval's test does, puts no folder here."""
-EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
+EVERYTHING = (
+    "pyproject.toml",
+    "uv.lock",
+    "conftest.py",
+    "scripts/select_tests.py",
+    "Makefile",
+    ".github/workflows/check.yml",
+)
 BACKTICKED = re.compile(r"`([^`]+)`")
 DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
 LABEL = re.compile(r"[A-Z][\w-]*:")
