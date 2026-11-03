@@ -552,3 +552,31 @@ def test_merges_that_land_within_one_pass_are_one_tell_a_thread(kitchen):
     kitchen.poll(NOW + timedelta(minutes=1))
     assert len(sends(kitchen)) == 1
     assert (kitchen.state / "reload.json").read_text().strip() == "[]"
+
+
+def test_a_merge_the_tick_keeps_while_a_pass_tells_is_told_on_the_next_pass(kitchen, monkeypatch):
+    """merge-loop F6: the tick keeps a merge in reload.json while a pass's `tell` asks T3 Code
+    for the threads out, and `tell`'s write of what it read before must not drop it."""
+    from types import SimpleNamespace
+
+    import jbus
+    from jbus import passes, reload, t3
+
+    crew = kitchen.t3.thread("alpha")
+    later = CHANGED.replace("merged 7", "merged 8").replace("abc1234def5", "fed4321cba9")
+    real = t3.listed
+
+    def ticked(*args, **kwargs):
+        monkeypatch.setattr(reload, "t3", t3)
+        config = jbus.load()
+        reload.keep(passes.Pass(config, config.projects[0], NOW, lambda _: None), [later])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(reload, "t3", SimpleNamespace(listed=ticked))
+    kitchen.set("jmerge.txt", CHANGED)
+    kitchen.poll()
+    kitchen.set("jmerge.txt", "")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    told = [one["message"] for one in sends(kitchen) if one["threadId"] == crew["threadId"]]
+    assert len(told) == 2 and "#7 at abc1234def5" in told[0] and "#8 at fed4321cba9" in told[1]
+    assert (kitchen.state / "reload.json").read_text().strip() == "[]"
