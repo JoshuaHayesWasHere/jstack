@@ -7,7 +7,10 @@ starts, none while it lasts, and logs one line when it clears. The alert goes to
 infra home, so each test has an infra project beside demo. Each page names its number, what it
 counts and its limit.
 For the quota, launches skip the capped instance, no launch starts with the whole pool capped,
-and at the reset jbus starts launches again by itself, with one line that says so."""
+and at the reset jbus starts launches again by itself, with one line that says so.
+
+A pass runs its projects side by side, and the health look is a step of the first project only,
+so two pages one pass logs from two projects come in no set order: a test sorts them."""
 
 import json
 from datetime import timedelta
@@ -315,12 +318,12 @@ def test_a_capped_instance_pauses_its_launches_and_they_resume_on_their_own_at_t
     approved(kitchen, "beta", priority=2)
     polls(kitchen, 1, 5, 60)
     assert launched(kitchen) == [PRIME]
-    assert pages(kitchen)[1:] == [
-        f"alert: health quota {PRIME} seven_day: 100% of the seven_day window used, "
-        "resets 2026-10-14 14:00 ET, alerts at 80%",
+    assert sorted(pages(kitchen)[1:]) == [
         f"alert: health capped {PRIME}: seven_day full until 2026-10-14 14:00 ET, pauses its "
         f"launches at 100% of a window; launches skip {PRIME} until then; every instance is "
         "capped, and no launch starts before 2026-10-12 14:00 ET",
+        f"alert: health quota {PRIME} seven_day: 100% of the seven_day window used, "
+        "resets 2026-10-14 14:00 ET, alerts at 80%",
         f"pool held: crew cannot launch: claudeAgent and {PRIME} are both capped until "
         "2026-10-12T18:00:00+00:00. Nothing launches on that pool until then, and every thread on "
         "it waits for the reset",
