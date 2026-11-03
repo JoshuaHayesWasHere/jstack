@@ -222,10 +222,11 @@ def test_the_record_of_a_pull_request_goes_on_the_run_after_it_closes_and_stays_
     assert json.loads(path.read_text()) == {}
 
 
-@pytest.mark.parametrize("status", ["502", "429", "403"])
+@pytest.mark.parametrize("status", ["502", "403"])
 def test_a_failure_to_ask_github_is_asked_again_on_the_next_run(tmp_path, status):
-    """A 5xx or a rate limit is no answer about the branch: it keeps no record, and the next run
-    asks again."""
+    """A 5xx, or a 403 that is not the rate limit, is no answer about the branch: it keeps no
+    record, and the next run asks again. A refusal for the rate limit waits first
+    (`test_jmerge_backoff`)."""
     replay = Replay(tmp_path)
     (replay.kitchen.home.stub / "down").write_text(status)
     replay.crew("one", 333, {"one.txt": "ours\n"})
