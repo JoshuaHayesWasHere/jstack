@@ -28,6 +28,8 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
+| `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
+| `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
 | `messages` | T3 Code's store, read only, and the `word` acts of `acts` | a message of a T3 Code thread, the user's or the assistant's, keyed by its id, or a word you said with no T3 message, keyed `word:<id>` |
 
 Each time is in UTC, written `YYYY-MM-DDTHH:MM:SS.ffffffZ`, so that text order is time order.
@@ -60,6 +62,18 @@ Four logs keep what jbus's snapshots overwrite, each written from what jbus alre
 
 A writer reads its log before it adds, and adds no line whose key the log holds, so each log only grows and holds each line once.
 
+Two more records are what an A/B or a simulator of a dial needs (the kpi-lab build order: records first):
+
+- The arm of each launch: each launch record names, under `arms`, the arm of each dial the row launched on, `off` while that dial's pilot is not started (`jbus.priming.recorded`).
+  The store reads the records whose time is at or after the newest it read, keeps the launched ones once by their key and dial, and never updates a row (`jbus.telemetry.launches`).
+  A record from before `arms` that names `priming` gives that arm of `crew-router-pilot`; one that names neither reads `covered` 0, with no arm guessed.
+- `review-rounds.jsonl`: a pass adds a line for each review round of an open pull request's brief once the round is settled, that is a later round began or no reviewer the crew launched still owes its section (`jbus.reviewed.rounds`), once by row, pull request and round number.
+  A round is the sections in a row that ran at one head, and a scoped pass is a round of its own.
+  A pull request that merges before a pass sees its last round settled has no line for that round.
+
+Each line keeps ids, times, counts and labels, and no text of a finding or a review.
+The spells an account was capped or signed out are the row `tm-capped-spells`' record.
+
 ## Questions the records answer
 
 | Question | Query |
@@ -70,6 +84,8 @@ A writer reads its log before it adds, and adds no line whose key the log holds,
 | Which thread did each word a home carried go to, and when? | `SELECT project, word, kept_at, said_in, thread, sent_at, waiting FROM carried_words` |
 | What did each row spend, by role? | `SELECT spent_on, role, slug, units FROM spend_rows WHERE slug IS NOT NULL` |
 | What did each day spend? | `SELECT project, spent_on, units, runs FROM spend_days` |
+| Which arm did each row launch on? | `SELECT project, slug, role, dial, arm, at FROM launch_arms WHERE covered` |
+| How did each pull request's review rounds go? | `SELECT project, slug, pr, round_number, meets, errors, warnings FROM review_rounds ORDER BY project, slug, round_number` |
 
 `spend_rows` is Claude's alone, by day, from T3 Code's count of each run; each call's tokens to its row and role, Codex's too, are in `call_rows` and `row_spend` ("Token usage" below).
 

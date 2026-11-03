@@ -12,7 +12,9 @@ retry or a changed brief does not move it.
 `jbus priming start` starts the pilot. `jbus priming stop <why>` sends every later row to the
 control arm: a hard failure on the trimmed arm stops it, and the reason names the row.
 `jbus priming` prints the rows of each arm. With no pilot started, every row launches as `/crew`
-or `/scout` and its record names no arm. The home removes this module and the control copies
+or `/scout` and its record has no `priming`. Every launch record names its arm by dial under
+`arms`, `off` while no pilot is started, and the telemetry store copies it (`launch_arms`). The
+home removes this module and the control copies
 once it acts on the pilot's Result.
 """
 
@@ -32,6 +34,10 @@ from jbus.launches import records
 
 TRIMMED, CONTROL = "trimmed", "control"
 ARMS = (TRIMMED, CONTROL)
+DIAL = "crew-router-pilot"
+"""The dial the arms are of, as a launch record's `arms` names it."""
+OFF = "off"
+"""A launch's arm of the dial while the pilot is not started."""
 COPIES = {
     queue.CREW: "features/crew/control/crew.md",
     queue.SCOUT: "features/scout/control/scout.md",
@@ -79,9 +85,12 @@ def arm(run: Any, slug: str, role: str) -> str:
     return pick(tally(run.config.state_dir, role), bool(pilot.get("stopped")))
 
 
-def recorded(chosen: str) -> dict[str, str]:
-    """The field a launch record gets for the arm: none while no pilot is started."""
-    return {"priming": chosen} if chosen else {}
+def recorded(chosen: str) -> dict[str, Any]:
+    """The fields a launch record gets for the arm. `arms` names, by dial, the arm the launch is
+    on, `OFF` while the pilot is not started, so the telemetry store reads each launch's arm from
+    its record (`jbus.telemetry.launches`). `priming` is the arm `arm` reads back on a later
+    launch of the row, and is there only while a pilot is started."""
+    return {"arms": {DIAL: chosen or OFF}, **({"priming": chosen} if chosen else {})}
 
 
 def first_line(role: str, slug: str, chosen: str) -> str:

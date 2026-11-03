@@ -156,3 +156,14 @@ def test_the_pilot_alternates_scout_rows_and_records_each_rows_arm(kitchen):
     assert second[1] == control("scout", second[0])
     assert [one["priming"] for one in records(kitchen, second[0])] == ["control"]
     assert "scout: trimmed 1, control 1" in kitchen.main("priming")[1]
+
+
+def test_each_launch_record_names_its_arm_by_dial_off_while_no_pilot_is_started(kitchen):
+    launch_crews(kitchen, "alpha")
+    assert kitchen.main("priming", "start")[0] == 0
+    launch_crews(kitchen, "beta")
+
+    (off,) = records(kitchen, "alpha")
+    (on,) = records(kitchen, "beta")
+    assert off["arms"] == {"crew-router-pilot": "off"}
+    assert on["arms"] == {"crew-router-pilot": on["priming"]} and on["priming"] == "trimmed"

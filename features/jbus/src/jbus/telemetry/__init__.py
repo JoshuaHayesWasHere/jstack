@@ -3,8 +3,9 @@
 The store is `telemetry.sqlite` in jbus's state directory, in WAL mode, so a reader never waits
 on the build. It has one table for each record file of each project (`jbus.telemetry.records`):
 the jbus logs, the CI ledger, the home's `merge.log`, the records `jbus.history` and
-`jbus.spent` keep, five snapshots, the machine's log of its passes, and the messages of T3
-Code's threads (`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.schema`).
+`jbus.spent` keep, five snapshots, the machine's log of its passes, each
+launch's arm (`jbus.telemetry.launches`), and the messages of T3 Code's threads
+(`jbus.telemetry.messages`). Its views give the KPIs (`jbus.telemetry.schema`).
 It keeps a row forever, and keeps no text of a message: ids, times, counts, labels and the
 length of each text.
 
@@ -44,7 +45,7 @@ from pathlib import Path
 
 import jbus
 from jbus import verbs
-from jbus.telemetry import cursors, kpis, messages, records, schema, tokens
+from jbus.telemetry import cursors, kpis, launches, messages, records, schema, tokens
 from jbus.telemetry.records import SOURCES, Source
 
 FILE = "telemetry.sqlite"
@@ -124,7 +125,8 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
     if held and held[0] == name:
         return
     connection.execute("BEGIN")
-    for table, at in (*((source.table, source.at) for source in SOURCES), (messages.TABLE, "at")):
+    tables = (*((source.table, source.at) for source in SOURCES), (messages.TABLE, "at"))
+    for table, at in (*tables, (launches.TABLE, "at")):
         found = connection.execute(f"SELECT project, key, {at} FROM {table}")
         connection.executemany(
             f"UPDATE {table} SET day = ? WHERE project = ? AND key = ?",
@@ -274,6 +276,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
             read = _log if source.kind == "log" else _snapshot
             read(connection, name, source, file, zone, built)
         messages.read(connection, config, zone, built, most)
+        launches.read(connection, config, zone, built)
         _tokens(config, connection, zone, most, built)
         built.ms = round((time.monotonic() - began) * 1000)
         connection.execute(

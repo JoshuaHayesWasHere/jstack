@@ -8,11 +8,11 @@ each text of a record into its length (`<name>_len`), so no table holds what a m
 A source is a `log` or a `snapshot`:
 
 - A log only grows: `events.jsonl`, `acts.jsonl`, `items.jsonl`, `transitions.jsonl`,
-  `outbox.jsonl`, `ci.jsonl`, the home's `merge.log`, and the machine's `passes.jsonl`, the
-  seconds of each pass (`jbus.record`). A row's key is the hash of the line, as
-  JSON with sorted keys (as text for `merge.log`), and of how many equal lines come before it, as
-  `jbus.wake.entries` names an event. So two equal lines are two rows, and a line read again,
-  as after the daily trim rewrites `events.jsonl`, is the row it was.
+  `outbox.jsonl`, `ci.jsonl`, `review-rounds.jsonl` (`jbus.reviewed`), the home's `merge.log`,
+  and the machine's `passes.jsonl`, the seconds of each pass (`jbus.record`). A row's key is the
+  hash of the line, as JSON with sorted keys (as text for `merge.log`), and of how many equal
+  lines come before it, as `jbus.wake.entries` names an event. So two equal lines are two rows,
+  and a line read again, as after the daily trim rewrites `events.jsonl`, is the row it was.
 - A snapshot is written whole each time: `questions.json`, `queue.json`, `merged.json` and
   `ci-prs.jsonl`. A row's key is the record's own (`number` or `slug`), and a newer snapshot
   updates the row and never deletes one, so a record that leaves the file stays in the store.
@@ -384,6 +384,27 @@ def _word_sends(one: Row, zone: tzinfo | None) -> Row:
     }
 
 
+SEVERITIES = ("errors", "warnings", "infos", "others", "dismissed")
+"""The counts of a review round's findings by severity, as `jbus.reviewed.round_lines` writes
+them: `others` of a severity none of the three, and `dismissed` those its lead dismissed."""
+
+
+def _review_rounds(one: Row, zone: tzinfo | None) -> Row:
+    return {
+        "at": utc(one.get("at"), zone),
+        "slug": _text(one.get("slug")),
+        "pr": _number(one.get("pr")),
+        "round_number": _number(one.get("round")),
+        "head": _text(one.get("head")),
+        "scoped": one.get("scoped") if isinstance(one.get("scoped"), bool) else None,
+        "sections": _number(one.get("sections")),
+        "meets": _text(one.get("meets")),
+        "met": _number(one.get("met")),
+        "done_when": _number(one.get("of")),
+        **{name: _number(one.get(name)) for name in SEVERITIES},
+    }
+
+
 def json_lines(text: str) -> Iterator[Row]:
     """Each line of a JSON-lines file that is an object, in order."""
     for line in text.splitlines():
@@ -470,6 +491,12 @@ def _columns(*names: str) -> tuple[tuple[str, str], ...]:
         *SPENT,
         *KINDS,
         "checked",
+        "round_number",
+        "scoped",
+        "sections",
+        "met",
+        "done_when",
+        *SEVERITIES,
     }
     real = {"slowest_s", "tail_s", "seconds"}
     return tuple(
@@ -722,6 +749,25 @@ SOURCES: tuple[Source, ...] = (
         natural="word",
     ),
     Source("passes", "passes.jsonl", "log", _columns("at", "seconds"), _passes, where="machine"),
+    Source(
+        "review_rounds",
+        "review-rounds.jsonl",
+        "log",
+        _columns(
+            "at",
+            "slug",
+            "pr",
+            "round_number",
+            "head",
+            "scoped",
+            "sections",
+            "meets",
+            "met",
+            "done_when",
+            *SEVERITIES,
+        ),
+        _review_rounds,
+    ),
 )
 """Each source by its table. A source added here has its table made by a migration of its own
 (`jbus.telemetry.schema.MIGRATIONS`), never by the first."""

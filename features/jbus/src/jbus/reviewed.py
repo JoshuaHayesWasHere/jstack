@@ -22,6 +22,19 @@ holds it while the crew is at work (`outbox.RULES`). A held notice is judged aga
 one whose line the crew wrote meanwhile is never sent. Once it goes, it also counts as `expedite`'s
 message for the same reason and head, so the crew is not told the same thing again three passes
 later. A reason that stays after the notice, at the same head, is `expedite`'s from there on.
+
+`rounds` keeps `review-rounds.jsonl` in the project's state, one line for each review round of a
+row's pull request, which the telemetry store copies (`review_rounds`). A round is the sections
+in a row that ran (`Verdict: clean` or `findings`) at one head, a scoped pass a round of its own.
+Its line names the row, the pull request, the round's number from 1, its head, whether it is
+scoped and how many sections it has, the round's `Meets the brief` verdict (`yes` where each
+section says yes, `no` where one says no, else `unread`, as `meets.parse` reads the line) with
+the least `met` of `done_when`, and the count of its findings by severity, and of those
+dismissed. It is written on the pass that sees the round settled: a later round has begun, or no
+reviewer the crew launched still owes its section (`review.reviewing`). A round is written once,
+by row and number, so a pass that reads it again writes nothing, and a round written to the
+brief after its line keeps the line it had. A pull request that merges before a pass sees its
+last round settled has no line for that round.
 """
 
 from __future__ import annotations
@@ -32,7 +45,7 @@ from typing import TYPE_CHECKING
 
 from jbriefs import findings, meets
 from jbriefs.home import home_of, thread_of
-from jbus import END_TURN, mirror, outbox, rebase, verbs
+from jbus import END_TURN, history, mirror, outbox, rebase, review, verbs
 from jbus.expedite import ANSWERED, TABLE, Short
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -107,6 +120,79 @@ def due(brief: str, head: str, heard: frozenset[meets.Waiver] = frozenset()) -> 
     return Notice(reviewed, by, row, reason, found)
 
 
+ROUNDS = "review-rounds.jsonl"
+SEVERITIES = {"error": "errors", "warning": "warnings", "info": "infos"}
+
+
+def _verdict(brief: str, sections: list[findings.Section]) -> tuple[str, int | None, int | None]:
+    """The round's `Meets the brief` word, the least `met` and the `of` its sections give."""
+    read = [meets.parse(meets.lines_of(brief, one)) for one in sections]
+    typed = [one for one in read if one is not None]
+    word = (
+        meets.NO
+        if any(one.word == meets.NO for one in typed)
+        else meets.YES
+        if typed and len(typed) == len(read)
+        else meets.UNREAD
+    )
+    met = min((one.met for one in typed), default=None)
+    return word, met, typed[0].of if typed else None
+
+
+def round_lines(brief: str, slug: str, number: int, at: str) -> list[dict]:
+    """The line of each settled review round of the brief, as `rounds` writes it."""
+    ran = [one for one in findings.triage(brief).sections if one.ran and one.head]
+    grouped: list[list[findings.Section]] = []
+    for one in ran:
+        last = grouped[-1][-1] if grouped else None
+        if last is not None and (last.head, last.scoped) == (one.head, one.scoped):
+            grouped[-1].append(one)
+        else:
+            grouped.append([one])
+    if grouped and review.reviewing(brief):
+        grouped.pop()
+    lines = []
+    for place, sections in enumerate(grouped, start=1):
+        word, met, of = _verdict(brief, sections)
+        counts = dict.fromkeys((*SEVERITIES.values(), "others", "dismissed"), 0)
+        for raised in (one for section in sections for one in section.raised):
+            if raised.bucket == findings.DISMISSED:
+                counts["dismissed"] += 1
+            else:
+                counts[SEVERITIES.get(raised.severity.lower(), "others")] += 1
+        lines.append(
+            {
+                "at": at,
+                "slug": slug,
+                "pr": number,
+                "round": place,
+                "head": sections[0].head,
+                "scoped": sections[0].scoped,
+                "sections": len(sections),
+                "meets": word,
+                "met": met,
+                "of": of,
+                **counts,
+            }
+        )
+    return lines
+
+
+def _round_key(one: dict) -> tuple:
+    return one.get("slug"), one.get("pr"), one.get("round")
+
+
+def rounds(run: Pass, world: World) -> None:
+    """Log each settled review round of each open pull request's brief once: see the module."""
+    at = run.now.isoformat()
+    lines = []
+    for slug, pull in sorted(world.open.items()):
+        brief = task_brief(run, slug)
+        if brief and isinstance(pull.get("number"), int):
+            lines += round_lines(brief, slug, pull["number"], at)
+    history.add(run.state / ROUNDS, lines, _round_key)
+
+
 def _text(slug: str, number: int, notice: Notice) -> str:
     named = "; ".join(f"`By: {one}`" for one in notice.by) or "with no `By:` line"
     return MESSAGE.format(
@@ -162,6 +248,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
 
 
 def _step(half: Half) -> None:
+    rounds(half.run, half.seen.world)
     tell(half.run, half.client, half.seen.world)
 
 
