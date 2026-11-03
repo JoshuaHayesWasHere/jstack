@@ -111,6 +111,12 @@ that runs the file (`-` for a file that collects no test), and an `all` lists ev
 suite with its part, after its first line. This form imports pytest, so it runs after `uv
 sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
+`select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
+cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
+it, the files the rules reached through imports, names and features alone. Each prints `all`
+where the selection is `all`. A desk runs the guards first, as a step that must pass, since a
+cheap guard mixed into a selection that runs past the short lane's limit reaches no verdict.
+
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
 `testing/macos-quick.txt` so. It selects by the same rules but for two. An import reaches a test
@@ -1108,6 +1114,25 @@ def selection(changed, failed=()):
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
+DESK_PARTS = ("guards", "rest")
+
+
+def guards(changed, tests):
+    """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
+    tests, the catch-all and the changed test files. `["all"]` stays `["all"]`."""
+    if tests == ["all"]:
+        return tests
+    return sorted(set(tests) & (set(cross_cutting()) | unowned() | set(changed)))
+
+
+def desk_part(name, changed, tests):
+    """The `guards` or the `rest` of a selection's `tests`."""
+    first = guards(changed, tests)
+    if name == "guards" or tests == ["all"]:
+        return first
+    return sorted(set(tests) - set(first))
+
+
 def ask(path, gone=None, **query):
     """The answer GitHub's REST API gives to a GET of the repo's `path`, or `gone` where it
     answers 404 and `gone` is given. A log's answer is a redirect to storage that refuses the
@@ -1382,14 +1407,17 @@ def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
-    listed = count = None
+    listed = count = cut = None
     if argv[:1] == ["--within"] and len(argv) == 4:
         listed, argv = argv[1], argv[2:]
     elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
         count, argv = int(argv[1]), argv[2:]
+    elif argv[:1] == ["--part"] and len(argv) == 4 and argv[1] in DESK_PARTS:
+        cut, argv = argv[1], argv[2:]
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> | --parts <n>] <base> <head>\n"
+            "       select_tests.py --part guards|rest <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1417,6 +1445,9 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
+    if cut is not None:
+        print("\n".join(desk_part(cut, changed, tests)))
+        return
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
