@@ -1,10 +1,15 @@
 ---- MODULE FlowToday ----
 \* What jstack does today with two pull requests, a main that can go red, and a machine that can fill.
-\* Code as of main 859203e0 (2026-10-27): the flow-statechart scout's FlowNow.tla at 6485914, with
+\* Code as of main a978b7ba9 (2026-11-02): the flow-statechart scout's FlowNow.tla at 6485914, with
 \* #416, #426 and #427 since, cut down to the variables FlowDesign.tla's four rules read, and with
 \* the fix a pull request's own check proves (#583, #584) and the browser run's holds (#575, #577).
 \* Since cut 11 of the simplify pass, the copy of simplify-5's RowLife.tla adds a row's go, a hold
 \* for your word, and the draft whose check waits on its review.
+\* Since fl-statechart-1102 (the scout's FlowNow.tla at a978b7ba9) it has jbus's rerun of a red
+\* push run (#672), its revert of a red main's one clear culprit and the close of a stale revert
+\* (#862, #899), the fix rows' go by rule (#547), a stacked link checked while stacked and its pass
+\* kept on a clean move (#868), the unstack of a link whose brief no longer names its base (#846,
+\* #877), and the hold of a review round that says the brief is not met (#843, #850).
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -24,10 +29,11 @@ CONSTANT Draft
 PRs == {"a", "b"}
 
 \* st: "queued" (a row with your go, not launched yet), "open" (its pull request) or "merged".
-\* link: how b is ordered after a. "depends" when b's brief builds on a, "after" when the order
-\*   is only about merging (merge_after).
+\* link: how b is ordered after a. "depends" when b's brief builds on a (its Builds on: line names
+\*   a), "after" when the order is only about merging (merge_after), and "none" once an edit of
+\*   b's brief took a out of its Builds on: line.
 \* on: what a pull request sits on, "main" or the other one (its brief's `Stacked on:` line, #411).
-\* fixRow: a main-red-<sha> row is queued for main's fix, with no approval.
+\* fixRow: a main-red-<sha> row is queued for main's fix.
 \* named: the red run's logs name the tests that failed there, which main.json keeps as `failed`.
 \* fixes[p]: p's head carries main's fix, which the main-red row's crew put there and not in a pull
 \*   request of its own. proved[p]: p's check ran over main's red tip, ran each test that failed
@@ -42,13 +48,24 @@ PRs == {"a", "b"}
 \*   your word (jmerge --accept, Accept) merges it.
 \* rv[p]: "none" before its crew opens it, "draft" (its crew opens it as one, its review comes
 \*   first) and "ready" (jmerge marked it ready once its review is written and fixed).
+\* meets[p]: p's last review round says the brief is met (its Meets the brief: line, #843). At most
+\*   one round in a run says it is not.
 \* busy: a process a finished turn left that uses CPU. idle[p]: one p's crew left that uses none
 \*   but holds memory. full is TRUE exactly when one of them is left: TLC takes the worst case,
 \*   where what is left is what tips jgauge room over.
+\* rerun: main's push run failed at its red tip, and jbus's one rerun of it has not ended (#672).
+\* culprit: what made main's red tip, for jbus.reverts: "none" (no briefed merge: outside), "a" or
+\*   "b" (the one merge since the last green, its head over the green under it), "skew" (that one
+\*   merge, its head not over the green under it, #899), or "many" (a merge landed on a red tip).
+\* judged: jbus.culprits judged the red tip there is now: it reverted it or filed its row.
+\* revert: "open" while jbus's revert of a culprit is open (#862), else "none".
+\* editsLeft: the edits still to come of b's brief that take a out of its Builds on: line, once.
 VARIABLES st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, full, fixRow, link, on, busy, idle,
-    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, rv
+    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, rv, meets,
+    rerun, culprit, judged, revert, editsLeft
 vars == <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, full, fixRow, link, on, busy, idle,
-    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, rv>>
+    named, fixes, proved, brBreaks, brFail, viewBroken, brHold, go, needs, rv, meets,
+    rerun, culprit, judged, revert, editsLeft>>
 
 Init ==
     /\ st = [p \in PRs |-> "queued"]
@@ -75,11 +92,18 @@ Init ==
     /\ go = [p \in PRs |-> TRUE]
     /\ needs \in [PRs -> BOOLEAN]
     /\ rv = [p \in PRs |-> "none"]
+    /\ meets \in {[p \in PRs |-> TRUE]} \cup {[p \in PRs |-> p # q] : q \in PRs}
+    /\ rerun = FALSE
+    /\ culprit = "none"
+    /\ judged = FALSE
+    /\ revert = "none"
+    /\ editsLeft = 1
 
 Machine == <<full, busy, idle>>
 Fix == <<named, fixes, proved>>
 Browser == <<brBreaks, brFail, viewBroken, brHold>>
-Row == <<go, needs, rv>>
+Row == <<go, needs, rv, meets>>
+Judge == <<rerun, culprit, judged, revert>>
 NoFix == [p \in PRs |-> FALSE]
 
 \* Main is red: its check failed, or its browser run failed while that run's fix is open.
@@ -107,9 +131,10 @@ Launch(p) ==
     /\ rv' = [rv EXCEPT ![p] = "draft"]
     /\ Leaves(p)
     /\ UNCHANGED <<ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Fix, Browser,
-                   go, needs>>
+                   go, needs, meets, Judge, editsLeft>>
 
-\* GitHub runs the pull request's check over the base as it is now.
+\* GitHub runs the pull request's check over the base as it is now: main, or since #868 the
+\* branch of the open pull request it is stacked on.
 Check(p) ==
     /\ st[p] = "open"                       \* .github/workflows/check.yml `pull_request:`, a pull request's check
     /\ rv[p] = "ready"                      \* features/jmerge/src/jmerge/cli.py `check.yml runs none on a draft`
@@ -120,6 +145,7 @@ Check(p) ==
     \* that reads the changed path another way, or past its read set, is selected by chance.
     \* The same chance decides whether it ran the tests main failed, so a check of main's fix proves
     \* it only when it selected them: scripts/select_tests.py reads the diff, not main.json.
+    \* A stacked link's check fails here only on its own change and main's red, not on its base's.
     /\ \E sel \in BOOLEAN :
         /\ ci' = [ci EXCEPT ![p] =
                 IF sel /\ ((mainRed /\ ~fixes[p]) \/ breaks[p]) THEN "fail" ELSE "pass"]
@@ -129,7 +155,7 @@ Check(p) ==
     \* browser.yml runs every browser test, so its run fails exactly when one fails.
     /\ brFail' = [brFail EXCEPT ![p] = viewBroken \/ brBreaks[p]]
     /\ UNCHANGED <<st, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   named, fixes, brBreaks, viewBroken, brHold, Row>>
+                   named, fixes, brBreaks, viewBroken, brHold, Row, Judge, editsLeft>>
 
 \* A merge of a pull request whose check passed, by jmerge on its own or on your word.
 Merges(p) ==
@@ -137,7 +163,9 @@ Merges(p) ==
     \* Its row's go: a row you held, or whose go does not hold for its brief, waits on your approval.
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
-    \* A red main holds no pull request (red-main-no-hold): only its own checks do.
+    \* Its last review round says the brief is met (#843).
+    /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
+    \* A red main holds no pull request (red-main-no-hold, #862): only its own checks do.
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
     /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py `if state != ready.BROWSER_FAILED:`
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
@@ -149,16 +177,24 @@ Merges(p) ==
     \* with no hold, nothing waits for its own check to prove it first.
     /\ mainRed' = ((mainRed /\ ~fixes[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF fixes[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/culprits.py `_file(run, run.red.slug, run.red.sha, run.red.red, why)`: main's red tip after a briefed merge is filed.
+    \* A red tip's push run is rerun once before jbus judges it (#672), and judged again.
+    /\ rerun' = mainRed'
+    /\ judged' = FALSE
+    \* The merge is the one clear culprit only when it is the one merge since the last green
+    \* (features/jbus/src/jbus/reverts.py `if len(red.since) > 1:`), and only when its head holds the green
+    \* under the red tip (features/jbus/src/jbus/reverts.py `return found if status in ("ahead", "identical") else Keep.SKEW`, #899):
+    \* the model leaves out what its head holds, so TLC takes either.
+    /\ culprit' \in IF ~mainRed' THEN {"none"} ELSE IF mainRed THEN {"many"} ELSE {p, "skew"}
     \* A green tip withdraws a fix row that never launched (features/jbus/src/jbus/watch.py `_withdraw(run, fixes, tip)`), and in this model
     \* a queued fix row has not launched.
-    /\ fixRow' = ((fixRow /\ ~fixes[p]) \/ breaks[p])
+    /\ fixRow' = (fixRow /\ mainRed')
     /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~fixes[p]) THEN BOOLEAN ELSE {named}
     /\ fixes' = IF fixes[p] THEN NoFix ELSE fixes
     /\ proved' = IF fixes[p] THEN NoFix ELSE proved
     \* No browser break merges past the hold above.
     /\ viewBroken' = (viewBroken \/ brBreaks[p])
-    /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine, brBreaks, brFail, brHold, Row>>
+    /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine, brBreaks, brFail, brHold, Row,
+                   revert, editsLeft>>
 
 \* jmerge merges a pull request that waits on nothing.
 Merge(p) ==
@@ -180,26 +216,75 @@ Accept(p) ==
 Ready(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `found = repo.readied(one, found)`
     /\ rv[p] = "draft"                      \* features/jmerge/src/jmerge/cli.py `if one.draft and found.slug and found.why in ready.READY_ON and not args.check:`
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py `short = short or self.on_stack(one, default, stacked)`
+    \* A stacked draft on its base's open branch is marked ready, so CI checks it while stacked
+    \* (#868); one whose base merged waits until jbus moved it onto main.
+    /\ on[p] \in {"main"} \cup {q \in PRs : st[q] = "open"}   \* features/jmerge/src/jmerge/cli.py `if one.draft and not stacked.at and one.base == stacked.branch:`
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `for other in row.get("merge_after", []):`
+    \* Its last review round says the brief is met: the review's wait comes before the draft's.
+    /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
     \* A draft has no check of its own yet, so it proves no fix, and has no browser run.
     /\ Draft = "held" => ~needs[p]          \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`
     /\ rv' = [rv EXCEPT ![p] = "ready"]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, go, needs>>
+                   Fix, Browser, go, needs, meets, Judge, editsLeft>>
+
+\* Its last review round says the brief is not met (MEETS_NO): jbus tells its crew (#850), which
+\* fixes the lines it names and pushes, and the scoped review that follows says the brief is met.
+\* Only your Waived: line is the other way out, which the model leaves out.
+MeetsFix(p) ==
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py `world.open.items()`, open ones only
+    /\ ~meets[p]                            \* features/jbus/src/jbus/expedite.py `"meets-no",`, features/jmerge/src/jmerge/ready.py `MEETS_NO = Reason(`
+    /\ meets' = [meets EXCEPT ![p] = TRUE]
+    /\ ci' = [ci EXCEPT ![p] = "none"]
+    /\ proved' = [proved EXCEPT ![p] = FALSE]
+    /\ Leaves(p)
+    /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
+                   named, fixes, Browser, go, needs, rv, Judge, editsLeft>>
 
 \* Its base merged: jbus moves the stacked pull request onto main and rebases its own commits
-\* onto main itself, or tells its crew to ("A link that moved"), and its check runs again.
+\* onto main itself, or tells its crew to ("A link that moved"), and its check runs again. Since
+\* #868 the check's `reuse` job passes it at once where the move is a clean replay of the trees its
+\* stacked check passed, and otherwise the suite runs; the model leaves out which, so TLC takes
+\* either.
 Restack(p) ==
     /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py `world.open.items()`, open ones only
     /\ on[p] # "main"
     /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py `world.merged.get(stacked.slug)`, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
+    /\ \E reuse \in IF ci[p] = "pass" THEN BOOLEAN ELSE {FALSE} :   \* .github/workflows/check.yml `run: PYTHONPATH=features/jmerge/src python3 -m jmerge.reuse`
+         ci' = [ci EXCEPT ![p] = IF reuse THEN "pass" ELSE "none"]
+    /\ proved' = [proved EXCEPT ![p] = FALSE]
+    /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine,
+                   named, fixes, Browser, Row, Judge, editsLeft>>
+
+\* The home edits b's brief, on your word, and its Builds on: line no longer names a. The edit
+\* voids b's go, which you give again by approving it (#399).
+HomeEdits(p) ==
+    /\ p = "b"
+    /\ editsLeft > 0
+    /\ link = "depends"
+    \* A merged row's go is read by nothing, and its brief is not edited.
+    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row.get("status") in judgement.FINAL:`
+    /\ editsLeft' = editsLeft - 1
+    /\ link' = "none"
+    /\ go' = [go EXCEPT ![p] = FALSE]       \* features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
+    /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, on, Machine,
+                   Fix, Browser, needs, rv, meets, Judge>>
+
+\* While its base is open, jbus takes a stacked link off its stack where its own change has no
+\* need of the base's (#846), and a link whose Builds on: line names its base stays stacked (#877).
+\* The model takes the change of a link whose brief no longer names its base to need none of it.
+Unstack(p) ==
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py `def unstack(run: Pass, client: Client, world: World) -> None:`
+    /\ on[p] # "main"
+    /\ st[on[p]] = "open"                   \* features/jbus/src/jbus/stack.py `base = world.open.get(stacked.slug) if stacked and not stacked.at else None`
+    /\ link # "depends"                     \* features/jbus/src/jbus/stack.py `if stacked.slug in builds_on(brief):`
+    /\ on' = [on EXCEPT ![p] = "main"]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine,
-                   named, fixes, Browser, Row>>
+                   named, fixes, Browser, Row, Judge, editsLeft>>
 
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus tells the
 \* crew's own thread once its turn ends, so no room is asked for, and its turn may leave a
@@ -216,7 +301,8 @@ CrewFix(p) ==
     /\ told' = [told EXCEPT ![p] = FALSE]
     /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
-    /\ UNCHANGED <<st, ranRed, mainRed, redBy, outsideLeft, fixRow, link, on, named, fixes, Browser, Row>>
+    /\ UNCHANGED <<st, ranRed, mainRed, redBy, outsideLeft, fixRow, link, on, named, fixes, Browser, Row,
+                   Judge, editsLeft>>
 
 \* Its own browser run failed, and the red is its own: main's last browser run passed, or the fix
 \* jbus filed for it is over. jbus tells its crew, which fixes its change, and its checks run again.
@@ -230,7 +316,7 @@ BrowserFix(p) ==
     /\ proved' = [proved EXCEPT ![p] = FALSE]
     /\ Leaves(p)
     /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   named, fixes, viewBroken, brHold, Row>>
+                   named, fixes, viewBroken, brHold, Row, Judge, editsLeft>>
 
 \* jmerge judges a red pull request again: a check that failed over a base that has moved since
 \* it started, and is green now, is checked again over today's base (#350): GitHub merges the
@@ -244,7 +330,7 @@ Rejudge(p) ==
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py `was.get("tip")`, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py `self.ask(one)`, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, Row>>
+                   Fix, Browser, Row, Judge, editsLeft>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
 \* (features/jbus/src/jbus/strays.py `if not slug or ("crew", slug) in busy:`), and in this model a crew's turn is one step.
@@ -261,29 +347,89 @@ Sweep ==
     /\ idle' = [p \in PRs |-> idle[p] /\ ~Stoppable(p)]
     /\ full' = (\E p \in PRs : idle'[p])
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   Fix, Browser, Row>>
+                   Fix, Browser, Row, Judge, editsLeft>>
 
-\* You approve the main-red row jbus filed, and its crew either fixes main in its own pull request,
-\* which merges by its slug, or ends with no pull request, its fix in an open one, as on
-\* 2026-10-27, when two flow rows held the fix. Either way the row is over, and jbus files no other
-\* for the same red tip (features/jbus/src/jbus/watch.py `if name in run.removed or queue.fresh(run.state, name) is not None:`).
-ApproveMainFix ==
+\* jbus reruns main's failed push run once (#672). A red from outside may be a flake, which the
+\* rerun passes: main is green with nothing filed. A merge's red fails again.
+RerunEnds ==
+    /\ rerun                                \* features/jbus/src/jbus/watch.py `if bad and first and _rerun_failed(run, first, ask=rerun):`
+    /\ rerun' = FALSE
+    /\ \E flake \in IF redBy = "outside" /\ culprit = "none" THEN BOOLEAN ELSE {FALSE} :
+         /\ mainRed' = ~flake
+         /\ redBy' = IF flake THEN "none" ELSE redBy
+    /\ UNCHANGED <<st, ci, ranRed, breaks, told, outsideLeft, fixRow, link, on, Machine, Fix, Browser, Row,
+                   culprit, judged, revert, editsLeft>>
+
+\* jbus.culprits judges main's tip, red after its one rerun: it reverts the one clear culprit
+\* (#862), and files main's fix row for a red that has none: a red from outside (#392), a merge
+\* on a red tip, a skew (#899), or a culprit whose row jbus reverted before (the model keeps one
+\* revert at a time). A tip whose revert is open gets no row.
+JudgeRed ==
+    /\ mainRed                              \* features/jbus/src/jbus/culprits.py `if run.red is not None:`
+    /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit, known)`, after its one rerun
+    /\ ~judged
+    /\ judged' = TRUE
+    /\ IF culprit \in PRs /\ revert = "none"
+         THEN /\ revert' = "open"           \* features/jbus/src/jbus/culprits.py `return None if reverts.revert(run, found) else "jbus could not open its revert"`
+              /\ UNCHANGED fixRow
+         ELSE /\ fixRow' = TRUE             \* features/jbus/src/jbus/culprits.py `_file(run, run.red.slug, run.red.sha, run.red.red, why)`
+              /\ UNCHANGED revert
+    /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, link, on, Machine, Fix, Browser,
+                   Row, rerun, culprit, editsLeft>>
+
+\* jmerge merges jbus's revert on its checks, with no review, and main is green again. The model's
+\* revert merges only while its culprit is still the red tip's: once another merge landed on the
+\* red tip, main's fix row ends the red, and jbus closes the revert.
+RevertMerges ==
+    /\ revert = "open"                      \* features/jmerge/src/jmerge/cli.py `reverted = not short and self.reverted(brief.stem, one)`
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py `queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)`, queued with no approval
+    /\ culprit \in PRs
+    /\ revert' = "none"
+    /\ mainRed' = FALSE
+    /\ redBy' = "none"
+    /\ culprit' = "none"
+    /\ judged' = FALSE
+    /\ fixRow' = FALSE
+    /\ fixes' = NoFix
+    /\ proved' = NoFix
+    /\ UNCHANGED <<st, ci, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser, Row,
+                   rerun, editsLeft>>
+
+\* jbus closes its revert still open once main's check passed at a later tip without it (#899).
+RevertCloses ==
+    /\ revert = "open"                      \* features/jbus/src/jbus/reverts.py `asked = run.run("gh", "pr", "close", one.pull, "--comment", comment)`
+    /\ ~mainRed                             \* features/jbus/src/jbus/reverts.py `if main.red or not main.green:`
+    /\ revert' = "none"
+    /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
+                   Fix, Browser, Row, rerun, culprit, judged, editsLeft>>
+
+\* jbus's pass approves the main-red row jbus filed by rule, not by your word (#547), and its crew
+\* either fixes main in its own pull request, which merges by its slug, or ends with no pull
+\* request, its fix in an open one, as on 2026-10-27, when two flow rows held the fix. Either way
+\* the row is over, and jbus files no other for the same red tip
+\* (features/jbus/src/jbus/watch.py `if name in run.removed or queue.fresh(run.state, name) is not None:`).
+FixMain ==
+    /\ mainRed
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py `queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)`, queued by jbus's pass
+    \* features/jbus/src/jbus/queue.py `if not named and filed(row, text):`, its go by rule
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
           /\ fixes' = NoFix
           /\ proved' = NoFix
+          /\ culprit' = "none"
+          /\ judged' = FALSE
+          /\ rerun' = FALSE
           /\ UNCHANGED ci
        \/ \E q \in PRs :
           /\ st[q] = "open"
           /\ fixes' = [fixes EXCEPT ![q] = TRUE]
           /\ ci' = [ci EXCEPT ![q] = "none"]
           /\ proved' = [proved EXCEPT ![q] = FALSE]
-          /\ UNCHANGED <<mainRed, redBy>>
-    /\ UNCHANGED <<st, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser, Row>>
+          /\ UNCHANGED <<mainRed, redBy, culprit, judged, rerun>>
+    /\ UNCHANGED <<st, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser, Row,
+                   revert, editsLeft>>
 
 \* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py `prefix="browser-red-"`),
 \* whose run then holds as main's red each pull request whose own browser run failed.
@@ -293,24 +439,25 @@ Nightly ==
     /\ ~brHold
     /\ brHold' = TRUE                       \* features/jmerge/src/jmerge/rows.py `if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:`, red and its fix open
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   Machine, Fix, brBreaks, brFail, viewBroken, Row>>
+                   Machine, Fix, brBreaks, brFail, viewBroken, Row, Judge, editsLeft>>
 
-\* You approve the browser-red row, and its crew fixes main's view. Its row is over, so main's
-\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if row.get("status") not in judgement.FINAL}`).
-ApproveBrowserFix ==
-    /\ brHold
+\* jbus's pass approves the browser-red row by rule too: jbus filed it from a red run, with the
+\* same Decisions: line as main's fix row (#547). Its crew fixes main's view, and its row is over,
+\* so main's last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if row.get("status") not in judgement.FINAL}`).
+FixBrowser ==
+    /\ brHold                               \* features/jbus/src/jbus/queue.py `if not named and filed(row, text):`, its go by rule
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
     /\ viewBroken' = FALSE
     /\ brHold' = FALSE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
-                   Machine, Fix, brBreaks, brFail, Row>>
+                   Machine, Fix, brBreaks, brFail, Row, Judge, editsLeft>>
 
 \* You approve a row, which gives it its go again (`jbus queue approve`).
 Approve(p) ==
     /\ ~go[p]                               \* features/jbus/src/jbus/queue.py `again = row.get("approved") and judgement.approved_text(row, text) and not row.get("held")`
     /\ go' = [go EXCEPT ![p] = TRUE]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, needs, rv>>
+                   Fix, Browser, needs, rv, meets, Judge, editsLeft>>
 
 \* You hold a row that is not merged (`jbus queue hold`), which takes its go back.
 HoldRow(p) ==
@@ -319,7 +466,7 @@ HoldRow(p) ==
     /\ go[p]                                \* features/jbus/src/jbus/queue.py `_hold(batch.row(verb.slug))`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
     /\ go' = [go EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
-                   Fix, Browser, needs, rv>>
+                   Fix, Browser, needs, rv, meets, Judge, editsLeft>>
 
 \* Something outside the queue breaks main (a flake, a hand merge, a tool update): its check, or
 \* its view, which only browser.yml sees.
@@ -330,22 +477,28 @@ OutsideBreak ==
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
           \* features/jbus/src/jbus/watch.py `if not slugs and not fixes and not mainjson.read(run.state).red:`, features/jbus/src/jbus/watch.py `no briefed merge came in`: since #392 the fix row is filed for a
-          \* red tip with no briefed merge in the day before it too, under the row's own name.
-          /\ fixRow' = TRUE
+          \* red tip with no briefed merge in the day before it too, under the row's own name,
+          \* once its rerun failed and jbus.culprits judged it (JudgeRed).
+          /\ rerun' = TRUE
+          /\ culprit' = "none"
+          /\ judged' = FALSE
           /\ named' \in BOOLEAN
           /\ UNCHANGED <<viewBroken>>
        \/ /\ ~viewBroken
           /\ viewBroken' = TRUE
-          /\ UNCHANGED <<mainRed, redBy, fixRow, named>>
-    /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine, fixes, proved, brBreaks, brFail, brHold, Row>>
+          /\ UNCHANGED <<mainRed, redBy, named, rerun, culprit, judged>>
+    /\ UNCHANGED <<st, ci, ranRed, breaks, told, fixRow, link, on, Machine, fixes, proved, brBreaks, brFail,
+                   brHold, Row, revert, editsLeft>>
 
-System == Sweep \/ Nightly \/ \E p \in PRs :
-    Launch(p) \/ Ready(p) \/ Check(p) \/ Merge(p) \/ Restack(p) \/ CrewFix(p) \/ BrowserFix(p) \/ Rejudge(p)
+System == Sweep \/ Nightly \/ RerunEnds \/ JudgeRed \/ RevertMerges \/ RevertCloses \/ FixMain \/ FixBrowser
+    \/ \E p \in PRs :
+        Launch(p) \/ Ready(p) \/ MeetsFix(p) \/ Check(p) \/ Merge(p) \/ Restack(p) \/ Unstack(p)
+        \/ CrewFix(p) \/ BrowserFix(p) \/ Rejudge(p)
 
 \* Your word: a row's go, and the lift of a hold that waits on you.
 YourWord == \E p \in PRs : Approve(p) \/ Accept(p)
 
-Next == System \/ ApproveMainFix \/ ApproveBrowserFix \/ OutsideBreak \/ YourWord \/ \E p \in PRs : HoldRow(p)
+Next == System \/ OutsideBreak \/ YourWord \/ \E p \in PRs : HoldRow(p) \/ HomeEdits(p)
 
 Spec == Init /\ [][Next]_vars
 
@@ -355,6 +508,7 @@ TypeOK ==
     /\ st \in [PRs -> {"queued", "open", "merged"}]
     /\ ci \in [PRs -> {"none", "pass", "fail"}]
     /\ redBy \in {"none", "merge", "outside"}
+    /\ link \in {"depends", "after", "none"}
     /\ on \in [PRs -> {"main"} \cup PRs]
     /\ full = (busy \/ \E p \in PRs : idle[p])
     /\ brHold => viewBroken
@@ -362,6 +516,9 @@ TypeOK ==
     /\ go \in [PRs -> BOOLEAN]
     /\ rv \in [PRs -> {"none", "draft", "ready"}]
     /\ \A p \in PRs : (rv[p] = "none") = (st[p] = "queued")
+    /\ culprit \in {"none", "skew", "many"} \cup PRs
+    /\ revert \in {"none", "open"}
+    /\ (rerun \/ judged \/ fixRow) => mainRed
 
 \* "Work never stops flowing: once nothing more happens on its own and main is green, it settles merged or waiting on your word."
 FlowsWhenGreen == (Settled /\ ~Red) => (\A p \in PRs : st[p] = "merged") \/ ENABLED YourWord
@@ -373,7 +530,18 @@ NoMergeTurnsMainRed == redBy # "merge"
 MachineNotLeftFull == Settled => ~full
 
 \* "While main is red and nothing else can happen, its fix waits only on your approval, or on your word for its pull request."
-MainFixWaitsOnlyOnYou == (Settled /\ Red) => ENABLED (ApproveMainFix \/ ApproveBrowserFix \/ YourWord)
+\* Since #547 jbus approves both fix rows it files, main's and the browser run's, by rule, so no
+\* approval of a fix row is yours: of the rule's waits, only your word is still yours, the go of a
+\* row you held or whose brief changed (Approve) and the lift of a pull request's hold (Accept).
+MainFixWaitsOnlyOnYou == (Settled /\ Red) => ENABLED YourWord
+
+\* For the chart only (FlowToday.chart.cfg): no change breaks a browser test of its own, though
+\* main's view may still break from outside, and no brief is edited, so the chart has no Unstack.
+\* The chart reader holds TLC's whole state graph in memory, and the whole model (2.6M states)
+\* does not fit; with the edit and an outside break both in it, TLC 2.19's -continue run of
+\* NoMergeTurnsMainRed throws while it prints a path. flow_canaries.py checks every rule on the
+\* whole model.
+ChartCut == editsLeft = 1 /\ \A p \in PRs : ~brBreaks[p]
 
 \* A probe, no rule: your word never lifts a hold. The control with Draft = "readied" breaks it,
 \* so a lift is taken there.
