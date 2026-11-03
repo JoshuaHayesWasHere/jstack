@@ -373,6 +373,44 @@ def test_a_rule_broken_before_tlc_throws_a_java_exception_keeps_its_paths_with_a
         )
 
 
+ARRAYCOPY_TAIL = """Error: Invariant NoMergeTurnsMainRed is violated.
+Error: Evaluating invariant NoMergeTurnsMainRed failed.
+arraycopy: length -4890 is negative
+Error: TLC threw an unexpected exception.
+This was probably caused by an error in the spec or model.
+See the User Output or TLC Console for clues to what happened.
+The exception was a java.lang.RuntimeException
+: java.lang.ArrayIndexOutOfBoundsException: arraycopy: length -4890 is negative
+Error: Invariant NoMergeTurnsMainRed is violated.
+Error: Evaluating invariant NoMergeTurnsMainRed failed.
+arraycopy: length -4890 is negative
+Error: TLC threw an unexpected exception.
+This was probably caused by an error in the spec or model.
+See the User Output or TLC Console for clues to what happened.
+The exception was a java.lang.ArrayIndexOutOfBoundsException
+: arraycopy: length -4890 is negative
+Error: The error occurred when TLC was evaluating the nested
+expressions at the following positions:
+    The error call stack is empty.
+
+2842616 states generated, 470973 distinct states found, 36166 states left on queue.
+Finished in 28s at (2026-11-03 02:21:28)
+"""
+
+
+def test_an_exception_message_with_a_colon_is_not_taken_for_its_class():
+    """a broken rule TLC failed to print keeps its paths with a warning when the exception's
+    message has a colon and no class name before it, as in the tail of a -continue run of
+    FlowToday.tla's NoMergeTurnsMainRed under TLC 2.19 that printed 50957 broken paths"""
+    assert tlc_output_warning(ARRAYCOPY_TAIL, "tlc.out") == (
+        "TLC found that NoMergeTurnsMainRed is broken, and then failed with"
+        " java.lang.ArrayIndexOutOfBoundsException: arraycopy: length -4890 is negative. TLC"
+        " stopped before it checked every state, so the charts can miss states that break"
+        " NoMergeTurnsMainRed. The failure is in TLC, not in the rule. Do not weaken"
+        " NoMergeTurnsMainRed because of it. A smaller constant can let TLC finish."
+    )
+
+
 def test_a_step_that_changes_nothing_keeps_a_state_unsettled_and_a_quote_survives(tmp_path):
     """a step that changes nothing keeps a state unsettled, and a quote in a reader label
     survives the chart"""

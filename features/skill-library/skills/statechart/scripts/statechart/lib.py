@@ -642,9 +642,13 @@ def tlc_output_warning(text, file):
 
     broken = set(named(r"Error: Invariant (\S+) is violated"))
     failed = named(r"Error: Evaluating invariant (\S+) failed\.")
+    # A RuntimeException's message starts with the class it wraps; any other message, which can
+    # hold a colon of its own ("arraycopy: length -4890 is negative"), names no class.
     thrown = [
         f"{m.group(2) or m.group(1)}: {m.group(3).strip()}"
-        for m in re.finditer(r"^The exception was a (\S+)\n: (?:([\w.$]+):)?(.*)$", text, re.M | A)
+        for m in re.finditer(
+            r"^The exception was a (\S+)\n: (?:([\w$]+(?:\.[\w$]+)+):)?(.*)$", text, re.M | A
+        )
     ]
     crashed = (
         bool(failed)
