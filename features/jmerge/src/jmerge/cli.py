@@ -659,25 +659,29 @@ class Repo:
                 lost.append(ready.Drop(file, theirs, ours))
         return tuple(lost)
 
-    def over_main(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str]:
+    def over_main(self, one: ready.PullRequest) -> tuple[str, str]:
         """Why the head waits over today's base, or nothing, and the base's tip it was judged
-        over. A green check stays good for its own head: where the base moved since the check
-        started, the head waits only when `git merge-tree` of it onto the base's tip conflicts,
-        and GitHub is asked for no update of its branch. Main's own run checks the merge."""
+        over. A green check counts only over the base it ran over: where the base changed any
+        path since the check started, the head waits for a check over today's base. A head
+        that merges cleanly onto the tip with `git merge-tree` has GitHub merge the base into
+        its branch (`rejudge.BaseMerge`), and its check at the new head decides; one that
+        conflicts waits for a rebase. A path the pull request does not touch is no proof:
+        #923 and #935 each added their own new file and broke main together."""
         if one.started is None:
             return "", ""
         moved = self.moved(one.base, one.started)
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", ""
         tip, paths = moved
-        if not {*one.files, *(left or ())} & set(paths):
+        if not paths:
             return "", tip
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, one.head)
         if merged.returncode == 1:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ""
-        return "", tip
+        reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
+        return self.base_merge.of(one, tip, *reasons), ""
 
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose required checks failed waits, judged over today's base. Its
@@ -819,7 +823,7 @@ class Repo:
             return Judgement(brief.stem, "wait", red, note, None)
         if red:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
-        short, tip = self.over_main(one, left)
+        short, tip = self.over_main(one)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
