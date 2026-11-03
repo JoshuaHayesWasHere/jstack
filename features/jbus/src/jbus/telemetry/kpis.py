@@ -21,21 +21,26 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Literal
 
-Status = Literal["met", "missed", "tracked", "no data"]
-"""A measured KPI's week: at its target or past it, `tracked` where it has no target, and
-`no data` where nothing in the week counts toward it."""
+Status = Literal["met", "missed", "tracked", "no data", "not covered"]
+"""A measured KPI's week: at its target or past it, `tracked` where it has no target,
+`no data` where nothing in the week counts toward it, and `not covered` where the week begins
+before the records the KPI needs do, so its value would not count what a later week's does."""
 
 
 @dataclass(frozen=True)
 class Measured:
     """A KPI one of the store's weekly views gives: `value` and `n`, how many the value is of, as
     SQL over one week's row of `view`, and `empty`, the value of a week the view has no row for:
-    0 for a count, None where there is nothing to count."""
+    0 for a count, None where there is nothing to count. `since` names a view whose one row's
+    `day` is the first day the KPI's `records` cover, where a week that begins before it would
+    count something other than a later week does."""
 
     view: str
     value: str
     n: str
     empty: float | None = None
+    since: str | None = None
+    records: str = ""
 
 
 @dataclass(frozen=True)
@@ -61,6 +66,7 @@ class Reading:
     value: float | None
     n: int
     status: Status
+    note: str = ""
 
 
 NO_TEXT = "the store keeps no text of a message (2026-11-02)"
@@ -186,11 +192,18 @@ KPIS: tuple[Kpi, ...] = (
     Kpi(
         "Crew first-round share",
         "quality",
-        "merged pull requests with no red check and no wait on a crew's fix round",
+        "merged pull requests with no red check and no wait on a crew's fix round, of those "
+        "whose pull_request checks the CI ledger kept",
         "%",
         50,
         "higher",
-        Measured("weekly_first_round", "share", "n"),
+        Measured(
+            "weekly_first_round",
+            "share",
+            "n",
+            since="fix_rounds_since",
+            records="jmerge's waits labelled as a crew's fix round",
+        ),
     ),
     Kpi(
         "Redo rate",
@@ -286,6 +299,14 @@ def read(store: sqlite3.Connection, kpi: Kpi, week: date) -> Reading | None:
     source = kpi.source
     if isinstance(source, Lacks):
         return None
+    if source.since:
+        found = store.execute(f"SELECT day FROM {source.since}").fetchone()
+        start = found[0] if found else None
+        if start is None:
+            return Reading(None, 0, "not covered", f"{source.records} have no line yet")
+        if week.isoformat() < start:
+            note = f"{source.records} begin on {start}, after the week does"
+            return Reading(None, 0, "not covered", note)
     row = store.execute(
         f"SELECT {source.value}, {source.n} FROM {source.view} WHERE week = ?",
         (week.isoformat(),),
@@ -378,7 +399,7 @@ td.week { white-space: nowrap; }
 .n { color: var(--quiet); font-size: .8rem; }
 .met { color: var(--met); font-weight: 600; }
 .missed { color: var(--missed); font-weight: 600; }
-.tracked, .nodata, .lacks { color: var(--quiet); }
+.tracked, .nodata, .notcovered, .lacks { color: var(--quiet); }
 td.lacks { font-size: .85rem; }
 """
 
@@ -386,9 +407,10 @@ td.lacks { font-size: .85rem; }
 def _cell(kpi: Kpi, reading: Reading) -> str:
     shown = "n/a" if reading.value is None else amount(reading.value, kpi.unit)
     kind = reading.status.replace(" ", "")
+    note = f": {html.escape(reading.note)}" if reading.note else ""
     return (
         f"<td class=week><b>{html.escape(shown)}</b> <span class=n>n {reading.n}</span> "
-        f"<span class={kind}>{reading.status}</span></td>"
+        f"<span class={kind}>{reading.status}{note}</span></td>"
     )
 
 
