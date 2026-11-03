@@ -12,6 +12,7 @@ import importlib
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import stat
@@ -933,9 +934,15 @@ def test_a_store_built_before_the_labels_gains_them_as_a_rebuild_has_them(machin
     with contextlib.closing(machine.store()) as store:
         signed = store.execute("SELECT value FROM meta WHERE name = 'messages'").fetchone()[0]
         views = "".join(f"DROP VIEW {name};" for name, _ in reversed(views.VIEWS))
+        asks = 7
+        later = "".join(
+            f"DROP TABLE {table};"
+            for sql in migrations.MIGRATIONS[asks:]
+            for table in re.findall(r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", sql)
+        )
         store.executescript(
-            f"{views}ALTER TABLE messages DROP COLUMN asks; ALTER TABLE acts DROP COLUMN asks; "
-            f"PRAGMA user_version = {len(migrations.MIGRATIONS) - 1};"
+            f"{views}{later}ALTER TABLE messages DROP COLUMN asks; "
+            f"ALTER TABLE acts DROP COLUMN asks; PRAGMA user_version = {asks - 1};"
         )
         store.execute(
             "UPDATE meta SET value = ? WHERE name = 'messages'",
