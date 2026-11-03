@@ -25,6 +25,12 @@ and its mark in `sent.json`, so jbus relays each remark once. When an author edi
 jbus relays the comment again, since `<when>` is when the comment last changed. jbus relays a
 review as its author submitted it. jbus leaves out a review not yet submitted, and does not
 relay a later edit of a review's words. jbus reads each list to its last page.
+
+GitHub moves a pull request's `updatedAt` on each new or edited remark, so `tell` reads a pull
+request's three lists only when its `updatedAt` in the world's list differs from the one kept in
+`remarks-read.json` at its last whole read. A read is whole when GitHub gave every list and every
+remark by the owner was given to the crew or marked. A pass in which no pull request moved asks
+GitHub nothing about remarks, not even who owns the repo.
 """
 
 from __future__ import annotations
@@ -148,11 +154,19 @@ def message(remark: Remark, owner: str, number: int) -> str:
 
 def tell(run: Pass, client: Client, world: World) -> None:
     """Send each crew what the owner wrote on its open pull request, once for each remark."""
-    crews = []
+    kept: dict[str, str] = read_json(run.state / "remarks-read.json", {})
+    crews, seen = [], {}
     for slug, pull in world.open.items():
         thread = thread_of(run.home, slug)
-        if thread:
-            crews.append((slug, pull["number"], thread))
+        if not thread:
+            continue
+        name, at = f"{slug} #{pull['number']}", str(pull.get("updatedAt") or "")
+        if at and kept.get(name) == at:
+            seen[name] = at
+        else:
+            crews.append((slug, pull["number"], thread, at))
+    if seen != kept:
+        write_json(run.state / "remarks-read.json", seen)
     if not crews:
         return
     owner = owner_of(run)
@@ -161,11 +175,11 @@ def tell(run: Pass, client: Client, world: World) -> None:
         return
     counted: dict[str, int] = read_json(run.state / "remarks.json", {})
     read_all = side_by_side(lambda crew: read(run, crew[1]), crews)
-    for (slug, number, thread), found in zip(crews, read_all, strict=True):
+    for (slug, number, thread, at), found in zip(crews, read_all, strict=True):
         if found is None:
             run.say(f"wait {slug}: GitHub did not give the comments on #{number}")
             continue
-        sent, others = run.box.sent(), 0
+        sent, others, whole = run.box.sent(), 0, True
         for remark in found:
             key = f"remark|{slug}|#{number}|{remark.key}"
             if key in sent:
@@ -191,8 +205,10 @@ def tell(run: Pass, client: Client, world: World) -> None:
                 continue
             except T3Error as error:
                 run.say(f"wait {slug}: its crew could not be given the owner's comment ({error})")
+                whole = False
                 continue
             if not went:
+                whole = False
                 continue
             run.box.mark(key)
             run.say(f"remark {slug}: gave the crew the owner's {remark.kind} on #{number}")
@@ -200,6 +216,9 @@ def tell(run: Pass, client: Client, world: World) -> None:
             counted[f"{slug} #{number}"] = others
             write_json(run.state / "remarks.json", counted)
             run.say(f"remark {slug}: {others} on #{number} not by the owner, not read on")
+        if whole and at:
+            seen[f"{slug} #{number}"] = at
+            write_json(run.state / "remarks-read.json", seen)
 
 
 STEPS = (
