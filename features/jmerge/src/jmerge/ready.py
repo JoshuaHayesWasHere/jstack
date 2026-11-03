@@ -291,6 +291,8 @@ class PullRequest:
     live: tuple[tuple[str, str], ...] = ()
     """Each required check with no run of its own listed at the head whose workflow GitHub is
     running there, with `queued` or `running` (`live`)."""
+    passed_at: datetime | None = None
+    """The second the last of the required checks passed at the head (`passed_at`)."""
 
 
 def _at(text: str | None) -> datetime | None:
@@ -319,6 +321,20 @@ def passed(rollup: list[dict], name: str) -> bool:
         or (one.get("status") == "COMPLETED" and one.get("conclusion") == "SUCCESS")
         for one in runs
     )
+
+
+def passed_at(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> datetime | None:
+    """The second every required check had passed at the head: the latest end of the run
+    `latest` picks of each, or None while one has not passed or GitHub gives no end of one. A
+    status names no end, so its start is when it was set."""
+    if waiting(rollup, required):
+        return None
+    ends = [
+        _at(one.get("completedAt")) or (_at(one.get("startedAt")) if one.get("state") else None)
+        for name in required
+        for one in latest(rollup, name)
+    ]
+    return None if not ends or None in ends else max(at for at in ends if at is not None)
 
 
 def required_of(text: str) -> tuple[str, ...]:
@@ -432,6 +448,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         failed=failed(listed.get("statusCheckRollup") or [], required),
         unrun=unrun(listed.get("statusCheckRollup") or [], required),
         live=live(listed.get("statusCheckRollup") or [], required),
+        passed_at=passed_at(listed.get("statusCheckRollup") or [], required),
     )
 
 
