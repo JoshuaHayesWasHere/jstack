@@ -23,6 +23,9 @@ written from that, and `jbus.owed` keeps the ask and sends it again when the acc
 `send` also holds a message that needs `act` while its receiver cannot act on it now, by the rules
 of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
 
+- `held`: the row is held in the queue (`jbus queue hold`, or jbus's own at a check that failed
+  at two heads, `jbus.stall.twice`), so its crew gets no rebase and no fix until it is approved
+  again;
 - `slot`: the thread waits on a test slot and is not woken yet (`jgauge.waiters`);
 - `review`: the thread is the row's crew, and the row's pull request waits on a review that a
   reviewer the crew launched has not written at its head, as jmerge's judge says
@@ -31,12 +34,13 @@ of `RULES`, the one table of them. A new rule is a row of that table, and no sen
 - `busy`: the thread has a turn running (`watch.at_work`), or this pass already sent it a message
   that needs `act` (`Pass.told`), so a thread gets at most one such message a pass.
 
-The two that read local files come first, and `busy`, which asks T3 Code, last.
+The three that read local files come first, and `busy`, which asks T3 Code, last.
 
-A row spares what the receiver must still get while it waits. `slot` and `review` spare the wakes:
-a slot's wake and a pool's (`jbus.slotwait`) and the stall clock's line (`jbus.clock`), so a waiting
-crew is still woken, and still told when it has waited too long. `review` also spares a message that
-asks for the review itself (`ASKS`), which would otherwise wait on what it asks for. Every rule
+A row spares what the receiver must still get while it waits. `held`, `slot` and `review` spare the
+wakes: a slot's wake and a pool's (`jbus.slotwait`) and the stall clock's line (`jbus.clock`), so a
+waiting crew is still woken, and still told when it has waited too long. `review` also spares a
+message that asks for the review itself (`ASKS`), which would otherwise wait on what it asks for.
+Every rule
 spares the user's own word and steer to a home (`jbus.word`, `jbus.steer`), which are the user's and
 not jbus's, so jbus never delays them behind a home's turn.
 
@@ -60,7 +64,7 @@ from typing import TYPE_CHECKING, Literal
 import jsettings
 from jbriefs import meets
 from jbriefs.home import thread_of
-from jbus import dispatch, review, roles
+from jbus import dispatch, queue, review, roles
 from jbus.t3 import Client, T3Error
 from jbus.watch import at_work, task_brief
 from jgauge import limits, slot, waiters
@@ -235,7 +239,13 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     return unwritten and review.reviewing(brief)
 
 
+def on_hold(run: Pass, client: Client, thread: str, row: str) -> bool:
+    """Say whether the row is held in the queue, as the table is now."""
+    return bool((queue.fresh(run.state, row) or {}).get("held"))
+
+
 RULES = (
+    Rule("held", on_hold, WAKES | USERS),
     Rule("slot", waiting, WAKES | USERS),
     Rule("review", reviewing, WAKES | ASKS | USERS),
     Rule("busy", busy, USERS),

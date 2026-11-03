@@ -64,6 +64,13 @@ def failed(job="11", name="check"):
     }
 
 
+def uncounted(kitchen):
+    """Have the home require a check that these tests never fail, so that `jbus.stall.twice`
+    counts none of their failed heads and holds no row: what they test is what each head is told
+    (`test_jbus_twice.py` tests the hold)."""
+    (kitchen.home / "required-checks").write_text("build\n")
+
+
 def sends(kitchen):
     return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
 
@@ -78,6 +85,7 @@ def passes(kitchen, *minutes):
 
 
 def test_a_check_that_failed_at_a_head_is_told_once_and_a_new_head_once_more(launched):
+    uncounted(launched)
     launched.set("open.json", [pull(launched, [failed()])])
     passes(launched, 0, 3)
     assert sends(launched) == [
@@ -120,6 +128,7 @@ def red_on(kitchen, head, *tests, onto="", by="web-flow", parents=(MAIN,)):
 def test_merges_of_main_red_on_the_failure_told_are_not_told_again_but_a_new_one_is(launched):
     """jmerge's update-branch makes a new head for each merge of main, and each one was a new
     `failed` tell, though the crew was told of that failure already (#494, 2026-10-26: nine)."""
+    uncounted(launched)
     one, two, three, four, five = ("a" * 40, "b" * 40, "c" * 40, "d" * 40, "e" * 40)
     first, second = "tests/test_x.py::test_one", "tests/test_x.py::test_two"
     for minute, (head, test, onto) in enumerate(
@@ -146,6 +155,7 @@ def test_merges_of_main_red_on_the_failure_told_are_not_told_again_but_a_new_one
     ids=["the crew's own merge of main", "a commit of GitHub's with one parent"],
 )
 def test_a_head_on_the_one_told_that_is_not_githubs_merge_of_main_is_told(launched, made):
+    uncounted(launched)
     red_on(launched, "a" * 40, "tests/test_x.py::test_one")
     passes(launched, 0)
     red_on(launched, "b" * 40, "tests/test_x.py::test_one", onto="a" * 40, **made)
