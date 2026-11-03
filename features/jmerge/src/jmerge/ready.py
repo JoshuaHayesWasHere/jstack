@@ -247,9 +247,6 @@ MIGRATION_REBASING = Reason(
     "check",
     "it adds a migration, and #{number}, which merges before it, is being rebased",
 )
-MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
-"""No judgement gives this reason since red-main-no-hold (2026-11-02): a red main holds no pull
-request. It stays so that the lines of older logs keep their code."""
 BASE_MERGE_ASKED = Reason(
     "check",
     "GitHub was asked to merge {base} at {tip} into it: its check failed before {base} moved",

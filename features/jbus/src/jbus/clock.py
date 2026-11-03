@@ -41,11 +41,11 @@ ended with no Result and no pull request is `threads.resume`'s.
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
 holds on one reason, with no thread at work on the cause, wake the home that owns them once the
 hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
-have been held. A thread is at work on the cause when it is a held row's crew or reviewer, when
-the reason names its slug, or when it is a fix row of a red main (`mainjson.fix_of`) and the reason
-is that red. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`) whose pull
-request is open, since that row's own wait is what holds it, a hold that is the user's (step
-`hold`, already on what waits on the user) and a wait with its own clock above are no such hold.
+have been held. A thread is at work on the cause when it is a held row's crew or reviewer, or when
+the reason names its slug. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`)
+whose pull request is open, since that row's own wait is what holds it, a hold that is the user's
+(step `hold`, already on what waits on the user) and a wait with its own clock above are no such
+hold.
 A required check with no run at the head (`ready.NO_RUN`) is no wait on the merge runner: no
 runner is at work on it, so it is a hold. One whose workflow GitHub runs there (`ready.LIVE_RUN`)
 is such a wait.
@@ -82,7 +82,7 @@ from jbus.passes import Pass
 from jbus.review import FIXES, class_of, matches
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, task_brief
-from jmerge import mainjson, ready
+from jmerge import ready
 
 HELD = "hold-stall"
 EVENTS = {"clock": "quiet", "hold-stall": "quiet"}
@@ -342,11 +342,9 @@ def _ahead(reason: str, world: World) -> bool:
 
 
 def _on(slug: str, reason: str, rows: list[str]) -> bool:
-    """Say whether a thread of the slug works on what holds the rows: it is one of theirs, the
-    reason names it, or it is the fix of the red main the reason names."""
-    if slug in rows or slug in re.findall(r"[\w.-]+", reason):
-        return True
-    return mainjson.fix_of(slug) and bool(re.fullmatch(ready.MAIN_RED.pattern, reason))
+    """Say whether a thread of the slug works on what holds the rows: it is one of theirs, or the
+    reason names it."""
+    return slug in rows or slug in re.findall(r"[\w.-]+", reason)
 
 
 def held(

@@ -15,7 +15,7 @@ from test_jbus_leftover import home
 
 ROWS = ("one", "two", "three", "four")
 SHA = "abcdef123456"
-REASON = ready.MAIN_RED.format(sha=SHA)
+REASON = ready.NO_RUN.format(check="check", head=SHA)
 RESULT = "\n## Result\nStatus: done\nBranch: {slug}   Pull request: {url}\nLeft: none\n"
 
 
@@ -88,13 +88,6 @@ def test_the_same_at_29_minutes_wakes_nobody_and_needs_nothing(kitchen):
     assert held.told() == [] and held.needs() == []
 
 
-def test_a_running_fix_row_on_the_cause_wakes_nobody(kitchen):
-    held = Held(kitchen)
-    kitchen.t3.thread(f"main-red-{SHA}")
-    held.until(45)
-    assert held.told() == [] and held.needs() == []
-
-
 def test_a_running_crew_of_a_held_row_wakes_nobody(kitchen):
     held = Held(kitchen)
     crew = held.crews["two"]
@@ -119,7 +112,9 @@ def test_the_hold_leaves_what_waits_on_the_user_once_it_clears_or_a_thread_takes
     assert held.needs() == []
     held.say(REASON)
     held.until(33)
-    kitchen.t3.thread(f"main-red-{SHA}")
+    crew = held.crews["two"]
+    crew["status"] = "running"
+    kitchen.t3.at_work.add(crew["threadId"])
     held.until(70)
     assert held.needs() == [] and len(held.told()) == 1
 
