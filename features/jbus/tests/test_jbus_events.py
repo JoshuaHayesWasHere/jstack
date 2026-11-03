@@ -256,6 +256,7 @@ TABLE = {
     "item.done": "quiet",
     "item.dropped": "quiet",
     "pack": "quiet",
+    "collisions": "quiet",
 }
 
 
