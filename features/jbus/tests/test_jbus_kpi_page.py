@@ -127,25 +127,67 @@ def test_the_page_shows_each_kpi_with_its_target_this_week_last_week_and_met_or_
     assert rows["Time to restore main, median (DORA)"][5] == "n/a n 0 no data"
     assert rows["Change failure rate, push checks (DORA)"][5] == "0% n 1 met"
     assert rows["Merges a week (DORA frequency)"][5] == "1 n 1 tracked"
-    assert rows["Crew first-round share"][5] == "100% n 1 met"
+    assert rows["Crew first-round share"][5] == (
+        "n/a n 0 not covered: jmerge's waits labelled as a crew's fix round have no line yet"
+    )
     assert "2026-10-25" in said
 
 
-def test_a_pull_request_with_a_red_check_or_a_wait_on_a_crews_fix_is_not_first_round(machine):
+def fix_round(machine, at, number=99):
+    """A wait of jmerge's on a crew's fix round, logged at `at`."""
     machine.append(
         "alpha",
         "merge.log",
-        f"{NOW:%Y-%m-%d %H:%M} wait 10 https://example.test/pull/10: {SECRET} [no-fixed]",
+        f"{at:%Y-%m-%d %H:%M} wait {number} https://example.test/pull/{number}: {SECRET} [no-fixed]",
         home=True,
     )
-    red = job(5, "c5", 11, "failure", NOW - timedelta(days=7))
-    machine.append("beta", "ci.jsonl", {**red, "event": "pull_request", "branch": "beta-one"})
+
+
+def checked(machine, project, run, pr, conclusion, at):
+    """A pull_request check of `pr` that ended `conclusion`, as `jbus ci` keeps it."""
+    one = job(run, f"c{run}", pr, conclusion, at)
+    machine.append(project, "ci.jsonl", {**one, "event": "pull_request", "branch": f"pr-{pr}"})
+
+
+def test_a_pull_request_with_a_red_check_or_a_wait_on_a_crews_fix_is_not_first_round(machine):
+    fix_round(machine, NOW - timedelta(days=20))
+    fix_round(machine, NOW, number=10)
+    checked(machine, "alpha", 4, 10, "success", NOW)
+    checked(machine, "beta", 5, 11, "failure", NOW - timedelta(days=7))
     machine.build()
 
     _, rows, _ = page(machine)
 
     assert rows["Crew first-round share"][4] == "0% n 1 missed"
     assert rows["Crew first-round share"][5] == "0% n 1 missed"
+
+
+def test_a_week_that_begins_before_the_first_fix_round_label_shows_no_value_and_says_why(machine):
+    fix_round(machine, NOW - timedelta(days=6))
+    checked(machine, "alpha", 4, 10, "success", NOW)
+    checked(machine, "beta", 5, 11, "success", NOW - timedelta(days=7))
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    first = rows["Crew first-round share"]
+    assert first[4] == (
+        "n/a n 0 not covered: jmerge's waits labelled as a crew's fix round begin on "
+        "2026-10-22, after the week does"
+    )
+    assert first[5] == "100% n 1 met"
+
+
+def test_a_merged_pull_request_with_no_check_kept_is_not_counted(machine):
+    fix_round(machine, NOW - timedelta(days=20))
+    records(machine, "alpha", NOW, "alpha-two", 12)
+    snapshots(machine, "alpha", [("alpha-one", 10, NOW), ("alpha-two", 12, NOW)])
+    checked(machine, "alpha", 4, 10, "success", NOW)
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    assert rows["Crew first-round share"][5] == "100% n 1 met"
 
 
 def test_the_pass_time_is_each_weeks_median_of_the_passes_jbus_recorded(machine):
