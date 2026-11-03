@@ -313,7 +313,8 @@ def test_a_hold_of_the_parent_takes_the_go_of_its_queued_follow_ups_back(kitchen
     code, said = kitchen.main("queue", "apply", stdin="hold alpha\n")
     assert (code, said.strip()) == (
         0,
-        "held alpha, and beta with it: a follow-up approved by rule has no go without its parent's",
+        "held alpha; run 2026-10-12 11:00 ET by the demo home, and beta with it: a follow-up "
+        "approved by rule has no go without its parent's",
     )
     held = rows(kitchen)
     assert (held["alpha"]["approved"], held["beta"]["approved"]) == ("", "")
@@ -399,7 +400,8 @@ def test_queue_hold_of_a_parent_prints_the_follow_ups_it_held(kitchen):
     code, said = kitchen.main("queue", "hold", "alpha")
     assert (code, said.splitlines()[0]) == (
         0,
-        "held alpha, and beta with it: a follow-up approved by rule has no go without its parent's",
+        "held alpha; run 2026-10-12 11:00 ET by the demo home, and beta with it: a follow-up "
+        "approved by rule has no go without its parent's",
     )
     assert rows(kitchen)["beta"]["approved"] == ""
     assert kitchen.main("queue", "hold", "alpha")[1].startswith("| slug |")

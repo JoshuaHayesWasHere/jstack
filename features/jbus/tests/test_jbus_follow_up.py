@@ -223,8 +223,8 @@ def test_a_hold_of_the_parent_holds_its_follow_ups_and_adding_one_again_keeps_th
     unit(kitchen, "alpha-2", "alpha")
     code, said = kitchen.main("queue", "hold", "alpha")
     assert code == 0 and said.splitlines()[0] == (
-        "held alpha, and alpha-2, alpha-3 with it: a follow-up approved by rule has no go "
-        "without its parent's"
+        f"held alpha; run {RAN} by the demo home, and alpha-2, alpha-3 with it: a follow-up "
+        "approved by rule has no go without its parent's"
     )
     again = brief("alpha-3", follows("alpha") + "One more note.\n")
     assert add(kitchen, "alpha-3", "--entry", "alpha", text=again) == []

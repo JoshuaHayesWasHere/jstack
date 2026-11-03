@@ -14,6 +14,27 @@ The evidence is checked as a bot's go is, by `party.chat`: `voice:` or any other
 `--evidence t3-message:<thread id>/<message id>` is the same as `--message`.
 A bot-chat word never opens a door: a go on it for a row whose brief holds for one parks a gate for your own word in T3 Code ([Doors](the-queue.md#doors)).
 A bot-chat word's id hashes the project, the words, you and the address, and no time, so the bot sending the same message again later is the same word and is not sent twice.
+A short reply in the bot's chat, such as "Telemetry" or "queue the missing", means what the bot's message before it asked, which jbus cannot read.
+So a bot-chat word takes that message with `--answers "<the bot's message>"`, or `"answers"` beside `"words"` on `POST /act`.
+jbus keeps it on the word's evidence as `answers`, and the message it carries to the home holds it under your words: `The bot's message these words answer: <the bot's message>`.
+`--answers` goes only with `bot-chat` evidence, and is refused otherwise with `refused: --answers goes with --evidence bot-chat:<address>/<device>`.
+The same message answering another bot message is still the same word: `answers` is not in its id.
+
+## One party acts on a word
+
+A word of yours is acted on once, by one party: the home that got it, a shell, or the bot.
+A party is the directory and the session that ran the command, jbus's pass, or the bot.
+When one party has approved a row on a word, an approve on the same word by another party is refused, and nothing is queued: `refused: word <id> was acted on by <party>: <rows>`.
+That holds for `--word <id>`, for `--message` on a message of yours in T3 Code, and for the bot's go on a message of its chat, and a word and the message it was said in are one word: the bot's go on its chat message and a home's `--word` on the word kept for that message meet.
+So a carried word another party already acted on is not acted on again: the second party tells the first, or you, instead of queuing rows beside it.
+The same party approves as many rows on its own word as the word asks for.
+A go by the follow-up rule or by a plan entry's go is no act on a word, and your own message in T3 Code that names the row by slug is never refused by this check.
+
+A hold is its party's.
+`jbus queue hold` keeps who held the row and when, and its line says so as an approve's does: `held <slug>; run <time> by <party>`.
+An approve of a held row by another party is refused, `refused: <slug> is held, run <time> by <party>, and a hold is its party's: ...`, so nobody quietly approves over a hold.
+The party that held it approves it again, or your own message or pick in T3 Code does.
+A row held before holds named their party has no party, and any party approves it.
 
 A word is an act ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)), one line of `~/.local/state/jbus/<project>/acts.jsonl` whose verb is `word`.
 Its subject is the scope of the home the word is for, empty for the root home.

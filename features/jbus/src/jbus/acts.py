@@ -598,7 +598,7 @@ def hold(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
     said = own(args, asks, f"hold {args.slug}", run)
     who = cli_party(args, said)
     held = Action("hold", args.slug)
-    return act(run, who, held, said, does=lambda: queue.hold(run.state, args.slug))
+    return act(run, who, held, said, does=lambda: queue.hold(run.state, args.slug, run.user))
 
 
 def withdraw(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:

@@ -10,7 +10,9 @@ whose verb is `word`, kept once, with:
   project is the same act however often the command runs.
 - the subject: the scope of the home the word is for, or empty for the root home (`owner`).
 - the evidence: the user's words, when they said them, and the message (`t3-message`, checked)
-  or the view (`view`) they were said in.
+  or the view (`view`) they were said in. Words from the bot's chat (`bot-chat`) also keep the
+  bot's message they answer (`answers`), where the bot or the home that carries them gives it,
+  since a short reply such as "Telemetry" means nothing without it.
 - the line: `kept`, or why jbus posts the word to nobody (`skipped`). A word said in, or
   recorded by, the home that the word is for is done at once, and nobody tells the home what it
   recorded itself.
@@ -94,6 +96,9 @@ MESSAGE = (
     "said by {by} in this thread. It answers no open question, and nothing is sent back "
     "for it. It is word {id}: a row it approves is approved with --word {id}.\n\n{words}"
 )
+ANSWERS = "\n\nThe bot's message these words answer: {answers}"
+"""What the message adds under the words of a bot-chat word that keeps the bot's message it
+answers."""
 NO_HOME = "its home has no home-id, so it goes on the pass after that home's next start"
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
@@ -128,6 +133,7 @@ class Word:
     checked: bool = False
     skipped: str = ""
     home: str = ""
+    answers: str = ""
 
 
 def path(state: Path) -> Path:
@@ -172,6 +178,7 @@ def load(state: Path) -> list[Word]:
             checked=said["checked"],
             skipped="" if line == KEPT else line,
             home=one["action"]["subject"],
+            answers=said.get("answers", ""),
         )
         sent = sends.get(made.id, {})
         if made.skipped:
@@ -304,6 +311,8 @@ def keep(
         acts.logged(run, who, party.Action(KIND, whose), heard, "done", skipped or KEPT, id=name)
     if skipped:
         about = {"words": words, "by": run.user.user, "at": at, "to": ""}
+        if heard.answers:
+            about["answers"] = heard.answers
         run.box.record(KIND, f"{KIND} {run.project.name}: kept, {skipped}", words, word=about)
     (kept,) = [one for one in load(run.state) if one.id == name]
     return kept
@@ -331,6 +340,8 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
         _write(run.state, sends)
     how = f"sent to {now.thread}" if now.sent_at else f"waits, {now.waits}"
     about = {"words": now.words, "by": run.user.user, "at": now.at, "to": now.thread}
+    if now.answers:
+        about["answers"] = now.answers
     run.box.record(KIND, f"{KIND} {run.project.name}: {how}", now.words, word=about)
     return True
 
@@ -380,6 +391,8 @@ def deliver(run: Pass, client: Client | None) -> None:
         thread, name = thread_of(_homes_dir(run, one)), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
         text = MESSAGE.format(**(asdict(one) | {"by": run.user.user}))
+        if one.answers:
+            text += ANSWERS.format(answers=one.answers)
         waits = post(run, client, thread, text, key, row=name, template=KIND)
         if not waits:
             at = jsettings.stamp(run.now)
@@ -450,6 +463,7 @@ BOTH = "refused: a word is one message: --message or --evidence, not both"
 CHAT_WORDS = "refused: --evidence bot-chat takes the user's words with --words"
 SCOPE_CHECKED = "refused: --scope takes only the user's own message, --message <thread>/<message>"
 WORDS_ALONE = "refused: --words goes with --evidence bot-chat:<address>/<device>"
+ANSWERS_ALONE = "refused: --answers goes with --evidence bot-chat:<address>/<device>"
 
 
 def _evidence(heard: queue.Said) -> party.Evidence:
@@ -463,8 +477,10 @@ def _heard(args: argparse.Namespace, config: Config, now: datetime) -> party.Evi
     """The words a word rests on: the user's message in T3 Code, which jbus reads, named with
     `--message` or `--evidence t3-message:<thread>/<message>`; or the user's words in the bot's
     chat, `--evidence bot-chat:<address>/<device>` with `--words`, as the bot's route takes them
-    (`party.chat`). jbus cannot read the bot's chat, so those words are not checked."""
+    (`party.chat`), and with `--answers`, the bot's message they answer. jbus cannot read the
+    bot's chat, so those words are not checked."""
     given, words = getattr(args, "evidence", None), args.words
+    answers = " ".join((args.answers or "").split())
     if given and args.message is not None:
         raise Refused(BOTH)
     if given and given.startswith("t3-message:"):
@@ -481,9 +497,12 @@ def _heard(args: argparse.Namespace, config: Config, now: datetime) -> party.Evi
             words=said(words),
             said_at=config.user.stamp(now),
             said_in=f"bot-chat {chat.ref}",
+            answers=answers,
         )
     if words is not None:
         raise Refused(WORDS_ALONE)
+    if args.answers is not None:
+        raise Refused(ANSWERS_ALONE)
     if args.message is None:
         raise Refused(TYPED)
     return _evidence(heard_in(config, args.message))
@@ -610,6 +629,11 @@ def _down(down: argparse.ArgumentParser) -> None:
         "--words",
         metavar="WORDS",
         help="the user's words in the bot's chat, with --evidence bot-chat:<address>/<device>",
+    )
+    down.add_argument(
+        "--answers",
+        metavar="TEXT",
+        help="the bot's message that the user's words in its chat answer, with --words",
     )
     down.add_argument(
         "--from",

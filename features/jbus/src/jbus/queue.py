@@ -86,7 +86,21 @@ is gone, such as a fix for a red main that a later commit turned green (`watch._
 takes the row out the same way, by `jbus`, and keeps its reason as `why` in both its line of
 `transitions.jsonl` and `removed.json`, so `was_removed` says why. It refuses a row that launched.
 
-`hold` sets `held` and `approve` clears it; a row that was never approved has none. `merge_after` is
+`hold` sets `held` and `approve` clears it; a row that was never approved has none. `hold` also
+keeps who held the row and when, `{"ran_by": ..., "ran_at": ...}`, as an approval keeps who ran it,
+and its line says `run <time> by <party>`. A hold is its party's: an approve of a held row by
+another party (`party_of`) is refused, unless it rests on the user's own message or pick in T3
+Code. A row held before holds named their party has no `hold`, and any party approves it.
+
+A word of the user's is acted on by one party. An approve on a word, a message or a bot-chat
+message (`WORD_BASES`) that another party already approved a row on is refused, naming that
+party and its rows, since two parties reading one word queued duplicate rows and misread short
+replies. A word and the message it was said in are one word, so the bot's go on its chat
+message and a home's `--word` on the word kept for that message meet. The same party approves as
+many rows on its word as it likes, a go by the follow-up rule or a plan entry is no act on a
+word, and the user's own message in T3 Code that names the row is never refused by it.
+
+`merge_after` is
 the slugs of rows whose pull requests merge before this row's. `add` writes `merge_after` again,
 along with `depends`, using the value of `--merge-after`, and refuses an order that jmerge could
 never keep (`_merge_after`). `jmerge` reads `merge_after` and `held` (`jmerge.rows`). When `hold`
@@ -200,6 +214,13 @@ FOLLOW_UP = (
     "waits for the user's go"
 )
 SESSION = "CLAUDE_CODE_SESSION_ID"
+WORD_BASES = ("word", "message", BOT_CHAT)
+"""The bases whose reference is a word of the user's, which one party acts on."""
+ACTED_ON = "refused: word {ref} was acted on by {party}: {rows}"
+HELD_BY = (
+    "refused: {slug} is held, run {at} by {party}, and a hold is its party's: {party} approves "
+    "it again, or {user}'s own message or pick in T3 Code does"
+)
 GO_HOLDS = ", its go holds"
 ALREADY = "already approved"
 GO_VOID = ", its go does not hold for it: approve it again"
@@ -357,6 +378,14 @@ def who(ran_by: dict[str, str]) -> str:
     return f"the {Path(directory).name} home"
 
 
+def party_of(ran_by: Mapping[str, str]) -> tuple[str, str, str]:
+    """Return the party that ran a command, as `runner` found it: jbus's pass or the bot by
+    name, else the directory and the session that ran it, so a shell is its directory."""
+    if ran_by.get("by"):
+        return (ran_by["by"], "", "")
+    return ("", ran_by.get("directory", ""), ran_by.get("session", ""))
+
+
 @dataclass(frozen=True)
 class Said:
     """`Said` holds the user's words as their store recorded them: when and where the user said
@@ -507,6 +536,7 @@ def _well_formed(row: Any) -> bool:
         and isinstance(row.get("depends", []), list)
         and all(isinstance(slug, str) for slug in row.get("depends", []))
         and type(row.get("held", False)) is bool
+        and isinstance(row.get("hold", {}), dict)
         and isinstance(row.get("merge_after", []), list)
         and all(isinstance(slug, str) for slug in row.get("merge_after", []))
         and isinstance(row.get("entry", ""), str)
@@ -593,7 +623,7 @@ def _handed(row: Row, made: str) -> bool:
 def _hand_over(row: Row) -> None:
     """Make a scout's finished row a crewmate's: it is queued again with no go, since its go was
     for the request and not the brief."""
-    for column in ("role", "approval", "held"):
+    for column in ("role", "approval", "held", "hold"):
         row.pop(column, None)
     row.update(approved="", brief_sha="", **_blank())
 
@@ -1039,26 +1069,33 @@ def _followers(batch: _Batch) -> list[str]:
     return list(dict.fromkeys([*batch.queued, *waiting]))
 
 
-def _hold(row: Row) -> None:
+def _hold(row: Row, by: dict[str, Any] | None = None) -> None:
+    """Take the row's go back and hold it, by the party and at the time `by` names, if any."""
     row.update(approved="", brief_sha="", held=True)
     row.pop("approval", None)
+    row.pop("hold", None)
+    if by:
+        row["hold"] = by
 
 
-def _unfollow(rows: list[Row], parent: str, hold: bool = True) -> list[str]:
+def _unfollow(
+    rows: list[Row], parent: str, hold: bool = True, by: dict[str, Any] | None = None
+) -> list[str]:
     """Take the go back from each row that is still queued and was approved as a follow-up of
     `parent`, or of a row so held, down the chain, since its go depended on the parent's go,
     which is gone. Return their slugs. A row that was launched keeps its record, since nothing
     takes a launch back. With no `hold`, the rows wait with no hold, so the rule approves them
-    again once the parent has a go."""
+    again once the parent has a go; with one, they are held by the party of `by`."""
     held, gone = [], [parent]
     while gone:
         one = gone.pop()
         for row in rows:
             made = record(row)
             if made and made.follows == one and row.get("status", "queued") == "queued":
-                _hold(row)
+                _hold(row, by)
                 if not hold:
                     row.pop("held", None)
+                    row.pop("hold", None)
                 held.append(row["slug"])
                 gone.append(row["slug"])
     return sorted(held)
@@ -1402,9 +1439,10 @@ def _do(
 ) -> str:
     rows = batch.rows
     if isinstance(verb, Hold):
-        _hold(batch.row(verb.slug))
-        also = _unfollow(rows, verb.slug)
-        return f"held {verb.slug}" + (
+        by = {"ran_by": ran_by or runner(), "ran_at": _stamp(user)}
+        _hold(batch.row(verb.slug), by)
+        also = _unfollow(rows, verb.slug, by=by)
+        return f"held {verb.slug}; run {by['ran_at']} by {who(by['ran_by'])}" + (
             f", and {', '.join(also)} with it: {FOLLOWED}" if also else ""
         )
     if isinstance(verb, Add):
@@ -1524,6 +1562,9 @@ def _do(
             raise rests
         if verb.basis == PICK:
             rests = picked(rests, verb.slug)
+        if not ruled:
+            _held_by_another(row, verb, rests, ran_by or runner(), user)
+            _one_party(batch, verb, rests, ran_by or runner())
         ref = FOLLOW_REF if ruled else verb.ref
         return _grant(
             batch, row, text, verb.basis, ref, rests, user, ran_by, verb.follows, ground=ground
@@ -1546,6 +1587,76 @@ def _do(
     if is_out:
         raise Refused(f"refused: {is_out}")
     return _take_out(batch, row, verb.slug, verb.by, verb.at)
+
+
+def _stamp(user: jsettings.Settings | None) -> str:
+    """Return the time now, in the user's zone where there is a user."""
+    return user.stamp(clock()) if user is not None else jsettings.stamp(clock())
+
+
+def _users_own(verb: Approve, rests: Said) -> bool:
+    """Whether a go rests on the user's own message or pick, which jbus read in T3 Code."""
+    return verb.basis in ("message", PICK) and rests.checked
+
+
+def _held_by_another(
+    row: Row, verb: Approve, rests: Said, ran_by: dict[str, str], user: jsettings.Settings
+) -> None:
+    """Refuse a go of a row another party holds: a hold is its party's, and only that party or
+    the user's own message or pick in T3 Code approves the row again."""
+    hold = row.get("hold") if row.get("held") else None
+    if not hold or _users_own(verb, rests):
+        return
+    if party_of(hold.get("ran_by", {})) == party_of(ran_by):
+        return
+    holder = who(hold.get("ran_by", {}))
+    raise Refused(
+        HELD_BY.format(slug=row["slug"], at=hold.get("ran_at", ""), party=holder, user=user.user)
+    )
+
+
+def _word_refs(state: Path) -> dict[str, str]:
+    """Return the message each kept word was said in, by the word's id, where it names one: the
+    word acts of `acts.jsonl` (`jbus.word`), read here since `jbus.word` imports this module."""
+    try:
+        text = (state / "acts.jsonl").read_text()
+    except FileNotFoundError:
+        return {}
+    kept = [json.loads(line) for line in text.splitlines() if line.strip()]
+    return {
+        one["id"]: one["evidence"]["ref"]
+        for one in kept
+        if one["action"]["verb"] == "word" and one["evidence"].get("ref")
+    }
+
+
+def _one_party(batch: _Batch, verb: Approve, rests: Said, ran_by: dict[str, str]) -> None:
+    """Refuse a go on a word of the user's (`WORD_BASES`) that another party already approved a
+    row on, naming that party and its rows. A word is the message it was said in, where it names
+    one. The user's own message in T3 Code that names the row is never refused here."""
+    if verb.basis not in WORD_BASES:
+        return
+    if verb.basis != BOT_CHAT and rests.checked and names(rests.words, verb.slug):
+        return
+    made = [(row, kept) for row in batch.rows for kept in [record(row)] if kept]
+    on = [(row, kept) for row, kept in made if kept.basis in WORD_BASES]
+    if not on:
+        return
+    refs = _word_refs(batch.state) if "word" in {verb.basis, *(k.basis for _, k in on)} else {}
+
+    def heard(basis: str, ref: str) -> str:
+        return refs.get(ref, f"word:{ref}") if basis == "word" else ref
+
+    mine, me = heard(verb.basis, verb.ref), party_of(ran_by)
+    theirs: dict[tuple[str, str, str], list[tuple[str, Approval]]] = {}
+    for row, kept in on:
+        them = party_of(kept.ran_by)
+        if heard(kept.basis, kept.ref) == mine and them != me:
+            theirs.setdefault(them, []).append((row["slug"], kept))
+    if theirs:
+        first = min(theirs.values(), key=lambda acted: min(kept.ran_at for _, kept in acted))
+        slugs = ", ".join(sorted(slug for slug, _ in first))
+        raise Refused(ACTED_ON.format(ref=verb.ref, party=first[0][1].who(), rows=slugs))
 
 
 def _grant(
@@ -1583,6 +1694,7 @@ def _grant(
         closed_by=closed_by,
     )
     row.pop("held", None)
+    row.pop("hold", None)
     row.update(approved=made.line(), approval=held(made), brief_sha=stored)
     return f"approved {row['slug']}: brief {stored[:12]}, {made.line()}"
 
@@ -2093,9 +2205,10 @@ def _follow_ups(half: Any) -> None:
 STEPS = (verbs.Step("before-watch", 8, "queue.follow_ups", _follow_ups),)
 
 
-def hold(state: Path, slug: str) -> str:
-    """Take the row's go back, and return the line that says what was held."""
-    return _run(state, [(0, Hold(slug))])[0]
+def hold(state: Path, slug: str, user: jsettings.Settings | None = None) -> str:
+    """Take the row's go back, keeping who held it and when, and return the line that says
+    what was held and by whom."""
+    return _run(state, [(0, Hold(slug))], user)[0]
 
 
 def remove(state: Path, slug: str, by: str, at: str, asks: Asks) -> str:

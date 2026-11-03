@@ -572,7 +572,8 @@ def test_a_batch_that_adds_a_brief_that_holds_and_approves_it_is_refused(kitchen
 READ = "read vision.md"
 SHAPE = (
     "an act is {action: go, slug, sha12}, {action: answer, number, words, keeps} or "
-    "{action: word, words}, with evidence bot-chat:<address>/<device> and an optional seen"
+    "{action: word, words, optional answers}, with evidence bot-chat:<address>/<device> and an "
+    "optional seen"
 )
 
 
@@ -592,6 +593,7 @@ def test_a_bot_word_on_bot_chat_evidence_goes_to_the_projects_home(kitchen, rout
         "said_in": f"bot-chat {CHAT.removeprefix('bot-chat:')}",
         "checked": False,
         "picks": [],
+        "answers": "",
     }
     (sent,) = sends(kitchen)
     assert sent["threadId"] == "home-1" and sent["message"].endswith(f"\n\n{READ}")
