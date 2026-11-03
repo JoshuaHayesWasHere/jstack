@@ -17,7 +17,7 @@ The slots stop many threads at once from overloading the machine or using up the
   It then calls `GET https://api.anthropic.com/api/oauth/usage`, which is the call Claude Code makes for its usage command.
   Where the token has expired, it reads the usage response that Claude Code cached in that home's `.claude.json` instead.
   It never refreshes, writes or prints a token.
-  The install (`jinstall`) enables `jgauge-limits.timer`, which runs `jgauge limits` every 2 minutes.
+  The install (`jinstall`) enables `jgauge-limits.timer`, which runs `jgauge limits` on the schedule that [jgauge limits](#jgauge-limits) gives.
   To stop the calls on Linux, run `systemctl --user disable --now jgauge-limits.timer`.
   On macOS, run `launchctl bootout gui/$(id -u)/jstack.jgauge-limits`.
   After that, two writers update the ledger: the status line command, and `jbus` when an account reaches a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
@@ -36,7 +36,9 @@ To get the same report as JSON, add `--format json`.
 
 Run `jgauge spend --day <YYYY-MM-DD>`, or `jgauge spend --since <time> --until <time>` for any span, in local time.
 Add `--project <name>` to count only one T3 project's threads.
-It prints the spend of every Claude run that started in the period, in units: uncached input x1, cache write x1.25, cache read x0.1, output x5, and an Opus run x5/3.
+It prints the spend of every Claude run that started in the period, in units.
+The help of `jgauge spend` prints the rate of each kind of token.
+`jgauge.spend` sets the rates, as `PLAIN, WRITTEN, CACHED, OUTPUT` and `OPUS`.
 The spend is split by kind of run, by instance and by five-hour window.
 The kinds are first crew run, reviews, fix rounds, jbus sends, homes, scouts and capped failures.
 A crew's later run is a fix round or a jbus send by the key jbus put in the message it sent, and by that message's text where the key says nothing.
@@ -82,22 +84,16 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge sizes` | Prints the machine's three sizes, `test_slots`, `short_slots` and `max_running`, each as its caller gets it and where it came from (a flag or `TEST_SLOTS`, `~/.config/jstack/machine.toml` or jbus's config, else derived from the processors of `/proc/stat` and `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`), with the derived value beside an override, then room's six lines. [The limits and how to change them](jgauge/change-a-limit.md) has each one. |
 | `jgauge test-slot [--slots N] -- <command>` | Runs the command while it holds one of N machine-wide test slots, and ends with the command's exit code. A slot is a lock file, `~/.local/state/locks/test-slot.<n>.lock`. When all are held it prints `test-slot: waiting for one of <N> slots` on stderr and waits. N is `--slots`, else `TEST_SLOTS`, else `test_slots` in `~/.config/jstack/machine.toml`, else what the machine derives: every slot at once runs at most one desk worker a processor, 4 on most machines of 8 cores or more, 5 on 10, 11 or 15. |
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
-| `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once. With a slot free it runs the command as above and takes the thread out of the waiters. With every slot of the lane taken, or every free one held for a woken waiter of another thread, it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line saying it waits and that jbus will wake it, and ends 76. `jbus poll` sends the oldest waiter on a lane one message when a slot of the lane is free (`slotwait.wake`, features/jbus/docs/jbus.md), and the thread runs the same command again. A run that takes its slot is on record in `~/.local/state/locks/test-slot-holders.json` (thread id, the command's pid, lane, command, start) while its command runs, and with its end and exit code once the command ends, however it ends: jbus counts the thread as at work while the run holds the slot, and wakes it once when the run ends (`slotwait.wake_ended`). `JGAUGE_LOCKS_DIR` moves the lock files, the waiters file and the holders file, for a test. |
+| `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once, and ends 76 when it has to wait ([jgauge test-slot --thread](#jgauge-test-slot---thread)). |
 | `jgauge test-slot --waiters` | Prints the registered waiters, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
-| `jgauge check [--thread <id>] [--wait <seconds>] < <the check command>` | Starts the check command it reads from stdin on this worktree, under a slot of the full lane, in a session of its own, or joins the run an earlier call started, and waits on it for up to 540 s; it prints `started`, `joined` or `checked`, then `waiting` (exit 76, with every slot taken, the thread registered as with `test-slot --thread`), `stale` (exit 75, the worktree changed while it ran), `done: the check exited <n>` (exit n), `running` or `lost`, and keeps its files in `<git dir>/crew-check/`: `pid`, `out`, `exit`, `tree` (the worktree's tree, written with an index of its own), `told` and `run`. |
+| `jgauge check [--thread <id>] [--wait <seconds>] < <the check command>` | Runs the check command it reads from stdin under a slot of the full lane, and waits on it for up to 540 s ([jgauge check](#jgauge-check)). |
 | `jgauge proof --dir <dir> --kept <head> [--thread <id>] [--wait <seconds>] < <the proof>` | The same for a reviewer's proof, in the short lane, only while the checkout is at `<head>` with no rebase going on (else `unproven:`, exit 1); it runs the proof with `D` set to `<dir>`, prints `exit <n>`, the last 5 lines, `unproven: the head moved under the proof` when the head moved, and `git status --porcelain`, ends 0 on that answer, and keeps `proof.pid`, `proof.out`, `proof.exit`, `proof.key`, `proof.told` and `proof.cmd` in `<dir>`. |
 
 ### jgauge room
 
 `jgauge room` prints `go`, or `wait: ` and the first reading with no room.
-It checks these readings, each against its line:
-
-- the one-minute load at or over 200% of the cores, a second check in case CPU pressure cannot be read
-- CPU pressure (`some avg60` of `/proc/pressure/cpu`) at or over 40
-- under 6 GB of memory available
-- memory pressure (`some avg60`) at or over 10
-- more than 85% of the file slots of `/tmp` used
-- the plan's five-hour or weekly limit at or over your `headroom`, which `config.toml` sets and which is 90% when not set
+It checks the machine's readings, each against its line in [The limits that are fixed](jgauge/change-a-limit.md#the-limits-that-are-fixed).
+It also checks the plan's five-hour and weekly limits against your `headroom`, which `config.toml` sets and which is 90% when not set.
 
 `jgauge room` passes `headroom` to `room.sh` as `HEADROOM`.
 If `jgauge room` cannot read a machine reading, it prints `wait: `.
@@ -119,6 +115,37 @@ On macOS `jgauge room` and `jgauge test-slot` also skip their sweep of stale pyt
 
 `features/jgauge/src/jgauge/room.sh` is the only implementation of the room check.
 
+### jgauge test-slot --thread
+
+`jgauge test-slot --thread <id>` tries for a slot once and never waits in the call.
+With a slot free, it runs the command as `jgauge test-slot` does and takes the thread out of the waiters.
+A lane can be full, or each free slot can be held for a woken waiter of another thread.
+Then it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`.
+It prints one line that says it waits and that jbus will wake it, and ends 76.
+When a slot of the lane is free, `jbus poll` sends the oldest waiter on that lane one message (`slotwait.wake`, [jbus](../../jbus/docs/jbus.md)).
+The thread then runs the same command again.
+
+A run that takes its slot is on record in `~/.local/state/locks/test-slot-holders.json` while its command runs.
+The record holds the thread id, the command's pid, the lane, the command and the start.
+Once the command ends, however it ends, the record gets the end and the exit code.
+jbus counts the thread as at work while the run holds the slot, and wakes it once when the run ends (`slotwait.wake_ended`).
+For a test, `JGAUGE_LOCKS_DIR` moves the lock files, the waiters file and the holders file.
+
+### jgauge check
+
+`jgauge check` reads the check command from stdin and runs it on this worktree, in a session of its own, under a slot of the full lane.
+If an earlier call started the same check, it joins that run instead.
+It waits on the run for up to 540 s.
+It first prints `started`, `joined` or `checked`, and then one of these:
+
+- `waiting`, exit 76: every slot is taken, and the thread is registered as a waiter, as with `test-slot --thread`.
+- `stale`, exit 75: the worktree changed while the check ran.
+- `done: the check exited <n>`, exit n.
+- `running` or `lost`.
+
+It keeps its files in `<git dir>/crew-check/`: `pid`, `out`, `exit`, `tree`, `told` and `run`.
+`tree` is the worktree's tree, written with an index of its own.
+
 ### jgauge limits
 
 `jgauge limits` reads each Claude account's five-hour and weekly use and writes it to the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger)), before the account reaches a cap.
@@ -131,8 +158,14 @@ It never refreshes, writes or prints a token, and never writes either file.
 It rounds each reset time down to the whole second, as the other writers do.
 The ledger treats resets under 5 minutes apart as one window, because the endpoint's reset time moves by a second from call to call.
 It prints `<instance> from the <endpoint or cache>: <shares>, into <file>`, sets the file's time to now, and exits 0.
+A window that the answer gives as `null` is not open, as before a session opens it.
+For that window it writes no line, keeps the other window's reading, and prints `<window> not open` among the shares.
 If neither the endpoint nor the cache has usage for a home, it writes nothing and prints `stale <instance>: <why>`.
 The home's last ledger line stays in place.
+When the endpoint answers 429, `jgauge limits` changes no line of the ledger and writes a retry time to `<ledger file>.retry`.
+The retry time is the answer's `Retry-After`, or 10 minutes from now (`RETRY`) when it has none.
+It does not call the endpoint for that home again before the retry time.
+The file also marks that the last read of the home failed, for any reason, and a good answer from the endpoint removes it.
 A test can set `JGAUGE_USAGE_URL` to name another endpoint.
 `features/jgauge/units/jgauge-limits.timer` runs it every 2 minutes, and 1 minute after boot.
 The install (`jinstall`) links and enables the timer when it links and enables the jbus units.
@@ -213,7 +246,7 @@ A subagent's last call often has no finished line in its own transcript, so its 
 ## The limits writer
 
 `features/jgauge/hooks/limits.sh` is a status line command, one of the ledger's three writers.
-The other two are `jgauge limits`, which writes the ledger ahead of time every two minutes, and `jbus`, which writes it when an account reaches a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
+The other two are `jgauge limits`, which writes the ledger ahead of time on its timer, and `jbus`, which writes it when an account reaches a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
 Claude Code pipes its status JSON to the script.
 The script writes the plan's five-hour and weekly limits to the ledger file of the account the session runs as.
 That account is the instance of T3 Code's `providerInstances` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`.

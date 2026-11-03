@@ -1,8 +1,6 @@
-"""features/jgauge/docs/limits.md stays true. When a row's Where column names a `path:line` of
-this repo, that file holds the row's Value as text. Every machine size and room line has a
-row. The test treats the line number as a pointer and does not check it: a change to any other
-line of the file would move it, and a test that pinned it would fail every pull request that
-touched that file."""
+"""features/jgauge/docs/limits.md stays true. When a row's Where column names a file of this
+repo, that file holds the row's Value as text. Every machine size and room line has a row. The
+page gives no line numbers: a change to any other line of the file would move them."""
 
 import re
 
@@ -11,13 +9,13 @@ from testing.paths import REPO
 
 DOC = REPO / "features" / "jgauge" / "docs" / "limits.md"
 CELL = re.compile(r"`([^`]+)`")
-PLACE = re.compile(r"^((?:src|tests|templates|features)/[\w./-]+|Makefile):(\d+)$")
+PLACE = re.compile(r"^((?:src|tests|templates|features)/[\w./-]+|Makefile)$")
 
 
 def rows():
     for line in DOC.read_text().splitlines():
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) == 7 and cells[0] != "Limit" and not set(cells[0]) <= {"-"}:
+        if len(cells) == 5 and cells[0] != "Limit" and not set(cells[0]) <= {"-"}:
             yield cells
 
 
