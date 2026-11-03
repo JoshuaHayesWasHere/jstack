@@ -312,6 +312,23 @@ def test_the_ask_ledger_gives_typed_messages_per_merged_row_and_the_lost_asks(ma
     assert SECRET not in (machine.root / "page" / "kpis.html").read_text()
 
 
+def test_the_what_needs_me_asks_are_the_weeks_typed_messages_that_ask_it(machine):
+    t3, home = T3(), "mcp:home-a"
+    t3.thread(home, "alpha-id")
+    t3.say("m-asks", home, NOW, text="what needs me?")
+    t3.say("m-again", home, NOW + timedelta(hours=1), text="Does anything need me?")
+    t3.say("m-tells", home, NOW + timedelta(hours=2), text="ship it")
+    t3.say("m-why", home, NOW + timedelta(hours=3), text="why do these need me?")
+    machine.build()
+
+    _, rows, _ = page(machine)
+
+    asks = rows["'What needs me' asks"]
+    assert asks[4] == "0 n 0 met"
+    assert asks[5] == "2 n 4 missed"
+    assert "need me" not in (machine.root / "page" / "kpis.html").read_text()
+
+
 def test_a_kpi_with_no_instrument_yet_says_so(machine):
     _, rows, _ = page(machine)
 

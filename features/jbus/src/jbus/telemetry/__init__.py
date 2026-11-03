@@ -13,7 +13,8 @@ A build reads only what is new. A log is read on from `cursors`, the file's inod
 its first line and the offset its last build read to, and only to its last newline, so a line
 still being written waits for the next build. A log whose inode or first line changed, or that
 is shorter than the offset, is read again from the start: its rows are keyed by their content
-(`records.key`), so a line read twice is one row. A snapshot is read again when its inode, size
+(`records.key`), so a line read twice is one row, the one today's `records` makes of it, and a
+row that would not change is not written. A snapshot is read again when its inode, size
 or time changed. Each file's rows and its cursor are written in one transaction, so a build
 stopped at any point leaves each file either read or not, and the next build reads on from
 there. So a build run twice adds nothing the second time, and a build run each pass ends as a
@@ -156,14 +157,17 @@ def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
             yield records.MACHINE, source, config.state_dir / source.file
 
 
-def _insert(source: Source, update: bool) -> str:
+def _insert(source: Source) -> str:
+    """Insert a row, or make the held row of its key the one read now, leaving a row that would
+    not change unwritten, so `total_changes` counts only what a read changed."""
     names = ["project", "key", *(name for name, _ in source.columns), "day"]
     marks = ", ".join("?" for _ in names)
-    sql = f"INSERT INTO {source.table} ({', '.join(names)}) VALUES ({marks})"
-    if not update:
-        return sql.replace("INSERT", "INSERT OR IGNORE", 1)
     sets = ", ".join(f"{name} = excluded.{name}" for name in names[2:])
-    return f"{sql} ON CONFLICT (project, key) DO UPDATE SET {sets}"
+    same = " AND ".join(f"{source.table}.{name} IS excluded.{name}" for name in names[2:])
+    return (
+        f"INSERT INTO {source.table} ({', '.join(names)}) VALUES ({marks}) "
+        f"ON CONFLICT (project, key) DO UPDATE SET {sets} WHERE NOT ({same})"
+    )
 
 
 def _values(source: Source, project: str, key: str, row: records.Row, zone: tzinfo | None):
@@ -209,7 +213,7 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
         rows.append(_values(source, project, key, source.row(record, zone), zone))
     connection.execute("BEGIN")
     before = connection.total_changes
-    connection.executemany(_insert(source, update=False), rows)
+    connection.executemany(_insert(source), rows)
     built.rows[source.table] += connection.total_changes - before
     cursors.keep(connection, project, source.table, inode, start + end, head, size, None)
     connection.execute("COMMIT")
@@ -246,7 +250,7 @@ def _snapshot(connection, project: str, source: Source, file: Path, zone, built:
             rows.append(_values(source, project, str(natural), row, zone))
     connection.execute("BEGIN")
     before = connection.total_changes
-    connection.executemany(_insert(source, update=True), rows)
+    connection.executemany(_insert(source), rows)
     built.rows[source.table] += connection.total_changes - before
     cursors.keep(
         connection, project, source.table, stat.st_ino, None, None, stat.st_size, stat.st_mtime_ns
