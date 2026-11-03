@@ -201,7 +201,9 @@ def test_only_a_thread_already_quiet_is_read_once_a_pass(kitchen):
     waits = hanging(kitchen, "delta", minutes=45, queued=0, pendingRequestCount=1)
     kitchen.poll()
     assert reads(kitchen) == [
-        {"threadId": one["threadId"], "limit": 1, "runLimit": 20} for one in (quiet, asked, waits)
+        {"threadId": one["threadId"], "view": "activity", "limit": 100, "maxCharsPerItem": 1}
+        | {"runLimit": 20}
+        for one in (quiet, asked, waits)
     ]
     found = {t["slug"]: t for t in written(kitchen)}
     assert {slug: t["live"] for slug, t in found.items()} == {
@@ -518,3 +520,10 @@ def test_fl_statechart_1102_waiting_on_its_five_subagents_was_not_hung(kitchen):
     (found,) = written(kitchen)
     assert (found["live"], found["silent"], found["items"]) == ("moving", 6, 47)
     assert kitchen.lines("stall") == []
+
+
+def test_a_long_thread_is_read_from_its_last_hundred_items(kitchen):
+    hanging(kitchen, minutes=25, queued=0, itemCount=150)
+    kitchen.poll()
+    (asked,) = reads(kitchen)
+    assert (asked["afterPosition"], asked["limit"]) == (49, 100)
