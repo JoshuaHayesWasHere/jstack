@@ -133,8 +133,9 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `run_attempts` | each run: its attempts, when and at which attempt it first failed, and how its last attempt ended |
 | `carried_words` | each word a home carried: from `acts.jsonl`, with the thread it went to from `word-sends.json` |
 | `weekly_restore` | each week's S7: `spells`, `median`, `most`, `still_open` and `negative` |
-| `ask_ledger` | each message you typed or word you said and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
+| `ask_ledger` | each message you typed or word you said, what it `asks`, and what it joined: a `row` or an `answer`, an act that cites the message by id (a word by its own id), else a `reply` in its thread within 120 minutes; with none, `waiting`, then `unanswered` |
 | `weekly_lost_asks` | each week's S3 with no labels: `typed`, `lost`, `waiting` and `rate` |
+| `weekly_needs_asks` | each week's messages you `typed`, waiting or not, and the `asks` among them whose label is `needs` |
 | `weekly_typed_per_row` | each week's messages you `typed`, resumes apart, rows `merged`, and `per_row` |
 | `pr_times` | each pull request of `ci-prs.jsonl` that `jmerge` logged as merged, in the week of its first merge line from a minute before it opened on: `minutes` from open to merge, and `first_round` where no check of it failed and `jmerge` never waited on a crew's fix round, or none where `ci.jsonl` kept no `pull_request` check of it |
 | `fix_rounds_since` | the first `day` of a wait in `merge.log` labelled as a crew's fix round |
@@ -156,6 +157,10 @@ To read one, open the file with any SQLite reader:
 ```sh
 sqlite3 ~/.local/state/jbus/telemetry.sqlite 'SELECT * FROM weekly_lead_time ORDER BY week'
 ```
+
+What a message asks is one label: `needs` where it asks what needs you, else `other`.
+A build works the label out of the text as it reads it and keeps only the label, in `messages.asks` and in `acts.asks` for a word.
+`features/jbus/src/jbus/telemetry/asks.py` writes the rule, what it leaves out on purpose and what it misses.
 
 A lost ask is an `unanswered` message: no act cites it, and no reply came in its thread within the wait.
 The wait is counted to the last build, so a view read twice gives the same answer.
