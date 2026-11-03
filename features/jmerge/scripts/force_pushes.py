@@ -31,7 +31,11 @@ before its merge and since, which is none where the split worked. It asks GitHub
 commits, one call for each 20 pull requests, and asks git, in the repo it runs in, which files
 conflicted with main at the told event and at the push, each over the main of its moment. Run it in
 a worktree with `origin/main` fetched, since it fetches the commits GitHub no longer has on a
-branch."""
+branch.
+
+With `--json`, it prints the same as one JSON object instead, for a program to read: the counts,
+and with `--files` each file that conflicted, with its pull requests and its hunks by kind
+(`files_of`). `jbus.collisions` reads it for the weekly report."""
 
 from __future__ import annotations
 
@@ -498,6 +502,20 @@ def by_file(
     return lines
 
 
+def files_of(hunks: dict[str, list[Hit]]) -> list[dict]:
+    """Each file that conflicted, by path, with the pull requests it conflicted under and the count
+    of its hunks of each kind."""
+    return [
+        {
+            "path": path,
+            "pulls": sorted({number for _, number, _ in hunks[path]}),
+            "pushes": len(hunks[path]),
+            "hunks": dict(Counter(kind for _, _, kinds in hunks[path] for kind in kinds)),
+        }
+        for path in sorted(hunks)
+    ]
+
+
 def read(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
@@ -510,12 +528,20 @@ def main() -> int:
     asked.add_argument(
         "--files", action="store_true", help="also say what lay under each conflict and crew fix"
     )
+    asked.add_argument("--json", action="store_true", help="print one JSON object instead")
     args = asked.parse_args()
     pulls = read(args.state / "ci-prs.jsonl")
     events = read(args.state / "events.jsonl")
     counted = causes(pulls, events, args.since, args.until)
     merged = len(merged_in(pulls, args.since, args.until))
     total = sum(counted.values())
+    if args.json:
+        said: dict = {"pushes": total, "merged": merged, "causes": dict(counted)}
+        if args.files:
+            _, _, hunks, elsewhere = explained(Path.cwd(), pulls, events, args.since, args.until)
+            said |= {"files": files_of(hunks), "elsewhere": elsewhere}
+        print(json.dumps(said, sort_keys=True))
+        return 0
     print(f"{total} force-pushes over {merged} merged pull requests ({total / max(merged, 1):.2f})")
     for cause in CAUSES:
         print(f"{cause}: {counted[cause]}")

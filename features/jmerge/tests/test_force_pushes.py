@@ -354,3 +354,15 @@ def test_a_push_from_before_mains_rewrite_replays_against_the_main_it_saw(repo):
     moves = [commit for _, commit in pushes.main_moves(repo, pulls)]
     assert seen in moves and later in moves
     assert train not in moves and rewritten not in moves
+
+
+def test_files_of_gives_each_conflicted_file_its_pull_requests_and_its_hunks_by_kind():
+    """`--json` prints `files_of`, which `jbus.collisions` reads for the weekly report."""
+    hunks_of = {
+        "list.md": [(AT, 6, ["insert", "insert"]), (AT, 5, ["insert", "renumber"])],
+        "code.py": [(AT, 5, ["edit"])],
+    }
+    assert pushes.files_of(hunks_of) == [
+        {"path": "code.py", "pulls": [5], "pushes": 1, "hunks": {"edit": 1}},
+        {"path": "list.md", "pulls": [5, 6], "pushes": 2, "hunks": {"insert": 3, "renumber": 1}},
+    ]
