@@ -29,3 +29,11 @@ It calls no model and writes nothing.
 Each verb prints one line for each fault it finds and exits 1.
 For a pack with no faults, it prints nothing and exits 0.
 It exits 2 when the folder has no `notes/`, or when the pack is not in a git checkout.
+
+`jpack lint` is the same lint that an expert's folder uses, one shell copy at `features/jpack/src/jpack/lint-notes.sh`.
+`jpack verify` reads white space as one space when it looks for the quoted words.
+In a shallow checkout, it says so where a cited commit is not in it.
+
+A note is stale from the first commit after its pin that changed a path it cites, by that commit's committer date.
+On a squash merge, that date is when the change landed.
+`jpack stale` keeps nothing between runs: a recheck of a note moves its pin, and its days start again from the next change.

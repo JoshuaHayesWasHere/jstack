@@ -59,7 +59,7 @@ jstack runs without it.
 | Need | What you lose without it |
 |---|---|
 | `jbus` and its config | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. |
-| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
+| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, `jbus-merge` every 5 seconds, the check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 
@@ -101,9 +101,8 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
 	```
 
-	Setup prints one line for each need: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or `missing optional <name> -> <command>`.
-	Each harness's skill links are one line, `done skills <harness>: <n> links`.
-	While a step is left to you, the last line is `setup: <n> needs you: <name> -> <command>; ...`.
+	Setup prints one line for each need, and [Setup](features/jinstall/docs/troubleshooting/setup.md) says what each line means.
+	While a step is left to you, the last line starts with `setup: <n> needs you:`.
 	Run each command it names, such as `gh auth login`, then run setup again until that line is gone.
 	A `missing optional` line is a layer you may leave off.
 
@@ -164,7 +163,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	The reviewer thread's review is the approval, so no person approves on GitHub.
 
 Nothing merges by itself until `jbus` runs.
-Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.
+Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and `jbus-merge.timer` runs `jmerge --if-free` within seconds of a pull request's last check ending.
 Without it, run `jmerge` yourself.
 To add jleak's git hooks to another repo, run `jinstall --repo` in it ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
 
@@ -207,7 +206,7 @@ Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
 |---|---|---|
-| `home` | `/home`, `/home <scope>` | Becomes the repo's home, or the home of one scope. It reads the handoff, the plan and the standing rules, plans with you, writes each brief and launches its crewmate. It does none of the work itself. |
+| `home` | `/home`, `/home <scope>` | Becomes the repo's home, or the home of one scope. It reads what `jbus` holds, plans with you, writes each brief and launches its crewmate. It does none of the work itself. |
 | `crew` | `/crew <slug>` | Becomes a crewmate. It does the task in `tasks/<slug>.md` in its own worktree, opens the pull request when the brief says so, appends its Result to the brief, and stays on the pull request. |
 | `scout` | `/scout <slug>` | Becomes a scout. It answers the questions in `scouts/<slug>.md`, appends its report, and writes a crewmate's brief or a visual page when the request asks for one. It changes nothing in the repo. |
 | `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the diff, judges what it found, and proves with one command the fact that makes the change safe. It runs no test suite. |
