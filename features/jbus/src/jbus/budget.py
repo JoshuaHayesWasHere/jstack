@@ -10,7 +10,7 @@ of `gh` calls, with `--wait` to wait in its turn, and refuses while it ends 75 (
 skills name each loop.
 
 `jbus budget --callers` prints the calls to `gh` of the last hour by caller, from the line each
-writes (`jsettings.proc.CALLS`), with how many failed and the least of GitHub's budget left.
+writes (`jsettings.proc.CALLS`), with how many of them failed.
 """
 
 from __future__ import annotations
@@ -97,21 +97,13 @@ def calls(state: Path, since: datetime) -> list[dict]:
 
 
 def callers(state: Path, since: datetime) -> str:
-    """The gh calls since `since` by caller, the most first: each one's count, how many failed,
-    and the least `X-Ratelimit-Remaining` GitHub gave it."""
+    """The gh calls since `since` by caller, the most first, each with how many failed."""
     found = calls(state, since)
     count = Counter(call.get("caller", "?") for call in found)
     failed = Counter(call.get("caller", "?") for call in found if call.get("status"))
-    least: dict[str, int] = {}
-    for call in found:
-        left = call.get("remaining")
-        if isinstance(left, int):
-            name = call.get("caller", "?")
-            least[name] = min(least.get(name, left), left)
     lines = [f"{len(found)} gh calls since {since:%Y-%m-%d %H:%M} UTC, by caller:"]
     for name, n in count.most_common():
-        least_left = f", least left {least[name]}" if name in least else ""
-        lines.append(f"{n:6}  {name} ({failed[name]} failed{least_left})")
+        lines.append(f"{n:6}  {name} ({failed[name]} failed)")
     return "\n".join(lines)
 
 

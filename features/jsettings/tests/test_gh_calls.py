@@ -70,6 +70,7 @@ def test_a_gh_call_logs_its_caller_endpoint_status_and_github_s_limits(gh):
         "endpoint": "/repos/o/r/actions/jobs/900/logs?per_page=1",
         "status": 1,
         "remaining": 4812,
+        "resource": "core",
         "retry_after": "60",
         "http": "HTTP/2.0 403 Forbidden",
     }

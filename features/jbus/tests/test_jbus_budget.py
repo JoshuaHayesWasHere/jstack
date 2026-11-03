@@ -209,6 +209,6 @@ def test_the_callers_of_the_last_hour_are_counted_from_the_log_of_gh_calls(tmp_p
     said = capsys.readouterr().out.splitlines()
     assert said[0].startswith("3 gh calls since ")
     assert said[1:] == [
-        "     2  jbus.remarks.tell (0 failed, least left 4090)",
-        "     1  jbus.rebase.failure (1 failed, least left 4080)",
+        "     2  jbus.remarks.tell (0 failed)",
+        "     1  jbus.rebase.failure (1 failed)",
     ]

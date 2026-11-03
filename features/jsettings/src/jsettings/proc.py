@@ -10,9 +10,10 @@ directory. What is left of GitHub's API allowance, and the floor jbus keeps unde
 Every `gh` that `run` starts takes one of `GH_CAP` slots, shared by every process on the machine
 through a lock file each under jbus's state (`SLOTS`), and waits while all are taken. Each writes
 one line to `CALLS` there: when it ended, its caller, the endpoint, its exit status, and the
-`X-Ratelimit-Remaining` and `Retry-After` GitHub gave. gh says them only in its debug log
-(`GH_DEBUG=api`), so `run` asks for it and takes it out of what gh said on stderr: a caller sees
-gh's own words only. `jbus budget --callers` counts the lines.
+`X-Ratelimit-Remaining` of the window `X-Ratelimit-Resource` names and the `Retry-After` GitHub
+gave. gh says them only in its debug log (`GH_DEBUG=api`), so `run` asks for it and takes it out
+of what gh said on stderr: a caller sees gh's own words only. `jbus budget --callers` counts the
+lines.
 """
 
 from __future__ import annotations
@@ -141,12 +142,14 @@ def _caller() -> str:
 class Debug:
     """What gh's debug log (`GH_DEBUG=api`) said of a call's requests, and `stderr`, what gh said
     on stderr without it. `requests` is each request's URL, `http` the last response's status
-    line, `remaining` and `retry` the last `X-Ratelimit-Remaining` and `Retry-After` given."""
+    line, `remaining`, `resource` and `retry` the last `X-Ratelimit-Remaining`,
+    `X-Ratelimit-Resource` and `Retry-After` given."""
 
     stderr: str
     requests: tuple[str, ...] = ()
     http: str = ""
     remaining: int | None = None
+    resource: str = ""
     retry: str = ""
 
     @classmethod
@@ -157,7 +160,7 @@ class Debug:
         kept: list[str] = []
         block: list[str] | None = None
         requests: list[str] = []
-        http, remaining, retry = "", None, ""
+        http, remaining, resource, retry = "", None, "", ""
         for line in stderr.splitlines(keepends=True):
             if line.startswith("* Request at "):
                 block = []
@@ -178,11 +181,13 @@ class Debug:
             elif header.startswith("< ") and name.lower() == "x-ratelimit-remaining":
                 with contextlib.suppress(ValueError):
                     remaining = int(value)
+            elif header.startswith("< ") and name.lower() == "x-ratelimit-resource":
+                resource = value.strip()
             elif header.startswith("< ") and name.lower() == "retry-after":
                 retry = value.strip()
         if block is not None:
             kept.extend(one for one in block if one.strip() and one[:2] not in ("* ", "> ", "< "))
-        return cls("".join(kept), tuple(requests), http, remaining, retry)
+        return cls("".join(kept), tuple(requests), http, remaining, resource, retry)
 
 
 def _endpoint(command: tuple[str, ...], said: Debug) -> str:
@@ -211,6 +216,8 @@ def _log(
         "status": status,
         "remaining": said.remaining,
     }
+    if said.resource:
+        line["resource"] = said.resource
     if said.retry:
         line["retry_after"] = said.retry
     if said.http:
