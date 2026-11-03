@@ -178,6 +178,10 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `gate_outcomes` | each gate's label of a week, the first home's by name where two homes label one gate, with `closed_by`, and whether its outcome is `known` and `wrong` as `gate-labels.md` says, read by `weekly_wrong_closes` |
 | `weekly_wrong_closes` | each labelled week's S8 over its `labels`: of the gates silence closed, the known closes (`silence`), the wrong ones (`silence_wrong`) and `silence_share`, in percent, and the same of those your word closed (`word`, `word_wrong` and `word_share`) |
 | `weekly_first_load` | each week from the first `first_loads` row on: `kb`, the crew first load of the latest install by the week's end in KB of 1,000 bytes, and `installs`, how many the week ran on |
+| `stalls_since` | the first `day` of `stalls.jsonl`, before which a merged row's quiet spells were not kept |
+| `stall_spells` | each spell of `stalls` that a pass saw end, with its `minutes`, less the `unseen` minutes of a gap, and the `day` and `week` of that pass |
+| `stall_projects` | each project with a row merged since `stalls_since`: the projects the stall minutes count |
+| `stall_gaps` | each day with rows merged before `stalls_since`, and how many: rows whose spells the stall minutes leave out |
 | `weekly_stall` | each week's rows `merged` since `stalls_since`, the `minutes` and `spells` of `stall_spells`, the spells that ended in the week, and `per_row` |
 
 A week starts on Sunday.
