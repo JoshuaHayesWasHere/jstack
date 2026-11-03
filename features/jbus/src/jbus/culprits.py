@@ -1,8 +1,9 @@
 """`judge` reverts the one clear culprit of a red main or files its fix row, and `tell` tells the
 crew of each culprit jbus reverted.
 
-Both are steps of their own, after `watch.watch`: `watch._retro` reads main and hands its tip, red
-after its one rerun, over as `Pass.red`. `jbus.reverts` reads `jbus ci`'s ledger for its flakes and
+Both are steps of their own, after `watch.retro`, which runs after `mainmoved.tell` in a pass:
+`watch.retro` reads main as `main.json` judges it and hands its tip, red after its one rerun,
+over as `Pass.red`. `jbus.reverts` reads `jbus ci`'s ledger for its flakes and
 `tell` sends through `rebase.once`, and `watch` may import neither, since each leads back to it
 (`test_jbus_layers.py`). `judge` needs no T3 Code, so a red tip gets its revert or its row in every
 pass that `watch` runs in. A revert opened in a pass is told in the same pass, and a message the
@@ -15,10 +16,10 @@ from __future__ import annotations
 import json
 
 from jbriefs.home import thread_of
-from jbus import rebase, reverts, verbs
+from jbus import mainmoved, rebase, reverts, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
-from jbus.watch import RedTip, _check, _file, checks, when
+from jbus.watch import RedTip, _file, checks, when
 from jmerge import mainjson
 from jmerge import reverts as kept
 
@@ -55,7 +56,11 @@ def kept_why(run: Pass, tip: RedTip) -> str | None:
     if isinstance(found, reverts.Culprit):
         return None if reverts.revert(run, found) else "jbus could not open its revert"
     if found == reverts.Keep.OVERLAP:
-        tips = [c["sha"][:12] for c in tip.red if _check(run, tip.known, c["sha"]) == "failed"]
+        tips = [
+            c["sha"][:12]
+            for c in tip.red
+            if c["sha"] == tip.sha or mainmoved.main_check(run, c["sha"]) == "failed"
+        ]
         return f"{found}, and main is red at {' and '.join(tips)}"
     return str(found)
 
@@ -108,8 +113,8 @@ def _state(run: Pass, pull: str) -> str:
 
 
 STEPS = (
-    verbs.Step("tellers", 42, "culprits.judge", lambda half: judge(half.run)),
+    verbs.Step("after-expedite", 12, "culprits.judge", lambda half: judge(half.run)),
     verbs.Step(
-        "tellers", 45, "culprits.tell", lambda half: tell(half.run, half.client), ("client",)
+        "after-expedite", 14, "culprits.tell", lambda half: tell(half.run, half.client), ("client",)
     ),
 )

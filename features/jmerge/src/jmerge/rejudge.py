@@ -26,6 +26,7 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Collection
 from datetime import datetime
 from pathlib import Path
 
@@ -44,7 +45,8 @@ class BaseMerge:
     `base-merges.json` in the project's state: the head, the base tip, and what GitHub said. A
     record of the same head and tip is said again and not asked again. A failure to ask, such as
     a `gh` that did not run, a 5xx, a 403 or 429 rate limit, keeps no record, so the next run asks
-    again: only GitHub's answer about the branch, a merge or a 409 or 422 refusal, is kept."""
+    again: only GitHub's answer about the branch, a merge or a 409 or 422 refusal, is kept. A
+    record goes once its pull request is no longer open (`open_only`)."""
 
     def __init__(self, main: Path, state: Path, about: list[str], run: bool) -> None:
         self.main = main
@@ -99,6 +101,15 @@ class BaseMerge:
         record = {"head": one.head, "tip": tip, **kept, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
         known = {**self.known(), str(one.number): record}
         store.write_json(self.path, known)
+
+    def open_only(self, numbers: Collection[str]) -> None:
+        """Drop the record of each pull request whose number is not in `numbers`, the open ones:
+        a merged or closed pull request is never judged again, and its record would only grow the
+        file."""
+        known = self.known()
+        kept = {number: was for number, was in known.items() if number in numbers}
+        if kept != known:
+            store.write_json(self.path, kept)
 
     def ask(self, one: ready.PullRequest) -> tuple[str, bool]:
         """Ask GitHub to merge the base into the branch. Return nothing, or why it did not, and
