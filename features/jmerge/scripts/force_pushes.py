@@ -354,7 +354,8 @@ def main_moves(repo: Path, pulls: list[dict]) -> list[tuple[datetime, str]]:
         for one in pulls
         if one.get("merged") and one.get("merge_commit")
     )
-    shown = git(repo, "log", "--no-walk=unsorted", "--format=%H %P", *[c for _, c, _ in merges])
+    commits = [c for _, c, _ in merges]
+    shown = git(repo, "log", "--no-walk=unsorted", "--ignore-missing", "--format=%H %P", *commits)
     first_parent = {line.split()[0]: line.split()[1:2] for line in shown.splitlines()}
     moves, numbers = [], set()
     for merged, commit, number in merges:
@@ -404,7 +405,8 @@ def explained(
         )
         counted[event[1]][reason] += 1
         files[reason].update(conflicted)
-        if one.get("merge_commit") and one["merge_commit"] not in onto_main:
+        merge = one.get("merge_commit")
+        if merge and merge not in onto_main and not ran(repo, "cat-file", "-e", merge).returncode:
             elsewhere += 1
             continue
         for path, of_path in kinds.items():
