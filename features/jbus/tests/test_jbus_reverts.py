@@ -360,8 +360,9 @@ def test_a_revert_goes_to_the_home_s_digest(kitchen):
     assert routine["slug"] == "alpha" and routine["line"].startswith("revert alpha: main red at ")
 
 
-def test_a_launch_does_not_wait_on_a_red_main(kitchen):
-    """A guard, and no test of a change: `jbus.dispatch` never waited on a red main."""
+def test_a_plain_launch_waits_on_a_red_main(kitchen):
+    """While main is red, `jbus.dispatch` launches only a row that fixes main or launches
+    stacked (`test_jbus_red_main.py`): a plain row waits for green."""
     kitchen.quiet()
     red = move(kitchen, "failure")
     record = mainjson.record(main=red, at=iso(NOW), check="failed", broken=red, failed=[TEST])
@@ -369,8 +370,9 @@ def test_a_launch_does_not_wait_on_a_red_main(kitchen):
     assert queue_add(kitchen, "beta")[0] == 0
     assert queue_go(kitchen, "beta")[0] == 0
     kitchen.poll(NOW + timedelta(minutes=1))
-    assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
-    assert jbus.queue.load(kitchen.state)
+    assert kitchen.t3.launches == []
+    (beta,) = [row for row in jbus.queue.load(kitchen.state) if row["slug"] == "beta"]
+    assert beta["why"] == "main is red: waits for green"
 
 
 def test_the_rule_names_one_reason_for_each_red_it_does_not_revert():

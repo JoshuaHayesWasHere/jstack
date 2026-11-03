@@ -13,7 +13,7 @@ from jbus import mainmoved, merge, passes, rebase, t3, watch
 from test_jbus_expedite import NO_FIXED, Short
 from test_jbus_kitchen import NOW
 from test_jbus_kitchen import review as findings
-from test_jbus_main_moved import checks, move, pull, tip
+from test_jbus_main_moved import checks, move, pull, red_since, tip
 from test_jbus_questions import answer, ask
 from test_jbus_queue import add
 from test_jbus_remarks import one
@@ -68,13 +68,18 @@ class Fixed:
 
 
 class Due:
-    """Alpha is a row that a pass launched. Its thread ended its turn with pull request #7 open,
-    and main moved since. `at` makes one message of that kind due for a head."""
+    """Alpha is a row that a pass launched while main's check still ran, since a red main
+    launches no plain row. Main's check then failed, as `main.json` records, and main moved
+    since. Its thread ended its turn with pull request #7 open. `at` makes one message of that
+    kind due for a head."""
 
     def __init__(self, kitchen, kind):
         self.kitchen, self.kind = kitchen, kind
-        checks(kitchen, tip(kitchen), "failure")
+        red = tip(kitchen)
+        checks(kitchen, red, "")
         self.fixed = Fixed(kitchen)
+        checks(kitchen, red, "failure")
+        red_since(kitchen, red, NOW - timedelta(minutes=30))
         self.thread, self.head = self.fixed.thread, self.fixed.head
         move(kitchen)
 
