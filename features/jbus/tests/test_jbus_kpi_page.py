@@ -138,7 +138,8 @@ def fix_round(machine, at, number=99):
     machine.append(
         "alpha",
         "merge.log",
-        f"{at:%Y-%m-%d %H:%M} wait {number} https://example.test/pull/{number}: {SECRET} [no-fixed]",
+        f"{at:%Y-%m-%d %H:%M} wait {number} https://example.test/pull/{number}: "
+        f"{SECRET} [no-fixed]",
         home=True,
     )
 
