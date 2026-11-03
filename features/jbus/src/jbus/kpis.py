@@ -271,6 +271,6 @@ def _judge(
 
 
 CHORES = (
-    verbs.Chore(34, "the capped read", lambda _config, _, now, _say: limits.note(now, "pass")),
+    verbs.Chore(33, "the capped read", lambda _config, _, now, _say: limits.note(now, "pass")),
     verbs.Chore(36, "the KPI thresholds", lambda config, _, now, say: look(config, now, say)),
 )
