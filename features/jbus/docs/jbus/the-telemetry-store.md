@@ -110,8 +110,8 @@ A Codex call is one `token_count` event.
 
 | View | Gives |
 |---|---|
-| `call_rows` | each call with its thread, project, role and slug, and its spend in the units of `jgauge spend` |
-| `row_spend` | each merged row's spend by role and provider: calls, the four counts and units |
+| `call_rows` | each call of `calls`: `provider`, `call`, `session`, `agent`, `at`, `day`, `model`, the four counts (`input`, `cache_write`, `cache_read`, `output`) and `final`; its session's `thread`, `instance`, `project`, `role` and `slug`; its spend in the `units` of `jgauge spend`; and `dollars`, an estimate at the API list prices of `jgauge.spend.PRICES`, the dated table of `PRICED_ON`, none for a model the table does not price |
+| `row_spend` | each merged row's spend by role and provider: `project`, `slug`, `pr`, `merged_at`, `day` and `week` from `lead_times`, `role`, `provider`, `calls`, the four counts summed (`input`, `cache_write`, `cache_read`, `output`), `units`, the `dollars` of its priced calls and `unpriced`, the calls with no price |
 
 `jgauge spend` reads T3 Code's own count of each run, which leaves out the calls of a run's subagents.
 A day of it is the day's Claude calls with no `agent`:
@@ -157,7 +157,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `capped_spells` | each read of `capped_reads` and the `minutes` it holds every instance capped: up to the next read of either reader, or its `ends_at`, whichever is first, so two readers' reads of the same minutes count once |
 | `weekly_capped` | each week's `reads` and capped `minutes`, right to about a minute at each end of a spell, since the pass reads every minute and `jgauge limits` every 2 |
 | `capped_since` | the first `day` of `capped_reads` |
-| `weekly_row_spend` | each merge week's `rows` with any call recorded in `row_spend`, their `units`, and `per_row` in millions |
+| `weekly_row_spend` | each merge `week`'s `rows` with any call recorded in `row_spend`, their `units`, and `per_row` in millions; their `dollars`, the estimate at `jgauge.spend.PRICES` that `row_spend` sums, the `unpriced` calls it leaves out, and `dollars_per_row` |
 | `spend_kept` | each project's last line of each day `jgauge spend` counted, of `spend_days`, read by `weekly_spend` |
 | `weekly_spend` | each week of the days `jgauge spend` counted, each project's last line of a day (`spend_kept`): `days`, `units`, and in percent the `coordination` share, jbus's sends and the homes, and the `capped` share, runs that failed on a usage limit or part way |
 | `row_words` | S1 for each merged row with a go: the messages you typed, resumes apart, after its go and by its merge that name it, cited by an act of the row's project on the row or typed in its crew's thread |
