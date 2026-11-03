@@ -193,6 +193,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "browser.yml": {"browser": HOSTED},
         "check.yml": {
             "reuse": HOSTED,
+            "select": HOSTED,
             "check-shard": HOSTED,
             "check": HOSTED,
             "full-shard": HOSTED,
@@ -491,6 +492,7 @@ CAPS = {
     ("borders.yml", "borders"): "5",
     ("browser.yml", "browser"): "15",
     ("check.yml", "reuse"): "5",
+    ("check.yml", "select"): "10",
     ("check.yml", "check-shard"): "30",
     ("check.yml", "check"): "5",
     ("check.yml", "full-shard"): "30",
@@ -558,13 +560,16 @@ def ran_on(job, draft=False, reused=""):
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
     assert jobs(CHECK.read_text()) == {
         "reuse": HOSTED,
+        "select": HOSTED,
         "check-shard": HOSTED,
         "check": HOSTED,
         "full-shard": HOSTED,
         "full": HOSTED,
     }
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    assert [ran_on(job) for job in ("reuse", "check-shard", "check", "full-shard", "full")] == [
+    named = ("reuse", "select", "check-shard", "check", "full-shard", "full")
+    assert [ran_on(job) for job in named] == [
+        pull,
         pull,
         pull,
         pull,
@@ -578,9 +583,9 @@ def test_a_draft_runs_the_check_as_any_pull_request_does():
     someone opened by hand is checked on each push too, so jmerge reads its checks as any
     pull request's."""
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("reuse", "check-shard", "check", "full-shard", "full")
-    assert [ran_on(job, draft=True) for job in named] == [pull, pull, pull, push, push]
-    assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, push, push]
+    named = ("reuse", "select", "check-shard", "check", "full-shard", "full")
+    assert [ran_on(job, draft=True) for job in named] == [pull, pull, pull, pull, push, push]
+    assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, pull, push, push]
 
 
 def job_section(job, key):
@@ -625,14 +630,16 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     count = len(PARTS[parts])
     assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS[parts]}}
     assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of {count}"
-    assert job_line(gate, "needs") == (["reuse", "check-shard"] if gate == "check" else parts)
+    assert job_line(gate, "needs") == (
+        ["reuse", "select", "check-shard"] if gate == "check" else parts
+    )
     assert job_line(gate, "if").startswith("always() && ")
     (every, *_), _ = steps(CHECK.read_text(), gate)
     assert every["env"]["PARTS"] == f"${{{{ needs.{parts}.result }}}}"
     ran = {
         result: subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "REUSE": "success"},
+            env={"PARTS": result, "SELECT": "success", "REUSE": "success"},
             capture_output=True,
             text=True,
         )
@@ -641,7 +648,7 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert [result for result in RESULTS if ran[result].returncode == 0] == ["success"]
     assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
     suite = " ".join(map(str, steps(CHECK.read_text(), parts)[0]))
-    assert f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite
+    assert (f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite) == (gate == "full")
 
 
 def test_macos_runs_on_every_pull_request_and_on_nothing_else():
@@ -839,20 +846,82 @@ def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_
         ), path
 
 
-def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
-    found, keys = steps(CHECK.read_text(), "check-shard")
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:7] == [
+def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_selection_in_a_part():
+    """The job `select` reads the diff over main, HEAD^1 on GitHub's merge, once a run, and hands
+    each of the eight parts its files; the parts run neither the selection nor the lint."""
+    found, _ = steps(CHECK.read_text(), "select")
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
-        ZSH,
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
-        "actions/cache",
-        "make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8",
+        "uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD",
+        "python3 features/writing/scripts/prose_lint.py HEAD^1",
+        "make lint BASE=HEAD^1",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found[:7])
-    assert found[6]["id"] == "suite"
+    assert all("if" not in step for step in found)
+    assert (found[3]["id"], found[4]["id"]) == ("tree", "select")
+    assert found[4]["env"] == {"FAILED_ON_MAIN": "${{ needs.reuse.outputs.failed }}"}
+    assert job_line("select", "needs") == "reuse"
+    assert job_section("select", "outputs") == {
+        "selection": "${{ steps.select.outputs.selection }}",
+        "tree": "${{ steps.tree.outputs.name }}",
+    } | {f"part{k}": f"${{{{ steps.select.outputs.part{k} }}}}" for k in range(1, 9)}
+    parts, _ = steps(CHECK.read_text(), "check-shard")
+    said = " ".join(map(str, parts))
+    assert "select_tests" not in said and "check-fast" not in said and "lint" not in said
+    assert [
+        step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in parts
+    ][:7] == [
+        "part",
+        "actions/checkout",
+        "astral-sh/setup-uv",
+        "uv sync --locked",
+        "zsh",
+        "actions/cache",
+        "make test",
+    ]
+    assert parts[1]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
+    assert parts[6]["id"] == "suite"
+
+
+PART = "${{ needs.select.outputs[format('part{0}', matrix.shard)] }}"
+
+
+@pytest.mark.parametrize(
+    "part,ends,made",
+    [
+        ("", 1, None),
+        ("none", 0, None),
+        (
+            "testing/tests/test_a.py testing/tests/test_b.py",
+            0,
+            "test TESTS=testing/tests/test_a.py testing/tests/test_b.py",
+        ),
+    ],
+)
+def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part, ends, made):
+    """Each part reads its own output of `select`, and its steps run here as the runner runs them,
+    with a `make` that records what it was asked: a part runs `make test` on its files alone, so
+    it collects only those; a part the selection left empty (`none`) passes; and a part that got
+    nothing fails before its checkout, since `make test` with no files runs the whole suite."""
+    found, _ = steps(CHECK.read_text(), "check-shard")
+    guard, test = found[0], next(step for step in found if step.get("name") == "make test")
+    assert guard["env"] == test["env"] == {"PART": PART}
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "make").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/make"\n')
+    (bin / "make").chmod(0o755)
+    env = {"PATH": f"{bin}:/usr/bin:/bin", "PART": part}
+    first = subprocess.run(["sh", "-c", guard["run"]], env=env, capture_output=True, text=True)
+    assert first.returncode == ends
+    if ends:
+        assert "::error::" in first.stdout
+        return
+    subprocess.run(["sh", "-c", test["run"]], env=env, check=True)
+    asked = tmp_path / "make"
+    assert (asked.read_text().strip() if asked.exists() else None) == made
 
 
 @pytest.mark.parametrize("job", ["check-shard", "full-shard"])
@@ -862,9 +931,11 @@ def test_each_part_restores_and_saves_tlcs_kept_runs_right_before_its_suite(job)
     restores the latest of its part with the same spec files, else the latest of its part, and
     the files its key hashes are every file a kept run reads from the repo."""
     found, _ = steps(CHECK.read_text(), job)
-    names = [step.get("uses", step.get("run")) for step in found]
+    names = [step.get("uses", step.get("name")) for step in found]
     (kept,) = [step for step in found if step.get("uses", "").startswith("actions/cache@")]
-    assert names[names.index(kept["uses"]) + 1].startswith("make check")
+    assert names[names.index(kept["uses"]) + 1] == (
+        "make check" if job == "full-shard" else "make test"
+    )
     assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", kept["uses"])
     part = "tlc-${{ matrix.shard }}-"
     specs = re.fullmatch(
@@ -953,25 +1024,23 @@ def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
 
 def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed():
     *_, mark, upload = steps(CHECK.read_text(), "check")[0]
-    assert job_section("check-shard", "outputs") == {
-        "selection": "${{ steps.suite.outputs.selection }}",
-        "tree": "${{ steps.tree.outputs.name }}",
-    }
     assert [
-        (result, selection)
+        (result, select, selection)
         for result in RESULTS
+        for select in RESULTS
         for selection in ("all", "some", "")
         if worked(
             mark["if"],
             {
                 "needs.check-shard.result": result,
-                "needs.check-shard.outputs.selection": selection,
+                "needs.select.result": select,
+                "needs.select.outputs.selection": selection,
             },
         )
-    ] == [("success", "all")]
+    ] == [("success", "success", "all")]
     assert (mark["id"], mark["env"]) == (
         "marker",
-        {"NAME": "${{ needs.check-shard.outputs.tree }}"},
+        {"NAME": "${{ needs.select.outputs.tree }}"},
     )
     assert (
         mark["run"] == 'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"'
@@ -979,8 +1048,8 @@ def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
     assert upload["with"] == {
-        "name": "${{ needs.check-shard.outputs.tree }}",
-        "path": "${{ runner.temp }}/green-tree/${{ needs.check-shard.outputs.tree }}",
+        "name": "${{ needs.select.outputs.tree }}",
+        "path": "${{ runner.temp }}/green-tree/${{ needs.select.outputs.tree }}",
         "retention-days": "7",
         "if-no-files-found": "error",
     }
@@ -995,7 +1064,10 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
         for o in OUTCOMES
         if worked(report["if"], {"!cancelled()": True, "steps.suite.outcome": o})
     ] == ["success", "failure", "cancelled", ""]
-    assert report["env"]["FULL"] == "${{ steps.suite.outputs.selection == 'all' }}"
+    assert report["env"] == {
+        "FULL": "${{ needs.select.outputs.selection == 'all' }}",
+        "NAME": "${{ needs.select.outputs.tree }}",
+    }
     bin = tmp_path / "bin"
     bin.mkdir()
     (bin / "uv").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/uv"\n')
@@ -1683,7 +1755,7 @@ def test_a_push_runs_the_browser_tests_for_a_version_tag_and_never_for_a_branch(
 def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_name_that_target():
     found, _ = steps(BROWSER.read_text(), "browser")
     assert found[-2] == {"name": "make check-browser", "run": "make check-browser"}
-    for job in ("check-shard", "check", "full-shard", "full"):
+    for job in ("select", "check-shard", "check", "full-shard", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
@@ -1855,7 +1927,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     found = {name: versions for name, versions in found.items() if versions}
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
-        "check.yml": 2,
+        "check.yml": 3,
         "macos-nightly.yml": 1,
         "macos.yml": 1,
         "pstack-drift.yml": 1,
@@ -2190,27 +2262,30 @@ def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
         == ran_on("check-shard", reused="")
         == ["pull_request"]
     )
-    assert job_line("check-shard", "needs") == "reuse"
+    assert ran_on("select", reused="true") == []
+    assert ran_on("select", reused="false") == ran_on("select", reused="") == ["pull_request"]
+    assert job_line("check-shard", "needs") == ["reuse", "select"]
     (every, *_), _ = steps(CHECK.read_text(), "check")
     assert every["env"]["REUSED"] == "${{ needs.reuse.outputs.reused }}"
     assert every["env"]["REUSE"] == "${{ needs.reuse.result }}"
+    assert every["env"]["SELECT"] == "${{ needs.select.result }}"
     passes = [
-        (reuse, reused, result)
+        (reuse, reused, select, result)
         for reuse in RESULTS
         for reused in ("true", "false", "")
+        for select in RESULTS
         for result in RESULTS
         if subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "REUSE": reuse, "REUSED": reused},
+            env={"PARTS": result, "SELECT": select, "REUSE": reuse, "REUSED": reused},
             capture_output=True,
             text=True,
         ).returncode
         == 0
     ]
-    assert passes == [("success", "true", result) for result in RESULTS] + [
-        ("success", "false", "success"),
-        ("success", "", "success"),
-    ]
+    assert passes == [
+        ("success", "true", select, result) for select in RESULTS for result in RESULTS
+    ] + [("success", "false", "success", "success"), ("success", "", "success", "success")]
 
 
 def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse_leaves_none():
@@ -2223,14 +2298,19 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
         "lookup": "${{ steps.failed.outcome }}",
     }
     assert [
-        (result, name)
+        (result, select, name)
         for result in RESULTS
+        for select in RESULTS
         for name in ("checked-tree-a-b", "")
         if worked(
             mark["if"],
-            {"needs.check-shard.result": result, "needs.reuse.outputs.name": name},
+            {
+                "needs.check-shard.result": result,
+                "needs.select.result": select,
+                "needs.reuse.outputs.name": name,
+            },
         )
-    ] == [("success", "checked-tree-a-b")]
+    ] == [("success", "success", "checked-tree-a-b")]
     assert mark["env"] == {"NAME": "${{ needs.reuse.outputs.name }}"}
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.checked.outcome": o})] == [
         "success"
