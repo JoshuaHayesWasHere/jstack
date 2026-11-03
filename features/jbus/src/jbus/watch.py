@@ -1267,6 +1267,79 @@ def fix_brief(
     )
 
 
+_JOB = re.compile(r"- the job `([^`]*)`, (?:with no URL|\S+): (.*)")
+
+Failure = frozenset[tuple[str, frozenset[str]]]
+
+
+def failure_of(jobs: Iterable[tuple[str, str, Sequence[str]]]) -> Failure:
+    """Return what a red run failed, by each failed job's name and its failed tests, with no URL,
+    since each run's jobs have URLs of their own."""
+    return frozenset((name, frozenset(tests)) for name, _, tests in jobs)
+
+
+def named_failure(brief: str) -> Failure:
+    """Return the failure a fix brief names on its `Read:` lines of each failed job, as
+    `fix_brief` writes them."""
+    jobs = []
+    for line in brief.splitlines():
+        if found := _JOB.fullmatch(line):
+            tests = re.findall(r"`([^`]*)`", found[2])
+            jobs.append((found[1], "", tests))
+    return failure_of(jobs)
+
+
+def _open_reds(run: Pass) -> list[tuple[dict[str, Any], str]]:
+    """Return each open fix row of a red main with its brief, as its crew reads it in `tasks/`,
+    or as the queue keeps it where `tasks/` has none."""
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        return []
+    found = []
+    for row in rows:
+        if not mainjson.fix_of(row["slug"]) or row.get("status") in queue.FINAL:
+            continue
+        path = run.home / "tasks" / f"{row['slug']}.md"
+        brief = path.read_text() if path.exists() else queue.brief(run.state, row["slug"]) or ""
+        found.append((row, brief))
+    return found
+
+
+def _same_red(run: Pass, failure: Failure) -> tuple[dict[str, Any], str] | None:
+    """Return the open fix row of a red main, and its brief, whose failed jobs and tests are
+    `failure`, or None where no open row fails as it does."""
+    if not failure:
+        return None
+    return next(((r, b) for r, b in _open_reds(run) if named_failure(b) == failure), None)
+
+
+def _add_tip(run: Pass, row: dict[str, Any], brief: str, sha: str, red: list[dict]) -> None:
+    """Add the red tip `sha` to the brief of `row`, the open fix row of the red it fails as, and
+    file no row of its own: one break gets one fix row, however many merges land on top of it.
+    The line goes under `Read:`, which the row's go does not cover (`jbriefs.meaning`), so the go
+    holds. A row that never launched is queued again with the brief, as its launch reads it beside
+    `tasks/`; a launched row's crew reads it in `tasks/`."""
+    name = row["slug"]
+    merge = red[0]["commit"]["message"].splitlines()[0] if red else "no merge"
+    line = f"- main is red again at {sha[:12]} with the same failed jobs and tests, after {merge}"
+    lines = brief.splitlines()
+    at = next((n for n, one in enumerate(lines) if one.startswith("## ")), len(lines))
+    while at and not lines[at - 1].strip():
+        at -= 1
+    text = "\n".join([*lines[:at], line, *lines[at:]]) + "\n"
+    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
+    (run.home / "tasks" / f"{name}.md").write_text(text)
+    if not row.get("thread") and row.get("status") in queue.UNLAUNCHED:
+        priority, depends = row.get("priority", 0), row.get("depends", [])
+        try:
+            queue.add(run.state, name, priority, depends, text, user=run.user, ran_by=queue.PASS)
+        except (Refused, queue.Unparsable) as refused:
+            run.condition(name, f"its brief did not take main's red tip {sha[:12]}: {refused}")
+    said = f"retro {name}: main is red again at {sha[:12]} as it is, and its row names the tip"
+    run.find(name, "retro", said, key=f"same red {sha}", past=True)
+
+
 def _changed(run: Pass, red: list[dict]) -> list[str]:
     """Return the files the commits changed, as GitHub lists them for each."""
     files = []
@@ -1282,11 +1355,16 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
     approval. Where a briefed merge turned main red, the brief follows that row and a pass
     approves it on the row's go; otherwise the user approves it like any other row. Its priority
     is one above the first row of the queue, so once approved it is the next launch there.
-    `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
-    it added the row, the next pass files the brief again. If the queue refuses the brief, that
-    is a condition. `kept` says why jbus reverted nothing (`_revert`), which its task names."""
+    A red tip whose failed jobs and tests are the ones an open fix row names is the same break,
+    with more merges on top of it: `_file` files no row for it and adds the tip to that row's
+    brief (`_add_tip`). `_file` writes the brief whenever the queue has no row for it. So if a
+    pass stopped before it added the row, the next pass files the brief again. If the queue
+    refuses the brief, that is a condition. `kept` says why jbus reverted nothing (`_revert`),
+    which its task names."""
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
+        return
+    if any(sha[:12] in brief for _, brief in _open_reds(run)):
         return
     runs, pushed = _judged(run, sha)
     jobs = [
@@ -1294,6 +1372,9 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict], kept: str = "") -> No
         for r in runs
         if r.get("status") == "completed" and r.get("conclusion") not in NOT_RED
     ]
+    if same := _same_red(run, failure_of(jobs)):
+        _add_tip(run, *same, sha, red)
+        return
     reran = [
         (r.get("name") or "?", r.get("html_url") or "", r["run_attempt"])
         for r in pushed

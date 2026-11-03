@@ -58,10 +58,67 @@ def test_the_fix_of_a_red_main_is_queued_ahead_of_every_row_and_launches_next(ki
     assert launched(kitchen) == [f"crew: {name}"], said
 
 
-def test_a_second_red_tip_is_queued_ahead_of_the_fix_that_is_still_waiting(kitchen):
+MIGRATIONS = "features/jbus/tests/test_jbus_telemetry.py::test_migrations"
+LINKS = "features/jbus/tests/test_jbus_link.py::test_links"
+
+
+def failing(kitchen, shas, tests):
+    """Main's tips `shas`, oldest first, each red in the `full` job, whose log names `tests`
+    of the same place, and the green base under them."""
+    done = {"status": "completed", "conclusion": "failure", "name": "full"}
+    runs = {sha: [{**done, "id": 100 + n}] for n, sha in enumerate(shas)}
+    logs = {
+        str(100 + n): "".join(f"FAILED {test} - assert 1\n" for test in named)
+        + f"= {len(named)} failed, 9 passed in 2.0s =\n"
+        for n, named in enumerate(tests)
+    }
+    kitchen.set("check-runs.json", {**runs, "f" * 40: [{**done, "conclusion": "success"}]})
+    kitchen.set("logs.json", logs)
+
+
+def test_merges_onto_a_red_main_that_fail_as_it_does_file_no_second_row(kitchen):
+    """main-red-one-fix: main went red, three more pull requests merged onto it, and each red tip
+    got a row of its own, so three crews fixed one break. A tip that fails the job and tests the
+    open row names is that break with more merges on it: the row's brief takes the tip, and no row
+    is filed. A tip that fails a new test is a new break, and gets its own row."""
+    shas = main_of(kitchen, "failure")
+    failing(kitchen, shas, [[MIGRATIONS]])
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=1))
+    first = f"{mainjson.FIX}{shas[0][:12]}"
+    assert [row["slug"] for row in main_red(kitchen)] == [first]
+    for n in (2, 3):
+        shas = main_of(kitchen, *["failure"] * n)
+        failing(kitchen, shas, [[MIGRATIONS]] * n)
+        kitchen.poll(NOW + timedelta(minutes=3 * n))
+        kitchen.poll(NOW + timedelta(minutes=3 * n + 1))
+        assert [row["slug"] for row in main_red(kitchen)] == [first]
+    brief = (kitchen.home / "tasks" / f"{first}.md").read_text()
+    for sha in shas[1:]:
+        assert f"main is red again at {sha[:12]} with the same failed jobs" in brief
+    assert brief.count("main is red again at") == 2
+    assert jbus.queue.brief(kitchen.state, first) == brief
+    shas = main_of(kitchen, *["failure"] * 4)
+    failing(kitchen, shas, [[MIGRATIONS]] * 3 + [[MIGRATIONS, LINKS]])
+    kitchen.poll(NOW + timedelta(minutes=20))
+    kitchen.poll(NOW + timedelta(minutes=21))
+    rows = sorted(main_red(kitchen), key=jbus.queue.order)
+    assert [row["slug"] for row in rows] == [f"{mainjson.FIX}{shas[-1][:12]}", first]
+    assert shas[-1][:12] not in (kitchen.home / "tasks" / f"{first}.md").read_text()
+
+
+def another_job(kitchen, sha):
+    """Main's red tip `sha` fails `lint`, not the `full` job `main_of` fails."""
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[sha] = [{**runs[sha][0], "name": "lint"}]
+    kitchen.set("check-runs.json", runs)
+
+
+def test_a_red_tip_that_fails_another_job_is_queued_ahead_of_the_fix_still_waiting(kitchen):
     first = main_of(kitchen, "failure")
     kitchen.poll()
     second = main_of(kitchen, "failure", "failure")
+    another_job(kitchen, second[-1])
     kitchen.poll(NOW + timedelta(minutes=3))
     rows = sorted(jbus.queue.load(kitchen.state), key=jbus.queue.order)
     assert [row["slug"] for row in rows] == [
@@ -574,8 +631,8 @@ def test_a_fix_row_for_a_red_with_no_briefed_merge_launches_on_its_go_by_rule(ki
 
 def test_infra_s_two_fix_rows_are_withdrawn_once_its_main_has_three_green_commits(kitchen):
     """The replay of infra's 2026-10-23: a red after one merge, a second red after the next,
-    each filed as a row for the user, then three commits whose checks pass. jstack's own rows
-    and another project's are withdrawn alike."""
+    which fails another job, each filed as a row for the user, then three commits whose checks
+    pass. jstack's own rows and another project's are withdrawn alike."""
     infra = kitchen.second("infra")
     alpha = f"# alpha: a task\nWhere: `src/alpha/`\n{RESULT}"
     (infra.home / "tasks" / "alpha.md").write_text(alpha)
@@ -583,6 +640,7 @@ def test_infra_s_two_fix_rows_are_withdrawn_once_its_main_has_three_green_commit
     main_of(kitchen, "failure")
     kitchen.poll()
     first, second = main_of(kitchen, "failure", "failure")[:2]
+    another_job(kitchen, second)
     kitchen.poll(NOW + timedelta(minutes=4))
     names = sorted(f"{mainjson.FIX}{sha[:12]}" for sha in (first, second))
     for state in (kitchen.state, infra.state):
