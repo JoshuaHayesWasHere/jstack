@@ -47,6 +47,15 @@ KPI views, with the scorecard's definitions (`reports/week-audit/scorecard.py` i
   its spend in `jgauge spend`'s units (`UNITS`).
 - `row_spend`: each merged row's spend by the role and the provider of the threads that spent
   it: calls, the four counts and units.
+- `weekly_row_spend`: each merge week's units of `row_spend` over its merged rows with any call
+  recorded, in millions. A row whose transcripts went before a build read them counts low.
+- `spend_kept` and `weekly_spend`: each project's last line of each day `jgauge spend` counted
+  (`spend_days`, Claude's runs only), and each week of them: its units, and the shares of jbus's
+  sends and the homes (`coordination`) and of the runs that failed on a cap (`capped`).
+- `row_words` and `weekly_no_word` (S1): each merged row with a go, and the messages the user
+  typed (`ask_ledger`, not a resume) after its go and by its merge that name it: one an act of
+  the row's project on the row cites, or one typed in the row's own thread (`queue.thread`, the
+  crew's). A row with none is quiet, and the week's share is of its merged rows.
 """
 
 from __future__ import annotations
@@ -420,6 +429,39 @@ VIEWS: tuple[tuple[str, str], ...] = (
         "sum(joined = 'waiting') AS waiting, "
         "1.0 * sum(joined = 'unanswered') / nullif(sum(joined <> 'waiting'), 0) AS rate "
         "FROM ask_ledger GROUP BY week",
+    ),
+    (
+        "weekly_row_spend",
+        "SELECT week, count(DISTINCT project || '/' || slug) AS rows, sum(units) AS units, "
+        "sum(units) / count(DISTINCT project || '/' || slug) / 1e6 AS per_row FROM row_spend "
+        "GROUP BY week",
+    ),
+    (
+        "spend_kept",
+        "SELECT project, spent_on, units, sends, homes, capped FROM (SELECT *, row_number() "
+        "OVER (PARTITION BY project, spent_on ORDER BY at DESC, key DESC) AS place "
+        "FROM spend_days WHERE spent_on IS NOT NULL) WHERE place = 1",
+    ),
+    (
+        "weekly_spend",
+        f"SELECT {WEEK.format(day='spent_on')} AS week, count(*) AS days, sum(units) AS units, "
+        "100.0 * sum(coalesce(sends, 0) + coalesce(homes, 0)) / nullif(sum(units), 0) "
+        "AS coordination, 100.0 * sum(coalesce(capped, 0)) / nullif(sum(units), 0) AS capped "
+        "FROM spend_kept GROUP BY 1",
+    ),
+    (
+        "row_words",
+        "SELECT l.project, l.slug, l.week, (SELECT count(*) FROM ask_ledger k "
+        "WHERE k.kind <> 'resume' AND k.at > l.go AND k.at <= l.merged_at AND ("
+        "EXISTS (SELECT 1 FROM acts a WHERE a.id = k.link AND a.project = l.project "
+        "AND a.subject = l.slug) OR EXISTS (SELECT 1 FROM queue q WHERE q.project = l.project "
+        "AND q.slug = l.slug AND q.thread = k.thread))) AS words "
+        "FROM lead_times l WHERE l.go < l.merged_at",
+    ),
+    (
+        "weekly_no_word",
+        "SELECT week, count(*) AS merged, sum(words = 0) AS quiet, "
+        "100.0 * sum(words = 0) / count(*) AS share FROM row_words GROUP BY week",
     ),
     (
         "weekly_typed_per_row",

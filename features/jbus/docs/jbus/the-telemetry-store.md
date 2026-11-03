@@ -124,6 +124,10 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `weekly_merges` | each week's rows `merged` |
 | `weekly_doors` | each week's door acts `done`, and `not_yours`, those a home, a bot or jbus did |
 | `weekly_pass_time` | each week's jbus passes: `n`, and the `median` and `p85` of their seconds |
+| `weekly_row_spend` | each merge week's `rows` with any call recorded in `row_spend`, their `units`, and `per_row` in millions |
+| `weekly_spend` | each week of the days `jgauge spend` counted, each project's last line of a day (`spend_kept`): `days`, `units`, and in percent the `coordination` share, jbus's sends and the homes, and the `capped` share, runs that failed on a usage limit or part way |
+| `row_words` | S1 for each merged row with a go: the messages you typed, resumes apart, after its go and by its merge that name it, cited by an act of the row's project on the row or typed in its crew's thread |
+| `weekly_no_word` | each week's rows `merged`, those `quiet`, with no such message, and their `share`, in percent |
 
 A week starts on Sunday.
 The median and the 85th percentile are the scorecard's (`reports/week-audit/scorecard.py` in the home).
