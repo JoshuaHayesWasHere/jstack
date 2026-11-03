@@ -76,6 +76,70 @@
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one run of the check command, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself.
   While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite.
   A repo with no heavy suite has nothing more here: its check command is the whole of it.
+- Once the check passed, prove the change with the tests it changes: each `test_*.py` or `*_test.py` the branch adds or changes since its base fails over the base's code and passes at the head.
+  A run of a whole suite, or of tests that pass at the base as well, proves nothing: #968's `Proves it` printed 853 passed at its base while its named test failed there.
+  Run this in this worktree, with the block at the top, and the brief's slug and this thread's id in place of the words in angle brackets:
+
+  ```sh
+  B="$H/tasks/<slug>.md"
+  on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B" 2> /dev/null)
+  on=origin/${on:-main}
+  git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
+  head=$(git rev-parse HEAD)
+  if [ -n "$(git status --porcelain)" ]; then
+      echo "no proof: commit the work first"
+  elif ! base=$(git merge-base "$on" HEAD); then
+      echo "no proof: the branch shares no commit with $on"
+  elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
+      echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
+  else
+      tree=$(mktemp -d)
+      git archive "$base" | tar -x -C "$tree"
+      git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$' |
+          while read -r file; do
+              mkdir -p "$tree/$(dirname "$file")"
+              git show "HEAD:$file" > "$tree/$file"
+          done
+      (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
+      uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
+          tree=$1
+          shift
+          env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider "$@" > "$tree/.proof-head" 2>&1
+          echo "head exit $?: $(tail -n 1 "$tree/.proof-head")"
+          (cd "$tree" && env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider --continue-on-collection-errors "$@") > "$tree/.proof-base" 2>&1
+          echo "base exit $?: $(tail -n 1 "$tree/.proof-base")"
+      ' proof "$tree" $tests | tee "$tree/.proof-said"
+      ran=${PIPESTATUS[0]}
+      at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+      at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
+      if [ "$ran" != 0 ] || [ -z "$at_head" ] || [ -z "$at_base" ]; then
+          echo "no proof: the slot's run ended $ran"
+      else
+          line="Proved: $(printf '%s\n' "$tests" | paste -sd ' ') base exit $at_base at $base, head exit $at_head at $head"
+          echo "$line"
+          if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
+      fi
+      uv run --project "$T/../source" jbus forget "$tree"
+  fi
+  ```
+
+  The head's tests run at the head, then laid over a copy of the base's tree in a venv of its own, so the base run imports the base's code and not the head's.
+  The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, and each `conftest.py`.
+  At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
+  A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
+  It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
+  On anything else, fix the tests until they fail without the change, commit, and run it again.
+  The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.
+  A later round that changes the tests runs it again, and the last `Proved:` line is the one `jmerge` reads.
+  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, or one with a base exit other than 1 or a head exit other than 0 (`ready.short_on_proved`).
+
+  A pull request that changes no test file writes `Proved: none, <kind>`, with `docs`, `config`, or `docs and config`, and is exempt.
+  The kinds that are exempt, and the files each covers (`jbriefs.parse.EXEMPT`), are these:
+  - `docs`: `*.md`, `*.txt`, `*.rst`, and anything under a `docs/` directory.
+  - `config`: `*.toml`, `*.json`, `*.yml`, `*.yaml`, `*.cfg`, `*.ini`, `*.lock`, a dotfile such as `.gitignore`, and anything under `.github/`.
+
+  `jmerge` waits on a `none` line where the pull request changes a test or a file of no kind the line names.
+  A change to code is none of these: it adds or changes a test that fails without it.
 - If the brief says to open a pull request, open it once the checks pass, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
 
   ```sh
