@@ -44,18 +44,4 @@ So the first pass that has the pair reminds you of each item that has blocked fo
 The stall that jbus says again each hour (`waiting-on-user`) is quiet and posted nowhere, so the refresh does not double it.
 
 Where you run [the relay](the-relay.md), an optional server for a chat bot of your own, the relay also pages you when the chat bot is silent.
-The relay needs nothing from the chat bot to tell that it is silent, and it pages in two cases:
-
-- **The chat bot did not take it.**
-  When a POST on the relay's `blocking` route fails or times out, the relay pages at once, with the event id.
-  It pages for each body that waits on that route, once for each event.
-  The chat bot may have got a body whose POST timed out, so this case may page once too often, but never too few times.
-- **It still blocks long after its reminder.**
-  If a `reminder` or a `refresh` still lists an item 45 minutes after it began to block, the relay pages once for it, by its `key` and when it opened.
-  That is 30 minutes after its one reminder, measured from the item's `opened` to the body's `at`.
-  The relay learns that an item closed only from a refresh that leaves it out, so this case fires on a refresh.
-  It fires between 45 minutes and about an hour and three quarters after the item began to block.
-  It does not fire in the first hour after you set the second target, because jbus posts no refresh until the next hour begins.
-  An item that a refresh dropped before then pages nothing, and an item that closes and opens again is a new item.
-
-An item the chat bot has acknowledged (a POST of its event id to the relay's `/ack`) does not page in the second case.
+[When the relay pages you](the-relay.md#when-the-relay-pages-you) has the two cases.

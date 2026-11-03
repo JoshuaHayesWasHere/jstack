@@ -79,5 +79,4 @@ They are in `features/jgauge/src/jgauge/room.sh`, the only implementation of the
 
 The defaults were measured on one machine, a desk of 24 processors and 62 GiB.
 [Limits](../limits.md) records those measurements, and lists every number that caps work and the reason for each value.
-[Machine-sized limits](../design/limits.md) is the design record of the change that derived the three sizes.
-Neither page describes your machine.
+That page does not describe your machine.

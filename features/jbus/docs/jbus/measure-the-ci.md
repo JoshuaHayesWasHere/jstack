@@ -57,7 +57,7 @@ Rebases per merged PR and staleness-only rebases count pull requests, not jobs, 
 | --- | --- | --- |
 | queue p50 under exec p50 | the wait is under the run | median minutes from `created` to `started`, against the median from `started` to `completed`, of green jobs. A job cancelled while it waited is in neither. |
 | wasted-minute share | under 15% | execution minutes of jobs that failed or were cancelled, over all execution minutes |
-| own-cause reds | over 70% | of the failed jobs on a run's last attempt, the share that is the pull request's own. A red job is `main` when main was red with the same failing tests when the job started. It is `runner` when its log shows a runner fault and another branch fails the same tests, and `flake` when no fault shows. Any other red job is `own`. |
+| own-cause reds | over 70% | of the failed jobs on a run's last attempt, the share that is the pull request's own. A red job whose log was not read is `unread`, and counts against the share. Otherwise a red job is `main` when main was red with the same failing tests when the job started. It is `runner` when its log shows a runner fault and another branch fails the same tests, and `flake` when no fault shows. Any other red job is `own`. |
 | rebases per merged PR | under 0.3 | force-pushes of the branches of the pull requests merged in the period, over those pull requests |
 | staleness-only rebases | none | force-pushes whose cause was only that main had moved, read from the jbus event that came before them |
 | time-to-green p50 | under 15 min | median minutes from the first job on a merged pull request's final head to the last green one |

@@ -40,7 +40,8 @@ It counts only the gates that silence or the user's word closed, each closer apa
 
 ## Classes
 
-- `standing`: a standing rule or memory already answers the question.
+- `standing`: a standing rule already answers the question.
+  A standing rule lives in code, a brief or the queue, never in a `standing.md` or an agent's memory (`features/jbus/src/jbus/rules.py`).
 - `reversible_obvious`: the default is reversible and plainly right.
 - `josh_choice`: a real choice that only the user can make.
 - `door`: one of the six one-way doors of the gates table.

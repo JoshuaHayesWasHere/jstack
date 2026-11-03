@@ -2,6 +2,8 @@
 
 `jgauge room` prints `wait: ` and the first reading that has no room. No thread is launched until it prints `go`. `wait:` is an answer, not a fault: most readings clear by themselves.
 
+[The limits that are fixed](../jgauge/change-a-limit.md#the-limits-that-are-fixed) lists the line that each machine reading is held to.
+
 | Line | Meaning | Do this |
 |---|---|---|
 | `wait: load <load> is at or over 200% of <n> cores; the busiest: <command> in <folder> (<n>%), ...` | The run queue is twice the cores: a backstop past what CPU pressure already says. On Linux the line ends `; the busiest:` with the three processes that used the largest share of a core over their lives, each with its command and its working directory. On macOS the line has no busiest part. A review never says it: its check, `jgauge room --light`, skips the load. | Wait for running tests or builds to end, or stop a process the line names that nothing needs. |

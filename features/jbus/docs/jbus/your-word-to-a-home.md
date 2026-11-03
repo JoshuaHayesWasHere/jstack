@@ -21,7 +21,6 @@ Its id is the first 12 characters of a hash of the project, the words, you, the 
 Its evidence is your words, their time, the message as `ref`, the title of the thread as `said_in`, and `checked: true`.
 Its line is `kept`, or why jbus posts the word to nobody.
 What became of the word is in `word-sends.json` in the same directory: the thread that received it and when (`thread`, `sent_at`), or why it has not gone yet (`waits`).
-jbus no longer reads the `words.json` of words kept before words were acts: a word it kept there and never sent is said again with `jbus word --message`.
 
 jbus sends the word at once, as one queued message, to the thread id in the home's `home-id` file.
 It prints `sent: <project>, to <thread>, word <id>` or `waits: <project>, <why>, word <id>`, and on a second run of a word that went, `already sent: <project>, to <thread>, word <id>`.
