@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import test_jmerge_rejudge as rejudging
-from jmerge import backoff
+from jmerge import backoff, rejudge
 from jsettings import budget
 from test_jmerge_fresh import url
 from test_jmerge_rejudge import BROKE, FIXED, OURS, THEIRS, WHOLE_TREE, Replay, checked
@@ -158,3 +158,60 @@ def test_no_run_log_is_read_twice_for_one_head_and_base_tip(tmp_path, second, as
     replay.main_at({"b.txt": "theirs\n"}, "2026-10-23T16:00:00Z", "green")
     replay.run()
     assert len(reads()) > len(first)
+
+
+def going(branch, number, at):
+    """A run of the check on `branch` that GitHub lists as still going."""
+
+    def change(stub):
+        path = stub / f"runs-{branch}-check.json"
+        run = {"databaseId": number, "status": "in_progress", "conclusion": "", "createdAt": at}
+        path.write_text(json.dumps([run, *json.loads(path.read_text())]))
+
+    return change
+
+
+UNSETTLED = {
+    "a-run-list-that-failed": lambda stub: (stub / "runs-one-check.json").unlink(),
+    "a-log-github-did-not-give": lambda stub: (stub / "log-81.txt").unlink(),
+    "a-run-going-on-its-branch": going("one", 82, "2026-10-23T14:00:00Z"),
+    "a-run-going-on-main-before-its-last-run": going("main", 72, "2026-10-23T12:45:00Z"),
+}
+
+
+@pytest.mark.parametrize("unsettled", UNSETTLED)
+def test_an_answer_github_left_unsettled_is_not_kept_and_the_next_run_reads_again(
+    tmp_path, unsettled
+):
+    """`rejudge.Repeated` leaves its answer unsettled where `gh run list` failed, where GitHub
+    gave no log of a run, or where a run is still going on the pull request's branch or on main
+    before its last run. No "repeated" is kept for the head and tip then, and the next run lists
+    the runs again. Its last two runs failed a same test of its own, so each case's answer would
+    be kept were it settled."""
+    replay = Replay(tmp_path)
+    stub = replay.kitchen.home.stub
+    (stub / "down").write_text("502")
+    gh = stub / "gh"
+    text = gh.read_text().replace("    *) exit 64 ;;\n", rejudging.RUNS + "    *) exit 64 ;;\n")
+    gh.write_text(text)
+    replay.crew("one", 333, {"one.txt": "ours\n"})
+    mains = [(70, "2026-10-23T11:30:00Z", (THEIRS,)), (71, "2026-10-23T12:30:00Z", ())]
+    checked(replay, "main", mains)
+    checked(
+        replay, "one", [(80, "2026-10-23T12:00:00Z", (OURS,)), (81, rejudging.STARTED, (OURS,))]
+    )
+    UNSETTLED[unsettled](stub)
+    replay.main_at(WHOLE_TREE, BROKE, "failed")
+    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+
+    def lists():
+        return [call for call in calls(replay) if call.startswith("run list")]
+
+    replay.run()
+    first = lists()
+    assert first
+    path = replay.kitchen.home.state / rejudge.NAME
+    records = json.loads(path.read_text()) if path.exists() else {}
+    assert "repeated" not in records.get("333", {})
+    replay.run()
+    assert lists() == first + first
