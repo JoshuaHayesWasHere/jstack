@@ -1354,7 +1354,9 @@ class Nightly:
     rest are the brief's own lines: `failed` what failed, `where` its `Where:` when the log
     names no test, `done` and `proves` how the fix is shown, `pull` its `Pull request:`, and
     `home` the scoped home it is filed under, or an empty string for the root home, and `filed`
-    the red the brief's `Decisions:` line says it was filed from. `title`,
+    the red the brief's `Decisions:` line says it was filed from. `events`, where it is set, are
+    the only events whose runs are filed: a workflow that also runs on a push to the default
+    branch has that run judged as main's check (`_judged`), so its red is main's red. `title`,
     where it is set, is the title of the runs jbus files for: a run of the workflow with any
     other title checked out another ref, and is that ref's concern. `branch`, where it is set, is
     the branch those runs check out: until one run of it there has passed, its red runs are that
@@ -1374,6 +1376,7 @@ class Nightly:
     title: str = ""
     branch: str = ""
     filed: str = "nightly run"
+    events: tuple[str, ...] = ()
 
 
 BROWSER = Nightly(
@@ -1413,6 +1416,9 @@ WORKFLOWS = (
 )
 """The GraphQL query for the text of each file of `.github/workflows/` at the default branch,
 which `HEAD:` names on GitHub, in one call."""
+SCHEDULED_EVENTS = ("schedule", "workflow_dispatch")
+"""The events of a scheduled workflow's runs that `scheduled` files: its push runs on the default
+branch are main's check (`_judged`), and its release runs are no concern of the schedule's."""
 SCHEDULE = re.compile(r"^\s+schedule:\s*(#.*)?$", re.MULTILINE)
 """A workflow's `schedule:` trigger, a key under `on:` with its crons under it."""
 NIGHTLY_RELEASE = ("push", "release")
@@ -1437,6 +1443,7 @@ def scheduled(file: str) -> Nightly:
         f"a manual run of {file} (`gh workflow run {file} --ref <the fix's branch>`) where it "
         "has a `workflow_dispatch:` trigger",
         filed="scheduled run",
+        events=SCHEDULED_EVENTS,
     )
 
 
@@ -1558,7 +1565,8 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
         ended = when(one.get("updated_at") or one["created_at"])
         stale = run.now - ended > NIGHTLY_WINDOW
         event, off = one.get("event"), one.get("head_branch") != default
-        if event == "pull_request" or (off and event not in NIGHTLY_RELEASE):
+        theirs = not nightly.events or event in nightly.events
+        if event == "pull_request" or not theirs or (off and event not in NIGHTLY_RELEASE):
             seen.setdefault(number, "")
             continue
         if nightly.title and one.get("display_title") != nightly.title:

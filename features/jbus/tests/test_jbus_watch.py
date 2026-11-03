@@ -1290,3 +1290,12 @@ def test_a_scheduled_browser_yml_keeps_its_own_rule(kitchen):
     kitchen.poll()
     assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
     assert red_rows(kitchen, "red-browser-") == []
+
+
+def test_a_scheduled_workflows_push_run_on_main_is_mains_check_and_files_no_row_of_its_own(kitchen):
+    """A workflow that also runs on a push to main has its push run judged as main's check, so only
+    its scheduled or manual runs file its own row."""
+    both = DRIFT.replace("on:\n", "on:\n  push:\n    branches: [main]\n", 1)
+    scheduled_runs(kitchen, {"drift.yml": [browser_run(66, event="push")]}, {"drift.yml": both})
+    kitchen.poll()
+    assert red_rows(kitchen, "red-drift-") == []
