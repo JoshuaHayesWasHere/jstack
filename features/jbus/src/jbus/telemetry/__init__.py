@@ -66,6 +66,8 @@ PASS_BYTES = 16 * 2**20
 """How much of the record files a pass reads at most; a file is read whole once begun."""
 BUSY_MS = 30_000
 TRIMMED = next(source for source in SOURCES if source.table == "events")
+RAN = "migrations"
+"""The store's table of the name of each migration it has run (`jbus.telemetry.migrations`)."""
 
 
 @dataclass
@@ -97,8 +99,8 @@ def _zone_name(zone: tzinfo | None) -> str:
 
 
 def connect(where: Path) -> sqlite3.Connection:
-    """Open the store at `where`, made private where it is new, in WAL mode, with its tables
-    at this schema's version and its views made again."""
+    """Open the store at `where`, made private where it is new, in WAL mode, with every
+    migration run on it and its views made again."""
     where.parent.mkdir(parents=True, exist_ok=True)
     os.close(os.open(where, os.O_WRONLY | os.O_CREAT, 0o600))
     connection = sqlite3.connect(where, timeout=BUSY_MS / 1000, isolation_level=None)
@@ -109,15 +111,50 @@ def connect(where: Path) -> sqlite3.Connection:
     return connection
 
 
+def ran(connection: sqlite3.Connection) -> set[str] | None:
+    """The name of each migration the store has run, or None where it keeps no table of them."""
+    if not connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (RAN,)
+    ).fetchone():
+        return None
+    return {name for (name,) in connection.execute(f"SELECT name FROM {RAN}")}
+
+
 def migrate(connection: sqlite3.Connection) -> None:
-    """Run each migration the store has not had, each with its new version in one transaction."""
-    version = connection.execute("PRAGMA user_version").fetchone()[0]
-    for number, sql in enumerate(migrations.MIGRATIONS[version:], version + 1):
-        try:
-            connection.executescript(f"BEGIN;\n{sql}PRAGMA user_version = {number};\nCOMMIT;")
-        except sqlite3.Error:
-            if connection.in_transaction:
-                connection.execute("ROLLBACK")
+    """Run each migration the store has not, in name order, each in one transaction with its
+    name. A store that counted its migrations by `PRAGMA user_version`, as stores did before
+    they kept their names, is moved once to the table, with the names of as many of them as
+    its version. The move keeps that version, so a jbus still on the counting code, such as a
+    branch not rebased yet, finds every migration it knows run and runs none."""
+    if ran(connection) is None:
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        names = "".join(_kept(name) for name in list(migrations.MIGRATIONS)[:version])
+        _once(
+            connection,
+            f"CREATE TABLE {RAN} (name TEXT PRIMARY KEY) WITHOUT ROWID;\n{names}",
+            None,
+        )
+    done = ran(connection) or set()
+    for name, sql in migrations.MIGRATIONS.items():
+        if name not in done:
+            _once(connection, f"{_kept(name)}{sql}", name)
+
+
+def _kept(name: str) -> str:
+    return f"INSERT INTO {RAN} (name) VALUES ('{name}');\n"
+
+
+def _once(connection: sqlite3.Connection, sql: str, name: str | None) -> None:
+    """Run `sql` in one transaction, which keeps the migration `name`, or makes the table of
+    names where `name` is None. Where it fails because another connection did it first, the
+    store has it, and that is no error."""
+    try:
+        connection.executescript(f"BEGIN IMMEDIATE;\n{sql}COMMIT;")
+    except sqlite3.Error:
+        if connection.in_transaction:
+            connection.execute("ROLLBACK")
+        held = ran(connection)
+        if held is None or (name is not None and name not in held):
             raise
 
 

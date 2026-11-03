@@ -231,10 +231,11 @@ It never writes over a file, and it never replaces the store, which holds rows t
 
 ## Change the store
 
-`PRAGMA user_version` is the schema's version.
 A change to a table is a new migration, a module of its own in `jbus.telemetry.migrations`, run once on each store.
-Its name is `v<NNN>_<slug>.py`, where `NNN` is the version it brings a store to, one more than the last migration's.
-A store knows only its version, so the migrations run in the order of their names, and two of the same `NNN`, or a gap, fail the import.
+Its name is `v<NNN>_<slug>.py`, where `NNN` only orders it: it need not be free, or one more than the last migration's.
+The store keeps the name of each migration it has run in its `migrations` table, and runs each one it has not, in the order of their names.
+So two changes that each add a `v010_` both run, and a migration changes only what the migrations named before it made.
+A store that counted its migrations by `PRAGMA user_version`, as stores did before, is moved to the table once, with the names of as many of them as its version.
 A migration that has merged is never edited, renamed or removed.
 The first migration is written out as SQL, so a column a `Source` gains is a later migration and never an edit of it.
 A new view is a module of its own in `jbus.telemetry.views`, named as the view, whose `SQL` is its `SELECT`, with a test beside it, and no migration: the views hold no rows, so each build makes them again.
