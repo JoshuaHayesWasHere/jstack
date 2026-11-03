@@ -18,9 +18,8 @@ A source is a `log` or a `snapshot`:
   `ci-prs.jsonl`. A row's key is the record's own (`number` or `slug`), and a newer snapshot
   updates the row and never deletes one, so a record that leaves the file stays in the store.
 
-Each time is kept in UTC, in one form of fixed width (`utc`), so that text order is time order,
-and each table has the local `day` of its `at` column in the user's zone, since SQLite has no
-zone of its own to bucket by.
+Each time is kept in UTC, in one form of fixed width, and each table has the local `day` of its
+`at` column in the user's zone (`jbus.telemetry.stamps`).
 """
 
 from __future__ import annotations
@@ -30,55 +29,18 @@ import json
 import re
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime, tzinfo
+from datetime import tzinfo
 from typing import Any, Literal
 
-from jbus.telemetry import asks
+from jbus.telemetry import asks, stamps
 
 Row = dict[str, Any]
 """One row of a table, by column."""
 MACHINE = ""
 """The project of a row that is the machine's, as `jbus.alert.MACHINE` names its owner."""
 
-STAMP = "%Y-%m-%dT%H:%M:%S.%fZ"
-_WORDED = re.compile(r"(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::(\d{2}))?(?: (\S+))?")
 _MERGE_LINE = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)(?: #?(\d+))?(?: (\S+))?")
 _LABEL = re.compile(r"\[([\w-]+)\]\s*$")
-
-
-def utc(said: object, zone: tzinfo | None = None) -> str | None:
-    """The time a record names, in UTC as `STAMP` writes it, or None where it names none.
-
-    It reads the forms jbus writes: ISO 8601 with `+00:00` or `Z`, and `YYYY-MM-DD HH:MM` with
-    or without seconds, then the zone's word (`EDT`) or nothing, in `zone`. Of an hour the
-    clocks go back through, it takes the one whose word the time gives."""
-    if not isinstance(said, str) or not said.strip():
-        return None
-    text = said.strip()
-    found = _WORDED.fullmatch(text)
-    if found:
-        moment = datetime.fromisoformat(f"{found[1]}T{found[2]}:{found[3] or '00'}")
-        here = zone or UTC
-        word = found[4]
-        local = moment.replace(tzinfo=here)
-        if word and local.tzname() != word and moment.replace(tzinfo=here, fold=1).tzname() == word:
-            local = moment.replace(tzinfo=here, fold=1)
-        return local.astimezone(UTC).strftime(STAMP)
-    try:
-        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=UTC)
-    return moment.astimezone(UTC).strftime(STAMP)
-
-
-def day(at: str | None, zone: tzinfo | None) -> str | None:
-    """The local date of a time `utc` wrote, in `zone`, or the machine's zone for None."""
-    if at is None:
-        return None
-    moment = datetime.strptime(at, STAMP).replace(tzinfo=UTC)
-    return (moment.astimezone(zone) if zone else moment.astimezone()).date().isoformat()
 
 
 def key(line: str, before: int) -> str:
@@ -121,7 +83,7 @@ def _pull(value: object) -> int | None:
 
 def _events(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "event": _text(one.get("event")),
         "slug": _text(one.get("slug")),
         "loud": _text(one.get("loud")),
@@ -137,7 +99,7 @@ def _acts(one: Row, zone: tzinfo | None) -> Row:
     action, evidence, party = (_dict(one.get(name)) for name in ("action", "evidence", "party"))
     return {
         "id": _text(one.get("id")),
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "verb": _text(action.get("verb")),
         "subject": _text(action.get("subject")),
         "outcome": _text(one.get("outcome")),
@@ -147,7 +109,7 @@ def _acts(one: Row, zone: tzinfo | None) -> Row:
         "source": _text(evidence.get("source")),
         "ref": _text(evidence.get("ref")),
         "said_in": _text(evidence.get("said_in")),
-        "said_at": utc(evidence.get("said_at"), zone),
+        "said_at": stamps.utc(evidence.get("said_at"), zone),
         "gate": _number(one.get("gate")),
         "doors": _count(action.get("doors")),
         "picks": _count(evidence.get("picks")),
@@ -168,14 +130,14 @@ def _asks(verb: object, words: object) -> str | None:
 def _passes(one: Row, zone: tzinfo | None) -> Row:
     seconds = one.get("seconds")
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "seconds": seconds if isinstance(seconds, int | float) else None,
     }
 
 
 def _drift(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "probe": _text(one.get("probe")),
         "word": _text(one.get("word")),
         "status": _text(one.get("status")),
@@ -188,7 +150,7 @@ def _drift(one: Row, zone: tzinfo | None) -> Row:
 def _items(one: Row, zone: tzinfo | None) -> Row:
     return {
         "id": _text(one.get("id")),
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "item": _text(one.get("item")),
         "verb": _text(one.get("verb")),
         "slug": _text(one.get("slug")) or None,
@@ -202,7 +164,7 @@ def _items(one: Row, zone: tzinfo | None) -> Row:
 
 def _transitions(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),
         "from_status": _text(one.get("from")),
         "to_status": _text(one.get("to")),
@@ -213,7 +175,7 @@ def _transitions(one: Row, zone: tzinfo | None) -> Row:
 
 def _outbox(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "thread": _text(one.get("thread")),
         "row": _text(one.get("row")),
         "template": _text(one.get("template")),
@@ -234,9 +196,9 @@ def _ci_jobs(one: Row, zone: tzinfo | None) -> Row:
         "branch": _text(one.get("branch")),
         "pr": _number(one.get("pr")),
         "event": _text(one.get("event")),
-        "created": utc(one.get("created"), zone),
-        "started": utc(one.get("started"), zone),
-        "completed": utc(one.get("completed"), zone),
+        "created": stamps.utc(one.get("created"), zone),
+        "started": stamps.utc(one.get("started"), zone),
+        "completed": stamps.utc(one.get("completed"), zone),
         "conclusion": _text(one.get("conclusion")),
         "runner": _text(one.get("runner")),
         "kind": _text(one.get("kind")),
@@ -259,7 +221,7 @@ def _merges(line: str, zone: tzinfo | None) -> Row:
     label = _LABEL.search(line)
     merged = found is not None and found[2] == "merged"
     return {
-        "at": utc(found[1], zone) if found else None,
+        "at": stamps.utc(found[1], zone) if found else None,
         "verb": found[2] if found else None,
         "number": int(found[3]) if found and found[3] else None,
         "slug": found[4] if merged else None,
@@ -274,10 +236,10 @@ def _questions(one: Row, zone: tzinfo | None) -> Row:
         "number": _number(one.get("number")),
         "slug": _text(one.get("slug")),
         "thread": _text(one.get("thread")),
-        "asked_at": utc(one.get("asked_at"), zone),
+        "asked_at": stamps.utc(one.get("asked_at"), zone),
         "holds": bool(one.get("holds")),
         "options": _count(one.get("options")),
-        "answered_at": utc(answer.get("at"), zone),
+        "answered_at": stamps.utc(answer.get("at"), zone),
         "answered_by": _text(answer.get("by")),
         "closed_by": _text(answer.get("closed_by")),
         "answer_place": _text(answer.get("where")),
@@ -302,11 +264,11 @@ def _queue(one: Row, zone: tzinfo | None) -> Row:
         "pr": _pull(one.get("pr")),
         "on_hold": bool(one.get("held")),
         "role": _text(one.get("role")),
-        "updated": utc(one.get("updated"), zone),
+        "updated": stamps.utc(one.get("updated"), zone),
         "approval_basis": _text(approval.get("basis")),
         "approval_ref": _text(approval.get("ref")),
-        "approval_said_at": utc(approval.get("said_at"), zone),
-        "approval_ran_at": utc(approval.get("ran_at"), zone),
+        "approval_said_at": stamps.utc(approval.get("said_at"), zone),
+        "approval_ran_at": stamps.utc(approval.get("ran_at"), zone),
     }
 
 
@@ -314,7 +276,7 @@ def _merged(one: Row, zone: tzinfo | None) -> Row:
     return {
         "slug": _text(one.get("slug")),
         "number": _number(one.get("number")),
-        "merged_at": utc(one.get("mergedAt"), zone),
+        "merged_at": stamps.utc(one.get("mergedAt"), zone),
         "merge_commit": _text(_dict(one.get("mergeCommit")).get("oid")),
         "state": _text(one.get("state")),
         "title_len": _length(one.get("title")),
@@ -326,10 +288,10 @@ def _ci_prs(one: Row, zone: tzinfo | None) -> Row:
         "number": _number(one.get("number")),
         "branch": _text(one.get("branch")),
         "head": _text(one.get("head")),
-        "created": utc(one.get("created"), zone),
-        "updated": utc(one.get("updated"), zone),
-        "merged": utc(one.get("merged"), zone),
-        "closed": utc(one.get("closed"), zone),
+        "created": stamps.utc(one.get("created"), zone),
+        "updated": stamps.utc(one.get("updated"), zone),
+        "merged": stamps.utc(one.get("merged"), zone),
+        "closed": stamps.utc(one.get("closed"), zone),
         "merge_commit": _text(one.get("merge_commit")),
         "pushes": _count(one.get("pushes")),
     }
@@ -337,7 +299,7 @@ def _ci_prs(one: Row, zone: tzinfo | None) -> Row:
 
 def _brief_versions(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),
         "sha": _text(one.get("sha")),
         "was": _text(one.get("was")),
@@ -347,19 +309,19 @@ def _brief_versions(one: Row, zone: tzinfo | None) -> Row:
 
 def _row_pulls(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),
         "number": _number(one.get("number")),
         "state": _text(one.get("state")),
         "branch": _text(one.get("branch")),
         "head": _text(one.get("head")),
-        "merged_at": utc(one.get("merged_at"), zone),
+        "merged_at": stamps.utc(one.get("merged_at"), zone),
     }
 
 
 def _runs(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "run": _number(one.get("run")),
         "attempt": _number(one.get("attempt")),
         "workflow": _text(one.get("workflow")),
@@ -367,9 +329,9 @@ def _runs(one: Row, zone: tzinfo | None) -> Row:
         "branch": _text(one.get("branch")),
         "event": _text(one.get("event")),
         "pr": _number(one.get("pr")),
-        "created": utc(one.get("created"), zone),
-        "started": utc(one.get("started"), zone),
-        "updated": utc(one.get("updated"), zone),
+        "created": stamps.utc(one.get("created"), zone),
+        "started": stamps.utc(one.get("started"), zone),
+        "updated": stamps.utc(one.get("updated"), zone),
         "conclusion": _text(one.get("conclusion")),
     }
 
@@ -382,7 +344,7 @@ KINDS = ("first", "reviews", "fixes", "sends", "homes", "scouts", "capped")
 def _spend_days(one: Row, zone: tzinfo | None) -> Row:
     spent_on = _text(one.get("day"))
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "spent_on": spent_on,
         **{name: _number(one.get(name)) for name in (*SPENT, *KINDS)},
     }
@@ -390,7 +352,7 @@ def _spend_days(one: Row, zone: tzinfo | None) -> Row:
 
 def _spend_rows(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "spent_on": _text(one.get("day")),
         "role": _text(one.get("role")),
         "slug": _text(one.get("slug")) or None,
@@ -402,7 +364,7 @@ def _word_sends(one: Row, zone: tzinfo | None) -> Row:
     return {
         "word": _text(one.get("id")),
         "thread": _text(one.get("thread")) or None,
-        "sent_at": utc(one.get("sent_at"), zone),
+        "sent_at": stamps.utc(one.get("sent_at"), zone),
         "waiting": bool(one.get("waits")),
     }
 
@@ -414,7 +376,7 @@ them: `others` of a severity none of the three, and `dismissed` those its lead d
 
 def _review_rounds(one: Row, zone: tzinfo | None) -> Row:
     return {
-        "at": utc(one.get("at"), zone),
+        "at": stamps.utc(one.get("at"), zone),
         "slug": _text(one.get("slug")),
         "pr": _number(one.get("pr")),
         "round_number": _number(one.get("round")),

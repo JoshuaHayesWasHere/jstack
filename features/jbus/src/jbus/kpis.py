@@ -38,7 +38,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 import jbus
 from jbus import alert, boxes, telemetry, verbs
-from jbus.telemetry import records, schema
+from jbus.telemetry import schema, stamps
 from jgauge import spend
 
 Say = Callable[[str], None]
@@ -71,11 +71,11 @@ class Look:
 
 
 def _stamp(moment: datetime) -> str:
-    return moment.astimezone(UTC).strftime(records.STAMP)
+    return moment.astimezone(UTC).strftime(stamps.STAMP)
 
 
 def _at(stamp: str) -> datetime:
-    return datetime.strptime(stamp, records.STAMP).replace(tzinfo=UTC)
+    return datetime.strptime(stamp, stamps.STAMP).replace(tzinfo=UTC)
 
 
 def _minutes(spans: list[tuple[datetime, datetime]], begin: datetime, end: datetime) -> float:

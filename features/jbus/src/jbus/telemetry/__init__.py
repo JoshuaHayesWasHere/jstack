@@ -55,6 +55,7 @@ from jbus.telemetry import (
     messages,
     migrations,
     records,
+    stamps,
     tokens,
     views,
 )
@@ -140,12 +141,12 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
         found = connection.execute(f"SELECT project, key, {at} FROM {table}")
         connection.executemany(
             f"UPDATE {table} SET day = ? WHERE project = ? AND key = ?",
-            [(records.day(at, zone), project, key) for project, key, at in found.fetchall()],
+            [(stamps.day(at, zone), project, key) for project, key, at in found.fetchall()],
         )
     found = connection.execute("SELECT provider, call, at FROM calls")
     connection.executemany(
         "UPDATE calls SET day = ? WHERE provider = ? AND call = ?",
-        [(records.day(at, zone), provider, call) for provider, call, at in found.fetchall()],
+        [(stamps.day(at, zone), provider, call) for provider, call, at in found.fetchall()],
     )
     connection.execute("INSERT OR REPLACE INTO meta (name, value) VALUES ('zone', ?)", (name,))
     connection.execute("COMMIT")
@@ -186,7 +187,7 @@ def _values(source: Source, project: str, key: str, row: records.Row, zone: tzin
         project,
         key,
         *(row.get(name) for name, _ in source.columns),
-        records.day(row.get(source.at), zone),
+        stamps.day(row.get(source.at), zone),
     )
 
 
@@ -296,7 +297,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",
             (
-                records.utc(datetime.now(UTC).isoformat()),
+                stamps.utc(datetime.now(UTC).isoformat()),
                 built.ms,
                 built.bytes,
                 sum(built.rows.values()),

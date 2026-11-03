@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 import jbus
 from jbus import queue, read_json
-from jbus.telemetry import cursors, records
+from jbus.telemetry import cursors, records, stamps
 
 if TYPE_CHECKING:
     from jbus.telemetry import Built
@@ -69,7 +69,7 @@ def rows(record: dict[str, Any], slug: str, zone: tzinfo | None) -> list[tuple[s
         "slug": slug,
         "role": _text(record.get("role")) or queue.CREW,
         "thread": _text(record.get("thread")),
-        "at": records.utc(record.get("at"), zone),
+        "at": stamps.utc(record.get("at"), zone),
     }
     if not named:
         return [(base, {**common, "dial": None, "arm": None, "covered": 0})]
@@ -105,7 +105,7 @@ def read(
         record = read_json(path, {})
         built.bytes += path.stat().st_size
         for key, row in rows(record, slug, zone):
-            day = records.day(row["at"], zone)
+            day = stamps.day(row["at"], zone)
             found.append((project, key, *(row[name] for name in COLUMNS), day))
     names = ", ".join(("project", "key", *COLUMNS, "day"))
     marks = ", ".join("?" for _ in range(len(COLUMNS) + 3))
