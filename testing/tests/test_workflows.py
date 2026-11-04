@@ -10,10 +10,12 @@ only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
 of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
-two workflows. The workflow `macos`: on each pull request its job `macos-select`, on Linux,
-picks the test files listed in `testing/macos-quick.txt`, the ones whose code branches on macOS
-or that guard a break only a Mac has, that the change reaches, and its job `macos` runs them on a
-Mac. Where the change reaches none, `macos` is skipped by its `if:` and no Mac starts. Its check
+two workflows. The workflow `macos`: on each pull request and each push to main its job
+`macos-select`, on Linux, picks the test files listed in `testing/macos-quick.txt`, the ones whose
+code branches on macOS or that guard a break only a Mac has, that the change reaches, and its job
+`macos` runs them on a Mac. A pull request picks with `--strict`, a part of what a push picks.
+Where the change reaches none, `macos` is skipped by its `if:` and no Mac starts. No `paths:`
+filter skips the workflow, and no push run on main is cancelled. Its check
 fails when those tests do, so the home can name it in `required-checks`, and a skip passes it.
 The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
@@ -217,7 +219,7 @@ def test_no_file_under_github_names_a_runner_of_the_owners_machine_or_its_variab
 
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
     for path in sorted(WORKFLOWS.glob("*.yml")):
-        more = {"actions": "read"} if path in (CHECK, MAC) else {}
+        more = {"actions": "read"} if path in (CHECK, MAC, RELEASE) else {}
         contents = "write" if path == RELEASE else "read"
         assert block("permissions", path) == {"contents": contents} | more, path.name
         assert "pull_request_target" not in path.read_text(), path.name
@@ -502,7 +504,7 @@ CAPS = {
     ("macos.yml", "macos-select"): "5",
     ("macos.yml", "macos"): "25",
     ("pstack-drift.yml", "drift"): "5",
-    ("release.yml", "release"): "30",
+    ("release.yml", "release"): "15",
 }
 
 
@@ -658,12 +660,48 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert (f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite) == (gate == "full")
 
 
-def test_macos_runs_on_every_pull_request_and_on_nothing_else():
-    assert block("on", MAC) == {"pull_request": None}
+MAC_GROUP = "github.event_name == 'push' && github.sha || github.ref"
+
+
+def test_macos_runs_on_each_pull_request_and_each_push_to_main_and_never_cancels_one_on_main():
+    """Each merge commit into main gets a macos run of its own, which no later merge cancels, so a
+    Mac red names its merge. A pull request's newer run cancels its older one."""
+    assert block("on", MAC) == {"pull_request": None, "push": {"branches": ["main"]}}
     assert block("concurrency", MAC) == {
-        "group": "macos-${{ github.ref }}",
-        "cancel-in-progress": True,
+        "group": "macos-${{ " + MAC_GROUP + " }}",
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
     }
+    cancels = block("concurrency", MAC)["cancel-in-progress"]
+    cancels = cancels.removeprefix("${{ ").removesuffix(" }}")
+    assert [worked(cancels, {"github.event_name": e}) for e in ("pull_request", "push")] == [
+        True,
+        False,
+    ]
+
+    def group(event, sha):
+        names = {"github.event_name": event, "github.sha": sha, "github.ref": "refs/pull/9/merge"}
+        return worked(MAC_GROUP, names)
+
+    assert group("pull_request", "a") == group("pull_request", "b") == "refs/pull/9/merge"
+    assert [group("push", "a"), group("push", "b")] == ["a", "b"]
+
+
+def path_filters(text):
+    """Each line of a workflow that sets a `paths:` or `paths-ignore:` key, comments left out."""
+    return [
+        line
+        for line in text.splitlines()
+        if re.match(r"\s*(paths|paths-ignore)\s*:", line.split("#")[0])
+    ]
+
+
+def test_macos_has_no_paths_filter_so_its_required_check_always_posts():
+    """A run a `paths:` filter leaves out posts no `macos` check at all, and jmerge waits on a
+    required check that never ran (`jmerge.ready.passed`): the line is stuck. The macos workflow
+    skips its Mac only by the selection and the job's `if:`, a skip that passes the check."""
+    assert path_filters(MAC.read_text()) == []
+    assert path_filters("on:\n  pull_request:\n    paths: ['a/**']\n") != []
+    assert path_filters("on:\n  push:\n    paths-ignore:\n      - docs/**\n") != []
 
 
 def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
@@ -763,7 +801,7 @@ def merged(tmp_path_factory):
     (bin / "uv").chmod(0o755)
     shell = summary_step("reached tests", MAC)
 
-    def run(path, text="\n"):
+    def run(path, text="\n", event="pull_request"):
         subprocess.run([*git, "reset", "-q", "--hard", main], check=True)
         with (repo / path).open("a") as file:
             file.write(text)
@@ -777,7 +815,8 @@ def merged(tmp_path_factory):
             ["bash", "-e", "-c", shell],
             cwd=repo,
             env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(temp)}
-            | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])},
+            | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])}
+            | {"GITHUB_EVENT_NAME": event},
             capture_output=True,
             check=True,
         )
@@ -820,6 +859,25 @@ def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reache
         ]
         assert output == {"run": "true", "tests": "\n".join(reached)}
     assert "features/jgauge/tests/test_room.py" not in merged(DARWIN_LISTED)[0]
+
+
+@pytest.mark.parametrize(
+    "path", ["features/crew/verify.md", "README.md"], ids=["a feature's page", "a doc"]
+)
+def test_a_pull_requests_macos_selects_strictly_and_the_push_of_its_merge_runs_the_rest(
+    merged, path
+):
+    """A pull request selects with `--strict`: a change to code off Darwin starts no Mac there.
+    The push of its merge commit into main selects with `--within` alone and runs the list's tests
+    that the change reaches by a feature or a name, and those it reaches strictly too."""
+    reached, summary, output = merged(path)
+    assert (reached, output["run"]) == ([], "false")
+    assert summary.startswith("macOS: the change reaches no test")
+    pushed, summary, output = merged(path, event="push")
+    assert pushed and output == {"run": "true", "tests": "\n".join(pushed)}
+    assert summary.startswith(f"macOS: the change reaches {len(pushed)} test files")
+    for path in (DARWIN_LISTED, DARWIN_SOURCE):
+        assert set(merged(path)[0]) <= set(merged(path, event="push")[0])
 
 
 ADDED = "features/jbus/tests/test_item.py"
@@ -1049,9 +1107,17 @@ def test_a_pair_whose_trees_differ_or_no_passed_macos_run_of_this_repo_left_runs
 
 
 @pytest.mark.parametrize(
-    "env", [{"GITHUB_RUN_ATTEMPT": "2"}, {"GITHUB_EVENT_NAME": "workflow_dispatch"}]
+    "env",
+    [
+        {"GITHUB_RUN_ATTEMPT": "2"},
+        {"GITHUB_EVENT_NAME": "workflow_dispatch"},
+        {"GITHUB_EVENT_NAME": "push"},
+    ],
 )
 def test_a_macos_run_again_never_reuses_and_asks_nothing(tmp_path, env):
+    """A run again, and a push to main, run the Mac: a push run selects with `--within`, more
+    than the `--strict` run of a pull request that may have left the marker of the same trees."""
+
     def left(base, merge):
         return {f"macos-checked-{base}-{merge}": run(path=MAC_WORKFLOW)}
 
@@ -2238,13 +2304,12 @@ def test_a_release_runs_on_a_pushed_version_tag_and_on_nothing_else():
     assert triggers(RELEASE.read_text()) == {"push": {"tags": ["v*"]}}
 
 
-def test_a_release_checks_the_tag_then_the_tree_builds_installs_the_wheel_and_then_publishes():
+def test_a_release_checks_the_tag_and_main_s_verdict_on_its_tree_builds_installs_and_publishes():
     found, _ = steps(RELEASE.read_text(), "release")
     named = [step.get("name") for step in found if step.get("name")]
     assert named == [
         "make release-tag",
-        "zsh",
-        "make check",
+        "make release-green",
         "make dist",
         "jinstall --check",
         "gh release create",
@@ -2252,11 +2317,22 @@ def test_a_release_checks_the_tag_then_the_tree_builds_installs_the_wheel_and_th
     by = {step["name"]: step for step in found if step.get("name")}
     assert by["make release-tag"]["run"] == 'make release-tag TAG="$TAG"'
     assert by["make release-tag"]["env"] == {"TAG": "${{ github.ref_name }}"}
+    assert by["make release-green"]["run"] == "make release-green"
+    assert by["make release-green"]["env"] == {
+        "GH_TOKEN": "${{ github.token }}",
+        "GH_REPO": "${{ github.repository }}",
+    }
     text = RELEASE.read_text()
     smoke = text[text.index("name: jinstall --check") : text.index("name: gh release create")]
     assert "uv tool install dist/*.whl" in smoke
     assert smoke.rstrip().splitlines()[-2].endswith('/jinstall" --check')
     assert by["gh release create"]["run"].startswith('gh release create "$TAG" dist/* --verify-tag')
+
+
+def test_a_release_runs_no_check_of_its_own_and_installs_nothing_the_check_needs():
+    runs = [step.get("run", "") for step in steps(RELEASE.read_text(), "release")[0]]
+    for word in ("make check", "uv sync", "zsh"):
+        assert not [run for run in runs if word in run], word
 
 
 def refused(text):
@@ -2319,14 +2395,19 @@ VERSION = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["versi
 
 
 def released(tmp_path, plugin=VERSION):
-    """A repo of the Makefile, pyproject.toml and a plugin.json, on main, pushed to a bare
-    origin, for `make release` and `make release-tag` to run in."""
+    """A repo of the Makefile, pyproject.toml, jmerge's green-tree lookup and a plugin.json, on
+    main, pushed to a bare origin, for `make release`, `make release-tag` and `make
+    release-green` to run in."""
     origin, repo = tmp_path / "origin.git", tmp_path / "repo"
     git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main"]
     subprocess.run([*git, "init", "-q", "--bare", origin], check=True)
     subprocess.run([*git, "init", "-q", repo], check=True)
     shutil.copy(REPO / "Makefile", repo)
     shutil.copy(REPO / "pyproject.toml", repo)
+    lookup = Path("features", "jmerge", "src", "jmerge")
+    (repo / lookup).mkdir(parents=True)
+    for name in ("__init__.py", "green.py"):
+        shutil.copy(REPO / lookup / name, repo / lookup)
     (repo / "plugin.json").write_text(json.dumps({"version": plugin}))
     for args in (["add", "."], ["commit", "-qm", "one"], ["remote", "add", "origin", origin]):
         subprocess.run([*git, "-C", repo, *args], check=True)
@@ -2334,26 +2415,112 @@ def released(tmp_path, plugin=VERSION):
     return repo, origin, git
 
 
-def make(repo, *args):
+ASKED = "repos/{owner}/{repo}/"
+"""What `make release-green` asks `gh api` for begins with this: gh fills in the repo, from
+GH_REPO on the runner and from the checkout's origin on the desk."""
+
+
+def make(repo, *args, answers=None, gh=True):
+    """Run make in the repo, with a `gh` that answers each path under ASKED from `answers` and
+    refuses any other, or with no `gh` on the PATH. Return the run and the paths `gh` was asked
+    for."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env |= {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t"}
     env |= {"GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
-    return subprocess.run(
+    stub = repo.parent / "gh-stub"
+    shutil.rmtree(stub, ignore_errors=True)
+    stub.mkdir()
+    if gh:
+        (stub / "answers.json").write_text(json.dumps(answers or {}))
+        (stub / "gh").write_text(
+            f"#!{sys.executable}\n"
+            "import json, pathlib, sys\n"
+            f"here = pathlib.Path({str(stub)!r})\n"
+            "with open(here / 'asked', 'a') as asked:\n"
+            "    asked.write(sys.argv[2] + '\\n')\n"
+            "path, _, _ = sys.argv[2].partition('?')\n"
+            f"under = path.removeprefix({ASKED!r})\n"
+            "answer = json.loads((here / 'answers.json').read_text()).get(under)\n"
+            "if sys.argv[1] != 'api' or under == path or answer is None:\n"
+            "    sys.exit('HTTP 403: Resource not accessible by integration')\n"
+            "print(json.dumps(answer))\n"
+        )
+        (stub / "gh").chmod(0o755)
+        env["PATH"] = os.pathsep.join([str(stub), env["PATH"]])
+    else:
+        for tool in ("make", "git", "python3"):
+            (stub / tool).symlink_to(shutil.which(tool))
+        env["PATH"] = str(stub)
+    done = subprocess.run(
         ["make", "-s", "-C", repo, *args], env=env, capture_output=True, text=True
     )
+    asked = stub / "asked"
+    return done, asked.read_text().splitlines() if asked.exists() else []
+
+
+def tree_of(repo):
+    return subprocess.run(
+        ["git", "-C", repo, "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def green(**changed):
+    """GitHub's answers for a marker, left by run 7, a green run of check.yml in the
+    repo itself, with the run's fields changed as given."""
+    return {
+        "actions/artifacts": marker(),
+        "actions/runs/7": run(**changed),
+    }
 
 
 def test_the_tag_must_be_the_version_of_pyproject_and_of_plugin_json(tmp_path):
     repo, _, _ = released(tmp_path / "same")
-    assert make(repo, "release-tag", f"TAG=v{VERSION}").returncode == 0
-    assert make(repo, "release-tag", "TAG=v9.9.9").returncode != 0
+    assert make(repo, "release-tag", f"TAG=v{VERSION}")[0].returncode == 0
+    assert make(repo, "release-tag", "TAG=v9.9.9")[0].returncode != 0
     skewed, _, _ = released(tmp_path / "skewed", plugin="9.9.9")
-    refused = make(skewed, "release-tag", f"TAG=v{VERSION}")
+    refused, _ = make(skewed, "release-tag", f"TAG=v{VERSION}")
     assert refused.returncode != 0
     assert "v9.9.9, plugin.json's" in refused.stdout
 
 
-def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_else(tmp_path):
+def test_a_release_passes_on_a_tree_main_s_green_run_of_the_check_left_a_marker_for(tmp_path):
+    repo, _, _ = released(tmp_path)
+    tree = tree_of(repo)
+    done, asked = make(repo, "release-green", answers=green())
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert URL in done.stdout and tree in done.stdout
+    assert asked[0] == f"{ASKED}actions/artifacts?name=green-tree-{tree}&per_page=100"
+
+
+FIX = "gh workflow run check.yml --ref main"
+
+
+@pytest.mark.parametrize(
+    "answers, why",
+    [
+        ({"actions/artifacts": {"artifacts": []}}, "no green run of check.yml left"),
+        (green(conclusion="failure"), "no green run of check.yml left"),
+        (green(path=".github/workflows/other.yml"), "no green run of check.yml left"),
+        (green(head_repository={"id": 2}), "a fork's"),
+        ({}, "could not ask GitHub"),
+        (None, "could not ask GitHub"),
+    ],
+    ids=["none", "red", "other workflow", "fork", "refused", "no gh"],
+)
+def test_a_release_fails_closed_naming_the_fix_on_a_tree_with_no_green_marker(
+    tmp_path, answers, why
+):
+    repo, _, _ = released(tmp_path)
+    done, _ = make(repo, "release-green", answers=answers, gh=answers is not None)
+    said = done.stdout + done.stderr
+    assert done.returncode != 0, said
+    assert why in said and f"green-tree-{tree_of(repo)}" in said and FIX in said, said
+    assert "Traceback" not in said, said
+
+
+def test_make_release_tags_a_clean_main_that_is_origins_and_green_and_refuses_anything_else(
+    tmp_path,
+):
     repo, origin, git = released(tmp_path)
 
     def tags():
@@ -2362,18 +2529,24 @@ def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_els
         )
         return [line.split("refs/tags/")[1] for line in listed.stdout.splitlines()]
 
+    def release(answers=None):
+        return make(repo, "release", answers=answers or green())[0]
+
     subprocess.run([*git, "-C", repo, "checkout", "-qb", "side"], check=True)
-    assert "release: not on main" in make(repo, "release").stdout
+    assert "release: not on main" in release().stdout
     subprocess.run([*git, "-C", repo, "checkout", "-q", "main"], check=True)
     (repo / "loose").write_text("")
-    assert "release: the checkout is not clean" in make(repo, "release").stdout
+    assert "release: the checkout is not clean" in release().stdout
     (repo / "loose").unlink()
     subprocess.run([*git, "-C", repo, "commit", "-q", "--allow-empty", "-m", "two"], check=True)
-    assert "release: main is not origin/main" in make(repo, "release").stdout
-    assert tags() == []
+    assert "release: main is not origin/main" in release().stdout
     subprocess.run([*git, "-C", repo, "push", "-q", "origin", "main"], check=True)
-    done = make(repo, "release")
-    assert done.returncode == 0, done.stderr
+    red = release({"actions/artifacts": {"artifacts": []}})
+    assert red.returncode != 0 and "no green run of check.yml left" in red.stdout, red.stdout
+    assert tags() == []
+    assert subprocess.run([*git, "-C", repo, "tag"], capture_output=True, text=True).stdout == ""
+    done = release()
+    assert done.returncode == 0, done.stdout + done.stderr
     assert tags() == [f"v{VERSION}", f"v{VERSION}^{{}}"]
 
 

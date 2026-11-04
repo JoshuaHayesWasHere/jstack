@@ -139,6 +139,7 @@ Hold back what a reading that finds nothing critical fills itself with:
 - A "what if this is passed" finding stands only when a caller can pass it: trace the call site in the repo.
 - A different approach the reader prefers, or an abstraction the code needs in no second way, is no finding unless it shows a concrete problem with the change.
 - A finding that says only that the change touches a file outside the brief's `Where` is the section's `Outside Where:` line, which "Wider than the brief" writes from `jmerge --scope`: dismiss it, with that as the reason.
+- A finding of a class a check owns, a guard test of `features/repo-guards/tests` or a lint of `make lint` that fails on it, as a doc naming a module or a path the tree lacks (`test_names_resolve.py`) or an added line no test runs (`test_new_lines_run.py`), is that check's to fail before a reviewer sees it: dismiss it, with "the check owns it" as the reason.
 - A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
 - More than five **Act on** findings is a sign the list is not filtered hard enough.
 

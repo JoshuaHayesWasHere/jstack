@@ -153,6 +153,16 @@ def _number(
     )
 
 
+MAC_JOBS = ("macos-select", "macos")
+"""The jobs of macos.yml. It runs on each push to main beside main's check and is never main's
+check, as `jbus.watch` judges main: its jobs are no run of main."""
+
+
+def _of_main(job: dict[str, Any]) -> bool:
+    """Return whether a job is one of main's check: a push to main, not one of macos.yml."""
+    return job["event"] == "push" and job["branch"] == "main" and job.get("name") not in MAC_JOBS
+
+
 def _ran(job: dict[str, Any]) -> bool:
     return bool(job.get("runner") and job.get("started") and job.get("completed")) and (
         job.get("conclusion") != "skipped"
@@ -187,8 +197,7 @@ class Facts:
         runs: dict[int, list[dict[str, Any]]] = defaultdict(list)
         for job in self.jobs:
             if (
-                job["event"] == "push"
-                and job["branch"] == "main"
+                _of_main(job)
                 and job.get("steps")
                 and job["conclusion"] in ("success", "failure")
                 and job.get("created")
@@ -597,12 +606,7 @@ def mainred(facts: Facts, start: datetime, end: datetime) -> Number:
     if not seen:
         return _number("mainred", None, "", None, 0, how)
     ran = [
-        j
-        for j in facts.jobs
-        if j["event"] == "push"
-        and j["branch"] == "main"
-        and j.get("steps")
-        and _in(j["created"], start, end)
+        j for j in facts.jobs if _of_main(j) and j.get("steps") and _in(j["created"], start, end)
     ]
     shown = f"{_text(value)} min"
     return _number("mainred", value, shown, value < 30, seen, how, _runners(ran))

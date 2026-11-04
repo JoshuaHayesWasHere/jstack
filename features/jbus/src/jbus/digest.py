@@ -32,6 +32,10 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
   - `stops` holds `open`, each stop a scoped home holds open on the root, and `outside`, the
     count of each scope's stops on what no home owns taken at or after `since` (`jbus.stop`).
     Its `open` is None where `stops.json` does not parse.
+  - `ci` is the newest day's CI report of the project's home (`jbus.ci.daily.latest`): its
+    `path`, its `date`, the `day` its `lines` give, a line per number, and `stale`, whether it
+    was written before the timer's last run, so a report the timer failed to write shows its
+    old date. It is None where the home has no day's report.
 - `status` is what `jbus status` prints.
 - `token_expires` is when the sign-in to T3 Code runs out, read from the stored token. A
   builder that has no token file to read takes it from the status file, where the last pass
@@ -69,6 +73,7 @@ from jbus import (
     verbs,
     waiting,
 )
+from jbus.ci import daily
 from jbus.wake import Box
 from jroles import pool
 from jsettings import t3
@@ -189,7 +194,7 @@ def _routine(config: Config, project: Project, start: datetime) -> list[dict[str
     return found
 
 
-def _project(config: Config, project: Project, start: datetime) -> dict[str, Any]:
+def _project(config: Config, project: Project, start: datetime, now: datetime) -> dict[str, Any]:
     state = config.state(project)
     try:
         table: list[queue.Row] | None = sorted(queue.load(state), key=queue.order)
@@ -212,6 +217,7 @@ def _project(config: Config, project: Project, start: datetime) -> dict[str, Any
         "routine": _routine(config, project, start),
         "sweep": Box(state, project).marks().get("sweep", ""),
         "stops": stop.digest(state, start),
+        "ci": daily.latest(config.home(project), now, config.user),
     }
 
 
@@ -227,7 +233,9 @@ def build(
     said = {
         "at": jsettings.stamp(now),
         "since": jsettings.stamp(since),
-        "projects": {project.name: _project(config, project, since) for project in config.projects},
+        "projects": {
+            project.name: _project(config, project, since, now) for project in config.projects
+        },
         "status": told,
         "token_expires": config.user.stamp(expires) if expires else told.get("token_expires"),
     }

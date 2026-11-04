@@ -531,3 +531,75 @@ def test_each_link_of_a_page_goes_to_a_file_that_is_there():
 
     assert len(pages) > len(FEATURES) // 2
     assert gone == []
+
+
+SKILL = REPO / "features" / "verify-jstack" / "project-skill" / "SKILL.md"
+FENCE = re.compile(r"^```sh\n(.*?)^```$", re.M | re.S)
+
+
+def recipes():
+    """Each fenced sh block under the skill's "## Drive", in order, as an agent types it."""
+    _, _, drive = SKILL.read_text().partition("\n## Drive\n")
+    return FENCE.findall(drive.partition("\n## ")[0])
+
+
+def launched_alpha_said_so(said, sandbox):
+    assert "launched alpha: mcp:sandbox-thread-1" in said
+    row = [line for line in said.splitlines() if line.startswith("| alpha |")][-1]
+    assert "| launched | mcp:sandbox-thread-1 |" in row
+
+
+def failover_on_a_usage_limit(said, sandbox):
+    assert re.search(r"^failover alpha: five_hour limit until ", said, re.M), said
+    assert "did not say" not in said
+    calls = [json.loads(line) for line in (sandbox / "t3" / "calls.jsonl").read_text().splitlines()]
+    moves = [
+        one["arguments"]["modelSelection"]["instanceId"]
+        for one in calls
+        if one["tool"] == "t3_thread_configure" and "modelSelection" in one["arguments"]
+    ]
+    assert moves == [SPARE]
+    sent = [one["arguments"]["clientRequestId"] for one in calls if one["tool"] == "t3_thread_send"]
+    assert "failover|mcp:sandbox-thread-1|run-1" in sent
+
+
+def one_carry_on_after_a_login_lapse(said, sandbox):
+    assert said.count("signed out: claudeAgent cannot sign in, ") == 1, said
+    failover = "failover alpha: claudeAgent could not sign in, carry-on on claudeAgent, "
+    assert said.count(failover) == 1, said
+    assert said.index("signed out: ") < said.index(failover)
+    sent = [line for line in said.splitlines() if line.startswith('"') and "|" in line]
+    assert sent == ['"lapse|mcp:sandbox-thread-1|run-1"']
+
+
+OUTCOMES = {
+    "launch": launched_alpha_said_so,
+    "usage-limit": failover_on_a_usage_limit,
+    "login-lapse": one_carry_on_after_a_login_lapse,
+}
+
+
+def test_each_drive_recipe_has_its_outcome_and_types_whole():
+    """A new recipe needs its outcome here, and none leans on a block it does not hold."""
+    blocks = recipes()
+    assert len(blocks) == len(OUTCOMES)
+    leaning = [block for block in blocks if "as above" in block and "# judged: " not in block]
+    assert leaning == []
+
+
+@pytest.mark.parametrize("at, outcome", list(enumerate(OUTCOMES)), ids=list(OUTCOMES))
+def test_a_drive_recipe_runs_in_a_new_sandbox_as_typed(at, outcome, sandbox):
+    block = recipes()[at]
+    judged = re.search(r"^# judged: (.+)$", block, re.M)
+    if judged:
+        pytest.skip(judged[1])
+
+    ran = subprocess.run(
+        ["bash", "-c", f'. "{sandbox}" && set -e -o pipefail\n{block}'],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    OUTCOMES[outcome](ran.stdout, sandbox.parent)

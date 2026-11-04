@@ -1,11 +1,18 @@
 name: macos
 
-# The tests a Mac can break, on macOS on Apple Silicon, on each pull request, in minutes: of the
-# files in testing/macos-quick.txt, whose code branches on Darwin or that guard a break only a
-# Mac has, the ones the change reaches. Each mac- fix adds its regression test file there.
+# The tests a Mac can break, on macOS on Apple Silicon, on each merge commit into main and on
+# each pull request, in minutes: of the files in testing/macos-quick.txt, whose code branches on
+# Darwin or that guard a break only a Mac has, the ones the change reaches. Each mac- fix adds
+# its regression test file there.
 # `scripts/select_tests.py --within` names them, with the rules `make check-fast` selects by,
 # but for two: an import reaches a test only from a changed module of the tests or one that
-# names Darwin, and the tests that read the whole tree do not count. The job `macos-select`
+# names Darwin, and the tests that read the whole tree do not count. A push to main runs that
+# over the merge commit and its first parent, one run for each commit, none cancelled, so a Mac
+# red names the merge that made it (jbus reads each commit's run: `jbus.reverts.macos`). A pull
+# request selects with `--strict`, a part of that: there a name reaches a test only from Darwin
+# code or the tests too, and a feature's paths reach none, so a change to code that runs the
+# same on a Mac starts no Mac before it merges (the owner's go, 2026-11-04, gap-macos-post-merge).
+# The job `macos-select`
 # runs it on Linux and hands the tests on to the job `macos`; where the selection is `all`
 # (pyproject.toml, uv.lock, the root conftest.py or the list itself) it hands on the whole list.
 # Where the change reaches no test of the list, `macos-select` says so in one line of its
@@ -18,23 +25,31 @@ name: macos
 # It is a workflow of its own and not a job of check.yml: a run of check.yml has no conclusion
 # until its last job ends, and main's full job counts a green-tree marker only from a run that
 # concluded success (scripts/green_tree.py), so a slow macOS job there would hold up every
-# marker. It runs on no push, so main's check never has it. macOS on Apple Silicon is
+# marker. Its run on a push to main is no part of main's check (`jbus.watch._judged` leaves it
+# out), so a Mac red never holds a pull request: jbus reverts its one clear culprit or files a
+# `macos-red-` row for it. macOS on Apple Silicon is
 # supported, so its check is required: the home's required-checks names `macos`, and jmerge
 # waits on it. A job skipped by its `if:` passes GitHub's required checks, and jmerge's where
 # the rest of its workflow passed (`jmerge.ready.passed`). So `macos` is skipped only for an
 # empty selection, or for two trees a passed macos job ran before (`reuse`): after a failed
 # `macos-select` it runs, and fails its first step.
+# No `paths:` filter: a run it filters out posts no `macos` check, and jmerge waits on that check
+# for ever. The selection and the job's `if:` skip the Mac instead.
 on:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
   # To read the marker a passed macos job of the same two trees left: another run's artifact.
   actions: read
 
+# A pull request's newer run cancels its older one. Each push to main is a group of its own, by
+# its commit, and is never cancelled: one run judges each merge commit.
 concurrency:
-  group: macos-${{ github.ref }}
-  cancel-in-progress: true
+  group: macos-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # The same uv as check.yml's (testing/tests/test_workflows.py).
@@ -63,7 +78,9 @@ jobs:
       # and so is `macos`, so no Mac starts, and the summary names the run it reuses. The name is
       # `macos-checked-<base tree>-<merge tree>` (`jmerge.green.macos_checked`), so a pair whose
       # trees differ in any way names another marker. Only a successful macos.yml run of this
-      # repo, not a fork's, counts. A run again, or a lookup that fails, runs the Mac.
+      # repo, not a fork's, counts. A run again, a push to main, or a lookup that fails, runs the
+      # Mac. A push run's marker serves a pull request too: `--strict` selects a part of
+      # what `--within` does.
       - name: reuse
         id: reuse
         continue-on-error: true
@@ -99,7 +116,9 @@ jobs:
         if: steps.reuse.outputs.reused != 'true'
         run: |
           reached="$RUNNER_TEMP/macos-reached.txt"
-          tests=$(uv run python3 scripts/select_tests.py --within testing/macos-quick.txt HEAD^1 HEAD)
+          select=(--within testing/macos-quick.txt)
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then select+=(--strict); fi
+          tests=$(uv run python3 scripts/select_tests.py "${select[@]}" HEAD^1 HEAD)
           : > "$reached"
           if [ "$tests" = all ]; then
               cp testing/macos-quick.txt "$reached"

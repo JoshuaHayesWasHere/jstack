@@ -2050,3 +2050,60 @@ def test_an_all_lists_the_path_that_forced_it(tmp_path):
 
 def test_an_empty_selection_lists_no_test_file():
     assert select.listing(select.reasons([], {})).startswith("<details><summary>selected: 0 test")
+
+
+MAC_LIST = "testing/macos-quick.txt"
+
+
+def mac_within(path, strict=False):
+    """The tests of the macOS quick list a change to `path` in this repo reaches on a Mac."""
+    entries = (REPO / MAC_LIST).read_text().split()
+    return select.within(entries, [path], MAC_LIST, strict)
+
+
+def test_strict_within_is_a_part_of_within_for_every_tracked_path():
+    """A pull request's macos job selects with `--strict`, and the run on each merge commit with
+    `--within` alone. Each test a pull request runs on a Mac is one its merge's run runs again,
+    so no path reaches a Mac test on a pull request that its merge's run would leave out."""
+    wider = []
+    for path in sorted(select.tracked()):
+        within, strict = mac_within(path), mac_within(path, strict=True)
+        assert strict == ["all"] or set(strict) <= set(within), path
+        wider += [path] if set(strict) < set(within) else []
+    assert wider, "strict narrows nothing"
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["features/crew/verify.md", "features/jbus/verify.md", "README.md", "features/crew/SKILL.md"],
+    ids=["a feature's page", "jbus's page", "a doc a test names", "a skill tests read"],
+)
+def test_strict_within_reaches_no_mac_test_through_a_feature_or_a_name_of_code_off_darwin(path):
+    """A feature's paths and its page reach its listed tests in `--within`, and a doc or skill
+    reaches the tests that spell it. A change to neither runs differently on a Mac, so with
+    `--strict` it reaches no Mac test, and the merge's run checks it on a Mac minutes later."""
+    assert mac_within(path)
+    assert mac_within(path, strict=True) == []
+
+
+@pytest.mark.parametrize(
+    ("path", "test"),
+    [
+        ("features/jbus/src/jbus/launchd.py", "features/jbus/tests/test_jbus_launchd.py"),
+        (
+            "features/jgauge/tests/test_machine_sizes.py",
+            "features/jgauge/tests/test_machine_sizes.py",
+        ),
+    ],
+    ids=["code that names Darwin", "a listed test"],
+)
+def test_strict_within_keeps_what_darwin_code_and_the_tests_reach(path, test):
+    """An import or a name from code that names Darwin, or from the tests, reaches a Mac test
+    with `--strict` as it does without it."""
+    assert test in mac_within(path, strict=True)
+    assert mac_within(path, strict=True) == mac_within(path)
+
+
+@pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])
+def test_strict_within_is_all_where_within_is(path):
+    assert mac_within(path, strict=True) == mac_within(path) == ["all"]

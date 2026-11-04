@@ -91,3 +91,57 @@ A week where every target is met, or has no data, sends nothing.
 A week with a missed target sends one `alert` event, only once that day.
 The event names each missed target and the report.
 A run that fails shows in `journalctl --user -u jbus-ci` on Linux, and in `~/Library/Logs/jstack/jstack.jbus-ci.log` on macOS.
+
+### The day's report
+
+`jbus --project <name> ci --day` writes `reports/ci-day-<date>.md` in the project's home, and nothing else.
+`jbus-ci-day.timer` runs `jbus-ci-day.service` every day at 06:45 in the machine's own zone, with `Persistent=true`, and the service runs `jbus ci --day --each` for each project whose table says `ci_report = true`.
+The install enables the timer only while a project asks, as it does `jbus-ci.timer`.
+`--day` collects nothing and starts no CI job: every number but main-red comes from the ledger the passes keep, `ci.jsonl` and `ci-prs.jsonl`, and the rows that merged come from `transitions.jsonl`.
+Main-red comes from one call, `gh run list -R <repo> --workflow check.yml --branch main --event push --limit 400 --json conclusion,status,createdAt,updatedAt,headSha`, the only call `--day` makes to GitHub.
+Where that call fails, main-red reads `no data`, the report says why, and the rest of the report is written as usual.
+`--day` with `--report` is refused.
+
+This is the one definition of the numbers the report gives, and `jbus.ci.daily` counts by it.
+The figures the cicd plan started from, 64% red and 5.6 shas per pull request, came from a UTC day and from grouping `gh` runs by branch, and they stay as history, not as the baseline.
+
+- **A day** is a local day of the user's zone, or of the machine's where none is set, from midnight to midnight, never UTC.
+  A day the clocks change on has 23 or 25 hours.
+- **The 7 days** are the 7 whole local days before the day the report runs, so the 06:45 run gives yesterday as its newest day.
+- **n** is under each cell: the pull requests, jobs, runs or merged pull requests the cell counted.
+- **A day under 20 pull requests** with a `check` run reads `no data` for every number from the ledger, with its n still shown.
+  The ledger misses runs while jbus is down, or when more than 30 runs land in 3 hours, and a thin day shows that instead of a number.
+  Head shas and open to merge count the pull requests merged that day, but the floor is the red share's n.
+  Main-red is not under the floor, since `gh` gives it.
+- **A wave day** is a day whose shard wait p90 is over 300 s, and its column reads `wave`.
+  A wave confounds a before and after: Nov 3 and 4 measure #970 and #1009, not the rows that merged then.
+- **jmerge's shadow pull requests**, whose branch starts `jstack/line/`, are left out of every count.
+
+| Number | Target | Counted as |
+| --- | --- | --- |
+| red share | at most 30% (proposal) | of the pull requests with a `check` job that ran (green or red) created that day, the share with a red one, any attempt. A `check` skipped whole ran nothing and is no `check` run. n is the pull requests. |
+| head shas per merged PR | at most 3 (proposal) | the distinct head shas any `pull_request` job ran on, per pull request merged that day. The week report's `shas per merged PR` counts the crew's heads only, and is another number. n is the merged pull requests. |
+| shard wait p90 | at most 60 s (proposal) | the 90th percentile of the seconds a pull request's `check N of M` job waited for a runner, `created` to `started`, over the jobs created that day that started. n is the jobs. |
+| macos wait p90 | at most 120 s (proposal) | the same, for the `macos` job. |
+| PR check wall p50 | at most 10 min (proposal) | the median minutes of a pull request's check run (one run attempt), from its first job's `created` to its last job's `completed`, over the attempts whose `check` was green or red, by the day the first job was created. n is the run attempts. |
+| open to merge p50 | at most 1 h (proposal) | the median hours from a pull request's opening to its merge, over those merged that day. |
+| first-check own red | none proposed | of the pull requests whose first `check` was created that day, the share whose first check was red for a cause of its own, as the health numbers count it. |
+| main-red | at most 30 min (proposal) | the minutes of the day inside a spell, by the spell method of gap-revert-oldest-red: a spell runs from the `createdAt` of a failed run of check.yml on a push to main, found green, to the `updatedAt` of the next run to succeed, in the order the runs were created, and it is split at local midnight. A run not completed, cancelled or skipped says nothing, and a spell still open runs to now. `gh run list` shows a run's last attempt only, so a red that went green on a rerun is not a spell. A day that starts before the oldest run the call gave reads `no data`. n is the runs created that day. |
+
+Each target is a proposal only, from the quiet days of Oct 29 to 31.
+No number is held to one, and the report raises no alert or page.
+`jbus.kpis` keeps its own main-red page, over 30 minutes a day, read from the telemetry store.
+The week report's `main-red minutes per day` counts from the ledger, from the first failed run's completion, and is not this number.
+
+The report has three parts.
+**By day** gives a row per number and the n row under it, with a column for each of the 7 days.
+**Before and after each cicd row that merged** gives a row for each row of the cicd home, the home its brief's `Home:` line names, that merged in the last 14 days, at its last merge in `transitions.jsonl`.
+For each number it gives the median over the 3 busy days before the merge's day against the 3 busy days after it, where a busy day has at least 20 pull requests, sought at most 21 days back.
+It reads `moved` only when the median after is outside the least and the most of the days before, `held` when inside, and `no data` without 3 busy days on each side: `(2 of 3)` beside the days says how many it has.
+Its notes say `shared with` another row that merged within 3 days of it, so neither is given the move, and `wave` when a wave day is among the days counted.
+Main-red rarely reaches back to the days before, since the call gives about a week of runs.
+**The newest day** is a line per number for the last day, which `jbus digest` gives under `ci`.
+
+`jbus digest --json` gives, for each project, `ci`: the newest day's report's `path`, its `date`, the `day` its lines are from, those `lines`, and `stale`, true when the report was written before the timer's last 06:45.
+A timer that failed leaves the old date in the digest, not a gap.
+A project with no day's report has `ci` null.

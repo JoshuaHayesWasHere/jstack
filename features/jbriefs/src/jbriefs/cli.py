@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import findings, home, meets, page, parse, pick, skills
+from jbriefs import findings, home, meets, page, parse, pick, propose, skills
+from jsettings.paths import common_dir, jbus_state_dir
 
 
 def default_out() -> Path:
@@ -37,6 +40,66 @@ def pick_main(argv: list[str]) -> int:
         job = pick.work(path.resolve(), text)
     for line in pick.pick(job):
         print(line)
+    return 0
+
+
+def go_of(slug: str, brief: Path) -> str:
+    """Why a proposal for the brief would void a go, or an empty string where it voids none.
+
+    It asks `jbus queue verify`, the one copy of the go rule, for the brief at `brief` and for
+    the one jbus keeps: either go that holds is one an edit would void. A row the queue does not
+    have has no go. Any other answer is one this cannot read, and it refuses."""
+    for asked in (["--brief", str(brief)], []):
+        ran = subprocess.run(
+            [sys.executable, "-m", "jbus", "queue", "verify", slug, *asked],
+            capture_output=True,
+            text=True,
+        )
+        said = ran.stdout.strip()
+        if said.startswith("refused: the queue has no row"):
+            return ""
+        try:
+            found = json.loads(said)
+        except ValueError:
+            return f"jbus cannot say whether {slug} has a go: {said or ran.stderr.strip()}"
+        if found.get("holds"):
+            return f"the go holds for {slug} ({found.get('approved', '')})"
+    return ""
+
+
+def propose_main(brief: Path) -> int:
+    try:
+        text = brief.read_text(encoding="utf-8", errors="replace")
+    except OSError as error:
+        print(f"jbriefs: {brief} cannot be read: {error.strerror}", file=sys.stderr)
+        return 1
+    slug = propose.Brief.of(text, brief.stem).slug
+    why = go_of(slug, brief)
+    if why:
+        print(
+            f"jbriefs: refused: {why}, and a new Done when voids it: propose for a row with no go",
+            file=sys.stderr,
+        )
+        return 1
+    for one in propose.propose(text, brief.stem):
+        print(one.line())
+    return 0
+
+
+def runnable_main(project: str | None, statuses: str) -> int:
+    if project is None:
+        common = common_dir()
+        if common is None:
+            print("jbriefs: --runnable needs --project outside a git repo", file=sys.stderr)
+            return 1
+        project = common.parent.name
+    state = jbus_state_dir() / project
+    try:
+        found = propose.share(state, [one for one in statuses.split(",") if one])
+    except (OSError, ValueError) as error:
+        print(f"jbriefs: {state / 'queue.json'} cannot be read: {error}", file=sys.stderr)
+        return 1
+    print(found.line())
     return 0
 
 
@@ -87,6 +150,30 @@ def main(argv: list[str] | None = None) -> int:
         "unread, miscounted or none, the lines met (or -), the brief's Done when count and the "
         "head (or -); write no page",
     )
+    parser.add_argument(
+        "--propose",
+        type=Path,
+        metavar="BRIEF",
+        help="print a proposal for each Done when item of the brief that runs nothing, one line "
+        "each, `<n>. <kind>: <item with its check>`; refuse a brief whose go holds, which a new "
+        "Done when would void; write no page",
+    )
+    parser.add_argument(
+        "--runnable",
+        action="store_true",
+        help="print how many Done when items of the queue's rows of --status run something; "
+        "write no page",
+    )
+    parser.add_argument(
+        "--status",
+        default="queued,running,pr",
+        help="with --runnable, the statuses of the rows to count, with commas (default: "
+        "%(default)s)",
+    )
+    parser.add_argument(
+        "--project",
+        help="with --runnable, the jbus project whose queue to read (default: this repo's name)",
+    )
     told = parser.add_mutually_exclusive_group()
     told.add_argument(
         "--left",
@@ -103,6 +190,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if (args.left or args.rounds) and not args.findings:
         parser.error("--left and --rounds go with --findings")
+    if args.propose:
+        return propose_main(args.propose.expanduser())
+    if args.runnable:
+        return runnable_main(args.project, args.status)
     if args.findings:
         try:
             text = args.findings.expanduser().read_text(encoding="utf-8", errors="replace")

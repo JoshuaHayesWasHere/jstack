@@ -36,7 +36,7 @@ head. The row's `why` says `check failed twice` while it is held. The hold is li
 hold is, by an approve, and the count starts again from none.
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
-the stall minutes the telemetry store reads (`jbus.telemetry.schema`'s `weekly_stall`).
+the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
 """
 
 from __future__ import annotations
@@ -484,7 +484,7 @@ def spells(run: Pass, out: list[dict[str, Any]]) -> None:
 
     The first pass that runs `spells` begins the file with `{"at", "began": true}`, when the record
     began: a row merged from that day on with no spell had none, and one merged before it is a gap
-    (`jbus.telemetry`'s `stalls_since`).
+    (`jbus.telemetry.views.stalls_since`).
 
     A row's thread is one whose title names a slug and that is not a home's. The pass that first
     sees the thread quiet or hung adds `{"at", "thread", "role", "slug", "since"}`, where `since`
