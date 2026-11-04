@@ -448,14 +448,12 @@ SETTLED = (
     Settled(
         "exit 124",
         (_words(r"\bFixed\b"), _words(r"\b124\b|short lane|time limit|timed out|\blimit\b")),
-        "a 124 passes only when it is the import-reached rest's, after a guard step that passed: "
-        "the rest then ran past the short lane's time limit, which says nothing of the change, "
-        "while a guard step that ends 124 is a failure, since the guards never run under the "
-        "limit (features/crew/do-the-task.md, On 124)",
-        "on a guard step's 124, fix it as one; on the rest's 124 after the guards passed, go on "
-        "as on exit 0: open the pull request or write the Fixed: line, with the Checked: line "
-        "naming the guard step that passed and the rest's exit 124, and let CI's check on the "
-        "pull request be the proof",
+        "an exit 124 never passes: a check cut short reached no verdict, and jmerge holds a "
+        "pull request whose last Checked: line ends 124 (features/crew/do-the-task.md; "
+        "features/jmerge/src/jmerge/ready.py, short_on_checked). The desk runs only the guards, "
+        "in a full test slot with no time limit, and CI's check runs the rest",
+        "treat the 124 as a failure: run the check block again at the head, fix what it finds, "
+        "and go on only once its Checked: line says PART=guards exit 0",
     ),
     Settled(
         "a red that is its base's",

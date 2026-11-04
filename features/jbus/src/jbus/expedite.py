@@ -57,6 +57,10 @@ reason with its sentence:
   `Proved:` line, and push nothing for it. For `base-passed` and `head-failed` the crew first fixes
   and pushes the tests, and for `not-kind` it writes the kinds again or adds the test the change
   needs.
+- `checked-missing`, `checked-stale`, `checked-cut`, `checked-failed` and `checked-part`, the
+  brief's last `Checked:` line is missing, of a head whose patch changed since, a time limit's
+  124, a failure, or not the desk's check (`ready.short_on_checked`): run the crew's check block
+  at the head, fix what it finds, and run it again until it ends 0. A 124 is no pass.
 
 `UNTOLD` holds the reasons of `jmerge`'s `result` step no crew can fix, and every other one is a
 row: a test holds the table to `ready`.
@@ -187,6 +191,13 @@ def no_reviewer_by_rule(brief: str, head: str) -> bool:
     return bool(said) or bool(re.search(gated, brief, re.M))
 
 
+CHECKED = (
+    'Run the check block of the crew skill\'s "Do the task" in your worktree at the head the '
+    "reason names: it runs the guards in a full test slot and writes the `Checked:` line "
+    "`jmerge` reads. Where it ends other than 0, a 124 too, fix what it found, commit, push, and "
+    "run it again, until its line says `PART=guards exit 0` at the head. Never write a "
+    "`Checked:` line by hand."
+)
 TABLE = (
     Short(
         "unfixed",
@@ -444,6 +455,16 @@ TABLE = (
         ready.PROVED_STALE,
         PROVE + "The last line is of a head whose patch the pull request no longer carries, so "
         "run the block at the head as it is. " + PROVE_ONLY,
+    ),
+    *(
+        Short(reason.code, "wait", reason, CHECKED)
+        for reason in (
+            ready.CHECKED_MISSING,
+            ready.CHECKED_STALE,
+            ready.CHECKED_CUT,
+            ready.CHECKED_FAILED,
+            ready.CHECKED_PART,
+        )
     ),
 )
 UNTOLD = {
