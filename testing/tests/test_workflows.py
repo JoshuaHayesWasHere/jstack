@@ -530,7 +530,7 @@ KEPT = (
     'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0;'
     ' NAMES=$(printf "%s\\n" "$RUNS" | sha256sum | cut -c1-16);'
     ' [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ]'
-    ' || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+    ' || echo "key=$KEY$NAMES" >> "$GITHUB_OUTPUT"'
 )
 
 
@@ -999,7 +999,10 @@ def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_a
     changes with the selection: its keys name no part. It is restored right before the suite,
     the latest of the same spec files first, else the latest of any, and saved after it under a
     key `tlc kept` gives. The files its key hashes are every file a kept run reads from the repo,
-    TLC's pinned jar in statechart's tools.py among them, so a change to any of them misses."""
+    TLC's pinned jar in statechart's tools.py among them, so a change to any of them misses. The
+    save's key starts with the very key the restore looked for, hashed once before the suite: the
+    suite writes `__pycache__` under the hashed paths, so a hash taken after it names an entry no
+    later run's key finds."""
     text = CHECK.read_text()
     found, _ = steps(text, job)
     names = [
@@ -1019,8 +1022,9 @@ def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_a
         "|",
     )
     assert f"\n            tlc-${{{{ {specs} }}}}-\n            tlc-\n" in text
+    assert "hashFiles" not in str([kept, save])
     assert kept["env"] == {
-        "SPECS": f"${{{{ {specs} }}}}",
+        "KEY": "${{ steps.tlc.outputs.cache-primary-key }}",
         "RESTORED": "${{ steps.tlc.outputs.cache-matched-key }}",
     }
     assert (kept["id"], kept["if"], kept["run"]) == (
@@ -1057,7 +1061,7 @@ def kept_key(home, restored):
     env = {
         "PATH": os.environ["PATH"],
         "HOME": str(home),
-        "SPECS": "abc",
+        "KEY": "tlc-abc-",
         "RESTORED": restored,
         "GITHUB_OUTPUT": str(output),
     }
@@ -1072,9 +1076,10 @@ def test_a_part_saves_tlc_runs_only_when_it_added_some_under_the_spec_files_and_
     tmp_path,
 ):
     """A part with no cache folder, or an empty one, saves nothing. A part that ran TLC saves
-    under the spec files' hash and a hash of its runs' names, and a part that holds just what it
-    restored, by that key's end, saves nothing: so a part that ran no TLC never takes the key of
-    one that did. A run added changes the key, and the same runs give the same key."""
+    under the key it restored with, the spec files' hash, and a hash of its runs' names, and a
+    part that holds just what it restored, by that key's end, saves nothing: so a part that ran
+    no TLC never takes the key of one that did. A run added changes the key, and the same runs
+    give the same key."""
     assert kept_key(tmp_path, "") == ""
     tlc = tmp_path / ".cache" / "jstack" / "tlc"
     tlc.mkdir(parents=True)

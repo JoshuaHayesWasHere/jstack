@@ -242,18 +242,19 @@ jobs:
           PART: ${{ needs.select.outputs[format('part{0}', matrix.shard)] }}
         run: '[ "$PART" = none ] || make test TESTS="$PART"'
       # After the suite, passed or failed, since a kept run is one TLC finished: a part whose
-      # cache now holds runs it did not restore saves them, under the spec files' hash and a hash
-      # of the names of the runs it holds, which ends the key it restored. So the part that ran
-      # TLC saves an entry of its own, and is not beaten to one shared key by a faster part that
-      # holds only what it restored. A part that added nothing saves nothing, and two parts that
-      # hold the same runs name the same entry.
+      # cache now holds runs it did not restore saves them, under the key it restored with (the
+      # spec files' hash, taken before the suite wrote `__pycache__` under the hashed paths) and
+      # a hash of the names of the runs it holds, which ends the key it restored. So the part
+      # that ran TLC saves an entry of its own, and is not beaten to one shared key by a faster
+      # part that holds only what it restored. A part that added nothing saves nothing, and two
+      # parts that hold the same runs name the same entry.
       - name: tlc kept
         id: kept
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         env:
-          SPECS: ${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}
+          KEY: ${{ steps.tlc.outputs.cache-primary-key }}
           RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
-        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=$KEY$NAMES" >> "$GITHUB_OUTPUT"'
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: "!cancelled() && steps.kept.outputs.key != ''"
         with:
@@ -406,9 +407,9 @@ jobs:
         id: kept
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         env:
-          SPECS: ${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}
+          KEY: ${{ steps.tlc.outputs.cache-primary-key }}
           RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
-        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=$KEY$NAMES" >> "$GITHUB_OUTPUT"'
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: "!cancelled() && steps.kept.outputs.key != ''"
         with:
