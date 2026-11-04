@@ -81,11 +81,12 @@ tree's marker on a pass of `all`.
 `select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
 `<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
 collects the selection once with pytest, as `make test` does (`-m "not browser"`), and deals out
-the test files whole, slowest first, each to the part with the least time so far
-(`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`). So a
-part collects only its own files. With `$GITHUB_OUTPUT` set it gives the step the outputs
-`part1` to `part<n>`, each a part's files, space-separated, or `none` for a part the selection
-left empty, and the summary gets one more line: `parts: <n> of <tests> tests in <files> files,
+the test files whole, slowest first, each to the part that would end soonest so far
+(`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
+its slowest test, which no part ends before). So a part collects only its own files. With
+`$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each a part's files,
+space-separated, or `none` for a part the selection left empty, and the summary gets one more
+line: `parts: <n> of <tests> tests in <files> files,
 <s> s of test time each`, from the least to the most. A selection that collects no test fails,
 as `make test` fails on one. This form imports pytest, so it runs after `uv sync`, as `uv run
 python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
@@ -1146,17 +1147,20 @@ def node_ids(tests):
 
 def dealt(nodeids, times, count):
     """The test files of each of `count` parts, sorted, and each part's seconds: whole files
-    dealt slowest first to the part with the least time so far, by the summed seconds of each
-    file's tests in `times` (`testing/shard.py`'s table). No tests at all fails."""
+    dealt by `testing/shard.py`'s split, by the summed seconds of each file's tests in `times`
+    (its table) and the seconds of each file's slowest test. No tests at all fails."""
     from testing import shard
 
     if not nodeids:
         sys.exit("select_tests.py: the selection holds no test")
-    took = {}
+    took, slowest = {}, {}
     for nodeid in nodeids:
         file = nodeid.partition("::")[0]
         took[file] = took.get(file, 0.0) + shard.seconds(times, nodeid)
-    parts = shard.split(list(took), {shard.key(file): s for file, s in took.items()}, count)
+        slowest[file] = max(slowest.get(file, 0.0), shard.seconds(times, nodeid))
+    parts = shard.split(
+        list(took), {shard.key(file): s for file, s in took.items()}, count, slowest
+    )
     return [sorted(part) for part in parts], [sum(took[file] for file in part) for part in parts]
 
 

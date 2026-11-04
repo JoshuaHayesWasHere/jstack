@@ -16,7 +16,7 @@ from collections import Counter
 import pytest
 
 from testing.paths import REPO
-from testing.shard import FLOOR, TIMES, key, read_times, seconds
+from testing.shard import FLOOR, TIMES, WORKERS, key, read_times, seconds, split
 
 PARTS = 8
 LIST = [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
@@ -47,18 +47,37 @@ def test_the_parts_hold_each_selected_test_once_and_miss_none(selected):
     assert len(whole) > PARTS and all(parts)
 
 
-def test_the_whole_suite_s_parts_end_within_its_slowest_test_of_each_other():
-    """Time, not count: the parts of the whole suite, by the table's seconds, are no further apart
-    than the slowest test, which no split can cut."""
+def test_the_whole_suite_s_parts_end_together_but_the_flow_spec_test_s_which_is_its_alone():
+    """Time, not count: the merge flow's TLC test, at its cold time, runs longer than the others'
+    share of a part over its workers, so its part holds it alone, and the other parts of the
+    whole suite, by the table's seconds, are no further apart than their slowest test."""
     whole, *parts = listed(
         ["-m", "not browser"],
         *(["-m", "not browser", f"--shard={k}/{PARTS}"] for k in range(1, PARTS + 1)),
     )
     times = read_times(TIMES)
     assert sum(key(test) in times for test in whole) > len(whole) / 3
-    each = [sum(seconds(times, test) for test in part) for part in parts]
-    assert max(each) - min(each) <= max(seconds(times, test) for test in whole)
-    assert max(each) - min(each) < sum(each) / PARTS / 20
+    assert [FLOW] in parts
+    rest = [part for part in parts if part != [FLOW]]
+    each = [sum(seconds(times, test) for test in part) for part in rest]
+    assert max(each) - min(each) <= max(seconds(times, test) for part in rest for test in part)
+    assert max(each) - min(each) < sum(each) / len(rest) / 20
+    assert max(each) / WORKERS < seconds(times, FLOW)
+
+
+def test_a_test_that_outlasts_the_others_share_has_a_part_alone_and_one_that_does_not_has_company():
+    """A part ends at its tests' time over `WORKERS`, and never before its slowest test. A test
+    of 50 s among 300 tests of 1 s over 4 parts outlasts the others' share (300 / 3 / 4 = 25 s),
+    so it is alone. A test of 10 s does not, and its part takes tests of 1 s until it would end
+    later than the rest."""
+    quick = [f"t.py::test_{n:03}" for n in range(300)]
+    for slow, alone in ((50, True), (10, False)):
+        times = {key("t.py::test_slow"): slow} | {key(test): 1 for test in quick}
+        parts = split(["t.py::test_slow", *quick], times, 4)
+        (mine,) = [part for part in parts if "t.py::test_slow" in part]
+        assert (mine == ["t.py::test_slow"]) == alone
+        others = [len(part) / WORKERS for part in parts if part is not mine]
+        assert max(others) - min(others) <= 1 / WORKERS
 
 
 FLOW = (
