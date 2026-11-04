@@ -146,7 +146,8 @@ jobs:
       # files a selection holds. It adds the tests that failed on main (`reuse`), and the summary
       # names those it added. A selection that collects no test fails here. It also gives
       # `files`, `all` or how many test files it selected, and `forced_by`, the path that made it
-      # `all`, and writes the files it selected to `SELECTED`.
+      # `all`, and writes the selection's list to `SELECTED` and the summary: each file it
+      # selected, the causes that selected it and the part that runs it.
       - name: select
         id: select
         env:
@@ -159,8 +160,9 @@ jobs:
         run: python3 features/writing/scripts/prose_lint.py HEAD^1
       - name: make lint
         run: make lint BASE=HEAD^1
-      # The test files the check selected, one a line, kept for each attempt whether the lint
-      # passed or failed. A list that cannot be kept costs that lookup and nothing else.
+      # The test files the check selected, one a line with why and its part, kept for each
+      # attempt whether the lint passed or failed. A list that cannot be kept costs that lookup
+      # and nothing else.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: "!cancelled()"
         continue-on-error: true

@@ -83,12 +83,16 @@ With `$GITHUB_STEP_SUMMARY` set, it adds one line to that file: `check-fast sele
 files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n>
 forced-by=<path>`. The keys are always these, in this order. Each cause's count is the number of
 files it selected on its own, so the counts overlap. `forced-by` names the path that made the
-selection `all`, and it is `-` otherwise. A collector reads that line. With `$GITHUB_OUTPUT`
+selection `all`, and it is `-` otherwise. A collector reads that line. Last, after a blank line,
+a folded block holds the selection's list: a line for each selected test file, with the causes
+that selected it, comma-separated (`imports`, `names`, `features`, `cross-cutting`,
+`catch-all`, `failed-on-main`), or the one line `all forced-by=<path>`. With `$GITHUB_OUTPUT`
 set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
 tree's marker on a pass of `all`. It also gives `files`, `all` or how many test files it
 printed, and `forced_by`, the path that made it `all` or nothing: the check notices both to
 `jbus ci`, which keeps them in ci.jsonl as `selection` and `reason`. With `$SELECTED` set as
-well, it writes what it printed to that file too, which the check keeps as an artifact: only
+well, it writes the selection's list to that file too, which the check keeps as an artifact,
+so a test a pull request did not run can be traced to the selection that left it out: only
 beside `$GITHUB_OUTPUT`, which the suite's fixtures clear, so a test that runs the script in
 the check's own environment leaves the step's list alone.
 
@@ -102,8 +106,10 @@ its slowest test, which no part ends before). So a part collects only its own fi
 space-separated, or `none` for a part the selection left empty, and the summary gets one more
 line: `parts: <n> of <tests> tests in <files> files,
 <s> s of test time each`, from the least to the most. A selection that collects no test fails,
-as `make test` fails on one. This form imports pytest, so it runs after `uv sync`, as `uv run
-python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
+as `make test` fails on one. In the selection's list each line then ends `part=<k>`, the part
+that runs the file (`-` for a file that collects no test), and an `all` lists every file of the
+suite with its part, after its first line. This form imports pytest, so it runs after `uv
+sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -1026,7 +1032,7 @@ def everywhere(path):
 
 def ruled(changed, follows=everywhere, cross=True):
     """`(tests, why)`: the sorted test files the rules select for the changed paths, or
-    `["all"]`, and for each cause the number of files it selected, or the path that forced
+    `["all"]`, and for each cause the sorted files it selected, or the path that forced
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
     cross-cutting tests count only with `cross`."""
     ready()
@@ -1062,7 +1068,9 @@ def ruled(changed, follows=everywhere, cross=True):
         key: {one for one in tests if (ROOT / one).is_file() and not opens_browser(one)}
         for key, tests in found.items()
     }
-    return sorted(set().union(*present.values())), {key: len(one) for key, one in present.items()}
+    return sorted(set().union(*present.values())), {
+        key: sorted(one) for key, one in present.items()
+    }
 
 
 def collected():
@@ -1088,18 +1096,16 @@ def unowned():
 
 def selection(changed, failed=()):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
-    each cause the number of files it selected, or the path that forced `all`. They are what
-    the rules select, the test files no rule owns, counted as cross-cutting, and the `failed`
-    test files that the check runs. `why["added"]` lists the failed ones nothing else
-    selected."""
+    each cause the sorted files it selected, or the path that forced `all`. They are what the
+    rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
+    the check runs. `why["added"]` lists the failed ones nothing else selected."""
     tests, why = ruled(changed)
     if tests == ["all"]:
         return tests, why
     lone = unowned()
-    why = {**why, "cross-cutting": len(set(cross_cutting()) & collected() | lone)}
     chosen = set(tests) | lone
     added = set(failed) & collected() - chosen
-    return sorted(chosen | added), {**why, "added": sorted(added)}
+    return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
 def ask(path, gone=None, **query):
@@ -1235,6 +1241,16 @@ def within(entries, changed, listed):
 
 
 CAUSES = ("imports", "names", "features", "cross-cutting")
+# Each cause of a selected file, as the selection's list names it: `added` is a test that
+# failed on main.
+WHY = {
+    "imports": "imports",
+    "names": "names",
+    "features": "features",
+    "cross-cutting": "cross-cutting",
+    "catch-all": "catch-all",
+    "added": "failed-on-main",
+}
 
 
 def total():
@@ -1244,10 +1260,43 @@ def total():
 def summary(tests, why, changed):
     chosen = "all" if tests == ["all"] else "some"
     count = total() if chosen == "all" else len(tests)
-    causes = " ".join(f"{key}={why.get(key, 0)}" for key in CAUSES)
+    counts = {key: len(why.get(key, ())) for key in CAUSES}
+    counts["cross-cutting"] = len({*why.get("cross-cutting", ()), *why.get("catch-all", ())})
+    causes = " ".join(f"{key}={counts[key]}" for key in CAUSES)
     return (
         f"check-fast selection={chosen} files={count} of={total()} changed={len(changed)} "
         f"{causes} forced-by={why.get('forced-by', '-')}"
+    )
+
+
+def reasons(tests, why, parts=None):
+    """The selection's list, a line each: a selected test file and the causes that selected
+    it, comma-separated; or first `all` and the path that forced it. With the `parts` it was
+    dealt to, each line ends `part=<k>`, `-` for a file that collects no test, and an `all`
+    lists each file of the suite after its first line."""
+    where = {one: at for at, part in enumerate(parts or [], 1) for one in part}
+
+    def placed(one):
+        return "" if parts is None else f" part={where.get(one, '-')}"
+
+    if tests == ["all"]:
+        return [
+            f"all forced-by={why['forced-by']}",
+            *(f"{one} all{placed(one)}" for one in sorted(where)),
+        ]
+    by = {key: set(why.get(key, ())) for key in WHY}
+    return [
+        f"{one} {','.join(WHY[key] for key in WHY if one in by[key])}{placed(one)}" for one in tests
+    ]
+
+
+def listing(lines):
+    """The summary's folded block of the selection's list."""
+    whole = lines[:1] and lines[0].startswith("all ")
+    count = "the whole suite" if whole else f"{len(lines)} test files"
+    body = "\n".join(lines)
+    return (
+        f"<details><summary>selected: {count}, and why</summary>\n\n```\n{body}\n```\n</details>\n"
     )
 
 
@@ -1305,8 +1354,8 @@ def dealt(nodeids, times, count):
 
 
 def handed(tests, count):
-    """Hand the selection to `count` parts: print each part's files, one part a line, and give
-    the step the output `part<k>` of each and the summary its line."""
+    """Hand the selection to `count` parts: print each part's files, one part a line, give the
+    step the output `part<k>` of each and the summary its line, and return the parts."""
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     from testing import shard
@@ -1326,6 +1375,7 @@ def handed(tests, count):
                 f"parts: {count} of {len(nodeids)} tests in {sum(map(len, parts))} files,"
                 f" {each} s of test time each\n\n"
             )
+    return parts
 
 
 def main(argv):
@@ -1367,8 +1417,7 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
-    printed = "\n".join(tests)
-    print(printed)
+    print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             file.write(summary(tests, why, changed) + "\n")
@@ -1385,10 +1434,12 @@ def main(argv):
             file.write(f"selection={chosen}\n")
             file.write(f"files={'all' if chosen == 'all' else len(tests)}\n")
             file.write(f"forced_by={why.get('forced-by', '')}\n")
-        if os.environ.get("SELECTED"):
-            Path(os.environ["SELECTED"]).write_text(printed + "\n")
-    if count is not None:
-        handed(tests, count)
+    lines = reasons(tests, why, None if count is None else handed(tests, count))
+    if os.environ.get("GITHUB_OUTPUT") and os.environ.get("SELECTED"):
+        Path(os.environ["SELECTED"]).write_text("\n".join(lines) + "\n")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
+            file.write(listing(lines) + "\n")
 
 
 if __name__ == "__main__":
