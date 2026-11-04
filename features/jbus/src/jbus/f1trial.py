@@ -54,54 +54,9 @@ SHARED = 2
 CUT = 4000
 LONGEST = 2500
 STOP = frozenset(
-    [
-        "the",
-        "and",
-        "for",
-        "that",
-        "this",
-        "with",
-        "from",
-        "have",
-        "what",
-        "when",
-        "then",
-        "them",
-        "they",
-        "into",
-        "over",
-        "just",
-        "also",
-        "only",
-        "been",
-        "were",
-        "will",
-        "would",
-        "should",
-        "could",
-        "about",
-        "which",
-        "their",
-        "there",
-        "here",
-        "your",
-        "yours",
-        "does",
-        "done",
-        "make",
-        "made",
-        "like",
-        "want",
-        "need",
-        "more",
-        "than",
-        "each",
-        "other",
-        "some",
-        "such",
-        "very",
-        "once",
-    ]
+    """the and for that this with from have what when then them they into over just also only
+    been were will would should could about which their there here your yours does done make made
+    like want need more than each other some such very once""".split()
 )
 MARK = re.compile(
     r"\b(always|never|every|must|should|shouldn'?t|don'?t|do not|stop|keep|no longer"

@@ -707,29 +707,9 @@ def join_and(items):
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
 
-OPENS_A_PHRASE = {
-    "a",
-    "an",
-    "the",
-    "your",
-    "my",
-    "our",
-    "their",
-    "its",
-    "this",
-    "that",
-    "to",
-    "of",
-    "in",
-    "on",
-    "at",
-    "for",
-    "with",
-    "from",
-    "by",
-    "and",
-    "or",
-}
+OPENS_A_PHRASE = set(
+    "a an the your my our their its this that to of in on at for with from by and or".split()
+)
 
 
 def join_labels(labels):

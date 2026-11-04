@@ -79,33 +79,8 @@ NOT_MEANING = (
 LEGACY = tuple(label for label in MEANING if label not in (parse.TITLE, "Task"))
 VALUES = ("Size",)
 FILLER = frozenset(
-    [
-        "a",
-        "an",
-        "the",
-        "of",
-        "to",
-        "in",
-        "on",
-        "at",
-        "for",
-        "by",
-        "with",
-        "is",
-        "are",
-        "was",
-        "be",
-        "been",
-        "it",
-        "its",
-        "that",
-        "this",
-        "as",
-        "from",
-        "so",
-        "then",
-        "there",
-    ]
+    "a an the of to in on at for by with is are was be been it its that this as from so then "
+    "there".split()
 )
 EXACT = "="
 NEAR = 5

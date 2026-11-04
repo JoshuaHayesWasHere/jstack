@@ -24,7 +24,7 @@ SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
-OWNED = ["scripts/"]
+OWNED = "scripts/".split()
 ALSO = ("install.sh",)
 
 README = """\

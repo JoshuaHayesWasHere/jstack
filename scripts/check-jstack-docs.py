@@ -84,29 +84,10 @@ SCHEME = re.compile(r"([a-z][a-z0-9+.-]*:|//)", re.I)
 HEADING = re.compile(r"#{1,6}\s+(.*?)\s*#*\s*$")
 MODEL = re.compile(r"\bclaude-[a-z]+-\d+(?:-\d+)*\b")
 JROLES = "features/jroles/docs/jroles.md"
-NUMBERS = [
-    "zero",
-    "one",
-    "two",
-    "three",
-    "four",
-    "five",
-    "six",
-    "seven",
-    "eight",
-    "nine",
-    "ten",
-    "eleven",
-    "twelve",
-    "thirteen",
-    "fourteen",
-    "fifteen",
-    "sixteen",
-    "seventeen",
-    "eighteen",
-    "nineteen",
-    "twenty",
-]
+NUMBERS = (
+    "zero one two three four five six seven eight nine ten "
+    "eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+).split()
 HAS = r"(?:has|have|holds?|lists?|contains?|ships|are|is)"
 NOUNS = ("skills", "commands", "principles", "playbooks")
 COUNT = {
