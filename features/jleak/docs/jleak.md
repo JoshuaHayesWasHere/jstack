@@ -94,6 +94,20 @@ commit 1a2b3c4 handoff.md:12: home-path
 jleak: 3 findings, so the push is refused
 ```
 
+Once `jleak` passes, the hook runs `features/jleak/hooks/pre-push-lint.sh`, which runs `make lint` in the work tree git pushes from.
+It runs only when that work tree's `GNUmakefile`, `makefile` or `Makefile` has a `lint:` target, and it runs no tests.
+A repo with no lint target, and a push that only deletes branches, push as before.
+`make lint` has 60 s.
+`perl` keeps the limit, since macOS has no `timeout`: at 60 s it stops the whole process group.
+The hook refuses the push in each of these cases, and after a lint that ran, it prints what `make lint` said first:
+
+```text
+lint: no make to run make lint with, so the push is refused
+lint: no perl to run make lint with, so the push is refused
+lint: make lint ran past 60 s, so the push is refused
+lint: make lint failed, so the push is refused
+```
+
 The install links it at `.git/hooks/pre-push` of each repo jstack works in, as [Which repos get the git hooks](#which-repos-get-the-git-hooks) says.
 The repo's worktrees run the same hook.
 
