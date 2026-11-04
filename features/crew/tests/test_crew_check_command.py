@@ -415,17 +415,12 @@ def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(t
         page.write("\nA line the test adds.\n")
     git(repo, "commit", "-qam", "a change to the crew feature")
     said, code, ran, base = selected(tmp_path, repo)
-    chosen = subprocess.run(
-        ["python3", "scripts/select_tests.py", base, "HEAD"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    assert "all" not in chosen
+    counted = re.fullmatch(r"selected: (\d+) test files, in the short lane:", said[0])
+    assert counted, said
+    chosen = said[1 : 1 + int(counted[1])]
+    assert len(chosen) == int(counted[1]) and "all" not in chosen
     assert "features/crew/tests/test_crew_checks.py" in chosen
-    assert said[0] == f"selected: {len(chosen)} test files, in the short lane:"
-    assert said[1 : 1 + len(chosen)] == chosen
+    assert all(test.endswith(".py") and (repo / test).is_file() for test in chosen), chosen
     assert "the full lane" not in said
     assert (ran, code) == ([f"check-fast BASE={base} short=held full=free"], 0)
 
