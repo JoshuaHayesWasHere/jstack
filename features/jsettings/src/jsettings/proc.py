@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from types import CodeType, FrameType
+from typing import Any
 from urllib.parse import urlsplit
 
 TIMEOUT = 30
@@ -91,7 +92,7 @@ def _run(
     """Run the command and return what it did. Of `stdin`, `env` and `errors`, only those given
     reach `subprocess.run`, so the tests' fake commands, which answer a call that passes none of
     them in process, answer this one too."""
-    given = {
+    given: dict[str, Any] = {
         key: value
         for key, value in (
             ("input", stdin),
@@ -228,7 +229,7 @@ def _log(
 ) -> None:
     """Write the call's line to `CALLS`, in one append, so that lines from many processes never
     mix. A log that cannot be written costs the call nothing."""
-    line = {
+    line: dict[str, object] = {
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "caller": caller,
         "endpoint": _endpoint(command, said),

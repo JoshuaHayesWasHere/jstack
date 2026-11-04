@@ -17,6 +17,8 @@ record), so it is never dropped and built again: a change to a table is a new mi
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from jbus.telemetry import entries
 from jbus.telemetry.records import SOURCES, Source
 
@@ -40,7 +42,7 @@ def tables(*names: str) -> str:
     return "".join(_table(by[name]) for name in names)
 
 
-def _collect(package: str, path: list[str]) -> dict[str, str]:
+def _collect(package: str, path: Iterable[str]) -> dict[str, str]:
     """Each migration's `SQL` by its module's name, in the order of the names."""
     found = entries.modules(package, path, MIGRATION_MODULE)
     return {module.__name__.rpartition(".")[2]: module.SQL for module in found}

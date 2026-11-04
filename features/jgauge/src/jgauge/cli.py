@@ -196,12 +196,12 @@ def cmd_test_slot(args: argparse.Namespace) -> int:
         try:
             lane = slot.short()
         except sizes.Refused as error:
-            args.usage(str(error))
+            return args.usage(str(error))
         return slot.run(command, lane, args.thread)
     try:
         slots = slot.count(args.slots)
     except slot.BadCount as error:
-        args.usage(str(error))
+        return args.usage(str(error))
     return slot.run(command, slot.full(slots), args.thread)
 
 

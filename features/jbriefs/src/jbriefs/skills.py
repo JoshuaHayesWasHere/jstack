@@ -366,7 +366,8 @@ def load(text: str) -> str:
         out.append(f"loaded: {listed}, the names on the Skills: line, each in full below")
         for one in known:
             out.append(f"\n==> {one.relative} <==")
-            out.append(one.path.read_text().rstrip("\n"))
+            if one.path is not None:
+                out.append(one.path.read_text().rstrip("\n"))
         table = artifacts()
         out.append(
             "\nthe artifact each owes under Skills run: in the Result, "

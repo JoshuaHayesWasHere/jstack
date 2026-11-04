@@ -83,7 +83,7 @@ class Waiting(str):
     code: str
 
 
-def waits(verb: Literal["wait", "hold"], number: int | str, url: str, why: str) -> str:
+def waits(verb: str, number: int | str, url: str, why: str) -> str:
     """The line for a pull request that does not merge on this run, with the reason it does not
     merge."""
     made = Waiting(f"{verb} {number} {url}: {why}")
@@ -102,7 +102,9 @@ def logged(line: str) -> str:
     return f"{line} [{code}]"
 
 
-def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str], url: str) -> str:
+def merged(
+    number: int | str, slug: str, commit: str, title: str, notes: Sequence[str], url: str
+) -> str:
     """The line for a pull request that this run merged, with the command that reverts the merge
     at the end of the line."""
     revert = f"revert: gh pr revert {shlex.quote(url)}"

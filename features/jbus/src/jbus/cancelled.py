@@ -252,7 +252,9 @@ def _cause(run: Pass, repo: str, at: str, check: dict) -> str:
 
 
 def _rerun(half: Half) -> None:
-    rerun(half.run, half.seen.world, {row["slug"] for row in half.rows or []})
+    world = half.seen.world
+    if world is not None:
+        rerun(half.run, world, {row["slug"] for row in half.rows or []})
 
 
 STEPS = (verbs.Step("after-expedite", 25, "cancelled.rerun", _rerun, ("world",)),)

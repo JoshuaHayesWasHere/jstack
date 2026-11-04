@@ -959,7 +959,7 @@ def status(
     return {
         "thread": (found or {}).get("threadId") or launched,
         "pr": f"#{pull['number']}" if pull else "",
-        "checks": checks(pull) if slug in world.open else "",
+        "checks": checks(pull) if pull is not None and slug in world.open else "",
         "status": word,
         "why": reason,
     }

@@ -164,6 +164,8 @@ class Facts:
                 and job["branch"] == "main"
                 and job.get("steps")
                 and job["conclusion"] in ("success", "failure")
+                and job.get("created")
+                and job.get("completed")
             ):
                 runs[job["run"]].append(job)
         found = []
@@ -171,10 +173,10 @@ class Facts:
             state = "failure" if any(j["conclusion"] == "failure" for j in run) else "success"
             found.append(
                 (
-                    min(time(j["created"]) for j in run),
+                    min(jsettings.when(j["created"]) for j in run),
                     run[0]["sha"],
                     state,
-                    max(time(j["completed"]) for j in run),
+                    max(jsettings.when(j["completed"]) for j in run),
                 )
             )
         return sorted(found)
@@ -210,11 +212,12 @@ class Facts:
     def _inherited(self, job: dict[str, Any], mains: list[dict[str, Any]]) -> bool:
         ids, began = set(job["tests"] or []), time(job["started"] or job["created"])
         for one in mains:
-            until = self._red_until(one)
+            until, at = self._red_until(one), time(one["started"] or one["created"])
             if (
                 until
                 and began
-                and time(one["started"] or one["created"]) < began
+                and at is not None
+                and at < began
                 and ids & set(one["tests"] or [])
                 and began < until
             ):
@@ -267,7 +270,7 @@ class Facts:
     def _messages(self) -> dict[int, list[tuple[datetime, str]]]:
         found: dict[int, list[tuple[datetime, str]]] = defaultdict(list)
         for event in self.events:
-            kind, said = event.get("event"), event.get("text", "")
+            kind, said = event.get("event", ""), event.get("text", "")
             number, at = self._pull_of(event), time(event.get("at"))
             if kind not in (*KINDS, "resume", "rereview", "drops") or number is None or at is None:
                 continue
@@ -308,7 +311,7 @@ class Facts:
         found = []
         for one in self.pulls:
             number = int(one["number"])
-            ordered = sorted(time(x) for x in one.get("pushes", []))
+            ordered = sorted(jsettings.when(x) for x in one.get("pushes", []))
             for at, pushed in enumerate(ordered):
                 near = [m for m in messages[number] if pushed - LOOKBACK <= m[0] <= pushed]
                 rebased = [m for m in near if m[1].startswith(("rebase", "conflict", "mainmoved"))]
