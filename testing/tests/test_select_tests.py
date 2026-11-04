@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -1059,6 +1060,252 @@ def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_br
     tests, _ = select.selection(changed)
 
     assert broken in tests
+
+
+VIEW = "features/jbus/tests/view/"
+TABLE = [
+    ("all", ["pyproject.toml"], {"all"}, ()),
+    ("all", ["uv.lock"], {"all"}, ()),
+    ("all", ["conftest.py"], {"all"}, ()),
+    ("plugin", ["testing/jstack_fixtures.py"], {"all"}, ()),
+    ("plugin", ["testing/paths.py"], {"all"}, ()),
+    (
+        "imports",
+        ["features/jmerge/src/jmerge/reuse.py"],
+        {"features/jmerge/tests/test_jmerge_stacked.py"},
+        (),
+    ),
+    (
+        "imports",
+        ["features/crew/tests/test_crew_needs_go.py"],
+        {"features/crew/tests/test_crew_result_template.py"},
+        (),
+    ),
+    (
+        "itself",
+        ["features/jbus/tests/test_jbus_wakes.py"],
+        {"features/jbus/tests/test_jbus_wakes.py"},
+        (),
+    ),
+    (
+        "chain",
+        ["features/skill-library/tests/skill_blocks.py"],
+        {"features/expert/tests/test_expert_skill.py"},
+        (),
+    ),
+    (
+        "process",
+        ["features/jgauge/src/jgauge/sizes.py"],
+        {"features/jbus/tests/test_needs_replay.py"},
+        (),
+    ),
+    (
+        "by-name",
+        ["features/jbriefs/src/jbriefs/asks.py"],
+        {"features/jbus/tests/test_jbus_bind.py"},
+        (),
+    ),
+    (
+        "fixture-asked",
+        ["features/jmerge/tests/test_sweep.py"],
+        {"features/home/tests/test_quiet_home.py"},
+        (),
+    ),
+    (
+        "conftest",
+        [f"{VIEW}conftest.py"],
+        {f"{VIEW}test_view_answer.py", f"{VIEW}test_view_days.py"},
+        (),
+    ),
+    (
+        "test-spelled",
+        ["features/jbus/tests/relay_leaves.py"],
+        {"features/jbus/tests/test_jbus_relay.py"},
+        (),
+    ),
+    ("beside", ["features/jbus/src/jbus/view/page.html"], {f"{VIEW}test_view_server.py"}, ()),
+    (
+        "spelled",
+        ["features/evals/evals/skill-cut/cases/steps.json"],
+        {"features/evals/tests/test_eval_skill_cut.py"},
+        (),
+    ),
+    (
+        "skill-index",
+        ["features/benchmark-checklist/SKILL.md"],
+        {"features/show-me-your-work/tests/test_show_me_your_work.py"},
+        (),
+    ),
+    ("included", ["features/crew/a-gate.md"], {"features/jbus/tests/test_gates.py"}, ()),
+    ("included", ["features/expert/an-ask.md"], {"features/expert/tests/test_expert_skill.py"}, ()),
+    (
+        "skill-index",
+        ["features/home/skills/home/SKILL.md"],
+        {"features/home/tests/test_quiet_turns.py"},
+        (),
+    ),
+    (
+        "fixture",
+        ["features/jbriefs/tests/fixtures/findings/two-reviewers.md"],
+        {"features/jbriefs/tests/test_jbriefs_findings.py"},
+        (),
+    ),
+    (
+        "fixture",
+        [
+            "features/jgauge/tests/fixtures/projects/-tmp-plain-thread/11111111-1111-4111-8111-111111111111.jsonl"
+        ],
+        {"features/jgauge/tests/test_session.py"},
+        (),
+    ),
+    (
+        "read-set",
+        ["features/evals/benchmark/common.sh"],
+        {"features/evals/tests/test_benchmark.py"},
+        (),
+    ),
+    (
+        "read-set",
+        ["features/home/feature.json"],
+        {"features/repo-guards/tests/test_no_notes.py"},
+        (),
+    ),
+    (
+        "tests-line",
+        ["features/scout/templates/scout-report.md"],
+        {"features/jbus/tests/test_jbus_scout.py"},
+        (),
+    ),
+    ("page", ["features/grilling/verify.md"], {"features/grilling/tests/test_grilling.py"}, ()),
+    ("scripts", ["scripts/jtrees/crawl.py"], {"testing/tests/test_jtrees.py"}, ()),
+    (
+        "paths",
+        ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
+        {"features/skill-library/tests/test_statechart_runs.py"},
+        (),
+    ),
+    ("cross-cutting", ["README.md"], set(select.cross_cutting()), ()),
+    (
+        "browser",
+        ["features/crew/SKILL.md"],
+        {"features/crew/tests/test_crew_check_command.py"},
+        (f"{VIEW}page/test_view_page_browser.py",),
+    ),
+]
+FAILED = ("README.md", "features/jgauge/tests/test_session.py")
+
+
+def fails(module, rule, changed, needed, absent):
+    """Why the selection `module` makes for one row of the table is wrong, or `None`."""
+    tests, why = module.selection(changed)
+    if needed == {"all"}:
+        return None if tests == ["all"] else f"{rule}: {changed} selects some, not all"
+    if tests == ["all"]:
+        return f"{rule}: {changed} selects all, forced by {why['forced-by']}"
+    missing, wrong = needed - set(tests), set(absent) & set(tests)
+    return (
+        f"{rule}: {changed} misses {sorted(missing)}, selects {sorted(wrong)}"
+        if missing or wrong
+        else None
+    )
+
+
+def failing(module):
+    """The rows of the table, and the row of the failed-on-main tests, that `module` gets wrong."""
+    wrong = [fails(module, *row) for row in TABLE]
+    changed, failed = FAILED
+    if failed not in module.selection([changed], failed=[failed])[0]:
+        wrong.append(f"failed-on-main: {changed} with {failed} red on main leaves it out")
+    return [one for one in wrong if one]
+
+
+def test_each_kind_of_change_selects_the_tests_that_read_it():
+    """One row for each rule of the selector, on today's tree: a changed path, the test files its
+    rule must select, and the ones the selection must leave out. Each row names a test that
+    the row's rule selects, so a test the rule stops selecting shows here. A row that names a
+    cross-cutting test would pass whatever its rule did, since every change runs those."""
+    cross = set(select.cross_cutting())
+    assert [row for row in TABLE if row[0] != "cross-cutting" and row[2] & cross] == []
+    assert failing(select) == []
+
+
+def test_every_python_file_under_features_selects_a_test():
+    """A change to a module runs a test of its own, beside the cross-cutting tests and the
+    catch-all, which every change runs: a test file selects itself, and any other file a test
+    that imports it, names it or reads it, or `all`."""
+    lone = [
+        path
+        for path in sorted(select.tracked())
+        if path.startswith("features/") and path.endswith(".py")
+        if not set(select.ruled([path], cross=False)[0])
+        - (set() if select.TEST.fullmatch(path) else {path})
+    ]
+    assert lone == []
+
+
+MUTANTS = {
+    "all": ("if path in shared():\n            return", "if path in ():\n            return"),
+    "plugin": (
+        "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
+        "return set(EVERYTHING)",
+    ),
+    "imports": ("test_files(importers([by_path[path]]))", "test_files([by_path[path]])"),
+    "chain": (
+        "todo += imported_by().get(one, ())",
+        "todo += imported_by().get(one, ()) if one in names else ()",
+    ),
+    "process": ("if path.startswith(run)}", "if path.startswith(run) and False}"),
+    "by-name": ("for loader in itself.union(", "for loader in set().union("),
+    "fixture-asked": (" | asking(by_path[path])", ""),
+    "conftest": ("reached |= conftests(name) & known.keys()", "reached |= set()"),
+    "test-spelled": ('found["names"] |= readers(path)\n', 'found["names"] |= set()\n'),
+    "beside": ('found["imports"] |= test_files(importers(users(path)))', "pass"),
+    "spelled": ('found["names"] |= readers(one)', "pass"),
+    "included": ("for one in {path} | includers(path):", "for one in {path}:"),
+    "skill-index": ("if not any(SKILL_INDEX in one[6] for one in held):", "if True:"),
+    "fixture": ('found["names"] |= named', "pass"),
+    "read-set": ('found["names"] |= globbers(path)', "pass"),
+    "tests-line": ('found["features"] |= set(listed_tests)', "pass"),
+    "page": ('found["features"] |= feature_tests(name)', "pass"),
+    "cross-cutting": (
+        'found["cross-cutting"] = set(cross_cutting()) if cross else set()',
+        'found["cross-cutting"] = set()',
+    ),
+    "browser": (
+        "tests if (ROOT / one).is_file() and not opens_browser(one)}",
+        "tests if (ROOT / one).is_file()}",
+    ),
+    "failed-on-main": ("added = set(failed) & collected() - chosen", "added = set()"),
+}
+
+
+def mutant(old, new):
+    """The selector with one rule broken: `old` swapped for `new` in its source. It shares the
+    modules, their sources and the files git tracks with `select`, which no mutant changes."""
+    text = SCRIPT.read_text()
+    assert text.count(old) == 1, f"the rule's code moved: {old!r}"
+    module = types.ModuleType("select_tests_mutant")
+    module.__file__ = str(SCRIPT)
+    exec(compile(text.replace(old, new), str(SCRIPT), "exec"), module.__dict__)
+    for name in ("ready", "modules", "sources", "tracked", "unowned"):
+        setattr(module, name, getattr(select, name))
+    return module
+
+
+def test_every_rule_of_the_table_has_a_mutant():
+    rules = {rule for rule, *_ in TABLE} | {"failed-on-main"}
+
+    assert rules - MUTANTS.keys() == {"itself", "scripts", "paths"}
+    assert MUTANTS.keys() <= rules
+
+
+@pytest.mark.parametrize("rule", MUTANTS)
+def test_breaking_a_rule_of_the_selector_fails_a_row_of_its_rule(rule):
+    """Each rule broken alone in the selector's source must fail a row of the table that names
+    that rule, so the table pins what each rule selects and no row passes on another rule."""
+    wrong = failing(mutant(*MUTANTS[rule]))
+
+    assert [one for one in wrong if one.startswith(f"{rule}:")]
 
 
 SUMMARY = re.compile(
