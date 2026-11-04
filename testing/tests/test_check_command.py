@@ -387,10 +387,10 @@ def check_fast(copy, path, *more):
     assert made.returncode == 0, made.stdout + made.stderr
 
 
-def selected(copy, *more):
+def selected(copy):
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     ran = subprocess.run(
-        [sys.executable, "scripts/select_tests.py", *more, "HEAD^1", "HEAD"],
+        [sys.executable, "scripts/select_tests.py", "HEAD^1", "HEAD"],
         cwd=copy,
         env=env,
         capture_output=True,
@@ -418,21 +418,34 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     assert all(test.endswith(".py") and Path(copy, test).is_file() for test in tests), tests
 
 
-@pytest.mark.parametrize(("part", "lint"), [("guards", LINT), ("rest", [])])
+PARTS = [
+    ("guards", ["testing/tests/test_a.py", "testing/tests/test_b.py"], LINT),
+    ("rest", ["testing/tests/test_c.py"], []),
+    ("rest", [], None),
+    ("rest", ["all"], []),
+]
+
+
+@pytest.mark.parametrize(("part", "tests", "lint"), PARTS)
 def test_a_desk_part_of_check_fast_runs_only_its_own_tests_and_the_rest_no_lint(
-    tmp_path, step_files, part, lint
+    tmp_path, step_files, part, tests, lint
 ):
     """`PART=guards` is the lint and the guard tests, and `PART=rest` the other tests the change
-    reaches, with no lint: the desk ran the lint with the guards."""
+    reaches, with no lint: the desk ran the lint with the guards. A rest of `all` is the whole
+    suite, and an empty rest runs nothing. The selector here is a stand-in that prints `tests`
+    for whatever part it is asked: the parts it prints are `test_select_tests.py`'s, and the real
+    one, run twice over a copy of the tree, takes most of a test's time limit on a runner."""
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
+    argv = tmp_path / "argv"
+    (copy / "scripts" / "select_tests.py").write_text(
+        f"import sys\nopen({str(argv)!r}, 'w').write(' '.join(sys.argv[1:]))\n"
+        f"print({chr(10).join(tests)!r})\n"
+    )
     check_fast(copy, path, f"PART={part}")
-    tests = selected(copy, "--part", part)
-    assert tests and "all" not in tests
-    assert ("features/jdrift/tests/test_drift.py" in tests) == (part == "guards")
-    assert asked.read_text().splitlines() == [
-        *lint,
-        " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
-    ]
+    assert argv.read_text() == f"--part {part} HEAD^1 HEAD"
+    run = " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *(t for t in tests if t != "all")])
+    said = asked.read_text().splitlines() if asked.exists() else []
+    assert said == ([] if lint is None else [*lint, run])
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(
