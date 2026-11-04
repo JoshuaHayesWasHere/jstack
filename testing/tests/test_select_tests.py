@@ -1063,7 +1063,7 @@ def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
         "testing/tests/test_jtrees_one_feature.py",
         "features/jinstall/tests/test_docs_hooks.py",
     } <= set(selected)
-    assert why["imports"] > 0
+    assert why["imports"]
 
 
 STATECHART_TESTS = {
@@ -1082,7 +1082,7 @@ def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_o
 
     for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
         assert STATECHART_TESTS <= set(selected)
-        assert why["imports"] >= len(STATECHART_TESTS)
+        assert STATECHART_TESTS <= set(why["imports"])
 
 
 MERGED = {
@@ -1404,7 +1404,12 @@ def summary(repo, head, tmp_path):
     env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file)}
     ran = repo.run(repo.base, head, env=env)
     assert ran.returncode == 0, ran.stderr
-    return ran.stdout.splitlines(), file.read_text().strip().splitlines()
+    return ran.stdout.splitlines(), lead(file).splitlines()
+
+
+def lead(file):
+    """The summary's lines above its list of the selection."""
+    return file.read_text().split("\n\n")[0].strip()
 
 
 def test_the_selection_is_added_to_the_job_summary_as_a_line_a_collector_can_read(repo, tmp_path):
@@ -1724,13 +1729,16 @@ SMALL = {
 
 
 def outputs(repo, head, tmp_path):
-    """What the selection printed, its summary line, and what it gave the step's outputs."""
-    file, output = tmp_path / "summary.md", tmp_path / "output"
+    """What the selection printed, its summary line, and what it gave the step's outputs. The
+    file `$SELECTED` names, the list the check keeps as an artifact, holds a line for each file
+    it printed."""
+    file, output, kept = tmp_path / "summary.md", tmp_path / "output", tmp_path / "selected.txt"
     env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file), "GITHUB_OUTPUT": str(output)}
-    ran = repo.run(repo.base, head, env=env)
+    ran = repo.run(repo.base, head, env=env | {"SELECTED": str(kept)})
     assert ran.returncode == 0, ran.stderr
+    assert [line.split(" ")[0] for line in kept.read_text().splitlines()] == ran.stdout.split()
     given = dict(line.split("=", 1) for line in output.read_text().splitlines())
-    return ran.stdout.splitlines(), SUMMARY.fullmatch(file.read_text().strip()), given
+    return ran.stdout.splitlines(), SUMMARY.fullmatch(lead(file)), given
 
 
 def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_path):
@@ -1749,7 +1757,7 @@ def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_pa
         "testing/tests/test_tree.py",
     ]
     assert (line["selection"], line["files"], line["of"], line["forced"]) == ("some", "5", "5", "-")
-    assert given == {"selection": "some"}
+    assert given == {"selection": "some", "files": "5", "forced_by": ""}
 
 
 def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
@@ -1764,7 +1772,7 @@ def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
         "testing/tests/test_tree.py",
     ]
     assert (line["selection"], line["files"], line["forced"]) == ("some", "3", "-")
-    assert given == {"selection": "some"}
+    assert given == {"selection": "some", "files": "3", "forced_by": ""}
 
 
 @pytest.mark.parametrize("path", ["pyproject.toml", "conftest.py"])
@@ -1774,7 +1782,8 @@ def test_a_path_every_test_rests_on_still_runs_all_however_few_tests_there_are(t
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert (printed, line["forced"], given) == (["all"], path, {"selection": "all"})
+    assert (printed, line["forced"]) == (["all"], path)
+    assert given == {"selection": "all", "files": "all", "forced_by": path}
 
 
 def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
@@ -1782,7 +1791,8 @@ def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert (printed, line["forced"], given) == (["all"], "pyproject.toml", {"selection": "all"})
+    assert (printed, line["forced"]) == (["all"], "pyproject.toml")
+    assert given == {"selection": "all", "files": "all", "forced_by": "pyproject.toml"}
 
 
 def timed(seconds):
@@ -1825,6 +1835,7 @@ def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
             "PATH": "/usr/bin:/bin",
             "GITHUB_STEP_SUMMARY": str(summary),
             "GITHUB_OUTPUT": str(output),
+            "SELECTED": str(tmp_path / "selection.txt"),
         },
     )
     given = (
@@ -1844,6 +1855,8 @@ def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
     assert ran.returncode == 0, ran.stderr
     assert given == {
         "selection": "some",
+        "files": "3",
+        "forced_by": "",
         "part1": "testing/tests/test_slow.py",
         "part2": "testing/tests/test_two.py",
         "part3": "testing/tests/test_tree.py",
@@ -1864,6 +1877,8 @@ def test_every_selected_file_is_in_exactly_one_part(tmp_path):
     assert ran.returncode == 0, ran.stderr
     assert given == {
         "selection": "some",
+        "files": "3",
+        "forced_by": "",
         "part1": "testing/tests/test_slow.py",
         "part2": "testing/tests/test_tree.py testing/tests/test_two.py",
     }
@@ -1882,12 +1897,114 @@ def test_a_selection_that_collects_no_test_fails_and_gives_no_part(tmp_path):
     assert [key for key in given if key.startswith("part")] == []
 
 
+def test_the_selections_list_names_the_part_that_runs_each_file(tmp_path):
+    """The job `select` keeps each part's selection: every file with why and its part."""
+    ran, summary, _ = parted(tmp_path, 2)
+
+    assert ran.returncode == 0, ran.stderr
+    kept = (tmp_path / "selection.txt").read_text().splitlines()
+    assert kept == [
+        "testing/tests/test_slow.py imports,catch-all part=1",
+        "testing/tests/test_tree.py cross-cutting part=2",
+        "testing/tests/test_two.py imports,catch-all part=2",
+    ]
+    assert summary.rstrip().endswith("\n".join(kept) + "\n```\n</details>")
+
+
+def test_an_all_dealt_to_parts_lists_every_file_with_its_part():
+    parts = [["testing/tests/test_b.py"], ["testing/tests/test_a.py"]]
+
+    assert select.reasons(["all"], {"forced-by": "uv.lock"}, parts) == [
+        "all forced-by=uv.lock",
+        "testing/tests/test_a.py all part=2",
+        "testing/tests/test_b.py all part=1",
+    ]
+
+
 def test_the_deal_of_no_tests_fails():
     with pytest.raises(SystemExit, match="holds no test"):
         select.dealt([], {}, 8)
+
+
+def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_quick_tests_is_not():
+    """Files are dealt whole, and a part never ends before the slowest test of its files: a file
+    of one 60 s test gets a part to itself, and a file of 60 tests of 1 s, as long in all, shares
+    one, since its tests spread over the part's workers."""
+    from testing import shard
+
+    serial = ["a/test_serial.py::test_long"]
+    spread = [f"a/test_spread.py::test_{n}" for n in range(60)]
+    rest = [f"a/test_{n}.py::test_one" for n in range(200)]
+    times = {shard.key(serial[0]): 60} | {shard.key(test): 1 for test in spread + rest}
+    parts, _ = select.dealt(serial + spread + rest, times, 4)
+    assert ["a/test_serial.py"] in parts
+    (spreads,) = [part for part in parts if "a/test_spread.py" in part]
+    assert len(spreads) > 1
 
 
 @pytest.mark.parametrize("argv", [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"]])
 def test_parts_takes_a_count_of_one_or_more(argv):
     with pytest.raises(SystemExit, match="usage"):
         select.main(argv)
+
+
+def listed_selection(repo, head, tmp_path, failed=None):
+    """What the selection printed, the list it wrote to `$SELECTED`, and the list in the
+    summary's folded block."""
+    file, kept = tmp_path / "summary.md", tmp_path / "selection.txt"
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "GITHUB_STEP_SUMMARY": str(file),
+        "GITHUB_OUTPUT": str(tmp_path / "output"),
+        "SELECTED": str(kept),
+    }
+    if failed is not None:
+        env["FAILED_ON_MAIN"] = failed
+    ran = repo.run(repo.base, head, env=env)
+    assert ran.returncode == 0, ran.stderr
+    block = file.read_text().split("<details>", 1)[1]
+    assert block.startswith("<summary>selected: ")
+    shown = block.split("```\n", 1)[1].split("\n```", 1)[0]
+    return ran.stdout.splitlines(), kept.read_text().splitlines(), shown.splitlines()
+
+
+def test_the_selection_lists_each_test_file_with_why_in_the_summary_and_the_file(tmp_path):
+    """A part keeps what it selected: each test file and each cause that selected it, so a
+    test a pull request did not run can be traced to the selection."""
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["testing/tests/test_a.py", "src/small/__init__.py"])
+
+    printed, kept, shown = listed_selection(repo, head, tmp_path)
+
+    assert kept == shown
+    assert [line.split(" ")[0] for line in kept] == printed
+    assert kept == [
+        "testing/tests/test_a.py imports",
+        "testing/tests/test_b.py imports",
+        "testing/tests/test_c.py imports",
+        "testing/tests/test_d.py imports",
+        "testing/tests/test_tree.py cross-cutting",
+    ]
+
+
+def test_the_list_names_a_test_that_failed_on_main_as_failed_on_main(tmp_path):
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["testing/tests/test_tree.py"])
+
+    printed, kept, _ = listed_selection(repo, head, tmp_path, failed="testing/tests/test_b.py")
+
+    assert "testing/tests/test_b.py failed-on-main" in kept
+    assert len(kept) == len(printed)
+
+
+def test_an_all_lists_the_path_that_forced_it(tmp_path):
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["pyproject.toml"], text="# changed\n")
+
+    printed, kept, shown = listed_selection(repo, head, tmp_path)
+
+    assert (printed, kept, shown) == (["all"], ["all forced-by=pyproject.toml"], kept)
+
+
+def test_an_empty_selection_lists_no_test_file():
+    assert select.listing(select.reasons([], {})).startswith("<details><summary>selected: 0 test")

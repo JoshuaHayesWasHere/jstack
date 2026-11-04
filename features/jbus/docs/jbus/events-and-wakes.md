@@ -83,7 +83,6 @@ It is in the log, which `jbus events` prints and the view shows.
 - `item.resumed`
 - `item.waiting`
 - `jmerge`
-- `mainmoved`
 - `merged`
 - `note`
 - `pack`
