@@ -353,7 +353,11 @@ class Writes:
     def _word(self, run: passes.Pass, heard: party.Evidence) -> Answer:
         """Keep the bot's word for the project's home, as the bot's act, and send it at once to
         the home's thread, as `jbus word` does. A word that cannot go yet waits for the next
-        pass (`word.deliver`), and the act says what became of it."""
+        pass (`word.deliver`), and the act says what became of it. A word that keeps no bot's
+        message it answers and names no row of the project by its slug (`queue.bare`) is
+        refused, as `jbus word` refuses it, before anything is kept or sent."""
+        if queue.bare(heard.words, heard.answers, queue.known(run.state)):
+            return said(409, {"error": word.BARE_WORD})
         try:
             kept = word.keep(run, party.BOT, heard)
         except Refused as error:

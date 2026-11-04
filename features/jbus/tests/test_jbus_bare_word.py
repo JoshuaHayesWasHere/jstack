@@ -4,13 +4,18 @@ is refused where it is carried, at `jbus word`, and where it is acted on, at a h
 
 On 11-03 the words t130u and t126u reached the root home as "Telemetry"-like replies with
 nothing beside them, and the home guessed what they meant and queued and approved rows of its
-own. The tests drive the real `jbus word` and `jbus queue approve`, and make a bare word the one
-way it can still be made, the bot's own route.
+own. The tests drive the real `jbus word`, the bot's own route `POST /act`, and `jbus queue
+approve`, and make a bare word the one way it can still be there: kept before the route refused
+one (word-guard-act-route).
 """
+
+from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 
-from jbus import acts, queue, word
+import jbus
+from jbus import acts, party, passes, queue, word
 from test_jbus_acts import CHAT, Route
 from test_jbus_kitchen import sends
 from test_jbus_one_party import ASKED, HOME, MESSAGE, REF, approve, home, keep, shell
@@ -89,15 +94,55 @@ def test_the_users_own_t3_message_needs_no_answers_and_no_slug(kitchen):
 
 
 def bot_word(route, words, **more):
-    """A word of the user's kept by the bot's own route, the one way a bare word is still made."""
+    """A word of the user's kept by the bot's own route."""
     status, said = route.act({"action": "word", "words": words, "evidence": CHAT} | more)
     assert status == 200, said
     return said["act"]["id"]
 
 
-def test_the_homes_approve_on_a_bare_bot_chat_word_is_refused(kitchen, route):
+def recorded(words):
+    """A bare word the bot's route kept before it refused one, kept as that route kept it."""
+    config = jbus.load()
+    now = datetime.now(UTC)
+    run = passes.Pass(config, config.project("demo"), now, lambda _: None)
+    chat = party.chat(CHAT)
+    heard = replace(
+        chat, words=words, said_at=config.user.stamp(now), said_in=f"bot-chat {chat.ref}"
+    )
+    return word.keep(run, party.BOT, heard).id
+
+
+def test_the_bots_route_refuses_a_bare_word_and_keeps_and_sends_nothing(kitchen, route):
+    add(kitchen, "alpha", approve=False)
+    for words in ("Telemetry", "go [for: alph]"):
+        body = {"action": "word", "words": words, "evidence": CHAT}
+        assert route.act(body) == (409, {"error": word.BARE_WORD})
+        assert route.act(body | {"answers": "   "}) == (409, {"error": word.BARE_WORD})
+    assert acts.read(kitchen.state) == [] and word.load(kitchen.state) == []
+    assert sends(kitchen) == []
+
+
+def test_the_bots_route_keeps_and_sends_a_word_with_answers(kitchen, route):
+    add(kitchen, "alpha", approve=False)
+    said = bot_word(route, "Telemetry", answers=ASKED)
+    (one,) = words(kitchen)
+    assert (one["id"], one["evidence"]["answers"]) == (said, ASKED)
+    (sent,) = sends(kitchen)
+    assert sent["threadId"] == "home-1" and sent["message"].endswith(ASKED)
+
+
+def test_the_bots_route_keeps_and_sends_a_word_that_names_a_row(kitchen, route):
+    add(kitchen, "alpha", approve=False)
+    said = bot_word(route, "Telemetry [for: alpha]")
+    (one,) = words(kitchen)
+    assert (one["id"], one["evidence"]["answers"]) == (said, "")
+    (sent,) = sends(kitchen)
+    assert sent["message"].endswith("\n\nTelemetry [for: alpha]")
+
+
+def test_the_homes_approve_on_a_bare_bot_chat_word_is_refused(kitchen):
     add(kitchen, "gap-telemetry", approve=False)
-    said = bot_word(route, "Telemetry")
+    said = recorded("Telemetry")
     home(kitchen)
     code, out = approve(kitchen, "gap-telemetry", "--word", said)
     assert code == 1, out
@@ -138,18 +183,18 @@ def test_the_homes_approve_holds_on_a_bot_chat_word_with_answers_or_naming_the_r
     assert rows(kitchen)["beta"]["approval"]["ref"] == named
 
 
-def test_a_shell_approving_on_a_bare_word_is_not_newly_refused(kitchen, route):
+def test_a_shell_approving_on_a_bare_word_is_not_newly_refused(kitchen):
     add(kitchen, "alpha", approve=False)
-    said = bot_word(route, "Telemetry")
+    said = recorded("Telemetry")
     shell(kitchen)
     code, out = approve(kitchen, "alpha", "--word", said)
     assert code == 0, out
     assert rows(kitchen)["alpha"]["approval"]["ref"] == said
 
 
-def test_a_row_already_approved_on_a_bare_word_is_left_as_it_is(kitchen, route):
+def test_a_row_already_approved_on_a_bare_word_is_left_as_it_is(kitchen):
     add(kitchen, "alpha", approve=False)
-    said = bot_word(route, "Telemetry")
+    said = recorded("Telemetry")
     shell(kitchen)
     assert approve(kitchen, "alpha", "--word", said)[0] == 0
     was = rows(kitchen)["alpha"]
