@@ -3,6 +3,7 @@ refuses any value that could be read as a flag or that the schema does not take.
 
 import pytest
 
+from jbus import cli, verbs
 from jbus_mcp import Refused, tools
 
 FORBIDDEN = ("--rule", "--follows", "--as", "jmerge", "merge", "word", "remove", "hold", "apply")
@@ -108,6 +109,102 @@ def test_each_tool_builds_its_one_command_line(name, arguments, argv, stdin):
         argv = (*argv, "--depends", "alpha,gamma")
     assert built.argv == argv
     assert built.stdin == stdin
+
+
+def _jbus_reads(argv):
+    """What jbus's own parser reads of a command line, as `jbus.cli.main` parses it, and the
+    words it leaves over."""
+    typed, _ = verbs.parser(cli.LISTED, None).parse_known_args(argv)
+    chosen = verbs.parser(cli.LISTED, None, [verbs.load_verb(cli.LISTED[typed.command])])
+    args, extra = chosen.parse_known_args(argv)
+    left = verbs.words_left(args, extra)
+    return {key: value for key, value in vars(args).items() if value is not None}, left
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments", "reads"),
+    [
+        ("jbus_status", {}, {"command": "status"}),
+        (
+            "jbus_digest",
+            {"since": "2026-11-03"},
+            {"command": "digest", "json": True, "since": "2026-11-03"},
+        ),
+        (
+            "jbus_feed",
+            {"project": "jstack", "slug": "alpha", "since": "2026-11-03T15:00"},
+            {
+                "project": "jstack",
+                "command": "events",
+                "slug": "alpha",
+                "since": "2026-11-03T15:00",
+            },
+        ),
+        (
+            "jbus_queue_show",
+            {"project": "jstack", "all": True},
+            {"project": "jstack", "command": "queue", "verb": "show", "all": True},
+        ),
+        (
+            "jbus_queue_add",
+            {
+                "project": "jstack",
+                "slug": "beta",
+                "priority": 0,
+                "depends": ["alpha", "gamma"],
+                "brief": "# Beta\n",
+            },
+            {
+                "project": "jstack",
+                "command": "queue",
+                "verb": "add",
+                "slug": "beta",
+                "priority": 0,
+                "depends": "alpha,gamma",
+            },
+        ),
+        (
+            "jbus_queue_approve",
+            {"project": "jstack", "slug": "alpha", "sha12": "52e43397dc8c", "message": "t1/m2"},
+            {
+                "project": "jstack",
+                "command": "queue",
+                "verb": "approve",
+                "slug": "alpha",
+                "sha": "52e43397dc8c",
+                "message": "t1/m2",
+            },
+        ),
+        (
+            "jbus_answer",
+            {"project": "jstack", "number": 3, "message": "t1/m2", "keeps_default": True},
+            {
+                "project": "jstack",
+                "command": "answer",
+                "number": 3,
+                "message": "t1/m2",
+                "keeps": True,
+            },
+        ),
+        (
+            "jbus_answer",
+            {"project": "jstack", "number": 3, "message": "t1/m2", "keeps_default": False},
+            {
+                "project": "jstack",
+                "command": "answer",
+                "number": 3,
+                "message": "t1/m2",
+                "differs": True,
+            },
+        ),
+    ],
+)
+def test_jbus_s_own_parser_reads_each_command_line_as_the_tool_means_it(name, arguments, reads):
+    _, built = tools.call(name, arguments)
+    read, left = _jbus_reads(list(built.argv))
+    assert left == []
+    assert {key: read.get(key) for key in reads} == reads
+    assert "as_" not in read
 
 
 def test_no_command_line_carries_a_forbidden_word():
