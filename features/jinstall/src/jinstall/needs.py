@@ -90,12 +90,14 @@ class Need:
     is a path, and for anything else it is a word and a path, or a program
     (`hook <file> <Event>`, `commands jstack`, `jq`). `fold` names the run of needs that
     `--setup` says in one line while each is done or already there, `skills <harness>` for a
-    harness's skill links."""
+    harness's skill links and `hooks <file>` for the hooks of one hooks file. `unit` is what
+    that line counts, `link` or `hook`."""
 
     name: str
     level: Level
     kind: Kind | Carried
     fold: str = ""
+    unit: str = "link"
 
 
 def needs(machine: Machine) -> tuple[Need, ...]:
@@ -272,6 +274,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                 refuses=one.get("refuses", False),
                 harness=one["harness"],
             ),
+            fold=f"hooks {files[one['harness']]}",
+            unit="hook",
         )
         for hook in hooked
         for one in hook["events"]
