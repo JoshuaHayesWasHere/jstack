@@ -7,7 +7,7 @@ A message that is not your own is refused, `refused: message <ref> is not <user>
 What an agent or jbus sent into a thread is such a message, though T3 Code lists it as a user message.
 Without `--message` the command refuses, with `refused: a word is the user's own message, --message <thread id>/<message id>, which jbus reads from T3 Code: a word typed with --by and --at is not taken`.
 
-Your words in the bot's chat are a word too, with `jbus word --to <project> --evidence bot-chat:<address>/<device> --words "<your words>"`, or with the bot's own `{"action": "word", "words": "<your words>", "evidence": "bot-chat:<address>/<device>"}` on `POST /act` ([The bot's route](the-queue.md#the-bots-route)).
+Your words in the bot's chat are a word too, with `jbus word --to <project> --evidence bot-chat:<address>/<device> --words "<your words>" --answers "<the bot's message>"`, or with the bot's own `{"action": "word", "words": "<your words>", "answers": "<the bot's message>", "evidence": "bot-chat:<address>/<device>"}` on `POST /act` ([The bot's route](the-queue.md#the-bots-route)).
 jbus cannot read the bot's chat, so their evidence is `bot-chat` with `checked: false`, their time is when jbus kept them, and the party is the home on the command line or the bot on its route.
 The evidence is checked as a bot's go is, by `party.chat`: `voice:` or any other source, and a chat with no address or no device, is refused with `refused: --evidence is bot-chat:<address>/<device> or t3-message:<thread>/<message>, not <given>`.
 `--words` goes only with `bot-chat` evidence, `--as user` is refused for it since jbus did not read the words, and so is `--scope`, which takes only your own message.
@@ -19,6 +19,8 @@ So a bot-chat word takes that message with `--answers "<the bot's message>"`, or
 jbus keeps it on the word's evidence as `answers`, and the message it carries to the home holds it under your words: `The bot's message these words answer: <the bot's message>`.
 `--answers` goes only with `bot-chat` evidence, and is refused otherwise with `refused: --answers goes with --evidence bot-chat:<address>/<device>`.
 The same message answering another bot message is still the same word: `answers` is not in its id.
+A bot-chat word that keeps no `answers` and whose words name no queued row by its slug, such as one that ends `[for: <slug>]`, says nothing on its own, and `jbus word` refuses it before anything is kept or sent: `refused: a word from the bot's chat that names no row says nothing on its own: pass --answers <the bot's message it answers>, or end the words with [for: <slug>]`.
+A home's `jbus queue approve <slug> --word <id>` on such a kept word is refused too, for a row the words do not name: `refused: word <id> is from the bot's chat, keeps no bot's message it answers and does not name <slug>: ask <user> through the bot whether it means <slug>`.
 
 ## One party acts on a word
 
