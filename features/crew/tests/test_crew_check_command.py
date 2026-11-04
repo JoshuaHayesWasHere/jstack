@@ -436,6 +436,8 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in
     assert "testing/tests/test_cross_cutting.py" in guards
     assert "features/crew/tests/test_crew_checks.py" in rest
     assert not set(guards) & set(rest)
+    listed = guards + rest
+    assert all(test.endswith(".py") and (repo / test).is_file() for test in listed), said
     assert (ran, code) == (
         [
             f"check-fast BASE={base} PART=guards short=free full=held",
