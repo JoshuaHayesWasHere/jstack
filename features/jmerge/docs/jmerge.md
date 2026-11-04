@@ -295,7 +295,8 @@ Main's own full run at the merge commit still runs the whole suite, which a pull
 A pull request whose check failed at its own head is judged as "A failed check over a base that moved" says.
 `jmerge` judges this only once the pull request has no other reason to wait.
 `jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
-`jmerge` neither pushes nor reads a green-tree marker, and `jmerge --sweep` removes a `refs/jstack/green-tree/` ref once it is seven days old (`sweep.MARKER_DAYS`).
+Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `full` job skips its suite only on a green run's artifact (`scripts/green_tree.py`), so a ref pushed by hand skips nothing.
+`jmerge --sweep` removes such a ref once it is seven days old (`sweep.MARKER_DAYS`); the old ones still on the origin are the owner's to remove with it.
 
 ## A failed check over a base that moved
 
