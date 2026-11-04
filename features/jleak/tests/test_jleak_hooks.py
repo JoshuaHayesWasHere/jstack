@@ -259,6 +259,17 @@ def test_a_repo_with_no_lint_target_pushes_and_runs_nothing(pushed, tmp_path):
     assert not (tmp_path / "tested").exists()
 
 
+def test_deleting_a_branch_on_the_remote_runs_no_lint(pushed, tmp_path):
+    pushed.git("switch", "-q", "-c", "gone")
+    pushed.commit("docs: more", "notes.md", "a line\nand one more\n")
+    assert pushed.push("gone").returncode == 0
+    lint(pushed, f"lint:\n\t@touch {tmp_path}/linted; exit 1\n", branch="red-lint")
+    done = pushed.push("gone", "--delete")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert not pushed.remote_has("gone")
+    assert not (tmp_path / "linted").exists()
+
+
 def test_a_push_whose_lint_fails_is_refused_with_what_the_lint_said(pushed):
     lint(pushed, "lint:\n\t@echo 'notes.py:1:1: F401 unused import' >&2; exit 1\n")
     done = pushed.push("tidy-lint")

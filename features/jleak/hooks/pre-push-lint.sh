@@ -1,6 +1,11 @@
 #!/bin/sh
 
 limit=60
+pushes=
+while read -r _ sha _ _; do
+  case $sha in *[!0]*) pushes=yes ;; esac
+done
+[ -n "$pushes" ] || exit 0
 for file in GNUmakefile makefile Makefile; do
   [ -f "$file" ] && break
 done
