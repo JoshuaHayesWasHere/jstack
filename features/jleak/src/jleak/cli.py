@@ -20,8 +20,8 @@ pull request whose text has such a line, with exit code 2. `--commit-msg` reads 
 `commit-msg` hook, takes each such line out of the message file and prints one line that names
 them. It exits 0 whatever it finds, since the hook cleans a message and never stops a commit.
 
-`--infra` reads what Claude Code gives a `PreToolUse` hook, and refuses, with exit code 2, a call
-that changes infra's files, port 3773 or T3 Code's tailnet setup, as `jleak.infra` says.
+`--infra` reads what Claude Code or Codex gives a `PreToolUse` hook, and refuses, with exit code
+2, a call that changes infra's files, port 3773 or T3 Code's tailnet setup, as `jleak.infra` says.
 
 It prints one line for each finding, `<file or field>:<line>: <pattern's name>`, then
 `<n> findings`. The two hook forms print to stderr, where git and the agent read a refusal.
