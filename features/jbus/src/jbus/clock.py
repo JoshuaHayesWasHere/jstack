@@ -120,14 +120,19 @@ RUNNER = (
     ready.BASE_MERGE_DUE,
     ready.BASE_MOVED_ASKED,
     ready.BASE_MOVED_DUE,
+    ready.QUEUED_RESTARTED,
+    ready.QUEUED_UNOPENED,
+    ready.QUEUED_UNCLOSED,
 )
-"""The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, and
-CI."""
+"""The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, CI,
+and the one restart of a run GitHub kept queued at the head of the line. A run still queued after
+that restart (`ready.QUEUED_GAVE_UP`) is a hold: nothing at work moves it."""
 AHEAD = (
     (ready.MERGES_AFTER, "slug"),
     (ready.STACKED_ON, "slug"),
     (ready.CARRIES_AFTER, "slug"),
     (ready.MIGRATION_REBASING, "number"),
+    (ready.IN_LINE, "number"),
 )
 """The waits on a row ahead, each with the field that names that row. While its pull request is
 open, what holds it is its own wait, which the merge runner, a thread, `held` or a clock above is

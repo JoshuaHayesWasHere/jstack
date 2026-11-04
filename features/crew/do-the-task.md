@@ -44,10 +44,14 @@
           printf '%s\n' "$rest" | grep .
           guarded="make check-fast BASE=$base PART=guards"
           printf '%s\n' "$guarded" > "$code.command"
+          started=$(date +%s)
           uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- make check-fast BASE="$base" PART=guards
           first=$?
+          took=$(($(date +%s) - started))
+          echo "guards: exit $first in $took s"
+          printf '%s (took %s s)\n' "$guarded" "$took" > "$code.command"
           if [ "$first" = 0 ] && [ -n "$rest" ]; then
-              printf '%s exit 0, then the import-reached remainder, where exit 124 is the short lane%ss time limit and passes: make check-fast BASE=%s PART=rest\n' "$guarded" "'" "$base" > "$code.command"
+              printf '%s exit 0 (took %s s), then the import-reached remainder, where exit 124 is the short lane%ss time limit and passes: make check-fast BASE=%s PART=rest\n' "$guarded" "$took" "'" "$base" > "$code.command"
               uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" PART=rest
           else
               (exit "$first")
@@ -67,17 +71,19 @@
   'jgauge check') tail -n 1 "$out" | grep -q '^done: the check exited ' || command= ;;
   esac
   if [ -n "$command" ] && [ "$ran" != 76 ] && [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] &&
-      [ "$(git rev-parse HEAD)" = "$head" ] && grep -q '^## Result' "$B" 2> /dev/null; then
+      [ "$(git rev-parse HEAD)" = "$head" ] && [ -f "$B" ]; then
       printf 'Checked: %s exit %s at %s\n' "$command" "$ran" "$head" >> "$B"
   fi
   (exit "$ran")
   ```
 
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
-  Once the brief has a Result, the block adds `Checked: <the command> exit <its exit> at <the full head>` to it for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
+  The block adds `Checked: <the command> exit <its exit> at <the full head>` to the brief for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
+  It does so from the first head on, whether or not the brief has a Result yet, so the first head's check is on record too.
+  A check in two steps names the guards' exit and how long they took in it, `PART=guards (took <s> s) exit <n>` where they failed and `PART=guards exit 0 (took <s> s), then ...` where they passed, and prints the same as `guards: exit <n> in <s> s`.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: the guards take a few minutes on a busy machine.
   With every slot of a lane taken, it ends 76, and the turn ends as a targeted run's does, with the same one line.
-  It ends with the exit code of the guards' `make check-fast` where they failed, and of the rest's where they passed, and on 0 the `selected:` line and that exit code go on `Proof:`.
+  It ends with the exit code of the guards' `make check-fast` where they failed, and of the rest's where they passed, and on 0 the `selected:` line, the `guards:` line and that exit code go on `Proof:`.
   A guard step that fails is the change's to fix, whatever the rest would say: the rest does not run.
   The pull request is ready only once CI's check on it passed, as "The checks" says, and `Proof:` names CI's check at that head beside the selected run.
   On 124 the guards passed and the rest ran past the short lane's time limit, which says nothing of the change: go on as on 0, opening the pull request, with the `Checked:` line saying the guards passed and the import-reached remainder hit the limit, and let CI's check on the pull request be the proof, as `Proof:` then says.
@@ -112,7 +118,7 @@
               git show "HEAD:$file" > "$tree/$file"
           done
       (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
-      list=$(printf '%s\n' "$tests" | paste -sd ' ')
+      list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
       PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
           env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $PROOF_TESTS > "$PROOF_TREE/.proof-head" 2>&1
           echo "head exit $?: $(tail -n 1 "$PROOF_TREE/.proof-head")"

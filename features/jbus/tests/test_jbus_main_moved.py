@@ -211,3 +211,13 @@ def test_a_tip_that_failed_under_one_no_pass_saw_is_red_while_the_newest_is_pend
     launched.set("commits.json", commits)
     launched.poll()
     assert mainjson.read(launched.state).red == red
+
+
+def test_the_rebase_message_writes_its_key_and_no_main_moved_key(launched):
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
+    launched.set("open.json", [pull(launched, "alpha", 7, mergeable="CONFLICTING")])
+    launched.poll()
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    assert "rebase|alpha|cccccccccccc" in sent
+    assert [key for key in sent if key.startswith(("mainmoved|", "moved|"))] == []
+    assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]

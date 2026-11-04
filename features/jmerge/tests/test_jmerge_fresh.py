@@ -50,6 +50,12 @@ case "$1 $2" in
         git -C "$ORIGIN" update-ref refs/heads/main "$commit"
         echo "$commit" > "$STUB/merged-$3" ;;
     "pr view") cat "$STUB/merged-$3" ;;
+    "pr close") ;;
+    "pr reopen")
+        if [ -e "$STUB/no-reopen" ]; then
+            echo "gh: could not reopen (HTTP 502)" >&2
+            exit 1
+        fi ;;
     "api -X")
         number=${4#*/pulls/}
         number=${number%/update-branch}

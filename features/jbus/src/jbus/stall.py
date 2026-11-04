@@ -482,6 +482,10 @@ def _moment(said: object) -> datetime | None:
 def spells(run: Pass, out: list[dict[str, Any]]) -> None:
     """Keep `stalls.jsonl`, one spell for each stretch a running row's thread is `quiet` or `hung`.
 
+    The first pass that runs `spells` begins the file with `{"at", "began": true}`, when the record
+    began: a row merged from that day on with no spell had none, and one merged before it is a gap
+    (`jbus.telemetry`'s `stalls_since`).
+
     A row's thread is one whose title names a slug and that is not a home's. The pass that first
     sees the thread quiet or hung adds `{"at", "thread", "role", "slug", "since"}`, where `since`
     is when the thread last wrote (`threads.out`'s `wrote`), so the spell holds the whole silence.
@@ -503,6 +507,8 @@ def spells(run: Pass, out: list[dict[str, Any]]) -> None:
     gap at once.
     """
     at = jsettings.stamp(run.now, z=True)
+    if not (run.state / SPELLS).exists():
+        _keep(run, {"at": at, "began": True}, SPELLS)
     last = _last_pass(run)
     gap = last if last is not None and run.now - last > GAP else None
 

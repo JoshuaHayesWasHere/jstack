@@ -8,7 +8,8 @@ base into the branch, and GitHub's new check at the new head decides the rest by
 A green pull request whose base moved under it takes the same path: its check ran over a base
 that is gone, so where its head merges cleanly over today's base, GitHub merges the base into it
 too (`cli.Repo.over_main`), one pull request at a time: the one at the head of the line
-(`BaseMerge.holder`), which every other green one whose base moved waits behind.
+of its base (`BaseMerge.holders`), which every other one into that base whose base moved,
+green, red or with a check that has no run, waits behind.
 
 GitHub's endpoint merges the base into the branch and rewrites no history:
 https://docs.github.com/en/rest/pulls/pulls#update-a-pull-request-branch. `expected_head_sha`
@@ -32,8 +33,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from collections.abc import Collection
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from jmerge import backoff, ready
@@ -44,6 +46,9 @@ SHA = 12
 REFUSED = re.compile(r"\(HTTP (409|422)\)")
 FAILED = re.compile(r"\sFAILED (\S+::\S+)")
 RUNS = 20
+HELD = timedelta(minutes=20)
+"""How long a pull request keeps the head of the line with the head GitHub took the update of:
+GitHub makes the new head within seconds, so one it did not make by then is not coming."""
 
 
 class BaseMerge:
@@ -80,38 +85,115 @@ class BaseMerge:
     ) -> str:
         """Why the pull request waits once its base's merge into it is asked of GitHub: `asked`
         once it is asked, and `due` in a run that asks nothing. With `line`, a merge GitHub took
-        puts the pull request at the head of the line (`holder`), in a run that asks nothing
-        for that run alone."""
+        puts the pull request at the head of its base's line (`holders`), in a run that asks
+        nothing for that run alone."""
         was = self.was(one, tip)
         if was is not None and isinstance(was.get("said"), str):
             return was["said"]
         values = {"base": one.base, "tip": tip[:SHA]}
         if not self.run:
             if line:
-                self.keep(one, tip, line=True)
+                self.keep(one, tip, line=True, base=one.base)
             return due.format(**values)
         why, answered = self.ask(one)
         said = ready.BASE_MERGE_REFUSED.format(**values, why=why) if why else asked.format(**values)
         if answered:
-            self.keep(one, tip, said=said, line=line and not why)
+            self.keep(one, tip, said=said, line=line and not why, base=one.base)
         return said
 
-    def holder(self, numbers: Collection[int]) -> int | None:
-        """The pull request at the head of the line, of the open ones in `numbers`: the one
-        GitHub last took a merge of the base into because its base moved after its check
-        (`cli.Repo.over_main`), until `release`. GitHub merges the base into no other green
-        pull request while it holds the line, so each merge costs one rerun."""
-        known = self.known()
-        held = (n for n in numbers if (known.get(str(n)) or {}).get("line") is True)
-        return next(held, None)
+    def holders(self, listed: Collection[ready.PullRequest]) -> dict[str, int]:
+        """The pull request at the head of the line of each base, of the open ones `listed`:
+        the one GitHub last took a merge of that base into because the base moved after its
+        check (`cli.Repo.over_main`), until `release`. GitHub merges the base into no other green
+        pull request into that base while it holds the line, so each merge costs one rerun. A
+        pull request into another base holds no line for it: a stack branch whose base moved
+        does not hold up every pull request into main. One whose head is still the head GitHub
+        took the update of, `HELD` after it took it, gives its line up: GitHub made no new head,
+        and no check of one is coming to end its wait."""
+        known, now, held = self.known(), datetime.now().astimezone(), {}
+        for one in sorted(listed, key=lambda one: one.number):
+            was = known.get(str(one.number))
+            if not isinstance(was, dict) or was.get("line") is not True:
+                continue
+            if was.get("base") != one.base or one.base in held:
+                continue
+            if was.get("head") == one.head and now - _at(was) >= HELD:
+                self.release(one.number)
+                continue
+            held[one.base] = one.number
+        return held
 
-    def release(self, one: ready.PullRequest) -> None:
-        """Take the pull request from the head of the line."""
-        was = self.known().get(str(one.number))
+    def release(self, number: int) -> None:
+        """Take the pull request from the head of the line. Its record stays, so the update GitHub
+        was asked for is not asked again at the same head and tip."""
+        was = self.known().get(str(number))
         if isinstance(was, dict) and was.get("line"):
-            self.records = {**self.known(), str(one.number): {**was, "line": False}}
+            self.records = {**self.known(), str(number): {**was, "line": False}}
             if self.run:
                 store.write_json(self.path, self.records)
+
+    def stuck(self, one: ready.PullRequest) -> dict:
+        """What `jmerge` did about a run GitHub kept queued at the pull request's head
+        (`cli.Repo.unstuck`): `since`, when GitHub had queued the run it restarted, `reopen`
+        while the reopen of that restart is still owed, and `gave_up` once it gave up the line.
+        Nothing for another head."""
+        was = self.known().get(str(one.number))
+        kept = was.get("stuck") if isinstance(was, dict) else None
+        return kept if isinstance(kept, dict) and kept.get("head") == one.head else {}
+
+    def keep_stuck(self, one: ready.PullRequest, **kept: object) -> None:
+        """Keep `kept` in what `stuck` says of the pull request's head, over what it said."""
+        was = self.known().get(str(one.number))
+        record = was if isinstance(was, dict) else {}
+        stuck = {**self.stuck(one), "head": one.head, **kept}
+        self.records = {**self.known(), str(one.number): {**record, "stuck": stuck}}
+        if self.run:
+            store.write_json(self.path, self.records)
+
+    def restart(self, one: ready.PullRequest, since: datetime) -> str:
+        """Close and reopen the pull request, so GitHub starts a new run of each of its
+        workflows in their concurrency groups, which cancels the queued one: GitHub refuses to
+        rerun a run it has not ended, and a cancel can leave it queued (#1028, 2026-11-04). The
+        restart is kept before the close, with the reopen owed, so a run that stops between the
+        two leaves a record that the next run reopens by (`reopen`), and none restarts twice.
+        Return nothing, or why the close or the reopen failed."""
+        self.keep_stuck(one, since=since.isoformat(), reopen=True)
+        closed = self.gh("pr", "close", str(one.number))
+        if closed.returncode:
+            self.keep_stuck(one, reopen=False)
+            return _said(closed)
+        why = self.reopened(one.number)
+        if not why:
+            self.keep_stuck(one, reopen=False)
+        return why
+
+    def reopen(self, numbers: Collection[str]) -> None:
+        """Reopen each pull request whose restart's reopen is owed, and that is not open, in
+        `numbers`: a run of `jmerge` stopped between the close and the reopen, or GitHub refused
+        the reopen. One that is open again owes none. A reopened one holds the line no more, for
+        another took it while it was closed."""
+        for number in [number for number in self.known() if _owed(self.known()[number])]:
+            if number in numbers or not self.reopened(number):
+                was = self.known()[number]
+                kept = {**was, "stuck": {**was["stuck"], "reopen": False}}
+                if number not in numbers:
+                    kept["line"] = False
+                self.records = {**self.known(), number: kept}
+                if self.run:
+                    store.write_json(self.path, self.records)
+
+    def reopened(self, number: int | str) -> str:
+        """Reopen the pull request, and return nothing, or why it was not."""
+        said = self.gh("pr", "reopen", str(number))
+        return _said(said) if said.returncode else ""
+
+    def gh(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return backoff.run(
+            "gh",
+            *args,
+            cwd=self.main,
+            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+        )
 
     def repeats(self, one: ready.PullRequest, tip: str, check: str) -> bool:
         """Whether the pull request failed a same test of its own in its last two runs of
@@ -149,7 +231,7 @@ class BaseMerge:
         a merged or closed pull request is never judged again, and its record would only grow the
         file."""
         known = self.known()
-        kept = {number: was for number, was in known.items() if number in numbers}
+        kept = {number: was for number, was in known.items() if number in numbers or _owed(was)}
         if kept != known:
             self.records = kept
             if self.run:
@@ -177,6 +259,26 @@ class BaseMerge:
         lines = (ran.stderr or ran.stdout).strip().splitlines()
         why = str(message or (lines[-1] if lines else f"gh exited {ran.returncode}"))
         return why, bool(REFUSED.search(ran.stderr))
+
+
+def _owed(was: object) -> bool:
+    """Whether a record owes the reopen of a restart (`BaseMerge.restart`)."""
+    stuck = was.get("stuck") if isinstance(was, dict) else None
+    return isinstance(stuck, dict) and stuck.get("reopen") is True
+
+
+def _said(ran: subprocess.CompletedProcess[str]) -> str:
+    """The last line `gh` wrote of why it failed."""
+    lines = (ran.stderr or ran.stdout or "").strip().splitlines()
+    return lines[-1] if lines else f"gh exited {ran.returncode}"
+
+
+def _at(record: dict) -> datetime:
+    """When the record was kept, or long ago where it says no time `jmerge` reads."""
+    try:
+        return datetime.strptime(str(record.get("at")), "%Y-%m-%dT%H:%M:%S%z")
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)
 
 
 class Repeated:
