@@ -392,6 +392,10 @@ def test_a_red_job_whose_log_could_not_be_read_is_kept_unread_and_is_never_the_p
 FAILED_LOG = "2026-10-17T20:00:00.1Z FAILED tests/test_a.py::test_b - boom\n"
 
 
+BEFORE = ("logged", "step")
+"""The fields a red kept before the collector read hosted logs and failed steps lacks."""
+
+
 def a_hosted_red():
     base = Replay()
     return next(
@@ -432,7 +436,7 @@ def test_a_hosted_red_kept_before_its_log_was_read_is_read_once_by_the_next_coll
     red = a_hosted_red()
     collect.collect(Replay(), REPO, tmp_path, NOW, 14)
     rows = ledger.read(tmp_path / ledger.JOBS)
-    older = [{k: v for k, v in one.items() if k != "logged"} | {"tests": []} for one in rows]
+    older = [{k: v for k, v in one.items() if k not in BEFORE} | {"tests": []} for one in rows]
     ledger.rewrite(tmp_path / ledger.JOBS, older)
     gh = HostedLog(red["id"])
     collect.collect(gh, REPO, tmp_path, NOW, 14)
@@ -453,12 +457,12 @@ def test_a_hosted_red_kept_before_its_log_was_read_is_read_once_by_the_next_coll
 
 
 def test_a_re_read_keeps_what_a_local_red_held_and_retries_a_log_github_did_not_give(tmp_path):
-    """Only a hosted red was never read: a local red kept before `logged` keeps its tests, and a
-    hosted red whose log GitHub did not give is left as it was, for the next collect."""
+    """A red kept before `step` is read again, and one whose log GitHub did not give now is left
+    as it was, a local red with the tests it held, for the next collect."""
     red = a_hosted_red()
     collect.collect(Replay(), REPO, tmp_path, NOW, 14)
     rows = ledger.read(tmp_path / ledger.JOBS)
-    older = [{k: v for k, v in one.items() if k != "logged"} for one in rows]
+    older = [{k: v for k, v in one.items() if k not in BEFORE} for one in rows]
     for one in older:
         if one["job"] == red["id"]:
             one["tests"] = []
@@ -478,12 +482,74 @@ def test_a_re_read_keeps_what_a_local_red_held_and_retries_a_log_github_did_not_
     collect.collect(down, REPO, tmp_path, NOW, 14)
     after = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
     assert local and {job: after[job]["tests"] for job in local} == local
-    assert not set(local) & set(down.read) and red["id"] in down.read
+    assert set(local) <= set(down.read) and red["id"] in down.read
     assert "logged" not in after[red["id"]] and after[red["id"]]["tests"] == []
     gh = HostedLog(red["id"])
     collect.collect(gh, REPO, tmp_path, NOW, 14)
     row = next(one for one in ledger.read(tmp_path / ledger.JOBS) if one["job"] == red["id"])
     assert (row["tests"], row["logged"]) == (["tests/test_a.py::test_b"], True)
+
+
+FAILED_RUNS = FOLDER.parent / "failed-runs"
+FAILED_AT = datetime(2026, 11, 4, 14, 0, tzinfo=UTC)
+TIMED_OUT = (
+    "features/crew/tests/test_crew_check_command.py::"
+    "test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in_a_short_one"
+)
+
+
+class FailedRuns(Replay):
+    """Two red shards of jstack's check, recorded on 2026-11-04: one that failed a test in
+    `make test`, and one that failed `make check-fast` at its `lint` target before a test ran
+    (`fixtures/ci/failed-runs`)."""
+
+    def __init__(self):
+        super().__init__()
+        for name in ("runs", "jobs", "logs"):
+            setattr(self, name, json.loads((FAILED_RUNS / f"{name}.json").read_text()))
+        self.pulls, self.pushes, self.read = [], {}, []
+
+    def log(self, repo, job):
+        self.read.append(job)
+        return super().log(repo, job)
+
+
+def test_failed_tests_or_the_failed_step_is_kept_for_each_red_shard(tmp_path):
+    collect.collect(FailedRuns(), REPO, tmp_path, FAILED_AT, 1)
+    rows = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
+    assert (rows[126596643643]["tests"], rows[126596643643]["step"]) == ([TIMED_OUT], "make test")
+    assert (rows[126315030200]["tests"], rows[126315030200]["step"]) == (
+        [],
+        "make check-fast: lint",
+    )
+
+
+def test_failed_tests_a_red_kept_before_its_step_is_read_once_more_for_it(tmp_path):
+    collect.collect(FailedRuns(), REPO, tmp_path, FAILED_AT, 1)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    fresh = {one["job"]: one for one in rows}
+    older = [{k: v for k, v in one.items() if k != "step"} | {"tests": []} for one in rows]
+    ledger.rewrite(tmp_path / ledger.JOBS, older)
+    gh = FailedRuns()
+    collect.collect(gh, REPO, tmp_path, FAILED_AT, 1)
+    assert {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)} == fresh
+    assert sorted(gh.read) == sorted(fresh)
+    again = FailedRuns()
+    collect.collect(again, REPO, tmp_path, FAILED_AT, 1)
+    assert again.read == []
+
+
+def test_failed_tests_a_red_whose_log_github_did_not_give_still_names_its_step(tmp_path):
+    class NoLogs(FailedRuns):
+        def log(self, repo, job):
+            raise Unavailable("down")
+
+    collect.collect(NoLogs(), REPO, tmp_path, FAILED_AT, 1)
+    rows = {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)}
+    assert {job: (one["tests"], one["step"]) for job, one in rows.items()} == {
+        126596643643: (None, "make test"),
+        126315030200: (None, "make check-fast"),
+    }
 
 
 def test_a_log_with_colour_codes_gives_the_same_evidence_as_one_without():
