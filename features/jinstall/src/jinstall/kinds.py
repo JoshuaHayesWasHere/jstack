@@ -198,8 +198,10 @@ class Generated:
       them, and the user runs the generator.
     drop removes nothing."""
 
+    checkout: Path
+
     def probe(self, machine: Machine) -> Found:
-        ran = machine.run([sys.executable, "-I", str(machine.checkout / GENERATE), "--check"])
+        ran = machine.run([sys.executable, "-I", str(self.checkout / GENERATE), "--check"])
         if ran.code == 0:
             return Found.ok()
         said = ran.out.splitlines()
@@ -209,7 +211,7 @@ class Generated:
         return True
 
     def ask(self, machine: Machine) -> str:
-        return f"python3 {machine.checkout / GENERATE}"
+        return f"python3 {self.checkout / GENERATE}"
 
     def put(self, machine: Machine) -> None:
         raise Refused(f"they are not current: run {self.ask(machine)} and commit the result")
@@ -606,7 +608,7 @@ class StatusLine:
             return Found.missing()
         if line == self._ours(machine):
             return Found.ok()
-        if self._names(line):
+        if isinstance(line, dict) and self._names(line):
             return Found.old(line["command"])
         return Found.foreign("a status line of your own")
 
@@ -1373,7 +1375,7 @@ class T3JstackBuild:
         command = t3_command(machine)
         ran = machine.run([str(command), "--version"]) if command is not None else None
         said = None if ran is None or ran.code != 0 else T3_VERSION.search(ran.out)
-        if said is None:
+        if ran is None or said is None:
             return Found.missing("no t3 that answers --version: open T3 Code once")
         built = T3_JSTACK.search(ran.out)
         if built is None:

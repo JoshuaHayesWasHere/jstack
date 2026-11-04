@@ -31,6 +31,7 @@ jbus = "jbus.port:Port"
 dev = [
     "jsonschema>=4.26.0",
     "pillow>=11",
+    "pyrefly>=1.4.0",
     "pytest>=8",
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
@@ -177,6 +178,13 @@ addopts = "--strict-markers"
 markers = [
     "browser: opens a real browser, so it runs under `make check-browser` and not under `make check`",
 ]
+
+# `make lint` runs pyrefly over each feature's src, and names the paths itself (see the Makefile).
+# The preset is set because with none pyrefly takes `basic`, which reports almost nothing. Tests
+# and `testing/` are left out: their imports resolve through pytest's paths, not pyrefly's.
+[tool.pyrefly]
+preset = "default"
+python-version = "3.12"
 
 # The repo's lint commands are `uv run ruff check .` and `uv run ruff format --check .`.
 [tool.ruff]

@@ -944,7 +944,7 @@ def _parents_entry(
     try:
         parent, here = _parent_row(batch, slug, named) if named else (None, True)
     except Refused:
-        parent = None
+        parent, here = None, True
     if parent is not None and (parent.get("entry") or not here):
         found = entry(parent)
     elif parent is not None:
@@ -1461,12 +1461,12 @@ def _do(
         if not _SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
         if verb.slug in batch.gone:
-            said = _was(verb.slug, batch.gone)
-            raise Refused(f"refused: {said}, and a removed slug is not added again")
+            gone = _was(verb.slug, batch.gone)
+            raise Refused(f"refused: {gone}, and a removed slug is not added again")
         for other in verb.depends:
             if other in batch.gone:
-                said = _was(other, batch.gone)
-                raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
+                gone = _was(other, batch.gone)
+                raise Refused(f"refused: {verb.slug} cannot depend on {other}: {gone}")
         _merge_after(batch, verb)
         _builds_on(rows, verb)
         _stacked_on(verb)
@@ -2131,8 +2131,9 @@ def _run(
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
             _store(state, slug, text)
-        for move in moves if asks else []:
-            asks.told(move)
+        if asks:
+            for move in moves:
+                asks.told(move)
     return said
 
 

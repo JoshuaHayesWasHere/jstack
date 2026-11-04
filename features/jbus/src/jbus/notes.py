@@ -62,7 +62,7 @@ def read(state: Path) -> dict[str, Note]:
     if not isinstance(kept, dict):
         return {}
     try:
-        return {key: Note(**{**one, "seen": tuple(one["seen"])}) for key, one in kept.items()}
+        return {key: Note(**(one | {"seen": tuple(one["seen"])})) for key, one in kept.items()}
     except (TypeError, KeyError):
         return {}
 

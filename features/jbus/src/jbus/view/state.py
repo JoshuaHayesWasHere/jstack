@@ -725,7 +725,7 @@ def _tasks(
         ]
         holds = [one for one in row.get("depends", []) if status.get(one) not in queue.FINAL]
         blockers = sorted(map(text, holds), key=lambda one: one in through)
-        watched = seen.get(slug) if isinstance(seen.get(slug), dict) else {}
+        watched = mine if isinstance(mine := seen.get(slug), dict) else {}
         has = _held(held[slug], now, user) if held and slug in held else None
         value = line["value"] if line else UNKNOWN.key
         about = About(
@@ -1445,7 +1445,7 @@ class Read:
 
     def _merged_since(self, start: str) -> list[dict[str, Any]]:
         pull = {row["slug"]: row for row in self.rows}
-        merged = []
+        merged: list[dict[str, Any]] = []
         for move in self.moves or []:
             slug, at = text(move.get("slug"), 80), when(move.get("at"))
             if move.get("to") == "merged" and at and at >= start:
@@ -1761,7 +1761,7 @@ def key_of(one: dict[str, Any]) -> str:
     return f"wrong|{one['kind']}|{digest}|{one['to']}"
 
 
-def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
+def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str | None] | None:
     """What the owner was told and when: the wake that told it of the entry (`jbus.wakes`), the
     failed-check message to a crew since its run, any other message to the owner about the
     entry's row since the fault began (a stalled row's home line from `jbus.expedite`), the

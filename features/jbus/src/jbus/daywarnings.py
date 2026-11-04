@@ -142,6 +142,8 @@ def brief(day: str, warnings: list[Kept]) -> str:
 def keep(half: Half) -> None:
     """Keep the warnings of each merged pull request, then file the day's row where one is due."""
     run, world = half.run, half.seen.world
+    if world is None:
+        return
     ledger: dict[str, Any] = read_json(run.state / LEDGER, {"kept": {}, "filed": {}})
     today = run.user.day(run.now)
     for slug, pull in sorted(world.merged.items()):

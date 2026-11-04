@@ -281,7 +281,7 @@ def _kept(state: Path) -> tuple[int, list[Question]]:
         for one in kept["records"]:
             answer = Answer(**one["answer"]) if one["answer"] else None
             options = tuple(Option(**each) for each in one.get("options", ()))
-            found.append(Question(**{**one, "answer": answer, "options": options}))
+            found.append(Question(**(one | {"answer": answer, "options": options})))
     except (OSError, ValueError, TypeError, KeyError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
     highest = max((one.number for one in found), default=0)

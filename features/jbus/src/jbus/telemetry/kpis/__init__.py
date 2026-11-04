@@ -225,7 +225,8 @@ class Board:
         return self.this - timedelta(days=7)
 
     def count(self, which: int, status: Status) -> int:
-        return sum(1 for row in self.rows if row[which] and row[which].status == status)
+        found = (row[which] for row in self.rows)
+        return sum(1 for one in found if isinstance(one, Reading) and one.status == status)
 
     def judged(self, which: int) -> int:
         return self.count(which, "met") + self.count(which, "missed")
