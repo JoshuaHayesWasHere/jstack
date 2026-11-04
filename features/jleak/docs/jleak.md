@@ -108,7 +108,7 @@ lint: make lint ran past 60 s, so the push is refused
 lint: make lint failed, so the push is refused
 ```
 
-The install links it at `.git/hooks/pre-push` of each repo jstack works in, as [Which repos get the git hooks](#which-repos-get-the-git-hooks) says.
+The install links `pre-push.sh` at `.git/hooks/pre-push` of each repo jstack works in, as [Which repos get the git hooks](#which-repos-get-the-git-hooks) says.
 The repo's worktrees run the same hook.
 
 `features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on the shell commands of Claude Code and Codex.
