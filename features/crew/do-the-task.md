@@ -94,7 +94,7 @@
       echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
   else
       tree=$(mktemp -d)
-      git archive "$base" | tar -x -C "$tree"
+      git worktree add -q --detach "$tree" "$base"
       git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$' |
           while read -r file; do
               mkdir -p "$tree/$(dirname "$file")"
@@ -118,18 +118,19 @@
           echo "$line"
           if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
       fi
+      git worktree remove --force "$tree"
   fi
   ```
 
-  The head's tests run at the head, then laid over a copy of the base's tree in a venv of its own, so the base run imports the base's code and not the head's; the copy stays in `/tmp`.
+  The head's tests run at the head, then laid over a worktree of the base with a venv of its own, so the base run imports the base's code and not the head's; the block removes that worktree, venv and all, once it has run.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, and each `conftest.py`.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
   On anything else, fix the tests until they fail without the change, commit, and run it again.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.
-  A later round that changes the tests runs it again, and the last `Proved:` line is the one `jmerge` reads.
-  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, or one with a base exit other than 1 or a head exit other than 0 (`ready.short_on_proved`).
+  The line is of the head it ran at: a rebase or a merge of the base keeps it, and a push that changes the patch, a fix for a finding among them, runs the block again; the last `Proved:` line is the one `jmerge` reads.
+  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
 
   A pull request that changes no test file writes `Proved: none, <kind>`, with `docs`, `config`, or `docs and config`, and is exempt.
   The kinds that are exempt, and the files each covers (`jbriefs.proved.EXEMPT`), are these:

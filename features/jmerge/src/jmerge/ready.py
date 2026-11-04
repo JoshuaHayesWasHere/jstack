@@ -4,7 +4,7 @@ import functools
 import re
 import string
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
@@ -145,6 +145,11 @@ PROVED_BASE_PASSED = Reason(
 )
 PROVED_HEAD_FAILED = Reason(
     "result", "its Proved: line says its tests exit {exit} at its head {head}, not 0"
+)
+PROVED_STALE = Reason(
+    "result",
+    "its Proved: line is of {at}, and its patch changed after it: the proof block runs again at "
+    "{head}",
 )
 NO_VERDICT = Reason("review", "its review has no verdict")
 NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
@@ -820,13 +825,18 @@ def _of_kind(path: str, kind: str) -> bool:
     )
 
 
-def short_on_proved(text: str, one: PullRequest) -> str:
+def short_on_proved(
+    text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False
+) -> str:
     """Why the brief's `Proved:` line does not prove the pull request, or nothing
     (`proved.proved`). A pull request that changes tests needs the line to name each of them,
     with their run over its merge-base's code ending 1, a failure, and at its head ending 0. A
     run that passes at the base, or ends on anything but a failure there (no test collected, a
     time limit), passes vacuously. One that changes no test needs no line, and where it says
-    `none, <kind>` each file it changes is of a kind it names."""
+    `none, <kind>` each file it changes is of a kind it names. A line of another head holds
+    where the head carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads
+    after a rebase or a merge of the base): a push that changed the patch, a fix for a review's
+    finding most of all, may have changed the tests too."""
     tests = changed_tests(one)
     said = proved.proved(text)
     if said is None:
@@ -849,6 +859,8 @@ def short_on_proved(text: str, one: PullRequest) -> str:
         return PROVED_BASE_PASSED.format(exit=said.base_exit, base=said.base[:12])
     if said.head_exit != 0:
         return PROVED_HEAD_FAILED.format(exit=said.head_exit, head=said.head[:12])
+    if said.head != one.head and not carries(said.head):
+        return PROVED_STALE.format(at=said.head[:12], head=one.head[:12])
     return ""
 
 

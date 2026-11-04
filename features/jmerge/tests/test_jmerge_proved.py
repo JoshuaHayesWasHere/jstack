@@ -22,8 +22,8 @@ BASE = "c" * 40
 HEAD = "d" * 40
 
 
-def proved(base_exit=1, head_exit=0, tests=TEST):
-    return f"Proved: {tests} base exit {base_exit} at {BASE}, head exit {head_exit} at {HEAD}\n"
+def proved(base_exit=1, head_exit=0, tests=TEST, head=HEAD):
+    return f"Proved: {tests} base exit {base_exit} at {BASE}, head exit {head_exit} at {head}\n"
 
 
 @pytest.fixture
@@ -47,9 +47,19 @@ def test_a_pull_request_that_changes_a_test_and_has_no_proved_line_waits(merged)
 
 
 def test_a_pull_request_whose_tests_fail_at_its_base_and_pass_at_its_head_merges(merged):
-    opened(merged, ("a.py", TEST), proved())
+    opened(merged, ("a.py", TEST), proved(head=merged.head))
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
+
+
+def test_a_proved_line_of_a_head_whose_patch_changed_since_waits(merged):
+    """The line is of main's own commit, whose patch is not the head's, as the line of a head
+    before a fix for a review's finding is."""
+    opened(merged, ("a.py", TEST), proved(head=merged.start))
+    (said,) = merged.run()
+    why = ready.PROVED_STALE.format(at=merged.start[:12], head=merged.head[:12])
+    assert said == f"wait 7 {merge.URL}: {why}"
+    assert merged.untouched()
 
 
 def test_a_docs_and_config_pull_request_that_says_so_is_exempt_and_merges(merged):
@@ -59,7 +69,7 @@ def test_a_docs_and_config_pull_request_that_says_so_is_exempt_and_merges(merged
 
 
 def test_a_pull_request_whose_tests_pass_at_its_base_waits(merged):
-    opened(merged, ("a.py", TEST), proved(base_exit=0))
+    opened(merged, ("a.py", TEST), proved(base_exit=0, head=merged.head))
     (said,) = merged.run()
     assert re.fullmatch(f"wait 7 {re.escape(merge.URL)}: its Proved: line says .* exit 0 .*", said)
     assert merged.untouched()
@@ -152,6 +162,19 @@ def test_the_line_holds_only_where_the_tests_it_names_fail_at_the_base_and_pass_
     if short:
         assert ready.code_of(short).startswith("proved-")
         assert ready.step_of(ready.code_of(short)) == "result"
+
+
+def test_a_line_of_another_head_holds_only_where_the_head_carries_its_patch():
+    earlier = "e" * 40
+    text = result(proved(head=earlier))
+    pull = one("a.py", TEST)
+    assert ready.short_on_proved(text, pull) == ready.PROVED_STALE.format(
+        at=earlier[:12], head=HEAD[:12]
+    )
+    assert ready.short_on_proved(text, pull, lambda at: at == earlier) == ""
+    assert (
+        ready.short_on_proved(result("Proved: none, docs\n"), one("a.md"), lambda at: False) == ""
+    )
 
 
 def test_the_last_proved_line_under_the_result_is_the_one_read():
