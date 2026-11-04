@@ -1298,6 +1298,10 @@ def releasing(tmp_path, plugin=None):
     subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
     for name in ("Makefile", "pyproject.toml", "plugin.json"):
         shutil.copy(REPO / name, work / name)
+    lookup = Path("features", "jmerge", "src", "jmerge")
+    (work / lookup).mkdir(parents=True)
+    for name in ("__init__.py", "green.py"):
+        shutil.copy(REPO / lookup / name, work / lookup / name)
     if plugin is not None:
         made = json.loads((work / "plugin.json").read_text()) | {"version": plugin}
         (work / "plugin.json").write_text(json.dumps(made))
@@ -1318,8 +1322,30 @@ def tags(where):
     return found.stdout.split()
 
 
+GREEN_GH = """#!/bin/sh
+case $2 in
+*/actions/artifacts*)
+    echo '{"artifacts": [{"expired": false, "workflow_run":'
+    echo '{"id": 7, "repository_id": 1, "head_repository_id": 1}}]}' ;;
+*/actions/runs/7)
+    echo '{"conclusion": "success", "path": ".github/workflows/check.yml",'
+    echo '"html_url": "run 7", "repository": {"id": 1}, "head_repository": {"id": 1}}' ;;
+*) exit 1 ;;
+esac
+"""
+
+
 def release(work):
-    return subprocess.run(["make", "-s", "release"], cwd=work, capture_output=True, text=True)
+    """`make release` in `work`, with a `gh` that says a green run of the check left the
+    tree's marker, so `make release-green` lets the tag through."""
+    stub = work.parent / "gh-stub"
+    stub.mkdir(exist_ok=True)
+    (stub / "gh").write_text(GREEN_GH)
+    (stub / "gh").chmod(0o755)
+    env = os.environ | {"PATH": f"{stub}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(
+        ["make", "-s", "release"], cwd=work, capture_output=True, text=True, env=env
+    )
 
 
 def test_make_release_tags_nothing_when_plugin_json_has_another_version(tmp_path):
