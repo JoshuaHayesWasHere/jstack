@@ -226,7 +226,7 @@
       "kind": "principle",
       "path": "features/principles/skills/principle-explain-the-number/SKILL.md",
       "source": "pstack",
-      "description": "Apply before you trust, report, or act on a number you measured: a speedup, a regression, a throughput, a latency, or an eval result. Find what limits it, and rule out that it measured something other than the work you think."
+      "description": "Apply before you measure, and before you trust, report, or act on a number you measured: a speedup, a regression, a throughput, a latency, or an eval result. Find what limits it, and rule out that it measured something other than the work you think."
     },
     {
       "name": "principle-fix-root-causes",
