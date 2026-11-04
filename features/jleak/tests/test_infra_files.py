@@ -195,3 +195,72 @@ def test_a_thread_of_another_repo_that_moves_into_infra_s_checkout_is_still_refu
     folder its shell has moved to."""
     given = {"command": "echo x > ~/.config/jbus/config.toml"}
     assert hook(home, "Bash", given, cwd=home / "repos" / "infra") == (2, file_refusal(CONFIG))
+
+
+def codex(home, tool, given, cwd):
+    """What the hook exits with and the last line it says, for a call as Codex gives a
+    `PreToolUse` hook: its own fields, and no `CLAUDE_PROJECT_DIR`, so `cwd` is the project."""
+    call = {
+        "session_id": "019a0000-0000-7000-8000-000000000000",
+        "turn_id": "a-turn",
+        "transcript_path": None,
+        "cwd": str(cwd),
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5",
+        "permission_mode": "default",
+        "tool_name": tool,
+        "tool_use_id": "call-1",
+        "tool_input": given,
+    }
+    env = {
+        k: v for k, v in os.environ.items() if k not in ("XDG_CONFIG_HOME", "CLAUDE_PROJECT_DIR")
+    }
+    env["HOME"] = str(home)
+    done = subprocess.run(
+        ["sh", str(HOOK)], input=json.dumps(call), capture_output=True, text=True, env=env
+    )
+    return done.returncode, (done.stderr.splitlines() or [""])[-1]
+
+
+def patch(*lines):
+    """An `apply_patch` call's input, as Codex gives it: the patch in `command`."""
+    return {"command": "\n".join(["*** Begin Patch", *lines, "*** End Patch"]) + "\n"}
+
+
+@pytest.mark.parametrize(
+    ("cwd", "given", "name"),
+    [
+        (
+            "repos/jstack",
+            patch("*** Update File: {home}/.config/jstack/roles", "@@", "-a", "+b"),
+            ROLES,
+        ),
+        (".config/jbus", patch("*** Add File: config.toml", "+[x]"), CONFIG),
+        ("repos/jstack", patch("*** Delete File: ../../.config/jbus/config.toml"), CONFIG),
+        (
+            "repos/jstack",
+            patch("*** Update File: notes.md", "*** Move to: {home}/.config/jstack/roles", "@@"),
+            ROLES,
+        ),
+        (
+            "repos/jstack",
+            patch("*** Add File: a.md", "+x", "*** Update File: {home}/.config/jbus/config.toml"),
+            CONFIG,
+        ),
+    ],
+)
+def test_a_codex_patch_that_writes_one_of_infra_s_files_is_refused(home, cwd, given, name):
+    given = filled(given, home)
+    assert codex(home, "apply_patch", given, home / cwd) == (2, file_refusal(name))
+
+
+def test_a_codex_shell_command_that_writes_one_of_infra_s_files_is_refused(home):
+    given = {"command": "echo x >> ~/.config/jbus/config.toml"}
+    assert codex(home, "Bash", given, home / "repos" / "jstack") == (2, file_refusal(CONFIG))
+
+
+def test_a_codex_patch_elsewhere_passes_and_the_infra_home_s_patch_goes(home):
+    elsewhere = patch("*** Update File: config.toml", "@@", "-a", "+b")
+    assert codex(home, "apply_patch", elsewhere, home / "repos" / "jstack") == (0, "")
+    roles = filled(patch("*** Update File: {home}/.config/jstack/roles", "@@"), home)
+    assert codex(home, "apply_patch", roles, home / "repos" / "infra") == (0, "")
