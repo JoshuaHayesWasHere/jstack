@@ -210,9 +210,7 @@ def test_a_map_with_no_review_line_gives_one_call_that_inherits_the_model(tmp_pa
         ("scoped", "review: alpha, scoped", "/pr-review run alpha scoped a..b c..d"),
     ],
 )
-def test_a_scoped_pass_is_one_reviewer_in_the_same_worktree(
-    tmp_path, pass_, title, message
-):
+def test_a_scoped_pass_is_one_reviewer_in_the_same_worktree(tmp_path, pass_, title, message):
     work, (call,) = launched(tmp_path, TWO, pass_, "/pr-review run alpha scoped a..b c..d")
     assert (call["title"], call["message"]) == (title, message)
     assert call["workspaceStrategy"]["worktreePath"] == str(work)

@@ -43,20 +43,16 @@ with the default "fix it". In a first review, severity is a field and decides no
 later review, severity alone decides: an error holds the merge, a warning is kept for the day's
 warnings row (`jbus.daywarnings`), and an info is dropped (`_LATER`).
 
-The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
-declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
-disproof>` for each decline it does not uphold (`Ruling`). The last ruling of an id is the one
-that counts. A decline that the pass did not uphold stays overruled until the crew answers the
-finding `fixed`, and a decline written again after the ruling is still not upheld
-(`Finding.state`). A scoped section that its reviewer wrote again at the same head rules on
-nothing, because the section that took its place says all that pass says. So a scoped pass
-rules on every blocking decline, those with an earlier ruling included. A scoped section is a
-pass of its own. At the head of the first review, the only section it replaces is an earlier
+A blocking finding carries its evidence in a `(proof: ...)` tag (`jbriefs.proofs`). One with
+none is `UNPROVEN` until answered, and any decline of it counts. One round rules on no decline,
+but a scoped section of an older brief may (`Declines: upheld F2`, `Declines: not upheld F3: <the
+disproof>`, `Ruling`), and a decline it did not uphold stays overruled until answered `fixed`.
+A scoped section is a pass of its own: at the first review's head it replaces only an earlier
 scoped section by the same reviewer.
 
 `jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its second
-pass (`jbriefs --findings --left` and `--rounds`), and jbus's ask (`expedite`) read the brief
-through this module and nowhere else.
+pass (`jbriefs --findings --left` and `--rounds`, which `jbriefs.cli` prints), and jbus's ask
+(`expedite`) read the brief through this module and nowhere else.
 """
 
 from __future__ import annotations
@@ -65,6 +61,7 @@ import re
 from dataclasses import dataclass, field, replace
 
 from jbriefs import below
+from jbriefs.proofs import proven
 
 NEAR = 5
 ACT_ON, CONSIDER, NOTED, DISMISSED = "Act on", "Consider", "Noted", "Dismissed"
@@ -87,23 +84,6 @@ WHY = {
 }
 
 _TAGS = ("principle", "bucket", "risk", "dismissed", "proof")
-PROOFS = (
-    re.compile(r"`[^`]+`, exit [1-9]\d*\b.*"),
-    re.compile(r"check \S.* failed\b.*"),
-    re.compile(r"doc [\w./-]+:\d+\b.*"),
-    re.compile(r"unmet \d+\b.*"),
-    re.compile(r"measured [2-9]\d* runs\b.*\bspread\b.*\blimited by\b.*\bdecided before\b.*"),
-)
-"""The shapes of a blocking finding's `(proof: ...)` tag, the one evidence one round blocks on:
-a command in backticks that exited non-zero at the head, a check that failed, a doc line the
-pull request made wrong, the number of a `Done when` line it does not meet, or, for a change
-that is not optimized, a measure of the base and the head: its run count, its spread, its
-limiter and the decision written before the run (principle-explain-the-number)."""
-
-
-def proven(proof: str) -> bool:
-    """Whether a finding's `(proof: ...)` tag has one of the `PROOFS` shapes."""
-    return any(shape.fullmatch(proof.strip()) for shape in PROOFS)
 _PLACE = re.compile(r"(.+):(\d+)")
 _BY_ID = re.compile(r"Finding (F\d+): (fixed|not fixed), (.*)")
 _DECLINE = re.compile(r"(.+?), because (.*)")
@@ -113,7 +93,7 @@ _QUESTION = re.compile(r"\bquestion (\d+)\b")
 _UPHELD = "Declines: upheld "
 _NOT_UPHELD = "Declines: not upheld "
 _ID = re.compile(r"F\d+")
-OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", "overruled"
+OPEN, FIXED, UPHELD, OVERRULED = "open", "fixed", "upheld", "overruled"
 REVIEW, NONE, TWICE, CLEANUP = "review", "none", "twice", "cleanup"
 MODES = (NONE, CLEANUP)
 CLEANUP_DECIDED = "none, jbus filed this from the warnings of later reviews "
@@ -128,10 +108,8 @@ and 11-01). Every review of a `cleanup` brief, the day's row, is later and keeps
 
 
 def mode_of(text: str) -> str:
-    """A brief's review mode, from its first `Review:` line: `none`, `cleanup`, or `review`.
-    Any other word reads as `review`, and so does a brief with no such line. Older briefs use
-    other words: `after` went with a review that held no merge, and `twice` with a second review
-    of the fix, which one round retired."""
+    """A brief's review mode, from its first `Review:` line: `none`, `cleanup`, or `review`,
+    which any other word and no line read as, the older `after` and `twice` included."""
     line = next((one for one in text.splitlines() if one.startswith("Review:")), "")
     said = "".join(line.split()[1:2])
     return said if said in MODES else REVIEW
@@ -327,8 +305,7 @@ class Finding:
 
     @property
     def proven(self) -> bool:
-        """Whether a line that raised this finding carries a `(proof: ...)` tag of a shape
-        `PROOFS` gives. A finding from before the buckets needs none."""
+        """Whether a line raised it with a proof (`proofs.proven`), or it predates the buckets."""
         return self.legacy or any(proven(one.proof) for one in self.standing)
 
     @property
@@ -351,17 +328,13 @@ class Finding:
 
     @property
     def state(self) -> str:
-        """The state of a blocking finding. It is `open` until an answer counts, and then
-        `fixed`. A decline by id is `unruled` until a scoped pass rules on it, and then
-        `upheld` or `overruled`. A finding that does not block, or one answered with no id,
-        is `fixed` once it has an answer that counts, because nothing rules on it."""
+        """The state of a finding: `open` until an answer counts, then `fixed`, or, for a
+        blocking decline by id that a scoped pass ruled on, `upheld` or `overruled`."""
         answer = self.answer
         if answer is None or self.refused:
             return OPEN
-        if answer.fixed or not answer.by_id or not self.blocks:
+        if answer.fixed or not answer.by_id or not self.blocks or self.ruling is None:
             return FIXED
-        if self.ruling is None:
-            return UNRULED
         return UPHELD if self.ruling.upheld else OVERRULED
 
 
@@ -388,7 +361,7 @@ class Triage:
         return [one for one in self.findings if one.route == route]
 
     def declines(self, state: str) -> tuple[Finding, ...]:
-        """The blocking findings whose `state` is `UNRULED` or `OVERRULED`, in the order of
+        """The blocking findings whose `state` is `UPHELD` or `OVERRULED`, in the order of
         their ids."""
         return tuple(one for one in self.findings if one.blocks and one.state == state)
 
@@ -582,10 +555,8 @@ def _judge(findings: list[Finding], text: str) -> None:
     """Refuse the answers that do not count. A decline of a finding in the `Act on` bucket
     does not count when it cites nothing, gives an earlier finding's reason, or leaves a
     risky finding with no gate. This function applies the old rule to an answer with no id,
-    which is an answer to a finding from before the ids. A blocking finding with no proof
-    (`Finding.proven`) is refused as `UNPROVEN` until it has an answer, and any decline of it
-    counts, a risky one on its gate alone: one round blocks only on what a run, a check, a doc
-    line or a `Done when` line shows."""
+    which is an answer to a finding from before the ids. A blocking finding with no proof is
+    `UNPROVEN` until answered, and any decline of it counts, a risky one on its gate alone."""
     gates = set(re.findall(r"Gate: question (\d+)\b", text))
     given: dict[str, str] = {}
     for one in findings:
@@ -717,11 +688,9 @@ def _shown(one: Finding) -> list[str]:
     )
     if lead.head:
         lines.append(f"  head: {lead.head}")
-    proofs = [raised.proof for raised in one.standing if raised.proof]
-    if proofs:
-        lines.append(f"  proof: {proofs[0]}")
-    elif one.blocks and not one.proven:
-        lines.append("  proof: none, so a decline of it needs no cited reason")
+    proof = next((raised.proof for raised in one.standing if raised.proof), "")
+    if proof or (one.blocks and not one.proven):
+        lines.append(f"  proof: {proof or 'none, so a decline of it needs no cited reason'}")
     if one.contradicts:
         lines.append(f"  contradicts: {one.contradicts}")
     if one.bucket == DISMISSED:
@@ -822,13 +791,3 @@ def _last_round(said: Triage) -> set[int]:
             break
         last.add(number)
     return last
-
-
-def rounds(said: Triage) -> str:
-    """The one line that the crew's second pass reads about the review. It gives how many
-    sections ran, the head the last of them saw, and every head a section names, joined with
-    commas, or `-` where there is none."""
-    ran = [one for one in said.sections if one.ran]
-    saw = next((one.head for one in reversed(ran) if one.head), "-")
-    heads = ",".join(dict.fromkeys(one.head for one in said.sections if one.head)) or "-"
-    return f"{len(ran)} {saw} {heads}"

@@ -67,7 +67,7 @@ elif [ "$passes" = 0 ]; then
     echo "wait: no review is written in the brief yet"
 elif [ "$ruled" = needed ]; then
     said=$(scoped)
-    echo "${said:-had: the scoped review the brief's line was owed is written, and it is the last}"
+    echo "${said:-had: the scoped review the brief was owed is written, and it is the last}"
 elif [ "$ruled" != no ]; then
     echo "none: one round, no review of the fix, as the Result says"
 else

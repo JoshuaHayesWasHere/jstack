@@ -9,7 +9,7 @@ review skill writes them."""
 
 import pytest
 
-from jbriefs import findings
+from jbriefs import findings, proofs
 from jmerge import ready
 
 SAW, FIX = "a" * 40, "b" * 40
@@ -73,7 +73,7 @@ def test_a_proof_of_no_shape_one_round_takes_is_no_proof(proof):
 )
 def test_each_shape_of_proof_blocks_and_a_bare_decline_of_it_does_not_count(proof):
     declined = answered("not fixed, the retry, because I disagree") + section(proved(proof))
-    assert findings.proven(proof)
+    assert proofs.proven(proof)
     assert ready.short_of(declined, FIX) == ready.UNCITED.format(ids="F1")
 
 

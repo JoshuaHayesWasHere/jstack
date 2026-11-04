@@ -145,7 +145,7 @@ class Fix:
         return ran.stdout.splitlines()
 
 
-HAD = "had: the scoped review the brief's line was owed is written, and it is the last"
+HAD = "had: the scoped review the brief was owed is written, and it is the last"
 
 
 def opened(tmp_path, path, fix=None):

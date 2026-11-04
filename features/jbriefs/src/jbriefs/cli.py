@@ -101,6 +101,17 @@ def runnable_main(project: str | None, statuses: str) -> int:
         return 1
     print(found.line())
     return 0
+||||||| parent of 7acc96bb7 (feat(jmerge): the flow model writes one review round only once check has passed, and findings' proof shapes move to jbriefs.proofs)
+
+
+def rounds(said: findings.Triage) -> str:
+    """The one line the crew's "A second pass" reads about the review: how many sections ran,
+    the head the last of them saw, and every head a section names, joined with commas, or `-`
+    where there is none."""
+    ran = [one for one in said.sections if one.ran]
+    saw = next((one.head for one in reversed(ran) if one.head), "-")
+    heads = ",".join(dict.fromkeys(one.head for one in said.sections if one.head)) or "-"
+    return f"{len(ran)} {saw} {heads}"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -183,8 +194,8 @@ def main(argv: list[str] | None = None) -> int:
     told.add_argument(
         "--rounds",
         action="store_true",
-        help="with --findings, print only the sections that ran, the head the last saw, "
-        "every head a section names and the blocking declines no scoped pass has ruled on",
+        help="with --findings, print only the sections that ran, the head the last saw and "
+        "every head a section names",
     )
     args = parser.parse_args(argv)
 
@@ -204,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.left:
             print(findings.left(said))
         elif args.rounds:
-            print(findings.rounds(said))
+            print(rounds(said))
         else:
             for line in findings.listed(said):
                 print(line)

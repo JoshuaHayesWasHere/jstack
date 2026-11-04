@@ -824,10 +824,7 @@ def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.mode == NONE:
         return REVIEW_NONE
-    if said.mode == CLEANUP:
-        short = _cleanup(said)
-    else:
-        short = _review(said, head)
+    short = _cleanup(said) if said.mode == CLEANUP else _review(said, head)
     return short or short_on_meets(text, heard)
 
 

@@ -15,6 +15,8 @@ def _kind(v, p):
         return "waiting for a check" + fix
     if "brFail" in v and v["brFail"][p]:
         return "its browser run red"
+    if ci == "pass" and "rv" in v and v["rv"][p] == "none":
+        return "passed, waiting for its review" + fix
     if ci == "pass" and v["fixes"][p]:
         return "passed, holds main's fix, " + _waits(v, p)
     if ci == "pass" and "go" in v and not v["go"][p]:
