@@ -26,7 +26,7 @@ It keeps the revert in `reverts.json` beside the queue, writes its brief, says `
 The home is not sent it: the `revert` event is quiet, wakes no thread, and reaches the home only in the digest ([Events and wakes](events-and-wakes.md)).
 `jmerge` merges the revert by the normal path once its checks are green, with no review.
 It is first in `jmerge`'s merge order, ahead of every pull request `reverts.json` does not name, and once main moves past its check it takes the line of branch updates from the pull request that holds it ([Merges cleanly over today's main](../../../jmerge/docs/jmerge.md#merges-cleanly-over-todays-main)).
-Other pull requests still merge onto the red main as before; they no longer put the revert behind them.
+Other pull requests still merge onto the red main as before: one whose check ran over today's main is in no line and can still move main past the revert's update, but none that needs an update of its own goes before it.
 
 jbus reverts nothing in the cases below (`Keep` in `reverts.py`).
 Where the outcome is the fix's brief, the brief says which case holds.
