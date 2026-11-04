@@ -227,7 +227,9 @@ Where origin's head is such a merge, this is the only way out, whatever else mad
 Then run the block again.
 A rebase for a conflict is pushed by the block of "A conflict", and a fix pushed after it starts from the head that block pushed.
 
-When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
+When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints.
+Then add one line to the Result in one of these two shapes.
+It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge`, run by jbus, the only merger, merges on it:
 
 - `Fixed: <full commit>`: the head you pushed, from `git rev-parse HEAD` after the push;
 - `Fixed: none needed, <reason>`: when you decline every finding.
@@ -237,9 +239,8 @@ Where that line is missing, `jmerge` reads it from git and the `Checked:` line (
 
 The Result has one `Fixed:` line. If you push again for a failed check after writing it with a commit, set it to the new head. A rebase leaves it as it is: `jmerge` compares the rebased head with the commit that line names ("A conflict").
 
-While the home merges, nothing else brings it back to the pull request, so tell it when the pull request is fixed and green. Send the thread that hears of a pull request ("Telling the home") one line: `<slug>: <pull request url> at <full head commit> is fixed and green`. With no home, or while jbus merges, send nothing: `jmerge`, run by jbus, reads the `Fixed:` line from the brief on its next pass. It is sent only when the block of "A second pass" prints `none`, or prints `had` with the second pass's findings handled: on `needed`, on `scoped` and on `write Scoped review:` the pull request is not ready, and the home would be woken to a `wait`. The time to send it:
-
-- after `Fixed: <full commit>`: on jbus's message that every check passed at that head. It comes again for each later head that turns green, since the head has moved;
-- after `Fixed: none needed`: the same, on jbus's message that every check passed at the head, whether or not it was green when the line was written.
+jbus is the only merger, so no home waits to hear that the pull request is fixed and green: "Telling the home" sends the `fixed and green` line to nobody, and `jmerge`, run by jbus, reads the `Fixed:` line from the brief on its next pass, once the head is green.
+Wait for no message that every check passed after a `Fixed:` line: jbus sends that message only for a brief that says `Review: none` and has no `Reviewer: none` line yet (`rebase.owed`, `features/jbus/src/jbus/rebase.py`).
+The line is due only when the block of "A second pass" prints `none`, or prints `had` with the second pass's findings handled: on `needed`, on `scoped` and on `write Scoped review:` the pull request is not ready.
 
 Where no check ran, the head is not green and the line is not sent: "The checks" parks it as a gate.

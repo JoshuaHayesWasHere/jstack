@@ -229,7 +229,6 @@ TABLE = {
     "conflict": "quiet",
     "refailed": "quiet",
     "green": "quiet",
-    "mainmoved": "quiet",
     "resume": "quiet",
     "slot-wake": "quiet",
     "slot-end": "quiet",
