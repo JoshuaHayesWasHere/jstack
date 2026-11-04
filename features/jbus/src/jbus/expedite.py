@@ -13,19 +13,16 @@ reason with its sentence:
 - `unpushed`, `nothing was pushed after them`: push the fix and name its head, or decline
   every finding in writing, as above;
 - `unended`, `<k> of <n> have no Finding line`: write the lines that are missing;
-- `unanswered`, `uncited`, `repeated` and `risky`, the waits of an answer by id
-  (`jbriefs.findings`): answer each finding by id, and give a decline a reason that cites a
-  path:line, a command or a gate. Give each finding its own reason, and park a gate for a
-  risky one. For each of these four reasons and the three above, the line lists by id the
+- `unanswered`, `unproven`, `uncited`, `repeated` and `risky`, the waits of an answer by id
+  (`jbriefs.findings`): answer each finding by id, and give a decline of a finding with a proof
+  a reason that cites a path:line, a command or a gate. Give each finding its own reason, and
+  park a gate for a risky one. A finding with no proof tag (`unproven`) takes a decline with
+  any reason. For each of these five reasons and the three above, the line lists by id the
   findings that have no answer that counts;
-- `second`, `the second pass is not written`: launch the second reviewer. `jmerge` gives this
-  reason for a brief written before fixes got a scoped review;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
-  with the two ranges, the patch the last review saw and the patch at the head. Where the
-  crew cannot work out a range, run the crew skill's block, which says what to do;
-- `declines`, `the scoped review has not ruled on the declines of <ids>`: run the crew
-  skill's block of "A second pass". The block launches the one scoped pass that a blocking
-  decline needs, even where the crew pushed nothing;
+  with the two ranges, the patch the last review saw and the patch at the head. One round owes
+  it only after a `Meets the brief: no`. Where the crew cannot work out a range, run the crew
+  skill's block, which says what to do;
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
@@ -50,6 +47,16 @@ reason with its sentence:
   the migration and the ones after it, consecutively.
 - `browser`, `its browser run failed at <head12>`: the pull request's own browser run failed, and
   main's last one did not. Fix the failed tests and push.
+- `skills`, `its Result has no artifact under Skills run: for <names>`: add the item each name
+  owes, and the line lists each with the artifact `templates/skill-artifacts.md` names for it;
+- the `proved-` reasons, each of `ready.short_on_proved`'s (`missing`, `unread`, `not-exempt`,
+  `unnamed`, `stale`): run the proof block of the crew skill's do-the-task.md, which appends the
+  `Proved:` line, and push nothing for it. For `base-passed` and `head-failed` the crew first fixes
+  and pushes the tests, and for `not-kind` it writes the kinds again or adds the test the change
+  needs.
+
+`UNTOLD` holds the reasons of `jmerge`'s `result` step no crew can fix, and every other one is a
+row: a test holds the table to `ready`.
 
 `tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
 thread is at work (`watch.at_work`: starting, `running` or `waiting`), since the line may be
@@ -123,9 +130,29 @@ NO_FIX_RANGE = (
     "ranges."
 )
 RERUN = "rerun.md"
-ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
+ANSWERED = (
+    "unfixed",
+    "unpushed",
+    "unended",
+    "unanswered",
+    "unproven",
+    "uncited",
+    "repeated",
+    "risky",
+)
 AGAIN = "/pr-review run {slug} again"
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
+PROVE_STEP = "Once the check passed, prove the change with the tests it changes"
+PROVE = (
+    f'Run the proof block of the crew skill\'s do-the-task.md, its step "{PROVE_STEP}", in your '
+    "worktree, with the work committed: it appends the `Proved:` line to the Result itself, and "
+    "`jmerge` reads the last one. "
+)
+PROVE_ONLY = "Push nothing for it: the line is in the Result, not the branch."
+FIX_TESTS = (
+    "fix the tests until they fail over the base's code and pass at the head, commit and push "
+    "that fix alone, and run the block again at the new head."
+)
 MESSAGE = (
     "jbus: pull request #{number} waits on you, and jmerge keeps saying the same of it "
     "({reason}). {sentence} " + END_TURN
@@ -200,6 +227,14 @@ TABLE = (
         "<the brief>` lists them. An answer with no id answers none of them.",
     ),
     Short(
+        "unproven",
+        "wait",
+        ready.UNPROVEN,
+        "Each finding the reason names blocks with no proof tag: no run, check, doc line or "
+        "`Done when` line shows it. Fix it or decline it, by its id, "
+        f"{findings.ANSWER}: a decline of it needs no cited reason.",
+    ),
+    Short(
         "uncited",
         "wait",
         ready.UNCITED,
@@ -222,29 +257,6 @@ TABLE = (
         "that it is fixed, fix it, and answer it `Finding F<n>: fixed, ...`; where the user "
         "answers that it stays, answer it `Finding F<n>: not fixed, ..., because question <n>: "
         "<the answer>`, with the Result's `Gate: question <n>` line.",
-    ),
-    Short(
-        "second",
-        "wait",
-        ready.SECOND_UNWRITTEN,
-        'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
-        f"the message `{AGAIN}`, and add `Second reviewer: <threadId>` to the "
-        "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
-        "nothing until its `## Review` is written.",
-        reviewed=True,
-        sends=AGAIN,
-    ),
-    Short(
-        "twice",
-        "wait",
-        ready.TWICE_UNWRITTEN,
-        "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
-        f'the way the crew skill\'s "The review" says, with the message `{AGAIN}`, and add '
-        "`Second reviewer: <threadId>` to the Result, in place of a `Second reviewer:` line "
-        "whose thread wrote no `## Review`. Its errors alone come to this thread: answer "
-        "each by id and push the fix, and no third review follows.",
-        reviewed=True,
-        sends=AGAIN,
     ),
     Short(
         "fix",
@@ -286,14 +298,6 @@ TABLE = (
         unless=no_reviewer_by_rule,
         sends=AGAIN,
         rerun=True,
-    ),
-    Short(
-        "declines",
-        "wait",
-        ready.DECLINES_UNRULED,
-        SECOND_PASS + "each blocking decline is ruled on by one scoped pass, also where nothing "
-        "was pushed, and the block writes the `Scoped review:` line and gives the launch.",
-        reviewed=True,
     ),
     Short(
         "meets-no",
@@ -355,7 +359,83 @@ TABLE = (
         "has them: a moved shot fails no pull request's run, and only the shots row redraws "
         "them. `jmerge` merges once the browser run of the new head passes.",
     ),
+    Short(
+        "skills",
+        "wait",
+        ready.SKILLS_UNRUN,
+        "The Result's `Skills run:` leaves out a skill its brief names. For each name the reason "
+        "gives, do what the skill's file says if you have not, and add one item `- <name>: <the "
+        "artifact>` under `Skills run:` in the last Result, the artifact the crew skill's "
+        "`templates/skill-artifacts.md` names for it. Push nothing for it.",
+    ),
+    Short(
+        "proved-missing",
+        "wait",
+        ready.PROVED_MISSING,
+        PROVE + "The Result has no `Proved:` line, and the pull request changes the tests the "
+        "reason names. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-unread",
+        "wait",
+        ready.PROVED_UNREAD,
+        PROVE + "The last `Proved:` line has no shape `jmerge` reads: never write or mend the "
+        "line by hand, the block's line replaces it. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-not-exempt",
+        "wait",
+        ready.PROVED_NOT_EXEMPT,
+        PROVE + "The line says `none`, and the pull request changes the tests the reason names, "
+        "so it is no exemption: the block's line names those tests. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-not-kind",
+        "wait",
+        ready.PROVED_NOT_KIND,
+        "The `Proved:` line says `none` for kinds that leave out the file the reason names. "
+        "Where that file is docs or config, write the line again as `Proved: none, <kinds>` with "
+        "each kind the pull request's files are, and push nothing. Otherwise the change needs a "
+        "test that names it: add or change the test that fails without it, commit and push that "
+        "alone, then run the proof block of the crew skill's do-the-task.md, its step "
+        f'"{PROVE_STEP}", which appends the `Proved:` line that names the changed tests.',
+    ),
+    Short(
+        "proved-unnamed",
+        "wait",
+        ready.PROVED_UNNAMED,
+        PROVE + "The last `Proved:` line leaves out the tests the reason names, and the block's "
+        "line names every test the branch changes. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-base-passed",
+        "wait",
+        ready.PROVED_BASE_PASSED,
+        PROVE
+        + "The last line says the tests did not fail at the base, so they prove nothing: "
+        + FIX_TESTS,
+    ),
+    Short(
+        "proved-head-failed",
+        "wait",
+        ready.PROVED_HEAD_FAILED,
+        PROVE + "The last line says the tests did not pass at the head: " + FIX_TESTS,
+    ),
+    Short(
+        "proved-stale",
+        "wait",
+        ready.PROVED_STALE,
+        PROVE + "The last line is of a head whose patch the pull request no longer carries, so "
+        "run the block at the head as it is. " + PROVE_ONLY,
+    ),
 )
+UNTOLD = {
+    ready.NO_BRIEF.code: "no brief names the pull request, so there is no crew to tell",
+    ready.HAND_DRAFT.code: "the draft is somebody's by hand, and jmerge never marks it ready",
+}
+"""The code of each reason of `jmerge`'s `result` step that no crew can fix, and why. Every other
+reason of that step is a row of `TABLE`: `test_jbus_expedite_result.py` holds the two to
+`ready`, so a reason added there is never a quiet wait."""
 
 
 def short_of(said: merge.Line) -> Short | None:
@@ -533,6 +613,12 @@ def _tell(
     if row.kind in ANSWERED:
         left = [one.id for one in findings.triage(task_brief(run, slug)).blocking()]
         sentence += f" The findings with no answer that counts: {', '.join(left)}." if left else ""
+    if row.kind == "skills":
+        owes = [
+            f"`- {name}: {skills.owed(skills.resolve(name).name)}`"
+            for name in skills.missing(task_brief(run, slug))
+        ]
+        sentence += f" The items it owes: {'; '.join(owes)}." if owes else ""
     message = MESSAGE.replace("{sentence}", sentence)
     ask = rebase.Ask(
         row.kind, "", "told what it is short of", message, no_thread=NO_THREAD, refused=REFUSED

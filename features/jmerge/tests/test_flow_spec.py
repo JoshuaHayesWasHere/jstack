@@ -92,6 +92,28 @@ def test_a_quote_of_one_python_line_holds_each_or_on_it():
     assert "if row and not judgement.has_go(row, brief):" in checked
 
 
+LAUNCH_ON_PASSED = {
+    (
+        "features/crew/the-review.md",
+        'passed) echo "launch: run the block below and do what it prints" ;;',
+    ),
+    ("features/pr-review/launching.md", "passed*) head=${said##* } ;;"),
+}
+
+
+def test_the_reviewer_launches_only_once_the_check_has_passed_and_one_round_merges():
+    """The one order: the model's merge waits on a passed check, and that condition cites where
+    the crew and the reviewer launch only on `passed`, so the review round follows the pass. No
+    line of the crew's or the reviewer's launch says it runs beside the checks."""
+    text = flat(SPEC / "FlowToday.tla")
+    merges = text[text.index(" Merges(p) ==") : text.index(" Merge(p) ==")]
+    assert '/\\ ci[p] = "pass"' in merges
+    assert set(QUOTE.findall(merges)) >= LAUNCH_ON_PASSED
+    for path, _ in LAUNCH_ON_PASSED:
+        said = (REPO / path).read_text()
+        assert "beside the checks" not in said and "never waits for green" not in said, path
+
+
 def test_each_condition_of_the_design_s_rejudge_quotes_its_file():
     text = (SPEC / "FlowDesign.tla").read_text()
     rejudge = text[text.index("Rejudge(p) ==") : text.index("\\* crew-leftover-procs")]

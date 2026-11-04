@@ -13,11 +13,11 @@ import re
 from jbriefs import below, findings
 from jmerge import ready
 
-FIXES = (ready.FIX_UNREVIEWED, ready.DECLINES_UNRULED)
+FIXES = (ready.FIX_UNREVIEWED,)
 CLASSES = (
     ("result", (ready.NO_BRIEF,)),
     ("scoped", (*FIXES, ready.SCOPED_UNRULED, ready.CONTENT_CHANGED)),
-    ("review", (ready.NO_REVIEW, ready.NO_VERDICT, ready.TWICE_UNWRITTEN, ready.SECOND_UNWRITTEN)),
+    ("review", (ready.NO_REVIEW, ready.NO_VERDICT)),
 )
 """Each class with the reasons of `jmerge` it takes, matched by each reason's own pattern, so a
 reason that `jmerge` rewords keeps its clock."""

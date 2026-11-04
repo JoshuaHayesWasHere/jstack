@@ -491,7 +491,7 @@ def test_a_fix_whose_review_is_owed_waits_for_it_and_then_for_each_of_its_findin
     written = review("findings") + review("clean", PUSHED)
     assert ready.short_of(brief(written, fixed), PUSHED) == ""
     tests_only = f"{ENDED}Fixed: {PUSHED}\nScoped review: none, the fix changed tests/ only\n"
-    assert ready.short_of(brief(review("findings"), tests_only), PUSHED) == NO_FIX_REVIEW
+    assert ready.short_of(brief(review("findings"), tests_only), PUSHED) == ""
     assert ready.short_of(brief(written, tests_only), PUSHED) == ""
     unanswered = brief(SECOND, f"{ENDED}Fixed: {LATER}\n{OWED}")
     assert ready.short_of(unanswered, LATER) == (
@@ -574,33 +574,10 @@ SHORT = {
         {"head": PUSHED},
         NO_FIX_REVIEW,
     ),
-    "a wider fix with no second pass": (
-        brief(review("findings"), f"Fixed: {PUSHED}\n{WIDER}"),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
-    ),
-    "a wider fix, and a second review of the head the first one saw": (
-        brief(review("findings") + review("clean"), f"Fixed: {PUSHED}\n{WIDER}"),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
-    ),
-    "a wider fix, and a line that does not say since which head": (
-        brief(review("findings"), f"Fixed: {PUSHED}\nSecond pass: needed\n"),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
-    ),
     "a wider fix, and a rebase moved the Fixed line before the second pass's findings came": (
         brief(SECOND, f"{ENDED}Fixed: {LATER}\n{WIDER}Rebase: range-diff empty, head {LATER}\n"),
         {"head": LATER},
         "its findings are not handled: 1 of 2 have no Finding line",
-    ),
-    "a wider fix, and a review that names no head": (
-        brief(
-            review("findings").replace(f"Head: {REVIEWED}", "Run: 1"),
-            f"{ENDED}Fixed: {PUSHED}\nSecond pass: needed since -, the fix could not be compared\n",
-        ),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
     ),
     "a wider fix, and a second reviewer whose run did not start": (
         brief(

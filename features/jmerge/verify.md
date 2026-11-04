@@ -15,7 +15,7 @@ Tests: none
 - `decision-hold` holds a pull request that changes a protected path, for the user.
 - `decision-no-go` waits on a pull request whose queue row has no go, and names `jbus plan go`.
 - `decision-review-after` reads a brief that still says `Review: after` as `review`: its findings hold the merge.
-- `decision-review-twice` waits for the second review of a `Review: twice` brief, holds nothing for its `warning` and `info` findings, and waits for an answer to its `error` one.
+- `decision-review-proof` reads a brief that still says `Review: twice` as `review`, holds a blocking finding with no `(proof: ...)` tag under a reason that names it until it has any answer, and holds one whose proof is a run that exited non-zero until its decline cites a path:line, a command or a gate.
 - `decision-red` waits while the check named `check` has not passed.
 - `decision-over-main` waits on a green pull request whose check main moved past, for GitHub's update of its branch.
 - `decision-base` holds a pull request into another branch than the default.
@@ -49,15 +49,15 @@ Preconditions:
   It prints `wait 7 https://example.test/pull/7: its findings are not handled: the Result has no Fixed line`.
   Then run `f="${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md" && awk '{print} /^Pull request: open one when done$/ {print "Review: after"}' "$f" > "$f.new" && mv "$f.new" "$f"` and `record jmerge-decision jmerge --check` again.
   It prints the same `wait` line: an `after` brief is read as `review`, and its findings hold the merge.
-- **Review twice.**
-  Run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\nReview: twice\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFinding F1: fixed, a made up one\nFixed: %s\nSecond reviewer: mcp:10 #1\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- warning src/beta/a.py:1 a made up one (bucket: Act on)\n' "$head" "$(printf f%.0s $(seq 40))" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
-  It prints `wait 7 https://example.test/pull/7: its second review is not written at <the head's first 12>`.
-  Then run `cp "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md" "$VERIFY_JSTACK_SANDBOX/beta.first"` and `printf '\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- warning src/beta/a.py:2 a second one (bucket: Act on)\n- info src/beta/a.py:3 a small one (bucket: Consider)\n' "$head" >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
-  It prints `ready 7 <the head> beta beta`: a second review's `warning` goes to the day's warnings row and its `info` is dropped, and no fix push is owed for them.
-  Then run `cp "$VERIFY_JSTACK_SANDBOX/beta.first" "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `printf '\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:2 a second one (bucket: Consider)\n- warning src/beta/a.py:9 a third one (bucket: Act on)\n' "$head" >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
-  It prints `wait 7 https://example.test/pull/7: its findings are not handled: nothing was pushed after them`: the second review's `error` goes to the crew, whatever its bucket, which owes a push or an answer for it.
-  Then run `printf 'Finding F2: not fixed, a second one, because src/beta/a.py:2 is meant so\nFixed: none needed, declined\n' >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
-  It prints `ready 7 <the head> beta beta`: the declined `error` has its answer, and the `warning` finding asks for none.
+- **One round, a proof.**
+  Run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\nReview: twice\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFixed: none needed, declined\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:1 a made up one (bucket: Act on)\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
+  It prints `wait 7 https://example.test/pull/7: its findings are not handled: F1 block with no proof tag, so answer each by id, and a decline of one needs no cited reason`: the old `twice` brief is read as `review`, and the finding with no proof is named.
+  Then run `printf 'Finding F1: not fixed, a made up one, because I disagree\n' >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
+  It prints `ready 7 <the head> beta beta`: no second review is owed, and a decline of a finding with no proof counts with any reason.
+  Then run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFixed: none needed, declined\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:1 a made up one (bucket: Act on) (proof: `sh src/beta/proof.sh`, exit 1, it loops)\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
+  It prints `wait 7 https://example.test/pull/7: its findings are not handled: F1 have no answer by id`.
+  Then run `printf 'Finding F1: not fixed, a made up one, because I disagree\n' >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
+  It prints `wait 7 https://example.test/pull/7: its findings are not handled: the decline of F1 cites no path:line, command or gate`: a proven finding holds until its decline cites one.
 - **Touch a protected path.** Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta secrets/a.key`, then `record jmerge-decision jmerge --check`. It prints `hold 7 https://example.test/pull/7: needs user, touches secrets/a.key`.
 - **Fail the check.**
   Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py FAILURE`, then `record jmerge-decision jmerge --check`.

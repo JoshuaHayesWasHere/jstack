@@ -28,7 +28,12 @@ of that window never replaces a cap.
 Under this rule, merging the same failure or the same reading twice changes nothing, and the
 next window replaces a window that has reset.
 
-One reading goes around `merge`: `jgauge limits` writes with `read=True` what the usage endpoint
+`held` goes around `merge` for the failover alone. A run that just failed on a cap proves its
+instance capped until the cap's reset, whatever later window the instance's file holds: on
+2026-11-04 each run on claude_prime failed on a weekly cap that reset before the window of
+prime's file, at 0%, and `merge` kept that window, so the failover sent prime one carry-on a pass.
+
+A reading goes around `merge` too: `jgauge limits` writes with `read=True` what the usage endpoint
 itself just answered. An answer of `EARLY` percent or less replaces the window's line, whatever it
 held, since the provider has reset that window ahead of its time: on 2026-10-31 the endpoint read
 claude_prime's weekly window at 0% from 15:00 with the same reset, and `merge` kept the 100. A
@@ -127,6 +132,16 @@ def merge(ledger: Ledger, records: Iterable[Record]) -> dict[tuple[str, str], Re
         elif abs(record.resets - kept.resets) < SAME:
             used = max(record.used, kept.used)
             merged[key] = Record(*key, used, max(record.resets, kept.resets))
+    return merged
+
+
+def held(ledger: Ledger, cap: Record) -> dict[tuple[str, str], Record]:
+    """The ledger with `cap`, which a failed run reported, merged in, holding its instance until
+    the cap's reset even where the ledger has a later window with a lower share."""
+    merged = merge(ledger, [cap])
+    key = (cap.instance, cap.window)
+    if merged[key].used < cap.used:
+        merged[key] = cap
     return merged
 
 

@@ -12,8 +12,11 @@
 \* (#843, #850). Since fl-stack-by-depends-only it has no unstack: a link stays on its stack
 \* until its base merged, and a stack is made by a depends alone.
 \* Since fl-rules-1103 two of its rules say the flow the merged pull requests chose since.
-\* Since fl-no-draft a crew opens its pull request ready, so its check runs beside its review, and
-\* jmerge marks no draft ready: the draft, Ready and the lift --accept kept on a draft went.
+\* Since fl-no-draft a crew opens its pull request ready, and jmerge marks no draft ready: the
+\* draft, Ready and the lift --accept kept on a draft went. Since review-after-green-one-round its
+\* one reviewer launches only once its check has passed, and one round gives a fix no review. The
+\* round itself is no variable: no rule reads it, and the merge waits on the passed check it
+\* follows. A history bit for it took today's model from 7.9M to 12.9M states.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -123,7 +126,7 @@ Launch(p) ==
     /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py `on = world.stack_on(run, unmerged, brief)`
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
-    \* Its crew opens it ready, so its check runs beside its review.
+    \* Its crew opens it ready, and its check runs before its review.
     /\ Leaves(p)
     /\ UNCHANGED <<ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Fix, Browser,
                    go, needs, meets, Judge, editsLeft>>
@@ -157,6 +160,11 @@ Merges(p) ==
     \* Its row's go: a row you held, or whose go does not hold for its brief, waits on your approval.
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
+    \* Its one review round followed that pass: the crew launches its reviewer only once the check
+    \* has passed, and a fix it pushes for the findings gets no review (review-after-green-one-round).
+    \* features/crew/the-review.md `passed) echo "launch: run the block below and do what it prints" ;;`,
+    \* features/pr-review/launching.md `passed*) head=${said##* } ;;`,
+    \* features/jbus/src/jbus/rebase.py `green = mark("green", slug, head) not in sent and checks(pull) == "passed"`
     \* Its last review round says the brief is met (#843).
     /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
     \* A red main holds no pull request (red-main-no-hold, #862): only its own checks do.
