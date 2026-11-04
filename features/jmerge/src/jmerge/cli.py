@@ -768,6 +768,9 @@ class Repo:
         if not short and not reverted:
             heard = self.heard(text, brief.stem)
             short = self.lift(ready.short_of(text, one.head, heard), lifted)
+            short = short or ready.short_on_proved(
+                text, one, lambda at: self.range_diff(at, one.head, one.base, stacked).clean
+            )
         rebase: ready.Rebase | None = None
         covered = None if reverted else ready.to_range_diff(text, one.head)
         under = ready.under_fix(text, one.head)

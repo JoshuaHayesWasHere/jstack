@@ -212,12 +212,12 @@ def slot_script(text, home):
 
 def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     """The full run is the crewmate's, and the block that read the brief and the notes is gone.
-    The two blocks that take a slot, the targeted run and the check, each run their command when
-    a slot is free."""
+    The blocks that take a slot, the targeted run, the check and the proof of the changed tests,
+    each run their command when a slot is free (the proof's is driven by `test_crew_proved`)."""
     blocks = FENCED.findall(sections()["Do the task"])
     assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
     slots = [text for text in blocks if "jgauge test-slot" in text or "jgauge check" in text]
-    assert len(slots) == 2
+    assert len(slots) == 3
     said, code, _ = checked(tmp_path, "echo ran")
     assert (said[-2:], code) == (["ran", "done: the check exited 0"], 0)
     ran = slot_script(
