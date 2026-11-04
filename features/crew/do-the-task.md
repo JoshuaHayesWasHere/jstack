@@ -111,7 +111,8 @@
       echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
   else
       tree=$(mktemp -d)
-      git worktree add -q --detach "$tree" "$base"
+      git clone -q --shared --no-checkout . "$tree"
+      git -C "$tree" checkout -q --detach "$base"
       git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$' |
           while read -r file; do
               mkdir -p "$tree/$(dirname "$file")"
@@ -135,11 +136,13 @@
           echo "$line"
           if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
       fi
-      git worktree remove --force "$tree"
   fi
   ```
 
-  The head's tests run at the head, then laid over a worktree of the base with a venv of its own, so the base run imports the base's code and not the head's; the block removes that worktree, venv and all, once it has run.
+  The head's tests run at the head, then laid over a copy of the base's files with a venv of its own, so the base run imports the base's code and not the head's.
+  The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
+  The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
+  The copy stays in the temp directory, as scratch does.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, and each `conftest.py`.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
