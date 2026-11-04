@@ -223,7 +223,7 @@ def _log(
 ) -> None:
     """Write the call's line to `CALLS`, in one append, so that lines from many processes never
     mix. A log that cannot be written costs the call nothing."""
-    line = {
+    line: dict[str, object] = {
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "caller": caller,
         "endpoint": _endpoint(command, said),
