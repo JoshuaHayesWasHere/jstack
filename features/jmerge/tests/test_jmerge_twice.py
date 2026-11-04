@@ -102,7 +102,7 @@ def test_a_first_section_that_did_not_run_is_not_the_first_review():
 
 
 def test_a_twice_brief_asks_no_scoped_review_and_no_ruling_on_a_decline():
-    """A fix outside `tests/` and a decline would make a `Review: review` brief need a scoped
+    """A pushed fix and a decline would make a `Review: review` brief need a scoped
     pass that rules on them. A twice brief needs only the second review."""
     declined = "Finding F1: not fixed, the loop, because a.py:3 reads it once\n"
     owed = "Scoped review: needed since " + HEAD + ", fix outside tests\n"

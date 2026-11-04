@@ -25,6 +25,7 @@ _ACK = re.compile(
 _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
+_NOTHING_PUSHED = "nothing was pushed"
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -583,6 +584,7 @@ def said_of(text: str) -> Said:
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     first = triage.sections[0].line if triage.sections else -1
     fixed_at = -1
+    unproven = False
     for at, line in enumerate(text.splitlines()):
         fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
         if _COMMIT.fullmatch(fixed) or fixed == "none":
@@ -603,8 +605,11 @@ def said_of(text: str) -> Said:
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
+            unproven = fields[2:3] != ["needed"] and " ".join(fields[3:6]) != _NOTHING_PUSHED
     if said.mode == REVIEW and _stale(triage.sections, said.reviewed, fixed_at):
         said.fixed = ""
+    if unproven and _COMMIT.fullmatch(said.fixed) and said.fixed != said.reviewed:
+        said.owed, said.asked = True, said.reviewed
     _round(said)
     said.owes = _owes(said)
     return said

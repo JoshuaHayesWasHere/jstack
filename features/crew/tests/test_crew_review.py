@@ -196,13 +196,11 @@ def launch(fix, saw, head):
     [
         (["a.py"], "a.py"),
         (["b.py"], "b.py"),
-        (["a.py", "tests/c.py", "docs/d.md"], "a.py docs/d.md"),
+        (["a.py", "tests/c.py", "docs/d.md"], "a.py docs/d.md tests/c.py"),
     ],
     ids=["inside the file a finding named", "in a file no finding named", "beside a test"],
 )
-def test_a_fix_that_changes_a_file_outside_tests_gets_one_scoped_review_of_it(
-    fix, outside, tmp_path
-):
+def test_a_fix_that_changes_a_file_gets_one_scoped_review_of_it(fix, outside, tmp_path):
     fix = Fix(tmp_path, fix, opened=True)
     needed = owed(fix, f"the fix changed {outside}")
     assert fix.says("") == [f"write {needed.strip()}"]
@@ -210,10 +208,14 @@ def test_a_fix_that_changes_a_file_outside_tests_gets_one_scoped_review_of_it(
 
 
 @pytest.mark.parametrize("finding", ["warning a.py:3 it runs twice", "warning - it has no test"])
-def test_a_fix_that_changes_tests_only_gets_no_review(finding, tmp_path):
+def test_a_fix_that_changes_tests_only_gets_one_scoped_review_too(finding, tmp_path):
+    """Repo guards are tests, so a fix under tests/ can change what a guard checks. The line an
+    older block wrote for such a fix, or one written by hand, is decided again."""
     fix = Fix(tmp_path, ["tests/c.py", "tests/unit/d.py"], [finding], opened=True)
-    assert fix.says("") == [TESTS_ONLY]
-    assert fix.says(TESTS_ONLY.removeprefix("write ") + "\n") == [NO_REVIEW_OF_IT]
+    needed = [f"write {owed(fix, 'the fix changed tests/c.py tests/unit/d.py').strip()}"]
+    assert fix.says("") == needed
+    assert fix.says(TESTS_ONLY.removeprefix("write ") + "\n") == needed
+    assert fix.says("Scoped review: none\n") == needed
 
 
 def test_a_fix_that_declines_every_finding_gets_no_review(tmp_path):
@@ -222,9 +224,9 @@ def test_a_fix_that_declines_every_finding_gets_no_review(tmp_path):
     assert fix.says(NOTHING_PUSHED.removeprefix("write ") + "\n") == [NO_REVIEW_OF_IT]
 
 
-def test_a_file_whose_name_only_starts_like_tests_is_outside_it_and_five_are_named(tmp_path):
+def test_every_changed_file_counts_and_five_are_named(tmp_path):
     fix = Fix(tmp_path, ["tests.py", "tests/c.py"])
-    assert fix.says("") == [f"write {owed(fix, 'the fix changed tests.py').strip()}"]
+    assert fix.says("") == [f"write {owed(fix, 'the fix changed tests.py tests/c.py').strip()}"]
     many = Fix(tmp_path / "many", [f"src/{n}.py" for n in range(7)])
     named = " ".join(f"src/{n}.py" for n in range(5))
     assert many.says("") == [f"write {owed(many, f'the fix changed {named} and 2 more').strip()}"]
@@ -294,7 +296,9 @@ def test_a_fix_after_two_reviews_is_decided_by_what_it_changed_too(tmp_path):
         f"write {owed(fix, 'the fix changed a.py b.py').strip()}"
     ]
     tests = Fix(tmp_path / "tests", ["tests/c.py"])
-    assert tests.says("", tests.review + tests.review) == [TESTS_ONLY]
+    assert tests.says("", tests.review + tests.review) == [
+        f"write {owed(tests, 'the fix changed tests/c.py').strip()}"
+    ]
 
 
 @pytest.mark.parametrize("path", ["docs/a.md", "skills/crew/SKILL.md"], ids=["docs", "a skill"])
@@ -452,9 +456,9 @@ def test_a_fix_is_decided_by_what_it_changed_whatever_path_the_pull_request_chan
     ]
 
 
-def test_the_shipped_list_guards_no_path_so_a_fix_to_a_skill_is_asked_no_scoped_review(tmp_path):
+def test_the_shipped_list_guards_no_path_so_a_fix_beside_a_skill_is_decided_as_any(tmp_path):
     fix = opened(tmp_path, GUARDED, fix=["tests/c.py"])
-    assert fix.says("") == [TESTS_ONLY]
+    assert fix.says("") == [f"write {owed(fix, 'the fix changed tests/c.py').strip()}"]
     assert fix.says("Second pass: none, the fix stayed inside\n") == [
         "none: no second pass, as the Result says"
     ]
