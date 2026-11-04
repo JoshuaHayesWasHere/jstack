@@ -7,7 +7,13 @@ refuse() {
 judge() {
   seconds=${JSTACK_HOOK_SECONDS:-25}
   module=$1
-  run='import runpy, signal, sys
+  run='import os, runpy, signal, sys
+def gone(*_):
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    os.killpg(0, signal.SIGTERM)
+    os._exit(142)
+os.setpgid(0, 0)
+signal.signal(signal.SIGALRM, gone)
 signal.alarm(int(sys.argv[1]))
 sys.argv = sys.argv[2:]
 runpy.run_module(sys.argv[0], run_name="__main__", alter_sys=True)'
