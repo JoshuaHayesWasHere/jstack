@@ -8,7 +8,10 @@ card: "Run the pipeline | 1 | Makes this thread the repo's home. It reads what j
 
 # home
 
-There are no subagents doing the work. Each task is one ordinary thread, and its pull request gets one review, by a reviewer in a new thread that the crewmate launches (`pr-review`). A fix outside `tests/` gets one scoped review, and that is the last: nothing loops. The repo's own checks and its CI decide whether the work is good.
+There are no subagents doing the work.
+Each task is one ordinary thread, and its pull request gets one review, by a reviewer in a new thread that the crewmate launches (`pr-review`).
+A pushed fix gets one scoped review, and that is the last: nothing loops.
+The repo's own checks and its CI decide whether the work is good.
 
 ## Where a home's state lives
 

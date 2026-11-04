@@ -154,7 +154,6 @@ def _one(run: Pass, slug: str, pull: dict, check: dict, stop: dict) -> str | Non
         return None
     attempt = int(given.get("run_attempt") or 1)
     name = check.get("name") or check.get("context") or "check"
-    its = "its check" if name == "check" else f"its check {name}"
     kept = read_json(run.state / FILE, {}).get(slug) or {}
     told = kept["why"] if kept.get("head") == head else ""
     if attempt > 1:
@@ -163,10 +162,7 @@ def _one(run: Pass, slug: str, pull: dict, check: dict, stop: dict) -> str | Non
         part = stop.get("name") or stop.get("context") or name
         minutes = [_minutes(_before(run, repo, number, attempt, part)), _minutes(given)]
         cause = _cause(run, repo, at, stop)
-        when = _at(minutes)
-        line = f"#{pr}: {its} was cancelled twice{',' + when if when else ''}"
-        line += f": {cause}" if cause else ""
-        return _tell(run, slug, head, line)
+        return _tell(run, slug, head, f"#{pr}: {twice(name, minutes, cause)}")
     key = f"rerun {number}"
     if f"cancelled|{slug}|{key}" in run.box.sent():
         return _tell(run, slug, head, f"#{pr}: {unrun(name, _minutes(given))}") if told else ""
@@ -182,13 +178,25 @@ def _one(run: Pass, slug: str, pull: dict, check: dict, stop: dict) -> str | Non
     return _tell(run, slug, head, f"#{pr}: {unrun(name, _minutes(given))}", refusal)
 
 
+def twice(name: str, minutes: list[int | None], cause: str) -> str:
+    """Return the reason of a check that was cancelled at two attempts (`ready.CANCELLED_TWICE`),
+    with how long each attempt ran where GitHub says, and the cause where the job's log names
+    one."""
+    when = _at(minutes)
+    said = ready.CANCELLED_TWICE.format(check=_part(name)) + ("," + when if when else "")
+    return said + (f": {cause}" if cause else "")
+
+
 def unrun(name: str, minutes: int | None) -> str:
     """Return the reason of a check that was cancelled and that GitHub did not run again
     (`ready.CANCELLED_UNRUN`), with how long it ran where GitHub says. GitHub's refusal is no part
     of it: the view shows the row's `why` as its reason, and a rate limit is not why it waits."""
-    part = "check" if name == "check" else f"check {name}"
     ran = _at([minutes]).removeprefix(" at")
-    return ready.CANCELLED_UNRUN.format(check=part) + (f" (it ran{ran})" if ran else "")
+    return ready.CANCELLED_UNRUN.format(check=_part(name)) + (f" (it ran{ran})" if ran else "")
+
+
+def _part(name: str) -> str:
+    return "check" if name == "check" else f"check {name}"
 
 
 def _told(slug: str, head: str) -> str:
