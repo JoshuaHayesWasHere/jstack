@@ -258,6 +258,7 @@ TABLE = {
     "item.dropped": "quiet",
     "pack": "quiet",
     "collisions": "quiet",
+    "worktree-removed": "quiet",
 }
 
 
