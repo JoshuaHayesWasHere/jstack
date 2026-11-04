@@ -81,6 +81,10 @@ GNU_ONLY = [
     (r"(^|[;&|(`]\s*|\$\(\s*|=\S*\s+)timeout\s", f"macOS has no timeout: {PERL_TIMEOUT}"),
     (r"\bsha256sum\b", "macOS has no sha256sum: `shasum -a 256`"),
     (
+        r"\bpaste(\s+(-\w*d\s*('[^']*'|\"[^\"]*\"|\S+)|-\w+))*\s*($|[|;&)<>])",
+        "BSD paste reads no file but one it is given: `paste -sd ' ' -` for its input",
+    ),
+    (
         r"\"[^\"]*\$\{\w+:?[-+=?][^}]*'",
         "bash 3.2, macOS's sh, opens a quote at an apostrophe in `${name:-words}` inside double "
         "quotes, when it runs and not under `bash -n`: set the words in a line of their own",
@@ -222,6 +226,7 @@ def test_a_realpath_of_a_path_an_install_may_not_have_is_found_until_it_is_handl
         ("sed -i 's/a/b/' f", "sed -i.bak 's/a/b/' f && rm f.bak"),
         ("out=$(timeout 9 sh -c x)", "out=$(perl -e 'alarm shift; exec @ARGV' 9 sh -c x)"),
         ("sha256sum f | cut -c1-12", "shasum -a 256 f | cut -c1-12"),
+        ("list=$(ls | paste -sd ' ')", "list=$(ls | paste -sd ' ' -)"),
         ("cores=$(nproc)", "cores=$(getconf _NPROCESSORS_ONLN)"),
         (
             'echo "${boot:-the home\'s line}"',
@@ -271,11 +276,31 @@ exit "$status"
 """macOS's realpath: it takes only -q, and fails on a path that does not exist where GNU prints
 it."""
 
+BSD_PASTE = """#!/bin/sh
+given=
+delimiters=
+for one in "$@"; do
+    if [ -n "$delimiters" ]; then delimiters=; continue; fi
+    case $one in
+    -*d) delimiters=1 ;;
+    -?*) ;;
+    *) given=1 ;;
+    esac
+done
+if [ -z "$given" ]; then echo "usage: paste [-s] [-d delimiters] file ..." >&2; exit 64; fi
+exec REAL "$@"
+"""
+"""macOS's paste: it reads only the files it is given, `-` for its input, and refuses a call
+that gives none."""
+
+BSD = {"realpath": BSD_REALPATH, "paste": BSD_PASTE}
+
 
 def bsd_tools(where):
     """A directory of every tool on PATH with macOS's gaps in it: the GNU-only tools are not
-    there, the tools whose flags differ refuse the GNU-only flags, exit 64, and say which, and
-    realpath fails on a missing path. Put it on PATH in place of the real directories."""
+    there, the tools whose flags differ refuse the GNU-only flags, exit 64, and say which,
+    realpath fails on a missing path, and paste refuses a call that names no file. Put it on
+    PATH in place of the real directories."""
     where.mkdir(parents=True, exist_ok=True)
     for folder in os.environ["PATH"].split(os.pathsep):
         if not os.path.isdir(folder):
@@ -287,8 +312,8 @@ def bsd_tools(where):
                 continue
             if not os.access(real, os.X_OK):
                 continue
-            if name == "realpath":
-                link.write_text(BSD_REALPATH.replace("REAL", real))
+            if name in BSD:
+                link.write_text(BSD[name].replace("REAL", real))
                 link.chmod(0o755)
             elif name in REFUSED:
                 refuse = f'echo "bsd {name}: no $one" >&2; exit 64'
@@ -314,6 +339,8 @@ def test_the_bsd_tools_refuse_the_gnu_forms_and_pass_the_rest(tmp_path):
     assert runs("setsid true").returncode == 127
     assert runs("date +%F").returncode == 0
     assert runs("perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' true").returncode == 0
+    assert runs("printf 'a\\nb\\n' | paste -sd ' '").returncode == 64
+    assert runs("printf 'a\\nb\\n' | paste -sd ' ' -").stdout == "a b\n"
 
 
 BASH3_IMAGE = "bash:3.2"
