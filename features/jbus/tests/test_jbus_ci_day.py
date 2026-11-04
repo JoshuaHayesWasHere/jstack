@@ -360,3 +360,27 @@ def test_ci_day_doc_names_each_number_and_its_target_as_a_proposal():
         if one.proposal:
             assert f"| {one.name} | {one.proposal} (proposal) |" in part, one.name
     assert "never UTC" in part and "proposal" in part
+
+
+def test_ci_day_writes_a_moves_medians_as_the_number_writes_its_cells():
+    def on(day, wall, shard):
+        return daily.Day(
+            datetime(2026, 11, day).date(),
+            {
+                "red_share": daily.Cell(0.2, 40, "20%"),
+                "wall": daily.Cell(wall, 50, f"{wall} min"),
+                "wait_p90_shard": daily.Cell(shard, 500, f"{shard:.0f} s"),
+            },
+        )
+
+    shift = daily.Shift(
+        "cicd-x",
+        datetime(2026, 11, 10).date(),
+        [on(7, 8.0, 3.0), on(8, 9.0, 4.0), on(9, 9.5, 5.0)],
+        [on(11, 15.25, 40.0), on(12, 16.0, 50.0), on(13, 17.0, 45.0)],
+        [],
+    )
+    measures = {one.key: one for one in daily.MEASURES}
+    assert daily._moved(shift, measures["wall"]) == "9 min to 16 min, moved"
+    assert daily._moved(shift, measures["wait_p90_shard"]) == "4 s to 45 s, moved"
+    assert daily._moved(shift, measures["red_share"]) == "20% to 20%, held"

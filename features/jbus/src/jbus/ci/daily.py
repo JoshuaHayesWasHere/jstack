@@ -185,96 +185,111 @@ def _text(value: float, places: int = 1) -> str:
     return f"{value:.{places}f}".rstrip("0").rstrip(".") if places else f"{value:.0f}"
 
 
+Count = tuple[float | None, int]
+"""A day's value of a number, None where there was nothing to count, and its n."""
+
+
 def _number(
     count: Callable[[numbers.Facts, datetime, datetime], numbers.Number],
-    shown: Callable[[float], str],
-) -> Callable[[Ledger, datetime, datetime], Cell]:
-    def read(given: Ledger, start: datetime, end: datetime) -> Cell:
+) -> Callable[[Ledger, datetime, datetime], Count]:
+    def read(given: Ledger, start: datetime, end: datetime) -> Count:
         one = count(given.facts, start, end)
-        return Cell(one.value, one.n, NO_DATA if one.value is None else shown(one.value))
+        return one.value, one.n
 
     return read
 
 
-def _shas(given: Ledger, start: datetime, end: datetime) -> Cell:
+def _shas(given: Ledger, start: datetime, end: datetime) -> Count:
     merged = numbers._merged(given.facts, start, end)
     if not merged:
-        return Cell(None, 0, NO_DATA)
-    value = sum(len(given.shas[int(one["number"])]) for one in merged) / len(merged)
-    return Cell(value, len(merged), _text(value))
+        return None, 0
+    return sum(len(given.shas[int(one["number"])]) for one in merged) / len(merged), len(merged)
 
 
-def _wall(given: Ledger, start: datetime, end: datetime) -> Cell:
+def _wall(given: Ledger, start: datetime, end: datetime) -> Count:
     found = [minutes for first, minutes in given.walls if start <= first < end]
-    if not found:
-        return Cell(None, 0, NO_DATA)
-    value = numbers.percentile(found, 0.5)
-    return Cell(value, len(found), f"{_text(value)} min")
+    return (numbers.percentile(found, 0.5) if found else None), len(found)
 
 
-def _main_red(given: Ledger, start: datetime, end: datetime) -> Cell:
+def _main_red(given: Ledger, start: datetime, end: datetime) -> Count:
     if given.runs is None or given.reach is None or given.reach > start:
-        return Cell(None, 0, NO_DATA)
+        return None, 0
     ran = [
         one
         for one in given.runs
         if one.get("status") == "completed" and start <= jsettings.when(one["createdAt"]) < end
     ]
-    value = red_minutes(given.spells, start, end)
-    return Cell(value, len(ran), f"{_text(value)} min")
+    return red_minutes(given.spells, start, end), len(ran)
 
 
 @dataclass(frozen=True)
 class Measure:
     """One number of the day's report: its `name`, what its n counts (`unit`), its proposed
-    target (`proposal`, empty where none is proposed), and how it reads a day. A `floored`
-    number reads `no data` on a day under `FLOOR` pull requests."""
+    target (`proposal`, empty where none is proposed), how it reads a day, and how it `write`s a
+    value. A `floored` number reads `no data` on a day under `FLOOR` pull requests."""
 
     key: str
     name: str
     unit: str
     proposal: str
-    read: Callable[[Ledger, datetime, datetime], Cell]
+    read: Callable[[Ledger, datetime, datetime], Count]
+    write: Callable[[float], str]
     floored: bool = True
+
+    def cell(self, given: Ledger, start: datetime, end: datetime) -> Cell:
+        value, n = self.read(given, start, end)
+        return Cell(value, n, NO_DATA if value is None else self.write(value))
 
 
 def _percent(value: float) -> str:
     return f"{value:.0%}"
 
 
+def _seconds(value: float) -> str:
+    return f"{value:.0f} s"
+
+
+def _minutes(value: float) -> str:
+    return f"{_text(value)} min"
+
+
 MEASURES = (
-    Measure("red_share", "red share", "PRs", "at most 30%", _number(numbers.red_share, _percent)),
-    Measure("head_shas", "head shas per merged PR", "merged PRs", "at most 3", _shas),
+    Measure("red_share", "red share", "PRs", "at most 30%", _number(numbers.red_share), _percent),
+    Measure("head_shas", "head shas per merged PR", "merged PRs", "at most 3", _shas, _text),
     Measure(
         "wait_p90_shard",
         "shard wait p90",
         "jobs",
         "at most 60 s",
-        _number(numbers.wait_p90_shard, lambda v: f"{v:.0f} s"),
+        _number(numbers.wait_p90_shard),
+        _seconds,
     ),
     Measure(
         "wait_p90_macos",
         "macos wait p90",
         "jobs",
         "at most 120 s",
-        _number(numbers.wait_p90_macos, lambda v: f"{v:.0f} s"),
+        _number(numbers.wait_p90_macos),
+        _seconds,
     ),
-    Measure("wall", "PR check wall p50", "runs", "at most 10 min", _wall),
+    Measure("wall", "PR check wall p50", "runs", "at most 10 min", _wall, _minutes),
     Measure(
         "open_to_merge",
         "open to merge p50",
         "merged PRs",
         "at most 1 h",
-        _number(numbers.open_to_merge, lambda v: f"{_text(v)} h"),
+        _number(numbers.open_to_merge),
+        lambda v: f"{_text(v)} h",
     ),
     Measure(
         "first_check_own_red",
         "first-check own red",
         "PRs",
         "",
-        _number(numbers.first_check_own_red, _percent),
+        _number(numbers.first_check_own_red),
+        _percent,
     ),
-    Measure("main_red", "main-red", "runs", "at most 30 min", _main_red, floored=False),
+    Measure("main_red", "main-red", "runs", "at most 30 min", _main_red, _minutes, floored=False),
 )
 
 
@@ -312,7 +327,7 @@ class Days:
     def __getitem__(self, when: date) -> Day:
         if when not in self.kept:
             ((_, start, end),) = days(self.user, when, when)
-            cells = {one.key: one.read(self.given, start, end) for one in MEASURES}
+            cells = {one.key: one.cell(self.given, start, end) for one in MEASURES}
             if cells["red_share"].n < FLOOR:
                 cells = {
                     one.key: cells[one.key]
@@ -401,22 +416,11 @@ def _moved(shift: Shift, measure: Measure) -> str:
     )
     if said == NO_DATA:
         return NO_DATA
-    middle = {
-        side: statistics.median(c.value for c in cells if c.value is not None)
-        for side, cells in (("before", before), ("after", after))
-    }
-    shown = {side: _like(measure, value, before + after) for side, value in middle.items()}
-    return f"{shown['before']} to {shown['after']}, {said}"
-
-
-def _like(measure: Measure, value: float, cells: list[Cell]) -> str:
-    """`value` written as the measure writes its own cells: a number with the cells' unit."""
-    if measure.key in ("red_share", "first_check_own_red"):
-        return _percent(value)
-    unit = next((c.shown.split(" ", 1)[1] for c in cells if " " in c.shown), "")
-    if unit == "s":
-        return f"{value:.0f} s"
-    return f"{_text(value)} {unit}".rstrip()
+    middle = [
+        statistics.median(c.value for c in cells if c.value is not None)
+        for cells in (before, after)
+    ]
+    return f"{measure.write(middle[0])} to {measure.write(middle[1])}, {said}"
 
 
 def body(

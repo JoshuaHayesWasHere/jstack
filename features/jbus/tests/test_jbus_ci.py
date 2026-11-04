@@ -1273,5 +1273,5 @@ def test_a_days_red_share_is_the_prs_with_a_red_check_over_the_prs_with_a_check_
     `check` was skipped, ran no check, and #30's check cancelled while it waited is none either:
     neither adds a pull request. A red check of no pull request (dependabot's) is none."""
     one = next(m for m in daily.MEASURES if m.key == "red_share")
-    cell = one.read(daily.Ledger(sliced, None, ""), SLICE_START - timedelta(hours=1), SLICE_NOW)
+    cell = one.cell(daily.Ledger(sliced, None, ""), SLICE_START - timedelta(hours=1), SLICE_NOW)
     assert (cell.value, cell.n) == (0.75, 4)
