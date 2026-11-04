@@ -846,10 +846,7 @@ class Repo:
             if stuck.get("unopened"):
                 why = ready.QUEUED_UNREOPENED.format(**values, minutes=ready.RESTART_MINUTES)
             else:
-                try:
-                    at = datetime.fromisoformat(str(stuck.get("since")))
-                except ValueError:
-                    at = datetime.now(UTC)
+                at = datetime.fromisoformat(str(stuck["since"]))
                 minutes = int((datetime.now(UTC) - at).total_seconds() // 60)
                 why = ready.QUEUED_UNOPENED.format(**values, minutes=minutes)
             said.append(lines.waits("wait", int(number), str(stuck.get("url") or ""), why))
