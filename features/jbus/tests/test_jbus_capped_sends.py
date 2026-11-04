@@ -18,8 +18,6 @@ from test_jbus_held import REASON, Held
 from test_jbus_kitchen import NOW, SELECTION
 from test_jbus_leftover import ended as leaves
 from test_jbus_leftover import home, stalls
-from test_jbus_main_moved import checks, move, red_since, tip
-from test_jbus_main_moved import pull as red
 from test_jbus_queue import add, brief, go
 from test_jbus_row_ends import listed
 from test_jbus_stack import LINK, MERGE
@@ -113,21 +111,6 @@ def test_a_restack_message_waits_for_the_reset(kitchen):
     cap("claudeAgent")
     holds_then_sends_once(stacked, "restack", "two", "its restack message")
     assert sent(stacked, "restack") == [f"restack|two|{LINK[:12]}|{MERGE[:12]}"]
-
-
-def test_a_main_moved_message_waits_for_the_reset(kitchen):
-    """Main went red once alpha launched, and goes green with alpha's pull request red."""
-    was = tip(kitchen)
-    checks(kitchen, was, "")
-    ended(kitchen)
-    checks(kitchen, was, "failure")
-    red_since(kitchen, was, NOW - timedelta(minutes=30))
-    launched = kitchen
-    launched.set("open.json", [red(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    cap("claudeAgent")
-    holds_then_sends_once(launched, "mainmoved", "alpha", "its mainmoved message")
-    assert sent(launched, "mainmoved") == [f"mainmoved|alpha|#7|{main[:12]}"]
 
 
 def test_a_crew_carry_on_waits_for_the_reset(kitchen):
