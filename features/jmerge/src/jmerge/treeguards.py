@@ -169,47 +169,46 @@ class Guards:
             if self.run:
                 store.write_json(self.path, kept)
 
-    def of(self, one: ready.PullRequest, tip: str) -> tuple[str, str, bool]:
-        """Why the pull request waits on the guards on its head merged over `tip`, or nothing; the
-        note a merge line gives where they passed; and whether they ran in this call."""
+    def of(self, one: ready.PullRequest, tip: str) -> tuple[str, str]:
+        """Why the pull request waits on the guards on its head merged over `tip`, or nothing, and
+        the note a merge line gives where they passed. Guards that passed while the base moved
+        past `tip` pass a tree that is no longer the one to merge: it waits for the next run."""
         if not self.command or not tip:
-            return "", "", False
+            return "", ""
         if not _git(self.main, "merge-base", "--is-ancestor", tip, one.head).returncode:
-            return "", "", False
+            return "", ""
         was = self.was(one, tip)
         if was is not None:
-            return str(was.get("said") or ""), str(was.get("note") or ""), False
+            return str(was.get("said") or ""), str(was.get("note") or "")
         values = {"base": one.base, "tip": tip[:SHA]}
-        if not self.run:
-            return "", "", False
         if self.spent >= RUN_SECONDS:
-            return ready.MERGED_TREE_NO_TIME.format(**values), "", False
+            return ready.MERGED_TREE_NO_TIME.format(**values), ""
         merged = _git(self.main, "merge-tree", "--write-tree", tip, one.head)
-        if merged.returncode == 1:
-            return ready.FRESH_CONFLICT, "", False
-        if merged.returncode:
-            return ready.MERGED_TREE_UNBUILT.format(**values, why=_said(merged)), "", False
-        tree = merged.stdout.split()[0]
+        tree = merged.stdout.split()[:1]
+        if merged.returncode == 1 and tree:
+            return ready.FRESH_CONFLICT, ""
+        if merged.returncode or not tree:
+            return ready.MERGED_TREE_UNBUILT.format(**values, why=_said(merged)), ""
         message = f"jmerge: #{one.number} merged over {one.base} at {tip[:SHA]}"
         made = _git(
-            self.main, *_IDENTITY, "commit-tree", tree, "-p", tip, "-p", one.head, "-m", message
+            self.main, *_IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
         )
-        if made.returncode:
-            return ready.MERGED_TREE_UNBUILT.format(**values, why=_said(made)), "", False
         ran = self.in_tree(made.stdout.strip(), tip)
         if isinstance(ran, str):
-            return ready.MERGED_TREE_UNBUILT.format(**values, why=ran), "", False
+            return ready.MERGED_TREE_UNBUILT.format(**values, why=ran), ""
         self.spent += ran.seconds
+        said, note = "", ""
         if ran.code is None:
             said = ready.MERGED_TREE_UNENDED.format(**values, minutes=LIMIT_SECONDS // 60)
-            note = ""
         elif ran.code:
             said = ready.MERGED_TREE_FAILS.format(**values, guard=guard(ran.said))
-            note = ""
         else:
-            said, note = "", PASSED.format(**values, seconds=ran.seconds)
+            note = PASSED.format(**values, seconds=ran.seconds)
         self.keep(one, tip, said, note)
-        return said, note, True
+        at = _git(self.main, "ls-remote", "origin", f"refs/heads/{one.base}").stdout.split()
+        if not said and at[:1] != [tip]:
+            return ready.MAIN_MOVED.format(base=one.base), ""
+        return said, note
 
     def in_tree(self, commit: str, tip: str) -> Ran | str:
         """Run the guards in a worktree of `commit` at the state's `TREE`, and remove it after.

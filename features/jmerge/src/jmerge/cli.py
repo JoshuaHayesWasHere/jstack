@@ -1266,14 +1266,9 @@ class Repo:
         if messages is None:
             return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
         tip = judged.tip or _run(self.main, "git", "rev-parse", f"origin/{one.base}").stdout.strip()
-        guarded, passed, ran = self.guards.of(one, tip)
+        guarded, passed = self.guards.of(one, tip)
         if guarded:
             return lines.waits("wait", number, one.url, guarded)
-        if ran:
-            after = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")
-            if after.returncode or _first_word(after.stdout) != tip:
-                moved = ready.MAIN_MOVED.format(base=one.base)
-                return lines.waits("wait", number, one.url, moved)
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
         self.began[one.number] = datetime.now(UTC)
         ran = _run(

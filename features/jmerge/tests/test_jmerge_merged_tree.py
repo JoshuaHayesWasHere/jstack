@@ -10,11 +10,12 @@ migrations did on 2026-11-03."""
 
 import json
 import time
+from types import SimpleNamespace
 
 import pytest
 
 from jmerge import ready, treeguards
-from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, url
+from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, git, url
 
 MAKEFILE = """\
 guards: numbers
@@ -142,3 +143,97 @@ def test_merged_tree_guards_that_run_past_their_time_are_stopped_with_their_chil
     assert ran.code is None and ran.seconds < 10
     time.sleep(3)
     assert not marker.exists(), "the guards' child outlived the stop"
+
+
+class Tree:
+    """A main checkout whose origin's main moved past a pull request's head: `tip` is main's,
+    and `head` the pull request's, which does not hold it."""
+
+    def __init__(self, tmp_path, ours="b\n", theirs="c\n", path="b.txt"):
+        self.origin = tmp_path / "origin.git"
+        self.main = tmp_path / "main"
+        self.state = tmp_path / "state"
+        self.state.mkdir()
+        git(tmp_path, "init", "-q", "--bare", "-b", "main", str(self.origin))
+        git(tmp_path, "clone", "-q", str(self.origin), str(self.main))
+        self.commit({"a.txt": "a\n"})
+        git(self.main, "push", "-q", "origin", "HEAD:main")
+        base = git(self.main, "rev-parse", "HEAD")
+        self.head = self.commit({path: ours})
+        git(self.main, "checkout", "-q", base)
+        self.tip = self.commit({"c.txt" if path == "b.txt" else path: theirs})
+        git(self.main, "push", "-q", "origin", "HEAD:main")
+        self.one = SimpleNamespace(number=7, head=self.head, base="main")
+
+    def commit(self, files):
+        for path, text in files.items():
+            (self.main / path).write_text(text)
+        git(self.main, "add", "-A")
+        git(self.main, "commit", "-q", "-m", "x")
+        return git(self.main, "rev-parse", "HEAD")
+
+    def guards(self, command):
+        (self.state / treeguards.NAME).write_text(command + "\n")
+        return treeguards.Guards(self.main, self.state, True)
+
+
+def values(tree):
+    return {"base": "main", "tip": tree.tip[:12]}
+
+
+def test_merged_tree_guards_that_passed_are_not_run_again(tmp_path):
+    tree = Tree(tmp_path)
+    guards = tree.guards('test -e b.txt && test -e c.txt && test "$BASE" = ' + tree.tip)
+    said, note = guards.of(tree.one, tree.tip)
+    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
+    guards.command = "false"
+    assert guards.of(tree.one, tree.tip) == ("", note)
+    assert not (tree.state / treeguards.TREE).exists()
+
+
+def test_merged_tree_guards_start_no_more_once_a_run_spent_its_time(tmp_path):
+    tree = Tree(tmp_path)
+    guards = tree.guards("true")
+    guards.spent = treeguards.RUN_SECONDS
+    assert guards.of(tree.one, tree.tip) == (ready.MERGED_TREE_NO_TIME.format(**values(tree)), "")
+
+
+def test_merged_tree_of_a_head_that_conflicts_with_the_tip_waits_for_a_rebase(tmp_path):
+    tree = Tree(tmp_path, ours="ours\n", theirs="theirs\n", path="a.txt")
+    assert tree.guards("true").of(tree.one, tree.tip) == (ready.FRESH_CONFLICT, "")
+
+
+def test_merged_tree_that_cannot_be_built_says_why(tmp_path):
+    tree = Tree(tmp_path)
+    said, _ = tree.guards("true").of(tree.one, "f" * 40)
+    assert said.startswith(ready.MERGED_TREE_UNBUILT.format(base="main", tip="f" * 12, why="")[:-2])
+    (tree.state / treeguards.TREE).write_text("in the way\n")
+    said, _ = tree.guards("true").of(tree.one, tree.tip)
+    assert said.startswith(ready.MERGED_TREE_UNBUILT.format(**values(tree), why="")[:-2])
+    assert said.endswith("already exists)")
+
+
+def test_merged_tree_guards_past_their_limit_wait_and_are_kept(tmp_path, monkeypatch):
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 1)
+    tree = Tree(tmp_path)
+    guards = tree.guards("sleep 20")
+    unended = ready.MERGED_TREE_UNENDED.format(**values(tree), minutes=0)
+    assert guards.of(tree.one, tree.tip) == (unended, "")
+    assert treeguards.Guards(tree.main, tree.state, True).kept(tree.one, tree.tip) == unended
+
+
+def test_merged_tree_that_passed_while_main_moved_waits_for_the_next_run(tmp_path):
+    tree = Tree(tmp_path)
+    later = tree.commit({"d.txt": "d\n"})
+    guards = tree.guards(f"git -C {tree.main} push -q origin {later}:refs/heads/main")
+    assert guards.of(tree.one, tree.tip) == (ready.MAIN_MOVED.format(base="main"), "")
+
+
+def test_merged_tree_records_of_pull_requests_no_longer_open_are_dropped(tmp_path):
+    tree = Tree(tmp_path)
+    guards = tree.guards("false")
+    held, _ = guards.of(tree.one, tree.tip)
+    assert held and guards.kept(tree.one, tree.tip) == held
+    guards.open_only({"8": "x"})
+    assert json.loads((tree.state / treeguards.KEPT).read_text()) == {}
+    assert treeguards.Guards(tree.main, tree.state, True).kept(tree.one, tree.tip) == ""
