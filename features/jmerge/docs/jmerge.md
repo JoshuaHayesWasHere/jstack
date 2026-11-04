@@ -299,7 +299,7 @@ A head that merges cleanly then goes one of two ways, by its files.
   The review stands across that merge, as across a rebase: its range-diff shows no content.
 
 A repo with no `merged-tree-guards` file has nothing that checks the merged tree, so each of its pull requests whose check main moved past goes through the line, whatever its files.
-A pull request whose renamed files GitHub did not give is held for you before this ("Protected paths" and `ready.needs_the_user`), and one you accept is judged as one that overlaps.
+A pull request whose renamed files GitHub did not give is held for you before this (`ready.needs_the_user`), and one you accept is judged as one that overlaps.
 GitHub's strict "up to date" rule is off on main (ruleset 25665226, `features/repo-guards/main-ruleset.json`, since 2026-11-04), so GitHub merges a pull request whose branch does not hold main's tip.
 Were it on, GitHub would refuse each merge on an existing check, and each would wait as `the merge failed`.
 
