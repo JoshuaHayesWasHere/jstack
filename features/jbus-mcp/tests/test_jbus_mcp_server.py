@@ -4,6 +4,9 @@ sign-in, the sign-in page and its code, the token, and MCP's tools, each logged 
 import base64
 import hashlib
 import json
+import shutil
+import socket
+import tempfile
 import threading
 import urllib.error
 import urllib.request
@@ -296,10 +299,17 @@ def test_the_settings_take_the_environment():
     assert made == server.Settings(ORIGIN, server.PORT, server.RUNNER)
 
 
-def test_the_runner_socket_carries_one_request_and_its_answer(tmp_path):
-    import socket
+@pytest.fixture
+def short_dir():
+    """A folder of its own on `/tmp`: a socket's path is at most 108 bytes, and the `tmp_path`
+    of a run in a test slot is longer than that."""
+    made = tempfile.mkdtemp(prefix="jbus-mcp-", dir="/tmp")
+    yield made
+    shutil.rmtree(made, ignore_errors=True)
 
-    path = str(tmp_path / "run.sock")
+
+def test_the_runner_socket_carries_one_request_and_its_answer(short_dir):
+    path = f"{short_dir}/run.sock"
     listening = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     listening.bind(path)
     listening.listen(1)
@@ -321,4 +331,4 @@ def test_the_runner_socket_carries_one_request_and_its_answer(tmp_path):
     listening.close()
     assert heard == [{"tool": "jbus_status"}]
     assert said["stdout"] == "ok"
-    assert "refused" in server.runner_socket(str(tmp_path / "none.sock"), 1)("{}")
+    assert "refused" in server.runner_socket(f"{short_dir}/none.sock", 1)("{}")
