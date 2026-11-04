@@ -667,3 +667,25 @@ def test_once_sends_nothing_under_a_key_already_written(launched):
     key = "rebase|alpha|cccccccccccc"
     went = rebase.once(run, None, ask, key, "mcp:t", "alpha", "text", at="c")
     assert went == rebase.ALREADY
+
+
+def test_a_jobs_log_is_read_from_github_once_a_pass_by_rebase_cancelled_and_wakes(launched):
+    """`rebase` digests a red job's log for its failure, `cancelled` reads it for the cause of a
+    stop, and `wakes` for its tests: in one pass, with its world, GitHub is asked once
+    (`watch.World.logs`), and a pass of its own asks again."""
+    from jbus import cancelled as stops
+    from jbus import wakes, watch
+
+    launched.set("logs.json", {"11": "FAILED tests/test_a.py::test_a\n" + TIMEOUT + "\n"})
+    config = jbus.load()
+    reads = []
+    for _ in range(2):
+        run = Pass(config, config.projects[0], NOW)
+        run.world = watch.World()
+        before = len(launched.log("gh"))
+        red = rebase.Red("check", 1, ("check",), (("o/r", "11"),))
+        assert rebase.failure(run, red) == rebase.failure(run, red)
+        assert stops._cause(run, "o/r", "11", cancelled()) == "its timeout of 30 min"
+        assert wakes._log_failed(run, 11).tests == ("tests/test_a.py::test_a",)
+        reads.append([line for line in launched.log("gh")[before:] if "/jobs/11/logs" in line])
+    assert [len(one) for one in reads] == [1, 1]
