@@ -125,6 +125,7 @@ FOLLOWS = (
     ready.STACKED_ON.format(branch=AHEAD, slug=AHEAD, default="main"),
     ready.CARRIES_AFTER.format(carried="two", number=12, slug=AHEAD, open=url(10)),
     ready.MIGRATION_REBASING.format(number=10),
+    ready.IN_LINE.format(number=10, base="main"),
 )
 
 
