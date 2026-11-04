@@ -407,7 +407,10 @@ def stubbed(tmp_path, selector):
 
 def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(tmp_path):
     """In jstack, the check of a change is the tests `scripts/select_tests.py` selects for it,
-    in the short lane, and never the whole suite under a full slot: CI's check is the gate."""
+    in the short lane, and never the whole suite under a full slot: CI's check is the gate.
+
+    The block's own run of the selector is the only one: a run over the whole tree is about 13 s
+    of one core, and a second run here to compare with took the test past its bound in CI."""
     repo = tmp_path / "repo"
     subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(repo)], check=True)
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
@@ -415,17 +418,13 @@ def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(t
         page.write("\nA line the test adds.\n")
     git(repo, "commit", "-qam", "a change to the crew feature")
     said, code, ran, base = selected(tmp_path, repo)
-    chosen = subprocess.run(
-        ["python3", "scripts/select_tests.py", base, "HEAD"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    assert "all" not in chosen
+    count = re.fullmatch(r"selected: (\d+) test files, in the short lane:", said[0])
+    assert count, said[:3]
+    chosen = said[1 : 1 + int(count[1])]
+    assert all(re.fullmatch(r"\S+/test_\w+\.py", name) for name in chosen), chosen
+    assert all((repo / name).is_file() for name in chosen)
     assert "features/crew/tests/test_crew_checks.py" in chosen
-    assert said[0] == f"selected: {len(chosen)} test files, in the short lane:"
-    assert said[1 : 1 + len(chosen)] == chosen
+    assert not any(re.fullmatch(r"\S+/test_\w+\.py", line) for line in said[1 + len(chosen) :])
     assert "the full lane" not in said
     assert (ran, code) == ([f"check-fast BASE={base} short=held full=free"], 0)
 

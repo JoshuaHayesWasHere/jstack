@@ -402,17 +402,21 @@ OFF = ["-m", "not", "browser"]
 
 
 def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path, step_files):
+    """The files the test run gets are read from the run itself, so the selector runs once: a
+    run over the whole tree is about 13 s of one core, and a second run here to compare with
+    took the test past its bound in CI."""
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
-    tests = selected(copy)
+    *lint, run = asked.read_text().splitlines()
+    head = " ".join(["run pytest -n 6", *SCHEDULE, *OFF]) + " "
+    assert lint == LINT and run.startswith(head)
+    tests = run.removeprefix(head).split()
+    assert all(re.fullmatch(r"\S+/test_\w+\.py", name) for name in tests), tests
+    assert all((copy / name).is_file() for name in tests)
     assert (
         "features/jdrift/tests/test_drift.py" in tests
         and "features/jbus/tests/test_jbus_queue.py" not in tests
     )
-    assert asked.read_text().splitlines() == [
-        *LINT,
-        " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
-    ]
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(
