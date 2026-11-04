@@ -241,3 +241,29 @@ def test_a_session_t3_does_not_know_passes(home):
 
 def test_another_tool_passes(home):
     assert send(home, ROOT, FLOW, tool="mcp__t3-code__t3_thread_launch") == (0, "")
+
+
+@pytest.mark.parametrize("tool", ["mcp__t3-code__t3_thread_send", "mcp__t3_code__t3_thread_send"])
+def test_a_codex_sessions_send_between_homes_is_refused(home, tool):
+    """Codex gives the hook its own fields beside the shared ones, and its session is the
+    native id of the thread in T3 Code's store, as a Claude session is."""
+    call = {
+        "session_id": session(FLOW),
+        "turn_id": "a-turn",
+        "transcript_path": None,
+        "cwd": str(home / "repos" / "jstack"),
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5",
+        "permission_mode": "default",
+        "tool_name": tool,
+        "tool_use_id": "call-1",
+        "tool_input": {"threadId": ROOT, "message": "a line"},
+    }
+    env = {k: v for k, v in os.environ.items() if k not in ("JBUS_HOME_DIR", "CLAUDE_PROJECT_DIR")}
+    env["HOME"] = str(home)
+    done = subprocess.run(
+        ["sh", str(HOOK)], input=json.dumps(call), capture_output=True, text=True, env=env
+    )
+    assert done.returncode == 2, done.stderr
+    assert done.stderr.startswith(f"agent-sends: refused, a send to {ROOT}"), done.stderr
+    assert "jbus stop" in done.stderr
