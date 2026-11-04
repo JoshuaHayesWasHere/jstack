@@ -117,7 +117,13 @@ def judge(watch: Watch, id: str, body: Body) -> tuple[Watch, list[tuple[str, str
             continue
         named, key, line = one.get("project") or project, one.get("key"), one.get("line")
         opened = one.get("opened") or one.get("since")
-        if all(isinstance(value, str) for value in (named, key, line)) and when(opened):
+        if (
+            isinstance(named, str)
+            and isinstance(key, str)
+            and isinstance(line, str)
+            and isinstance(opened, str)
+            and when(opened)
+        ):
             item = {"project": named, "key": key, "line": line, "opened": opened}
             listed[page_id(named, key, opened)] = item
     items = watch.items | listed

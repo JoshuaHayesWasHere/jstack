@@ -400,7 +400,12 @@ def selected(copy):
     return ran.stdout.split()
 
 
-LINT = ["run ruff check .", "run ruff format --check ."]
+SRC = sorted(str(path.relative_to(REPO)) for path in REPO.glob("features/*/src"))
+LINT = [
+    "run ruff check .",
+    "run ruff format --check .",
+    " ".join(["run pyrefly check --summary=none", *SRC]),
+]
 OFF = ["-m", "not", "browser"]
 
 

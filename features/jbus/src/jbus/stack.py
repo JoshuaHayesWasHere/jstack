@@ -242,7 +242,9 @@ def _worktree(run: Pass, branch: str) -> Path | None:
     """The worktree that has the branch checked out, the crew's, or None."""
     listed = run.run("git", "worktree", "list", "--porcelain").stdout
     for entry in listed.split("\n\n"):
-        fields = dict(line.partition(" ")[::2] for line in entry.splitlines())
+        fields = {
+            key: value for key, _, value in (line.partition(" ") for line in entry.splitlines())
+        }
         if fields.get("branch") == f"refs/heads/{branch}" and fields.get("worktree"):
             return Path(fields["worktree"])
     return None

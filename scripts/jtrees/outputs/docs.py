@@ -127,9 +127,11 @@ def render(tree: Tree) -> dict[str, bytes]:
     for page in _scanned(tree):
         text = (tree.root / page).read_text(encoding="utf-8")
         parts = [found["part"] for found in REGION.finditer(text)]
-        for part in REQUIRED.get(page, ()):
-            if part not in parts:
-                faults.append(f"{page}: has no `<!-- generated: {part} -->` region")
+        faults += [
+            f"{page}: has no `<!-- generated: {part} -->` region"
+            for part in REQUIRED.get(page, ())
+            if part not in parts
+        ]
         owners = set(tree.owners(page)) & {one.name for one in tree.features}
         joined = sorted(set(parts) & JOINED)
         if owners and joined:

@@ -40,6 +40,9 @@ PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "no
 
 # The lint of `check` and `check-fast`. comment_lint.py only warns; generate-jstack-trees.py fails
 # a stale generated file, and check-jstack-docs.py a doc that says what the tree does not have.
+# pyrefly type-checks each feature's src at the settings of [tool.pyrefly] in pyproject.toml, and
+# fails on an error. The paths are given here, not in that table: pyrefly's default excludes
+# drop every path under a dot directory, which a worktree such as ~/.t3/worktrees/... sits in.
 BASE ?= origin/main
 
 .PHONY: lint
@@ -49,6 +52,7 @@ lint:
 	python3 scripts/check-jstack-docs.py
 	uv run ruff check .
 	uv run ruff format --check .
+	uv run pyrefly check --summary=none features/*/src
 
 # `make test TESTS=<files>` runs only those files. TESTS stays out of the environment, where a
 # make that a test runs would take it for its own.

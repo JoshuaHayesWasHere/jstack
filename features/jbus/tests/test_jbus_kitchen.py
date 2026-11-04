@@ -266,6 +266,7 @@ class T3(Server):
             return handler.connection.shutdown(2)
         said = {"jsonrpc": "2.0", "id": asked["id"], "result": result}
         self.reply(handler, said, headers=[("mcp-session-id", session)])
+        return None
 
     def result(self, asked):
         if asked["method"] == "initialize":

@@ -21,7 +21,7 @@ def run(*argv):
 
 
 def test_the_table_has_every_other_command_and_runs_the_function_its_script_runs():
-    assert {command: target for command, target in COMMANDS.values()} == {
+    assert dict(COMMANDS.values()) == {
         name: target for name, target in SCRIPTS.items() if name != "jstack"
     }
     assert SCRIPTS["jstack"] == "jstack.cli:main"

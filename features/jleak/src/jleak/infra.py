@@ -143,9 +143,12 @@ def _port(program: str, argv: list[str]) -> None:
         listens = LISTEN.search(words) or any(re.fullmatch(r"-\w*l\w*", w) for w in argv)
         if listens and THE_PORT.search(words):
             raise Refused(PORT)
-    elif program == "fuser" and any(re.fullmatch(r"-\w*k\w*", w) for w in argv):
-        if THE_PORT.search(words):
-            raise Refused(PORT)
+    elif (
+        program == "fuser"
+        and any(re.fullmatch(r"-\w*k\w*", w) for w in argv)
+        and THE_PORT.search(words)
+    ):
+        raise Refused(PORT)
 
 
 def _files(guarded: Guarded, program: str, argv: list[str], cwd: Path) -> None:

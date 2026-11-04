@@ -25,6 +25,7 @@ same while the user reads it and is gone on the next visit."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import quote
@@ -34,12 +35,9 @@ from jbus.view.state import Read, iso, users
 
 FIRST = False
 TIERS = ("wrong", "yours", "moving")
-ITEM = {
-    key: None
-    for key in ("tier", "kind", "subj", "cause", "since", "where", "open", "verb", "count")
-}
-TOP = {key: None for key in ("tier", "kind", "subj", "cause", "since")}
-GROUP = {key: None for key in ("kind", "text", "count", "head", "since")}
+ITEM = dict.fromkeys(("tier", "kind", "subj", "cause", "since", "where", "open", "verb", "count"))
+TOP = dict.fromkeys(("tier", "kind", "subj", "cause", "since"))
+GROUP = dict.fromkeys(("kind", "text", "count", "head", "since"))
 VERDICT = {
     "word": None,
     "cause": None,
@@ -230,7 +228,7 @@ def _verdict(
     }
 
 
-def _last(acts: list[dict[str, Any] | None]) -> str | None:
+def _last(acts: Sequence[dict[str, Any] | None]) -> str | None:
     return max((one["at"] for one in acts if one), key=datetime.fromisoformat, default=None)
 
 

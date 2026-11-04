@@ -288,9 +288,12 @@ class Machine:
     def link(self, path: Path, target: Path) -> None:
         """Make or repoint the symlink `path`. The method refuses a path that is there and is
         not a link, unless it is a regular file whose bytes equal `target`'s."""
-        if not path.is_symlink() and path.exists():
-            if not (path.is_file() and target.is_file() and same_bytes(path, target)):
-                raise Refused(f"{path} is not a link")
+        if (
+            not path.is_symlink()
+            and path.exists()
+            and not (path.is_file() and target.is_file() and same_bytes(path, target))
+        ):
+            raise Refused(f"{path} is not a link")
         self.make_dirs(path.parent)
         with _beside(path) as next_to:
             next_to.symlink_to(target)

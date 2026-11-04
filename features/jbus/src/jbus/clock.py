@@ -304,7 +304,7 @@ def tick(
             continue
         seen = was.get(slug, {})
         same = (seen.get("kind"), seen.get("head"), seen.get("thread")) == (kind, head, thread)
-        wait = seen if same else {"passes": 0, "acted": False, "home": False}
+        wait: dict[str, Any] = seen if same else {"passes": 0, "acted": False, "home": False}
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
         wait |= {"number": pull["number"], "reason": reason}
         kept[slug] = wait
