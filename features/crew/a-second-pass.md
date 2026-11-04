@@ -5,9 +5,10 @@ A brief that says `Review: cleanup` runs none of it either: the day's warnings r
 Both run it once their last round's `Meets the brief:` line is not `yes`: the first branch of the block gives the scoped review that line is owed, in either mode.
 
 The reviewer reviews once and you fix once.
-Whether anybody reviews the fix depends on what it changed, whichever files the findings named.
-A fix that changes a file outside `tests/` gets one scoped review: a reviewer that reads the fix alone.
-A fix that changes files under `tests/` only, or nothing, gets none: what stands behind it is the pull request's own checks.
+Whether anybody reviews the fix depends on whether you pushed one.
+A fix that changes any file, a test among them, gets one scoped review: a reviewer that reads the fix alone.
+Repo guards are tests, so a fix under a tests folder can change what a guard checks.
+A round that pushed nothing gets none: what stands behind it is the pull request's own checks.
 A blocking finding you declined by id gets that scoped review all the same, also when nothing was pushed: a decline changes no line, so nothing else would look at it again, and the scoped reviewer rules on it.
 That review is the last: a fix pushed for its findings gets no further review, and merges on its checks.
 Its findings are a second review's, so its `error` findings alone come to this thread, and a fix is owed for those alone: its `warning` ones go to the day's warnings row once the pull request merged, and its `info` ones are dropped ("The review").
@@ -31,7 +32,7 @@ $(awk -v written="$written" -v head="$(git rev-parse HEAD 2> /dev/null)" '
     section && /^Head:/ {at = $(2)}
     /^Second pass:/ {decided = $(3); sub(/,$/, "", decided); since = $(5); sub(/,$/, "", since)}
     /^Second reviewer:/ {launched = "yes"}
-    /^Scoped review: / {ruled = $(3); sub(/,$/, "", ruled)}
+    /^Scoped review: / {ruled = $(3); sub(/,$/, "", ruled); if (ruled == "none" && $(0) !~ /^Scoped review: none, nothing was pushed/) ruled = ""}
     /^Scoped review: needed since / {asked = $(5); sub(/,$/, "", asked)}
     /^Scoped reviewer:/ && $(NF - 1) == "of" {sent = $(NF); nobody = ($(3) ~ /^none/)}
     /^Scoped reviewer:/ && $(NF - 1) == "of" && $(NF) == head && $(3) !~ /^none/ {here++}
@@ -101,29 +102,27 @@ elif [ "$ruled" != no ] && [ "$declined" = - ]; then
 elif ! changed=$(git -c core.quotePath=false diff --name-only "$saw" HEAD 2> /dev/null); then
     echo "write Scoped review: needed since $saw, the fix could not be compared with that head"
 else
-    outside=$(printf '%s\n' "$changed" | awk '
-        NF && !/^tests\// {n++; if (n <= 5) list = list (n > 1 ? " " : "") $(0)}
+    listed=$(printf '%s\n' "$changed" | awk '
+        NF {n++; if (n <= 5) list = list (n > 1 ? " " : "") $(0)}
         END {if (n > 5) list = list " and " n - 5 " more"; print list}')
-    if [ -n "$outside" ]; then
-        echo "write Scoped review: needed since $saw, the fix changed $outside"
+    if [ -n "$listed" ]; then
+        echo "write Scoped review: needed since $saw, the fix changed $listed"
     elif [ "$declined" != - ]; then
         echo "write Scoped review: needed since $saw, to rule on the declines of $(printf %s "$declined" | sed 's/,/, /g')"
-    elif [ -z "$changed" ]; then
-        echo "write Scoped review: none, nothing was pushed for the findings"
     else
-        echo "write Scoped review: none, the fix changed files under tests/ only"
+        echo "write Scoped review: none, nothing was pushed for the findings"
     fi
 fi
 ```
 
 The first branch reads the last round's judgement of the brief, as `jmerge` reads it (`jbriefs --meets`, `jbriefs.meets`).
-A round whose `Meets the brief:` line says `no`, or that `jmerge` cannot read, or whose count is not the brief's, is owed a scoped review whatever the fix changed, also one under `tests/` alone and also after a scoped pass: `jmerge` holds the pull request until a later round's own line says `yes`.
+A round whose `Meets the brief:` line says `no`, or that `jmerge` cannot read, or whose count is not the brief's, is owed a scoped review whatever the fix changed, also after a scoped pass: `jmerge` holds the pull request until a later round's own line says `yes`.
 That round re-judges the lines the `no` named and carries the rest, so it is never a whole second review.
 On `meets: ...`, push the fix for the unmet lines first, with the block of "The review" that pushes a fix, and run the block again: it then gives the launch.
 The only other way out is the user's `Waived:` line ("The review").
 The last branches decide, once: the files that differ between the head the review saw (its `Head:` line) and the head checked out here, which is the one you pushed.
 With no difference, nothing was pushed.
-One file outside `tests/` is enough, and the line names the first five.
+One changed file is enough, under a tests folder or not, and the line names the first five.
 A blocking decline with no ruling is enough too, pushed or not: `jbriefs --findings --rounds` names those findings in its fourth field, and the line names them.
 The scoped reviewer it launches reads the earlier findings and your answers, and rules on each decline in its section, `Declines: upheld F2` or `Declines: not upheld F3: <the disproof>`.
 With nothing pushed its two ranges both end at the head the review saw, and the review of the fix is had once a scoped section that ran names the head checked out here, or a review of a later head than the `Scoped review:` line names is written.
@@ -135,7 +134,11 @@ A pull request with more than one review and no `Scoped review:` line, the later
 
 `scoped` gives the launch where the last `Scoped review:` line says a review is owed since the head the last review saw, and nothing anywhere else. Where a crewmate did not run this block, jbus asks in its place, once for a head, with a message that begins `jbus: the fix you pushed to pull request`, or `jbus: pull request #<n> waits on you`: do what that message says. Where jbus can give no range for an owed review, that message says to run this block, and jbus's stall ends the wait.
 
-- `write Scoped review: ...`: add that line to the Result, as printed, and only then the `Fixed:` line. `jmerge` merges on the `Fixed:` line, so a Result never has it without the line that says whether the fix is owed a review. It is the record: from then on the block reads it and compares nothing again, so a later rebase does not change what was decided. Then run the block again and do what it says.
+- `write Scoped review: ...`: add that line to the Result, as printed, and only then the `Fixed:` line.
+  `jmerge` merges on the `Fixed:` line, so a Result never has it without the line that says whether the fix is owed a review.
+  It is the record: from then on the block reads it and compares nothing again, so a later rebase does not change what was decided.
+  A `Scoped review: none` line is that record only when it says `none, nothing was pushed`: the block decides any other `none` line again, such as one written by hand with a reason of its own.
+  Then run the block again and do what it says.
 - `none`: no review of the fix. Go on to the `fixed and green` line.
 - `scoped: launch the scoped reviewer ... with /pr-review run <slug> scoped <old range> <new range>`: launch it in the turn that pushed the fix, beside the checks, as the first review is launched: it does not wait for green.
   Go by the first word the block of "The checks" prints for the fixed head, and run no block of "The review": its second block counts the first reviewer and would say to launch none.
@@ -167,7 +170,11 @@ A brief from before this rule has a `Second pass:` line in its Result. The block
 - `had: the second pass is written, and it is the last`: handle its findings as a scoped review's, and launch nobody.
 - a `scoped:` line: the Result also says `Scoped review: needed since` the head the last review saw. Do what the list above says.
 
-`jmerge` reads the same lines: with `Scoped review: needed since <head>` as the last such line in the Result, a pull request is not ready until a review of a later head is written, and on every path, until every finding that blocks, of every review, has its answer. It reads `Second pass: needed since <head>` the same way. The `Fixed:` line cannot say that by itself here: it was written before the review of the fix, and a rebase moves it. Where the review stays unwritten, jbus says so in a message here that begins `jbus: pull request #<n> waits on you`.
+`jmerge` reads the same lines: with `Scoped review: needed since <head>` as the last such line in the Result, a pull request is not ready until a review of a later head is written, and on every path, until every finding that blocks, of every review, has its answer.
+It reads `Second pass: needed since <head>` the same way.
+The `Fixed:` line cannot say that by itself here: it was written before the review of the fix, and a rebase moves it.
+It reads a `Scoped review: none` line whose reason is not `nothing was pushed` as owed since the head the last review saw, once the `Fixed:` commit is another head: a pushed fix is reviewed, whatever the line says.
+Where the review stays unwritten, jbus says so in a message here that begins `jbus: pull request #<n> waits on you`.
 
 A rebase waits for a review that is running, and for nothing else: the first block of "A conflict" does nothing while a reviewer this thread launched has not written its section, so the head does not move from under it. A review of a fix that is owed and not yet launched is no such review, and never waits for a rebase. When a wake brings a conflict, or the message that the default branch changed this pull request's files, while the block above prints `scoped: launch the scoped reviewer`, do what "A conflict" says, as on any other wake, and run the block again after the push: its ranges are then of the rebased head. The section's `Head:` is that later head, which is all the block and `jmerge` ask of it.
 

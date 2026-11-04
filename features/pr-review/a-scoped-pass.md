@@ -3,7 +3,7 @@
 A rebase gives a reviewed pull request another head. `jmerge` compares the head the review saw with the rebased one by `git range-diff`. When no line the patch adds or removes changed, the review carries over and no reviewer is launched. When the content changed, which is a conflict someone resolved by hand, the pull request waits for one review of that change alone: jbus asks the crewmate to launch it, and the message that starts this thread is `/pr-review run <slug> scoped <old range> <new range>`. Each range is `<base>..<head>` in full commits: the reviewed patch, then the rebased one.
 
 A scoped pass is also the review of a fix.
-A fix pushed for a review's findings that changes a file outside `tests/` gets the same pass, of the fix alone, in place of a whole second review, and it is the last: a fix for its findings merges on the checks.
+A fix pushed for a review's findings gets the same pass, of the fix alone, in place of a whole second review, and it is the last: a fix for its findings merges on the checks.
 Like any review after the first, it routes each finding by the severity it writes, whatever its bucket or tag: an `error` goes to the crewmate, a `warning` goes to the day's warnings row once the pull request merged, and an `info` is dropped.
 The crewmate launches it in the turn that pushes the fix, when the block of the crew skill's "A second pass" prints `scoped: launch the scoped reviewer`, and where it did not, jbus asks it to.
 The message is the same one.

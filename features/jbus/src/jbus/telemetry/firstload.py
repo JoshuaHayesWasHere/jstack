@@ -31,7 +31,7 @@ from pathlib import Path
 
 from jbriefs import skills
 from jbus import playbook
-from jbus.telemetry import records
+from jbus.telemetry import values
 
 TABLE = "first_loads"
 TABLE_SQL = (
@@ -107,16 +107,16 @@ def keep(connection: sqlite3.Connection, zone: tzinfo | None) -> int:
         return 0
     latest = connection.execute(
         f"SELECT hash FROM {TABLE} WHERE project = ? ORDER BY at DESC, key DESC LIMIT 1",
-        (records.MACHINE,),
+        (values.MACHINE,),
     ).fetchone()
     if latest and latest[0] == found.hash:
         return 0
-    at = records.utc(datetime.now(UTC).isoformat())
+    at = values.utc(datetime.now(UTC).isoformat())
     connection.execute(
         f"INSERT OR IGNORE INTO {TABLE} (project, key, at, hash, bytes, skill_bytes, playbook, "
         "playbook_bytes, files, day) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
-            records.MACHINE,
+            values.MACHINE,
             f"{at} {found.hash}",
             at,
             found.hash,
@@ -125,7 +125,7 @@ def keep(connection: sqlite3.Connection, zone: tzinfo | None) -> int:
             found.playbook,
             found.playbook_bytes,
             json.dumps(found.files, sort_keys=True),
-            records.day(at, zone),
+            values.day(at, zone),
         ),
     )
     return 1

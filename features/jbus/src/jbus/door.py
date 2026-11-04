@@ -15,10 +15,12 @@ read in T3 Code, that names it. This hook is the second, for what a thread runs 
 
 A command is read in pieces (`pieces`): cut at each shell separator, backtick and parenthesis,
 with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, and
-left out where it is an argument such as a commit message or a title. A heredoc's body is left
-out, since it is text a command reads, but where it feeds a shell or `ssh`, whose commands it is.
-A command that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a
-script of its own, which is why the go path is the main check.
+left out where it is an argument such as a commit message or a title, but for one word that is
+a flag or a refspec (`"--force"`, `'+main'`), which is read as that word, so that `party.walks`
+reads a quoted flag or refspec as it reads a bare one. A heredoc's body is left out, since it
+is text a command reads, but where it feeds a shell or `ssh`, whose commands it is. A command
+that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a script of
+its own, which is why the go path is the main check.
 
 Every refusing hook of jstack (this one, `agent-sends` and jleak's three) judges through
 `features/jbus/hooks/judge.sh`. The hook sets `hook` (its name), `input` (what the harness gave it
@@ -62,6 +64,8 @@ _RUNS_TEXT = re.compile(rf"(?:^|\s){_SHELL}(?:\s+-\w+)*\s+-[a-z]*c\s*$|\bssh\s|\
 of flags as in `bash -lc`, `ssh <host>`, `eval`."""
 _FEEDS = re.compile(rf"(?:^|[;&|(]\s*|\s){_SHELL}\b[^<]*$|\bssh\s[^<]*$")
 """What runs a heredoc's body as commands: a shell, or `ssh <host>`, before the `<<`."""
+_FLAG = re.compile(r"[-+:][^\s'\"]+")
+"""A quoted word the command reads as a flag or a refspec: `"--force"`, `'-D'`, `'+main'`."""
 
 
 def _unfold(command: str) -> str:
@@ -107,7 +111,7 @@ def pieces(command: str) -> list[str]:
             if _RUNS_TEXT.search(now):
                 cut()
                 found.extend(pieces(quoted))
-            elif now.endswith("=") or not now.strip():
+            elif now.endswith("=") or not now.strip() or _FLAG.fullmatch(quoted):
                 now += quoted
             else:
                 now += " _ "

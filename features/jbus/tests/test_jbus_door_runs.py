@@ -56,12 +56,15 @@ def test_winnifreds_prod_deploy_brief_holds_for_prod_by_the_migration_it_runs():
         ("kubectl apply -f x.yaml", PROD),
         ("git push --force origin main", "rewrites history"),
         ("git push origin main -f", "rewrites history"),
+        ("git push origin +main", "rewrites history"),
+        ("git push origin +HEAD:main", "rewrites history"),
         ("git filter-repo --path x", "rewrites history"),
         ("psql -c DROP TABLE dose", "deletes data"),
         ("aws s3 rm s3://bucket/x --recursive", "deletes data"),
         ("git branch -D old", "deletes data"),
         ("git worktree remove ../old", "deletes data"),
         ("git push origin --delete old", "deletes data"),
+        ("git push origin :old", "deletes data"),
         ("gh repo delete x/y", "deletes data"),
         ("tailscale serve --bg 8491", "changes access or secrets"),
         ("tailscale funnel 443", "changes access or secrets"),
@@ -88,6 +91,8 @@ def test_each_command_of_the_table_walks_through_its_door(command, case):
         "scripts/deploy --help",
         "git push --force-with-lease=main:abc origin x",
         "git fetch origin --tags",
+        "git push origin HEAD:main",
+        "git push origin :",
         "git branch -d merged-old",
         "tailscale serve status",
         "tailscale funnel 443 off",
@@ -99,6 +104,18 @@ def test_each_command_of_the_table_walks_through_its_door(command, case):
 )
 def test_a_dry_run_and_a_command_that_only_names_a_door_walk_through_none(command):
     assert party.walks(f"`{command}`") == ()
+
+
+def test_a_briefs_push_by_refspec_holds_for_its_door_named_as_the_brief_wrote_it():
+    said = brief("alpha").replace(
+        "- it is done\n",
+        "- `git push origin +main` and `git push origin :feature` are run, then `make check`\n",
+    )
+    assert party.walked(said) == (
+        ("deletes data", "git push origin :feature"),
+        ("rewrites history", "git push origin +main"),
+    )
+    assert party.doors(said) == ("deletes data", "rewrites history")
 
 
 def test_a_segment_that_says_the_command_is_never_run_holds_nothing():
