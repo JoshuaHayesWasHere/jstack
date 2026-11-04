@@ -21,6 +21,9 @@ The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an 
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
 names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
+Each context main's ruleset requires (`features/repo-guards/main-ruleset.json`) is the id of a
+job in a workflow that runs on every pull request into main, with no `paths:` or `branches:`
+filter, and the job skips only by its own `if:`, so no required check stays "Expected".
 The browser workflow names its test browser, one Chrome for Testing build pinned by its exact
 version and the SHA-256 of its zip, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
@@ -105,10 +108,13 @@ def mapping(lines, depth=0):
 
 def block(name, path=CHECK):
     """One top-level block of a workflow, as a mapping."""
+    return text_block(name, path.read_text())
+
+
+def text_block(name, text):
+    """One top-level block of a workflow's text, as a mapping."""
     lines = [
-        line
-        for line in path.read_text().splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
+        line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")
     ]
     start = lines.index(f"{name}:")
     end = next(
@@ -702,6 +708,80 @@ def test_macos_has_no_paths_filter_so_its_required_check_always_posts():
     assert path_filters(MAC.read_text()) == []
     assert path_filters("on:\n  pull_request:\n    paths: ['a/**']\n") != []
     assert path_filters("on:\n  push:\n    paths-ignore:\n      - docs/**\n") != []
+
+
+RULESET = REPO / "features" / "repo-guards" / "main-ruleset.json"
+EVERY_PUSH = {"opened", "synchronize", "reopened"}
+
+
+def ruleset_contexts():
+    """The contexts main's ruleset file requires."""
+    rules = json.loads(RULESET.read_text())["rules"]
+    (found,) = [rule["parameters"] for rule in rules if rule["type"] == "required_status_checks"]
+    return sorted(one["context"] for one in found["required_status_checks"])
+
+
+def events(text):
+    """The events a workflow runs on, the keys of its `on:` block."""
+    lines, inside = [], False
+    for line in text.splitlines():
+        if line.strip() and not line.startswith(" "):
+            inside = line.strip() == "on:"
+        elif inside and re.match(r"  [a-z_]+:", line):
+            lines.append(line.strip().partition(":")[0])
+    return lines
+
+
+def unreported(context, workflows):
+    """Why a required context could fail to post on a pull request into main, given each
+    workflow's name and text: nothing when one workflow that runs on every pull request, with no
+    `paths:` and no `branches:` filter, has a job with that id, and the job skips only by its own
+    `if:`. A check that never posts stays "Expected" and no pull request can merge."""
+    found = [
+        (name, text)
+        for name, text in workflows.items()
+        if context in jobs(text) and "pull_request" in events(text)
+    ]
+    if len(found) != 1:
+        return [f"{context}: {len(found)} pull_request workflows have a job of that id"]
+    (name, text), why = found[0], []
+    on = text_block("on", text)["pull_request"] or {}
+    why += [f"{name}: pull_request has {key}" for key in on if key != "types"]
+    if "types" in on and not set(on["types"]) >= EVERY_PUSH:
+        why.append(f"{name}: pull_request types {on['types']} leave out a push")
+    why += [f"{name}: {line.strip()}" for line in path_filters(text)]
+    if job_value(text, context, "name") is not None:
+        why.append(f"{name}: job {context} posts as its name, not its id")
+    gate = str(job_value(text, context, "if") or "")
+    if job_value(text, context, "needs") and not gate.startswith(("always()", "!cancelled()")):
+        why.append(f"{name}: job {context} skips when a job it needs does, not by its own if:")
+    return why
+
+
+def test_every_context_the_ruleset_requires_posts_on_every_pull_request_into_main():
+    """A required context is a job id that posts on every pull request into main, so requiring
+    it can never stall the line: no `paths:` or `branches:` filter leaves its workflow out, and
+    the job skips only by its own `if:`, a skip that passes the check."""
+    workflows = {path.name: path.read_text() for path in sorted(WORKFLOWS.glob("*.yml"))}
+    assert ruleset_contexts() == ["borders", "check", "macos"]
+    assert {context: unreported(context, workflows) for context in ruleset_contexts()} == {
+        context: [] for context in ruleset_contexts()
+    }
+
+    def changed(name, old, new):
+        assert workflows[name].count(old) == 1, (name, old)
+        return {**workflows, name: workflows[name].replace(old, new)}
+
+    pr = "  pull_request:\n"
+    assert unreported("macos", changed("macos.yml", pr, pr + "    paths: ['a/**']\n"))
+    assert unreported("macos", changed("macos.yml", pr, pr + "    branches: [main]\n"))
+    assert unreported(
+        "macos",
+        changed("macos.yml", 'if: "!cancelled() && needs.macos-select', 'if: "needs.macos-select'),
+    )
+    assert unreported("borders", changed("borders.yml", "\n  borders:\n", "\n  lint:\n"))
+    assert unreported("borders", changed("borders.yml", "opened, synchronize, ", "opened, "))
+    assert unreported("check", changed("check.yml", "  check:\n", "  check:\n    name: c\n"))
 
 
 def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
