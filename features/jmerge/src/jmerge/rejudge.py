@@ -8,7 +8,8 @@ base into the branch, and GitHub's new check at the new head decides the rest by
 A green pull request whose base moved under it takes the same path: its check ran over a base
 that is gone, so where its head merges cleanly over today's base, GitHub merges the base into it
 too (`cli.Repo.over_main`), one pull request at a time: the one at the head of the line
-(`BaseMerge.holder`), which every other green one whose base moved waits behind.
+(`BaseMerge.holder`), which every other one whose base moved, green, red or with a check
+that has no run, waits behind.
 
 GitHub's endpoint merges the base into the branch and rewrites no history:
 https://docs.github.com/en/rest/pulls/pulls#update-a-pull-request-branch. `expected_head_sha`
@@ -105,11 +106,12 @@ class BaseMerge:
         held = (n for n in numbers if (known.get(str(n)) or {}).get("line") is True)
         return next(held, None)
 
-    def release(self, one: ready.PullRequest) -> None:
-        """Take the pull request from the head of the line."""
-        was = self.known().get(str(one.number))
+    def release(self, number: int) -> None:
+        """Take the pull request from the head of the line. Its record stays, so the update GitHub
+        was asked for is not asked again at the same head and tip."""
+        was = self.known().get(str(number))
         if isinstance(was, dict) and was.get("line"):
-            self.records = {**self.known(), str(one.number): {**was, "line": False}}
+            self.records = {**self.known(), str(number): {**was, "line": False}}
             if self.run:
                 store.write_json(self.path, self.records)
 

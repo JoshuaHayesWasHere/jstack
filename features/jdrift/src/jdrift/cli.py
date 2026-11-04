@@ -4,10 +4,11 @@ runs.
 When you run `jdrift` in this repo, it reads the pin and the map from the pstack section of
 `THIRD_PARTY.md`, and updates a cache clone of the upstream to its `main`. It prints one line
 for each upstream path that the map names: `same`, `changed` with the commits that changed it,
-or `gone`. It then prints one `own` line for each file on the `jstack's own:` line. Such a file
-has no upstream, so it never drifts. Last, it prints one `new` line for each upstream skill or
-playbook that the map does not name and `Not taken:` does not list. It changes nothing in this
-repo. jdrift calls no model and uses no tokens.
+or `gone`. A path the map pins at a commit of its own is compared from that commit, and its
+line names it, as `at <commit>`. It then prints one `own` line for each file on the `jstack's
+own:` line. Such a file has no upstream, so it never drifts. Last, it prints one `new` line for
+each upstream skill or playbook that the map does not name and `Not taken:` does not list. It
+changes nothing in this repo. jdrift calls no model and uses no tokens.
 """
 
 from __future__ import annotations
@@ -38,18 +39,20 @@ class Line:
     removed: int = 0
     commits: tuple[str, ...] = ()
     diff: str = ""
+    at: str = ""
 
     def __str__(self) -> str:
         to = f" -> {', '.join(self.local)}"
+        path = f"{self.upstream} at {self.at}" if self.at else self.upstream
         if self.kind == "changed":
             said = "".join(f"; {commit}" for commit in self.commits)
-            line = f"changed {self.upstream} +{self.added} -{self.removed}{to}{said}"
+            line = f"changed {path} +{self.added} -{self.removed}{to}{said}"
             return f"{line}\n{self.diff.rstrip()}" if self.diff else line
         if self.kind == "gone":
-            return f"gone {self.upstream}{to}"
+            return f"gone {path}{to}"
         if self.kind == "own":
             return f"own {', '.join(self.local)}"
-        return f"{self.kind} {self.upstream}"
+        return f"{self.kind} {path}"
 
 
 DRIFTED = ("changed", "gone", "new")
@@ -89,38 +92,52 @@ def fetch(url: str) -> Path:
 
 def compare(clone: Path, pinned: Pinned, with_diff: bool) -> tuple[str, list[Line]]:
     main_ = _out(clone, "rev-parse", "origin/main").strip()
-    found = _git(clone, "rev-parse", "-q", "--verify", f"{pinned.pin}^{{commit}}")
-    pin = found.stdout.strip()
-    if found.returncode or _git(clone, "merge-base", "--is-ancestor", pin, main_).returncode:
-        raise Refused(f"the pin {pinned.pin[:12]} is not in the history of main upstream")
-    span = f"{pin}..{main_}"
-    count = _out(clone, "rev-list", "--count", span, "--", "pstack/").strip()
+
+    def resolve(pin: str) -> str:
+        found = _git(clone, "rev-parse", "-q", "--verify", f"{pin}^{{commit}}")
+        commit = found.stdout.strip()
+        if found.returncode or _git(clone, "merge-base", "--is-ancestor", commit, main_).returncode:
+            raise Refused(f"the pin {pin[:12]} is not in the history of main upstream")
+        return commit
+
+    def numstat(commit: str) -> dict[str, tuple[int, int]]:
+        counts = {}
+        for row in _out(
+            clone, "diff", "--no-renames", "--numstat", commit, main_, "--", "pstack/"
+        ).splitlines():
+            added, removed, path = row.split("\t", 2)
+            counts[path] = (
+                0 if added == NUMSTAT_OF_A_BINARY_FILE else int(added),
+                0 if removed == NUMSTAT_OF_A_BINARY_FILE else int(removed),
+            )
+        return counts
+
+    commits = {pin: resolve(pin) for pin in {pinned.pin, *pinned.pins.values()}}
+    counts = {pin: numstat(commit) for pin, commit in commits.items()}
+    pin = commits[pinned.pin]
+    count = _out(clone, "rev-list", "--count", f"{pin}..{main_}", "--", "pstack/").strip()
     header = f"pstack {pin[:12]} .. {main_[:12]}: {count} commits touch pstack/"
 
     there = set(_out(clone, "ls-tree", "-r", "--name-only", main_, "--", "pstack/").splitlines())
-    counts = {}
-    for row in _out(
-        clone, "diff", "--no-renames", "--numstat", pin, main_, "--", "pstack/"
-    ).splitlines():
-        added, removed, path = row.split("\t", 2)
-        counts[path] = (
-            0 if added == NUMSTAT_OF_A_BINARY_FILE else int(added),
-            0 if removed == NUMSTAT_OF_A_BINARY_FILE else int(removed),
-        )
-
     lines = []
     for upstream, local in pinned.sources.items():
+        taken = commits[pinned.at(upstream)]
+        at = taken[:12] if upstream in pinned.pins else ""
+        changed = counts[pinned.at(upstream)]
         if upstream not in there:
-            lines.append(Line("gone", upstream, local))
-        elif upstream in counts:
-            added, removed = counts[upstream]
-            commits = _out(clone, "log", "--format=%h %s", span, "--", upstream).splitlines()
+            lines.append(Line("gone", upstream, local, at=at))
+        elif upstream in changed:
+            added, removed = changed[upstream]
+            span = f"{taken}..{main_}"
+            said = _out(clone, "log", "--format=%h %s", span, "--", upstream).splitlines()
             diff = (
-                _out(clone, "diff", "--no-renames", pin, main_, "--", upstream) if with_diff else ""
+                _out(clone, "diff", "--no-renames", taken, main_, "--", upstream)
+                if with_diff
+                else ""
             )
-            lines.append(Line("changed", upstream, local, added, removed, tuple(commits), diff))
+            lines.append(Line("changed", upstream, local, added, removed, tuple(said), diff, at=at))
         else:
-            lines.append(Line("same", upstream))
+            lines.append(Line("same", upstream, at=at))
 
     lines.extend(Line("own", "", (local,)) for local in pinned.own)
     for directory in (SKILLS, PLAYBOOKS):

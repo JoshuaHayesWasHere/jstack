@@ -207,7 +207,21 @@ class Repo:
         return self.numbers_on.get(base)
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
+        """The open pull requests in merge order: each revert jbus opened for a red main
+        (`jmerge.reverts`) first, then the rest by number, those that add migrations in the
+        queue's declared order among the places they hold. A revert branches from main's tip, so
+        by number it would come last, and wait a turn behind every pull request main moved past
+        on a red main (#862 holds none of them)."""
         listed = sorted(listed, key=lambda one: one.number)
+        first = [one for one in listed if self.is_revert(one)]
+        rest = [one for one in listed if not self.is_revert(one)]
+        return first + self.migrations_in_order(rest)
+
+    def is_revert(self, one: ready.PullRequest) -> bool:
+        """Whether `jmerge.reverts` names the pull request as a revert jbus opened."""
+        return any(revert.pull == one.url for revert in self.reverts.values())
+
+    def migrations_in_order(self, listed: list[ready.PullRequest]) -> list[ready.PullRequest]:
         settings = self.migrations
         mine = {
             one.number: one
@@ -687,12 +701,26 @@ class Repo:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ""
+        return self.in_turn(one, tip, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE), ""
+
+    def in_turn(self, one: ready.PullRequest, tip: str, asked: str, due: str) -> str:
+        """Why the pull request waits for GitHub's merge of the base at `tip` into its branch:
+        `asked` or `due` once it is its turn, and in line behind the pull request at the head of
+        the line (`self.line`) until then. Green, red and unrun alike take their place in one
+        line, in merge order, so each merge costs one CI round: #1009's probe, with one green
+        pull request in line and two red ones, asked GitHub to update all three each time main
+        moved. A revert jbus opened (`is_revert`) takes the line from a pull request that is not
+        one, which then waits behind it with its record kept (`rejudge.BaseMerge.release`): on a
+        red main the revert is the merge that turns it green."""
+        holder = next((other for other in self.open if other.number == self.line), None)
+        if holder and holder is not one and self.is_revert(one) and not self.is_revert(holder):
+            self.base_merge.release(holder.number)
+            self.line = None
         if self.line not in (None, one.number):
-            return ready.IN_LINE.format(number=self.line, base=one.base), ""
-        reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-        said = self.base_merge.of(one, tip, *reasons, line=True)
+            return ready.IN_LINE.format(number=self.line, base=one.base)
+        said = self.base_merge.of(one, tip, asked, due, line=True)
         self.line = self.base_merge.holder((one.number,))
-        return said, ""
+        return said
 
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose required checks failed waits, judged over today's base. Its
@@ -701,7 +729,8 @@ class Repo:
         runs of a check that failed, whichever required check it is, failed a same test of its
         own (`rejudge.Repeated`): a merge would fail it again. Nor is a red main merged in while
         jbus's `main.json` names it red: its head would be red again, a CI round spent for nothing,
-        so the check waits as its own until main is green."""
+        so the check waits as its own until main is green. The merge waits its turn in the line
+        green pull requests take (`in_turn`)."""
         moved = None if one.started is None else self.moved(one.base, one.started)
         if (
             moved is None
@@ -710,7 +739,7 @@ class Repo:
             or any(self.base_merge.repeats(one, moved[0], check) for check in one.failed)
         ):
             return red
-        return self.base_merge.of(one, moved[0])
+        return self.in_turn(one, moved[0], ready.BASE_MERGE_ASKED, ready.BASE_MERGE_DUE)
 
     def proven_at(self, one: ready.PullRequest, text: str) -> str:
         """The head whose review proved the safety fact that holds at `one`'s head: that head's
@@ -727,7 +756,7 @@ class Repo:
     def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
         if one.number == self.line and not in_line(one, found):
-            self.base_merge.release(one)
+            self.base_merge.release(one.number)
             self.line = None
         rebasing = found.verb == "wait" and not one.draft and ready.being_rebased(found.why)
         if one.number in self.order and rebasing:
@@ -832,8 +861,7 @@ class Repo:
         if red and re.fullmatch(ready.NO_RUN.pattern, red):
             moved = None if one.started is None else self.moved(one.base, one.started)
             if moved is not None and moved[1]:
-                reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-                red = self.base_merge.of(one, moved[0], *reasons)
+                red = self.in_turn(one, moved[0], ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
             return Judgement(brief.stem, "wait", red, note, None)
         if red:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
@@ -1869,10 +1897,16 @@ check, gives the line to the next pull request: one that waits on its crew or th
 hold every other one main moved past for as long."""
 
 
+UPDATING_RED = frozenset((ready.BASE_MERGE_ASKED.code, ready.BASE_MERGE_DUE.code))
+"""The waits of a pull request whose failed check is what its turn at the head of the line is
+for: GitHub's merge of the base into it, asked or due (`Repo.again`)."""
+
+
 def in_line(one: ready.PullRequest, found: Judgement) -> bool:
-    """Whether the pull request at the head of the line keeps it after this judgement."""
+    """Whether the pull request at the head of the line keeps it after this judgement. A failed
+    check gives it up, unless the base's merge into it, its turn, is for that check."""
     if one.failed:
-        return False
+        return ready.code_of(found.why) in UPDATING_RED
     return found.judged is not None or ready.code_of(found.why) in IN_LINE
 
 
