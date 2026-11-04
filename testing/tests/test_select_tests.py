@@ -13,7 +13,6 @@ import re
 import shutil
 import subprocess
 import sys
-import types
 from pathlib import Path
 
 import pytest
@@ -1195,9 +1194,8 @@ TABLE = [
 FAILED = ("README.md", "features/jgauge/tests/test_session.py")
 
 
-def fails(module, rule, changed, needed, absent):
-    """Why the selection `module` makes for one row of the table is wrong, or `None`."""
-    tests, why = module.selection(changed)
+def fails(rule, changed, needed, absent, tests, why):
+    """Why the selection `tests` for one row of the table is wrong, or `None`."""
     if needed == {"all"}:
         return None if tests == ["all"] else f"{rule}: {changed} selects some, not all"
     if tests == ["all"]:
@@ -1210,13 +1208,21 @@ def fails(module, rule, changed, needed, absent):
     )
 
 
-def failing(module):
-    """The rows of the table, and the row of the failed-on-main tests, that `module` gets wrong."""
-    wrong = [fails(module, *row) for row in TABLE]
+def failing(picked):
+    """The rows of the table, and the row of the failed-on-main tests, that a selector gets
+    wrong. `picked` is its `(tests, why)` for each row in order, then for `FAILED`."""
+    *rows, (tests, _) = picked
+    wrong = [fails(*row, *one) for row, one in zip(TABLE, rows, strict=True)]
     changed, failed = FAILED
-    if failed not in module.selection([changed], failed=[failed])[0]:
+    if failed not in tests:
         wrong.append(f"failed-on-main: {changed} with {failed} red on main leaves it out")
     return [one for one in wrong if one]
+
+
+def asked():
+    """The table's questions to a selector: each row's changed paths, then `FAILED`'s."""
+    changed, failed = FAILED
+    return [[row[1], []] for row in TABLE] + [[[changed], [failed]]]
 
 
 def test_each_kind_of_change_selects_the_tests_that_read_it():
@@ -1226,7 +1232,7 @@ def test_each_kind_of_change_selects_the_tests_that_read_it():
     cross-cutting test would pass whatever its rule did, since every change runs those."""
     cross = set(select.cross_cutting())
     assert [row for row in TABLE if row[0] != "cross-cutting" and row[2] & cross] == []
-    assert failing(select) == []
+    assert failing([select.selection(*one) for one in asked()]) == []
 
 
 def test_every_python_file_under_features_selects_a_test():
@@ -1279,17 +1285,31 @@ MUTANTS = {
 }
 
 
+MUTANT = """
+import json, sys, types
+script, old, new, asked = json.load(sys.stdin)
+module = types.ModuleType("select_tests")
+module.__file__ = script
+exec(compile(open(script).read().replace(old, new), script, "exec"), module.__dict__)
+module.unowned = frozenset
+print(json.dumps([module.selection(*one) for one in asked]))
+"""
+
+
 def mutant(old, new):
-    """The selector with one rule broken: `old` swapped for `new` in its source. It shares the
-    modules, their sources and the files git tracks with `select`, which no mutant changes."""
-    text = SCRIPT.read_text()
-    assert text.count(old) == 1, f"the rule's code moved: {old!r}"
-    module = types.ModuleType("select_tests_mutant")
-    module.__file__ = str(SCRIPT)
-    exec(compile(text.replace(old, new), str(SCRIPT), "exec"), module.__dict__)
-    for name in ("ready", "modules", "sources", "tracked", "unowned"):
-        setattr(module, name, getattr(select, name))
-    return module
+    """The `(tests, why)` for each of the table's questions from the selector with one rule
+    broken, `old` swapped for `new` in its source, run as CI runs it. The catch-all is left
+    out: no test of today's tree is in it, and finding that out takes each path's selection."""
+    assert SCRIPT.read_text().count(old) == 1, f"the rule's code moved: {old!r}"
+    ran = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", MUTANT],
+        input=json.dumps([str(SCRIPT), old, new, asked()]),
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+    )
+    assert ran.returncode == 0, ran.stderr
+    return json.loads(ran.stdout)
 
 
 def test_every_rule_of_the_table_has_a_mutant():
@@ -1297,6 +1317,12 @@ def test_every_rule_of_the_table_has_a_mutant():
 
     assert rules - MUTANTS.keys() == {"itself", "scripts", "paths"}
     assert MUTANTS.keys() <= rules
+
+
+def test_the_selector_run_as_the_mutants_run_fails_no_row():
+    """The control: with no rule broken, the selector run the mutants' way gets every row
+    right, so a mutant that fails a row fails it for the rule it broke."""
+    assert failing(mutant("ROOT = ", "ROOT = ")) == []
 
 
 @pytest.mark.parametrize("rule", MUTANTS)
