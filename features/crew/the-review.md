@@ -1,6 +1,9 @@
 ## The review
 
-A pull request gets one review, and the crewmate that opened it starts it: nobody types `/pr-review`. The review itself is done by a reviewer, in a new thread. This thread only launches it. A fix that changes a file outside `tests/` gets one scoped review, of the fix alone, and that is the last: see "A second pass".
+A pull request gets one review, and the crewmate that opened it starts it: nobody types `/pr-review`.
+The review itself is done by a reviewer, in a new thread.
+This thread only launches it.
+A fix pushed for its findings gets one scoped review, of the fix alone, and that is the last: see "A second pass".
 
 The time to launch is when the pull request is open, straight after the Result names it, and not when it is green: the review runs beside CI. It goes by the first word the block of "The checks" prints then. On `passed` or `wait`, launch at once, in the turn that opened the pull request: the launch never waits for green. On `failed`, a red pull request is fixed first, and the reviewer is launched on the push that fixes it, without waiting for that push to turn green. On `unrun` no check ran, and no reviewer is launched: "The checks" parks it as a gate. Green is still what `jmerge` merges on, and what a pull request with no reviewer waits for: where the block below prints `none`, or the session has no launch tool, the `Reviewer: none` line and its message to the home are written on `passed` and not before.
 
