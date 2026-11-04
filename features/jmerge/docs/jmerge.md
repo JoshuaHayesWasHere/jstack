@@ -130,7 +130,7 @@ The section "Protected paths" describes one more hold.
   An `error` blocks until the crew answers it, and an `info` is dropped.
   A `warning` blocks nothing and goes to no crew: once the pull request merged, jbus keeps it for the day's warnings row (`findings.KEPT`, `jbus.daywarnings`).
   So a scoped review with no `error` owes no fix push and merges on its checks.
-  A blocking finding carries its evidence in a `(proof: ...)` tag of one of the shapes `findings.PROOFS` reads: a command in backticks that exited non-zero at the head, a check that failed, a doc line the pull request made wrong, an unmet `Done when` line, or a measure of the base and the head.
+  A blocking finding carries its evidence in a `(proof: ...)` tag of one of the shapes `proofs.PROOFS` reads: a command in backticks that exited non-zero at the head, a check that failed, a doc line the pull request made wrong, an unmet `Done when` line, or a measure of the base and the head.
   One with no such tag waits as `its findings are not handled: F2 block with no proof tag, ...` until it has an answer by id, and a decline of it counts with any reason, a risky one still only on its gate.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).

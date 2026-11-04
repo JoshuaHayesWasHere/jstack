@@ -137,7 +137,7 @@ Judge it against what the reading was not given: the brief's decisions, and the 
 - **Noted**: true but not actionable, since it depends on context, optimizes early or matters little at this stage.
 - **Dismissed**: wrong, a nitpick, or missing context.
 
-A finding's proof is one of these, the shapes `jbriefs.findings.PROOFS` reads:
+A finding's proof is one of these, the shapes `jbriefs.proofs.PROOFS` reads:
 
 - `` (proof: `<the command>`, exit <n>, <the last line it printed>) ``: a targeted run at this head, a test or a script under `$D`, that fails loud, with `<n>` not 0.
   Run it in the short lane, as step 5's proof runs.
