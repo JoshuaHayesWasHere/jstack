@@ -1,15 +1,15 @@
-"""`main-ruleset.json` beside this file is the body of the ruleset on main, as
-`gh api -X PUT repos/JoshuaHayesWasHere/jstack/rulesets/25665226 --input main-ruleset.json`
-applies it. Its `required_status_checks` rule requires the `check` context with strict required
-status checks, so GitHub merges no pull request whose branch does not hold main's tip, and a
-merge by hand cannot skip the bar `jmerge` merges on. The test fails when the file stops
-requiring `check` or drops the strict flag."""
+"""`features/repo-guards/main-ruleset.json` is the body of the ruleset on main, as
+`gh api -X PUT repos/JoshuaHayesWasHere/jstack/rulesets/25665226 --input <that file>` applies
+it. Its `required_status_checks` rule requires the `check` context with strict required status
+checks, so GitHub merges no pull request whose branch does not hold main's tip, and a merge by
+hand cannot skip the bar `jmerge` merges on. The test fails when the file stops requiring
+`check` or drops the strict flag."""
 
 import json
 
 from testing.paths import REPO
 
-RULESET = REPO / "features" / "repo-guards" / "tests" / "main-ruleset.json"
+RULESET = REPO / "features" / "repo-guards" / "main-ruleset.json"
 
 
 def required_status_checks() -> dict:
