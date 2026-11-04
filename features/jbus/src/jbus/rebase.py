@@ -340,7 +340,7 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     tells of the pull request. jbus alone merges, so no home waits to hear of a fix on green.
     """
     reviewed = "".join(below.line(brief, "Review:").split()[:1]) != "none"
-    if reviewed and not re.search(r"^## Result", brief, re.M):
+    if reviewed and not below.results(brief):
         return False
     said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
