@@ -197,7 +197,8 @@ def unknown(directory: pathlib.Path) -> set[str]:
 
 def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     """`word` is the one kind that jbus sends and the table lacks. `word.py` logs it by
-    `Box.record`, and `record` does not check the kind against the table."""
+    `Box.record`, and `record` does not check the kind against the table. `hook` is in the
+    table and no Python sends it: the refusing hooks' shell writes it (`jbus.door`)."""
     sent = sent_in(SRC)
     assert sent[("stall.py", "EVENT")] == {"waiting-on-user"}
     assert sent[("waiting.py", "EVENT")] == {"waiting"}
@@ -223,6 +224,7 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("item.py", "kind(verb)")] == set()
     every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}
     every.add(mainmoved.ASK.kind)
+    every.add("hook")
     assert mainmoved.ASK.kind in wake.LOUDNESS
     assert unknown(SRC) == {"word"}
     assert set(wake.LOUDNESS) - every == set()

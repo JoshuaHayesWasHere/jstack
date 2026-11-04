@@ -435,8 +435,10 @@ class HookGroup:
 
     With `refuses`, the command is "sh '<layout>/<script>'" with nothing after it. Such a hook
     refuses a tool call through its exit code and what it writes to stderr, so the command
-    discards neither. Its timeout is 30 rather than 5, because it starts Python, and a hook that
-    ran out of time has refused nothing.
+    discards neither. Its timeout is 30 rather than 5, because it starts Python, and in Claude
+    Code's file the hook also has `"onFailure": "block"`, so a hook that fails or runs out of
+    time refuses the call rather than letting it through. Codex has no such key: there the
+    script refuses on its own (`features/jbus/hooks/judge.sh`).
 
     `<layout>` is the layout of `harness`, the harness whose agent reads the file.
     ok: that group is there, and no other command of the event names `/<script>`.
@@ -463,6 +465,8 @@ class HookGroup:
     def _group(self, machine: Machine) -> dict:
         timeout = 30 if self.refuses else 5
         hook = {"type": "command", "command": self._command(machine), "timeout": timeout}
+        if self.refuses and self.harness == "claude-code":
+            hook["onFailure"] = "block"
         return ({} if self.matcher is None else {"matcher": self.matcher}) | {"hooks": [hook]}
 
     def _groups(self, value: dict) -> list | None:
