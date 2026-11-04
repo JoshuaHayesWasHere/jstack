@@ -5,15 +5,21 @@ and the line says so with the base's exit 0. A branch that changes no test gets 
 
 The tests run the block in a real repo whose `origin/main` is the base, on macOS's tools
 (`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
-the command, and syncs nothing. Each run leaves no worktree of the base behind."""
+the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
+tests pass, fail or are cut off, and the block walks through no door of the door hook, which
+refuses a crew's whole call where one of its commands does."""
 
+import os
+import signal
 import subprocess
 import sys
+import time
 
 import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
+from jbus import door
 from test_portable_shell import bsd_tools
 
 UV = f"""#!/bin/bash
@@ -25,6 +31,10 @@ case " $* " in
     ;;
 *" sync "*) exit 0 ;;
 *" run pytest "*)
+    if [ -n "$STALL" ]; then
+        : > "$STALL"
+        sleep 60
+    fi
     shift 2
     exec {sys.executable} -m pytest "$@"
     ;;
@@ -71,24 +81,41 @@ def commit(tree, files):
     return git(tree, "rev-parse", "HEAD")
 
 
+def script():
+    return (
+        block("Do the task", "Proved: ")
+        .replace("<slug>", "a-task")
+        .replace("<thread id>", "mcp:thread-1")
+    )
+
+
+def environ(tree, **more):
+    return {
+        "PATH": f"{tree.parent / 'stub'}:{bsd_tools(tree.parent / 'bsd')}",
+        "HOME": str(tree.parent),
+        "H": str(tree.parent / "home"),
+        "T": str(tree.parent / "templates"),
+        "TMPDIR": str(tree.parent),
+        **more,
+    }
+
+
+def worktrees(tree):
+    return git(tree, "worktree", "list", "--porcelain")
+
+
 def proof(tree):
-    script = block("Do the task", "Proved: ").replace("<slug>", "a-task")
-    script = script.replace("<thread id>", "mcp:thread-1")
-    home = tree.parent / "home"
+    before = worktrees(tree)
     ran = subprocess.run(
-        ["bash", "-c", script],
+        ["bash", "-c", script()],
         cwd=tree,
         capture_output=True,
         text=True,
         timeout=60,
-        env={
-            "PATH": f"{tree.parent / 'stub'}:{bsd_tools(tree.parent / 'bsd')}",
-            "HOME": str(tree.parent),
-            "H": str(home),
-            "T": str(tree.parent / "templates"),
-        },
+        env=environ(tree),
     )
-    assert git(tree, "worktree", "list", "--porcelain").count("worktree ") == 1
+    assert worktrees(tree) == before
+    home = tree.parent / "home"
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
 
 
@@ -120,3 +147,43 @@ def test_a_change_with_no_test_runs_nothing_and_writes_no_line(repo):
     said, line = proof(repo)
     assert said.startswith("no test changed: the Result says Proved: none, <kind>")
     assert line is None
+
+
+def test_a_test_that_fails_at_the_head_too_leaves_the_worktree_list_as_it_was(repo):
+    broken = OLD_TEST + "\n\ndef test_three():\n    assert add(1, 1) == 3\n"
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": broken})
+    said, line = proof(repo)
+    assert "head exit 1: 1 failed, 1 passed" in said
+    assert (line.base_exit, line.head_exit) == (1, 1)
+
+
+def test_a_run_cut_off_mid_test_leaves_the_worktree_list_as_it_was(repo):
+    """A thread's harness kills a call that runs past its time limit, and the user can stop one:
+    nothing after the kill runs, so the block makes nothing it would have to undo."""
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    before = worktrees(repo)
+    stalled = repo.parent / "stalled"
+    running = subprocess.Popen(
+        ["bash", "-c", script()],
+        cwd=repo,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=environ(repo, STALL=str(stalled)),
+        start_new_session=True,
+    )
+    try:
+        waited = time.monotonic() + 30
+        while not stalled.exists():
+            assert running.poll() is None and time.monotonic() < waited
+            time.sleep(0.05)
+    finally:
+        os.killpg(running.pid, signal.SIGKILL)
+        running.wait()
+    assert worktrees(repo) == before
+
+
+def test_a_crews_call_of_the_block_walks_through_no_door():
+    """The door hook refuses a crew's whole call where one command of it walks through a door,
+    and `git worktree remove` is one (`deletes data`): a block with one in it never ran as
+    written, and left its crew a worktree it could not remove."""
+    assert door.walks(script()) == ()
