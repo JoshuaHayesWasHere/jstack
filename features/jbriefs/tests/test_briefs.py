@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import asks, below, cli, findings, home, page, parse, proof, skills
+from jbriefs import asks, below, cli, findings, home, page, parse, proof, runnable, skills
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
@@ -511,7 +511,7 @@ PROSE = {
 @pytest.mark.parametrize("case", RUNNABLE)
 def test_a_done_when_item_that_runs_something_is_no_fault(case):
     text = CLEAN.replace("- it is done", f"- {RUNNABLE[case]}")
-    assert parse.runnable(text) == ""
+    assert runnable.runnable(text) == ""
     assert parse.warnings(text, "") == []
 
 
@@ -519,7 +519,7 @@ def test_a_done_when_item_that_runs_something_is_no_fault(case):
 def test_a_done_when_item_in_prose_alone_is_warned_of_and_still_queued(case):
     text = CLEAN.replace("- it is done", f"- {PROSE[case]}")
     fault = DONE_WHEN_FAULT.format(n=1, of=1, first=PROSE[case])
-    assert parse.runnable(text) == fault
+    assert runnable.runnable(text) == fault
     assert parse.warnings(text, "") == [fault]
     assert parse.faults(text) == []
 
@@ -528,7 +528,7 @@ def test_the_done_when_fault_counts_the_items_and_names_the_first_that_runs_noth
     text = CLEAN.replace(
         "- it is done", "- `make check` passes\n- the page loads\n- it is done\n- judged: it reads"
     )
-    assert parse.runnable(text) == DONE_WHEN_FAULT.format(n=2, of=4, first="the page loads")
+    assert runnable.runnable(text) == DONE_WHEN_FAULT.format(n=2, of=4, first="the page loads")
 
 
 def test_a_warned_check_refuses_once_it_leaves_warned(monkeypatch):
