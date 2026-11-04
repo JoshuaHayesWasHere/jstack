@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 import jbus
 from jbus import queue, read_json
-from jbus.telemetry import cursors, records
+from jbus.telemetry import cursors, records, values
 
 if TYPE_CHECKING:
     from jbus.telemetry import Built
@@ -69,7 +69,7 @@ def rows(record: dict[str, Any], slug: str, zone: tzinfo | None) -> list[tuple[s
         "slug": slug,
         "role": _text(record.get("role")) or queue.CREW,
         "thread": _text(record.get("thread")),
-        "at": records.utc(record.get("at"), zone),
+        "at": values.utc(record.get("at"), zone),
     }
     if not named:
         return [(base, {**common, "dial": None, "arm": None, "covered": 0})]
@@ -96,7 +96,7 @@ def read(
     connection: sqlite3.Connection, config: jbus.Config, zone: tzinfo | None, built: Built
 ) -> None:
     """Keep a row for each dial of each launched record the store has not kept."""
-    held = cursors.held(connection, records.MACHINE, TABLE)
+    held = cursors.held(connection, values.MACHINE, TABLE)
     since = held[4] if held and held[4] is not None else 0
     found = []
     newest = since
@@ -105,7 +105,7 @@ def read(
         record = read_json(path, {})
         built.bytes += path.stat().st_size
         for key, row in rows(record, slug, zone):
-            day = records.day(row["at"], zone)
+            day = values.day(row["at"], zone)
             found.append((project, key, *(row[name] for name in COLUMNS), day))
     names = ", ".join(("project", "key", *COLUMNS, "day"))
     marks = ", ".join("?" for _ in range(len(COLUMNS) + 3))
@@ -113,5 +113,5 @@ def read(
     before = connection.total_changes
     connection.executemany(f"INSERT OR IGNORE INTO {TABLE} ({names}) VALUES ({marks})", found)
     built.rows[TABLE] += connection.total_changes - before
-    cursors.keep(connection, records.MACHINE, TABLE, None, None, None, None, newest)
+    cursors.keep(connection, values.MACHINE, TABLE, None, None, None, None, newest)
     connection.execute("COMMIT")

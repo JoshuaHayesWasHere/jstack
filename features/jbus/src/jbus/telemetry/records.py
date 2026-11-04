@@ -39,11 +39,7 @@ from typing import Any, Literal
 
 from jbus.telemetry import asks
 from jbus.telemetry.readers import json_lines, keyed, listed, questions
-from jbus.telemetry.values import MACHINE as MACHINE
-from jbus.telemetry.values import STAMP as STAMP
 from jbus.telemetry.values import Row, _count, _dict, _length, _number, _pull, _text, utc
-from jbus.telemetry.values import day as day
-from jbus.telemetry.values import key as key
 
 _MERGE_LINE = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)(?: #?(\d+))?(?: (\S+))?")
 _LABEL = re.compile(r"\[([\w-]+)\]\s*$")
@@ -417,11 +413,11 @@ class Source:
 
     `where` is `state`, the project's jbus state (`Config.state`), `home`, its home's
     (`Config.home`), or `machine`, jbus's own state directory, whose rows are the machine's, of
-    the project `MACHINE`. `columns` are the table's own columns besides `project`, `key` and `day`,
-    each with its SQLite type, and `row` makes them of one record. A log's `text` is True where
-    its lines are text, not JSON. A snapshot's `records` reads its records from the file, and
-    `natural` names the column that is its key. `at` names the column whose local date is
-    `day`."""
+    the project `values.MACHINE`. `columns` are the table's own columns besides `project`, `key`
+    and `day`, each with its SQLite type, and `row` makes them of one record. A log's `text` is
+    True where its lines are text, not JSON. A snapshot's `records` reads its records from the
+    file, and `natural` names the column that is its key. `at` names the column whose local date
+    is `day`."""
 
     table: str
     file: str
