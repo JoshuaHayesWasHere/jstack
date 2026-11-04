@@ -15,6 +15,8 @@ A part runs its tests on `WORKERS` workers at once, so it ends once its tests' s
 selected tests are dealt out slowest first, each to the part that would end soonest so far. So a
 test longer than the others' share of a part, as the merge flow's TLC test is when TLC runs
 (its cold time is its row), gets a part of its own, and the other parts share the rest.
+`WORKERS` is the Makefile's TEST_WORKERS in CI, one for each of the 4 cores of GitHub's hosted
+runner: a constant, not this machine's count, so every job deals the same parts.
 
 The split reads only the selected tests' node ids and the table, so every xdist worker and every
 job works out the same parts for the same selection, and each test is in exactly one part. The
@@ -35,8 +37,6 @@ import pytest
 
 TIMES = Path(__file__).with_name("shard-times.tsv")
 FLOOR = 0.1
-# The workers of a part in CI's check: the Makefile's TEST_WORKERS, one for each of the 4 cores of
-# GitHub's hosted runner. A constant, not this machine's count, so every job deals the same parts.
 WORKERS = 4
 
 
