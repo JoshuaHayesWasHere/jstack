@@ -187,3 +187,18 @@ def test_a_crews_call_of_the_block_walks_through_no_door():
     and `git worktree remove` is one (`deletes data`): a block with one in it never ran as
     written, and left its crew a worktree it could not remove."""
     assert door.walks(script()) == ()
+
+
+def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):
+    """A test the change lays over the base may run git in its tree, as one that lists the
+    tracked files does: at the base it finds a repository at the base's commit, so it fails
+    there only for the change and not for want of a `.git`."""
+    reads = (
+        "import subprocess\n\n\ndef test_tracked():\n"
+        "    said = subprocess.run(['git', 'ls-files'], capture_output=True, text=True, check=True)\n"
+        "    assert 'calc.py' in said.stdout.split()\n"
+    )
+    commit(repo, {"calc.py": FIXED, "tests/test_git.py": reads})
+    said, line = proof(repo)
+    assert "base exit 0: 1 passed" in said
+    assert (line.base_exit, line.head_exit) == (0, 0)
