@@ -1405,3 +1405,111 @@ def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
     printed, line, given = outputs(repo, head, tmp_path)
 
     assert (printed, line["forced"], given) == (["all"], "pyproject.toml", {"selection": "all"})
+
+
+def timed(seconds):
+    """A times table, as `testing/shard.py` reads it, of these seconds by node id."""
+    from testing import shard
+
+    return "".join(f"{took:.2f}\t{shard.key(test)}\n" for test, took in seconds.items())
+
+
+PARTED = {
+    "conftest.py": "",
+    "testing/__init__.py": "",
+    "testing/shard.py": (REPO / "testing" / "shard.py").read_text(),
+    "testing/shard-times.tsv": timed(
+        {
+            "testing/tests/test_slow.py::test_slow": 10,
+            "testing/tests/test_two.py::test_one": 3,
+            "testing/tests/test_two.py::test_two": 3,
+        }
+    ),
+    "testing/tests/test_tree.py": "def test_tree():\n    pass\n",
+    "testing/tests/test_slow.py": "def test_slow():\n    pass\n",
+    "testing/tests/test_two.py": "def test_one():\n    pass\n\n\ndef test_two():\n    pass\n",
+}
+
+
+def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
+    """`--parts <count>` over a change to these test files, run as the job `select` runs it, with
+    the venv's python: what it printed, its summary, and what it gave the step's outputs."""
+    repo = Repo(tmp_path / "repo", files=dict(files))
+    head = repo.change([f"testing/tests/test_{name}.py" for name in changed])
+    summary, output = tmp_path / "summary.md", tmp_path / "output"
+    ran = subprocess.run(
+        [sys.executable, repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
+        + [repo.base, head],
+        cwd=repo.root,
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "GITHUB_STEP_SUMMARY": str(summary),
+            "GITHUB_OUTPUT": str(output),
+        },
+    )
+    given = (
+        dict(line.split("=", 1) for line in output.read_text().splitlines())
+        if output.exists()
+        else {}
+    )
+    return ran, summary.read_text() if summary.exists() else "", given
+
+
+def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
+    """The selection is collected once and its files dealt out whole, slowest first, to the part
+    with the least time so far, so a part collects only its own files. A part the selection left
+    empty gets `none`, which the check's part passes on."""
+    ran, summary, given = parted(tmp_path, 4)
+
+    assert ran.returncode == 0, ran.stderr
+    assert given == {
+        "selection": "some",
+        "part1": "testing/tests/test_slow.py",
+        "part2": "testing/tests/test_two.py",
+        "part3": "testing/tests/test_tree.py",
+        "part4": "none",
+    }
+    assert "parts: 4 of 4 tests in 3 files, 0 0 6 10 s of test time each" in summary
+    assert ran.stdout.splitlines()[-4:] == [
+        "part 1: testing/tests/test_slow.py",
+        "part 2: testing/tests/test_two.py",
+        "part 3: testing/tests/test_tree.py",
+        "part 4: none",
+    ]
+
+
+def test_every_selected_file_is_in_exactly_one_part(tmp_path):
+    ran, _, given = parted(tmp_path, 2)
+
+    assert ran.returncode == 0, ran.stderr
+    assert given == {
+        "selection": "some",
+        "part1": "testing/tests/test_slow.py",
+        "part2": "testing/tests/test_tree.py testing/tests/test_two.py",
+    }
+
+
+def test_a_selection_that_collects_no_test_fails_and_gives_no_part(tmp_path):
+    """No part gets a selection, and the check's parts each fail on that, as a selection with no
+    tests failed every part before."""
+    files = {
+        name: "" if name.startswith("testing/tests/") else text for name, text in PARTED.items()
+    }
+    ran, _, given = parted(tmp_path, 8, files=files)
+
+    assert ran.returncode != 0
+    assert "the selection holds no test" in ran.stderr
+    assert [key for key in given if key.startswith("part")] == []
+
+
+def test_the_deal_of_no_tests_fails():
+    with pytest.raises(SystemExit, match="holds no test"):
+        select.dealt([], {}, 8)
+
+
+@pytest.mark.parametrize("argv", [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"]])
+def test_parts_takes_a_count_of_one_or_more(argv):
+    with pytest.raises(SystemExit, match="usage"):
+        select.main(argv)
