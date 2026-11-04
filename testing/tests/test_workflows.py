@@ -524,6 +524,12 @@ ZSH = (
 )
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 TLC = "~/.cache/jstack/tlc"
+KEPT = (
+    'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0;'
+    ' NAMES=$(printf "%s\\n" "$RUNS" | sha256sum | cut -c1-16);'
+    ' [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ]'
+    ' || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+)
 
 
 EVENTS = ("pull_request", "push", "workflow_dispatch")
@@ -884,7 +890,7 @@ def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_sele
         "astral-sh/setup-uv",
         "uv sync --locked",
         "zsh",
-        "actions/cache",
+        "actions/cache/restore",
         "make test",
     ]
     assert parts[1]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
@@ -930,35 +936,101 @@ def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part
 
 
 @pytest.mark.parametrize("job", ["check-shard", "full-shard"])
-def test_each_part_restores_and_saves_tlcs_kept_runs_right_before_its_suite(job):
-    """The cache of TLC's output (statechart's `kept`) is restored before the suite and saved
-    after it, under a key of each run's own in its part, so each run saves what it added. It
-    restores the latest of its part with the same spec files, else the latest of its part, and
-    the files its key hashes are every file a kept run reads from the repo."""
-    found, _ = steps(CHECK.read_text(), job)
-    names = [step.get("uses", step.get("name")) for step in found]
-    (kept,) = [step for step in found if step.get("uses", "").startswith("actions/cache@")]
-    assert names[names.index(kept["uses"]) + 1] == (
-        "make check" if job == "full-shard" else "make test"
+def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_added(job):
+    """The cache of TLC's output (statechart's `kept`) is one for every part, since a test's part
+    changes with the selection: its keys name no part. It is restored right before the suite,
+    the latest of the same spec files first, else the latest of any, and saved after it under a
+    key `tlc kept` gives. The files its key hashes are every file a kept run reads from the repo,
+    TLC's pinned jar in statechart's tools.py among them, so a change to any of them misses."""
+    text = CHECK.read_text()
+    found, _ = steps(text, job)
+    names = [
+        step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in found
+    ]
+    suite = "make check" if job == "full-shard" else "make test"
+    at = names.index("actions/cache/restore")
+    assert names[at : at + 4] == ["actions/cache/restore", suite, "tlc kept", "actions/cache/save"]
+    restore, _, kept, save = found[at : at + 4]
+    assert re.fullmatch(r"actions/cache/(restore|save)@[0-9a-f]{40}", restore["uses"])
+    assert restore["uses"].partition("@")[2] == save["uses"].partition("@")[2]
+    assert "matrix.shard" not in str([restore, kept, save])
+    specs = re.fullmatch(r"tlc-\$\{\{ (hashFiles\(.*\)) \}\}-", restore["with"]["key"])[1]
+    assert (restore["id"], restore["with"]["path"], restore["with"]["restore-keys"]) == (
+        "tlc",
+        TLC,
+        "|",
     )
-    assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", kept["uses"])
-    part = "tlc-${{ matrix.shard }}-"
-    specs = re.fullmatch(
-        rf"{re.escape(part)}\$\{{\{{ (hashFiles\(.*\)) \}}\}}-\$\{{\{{ github\.run_id \}}\}}",
-        kept["with"]["key"],
-    )[1]
-    assert (kept["with"]["path"], kept["with"]["restore-keys"]) == (TLC, "|")
-    assert f"\n            {part}${{{{ {specs} }}}}-\n            {part}\n" in CHECK.read_text()
+    assert f"\n            tlc-${{{{ {specs} }}}}-\n            tlc-\n" in text
+    assert kept["env"] == {
+        "SPECS": f"${{{{ {specs} }}}}",
+        "RESTORED": "${{ steps.tlc.outputs.cache-matched-key }}",
+    }
+    assert (kept["id"], kept["if"], kept["run"]) == (
+        "kept",
+        "!cancelled() && steps.suite.outcome != 'skipped'",
+        KEPT,
+    )
+    assert save["if"] == "!cancelled() && steps.kept.outputs.key != ''"
+    assert save["with"] == {"path": TLC, "key": "${{ steps.kept.outputs.key }}"}
     globs = [f":(glob){one}" for one in re.findall(r"'([^']+)'", specs)]
     hashed = subprocess.run(
         ["git", "ls-files", "--", *globs], cwd=REPO, capture_output=True, text=True, check=True
     ).stdout.split()
-    reads = ["*/spec/*.tla", "*/spec/canary/*.tla", "*/spec/*canaries.py", "*/statechart/tools.py"]
+    reads = [
+        "*/spec/*.tla",
+        "*/spec/*.cfg",
+        "*/spec/canary/*.tla",
+        "*/spec/*canaries.py",
+        "*/statechart/tools.py",
+    ]
     read = subprocess.run(
         ["git", "ls-files", "--", *reads], cwd=REPO, capture_output=True, text=True, check=True
     ).stdout.split()
     assert read
     assert set(read) - set(hashed) == set()
+
+
+def kept_key(home, restored):
+    """The key `tlc kept` gives the save, run here as the runner runs it, or "" for no save. It
+    runs on this PATH, where the test's skip found sha256sum: on macOS that is Homebrew's, which
+    /usr/bin does not hold."""
+    output = home / "output"
+    output.write_text("")
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(home),
+        "SPECS": "abc",
+        "RESTORED": restored,
+        "GITHUB_OUTPUT": str(output),
+    }
+    subprocess.run(["sh", "-c", KEPT], env=env, check=True)
+    return output.read_text().strip().removeprefix("key=")
+
+
+@pytest.mark.skipif(
+    not shutil.which("sha256sum"), reason="the step runs on ubuntu, whose coreutils have sha256sum"
+)
+def test_a_part_saves_tlc_runs_only_when_it_added_some_under_the_spec_files_and_what_it_holds(
+    tmp_path,
+):
+    """A part with no cache folder, or an empty one, saves nothing. A part that ran TLC saves
+    under the spec files' hash and a hash of its runs' names, and a part that holds just what it
+    restored, by that key's end, saves nothing: so a part that ran no TLC never takes the key of
+    one that did. A run added changes the key, and the same runs give the same key."""
+    assert kept_key(tmp_path, "") == ""
+    tlc = tmp_path / ".cache" / "jstack" / "tlc"
+    tlc.mkdir(parents=True)
+    assert kept_key(tmp_path, "") == ""
+    (tlc / "b1").write_text("out")
+    (tlc / "a2").write_text("out")
+    first = kept_key(tmp_path, "")
+    assert re.fullmatch(r"tlc-abc-[0-9a-f]{16}", first)
+    assert kept_key(tmp_path, "tlc-abc-0123") == first
+    assert kept_key(tmp_path, first) == ""
+    assert kept_key(tmp_path, first.replace("abc", "older")) == ""
+    assert kept_key(tmp_path, "tlc-3-abc-41659054270") == first
+    (tlc / "c3").write_text("out")
+    assert kept_key(tmp_path, first) not in ("", first)
 
 
 ZSH_STUBS = {
@@ -1132,8 +1204,10 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "astral-sh/setup-uv",
         "uv sync --locked",
         ZSH,
-        "actions/cache",
+        "actions/cache/restore",
         SUITE,
+        KEPT,
+        "actions/cache/save",
         "|",
     ]
     gate, _ = steps(CHECK.read_text(), "full")

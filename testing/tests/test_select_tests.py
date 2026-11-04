@@ -1926,6 +1926,22 @@ def test_the_deal_of_no_tests_fails():
         select.dealt([], {}, 8)
 
 
+def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_quick_tests_is_not():
+    """Files are dealt whole, and a part never ends before the slowest test of its files: a file
+    of one 60 s test gets a part to itself, and a file of 60 tests of 1 s, as long in all, shares
+    one, since its tests spread over the part's workers."""
+    from testing import shard
+
+    serial = ["a/test_serial.py::test_long"]
+    spread = [f"a/test_spread.py::test_{n}" for n in range(60)]
+    rest = [f"a/test_{n}.py::test_one" for n in range(200)]
+    times = {shard.key(serial[0]): 60} | {shard.key(test): 1 for test in spread + rest}
+    parts, _ = select.dealt(serial + spread + rest, times, 4)
+    assert ["a/test_serial.py"] in parts
+    (spreads,) = [part for part in parts if "a/test_spread.py" in part]
+    assert len(spreads) > 1
+
+
 @pytest.mark.parametrize("argv", [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"]])
 def test_parts_takes_a_count_of_one_or_more(argv):
     with pytest.raises(SystemExit, match="usage"):
