@@ -9,7 +9,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import mainmoved, merge, passes, rebase, t3, watch
+from jbus import watch
 from test_jbus_expedite import NO_FIXED, Short
 from test_jbus_kitchen import NOW
 from test_jbus_kitchen import review as findings
@@ -20,7 +20,7 @@ from test_jbus_remarks import one
 from test_jbus_rereview import unsaid, waits
 from test_jbus_unlock import CHANGED, sends
 
-KINDS = ("rebase", "rereview", "drops", "mainmoved")
+KINDS = ("rebase", "rereview", "drops")
 CONFLICT = "it conflicts with its base"
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
@@ -84,15 +84,15 @@ class Due:
         move(kitchen)
 
     def at(self, head, mergeable="MERGEABLE"):
-        kitchen, red = self.kitchen, self.kind == "mainmoved"
+        kitchen = self.kitchen
         says = {
             "rebase": CHANGED,
             "rereview": waits(head),
             "drops": unsaid(head),
         }
-        opened = pull(kitchen, "alpha", 7, "FAILURE" if red else "SUCCESS", mergeable)
+        opened = pull(kitchen, "alpha", 7, "SUCCESS", mergeable)
         kitchen.set("open.json", [{**opened, "headRefOid": head}])
-        kitchen.set("jmerge.txt", "" if red else f"wait 7 {URL}: {says[self.kind]}\n")
+        kitchen.set("jmerge.txt", f"wait 7 {URL}: {says[self.kind]}\n")
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -151,31 +151,6 @@ def stale(kitchen, state="SUCCESS", mergeable="CONFLICTING", says=CONFLICT):
 RED = {"state": "FAILURE", "mergeable": "MERGEABLE", "says": CHANGED}
 
 
-@pytest.mark.parametrize("first", ["rebase", "mainmoved"])
-@pytest.mark.parametrize("how", [{}, RED], ids=["in conflict", "red"])
-def test_one_stale_head_is_one_message_in_whichever_order_the_two_are_reached(kitchen, first, how):
-    due = stale(kitchen, **how)
-    config = jbus.load()
-    run = passes.Pass(config, config.projects[0], NOW, lambda _: None)
-    client = t3.Client(config.server, config.token_path)
-    world = watch.look(run, client, []).world
-    said = merge.Said(kitchen.stub.joinpath("jmerge.txt").read_text().splitlines())
-    tells = {
-        "rebase": lambda: rebase.tell(run, client, world, said),
-        "mainmoved": lambda: mainmoved.tell(run, client, world),
-    }
-    for name in sorted(tells, key=lambda name: name != first):
-        tells[name]()
-    (given,) = sends(kitchen)
-    told = first if how else "rebase"
-    assert given["clientRequestId"].startswith(f"{told}|alpha|")
-    for minutes in (3, 6):
-        kitchen.poll(later(minutes))
-    assert len(sends(kitchen)) == 1
-    mark = "moved" if how and first == "mainmoved" else "rebase"
-    assert f"{mark}|alpha|{due.head[:12]}" in jbus.read_json(kitchen.state / "sent.json", [])
-
-
 @pytest.mark.parametrize("how", [{}, RED], ids=["in conflict", "red"])
 def test_a_pass_tells_a_stale_head_main_moved_under_by_the_rebase_message_alone(kitchen, how):
     due = stale(kitchen, **how)
@@ -206,8 +181,8 @@ def test_a_thread_another_message_of_the_pass_started_is_at_work(kitchen):
     assert len(sends(kitchen)) == 1
 
 
-@pytest.mark.parametrize("kind", ["rebase", "mainmoved"])
-def test_a_github_that_does_not_give_the_head_again_holds_the_message_back(kitchen, kind):
+def test_a_github_that_does_not_give_the_head_again_holds_the_message_back(kitchen):
+    kind = "rebase"
     due = Due(kitchen, kind)
     due.at(due.head)
     kitchen.set("head-now.json", {"7": {"headRefOid": ""}})
@@ -218,39 +193,6 @@ def test_a_github_that_does_not_give_the_head_again_holds_the_message_back(kitch
     (kitchen.stub / "head-now.json").unlink()
     kitchen.poll(later(3))
     assert len(sends(kitchen)) == 1
-
-
-def test_a_message_held_back_holds_up_no_other_pull_request(kitchen):
-    """Alpha is red and at work when main moves, and beta is green. Beta turns red later, for its
-    own reasons. Beta was not red at the move, so jbus tells beta's crew only of beta's failed
-    check."""
-    kitchen.config(max_running=2)
-    due = Due(kitchen, "mainmoved")
-    kitchen.set("jmerge.txt", "")
-    add(kitchen, "beta", priority=2)
-    kitchen.poll(NOW - timedelta(minutes=10))
-    kitchen.t3.threads[1]["status"] = "completed"
-    move(kitchen, "failure")
-    kitchen.poll(NOW - timedelta(minutes=5))
-    main = move(kitchen)
-    alpha = {**pull(kitchen, "alpha", 7, "FAILURE"), "headRefOid": due.head}
-    kitchen.set("open.json", [alpha, pull(kitchen, "beta", 8)])
-    kitchen.set("jmerge.txt", "")
-    due.thread["status"] = "running"
-    kitchen.poll()
-    kept = jbus.read_json(kitchen.state / "main.json", {})
-    assert sends(kitchen) == [] and (kept["main"], kept["held"]) == (main, ["alpha"])
-    kitchen.set("open.json", [alpha, pull(kitchen, "beta", 8, "FAILURE")])
-    kitchen.poll(later(3))
-    assert [given["clientRequestId"] for given in sends(kitchen)] == ["failed|beta|cccccccccccc"]
-    due.thread["status"] = "completed"
-    for minutes in (6, 9):
-        kitchen.poll(later(minutes))
-    assert [given["clientRequestId"] for given in sends(kitchen)] == [
-        "failed|beta|cccccccccccc",
-        f"mainmoved|alpha|#7|{main[:12]}",
-    ]
-    assert "held" not in jbus.read_json(kitchen.state / "main.json", {})
 
 
 def test_what_a_pull_request_is_short_of_is_not_said_of_a_head_it_left(kitchen):

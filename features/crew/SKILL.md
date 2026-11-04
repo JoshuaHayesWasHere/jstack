@@ -75,7 +75,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 ## Carry on
 
 Proceed on reversible work without asking: do it, then say what you did and why.
-Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`).
+Six things only are never done on a default, the six cases of `$T/gates.md`: deleting data (`deletes data`), a force-push to a shared branch (`rewrites history`), spending money (`spends money`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), changing access or secrets (`changes access or secrets`), and publishing a release or a package (`publishes`).
 Each is a gate that holds, parked as "Do the task" says.
 What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other acts at once on the default that it is not done.
 A command you write yourself deletes nothing whose target is a variable or a glob, clears scratch with `uv run --project "$T/../source" jbus forget <path>` or leaves it in `/tmp`, and uses only bash expansions, never a zsh one such as `${(s:,:)…}`, since Claude Code stops the thread to ask the user before it runs any of those.
@@ -150,7 +150,7 @@ Then read `$T/../skills/crew/the-checks.md` now, once.
 
 | When | Do |
 |---|---|
-| "A conflict": the pull request is in conflict, its check fails over today's main, or a rebase changed the content after its review | read `$T/../skills/crew/a-conflict.md` now |
+| "A conflict": the pull request is in conflict, jbus says main moved under it, or a rebase changed the content after its review | read `$T/../skills/crew/a-conflict.md` now |
 | "A link that moved": jbus says a link it stacked moved or is in conflict | read `$T/../skills/crew/a-link-that-moved.md` now |
 | "A comment": a message whose first line is `Update on pull request` | read `$T/../skills/crew/a-comment.md` now |
 
