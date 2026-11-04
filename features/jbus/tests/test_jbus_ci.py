@@ -1081,8 +1081,6 @@ def row(job, run, name, pr, sha, minute, *, wait=0, conclusion="success", tests=
 
 OWN_TEST, SHARED_TEST = "tests/test_a.py::test_own", "tests/test_a.py::test_shared"
 SLICE = [
-    # #10: red at its first head for a test of its own, green at the crew's second, and green
-    # again at the merge of main that jmerge asked GitHub for a minute after GitHub made it.
     row(1, 101, "check", 10, "a1", 1, conclusion="failure"),
     row(2, 101, "check 1 of 8", 10, "a1", 1, wait=10, conclusion="failure", tests=[OWN_TEST]),
     row(3, 101, "macos", 10, "a1", 1, wait=100),
@@ -1090,8 +1088,6 @@ SLICE = [
     row(5, 102, "check 1 of 8", 10, "a2", 30, wait=20),
     row(6, 103, "check", 10, "a3", 60),
     row(7, 103, "check 1 of 8", 10, "a3", 60, wait=30),
-    # #20 and #30: red on the same test, so neither red is its own. #20's draft head was skipped,
-    # and #30's second run was cancelled while it waited.
     row(8, 201, "check", 20, "b1", 11, conclusion="failure"),
     row(9, 201, "check 1 of 8", 20, "b1", 11, wait=40, conclusion="failure", tests=[SHARED_TEST]),
     row(10, 202, "check", 20, "b9", 40, conclusion="skipped"),
@@ -1102,15 +1098,18 @@ SLICE = [
     row(15, 301, "check 1 of 8", 30, "c1", 21, wait=60, conclusion="failure", tests=[SHARED_TEST]),
     row(16, 302, "check", 30, "c2", 90, conclusion="cancelled", queued=True),
     row(17, 302, "check 1 of 8", 30, "c2", 90, conclusion="cancelled", queued=True),
-    # #40: green at its first check, after the longest waits.
     row(18, 401, "check", 40, "d1", 31),
     row(19, 401, "check 1 of 8", 40, "d1", 31, wait=1000),
     row(20, 401, "macos", 40, "d1", 31, wait=300),
-    # A push to main waits long and counts in no pull request's wait; a red check of no pull
-    # request is no pull request's red.
     row(21, 501, "check 1 of 8", None, "m1", 5, wait=5000, event="push", branch="main"),
     row(22, 601, "check", None, "e1", 100, conclusion="failure", branch="dependabot"),
 ]
+"""#10 is red at its first head for a test of its own, green at the crew's second, and green again
+at the merge of main that jmerge asked GitHub for a minute after GitHub made it. #20 and #30 are red
+on the same test, so neither red is its own; #20's draft head was skipped, and #30's second run was
+cancelled while it waited. #40 is green at its first check, after the longest waits. A push to main
+waits long and counts in no pull request's wait, and a red check of no pull request is no pull
+request's red."""
 
 
 def pull(number, opened, merged=None):

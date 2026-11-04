@@ -35,22 +35,11 @@ The nine, in order:
 9. `inode`: the peak of /tmp's inode use a job wrote with `jbus ci --notice` (`tmp_inode_pct`).
    The target is under 80 (set here). It has no value until a job writes it.
 
-The six health numbers come after the nine, as cicd-metrics-scout defined them (2026-11-04). They
-are a baseline: none is held to a target yet, so each has `met` None and none raises an alert. The
-scout's goals, for 50 pull requests opened after the verify-trust moves, are in their `target`.
-
-10. `red_share`: of the pull requests with a completed `check` job in the window, the share with a
-    red one, split by cause: `own` where a red `check`'s run attempt failed a job whose `_causes`
-    cause is `own` or `unread`, or failed no job but `check`, and `shared` where every failed job's
-    cause is `main`, `runner` or `flake`.
-11. `shas_per_pr`: the heads a check ran on over each pull request merged in the window, split into
-    `update` (GitHub's merge of main into the branch, which jmerge asked for) and `crew` (anything
-    else). The value is the crew's.
-12. `wait_p90_shard`, 13. `wait_p90_macos`: the 90th percentile of the seconds a pull request's
-    `check N of M` job, or `macos` job, waited for a runner, over the jobs that started.
-14. `open_to_merge`: the median hours from a pull request's opening to its merge, with the 90th.
-15. `first_check_own_red`: of the pull requests whose first completed `check` is in the window, the
-    share whose first check was red for a cause of its own, by `red_share`'s rule.
+The six health numbers (`HEALTH`) follow, as cicd-metrics-scout defined them on 2026-11-04:
+`red_share`, `shas_per_pr`, `wait_p90_shard`, `wait_p90_macos`, `open_to_merge` and
+`first_check_own_red`, each with its rule in its `how`. They are a baseline: none is held to a
+target yet, so each has `met` None and none raises an alert. The scout's goals, for 50 pull requests
+opened after the verify-trust moves, are in their `target`.
 """
 
 from __future__ import annotations
@@ -430,9 +419,8 @@ class Facts:
         first: dict[int, dict[str, datetime]] = defaultdict(dict)
         for run in runs.values():
             number = int(run[0]["pr"])
-            if number not in lives or not any(j["name"] == CHECK for j in run):
-                continue
-            if not any(j["conclusion"] in RAN for j in run):
+            ran = any(j["conclusion"] in RAN for j in run)
+            if number not in lives or not ran or not any(j["name"] == CHECK for j in run):
                 continue
             at, sha = min(jsettings.when(j["created"]) for j in run), run[0]["sha"]
             opened, closed = lives[number]
@@ -662,10 +650,6 @@ def inode(facts: Facts, start: datetime, end: datetime) -> Number:
     return _number("inode", peak, f"{_text(peak)}%", peak < 80, len(wrote), how, _runners(wrote))
 
 
-def _share(part: int, whole: int) -> str:
-    return f"{part / whole:.0%}"
-
-
 def red_share(facts: Facts, start: datetime, end: datetime) -> Number:
     active: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for job in facts.checks:
@@ -681,24 +665,18 @@ def red_share(facts: Facts, start: datetime, end: datetime) -> Number:
         return _number("red_share", None, "", None, 0, how)
     red = [jobs for jobs in active.values() if any(j["conclusion"] == "failure" for j in jobs)]
     own = sum(any(facts.own_red(j) for j in jobs if j["conclusion"] == "failure") for jobs in red)
-    shown = (
-        f"{_share(len(red), len(active))} ({len(red)} of {len(active)}: {own} own, "
-        f"{len(red) - own} shared)"
-    )
-    counted = [j for jobs in active.values() for j in jobs]
-    return _number(
-        "red_share", len(red) / len(active), shown, None, len(active), how, _runners(counted)
-    )
+    n, counted = len(active), [j for jobs in active.values() for j in jobs]
+    shown = f"{len(red) / n:.0%} ({len(red)} of {n}: {own} own, {len(red) - own} shared)"
+    return _number("red_share", len(red) / n, shown, None, n, how, _runners(counted))
 
 
 def shas_per_pr(facts: Facts, start: datetime, end: datetime) -> Number:
     merged = _merged(facts, start, end)
     how = (
-        "heads check.yml ran on (a run skipped whole is none) from 5 minutes before a pull "
-        "request opened to 2 minutes after it merged, over the pull requests merged in the "
-        "period. A head is an update where jmerge asked GitHub to merge main into the branch "
-        "within 10 minutes before the head's first job or 2 minutes after it; any other is the "
-        "crew's. The value is the crew's"
+        "heads check.yml ran on (a run skipped whole is none) in the life of each pull request "
+        "merged in the period, over those pull requests. A head is an update where jmerge had just "
+        "asked GitHub to merge main into the branch (`Facts.heads`), and the crew's otherwise; the "
+        "value is the crew's"
     )
     if not merged:
         return _number("shas_per_pr", None, "", None, 0, how)
@@ -759,23 +737,14 @@ def first_check_own_red(facts: Facts, start: datetime, end: datetime) -> Number:
     counted = [j for j in first.values() if _in(j["created"], start, end)]
     how = (
         "of the pull requests whose first completed `check` job was created in the period, the "
-        "share whose first check was red for a cause of its own, by red share's rule (a log not "
-        "read counts as its own)"
+        "share whose first check was red for a cause of its own, by red share's rule"
     )
     if not counted:
         return _number("first_check_own_red", None, "", None, 0, how)
-    red = [j for j in counted if j["conclusion"] == "failure"]
+    red, n = [j for j in counted if j["conclusion"] == "failure"], len(counted)
     own = sum(facts.own_red(j) for j in red)
-    shown = f"{_share(own, len(counted))} ({own} of {len(counted)} first checks, {len(red)} red)"
-    return _number(
-        "first_check_own_red",
-        own / len(counted),
-        shown,
-        None,
-        len(counted),
-        how,
-        _runners(counted),
-    )
+    shown = f"{own / n:.0%} ({own} of {n} first checks, {len(red)} red)"
+    return _number("first_check_own_red", own / n, shown, None, n, how, _runners(counted))
 
 
 ALL: tuple[Callable[[Facts, datetime, datetime], Number], ...] = (
