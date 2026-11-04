@@ -50,6 +50,8 @@ ENTRY_POINTS = "".join(
 )
 """The entry_points.txt that uv writes when it installs this checkout."""
 UNITS = [
+    "jbus-ci-day.service",
+    "jbus-ci-day.timer",
     "jbus-ci.service",
     "jbus-ci.timer",
     "jbus-failed.service",
@@ -78,7 +80,7 @@ TIMERS = [
     "jgauge-sample.timer",
     "jroles-mirror.timer",
 ]
-OPTED = ["jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
+OPTED = ["jbus-ci-day.timer", "jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
 """The units only some machines run: each is enabled once the config that asks for it is
 there, and every other timer is enabled on every machine."""
 RELAY_KEYS = (

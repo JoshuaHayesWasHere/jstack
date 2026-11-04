@@ -234,7 +234,7 @@ def test_the_owners_mac_runs_the_ci_relay_and_snapshot_agents_and_drops_one_noth
 ):
     mac.as_owner()
     setup(mac.machine())
-    opted = ["jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
+    opted = ["jbus-ci-day.timer", "jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
     assert mac.bootstraps() == wanted(mac, [*TIMERS, *opted])
     relay = plistlib.loads(mac.plist("jbus-relay.service").read_bytes())
     assert (relay["RunAtLoad"], relay["KeepAlive"]) == (True, {"SuccessfulExit": False})
@@ -287,6 +287,7 @@ SCHEDULES = {
     "jgauge-sample.timer": {"StartInterval": 15},
     "jroles-mirror.timer": {"StartInterval": 300},
     "jbus-ci.timer": {"StartCalendarInterval": [{"Weekday": 1, "Hour": 9, "Minute": 0}]},
+    "jbus-ci-day.timer": {"StartCalendarInterval": [{"Hour": 6, "Minute": 45}]},
     "jbus-snapshot.timer": {
         "StartCalendarInterval": [{"Hour": 8, "Minute": 30}, {"Hour": 17, "Minute": 30}]
     },

@@ -325,6 +325,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     names = sorted(templates(machine))
     opted = {
         "jbus-ci.timer": CiReport(jbus),
+        "jbus-ci-day.timer": CiReport(jbus),
         "jbus-relay.service": RelayKeys(relay),
         "jbus-snapshot.timer": StateRepo(state),
     }

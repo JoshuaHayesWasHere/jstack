@@ -16,14 +16,15 @@ import shlex
 import shutil
 import subprocess
 import threading
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 
+import jsettings
 from ci_replay import FOLDER, Replay
 from jbus import passes
-from jbus.ci import collect, ledger, notice, numbers, report
+from jbus.ci import collect, daily, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
 from test_jbus_kitchen import REPO as CHECKOUT
@@ -662,8 +663,8 @@ def unit(name):
     return read
 
 
-def fire(zone):
-    """The next three times `jbus-ci.timer` fires after 2026-10-18 on a machine in `zone`, in
+def fire(zone, name="jbus-ci.timer"):
+    """The next three times the timer `name` fires after 2026-10-18 on a machine in `zone`, in
     UTC, as systemd counts them."""
     asked = subprocess.run(
         [
@@ -671,7 +672,7 @@ def fire(zone):
             "calendar",
             "--base-time=2026-10-18",
             "--iterations=3",
-            unit("jbus-ci.timer")["Timer"]["OnCalendar"],
+            unit(name)["Timer"]["OnCalendar"],
         ],
         capture_output=True,
         text=True,
@@ -1218,3 +1219,59 @@ def test_the_report_counts_the_health_numbers_by_day_of_the_users_zone(sliced):
         ["| 2026-11-03", "no data"],
         ["| 2026-11-04", "75% (3 of 4: 1 own, 2 shared)"],
     ]
+
+
+def test_a_day_is_a_local_day_from_midnight_to_midnight_in_the_machines_zone(monkeypatch):
+    """With no zone set, the day is the machine's: in New York, 2026-11-01 has 25 hours."""
+    monkeypatch.setenv("TZ", "America/New_York")
+    import time as clock
+
+    clock.tzset()
+    try:
+        days = daily.days(jsettings.Settings(), date(2026, 10, 31), date(2026, 11, 2))
+    finally:
+        monkeypatch.undo()
+        clock.tzset()
+    hours = [(end - start) / timedelta(hours=1) for _, start, end in days]
+    assert hours == [24, 25, 24]
+    assert days[0][1] == datetime(2026, 10, 31, 4, tzinfo=UTC)
+
+
+def test_a_days_main_red_spell_runs_from_a_failed_runs_creation_to_the_next_successs_update():
+    def one(conclusion, created, updated, status="completed"):
+        return {
+            "conclusion": conclusion,
+            "status": status,
+            "createdAt": created,
+            "updatedAt": updated,
+            "headSha": "a" * 40,
+        }
+
+    runs = [
+        one("success", "2026-11-03T03:00:00Z", "2026-11-03T03:10:00Z"),
+        one("failure", "2026-11-03T04:30:00Z", "2026-11-03T04:40:00Z"),
+        one("failure", "2026-11-03T04:45:00Z", "2026-11-03T04:55:00Z"),
+        one("cancelled", "2026-11-03T04:50:00Z", "2026-11-03T04:51:00Z"),
+        one("", "2026-11-03T04:52:00Z", "2026-11-03T04:52:00Z", status="in_progress"),
+        one("success", "2026-11-03T05:10:00Z", "2026-11-03T05:30:00Z"),
+        one("failure", "2026-11-03T06:00:00Z", "2026-11-03T06:10:00Z"),
+    ]
+    end = datetime(2026, 11, 3, 6, 30, tzinfo=UTC)
+    assert daily.spells(runs, end) == [
+        (datetime(2026, 11, 3, 4, 30, tzinfo=UTC), datetime(2026, 11, 3, 5, 30, tzinfo=UTC)),
+        (datetime(2026, 11, 3, 6, 0, tzinfo=UTC), end),
+    ]
+    user = jsettings.Settings(zone=ZoneInfo("America/New_York"))
+    (_, first, last), (_, second, third) = daily.days(user, date(2026, 11, 2), date(2026, 11, 3))
+    spells = daily.spells(runs, end)
+    assert daily.red_minutes(spells, first, last) == 30
+    assert daily.red_minutes(spells, second, third) == 30 + 30
+
+
+def test_a_days_red_share_is_the_prs_with_a_red_check_over_the_prs_with_a_check_run(sliced):
+    """#10, #20 and #30 had a red `check`, #40 a green one: 3 of 4. #20's draft head, whose
+    `check` was skipped, ran no check, and #30's check cancelled while it waited is none either:
+    neither adds a pull request. A red check of no pull request (dependabot's) is none."""
+    one = next(m for m in daily.MEASURES if m.key == "red_share")
+    cell = one.read(daily.Ledger(sliced, None, ""), SLICE_START - timedelta(hours=1), SLICE_NOW)
+    assert (cell.value, cell.n) == (0.75, 4)
