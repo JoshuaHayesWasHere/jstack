@@ -67,8 +67,9 @@ check: lint test
 # The check of a change: prose_lint.py on the prose lines the diff from BASE adds, the lint, and the
 # files select_tests.py names for the diff, one a line, which the unquoted `echo` puts on one; or
 # `make check` where it says `all`. CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge.
-# A desk runs it in two parts (features/crew/do-the-task.md): `PART=guards`, the lint and the
-# guard tests, which must pass, then `PART=rest`, the other tests the selection names and no lint.
+# A desk runs `PART=guards` alone (features/crew/do-the-task.md): the lint and the guard tests,
+# which must pass, while CI's check runs the rest. `PART=rest`, the other tests the selection
+# names and no lint, stays for a run by hand.
 # PART stays out of the environment, as TESTS does, so a make that a guard test runs is whole.
 unexport PART
 .PHONY: check-fast
