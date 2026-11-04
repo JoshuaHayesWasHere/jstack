@@ -207,7 +207,21 @@ class Repo:
         return self.numbers_on.get(base)
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
+        """The open pull requests in merge order: each revert jbus opened for a red main
+        (`jmerge.reverts`) first, then the rest by number, those that add migrations in the
+        queue's declared order among the places they hold. A revert branches from main's tip, so
+        by number it would come last, and wait a turn behind every pull request main moved past
+        on a red main (#862 holds none of them)."""
         listed = sorted(listed, key=lambda one: one.number)
+        first = [one for one in listed if self.is_revert(one)]
+        rest = [one for one in listed if not self.is_revert(one)]
+        return first + self.migrations_in_order(rest)
+
+    def is_revert(self, one: ready.PullRequest) -> bool:
+        """Whether `jmerge.reverts` names the pull request as a revert jbus opened."""
+        return any(revert.pull == one.url for revert in self.reverts.values())
+
+    def migrations_in_order(self, listed: list[ready.PullRequest]) -> list[ready.PullRequest]:
         settings = self.migrations
         mine = {
             one.number: one
@@ -695,7 +709,13 @@ class Repo:
         the line (`self.line`) until then. Green, red and unrun alike take their place in one
         line, in merge order, so each merge costs one CI round: #1009's probe, with one green
         pull request in line and two red ones, asked GitHub to update all three each time main
-        moved."""
+        moved. A revert jbus opened (`is_revert`) takes the line from a pull request that is not
+        one, which then waits behind it with its record kept (`rejudge.BaseMerge.release`): on a
+        red main the revert is the merge that turns it green."""
+        holder = next((other for other in self.open if other.number == self.line), None)
+        if holder and holder is not one and self.is_revert(one) and not self.is_revert(holder):
+            self.base_merge.release(holder.number)
+            self.line = None
         if self.line not in (None, one.number):
             return ready.IN_LINE.format(number=self.line, base=one.base)
         said = self.base_merge.of(one, tip, asked, due, line=True)
@@ -736,7 +756,7 @@ class Repo:
     def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
         if one.number == self.line and not in_line(one, found):
-            self.base_merge.release(one)
+            self.base_merge.release(one.number)
             self.line = None
         rebasing = found.verb == "wait" and not one.draft and ready.being_rebased(found.why)
         if one.number in self.order and rebasing:

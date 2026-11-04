@@ -13,6 +13,7 @@ from pathlib import Path
 from jbriefs import asks, below, findings, skills, standing
 from jbriefs.meets import done_when
 from jbriefs.proof import Proof, proof
+from jbriefs.runnable import runnable
 from jsettings.brief import head as head
 
 NO_RESULT = "no result yet"
@@ -315,7 +316,15 @@ def proven(text: str) -> str:
     line is missing.
     """
     found = proves_it(text)
-    return found.why if found else ""
+    return found.why if found and not found.was else ""
+
+
+def proof_runs(text: str) -> str:
+    """Why a brief's `Proves it:` line names only what proof.py once took as a proof and no
+    longer does, as one line (`Proof.was`): CI, the user with no `judged: <why>`, or a test by
+    the word alone. It is an empty string for any other line, which `proven` judges."""
+    found = proves_it(text)
+    return found.why if found and found.was else ""
 
 
 _SLOT = re.compile(r"^jgauge\s+test-slot\s+--\s+")
@@ -579,8 +588,9 @@ def warnings(text: str, fresh_check: str) -> list[str]:
     """What `jbus queue add` and `jbus queue check` warn of in a brief they still queue, one
     line each: a check line that asks for the wrong command (`check_asked`), and `Review: none`
     on a brief whose pull request opens, which no reviewer reads and `jmerge` leaves to wait for
-    the user's word (`crew/the-review.md`)."""
-    found = [check_asked(text, fresh_check)]
+    the user's word (`crew/the-review.md`). Each check of `WARNED` warns here too, in place of the
+    fault `faults` would give."""
+    found = [check_asked(text, fresh_check), *(check(text) for check in WARNED)]
     opens = head(text, "Pull request:") == "open one when done"
     if opens and head(text, "Review:") == findings.NONE:
         found.append(
@@ -593,7 +603,9 @@ def warnings(text: str, fresh_check: str) -> list[str]:
 CHECKS = (
     ("Task", tasked),
     ("Design", designed),
+    ("Done when", runnable),
     ("Proves it", proven),
+    ("Proves it", proof_runs),
     ("Skills", skills.unknown),
     ("Size", sized),
     ("Review", reviewed),
@@ -603,6 +615,10 @@ CHECKS = (
     ("Builds on", lambda text: standing.layered(fields(text))),
     ("Load", lambda text: standing.load(one for one in fields(text) if one[0] != REST)),
 )
+WARNED = (runnable, proof_runs)
+"""The checks of `CHECKS` that warn first: `jbus queue add` queues a brief they find at fault,
+and prints the fault as a warning (`warnings`). A check taken out of `WARNED` refuses the brief
+as the other checks do, and a row already approved keeps its go all the same (`jbus.queue`)."""
 _SAYS_MISSING = ("Design", "Size", "Skills", "Instruments", "Builds on", "Load")
 
 
@@ -610,7 +626,8 @@ def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
-    filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills`, `Instruments`, `Builds on` and
+    filled field (`CHECKS`), the first fault of a field the one it gives, but a check of `WARNED`,
+    which only warns. It leaves `Design`, `Size`, `Skills`, `Instruments`, `Builds on` and
     `Load` to their own checks. `Size`'s reports a missing line, while a brief with no `Design:` or
     `Skills:` line needs no design and names no skill, as `none` would say, `Instruments:` is
     needed only for the deeper work (`instrumented`), and `Builds on` and `Load` need no line. A
@@ -618,12 +635,12 @@ def faults(text: str) -> list[str]:
     again at a launch, so a brief that already has a go launches without being checked again
     (`jbus.queue`).
     """
-    checks = dict(CHECKS)
+    labels = dict.fromkeys((*REQUIRED, *(label for label, _ in CHECKS)))
     found = []
-    for label in (*REQUIRED, *(label for label in checks if label not in REQUIRED)):
+    for label in labels:
         fault = "" if label in _SAYS_MISSING else _filled(text, label)
-        if not fault and label in checks:
-            fault = checks[label](text)
+        checks = (check for name, check in CHECKS if name == label and check not in WARNED)
+        fault = fault or next((said for check in checks if (said := check(text))), "")
         if fault:
             found.append(fault)
     return found
