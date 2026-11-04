@@ -149,7 +149,12 @@
 
   `jmerge` waits on a `none` line where the pull request changes a test or a file of no kind the line names.
   A change to code is none of these: it adds or changes a test that fails without it.
-- If the brief says to open a pull request, open it once the checks pass and the first-push block below has pushed the branch, on the base this prints. Do not merge. What follows it is under "Stay on the pull request". The base is the home's to give, never yours to choose. Run this in this worktree, with the block at the top. It is the only check:
+- If the brief says to open a pull request, open it once the checks pass and the first-push block below has pushed the branch, on the base this prints.
+  Do not merge.
+  What follows it is under "Stay on the pull request".
+  The base is the home's to give, never yours to choose.
+  Run this in this worktree, with the block at the top.
+  It is the only check:
 
   ```sh
   B="$H/tasks/<slug>.md"
