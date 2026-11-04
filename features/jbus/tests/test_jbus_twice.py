@@ -1,6 +1,7 @@
 """A row whose required check fails at two heads is held, and the Chef is paged once
 (`jbus.stall.twice`). Its crew is then told nothing more, at the second head or a third, until the
-row is approved again. A head whose check ran on main's red tip is not counted.
+row is approved again. A head whose check ran on main's red tip is not counted, and one GitHub
+gives no compare for, against that tip, is judged again on a later pass.
 
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
@@ -97,3 +98,19 @@ def test_an_approve_lifts_the_hold_and_the_count_starts_again(launched):
     red_at(launched, D, "14")
     passes(launched, 12)
     assert "failed|alpha|dddddddddddd" not in told(launched)
+
+
+def test_a_head_github_gives_no_compare_for_is_judged_again_on_a_later_pass(launched):
+    record = {"main": RED, "at": "2026-10-12T14:00:00+00:00", "check": "failed", "broken": RED}
+    (launched.state / "main.json").write_text(json.dumps(record))
+    launched.set("compare.json", {f"{RED}...{A}": {}})
+    red_at(launched, A, "11")
+    passes(launched, 0)
+    kept = json.loads((launched.state / "fails.json").read_text())["alpha"]
+    assert (kept["heads"], kept["red"]) == ({}, [])
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
+
+    launched.set("compare.json", {f"{RED}...{A}": {"status": "ahead"}})
+    passes(launched, 3)
+    assert json.loads((launched.state / "fails.json").read_text())["alpha"]["red"] == [A]
