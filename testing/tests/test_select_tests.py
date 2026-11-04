@@ -1724,11 +1724,13 @@ SMALL = {
 
 
 def outputs(repo, head, tmp_path):
-    """What the selection printed, its summary line, and what it gave the step's outputs."""
-    file, output = tmp_path / "summary.md", tmp_path / "output"
+    """What the selection printed, its summary line, and what it gave the step's outputs. The
+    file `$SELECTED` names, the list the check keeps as an artifact, holds what it printed."""
+    file, output, kept = tmp_path / "summary.md", tmp_path / "output", tmp_path / "selected.txt"
     env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file), "GITHUB_OUTPUT": str(output)}
-    ran = repo.run(repo.base, head, env=env)
+    ran = repo.run(repo.base, head, env=env | {"SELECTED": str(kept)})
     assert ran.returncode == 0, ran.stderr
+    assert kept.read_text() == ran.stdout
     given = dict(line.split("=", 1) for line in output.read_text().splitlines())
     return ran.stdout.splitlines(), SUMMARY.fullmatch(file.read_text().strip()), given
 
@@ -1749,7 +1751,7 @@ def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_pa
         "testing/tests/test_tree.py",
     ]
     assert (line["selection"], line["files"], line["of"], line["forced"]) == ("some", "5", "5", "-")
-    assert given == {"selection": "some"}
+    assert given == {"selection": "some", "files": "5", "forced_by": ""}
 
 
 def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
@@ -1764,7 +1766,7 @@ def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
         "testing/tests/test_tree.py",
     ]
     assert (line["selection"], line["files"], line["forced"]) == ("some", "3", "-")
-    assert given == {"selection": "some"}
+    assert given == {"selection": "some", "files": "3", "forced_by": ""}
 
 
 @pytest.mark.parametrize("path", ["pyproject.toml", "conftest.py"])
@@ -1774,7 +1776,8 @@ def test_a_path_every_test_rests_on_still_runs_all_however_few_tests_there_are(t
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert (printed, line["forced"], given) == (["all"], path, {"selection": "all"})
+    assert (printed, line["forced"]) == (["all"], path)
+    assert given == {"selection": "all", "files": "all", "forced_by": path}
 
 
 def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
@@ -1782,7 +1785,8 @@ def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert (printed, line["forced"], given) == (["all"], "pyproject.toml", {"selection": "all"})
+    assert (printed, line["forced"]) == (["all"], "pyproject.toml")
+    assert given == {"selection": "all", "files": "all", "forced_by": "pyproject.toml"}
 
 
 def timed(seconds):
@@ -1844,6 +1848,8 @@ def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
     assert ran.returncode == 0, ran.stderr
     assert given == {
         "selection": "some",
+        "files": "3",
+        "forced_by": "",
         "part1": "testing/tests/test_slow.py",
         "part2": "testing/tests/test_two.py",
         "part3": "testing/tests/test_tree.py",
@@ -1864,6 +1870,8 @@ def test_every_selected_file_is_in_exactly_one_part(tmp_path):
     assert ran.returncode == 0, ran.stderr
     assert given == {
         "selection": "some",
+        "files": "3",
+        "forced_by": "",
         "part1": "testing/tests/test_slow.py",
         "part2": "testing/tests/test_tree.py testing/tests/test_two.py",
     }

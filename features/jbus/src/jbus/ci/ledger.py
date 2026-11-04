@@ -13,10 +13,11 @@ GitHub did not give the log), `signs`, the runner faults that log shows, and `lo
 collector read its log.
 
 Each lever's telemetry is a field of the same line, `None` where the run did not give it:
-`full` and `tree` (one suite per tree), `selection` (`all` or how many files) and `reason`
-(the test map), `slowest_s` and `tail_s` (the slow tail), `cpu_pressure`, `cgroup_pressure`
-and `workers` (the CPU), and `tmp_inode_pct`. A job writes these with `jbus ci --notice`; see
-`jbus.ci.notice`.
+`full` and `tree` (one suite per tree), `selection` (`all` or how many test files a pull
+request's check selected) and `reason` (the path that made it `all`, the test map), `slowest_s`
+and `tail_s` (the slow tail), `cpu_pressure`, `cgroup_pressure` and `workers` (the CPU), and
+`tmp_inode_pct`. A job writes these with `jbus ci --notice`; see `jbus.ci.notice`. The check
+keeps the list of test files it selected as the run's artifact `selected-tests-<attempt>`.
 
 `ci-prs.jsonl` has one line per pull request, and a collect that finds one changed rewrites the
 file: `number`, `branch`, `head`, `created`, `updated` (GitHub's last update of it, which a line
