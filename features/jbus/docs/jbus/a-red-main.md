@@ -12,7 +12,8 @@ A crew launched onto a red main finds its check failed on main's break, and seve
 Once the tip is red after its one rerun, jbus reverts its one clear culprit, or files a brief for the fix.
 
 One module judges whether main's tip is red: `mainmoved` writes `checks.json`, the answer GitHub gave for each commit of main, and `main.json`, the red tip and the green one (`features/jbus/src/jbus/mainmoved.py`).
-It runs in every pass whose GitHub budget is above jbus's floor, with T3 Code or without, so `main.json` reads green at the tip that ended a red even while T3 Code cannot be reached, and the crews are told once it can.
+It runs in every pass whose GitHub budget is above jbus's floor, with T3 Code or without, so `main.json` reads green at the tip that ended a red even while T3 Code cannot be reached.
+It tells no crew that main is green again: once `main.json` reads green, `jmerge` asks GitHub to merge main into each pull request whose check failed before main moved (`Repo.again`), and the check at that new head decides.
 The `retro` lines, the revert and the fix's brief come after it in the pass, and read main's tip as `main.json` keeps it, so every reader gives one verdict for one tip.
 
 ## The revert
@@ -83,14 +84,14 @@ jbus reads a slug that starts `main-red-` as the fix of a red main, so do not gi
 ## `main.json`
 
 The one record of a red main is `main.json` beside the queue.
-The pass that tells a red pull request that main is green again writes it (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately.
+`mainmoved` writes it each pass (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately.
 
 | Field | Holds |
 |---|---|
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
 | `failed` | The tests that failed at `broken`, read once from the red run's logs. jbus reads them to tell a flake from a culprit's own red. |
-| `fixed` | The green tip, written by a pass that still owes a crew its message and keeps the old commit to look at again. Main reads as green from that pass on. |
+| `fixed` | The green tip, in a record an older pass wrote while it still owed a crew a message. Main reads as green there, and the next pass writes no `fixed`. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.
 `jmerge` reads the file to ask for no merge of a red main into a red pull request ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).

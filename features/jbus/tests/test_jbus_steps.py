@@ -167,7 +167,7 @@ BEFORE = {
         [
             ("result", "result alpha: done"),
             ("review", "review alpha: findings"),
-            ("mainmoved", "mainmoved alpha: told the crew (#7, main <head>)"),
+            ("failed", "failed alpha: told the crew (#7, <head>)"),
             ("queue", "queue demo: the table changed"),
         ],
     ),
@@ -326,7 +326,7 @@ Code, where `mainmoved.tell` still judges main and `children.watch` does not run
 
 
 HELD = {
-    "main moved": ("mainmoved.tell", 1, 2),
+    "main moved": ("remarks.tell", 1, 2),
     "stale": ("rebase.tell", 1, 2),
 }
 """Where the outbox's `held` rule, added since, reads the table: once for each rebase or fix

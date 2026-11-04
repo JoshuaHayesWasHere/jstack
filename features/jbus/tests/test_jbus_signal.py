@@ -223,9 +223,8 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("record.py", "'heartbeat'")] == {"heartbeat"}
     assert sent[("item.py", "kind(verb)")] == set()
     every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}
-    every.add(mainmoved.ASK.kind)
+    every |= set(mainmoved.EVENTS)
     every.add("hook")
-    assert mainmoved.ASK.kind in wake.LOUDNESS
     assert unknown(SRC) == {"word"}
     assert set(wake.LOUDNESS) - every == set()
 

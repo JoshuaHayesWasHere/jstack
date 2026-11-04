@@ -1,20 +1,15 @@
-"""`tell` tells a crew that main was fixed, a wake that a red pull request never gets by itself.
-
-A pull request that is red because main was broken has no review. `jmerge` says only that the
-pull request has none, and `rebase.tell` finds nothing in it to act on. The pull request's crew
-has ended its turn, and a fix to main wakes nobody.
-
-`tell` records the default branch's commit from pass to pass. When main goes from red to
-green, it sends one message to the crew of each open pull request into main that is red, but
-a stacked link still on its base's branch, whose move is `stack`'s to tell. A pull request into
-any other base, such as a merge base its project names, gets none: main's commits are not its
-base's, and a rebase onto main would carry them into it. When main
-moves while green, a branch has no reason to move.
+"""`tell` judges main's tips pass by pass and keeps the verdict in `main.json`, the one record of
+a red main. It sends no crew a message: a pull request into main whose check failed while main
+was red is judged again by `jmerge` once main is green. `jmerge.cli.Repo.again` reads the
+record, and while it names a red tip asks for no merge of main into a red pull request; once
+it reads green, GitHub merges main into the pull request, and the check at that new head
+decides. `rebase.github` tells the crew of that head's own failure, once per head.
 
 `main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for a launch
 and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip follows it. So
 `tell` loses no tip whose check had not ended when the tip landed, and no second red tip
-either. It keeps the last tip whose check passed as `green`.
+either. It keeps the last tip whose check passed as `green`. It runs in every pass whose
+GitHub budget is above jbus's floor, with T3 Code or without (`jbus.budget`).
 
 `tell` keeps beside `broken` the tests that failed there, as `failed_at` reads them from the red
 run's logs once for each red tip: `jbus.reverts` reads them to tell a flake from a culprit's own
@@ -24,45 +19,19 @@ red.
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
 newer tip on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks
 at that tip again until the check of a later tip ends. A tip's check is main's own, and
-`tell` reads it through `main_check`. Each pass asks again about a failed check at main's
-tip, or at the red tip kept as `broken`: a rerun that passes on that same commit ends the
-red there.
+`tell` reads it through `main_check`, whose answers `checks.json` keeps. Each pass asks again
+about a failed check at main's tip, or at the red tip kept as `broken`: a rerun that passes on
+that same commit ends the red there. `tell` asks the remote for main's commit on each pass,
+since no step of a pass is sure to fetch.
 
 A failed check at main's tip is not red at once: `main_check` reruns its failed push run once
 (`watch._check`), and the tip is `pending` until the rerun ends. A pass on the rerun leaves the
 tip green, with no `broken` kept and no fix row filed. A second failure, or a run rerun once
 already, by jbus or by hand, is red as before.
 
-`tell` does not tell a crew of a conflict. Only a push ends a conflict, and `rebase.github`
-tells the crew about a conflict once per head. `tell` asks the remote for main's commit on
-each pass, since no step of a pass is sure to fetch. A pull request's check state is GitHub's own.
-`tell` reads it in the pass's list of open pull requests.
-
-The message names the green tip that ended the red. The message's key,
-`mainmoved|<slug>|#<number>|<that tip 12>`, is both its retry key at T3 Code and its mark in
-`sent.json`. `tell` advances the commit in `main.json` only when it owes no send, so a pass
-that got no answer looks again. With the mark, no pass sends the same message twice.
-A pass that still owes a send writes only `fixed`, the green tip. `jmerge.mainjson` then
-reads main as green. The record still keeps the old commit, so the next pass looks at it
-again. The next pass takes the red as ended at that tip, whatever tip main is at by then. A
-pass does the same when the rebase message went to a red head and GitHub has not yet said
-whether that head still conflicts.
-
-`rebase.held` holds back a message the outbox holds (`jbus.outbox`) or whose head moved. A held
-message delays no other message: a turn may last long, and a pull request that turns red meanwhile
-was not red when main moved. `tell` puts the held message's slug on `held` in `main.json`,
-beside the commit, the red tip and the green tip that ended the red (`broken` and
-`fixed`). Each pass looks at those slugs again, and at no others, until main moves again.
-
-jbus tells a crew about a head once, here or in `rebase.tell`. `tell` skips a red head that is
-also in conflict and was already told (`rebase.rebased_or_moved`). It marks a head it tells with
-`moved|<slug>|<head 12>`, a kind of its own and not `rebase|`: this message is no rebase jbus
-asked for, so the pull request keeps its one rebase (`rebase.SECOND`). The rebase message marks
-this module's key for the commit main is at.
-`tell` also marks with `failed|<slug>|<head 12>` each head it tells, and each head whose
-message T3 Code refused and jbus then sent to a gate instead. This message says what to do about the
-failed check, so `rebase.github` does not say it again. It writes no `failure|` key beside it, since
-it told no failure: a merge of main onto that head is told by `rebase.github` as a new head.
+A record that an older `tell` wrote may still hold `fixed`, the green tip it owed a crew a
+message for, or `held`, the slugs whose message was kept back. `tell` reads `fixed` as the end
+of the red, and writes neither key again.
 
 A tip whose check started no job (`watch.NO_JOB`, a spent Actions limit or a failed payment) is
 neither red nor green: no code was judged, so it changes neither `broken` nor `green`, and
@@ -74,20 +43,15 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 
 from __future__ import annotations
 
-from jbriefs.home import thread_of
-from jbus import Refused, dispatch, questions, read_json, rebase, verbs, watch, write_json
+from jbus import Refused, questions, read_json, verbs, watch, write_json
 from jbus.passes import Pass
-from jbus.t3 import Client
-from jbus.watch import NO_JOB, NOT_RED, World, _api, _check, _judged, _log_failed, checks
+from jbus.watch import NO_JOB, NOT_RED, _api, _check, _judged, _log_failed
 from jmerge import mainjson
-from jmerge import stacked as stacks
 from jmerge.mainjson import SETTLED
 
 EVENTS = {"mainmoved": "quiet"}
-RED = "red: checks failed"
-NO_THREAD = "red pull request with no thread to tell"
-REFUSED = "T3 Code refused the main-moved message"
-MERGEABLE_UNKNOWN, MERGEABLE_CONFLICTING = "UNKNOWN", "CONFLICTING"
+"""No pass sends this kind now. The event log keeps the ones sent before, and `jbus.ci.numbers`
+and the view still read them by it."""
 WAITING = 10
 CHECKS = "checks.json"
 ACCOUNT, ACCOUNT_FILE = "ci-account", "account.json"
@@ -110,19 +74,6 @@ DECISION = "\n".join(
         "Option: put it right now: pay or raise the limit on GitHub, then re-run the failed jobs "
         "at {sha}; this question closes when they pass",
     )
-)
-MESSAGE = (
-    "jbus: main is green again at {main} while your pull request #{number} is {why}. If main "
-    "was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
-    'refs/jstack/pre-rebase/{slug}/{short} {head}`, rebase onto origin/{default} as "A '
-    'conflict" says, rerun the tests your change touches plus the ones that failed, and push '
-    "with `git push --force-with-lease=refs/heads/{slug}:{head} origin "
-    "HEAD:refs/heads/{slug}`. Then carry on your flow: launch its reviewer on that push if it "
-    'has none, without waiting for green ("The review"), and handle the rest as "Stay on the '
-    'pull request" says.'
-)
-ASK = rebase.Ask(
-    "mainmoved", "told the crew", "told that main moved", MESSAGE, refused=REFUSED, closes=True
 )
 
 
@@ -202,16 +153,10 @@ def account(run: Pass, unrun: str, passed: str) -> None:
         run.condition(ACCOUNT, f"the decision about CI that starts no job was not kept: {refused}")
 
 
-def tell(run: Pass, client: Client | None, world: World | None) -> None:
-    """Send the crew of a red pull request one message when main goes from red to green: the
-    commit that fixed main may fix the pull request too.
-
-    It tells only the crew of a pull request open under a slug jbus launched. Whoever works
-    on any other pull request is not jbus's crew. A pass with no T3 Code (`client` or `world`
-    is None) still judges main's tips: it owes every message, so `main.json` reads green at
-    the tip that ended the red, and a later pass with T3 Code tells the crews. A pass whose
-    GitHub budget is at jbus's floor, or not known, runs no `tell` (`jbus.budget`).
-    """
+def tell(run: Pass) -> None:
+    """Judge each tip main went through since the last pass, and write `main.json` with the
+    verdict. A pass whose GitHub budget is at jbus's floor, or not known, runs no `tell`
+    (`jbus.budget`)."""
     asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     default = asked.stdout.strip().removeprefix("origin/")
     if not default:
@@ -220,14 +165,11 @@ def tell(run: Pass, client: Client | None, world: World | None) -> None:
     main = (asked.stdout.split() or [""])[0]
     if asked.returncode != 0 or not main:
         return
-    path = run.state / mainjson.NAME
     was = mainjson.load(run.state) or {}
-    last, kept, broken = was.get("main"), was.get("held", []), was.get("broken", "")
-    asked_before = main == last and was.get("check") == "green"
-    if asked_before and not kept:
+    last, broken = was.get("main"), was.get("broken", "")
+    if main == last and was.get("check") == "green":
         return
-    red, owed_at = broken, was.get("fixed", "")
-    if owed_at or was.get("check") == "green":
+    if was.get("fixed") or was.get("check") == "green":
         broken = ""
     green, check, waiting, stands, unrun = "", "", [], broken, ""
     for tip in dict.fromkeys(
@@ -247,73 +189,17 @@ def tell(run: Pass, client: Client | None, world: World | None) -> None:
         elif check == NO_JOB:
             unrun = tip
     account(run, unrun, green)
-    fixed = (green or owed_at) if red and not broken else ""
-    blind = client is None or world is None
-    owed, held = bool(last and fixed and blind), []
-    sent = run.box.sent()
-    for slug, pull in world.open.items() if last and fixed and not blind else ():
-        if asked_before and slug not in kept:
-            continue
-        why = RED if checks(pull) == "failed" else ""
-        head, number = pull.get("headRefOid", ""), pull["number"]
-        key = rebase.mark("mainmoved", slug, f"#{number}", fixed[:12])
-        if not head or not dispatch.launched(run, slug):
-            continue
-        mergeable = pull.get("mergeable")
-        if not why or pull.get("baseRefName") not in (None, "", default):
-            continue
-        if key in sent:
-            continue
-        if rebase.rebased_or_moved(sent, slug, head):
-            if mergeable == MERGEABLE_UNKNOWN:
-                owed = True
-                continue
-            if mergeable == MERGEABLE_CONFLICTING:
-                continue
-        if stacks.unmoved(watch.task_brief(run, slug)):
-            continue
-        thread = thread_of(run.home, slug)
-        if not thread:
-            run.gate(slug, NO_THREAD, f"#{number}: {why}", key=f"{NO_THREAD} {fixed[:12]}")
-            continue
-        if rebase.held(run, client, thread, slug, number, head, key, "mainmoved"):
-            held.append(slug)
-            continue
-        message = MESSAGE.format(
-            main=fixed[:12],
-            number=number,
-            why=why,
-            slug=slug,
-            short=head[:12],
-            head=head,
-            default=default,
-        )
-        line = f"mainmoved {slug}: told the crew (#{number}, main {fixed[:12]})"
-        told = (line, f"#{number} {fixed[:12]}")
-        went = rebase.once(run, client, ASK, key, thread, slug, message, at=fixed[:12], told=told)
-        owed = owed or went == rebase.OWED
-        if went == rebase.SENT:
-            run.box.mark(rebase.mark(rebase.MOVED, slug, head))
-        if went in (rebase.SENT, rebase.REFUSED_SEND):
-            run.box.mark(rebase.mark("failed", slug, head))
-    if not owed:
-        at = (was.get("at") if main == last else "") or run.now.isoformat()
-        kept_red = broken or (red if held else "")
-        failed = was.get("failed") if kept_red == was.get("broken") else None
-        record = mainjson.record(
-            main=main,
-            at=at,
-            check=check,
-            broken=kept_red,
-            failed=failed if failed is not None or not kept_red else failed_at(run, kept_red),
-            fixed="" if broken or not held else fixed,
-            pending=waiting[-WAITING:],
-            green=green or mainjson.of(was).green,
-            held=held,
-        )
-        write_json(path, record)
-    else:
-        write_json(path, mainjson.owed(was, fixed))
+    failed = was.get("failed") if broken == was.get("broken") else None
+    record = mainjson.record(
+        main=main,
+        at=(was.get("at") if main == last else "") or run.now.isoformat(),
+        check=check,
+        broken=broken,
+        failed=failed if failed is not None or not broken else failed_at(run, broken),
+        pending=waiting[-WAITING:],
+        green=green or mainjson.of(was).green,
+    )
+    write_json(run.state / mainjson.NAME, record)
 
 
 STEPS = (
@@ -321,7 +207,7 @@ STEPS = (
         "after-expedite",
         10,
         "mainmoved.tell",
-        lambda half: tell(half.run, half.client, half.seen.world),
+        lambda half: tell(half.run),
         ("budget",),
     ),
     verbs.Step(

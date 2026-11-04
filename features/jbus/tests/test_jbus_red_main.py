@@ -25,7 +25,7 @@ from jbus.dispatch import fixes_main
 from jmerge import mainjson
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, RESULT, approved, complete, filed_as, go, iso, queued
-from test_jbus_main_moved import checks, move, pull, tip
+from test_jbus_main_moved import checks, move, tip
 from test_jbus_queue import brief
 from test_jbus_queue import go as queue_go
 from test_jbus_watch import main_of, main_red, reverted_before
@@ -330,20 +330,25 @@ def test_a_red_tip_whose_part_failed_with_no_test_named_keeps_no_failed_test(kit
 crews = test_jbus_main_moved.launched
 
 
-def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews):
-    """jbus still owes its message to a red crew whose head GitHub has not judged yet, so `tell`
-    keeps the old commit to look at again. Even so, on that pass `jmerge` no longer reads main as
-    red."""
+def test_a_record_an_older_pass_left_owing_a_message_reads_green_and_is_written_without_it(
+    crews,
+):
+    """An older `tell` that still owed a crew its message kept the old commit and added `fixed`,
+    the green tip. `jmerge` reads that record as green, and the next pass ends the red there and
+    writes no `fixed`, since it owes nothing."""
     red = tip(crews)
-    crews.set("open.json", [pull(crews, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
-    crews.box = jbus.wake.Box(crews.state, jbus.load().projects[0])
-    crews.box.mark("rebase|alpha|cccccccccccc")
     green = move(crews)
+    owed = {**mainjson.record(main=red, at=iso(NOW), check="failed", broken=red), "fixed": green}
+    (crews.state / mainjson.NAME).write_text(json.dumps(owed))
+    assert kept(crews) == mainjson.Main(green=green)
     crews.poll()
     record = json.loads((crews.state / "main.json").read_text())
-    assert (record["main"], record["broken"], record["fixed"]) == (red, red, green)
+    assert {key: value for key, value in record.items() if key != "at"} == {
+        "main": green,
+        "check": "green",
+        "green": green,
+    }
     assert kept(crews) == mainjson.Main(green=green)
-    assert mainjson.read(crews.state).red == ""
 
 
 def test_a_record_from_before_broken_was_kept_names_its_failed_tip_as_red():
