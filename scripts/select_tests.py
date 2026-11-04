@@ -114,8 +114,11 @@ sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 `select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
 it, the files the rules reached through imports, names and features alone. Each prints `all`
-where the selection is `all`. A desk runs the guards first, as a step that must pass, since a
-cheap guard mixed into a selection that runs past the short lane's limit reaches no verdict.
+where the selection is `all`. `--part desk` prints both from one selection, each file after the
+name of its part, `guards <file>` or `rest <file>`, the guards first, and `all` alone where the
+selection is `all`: the desk's check block selects once so. A desk runs the guards first, as a
+step that must pass, since a cheap guard mixed into a selection that runs past the short lane's
+limit reaches no verdict.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -1114,7 +1117,7 @@ def selection(changed, failed=()):
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
-DESK_PARTS = ("guards", "rest")
+DESK_PARTS = ("guards", "rest", "desk")
 
 
 def guards(changed, tests):
@@ -1126,11 +1129,15 @@ def guards(changed, tests):
 
 
 def desk_part(name, changed, tests):
-    """The `guards` or the `rest` of a selection's `tests`."""
+    """The `guards` or the `rest` of a selection's `tests`, or for `desk` both, each file after
+    the name of its part."""
     first = guards(changed, tests)
     if name == "guards" or tests == ["all"]:
         return first
-    return sorted(set(tests) - set(first))
+    rest = sorted(set(tests) - set(first))
+    if name == "rest":
+        return rest
+    return [f"guards {one}" for one in first] + [f"rest {one}" for one in rest]
 
 
 def ask(path, gone=None, **query):
@@ -1417,7 +1424,7 @@ def main(argv):
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> | --parts <n>] <base> <head>\n"
-            "       select_tests.py --part guards|rest <base> <head>\n"
+            "       select_tests.py --part guards|rest|desk <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(

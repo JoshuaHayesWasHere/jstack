@@ -24,12 +24,13 @@
       if ! base=$(git merge-base "$on" HEAD); then
           echo "no check: the branch shares no commit with $on"
           false
-      elif ! guards=$(python3 scripts/select_tests.py --part guards "$base" HEAD) ||
-          ! rest=$(python3 scripts/select_tests.py --part rest "$base" HEAD); then
+      elif ! parts=$(python3 scripts/select_tests.py --part desk "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not select the tests"
           false
-      elif [ "$guards" = all ] || [ -z "$guards$rest" ]; then
-          if [ "$guards" = all ]; then
+      elif guards=$(printf '%s\n' "$parts" | sed -n 's/^guards //p') &&
+          rest=$(printf '%s\n' "$parts" | sed -n 's/^rest //p') &&
+          { [ "$parts" = all ] || [ -z "$guards$rest" ]; }; then
+          if [ "$parts" = all ]; then
               echo "selected: all, the whole suite: lint only here, and CI's check runs every test"
           else
               echo 'selected: none, no test covers this change: lint only'

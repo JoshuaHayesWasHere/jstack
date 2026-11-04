@@ -449,7 +449,9 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in
 
 PARTS = (
     "import sys\n"
-    "print({'guards': 'testing/tests/test_g.py', 'rest': 'testing/tests/test_r.py'}[sys.argv[2]])"
+    "assert sys.argv[1:3] == ['--part', 'desk'], sys.argv\n"
+    "print('guards testing/tests/test_g.py')\n"
+    "print('rest testing/tests/test_r.py')"
 )
 
 
