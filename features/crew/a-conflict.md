@@ -1,13 +1,14 @@
 ### A conflict
 
-A default branch that moved is a reason to rebase in two cases only, a conflict or a failure, never staleness.
-GitHub says the pull request is `CONFLICTING`.
-Or a message from jbus or `jmerge` says its check no longer passes there, `<command> fails on <head> over today's main`.
+A default branch that moved is a reason to rebase in one case only, a conflict, never staleness and never a failure by itself.
+GitHub says the pull request is `CONFLICTING`, or jbus's message says it is in conflict with its base.
+A failed check after GitHub merged the base into the branch comes as any failure does, `jbus: <check> failed on your pull request`, and "The checks" handles it.
 A check that failed while the base was red is no reason either: once the base has moved since that check started, `jmerge` judges the pull request again over today's base by itself, and asks GitHub to merge the base into the branch, so no crew waits on it and no home sends a rebase for it by hand.
 A default branch that moved, on this pull request's files or on any other, is no reason by itself: when the head merges cleanly over today's main, `jmerge` has GitHub merge main into the branch, and the check at the new head decides.
 The rebase is told once for a pull request: a failure after it is not rebased for again, and jbus parks a gate with the default that the pull request waits.
 
-Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on that message.
+Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on jbus's rebase message, `jbus: <default> moved under your pull request #<n> (<reason>)`, whose reason is no conflict.
+Only a wait line of an older `jmerge`, that main changed after the check started, still brings that one (`jmerge.ready.MAIN_CHANGED`, `jbus.rebase.STALE`).
 It rebases onto the pull request's base, the default branch.
 On a conflict it does so when GitHub reports `CONFLICTING`, and does nothing on any other answer.
 On `stale` it does so whatever GitHub reports, `MERGEABLE` included.
@@ -196,7 +197,7 @@ A commit made before the push, for the check command or for a line put back, is 
 The review stands after a rebase when the rebase left the reviewed content as it was: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean no review is started and nothing is asked of this thread.
 Where it is not, the rebase changed what was reviewed, and jbus says so in a message here: `the rebase changed the content after its review`, with the two ranges of that range-diff.
 That message, and nothing else, starts one scoped review, of the changed hunks only.
-Launch one reviewer the way "The review" launches one, with the message `/pr-review run <slug> scoped <old range> <new range>`, add the line `Scoped reviewer: <threadId>` to the Result, and handle its findings as a review's.
+Launch one reviewer the way "The review" launches one, with the message `/pr-review run <slug> scoped <old range> <new range>`, add the line `Scoped reviewer: <threadId>, of <the rebased head, in full>` to the Result (jbus counts a `Scoped reviewer:` line only for the head it names after `of`, and one that names no head for none), and handle its findings as a review's.
 Until its `## Review` section is written, the first block above does not rebase.
 A head gets one scoped review: a later rebase gets its own only on its own message, and its `Scoped reviewer:` line is added under the earlier one, which stays: the first block counts every reviewer that was launched.
 A push for a failed check made after a review saw an older head is ruled on the same way, with no line in the Result ("The checks"): `jmerge` compares the two heads, a clean range-diff carries the review over, and one that is not brings the same message here, which starts the one scoped review.
