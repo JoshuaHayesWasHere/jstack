@@ -6,10 +6,14 @@ file the pass appends to. A spell is counted once however many passes see it, an
 waits on the user's answer, or a home's thread, is never in a spell.
 """
 
+import contextlib
+import io
 import json
 from datetime import timedelta
 
+from jbus import cli
 from test_jbus_kitchen import NOW, iso
+from test_jbus_kpi_page import Cells, run
 from test_jbus_live import MIN, hanging, written
 
 
@@ -140,3 +144,24 @@ def test_a_gap_with_no_pass_inside_a_spell_adds_none_of_its_minutes(kitchen):
     assert [(one["since"], one["until"], one["minutes"]) for one in ended(kitchen)] == [
         (iso(NOW - 12 * MIN), iso(after + MIN), 14.0)
     ]
+
+
+def test_a_week_the_passes_watched_with_no_stall_shows_no_stall_minute_per_merged_row(kitchen):
+    hanging(kitchen, minutes=2, queued=0)
+    for minute in range(3):
+        kitchen.poll(NOW + minute * MIN)
+        assert written(kitchen)[0]["live"] == "moving"
+    merged = {"slug": "beta", "from": "pr", "to": "merged", "at": iso(NOW + 60 * MIN)}
+    with open(kitchen.state / "transitions.jsonl", "a") as log:
+        log.write(json.dumps(merged) + "\n")
+    with contextlib.redirect_stdout(io.StringIO()):
+        assert cli.main(["telemetry"]) == 0
+    out = kitchen.state_dir / "kpis.html"
+
+    code, said = run("--week", iso(NOW)[:10], "--out", str(out))
+
+    assert code == 0, said
+    cells = Cells()
+    cells.feed(out.read_text())
+    assert ended(kitchen) == []
+    assert cells.rows["Stall minutes per merged row"][5] == "0 min n 1 tracked: covers demo"
