@@ -830,13 +830,14 @@ class Kitchen:
         path.write_text(text)
         path.chmod(mode)
 
-    def signed_in(self, ago, **token):
-        """Store the token as `jbus t3 login` stores it, with `obtained_at` set `ago` before the
-        tests' now."""
+    def signed_in(self, ago, at=NOW, **token):
+        """Store the token as `jbus t3 login` stores it, with `obtained_at` set `ago` before `at`.
+        `at` is the tests' now, and a test whose pass reads the real clock gives that clock, so the
+        sign-in never runs out under it."""
         stored = {
             "server": self.t3.url,
             "token": {"access_token": TOKEN, **token},
-            "obtained_at": (NOW - ago).timestamp(),
+            "obtained_at": (at - ago).timestamp(),
         }
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
