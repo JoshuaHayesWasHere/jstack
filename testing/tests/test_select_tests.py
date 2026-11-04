@@ -545,6 +545,44 @@ def test_a_skill_selects_the_tests_that_read_it_by_its_name_through_the_index_of
     ]
 
 
+HELPERS = {
+    **BLOCKS,
+    "testing/tests/reader.py": (
+        "from testing.paths import skills\n\nREADERS = ['three']\n\n\n"
+        "def block(skill):\n    return (skills()[skill] / 'SKILL.md').read_text()\n\n\n"
+        "def readers():\n    return [block(one) for one in READERS]\n\n\n"
+        "def plain():\n    return 1\n"
+    ),
+    "testing/tests/test_block.py": "from reader import block\n\nB = block('four')\n",
+    "testing/tests/test_readers.py": "import reader\n\nR = reader.readers()\n",
+    "testing/tests/test_plain.py": "from alpha import a\nfrom reader import plain\n",
+}
+
+
+def test_a_skill_selects_a_test_by_the_skills_it_reaches_and_not_by_the_names_beside_them(
+    tmp_path,
+):
+    """`reader.py` names the skill `three` in `READERS`, which only `readers()` reads.
+    `test_readers.py` calls `readers()`, so it reads the skill. `test_block.py` reads the skill
+    `four` through the same module, and `test_plain.py` calls a helper of it that reads no skill:
+    neither reaches `three`, so a change to it selects neither."""
+    repo = Repo(tmp_path, files={**FILES, **HELPERS})
+
+    assert repo.selected(repo.change(["skills/three/SKILL.md"])) == [
+        "testing/tests/test_readers.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
+def test_a_change_to_the_home_skill_selects_the_tests_that_reach_it_and_not_most_of_them():
+    """210 tests import `test_home_thread`, whose helpers name the home, crew, handoff and scout
+    skills. Those that take no helper that reads the home skill do not run its blocks: once,
+    their imports alone made a change to it select 315 of 400 test files."""
+    tests, _ = select.selection(["features/home/skills/home/SKILL.md"])
+
+    assert len(tests) < len(select.collected()) / 2
+
+
 def test_the_selector_finds_the_skills_the_index_finds():
     assert select.skills() == {
         name: folder.relative_to(REPO).as_posix() for name, folder in skills().items()
