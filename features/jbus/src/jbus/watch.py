@@ -116,6 +116,10 @@ class World:
     GitHub's, so a pass judges one world. A crew opens its pull request and then writes the Result
     that names it, so a Result in `results` names no pull request GitHub's lists could miss, and a
     thread T3 Code listed as ended wrote its Result before `look` read it.
+
+    `logs` holds each job's log that a step of the pass read, by the job's id, or None where GitHub
+    did not give it, so that `watch`, `rebase` and `cancelled` read a failed job's log once a pass
+    (`job_log`).
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -128,6 +132,7 @@ class World:
     waiting: set[str] = field(default_factory=set)
     holding: set[str] = field(default_factory=set)
     results: dict[str, str] = field(default_factory=dict)
+    logs: dict[str, str | None] = field(default_factory=dict)
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
@@ -954,7 +959,7 @@ def status(
     return {
         "thread": (found or {}).get("threadId") or launched,
         "pr": f"#{pull['number']}" if pull else "",
-        "checks": checks(pull) if slug in world.open else "",
+        "checks": checks(pull) if pull is not None and slug in world.open else "",
         "status": word,
         "why": reason,
     }
@@ -1194,10 +1199,14 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
 
 def job_log(run: Pass, repo: str, job: object) -> str | None:
     """Return a job's log, or None where GitHub did not give it. GitHub's log has escape
-    sequences in it, which gh 2.102 gives only when asked to."""
-    path = f"repos/{repo}/actions/jobs/{job}/logs"
-    log = run.run("gh", "api", path, "--allow-escape-sequences")
-    return log.stdout if log.returncode == 0 else None
+    sequences in it, which gh 2.102 gives only when asked to. A job's id is GitHub's own, so once
+    the pass has its world, the first read of a job's log is the pass's answer (`World.logs`)."""
+    kept = run.world.logs if run.world is not None else {}
+    if str(job) not in kept:
+        path = f"repos/{repo}/actions/jobs/{job}/logs"
+        log = run.run("gh", "api", path, "--allow-escape-sequences")
+        kept[str(job)] = log.stdout if log.returncode == 0 else None
+    return kept[str(job)]
 
 
 def _log_failed(run: Pass, job: object) -> Failed | None:

@@ -598,7 +598,7 @@ def _say(name: str, kind: str, items: list[Item]) -> list[str]:
 def _body(run: Pass, kind: str, items: list[Item]) -> dict[str, Any]:
     """Build one body for the second target. A body of kind `events` has an empty `events` field, so
     every body of that kind has the same keys."""
-    made = {"kind": kind, "project": run.project.name, "at": run.now.isoformat()}
+    made: dict[str, Any] = {"kind": kind, "project": run.project.name, "at": run.now.isoformat()}
     if kind == "events":
         made["events"] = []
     made |= {"say": _say(run.project.name, kind, items), "items": items}

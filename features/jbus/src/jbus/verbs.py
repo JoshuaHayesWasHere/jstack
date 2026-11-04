@@ -95,7 +95,7 @@ class Verb:
     name: str
     help: str
     arguments: Callable[[argparse.ArgumentParser], None]
-    run: Callable[[argparse.Namespace, jbus.Config], int]
+    run: Callable[[argparse.Namespace, Any], int]
     abbrev: bool = True
     config: bool = True
 
@@ -149,7 +149,7 @@ class Step:
     slot: str
     rank: int
     name: str
-    run: Callable[[Any], None]
+    run: Callable[[Any], object]
     needs: tuple[str, ...] = ()
     shared: bool = False
 
@@ -161,7 +161,7 @@ class Chore:
 
     rank: int
     name: str
-    run: Callable[[jbus.Config, Any, Any, Callable[[str], None]], None]
+    run: Callable[[jbus.Config, Any, Any, Callable[[str], None]], object]
 
 
 def chores(paths: Iterable[str]) -> tuple[Chore, ...]:
@@ -197,21 +197,20 @@ def _listed(module: str, source: str) -> tuple[Listed, ...]:
         raise odd from None
     if node is None:
         return ()
-    if not isinstance(node.value, ast.Tuple):
+    if not isinstance(node, ast.Assign | ast.AnnAssign) or not isinstance(node.value, ast.Tuple):
         raise odd
     found = []
     for call in node.value.elts:
-        if not (
-            isinstance(call, ast.Call)
-            and ast.unparse(call.func) in ("Verb", "verbs.Verb")
-            and len(call.args) >= 2
-            and all(
-                isinstance(one, ast.Constant) and isinstance(one.value, str)
+        texts: list[str] = []
+        if isinstance(call, ast.Call) and ast.unparse(call.func) in ("Verb", "verbs.Verb"):
+            texts = [
+                one.value
                 for one in call.args[:2]
-            )
-        ):
+                if isinstance(one, ast.Constant) and isinstance(one.value, str)
+            ]
+        if len(texts) < 2:
             raise odd
-        found.append(Listed(call.args[0].value, call.args[1].value, module))
+        found.append(Listed(texts[0], texts[1], module))
     return tuple(found)
 
 
@@ -359,7 +358,9 @@ def reads(paths: Iterable[str]) -> Reads:
                 piped_by.add(node.args[0].value)
         for call in _declared(tree):
             run = [one.value for one in call.keywords if one.arg == "run"] or call.args[3:4]
-            runs[call.args[0].value] = uses(run[0]) if run else set()
+            name = call.args[0]
+            assert isinstance(name, ast.Constant) and isinstance(name.value, str)
+            runs[name.value] = uses(run[0]) if run else set()
 
     def reached(start: set[_Function]) -> set[_Function]:
         seen: set[_Function] = set()

@@ -100,6 +100,11 @@ message and a home's `--word` on the word kept for that message meet. The same p
 many rows on its word as it likes, a go by the follow-up rule or a plan entry is no act on a
 word, and the user's own message in T3 Code that names the row is never refused by it.
 
+A word from the bot's chat that keeps no bot's message it answers and does not name the row by
+its slug (`bare`) leaves a home to guess what it means, so an approve on it run by a session is
+refused (`_bare`): the home asks the user through the bot. A shell with no session and the bot's
+own go are not refused by it, and `jbus word` refuses to carry a word that names no row at all.
+
 `merge_after` is
 the slugs of rows whose pull requests merge before this row's. `add` writes `merge_after` again,
 along with `depends`, using the value of `--merge-after`, and refuses an order that jmerge could
@@ -133,7 +138,7 @@ import json
 import os
 import re
 import shlex
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
@@ -217,6 +222,10 @@ SESSION = "CLAUDE_CODE_SESSION_ID"
 WORD_BASES = ("word", "message", BOT_CHAT)
 """The bases whose reference is a word of the user's, which one party acts on."""
 ACTED_ON = "refused: word {ref} was acted on by {party}: {rows}"
+BARE = (
+    "refused: word {ref} is from the bot's chat, keeps no bot's message it answers and does not "
+    "name {slug}: ask {user} through the bot whether it means {slug}"
+)
 HELD_BY = (
     "refused: {slug} is held, run {at} by {party}, and a hold is its party's: {party} approves "
     "it again, or {user}'s own message or pick in T3 Code does"
@@ -935,7 +944,7 @@ def _parents_entry(
     try:
         parent, here = _parent_row(batch, slug, named) if named else (None, True)
     except Refused:
-        parent = None
+        parent, here = None, True
     if parent is not None and (parent.get("entry") or not here):
         found = entry(parent)
     elif parent is not None:
@@ -1452,12 +1461,12 @@ def _do(
         if not _SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
         if verb.slug in batch.gone:
-            said = _was(verb.slug, batch.gone)
-            raise Refused(f"refused: {said}, and a removed slug is not added again")
+            gone = _was(verb.slug, batch.gone)
+            raise Refused(f"refused: {gone}, and a removed slug is not added again")
         for other in verb.depends:
             if other in batch.gone:
-                said = _was(other, batch.gone)
-                raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
+                gone = _was(other, batch.gone)
+                raise Refused(f"refused: {verb.slug} cannot depend on {other}: {gone}")
         _merge_after(batch, verb)
         _builds_on(rows, verb)
         _stacked_on(verb)
@@ -1566,6 +1575,7 @@ def _do(
         if verb.basis == PICK:
             rests = picked(rests, verb.slug)
         if not ruled:
+            _bare(batch.state, verb, rests, ran_by or runner(), user)
             _held_by_another(row, verb, rests, ran_by or runner(), user)
             _one_party(batch, verb, rests, ran_by or runner())
         ref = FOLLOW_REF if ruled else verb.ref
@@ -1618,19 +1628,38 @@ def _held_by_another(
     )
 
 
-def _word_refs(state: Path) -> dict[str, str]:
-    """Return the message each kept word was said in, by the word's id, where it names one: the
-    word acts of `acts.jsonl` (`jbus.word`), read here since `jbus.word` imports this module."""
+def _words(state: Path) -> dict[str, dict[str, Any]]:
+    """Return the evidence of each kept word, by the word's id: the word acts of `acts.jsonl`
+    (`jbus.word`), read here since `jbus.word` imports this module."""
     try:
         text = (state / "acts.jsonl").read_text()
     except FileNotFoundError:
         return {}
     kept = [json.loads(line) for line in text.splitlines() if line.strip()]
-    return {
-        one["id"]: one["evidence"]["ref"]
-        for one in kept
-        if one["action"]["verb"] == "word" and one["evidence"].get("ref")
-    }
+    return {one["id"]: one["evidence"] for one in kept if one["action"]["verb"] == "word"}
+
+
+def _word_refs(state: Path) -> dict[str, str]:
+    """Return the message each kept word was said in, by the word's id, where it names one."""
+    return {name: said["ref"] for name, said in _words(state).items() if said.get("ref")}
+
+
+def bare(words: str, answers: str, slugs: Iterable[str]) -> bool:
+    """Say whether a word from the bot's chat says nothing on its own: it keeps no bot's message
+    it answers, and its words name none of `slugs` (`names`)."""
+    return not answers and not any(names(words, slug) for slug in slugs)
+
+
+def _bare(
+    state: Path, verb: Approve, rests: Said, ran_by: dict[str, str], user: jsettings.Settings
+) -> None:
+    """Refuse a session's go on a kept word from the bot's chat that is `bare` for the row. A
+    shell with no session is left to `_one_party`, as it was."""
+    if verb.basis != "word" or not ran_by.get("session"):
+        return
+    said = _words(state).get(verb.ref, {})
+    if said.get("source") == BOT_CHAT and bare(rests.words, said.get("answers", ""), [verb.slug]):
+        raise Refused(BARE.format(ref=verb.ref, slug=verb.slug, user=user.user))
 
 
 def _one_party(batch: _Batch, verb: Approve, rests: Said, ran_by: dict[str, str]) -> None:
@@ -2102,8 +2131,9 @@ def _run(
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
             _store(state, slug, text)
-        for move in moves if asks else []:
-            asks.told(move)
+        if asks:
+            for move in moves:
+                asks.told(move)
     return said
 
 

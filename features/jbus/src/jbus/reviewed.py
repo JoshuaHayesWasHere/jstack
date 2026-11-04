@@ -264,8 +264,10 @@ def tell(run: Pass, client: Client, world: World) -> None:
 
 
 def _step(half: Half) -> None:
-    rounds(half.run, half.seen.world)
-    tell(half.run, half.client, half.seen.world)
+    client, world = half.client, half.seen.world
+    if client is not None and world is not None:
+        rounds(half.run, world)
+        tell(half.run, client, world)
 
 
 STEPS = (verbs.Step("tellers", 52, "reviewed.tell", _step, ("client", "world")),)

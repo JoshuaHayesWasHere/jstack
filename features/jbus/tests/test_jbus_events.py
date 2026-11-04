@@ -214,6 +214,7 @@ TABLE = {
     "clock": "quiet",
     "hold-stall": "quiet",
     "home-stall": "quiet",
+    "hook": "quiet",
     "merged": "quiet",
     "gate answered": "quiet",
     "result": "quiet",
@@ -228,7 +229,6 @@ TABLE = {
     "conflict": "quiet",
     "refailed": "quiet",
     "green": "quiet",
-    "mainmoved": "quiet",
     "resume": "quiet",
     "slot-wake": "quiet",
     "slot-end": "quiet",
@@ -257,6 +257,7 @@ TABLE = {
     "item.dropped": "quiet",
     "pack": "quiet",
     "collisions": "quiet",
+    "worktree-removed": "quiet",
 }
 
 

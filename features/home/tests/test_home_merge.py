@@ -459,11 +459,6 @@ OWED = f"Scoped review: needed since {REVIEWED}, the fix changed a.py\n"
 NO_FIX_REVIEW = "its fix is not reviewed: the scoped review of it is not written"
 
 FIX_REVIEW = {
-    "a fix under tests only": (
-        f"{ENDED}Fixed: {PUSHED}\nScoped review: none, the fix changed files under tests/ only\n",
-        review("findings"),
-        PUSHED,
-    ),
     "a fix with a clean review of it": (
         f"{ENDED}Fixed: {PUSHED}\n{OWED}",
         review("findings") + review("clean", PUSHED),
@@ -495,6 +490,9 @@ def test_a_fix_whose_review_is_owed_waits_for_it_and_then_for_each_of_its_findin
     assert ready.short_of(brief(same_head, fixed), PUSHED) == NO_FIX_REVIEW
     written = review("findings") + review("clean", PUSHED)
     assert ready.short_of(brief(written, fixed), PUSHED) == ""
+    tests_only = f"{ENDED}Fixed: {PUSHED}\nScoped review: none, the fix changed tests/ only\n"
+    assert ready.short_of(brief(review("findings"), tests_only), PUSHED) == NO_FIX_REVIEW
+    assert ready.short_of(brief(written, tests_only), PUSHED) == ""
     unanswered = brief(SECOND, f"{ENDED}Fixed: {LATER}\n{OWED}")
     assert ready.short_of(unanswered, LATER) == (
         "its findings are not handled: 1 of 2 have no Finding line"

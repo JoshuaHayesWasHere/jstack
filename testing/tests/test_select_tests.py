@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import named
-from testing.paths import REPO, sources
+from testing.paths import REPO, skills, sources
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
@@ -517,6 +517,100 @@ def test_a_file_beside_a_skill_that_no_line_includes_selects_as_before(tmp_path)
     assert repo.selected(repo.change(["skills/three/alone.md"])) == ["testing/tests/test_tree.py"]
 
 
+BLOCKS = {
+    "skills/three/SKILL.md": "First read `$T/../skills/three/part.md` now.\n",
+    "skills/three/part.md": "part\n",
+    "testing/tests/reader.py": (
+        "from testing.paths import skills\n\n\n"
+        "def block(skill):\n    return (skills()[skill] / 'SKILL.md').read_text()\n"
+    ),
+    "testing/tests/test_block.py": "from reader import block\n\nB = block('three')\n",
+    "testing/tests/test_names_three.py": "from alpha import a\n\nWORD = 'three'\n",
+}
+
+
+@pytest.mark.parametrize("path", ["skills/three/SKILL.md", "skills/three/part.md"])
+def test_a_skill_selects_the_tests_that_read_it_by_its_name_through_the_index_of_skills(
+    tmp_path, path
+):
+    """`test_block.py` spells no path of the skill: it names the skill, and the module it imports
+    reads the skill's `SKILL.md` through `testing.paths.skills()`. `test_names_three.py` names the
+    skill too, but reads no skill, so it is not selected: its import of `alpha` keeps it out of
+    the catch-all."""
+    repo = Repo(tmp_path, files={**FILES, **BLOCKS})
+
+    assert repo.selected(repo.change([path])) == [
+        "testing/tests/test_block.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
+HELPERS = {
+    **BLOCKS,
+    "testing/tests/reader.py": (
+        "from testing.paths import skills\n\nREADERS = ['three']\n\n\n"
+        "def block(skill):\n    return (skills()[skill] / 'SKILL.md').read_text()\n\n\n"
+        "def readers():\n    return [block(one) for one in READERS]\n\n\n"
+        "def plain():\n    return 1\n"
+    ),
+    "testing/tests/test_block.py": "from reader import block\n\nB = block('four')\n",
+    "testing/tests/test_readers.py": "import reader\n\nR = reader.readers()\n",
+    "testing/tests/test_plain.py": "from alpha import a\nfrom reader import plain\n",
+}
+
+
+def test_a_skill_selects_a_test_by_the_skills_it_reaches_and_not_by_the_names_beside_them(
+    tmp_path,
+):
+    """`reader.py` names the skill `three` in `READERS`, which only `readers()` reads.
+    `test_readers.py` calls `readers()`, so it reads the skill. `test_block.py` reads the skill
+    `four` through the same module, and `test_plain.py` calls a helper of it that reads no skill:
+    neither reaches `three`, so a change to it selects neither."""
+    repo = Repo(tmp_path, files={**FILES, **HELPERS})
+
+    assert repo.selected(repo.change(["skills/three/SKILL.md"])) == [
+        "testing/tests/test_readers.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
+def test_a_change_to_the_home_skill_selects_the_tests_that_reach_it_and_not_most_of_them():
+    """210 tests import `test_home_thread`, whose helpers name the home, crew, handoff and scout
+    skills. Those that take no helper that reads the home skill do not run its blocks: once,
+    their imports alone made a change to it select 315 of 400 test files.
+    `test_crew_reviewing.py` takes `blocks` from it and reads the crew skill alone."""
+    home, _ = select.selection(["features/home/skills/home/SKILL.md"])
+    crew, _ = select.selection(["features/crew/SKILL.md"])
+
+    assert "features/crew/tests/test_crew_reviewing.py" in set(crew) - set(home)
+    assert len(home) < len(select.collected()) * 2 / 3
+
+
+def test_the_selector_finds_the_skills_the_index_finds():
+    assert select.skills() == {
+        name: folder.relative_to(REPO).as_posix() for name, folder in skills().items()
+    }
+
+
+@pytest.mark.parametrize(
+    "path, reader",
+    [
+        ("features/home/skills/home/SKILL.md", "features/home/tests/test_quiet_turns.py"),
+        ("features/home/skills/home/SKILL.md", "features/home/tests/test_home_start.py"),
+        ("features/home/skills/handoff/SKILL.md", "features/home/tests/test_handoff_mail.py"),
+        ("features/crew/a-gate.md", "features/jbus/tests/test_gates.py"),
+        ("features/ketchup/SKILL.md", "features/home/tests/test_home_needs.py"),
+    ],
+)
+def test_a_change_to_a_skill_selects_the_tests_that_run_its_shell_blocks(path, reader):
+    """Each test runs a block of the skill that `test_home_thread` takes from
+    `skills()[name] / "SKILL.md"`, with the files that skill folds in. A break of the home skill's
+    turn-end block once failed `test_quiet_turns.py`, and the selection ran without it."""
+    tests, _ = select.selection([path])
+
+    assert reader in tests
+
+
 def test_the_selector_follows_the_includes_the_tests_fold_in():
     """`as_read` folds in each file beside a skill that a line of it says to read now. The
     selector must find the same files, or a change to one runs none of the tests that read it."""
@@ -707,6 +801,23 @@ def test_a_path_every_test_rests_on_selects_all(repo, path):
     head = repo.change([path], text="# changed\n")
 
     assert repo.selected(head) == ["all"]
+
+
+@pytest.mark.parametrize(
+    "path", ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml"]
+)
+def test_a_change_to_what_picks_and_runs_the_tests_selects_all(repo, path):
+    head = repo.change([path], text="# changed\n")
+
+    assert repo.selected(head) == ["all"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml", "testing/shard.py"],
+)
+def test_in_this_repo_a_change_to_what_picks_and_runs_the_tests_selects_all(path):
+    assert select.selection([path]) == (["all"], {"forced-by": path})
 
 
 def test_a_test_module_a_plugin_loads_for_every_test_selects_all(repo):
@@ -952,7 +1063,7 @@ def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
         "testing/tests/test_jtrees_one_feature.py",
         "features/jinstall/tests/test_docs_hooks.py",
     } <= set(selected)
-    assert why["imports"] > 0
+    assert why["imports"]
 
 
 STATECHART_TESTS = {
@@ -971,7 +1082,7 @@ def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_o
 
     for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
         assert STATECHART_TESTS <= set(selected)
-        assert why["imports"] >= len(STATECHART_TESTS)
+        assert STATECHART_TESTS <= set(why["imports"])
 
 
 MERGED = {
@@ -1008,6 +1119,279 @@ def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_br
     assert broken in tests
 
 
+VIEW = "features/jbus/tests/view/"
+TABLE = [
+    ("all", ["pyproject.toml"], {"all"}, ()),
+    ("all", ["uv.lock"], {"all"}, ()),
+    ("all", ["conftest.py"], {"all"}, ()),
+    ("plugin", ["testing/jstack_fixtures.py"], {"all"}, ()),
+    ("plugin", ["testing/paths.py"], {"all"}, ()),
+    (
+        "imports",
+        ["features/jmerge/src/jmerge/reuse.py"],
+        {"features/jmerge/tests/test_jmerge_stacked.py"},
+        (),
+    ),
+    (
+        "imports",
+        ["features/crew/tests/test_crew_needs_go.py"],
+        {"features/crew/tests/test_crew_result_template.py"},
+        (),
+    ),
+    (
+        "itself",
+        ["features/jbus/tests/test_jbus_wakes.py"],
+        {"features/jbus/tests/test_jbus_wakes.py"},
+        (),
+    ),
+    (
+        "chain",
+        ["features/skill-library/tests/skill_blocks.py"],
+        {"features/expert/tests/test_expert_skill.py"},
+        (),
+    ),
+    (
+        "process",
+        ["features/jgauge/src/jgauge/sizes.py"],
+        {"features/jbus/tests/test_needs_replay.py"},
+        (),
+    ),
+    (
+        "by-name",
+        ["features/jbriefs/src/jbriefs/asks.py"],
+        {"features/jbus/tests/test_jbus_bind.py"},
+        (),
+    ),
+    (
+        "fixture-asked",
+        ["features/jmerge/tests/test_sweep.py"],
+        {"features/home/tests/test_quiet_home.py"},
+        (),
+    ),
+    (
+        "conftest",
+        [f"{VIEW}conftest.py"],
+        {f"{VIEW}test_view_answer.py", f"{VIEW}test_view_days.py"},
+        (),
+    ),
+    (
+        "test-spelled",
+        ["features/jbus/tests/relay_leaves.py"],
+        {"features/jbus/tests/test_jbus_relay.py"},
+        (),
+    ),
+    ("beside", ["features/jbus/src/jbus/view/page.html"], {f"{VIEW}test_view_server.py"}, ()),
+    (
+        "spelled",
+        ["features/evals/evals/skill-cut/cases/steps.json"],
+        {"features/evals/tests/test_eval_skill_cut.py"},
+        (),
+    ),
+    (
+        "skill-index",
+        ["features/benchmark-checklist/SKILL.md"],
+        {"features/show-me-your-work/tests/test_show_me_your_work.py"},
+        (),
+    ),
+    ("included", ["features/crew/a-gate.md"], {"features/jbus/tests/test_gates.py"}, ()),
+    ("included", ["features/expert/an-ask.md"], {"features/expert/tests/test_expert_skill.py"}, ()),
+    (
+        "skill-index",
+        ["features/home/skills/home/SKILL.md"],
+        {"features/home/tests/test_quiet_turns.py"},
+        (),
+    ),
+    (
+        "fixture",
+        ["features/jbriefs/tests/fixtures/findings/two-reviewers.md"],
+        {"features/jbriefs/tests/test_jbriefs_findings.py"},
+        (),
+    ),
+    (
+        "fixture",
+        [
+            "features/jgauge/tests/fixtures/projects/-tmp-plain-thread/11111111-1111-4111-8111-111111111111.jsonl"
+        ],
+        {"features/jgauge/tests/test_session.py"},
+        (),
+    ),
+    (
+        "read-set",
+        ["features/evals/benchmark/common.sh"],
+        {"features/evals/tests/test_benchmark.py"},
+        (),
+    ),
+    (
+        "read-set",
+        ["features/home/feature.json"],
+        {"features/repo-guards/tests/test_no_notes.py"},
+        (),
+    ),
+    (
+        "tests-line",
+        ["features/scout/templates/scout-report.md"],
+        {"features/jbus/tests/test_jbus_scout.py"},
+        (),
+    ),
+    ("page", ["features/grilling/verify.md"], {"features/grilling/tests/test_grilling.py"}, ()),
+    ("scripts", ["scripts/jtrees/crawl.py"], {"testing/tests/test_jtrees.py"}, ()),
+    (
+        "paths",
+        ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
+        {"features/skill-library/tests/test_statechart_runs.py"},
+        (),
+    ),
+    ("cross-cutting", ["README.md"], set(select.cross_cutting()), ()),
+    (
+        "browser",
+        ["features/crew/SKILL.md"],
+        {"features/crew/tests/test_crew_check_command.py"},
+        (f"{VIEW}page/test_view_page_browser.py",),
+    ),
+]
+FAILED = ("README.md", "features/jgauge/tests/test_session.py")
+
+
+def fails(rule, changed, needed, absent, tests, why):
+    """Why the selection `tests` for one row of the table is wrong, or `None`."""
+    if needed == {"all"}:
+        return None if tests == ["all"] else f"{rule}: {changed} selects some, not all"
+    if tests == ["all"]:
+        return f"{rule}: {changed} selects all, forced by {why['forced-by']}"
+    missing, wrong = needed - set(tests), set(absent) & set(tests)
+    return (
+        f"{rule}: {changed} misses {sorted(missing)}, selects {sorted(wrong)}"
+        if missing or wrong
+        else None
+    )
+
+
+def failing(picked):
+    """The rows of the table, and the row of the failed-on-main tests, that a selector gets
+    wrong. `picked` is its `(tests, why)` for each row in order, then for `FAILED`."""
+    *rows, (tests, _) = picked
+    wrong = [fails(*row, *one) for row, one in zip(TABLE, rows, strict=True)]
+    changed, failed = FAILED
+    if failed not in tests:
+        wrong.append(f"failed-on-main: {changed} with {failed} red on main leaves it out")
+    return [one for one in wrong if one]
+
+
+def asked():
+    """The table's questions to a selector: each row's changed paths, then `FAILED`'s."""
+    changed, failed = FAILED
+    return [[row[1], []] for row in TABLE] + [[[changed], [failed]]]
+
+
+def test_each_kind_of_change_selects_the_tests_that_read_it():
+    """One row for each rule of the selector, on today's tree: a changed path, the test files its
+    rule must select, and the ones the selection must leave out. Each row names a test that
+    the row's rule selects, so a test the rule stops selecting shows here. A row that names a
+    cross-cutting test would pass whatever its rule did, since every change runs those."""
+    cross = set(select.cross_cutting())
+    assert [row for row in TABLE if row[0] != "cross-cutting" and row[2] & cross] == []
+    assert failing([select.selection(*one) for one in asked()]) == []
+
+
+def test_every_python_file_under_features_selects_a_test():
+    """A change to a module runs a test of its own, beside the cross-cutting tests and the
+    catch-all, which every change runs: a test file selects itself, and any other file a test
+    that imports it, names it or reads it, or `all`."""
+    lone = [
+        path
+        for path in sorted(select.tracked())
+        if path.startswith("features/") and path.endswith(".py")
+        if not set(select.ruled([path], cross=False)[0])
+        - (set() if select.TEST.fullmatch(path) else {path})
+    ]
+    assert lone == []
+
+
+MUTANTS = {
+    "all": ("if path in shared():\n            return", "if path in ():\n            return"),
+    "plugin": (
+        "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
+        "return set(EVERYTHING)",
+    ),
+    "imports": ("test_files(importers([by_path[path]]))", "test_files([by_path[path]])"),
+    "chain": (
+        "todo += imported_by().get(one, ())",
+        "todo += imported_by().get(one, ()) if one in names else ()",
+    ),
+    "process": ("if path.startswith(run)}", "if path.startswith(run) and False}"),
+    "by-name": ("for loader in itself.union(", "for loader in set().union("),
+    "fixture-asked": (" | asking(by_path[path])", ""),
+    "conftest": ("reached |= conftests(name) & known.keys()", "reached |= set()"),
+    "test-spelled": ('found["names"] |= readers(path)\n', 'found["names"] |= set()\n'),
+    "beside": ('found["imports"] |= test_files(importers(users(path)))', "pass"),
+    "spelled": ('found["names"] |= readers(one)', "pass"),
+    "included": ("for one in {path} | includers(path):", "for one in {path}:"),
+    "skill-index": ("for word in reaches(name)}", "for word in ()}"),
+    "fixture": ('found["names"] |= named', "pass"),
+    "read-set": ('found["names"] |= globbers(path)', "pass"),
+    "tests-line": ('found["features"] |= set(listed_tests)', "pass"),
+    "page": ('found["features"] |= feature_tests(name)', "pass"),
+    "cross-cutting": (
+        'found["cross-cutting"] = set(cross_cutting()) if cross else set()',
+        'found["cross-cutting"] = set()',
+    ),
+    "browser": (
+        "tests if (ROOT / one).is_file() and not opens_browser(one)}",
+        "tests if (ROOT / one).is_file()}",
+    ),
+    "failed-on-main": ("added = set(failed) & collected() - chosen", "added = set()"),
+}
+
+
+MUTANT = """
+import json, sys, types
+script, old, new, asked = json.load(sys.stdin)
+module = types.ModuleType("select_tests")
+module.__file__ = script
+exec(compile(open(script).read().replace(old, new), script, "exec"), module.__dict__)
+module.unowned = frozenset
+print(json.dumps([module.selection(*one) for one in asked]))
+"""
+
+
+def mutant(old, new):
+    """The `(tests, why)` for each of the table's questions from the selector with one rule
+    broken, `old` swapped for `new` in its source, run as CI runs it. The catch-all is left
+    out: no test of today's tree is in it, and finding that out takes each path's selection."""
+    assert SCRIPT.read_text().count(old) == 1, f"the rule's code moved: {old!r}"
+    ran = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", MUTANT],
+        input=json.dumps([str(SCRIPT), old, new, asked()]),
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+    )
+    assert ran.returncode == 0, ran.stderr
+    return json.loads(ran.stdout)
+
+
+def test_every_rule_of_the_table_has_a_mutant():
+    rules = {rule for rule, *_ in TABLE} | {"failed-on-main"}
+
+    assert rules - MUTANTS.keys() == {"itself", "scripts", "paths"}
+    assert MUTANTS.keys() <= rules
+
+
+def test_the_selector_run_as_the_mutants_run_fails_no_row():
+    """The control: with no rule broken, the selector run the mutants' way gets every row
+    right, so a mutant that fails a row fails it for the rule it broke."""
+    assert failing(mutant("ROOT = ", "ROOT = ")) == []
+
+
+@pytest.mark.parametrize("rule", MUTANTS)
+def test_breaking_a_rule_of_the_selector_fails_a_row_of_its_rule(rule):
+    """Each rule broken alone in the selector's source must fail a row of the table that names
+    that rule, so the table pins what each rule selects and no row passes on another rule."""
+    wrong = failing(mutant(*MUTANTS[rule]))
+
+    assert [one for one in wrong if one.startswith(f"{rule}:")]
+
+
 SUMMARY = re.compile(
     r"check-fast selection=(?P<selection>all|some) files=(?P<files>\d+) of=(?P<of>\d+)"
     r" changed=(?P<changed>\d+) imports=(?P<imports>\d+) names=(?P<names>\d+)"
@@ -1020,7 +1404,12 @@ def summary(repo, head, tmp_path):
     env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file)}
     ran = repo.run(repo.base, head, env=env)
     assert ran.returncode == 0, ran.stderr
-    return ran.stdout.splitlines(), file.read_text().strip().splitlines()
+    return ran.stdout.splitlines(), lead(file).splitlines()
+
+
+def lead(file):
+    """The summary's lines above its list of the selection."""
+    return file.read_text().split("\n\n")[0].strip()
 
 
 def test_the_selection_is_added_to_the_job_summary_as_a_line_a_collector_can_read(repo, tmp_path):
@@ -1168,18 +1557,29 @@ def test_every_feature_has_both_lines_and_patterns_jmerge_can_read():
         assert select.ready().patterns_of("\n".join(paths)) == tuple(paths)
 
 
-def test_a_features_tests_line_names_only_what_no_import_and_no_name_selects():
+def test_a_features_tests_line_names_only_what_no_import_and_no_name_selects(monkeypatch):
     """The tests of a feature come from what they import and what they name. A `Tests:` entry names
     a test that reads a feature's files without naming them in a string, such as with a glob over a
-    tree of files. If an import or a name already selects that test, the entry is redundant."""
-    shown = []
-    for name, (owned, listed_tests) in select.features().items():
+    tree of files. If, with the entry gone, a change to each path the feature owns still selects
+    that test, the entry is redundant. An import or a name that selects the test for one of those
+    paths alone does not make it so: the skill tests name their skill, and read files beside it."""
+    features, pages, shown = select.features(), select.pages(), []
+    for name, (owned, listed_tests) in features.items():
         mine = [one for one, path in select.modules().items() if owns_module(owned, path)]
         seen = select.test_files(select.importers(mine))
         for path in tracked():
             if select.owns(owned, path) and path not in select.modules().values():
                 seen |= select.readers(path)
-        shown += [f"{name} lists {test}" for test in listed_tests if test in seen]
+        for test in set(listed_tests) & seen:
+            rest = {**features, name: (owned, [one for one in listed_tests if one != test])}
+            monkeypatch.setattr(select, "features", lambda rest=rest: rest)
+            ruled = [
+                select.ruled([path])[0]
+                for path in select.tracked()
+                if select.owns(owned, path) and path != pages[name]
+            ]
+            if all(tests == ["all"] or test in tests for tests in ruled):
+                shown.append(f"{name} lists {test}")
     assert shown == []
 
 
@@ -1329,13 +1729,16 @@ SMALL = {
 
 
 def outputs(repo, head, tmp_path):
-    """What the selection printed, its summary line, and what it gave the step's outputs."""
-    file, output = tmp_path / "summary.md", tmp_path / "output"
+    """What the selection printed, its summary line, and what it gave the step's outputs. The
+    file `$SELECTED` names, the list the check keeps as an artifact, holds a line for each file
+    it printed."""
+    file, output, kept = tmp_path / "summary.md", tmp_path / "output", tmp_path / "selected.txt"
     env = {"PATH": "/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(file), "GITHUB_OUTPUT": str(output)}
-    ran = repo.run(repo.base, head, env=env)
+    ran = repo.run(repo.base, head, env=env | {"SELECTED": str(kept)})
     assert ran.returncode == 0, ran.stderr
+    assert [line.split(" ")[0] for line in kept.read_text().splitlines()] == ran.stdout.split()
     given = dict(line.split("=", 1) for line in output.read_text().splitlines())
-    return ran.stdout.splitlines(), SUMMARY.fullmatch(file.read_text().strip()), given
+    return ran.stdout.splitlines(), SUMMARY.fullmatch(lead(file)), given
 
 
 def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_path):
@@ -1354,7 +1757,7 @@ def test_a_selection_of_every_test_file_runs_what_it_selected_and_not_all(tmp_pa
         "testing/tests/test_tree.py",
     ]
     assert (line["selection"], line["files"], line["of"], line["forced"]) == ("some", "5", "5", "-")
-    assert given == {"selection": "some"}
+    assert given == {"selection": "some", "files": "5", "forced_by": ""}
 
 
 def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
@@ -1369,7 +1772,7 @@ def test_a_selection_of_some_test_files_runs_only_what_it_selected(tmp_path):
         "testing/tests/test_tree.py",
     ]
     assert (line["selection"], line["files"], line["forced"]) == ("some", "3", "-")
-    assert given == {"selection": "some"}
+    assert given == {"selection": "some", "files": "3", "forced_by": ""}
 
 
 @pytest.mark.parametrize("path", ["pyproject.toml", "conftest.py"])
@@ -1379,7 +1782,8 @@ def test_a_path_every_test_rests_on_still_runs_all_however_few_tests_there_are(t
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert (printed, line["forced"], given) == (["all"], path, {"selection": "all"})
+    assert (printed, line["forced"]) == (["all"], path)
+    assert given == {"selection": "all", "files": "all", "forced_by": path}
 
 
 def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
@@ -1387,4 +1791,220 @@ def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
 
     printed, line, given = outputs(repo, head, tmp_path)
 
-    assert (printed, line["forced"], given) == (["all"], "pyproject.toml", {"selection": "all"})
+    assert (printed, line["forced"]) == (["all"], "pyproject.toml")
+    assert given == {"selection": "all", "files": "all", "forced_by": "pyproject.toml"}
+
+
+def timed(seconds):
+    """A times table, as `testing/shard.py` reads it, of these seconds by node id."""
+    from testing import shard
+
+    return "".join(f"{took:.2f}\t{shard.key(test)}\n" for test, took in seconds.items())
+
+
+PARTED = {
+    "conftest.py": "",
+    "testing/__init__.py": "",
+    "testing/shard.py": (REPO / "testing" / "shard.py").read_text(),
+    "testing/shard-times.tsv": timed(
+        {
+            "testing/tests/test_slow.py::test_slow": 10,
+            "testing/tests/test_two.py::test_one": 3,
+            "testing/tests/test_two.py::test_two": 3,
+        }
+    ),
+    "testing/tests/test_tree.py": "def test_tree():\n    pass\n",
+    "testing/tests/test_slow.py": "def test_slow():\n    pass\n",
+    "testing/tests/test_two.py": "def test_one():\n    pass\n\n\ndef test_two():\n    pass\n",
+}
+
+
+def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
+    """`--parts <count>` over a change to these test files, run as the job `select` runs it, with
+    the venv's python: what it printed, its summary, and what it gave the step's outputs."""
+    repo = Repo(tmp_path / "repo", files=dict(files))
+    head = repo.change([f"testing/tests/test_{name}.py" for name in changed])
+    summary, output = tmp_path / "summary.md", tmp_path / "output"
+    ran = subprocess.run(
+        [sys.executable, repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
+        + [repo.base, head],
+        cwd=repo.root,
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "GITHUB_STEP_SUMMARY": str(summary),
+            "GITHUB_OUTPUT": str(output),
+            "SELECTED": str(tmp_path / "selection.txt"),
+        },
+    )
+    given = (
+        dict(line.split("=", 1) for line in output.read_text().splitlines())
+        if output.exists()
+        else {}
+    )
+    return ran, summary.read_text() if summary.exists() else "", given
+
+
+def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
+    """The selection is collected once and its files dealt out whole, slowest first, to the part
+    with the least time so far, so a part collects only its own files. A part the selection left
+    empty gets `none`, which the check's part passes on."""
+    ran, summary, given = parted(tmp_path, 4)
+
+    assert ran.returncode == 0, ran.stderr
+    assert given == {
+        "selection": "some",
+        "files": "3",
+        "forced_by": "",
+        "part1": "testing/tests/test_slow.py",
+        "part2": "testing/tests/test_two.py",
+        "part3": "testing/tests/test_tree.py",
+        "part4": "none",
+    }
+    assert "parts: 4 of 4 tests in 3 files, 0 0 6 10 s of test time each" in summary
+    assert ran.stdout.splitlines()[-4:] == [
+        "part 1: testing/tests/test_slow.py",
+        "part 2: testing/tests/test_two.py",
+        "part 3: testing/tests/test_tree.py",
+        "part 4: none",
+    ]
+
+
+def test_every_selected_file_is_in_exactly_one_part(tmp_path):
+    ran, _, given = parted(tmp_path, 2)
+
+    assert ran.returncode == 0, ran.stderr
+    assert given == {
+        "selection": "some",
+        "files": "3",
+        "forced_by": "",
+        "part1": "testing/tests/test_slow.py",
+        "part2": "testing/tests/test_tree.py testing/tests/test_two.py",
+    }
+
+
+def test_a_selection_that_collects_no_test_fails_and_gives_no_part(tmp_path):
+    """No part gets a selection, and the check's parts each fail on that, as a selection with no
+    tests failed every part before."""
+    files = {
+        name: "" if name.startswith("testing/tests/") else text for name, text in PARTED.items()
+    }
+    ran, _, given = parted(tmp_path, 8, files=files)
+
+    assert ran.returncode != 0
+    assert "the selection holds no test" in ran.stderr
+    assert [key for key in given if key.startswith("part")] == []
+
+
+def test_the_selections_list_names_the_part_that_runs_each_file(tmp_path):
+    """The job `select` keeps each part's selection: every file with why and its part."""
+    ran, summary, _ = parted(tmp_path, 2)
+
+    assert ran.returncode == 0, ran.stderr
+    kept = (tmp_path / "selection.txt").read_text().splitlines()
+    assert kept == [
+        "testing/tests/test_slow.py imports,catch-all part=1",
+        "testing/tests/test_tree.py cross-cutting part=2",
+        "testing/tests/test_two.py imports,catch-all part=2",
+    ]
+    assert summary.rstrip().endswith("\n".join(kept) + "\n```\n</details>")
+
+
+def test_an_all_dealt_to_parts_lists_every_file_with_its_part():
+    parts = [["testing/tests/test_b.py"], ["testing/tests/test_a.py"]]
+
+    assert select.reasons(["all"], {"forced-by": "uv.lock"}, parts) == [
+        "all forced-by=uv.lock",
+        "testing/tests/test_a.py all part=2",
+        "testing/tests/test_b.py all part=1",
+    ]
+
+
+def test_the_deal_of_no_tests_fails():
+    with pytest.raises(SystemExit, match="holds no test"):
+        select.dealt([], {}, 8)
+
+
+def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_quick_tests_is_not():
+    """Files are dealt whole, and a part never ends before the slowest test of its files: a file
+    of one 60 s test gets a part to itself, and a file of 60 tests of 1 s, as long in all, shares
+    one, since its tests spread over the part's workers."""
+    from testing import shard
+
+    serial = ["a/test_serial.py::test_long"]
+    spread = [f"a/test_spread.py::test_{n}" for n in range(60)]
+    rest = [f"a/test_{n}.py::test_one" for n in range(200)]
+    times = {shard.key(serial[0]): 60} | {shard.key(test): 1 for test in spread + rest}
+    parts, _ = select.dealt(serial + spread + rest, times, 4)
+    assert ["a/test_serial.py"] in parts
+    (spreads,) = [part for part in parts if "a/test_spread.py" in part]
+    assert len(spreads) > 1
+
+
+@pytest.mark.parametrize("argv", [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"]])
+def test_parts_takes_a_count_of_one_or_more(argv):
+    with pytest.raises(SystemExit, match="usage"):
+        select.main(argv)
+
+
+def listed_selection(repo, head, tmp_path, failed=None):
+    """What the selection printed, the list it wrote to `$SELECTED`, and the list in the
+    summary's folded block."""
+    file, kept = tmp_path / "summary.md", tmp_path / "selection.txt"
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "GITHUB_STEP_SUMMARY": str(file),
+        "GITHUB_OUTPUT": str(tmp_path / "output"),
+        "SELECTED": str(kept),
+    }
+    if failed is not None:
+        env["FAILED_ON_MAIN"] = failed
+    ran = repo.run(repo.base, head, env=env)
+    assert ran.returncode == 0, ran.stderr
+    block = file.read_text().split("<details>", 1)[1]
+    assert block.startswith("<summary>selected: ")
+    shown = block.split("```\n", 1)[1].split("\n```", 1)[0]
+    return ran.stdout.splitlines(), kept.read_text().splitlines(), shown.splitlines()
+
+
+def test_the_selection_lists_each_test_file_with_why_in_the_summary_and_the_file(tmp_path):
+    """A part keeps what it selected: each test file and each cause that selected it, so a
+    test a pull request did not run can be traced to the selection."""
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["testing/tests/test_a.py", "src/small/__init__.py"])
+
+    printed, kept, shown = listed_selection(repo, head, tmp_path)
+
+    assert kept == shown
+    assert [line.split(" ")[0] for line in kept] == printed
+    assert kept == [
+        "testing/tests/test_a.py imports",
+        "testing/tests/test_b.py imports",
+        "testing/tests/test_c.py imports",
+        "testing/tests/test_d.py imports",
+        "testing/tests/test_tree.py cross-cutting",
+    ]
+
+
+def test_the_list_names_a_test_that_failed_on_main_as_failed_on_main(tmp_path):
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["testing/tests/test_tree.py"])
+
+    printed, kept, _ = listed_selection(repo, head, tmp_path, failed="testing/tests/test_b.py")
+
+    assert "testing/tests/test_b.py failed-on-main" in kept
+    assert len(kept) == len(printed)
+
+
+def test_an_all_lists_the_path_that_forced_it(tmp_path):
+    repo = Repo(tmp_path / "repo", files=SMALL)
+    head = repo.change(["pyproject.toml"], text="# changed\n")
+
+    printed, kept, shown = listed_selection(repo, head, tmp_path)
+
+    assert (printed, kept, shown) == (["all"], ["all forced-by=pyproject.toml"], kept)
+
+
+def test_an_empty_selection_lists_no_test_file():
+    assert select.listing(select.reasons([], {})).startswith("<details><summary>selected: 0 test")

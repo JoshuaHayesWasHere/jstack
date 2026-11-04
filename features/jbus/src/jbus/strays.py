@@ -438,7 +438,7 @@ def kill(found: list[Proc]) -> None:
             os.kill(one.pid, signal.SIGTERM)
         except OSError:
             pass
-    waited = 0.0
+    waited, left = 0.0, found
     while waited < GRACE:
         now = _stats(str(one.pid) for one in found)
         left = [one for one in found if (stat := now[str(one.pid)]) and stat[1] == one.start]

@@ -173,7 +173,8 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
     sha = judgement.brief_sha(text)
     with locked(directory, LOCK):
         kept = ledger(directory)
-        had = kept.get(key) if isinstance(kept.get(key), list) else []
+        found = kept.get(key)
+        had = found if isinstance(found, list) else []
         if any(one.get("sha") == sha for one in had):
             return lambda: None
         if len(had) < config.user.retry_cap:

@@ -167,6 +167,8 @@ The section "Protected paths" describes one more hold.
   `jmerge` judges it after every other wait of the review, so a pull request short of a `Fixed:` line or a scoped review says that first.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
+  A required check whose job its own workflow skipped by an `if:` counts as passed when every other job of that workflow at the head passed or was skipped, and one passed: macos.yml skips `macos` that way where its `macos-select` job finds no Mac test the change reaches (`ready.passed`).
+  Any other skip is no pass.
   A repo names its required checks in a `required-checks` file in its state directory.
   The file has one check name per line, and `jmerge` ignores blank lines and the spaces around a name.
   With no such file, or one that names no check, the only required check is `check` (`ready.REQUIRED`).
@@ -191,7 +193,8 @@ The section "Protected paths" describes one more hold.
   It judges them before today's main, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red: a red main holds no pull request.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).
-  No pull request waits on it, and no launch does.
+  No pull request waits on it.
+  A launch does: while main is red, jbus launches only a row that fixes main or launches stacked on an open row it depends on, and every other approved row waits as `main is red: waits for green` (`jbus.dispatch`, [What a pass launches](../../jbus/docs/jbus/what-a-pass-launches.md)).
   A pull request red at its own head is still held by its own checks, as `check has failed`.
   While `main.json` names a red tip, `jmerge` asks GitHub for no merge of main into such a pull request: its head would go red again, so the check stands until main's tip is green.
   jbus reverts the one clear culprit of a red main and files a fix row otherwise ([A red main](../../jbus/docs/jbus/a-red-main.md)).
@@ -290,12 +293,21 @@ GitHub's check at the new head ran over today's main, and it decides by the norm
 The review stands across that merge, as across a rebase: its range-diff shows no content.
 No path rule is safe: on 2026-11-03 #923 and #935 each added a new `v007_` file, neither touched a path main had changed since its check, each check passed alone, and main went red once both had merged on those checks.
 So two pull requests ready together merge one after the other, each on a check over the one before it, at the cost of a CI round for each.
+
+`jmerge` asks for that update for one pull request at a time, the one it would merge next, as a merge queue does, so each merge costs one CI round and not one for every open pull request (2026-11-03: about 30 open, each merge set off a wave of reruns, about 80 branch updates in an hour and 4 merges in 90 minutes).
+That pull request holds the line: of those whose only reason left to wait is that main moved after their check, it is the first `jmerge` gets to in merge order (the order of their numbers, with "Migrations" ordering those that add one), with its review, findings, stack, migrations, `merge_after` and holds cleared.
+`base-merges.json` keeps it on its record (`line`), so it keeps the line across runs while its check at the new head runs.
+Every other pull request main moved past waits with `it is in line behind #<n>: <base> moved after its check started, and GitHub merges <base> into the branch of one pull request at a time, the one to merge next`, on the `check` step, and GitHub is asked nothing for it until its turn.
+That holds for one ahead of `#<n>` in merge order that comes ready later: the update `#<n>` has is not spent again.
+The pull request at the head of the line gives it up when it merges, when a check of its fails, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
+A pull request whose check ran over today's main is not in the line: it merges as before, while others wait.
 `jmerge` asks for the update while `main.json` names main red as well, since the fix of a red main must run over it: a pull request that the red tip fails is then held by its own failed check, as "A failed check over a base that moved" says.
 Main's own full run at the merge commit still runs the whole suite, which a pull request's check, of the tests its change selects, does not.
 A pull request whose check failed at its own head is judged as "A failed check over a base that moved" says.
 `jmerge` judges this only once the pull request has no other reason to wait.
 `jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
-`jmerge` neither pushes nor reads a green-tree marker, and `jmerge --sweep` removes a `refs/jstack/green-tree/` ref once it is seven days old (`sweep.MARKER_DAYS`).
+Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `full` job skips its suite only on a green run's artifact (`scripts/green_tree.py`), so a ref pushed by hand skips nothing.
+`jmerge --sweep` removes such a ref once it is seven days old (`sweep.MARKER_DAYS`); the old ones still on the origin are the owner's to remove with it.
 
 ## A failed check over a base that moved
 

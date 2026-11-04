@@ -101,16 +101,86 @@ jobs:
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
   # commits of history are enough and the diff is read from the local git, with no cap on
   # its files. A change the whole suite rests on runs all of it, but for the tests that open a
-  # real browser, which browser.yml runs. The tests run as eight jobs side by side, each with an
-  # eighth of what the change selected by time (`SHARD`, testing/shard.py), and the job `check`
-  # below passes only when all eight did. Eight, not four, halves the check's wall: a part took
-  # p50 7.2 min of four on 2026-10-28..11-02. The account runs at most 40 hosted jobs at once
-  # (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): a head's eight parts,
-  # borders and macos are ten jobs, so four heads run at once and a fifth queues.
-  check-shard:
+  # real browser, which browser.yml runs. This job selects the tests once, collects them once and
+  # deals their files out to the eight parts by time (`select_tests.py --parts`), and runs the
+  # lint, which reads no test, once: each part ran the selection and the collection of the whole
+  # selection itself, about 38 s of each part's p50 374 s. It gives each part its files as the
+  # output `part<n>`, and `selection` and the tree for `check`'s marker.
+  select:
     needs: reuse
-    # A lookup that failed reuses nothing, so the parts run: `!cancelled()` and not the implicit
-    # `success()`, which would skip them and fail `check`.
+    # A lookup that failed reuses nothing, so the check runs: `!cancelled()` and not the implicit
+    # `success()`, which would skip it and fail `check`.
+    if: "!cancelled() && github.event_name == 'pull_request' && needs.reuse.outputs.reused != 'true'"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      selection: ${{ steps.select.outputs.selection }}
+      files: ${{ steps.select.outputs.files }}
+      forced_by: ${{ steps.select.outputs.forced_by }}
+      tree: ${{ steps.tree.outputs.name }}
+      part1: ${{ steps.select.outputs.part1 }}
+      part2: ${{ steps.select.outputs.part2 }}
+      part3: ${{ steps.select.outputs.part3 }}
+      part4: ${{ steps.select.outputs.part4 }}
+      part5: ${{ steps.select.outputs.part5 }}
+      part6: ${{ steps.select.outputs.part6 }}
+      part7: ${{ steps.select.outputs.part7 }}
+      part8: ${{ steps.select.outputs.part8 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+      # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
+      - run: uv sync --locked
+      # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
+      - name: green tree
+        id: tree
+        run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      # scripts/select_tests.py adds its selection and its parts to the job summary, and gives
+      # this step the outputs `part1` to `part8` and `selection`: `all` where it selected the
+      # whole suite, which it does only for a change the whole suite rests on, however many test
+      # files a selection holds. It adds the tests that failed on main (`reuse`), and the summary
+      # names those it added. A selection that collects no test fails here. It also gives
+      # `files`, `all` or how many test files it selected, and `forced_by`, the path that made it
+      # `all`, and writes the selection's list to `SELECTED` and the summary: each file it
+      # selected, the causes that selected it and the part that runs it.
+      - name: select
+        id: select
+        env:
+          FAILED_ON_MAIN: ${{ needs.reuse.outputs.failed }}
+          SELECTED: ${{ runner.temp }}/selected-tests.txt
+        run: uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD
+      # After the selection, so that a lint that fails still hands the parts their tests, and a
+      # red check names every failing test as well as the lint. `check` fails when this job did.
+      - name: prose lint
+        run: python3 features/writing/scripts/prose_lint.py HEAD^1
+      - name: make lint
+        run: make lint BASE=HEAD^1
+      # The test files the check selected, one a line with why and its part, kept for each
+      # attempt whether the lint passed or failed. A list that cannot be kept costs that lookup
+      # and nothing else.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled()"
+        continue-on-error: true
+        with:
+          name: selected-tests-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/selected-tests.txt
+          retention-days: 30
+          if-no-files-found: error
+  # The tests run as eight jobs side by side, each with the files `select` dealt it, and the job
+  # `check` below passes only when all eight did. Eight, not four, halves the check's wall: a
+  # part took p50 7.2 min of four on 2026-10-28..11-02. The account runs at most 40 hosted jobs
+  # at once (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): `select` ends
+  # before the parts start, so a head's eight parts, borders and macos are ten jobs at once, and
+  # four heads run at once and a fifth queues.
+  check-shard:
+    needs: [reuse, select]
+    # A part runs whatever `select` did, so that a lint that failed there still runs the tests,
+    # and a part that got no files fails on its first step.
     if: "!cancelled() && github.event_name == 'pull_request' && needs.reuse.outputs.reused != 'true'"
     name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
@@ -127,10 +197,14 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
-    outputs:
-      selection: ${{ steps.suite.outputs.selection }}
-      tree: ${{ steps.tree.outputs.name }}
     steps:
+      # The part's files, or `none` where the selection left this part empty, which passes. A
+      # part that got nothing, as when `select` failed before its outputs, fails: with no files
+      # `make test` would run the whole suite.
+      - name: part
+        env:
+          PART: ${{ needs.select.outputs[format('part{0}', matrix.shard)] }}
+        run: '[ -n "$PART" ] || { echo "::error::this part got no selection from the job select"; exit 1; }'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -145,66 +219,85 @@ jobs:
       # step that installed none fails.
       - name: zsh
         run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
-      # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
-      - name: green tree
-        id: tree
-        run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
       # TLC's output for each run of the specs, kept by the sha256 of what the run reads
       # (statechart's `kept`): a run whose spec, config, script, jar and Java are those of a run
-      # kept here starts no Java. A test's part is fixed by the selection and the test times, so
-      # each part keeps its own runs, and a run of the same selection finds its part's. Every run
-      # saves under a key of its own, and restores the latest of its part, of the same spec files
-      # first, else of any: a stale entry is never read, since each file is named by the hash of
-      # its own inputs.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # kept here starts no Java. One cache serves every part, since which part a test lands in
+      # changes with the selection: a part restores the latest entry of the same spec files, else
+      # the latest of any, and a pull request finds main's. The key hashes the specs, their
+      # configs and statechart's scripts, whose tools.py pins TLC's jar, so a change to any of
+      # them looks for an entry of its own. A stale file is never read, since each is named by
+      # the hash of its own inputs. `tlc kept` and the save after the suite keep what it added.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: tlc
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-${{ github.run_id }}
+          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
-            tlc-${{ matrix.shard }}-
-      # scripts/select_tests.py adds its selection to the job summary, as one line, and gives
-      # this step the output `selection`: `all` where it ran the whole suite, which it does
-      # only for a change the whole suite rests on, however many test files a selection holds.
-      # It adds the tests that failed on main (`reuse`), and the summary names those it added.
-      - name: make check-fast
+            tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-
+      # Collects only the part's own files.
+      - name: make test
         id: suite
         env:
-          FAILED_ON_MAIN: ${{ needs.reuse.outputs.failed }}
-        run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8
+          PART: ${{ needs.select.outputs[format('part{0}', matrix.shard)] }}
+        run: '[ "$PART" = none ] || make test TESTS="$PART"'
+      # After the suite, passed or failed, since a kept run is one TLC finished: a part whose
+      # cache now holds runs it did not restore saves them, under the spec files' hash and a hash
+      # of the names of the runs it holds, which ends the key it restored. So the part that ran
+      # TLC saves an entry of its own, and is not beaten to one shared key by a faster part that
+      # holds only what it restored. A part that added nothing saves nothing, and two parts that
+      # hold the same runs name the same entry.
+      - name: tlc kept
+        id: kept
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        env:
+          SPECS: ${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}
+          RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: "!cancelled() && steps.kept.outputs.key != ''"
+        with:
+          path: ~/.cache/jstack/tlc
+          key: ${{ steps.kept.outputs.key }}
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
-      # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had, and
-      # /tmp's inode use once the suite ran, for the CI report's /tmp inode peak.
+      # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had, what its
+      # check selected (`all` or how many test files, and the path that forced `all`), so a red
+      # on main can be checked against its culprit's selection, and /tmp's inode use once the
+      # suite ran, for the CI report's /tmp inode peak.
       - name: full suite
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
         env:
-          FULL: ${{ steps.suite.outputs.selection == 'all' }}
-          NAME: ${{ steps.tree.outputs.name }}
-        run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && INODES=$(df --output=ipcent /tmp | tail -n 1 | tr -dc 0-9) && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}" ${INODES:+tmp_inode_pct="$INODES"}'
+          FULL: ${{ needs.select.outputs.selection == 'all' }}
+          NAME: ${{ needs.select.outputs.tree }}
+          FILES: ${{ needs.select.outputs.files }}
+          FORCED: ${{ needs.select.outputs.forced_by }}
+        run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && INODES=$(df --output=ipcent /tmp | tail -n 1 | tr -dc 0-9) && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}" ${FILES:+selection="$FILES"} ${FORCED:+reason="$FORCED"} ${INODES:+tmp_inode_pct="$INODES"}'
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
-  # whatever the parts did, and passes only when all eight passed: a part that failed, was
-  # cancelled or never ran fails it, where a skipped required check would count as passed.
+  # whatever the parts did, and passes only when `select` and all eight parts passed: a job that
+  # failed, was cancelled or never ran fails it, where a skipped required check would count as
+  # passed.
   check:
     if: always() && github.event_name == 'pull_request'
-    needs: [reuse, check-shard]
+    needs: [reuse, select, check-shard]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      # The parts are skipped only on a reuse, and then it passes on the pass it reuses. The
-      # `reuse` job, which runs the trailer check, passed in either case.
+      # `select` and the parts are skipped only on a reuse, and then it passes on the pass it
+      # reuses. The `reuse` job, which runs the trailer check, passed in either case.
       - name: every part passed
         env:
           PARTS: ${{ needs.check-shard.result }}
+          SELECT: ${{ needs.select.result }}
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reused }}
-        run: '[ "$REUSE" = success ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, and the parts of the check ended $PARTS, not success"; exit 1; }'
+        run: '[ "$REUSE" = success ] && { [ "$REUSED" = true ] || [ "$SELECT $PARTS" = "success success" ]; } || { echo "::error::the reuse job ended $REUSE, the select job $SELECT, and the parts of the check $PARTS, not success"; exit 1; }'
       # The pass of the two trees, for a later run of them to reuse (`reuse`). A reuse leaves
       # none: the run it reused left one. One that cannot be kept costs that reuse and nothing
       # else.
       - name: checked trees marker
         id: checked
-        if: needs.check-shard.result == 'success' && needs.reuse.outputs.name != ''
+        if: needs.check-shard.result == 'success' && needs.select.result == 'success' && needs.reuse.outputs.name != ''
         env:
           NAME: ${{ needs.reuse.outputs.name }}
         run: mkdir -p "$RUNNER_TEMP/checked-tree" && touch "$RUNNER_TEMP/checked-tree/$NAME"
@@ -226,17 +319,17 @@ jobs:
       # cannot be kept costs that skip and nothing else.
       - name: green tree marker
         id: marker
-        if: needs.check-shard.result == 'success' && needs.check-shard.outputs.selection == 'all'
+        if: needs.check-shard.result == 'success' && needs.select.result == 'success' && needs.select.outputs.selection == 'all'
         env:
-          NAME: ${{ needs.check-shard.outputs.tree }}
+          NAME: ${{ needs.select.outputs.tree }}
         run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: upload
         if: steps.marker.outcome == 'success'
         continue-on-error: true
         with:
-          name: ${{ needs.check-shard.outputs.tree }}
-          path: ${{ runner.temp }}/green-tree/${{ needs.check-shard.outputs.tree }}
+          name: ${{ needs.select.outputs.tree }}
+          path: ${{ runner.temp }}/green-tree/${{ needs.select.outputs.tree }}
           retention-days: 7
           if-no-files-found: error
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
@@ -293,19 +386,34 @@ jobs:
       - name: zsh
         if: steps.tree.outputs.marker != 'green'
         run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
-      # TLC's kept output, as in the check's parts.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # TLC's kept output, restored and saved as in the check's parts: main's entries are those a
+      # pull request restores.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: tlc
         if: steps.tree.outputs.marker != 'green'
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-${{ github.run_id }}
+          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
-            tlc-${{ matrix.shard }}-
+            tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
         run: make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4
+      # As in the check's parts.
+      - name: tlc kept
+        id: kept
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        env:
+          SPECS: ${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}
+          RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: "!cancelled() && steps.kept.outputs.key != ''"
+        with:
+          path: ~/.cache/jstack/tlc
+          key: ${{ steps.kept.outputs.key }}
       # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed
       # over every test, the tail (the wall less that sum shared out over the workers: the time

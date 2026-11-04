@@ -7,6 +7,9 @@ The log here is what `jmerge` writes: each line made by `jmerge.lines`, one wait
 
 import string
 
+import pytest
+
+from jbus import cancelled
 from jmerge import lines, ready
 from view.scene import PULL, ago, et, row, tasks
 
@@ -102,3 +105,44 @@ def test_a_reason_whose_free_text_names_a_red_check_is_read_as_its_own_not_the_c
     )
     assert str(said).endswith("into it: the required check has failed")
     assert ready.code_of(str(said)) == ready.BASE_MERGE_REFUSED.code
+
+
+RATE_LIMIT = "failed to get run: HTTP 403: API rate limit exceeded for installation ID 1"
+
+
+@pytest.mark.parametrize("name", ["check", "macos"])
+@pytest.mark.parametrize("minutes", [None, 30])
+@pytest.mark.parametrize("error", ["", f": {RATE_LIMIT}"])
+def test_a_check_github_did_not_run_again_is_on_the_check_step_with_its_reason(
+    scene, served, name, minutes, error
+):
+    """The row's `why` that `cancelled` writes for a check GitHub would not run again, with or
+    without GitHub's refusal after it, as the home hears it, is on the check step under its own
+    code. The `why` itself leaves the refusal out, so the view does not show a rate limit as the
+    reason it waits."""
+    why = f"#11: {cancelled.unrun(name, minutes)}"
+    reason = why.removeprefix("#11: ")
+    assert RATE_LIMIT not in why
+    assert ready.code_of(reason + error) == ready.CANCELLED_UNRUN.code
+    scene.queue([row("oat-bowl", "pr", pr="#11", checks="failed", why=why + error)])
+    found = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
+    assert found["step"] == "check"
+    scene.queue([row("oat-bowl", "pr", pr="#11", checks="failed", why=why)])
+    found = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
+    assert (found["step"], found["reason"]) == ("check", reason)
+
+
+@pytest.mark.parametrize("name", ["check", "macos"])
+@pytest.mark.parametrize("minutes", [[None, None], [30, 30], [12, 31]])
+@pytest.mark.parametrize("cause", ["", "its timeout of 30 min"])
+def test_a_check_cancelled_twice_is_on_the_check_step_with_its_reason(
+    scene, served, name, minutes, cause
+):
+    """The row's `why` that `cancelled` writes for a check cancelled at two attempts, with or
+    without how long each ran and what stopped it, is on the check step under its own code."""
+    why = f"#11: {cancelled.twice(name, minutes, cause)}"
+    reason = why.removeprefix("#11: ")
+    assert ready.code_of(reason) == ready.CANCELLED_TWICE.code
+    scene.queue([row("oat-bowl", "pr", pr="#11", checks="failed", why=why)])
+    found = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
+    assert (found["step"], found["reason"]) == ("check", reason)

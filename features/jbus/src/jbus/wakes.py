@@ -524,7 +524,8 @@ def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:
 
 
 def _tell(half: Half) -> None:
-    tell(half.run, half.client, half.listed)
+    if half.client is not None:
+        tell(half.run, half.client, half.listed)
 
 
 STEPS = (verbs.Step("close", 27, "wakes.tell", _tell, ("sight", "client", "world", "budget")),)

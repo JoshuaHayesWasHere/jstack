@@ -25,6 +25,7 @@ _ACK = re.compile(
 _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
+_NOTHING_PUSHED = "nothing was pushed"
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -193,6 +194,8 @@ CONTENT_CHANGED = Reason(
 NOT_PASSED = Reason("check", "{check} has not passed")
 CHECK_FAILED = Reason("check", "{check} has failed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
+CANCELLED_UNRUN = Reason("check", "its {check} was cancelled, and GitHub did not run it again")
+CANCELLED_TWICE = Reason("check", "its {check} was cancelled twice")
 LIVE_RUN = Reason("check", "{check}'s run at {head} is {state}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
@@ -259,6 +262,11 @@ BASE_MOVED_ASKED = Reason(
 BASE_MOVED_DUE = Reason(
     "check", "{base} moved after its check started: GitHub is to merge {base} at {tip} into it"
 )
+IN_LINE = Reason(
+    "check",
+    "it is in line behind #{number}: {base} moved after its check started, and GitHub merges"
+    " {base} into the branch of one pull request at a time, the one to merge next",
+)
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -311,11 +319,36 @@ def latest(rollup: list[dict], name: str | None) -> list[dict]:
     return [one for one in named if when(one) == last]
 
 
+def _ended(one: dict, conclusion: str) -> bool:
+    return one.get("status") == "COMPLETED" and one.get("conclusion") == conclusion
+
+
+def _skip_decided(rollup: list[dict], one: dict) -> bool:
+    """Whether a skipped job was skipped by its own workflow's choice: every other job of its
+    workflow at the head ended passed or skipped, and one at least passed. macos.yml skips its
+    `macos` job by an `if:` where its `macos-select` job finds no Mac test the change reaches.
+    A skip with no job of its workflow that passed beside it, or one beside a failed job, is no
+    pass."""
+    workflow, name = one.get("workflowName"), one.get("name")
+    if not _ended(one, "SKIPPED") or not workflow:
+        return False
+    others = [
+        run
+        for other in dict.fromkeys(
+            r.get("name") for r in rollup if r.get("workflowName") == workflow
+        )
+        if other != name
+        for run in latest(rollup, other)
+    ]
+    return any(_ended(run, "SUCCESS") for run in others) and all(
+        _ended(run, "SUCCESS") or _ended(run, "SKIPPED") for run in others
+    )
+
+
 def passed(rollup: list[dict], name: str) -> bool:
     runs = latest(rollup, name)
     return bool(runs) and all(
-        one.get("state") == "SUCCESS"
-        or (one.get("status") == "COMPLETED" and one.get("conclusion") == "SUCCESS")
+        one.get("state") == "SUCCESS" or _ended(one, "SUCCESS") or _skip_decided(rollup, one)
         for one in runs
     )
 
@@ -581,6 +614,7 @@ def said_of(text: str) -> Said:
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     first = triage.sections[0].line if triage.sections else -1
     fixed_at = -1
+    unproven = False
     for at, line in enumerate(text.splitlines()):
         fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
         if _COMMIT.fullmatch(fixed) or fixed == "none":
@@ -601,8 +635,11 @@ def said_of(text: str) -> Said:
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
+            unproven = fields[2:3] != ["needed"] and " ".join(fields[3:6]) != _NOTHING_PUSHED
     if said.mode == REVIEW and _stale(triage.sections, said.reviewed, fixed_at):
         said.fixed = ""
+    if unproven and _COMMIT.fullmatch(said.fixed) and said.fixed != said.reviewed:
+        said.owed, said.asked = True, said.reviewed
     _round(said)
     said.owes = _owes(said)
     return said
@@ -836,7 +873,9 @@ def _scoped_since(said: Said) -> bool:
 
 
 def _ruled(named: tuple[findings.Finding, ...]) -> str:
-    return " and ".join(_RULED.format(id=one.id, why=one.ruling.why) for one in named)
+    return " and ".join(
+        _RULED.format(id=one.id, why=one.ruling.why) for one in named if one.ruling is not None
+    )
 
 
 def unruled(said: Said) -> str:

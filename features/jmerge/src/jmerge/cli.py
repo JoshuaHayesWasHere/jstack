@@ -15,7 +15,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import jsettings
 from jbriefs import home as home_rule
@@ -143,6 +143,7 @@ class Repo:
         self.fetched = False
         self.through: int | None = None
         self.order: list[int] = []
+        self.line: int | None = None
         self.rebasing: set[int] = set()
         self.numbers_on: dict[str, set[int]] = {}
         self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
@@ -608,9 +609,10 @@ class Repo:
             _text(self.main, *names, fork, commit)
             for fork, commit in zip(forks, (covered, head), strict=True)
         ]
-        if None in patches:
+        texts = [patch for patch in patches if patch is not None]
+        if len(texts) != len(patches):
             return None
-        files = sorted({file for patch in patches for file in patch.splitlines()})
+        files = sorted({file for patch in texts for file in patch.splitlines()})
         return ready.Rebase(tuple(files), covered, head)
 
     def left_main_elsewhere(self, base: str, under: str, head: str) -> bool:
@@ -668,7 +670,10 @@ class Repo:
         that merges cleanly onto the tip with `git merge-tree` has GitHub merge the base into
         its branch (`rejudge.BaseMerge`), and its check at the new head decides; one that
         conflicts waits for a rebase. A path the pull request does not touch is no proof:
-        #923 and #935 each added their own new file and broke main together."""
+        #923 and #935 each added their own new file and broke main together. GitHub merges the
+        base into one branch at a time, the first to get this far in merge order while no other
+        holds the line (`self.line`); every other waits in line behind it, so each merge costs
+        one CI round and not one for each open pull request."""
         if one.started is None:
             return "", ""
         moved = self.moved(one.base, one.started)
@@ -682,8 +687,12 @@ class Repo:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ""
+        if self.line not in (None, one.number):
+            return ready.IN_LINE.format(number=self.line, base=one.base), ""
         reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-        return self.base_merge.of(one, tip, *reasons), ""
+        said = self.base_merge.of(one, tip, *reasons, line=True)
+        self.line = self.base_merge.holder((one.number,))
+        return said, ""
 
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose required checks failed waits, judged over today's base. Its
@@ -717,6 +726,9 @@ class Repo:
 
     def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
+        if one.number == self.line and not in_line(one, found):
+            self.base_merge.release(one)
+            self.line = None
         rebasing = found.verb == "wait" and not one.draft and ready.being_rebased(found.why)
         if one.number in self.order and rebasing:
             self.rebasing.add(one.number)
@@ -943,6 +955,10 @@ class Repo:
 
     def holds(self) -> dict[str, str]:
         return store.read_dict(self.state / "holds.json")
+
+    def lined_up(self, listed: list[ready.PullRequest]) -> None:
+        """Find the open pull request at the head of the line (`over_main`), if any."""
+        self.line = self.base_merge.holder(sorted(one.number for one in listed))
 
     def open_only(self, listed: list[ready.PullRequest]) -> None:
         """Keep only the holds of pull requests still open: a merge or a close drops one, and the
@@ -1185,6 +1201,8 @@ class Repo:
         )
         if ran.returncode:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
+        if self.line == one.number:
+            self.line = None
         notes = [rebase] if rebase else []
         asked = _run(
             self.main,
@@ -1361,14 +1379,16 @@ class Sweep:
         return self._within(commit, head)
 
     def found(self, record: sweep.Record, left: dict[str, str]) -> sweep.Found:
-        state = head = silent = ""
+        state: Literal["MERGED", "OPEN", "CLOSED", ""] = ""
+        head = silent = ""
         if record.pull and not record.short:
             asked = _run(
                 self.main, "gh", "pr", "view", record.pull, "--json", "state,headRefOid,baseRefName"
             )
             try:
                 said = json.loads(asked.stdout)
-                state = "" if asked.returncode else str(said["state"])
+                told = "" if asked.returncode else str(said["state"])
+                state = told if told in ("MERGED", "OPEN", "CLOSED") else ""
                 if state == "MERGED" and said["baseRefName"] in (self.default, *self.repo.bases):
                     head = str(said["headRefOid"])
             except (ValueError, KeyError, TypeError):
@@ -1508,7 +1528,7 @@ def said_of_checks(pull: str) -> str:
     try:
         fields = "headRefOid,statusCheckRollup"
         asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", fields)
-        view = json.loads(asked.stdout) if not asked.returncode else None
+        view = json.loads(asked.stdout) if not asked.returncode else {}
         rollup, head = view["statusCheckRollup"] or [], view["headRefOid"] or ""
         never = checks.never_started(rollup, _job)
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
@@ -1731,6 +1751,7 @@ def _merging(
             if not said and backoff.is_wait(line.removeprefix("wait: ")):
                 waits = "github"
             kept = lines.logged(line)
+            last: dict = {}
             if waits:
                 last = store.read_dict(state / "merge.log.last")
                 if last.get(waits) == kept:
@@ -1768,7 +1789,7 @@ def _merging(
     default, silent = repo.default() if listed else ("", "")
     if asked.returncode or listed is None:
         silent = _why(main_checkout, asked)
-    if silent:
+    if silent or listed is None:
         say(f"wait: could not ask GitHub{silent}")
         return 1
     listed = [repo.in_full(one) for one in listed]
@@ -1781,6 +1802,7 @@ def _merging(
         )
     if not args.check and not full:
         repo.open_only(listed)
+    repo.lined_up(listed)
 
     if args.accept is not None:
         found = next((one for one in listed if one.number == int(args.accept)), None)
@@ -1820,6 +1842,35 @@ MAIN_BROWSER = "{default} browser.yml"
 """The key of `Repo.reds` that keeps main's browser runs, which no branch name can be."""
 ROLLUP = "#{number} rollup"
 """The key of `Repo.reds` that keeps a pull request's checks as GitHub lists them."""
+
+
+IN_LINE = frozenset(
+    reason.code
+    for reason in (
+        ready.OTHER_HOME,
+        ready.MERGE_OFF,
+        ready.MERGING,
+        ready.MAIN_MOVED,
+        ready.UNDECIDED,
+        ready.NOT_PASSED,
+        ready.NO_RUN,
+        ready.LIVE_RUN,
+        ready.MIGRATION_MERGING,
+        ready.BASE_MOVED_ASKED,
+        ready.BASE_MOVED_DUE,
+    )
+)
+"""The waits that keep a pull request at the head of the line (`Repo.over_main`): those on
+jmerge, GitHub and its check, which end in its merge by themselves. Any other wait, or a failed
+check, gives the line to the next pull request: one that waits on its crew or the user would
+hold every other one main moved past for as long."""
+
+
+def in_line(one: ready.PullRequest, found: Judgement) -> bool:
+    """Whether the pull request at the head of the line keeps it after this judgement."""
+    if one.failed:
+        return False
+    return found.judged is not None or ready.code_of(found.why) in IN_LINE
 
 
 def with_browser(repo: Repo, listed: dict) -> ready.PullRequest:

@@ -502,7 +502,8 @@ class Relay:
             return
         lanes = {lane.route.name: lane for lane in [*self.lanes, self.pager.lane]}
         for one in kept if isinstance(kept, list) else []:
-            lane = lanes.get(one.get("route")) if isinstance(one, dict) else None
+            route = one.get("route") if isinstance(one, dict) else None
+            lane = lanes.get(route) if isinstance(route, str) else None
             if lane and silent.when(one.get("since")) and lane._waiting():
                 lane.failing = {key: one.get(key) for key in ("route", "since", "why")}
 
@@ -515,7 +516,11 @@ class Relay:
 
     def _recent(self) -> list[Body]:
         now = datetime.now(UTC)
-        return [one for one in self.refusals if now - silent.when(one["at"]) < REFUSED_KEPT]
+        return [
+            one
+            for one in self.refusals
+            if (at := silent.when(one["at"])) is not None and now - at < REFUSED_KEPT
+        ]
 
     def beat(self) -> None:
         """Write the heartbeat, which the module's docstring describes. When `beat` cannot

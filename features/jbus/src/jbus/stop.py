@@ -45,7 +45,7 @@ import json
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict, Unpack
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
@@ -153,7 +153,7 @@ def load(state: Path) -> Kept:
         given = json.loads(file.read_text())
         return Kept(
             tuple(Stop(**one) for one in given["stops"]),
-            tuple(Answer(**{**one, "stops": tuple(one["stops"])}) for one in given["answers"]),
+            tuple(Answer(**(one | {"stops": tuple(one["stops"])})) for one in given["answers"]),
         )
     except (OSError, ValueError, TypeError, KeyError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
@@ -269,7 +269,13 @@ def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
     return made
 
 
-def _change(run: Pass, one: Stop | Answer, **changed: str) -> bool:
+class _Sent(TypedDict, total=False):
+    thread: str
+    sent_at: str
+    waits: str
+
+
+def _change(run: Pass, one: Stop | Answer, **changed: Unpack[_Sent]) -> bool:
     """Write what became of a stop's or an answer's message, and return whether it wrote anything.
     Leave a message that went after the caller read `one` as it is."""
     with locked(run.state, LOCK):
@@ -280,10 +286,10 @@ def _change(run: Pass, one: Stop | Answer, **changed: str) -> bool:
         if not same or same[0].sent_at:
             return False
         now = replace(same[0], **changed)
-        _write(
-            run.state,
-            replace(kept, **{field: tuple(now if each is same[0] else each for each in records)}),
-        )
+        swapped: dict[str, Any] = {
+            field: tuple(now if each is same[0] else each for each in records)
+        }
+        _write(run.state, replace(kept, **swapped))
     return True
 
 

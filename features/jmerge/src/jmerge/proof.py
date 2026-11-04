@@ -20,8 +20,8 @@ def _reviews(text: str) -> list[tuple[str, str]]:
             continue
         elif line.startswith("Head:"):
             found[-1][0] = "".join(line.split()[1:2])
-        elif not found[-1][1] and _PROOF.search(line):
-            found[-1][1] = _PROOF.search(line)[1].strip()
+        elif not found[-1][1] and (proof := _PROOF.search(line)):
+            found[-1][1] = proof[1].strip()
     return [(head, said) for head, said in found]
 
 

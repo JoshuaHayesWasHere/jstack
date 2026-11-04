@@ -136,13 +136,13 @@ def pushed(refs: Iterable[str], url: str) -> Iterator[Text]:
     hook's second argument, where the push goes. The function leaves a commit out only when
     the commit is reachable from a commit that this checkout holds and that `git ls-remote`
     lists for that URL."""
-    refs = [ref.split() for ref in refs if ref.strip()]
-    if all(NO_COMMIT.fullmatch(local) for _, local, _, _ in refs):
+    lines = [ref.split() for ref in refs if ref.strip()]
+    if all(NO_COMMIT.fullmatch(local) for _, local, _, _ in lines):
         return
     listed = {line.split()[0] for line in git("ls-remote", url).splitlines() if line.strip()}
     there = git("cat-file", "--batch-check", given="".join(f"{each}\n" for each in sorted(listed)))
     has = [line.split()[0] for line in there.splitlines() if not line.endswith(" missing")]
-    for _, local, remote_ref, _ in refs:
+    for _, local, remote_ref, _ in lines:
         if NO_COMMIT.fullmatch(local):
             continue
         kind, _, name = remote_ref.removeprefix("refs/").partition("/")
