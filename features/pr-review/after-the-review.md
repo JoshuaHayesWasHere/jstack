@@ -27,10 +27,12 @@
    It prints the section's `Head:` and `Patch-id:` lines whole.
    `yes` means the pull request's head and this checkout's are both still the head kept at the start, with nothing uncommitted.
    On `no`, say that first in the section.
-   The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and its second-pass check compares from that head.
+   The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and `jmerge` compares a rebase from that head.
+   It is the one round: a fix pushed for its findings gets no review.
    The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells.
    On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
-2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
+2. Drop what is outside the diff: "Outside the diff".
+   From here on, the findings are the ones that block kept, each **Act on** one with its `(proof: ...)` tag ("The review", step 4).
 3. Add the two lines the reviewer finds itself, neither of them a finding: `Outside Where:` from "Wider than the brief" and `In flight:` from "In flight".
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
    The section is this pass's one output: jbus reads it on its next pass, asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
@@ -60,7 +62,7 @@
    On `not yet`, append the section again and run the block again.
    Settle nothing until it prints `written`.
 
-   On `written`, every finding this pass sends goes to the crewmate while the pull request is open, a later review's included, and jbus tells it of them: nothing else is filed.
+   On `written`, every finding this pass sends goes to the crewmate while the pull request is open, and jbus tells it of them: nothing else is filed.
 
 6. Say the same in this thread in at most five lines.
 7. Last, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.

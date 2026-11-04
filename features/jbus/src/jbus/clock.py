@@ -5,13 +5,13 @@ repeats its line.
 `tick` reads what jbus's own run of `jmerge` says in this pass of each open pull request that jbus
 launched a crew for, and sorts the wait into one of three classes:
 
-- `review`: the review is not written (`it has no review yet`, `its review has no verdict`, the
-  second review or the second pass is not written);
-- `scoped`: the scoped review of a fix or a rebase is not written or has not ruled;
+- `review`: the review is not written (`it has no review yet`, `its review has no verdict`);
+- `scoped`: the scoped review a `Meets the brief: no` owes, or a rebase's, is not written or has
+  not ruled;
 - `result`: no Result names the pull request, so the crew stopped before it wrote one.
 
 Each wait has one thread it waits on. For `review` and `scoped` that is the reviewer the brief's
-last `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` line names, and the crew where the brief
+last `Reviewer:` or `Scoped reviewer:` line names, and the crew where the brief
 names none, or where jbus cannot work out a scoped pass's two ranges. For `result` it is the crew
 on the brief's `Thread:` line. `clock.json` counts, for each slug, the passes of one wait at one
 head in which that thread was not at work: its turn ended, it hung, or T3 Code no longer lists
@@ -156,14 +156,12 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
     """Return the thread of the reviewer that a wait is for, or nothing where the brief names none.
 
     For a scoped wait it is the last `Scoped reviewer:` line of this head, or else the last one.
-    For a second review it is the last `Second reviewer:` line. Otherwise it is the last
+    Otherwise it is the last
     `Reviewer:` line whose seat, `#<n>`, has written no `## Review` with that seat on its `By:`
     line."""
     if kind == "scoped":
         named = below.reviewers(brief, "Scoped reviewer", head)
         named = named or below.reviewers(brief, "Scoped reviewer")
-    elif "second" in reason:
-        named = below.reviewers(brief, "Second reviewer")
     else:
         bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections)
         wrote = {seat[1] for seat in bys if seat}
