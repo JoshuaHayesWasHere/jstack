@@ -40,6 +40,7 @@ from jbus import acts, cli, live, outbox, party, poll, queue, rebase, t3, verbs,
 from jgauge import slot, waiters
 from jmerge import judgement
 from jroles import ledger
+from jsettings import proc
 from repo_template import IDENTITY
 from test_room import BIN, FRESH, IDLE, machine
 from testing.paths import REPO
@@ -749,8 +750,10 @@ class Kitchen:
         PATH resolves a command to a fake as the kitchen wrote it, this calls that fake's function.
         Anything else starts a process as before: `git`, a command that is missing, a fake that a
         test wrote over or took off PATH, and a call that passes its own `env`, asks for `check`, or
-        does not capture what is printed. A fake called here ignores `timeout`. One that ends on an
-        exception ends as a Python does: the traceback on stderr, and exit 1.
+        does not capture what is printed. An `env` that is this process's own with only `GH_DEBUG`
+        added, as `jsettings.proc` gives every `gh`, is not one of its own: no fake reads it. A fake
+        called here ignores `timeout`. One that ends on an exception ends as a Python does: the
+        traceback on stderr, and exit 1.
 
         `git ls-remote origin` answers main's tip from `commits.json` where a test wrote commits
         there, as GitHub's list of main's commits starts at the tip `ls-remote` gives: so
@@ -762,7 +765,11 @@ class Kitchen:
             return listed
         fake = None
         if isinstance(command, (list, tuple)) and how.get("capture_output"):
-            if not how.keys() - {"capture_output", "cwd", "text", "timeout"}:
+            keys = how.keys() - {"capture_output", "cwd", "text", "timeout"}
+            env = how.get("env")
+            if env is not None and {k: v for k, v in env.items() if k != "GH_DEBUG"} == os.environ:
+                keys -= {"env"}
+            if not keys:
                 path = on_path(str(command[0]))
                 fake, written = self.fakes.get(path, (None, None))
                 if fake and Path(path).read_text() != written:
@@ -1057,6 +1064,27 @@ def test_a_fake_is_asked_in_the_directory_the_command_would_start_in(kitchen, do
     there = started(command, capture_output=True, text=True, **how)
     assert (here.returncode, here.stdout) == (there.returncode, there.stdout)
     assert here.returncode == (1 if down == "gh-down-demo" else 0)
+
+
+def test_a_fake_run_through_jsettings_proc_is_called_here_and_starts_no_process(kitchen):
+    """`proc.run` is how jbus runs `gh` and `jmerge`, so the kitchen answers it itself, the
+    `GH_DEBUG` that `proc.run` adds for every `gh` included, unless the call gives its own input,
+    env or errors."""
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    started = []
+    kitchen.monkeypatch.setattr(
+        kitchen,
+        "started",
+        lambda command, **how: (
+            started.append(command) or subprocess.CompletedProcess(command, 0, "", "")
+        ),
+    )
+    listed = proc.run("gh", "pr", "list", "--state", "open", cwd=kitchen.checkout)
+    asked = proc.ask(["jmerge", "--sweep", "--check"], cwd=kitchen.checkout)
+    assert (listed.returncode, json.loads(listed.stdout)[0]["number"], asked) == (0, 7, "")
+    assert started == []
+    proc.run("gh", "pr", "list", env={**os.environ, "JSTACK_OWN": "1"})
+    assert started == [("gh", "pr", "list")]
 
 
 def test_a_fake_asked_with_no_text_answers_in_bytes_as_the_command_does(kitchen):
