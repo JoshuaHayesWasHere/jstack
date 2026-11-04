@@ -7,7 +7,8 @@ its base has moved since the check started and is not red: `BaseMerge` asks GitH
 base into the branch, and GitHub's new check at the new head decides the rest by the normal path.
 A green pull request whose base moved under it takes the same path: its check ran over a base
 that is gone, so where its head merges cleanly over today's base, GitHub merges the base into it
-too (`cli.Repo.over_main`).
+too (`cli.Repo.over_main`), one pull request at a time: the one at the head of the line
+(`BaseMerge.holder`), which every other green one whose base moved waits behind.
 
 GitHub's endpoint merges the base into the branch and rewrites no history:
 https://docs.github.com/en/rest/pulls/pulls#update-a-pull-request-branch. `expected_head_sha`
@@ -74,20 +75,43 @@ class BaseMerge:
         tip: str,
         asked: str = ready.BASE_MERGE_ASKED,
         due: str = ready.BASE_MERGE_DUE,
+        *,
+        line: bool = False,
     ) -> str:
         """Why the pull request waits once its base's merge into it is asked of GitHub: `asked`
-        once it is asked, and `due` in a run that asks nothing."""
+        once it is asked, and `due` in a run that asks nothing. With `line`, a merge GitHub took
+        puts the pull request at the head of the line (`holder`), in a run that asks nothing
+        for that run alone."""
         was = self.was(one, tip)
         if was is not None and isinstance(was.get("said"), str):
             return was["said"]
         values = {"base": one.base, "tip": tip[:SHA]}
         if not self.run:
+            if line:
+                self.keep(one, tip, line=True)
             return due.format(**values)
         why, answered = self.ask(one)
         said = ready.BASE_MERGE_REFUSED.format(**values, why=why) if why else asked.format(**values)
         if answered:
-            self.keep(one, tip, said=said)
+            self.keep(one, tip, said=said, line=line and not why)
         return said
+
+    def holder(self, numbers: Collection[int]) -> int | None:
+        """The pull request at the head of the line, of the open ones in `numbers`: the one
+        GitHub last took a merge of the base into because its base moved after its check
+        (`cli.Repo.over_main`), until `release`. GitHub merges the base into no other green
+        pull request while it holds the line, so each merge costs one rerun."""
+        known = self.known()
+        held = (n for n in numbers if (known.get(str(n)) or {}).get("line") is True)
+        return next(held, None)
+
+    def release(self, one: ready.PullRequest) -> None:
+        """Take the pull request from the head of the line."""
+        was = self.known().get(str(one.number))
+        if isinstance(was, dict) and was.get("line"):
+            self.records = {**self.known(), str(one.number): {**was, "line": False}}
+            if self.run:
+                store.write_json(self.path, self.records)
 
     def repeats(self, one: ready.PullRequest, tip: str, check: str) -> bool:
         """Whether the pull request failed a same test of its own in its last two runs of
