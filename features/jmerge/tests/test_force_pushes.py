@@ -356,6 +356,46 @@ def test_a_push_from_before_mains_rewrite_replays_against_the_main_it_saw(repo):
     assert train not in moves and rewritten not in moves
 
 
+ABSENT = "0123456789abcdef0123456789abcdef01234567"
+
+
+def test_a_merge_commit_git_lacks_leaves_the_readable_merges_on_main(repo):
+    """GitHub can name a merge commit the clone never fetched: `main_moves` reads past it, and
+    a merge git can read, which is main only by its first parent, still lands on main."""
+    start = git(repo, "rev-parse", "HEAD")
+    seen = commit(repo, {"cite.md": "see a.py:20\n"}, "seen (#6)")
+    git(repo, "checkout", "-q", "-b", "today", start)
+    later = commit(repo, {"code.py": "later\n"}, "a push to main with no pull request")
+    git(repo, "update-ref", "refs/remotes/origin/main", later)
+    at = git(repo, "log", "-1", "--format=%cI", seen)
+    pulls = [
+        {"number": 6, "branch": "six", "merged": at, "merge_commit": seen},
+        {"number": 11, "branch": "gone", "merged": at, "merge_commit": ABSENT},
+    ]
+    moves = [commit for _, commit in pushes.main_moves(repo, pulls)]
+    assert seen in moves and later in moves and ABSENT not in moves
+
+
+def test_a_push_whose_merge_commit_git_lacks_keeps_its_hunks(repo, monkeypatch):
+    """A merge commit git cannot read is not known to be off main, so its push keeps its hunks
+    and is not one of a pull request merged into another row's branch."""
+    head, main = branch_over(repo, {"code.py": "two\n"}, {"code.py": "three\n"})
+    git(repo, "update-ref", "refs/remotes/origin/main", main)
+    landed = datetime.fromisoformat(git(repo, "log", "-1", "--format=%cI", main))
+    told_at, pushed_at = landed + timedelta(minutes=1), landed + timedelta(minutes=5)
+    merged = stamp(pushed_at + timedelta(hours=1))
+    pulls = [pull(11, "row", stamp(pushed_at), merged=merged) | {"merge_commit": ABSENT}]
+    rebase = "jbus: main moved under your pull request #11 (it conflicts with its base)."
+    events = [event("rebase", "row", stamp(told_at), "told (#11)", rebase)]
+    pushed = pushes.when(stamp(pushed_at))
+    monkeypatch.setattr(pushes, "pushed_commits", lambda _r, _n: {(11, pushed): (head, head)})
+    since, until = landed - timedelta(days=1), landed + timedelta(days=1)
+    counted, _, hunks_of, elsewhere = pushes.explained(repo, pulls, events, since, until)
+    assert counted["conflict"] == Counter({pushes.ROWS: 1})
+    assert hunks_of == {"code.py": [(pushed, 11, ["edit"])]}
+    assert elsewhere == 0
+
+
 def test_files_of_gives_each_conflicted_file_its_pull_requests_and_its_hunks_by_kind():
     """`--json` prints `files_of`, which `jbus.collisions` reads for the weekly report."""
     hunks_of = {

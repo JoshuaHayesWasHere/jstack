@@ -88,16 +88,21 @@ def _run(
     env: Mapping[str, str] | None,
     errors: str | None,
 ) -> subprocess.CompletedProcess[str]:
+    """Run the command and return what it did. Of `stdin`, `env` and `errors`, only those given
+    reach `subprocess.run`, so the tests' fake commands, which answer a call that passes none of
+    them in process, answer this one too."""
+    given = {
+        key: value
+        for key, value in (
+            ("input", stdin),
+            ("env", None if env is None else dict(env)),
+            ("errors", errors),
+        )
+        if value is not None
+    }
     try:
         return subprocess.run(
-            command,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            input=stdin,
-            timeout=timeout,
-            env=None if env is None else dict(env),
-            errors=errors,
+            command, cwd=cwd, capture_output=True, text=True, timeout=timeout, **given
         )
     except subprocess.TimeoutExpired as error:
         return TimedOut(command, 127, "", str(error))
