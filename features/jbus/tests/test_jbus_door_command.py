@@ -188,6 +188,45 @@ def test_a_door_inside_a_compound_or_a_quoted_command_is_still_read(home, comman
     assert run(home, ROOT, command)[0] == 2
 
 
+REWRITES = "rewrites history"
+DELETES = "deletes data"
+
+
+@pytest.mark.parametrize(
+    "command, case",
+    [
+        ("git push origin +main", REWRITES),
+        ("git push origin +HEAD:main", REWRITES),
+        ("git push origin '+main'", REWRITES),
+        ("git push origin :feature", DELETES),
+        ('git push origin ":feature"', DELETES),
+        ("git push origin +:feature", DELETES),
+        ('git push "--force" origin main', REWRITES),
+        ("git push origin main '-f'", REWRITES),
+        ('git push origin "--delete" feature', DELETES),
+        ("git push origin '--delete' feature", DELETES),
+        ("git branch '-D' feature", DELETES),
+    ],
+)
+def test_each_form_of_a_forced_or_deleting_push_walks_through_its_door(home, command, case):
+    assert case in dict(door.walks(command))
+    code, said = run(home, ROOT, command)
+    assert code == 2 and f"walks through a door ({case})" in said, said
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git push origin HEAD:main",
+        "git push origin :",
+        'git commit -m "+1 to the push" -m ":feature"',
+        "git push origin main -m '--force is not run'",
+    ],
+)
+def test_a_push_that_neither_forces_nor_deletes_passes(home, command):
+    assert run(home, ROOT, command) == (0, "")
+
+
 def test_the_command_line_is_read_in_pieces_with_a_heredocs_body_left_out():
     assert door.pieces("a && b | 'c d'; e <<EOF\nnot me\nEOF\nf") == [
         "`a`",
