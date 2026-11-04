@@ -290,7 +290,10 @@ class Home:
         """Give each brief of an open pull request the `Checked:` line its crew's check block
         writes once the guards passed at the pull request's head, as GitHub lists it, unless the
         brief has a `Checked:` line of its own: `jmerge` merges no pull request without one
-        (`ready.short_on_checked`). A test of that gate sets `desk` false and writes its own."""
+        (`ready.short_on_checked`). A test of that gate sets `desk` false and writes its own.
+        The line never decides a `Fixed:` line `jmerge` would read in the brief's place
+        (`ready.unwritten_fixed`, which reads `Checked:` lines): a brief where it would says so,
+        and its test writes its own line or sets `desk` false."""
         listed = self.stub / "list.json"
         if not self.desk or not listed.exists():
             return
@@ -310,7 +313,10 @@ class Home:
             head = next((heads[url] for url in heads if f"Pull request: {url}\n" in text), "")
             if head:
                 ending = "" if text.endswith("\n") else "\n"
-                brief.write_text(f"{text}{ending}{desk_checked(head)}")
+                checked = f"{text}{ending}{desk_checked(head)}"
+                if ready.unwritten_fixed(checked, head) != ready.unwritten_fixed(text, head):
+                    raise AssertionError(f"desk_checked would infer a Fixed: line for {brief}")
+                brief.write_text(checked)
 
     def sh(self, script, cwd=None, path=None):
         """Run a script as a thread of this user would, with the fake `gh` first on PATH, once

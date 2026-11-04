@@ -598,7 +598,7 @@ def test_the_block_names_the_exit_of_jgauge_check_on_the_checked_line(tmp_path):
     assert (tasks / "a-task.md").read_text().endswith(named)
 
 
-def pushed(tmp_path, lines, dirty=False):
+def pushed(tmp_path, lines, dirty=False, brief=True):
     """Run the first-push block of "Do the task" once, in a worktree whose branch has one
     commit and whose brief ends with `lines`, each `{head}` the head. It returns what the block
     printed, its exit code, the head and the commit the branch has at the origin, or nothing."""
@@ -614,8 +614,10 @@ def pushed(tmp_path, lines, dirty=False):
         (repo / "file").write_text("an edit not committed\n")
     tasks = tmp_path / "state" / "tasks"
     tasks.mkdir(parents=True)
-    brief = "# a-task: a task\n\n## Result\n" + lines.format(head=head)
-    (tasks / "a-task.md").write_text(brief)
+    if brief:
+        (tasks / "a-task.md").write_text(
+            "# a-task: a task\n\n## Result\n" + lines.format(head=head)
+        )
     script = block("Do the task", "short_on_checked").replace("<slug>", "a-task")
     ran = subprocess.run(
         ["bash", "-c", script],
@@ -680,3 +682,9 @@ def test_the_first_push_is_refused_where_the_guards_did_not_pass_at_the_head(tmp
 def test_the_first_push_of_uncommitted_work_is_refused(tmp_path):
     said, code, _, at = pushed(tmp_path, GUARDS.format(exit=0, at="{head}"), dirty=True)
     assert (said, code, at) == (["no push: commit the work first"], 1, "")
+
+
+def test_the_first_push_with_no_brief_is_refused(tmp_path):
+    said, code, _, at = pushed(tmp_path, "", brief=False)
+    brief = tmp_path / "state" / "tasks" / "a-task.md"
+    assert (said, code, at) == ([f"no push: there is no brief at {brief}"], 1, "")
