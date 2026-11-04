@@ -3,9 +3,9 @@ merge-base's code, and prints the `Proved:` line `jmerge` reads (`ready.short_on
 test that fails without the change proves it; one that passes at the base as well proves nothing,
 and the line says so with the base's exit 0. A branch that changes no test gets no run.
 
-The tests run the block in a real repo whose `origin/main` is the base, with a `uv` on PATH that
-runs pytest on this interpreter, takes the slot by running the command, and syncs nothing. Each
-run leaves no worktree of the base behind."""
+The tests run the block in a real repo whose `origin/main` is the base, on macOS's tools
+(`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
+the command, and syncs nothing. Each run leaves no worktree of the base behind."""
 
 import subprocess
 import sys
@@ -14,6 +14,7 @@ import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
+from test_portable_shell import bsd_tools
 
 UV = f"""#!/bin/bash
 case " $* " in
@@ -81,7 +82,7 @@ def proof(tree):
         text=True,
         timeout=60,
         env={
-            "PATH": f"{tree.parent / 'stub'}:/usr/bin:/bin",
+            "PATH": f"{tree.parent / 'stub'}:{bsd_tools(tree.parent / 'bsd')}",
             "HOME": str(tree.parent),
             "H": str(home),
             "T": str(tree.parent / "templates"),
