@@ -234,8 +234,11 @@ def _subagents(read: dict[str, Any]) -> str | None:
     times = []
     for one in [one for one in read.get("items") or [] if isinstance(one, dict)]:
         if (one.get("type"), one.get("status")) == ("subagent", "running"):
+            stamp = one.get("updatedAt")
+            if not isinstance(stamp, str):
+                continue
             try:
-                times.append((when(one.get("updatedAt")), one["updatedAt"]))
+                times.append((when(stamp), stamp))
             except (TypeError, ValueError):
                 continue
     return max(times)[1] if times else None
@@ -576,8 +579,9 @@ def tie(run: Pass, client: Client, world: World) -> None:
 def _out(half: Half) -> None:
     """List the crews out for the record, then run `stall.hung` over that list. The two run as one
     step, so that no rank can put `hung` before the list that `stall.hung` reads."""
-    half.out = out(half.run, half.client, stall.watched(half.run))
-    stall.hung(half.run, half.out)
+    if half.client is not None:
+        half.out = out(half.run, half.client, stall.watched(half.run))
+        stall.hung(half.run, half.out)
 
 
 STEPS = (

@@ -427,7 +427,7 @@ def skill_text(commit: str, repo: Path) -> dict:
         f
         for f in files
         if f.endswith(".md")
-        and (f.startswith("features/") or f.startswith("templates/"))
+        and (f.startswith(("features/", "templates/")))
         and "/docs/" not in f
         and "/tests/" not in f
     ]

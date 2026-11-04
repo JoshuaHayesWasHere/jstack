@@ -103,7 +103,7 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
             self.end_headers()
             self.wfile.write(b"jbus is signed in. This tab can be closed.\n")
 
-        def log_message(self, *_: Any) -> None:
+        def log_message(self, format: str, *args: Any) -> None:
             pass
 
     listener = Listener(("127.0.0.1", 0), Callback)
@@ -397,7 +397,7 @@ def _t3(args: argparse.Namespace, config: Config) -> int:
         return 0
     project = verbs.project(config, args.project)
     client = Client(config.server, config.token_path)
-    arguments = {
+    arguments: dict[str, Any] = {
         "projectId": project.project_id,
         "title": "jbus: launch test",
         "message": "say hello and stop",

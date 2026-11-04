@@ -185,7 +185,7 @@ def add_base(config_path: Path, name: str, branch: str) -> str:
         now = _with_bases(was, index, bases)
         written = tomllib.loads(now)
     except (IndexError, ValueError, tomllib.TOMLDecodeError):
-        written = None
+        now, written = "", None
     if written != want:
         raise jbus.Refused(
             "refused: the project's table could not be written with that one key changed"

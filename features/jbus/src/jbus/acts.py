@@ -221,7 +221,7 @@ def logged(
     logs what a batch did (`queue apply`). `id` is the act's own id where the verb keeps one,
     else the hash of the act."""
     at = jsettings.stamp(run.now)
-    body = {"at": at, "party": asdict(who), "action": asdict(action), "line": line}
+    body: dict[str, Any] = {"at": at, "party": asdict(who), "action": asdict(action), "line": line}
     body["evidence"] = asdict(said)
     made = Act(
         id=id or hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16],

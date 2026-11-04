@@ -212,7 +212,7 @@ def changed(approved: Meaning, text: str) -> list[str]:
     `<label>: <line>`, in the order of `MEANING`, and `<label>: a line taken out` for each
     approved line that pairs with none beyond those. It pairs lines with `_unpaired`, as `same`
     does, so it is empty exactly when the brief means what was approved."""
-    was = dict(approved)
+    was: dict[str, list] = {pair[0]: pair[1] for pair in approved}
     found = []
     for label, lines in _fields(text).items():
         if label not in (MEANING if parse.TITLE in was else LEGACY):
@@ -235,6 +235,7 @@ def _alike(approved: Line, now: Line) -> bool:
 
 def same(approved: Meaning, now: Meaning) -> bool:
     """Whether a brief whose fingerprint is `now` asks for what the approved one did."""
-    was, here = dict(approved), dict(now)
+    was: dict[str, list] = {pair[0]: pair[1] for pair in approved}
+    here: dict[str, list] = {pair[0]: pair[1] for pair in now}
     labels = MEANING if parse.TITLE in was else LEGACY
     return all(_pairs(was.get(label, []), here.get(label, []), _alike) for label in labels)

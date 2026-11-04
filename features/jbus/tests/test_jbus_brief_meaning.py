@@ -357,7 +357,7 @@ def test_a_gate_names_each_line_that_changed_and_a_line_taken_out(kitchen):
 
 
 def test_the_fingerprint_keeps_paths_numbers_and_values_exact_and_sorts_the_rest():
-    made = dict((label, lines) for label, lines in meaning.meaning(APPROVED))
+    made = dict(meaning.meaning(APPROVED))
     assert list(made) == [parse.TITLE, "Task", "Done when", "Where", "Do not touch", "Size"]
     assert made["Size"] == [["=m"]]
     assert ["=0", "=3", "=make check", "exits", "less", "minutes", "or"] in made["Done when"]

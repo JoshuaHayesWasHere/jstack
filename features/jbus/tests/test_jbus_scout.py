@@ -203,7 +203,10 @@ def test_a_scout_row_waits_on_its_depends_and_launches_on_the_first_pass_after_i
     """The Done when of scout-row: a design pass queued with `--depends a` under an entry with a
     go launches `/scout <slug>` on the first pass after `a` merges, and not before."""
     kitchen.config(max_running=8)
-    assert kitchen.main(*"queue add a --priority 1 --entry epic".split(), stdin=brief("a"))[0] == 0
+    added = kitchen.main(
+        "queue", "add", "a", "--priority", "1", "--entry", "epic", stdin=brief("a")
+    )
+    assert added[0] == 0
     built = request("look", "Builds on: a: what it changed\n")
     assert add(kitchen, "look", "--depends", "a", "--entry", "epic", text=built)[0] == 0
     assert plan_go(kitchen)[0] == 0

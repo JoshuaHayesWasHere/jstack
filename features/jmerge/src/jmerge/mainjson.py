@@ -51,8 +51,9 @@ class Record(TypedDict):
     """The 40-hex tip of origin's default branch."""
     at: str
     """When `main` was first seen there, ISO-8601 with its offset, kept while it is unchanged."""
-    check: Check
-    """What the check of `main` says."""
+    check: str
+    """What the check of `main` says: a `Check`, `nojob` where it started no job, or empty
+    where no tip was checked."""
     broken: NotRequired[str]
     """The red tip, kept until a green tip follows it."""
     green: NotRequired[str]
@@ -133,7 +134,7 @@ def record(
     *,
     main: str,
     at: str,
-    check: Check,
+    check: str,
     broken: str = "",
     green: str = "",
     pending: Sequence[str] = (),

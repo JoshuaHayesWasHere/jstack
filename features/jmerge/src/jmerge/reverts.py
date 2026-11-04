@@ -48,8 +48,9 @@ def read(state: Path) -> dict[str, Revert]:
     found = {}
     for red, one in (kept if isinstance(kept, dict) else {}).items():
         values = tuple(one.get(key) if isinstance(one, dict) else None for key in _KEYS)
-        if all(isinstance(value, str) and value for value in values):
-            found[red] = Revert(red, *values)
+        strings = tuple(value for value in values if isinstance(value, str) and value)
+        if len(strings) == len(values):
+            found[red] = Revert(red, *strings)
     return found
 
 

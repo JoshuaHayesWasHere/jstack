@@ -178,8 +178,10 @@ def test_diff_flag_adds_the_unified_diff_under_the_changed_line(upstream, capsys
     _, lines, _ = run(upstream, capsys, "--diff")
     at = next(n for n, line in enumerate(lines) if line.startswith("changed "))
     assert lines[at + 1] == "diff --git a/pstack/skills/beta/SKILL.md b/pstack/skills/beta/SKILL.md"
-    assert ["-first", "+second", "+third"] == [
-        line for line in lines if re.match(r"[-+][a-z]", line)
+    assert [line for line in lines if re.match(r"[-+][a-z]", line)] == [
+        "-first",
+        "+second",
+        "+third",
     ]
     assert not any(line.startswith("diff --git") for line in plain)
 

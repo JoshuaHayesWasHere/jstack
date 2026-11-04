@@ -262,9 +262,12 @@ def test_an_option_typed_short_is_taken_where_it_was_before_the_verbs_moved(page
     monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("NO_COLOR", "1")
     out = io.StringIO()
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
-        with pytest.raises(SystemExit) as stopped:
-            cli.main([*page.split("-")[1:], "--he"])
+    with (
+        contextlib.redirect_stdout(out),
+        contextlib.redirect_stderr(io.StringIO()),
+        pytest.raises(SystemExit) as stopped,
+    ):
+        cli.main([*page.split("-")[1:], "--he"])
     if page.removeprefix("jbus-") in SHORT:
         said = unwrapped(out.getvalue())
         assert (stopped.value.code, said) == (0, (HELP / f"{page}.txt").read_text())

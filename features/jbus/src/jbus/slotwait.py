@@ -231,9 +231,8 @@ def wake_ended(run: Pass, client: Client) -> None:
         return
     over = set()
     for one in holders.read(locks):
-        if one.ended and tell_ended(run, client, one):
-            over.add(one.id)
-        elif not one.ended and not holders.running(one):
+        told = one.ended and tell_ended(run, client, one)
+        if told or (not one.ended and not holders.running(one)):
             over.add(one.id)
     if over:
         holders.forget(locks, over)

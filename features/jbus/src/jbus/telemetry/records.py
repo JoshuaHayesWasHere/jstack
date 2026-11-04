@@ -206,12 +206,11 @@ def _merges(line: str, zone: tzinfo | None) -> Row:
     user's zone: its verb, its number, a merge's slug and a wait's `[label]`."""
     found = _MERGE_LINE.match(line)
     label = _LABEL.search(line)
-    merged = found is not None and found[2] == "merged"
     return {
         "at": utc(found[1], zone) if found else None,
         "verb": found[2] if found else None,
         "number": int(found[3]) if found and found[3] else None,
-        "slug": found[4] if merged else None,
+        "slug": found[4] if found and found[2] == "merged" else None,
         "label": label[1] if label else None,
         "line_len": len(line),
     }
