@@ -1,4 +1,4 @@
-"""The check workflow runs on main and on a pull request into main that is not a draft. The
+"""The check workflow runs on main and on each push of a pull request, a draft too. The
 next run never cancels a run on either, because each push's run is a concurrency group of its
 own. A pull request gets the job `check`, the fast one, which runs the lint and the tests its
 change reaches. A push to main, and a manual run, get the job `full`, the whole suite. Each runs
@@ -126,7 +126,8 @@ def test_the_check_runs_on_a_pull_request_into_any_branch_on_each_push_to_main_a
     """A pull request into any branch gets a run: one into main or a merge base, so jmerge can
     merge it there on a green check, and one stacked on a parent row's branch, so it is checked
     while it is stacked and its move onto main reuses the pass (`reuse`). Of a pull request, a
-    push, a reopen and the mark that it is ready start one."""
+    push, a reopen and the mark that it is ready start one: the mark is browser.yml's, which
+    has these types and skips a draft."""
     assert block("on") == {
         "pull_request": {"types": ["opened", "synchronize", "reopened", "ready_for_review"]},
         "push": {"branches": ["main"]},
@@ -192,6 +193,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "browser.yml": {"browser": HOSTED},
         "check.yml": {
             "reuse": HOSTED,
+            "select": HOSTED,
             "check-shard": HOSTED,
             "check": HOSTED,
             "full-shard": HOSTED,
@@ -490,6 +492,7 @@ CAPS = {
     ("borders.yml", "borders"): "5",
     ("browser.yml", "browser"): "15",
     ("check.yml", "reuse"): "5",
+    ("check.yml", "select"): "10",
     ("check.yml", "check-shard"): "30",
     ("check.yml", "check"): "5",
     ("check.yml", "full-shard"): "30",
@@ -520,7 +523,6 @@ ZSH = (
     ' && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
 )
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
-OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 TLC = "~/.cache/jstack/tlc"
 
 
@@ -557,13 +559,16 @@ def ran_on(job, draft=False, reused=""):
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
     assert jobs(CHECK.read_text()) == {
         "reuse": HOSTED,
+        "select": HOSTED,
         "check-shard": HOSTED,
         "check": HOSTED,
         "full-shard": HOSTED,
         "full": HOSTED,
     }
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    assert [ran_on(job) for job in ("reuse", "check-shard", "check", "full-shard", "full")] == [
+    named = ("reuse", "select", "check-shard", "check", "full-shard", "full")
+    assert [ran_on(job) for job in named] == [
+        pull,
         pull,
         pull,
         pull,
@@ -572,13 +577,14 @@ def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full(
     ]
 
 
-def test_a_draft_runs_no_job_until_it_is_marked_ready():
-    """A crew opens its pull request as a draft and marks it ready once its fix round is pushed,
-    so a push of work in progress runs nothing, and `ready_for_review` runs the check once."""
+def test_a_draft_runs_the_check_as_any_pull_request_does():
+    """A crew opens its pull request ready (fl-no-draft), and the check guards no draft: a draft
+    someone opened by hand is checked on each push too, so jmerge reads its checks as any
+    pull request's."""
     pull, push = ["pull_request"], ["push", "workflow_dispatch"]
-    named = ("reuse", "check-shard", "check", "full-shard", "full")
-    assert [ran_on(job, draft=True) for job in named] == [[], [], [], push, push]
-    assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, push, push]
+    named = ("reuse", "select", "check-shard", "check", "full-shard", "full")
+    assert [ran_on(job, draft=True) for job in named] == [pull, pull, pull, pull, push, push]
+    assert [ran_on(job, draft=False) for job in named] == [pull, pull, pull, pull, push, push]
 
 
 def job_section(job, key):
@@ -623,14 +629,16 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     count = len(PARTS[parts])
     assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS[parts]}}
     assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of {count}"
-    assert job_line(gate, "needs") == (["reuse", "check-shard"] if gate == "check" else parts)
+    assert job_line(gate, "needs") == (
+        ["reuse", "select", "check-shard"] if gate == "check" else parts
+    )
     assert job_line(gate, "if").startswith("always() && ")
     (every, *_), _ = steps(CHECK.read_text(), gate)
     assert every["env"]["PARTS"] == f"${{{{ needs.{parts}.result }}}}"
     ran = {
         result: subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "REUSE": "success"},
+            env={"PARTS": result, "SELECT": "success", "REUSE": "success"},
             capture_output=True,
             text=True,
         )
@@ -639,7 +647,7 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert [result for result in RESULTS if ran[result].returncode == 0] == ["success"]
     assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
     suite = " ".join(map(str, steps(CHECK.read_text(), parts)[0]))
-    assert f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite
+    assert (f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite) == (gate == "full")
 
 
 def test_macos_runs_on_every_pull_request_and_on_nothing_else():
@@ -837,20 +845,82 @@ def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_
         ), path
 
 
-def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
-    found, keys = steps(CHECK.read_text(), "check-shard")
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:7] == [
+def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_selection_in_a_part():
+    """The job `select` reads the diff over main, HEAD^1 on GitHub's merge, once a run, and hands
+    each of the eight parts its files; the parts run neither the selection nor the lint."""
+    found, _ = steps(CHECK.read_text(), "select")
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
-        ZSH,
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
-        "actions/cache",
-        "make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/8",
+        "uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD",
+        "python3 features/writing/scripts/prose_lint.py HEAD^1",
+        "make lint BASE=HEAD^1",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found[:7])
-    assert found[6]["id"] == "suite"
+    assert all("if" not in step for step in found)
+    assert (found[3]["id"], found[4]["id"]) == ("tree", "select")
+    assert found[4]["env"] == {"FAILED_ON_MAIN": "${{ needs.reuse.outputs.failed }}"}
+    assert job_line("select", "needs") == "reuse"
+    assert job_section("select", "outputs") == {
+        "selection": "${{ steps.select.outputs.selection }}",
+        "tree": "${{ steps.tree.outputs.name }}",
+    } | {f"part{k}": f"${{{{ steps.select.outputs.part{k} }}}}" for k in range(1, 9)}
+    parts, _ = steps(CHECK.read_text(), "check-shard")
+    said = " ".join(map(str, parts))
+    assert "select_tests" not in said and "check-fast" not in said and "lint" not in said
+    assert [
+        step.get("uses", step.get("name", step.get("run"))).partition("@")[0] for step in parts
+    ][:7] == [
+        "part",
+        "actions/checkout",
+        "astral-sh/setup-uv",
+        "uv sync --locked",
+        "zsh",
+        "actions/cache",
+        "make test",
+    ]
+    assert parts[1]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
+    assert parts[6]["id"] == "suite"
+
+
+PART = "${{ needs.select.outputs[format('part{0}', matrix.shard)] }}"
+
+
+@pytest.mark.parametrize(
+    "part,ends,made",
+    [
+        ("", 1, None),
+        ("none", 0, None),
+        (
+            "testing/tests/test_a.py testing/tests/test_b.py",
+            0,
+            "test TESTS=testing/tests/test_a.py testing/tests/test_b.py",
+        ),
+    ],
+)
+def test_a_part_runs_only_its_own_files_and_fails_on_no_selection(tmp_path, part, ends, made):
+    """Each part reads its own output of `select`, and its steps run here as the runner runs them,
+    with a `make` that records what it was asked: a part runs `make test` on its files alone, so
+    it collects only those; a part the selection left empty (`none`) passes; and a part that got
+    nothing fails before its checkout, since `make test` with no files runs the whole suite."""
+    found, _ = steps(CHECK.read_text(), "check-shard")
+    guard, test = found[0], next(step for step in found if step.get("name") == "make test")
+    assert guard["env"] == test["env"] == {"PART": PART}
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    (bin / "make").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/make"\n')
+    (bin / "make").chmod(0o755)
+    env = {"PATH": f"{bin}:/usr/bin:/bin", "PART": part}
+    first = subprocess.run(["sh", "-c", guard["run"]], env=env, capture_output=True, text=True)
+    assert first.returncode == ends
+    if ends:
+        assert "::error::" in first.stdout
+        return
+    subprocess.run(["sh", "-c", test["run"]], env=env, check=True)
+    asked = tmp_path / "make"
+    assert (asked.read_text().strip() if asked.exists() else None) == made
 
 
 @pytest.mark.parametrize("job", ["check-shard", "full-shard"])
@@ -860,9 +930,11 @@ def test_each_part_restores_and_saves_tlcs_kept_runs_right_before_its_suite(job)
     restores the latest of its part with the same spec files, else the latest of its part, and
     the files its key hashes are every file a kept run reads from the repo."""
     found, _ = steps(CHECK.read_text(), job)
-    names = [step.get("uses", step.get("run")) for step in found]
+    names = [step.get("uses", step.get("name")) for step in found]
     (kept,) = [step for step in found if step.get("uses", "").startswith("actions/cache@")]
-    assert names[names.index(kept["uses"]) + 1].startswith("make check")
+    assert names[names.index(kept["uses"]) + 1] == (
+        "make check" if job == "full-shard" else "make test"
+    )
     assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", kept["uses"])
     part = "tlc-${{ matrix.shard }}-"
     specs = re.fullmatch(
@@ -951,25 +1023,23 @@ def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
 
 def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed():
     *_, mark, upload = steps(CHECK.read_text(), "check")[0]
-    assert job_section("check-shard", "outputs") == {
-        "selection": "${{ steps.suite.outputs.selection }}",
-        "tree": "${{ steps.tree.outputs.name }}",
-    }
     assert [
-        (result, selection)
+        (result, select, selection)
         for result in RESULTS
+        for select in RESULTS
         for selection in ("all", "some", "")
         if worked(
             mark["if"],
             {
                 "needs.check-shard.result": result,
-                "needs.check-shard.outputs.selection": selection,
+                "needs.select.result": select,
+                "needs.select.outputs.selection": selection,
             },
         )
-    ] == [("success", "all")]
+    ] == [("success", "success", "all")]
     assert (mark["id"], mark["env"]) == (
         "marker",
-        {"NAME": "${{ needs.check-shard.outputs.tree }}"},
+        {"NAME": "${{ needs.select.outputs.tree }}"},
     )
     assert (
         mark["run"] == 'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"'
@@ -977,8 +1047,8 @@ def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
     assert upload["with"] == {
-        "name": "${{ needs.check-shard.outputs.tree }}",
-        "path": "${{ runner.temp }}/green-tree/${{ needs.check-shard.outputs.tree }}",
+        "name": "${{ needs.select.outputs.tree }}",
+        "path": "${{ runner.temp }}/green-tree/${{ needs.select.outputs.tree }}",
         "retention-days": "7",
         "if-no-files-found": "error",
     }
@@ -993,7 +1063,10 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
         for o in OUTCOMES
         if worked(report["if"], {"!cancelled()": True, "steps.suite.outcome": o})
     ] == ["success", "failure", "cancelled", ""]
-    assert report["env"]["FULL"] == "${{ steps.suite.outputs.selection == 'all' }}"
+    assert report["env"] == {
+        "FULL": "${{ needs.select.outputs.selection == 'all' }}",
+        "NAME": "${{ needs.select.outputs.tree }}",
+    }
     bin = tmp_path / "bin"
     bin.mkdir()
     (bin / "uv").write_text(f'#!/bin/sh\necho "$*" >> "{tmp_path}/uv"\n')
@@ -1026,6 +1099,8 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
         "actions/checkout",
         "python3 scripts/green_tree.py",
+        'echo "::warning::green-tree, the lookup ended failure, so the suite runs and a later run'
+        ' of this tree may not skip it"',
         "astral-sh/setup-uv",
         "uv sync --locked",
         ZSH,
@@ -1040,16 +1115,15 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "python3 scripts/select_tests.py --failed-on-main 30 ~/.cache/jstack/failed-on-main.json",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
-        'echo "::warning::green-tree, the lookup ended ${{ needs.full-shard.outputs.lookup }} and'
-        " the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the"
-        ' suite"',
+        'echo "::warning::green-tree, the upload ended failure, so a later run of this tree may'
+        ' not skip the suite"',
     ]
-    checkout, ask, setup, sync, zsh, kept, suite, *_ = found
+    checkout, ask, _, setup, sync, zsh, kept, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
     assert [step["if"] for step in (setup, sync, zsh, kept, suite)] == [
-        OR_THE_DESKS,
-        OR_THE_DESKS,
+        UNLESS_GREEN,
+        UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
@@ -1062,54 +1136,23 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     ] == ["green"]
 
 
-def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
-    """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
-    found, _ = steps(CHECK.read_text(), "full-shard")
-    _, _, setup, sync, _, _, suite, *_ = found
-    assert (sync["run"], suite["run"]) == ("uv sync --locked", SUITE)
-    ran = {
-        (marker, by): [
-            step.get("run", step.get("uses", "")).partition("@")[0]
-            for step in (setup, sync, suite)
-            if worked(
-                step["if"], {"steps.tree.outputs.marker": marker, "steps.tree.outputs.from": by}
-            )
-        ]
-        for marker, by in (("green", "desk"), ("green", "run"), ("none", ""), ("unknown", ""))
-    }
-    everything = ["astral-sh/setup-uv", "uv sync --locked", SUITE]
-    assert ran == {
-        ("green", "desk"): everything[:2],
-        ("green", "run"): [],
-        ("none", ""): everything,
-        ("unknown", ""): everything,
-    }
-
-
 OUTCOMES = ("success", "failure", "cancelled", "skipped", "")
 
 
-def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
+def test_the_marker_is_left_only_after_every_part_passed():
+    """When the parts of a matrix write one output, the one that ends last wins. So the parts
+    give only the tree, which is the same in all of them, and the marker waits on the result,
+    which is success only when every part ran its share and passed or skipped on a marker."""
     *_, mark, upload, warn = steps(CHECK.read_text(), "full")[0]
-    assert job_section("full-shard", "outputs") == {
-        "tree": "${{ steps.tree.outputs.name }}",
-        "lookup": "${{ steps.tree.outcome }}",
-        "suite": "${{ steps.suite.outcome }}",
-    }
+    assert job_section("full-shard", "outputs") == {"tree": "${{ steps.tree.outputs.name }}"}
     assert [
-        (result, outcome, name)
+        (result, name)
         for result in RESULTS
-        for outcome in OUTCOMES
         for name in ("green-tree-1", "")
         if worked(
-            mark["if"],
-            {
-                "needs.full-shard.result": result,
-                "needs.full-shard.outputs.suite": outcome,
-                "needs.full-shard.outputs.tree": name,
-            },
+            mark["if"], {"needs.full-shard.result": result, "needs.full-shard.outputs.tree": name}
         )
-    ] == [("success", "success", "green-tree-1")]
+    ] == [("success", "green-tree-1")]
     assert mark["id"] == "marker"
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
     tree = "${{ needs.full-shard.outputs.tree }}"
@@ -1119,21 +1162,14 @@ def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
 
 
 def test_a_lookup_or_an_upload_that_failed_never_fails_the_run_and_is_a_warning_on_it():
+    """Each part warns of its own lookup, so one part's failed lookup is never hidden behind
+    another's that worked."""
+    _, ask, told, *_ = steps(CHECK.read_text(), "full-shard")[0]
+    assert (ask["id"], ask["continue-on-error"]) == ("tree", True)
+    assert [o for o in OUTCOMES if worked(told["if"], {"steps.tree.outcome": o})] == ["failure"]
     *_, upload, warn = steps(CHECK.read_text(), "full")[0]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
-    assert [
-        (tree, sent)
-        for tree in ("success", "failure")
-        for sent in ("success", "failure", "skipped")
-        if worked(
-            warn["if"], {"needs.full-shard.outputs.lookup": tree, "steps.upload.outcome": sent}
-        )
-    ] == [
-        ("success", "failure"),
-        ("failure", "success"),
-        ("failure", "failure"),
-        ("failure", "skipped"),
-    ]
+    assert [o for o in OUTCOMES if worked(warn["if"], {"steps.upload.outcome": o})] == ["failure"]
 
 
 JUNIT = """<?xml version="1.0" encoding="utf-8"?>
@@ -1267,7 +1303,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     """Run the script in a new repo against a `gh` that answers from these files.
 
     `answers` maps each path to its answer, or is a function that gives the answers for the repo's
-    tree. When no answer exists for the tree, the tree has no ref: the desk left no marker.
+    tree. A path with no answer is refused.
 
     Return the step's outputs, what it printed, the tree, and the paths `gh` was asked for.
     """
@@ -1283,7 +1319,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     ).stdout.strip()
     if callable(answers):
         answers = answers(tree)
-    for path, body in ({f"{FULL}/{tree}": [], f"{SELECTED}/{tree}": []} | (answers or {})).items():
+    for path, body in (answers or {}).items():
         (said / path.replace("/", "_")).write_text(json.dumps(body))
     (bin / "git").symlink_to(shutil.which("git"))
     if answers is not None:
@@ -1323,8 +1359,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     )
 
 
-REFS = "repos/owner/repo/git/matching-refs/jstack/green-tree"
-FULL, SELECTED = f"{REFS}/full", f"{REFS}/selected"
+FULL = "repos/owner/repo/git/matching-refs/jstack/green-tree/full"
 COMMIT = "repos/owner/repo/git/commits/c0ffee"
 ARTIFACTS = "repos/owner/repo/actions/artifacts"
 RUN = "repos/owner/repo/actions/runs/7"
@@ -1350,13 +1385,9 @@ def run(**changed):
 
 def test_a_tree_with_a_marker_is_green_and_the_log_names_the_run_it_is_from(tmp_path):
     outputs, printed, tree, asked = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
-    assert asked == [
-        f"api {FULL}/{tree}",
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {RUN}",
-    ]
+    assert asked == [f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100", f"api {RUN}"]
 
 
 @pytest.mark.skipif(not Path("/usr/bin/python3").is_file(), reason="no system python3")
@@ -1365,29 +1396,29 @@ def test_the_lookup_runs_on_the_runners_bare_python_before_uv_sync(tmp_path):
     packages, so an import of anything installed fails here."""
     bare = ("/usr/bin/python3", "-I", "-S")
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()}, bare)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
 
 
 def test_a_tree_with_no_marker_runs_the_suite(tmp_path):
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: {"artifacts": []}})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
     assert printed.endswith(": no green run of the check left a marker, so the suite runs")
 
 
 def test_a_run_that_is_refused_the_answer_runs_the_suite(tmp_path):
     outputs, printed, tree, asked = green_tree(tmp_path, {})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown"}
     assert printed == (
         f"::warning::green-tree: tree {tree}: could not ask"
         " (HTTP 403: Resource not accessible by integration), so the suite runs"
     )
-    assert asked == [f"api {FULL}/{tree}", f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
+    assert asked == [f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
 
 
 def test_a_runner_with_no_gh_runs_the_suite(tmp_path):
     outputs, printed, tree, _ = green_tree(tmp_path, None)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown"}
     assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
 
 
@@ -1408,7 +1439,7 @@ def test_a_runner_with_no_gh_runs_the_suite(tmp_path):
 )
 def test_a_marker_counts_only_from_a_green_run_of_the_check_in_the_repo_itself(tmp_path, answers):
     outputs, _, tree, _ = green_tree(tmp_path, answers)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
 
 
 @pytest.mark.parametrize(
@@ -1420,7 +1451,7 @@ def test_a_marker_counts_only_from_a_green_run_of_the_check_in_the_repo_itself(t
 )
 def test_a_marker_whose_run_is_a_forks_runs_the_suite_and_the_log_says_so(tmp_path, answers):
     outputs, printed, tree, _ = green_tree(tmp_path, answers)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
     assert printed == f"green-tree: tree {tree}: a marker came from a fork's run, so the suite runs"
 
 
@@ -1436,21 +1467,21 @@ def test_a_forks_marker_listed_before_the_repos_own_does_not_stop_the_skip(tmp_p
         RUN: run(),
     }
     outputs, printed, tree, _ = green_tree(tmp_path, answers)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
 
 
 def test_a_marker_whose_run_cannot_be_read_runs_the_suite(tmp_path):
     outputs, printed, tree, asked = green_tree(tmp_path, {ARTIFACTS: marker()})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown"}
     assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
-    assert asked[2:] == [f"api {RUN}"]
+    assert asked[1:] == [f"api {RUN}"]
 
 
 @pytest.mark.parametrize("gone", [{"head_repository": None}, {"head_repository": {}}])
 def test_a_marker_whose_run_names_no_head_repository_runs_the_suite(tmp_path, gone):
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run(**gone)})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
     assert printed.endswith(": no green run of the check left a marker, so the suite runs")
 
 
@@ -1463,97 +1494,27 @@ def test_a_marker_whose_run_names_no_head_repository_runs_the_suite(tmp_path, go
 )
 def test_a_manual_run_and_a_run_again_never_ask_and_run_the_suite(tmp_path, env, why):
     outputs, printed, tree, asked = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()}, **env)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked"}
     assert (printed, asked) == (f"green-tree: tree {tree}: {why}", [])
 
 
-def ref(tree, kind="full", **changed):
-    """What GitHub lists for the ref the desk pushed for a tree after a check of this kind, at
-    the commit c0ffee."""
-    name = f"refs/jstack/green-tree/{kind}/{tree}"
-    return [{"ref": name, "object": {"sha": "c0ffee", "type": "commit"}} | changed]
+def test_a_ref_pushed_under_green_tree_full_skips_nothing_and_is_never_asked_for(tmp_path):
+    """Nothing pushes `refs/jstack/green-tree/full/<tree>` since #444, and anybody with write
+    to the repo could push one by hand. Such a ref skipped main's suite; now only a green run's
+    artifact does."""
 
-
-def test_a_tree_the_desk_marked_is_green_and_the_log_names_the_desk(tmp_path):
-    outputs, printed, tree, asked = green_tree(
-        tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "desk"}
-    assert printed == (
-        f"green-tree: tree {tree}: passed a fresh check on the desk, which marked it with the"
-        " commit c0ffee, so the suite is skipped"
-    )
-    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
-
-
-@pytest.mark.parametrize(
-    "listed",
-    [
-        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": "0ther"}}},
-        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {}},
-        lambda tree: {f"{FULL}/{tree}": ref(tree, ref=f"refs/jstack/green-tree/full/{tree}0")},
-        lambda tree: {f"{FULL}/{tree}": ref(tree, object={"sha": "c0ffee", "type": "tag"})},
-    ],
-)
-def test_a_ref_whose_commit_has_another_tree_is_no_marker_and_the_artifact_is_asked_for(
-    tmp_path, listed
-):
-    outputs, printed, tree, asked = green_tree(
-        tmp_path,
-        lambda tree: {ARTIFACTS: {"artifacts": []}, COMMIT: {"tree": {"sha": tree}}} | listed(tree),
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
-    assert printed.endswith(": no green run of the check left a marker, so the suite runs")
-    assert asked[-2:] == [
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {SELECTED}/{tree}",
-    ]
-
-
-def test_a_tree_the_desk_marked_after_selected_tests_only_runs_the_suite_and_the_log_says_so(
-    tmp_path,
-):
-    """On 2026-10-23 the desk's `make check-fast` pass skipped main's suite on a tree whose
-    whole suite failed."""
-    outputs, printed, tree, asked = green_tree(
-        tmp_path,
-        lambda tree: {
-            f"{SELECTED}/{tree}": ref(tree, "selected"),
+    def pushed(tree):
+        name = f"refs/jstack/green-tree/full/{tree}"
+        return {
+            f"{FULL}/{tree}": [{"ref": name, "object": {"sha": "c0ffee", "type": "commit"}}],
             COMMIT: {"tree": {"sha": tree}},
             ARTIFACTS: {"artifacts": []},
-        },
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
-    assert printed == (
-        f"green-tree: tree {tree}: passed only selected tests on the desk, which marked it with"
-        " the commit c0ffee, so the suite runs"
-    )
-    assert asked == [
-        f"api {FULL}/{tree}",
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {SELECTED}/{tree}",
-        f"api {COMMIT}",
-    ]
+        }
 
-
-def test_a_ref_whose_commit_cannot_be_read_runs_the_suite(tmp_path):
-    outputs, printed, tree, asked = green_tree(tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree)})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
-    assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
-    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
-
-
-def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tmp_path):
-    def marked(tree):
-        return {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
-
-    for at, env in enumerate(
-        ({"GITHUB_EVENT_NAME": "workflow_dispatch"}, {"GITHUB_RUN_ATTEMPT": "2"})
-    ):
-        (tmp_path / str(at)).mkdir()
-        outputs, _, tree, asked = green_tree(tmp_path / str(at), marked, **env)
-        assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked", "from": ""}
-        assert asked == []
+    outputs, printed, tree, asked = green_tree(tmp_path, pushed)
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
+    assert printed.endswith(": no green run of the check left a marker, so the suite runs")
+    assert asked == [f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
 
 
 def triggers(text):
@@ -1635,7 +1596,8 @@ def test_a_pull_request_runs_the_browser_tests_only_for_the_view_its_tests_shots
 
 
 def test_a_draft_runs_no_browser_job_and_every_other_trigger_runs_it():
-    """As the check's jobs do, the browser job skips a draft, and runs once it is marked ready."""
+    """The browser job skips a draft, which only a hand opens, and runs once it is marked
+    ready."""
     when = job_value(BROWSER.read_text(), "browser", "if")
     assert when is not None, "the browser job has no `if`"
     events = ("pull_request", "schedule", "push", "release", "workflow_dispatch")
@@ -1680,7 +1642,7 @@ def test_a_push_runs_the_browser_tests_for_a_version_tag_and_never_for_a_branch(
 def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_name_that_target():
     found, _ = steps(BROWSER.read_text(), "browser")
     assert found[-2] == {"name": "make check-browser", "run": "make check-browser"}
-    for job in ("check-shard", "check", "full-shard", "full"):
+    for job in ("select", "check-shard", "check", "full-shard", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
@@ -1852,7 +1814,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     found = {name: versions for name, versions in found.items() if versions}
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
-        "check.yml": 2,
+        "check.yml": 3,
         "macos-nightly.yml": 1,
         "macos.yml": 1,
         "pstack-drift.yml": 1,
@@ -2187,27 +2149,30 @@ def test_a_reuse_skips_the_parts_and_check_passes_on_it_and_a_miss_runs_them():
         == ran_on("check-shard", reused="")
         == ["pull_request"]
     )
-    assert job_line("check-shard", "needs") == "reuse"
+    assert ran_on("select", reused="true") == []
+    assert ran_on("select", reused="false") == ran_on("select", reused="") == ["pull_request"]
+    assert job_line("check-shard", "needs") == ["reuse", "select"]
     (every, *_), _ = steps(CHECK.read_text(), "check")
     assert every["env"]["REUSED"] == "${{ needs.reuse.outputs.reused }}"
     assert every["env"]["REUSE"] == "${{ needs.reuse.result }}"
+    assert every["env"]["SELECT"] == "${{ needs.select.result }}"
     passes = [
-        (reuse, reused, result)
+        (reuse, reused, select, result)
         for reuse in RESULTS
         for reused in ("true", "false", "")
+        for select in RESULTS
         for result in RESULTS
         if subprocess.run(
             ["sh", "-c", every["run"]],
-            env={"PARTS": result, "REUSE": reuse, "REUSED": reused},
+            env={"PARTS": result, "SELECT": select, "REUSE": reuse, "REUSED": reused},
             capture_output=True,
             text=True,
         ).returncode
         == 0
     ]
-    assert passes == [("success", "true", result) for result in RESULTS] + [
-        ("success", "false", "success"),
-        ("success", "", "success"),
-    ]
+    assert passes == [
+        ("success", "true", select, result) for select in RESULTS for result in RESULTS
+    ] + [("success", "false", "success", "success"), ("success", "", "success", "success")]
 
 
 def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse_leaves_none():
@@ -2220,14 +2185,19 @@ def test_a_run_whose_parts_passed_leaves_the_marker_of_its_two_trees_and_a_reuse
         "lookup": "${{ steps.failed.outcome }}",
     }
     assert [
-        (result, name)
+        (result, select, name)
         for result in RESULTS
+        for select in RESULTS
         for name in ("checked-tree-a-b", "")
         if worked(
             mark["if"],
-            {"needs.check-shard.result": result, "needs.reuse.outputs.name": name},
+            {
+                "needs.check-shard.result": result,
+                "needs.select.result": select,
+                "needs.reuse.outputs.name": name,
+            },
         )
-    ] == [("success", "checked-tree-a-b")]
+    ] == [("success", "success", "checked-tree-a-b")]
     assert mark["env"] == {"NAME": "${{ needs.reuse.outputs.name }}"}
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.checked.outcome": o})] == [
         "success"

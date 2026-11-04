@@ -78,6 +78,18 @@ selection `all`, and it is `-` otherwise. A collector reads that line. With `$GI
 set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
 tree's marker on a pass of `all`.
 
+`select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
+`<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
+collects the selection once with pytest, as `make test` does (`-m "not browser"`), and deals out
+the test files whole, slowest first, each to the part with the least time so far
+(`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`). So a
+part collects only its own files. With `$GITHUB_OUTPUT` set it gives the step the outputs
+`part1` to `part<n>`, each a part's files, space-separated, or `none` for a part the selection
+left empty, and the summary gets one more line: `parts: <n> of <tests> tests in <files> files,
+<s> s of test time each`, from the least to the most. A selection that collects no test fails,
+as `make test` fails on one. This form imports pytest, so it runs after `uv sync`, as `uv run
+python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
+
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
 `testing/macos-quick.txt` so. It selects by the same rules but for two. An import reaches a test
@@ -1110,16 +1122,80 @@ def unmapped(changed):
     )
 
 
+def node_ids(tests):
+    """The node ids pytest collects from the selected test files, or from the whole suite for
+    `all`, with the browser tests left out as `make test` leaves them."""
+    named = [] if tests == ["all"] else tests
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+        + ["-m", "not browser", *named],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if ran.returncode == 5:
+        return []
+    if ran.returncode:
+        sys.exit(
+            f"select_tests.py: pytest could not collect the selection:\n{ran.stdout}{ran.stderr}"
+        )
+    return [
+        line for line in ran.stdout.splitlines() if "::" in line and " " not in line.split("::")[0]
+    ]
+
+
+def dealt(nodeids, times, count):
+    """The test files of each of `count` parts, sorted, and each part's seconds: whole files
+    dealt slowest first to the part with the least time so far, by the summed seconds of each
+    file's tests in `times` (`testing/shard.py`'s table). No tests at all fails."""
+    from testing import shard
+
+    if not nodeids:
+        sys.exit("select_tests.py: the selection holds no test")
+    took = {}
+    for nodeid in nodeids:
+        file = nodeid.partition("::")[0]
+        took[file] = took.get(file, 0.0) + shard.seconds(times, nodeid)
+    parts = shard.split(list(took), {shard.key(file): s for file, s in took.items()}, count)
+    return [sorted(part) for part in parts], [sum(took[file] for file in part) for part in parts]
+
+
+def handed(tests, count):
+    """Hand the selection to `count` parts: print each part's files, one part a line, and give
+    the step the output `part<k>` of each and the summary its line."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from testing import shard
+
+    nodeids = node_ids(tests)
+    parts, seconds = dealt(nodeids, shard.read_times(shard.TIMES), count)
+    for at, part in enumerate(parts, 1):
+        print(f"part {at}: {' '.join(part) or 'none'}")
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+            for at, part in enumerate(parts, 1):
+                file.write(f"part{at}={' '.join(part) or 'none'}\n")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
+            each = " ".join(f"{one:.0f}" for one in sorted(seconds))
+            file.write(
+                f"parts: {count} of {len(nodeids)} tests in {sum(map(len, parts))} files,"
+                f" {each} s of test time each\n\n"
+            )
+
+
 def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
-    listed = None
+    listed = count = None
     if argv[:1] == ["--within"] and len(argv) == 4:
         listed, argv = argv[1], argv[2:]
+    elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
+        count, argv = int(argv[1]), argv[2:]
     if len(argv) != 2:
         sys.exit(
-            "usage: select_tests.py [--within <list>] <base> <head>\n"
+            "usage: select_tests.py [--within <list> | --parts <n>] <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1161,6 +1237,8 @@ def main(argv):
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as file:
             file.write(f"selection={'all' if tests == ['all'] else 'some'}\n")
+    if count is not None:
+        handed(tests, count)
 
 
 if __name__ == "__main__":

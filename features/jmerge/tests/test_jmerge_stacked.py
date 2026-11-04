@@ -37,25 +37,24 @@ def readied(built_on):
     return [call.split()[2] for call in asked if call.startswith("pr ready")]
 
 
-def test_a_reviewed_draft_on_its_open_bases_branch_is_marked_ready_so_ci_checks_it_stacked(
-    built_on,
+@pytest.mark.parametrize("draft", [False, True])
+def test_a_reviewed_link_on_its_open_bases_branch_waits_on_its_stack_and_is_never_marked_ready(
+    built_on, draft
 ):
-    """A link is checked while it is stacked, beside its base's own check, so its move onto main
-    adds no round in series: its draft is marked ready once reviewed and fixed, as any other's.
-    Once ready it still waits on its stack, and it merges only after jbus moved it."""
-    said = judged(built_on, "Stacked on: beta beta", "beta", (), isDraft=True)
-    assert said == f"wait 7 {merge.URL}: {ready.READIED.format(head=built_on.head)}"
-    assert readied(built_on) == ["7"]
-    said = judged(built_on, "Stacked on: beta beta", "beta", isDraft=False)
+    """A link is checked while it is stacked, beside its base's own check, as any open pull
+    request is, so its move onto main adds no round in series. It waits on its stack, a draft
+    as well, and it merges only after jbus moved it. jmerge marks no draft ready."""
+    said = judged(built_on, "Stacked on: beta beta", "beta", (), isDraft=draft)
     on = ready.STACKED_ON.format(branch="beta", slug="beta", default="main")
     assert said == f"wait 7 {merge.URL}: {on}"
+    assert readied(built_on) == []
 
 
-def test_a_draft_whose_base_merged_waits_for_its_move_and_is_not_marked_ready(built_on):
+def test_a_link_whose_base_merged_waits_for_its_move(built_on):
     """Once its base merged, the head on the base's branch is not what merges: it is moved first,
     and the check runs on the moved head."""
     line = f"Stacked on: beta main at {built_on.delta}"
-    said = judged(built_on, line, "main", (), isDraft=True)
+    said = judged(built_on, line, "main", ())
     unmoved = ready.STACKED_UNMOVED.format(slug="beta", sha=built_on.delta[:12], default="main")
     assert said == f"wait 7 {merge.URL}: {unmoved}"
     assert readied(built_on) == []

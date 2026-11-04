@@ -17,6 +17,7 @@ Tests: none
 - `decision-review-after` reads a brief that still says `Review: after` as `review`: its findings hold the merge.
 - `decision-review-twice` waits for the second review of a `Review: twice` brief, holds nothing for its `warning` and `info` findings, and waits for an answer to its `error` one.
 - `decision-red` waits while the check named `check` has not passed.
+- `decision-over-main` waits on a green pull request whose check main moved past, for GitHub's update of its branch.
 - `decision-base` holds a pull request into another branch than the default.
 - `decision-tool-follows` reinstalls the tool after a merge that changes pyproject.toml's package list, and says so on the `merged` line (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `features/home/tests/test_home_merge.py` drives it).
 - `decision-install-follows` runs `sh install.sh` in the main checkout after a merge that changes what the install assembles (`skills.json`, a skill's files), where the machine's layouts were assembled from that checkout, and says so on the `merged` line, or says loudly that it failed (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `features/jmerge/tests/test_jmerge_follow.py` drives it; [jinstall's page](../jinstall/verify.md) drives the install it runs).
@@ -65,6 +66,12 @@ Preconditions:
   The next step reads the pull request's head from git, so this step gives the pull request a real one.
   Run `head=$(git commit-tree -p HEAD -m beta "$(git rev-parse 'HEAD^{tree}')") && git push -q origin "${head}:refs/heads/beta" && "$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py > /dev/null && jq --arg head "$head" '.[0].headRefOid = $head' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json" && printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
   It prints `ready 7 <the head> beta beta`.
+- **Over a main that moved.**
+  The pull request's check started in 2000, and main gets a commit after it.
+  Run `jq '(.[0].statusCheckRollup[] | select(.name == "check")).startedAt = "2000-01-01T00:00:00Z"' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json"`, then `git switch -q -c moved && echo moved > moved.txt && git add moved.txt && git commit -qm moved && git push -q origin moved:main && git switch -q main && git branch -q -D moved`, then `record jmerge-decision jmerge --check`.
+  It prints `wait 7 https://example.test/pull/7: main moved after its check started: GitHub is to merge main at <the new tip's first 12> into it`.
+  `--check` asks for no update: `grep -cE 'pr merge|update-branch' "$VERIFY_JSTACK_SANDBOX/gh/calls.log"` prints `0`.
+  The demo checkout's `main` stays at `start`, and only origin's moved.
 - **Queue it with no go.**
   Run `printf '# beta: a demo task\nTask: beta, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/beta/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: open one when done\nHome: root\n' | jbus --project demo queue add beta --priority 1 > /dev/null`, then `record jmerge-decision jmerge --check`.
   It prints `wait 7 https://example.test/pull/7: its queue row has no go: the user's go (jbus plan go <entry> --message <thread>/<message>), or the bot's, lets it merge`.
@@ -86,4 +93,5 @@ Preconditions:
 - The stand-in answers a branch's check runs from the key of `gh/checks.json` that is the branch's name, as it answers a commit's from its sha.
 - Every line of `jmerge --check` exits 0, `wait` and `hold` included. Assert on the line, not the exit code.
 - `jmerge` without `--check` appends each line to `merge.log` in the repo's state. `--check` writes nothing.
-- `jmerge` reads no `fresh-check` file: a green pull request whose head merges cleanly over a moved main is `ready` on the check it has.
+- `jmerge` reads no `fresh-check` file.
+  A green pull request whose check main moved past waits for GitHub's update of its branch: where its head merges cleanly over today's main, `jmerge --check` says `main moved after its check started: GitHub is to merge main at <tip12> into it`, and the check at the new head decides ("Merges cleanly over today's main" in [jmerge.md](docs/jmerge.md)).

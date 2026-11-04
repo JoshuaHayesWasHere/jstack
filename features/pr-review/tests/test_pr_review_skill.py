@@ -1487,7 +1487,9 @@ def test_a_brief_is_ready_while_its_checks_run_and_once_they_passed(case, tmp_pa
         assert said.startswith(f"a-task: not ready, its checks, {answer}: ")
 
 
-def test_a_draft_is_ready_at_the_head_its_checks_line_names(tmp_path):
+def test_a_draft_with_no_check_reported_is_ready_as_any_pull_request(tmp_path):
+    """CI checks a draft as any open pull request, so a draft whose check has not reported is
+    ready at the head GitHub gives, as any pull request's is: the draft field is not read."""
     launcher = Launcher(tmp_path, [], draft=True)
     assert launcher.says() == [f"a-task: ready, {URL} at {HEAD}"]
 
@@ -1534,7 +1536,7 @@ def test_the_budget_counts_only_the_briefs_github_is_asked_about(tmp_path):
 
 def test_checks_that_could_not_be_read_are_not_ready_though_a_later_call_names_the_head(tmp_path):
     launcher = Launcher(tmp_path, crew.ROLLUPS["one ran and failed"][0])
-    rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup,isDraft ] &&'
+    rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup ] &&'
     (launcher.stub / "gh").write_text(crew.GH.replace('"pr view")', rollup))
     assert launcher.says() == ["a-task: not ready, its checks, wait: could not ask GitHub"]
 

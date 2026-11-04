@@ -13,7 +13,7 @@ stacked row, is stacked too. Any other outcome comes from the row's `checks`, th
 beside a check that still runs is a failing row, as it is to `jmerge`. `OUTCOME` is the one table
 of the words: `failed`, which also holds a check that never started beside checks that ran;
 `pending` and `none`, where no check has answered yet; and `passed`. A row whose word is `unrun`
-(every check skipped at its head), `draft` or none at all is in check and has none of the
+(every check skipped at its head) or none at all is in check and has none of the
 outcomes: no runner is coming for it, and it has not passed.
 
 `count` gives the four counts of a list of tasks, and `cause` names the largest of them, which is

@@ -4,7 +4,7 @@ A default branch that moved is a reason to rebase in two cases only, a conflict 
 GitHub says the pull request is `CONFLICTING`.
 Or a message from jbus or `jmerge` says its check no longer passes there, `<command> fails on <head> over today's main`.
 A check that failed while the base was red is no reason either: once the base has moved since that check started, `jmerge` judges the pull request again over today's base by itself, and asks GitHub to merge the base into the branch, so no crew waits on it and no home sends a rebase for it by hand.
-A default branch that moved on this pull request's files or on any other is no reason by itself: `jmerge` merges the head over today's main with `git merge-tree`, merges a clean one on the check it has, and lets main's own run check the merge.
+A default branch that moved, on this pull request's files or on any other, is no reason by itself: when the head merges cleanly over today's main, `jmerge` has GitHub merge main into the branch, and the check at the new head decides.
 The rebase is told once for a pull request: a failure after it is not rebased for again, and jbus parks a gate with the default that the pull request waits.
 
 Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on that message.

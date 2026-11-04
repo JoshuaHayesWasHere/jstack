@@ -62,6 +62,7 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 | `wait <number> <url>: <reason>` | Not merged. The reason is the first thing the pull request is short of. A later run merges it once the reason is gone. |
 | `hold <number> <url>: <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. Every reason jbus shows as Needs you is a `hold`, but three your other words lift: `jbus queue approve` the queue's two, and `/nohome merge on` the merge that is off (`jmerge.judgement`). |
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
+| `listed: GitHub gave 100 open pull requests, the most jmerge asks for, ...` | `jmerge` asks `gh pr list` for at most 100 open pull requests, the cap jbus's own lists use, and this many came back, so there may be more. It judges the 100 it was given, and keeps the holds, base merges and wait records of every pull request, since one past the 100 is still open. |
 | `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
 In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has failed [check-failed]`, and the line it prints has none.
@@ -86,12 +87,11 @@ Each item below is a reason a pull request waits.
 The section "Protected paths" describes one more hold.
 
 - **A draft waits.**
-  `jmerge` never merges a draft, whatever flags you pass.
-  A crew opens its pull request as a draft, and CI runs no check on one, so a draft is judged as any other pull request but for its checks, and waits on the first reason that holds: its review, its fix, its queue row, a drop or a hold.
-  Once none holds, a run without `--check` marks it ready (`gh pr ready`) and prints `wait <number> <url>: reviewed and fixed, so marked ready, and CI runs its check at <head>`, so its one check runs on the head that merges.
-  With `--check` it prints `wait <number> <url>: draft`, never a wait on its check.
-  Where GitHub refuses the mark, it prints `wait <number> <url>: draft, and gh pr ready refused it: <what gh said>`.
-  A draft whose brief says `Review: none` is marked ready too, so the user's word has a check to go by, and it still holds for that word.
+  `jmerge` never merges a draft and never marks one ready, whatever flags you pass.
+  A crew opens its pull request ready, so a draft is one someone opened by hand.
+  CI checks a draft on each push as it checks any open pull request, so a draft is judged as any other, and waits on the first reason that holds: its review, its fix, its queue row, its checks, a drop or a hold.
+  Once none holds, it prints `wait <number> <url>: a draft, which jmerge never marks ready` (`HAND_DRAFT`), and it merges once someone marks it ready by hand.
+  A draft that no brief names prints the same.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
   jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.
@@ -104,7 +104,7 @@ The section "Protected paths" describes one more hold.
   The sweep keeps a brief's branch that is a merge base (`it is a merge base of the project`).
   A link jbus stacked, whose brief has a `Stacked on:` line, is not held for its base: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
   Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
-  A link's draft on its base's branch, while the base is open, is marked ready once it is reviewed and fixed, as any draft is, so CI checks it while it is stacked, beside its base's own check; once ready, it waits on its stack as above.
+  CI checks a link on its base's branch while the base is open, beside its base's own check, as it checks any open pull request, and the link waits on its stack as above.
   Its check at the moved head then adds no round of the suite in series where the move is a clean replay: the check's `reuse` job finds that a passed run already checked the same two trees, the base's and GitHub's merge of the head over it, and `check` passes on that run in the time the lookup takes (`jmerge.reuse`).
   Where the move checks other trees (its base took commits after the link's check, main moved before its base merged, or the replay changed its patch), the suite runs, and the link waits on its check as any pull request does.
   The repo's ruleset requires `check` at the head itself, so `jmerge` counts no other head's run: the reuse is CI's own run at the moved head.
@@ -219,7 +219,7 @@ The section "Protected paths" describes one more hold.
   Any other option may leave tests out or stop the run, by name, by path, by marker or by collecting only, so it proves nothing.
   A test the fix deleted or skipped counts as passed, as it does for main's own check.
   `jmerge` asks GitHub for main's browser runs only for a pull request whose browser run failed, once a run, and where GitHub gives no answer the red is the pull request's.
-  A draft's browser run is waived as its failed checks are, and a reviewed draft is marked ready.
+  A draft's browser run holds it as any pull request's does.
   `jmerge` judges this after the queue row, so a pull request short of a review, a rebase line or its queue row's go says that first.
 - **Its migration is the next in line.** See "Migrations".
 - **Its check ran over today's main.**
@@ -436,10 +436,8 @@ Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, revi
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` applies.
 `jmerge --accept <number> --check` says what it would do.
 
-A held draft is marked ready by its accept, in place of the merge, since CI runs no check on a draft.
-The accept is kept in `accepted.json` in the state directory at that head, with the codes of the holds it lifted, so a later run merges it once its check passed, with no second accept.
-A hold of another code that comes after the accept at that head still holds it.
-A push drops the accept, as it drops the hold, and so do the merge and a close.
+The accept of a held draft merges nothing and marks nothing ready: it prints the draft's wait and ends 1, and keeps no record, so the next run holds it again.
+A push drops the hold, and so do the merge and a close.
 
 Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).
 `--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.

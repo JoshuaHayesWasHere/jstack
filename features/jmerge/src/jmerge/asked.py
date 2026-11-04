@@ -8,6 +8,7 @@ import re
 import subprocess
 from collections.abc import Callable
 
+from jmerge import backoff
 from jsettings import budget
 
 LIMIT = 160
@@ -31,9 +32,13 @@ Ask = Callable[..., subprocess.CompletedProcess[str]]
 
 def why(ran: subprocess.CompletedProcess[str], ask: Ask, said: str = "") -> str:
     """Why `ran` gave no answer, after a colon. A refusal for the rate limit asks `gh api
-    rate_limit` with `ask`, which spends nothing, and names the window in place of the stderr."""
+    rate_limit` with `ask`, which spends nothing, and names the window in place of the stderr.
+    A call `jmerge` did not make, after a refusal, says until when it asks nothing
+    (`backoff.Gate`)."""
     if ran.returncode == 0:
         return f": gh exited 0: {said or NOT_JSON}"
+    if backoff.is_wait(ran.stderr or ""):
+        return f": {ran.stderr.strip()}"
     if budget.refused(ran.stderr or ""):
         return f": {budget.named(ask(*budget.ASK))}"
     return f": gh exited {ran.returncode}: {cut(ran.stderr or '') or NOTHING}"

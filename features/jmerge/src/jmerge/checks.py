@@ -57,12 +57,9 @@ def check_state(one: dict, never: frozenset[str] = frozenset()) -> str:
     return "unstarted" if (one.get("detailsUrl") or "") in never else "failed"
 
 
-def checks(rollup: list[dict], never: frozenset[str] = frozenset(), draft: bool = False) -> str:
-    """The state of a pull request's checks in one word. A draft's is `draft` whatever its
-    rollup holds: CI runs no check on a draft (check.yml), so a check there was skipped, or ran
-    before it was turned back to a draft."""
-    if draft:
-        return "draft"
+def checks(rollup: list[dict], never: frozenset[str] = frozenset()) -> str:
+    """The state of a pull request's checks in one word. CI checks a draft as it checks any
+    open pull request (check.yml), so a draft's word is read from its rollup too."""
     each = [check_state(one, never) for one in latest_of_each(rollup)]
     if not each:
         return "none"
@@ -76,7 +73,6 @@ def checks(rollup: list[dict], never: frozenset[str] = frozenset(), draft: bool 
 
 SAID = {
     "none": "wait: no check is reported yet",
-    "draft": "wait: a draft, so CI runs its check once it is marked ready, at {head}",
     "failed": "failed: a check ran and failed",
     "pending": "wait: a check has not finished",
     "unrun": "unrun: no check ran at {head}",

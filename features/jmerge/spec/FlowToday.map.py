@@ -10,8 +10,6 @@ def _kind(v, p):
     if "meets" in v and not v["meets"][p]:
         return "its review says the brief is not met"
     fix = ", holds main's fix" if v["fixes"][p] else ""
-    if "rv" in v and v["rv"][p] == "draft":
-        return "a draft, " + ("waiting on your word" if v["needs"][p] else "its review first") + fix
     ci = v["ci"][p]
     if ci == "none":
         return "waiting for a check" + fix
@@ -21,7 +19,7 @@ def _kind(v, p):
         return "passed, holds main's fix, " + _waits(v, p)
     if ci == "pass" and "go" in v and not v["go"][p]:
         return "passed, its row held"
-    if ci == "pass" and "needs" in v and v["needs"][p] and not v["kept"][p]:
+    if ci == "pass" and "needs" in v and v["needs"][p]:
         return "passed, waiting on your word"
     if ci == "pass":
         return "passed, " + _waits(v, p)
@@ -86,11 +84,7 @@ def group(v, facts):
     if getattr(facts, "settled", False):
         red = v["mainRed"] or ("brHold" in v and v["brHold"])
         open_ = [p for p in ("a", "b") if v["st"][p] != "merged"]
-        yours = (
-            any(not v["go"][p] or (v["needs"][p] and not v["kept"][p]) for p in open_)
-            if "go" in v
-            else True
-        )
+        yours = any(not v["go"][p] or v["needs"][p] for p in open_) if "go" in v else True
         if red and not v["full"] and yours:
             return "Waits on you"
         return "Stuck"
@@ -115,12 +109,10 @@ STEPS = {
     "HomeEdits": "you have its brief edited so it no longer builds on the other",
     "BrowserFix": "its crew fixes what its browser run found",
     "Nightly": "main's nightly browser run fails, and jbus files its fix",
-    "Launch": "jbus launches its crew, which opens its pull request as a draft",
-    "Ready": "its review is written and fixed, and jmerge marks it ready",
+    "Launch": "jbus launches its crew, which opens its pull request ready",
     "Approve": "you approve its row",
     "HoldRow": "you hold its row",
     "Accept": "you say the word, and it merges",
-    "AcceptDraft": "you say the word, and jmerge marks the draft ready and keeps your word",
     "Check": "its check runs",
     "CrewFix": "its crew fixes its change",
     "Merge": "it merges",
@@ -137,8 +129,6 @@ def step(action, before, after):
             "jbus approves main's fix row by rule, "
             "and its crew puts the fix in an open pull request"
         )
-    if action == "Accept" and before["rv"] != after["rv"]:
-        return STEPS["AcceptDraft"]
     if action == "RerunEnds" and not after["mainRed"]:
         return "jbus reruns main's failed run, and it passes: a flake"
     opened = "revert" in after and after["revert"] == "open" and before["revert"] != "open"

@@ -207,17 +207,16 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     `Review:` line says, and the states of a browser run.
 
     One reason is on no step, and the view shows it as Unknown and tells no home: `OTHER_HOME`,
-    a pull request of another home, which that home's own view places. `DRAFT` is a pull request
-    whose review and fix are done and whose crew has not yet marked it ready, the last act of its
-    fix round, so it is on the findings step and never on the check's: CI runs no check on a
-    draft."""
+    a pull request of another home, which that home's own view places. `HAND_DRAFT` is a draft
+    someone opened by hand, which jmerge never marks ready: it is on the Result step, since no
+    crew handed in a pull request that can merge."""
     named = {
         name
         for name, value in vars(ready).items()
         if name.isupper() and isinstance(value, str) and not name.startswith("_")
     }
     assert named - WORDS == set(STEPS)
-    assert (STEPS["OTHER_HOME"], STEPS["DRAFT"]) == ("", "findings")
+    assert (STEPS["OTHER_HOME"], STEPS["HAND_DRAFT"]) == ("", "result")
     reasons = {name: _filled(getattr(ready, name)) for name in STEPS}
     assert {name: judgement.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
 

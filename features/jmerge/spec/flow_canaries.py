@@ -52,8 +52,8 @@ CANARIES = {
     "NoSweep": ["FlowsWhenGreen", "MachineNotLeftFull"],
 }
 
-# Today's code holds every rule. Since #709 jmerge --accept marks ready a draft held for your
-# word, so held work moves on your word, and a merge turns main red only through a test its
+# Today's code holds every rule. A pull request held for your word is open and checked, so held
+# work moves on your word, and a merge turns main red only through a test its
 # check's selection missed, which jbus then reruns and reverts or files the fix row for. Since
 # #547 jbus approves the fix row by rule, and its brief lets its crew leave the fix only in an open
 # pull request that waits on no other (watch.FIX_GOES), so main's fix never waits on a pull
