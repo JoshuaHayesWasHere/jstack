@@ -569,7 +569,7 @@ def test_a_batch_that_adds_a_brief_that_holds_and_approves_it_is_refused(kitchen
     assert logged(kitchen) == []
 
 
-READ = "read vision.md"
+READ = "read vision.md [for: alpha]"
 SHAPE = (
     "an act is {action: go, slug, sha12}, {action: answer, number, words, keeps} or "
     "{action: word, words, optional answers}, with evidence bot-chat:<address>/<device> and an "

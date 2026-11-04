@@ -158,19 +158,6 @@ BEFORE = {
         "remarks.tell dispatch.turns",
         [("word", "word demo: sent to mcp:a-home")],
     ),
-    "main moved": (
-        "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
-        "watch.look mirror.scan questions.tell questions.read questions.propose "
-        "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung watch.gone rebase.tell expedite.tell "
-        "mainmoved.tell remarks.tell dispatch.turns",
-        [
-            ("result", "result alpha: done"),
-            ("review", "review alpha: findings"),
-            ("mainmoved", "mainmoved alpha: told the crew (#7, main <head>)"),
-            ("queue", "queue demo: the table changed"),
-        ],
-    ),
     "stale": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
@@ -255,7 +242,6 @@ AFTER = {
     "short": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "question": f"{DERIVED} {OWNED} Box.began {CLOSE}",
     "word": f"{DERIVED} {WORDED} Box.began {CLOSE}",
-    "main moved": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "stale": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "t3 down": f"{UNSEEN} {CLOSE}",
     "signed out": f"{JUDGED} {CLOSE}",
@@ -326,7 +312,6 @@ Code, where `mainmoved.tell` still judges main and `children.watch` does not run
 
 
 HELD = {
-    "main moved": ("mainmoved.tell", 1, 2),
     "stale": ("rebase.tell", 1, 2),
 }
 """Where the outbox's `held` rule, added since, reads the table: once for each rebase or fix
@@ -407,11 +392,6 @@ def worded(kitchen):
     (kitchen.home / "home-id").write_text("mcp:a-home\n")
 
 
-def main_moved(kitchen):
-    due = Due(kitchen, "mainmoved")
-    due.at(due.head)
-
-
 def stale(kitchen):
     due = Due(kitchen, "rebase")
     due.at(due.head)
@@ -439,7 +419,6 @@ FIXTURES = {
     "short": short,
     "question": question,
     "word": worded,
-    "main moved": main_moved,
     "stale": stale,
     "t3 down": t3_down,
     "signed out": signed_out,

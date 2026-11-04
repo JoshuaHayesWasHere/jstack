@@ -191,7 +191,8 @@ The section "Protected paths" describes one more hold.
   It judges them before today's main, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red: a red main holds no pull request.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).
-  No pull request waits on it, and no launch does.
+  No pull request waits on it.
+  A launch does: while main is red, jbus launches only a row that fixes main or launches stacked on an open row it depends on, and every other approved row waits as `main is red: waits for green` (`jbus.dispatch`, [What a pass launches](../../jbus/docs/jbus/what-a-pass-launches.md)).
   A pull request red at its own head is still held by its own checks, as `check has failed`.
   While `main.json` names a red tip, `jmerge` asks GitHub for no merge of main into such a pull request: its head would go red again, so the check stands until main's tip is green.
   jbus reverts the one clear culprit of a red main and files a fix row otherwise ([A red main](../../jbus/docs/jbus/a-red-main.md)).

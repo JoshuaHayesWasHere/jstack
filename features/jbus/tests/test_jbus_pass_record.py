@@ -12,7 +12,7 @@ import signal
 import stat
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -128,12 +128,14 @@ def test_jbus_status_prints_the_record_beside_the_status_file(kitchen):
 
 
 def test_a_pass_stopped_halfway_leaves_a_start_with_no_end(kitchen):
-    """The pass is the real command, and the test kills it while its `jmerge` runs."""
+    """The pass is the real command, and the test kills it while its `jmerge` runs. The command
+    reads the real clock, so the sign-in is stored at that clock."""
     three_rows(kitchen)
     took(kitchen, 19)
     kitchen.poll()
     kitchen.set("jmerge-sleep", "60")
     ran = len(kitchen.log("jmerge"))
+    kitchen.signed_in(timedelta(0), at=datetime.now(UTC))
     before = datetime.now().astimezone()
     stopped = daemons.start([sys.executable, "-m", "jbus", "poll"])
     try:
