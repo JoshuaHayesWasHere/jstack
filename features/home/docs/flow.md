@@ -65,7 +65,7 @@ A day whose warnings are fewer than 3 files no row, and they carry to the next d
 That row gets one review, of its own diff, in which only an error is fixed, and none of its findings becomes another row.
 A brief that says `Review: review` has every finding answered before the merge.
 There, a pushed fix gets one more review, of the fix alone, and that review is the last.
-A fix that changes only files under `tests/` gets no second review, and the pull request's checks stand behind it.
+A round that pushed nothing gets no second review, and the pull request's checks stand behind it.
 A blocking finding that the crewmate declines gets that review all the same, even when nothing was pushed.
 
 ## Who clears a blocker, and who pages you

@@ -116,7 +116,7 @@ fi
 ```
 
 The first branch reads the last round's judgement of the brief, as `jmerge` reads it (`jbriefs --meets`, `jbriefs.meets`).
-A round whose `Meets the brief:` line says `no`, or that `jmerge` cannot read, or whose count is not the brief's, is owed a scoped review whatever the fix changed, also one under `tests/` alone and also after a scoped pass: `jmerge` holds the pull request until a later round's own line says `yes`.
+A round whose `Meets the brief:` line says `no`, or that `jmerge` cannot read, or whose count is not the brief's, is owed a scoped review whatever the fix changed, also after a scoped pass: `jmerge` holds the pull request until a later round's own line says `yes`.
 That round re-judges the lines the `no` named and carries the rest, so it is never a whole second review.
 On `meets: ...`, push the fix for the unmet lines first, with the block of "The review" that pushes a fix, and run the block again: it then gives the launch.
 The only other way out is the user's `Waived:` line ("The review").
