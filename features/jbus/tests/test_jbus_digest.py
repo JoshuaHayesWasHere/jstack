@@ -162,7 +162,7 @@ def test_a_pass_that_could_not_judge_keeps_the_list_and_sends_no_change(kitchen,
 
 
 def test_a_gate_sent_once_for_a_row_with_a_pull_request_is_not_listed_and_then_gone(kitchen):
-    """T3 Code refuses the main-moved message: the row is at `gate` for that one pass."""
+    """T3 Code refuses the failed check message: the row is at `gate` for that one pass."""
     kitchen.config(max_running=2)
     add(kitchen, "alpha")
     was = tip(kitchen)
@@ -175,7 +175,9 @@ def test_a_gate_sent_once_for_a_row_with_a_pull_request_is_not_listed_and_then_g
     move(kitchen)
     kitchen.t3.refuse_send = True
     kitchen.poll()
-    assert kitchen.lines("condition") == ["condition alpha: T3 Code refused the main-moved message"]
+    assert kitchen.lines("condition") == [
+        "condition alpha: T3 Code refused the failed check message"
+    ]
     kitchen.poll(later(3))
     assert listed(kitchen) == [] and kitchen.events("waiting") == []
 

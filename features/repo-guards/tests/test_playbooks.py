@@ -92,11 +92,11 @@ def problems(path, root):
     if not parts[-1].startswith(f"{hand} "):
         found.append(f"does not end with its `{hand}` line")
     bodies = re.findall(r"^\d+\. (.*)$", text, re.M)
-    if role and role.group(1) == "a crewmate" and bodies:
-        if not any(name in bodies[-1] for name in CREW_ENDS_IN):
-            found.append(
-                f"is a crewmate's, and its last step names neither of {', '.join(CREW_ENDS_IN)}"
-            )
+    crewmates = role and role.group(1) == "a crewmate" and bodies
+    if crewmates and not any(name in bodies[-1] for name in CREW_ENDS_IN):
+        found.append(
+            f"is a crewmate's, and its last step names neither of {', '.join(CREW_ENDS_IN)}"
+        )
     words = len(CARD.sub("", text).split())
     if words > MAX_WORDS:
         found.append(f"has {words} words, over {MAX_WORDS}")
@@ -294,7 +294,7 @@ def test_no_never_done_list_is_a_problem(root):
     assert never.startswith("Never done")
     assert check(root, never=None) == said
     assert check(root, never="What a crewmate does not do here:") == said
-    assert check(root, **{"list": None}) == said
+    assert check(root, list=None) == said
 
 
 def test_no_hand_over_line_is_a_problem(root):

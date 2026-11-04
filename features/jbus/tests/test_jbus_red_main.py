@@ -23,11 +23,14 @@ import test_jbus_main_moved
 from jbus import questions
 from jbus.dispatch import fixes_main
 from jmerge import mainjson
+from jmerge import reverts as made
 from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, RESULT, approved, complete, filed_as, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
 from test_jbus_queue import brief
 from test_jbus_queue import go as queue_go
+from test_jbus_reverts import asked as gh_asked
+from test_jbus_reverts import passes, red_merges, url
 from test_jbus_watch import main_of, main_red, reverted_before
 
 
@@ -330,18 +333,17 @@ def test_a_red_tip_whose_part_failed_with_no_test_named_keeps_no_failed_test(kit
 crews = test_jbus_main_moved.launched
 
 
-def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews):
-    """jbus still owes its message to a red crew whose head GitHub has not judged yet, so `tell`
-    keeps the old commit to look at again. Even so, on that pass `jmerge` no longer reads main as
-    red."""
-    red = tip(crews)
+def test_a_main_that_turns_green_beside_an_unjudged_red_crew_is_green_at_once(crews):
+    """A red crew whose head GitHub has not judged yet holds nothing up: `tell` owes no crew a
+    message, so it records the green tip on that pass, and `jmerge` no longer reads main as red."""
+    assert mainjson.read(crews.state).red == tip(crews)
     crews.set("open.json", [pull(crews, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
     crews.box = jbus.wake.Box(crews.state, jbus.load().projects[0])
     crews.box.mark("rebase|alpha|cccccccccccc")
     green = move(crews)
     crews.poll()
     record = json.loads((crews.state / "main.json").read_text())
-    assert (record["main"], record["broken"], record["fixed"]) == (red, red, green)
+    assert (record["main"], "broken" in record, "fixed" in record) == (green, False, False)
     assert kept(crews) == mainjson.Main(green=green)
     assert mainjson.read(crews.state).red == ""
 
@@ -848,3 +850,43 @@ def test_a_brief_whose_heading_says_it_fixes_main_is_a_fix_of_main():
     assert fixes_main("x", "# x: Fixes the red main\n")
     assert not fixes_main("x", "# x: add a page\nTask: fix main's red test\n")
     assert not fixes_main("x", "# x: fix the mainline parser\n")
+
+
+def test_334_one_culprit_with_four_merges_on_top_that_fail_as_it_does_is_reverted(kitchen):
+    """The replay of #334 on 2026-10-23: it turned main red, and four merges landed on top before
+    the red was judged, each failing only the test #334 broke. The red run's oldest tip is the
+    one clear culprit, so jbus reverts #334, once, and files no fix row."""
+    merges = [("c334", 334, None), *((f"on-{n}", 335 + n, None) for n in range(4))]
+    reds = red_merges(kitchen, *merges)
+    passes(kitchen, 6)
+    (revert,) = gh_asked(kitchen, "pr revert")
+    assert revert.startswith(f"pr revert {url(334)} --body ")
+    assert set(made.read(kitchen.state)) - {"0" * 40} == {reds[0]}
+    assert main_red(kitchen) == []
+
+
+def test_52b82e7_a_red_tip_over_a_parent_whose_check_has_not_ended_waits_then_is_reverted(kitchen):
+    """The replay of 52b82e7 on 2026-11-02: #866 merged 7 s after #864 and its tip went red while
+    #864's check still ran. A commit whose check has not ended is no second red, so the tip gets
+    no fix row yet; once #864's check passes, #866 is the one merge since the last green, and is
+    reverted."""
+    parent, red = red_merges(kitchen, ("p864", 864, None), ("p866", 866, None))
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[parent] = [{"status": "in_progress", "conclusion": None, "name": "check", "id": 91}]
+    kitchen.set("check-runs.json", runs)
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    pushed[parent] = [{"status": "in_progress", "id": 501, "conclusion": None, "run_attempt": 1}]
+    kitchen.set("push-runs.json", pushed)
+    passes(kitchen)
+    assert main_red(kitchen) == []
+    assert gh_asked(kitchen, "pr revert") == []
+    runs[parent] = [{"status": "completed", "conclusion": "success", "name": "check", "id": 91}]
+    kitchen.set("check-runs.json", runs)
+    pushed[parent] = [{"status": "completed", "id": 501, "conclusion": "success", "run_attempt": 1}]
+    kitchen.set("push-runs.json", pushed)
+    for minutes in (9, 12):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    (revert,) = gh_asked(kitchen, "pr revert")
+    assert revert.startswith(f"pr revert {url(866)} --body ")
+    assert set(made.read(kitchen.state)) - {"0" * 40} == {red}
+    assert main_red(kitchen) == []

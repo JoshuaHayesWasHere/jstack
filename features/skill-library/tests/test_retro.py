@@ -89,9 +89,8 @@ def test_the_dataset_step_prints_the_same_counts_twice_and_reads_nothing_past_th
     assert found["events.jsonl"] == "1"
     assert found["messages.jsonl"] == "2"
     assert found["filter_decisions.jsonl"] == "3"
-    weeks = {
-        json.loads(line)["slug"]: json.loads(line)["week"] for line in open(data / "rows.jsonl")
-    }
+    rows = [json.loads(line) for line in (data / "rows.jsonl").read_text().splitlines()]
+    weeks = {row["slug"]: row["week"] for row in rows}
     assert weeks == {"a": "base", "b": "window"}
 
 

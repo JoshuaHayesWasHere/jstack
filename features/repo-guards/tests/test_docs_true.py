@@ -150,9 +150,11 @@ def missing(tree, page):
             lacks.append(f"{at.command}: the verb")
         beside = page.splitlines() if at is not tree else [page]
         named = [line for line in beside if has(line, at.command)]
-        for word in (*at.flags, *at.choices):
-            if not any(has(line, word) for line in named):
-                lacks.append(f"{at.command}: {word}")
+        lacks += [
+            f"{at.command}: {word}"
+            for word in (*at.flags, *at.choices)
+            if not any(has(line, word) for line in named)
+        ]
     return lacks
 
 
@@ -412,16 +414,14 @@ def test_a_skills_blocks_run_no_verb_and_no_flag_that_the_help_does_not_have(tre
 
 
 def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(trees):
-    block = "\n".join(
-        (
-            "```sh",
-            "jbus word --to jstack --by me --at now",
-            'uv run --project "$T/../source" jbus scout add a-slug',
-            'elif ! shown=$(jbus --project "$P" noticed 2>&1); then',
-            "jbus queue list",
-            "if jgauge room --dark; then jbus nothere; fi",
-            "```",
-        )
+    block = (
+        "```sh\n"
+        "jbus word --to jstack --by me --at now\n"
+        'uv run --project "$T/../source" jbus scout add a-slug\n'
+        'elif ! shown=$(jbus --project "$P" noticed 2>&1); then\n'
+        "jbus queue list\n"
+        "if jgauge room --dark; then jbus nothere; fi\n"
+        "```"
     )
     assert gone(trees, block, spans=False) == [
         "jbus word: --by, in `jbus word --to jstack --by me --at now`",
@@ -433,30 +433,26 @@ def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(tr
         "jbus: the verb nothere, in `if jgauge room --dark; then jbus nothere; fi`",
     ]
     assert gone(trees, "On `jbus is not installed`, say so.", spans=False) == []
-    told = "\n".join(
-        (
-            "```sh",
-            'n=$(jbriefs --findings "$B" --rounds)',
-            'jbus answer 3 "--$which" -- yes',
-            'jbus answer 3 "$(jmerge --scope x)" --default yes',
-            "if jgauge room --light; then echo hi; fi",
-            "```",
-        )
+    told = (
+        "```sh\n"
+        'n=$(jbriefs --findings "$B" --rounds)\n'
+        'jbus answer 3 "--$which" -- yes\n'
+        'jbus answer 3 "$(jmerge --scope x)" --default yes\n'
+        "if jgauge room --light; then echo hi; fi\n"
+        "```"
     )
     assert gone(trees, told, spans=False) == []
 
 
 def test_what_the_help_has_and_what_is_no_code_of_a_command_is_let_through(trees):
-    told = "\n".join(
-        (
-            "`jbus --project demo answer 3 --by Alex --at '2026-01-02 10:00 ET' --default yes`",
-            "`jbus queue show|add|approve|hold|remove|apply` and `jbus queue <verb>`",
-            "`jgauge test-slot --slots 2 -- make check --here`",
-            "`uv run jgauge room --wait 5 || jbus status`",
-            "jbus makes no judgment call, and `jbus.timer` runs `jbus poll`.",
-            "`git push --no-verify` and `gh pr create --body-file <file>`",
-            "`jroles <role>`, `jroles crew`, `jleak --as title -`",
-        )
+    told = (
+        "`jbus --project demo answer 3 --by Alex --at '2026-01-02 10:00 ET' --default yes`\n"
+        "`jbus queue show|add|approve|hold|remove|apply` and `jbus queue <verb>`\n"
+        "`jgauge test-slot --slots 2 -- make check --here`\n"
+        "`uv run jgauge room --wait 5 || jbus status`\n"
+        "jbus makes no judgment call, and `jbus.timer` runs `jbus poll`.\n"
+        "`git push --no-verify` and `gh pr create --body-file <file>`\n"
+        "`jroles <role>`, `jroles crew`, `jleak --as title -`"
     )
     assert gone(trees, told) == []
     assert gone(trees, "`--force-with-lease` is git's.") == []

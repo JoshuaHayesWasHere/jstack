@@ -109,11 +109,11 @@ class Reader:
 
     def reads(self):
         """Each read of the real tree, as its source."""
-        found = []
-        for node in ast.walk(self.tree):
-            if isinstance(node, ast.Call) and self.reads_tree(node):
-                found.append(ast.unparse(node))
-        return found
+        return [
+            ast.unparse(node)
+            for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call) and self.reads_tree(node)
+        ]
 
     def reads_tree(self, node):
         function = node.func

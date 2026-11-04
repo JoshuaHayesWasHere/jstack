@@ -6,10 +6,19 @@ The parts are split by time, so that they end together: a job's wall is its part
 waits on its slowest part. `testing/shard-times.tsv` holds the seconds of each test that took
 `FLOOR` or more in a whole run of the suite, by `key`, a short sha256 of its node id: a node id
 can hold a placeholder in the shape of a private value, such as a thread id, which the push hook
-refuses, and the keys keep the table small. Then the selected tests are dealt out slowest first,
-each to the part with the least time so far. A test the table does not hold counts as `FLOOR`:
+refuses, and the keys keep the table small. A test the table does not hold counts as `FLOOR`:
 half the suite takes less, and the table leaves those out to stay small, and a new test is most
-likely one of them. No part then holds more than the slowest selected test's time over another.
+likely one of them.
+
+A part runs its tests on `WORKERS` workers at once, so it ends once its tests' summed time over
+`WORKERS` has passed, and never before its slowest test, which one worker runs alone. The
+selected tests are dealt out slowest first, each to the part it would end soonest in, and where
+it would end as soon in several, to the one with the fewest seconds so far. So a test longer than
+the others' share of a part, as the merge flow's TLC test is when TLC runs (its cold time is its
+row), gets a part of its own, and tests that move no part's end spread over the parts by their
+seconds, and do not pile onto the part whose slowest test leaves its workers room.
+`WORKERS` is the Makefile's TEST_WORKERS in CI, one for each of the 4 cores of GitHub's hosted
+runner: a constant, not this machine's count, so every job deals the same parts.
 
 The split reads only the selected tests' node ids and the table, so every xdist worker and every
 job works out the same parts for the same selection, and each test is in exactly one part. The
@@ -23,13 +32,13 @@ selection had tests. `testing/tests/test_shards.py` holds the parts to the whole
 --shard-record testing/shard-times.tsv` after tests are added or grow slow."""
 
 import hashlib
-import heapq
 from pathlib import Path
 
 import pytest
 
 TIMES = Path(__file__).with_name("shard-times.tsv")
 FLOOR = 0.1
+WORKERS = 4
 
 
 def pytest_addoption(parser):
@@ -73,14 +82,31 @@ def seconds(times: dict[str, float], nodeid: str) -> float:
     return times.get(key(nodeid), FLOOR)
 
 
-def split(nodeids: list[str], times: dict[str, float], parts: int) -> list[list[str]]:
-    """The tests of each part, dealt slowest first to the part with the least time so far."""
-    load = [(0.0, at) for at in range(parts)]
+def split(
+    items: list[str], times: dict[str, float], parts: int, slowest: dict[str, float] | None = None
+) -> list[list[str]]:
+    """The items of each part, dealt slowest first to the part each would end soonest in, and of
+    those to the one with the fewest seconds so far: a part ends at its items' summed seconds over
+    `WORKERS`, and never before its slowest test. An item is a test, or a file of tests whose
+    slowest test's seconds `slowest` gives."""
+    slowest = slowest or {}
+    summed = [0.0] * parts
+    longest = [0.0] * parts
     dealt: list[list[str]] = [[] for _ in range(parts)]
-    for nodeid in sorted(nodeids, key=lambda test: (-seconds(times, test), test)):
-        so_far, at = heapq.heappop(load)
-        dealt[at].append(nodeid)
-        heapq.heappush(load, (so_far + seconds(times, nodeid), at))
+    for item in sorted(items, key=lambda one: (-seconds(times, one), one)):
+        took = seconds(times, item)
+        slow = slowest.get(item, took)
+        at = min(
+            range(parts),
+            key=lambda one: (
+                max(longest[one], slow, (summed[one] + took) / WORKERS),
+                summed[one],
+                one,
+            ),
+        )
+        dealt[at].append(item)
+        summed[at] += took
+        longest[at] = max(longest[at], slow)
     return dealt
 
 

@@ -5,18 +5,24 @@ name: macos
 # Mac has, the ones the change reaches. Each mac- fix adds its regression test file there.
 # `scripts/select_tests.py --within` names them, with the rules `make check-fast` selects by,
 # but for two: an import reaches a test only from a changed module of the tests or one that
-# names Darwin, and the tests that read the whole tree do not count. Where the change reaches no
-# test of the list the job ends success in about a minute, with one line in its summary that
-# says so; where the selection is `all` (pyproject.toml, uv.lock, the root conftest.py or the
-# list itself) it runs the whole list. The whole suite on macOS is mac-nightly's (the owner's
-# word, 2026-10-24: "changes should stay quick with mac bugs being caught during larger
-# regression runs"; and 2026-10-27: run only the Mac tests a change can reach).
+# names Darwin, and the tests that read the whole tree do not count. The job `macos-select`
+# runs it on Linux and hands the tests on to the job `macos`; where the selection is `all`
+# (pyproject.toml, uv.lock, the root conftest.py or the list itself) it hands on the whole list.
+# Where the change reaches no test of the list, `macos-select` says so in one line of its
+# summary and `macos` is skipped by its `if:`, so no Mac starts: GitHub runs few macOS jobs at
+# once, and with about 30 pull requests open a run waited up to 14.5 minutes for a Mac only to
+# skip its tests (the owner's word, 2026-11-03: skip the Mac when the change reaches no Mac
+# test). The whole suite on macOS is mac-nightly's (2026-10-24: "changes should stay quick with
+# mac bugs being caught during larger regression runs"; and 2026-10-27: run only the Mac tests
+# a change can reach).
 # It is a workflow of its own and not a job of check.yml: a run of check.yml has no conclusion
 # until its last job ends, and main's full job counts a green-tree marker only from a run that
 # concluded success (scripts/green_tree.py), so a slow macOS job there would hold up every
 # marker. It runs on no push, so main's check never has it. macOS on Apple Silicon is
-# supported, so its check is required: the home's required-checks names it, and jmerge waits on
-# it. So the job always runs and reports, and only its steps are skipped.
+# supported, so its check is required: the home's required-checks names `macos`, and jmerge
+# waits on it. A job skipped by its `if:` passes GitHub's required checks, and jmerge's where
+# the rest of its workflow passed (`jmerge.ready.passed`). So `macos` is skipped only for an
+# empty selection: after a failed `macos-select` it runs, and fails its first step.
 on:
   pull_request:
 
@@ -32,16 +38,14 @@ env:
   UV_VERSION: "0.13.2"
 
 jobs:
-  # Its check fails when a test fails. Only the step that lists the failed tests, in the job's
-  # summary and in one warning with the count, carries continue-on-error. The tests' step stops
-  # before the job's cap, so a hung run still gets its list.
-  # The whole suite took 51 minutes there (run 40108766945); the list is about 640 tests.
-  # Since the check is required, the tests' cap fails it too: it is 22 minutes, twice the
-  # slowest of the last twelve runs (423 to 639 s), as the list grows with each mac- fix.
-  # The job's 25 leaves setup, about a minute, and the summary.
-  macos:
-    runs-on: macos-15
-    timeout-minutes: 25
+  # The list's tests the change reaches: the output `tests`, one a line, and `run`, whether
+  # there is one. The summary line that names them is this job's, since `macos` may not run.
+  macos-select:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.reached.outputs.run }}
+      tests: ${{ steps.reached.outputs.tests }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # The merge commit and its first parent, main: the diff the selection reads.
@@ -52,8 +56,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv sync --locked
-      # The list's tests the change reaches, one a line in a file pytest reads, the line in the
-      # summary that names them, and the output `run` the steps after it go by.
       - name: reached tests
         id: reached
         run: |
@@ -67,18 +69,55 @@ jobs:
               printf '%s\n' "$tests" > "$reached"
               line="macOS: the change reaches $(grep -c . "$reached") test files of testing/macos-quick.txt:"
           else
-              line="macOS: the change reaches no test of testing/macos-quick.txt, so none runs"
+              line="macOS: the change reaches no test of testing/macos-quick.txt, so no Mac starts"
           fi
           {
               echo "$line"
               [ "$tests" = all ] || sed 's/.*/- `&`/' "$reached"
           } | tee -a "$GITHUB_STEP_SUMMARY"
-          if [ -s "$reached" ]; then echo run=true; else echo run=false; fi >> "$GITHUB_OUTPUT"
+          {
+              if [ -s "$reached" ]; then echo run=true; else echo run=false; fi
+              echo "tests<<EOF_TESTS"
+              cat "$reached"
+              echo EOF_TESTS
+          } >> "$GITHUB_OUTPUT"
+  # Its check fails when a test fails. Only the step that lists the failed tests, in the job's
+  # summary and in one warning with the count, carries continue-on-error. The tests' step stops
+  # before the job's cap, so a hung run still gets its list.
+  # The whole suite took 51 minutes there (run 40108766945); the list is about 640 tests.
+  # Since the check is required, the tests' cap fails it too: it is 22 minutes, twice the
+  # slowest of the last twelve runs (423 to 639 s), as the list grows with each mac- fix.
+  # The job's 25 leaves setup, about a minute, and the summary.
+  macos:
+    needs: macos-select
+    # Not the implicit `success()`: it would skip the job after a failed selection, and a skip
+    # passes the required check.
+    if: "!cancelled() && needs.macos-select.outputs.run != 'false'"
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      # The tests `macos-select` handed on, one a line in a file pytest reads.
+      - name: handed tests
+        env:
+          SELECTED: ${{ needs.macos-select.result }}
+          TESTS: ${{ needs.macos-select.outputs.tests }}
+        run: |
+          if [ "$SELECTED" != success ] || [ -z "$TESTS" ]; then
+              echo "::error::macos-select ended $SELECTED and handed on no test"
+              exit 1
+          fi
+          printf '%s\n' "$TESTS" > "$RUNNER_TEMP/macos-reached.txt"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --locked
       # GitHub's macOS image has gh and jq, and zsh is the system's shell. This installs gh or
       # jq where a later image drops one. The suite fakes gitleaks, as it does on Linux. Its only
       # bash is /bin/bash, 3.2, and test_portable_shell reads each block with a bash 5 first.
       - name: tools
-        if: steps.reached.outputs.run == 'true'
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: >-
@@ -88,13 +127,12 @@ jobs:
       # cores. No lint: check.yml's job lints on Linux.
       - name: quick tests
         id: suite
-        if: steps.reached.outputs.run == 'true'
         timeout-minutes: 22
         run: >-
           uv run pytest -n 3 --dist worksteal --durations=25 -m "not browser"
           --junitxml="$RUNNER_TEMP/junit.xml" @"$RUNNER_TEMP/macos-reached.txt"
       - name: failed tests
-        if: "!cancelled() && steps.reached.outputs.run == 'true'"
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
         env:
           JUNIT: ${{ runner.temp }}/junit.xml

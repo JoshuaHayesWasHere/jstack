@@ -198,8 +198,10 @@ class Generated:
       them, and the user runs the generator.
     drop removes nothing."""
 
+    checkout: Path
+
     def probe(self, machine: Machine) -> Found:
-        ran = machine.run([sys.executable, "-I", str(machine.checkout / GENERATE), "--check"])
+        ran = machine.run([sys.executable, "-I", str(self.checkout / GENERATE), "--check"])
         if ran.code == 0:
             return Found.ok()
         said = ran.out.splitlines()
@@ -209,7 +211,7 @@ class Generated:
         return True
 
     def ask(self, machine: Machine) -> str:
-        return f"python3 {machine.checkout / GENERATE}"
+        return f"python3 {self.checkout / GENERATE}"
 
     def put(self, machine: Machine) -> None:
         raise Refused(f"they are not current: run {self.ask(machine)} and commit the result")
@@ -435,8 +437,10 @@ class HookGroup:
 
     With `refuses`, the command is "sh '<layout>/<script>'" with nothing after it. Such a hook
     refuses a tool call through its exit code and what it writes to stderr, so the command
-    discards neither. Its timeout is 30 rather than 5, because it starts Python, and a hook that
-    ran out of time has refused nothing.
+    discards neither. Its timeout is 30 rather than 5, because it starts Python, and in Claude
+    Code's file the hook also has `"onFailure": "block"`, so a hook that fails or runs out of
+    time refuses the call rather than letting it through. Codex has no such key: there the
+    script refuses on its own (`features/jbus/hooks/judge.sh`).
 
     `<layout>` is the layout of `harness`, the harness whose agent reads the file.
     ok: that group is there, and no other command of the event names `/<script>`.
@@ -463,6 +467,8 @@ class HookGroup:
     def _group(self, machine: Machine) -> dict:
         timeout = 30 if self.refuses else 5
         hook = {"type": "command", "command": self._command(machine), "timeout": timeout}
+        if self.refuses and self.harness == "claude-code":
+            hook["onFailure"] = "block"
         return ({} if self.matcher is None else {"matcher": self.matcher}) | {"hooks": [hook]}
 
     def _groups(self, value: dict) -> list | None:
@@ -602,7 +608,7 @@ class StatusLine:
             return Found.missing()
         if line == self._ours(machine):
             return Found.ok()
-        if self._names(line):
+        if isinstance(line, dict) and self._names(line):
             return Found.old(line["command"])
         return Found.foreign("a status line of your own")
 
@@ -674,7 +680,7 @@ class Attribution:
 
     def drop(self, machine: Machine) -> Dropped:
         def change(value: dict) -> bool:
-            ours = [key for key, want in self.wanted.items() if value.get(key, None) == want]
+            ours = [key for key, want in self.wanted.items() if value.get(key) == want]
             for key in ours:
                 del value[key]
             return bool(ours)
@@ -1369,7 +1375,7 @@ class T3JstackBuild:
         command = t3_command(machine)
         ran = machine.run([str(command), "--version"]) if command is not None else None
         said = None if ran is None or ran.code != 0 else T3_VERSION.search(ran.out)
-        if said is None:
+        if ran is None or said is None:
             return Found.missing("no t3 that answers --version: open T3 Code once")
         built = T3_JSTACK.search(ran.out)
         if built is None:

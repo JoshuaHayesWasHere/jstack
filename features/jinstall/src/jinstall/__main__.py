@@ -113,10 +113,12 @@ def setup(machine: Machine) -> Report:
     need that is missing is a layer the user has not set up, and its line is the doctor's,
     `missing optional <name> -> <command>`. A repo's own git hook (`yours`) gets that line too:
     the repo runs without jstack's hook, and no step of the user's is owed. A need with a
-    `fold`, a harness's skill link, is counted in one line for its run instead, such as
-    `done skills claude-code: 66 links`, while it is done or already there. When a step is left
-    for the user, the last line names each again, `setup: <n> needs you: <name> -> <command>; ...`,
-    so the steps are not lost among the lines above.
+    `fold`, a harness's skill link or a hook of one hooks file, is counted in one line for its
+    run instead, such as `done skills claude-code: 66 links` or
+    `done hooks ~/.codex/hooks.json: 6 hooks`, while it is done or already there. When a step is
+    left for the user, the last line names each again,
+    `setup: <n> needs you: <name> -> <command>; ...`, so the steps are not lost among the lines
+    above.
 
     Setup writes a Seeded need that is missing, and puts a due Carried need that is not ok, as
     the install puts it. The jbus config comes before the units in the list, so a run that
@@ -137,7 +139,7 @@ def setup(machine: Machine) -> Report:
             lines.append("")
         folds[key][1] += 1
         at, count = folds[key]
-        lines[at] = f"{word} {need.fold}: {count} link{'s' if count > 1 else ''}"
+        lines[at] = f"{word} {need.fold}: {count} {need.unit}{'s' if count > 1 else ''}"
 
     for need in needs(machine):
         kind = need.kind
@@ -153,7 +155,7 @@ def setup(machine: Machine) -> Report:
             try:
                 if seeds:
                     machine.seed(kind.path, kind.text(machine), kind.mode)
-                elif said := kind.put(machine):
+                elif isinstance(kind, Carried) and (said := kind.put(machine)):
                     notes += [f"install.sh: {need.name}: {line}" for line in said.splitlines()]
             except (OSError, Moved, Refused) as error:
                 notes.append(f"install.sh: {need.name}: {error}")

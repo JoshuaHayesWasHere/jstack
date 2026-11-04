@@ -61,7 +61,7 @@ The Python code is one `uv` project.
 
 `make check` is the one check command.
 It runs `make lint`, then `make test`, and stops at the first that fails.
-`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then `scripts/generate-jstack-trees.py --check`, `scripts/check-jstack-docs.py`, `uv run ruff check .` and `uv run ruff format --check .`.
+`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then `scripts/generate-jstack-trees.py --check`, `scripts/check-jstack-docs.py`, `uv run ruff check .`, `uv run ruff format --check .` and `uv run pyrefly check --summary=none features/*/src`, which type-checks each feature's `src`.
 `make test` runs `uv run pytest` on several workers with `-m "not browser"`, so it leaves out the tests that open a real browser.
 `make check-browser` runs those.
 
@@ -103,7 +103,7 @@ The maintainer merges it once the findings are fixed and `check` and `borders` p
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| `check` | each push of a pull request, a draft too, each push to `main`, and by hand | On a pull request, a `reuse` job first: where a green run already checked the same tree, the pull request reuses it and runs nothing more. Otherwise it checks for AI co-author lines and runs `make check-fast BASE=HEAD^1` in 8 parts side by side, with the tests that failed on `main` in the last 30 days added to the selection. On a push to `main`, `make check` in 4 parts, skipped where a green tree marker shows the tree passed already. |
+| `check` | each push of a pull request, a draft too, each push to `main`, and by hand | On a pull request, a `reuse` job first: where a green run already checked the same tree, the pull request reuses it and runs nothing more. The `reuse` job also checks for AI co-author lines. Without a reuse, a `select` job runs `scripts/select_tests.py --parts 8 HEAD^1 HEAD`, the prose lint and `make lint` once: it selects the tests the change needs, adds the tests that failed on `main` in the last 30 days, and deals the selected files out to 8 parts, `check 1 of 8` to `check 8 of 8`, which run side by side, each `make test` on its own files. On a push to `main`, `make check` in 4 parts, skipped where a green tree marker shows the tree passed already. |
 | `macos` | each pull request | On macOS, the tests of `testing/macos-quick.txt` that the change reaches, selected by `scripts/select_tests.py --within`. |
 | `macos-nightly` | each night, and by hand | `make check` on macOS over `main`, the whole suite. |
 | `borders` | each pull request, and each change of its labels | `scripts/lint-borders.py`: every path has one owner, and a pull request that touches two features carries the `cross-cutting` label, which a maintainer adds. Then `features/jbus/scripts/kept_shots.py`: a pull request that changes a kept shot of the view changes nothing else. |

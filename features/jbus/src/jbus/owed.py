@@ -48,7 +48,7 @@ from __future__ import annotations
 import json
 import re
 from collections import deque
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -145,7 +145,7 @@ def when(stamps: list[Any]) -> datetime | None:
     return None
 
 
-def stop_of(items: list[Mapping[str, Any]], now: datetime) -> Stop | None:
+def stop_of(items: Sequence[Mapping[str, Any]], now: datetime) -> Stop | None:
     """Return what the last items of a failed run name as its stop, or None for any other failure,
     such as a stream that closed, which is no cap and no sign-in."""
     tail = [item for item in items[-3:] if item.get("type") in TAIL]

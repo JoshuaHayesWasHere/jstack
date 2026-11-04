@@ -113,7 +113,7 @@ def test_two_reads_an_hour_apart_give_60_minutes_of_a_spell(machine):
 
 
 def test_the_two_readers_reads_of_the_same_minutes_count_them_once(machine):
-    for minute in range(0, 60):
+    for minute in range(60):
         at = NOW + timedelta(minutes=minute)
         if minute % 2 == 0:
             machine.accounts.read(at, main=100, prime=100)

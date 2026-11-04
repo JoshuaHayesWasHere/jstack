@@ -63,9 +63,9 @@ def _sends(node: ast.AST, modules: set[str], functions: set[str]) -> bool:
     if not isinstance(node, ast.Call):
         return False
     func = node.func
-    if isinstance(func, ast.Attribute) and func.attr == "send":
-        if isinstance(func.value, ast.Name) and func.value.id in modules:
-            return True
+    sends = isinstance(func, ast.Attribute) and func.attr == "send"
+    if sends and isinstance(func.value, ast.Name) and func.value.id in modules:
+        return True
     if isinstance(func, ast.Name) and func.id in functions:
         return True
     return any(isinstance(arg, ast.Constant) and arg.value == "t3_thread_send" for arg in node.args)

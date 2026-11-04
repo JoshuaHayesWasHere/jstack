@@ -45,7 +45,7 @@ A thread with no hook gets no automatic home. Type `/home` there, or `$home`.
 
 ## The sends hook
 
-`features/home/hooks/agent-sends.sh` is a `PreToolUse` hook on `t3_thread_send`.
+`features/home/hooks/agent-sends.sh` is a `PreToolUse` hook on `t3_thread_send`, for Claude Code and Codex.
 jbus carries every message between a repo's homes and every review notice, so a home's or a reviewer's own send to one of those threads is refused before it goes.
 The decision is `jbriefs.sends`, which reads which thread is a home from `jbriefs.home`, the one copy of that rule.
 
@@ -65,11 +65,13 @@ Each line names the jbus command as the home skill's scoped-homes page gives it.
 
 A home's send to the crew of one of its own briefs, a steer, goes.
 So does any send to a scout, to a thread of another repo, and any send by a thread that is no home and no reviewer.
-The sender's thread is the one T3 Code's store, `~/.t3/userdata/statev2.sqlite`, runs the hook's Claude session in.
+The sender's thread is the one T3 Code's store, `~/.t3/userdata/statev2.sqlite`, runs the hook's Claude or Codex session in.
 A session the store does not know, a store that cannot be read and a repo with no homes' state let the send go: what is not known to be a home's or a reviewer's send is not refused.
 
 The hook needs `git` and Python 3.12 or newer, or the release's own Python.
-`install.sh` merges this group into `~/.claude/settings.json`:
+A hook that cannot judge refuses the send: no such Python, a `jbriefs.sends` that ends any way but 0 or 2, and one that runs past 25 seconds each end it 2, through `features/jbus/hooks/judge.sh`.
+Each refusal is a quiet `hook` event in the repo's jbus log, with the hook, the call and the reason, which `jbus events` prints.
+`install.sh` merges this group into `~/.claude/settings.json`, where `onFailure` refuses the send too when the hook itself fails or runs out of time:
 
 ```json
 {
@@ -81,7 +83,8 @@ The hook needs `git` and Python 3.12 or newer, or the release's own Python.
           {
             "type": "command",
             "command": "sh '<layout>/hooks/agent-sends.sh'",
-            "timeout": 30
+            "timeout": 30,
+            "onFailure": "block"
           }
         ]
       }

@@ -4,13 +4,13 @@ import functools
 import re
 import string
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from jbriefs import findings, meets, skills
+from jbriefs import findings, meets, proved, skills
 from jbriefs.findings import CLEANUP, NONE, REVIEW, TWICE
 from jmerge.rangediff import Verdict
 from jmerge.stacked import Stacked
@@ -25,6 +25,7 @@ _ACK = re.compile(
 _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
+_NOTHING_PUSHED = "nothing was pushed"
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -127,6 +128,30 @@ SKILLS_UNRUN = Reason(
     "result",
     "its Result has no artifact under Skills run: for {names}, which its brief names",
 )
+PROVED_MISSING = Reason(
+    "result",
+    "it changes {tests}, and its Result has no Proved: line that shows them fail at its base "
+    "and pass at its head",
+)
+PROVED_UNREAD = Reason("result", "its Result's Proved: line {fault}")
+PROVED_NOT_EXEMPT = Reason(
+    "result", "its Proved: line says it changes no test, and it changes {tests}"
+)
+PROVED_NOT_KIND = Reason("result", "its Proved: line says none, {kinds}, and it changes {path}")
+PROVED_UNNAMED = Reason("result", "its Proved: line does not name {tests}, which it changes")
+PROVED_BASE_PASSED = Reason(
+    "result",
+    "its Proved: line says its tests exit {exit} at its base {base}, not 1: they prove nothing "
+    "there",
+)
+PROVED_HEAD_FAILED = Reason(
+    "result", "its Proved: line says its tests exit {exit} at its head {head}, not 0"
+)
+PROVED_STALE = Reason(
+    "result",
+    "its Proved: line is of {at}, and its patch changed after it: the proof block runs again at "
+    "{head}",
+)
 NO_VERDICT = Reason("review", "its review has no verdict")
 NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
 NOT_PUSHED = Reason("findings", "its findings are not handled: nothing was pushed after them")
@@ -193,6 +218,8 @@ CONTENT_CHANGED = Reason(
 NOT_PASSED = Reason("check", "{check} has not passed")
 CHECK_FAILED = Reason("check", "{check} has failed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
+CANCELLED_UNRUN = Reason("check", "its {check} was cancelled, and GitHub did not run it again")
+CANCELLED_TWICE = Reason("check", "its {check} was cancelled twice")
 LIVE_RUN = Reason("check", "{check}'s run at {head} is {state}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
@@ -259,6 +286,11 @@ BASE_MOVED_ASKED = Reason(
 BASE_MOVED_DUE = Reason(
     "check", "{base} moved after its check started: GitHub is to merge {base} at {tip} into it"
 )
+IN_LINE = Reason(
+    "check",
+    "it is in line behind #{number}: {base} moved after its check started, and GitHub merges"
+    " {base} into the branch of one pull request at a time, the one to merge next",
+)
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -290,6 +322,8 @@ class PullRequest:
     running there, with `queued` or `running` (`live`)."""
     passed_at: datetime | None = None
     """The second the last of the required checks passed at the head (`passed_at`)."""
+    removed: tuple[str, ...] = ()
+    """The files it deletes, which `files` lists too."""
 
 
 def _at(text: str | None) -> datetime | None:
@@ -311,11 +345,36 @@ def latest(rollup: list[dict], name: str | None) -> list[dict]:
     return [one for one in named if when(one) == last]
 
 
+def _ended(one: dict, conclusion: str) -> bool:
+    return one.get("status") == "COMPLETED" and one.get("conclusion") == conclusion
+
+
+def _skip_decided(rollup: list[dict], one: dict) -> bool:
+    """Whether a skipped job was skipped by its own workflow's choice: every other job of its
+    workflow at the head ended passed or skipped, and one at least passed. macos.yml skips its
+    `macos` job by an `if:` where its `macos-select` job finds no Mac test the change reaches.
+    A skip with no job of its workflow that passed beside it, or one beside a failed job, is no
+    pass."""
+    workflow, name = one.get("workflowName"), one.get("name")
+    if not _ended(one, "SKIPPED") or not workflow:
+        return False
+    others = [
+        run
+        for other in dict.fromkeys(
+            r.get("name") for r in rollup if r.get("workflowName") == workflow
+        )
+        if other != name
+        for run in latest(rollup, other)
+    ]
+    return any(_ended(run, "SUCCESS") for run in others) and all(
+        _ended(run, "SUCCESS") or _ended(run, "SKIPPED") for run in others
+    )
+
+
 def passed(rollup: list[dict], name: str) -> bool:
     runs = latest(rollup, name)
     return bool(runs) and all(
-        one.get("state") == "SUCCESS"
-        or (one.get("status") == "COMPLETED" and one.get("conclusion") == "SUCCESS")
+        one.get("state") == "SUCCESS" or _ended(one, "SUCCESS") or _skip_decided(rollup, one)
         for one in runs
     )
 
@@ -446,6 +505,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         unrun=unrun(listed.get("statusCheckRollup") or [], required),
         live=live(listed.get("statusCheckRollup") or [], required),
         passed_at=passed_at(listed.get("statusCheckRollup") or [], required),
+        removed=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "DELETED"),
     )
 
 
@@ -459,6 +519,7 @@ def listed_in_full(one: PullRequest, every: list[dict]) -> PullRequest:
         files=tuple(file["filename"] for file in every),
         renamed=any(file.get("status") == "renamed" for file in every),
         added=tuple(file["filename"] for file in every if file.get("status") == "added"),
+        removed=tuple(file["filename"] for file in every if file.get("status") == "removed"),
     )
 
 
@@ -581,6 +642,7 @@ def said_of(text: str) -> Said:
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     first = triage.sections[0].line if triage.sections else -1
     fixed_at = -1
+    unproven = False
     for at, line in enumerate(text.splitlines()):
         fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
         if _COMMIT.fullmatch(fixed) or fixed == "none":
@@ -601,8 +663,11 @@ def said_of(text: str) -> Said:
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
+            unproven = fields[2:3] != ["needed"] and " ".join(fields[3:6]) != _NOTHING_PUSHED
     if said.mode == REVIEW and _stale(triage.sections, said.reviewed, fixed_at):
         said.fixed = ""
+    if unproven and _COMMIT.fullmatch(said.fixed) and said.fixed != said.reviewed:
+        said.owed, said.asked = True, said.reviewed
     _round(said)
     said.owes = _owes(said)
     return said
@@ -774,6 +839,67 @@ def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
     return short or short_on_meets(text, heard)
 
 
+_TEST = re.compile(r"(?:test_[^/]*|[^/]*_test)\.py")
+
+
+def changed_tests(one: PullRequest) -> tuple[str, ...]:
+    """The test files the pull request adds or changes: each `test_*.py` or `*_test.py` it lists
+    and does not delete."""
+    gone = set(one.removed)
+    return tuple(
+        path for path in one.files if path not in gone and _TEST.fullmatch(path.rsplit("/", 1)[-1])
+    )
+
+
+def _of_kind(path: str, kind: str) -> bool:
+    parts = path.split("/")
+    return any(
+        any(fnmatchcase("/".join(parts[at:]), pattern) for at in range(len(parts)))
+        if "/" in pattern
+        else fnmatchcase(parts[-1], pattern)
+        for pattern in proved.EXEMPT[kind]
+    )
+
+
+def short_on_proved(
+    text: str, one: PullRequest, carries: Callable[[str], bool] = lambda at: False
+) -> str:
+    """Why the brief's `Proved:` line does not prove the pull request, or nothing
+    (`proved.proved`). A pull request that changes tests needs the line to name each of them,
+    with their run over its merge-base's code ending 1, a failure, and at its head ending 0. A
+    run that passes at the base, or ends on anything but a failure there (no test collected, a
+    time limit), passes vacuously. One that changes no test needs no line, and where it says
+    `none, <kind>` each file it changes is of a kind it names. A line of another head holds
+    where the head carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads
+    after a rebase or a merge of the base): a push that changed the patch, a fix for a review's
+    finding most of all, may have changed the tests too."""
+    tests = changed_tests(one)
+    said = proved.proved(text)
+    if said is None:
+        return PROVED_MISSING.format(tests=", ".join(tests)) if tests else ""
+    if said.fault:
+        return PROVED_UNREAD.format(fault=said.fault)
+    if said.kinds:
+        if tests:
+            return PROVED_NOT_EXEMPT.format(tests=", ".join(tests))
+        other = next(
+            (path for path in one.files if not any(_of_kind(path, kind) for kind in said.kinds)),
+            "",
+        )
+        kinds = " and ".join(said.kinds)
+        return PROVED_NOT_KIND.format(kinds=kinds, path=other) if other else ""
+    unnamed = [path for path in tests if path not in said.tests]
+    if unnamed:
+        return PROVED_UNNAMED.format(tests=", ".join(unnamed))
+    if said.base_exit != 1:
+        return PROVED_BASE_PASSED.format(exit=said.base_exit, base=said.base[:12])
+    if said.head_exit != 0:
+        return PROVED_HEAD_FAILED.format(exit=said.head_exit, head=said.head[:12])
+    if said.head != one.head and not carries(said.head):
+        return PROVED_STALE.format(at=said.head[:12], head=one.head[:12])
+    return ""
+
+
 def _review(said: Said, head: str) -> str:
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
     if not said.written:
@@ -788,9 +914,8 @@ def _review(said: Said, head: str) -> str:
         return SECOND_UNWRITTEN
     if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
-    if said.owes and _COMMIT.fullmatch(fixed) and head != fixed:
-        if head == reviewed:
-            return NOT_PUSHED
+    if said.owes and _COMMIT.fullmatch(fixed) and head != fixed and head == reviewed:
+        return NOT_PUSHED
     return unanswered(said) or unruled(said)
 
 
@@ -836,7 +961,9 @@ def _scoped_since(said: Said) -> bool:
 
 
 def _ruled(named: tuple[findings.Finding, ...]) -> str:
-    return " and ".join(_RULED.format(id=one.id, why=one.ruling.why) for one in named)
+    return " and ".join(
+        _RULED.format(id=one.id, why=one.ruling.why) for one in named if one.ruling is not None
+    )
 
 
 def unruled(said: Said) -> str:
