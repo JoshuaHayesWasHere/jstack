@@ -1,18 +1,18 @@
-"""A desk marker from a run of selected tests never stands in for main's whole suite.
+"""No desk marker stands in for main's whole suite, of selected tests or of `make check`.
 
 On 2026-10-23 jmerge's fresh check, `make check-fast BASE=origin/main`, passed on #332's head
 merged over main, and jmerge pushed the desk's marker of that tree. Main's `full` job found the
 marker and skipped `make check` in 17 s, though the tree broke a test that check-fast had not
 selected. Main read green, its red cleared, and jmerge merged four more pull requests onto it.
 
-jmerge runs no local check and pushes no desk marker since fl-gh-recheck, but a desk marker can
-still be on the origin, and check.yml still reads one. The replay builds the same shape from small
-made-up commits: a tree whose `make check-fast` passes and whose `make check` fails, then the next
-pull request. The desk's marker of the tree is pushed by hand, as the old fresh check pushed it,
-and main's `full` job runs as check.yml says: `scripts/green_tree.py` asks a `gh` that answers
-from the origin, and the job runs `make check` unless the script says `green`. What jbus then
-records of main's check is what that run ended with, and jmerge holds the next merge while main
-is red. A desk marker of `make check` does skip main's suite."""
+jmerge runs no local check and pushes no desk marker since fl-gh-recheck, and anybody with write
+to the repo could still push one by hand, so check.yml reads none. The replay builds the same
+shape from small made-up commits: a tree whose `make check-fast` passes and whose `make check`
+fails, then the next pull request. The desk's marker of the tree is pushed by hand, as the old
+fresh check pushed it, and main's `full` job runs as check.yml says: `scripts/green_tree.py`
+asks a `gh` that answers from the origin, and the job runs `make check` unless the script says
+`green`. What jbus then records of main's check is what that run ended with, and jmerge holds the
+next merge while main is red. A desk marker of `make check` does not skip main's suite either."""
 
 import json
 import subprocess
@@ -98,8 +98,7 @@ def full_job(kitchen, tip):
     said = dict(line.split("=", 1) for line in output.read_text().splitlines())
     found, _ = workflows.steps(workflows.CHECK.read_text(), "full-shard")
     (suite,) = [step for step in found if step.get("id") == "suite"]
-    asked = {"steps.tree.outputs.marker": said["marker"], "steps.tree.outputs.from": said["from"]}
-    if not workflows.worked(suite["if"], asked):
+    if not workflows.worked(suite["if"], {"steps.tree.outputs.marker": said["marker"]}):
         return False, True, looked.stdout.strip()
     ran = subprocess.run(["make", "check"], cwd=checkout, capture_output=True, text=True)
     return True, ran.returncode == 0, looked.stdout.strip()
@@ -145,12 +144,12 @@ def test_a_tree_only_check_fast_passed_runs_the_whole_suite_on_main_and_its_red_
     assert kitchen.tip() != tip
 
 
-def test_a_tree_the_whole_suite_passed_on_the_desk_skips_mains_suite(tmp_path):
+def test_a_tree_the_whole_suite_passed_on_the_desk_still_runs_mains_suite(tmp_path):
     kitchen = kitchen_of(tmp_path, "make check")
     (kitchen.home.main / "Makefile").write_text(MAKEFILE.replace("-le 5", "-le 50"))
     fresh.git(kitchen.home.main, "commit", "-qam", "a longer cap")
     fresh.git(kitchen.home.main, "push", "-q")
     tip = merged_on_the_desk(kitchen)
     suite, passed, line = full_job(kitchen, tip)
-    assert (suite, passed) == (False, True), line
-    assert "passed a fresh check on the desk" in line and "so the suite is skipped" in line
+    assert (suite, passed) == (True, True), line
+    assert "no green run of the check left a marker, so the suite runs" in line

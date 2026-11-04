@@ -521,7 +521,6 @@ ZSH = (
     ' && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
 )
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
-OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 TLC = "~/.cache/jstack/tlc"
 
 
@@ -1028,6 +1027,8 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
         "actions/checkout",
         "python3 scripts/green_tree.py",
+        'echo "::warning::green-tree, the lookup ended failure, so the suite runs and a later run'
+        ' of this tree may not skip it"',
         "astral-sh/setup-uv",
         "uv sync --locked",
         ZSH,
@@ -1042,16 +1043,15 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "python3 scripts/select_tests.py --failed-on-main 30 ~/.cache/jstack/failed-on-main.json",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
-        'echo "::warning::green-tree, the lookup ended ${{ needs.full-shard.outputs.lookup }} and'
-        " the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the"
-        ' suite"',
+        'echo "::warning::green-tree, the upload ended failure, so a later run of this tree may'
+        ' not skip the suite"',
     ]
-    checkout, ask, setup, sync, zsh, kept, suite, *_ = found
+    checkout, ask, _, setup, sync, zsh, kept, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
     assert [step["if"] for step in (setup, sync, zsh, kept, suite)] == [
-        OR_THE_DESKS,
-        OR_THE_DESKS,
+        UNLESS_GREEN,
+        UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
@@ -1064,54 +1064,23 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
     ] == ["green"]
 
 
-def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
-    """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
-    found, _ = steps(CHECK.read_text(), "full-shard")
-    _, _, setup, sync, _, _, suite, *_ = found
-    assert (sync["run"], suite["run"]) == ("uv sync --locked", SUITE)
-    ran = {
-        (marker, by): [
-            step.get("run", step.get("uses", "")).partition("@")[0]
-            for step in (setup, sync, suite)
-            if worked(
-                step["if"], {"steps.tree.outputs.marker": marker, "steps.tree.outputs.from": by}
-            )
-        ]
-        for marker, by in (("green", "desk"), ("green", "run"), ("none", ""), ("unknown", ""))
-    }
-    everything = ["astral-sh/setup-uv", "uv sync --locked", SUITE]
-    assert ran == {
-        ("green", "desk"): everything[:2],
-        ("green", "run"): [],
-        ("none", ""): everything,
-        ("unknown", ""): everything,
-    }
-
-
 OUTCOMES = ("success", "failure", "cancelled", "skipped", "")
 
 
-def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
+def test_the_marker_is_left_only_after_every_part_passed():
+    """When the parts of a matrix write one output, the one that ends last wins. So the parts
+    give only the tree, which is the same in all of them, and the marker waits on the result,
+    which is success only when every part ran its share and passed or skipped on a marker."""
     *_, mark, upload, warn = steps(CHECK.read_text(), "full")[0]
-    assert job_section("full-shard", "outputs") == {
-        "tree": "${{ steps.tree.outputs.name }}",
-        "lookup": "${{ steps.tree.outcome }}",
-        "suite": "${{ steps.suite.outcome }}",
-    }
+    assert job_section("full-shard", "outputs") == {"tree": "${{ steps.tree.outputs.name }}"}
     assert [
-        (result, outcome, name)
+        (result, name)
         for result in RESULTS
-        for outcome in OUTCOMES
         for name in ("green-tree-1", "")
         if worked(
-            mark["if"],
-            {
-                "needs.full-shard.result": result,
-                "needs.full-shard.outputs.suite": outcome,
-                "needs.full-shard.outputs.tree": name,
-            },
+            mark["if"], {"needs.full-shard.result": result, "needs.full-shard.outputs.tree": name}
         )
-    ] == [("success", "success", "green-tree-1")]
+    ] == [("success", "green-tree-1")]
     assert mark["id"] == "marker"
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
     tree = "${{ needs.full-shard.outputs.tree }}"
@@ -1121,21 +1090,14 @@ def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
 
 
 def test_a_lookup_or_an_upload_that_failed_never_fails_the_run_and_is_a_warning_on_it():
+    """Each part warns of its own lookup, so one part's failed lookup is never hidden behind
+    another's that worked."""
+    _, ask, told, *_ = steps(CHECK.read_text(), "full-shard")[0]
+    assert (ask["id"], ask["continue-on-error"]) == ("tree", True)
+    assert [o for o in OUTCOMES if worked(told["if"], {"steps.tree.outcome": o})] == ["failure"]
     *_, upload, warn = steps(CHECK.read_text(), "full")[0]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
-    assert [
-        (tree, sent)
-        for tree in ("success", "failure")
-        for sent in ("success", "failure", "skipped")
-        if worked(
-            warn["if"], {"needs.full-shard.outputs.lookup": tree, "steps.upload.outcome": sent}
-        )
-    ] == [
-        ("success", "failure"),
-        ("failure", "success"),
-        ("failure", "failure"),
-        ("failure", "skipped"),
-    ]
+    assert [o for o in OUTCOMES if worked(warn["if"], {"steps.upload.outcome": o})] == ["failure"]
 
 
 JUNIT = """<?xml version="1.0" encoding="utf-8"?>
@@ -1269,7 +1231,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     """Run the script in a new repo against a `gh` that answers from these files.
 
     `answers` maps each path to its answer, or is a function that gives the answers for the repo's
-    tree. When no answer exists for the tree, the tree has no ref: the desk left no marker.
+    tree. A path with no answer is refused.
 
     Return the step's outputs, what it printed, the tree, and the paths `gh` was asked for.
     """
@@ -1285,7 +1247,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     ).stdout.strip()
     if callable(answers):
         answers = answers(tree)
-    for path, body in ({f"{FULL}/{tree}": [], f"{SELECTED}/{tree}": []} | (answers or {})).items():
+    for path, body in (answers or {}).items():
         (said / path.replace("/", "_")).write_text(json.dumps(body))
     (bin / "git").symlink_to(shutil.which("git"))
     if answers is not None:
@@ -1325,8 +1287,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     )
 
 
-REFS = "repos/owner/repo/git/matching-refs/jstack/green-tree"
-FULL, SELECTED = f"{REFS}/full", f"{REFS}/selected"
+FULL = "repos/owner/repo/git/matching-refs/jstack/green-tree/full"
 COMMIT = "repos/owner/repo/git/commits/c0ffee"
 ARTIFACTS = "repos/owner/repo/actions/artifacts"
 RUN = "repos/owner/repo/actions/runs/7"
@@ -1352,13 +1313,9 @@ def run(**changed):
 
 def test_a_tree_with_a_marker_is_green_and_the_log_names_the_run_it_is_from(tmp_path):
     outputs, printed, tree, asked = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
-    assert asked == [
-        f"api {FULL}/{tree}",
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {RUN}",
-    ]
+    assert asked == [f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100", f"api {RUN}"]
 
 
 @pytest.mark.skipif(not Path("/usr/bin/python3").is_file(), reason="no system python3")
@@ -1367,29 +1324,29 @@ def test_the_lookup_runs_on_the_runners_bare_python_before_uv_sync(tmp_path):
     packages, so an import of anything installed fails here."""
     bare = ("/usr/bin/python3", "-I", "-S")
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()}, bare)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
 
 
 def test_a_tree_with_no_marker_runs_the_suite(tmp_path):
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: {"artifacts": []}})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
     assert printed.endswith(": no green run of the check left a marker, so the suite runs")
 
 
 def test_a_run_that_is_refused_the_answer_runs_the_suite(tmp_path):
     outputs, printed, tree, asked = green_tree(tmp_path, {})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown"}
     assert printed == (
         f"::warning::green-tree: tree {tree}: could not ask"
         " (HTTP 403: Resource not accessible by integration), so the suite runs"
     )
-    assert asked == [f"api {FULL}/{tree}", f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
+    assert asked == [f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
 
 
 def test_a_runner_with_no_gh_runs_the_suite(tmp_path):
     outputs, printed, tree, _ = green_tree(tmp_path, None)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown"}
     assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
 
 
@@ -1410,7 +1367,7 @@ def test_a_runner_with_no_gh_runs_the_suite(tmp_path):
 )
 def test_a_marker_counts_only_from_a_green_run_of_the_check_in_the_repo_itself(tmp_path, answers):
     outputs, _, tree, _ = green_tree(tmp_path, answers)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
 
 
 @pytest.mark.parametrize(
@@ -1422,7 +1379,7 @@ def test_a_marker_counts_only_from_a_green_run_of_the_check_in_the_repo_itself(t
 )
 def test_a_marker_whose_run_is_a_forks_runs_the_suite_and_the_log_says_so(tmp_path, answers):
     outputs, printed, tree, _ = green_tree(tmp_path, answers)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
     assert printed == f"green-tree: tree {tree}: a marker came from a fork's run, so the suite runs"
 
 
@@ -1438,21 +1395,21 @@ def test_a_forks_marker_listed_before_the_repos_own_does_not_stop_the_skip(tmp_p
         RUN: run(),
     }
     outputs, printed, tree, _ = green_tree(tmp_path, answers)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "green"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
 
 
 def test_a_marker_whose_run_cannot_be_read_runs_the_suite(tmp_path):
     outputs, printed, tree, asked = green_tree(tmp_path, {ARTIFACTS: marker()})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown"}
     assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
-    assert asked[2:] == [f"api {RUN}"]
+    assert asked[1:] == [f"api {RUN}"]
 
 
 @pytest.mark.parametrize("gone", [{"head_repository": None}, {"head_repository": {}}])
 def test_a_marker_whose_run_names_no_head_repository_runs_the_suite(tmp_path, gone):
     outputs, printed, tree, _ = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run(**gone)})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
     assert printed.endswith(": no green run of the check left a marker, so the suite runs")
 
 
@@ -1465,97 +1422,27 @@ def test_a_marker_whose_run_names_no_head_repository_runs_the_suite(tmp_path, go
 )
 def test_a_manual_run_and_a_run_again_never_ask_and_run_the_suite(tmp_path, env, why):
     outputs, printed, tree, asked = green_tree(tmp_path, {ARTIFACTS: marker(), RUN: run()}, **env)
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked", "from": ""}
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked"}
     assert (printed, asked) == (f"green-tree: tree {tree}: {why}", [])
 
 
-def ref(tree, kind="full", **changed):
-    """What GitHub lists for the ref the desk pushed for a tree after a check of this kind, at
-    the commit c0ffee."""
-    name = f"refs/jstack/green-tree/{kind}/{tree}"
-    return [{"ref": name, "object": {"sha": "c0ffee", "type": "commit"}} | changed]
+def test_a_ref_pushed_under_green_tree_full_skips_nothing_and_is_never_asked_for(tmp_path):
+    """Nothing pushes `refs/jstack/green-tree/full/<tree>` since #444, and anybody with write
+    to the repo could push one by hand. Such a ref skipped main's suite; now only a green run's
+    artifact does."""
 
-
-def test_a_tree_the_desk_marked_is_green_and_the_log_names_the_desk(tmp_path):
-    outputs, printed, tree, asked = green_tree(
-        tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "desk"}
-    assert printed == (
-        f"green-tree: tree {tree}: passed a fresh check on the desk, which marked it with the"
-        " commit c0ffee, so the suite is skipped"
-    )
-    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
-
-
-@pytest.mark.parametrize(
-    "listed",
-    [
-        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": "0ther"}}},
-        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {}},
-        lambda tree: {f"{FULL}/{tree}": ref(tree, ref=f"refs/jstack/green-tree/full/{tree}0")},
-        lambda tree: {f"{FULL}/{tree}": ref(tree, object={"sha": "c0ffee", "type": "tag"})},
-    ],
-)
-def test_a_ref_whose_commit_has_another_tree_is_no_marker_and_the_artifact_is_asked_for(
-    tmp_path, listed
-):
-    outputs, printed, tree, asked = green_tree(
-        tmp_path,
-        lambda tree: {ARTIFACTS: {"artifacts": []}, COMMIT: {"tree": {"sha": tree}}} | listed(tree),
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
-    assert printed.endswith(": no green run of the check left a marker, so the suite runs")
-    assert asked[-2:] == [
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {SELECTED}/{tree}",
-    ]
-
-
-def test_a_tree_the_desk_marked_after_selected_tests_only_runs_the_suite_and_the_log_says_so(
-    tmp_path,
-):
-    """On 2026-10-23 the desk's `make check-fast` pass skipped main's suite on a tree whose
-    whole suite failed."""
-    outputs, printed, tree, asked = green_tree(
-        tmp_path,
-        lambda tree: {
-            f"{SELECTED}/{tree}": ref(tree, "selected"),
+    def pushed(tree):
+        name = f"refs/jstack/green-tree/full/{tree}"
+        return {
+            f"{FULL}/{tree}": [{"ref": name, "object": {"sha": "c0ffee", "type": "commit"}}],
             COMMIT: {"tree": {"sha": tree}},
             ARTIFACTS: {"artifacts": []},
-        },
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
-    assert printed == (
-        f"green-tree: tree {tree}: passed only selected tests on the desk, which marked it with"
-        " the commit c0ffee, so the suite runs"
-    )
-    assert asked == [
-        f"api {FULL}/{tree}",
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {SELECTED}/{tree}",
-        f"api {COMMIT}",
-    ]
+        }
 
-
-def test_a_ref_whose_commit_cannot_be_read_runs_the_suite(tmp_path):
-    outputs, printed, tree, asked = green_tree(tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree)})
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
-    assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
-    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
-
-
-def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tmp_path):
-    def marked(tree):
-        return {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
-
-    for at, env in enumerate(
-        ({"GITHUB_EVENT_NAME": "workflow_dispatch"}, {"GITHUB_RUN_ATTEMPT": "2"})
-    ):
-        (tmp_path / str(at)).mkdir()
-        outputs, _, tree, asked = green_tree(tmp_path / str(at), marked, **env)
-        assert outputs == {"name": f"green-tree-{tree}", "marker": "unasked", "from": ""}
-        assert asked == []
+    outputs, printed, tree, asked = green_tree(tmp_path, pushed)
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none"}
+    assert printed.endswith(": no green run of the check left a marker, so the suite runs")
+    assert asked == [f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
 
 
 def triggers(text):
