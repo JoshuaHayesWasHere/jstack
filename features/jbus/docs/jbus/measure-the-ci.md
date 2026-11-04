@@ -104,11 +104,16 @@ Where that call fails, main-red reads `no data`, the report says why, and the re
 This is the one definition of the numbers the report gives, and `jbus.ci.daily` counts by it.
 The figures the cicd plan started from, 64% red and 5.6 shas per pull request, came from a UTC day and from grouping `gh` runs by branch, and they stay as history, not as the baseline.
 
-- **A day** is a local day of the user's zone, or of the machine's where none is set, from midnight to midnight, never UTC. A day the clocks change on has 23 or 25 hours.
+- **A day** is a local day of the user's zone, or of the machine's where none is set, from midnight to midnight, never UTC.
+  A day the clocks change on has 23 or 25 hours.
 - **The 7 days** are the 7 whole local days before the day the report runs, so the 06:45 run gives yesterday as its newest day.
 - **n** is under each cell: the pull requests, jobs, runs or merged pull requests the cell counted.
-- **A day under 20 pull requests** with a `check` run reads `no data` for every number from the ledger, with its n still shown. The ledger misses runs while jbus is down, or when more than 30 runs land in 3 hours, and a thin day shows that instead of a number. Head shas and open to merge count the pull requests merged that day, but the floor is the red share's n. Main-red is not under the floor, since `gh` gives it.
-- **A wave day** is a day whose shard wait p90 is over 300 s. Its column reads `wave`. A wave confounds a before and after: Nov 3 and 4 measure #970 and #1009, not the rows that merged then.
+- **A day under 20 pull requests** with a `check` run reads `no data` for every number from the ledger, with its n still shown.
+  The ledger misses runs while jbus is down, or when more than 30 runs land in 3 hours, and a thin day shows that instead of a number.
+  Head shas and open to merge count the pull requests merged that day, but the floor is the red share's n.
+  Main-red is not under the floor, since `gh` gives it.
+- **A wave day** is a day whose shard wait p90 is over 300 s, and its column reads `wave`.
+  A wave confounds a before and after: Nov 3 and 4 measure #970 and #1009, not the rows that merged then.
 - **jmerge's shadow pull requests**, whose branch starts `jstack/line/`, are left out of every count.
 
 | Number | Target | Counted as |
