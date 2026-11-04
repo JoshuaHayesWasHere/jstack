@@ -311,11 +311,36 @@ def latest(rollup: list[dict], name: str | None) -> list[dict]:
     return [one for one in named if when(one) == last]
 
 
+def _ended(one: dict, conclusion: str) -> bool:
+    return one.get("status") == "COMPLETED" and one.get("conclusion") == conclusion
+
+
+def _skip_decided(rollup: list[dict], one: dict) -> bool:
+    """Whether a skipped job was skipped by its own workflow's choice: every other job of its
+    workflow at the head ended passed or skipped, and one at least passed. macos.yml skips its
+    `macos` job by an `if:` where its `macos-select` job finds no Mac test the change reaches.
+    A skip with no job of its workflow that passed beside it, or one beside a failed job, is no
+    pass."""
+    workflow, name = one.get("workflowName"), one.get("name")
+    if not _ended(one, "SKIPPED") or not workflow:
+        return False
+    others = [
+        run
+        for other in dict.fromkeys(
+            r.get("name") for r in rollup if r.get("workflowName") == workflow
+        )
+        if other != name
+        for run in latest(rollup, other)
+    ]
+    return any(_ended(run, "SUCCESS") for run in others) and all(
+        _ended(run, "SUCCESS") or _ended(run, "SKIPPED") for run in others
+    )
+
+
 def passed(rollup: list[dict], name: str) -> bool:
     runs = latest(rollup, name)
     return bool(runs) and all(
-        one.get("state") == "SUCCESS"
-        or (one.get("status") == "COMPLETED" and one.get("conclusion") == "SUCCESS")
+        one.get("state") == "SUCCESS" or _ended(one, "SUCCESS") or _skip_decided(rollup, one)
         for one in runs
     )
 
