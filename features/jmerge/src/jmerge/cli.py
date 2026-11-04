@@ -1270,8 +1270,8 @@ class Repo:
         if guarded:
             return lines.waits("wait", number, one.url, guarded)
         if ran:
-            at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")
-            if at.returncode or _first_word(at.stdout) != tip:
+            after = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")
+            if after.returncode or _first_word(after.stdout) != tip:
                 moved = ready.MAIN_MOVED.format(base=one.base)
                 return lines.waits("wait", number, one.url, moved)
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
