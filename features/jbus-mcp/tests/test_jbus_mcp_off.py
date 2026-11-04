@@ -15,6 +15,7 @@ from jinstall.kinds import unit_templates
 
 FEATURE = Path(__file__).resolve().parents[1]
 REPO = FEATURE.parents[1]
+READ_SET = ("features/jbus-mcp/deploy/", "features/*/units/", "templates/")
 
 
 def given(**changed):
