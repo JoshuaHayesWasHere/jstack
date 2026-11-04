@@ -1,8 +1,8 @@
 """Infra's files and T3 Code's port are infra's: only the infra home changes them.
 
-`jleak --infra` reads what Claude Code gives a `PreToolUse` hook and refuses, with exit code 2,
-a call of any other thread that would change them. Another home sends the infra home the lines
-to change, and the infra home makes the change.
+`jleak --infra` reads what Claude Code or Codex gives a `PreToolUse` hook and refuses, with exit
+code 2, a call of any other thread that would change them. Another home sends the infra home the
+lines to change, and the infra home makes the change.
 
     files   `~/.config/jstack/roles` and `~/.config/jbus/config.toml`, the file a link of them
             points to, T3 Code's host and port (`~/.t3/userdata/server-runtime.json`), and the
@@ -12,7 +12,9 @@ to change, and the infra home makes the change.
             unit, but for a verb that only reads; a listener on 3773 (`socat`, `nc`); `fuser -k`
             on 3773
 
-A `Write`, `Edit`, `MultiEdit` or `NotebookEdit` call is refused when its file is one of the files.
+A `Write`, `Edit`, `MultiEdit` or `NotebookEdit` call is refused when its file is one of the files,
+and so is Codex's `apply_patch` when a file it adds, updates, deletes or moves to is one, read
+against the hook's `cwd`.
 A shell command is cut into simple commands as `jleak.sources` cuts it, and one is refused when it
 redirects output into one of the files, or names one as a word and is not a command that only reads
 it. `cat`, `grep` or `jq` read; `cp` reads its sources and writes its destination; `sed`, `perl`,
@@ -24,10 +26,10 @@ folder the command has moved to with `cd`. A command whose quotes do not close i
 text names one of the files, or `tailscale` and 3773.
 
 The infra home and its crew are let through. The test is the repo of the project the session
-started in: Claude Code's `CLAUDE_PROJECT_DIR`, else the hook's `cwd`. When that folder's
-checkout, a worktree included, is one of the repo named `infra` (git's common dir is
-`.../infra/.git`), the call passes. The project, and not the hook's `cwd`, is read first, so a
-thread of another repo that moves its shell into infra's checkout is still refused.
+started in: Claude Code's `CLAUDE_PROJECT_DIR`, else the hook's `cwd`, which is Codex's case.
+When that folder's checkout, a worktree included, is one of the repo named `infra` (git's common
+dir is `.../infra/.git`), the call passes. The project, and not the hook's `cwd`, is read first,
+so a thread of another repo that moves its shell into infra's checkout is still refused.
 """
 
 import json
@@ -45,6 +47,7 @@ SEND = "send the infra home the lines to change, and it makes the change"
 PORT = f"port 3773 and T3 Code's tailnet setup are infra's, so the command is refused: {SEND}"
 EDITS = {"Write": "file_path", "Edit": "file_path", "MultiEdit": "file_path"}
 EDITS["NotebookEdit"] = "notebook_path"
+PATCHED = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$", re.M)
 READERS = {
     *("cat", "less", "more", "head", "tail", "grep", "egrep", "fgrep", "rg", "jq", "yq", "bat"),
     *("wc", "diff", "cmp", "ls", "stat", "file", "readlink", "realpath", "test", "[", "echo"),
@@ -272,6 +275,9 @@ def refuse(given: str) -> int:
             guarded.check(typed[EDITS[tool]], cwd)
         elif tool == "Bash" and isinstance(typed.get("command"), str):
             _command(guarded, typed["command"], cwd)
+        elif tool == "apply_patch" and isinstance(typed.get("command"), str):
+            for path in PATCHED.findall(typed["command"]):
+                guarded.check(path, cwd)
     except Refused as refused:
         if infra_home(project):
             return 0

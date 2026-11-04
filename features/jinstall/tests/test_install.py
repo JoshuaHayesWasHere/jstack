@@ -240,11 +240,20 @@ class User:
         self.SENDS = group(
             "agent-sends.sh", self.home, matcher="mcp__t3[-_]code__t3_thread_send", refuses=True
         )
-        self.INFRA = group(
-            "infra-files.sh",
+        infra = "Bash|apply_patch|Write|Edit|MultiEdit|NotebookEdit"
+        self.INFRA = group("infra-files.sh", self.home, matcher=infra, refuses=True)
+        self.CODEX_OUTBOUND = group(
+            "outbound-command.sh", self.home, matcher="Bash", refuses=True, harness="codex"
+        )
+        self.CODEX_SENDS = group(
+            "agent-sends.sh",
             self.home,
-            matcher="Bash|Write|Edit|MultiEdit|NotebookEdit",
+            matcher="mcp__t3[-_]code__t3_thread_send",
             refuses=True,
+            harness="codex",
+        )
+        self.CODEX_INFRA = group(
+            "infra-files.sh", self.home, matcher=infra, refuses=True, harness="codex"
         )
         self.CODEX_TRAILER = group(
             "ai-trailer.sh", self.home, matcher="Bash", refuses=True, harness="codex"
@@ -552,7 +561,13 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
         "hooks": {
             "SessionStart": [other, user.CODEX_START],
             "Stop": stop,
-            "PreToolUse": [user.CODEX_TRAILER, user.CODEX_DOOR],
+            "PreToolUse": [
+                user.CODEX_SENDS,
+                user.CODEX_TRAILER,
+                user.CODEX_DOOR,
+                user.CODEX_INFRA,
+                user.CODEX_OUTBOUND,
+            ],
         }
     }
     before = user.codex.read_text()
@@ -573,7 +588,13 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     assert json.loads(user.codex.read_text()) == {
         "hooks": {
             "SessionStart": [{"matcher": "startup", "hooks": [beside]}, user.CODEX_START],
-            "PreToolUse": [user.CODEX_TRAILER, user.CODEX_DOOR],
+            "PreToolUse": [
+                user.CODEX_SENDS,
+                user.CODEX_TRAILER,
+                user.CODEX_DOOR,
+                user.CODEX_INFRA,
+                user.CODEX_OUTBOUND,
+            ],
         }
     }
 
