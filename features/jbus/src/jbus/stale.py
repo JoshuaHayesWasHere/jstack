@@ -28,11 +28,11 @@ guess. The last line counts each kind.
 
 Once an hour a pass runs the same audit and keeps its count in `stale.json` of the project's state
 (`audit`). Before it counts, that pass removes each stale worktree whose work is saved: one with no
-uncommitted or untracked file and no ignored one but a cache such as `.venv`, each of whose commits
-is on origin's branch of the same name or on origin's default branch, or whose pull request merged
-at its head. It runs `git worktree remove`, which removes no worktree with a change in it, then
-deletes the branch, and logs a quiet `worktree-removed` event with the path, the branch and its
-head. The count is of what stays.
+uncommitted or untracked file and no ignored one but a cache such as `.venv`, not used within a day
+(`REST`), each of whose commits is on origin's branch of the same name or on origin's default
+branch, or whose pull request merged at its head. It runs `git worktree remove`, which removes no
+worktree with a change in it, then deletes the branch, and logs a quiet `worktree-removed` event
+with the path, the branch and its head. The count is of what stays.
 A count above none is an item of the one list (`jbus.wakes`), so the root home hears it, and hears
 it again each time the count changes. While the root's own `home-id` is stale there is no home to
 hear it (`gone`), and the next home's start writes a new one.
@@ -43,7 +43,6 @@ from __future__ import annotations
 import argparse
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -69,6 +68,8 @@ CACHES = frozenset(
 NAME = "stale.json"
 KEY = "stale"
 HOUR = 60 * 60
+REST = 24 * HOUR
+USED = ("index", "HEAD", "logs/HEAD")
 KINDS = ("brief", "worktree", "hold", "told", "home-id")
 HOLDS = "holds.json"
 TOLD = "told"
@@ -213,11 +214,29 @@ def _merged_at(run: Pass, tree: Tree) -> str:
     return ""
 
 
+def _rested(run: Pass, tree: Tree) -> str:
+    """Why a worktree used within `REST` stays, or nothing. Its use is the last change to its git
+    index, `HEAD` or `HEAD`'s log, which a commit, a checkout or an add makes."""
+    try:
+        line = (Path(tree.path) / ".git").read_text().strip()
+        gitdir = Path(tree.path) / line.removeprefix("gitdir: ")
+        last = max((gitdir / name).stat().st_mtime for name in USED if (gitdir / name).exists())
+    except (OSError, ValueError):
+        return "jbus could not read when it was last used"
+    hours = (run.now.timestamp() - last) / HOUR
+    if hours < REST / HOUR:
+        return f"it was last used {max(hours, 0):.0f} h ago, under {REST // HOUR} h"
+    return ""
+
+
 def kept(run: Pass, tree: Tree) -> tuple[str, str]:
     """Why a stale worktree stays, or nothing where its work is saved, with how it is saved.
     `git worktree remove` deletes ignored files, so one that is not under a cache (`CACHES`),
-    such as a `.env`, keeps the worktree as an untracked file does."""
-    status = run.run("git", "-C", tree.path, "status", "--porcelain", "--ignored")
+    such as a `.env`, keeps the worktree as an untracked file does. One used within `REST` stays,
+    so a crew woken again, or a thread with no row that has just made its worktree, keeps it."""
+    status = run.run(
+        "git", "--no-optional-locks", "-C", tree.path, "status", "--porcelain", "--ignored"
+    )
     if status.returncode:
         return f"git status failed there ({_failed(status)})", ""
     lines = status.stdout.splitlines()
@@ -232,6 +251,9 @@ def kept(run: Pass, tree: Tree) -> tuple[str, str]:
             f"{kept_ignored[0]}",
             "",
         )
+    rested = _rested(run, tree)
+    if rested:
+        return rested, ""
     if _on_origin(run, tree):
         return "", "each commit is on origin"
     try:
@@ -478,7 +500,7 @@ def hourly(half: Half) -> None:
 
 
 def _stale(args: argparse.Namespace, config: jbus.Config) -> int:
-    run = passes.Pass(config, verbs.project(config, args.project), datetime.now(UTC))
+    run = passes.Pass(config, verbs.project(config, args.project), verbs.clock())
     try:
         client = Client(config.server, config.token_path)
     except jbus.Refused:

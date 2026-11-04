@@ -5,6 +5,7 @@ here.
 """
 
 import json
+import os
 import subprocess
 from datetime import timedelta
 
@@ -102,6 +103,8 @@ def test_a_worktree_is_stale_with_no_open_row_and_no_open_pull_request(kitchen):
         kitchen.git("worktree", "add", "-q", "-b", branch, str(kitchen.root / "trees" / branch))
     kitchen.git("worktree", "add", "-q", "--detach", str(kitchen.root / "trees" / "build"))
     kitchen.set("open.json", [kitchen.opened("delta", 4)])
+    for branch in ("beta", "eps"):
+        used(kitchen.root / "trees" / branch, timedelta(days=2))
     trees, saved = kitchen.root / "trees", "saved (each commit is on origin), the next hourly pass"
     assert of(listed(kitchen)[1], "worktree") == [
         f"worktree {trees / 'beta'}: branch beta, of no open row and no open pull request; "
@@ -111,7 +114,16 @@ def test_a_worktree_is_stale_with_no_open_row_and_no_open_pull_request(kitchen):
     ]
 
 
-def tree(kitchen, branch, push=False, untracked=False, ignored=""):
+def used(path, ago):
+    """Set a worktree's last use, its git index and `HEAD`, to `ago` before the kitchen's now."""
+    gitdir = path / (path / ".git").read_text().strip().removeprefix("gitdir: ")
+    at = (NOW - ago).timestamp()
+    for name in stale.USED:
+        if (gitdir / name).exists():
+            os.utime(gitdir / name, (at, at))
+
+
+def tree(kitchen, branch, push=False, untracked=False, ignored="", ago=timedelta(days=2)):
     """Add a worktree on `branch` with a commit of its own, pushed to origin's `branch` or not,
     and return its path and head."""
     path = kitchen.root / "trees" / branch
@@ -132,6 +144,7 @@ def tree(kitchen, branch, push=False, untracked=False, ignored=""):
         (path / "__pycache__" / "a.pyc").write_text("cache\n")
         if ignored == "env":
             (path / ".env").write_text("TOKEN=not saved\n")
+    used(path, ago)
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True, check=True
     ).stdout.strip()
@@ -152,8 +165,8 @@ def branches(kitchen):
 def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(kitchen):
     """A clean worktree whose commits are on origin, or whose pull request merged at its head, is
     removed with its branch and logged, caches and all. One with an untracked file, an ignored file
-    that is no cache, or a commit on no branch of origin, stays, and `jbus stale` says why. An open
-    row's worktree is not touched."""
+    that is no cache, a commit on no branch of origin, or a use within a day, stays, and
+    `jbus stale` says why. An open row's worktree is not touched."""
     home(kitchen)
     rows(kitchen, eps="running")
     pushed, pushed_head = tree(kitchen, "alpha", push=True)
@@ -166,10 +179,12 @@ def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(ki
     running, _ = tree(kitchen, "eps")
     cached, cached_head = tree(kitchen, "zeta", push=True, ignored="cache")
     secret, _ = tree(kitchen, "eta", push=True, ignored="env")
+    fresh, _ = tree(kitchen, "theta", push=True, ago=timedelta(hours=3))
     kitchen.poll(NOW)
     assert not pushed.exists() and not squashed.exists() and not cached.exists()
     assert untracked.is_dir() and unpushed.is_dir() and running.is_dir() and secret.is_dir()
-    assert branches(kitchen) == {"main", "gamma", "delta", "eps", "eta"}
+    assert fresh.is_dir()
+    assert branches(kitchen) == {"main", "gamma", "delta", "eps", "eta", "theta"}
     assert kitchen.lines("worktree-removed") == [
         f"worktree-removed demo: {pushed}, branch alpha at {pushed_head[:12]}, each commit is on "
         "origin",
@@ -187,8 +202,9 @@ def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(ki
         f"worktree {secret}: branch eta, {ended}: it has 1 ignored files that are no cache, such "
         "as .env",
         f"worktree {untracked}: branch gamma, {ended}: it has 1 uncommitted or untracked files",
+        f"worktree {fresh}: branch theta, {ended}: it was last used 3 h ago, under 24 h",
     ]
-    assert stale.read(kitchen.state)["kinds"]["worktree"] == 3
+    assert stale.read(kitchen.state)["kinds"]["worktree"] == 4
 
 
 def test_a_hold_is_stale_once_its_pull_request_is_not_open(kitchen):
