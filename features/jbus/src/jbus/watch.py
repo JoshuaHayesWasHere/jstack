@@ -1234,10 +1234,12 @@ def mac_runs(run: Pass, sha: str) -> list[dict] | None:
 
 def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
     """Return what macos.yml's push run says of a commit on main, and keep a final answer in
-    `known`: `green` where it passed or skipped its Mac, `failed` where it failed after its one
-    rerun, `cancelled` where it was stopped, `pending` while it runs or its rerun does, or GitHub
-    gives no answer, and an empty string where the commit has no such run. A failed run at its
-    first attempt is rerun once (`_rerun_failed`), as main's check is."""
+    `known`: `green` where its job `macos` ran and passed, `skipped` where the run passed with
+    that job skipped, as for a change that reaches no Mac test, so nothing was judged on a Mac,
+    `failed` where it failed after its one rerun, `cancelled` where it was stopped, `pending`
+    while it runs or its rerun does, or GitHub gives no answer, and an empty string where the
+    commit has no such run. A failed run at its first attempt is rerun once (`_rerun_failed`), as
+    main's check is."""
     if sha in known:
         return known[sha]
     runs = mac_runs(run, sha)
@@ -1250,7 +1252,21 @@ def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
     if first and _rerun_failed(run, first, ask=True):
         return "pending"
     stopped = any(r.get("conclusion") == "cancelled" for r in runs)
-    known[sha] = "failed" if failed else "cancelled" if stopped else "green"
+    if failed or stopped:
+        known[sha] = "failed" if failed else "cancelled"
+        return known[sha]
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    if not isinstance(said, dict):
+        return "pending"
+    suites = {r.get("check_suite_id") for r in runs} - {None}
+    ran = [
+        one
+        for one in said.get("check_runs") or []
+        if (one.get("check_suite") or {}).get("id") in suites
+        and one.get("name") == MAC_JOBS[-1]
+        and one.get("conclusion") == "success"
+    ]
+    known[sha] = "green" if ran else "skipped"
     return known[sha]
 
 

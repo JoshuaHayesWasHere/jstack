@@ -406,12 +406,13 @@ def macos(run: Pass, world: World) -> None:
     each commit, none cancelled (`watch.mac_check` reads it, and reruns a failed run once). Its
     run is no part of main's check (`watch._judged`), so a Mac red never writes `main.json` and
     holds no pull request. `macos` reads the newest of main's commits whose Mac run ended green or
-    red. A red one, with every commit since the last Mac green, is a `Red`: its one clear culprit
-    is reverted (`revert`), as main's is, and otherwise it gets the fix row `macos-red-<commit>`
-    under the home `macos`, which says why nothing was reverted. A revert opened here is kept in
-    `MAC_MAIN` as well, so `close` closes it only once the Mac is green at a later commit. On a
-    project's first pass, and for a red whose revert is open or whose failed tests are not read
-    yet, nothing is done."""
+    red; a run that skipped its Mac judged nothing on a Mac, and is passed over, neither a green
+    nor a red. A red one, with every commit since the last Mac green that ran, is a `Red`: its one
+    clear culprit is reverted (`revert`), as main's is, and otherwise it gets the fix row
+    `macos-red-<commit>` under the home `macos`, which says why nothing was reverted. A revert
+    opened here is kept in `MAC_MAIN` as well, so `close` closes it only once the Mac is green at
+    a later commit. On a project's first pass, and for a red whose revert is open or whose failed
+    tests are not read yet, nothing is done."""
     branch = watch._default_branch(run)
     commits = watch._api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
     if not isinstance(commits, list) or not commits:
@@ -456,7 +457,8 @@ def _mac_red(
         if said == "green":
             under = commit["sha"]
             break
-        since.append((commit["sha"], said or "none"))
+        if said != "skipped":
+            since.append((commit["sha"], said or "none"))
     tip, oldest = since[0][0], since[-1][0]
     by_commit = {
         (pull.get("mergeCommit") or {}).get("oid"): (slug, pull)

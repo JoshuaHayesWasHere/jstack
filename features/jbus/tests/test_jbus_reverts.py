@@ -470,12 +470,24 @@ MAC_FLOW = ".github/workflows/macos.yml"
 
 def mac_red_merges(kitchen, *merges, attempt=2):
     """Land the merges of `red_merges`, oldest first, on a commit where main's check and
-    macos.yml's push run passed. At each merge main's check passes, and macos.yml's push run
-    failed at `attempt`, its job `macos` with `TEST` failed in its log. Return the merges."""
+    macos.yml's push run passed, its job `macos` run. At each merge main's check passes, and
+    macos.yml's push run failed at `attempt`, its job `macos` with `TEST` failed in its log.
+    Return the merges."""
     reds = red_merges(kitchen, *merges)
     green = json.loads((kitchen.stub / "commits.json").read_text())[-1]["sha"]
     mac = {"path": MAC_FLOW, "event": "push", "head_branch": "main", **DONE}
-    runs = {green: [{**DONE, "conclusion": "success", "name": "check", "id": 90}]}
+    runs = {
+        green: [
+            {**DONE, "conclusion": "success", "name": "check", "id": 90},
+            {
+                **DONE,
+                "conclusion": "success",
+                "name": "macos",
+                "id": 190,
+                "check_suite": {"id": 70},
+            },
+        ]
+    }
     pushed = {green: [{**mac, "id": 600, "conclusion": "success", "check_suite_id": 70}]}
     for n, red in enumerate(reds):
         runs[red] = [
@@ -562,6 +574,9 @@ def test_a_macos_revert_stays_open_until_macos_is_green_at_a_later_commit(kitche
     pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
     good = {"path": MAC_FLOW, **DONE, "id": 700, "conclusion": "success", "check_suite_id": 79}
     kitchen.set("push-runs.json", {**pushed, later: [good]})
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    ran = {**DONE, "conclusion": "success", "name": "macos", "id": 199, "check_suite": {"id": 79}}
+    kitchen.set("check-runs.json", {**runs, later: [ran]})
     passes(kitchen)
     (closed,) = asked(kitchen, "pr close")
     assert "main's macOS run passed at" in closed
@@ -576,3 +591,35 @@ def test_a_macos_job_never_counts_as_main_check_where_github_lists_no_runs(kitch
     passes(kitchen)
     assert mainjson.read(kitchen.state).red == ""
     assert main_red(kitchen) == []
+
+
+def test_a_later_macos_run_that_skipped_its_mac_neither_ends_nor_hides_a_macos_red(kitchen):
+    """Most merges reach no Mac test: their macos.yml run passes with its job `macos` skipped. Such
+    a run judged nothing on a Mac, so a later one neither ends the Mac red under it nor counts as
+    the green under a red: the red is still reverted, and its revert stays open."""
+    (red,) = mac_red_merges(kitchen, ("alpha", 7, None))
+    later = move(kitchen, "success")
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    kitchen.set("commits.json", [kitchen.commit(later, "chore: docs (#9)"), *commits])
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    skipped = {"path": MAC_FLOW, **DONE, "id": 700, "conclusion": "success", "check_suite_id": 79}
+    kitchen.set("push-runs.json", {**pushed, later: [skipped]})
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    kitchen.set(
+        "check-runs.json",
+        {
+            **runs,
+            later: [
+                {**DONE, "conclusion": "success", "name": "check", "id": 99},
+                {**DONE, "conclusion": "success", "name": "macos-select", "id": 198}
+                | {"check_suite": {"id": 79}},
+                {**DONE, "conclusion": "skipped", "name": "macos", "id": 199}
+                | {"check_suite": {"id": 79}},
+            ],
+        },
+    )
+    passes(kitchen)
+    assert len(asked(kitchen, "pr revert")) == 1
+    assert list(kept.read(kitchen.state)) == [red]
+    assert asked(kitchen, "pr close") == []
+    assert mac_state(kitchen)["red"] == red
