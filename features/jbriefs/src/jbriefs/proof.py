@@ -48,7 +48,7 @@ _LOOSE = (
 )
 _SPAN = re.compile(r"`([^`\n]+)`")
 _PROVES = "(name a test, a command, a metric, a dataset, an external judge or the user)"
-RUNS = (
+_RUNS = (
     "(name a command in backticks, a `tests/...py[::name]` path, or `judged: <why>` for what "
     "only a person can judge)"
 )
@@ -75,7 +75,7 @@ class Proof:
         """Why the proof does not hold, as one line. It is an empty string when it holds."""
         if not self.fault:
             return ""
-        return f"brief's Proves it: line {self.fault} {RUNS if self.was else _PROVES}"
+        return f"brief's Proves it: line {self.fault} {_RUNS if self.was else _PROVES}"
 
 
 def proof(said: str) -> Proof:

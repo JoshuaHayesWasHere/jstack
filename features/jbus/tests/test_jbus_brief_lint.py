@@ -72,7 +72,11 @@ def test_a_brief_that_quotes_the_words_or_routes_through_a_gate_is_queued(kitche
 @pytest.mark.parametrize(
     "old, new, label",
     [
-        ("- `make check` passes\n", "- `make check` passes\n- the README names the new verb\n", "Done when"),
+        (
+            "- `make check` passes\n",
+            "- `make check` passes\n- the README names the new verb\n",
+            "Done when",
+        ),
         ("Where: `src/alpha/`", "Where: `src/alpha/`, `CONTRIBUTING.md`", "Where"),
         ("Where: `src/alpha/`", "Where: `src/alpha/`, `docs/queue.md`", "Where"),
     ],
@@ -89,7 +93,9 @@ def test_a_docs_sweep_row_and_a_features_own_docs_are_queued(kitchen):
     sweep = brief("alpha").replace("# alpha: a task", "# alpha: docs sweep for the queue verbs")
     sweep = sweep.replace("- `make check` passes\n", "- the README names the new verb\n")
     assert add(kitchen, sweep)[0] == 0
-    nested = brief("gamma").replace("- `make check` passes\n", "- `features/gamma/README.md` names it\n")
+    nested = brief("gamma").replace(
+        "- `make check` passes\n", "- `features/gamma/README.md` names it\n"
+    )
     assert kitchen.main("queue", "add", "gamma", "--priority", "1", stdin=nested)[0] == 0
     own = brief("beta").replace(
         "Where: `src/beta/`", "Where: `src/beta/`, `features/jbus/docs/jbus.md`"

@@ -37,7 +37,11 @@ def text(slug, parent="", wider=False):
     if slug in FIXED:
         filing = f"Decisions: {queue.RED_DECIDED}main and the user has not seen it\n"
         made = made.replace('Decisions: "review it once", the user\'s word in a test\n', filing)
-    return made.replace("- `make check` passes\n", "- `make check` passes\n- and more\n") if wider else made
+    return (
+        made.replace("- `make check` passes\n", "- `make check` passes\n- and more\n")
+        if wider
+        else made
+    )
 
 
 def filed(kitchen, slug, parent="", wider=False):

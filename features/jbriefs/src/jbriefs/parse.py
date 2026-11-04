@@ -12,7 +12,7 @@ from pathlib import Path
 
 from jbriefs import asks, below, findings, skills, standing
 from jbriefs.meets import done_when
-from jbriefs.proof import RUNS, Proof, proof
+from jbriefs.proof import Proof, proof
 from jsettings.brief import head as head
 
 NO_RESULT = "no result yet"
