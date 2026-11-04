@@ -83,7 +83,9 @@ def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_wri
 
 
 def test_a_pass_where_nothing_raised_exits_zero(kitchen):
+    """`jbus poll` runs its pass at the real clock, so the sign-in is stored at that clock."""
     assert poll.poll(jbus.load(), NOW, lambda _: None) == 0
+    kitchen.signed_in(timedelta(0), at=datetime.now(UTC))
     assert kitchen.main("poll")[0] == 0
 
 
@@ -131,7 +133,7 @@ def test_the_alarm_s_alert_reaches_the_infra_home_and_the_next_pass_ends_it(kitc
     assert (code, said) == (0, f"pass failed: 3 in a row\n{line}\n")
     assert KEY not in said
     assert logged(infra, "alert") == [line]
-    kitchen.poll(datetime.now(UTC) + timedelta(minutes=6))
+    kitchen.poll(NOW + timedelta(minutes=6))
     assert kitchen.status()["streaks"] == {}
     (recovered,) = logged(infra, "recovered")
     assert recovered.startswith("recovered: pass after 3 failures ")
@@ -185,7 +187,11 @@ def test_a_pass_that_never_ended_counts_from_its_start_and_no_record_is_no_pass(
 
 
 def test_the_alarm_verb_takes_a_limit_in_minutes_hours_or_days(kitchen):
-    kitchen.poll(datetime.now(UTC))
+    """`jbus alarm --stale` reads the real clock, so the pass it sees runs at that clock, beside a
+    sign-in stored at it."""
+    now = datetime.now(UTC)
+    kitchen.signed_in(timedelta(0), at=now)
+    kitchen.poll(now)
     code, said = kitchen.main("alarm", "--stale", "2h")
     assert (code, said.startswith("pass seen: last ended ")) == (0, True)
     code, said = kitchen.main("alarm", "--stale", "2x")
