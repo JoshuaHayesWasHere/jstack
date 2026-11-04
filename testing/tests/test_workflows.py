@@ -10,10 +10,12 @@ only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
 of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
-two workflows. The workflow `macos`: on each pull request its job `macos-select`, on Linux,
-picks the test files listed in `testing/macos-quick.txt`, the ones whose code branches on macOS
-or that guard a break only a Mac has, that the change reaches, and its job `macos` runs them on a
-Mac. Where the change reaches none, `macos` is skipped by its `if:` and no Mac starts. Its check
+two workflows. The workflow `macos`: on each pull request and each push to main its job
+`macos-select`, on Linux, picks the test files listed in `testing/macos-quick.txt`, the ones whose
+code branches on macOS or that guard a break only a Mac has, that the change reaches, and its job
+`macos` runs them on a Mac. A pull request picks with `--strict`, a part of what a push picks.
+Where the change reaches none, `macos` is skipped by its `if:` and no Mac starts. No `paths:`
+filter skips the workflow, and no push run on main is cancelled. Its check
 fails when those tests do, so the home can name it in `required-checks`, and a skip passes it.
 The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
@@ -658,12 +660,48 @@ def test_the_suite_runs_as_parts_side_by_side_and_one_job_passes_only_when_all_d
     assert (f"SHARD=${{{{ matrix.shard }}}}/{count}" in suite) == (gate == "full")
 
 
-def test_macos_runs_on_every_pull_request_and_on_nothing_else():
-    assert block("on", MAC) == {"pull_request": None}
+MAC_GROUP = "github.event_name == 'push' && github.sha || github.ref"
+
+
+def test_macos_runs_on_each_pull_request_and_each_push_to_main_and_never_cancels_one_on_main():
+    """Each merge commit into main gets a macos run of its own, which no later merge cancels, so a
+    Mac red names its merge. A pull request's newer run cancels its older one."""
+    assert block("on", MAC) == {"pull_request": None, "push": {"branches": ["main"]}}
     assert block("concurrency", MAC) == {
-        "group": "macos-${{ github.ref }}",
-        "cancel-in-progress": True,
+        "group": "macos-${{ " + MAC_GROUP + " }}",
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
     }
+    cancels = block("concurrency", MAC)["cancel-in-progress"]
+    cancels = cancels.removeprefix("${{ ").removesuffix(" }}")
+    assert [worked(cancels, {"github.event_name": e}) for e in ("pull_request", "push")] == [
+        True,
+        False,
+    ]
+
+    def group(event, sha):
+        names = {"github.event_name": event, "github.sha": sha, "github.ref": "refs/pull/9/merge"}
+        return worked(MAC_GROUP, names)
+
+    assert group("pull_request", "a") == group("pull_request", "b") == "refs/pull/9/merge"
+    assert [group("push", "a"), group("push", "b")] == ["a", "b"]
+
+
+def path_filters(text):
+    """Each line of a workflow that sets a `paths:` or `paths-ignore:` key, comments left out."""
+    return [
+        line
+        for line in text.splitlines()
+        if re.match(r"\s*(paths|paths-ignore)\s*:", line.split("#")[0])
+    ]
+
+
+def test_macos_has_no_paths_filter_so_its_required_check_always_posts():
+    """A run a `paths:` filter leaves out posts no `macos` check at all, and jmerge waits on a
+    required check that never ran (`jmerge.ready.passed`): the line is stuck. The macos workflow
+    skips its Mac only by the selection and the job's `if:`, a skip that passes the check."""
+    assert path_filters(MAC.read_text()) == []
+    assert path_filters("on:\n  pull_request:\n    paths: ['a/**']\n") != []
+    assert path_filters("on:\n  push:\n    paths-ignore:\n      - docs/**\n") != []
 
 
 def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
@@ -763,7 +801,7 @@ def merged(tmp_path_factory):
     (bin / "uv").chmod(0o755)
     shell = summary_step("reached tests", MAC)
 
-    def run(path, text="\n"):
+    def run(path, text="\n", event="pull_request"):
         subprocess.run([*git, "reset", "-q", "--hard", main], check=True)
         with (repo / path).open("a") as file:
             file.write(text)
@@ -777,7 +815,8 @@ def merged(tmp_path_factory):
             ["bash", "-e", "-c", shell],
             cwd=repo,
             env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(temp)}
-            | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])},
+            | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])}
+            | {"GITHUB_EVENT_NAME": event},
             capture_output=True,
             check=True,
         )
@@ -820,6 +859,25 @@ def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reache
         ]
         assert output == {"run": "true", "tests": "\n".join(reached)}
     assert "features/jgauge/tests/test_room.py" not in merged(DARWIN_LISTED)[0]
+
+
+@pytest.mark.parametrize(
+    "path", ["features/crew/verify.md", "README.md"], ids=["a feature's page", "a doc"]
+)
+def test_a_pull_requests_macos_selects_strictly_and_the_push_of_its_merge_runs_the_rest(
+    merged, path
+):
+    """A pull request selects with `--strict`: a change to code off Darwin starts no Mac there.
+    The push of its merge commit into main selects with `--within` alone and runs the list's tests
+    that the change reaches by a feature or a name, and those it reaches strictly too."""
+    reached, summary, output = merged(path)
+    assert (reached, output["run"]) == ([], "false")
+    assert summary.startswith("macOS: the change reaches no test")
+    pushed, summary, output = merged(path, event="push")
+    assert pushed and output == {"run": "true", "tests": "\n".join(pushed)}
+    assert summary.startswith(f"macOS: the change reaches {len(pushed)} test files")
+    for path in (DARWIN_LISTED, DARWIN_SOURCE):
+        assert set(merged(path)[0]) <= set(merged(path, event="push")[0])
 
 
 ADDED = "features/jbus/tests/test_item.py"
@@ -1049,9 +1107,17 @@ def test_a_pair_whose_trees_differ_or_no_passed_macos_run_of_this_repo_left_runs
 
 
 @pytest.mark.parametrize(
-    "env", [{"GITHUB_RUN_ATTEMPT": "2"}, {"GITHUB_EVENT_NAME": "workflow_dispatch"}]
+    "env",
+    [
+        {"GITHUB_RUN_ATTEMPT": "2"},
+        {"GITHUB_EVENT_NAME": "workflow_dispatch"},
+        {"GITHUB_EVENT_NAME": "push"},
+    ],
 )
 def test_a_macos_run_again_never_reuses_and_asks_nothing(tmp_path, env):
+    """A run again, and a push to main, run the Mac: a push run selects with `--within`, more
+    than the `--strict` run of a pull request that may have left the marker of the same trees."""
+
     def left(base, merge):
         return {f"macos-checked-{base}-{merge}": run(path=MAC_WORKFLOW)}
 

@@ -91,6 +91,7 @@ ORDER = [
     "tellers 100 rebase.tell (client, world)",
     "after-expedite 1 expedite.tell",
     "after-expedite 5 strays.stop (client, world)",
+    "after-expedite 9 reverts.macos (world, budget)",
     "after-expedite 10 mainmoved.tell (budget)",
     "after-expedite 11 watch.retro (world)",
     "after-expedite 12 culprits.judge",

@@ -128,7 +128,10 @@ every test imports the CLI of a feature, so through any other module a change wo
 the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
 cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
 changed path is one every test depends on, or the list itself. It writes nothing to the
-summary or the outputs.
+summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a name
+reaches a test only from a changed path of the tests or one that names Darwin, as an import does,
+and a feature's paths reach none of its tests. A pull request's macOS job selects so, and the
+run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days runs on each pull request's check, whatever
 the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
@@ -1040,11 +1043,12 @@ def everywhere(path):
     return True
 
 
-def ruled(changed, follows=everywhere, cross=True):
+def ruled(changed, follows=everywhere, cross=True, strict=False):
     """`(tests, why)`: the sorted test files the rules select for the changed paths, or
     `["all"]`, and for each cause the sorted files it selected, or the path that forced
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
-    cross-cutting tests count only with `cross`."""
+    cross-cutting tests count only with `cross`. With `strict` a name reaches a test only from
+    such a path too, and a feature's paths reach none of its tests."""
     ready()
     for path in changed:
         if path in shared():
@@ -1052,23 +1056,28 @@ def ruled(changed, follows=everywhere, cross=True):
     by_path = {path: name for name, path in modules().items()}
     found = {"imports": set(), "names": set(), "features": set()}
     for path in changed:
+        counts = not strict or follows(path)
         if path in by_path:
             if follows(path):
                 found["imports"] |= test_files(importers([by_path[path]])) | asking(by_path[path])
-            if of_tests(path):
+            if of_tests(path) and counts:
                 found["names"] |= readers(path)
         elif FIXTURES.match(path):
             if not (named := fixture_readers(path)):
                 return ["all"], {"forced-by": path}
-            found["names"] |= named
+            if counts:
+                found["names"] |= named
         else:
             if SOURCE.match(path) and follows(path):
                 found["imports"] |= test_files(importers(users(path)))
-            for one in {path} | includers(path):
-                found["names"] |= readers(one)
-        found["names"] |= globbers(path)
-    where = pages()
-    for name, (owned, listed_tests) in features().items():
+            if counts:
+                for one in {path} | includers(path):
+                    found["names"] |= readers(one)
+        if counts:
+            found["names"] |= globbers(path)
+    where = {} if strict else pages()
+    for name in where:
+        owned, listed_tests = features()[name]
         if any(owns(owned, path) for path in changed):
             found["features"] |= set(listed_tests)
         if where[name] in changed:
@@ -1258,12 +1267,15 @@ def on_a_mac(path):
     )
 
 
-def within(entries, changed, listed):
+def within(entries, changed, listed, strict=False):
     """The test files of a list's `entries` the changed paths reach on a Mac, sorted, or
-    `["all"]`. `listed` is the list's own path."""
+    `["all"]`. `listed` is the list's own path. With `strict`, only a changed path of the tests
+    or one that names Darwin reaches a test, by an import or by its name, and a feature's paths
+    reach none of its listed tests: what a pull request's macos job runs, a part of what the run
+    on each merge commit runs."""
     if listed in changed:
         return ["all"]
-    tests, _ = ruled(changed, on_a_mac, cross=False)
+    tests, _ = ruled(changed, on_a_mac, cross=False, strict=strict)
     if tests == ["all"]:
         return tests
     return [
@@ -1416,6 +1428,9 @@ def main(argv):
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
     listed = count = cut = None
+    strict = argv[2:3] == ["--strict"] and argv[:1] == ["--within"] and len(argv) == 5
+    if strict:
+        argv = argv[:2] + argv[3:]
     if argv[:1] == ["--within"] and len(argv) == 4:
         listed, argv = argv[1], argv[2:]
     elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
@@ -1424,7 +1439,7 @@ def main(argv):
         cut, argv = argv[1], argv[2:]
     if len(argv) != 2:
         sys.exit(
-            "usage: select_tests.py [--within <list> | --parts <n>] <base> <head>\n"
+            "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
             "       select_tests.py --part guards|rest|desk <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
@@ -1440,7 +1455,7 @@ def main(argv):
     if listed is not None:
         entries = (ROOT / listed).read_text().split()
         try:
-            tests = within(entries, changed, listed)
+            tests = within(entries, changed, listed, strict)
         except Unread as error:
             print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
             tests = ["all"]
