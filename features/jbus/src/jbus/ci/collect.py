@@ -405,8 +405,8 @@ def _steps(gh: Gh, repo: str, run: int) -> dict[int, str | None]:
 def _reread(gh: Gh, repo: str, state: Path, since: datetime) -> None:
     """Read again each red job created since `since` that was kept before the collector kept
     the step that failed (it has no `step` field): its run's jobs for the step, and its log for
-    the failing tests and the make target. Rewrite the ledger with what was read. A log GitHub
-    does not give now leaves its job as it was, for the next collect."""
+    the failing tests and the make target. Rewrite the ledger with what was read. A run whose
+    jobs or a log GitHub does not give now leaves its job as it was, for the next collect."""
     kept = ledger.read(state / ledger.JOBS)
     older = [
         at
@@ -424,8 +424,9 @@ def _reread(gh: Gh, repo: str, state: Path, since: datetime) -> None:
         for found in side_by_side(lambda run: _steps(gh, repo, run), runs)
         for job, name in found.items()
     }
+    older = [at for at in older if kept[at]["job"] in named]
     read = side_by_side(
-        lambda at: read_log(gh, repo, kept[at] | {"step": named.get(kept[at]["job"])}), older
+        lambda at: read_log(gh, repo, kept[at] | {"step": named[kept[at]["job"]]}), older
     )
     given = [(at, one) for at, one in zip(older, read, strict=True) if one["tests"] is not None]
     if not given:

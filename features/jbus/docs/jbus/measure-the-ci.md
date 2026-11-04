@@ -27,7 +27,7 @@ It keeps what it collects in two files in the project's state directory:
   It names the `runner` and its `kind`, `hosted` or `local`.
   For a red job on either kind of runner, it lists the failing `tests` and the runner faults (`signs`) that the job's log shows, and `logged` says the log was read.
   Its `step` names the step GitHub says failed, with the make target the log says failed first where the step's name does not end in it: `make check-fast: lint` for a shard that failed its lint before a test ran.
-  A red job kept before `jbus ci` kept the step has no `step` field, and the next collect whose days reach it reads its run's jobs and its log and rewrites the file, or leaves it for a later collect where GitHub did not give the log.
+  A red job kept before `jbus ci` kept the step has no `step` field, and the next collect whose days reach it reads its run's jobs and its log and rewrites the file, or leaves it for a later collect where GitHub did not give either.
   A job cancelled while it waited has no runner and no start, and `jbus ci` keeps it and counts it.
 - `ci-prs.jsonl`, one line per pull request, rewritten when one changed, with the time GitHub last updated it and the times its branch was force-pushed.
 

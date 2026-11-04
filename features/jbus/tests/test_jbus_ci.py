@@ -539,6 +539,26 @@ def test_failed_tests_a_red_kept_before_its_step_is_read_once_more_for_it(tmp_pa
     assert again.read == []
 
 
+def test_failed_tests_a_red_whose_run_github_did_not_list_is_left_for_the_next_collect(tmp_path):
+    collect.collect(FailedRuns(), REPO, tmp_path, FAILED_AT, 1)
+    rows = ledger.read(tmp_path / ledger.JOBS)
+    fresh = {one["job"]: one for one in rows}
+    older = [{k: v for k, v in one.items() if k != "step"} | {"tests": []} for one in rows]
+    ledger.rewrite(tmp_path / ledger.JOBS, older)
+
+    class NoJobs(FailedRuns):
+        def pages(self, path, key=None):
+            if "/jobs" in path:
+                raise Unavailable("down")
+            return super().pages(path, key)
+
+    down = NoJobs()
+    collect.collect(down, REPO, tmp_path, FAILED_AT, 1)
+    assert ledger.read(tmp_path / ledger.JOBS) == older and down.read == []
+    collect.collect(FailedRuns(), REPO, tmp_path, FAILED_AT, 1)
+    assert {one["job"]: one for one in ledger.read(tmp_path / ledger.JOBS)} == fresh
+
+
 def test_failed_tests_a_red_whose_log_github_did_not_give_still_names_its_step(tmp_path):
     class NoLogs(FailedRuns):
         def log(self, repo, job):
