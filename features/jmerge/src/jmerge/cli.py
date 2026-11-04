@@ -681,6 +681,7 @@ class Repo:
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", ""
         tip, _ = moved
+        self.has(one)
         has = _run(self.main, "git", "merge-base", "--is-ancestor", tip, one.head)
         if not has.returncode:
             return "", tip
