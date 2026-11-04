@@ -6,11 +6,12 @@ ledger does not keep yet, with `filter=all` so that it gets every attempt of a r
 pull request whose update the ledger has not kept, it reads the timeline, where a force-push of its
 branch is an event: one the ledger kept at the same update keeps its force-pushes. The pull
 requests come a page at a time, the latest update first, and the collector stops at the first page
-that reaches back past the time. For a red job, on a local or a hosted runner, it reads the log
-once, for the failing tests the log names and the runner faults the log shows. Each of those reads
-waits for the reads of the stage before it and for no other, so a pass's job lists, annotations and
-logs are read side by side (`jbus.passes.side_by_side`). A red hosted job kept before the collector
-read hosted logs has no `logged` field: a collect reads the log of each such job created since its
+that reaches back past the time. For a red job, on a local or a hosted runner, it keeps the step
+GitHub says failed, and reads the log once, for the failing tests the log names, the make target
+that failed and the runner faults the log shows. Each of those reads waits for the reads of the
+stage before it and for no other, so a pass's job lists, annotations and logs are read side by side
+(`jbus.passes.side_by_side`). A red job kept before the collector kept the failed step has no
+`step` field: a collect reads its run's jobs and its log again for each such job created since its
 time and rewrites the ledger with what it read, and leaves one whose log GitHub did not give as it
 was, for the next collect.
 
@@ -55,8 +56,9 @@ PASS_HOURS = 3
 PASS_RUNS = 30
 CATCH_UP = timedelta(days=14)
 HOSTED = re.compile(r"^(ubuntu|windows|macos)-")
-EVIDENCE = re.compile(r"^(FAILED|ERROR|E  |##\[error\])")
+EVIDENCE = re.compile(r"^(FAILED|ERROR|E  |##\[error\]|make(\[\d+\])?: \*\*\* )")
 FAILING = re.compile(r"^(?:FAILED|ERROR) (\S+::\S+)")
+TARGET = re.compile(r"^make(?:\[\d+\])?: \*\*\* \[(?:[^\]]*: )?([^\]:]+)\] Error")
 SIGNS = {
     "bus": re.compile(
         r"(?i)failed to connect to (the |system |user )?bus|DBUS_SESSION_BUS_ADDRESS"
@@ -164,6 +166,23 @@ def failing_tests(lines: list[str]) -> list[str]:
     return found
 
 
+def failed_step(job: dict[str, Any]) -> str | None:
+    """Return the name of the first step of a job that GitHub says failed, or None."""
+    for one in job.get("steps") or []:
+        if isinstance(one, dict) and one.get("conclusion") == "failure":
+            return one.get("name")
+    return None
+
+
+def step(name: str | None, lines: list[str]) -> str | None:
+    """Return what failed: the step's name, with the make target that failed first where the
+    log names one and the name does not end in it (`make check-fast: lint`)."""
+    target = next((found[1] for one in lines if (found := TARGET.match(one))), None)
+    if not (name and target) or name.split()[-1] == target:
+        return name or target
+    return f"{name}: {target}"
+
+
 def signs(lines: list[str]) -> list[str]:
     return [name for name, rule in SIGNS.items() if any(rule.search(one) for one in lines)]
 
@@ -235,6 +254,7 @@ def row(
         "kind": kind(labels),
         "steps": steps,
         "tests": [],
+        "step": failed_step(job),
         "signs": [],
         "logged": False,
         **dict.fromkeys(ledger.TELEMETRY),
@@ -250,13 +270,14 @@ def unlogged(kept: dict[str, Any]) -> bool:
 
 
 def read_log(gh: Gh, repo: str, kept: dict[str, Any]) -> dict[str, Any]:
-    """Return the kept job with the failing tests and the runner faults of its log, `tests`
-    None where GitHub did not give the log."""
+    """Return the kept job with the failing tests, the make target that failed and the runner
+    faults of its log, `tests` None where GitHub did not give the log."""
     try:
         lines = evidence(gh.log(repo, kept["job"]))
     except Unavailable:
         return kept | {"tests": None, "signs": [], "logged": True}
-    return kept | {"tests": failing_tests(lines), "signs": signs(lines), "logged": True}
+    found = {"tests": failing_tests(lines), "step": step(kept["step"], lines)}
+    return kept | found | {"signs": signs(lines), "logged": True}
 
 
 def _pushes(gh: Gh, repo: str, number: int) -> list[str]:
@@ -372,23 +393,41 @@ def _collect(
     return Counts(len(runs), added, len(everyone))
 
 
+def _steps(gh: Gh, repo: str, run: int) -> dict[int, str | None]:
+    """Return the failed step of each job of a run, or none where GitHub did not answer."""
+    try:
+        jobs = gh.pages(f"repos/{repo}/actions/runs/{run}/jobs?filter=all", "jobs")
+    except Unavailable:
+        return {}
+    return {job["id"]: failed_step(job) for job in jobs}
+
+
 def _reread(gh: Gh, repo: str, state: Path, since: datetime) -> None:
-    """Read the log of each red hosted job created since `since` that was kept before the
-    collector read hosted logs (it has no `logged` field), and rewrite the ledger with what was
-    read. A local one's log was read when it was kept, and a log GitHub does not give now leaves
-    its job as it was, for the next collect."""
+    """Read again each red job created since `since` that was kept before the collector kept
+    the step that failed (it has no `step` field): its run's jobs for the step, and its log for
+    the failing tests and the make target. Rewrite the ledger with what was read. A run whose
+    jobs or a log GitHub does not give now leaves its job as it was, for the next collect."""
     kept = ledger.read(state / ledger.JOBS)
     older = [
         at
         for at, one in enumerate(kept)
-        if "logged" not in one
-        and one["kind"] == "hosted"
-        and unlogged(one)
+        if "step" not in one
+        and one["conclusion"] == "failure"
+        and one.get("steps")
         and (_time(one.get("created")) or since) >= since
     ]
     if not older:
         return
-    read = side_by_side(lambda at: read_log(gh, repo, kept[at]), older)
+    runs = sorted({kept[at]["run"] for at in older})
+    named = {
+        job: name
+        for found in side_by_side(lambda run: _steps(gh, repo, run), runs)
+        for job, name in found.items()
+    }
+    older = [at for at in older if kept[at]["job"] in named]
+    read = side_by_side(
+        lambda at: read_log(gh, repo, kept[at] | {"step": named[kept[at]["job"]]}), older
+    )
     given = [(at, one) for at, one in zip(older, read, strict=True) if one["tests"] is not None]
     if not given:
         return

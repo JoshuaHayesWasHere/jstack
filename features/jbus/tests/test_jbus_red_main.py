@@ -394,7 +394,7 @@ def test_a_brief_that_names_a_green_main_itself_is_sent_with_jbus_own_line(kitch
                 'Task: "do beta"',
                 "Green main: " + "9" * 40,
                 "Done when:",
-                "- it is done",
+                "- `make check` passes",
                 "",
             ]
         )

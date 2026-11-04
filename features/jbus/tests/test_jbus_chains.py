@@ -249,7 +249,7 @@ def test_the_arena_queues_its_four_seats_whose_briefs_build_on_what_they_depend_
         "have": have,
         "prompt": "make a thing",
         "rubric": "- it is a thing",
-        "done_when": "- it is done",
+        "done_when": "- `make check` passes",
         "proves": "`make check`",
     }
     env = {**os.environ, **frame, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}

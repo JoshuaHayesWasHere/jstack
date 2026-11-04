@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from collections.abc import Collection
 from datetime import datetime
 from pathlib import Path
@@ -106,13 +107,77 @@ class BaseMerge:
         held = (n for n in numbers if (known.get(str(n)) or {}).get("line") is True)
         return next(held, None)
 
-    def release(self, one: ready.PullRequest) -> None:
-        """Take the pull request from the head of the line."""
-        was = self.known().get(str(one.number))
+    def release(self, number: int) -> None:
+        """Take the pull request from the head of the line. Its record stays, so the update GitHub
+        was asked for is not asked again at the same head and tip."""
+        was = self.known().get(str(number))
         if isinstance(was, dict) and was.get("line"):
-            self.records = {**self.known(), str(one.number): {**was, "line": False}}
+            self.records = {**self.known(), str(number): {**was, "line": False}}
             if self.run:
                 store.write_json(self.path, self.records)
+
+    def stuck(self, one: ready.PullRequest) -> dict:
+        """What `jmerge` did about a run GitHub kept queued at the pull request's head
+        (`cli.Repo.unstuck`): `since`, when GitHub had queued the run it restarted, `reopen`
+        while the reopen of that restart is still owed, and `gave_up` once it gave up the line.
+        Nothing for another head."""
+        was = self.known().get(str(one.number))
+        kept = was.get("stuck") if isinstance(was, dict) else None
+        return kept if isinstance(kept, dict) and kept.get("head") == one.head else {}
+
+    def keep_stuck(self, one: ready.PullRequest, **kept: object) -> None:
+        """Keep `kept` in what `stuck` says of the pull request's head, over what it said."""
+        was = self.known().get(str(one.number))
+        record = was if isinstance(was, dict) else {}
+        stuck = {**self.stuck(one), "head": one.head, **kept}
+        self.records = {**self.known(), str(one.number): {**record, "stuck": stuck}}
+        if self.run:
+            store.write_json(self.path, self.records)
+
+    def restart(self, one: ready.PullRequest, since: datetime) -> str:
+        """Close and reopen the pull request, so GitHub starts a new run of each of its
+        workflows in their concurrency groups, which cancels the queued one: GitHub refuses to
+        rerun a run it has not ended, and a cancel can leave it queued (#1028, 2026-11-04). The
+        restart is kept before the close, with the reopen owed, so a run that stops between the
+        two leaves a record that the next run reopens by (`reopen`), and none restarts twice.
+        Return nothing, or why the close or the reopen failed."""
+        self.keep_stuck(one, since=since.isoformat(), reopen=True)
+        closed = self.gh("pr", "close", str(one.number))
+        if closed.returncode:
+            self.keep_stuck(one, reopen=False)
+            return _said(closed)
+        why = self.reopened(one.number)
+        if not why:
+            self.keep_stuck(one, reopen=False)
+        return why
+
+    def reopen(self, numbers: Collection[str]) -> None:
+        """Reopen each pull request whose restart's reopen is owed, and that is not open, in
+        `numbers`: a run of `jmerge` stopped between the close and the reopen, or GitHub refused
+        the reopen. One that is open again owes none. A reopened one holds the line no more, for
+        another took it while it was closed."""
+        for number in [number for number in self.known() if _owed(self.known()[number])]:
+            if number in numbers or not self.reopened(number):
+                was = self.known()[number]
+                kept = {**was, "stuck": {**was["stuck"], "reopen": False}}
+                if number not in numbers:
+                    kept["line"] = False
+                self.records = {**self.known(), number: kept}
+                if self.run:
+                    store.write_json(self.path, self.records)
+
+    def reopened(self, number: int | str) -> str:
+        """Reopen the pull request, and return nothing, or why it was not."""
+        said = self.gh("pr", "reopen", str(number))
+        return _said(said) if said.returncode else ""
+
+    def gh(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return backoff.run(
+            "gh",
+            *args,
+            cwd=self.main,
+            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+        )
 
     def repeats(self, one: ready.PullRequest, tip: str, check: str) -> bool:
         """Whether the pull request failed a same test of its own in its last two runs of
@@ -150,7 +215,7 @@ class BaseMerge:
         a merged or closed pull request is never judged again, and its record would only grow the
         file."""
         known = self.known()
-        kept = {number: was for number, was in known.items() if number in numbers}
+        kept = {number: was for number, was in known.items() if number in numbers or _owed(was)}
         if kept != known:
             self.records = kept
             if self.run:
@@ -178,6 +243,18 @@ class BaseMerge:
         lines = (ran.stderr or ran.stdout).strip().splitlines()
         why = str(message or (lines[-1] if lines else f"gh exited {ran.returncode}"))
         return why, bool(REFUSED.search(ran.stderr))
+
+
+def _owed(was: object) -> bool:
+    """Whether a record owes the reopen of a restart (`BaseMerge.restart`)."""
+    stuck = was.get("stuck") if isinstance(was, dict) else None
+    return isinstance(stuck, dict) and stuck.get("reopen") is True
+
+
+def _said(ran: subprocess.CompletedProcess[str]) -> str:
+    """The last line `gh` wrote of why it failed."""
+    lines = (ran.stderr or ran.stdout or "").strip().splitlines()
+    return lines[-1] if lines else f"gh exited {ran.returncode}"
 
 
 class Repeated:
