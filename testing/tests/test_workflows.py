@@ -917,28 +917,34 @@ def test_the_macos_job_starts_no_mac_for_a_change_to_a_jbus_queue_module(merged)
     )
 
 
-def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reaches(merged):
+@pytest.mark.parametrize(
+    ("path", "test", "unreached"),
+    [
+        (DARWIN_LISTED, DARWIN_LISTED, "features/jgauge/tests/test_room.py"),
+        (DARWIN_SOURCE, "features/jbus/tests/test_jbus_launchd.py", None),
+    ],
+    ids=["a listed test", "a module"],
+)
+def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reaches(
+    merged, path, test, unreached
+):
     """A change to a test of the list that branches on Darwin runs that test, and only tests of
     the list. A change to a module that names Darwin runs the tests of the list that import it.
     The summary names each test it runs. A test that reads the whole tree runs on Linux, and a
     change to Darwin code reaches it on a Mac only through an import."""
     entries = MAC_QUICK.read_text().split()
-    for path, test in (
-        (DARWIN_LISTED, DARWIN_LISTED),
-        (DARWIN_SOURCE, "features/jbus/tests/test_jbus_launchd.py"),
-    ):
-        reached, summary, output = merged(path)
-        assert test in reached, path
-        assert all(
-            one in entries or any(e.endswith("/") and one.startswith(e) for e in entries)
-            for one in reached
-        )
-        assert summary.splitlines() == [
-            f"macOS: the change reaches {len(reached)} test files of testing/macos-quick.txt:",
-            *(f"- `{one}`" for one in reached),
-        ]
-        assert output == {"run": "true", "tests": "\n".join(reached)}
-    assert "features/jgauge/tests/test_room.py" not in merged(DARWIN_LISTED)[0]
+    reached, summary, output = merged(path)
+    assert test in reached
+    assert unreached not in reached
+    assert all(
+        one in entries or any(e.endswith("/") and one.startswith(e) for e in entries)
+        for one in reached
+    )
+    assert summary.splitlines() == [
+        f"macOS: the change reaches {len(reached)} test files of testing/macos-quick.txt:",
+        *(f"- `{one}`" for one in reached),
+    ]
+    assert output == {"run": "true", "tests": "\n".join(reached)}
 
 
 @pytest.mark.parametrize(
