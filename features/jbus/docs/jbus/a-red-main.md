@@ -19,7 +19,8 @@ The `retro` lines, the revert and the fix's brief come after it in the pass, and
 
 One culprit is clear when the red tip is the merge commit of a briefed pull request and the commit under it was green, so it is the one merge since the last green (`features/jbus/src/jbus/reverts.py`).
 Then jbus runs `gh pr revert`, which makes a new commit on a new branch, and never pushes to main.
-It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew and its home.
+It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew (`features/jbus/src/jbus/culprits.py`).
+The home is not sent it: the `revert` event is quiet, wakes no thread, and reaches the home only in the digest ([Events and wakes](events-and-wakes.md)).
 `jmerge` merges the revert by the normal path once its checks are green, with no review.
 
 jbus reverts nothing in the cases below (`Keep` in `reverts.py`).
@@ -83,14 +84,15 @@ jbus reads a slug that starts `main-red-` as the fix of a red main, so do not gi
 ## `main.json`
 
 The one record of a red main is `main.json` beside the queue.
-The pass that tells a red pull request that main is green again writes it (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately.
+`mainmoved.tell` writes it once a pass (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately.
+It tells no crew anything: a pull request red over a red main is judged again by `jmerge`, which asks GitHub to merge main into it once main is green ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).
 
 | Field | Holds |
 |---|---|
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
 | `failed` | The tests that failed at `broken`, read once from the red run's logs. jbus reads them to tell a flake from a culprit's own red. |
-| `fixed` | The green tip, written by a pass that still owes a crew its message and keeps the old commit to look at again. Main reads as green from that pass on. |
+| `fixed` | Only in a record written before `tell` stopped telling crews: the green tip that ended the red while a message was owed. Main reads as green there, and the next pass writes no `fixed` again. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.
 `jmerge` reads the file to ask for no merge of a red main into a red pull request ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).

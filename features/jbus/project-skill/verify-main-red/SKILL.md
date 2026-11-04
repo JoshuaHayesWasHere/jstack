@@ -10,7 +10,7 @@ description: Rerun the exhaustive check of main.json's red-main contract, the re
 A red main holds no pull request, so the record stops no merge.
 `jmerge.cli.Repo.again` reads it to ask GitHub for no merge of a red main into a red pull request, and `jbus.watch` reads its `failed` to tell a flake from a culprit's own red (`jbus.reverts`).
 A test runs the orders someone wrote down.
-This check runs every order of merges, check answers, T3 Code answers and passes within its bounds, through the real `tell` and the real `mainjson.read`, and checks three properties after every pass:
+This check runs every order of merges, check answers and passes within its bounds, through the real `tell` and the real `mainjson.read`, and checks three properties after every pass:
 
 - **S1, a known red is read as red.**
   When the newest tip whose check has settled (`green` or `failed`, `mainmoved.SETTLED`) failed, `read` names a red tip.
@@ -48,8 +48,8 @@ Run it by hand anyway when you change the contract on purpose: what it prints is
 uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
-It takes a few seconds (7,802 states in the widest world).
-On the code as it is today it prints `10 passed`.
+It takes a few seconds (3,447 states in the widest world).
+On the code as it is today it prints `7 passed`.
 The three findings below were strict xfails until `mainjson-red-fix` fixed them.
 To print every world:
 
@@ -57,7 +57,7 @@ To print every world:
 uv run python features/jbus/tests/main_red_model.py
 ```
 
-It prints all four worlds, how many states each walks and how many break each property.
+It prints both worlds, how many states each walks and how many break each property.
 
 The tests and the world each walks:
 
@@ -66,22 +66,21 @@ The tests and the world each walks:
 | `test_the_walk_reaches_every_event_the_model_has` | every order | passes: each event kind was reached |
 | `test_s1_a_failed_tip_seen_by_a_pass_is_read_as_red` | one tip at a time (it lands once the last tip settled and a pass ran since) | passes |
 | `test_s1_a_failed_tip_is_read_as_red_whatever_lands_after_it` | every order | passes |
-| `test_s2_a_green_tip_seen_by_a_pass_whose_send_goes_ends_the_red` | one tip at a time, T3 Code never loses a send | passes |
-| `test_s2_a_green_tip_ends_the_red_when_t3_code_loses_the_send` | one tip at a time | passes |
-| `test_s2_a_green_tip_ends_the_red_whatever_lands_after_it` | every order, T3 Code never loses a send | passes |
+| `test_s2_a_green_tip_seen_by_a_pass_ends_the_red` | one tip at a time | passes |
 | `test_s2_a_green_tip_ends_the_red_in_every_order` | every order | passes |
 | `test_s3_the_tests_kept_are_the_red_tip_s_own_one_at_a_time` | one tip at a time | passes |
 | `test_s3_the_tests_kept_are_the_red_tip_s_own_in_every_order` | every order | passes |
 
 Each finding's world is cut from a world that passes, so a break there points at that finding's cause.
 S1 holds one tip at a time, so S1 breaking over every order needs a tip no pass saw (F2).
-S2 holds one tip at a time with every send answered, so S2 breaking one tip at a time needs a lost send (F1), and S2 breaking with every send answered needs a tip no pass saw (F3).
-The last test walks S2 over every order, for an order that needs both.
+S2 holds one tip at a time, so S2 breaking over every order needs a tip no pass saw (F3).
+`tell` sends no message since it stopped telling crews, so the model has no T3 Code and no lost send, and F1 has no path left.
 A failure in any test is a new break.
 
 ## The findings
 
 All three are fixed: `tell` looks at every tip since its last pass (`landed`), and a pass takes a `fixed` it finds in the record as the end of the red.
+F1's cause, a send T3 Code lost, is gone with the message: `tell` writes no `fixed` now, and reads one only in a record written before.
 The line numbers below are of the code before the fix (`fa810ec`).
 
 - **F1 (S2).**
@@ -99,7 +98,7 @@ The line numbers below are of the code before the fix (`fa810ec`).
 
 A trace is the shortest order of events to the first state that breaks the property, numbered from `start`.
 Tips are `M0` (green, there from the start) to `M3`; a record is printed with its commits as those names and without `at`.
-For example F1, on the code before the fix:
+For example F1, on the code before the fix, when the model still had T3 Code's answers and a red pull request:
 
 ```
 S2 breaks in 3 of 1006 states (Options(one_at_a_time=True, lost_sends=True)), against "Main is not red" in features/jmerge/docs/jmerge.md
@@ -115,7 +114,7 @@ S2 breaks in 3 of 1006 states (Options(one_at_a_time=True, lost_sends=True)), ag
 ```
 
 The record after a `pass` is what the real `tell` wrote; `red` and `green` are what the real `mainjson.read` gives.
-`pass (no send)` is a pass in which no message went, so T3 Code's answer did not matter.
+Today a trace starts `start: M0 is green, no main.json`, and each pass is `pass: tell writes main.json ...`.
 
 ## A real bug or a modeling error
 
@@ -127,11 +126,10 @@ Check every step against this table; a step no line backs is a modeling error, a
 | `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/poll.py`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py` |
 | `Mn lands: a merge` | a merge by `jmerge`, by hand or by `--accept`: no read of the record stops one, and a merge inside a pass comes before `tell` writes, `features/jbus/src/jbus/poll.py` |
 | `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py`; `pending` is a check not ended |
-| `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, caught by `once` in `features/jbus/src/jbus/rebase.py` |
 
-The stubs are the other place a model can lie: `mainmoved.main_check`, `mainmoved.failed_at`, `dispatch.launched`, `dispatch.thread_of` and `rebase.held` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
+The stubs are the other place a model can lie: `mainmoved.main_check`, `mainmoved.failed_at` and `mainmoved.account` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
 If one of them is no longer what `tell` calls, the step it stands for is not the code's.
-`mock.patch.object` fails on an attribute that is gone, but a name `tell` imports with `from ... import` is not patched by a module attribute: then the real function runs and asks GitHub or T3 Code.
+`mock.patch.object` fails on an attribute that is gone, but a name `tell` imports with `from ... import` is not patched by a module attribute: then the real function runs and asks GitHub.
 
 When every step is backed, the trace is a real bug: report it with the trace, in the code's words, and leave the property as it is ("Findings stay findings").
 
@@ -141,13 +139,13 @@ When every step is backed, the trace is a real bug: report it with the trace, in
   A finding the walk finds is a strict `xfail` until it is fixed, and its test fails as `XPASS(strict)` once the fix lands: remove that `xfail` mark, and run again to see it pass.
 - **`main.json` gets a new key, or `mainjson.of` reads it differently.**
   The model writes and reads the real files and keys its states on the whole record, so nothing in it changes unless a new input reaches `tell`: model that input as a new event in `steps`, with its code line in the docstring.
-- **A new input reaches `tell`** (a held message, a second pull request, a conflict): add it to `State`, give it events in `steps`, add its kind to `test_the_walk_reaches_every_event_the_model_has`, and say it in the docstring's scope.
+- **A new input reaches `tell`**: add it to `State`, give it events in `steps`, add its kind to `test_the_walk_reaches_every_event_the_model_has`, and say it in the docstring's scope.
   Raise `TIPS` or `EVENTS` only with the run time measured again.
 - **A module moves** (as unit 6 moved `jbus.mainstate` to `jmerge.mainjson`): change the model's imports and the stub targets to the new module, rerun, and expect the same counts.
   Different counts after a pure move mean the move changed behavior.
 - **The property changes.**
-  Change `s1`, `s2` or `s3` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `10 passed` (or the new count).
+  Change `s1`, `s2` or `s3` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `7 passed` (or the new count).
 
-Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` in `mainmoved.py` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` in `mainmoved.py` breaks S2 with every send answered (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
+Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` in `mainmoved.py` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` in `mainmoved.py` breaks S2 (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
 On the fixed code, dropping `broken, waiting = tip, []` for `waiting = []` in `mainmoved.py` breaks S1 one tip at a time and over every order.
-Dropping `owed_at or` in `mainmoved.py` passes the walk, since the model's GitHub always lists the tips, and fails `test_a_green_tip_whose_message_was_lost_ends_the_red_though_the_next_tip_is_pending` in `features/jbus/tests/test_jbus_main_moved.py`, where the list is empty.
+Dropping `was.get("fixed") or` in `mainmoved.py` passes the walk, since the model writes no `fixed`, and fails `test_a_record_left_owing_a_message_ends_the_red_at_its_fixed_tip` in `features/jbus/tests/test_jbus_main_moved.py`, an older record with `fixed` where GitHub lists no tips.
