@@ -61,6 +61,25 @@ def test_the_whole_suite_s_parts_end_within_its_slowest_test_of_each_other():
     assert max(each) - min(each) < sum(each) / PARTS / 20
 
 
+FLOW = (
+    "features/jmerge/tests/test_flow_spec.py::"
+    "test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own"
+)
+
+
+def test_the_flow_spec_test_counts_its_cold_time_and_not_the_floor():
+    """The merge flow's TLC test takes minutes when TLC runs (524 to 899 s in CI on 2026-11-03)
+    and well under a second where its cache holds the runs, as on a machine that recorded the
+    table. The table holds its cold time, so the split weighs it as the slowest test there is
+    and never deals it out as a test of `FLOOR`; a record that ran it warm and dropped the row
+    fails here."""
+    (whole,) = listed([FLOW.partition("::")[0]])
+    assert FLOW in whole
+    times = read_times(TIMES)
+    assert seconds(times, FLOW) >= 500
+    assert seconds(times, FLOW) == max(times.values())
+
+
 def test_a_slow_test_has_a_part_to_itself_where_a_split_by_count_would_add_to_it(tmp_path):
     """One test of 100 s among tests of 1 s: its part holds it alone, and the others share the
     rest evenly, one apart at most."""

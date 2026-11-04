@@ -204,24 +204,44 @@ jobs:
         run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
       # TLC's output for each run of the specs, kept by the sha256 of what the run reads
       # (statechart's `kept`): a run whose spec, config, script, jar and Java are those of a run
-      # kept here starts no Java. A test's part is fixed by the selection and the test times, so
-      # each part keeps its own runs, and a run of the same selection finds its part's. Every run
-      # saves under a key of its own, and restores the latest of its part, of the same spec files
-      # first, else of any: a stale entry is never read, since each file is named by the hash of
-      # its own inputs.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # kept here starts no Java. One cache serves every part, since which part a test lands in
+      # changes with the selection: a part restores the latest entry of the same spec files, else
+      # the latest of any, and a pull request finds main's. The key hashes the specs, their
+      # configs and statechart's scripts, whose tools.py pins TLC's jar, so a change to any of
+      # them looks for an entry of its own. A stale file is never read, since each is named by
+      # the hash of its own inputs. `tlc kept` and the save after the suite keep what it added.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: tlc
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-${{ github.run_id }}
+          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
-            tlc-${{ matrix.shard }}-
+            tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-
       # Collects only the part's own files.
       - name: make test
         id: suite
         env:
           PART: ${{ needs.select.outputs[format('part{0}', matrix.shard)] }}
         run: '[ "$PART" = none ] || make test TESTS="$PART"'
+      # After the suite, passed or failed, since a kept run is one TLC finished: a part whose
+      # cache now holds runs it did not restore saves them, under the spec files' hash and a hash
+      # of the names of the runs it holds, which ends the key it restored. So the part that ran
+      # TLC saves an entry of its own, and is not beaten to one shared key by a faster part that
+      # holds only what it restored. A part that added nothing saves nothing, and two parts that
+      # hold the same runs name the same entry.
+      - name: tlc kept
+        id: kept
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        env:
+          SPECS: ${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}
+          RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: "!cancelled() && steps.kept.outputs.key != ''"
+        with:
+          path: ~/.cache/jstack/tlc
+          key: ${{ steps.kept.outputs.key }}
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
       # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had, and
       # /tmp's inode use once the suite ran, for the CI report's /tmp inode peak.
@@ -345,19 +365,34 @@ jobs:
       - name: zsh
         if: steps.tree.outputs.marker != 'green'
         run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
-      # TLC's kept output, as in the check's parts.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # TLC's kept output, restored and saved as in the check's parts: main's entries are those a
+      # pull request restores.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: tlc
         if: steps.tree.outputs.marker != 'green'
         with:
           path: ~/.cache/jstack/tlc
-          key: tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-${{ github.run_id }}
+          key: tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
           restore-keys: |
-            tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
-            tlc-${{ matrix.shard }}-
+            tlc-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
         run: make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4
+      # As in the check's parts.
+      - name: tlc kept
+        id: kept
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        env:
+          SPECS: ${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}
+          RESTORED: ${{ steps.tlc.outputs.cache-matched-key }}
+        run: 'RUNS=$(LC_ALL=C ls "$HOME/.cache/jstack/tlc" 2> /dev/null) || exit 0; NAMES=$(printf "%s\n" "$RUNS" | sha256sum | cut -c1-16); [ -z "$RUNS" ] || [ "$NAMES" = "${RESTORED##*-}" ] || echo "key=tlc-$SPECS-$NAMES" >> "$GITHUB_OUTPUT"'
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: "!cancelled() && steps.kept.outputs.key != ''"
+        with:
+          path: ~/.cache/jstack/tlc
+          key: ${{ steps.kept.outputs.key }}
       # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed
       # over every test, the tail (the wall less that sum shared out over the workers: the time
