@@ -12,9 +12,11 @@ likely one of them.
 
 A part runs its tests on `WORKERS` workers at once, so it ends once its tests' summed time over
 `WORKERS` has passed, and never before its slowest test, which one worker runs alone. The
-selected tests are dealt out slowest first, each to the part that would end soonest so far. So a
-test longer than the others' share of a part, as the merge flow's TLC test is when TLC runs
-(its cold time is its row), gets a part of its own, and the other parts share the rest.
+selected tests are dealt out slowest first, each to the part it would end soonest in, and where
+it would end as soon in several, to the one with the fewest seconds so far. So a test longer than
+the others' share of a part, as the merge flow's TLC test is when TLC runs (its cold time is its
+row), gets a part of its own, and tests that move no part's end spread over the parts by their
+seconds, and do not pile onto the part whose slowest test leaves its workers room.
 `WORKERS` is the Makefile's TEST_WORKERS in CI, one for each of the 4 cores of GitHub's hosted
 runner: a constant, not this machine's count, so every job deals the same parts.
 
@@ -30,7 +32,6 @@ selection had tests. `testing/tests/test_shards.py` holds the parts to the whole
 --shard-record testing/shard-times.tsv` after tests are added or grow slow."""
 
 import hashlib
-import heapq
 from pathlib import Path
 
 import pytest
@@ -84,21 +85,28 @@ def seconds(times: dict[str, float], nodeid: str) -> float:
 def split(
     items: list[str], times: dict[str, float], parts: int, slowest: dict[str, float] | None = None
 ) -> list[list[str]]:
-    """The items of each part, dealt slowest first to the part that would end soonest so far: a
-    part ends at its items' summed seconds over `WORKERS`, and never before its slowest test. An
-    item is a test, or a file of tests whose slowest test's seconds `slowest` gives."""
+    """The items of each part, dealt slowest first to the part each would end soonest in, and of
+    those to the one with the fewest seconds so far: a part ends at its items' summed seconds over
+    `WORKERS`, and never before its slowest test. An item is a test, or a file of tests whose
+    slowest test's seconds `slowest` gives."""
     slowest = slowest or {}
-    ends = [(0.0, at) for at in range(parts)]
     summed = [0.0] * parts
     longest = [0.0] * parts
     dealt: list[list[str]] = [[] for _ in range(parts)]
     for item in sorted(items, key=lambda one: (-seconds(times, one), one)):
-        _, at = heapq.heappop(ends)
-        dealt[at].append(item)
         took = seconds(times, item)
+        slow = slowest.get(item, took)
+        at = min(
+            range(parts),
+            key=lambda one: (
+                max(longest[one], slow, (summed[one] + took) / WORKERS),
+                summed[one],
+                one,
+            ),
+        )
+        dealt[at].append(item)
         summed[at] += took
-        longest[at] = max(longest[at], slowest.get(item, took))
-        heapq.heappush(ends, (max(longest[at], summed[at] / WORKERS), at))
+        longest[at] = max(longest[at], slow)
     return dealt
 
 

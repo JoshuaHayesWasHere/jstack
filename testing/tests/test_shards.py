@@ -80,6 +80,17 @@ def test_a_test_that_outlasts_the_others_share_has_a_part_alone_and_one_that_doe
         assert max(others) - min(others) <= 1 / WORKERS
 
 
+def test_tests_that_move_no_part_s_end_spread_over_the_parts_and_do_not_pile_onto_one():
+    """Two parts that each end at a test of 100 s have room for ten tests of 10 s, which end no
+    part later. They go five and five, by seconds, and not all to one part: two slow tests that
+    each run a check of their own in one part ran past their time limit in CI."""
+    quick = [f"t.py::test_{n}" for n in range(10)]
+    times = {key("t.py::test_a"): 100, key("t.py::test_b"): 100} | {key(t): 10 for t in quick}
+    parts = split(["t.py::test_a", "t.py::test_b", *quick], times, 2)
+    assert sorted(len(part) for part in parts) == [6, 6]
+    assert all({"t.py::test_a", "t.py::test_b"} - set(part) for part in parts)
+
+
 FLOW = (
     "features/jmerge/tests/test_flow_spec.py::"
     "test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own"
