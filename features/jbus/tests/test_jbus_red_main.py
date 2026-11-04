@@ -330,18 +330,17 @@ def test_a_red_tip_whose_part_failed_with_no_test_named_keeps_no_failed_test(kit
 crews = test_jbus_main_moved.launched
 
 
-def test_a_main_that_turns_green_while_a_message_is_owed_is_green_at_once(crews):
-    """jbus still owes its message to a red crew whose head GitHub has not judged yet, so `tell`
-    keeps the old commit to look at again. Even so, on that pass `jmerge` no longer reads main as
-    red."""
-    red = tip(crews)
+def test_a_main_that_turns_green_beside_an_unjudged_red_crew_is_green_at_once(crews):
+    """A red crew whose head GitHub has not judged yet holds nothing up: `tell` owes no crew a
+    message, so it records the green tip on that pass, and `jmerge` no longer reads main as red."""
+    assert mainjson.read(crews.state).red == tip(crews)
     crews.set("open.json", [pull(crews, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
     crews.box = jbus.wake.Box(crews.state, jbus.load().projects[0])
     crews.box.mark("rebase|alpha|cccccccccccc")
     green = move(crews)
     crews.poll()
     record = json.loads((crews.state / "main.json").read_text())
-    assert (record["main"], record["broken"], record["fixed"]) == (red, red, green)
+    assert (record["main"], "broken" in record, "fixed" in record) == (green, False, False)
     assert kept(crews) == mainjson.Main(green=green)
     assert mainjson.read(crews.state).red == ""
 
