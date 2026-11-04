@@ -1651,8 +1651,8 @@ class StateRepo:
 @dataclass(frozen=True)
 class CiReport:
     """The projects of jbus's config whose table says `ci_report = true`, for which
-    `jbus-ci.timer` writes the week's CI report and `jbus-ci-day.timer` the day's: an optional layer, off on a machine where no
-    project asks for it.
+    `jbus-ci.timer` writes the week's CI report and `jbus-ci-day.timer` the day's: an optional
+    layer, off on a machine where no project asks for it.
     ok: a project asks for it. The detail names each one.
     missing: there is no jbus config, or no project asks for it.
     old: jbus's loader refuses the config."""
