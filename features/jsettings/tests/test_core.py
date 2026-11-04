@@ -48,9 +48,12 @@ def test_records_are_added_to_a_log_one_line_each(tmp_path):
 
 
 def test_a_lock_another_holds_is_refused_at_once_when_asked_not_to_wait(tmp_path):
-    with store.locked(tmp_path / "state", "one.lock"):
-        with pytest.raises(BlockingIOError), store.locked(tmp_path / "state", "one.lock", False):
-            pass
+    with (
+        store.locked(tmp_path / "state", "one.lock"),
+        pytest.raises(BlockingIOError),
+        store.locked(tmp_path / "state", "one.lock", False),
+    ):
+        pass
     with store.locked(tmp_path / "state", "one.lock", wait=False):
         pass
 

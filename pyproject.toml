@@ -241,7 +241,8 @@ src = [
 # end generated
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "RUF100", "PGH004"]
+select = ["E", "F", "W", "I", "B", "UP", "RUF100", "PGH004", "SIM", "C4", "PERF", "FLY", "RET", "PIE", "ICN", "RSE"]
+ignore = ["SIM905"]
 
 # `testing/`, the tests' shared plumbing, is a package at the root, imported beside the tests' own.
 [tool.ruff.lint.isort]

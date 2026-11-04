@@ -35,12 +35,9 @@ from jbus.view.state import Read, iso, users
 
 FIRST = False
 TIERS = ("wrong", "yours", "moving")
-ITEM = {
-    key: None
-    for key in ("tier", "kind", "subj", "cause", "since", "where", "open", "verb", "count")
-}
-TOP = {key: None for key in ("tier", "kind", "subj", "cause", "since")}
-GROUP = {key: None for key in ("kind", "text", "count", "head", "since")}
+ITEM = dict.fromkeys(("tier", "kind", "subj", "cause", "since", "where", "open", "verb", "count"))
+TOP = dict.fromkeys(("tier", "kind", "subj", "cause", "since"))
+GROUP = dict.fromkeys(("kind", "text", "count", "head", "since"))
 VERDICT = {
     "word": None,
     "cause": None,

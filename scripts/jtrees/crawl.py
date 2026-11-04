@@ -224,16 +224,16 @@ def _items(root: Path, tree: Tree, faults: list[str]) -> tuple[Item, ...]:
                 continue
             found[kind, name] = item
     for feature in tree.features:
-        for name in feature.nameable:
-            if ("playbook", name) not in found or found["playbook", name].feature != feature.name:
-                faults.append(
-                    f"{FEATURES}/{feature.name}/{MANIFEST}: nameable {name} is no playbook it owns"
-                )
-        for name in feature.hidden:
-            if ("skill", name) not in found or found["skill", name].feature != feature.name:
-                faults.append(
-                    f"{FEATURES}/{feature.name}/{MANIFEST}: hidden {name} is no skill it owns"
-                )
+        faults += [
+            f"{FEATURES}/{feature.name}/{MANIFEST}: nameable {name} is no playbook it owns"
+            for name in feature.nameable
+            if ("playbook", name) not in found or found["playbook", name].feature != feature.name
+        ]
+        faults += [
+            f"{FEATURES}/{feature.name}/{MANIFEST}: hidden {name} is no skill it owns"
+            for name in feature.hidden
+            if ("skill", name) not in found or found["skill", name].feature != feature.name
+        ]
     return tuple(sorted(found.values(), key=lambda one: (one.kind, one.name)))
 
 

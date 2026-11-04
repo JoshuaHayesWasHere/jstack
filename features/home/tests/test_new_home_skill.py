@@ -457,7 +457,7 @@ def test_a_fresh_check_with_a_line_is_never_changed(machine):
 
 def test_with_no_git_identity_the_line_says_what_git_said_and_no_branch_is_made(machine):
     machine.origin()
-    lonely = {name: None for name in IDENTITY} | {
+    lonely = dict.fromkeys(IDENTITY) | {
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "user.useConfigOnly",
         "GIT_CONFIG_VALUE_0": "true",

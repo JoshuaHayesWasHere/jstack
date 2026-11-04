@@ -109,6 +109,7 @@ loaded yet.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import ipaddress
 import json
 import os
@@ -198,22 +199,10 @@ _SEEN = {
     "checks": None,
     "check": _CHECK,
 }
-_THREAD = {key: None for key in record.THREAD}
-_WAITS = {
-    key: None
-    for key in (
-        "kind",
-        "key",
-        "line",
-        "since",
-        "slug",
-        "number",
-        "question",
-        "default",
-        "home",
-        "url",
-    )
-} | {"unblocks": [None]}
+_THREAD = dict.fromkeys(record.THREAD)
+_WAITS = dict.fromkeys(
+    ("kind", "key", "line", "since", "slug", "number", "question", "default", "home", "url")
+) | {"unblocks": [None]}
 _HOOK = {
     "failed_wakes": None,
     "last_error": None,
@@ -226,7 +215,7 @@ DIGEST = {
     "token_expires": None,
     "projects": {
         ANY: {
-            "rows": [{column: None for column in digest.COLUMNS} | {"depends": [None]}],
+            "rows": [dict.fromkeys(digest.COLUMNS) | {"depends": [None]}],
             "merged": [{"slug": None, "pr": None, "at": None}],
             "done": [{"slug": None, "at": None}],
             "pulls": [{"number": None, "slug": None, "url": None, "waits": None}],
@@ -235,7 +224,7 @@ DIGEST = {
             "routine": [{"at": None, "event": None, "slug": None, "line": None}],
             "sweep": None,
             "stops": {
-                "open": [{column: None for column in stop.SHOWN}],
+                "open": [dict.fromkeys(stop.SHOWN)],
                 "outside": {ANY: None},
             },
         }
@@ -313,10 +302,8 @@ class Code:
         the file's time."""
         files = {Path(file) for file in self.loaded()}
         files = {file for file in files if file.is_relative_to(self.root)}
-        try:
+        with contextlib.suppress(OSError):
             files |= {file for file in self.beside.iterdir() if file.is_file() and file != PAGE}
-        except OSError:
-            pass
         found = set()
         if self.panels is not None and panels.names(self.beside / "panels") != self.panels:
             found.add((self.beside / "panels", 0))

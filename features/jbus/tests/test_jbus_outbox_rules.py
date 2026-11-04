@@ -151,10 +151,10 @@ def test_a_spared_template_is_one_its_sender_sends():
     """Each name a rule spares is the template its sender gives the outbox, so a renamed template
     is not held by accident."""
     assert set(slotwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
-    assert outbox.USERS == {word.KIND, "item"}
+    assert {word.KIND, "item"} == outbox.USERS
     kinds = {row.kind for row in expedite.TABLE}
     asked = {"rereview"}
-    assert outbox.ASKS <= kinds | asked and asked <= outbox.ASKS
+    assert kinds | asked >= outbox.ASKS and asked <= outbox.ASKS
 
 
 def test_a_pass_that_finds_a_held_message_due_no_more_sends_nothing_late(launched):

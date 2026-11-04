@@ -1071,10 +1071,11 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             run.gate(slug, "thread completed with a Result and no pull request")
     for slug, thread in world.archived.items():
         taken = slug in world.open or slug in world.merged
-        if slug in queued and slug not in run.gated and not taken:
-            if not last_result(brief_of(run, slug)):
-                line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
-                run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
+        if slug not in queued or slug in run.gated or taken:
+            continue
+        if not last_result(brief_of(run, slug)):
+            line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
+            run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
     for slug, pull in world.merged.items():
         if slug in run.gated or not brief_of(run, slug):
             continue

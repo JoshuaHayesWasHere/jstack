@@ -2,6 +2,7 @@
 TLA+ spec."""
 
 import base64
+import contextlib
 import errno
 import json
 import os
@@ -402,14 +403,10 @@ def stop_group(child):
     TLC, then SIGKILL to what is left once `child` ends or after a grace period. A group with no
     process left is no fault."""
     for number in (signal.SIGTERM, signal.SIGKILL):
-        try:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
             os.killpg(child.pid, number)
-        except (ProcessLookupError, PermissionError):
-            pass
-        try:
+        with contextlib.suppress(subprocess.TimeoutExpired):
             child.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
 
 
 def run_in_own_group(command, cwd):
@@ -947,7 +944,7 @@ class Terminated(BaseException):
 
 
 def terminated(signum, frame):
-    raise Terminated()
+    raise Terminated
 
 
 def in_work_folder(body, keep):

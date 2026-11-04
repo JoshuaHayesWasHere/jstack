@@ -410,7 +410,7 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
         ("demo/macos", "macos 1"),
         ("demo/infra", "infra 0 no act kept"),
     ]
-    jview = {i: one for i, one in enumerate(first["homes"][1]["cells"])}
+    jview = dict(enumerate(first["homes"][1]["cells"]))
     check = jview[6]
     assert check["text"] == "13"
     assert check["href"] == "#/?home=demo/jview&stage=check"

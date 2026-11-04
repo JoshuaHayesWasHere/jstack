@@ -52,25 +52,23 @@ from jmerge.mainjson import SETTLED
 WAITING = 10
 CHECKS = "checks.json"
 ACCOUNT, ACCOUNT_FILE = "ci-account", "account.json"
-DECISION = "\n".join(
-    (
-        "## Gate <n>: CI on main started no job at {sha}: put the GitHub account's Actions limit "
-        "or payment right?",
-        "Status: open",
-        "Asked by: {slug}, a jbus pass of mainmoved",
-        "Default: jbus files no main-red row for a run that starts no job, and waits for a run "
-        "whose jobs pass",
-        "Built on it: main.json keeps its red and green tips as they were; no fix row is queued "
-        "for {sha}",
-        "Undo: none to take back: a run on main whose jobs pass closes this question",
-        "Context: each failed check run at {sha} has a job that GitHub started on no runner and "
-        "that ran no step, as on a spent Actions limit or a failed payment; no change to the code "
-        "fixes that",
-        "Option: wait for the account (default, recommended): no main-red row, and this question "
-        "closes itself when a run with jobs passes",
-        "Option: put it right now: pay or raise the limit on GitHub, then re-run the failed jobs "
-        "at {sha}; this question closes when they pass",
-    )
+DECISION = (
+    "## Gate <n>: CI on main started no job at {sha}: put the GitHub account's Actions limit "
+    "or payment right?\n"
+    "Status: open\n"
+    "Asked by: {slug}, a jbus pass of mainmoved\n"
+    "Default: jbus files no main-red row for a run that starts no job, and waits for a run "
+    "whose jobs pass\n"
+    "Built on it: main.json keeps its red and green tips as they were; no fix row is queued "
+    "for {sha}\n"
+    "Undo: none to take back: a run on main whose jobs pass closes this question\n"
+    "Context: each failed check run at {sha} has a job that GitHub started on no runner and "
+    "that ran no step, as on a spent Actions limit or a failed payment; no change to the code "
+    "fixes that\n"
+    "Option: wait for the account (default, recommended): no main-red row, and this question "
+    "closes itself when a run with jobs passes\n"
+    "Option: put it right now: pay or raise the limit on GitHub, then re-run the failed jobs "
+    "at {sha}; this question closes when they pass"
 )
 
 

@@ -397,11 +397,10 @@ def behind(found: Iterable[Row]) -> dict:
     known."""
     by_key = {(one.project, one.slug): one for one in found}
     blame: defaultdict[str, float] = defaultdict(float)
-    links: list[int] = []
-    for row in by_key.values():
-        for span in row.spans:
-            if span.what == ORDERING:
-                links.append(_follow(by_key, row, span.start, span.end, 1.0, blame, 0, set()))
+    ordering = [(row, one) for row in by_key.values() for one in row.spans if one.what == ORDERING]
+    links = [
+        _follow(by_key, row, one.start, one.end, 1.0, blame, 0, set()) for row, one in ordering
+    ]
     total = sum(blame.values())
     return {
         "hours": round(total, 1),

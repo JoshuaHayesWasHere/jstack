@@ -49,6 +49,7 @@ that were killed leave, go whatever share of the file slots is used.
 
 from __future__ import annotations
 
+import contextlib
 import fcntl
 import hashlib
 import os
@@ -235,10 +236,8 @@ def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
     if lane.limit is None:
         child.send_signal(number)
         return
-    try:
+    with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(child.pid, number)
-    except (ProcessLookupError, PermissionError):
-        pass
 
 
 def _stop(child: subprocess.Popen, program: str, lane: Lane) -> int:
@@ -248,10 +247,8 @@ def _stop(child: subprocess.Popen, program: str, lane: Lane) -> int:
         flush=True,
     )
     _signal(child, signal.SIGTERM, lane)
-    try:
+    with contextlib.suppress(subprocess.TimeoutExpired):
         child.wait(timeout=STOP_GRACE_SECONDS)
-    except subprocess.TimeoutExpired:
-        pass
     _signal(child, signal.SIGKILL, lane)
     child.wait()
     return TIMED_OUT

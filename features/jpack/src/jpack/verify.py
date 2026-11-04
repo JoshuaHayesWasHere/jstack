@@ -48,8 +48,10 @@ def faults(pack: Path, repo: Path) -> list[str]:
     commit but cites no line. The function groups the lines by note."""
     found = []
     for name, text in notes(pack).items():
-        for item in uncited(text):
-            found.append(f"{name}: a source names a commit and cites no `path:line` at it: {item}")
+        found += [
+            f"{name}: a source names a commit and cites no `path:line` at it: {item}"
+            for item in uncited(text)
+        ]
         for cited in citations(name, text):
             wrong = fault(repo, cited)
             if wrong:
