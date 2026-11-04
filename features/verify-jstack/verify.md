@@ -4,7 +4,7 @@ The scripts of this skill make a sandbox, check it, keep the evidence and clean 
 
 Paths:
 - `features/verify-jstack/`
-Tests: none
+Tests: test_verify_jstack.py and test_home_clears_blockers.py drive these scripts and the skill's Drive recipes. Each spells or imports what it reads, so select_tests picks them with no entry here.
 
 ## Sub-features
 
