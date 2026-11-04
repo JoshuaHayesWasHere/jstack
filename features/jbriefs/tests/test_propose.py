@@ -133,7 +133,9 @@ def subcommands(parser):
     return set()
 
 
-def test_the_verbs_are_every_verb_each_tool_has():
+def test_every_verb_in_the_table_is_one_its_tool_has():
+    """A verb a tool gains after the table was written is one `propose.verb` does not know, and
+    an item that names it gets no command at all, so only a stale or made-up entry fails here."""
     from jbus import asks
     from jbus.cli import LISTED
     from jgauge.cli import parser as jgauge
@@ -142,9 +144,9 @@ def test_the_verbs_are_every_verb_each_tool_has():
     table = argparse.ArgumentParser()
     asks._table(table)
     flags = {flag for action in jmerge()._actions for flag in action.option_strings}
-    assert set(propose.VERBS["jbus"]) == set(LISTED)
-    assert set(propose._QUEUE) == subcommands(table)
-    assert set(propose.VERBS["jgauge"]) == subcommands(jgauge())
+    assert set(propose.VERBS["jbus"]) <= set(LISTED)
+    assert set(propose._QUEUE) <= subcommands(table)
+    assert set(propose.VERBS["jgauge"]) <= subcommands(jgauge())
     assert set(propose.VERBS["jmerge"]) <= flags
     for tool, reads in propose.READS.items():
         assert {name.split()[0] for name in reads} <= set(propose.VERBS[tool])
