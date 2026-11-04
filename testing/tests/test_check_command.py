@@ -43,7 +43,7 @@ from testing.paths import REPO
 
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT", "SHARD")
-SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY")
+SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "SELECTED")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
@@ -346,15 +346,17 @@ def changed_copy(tmp_path, path):
 
 @pytest.fixture
 def step_files(tmp_path, monkeypatch):
-    """The step's own output and summary files, as a check job's step sets them around this suite.
-    A test's `make check-fast` must leave them as they are: a line it added would be the step's,
-    and `selection=` there decides whether the job leaves the green tree marker."""
-    files = [tmp_path / "output", tmp_path / "summary"]
-    for name, file in zip(("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY"), files, strict=True):
+    """The step's own output and summary files, and the list of selected tests it keeps as an
+    artifact, as a check job's step sets them around this suite. A test's `make check-fast` must
+    leave them as they are: a line it added would be the step's, `selection=` there decides
+    whether the job leaves the green tree marker, and the artifact names what the check ran."""
+    files = [tmp_path / "output", tmp_path / "summary", tmp_path / "selected"]
+    names = ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "SELECTED")
+    for name, file in zip(names, files, strict=True):
         file.write_text("")
         monkeypatch.setenv(name, str(file))
     yield files
-    assert [file.read_text() for file in files] == ["", ""]
+    assert [file.read_text() for file in files] == ["", "", ""]
 
 
 def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, step_files):

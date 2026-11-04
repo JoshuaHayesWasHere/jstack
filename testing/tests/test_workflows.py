@@ -857,14 +857,20 @@ def test_the_fast_check_selects_and_lints_once_over_two_commits_and_runs_no_sele
         "uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD",
         "python3 features/writing/scripts/prose_lint.py HEAD^1",
         "make lint BASE=HEAD^1",
+        "actions/upload-artifact",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found)
+    assert all("if" not in step for step in found[:-1])
     assert (found[3]["id"], found[4]["id"]) == ("tree", "select")
-    assert found[4]["env"] == {"FAILED_ON_MAIN": "${{ needs.reuse.outputs.failed }}"}
+    assert found[4]["env"] == {
+        "FAILED_ON_MAIN": "${{ needs.reuse.outputs.failed }}",
+        "SELECTED": "${{ runner.temp }}/selected-tests.txt",
+    }
     assert job_line("select", "needs") == "reuse"
     assert job_section("select", "outputs") == {
         "selection": "${{ steps.select.outputs.selection }}",
+        "files": "${{ steps.select.outputs.files }}",
+        "forced_by": "${{ steps.select.outputs.forced_by }}",
         "tree": "${{ steps.tree.outputs.name }}",
     } | {f"part{k}": f"${{{{ steps.select.outputs.part{k} }}}}" for k in range(1, 9)}
     parts, _ = steps(CHECK.read_text(), "check-shard")
@@ -1066,6 +1072,8 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
     assert report["env"] == {
         "FULL": "${{ needs.select.outputs.selection == 'all' }}",
         "NAME": "${{ needs.select.outputs.tree }}",
+        "FILES": "${{ needs.select.outputs.files }}",
+        "FORCED": "${{ needs.select.outputs.forced_by }}",
     }
     bin = tmp_path / "bin"
     bin.mkdir()
@@ -1075,10 +1083,12 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
     (bin / "df").chmod(0o755)
     tree = "ab" * 20
     said = {}
+    picked = {"true": ("all", "pyproject.toml"), "false": ("212", "")}
     for full, df in (("true", True), ("false", True), ("true", False)):
         summary = tmp_path / f"summary-{full}-{df}"
         env = {"PATH": f"{bin}:/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(summary)}
         env |= {"FULL": full, "NAME": f"green-tree-{tree}", "NODF": "" if df else "yes"}
+        env |= dict(zip(("FILES", "FORCED"), picked[full], strict=True))
         subprocess.run(["sh", "-c", report["run"]], env=env, check=True)
         said[full, df] = summary.read_text()
     assert said == {
@@ -1087,10 +1097,28 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
         ("true", False): f"full suite: yes, tree {tree}\n",
     }
     assert (tmp_path / "uv").read_text().splitlines() == [
-        f"run jbus ci --notice full=true tree={tree} tmp_inode_pct=37",
-        f"run jbus ci --notice full=false tree={tree} tmp_inode_pct=37",
-        f"run jbus ci --notice full=true tree={tree}",
+        f"run jbus ci --notice full=true tree={tree} selection=all reason=pyproject.toml"
+        " tmp_inode_pct=37",
+        f"run jbus ci --notice full=false tree={tree} selection=212 tmp_inode_pct=37",
+        f"run jbus ci --notice full=true tree={tree} selection=all reason=pyproject.toml",
     ]
+
+
+def test_a_pull_requests_check_keeps_the_list_of_tests_it_selected_as_an_artifact():
+    """select_tests.py writes the selection it printed to the file `$SELECTED` names, and the
+    job `select` keeps that file for each attempt, whether its lint passed or failed, so a red
+    on main can be checked against what its pull request's check ran."""
+    found = steps(CHECK.read_text(), "select")[0]
+    kept = found[-1]
+    assert re.fullmatch(r"actions/upload-artifact@[0-9a-f]{40}", kept["uses"])
+    assert kept["continue-on-error"] is True
+    assert [c for c in (True, False) if worked(kept["if"], {"!cancelled()": c})] == [True]
+    assert kept["with"] == {
+        "name": "selected-tests-${{ github.run_attempt }}",
+        "path": "${{ runner.temp }}/selected-tests.txt",
+        "retention-days": "30",
+        "if-no-files-found": "error",
+    }
 
 
 def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
