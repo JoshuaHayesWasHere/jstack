@@ -131,7 +131,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: ${{ env.UV_VERSION }}
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
@@ -209,7 +209,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: ${{ env.UV_VERSION }}
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
@@ -375,7 +375,7 @@ jobs:
       - name: green tree lookup warning
         if: steps.tree.outcome == 'failure'
         run: echo "::warning::green-tree, the lookup ended failure, so the suite runs and a later run of this tree may not skip it"
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: ${{ env.UV_VERSION }}
         if: steps.tree.outputs.marker != 'green'
