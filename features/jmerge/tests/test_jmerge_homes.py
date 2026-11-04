@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from test_jmerge_fresh import AFTER, LINES, Kitchen, url
+from test_jmerge_fresh import AFTER, LINES, Kitchen, asked, url
 
 ROOT, SCOPED = "mcp:the-root-home", "mcp:the-flow-home"
 
@@ -42,18 +42,29 @@ def a_pass(kitchen):
     return said
 
 
-def test_a_pass_merges_a_scoped_homes_pull_request_as_it_merges_the_root_homes(kitchen):
+def merges_both(kitchen):
+    """Two passes: the first merges number 6 and has GitHub merge main into number 7's branch,
+    since main's ruleset merges no head that lacks main's tip, and the second merges number 7 on
+    its check at the updated head."""
     first, second = a_pass(kitchen)
-    assert first.startswith("merged 6 root-task ") and second.startswith("merged 7 fl-task ")
+    assert first.startswith("merged 6 root-task ") and second == asked(7, kitchen.tip())
+    kitchen.updated("fl-task", AFTER)
+    (third,) = a_pass(kitchen)
+    assert third.startswith("merged 7 fl-task ")
+    return first, second, third
+
+
+def test_a_pass_merges_a_scoped_homes_pull_request_as_it_merges_the_root_homes(kitchen):
+    first, _, third = merges_both(kitchen)
     logged = (kitchen.home.state / "merge.log").read_text().splitlines()
-    assert [line[17:] for line in logged] == [first, second]
+    merges = [line[17:] for line in logged if line[17:].startswith("merged ")]
+    assert merges == [first, third]
     assert kitchen.at_main("b.txt") == (LINES + "ours\n").strip()
 
 
 def test_with_the_switch_set_a_pass_still_merges_every_homes_pull_request(kitchen):
     (kitchen.home.state / "home-thread").write_text(f"{SCOPED}\n")
-    first, second = a_pass(kitchen)
-    assert first.startswith("merged 6 root-task ") and second.startswith("merged 7 fl-task ")
+    merges_both(kitchen)
 
 
 def test_a_homes_own_run_merges_nothing_and_leaves_the_other_homes_out(kitchen):

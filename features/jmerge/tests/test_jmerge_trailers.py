@@ -7,6 +7,8 @@ The tests run the command against a real origin and a fake `gh` whose merge writ
 and the body it was given, read from standard input as `--body-file -` says, as the merged
 commit's message."""
 
+import shutil
+
 import pytest
 
 from jleak import trailers as jleak_trailers
@@ -141,10 +143,15 @@ def test_the_squash_lands_the_title_and_the_branchs_messages_with_no_ai_trailer(
 
 
 def test_a_branch_whose_messages_cannot_be_read_waits_and_is_never_merged(kitchen):
-    kitchen.crew("alpha", 7, {"a.txt": "ours\n" + LINES})
-    gone = "f" * 40
-    kitchen.pulls["alpha"]["headRefOid"] = gone
-    kitchen.brief("alpha", gone)
+    """The fetch of its head for the squash fails, as when the origin cannot be reached."""
+    head = kitchen.crew("alpha", 7, {"a.txt": "ours\n" + LINES})
+    fetch = kitchen.home.stub / "git"
+    fetch.write_text(
+        "#!/bin/sh\n"
+        f'[ "$1 $2 $3 $4" = "fetch -q origin {head}" ] && exit 128\n'
+        f'exec {shutil.which("git")} "$@"\n'
+    )
+    fetch.chmod(0o755)
     (said,) = kitchen.run()
     assert said == f"wait 7 {url(7)}: its commit messages could not be read for the squash"
     assert kitchen.calls() == []

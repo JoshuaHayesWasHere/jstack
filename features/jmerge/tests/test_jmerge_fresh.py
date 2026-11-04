@@ -382,7 +382,9 @@ def test_a_merge_by_hand_that_conflicts_with_it_keeps_it_from_the_merge(kitchen,
 
 
 def test_a_main_that_moves_at_every_judgment_is_left_for_the_next_run(kitchen, monkeypatch):
-    """Its check is dated after each move, so only the tip read before the merge tells it."""
+    """Its check is dated after each move, so only the tip read before the merge tells it. Judged
+    again over the new tip, which its head lacks, it waits for GitHub to merge main into it, and
+    nothing is asked of GitHub in a run that is not jbus's."""
     kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"}, checks=(AFTER,))
     one = ready.pull_request(kitchen.pulls["two"])
     here = repo(kitchen, monkeypatch)
@@ -395,10 +397,9 @@ def test_a_main_that_moves_at_every_judgment_is_left_for_the_next_run(kitchen, m
 
     monkeypatch.setattr(here, "waits", waits)
     slug, _, _, note, judged = here.waits(one, "main")
-    assert here.merge(one, slug, note, judged) == (
-        f"wait 7 {url(7)}: main moved while it was judged"
-    )
-    assert len(moves) == 3 and kitchen.tip() == moves[-1]
+    due = ready.BASE_MOVED_DUE.format(base="main", tip=moves[0][:12])
+    assert here.merge(one, slug, note, judged) == f"wait 7 {url(7)}: {due}"
+    assert len(moves) == 2 and kitchen.tip() == moves[-1]
     assert not (kitchen.home.stub / "calls").exists()
 
 

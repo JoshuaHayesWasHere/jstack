@@ -144,12 +144,16 @@ def test_a_main_that_moved_only_on_other_files_waits_for_a_check_over_it(
     assert merges(proven_merged) == []
 
 
-def test_a_check_that_started_after_main_changed_the_file_is_fresh(proven_merged, rules):
+def test_strict_a_check_that_started_after_main_moved_waits_while_its_head_lacks_main_s_tip(
+    proven_merged, rules
+):
+    """Main's ruleset is strict: a check that started after main's last commit is no check over
+    today's main while the head lacks that commit, since GitHub merges no such head."""
     on_main(proven_merged, SKILL)
     later = {**merge.PASSED, "startedAt": f"{date.today().year + 1}-01-01T00:00:00Z"}
     proven_merged.home.open_pull_request(proven_merged.head, checks=(later,), files=[SKILL])
-    (said,) = jmerge(proven_merged, rules)
-    assert said.startswith("merged 7 alpha ")
+    assert jmerge(proven_merged, rules, "--check") == [moved(proven_merged)]
+    assert merges(proven_merged) == []
 
 
 def test_merge_off_still_merges_nothing(proven_merged, rules):
