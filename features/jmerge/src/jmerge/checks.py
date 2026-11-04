@@ -27,7 +27,8 @@ def failed_jobs(rollup: list[dict]) -> list[tuple[str, str, str]]:
         url = one.get("detailsUrl") or ""
         job = _JOB_URL.match(url)
         if job:
-            found.append((url, *job.groups()))
+            repo, number = job.groups()
+            found.append((url, repo, number))
     return found
 
 

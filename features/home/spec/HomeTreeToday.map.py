@@ -56,9 +56,7 @@ def reaching(v):
         parts.append("a call on its way" if v["up"] else "a call waits on a failed home thread")
     if any(v["msg"][m] == "told" for m in calls):
         parts.append("a call for you")
-    for k in made(v):
-        if v["watch"][k] in WATCH:
-            parts.append(WATCH[v["watch"][k]].format(k=k))
+    parts += [WATCH[v["watch"][k]].format(k=k) for k in made(v) if v["watch"][k] in WATCH]
     for k in made(v):
         for a, tip in v["seen"][k].items():
             if tip != 9:

@@ -5,6 +5,7 @@ real origin and a fake `gh` (`test_jmerge_fresh.py`), while the test holds the r
 another run would."""
 
 import fcntl
+import os
 import sys
 import threading
 import time
@@ -16,7 +17,7 @@ from test_jmerge_fresh import kitchen as kitchen
 
 def held(kitchen):
     """Hold the run lock as another run of `jmerge` would, from another open of its file."""
-    other = open(kitchen.home.state / lock.RUN, "a")
+    other = os.open(kitchen.home.state / lock.RUN, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o666)
     fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
     return other
 
@@ -33,7 +34,7 @@ def test_a_run_with_if_free_does_nothing_while_another_run_holds_the_lock(kitche
     assert kitchen.home.code == lock.BUSY
     assert said == [lock.BUSY_LINE.format(path=kitchen.home.state / lock.RUN)]
     assert not asked(kitchen)
-    other.close()
+    os.close(other)
     (merged,) = kitchen.run("--if-free")
     assert merged.startswith("merged 6 one ")
 
@@ -46,7 +47,7 @@ def test_a_run_waits_for_the_other_run_to_end_and_then_merges(kitchen):
     waiting.start()
     time.sleep(1)
     assert waiting.is_alive() and not asked(kitchen)
-    other.close()
+    os.close(other)
     waiting.join(timeout=60)
     (merged,) = said
     assert merged.startswith("merged 6 one ")
@@ -57,4 +58,4 @@ def test_a_check_takes_no_lock(kitchen):
     other = held(kitchen)
     (ready,) = kitchen.run("--check")
     assert ready.startswith("ready 6 ")
-    other.close()
+    os.close(other)

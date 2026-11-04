@@ -25,7 +25,7 @@ def missed(nine: list[numbers.Number]) -> list[numbers.Number]:
 
 
 def _counts(jobs: list[dict[str, Any]], start: datetime, end: datetime) -> list[str]:
-    inside = [j for j in jobs if start <= numbers.time(j["created"]) < end]
+    inside = [j for j in jobs if start <= jsettings.when(j["created"]) < end]
     lines = []
     for kind in ("local", "hosted"):
         ours = [j for j in inside if j["kind"] == kind]

@@ -172,9 +172,9 @@ class Scene:
         for own in (self.home_dir, *self.home_dir.iterdir()):
             ids = own / "home-id"
             mine = ids.is_file() and ids.read_text().split() == [thread]
-            if (mine or (own == self.home_dir and not thread)) and note is not None:
-                if not (own / "handoff.next.md").exists():
-                    (own / "handoff.next.md").write_text(note)
+            ours = mine or (own == self.home_dir and not thread)
+            if ours and note is not None and not (own / "handoff.next.md").exists():
+                (own / "handoff.next.md").write_text(note)
         block = about_the_home_id("handoff")
         assert "<threadId>" in block
         return self.run("handoff", block.replace("<threadId>", thread), checkout or self.main)

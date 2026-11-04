@@ -381,9 +381,9 @@ def test_each_act_the_inbox_serves_draws_one_filled_control():
         check=True,
     )
     drawn = json.loads(done.stdout)
-    assert {kind: html.count('class="btn fill"') for kind, html in drawn.items()} == {
-        kind: 1 for kind in drawn
-    }
+    assert {kind: html.count('class="btn fill"') for kind, html in drawn.items()} == dict.fromkeys(
+        drawn, 1
+    )
 
 
 MOMENT = Path(__file__).parent.parent / "fixtures" / "waiting" / "2026-10-26T125904Z.json"

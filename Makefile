@@ -40,6 +40,9 @@ PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "no
 
 # The lint of `check` and `check-fast`. comment_lint.py only warns; generate-jstack-trees.py fails
 # a stale generated file, and check-jstack-docs.py a doc that says what the tree does not have.
+# pyrefly type-checks each feature's src at the settings of [tool.pyrefly] in pyproject.toml, and
+# fails on an error. The paths are given here, not in that table: pyrefly's default excludes
+# drop every path under a dot directory, which a worktree such as ~/.t3/worktrees/... sits in.
 BASE ?= origin/main
 
 .PHONY: lint
@@ -49,6 +52,7 @@ lint:
 	python3 scripts/check-jstack-docs.py
 	uv run ruff check .
 	uv run ruff format --check .
+	uv run pyrefly check --summary=none features/*/src
 
 # `make test TESTS=<files>` runs only those files. TESTS stays out of the environment, where a
 # make that a test runs would take it for its own.
@@ -63,9 +67,18 @@ check: lint test
 # The check of a change: prose_lint.py on the prose lines the diff from BASE adds, the lint, and the
 # files select_tests.py names for the diff, one a line, which the unquoted `echo` puts on one; or
 # `make check` where it says `all`. CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge.
+# A desk runs it in two parts (features/crew/do-the-task.md): `PART=guards`, the lint and the
+# guard tests, which must pass, then `PART=rest`, the other tests the selection names and no lint.
+# PART stays out of the environment, as TESTS does, so a make that a guard test runs is whole.
+unexport PART
 .PHONY: check-fast
 check-fast:
-	@tests=$$(python3 scripts/select_tests.py '$(BASE)' HEAD) || exit; \
+	@tests=$$(python3 scripts/select_tests.py $(if $(PART),--part '$(PART)') '$(BASE)' HEAD) || exit; \
+	if [ '$(PART)' = rest ]; then \
+		[ "$$tests" != all ] || exec $(MAKE) --no-print-directory test; \
+		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
+		exit 0; \
+	fi; \
 	python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
 	if [ "$$tests" = all ]; then exec $(MAKE) --no-print-directory check; fi; \
 	$(MAKE) --no-print-directory lint && exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"

@@ -194,7 +194,7 @@ def _filled(template):
     """Return a reason with each value it names filled in. A value is a word with no space or
     comma, like a user, a head or a path."""
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
-    return template.format(**{name: "x1" for name in fields})
+    return template.format(**dict.fromkeys(fields, "x1"))
 
 
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():

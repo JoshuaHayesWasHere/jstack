@@ -33,7 +33,7 @@ def _filled(template):
     """A reason with each value it names filled in. Each value is a word with no space or
     comma, as a user, a head or a path is."""
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
-    return template.format(**{name: "x1" for name in fields})
+    return template.format(**dict.fromkeys(fields, "x1"))
 
 
 REASONS = {name: (_filled(reason), reason.step) for name, reason in ready.reasons().items()}
@@ -182,9 +182,9 @@ def test_the_file_and_its_keys_are_named_only_in_mainjson():
         strings = [node for node in ast.walk(tree) if isinstance(node, ast.Constant)]
         found += [(name, "main.json") for node in strings if node.value == mainjson.NAME]
         for key in _keys(tree):
-            if isinstance(key, ast.Constant) and key.value in KEYS:
-                if (name, key.value) not in HOMONYMS:
-                    found.append((name, key.value))
+            keyed = isinstance(key, ast.Constant) and key.value in KEYS
+            if keyed and (name, key.value) not in HOMONYMS:
+                found.append((name, key.value))
     assert found == []
 
 

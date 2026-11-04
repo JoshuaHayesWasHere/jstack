@@ -86,7 +86,8 @@ def _events(name: str, source: str) -> dict[str, Loud]:
         node = sources.statement(source, "EVENTS")
         if node is None:
             return {}
-        found = ast.literal_eval(node.value)
+        value = node.value if isinstance(node, ast.Assign | ast.AnnAssign) else None
+        found = None if value is None else ast.literal_eval(value)
     except (ValueError, TypeError, SyntaxError):
         found = None
     if not isinstance(found, dict) or not all(

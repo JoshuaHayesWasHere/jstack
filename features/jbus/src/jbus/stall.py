@@ -285,8 +285,10 @@ def _became(now: dict[str, Any] | None, at_run: str, call: dict[str, Any]) -> st
     if now["runs"] is None or now["run"] == at_run and at_run not in now["runs"]:
         return ""
     status = now["runs"].get(at_run)
-    if status is None or status in BECAME:
-        return BECAME.get(status, ENDED)
+    if status is None:
+        return ENDED
+    if status in BECAME:
+        return BECAME[status]
     try:
         wrote = datetime.fromisoformat(now["wrote"]) > datetime.fromisoformat(call["at"])
     except (TypeError, ValueError):
@@ -425,8 +427,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
 
 
 def _twice(half: Half) -> None:
-    if half.rows is not None:
-        twice(half.run, half.seen.world, half.rows)
+    world = half.seen.world
+    if half.rows is not None and world is not None:
+        twice(half.run, world, half.rows)
 
 
 def _open_spells(run: Pass) -> dict[str, dict[str, Any]]:

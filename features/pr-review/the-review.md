@@ -53,7 +53,8 @@ Read the changed code the way a tech lead would, and answer these about it:
 6. Does it leave everything it did not mean to change unaffected? Look for these too, in the changed lines:
    - A changed line that does not trace to the task: adjacent code, comments or formatting "improved" in passing, or a refactor of something that was not broken. Every changed line should trace directly to the task above.
    - A removal the change did not earn: an import, variable or function that was already unused before this change is named in the finding, not deleted. What the change itself made unused goes in the same change, and one left behind is a finding too.
-7. Does it change a file outside the "Where" line above? Each such file is a finding.
+   - A doc the change made wrong: a line of a doc, a skill's text or a template that no longer says what the changed code does, or names what the change removed or renamed.
+Whether a changed file is outside the "Where" line above is answered by a command, not by this reading: do not report a file for being outside it.
 SCOPE
 }
 SCOPE=$(the_scope)
@@ -114,7 +115,7 @@ echo "$D/prompt.md"
 - A brief with `Review: none` gets exit code 78 and nothing built: say that its brief asks for no review, and stop.
 - Then it does steps 1 and 2 of the interrogate skill with nothing left to ask: the scope is the pull request's diff, and the intent is the brief's, then the `SCOPE` text.
   A scoped pass puts the earlier findings and the crew's answers, as `jbriefs --findings` prints them, right above the `SCOPE` text ("A scoped pass", step 3).
-  That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
+  That text is how the scope rule and the six questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
 - Last it fills the interrogate skill's `references/reviewer-prompt.md` and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`.
   Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
 - Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
@@ -137,6 +138,7 @@ Hold back what a reading that finds nothing critical fills itself with:
 
 - A "what if this is passed" finding stands only when a caller can pass it: trace the call site in the repo.
 - A different approach the reader prefers, or an abstraction the code needs in no second way, is no finding unless it shows a concrete problem with the change.
+- A finding that says only that the change touches a file outside the brief's `Where` is the section's `Outside Where:` line, which "Wider than the brief" writes from `jmerge --scope`: dismiss it, with that as the reason.
 - A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
 - More than five **Act on** findings is a sign the list is not filtered hard enough.
 

@@ -39,6 +39,7 @@ import secrets
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import jsettings
 from jsettings import thread_id
@@ -64,11 +65,12 @@ def stamp(moment: datetime) -> str:
     return jsettings.stamp(moment, z=True)
 
 
+def _fields(one: dict[str, Any]) -> dict[str, Any]:
+    return {**one, "command": tuple(one["command"]), "thread": thread_id(one["thread"])}
+
+
 def _parse(raw: list[dict]) -> list[Waiter]:
-    read = [
-        Waiter(**{**one, "command": tuple(one["command"]), "thread": thread_id(one["thread"])})
-        for one in raw
-    ]
+    read = [Waiter(**_fields(one)) for one in raw]
     kept: dict[str, Waiter] = {}
     for one in sorted(read, key=lambda one: (one.since, one.id)):
         older = kept.get(one.thread)

@@ -213,8 +213,9 @@ def reading(text: str, heard: Collection[Waiver] = ()) -> Reading:
     if not items or triage.mode == findings.NONE or not last:
         return Reading(NONE, count=len(items))
     count, head = len(items), last[0].head
-    said = [parse(lines_of(text, one)) for one in last]
-    if any(one is None for one in said):
+    parsed = [parse(lines_of(text, one)) for one in last]
+    said = [one for one in parsed if one is not None]
+    if len(said) < len(parsed):
         return Reading(UNREAD, head, count=count)
     off = next((one.of for one in said if one.of != count), None)
     if off is not None:

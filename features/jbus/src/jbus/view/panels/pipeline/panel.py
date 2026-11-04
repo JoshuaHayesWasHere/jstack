@@ -234,7 +234,9 @@ def _chains(every: list[Card]) -> dict[tuple[str, str], tuple[int, tuple[str, st
 
 
 def _at(card: Card | None) -> dict[str, Any] | None:
-    return card and {"slug": card.slug, "project": card.project, "since": card.since}
+    if card is None:
+        return None
+    return {"slug": card.slug, "project": card.project, "since": card.since}
 
 
 def _old(card: Card, now: datetime) -> bool:
@@ -329,7 +331,7 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
     placed.sort(key=lambda card: (_ORDER[card.stage], _older(card), card.project, card.slug))
     merged = sum(len(read.panel("merged")["merged"]) for read in reads)
     needs = sum(len(read.panel("you")["needs"]) for read in reads)
-    stages = []
+    stages: list[dict[str, Any]] = []
     for one in STAGES:
         key, name = one.key, one.name
         mine = [card for card in placed if card.stage == key]

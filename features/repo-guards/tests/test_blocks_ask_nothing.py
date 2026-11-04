@@ -239,9 +239,7 @@ def commands(tokens):
                 expecting = False
         elif current is not None:
             current.append(text)
-        elif not expecting:
-            continue
-        elif text in KEEP_EXPECTING or ASSIGNMENT.match(text):
+        elif not expecting or text in KEEP_EXPECTING or ASSIGNMENT.match(text):
             continue
         elif text == "case":
             mode = "case-subject"

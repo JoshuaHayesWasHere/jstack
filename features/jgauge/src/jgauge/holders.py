@@ -27,6 +27,7 @@ import secrets
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import jsettings
 from jsettings import thread_id
@@ -47,11 +48,12 @@ class Holder:
     code: int | None = None
 
 
+def _fields(one: dict[str, Any]) -> dict[str, Any]:
+    return {**one, "command": tuple(one["command"]), "thread": thread_id(one["thread"])}
+
+
 def _parse(raw: list[dict]) -> list[Holder]:
-    return [
-        Holder(**{**one, "command": tuple(one["command"]), "thread": thread_id(one["thread"])})
-        for one in raw
-    ]
+    return [Holder(**_fields(one)) for one in raw]
 
 
 FILE = jsettings.LockedList(NAME, LOCK, _parse)
