@@ -1,10 +1,10 @@
 """A green pull request whose check main moved past merges on that existing check when its
 files overlap none of the files main changed since the check started and its head merges
-cleanly over today's main: GitHub is asked for no update of its branch, and no check runs
-again. The fast guards run on its tree merged over main first (`test_jmerge_cli_merged_tree.py`),
-and hold it when the two clash. A pull request that shares a file with main's changes goes
-through the one-at-a-time line (`test_jmerge_in_line.py`), and so does every one in a repo
-with no guards to run on its merged tree.
+cleanly over today's main (`jmerge.cli.Repo.over_main`): GitHub is asked for no update of its
+branch, and no check runs again. The fast guards run on its tree merged over main first
+(`test_jmerge_cli_merged_tree.py`), and hold it when the two clash. A pull request that shares
+a file with main's changes goes through the one-at-a-time line (`test_jmerge_in_line.py`), and
+so does every one in a repo with no guards to run on its merged tree.
 
 The tests run the command against a real origin and a fake `gh` (`test_jmerge_fresh.Kitchen`),
 with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it since
