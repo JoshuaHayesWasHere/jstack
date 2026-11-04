@@ -110,7 +110,7 @@ def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores)
     assert slots * sizes.desk_workers(cores) <= max(cores, sizes.desk_workers(cores))
 
 
-def test_the_flag_wins_then_the_variable_then_the_file_then_the_machine(machine):
+def test_the_flag_wins_then_the_variable_then_the_file_then_the_machine(machine, monkeypatch):
     assert sizes.resolve(Name.TEST_SLOTS).came_from is From.DERIVED
     assert sizes.resolve(Name.TEST_SLOTS).value == 4
     written = write_machine(machine, "test_slots = 2\nshort_slots = 5\n")
@@ -118,7 +118,7 @@ def test_the_flag_wins_then_the_variable_then_the_file_then_the_machine(machine)
         Name.TEST_SLOTS, 2, From.FILE, str(written), 4
     )
     assert sizes.resolve(Name.SHORT_SLOTS).value == 5
-    os.environ["TEST_SLOTS"] = "3"
+    monkeypatch.setenv("TEST_SLOTS", "3")
     assert (
         sizes.resolve(Name.TEST_SLOTS).line() == "test_slots     3  env TEST_SLOTS=3 (derived: 4)"
     )
@@ -157,16 +157,15 @@ def test_a_limits_file_that_cannot_be_used_refuses_in_one_line(machine, text, wh
     assert str(refused.value).startswith(why.format(path=path))
 
 
-def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(machine, capsys):
+def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(
+    machine, monkeypatch, capsys
+):
     jbus = machine / "jbus"
     jbus.mkdir()
     (jbus / "config.toml").write_text("max_running = 6\n")
-    os.environ["JBUS_CONFIG_DIR"] = str(jbus)
-    os.environ["TEST_SLOTS"] = "3"
-    try:
-        assert cli.main(["sizes"]) == 0
-    finally:
-        del os.environ["JBUS_CONFIG_DIR"]
+    monkeypatch.setenv("JBUS_CONFIG_DIR", str(jbus))
+    monkeypatch.setenv("TEST_SLOTS", "3")
+    assert cli.main(["sizes"]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out[:3] == [
         "test_slots     3  env TEST_SLOTS=3 (derived: 4)",
@@ -178,6 +177,45 @@ def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(machi
         "note: TEST_SLOTS=3 is set here and jbus.service does not see it:"
         f" set test_slots in {machine / 'config' / 'jstack' / 'machine.toml'}"
     )
+
+
+AFTER_EACH = """
+import os, sys, pytest
+seen = []
+class After:
+    def pytest_runtest_logfinish(self, nodeid):
+        seen.append(os.environ.get("TEST_SLOTS"))
+code = pytest.main(sys.argv[1:], plugins=[After()])
+print(seen)
+sys.exit(code)
+"""
+
+
+def test_a_test_that_sets_test_slots_leaves_none_for_the_next_test():
+    """Each of these tests sets TEST_SLOTS, and a later test in the same process must not see
+    it: a pytest of their own, with no TEST_SLOTS to start from, reads it after each one."""
+    here = Path(__file__)
+    env = {key: value for key, value in os.environ.items() if key != "TEST_SLOTS"}
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            AFTER_EACH,
+            "-q",
+            "-p",
+            "no:xdist",
+            "-p",
+            "no:cacheprovider",
+            f"{here}::{test_the_flag_wins_then_the_variable_then_the_file_then_the_machine.__name__}",
+            f"{here}::{test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines.__name__}",
+        ],
+        cwd=here.parents[3],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert done.stdout.splitlines()[-1] == "[None, None]"
 
 
 def test_the_module_runs_with_the_standard_library_alone(machine):
