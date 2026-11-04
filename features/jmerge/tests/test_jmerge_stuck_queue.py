@@ -275,3 +275,25 @@ def test_queued_falls_back_on_the_jobs_of_the_workflow_where_the_check_is_not_li
     assert ready.queued(shards) == ()
     ended = [{**one, "status": "COMPLETED"} for one in shards]
     assert ready.queued(ended) == ()
+
+
+def test_an_owed_reopen_kept_before_jmerge_kept_its_first_try_is_asked_no_more(kitchen):
+    """A record `jmerge` wrote before it kept `asked` has no time to bound the tries by: it has
+    had them, and the wait goes to the home at once."""
+    held_by_seven(kitchen)
+    head = kitchen.updated("two", queued(120))
+    (kitchen.home.stub / "no-reopen").write_text("")
+    kitchen.run()
+    path = kitchen.home.state / rejudge.NAME
+    records = json.loads(path.read_text())
+    del records["7"]["stuck"]["asked"]
+    path.write_text(json.dumps(records))
+    listed(kitchen, 8)
+    gone = ready.QUEUED_UNREOPENED.format(
+        check="check",
+        head=head[:12],
+        minutes=ready.RESTART_MINUTES,
+        why="gh: could not reopen (HTTP 502)",
+    )
+    assert kitchen.run()[-1] == f"wait 7 {url(7)}: {gone}"
+    assert len(kitchen.calls("pr reopen")) == 1
