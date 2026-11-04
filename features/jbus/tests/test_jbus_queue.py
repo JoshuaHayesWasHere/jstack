@@ -49,7 +49,7 @@ def kitchen(tmp_path, monkeypatch):
 def brief(slug, more=""):
     """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
-        f'# {slug}: a task\nHome: root\nTask: "do {slug}"\nDone when:\n- it is done\n'
+        f'# {slug}: a task\nHome: root\nTask: "do {slug}"\nDone when:\n- `make check` passes\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
         'Design: none, a test\nDecisions: "review it once", the user\'s word in a test\n'
         "Pull request: open one when done\nReview: review\n"
@@ -59,7 +59,7 @@ def brief(slug, more=""):
 
 def widened(slug, line="One more line."):
     """Return the brief with one more `Done when:` item, which changes what it asks for."""
-    return brief(slug).replace("- it is done\n", f"- it is done\n- {line}\n")
+    return brief(slug).replace("- `make check` passes\n", f"- `make check` passes\n- {line}\n")
 
 
 def sha12(text):

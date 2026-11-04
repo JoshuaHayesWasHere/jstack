@@ -291,6 +291,32 @@ IN_LINE = Reason(
     "it is in line behind #{number}: {base} moved after its check started, and GitHub merges"
     " {base} into the branch of one pull request at a time, the one to merge next",
 )
+QUEUED_RESTARTED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} {minutes} minutes ago and started none: jmerge "
+    "closed and reopened it to start a new run",
+)
+QUEUED_UNOPENED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} {minutes} minutes ago and started none: jmerge "
+    "closed it to start a new run, and its reopen failed ({why}), which the next run asks again",
+)
+QUEUED_UNCLOSED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} {minutes} minutes ago and started none: jmerge "
+    "could not close and reopen it to start a new run ({why})",
+)
+QUEUED_GAVE_UP = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} again after jmerge closed and reopened it, and "
+    "started none in {minutes} minutes: it gave the head of the line to the next pull request",
+)
+QUEUED_MINUTES = 30
+"""The minutes a required run at the head of the line may sit in GitHub's queue, not started,
+before `jmerge` restarts it, and the new run after the restart before it gives up the line. The
+queue waits `jbus ci` kept in `ci.jsonl` from 2026-10-28 to 2026-11-04 have a p99 of 1566
+seconds for macos, 290 for check and 278 for borders: 30 minutes is above each, and well under
+the hour #1028's macos run sat queued on 2026-11-04 while other branches' macos runs ran."""
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -324,6 +350,9 @@ class PullRequest:
     """The second the last of the required checks passed at the head (`passed_at`)."""
     removed: tuple[str, ...] = ()
     """The files it deletes, which `files` lists too."""
+    queued: tuple[tuple[str, datetime], ...] = ()
+    """Each required check GitHub queued at the head and started none of, with when it queued
+    its latest run (`queued`)."""
 
 
 def _at(text: str | None) -> datetime | None:
@@ -427,6 +456,32 @@ def live(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[tupl
     return tuple(found)
 
 
+NOT_STARTED = frozenset({"QUEUED", "PENDING", "WAITING", "REQUESTED"})
+"""The states of a check run GitHub has not started (`queued`)."""
+
+
+def queued(
+    rollup: list[dict], required: tuple[str, ...] = REQUIRED
+) -> tuple[tuple[str, datetime], ...]:
+    """The required checks GitHub queued at the head and started none of, each with when it
+    queued its latest run: the check's latest runs, or where it lists none of the check yet the
+    jobs of its workflow, all wait, and no job of its workflow is in progress. A queued check
+    run's `startedAt` is when GitHub queued it. A check whose workflow runs other jobs is going,
+    and a run that started is no queued one, however long it runs."""
+    found = []
+    for name in required:
+        workflow = [one for one in rollup if one.get("workflowName") == name]
+        if any(one.get("status") == "IN_PROGRESS" for one in workflow):
+            continue
+        runs = latest(rollup, name) or [one for one in workflow if one.get("status") != "COMPLETED"]
+        if not runs or any(one.get("status") not in NOT_STARTED for one in runs):
+            continue
+        times = [at for one in runs if (at := _at(one.get("startedAt")))]
+        if times:
+            found.append((name, max(times)))
+    return tuple(found)
+
+
 def unrun(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
     """The required checks GitHub lists no run of at the head, and no job of their workflow at
     work there, in `required`'s order: no runner is at work on them, as for a workflow the head's
@@ -506,6 +561,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         live=live(listed.get("statusCheckRollup") or [], required),
         passed_at=passed_at(listed.get("statusCheckRollup") or [], required),
         removed=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "DELETED"),
+        queued=queued(listed.get("statusCheckRollup") or [], required),
     )
 
 
