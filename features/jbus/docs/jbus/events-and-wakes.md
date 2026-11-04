@@ -110,6 +110,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `unplaced`
 - `waiting`
 - `waiting-on-user`
+- `worktree-removed`
 
 <!-- built: end -->
 
@@ -121,3 +122,7 @@ A `condition` is what jbus found that no rule covers, such as `condition <slug>:
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
 With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
 Once a day, too, it runs the stale check of a project's context pack, where its main checkout has `<repo>/docs/context/notes/`, and logs the `stale` and `prune` lines as one `pack` event when there are any ([context.md](../../../jpack/docs/context.md)).
+Once an hour a pass removes each worktree of no open row and no open pull request whose work is saved, and logs a `worktree-removed` event for each, with its path, its branch and the commit its head was at.
+Its work is saved when the worktree has no uncommitted or untracked file, and no ignored file but under a cache (`__pycache__`, `.venv`, `.pytest_cache`, `.ruff_cache`, `.mypy_cache`, `node_modules`), since `git worktree remove` deletes ignored files, when its git index and `HEAD` have not changed for a day, so a crew woken again or a thread that has just made its worktree keeps it, and each commit of its branch is on origin's branch of the same name or on origin's default branch, or its pull request merged at that head.
+jbus runs `git worktree remove`, which refuses a worktree with a change in it, and then deletes the local branch.
+Any other such worktree stays, and `jbus stale` lists it with why it stays.
