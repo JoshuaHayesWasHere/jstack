@@ -15,10 +15,7 @@ never tells the same head twice. For main moving or for a failure, jbus tells a 
 rebase only once. A crew may rebase and then find its pull request stale or failing again at a new
 head. jbus then parks a gate (`SECOND`) with the default that the pull request waits, and asks for
 no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
-resolves a conflict. `mainmoved` tells a red head that main is green again, and marks it under
-`moved|<slug>|<head 12>`, a kind of its own: that message is no rebase jbus asked for, so it leaves
-the pull request its one rebase. `rebased_or_moved` reads either key as a head already told what to
-do, so neither module tells that head again.
+resolves a conflict.
 
 `tell` also reads a second kind of `wait` line, about a rebase that changed what the patch says.
 `jmerge` keeps a review valid across a rebase whose range-diff changes no content, and waits on a
@@ -34,9 +31,9 @@ line does. So the third kind ends in a scoped-review ask too: jbus asks the crew
 once per head, under `rereview|<slug>|<head 12>`. A head that already has that mark, or whose
 Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
-`once` is the one function that sends these messages, `post`'s and `mainmoved`'s, and writes their
-keys, which `mark` is the one function to word. `deliver` is `post` with the event that says so;
-`stack` and `expedite` call `post` and write an event of their own.
+`once` is the one function that sends these messages, and `jbus.culprits`' too, and writes
+their keys, which `mark` is the one function to word. `deliver` is `post` with the event that says
+so; `stack` and `expedite` call `post` and write an event of their own.
 
 Each of these messages names a head. jbus sends each message with `mode: queue`, so the crew reads
 the message in a separate turn, after its running turn ends. In two cases the crew would read the
@@ -46,11 +43,6 @@ pass. A pass sends other messages first, so `held` asks T3 Code and GitHub again
 send. A thread that got one of these messages earlier in the same pass counts as at work, so a pass
 sends a thread at most one of them. jbus writes no mark for a message that it delayed, so the next
 pass decides again, using the head and the reasons as they are then.
-
-`mainmoved` calls `held` too. Between them, the two modules tell a crew to rebase a given head only
-once. The first of the two to tell the head also writes the key of the other. When this module sends
-the rebase message, `post` writes the `mainmoved` key for the commit that main points to. When
-`mainmoved` tells a head, it writes this module's key for that head.
 
 T3 Code has no watch that wakes a crew. Instead, `github` calls `deliver` to send the crew a message
 for each thing on GitHub that needs the crew to act. There are three such things.
@@ -116,9 +108,6 @@ check, and a conflict with the base."""
 NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
 SECOND = "stale again after its one rebase"
-MOVED = "moved"
-"""The kind of the mark `mainmoved` writes for a head it told that main is green again. It is no
-rebase, so `post` does not count it toward the pull request's one rebase."""
 MESSAGE = (
     "jbus: {default} moved under your pull request #{number} ({reason}). Rebase it in your own "
     "worktree now, even if GitHub says MERGEABLE: run `git update-ref "
@@ -278,7 +267,7 @@ def github(run: Pass, client: Client, world: World) -> None:
         if not head or not crew(run, slug):
             continue
         brief = task_brief(run, slug)
-        rebased = rebased_or_moved(sent, slug, head)
+        rebased = mark("rebase", slug, head) in sent
         red = Red() if rebased else ran_and_failed(run, pull)
         again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
         ask = again or _asked("failed", FAILED, head)
@@ -464,14 +453,8 @@ def deliver(run: Pass, client: Client, world: World, number: int, reason: str, a
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
     """Return the key of a message about a head: `<kind>|<slug>|<head 12>`, and `|<window>` after
-    it where the caller names one, as a restack names the base it moves onto (`jbus.stack`). A
-    main-moved key names `#<number>` in the head's place, and the tip as its window."""
+    it where the caller names one, as a restack names the base it moves onto (`jbus.stack`)."""
     return f"{kind}|{slug}|{head[:12]}" + (f"|{window}" if window else "")
-
-
-def rebased_or_moved(sent: list[str], slug: str, head: str) -> bool:
-    """Say whether a crew was told to rebase this head, by a rebase message or by `mainmoved`."""
-    return mark("rebase", slug, head) in sent or mark(MOVED, slug, head) in sent
 
 
 def once(
@@ -525,13 +508,9 @@ def post(
     launched it, or its home launched it for a queue row that names its thread. The key `mark`
     gives is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`,
     and `once` writes it there when the message goes.
-    `mainmoved` writes its own `moved` key for a head that it told. `post` sends that head no rebase
-    message, since the crew already has one, but the key counts as no rebase toward `SECOND`.
     `post` sends nothing while `held` delays the message, or while the outbox holds it for a capped
     instance (`jbus.outbox`): the message waits under its key, and the first pass after the reset
-    sends it. When a rebase message goes, `post` writes
-    the `mainmoved` key for the commit that the default branch points to, so jbus does not also
-    tell of that move.
+    sends it.
     """
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
     head = world.open[slug].get("headRefOid", "") if slug else ""
@@ -539,7 +518,7 @@ def post(
     if not head or not crew(run, slug):
         return None
     sent = run.box.sent()
-    if key in sent or (ask.kind == "rebase" and mark(MOVED, slug, head) in sent):
+    if key in sent:
         return None
     if ask.head and not head.startswith(ask.head):
         return None
@@ -571,11 +550,6 @@ def post(
     told = (line, head[:12]) if ask.event else None
     if once(run, client, ask, key, thread, slug, message, at=head[:12], told=told) != SENT:
         return None
-    if ask.default:
-        asked = run.run("git", "ls-remote", "origin", f"refs/heads/{default}")
-        main = (asked.stdout.split() or [""])[0]
-        if asked.returncode == 0 and main:
-            run.box.mark(mark("mainmoved", slug, f"#{number}", main[:12]))
     return slug, head, message
 
 

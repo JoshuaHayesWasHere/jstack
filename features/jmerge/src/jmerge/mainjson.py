@@ -18,12 +18,14 @@ whose check failed (`jmerge.cli.Repo.again`). A red main holds no pull request. 
 tests the red run's logs name, as `failures` reads them: `tell` asks once for each red tip, and
 `jbus.watch` reads them to tell a flake from a culprit's own red (`jbus.reverts`). The brief
 `main-red-<sha12>` that `jbus.watch` files for a red with no clear culprit has a slug that starts
-with `FIX`. A file that is missing or cannot be read means nothing is known. When a pass of `tell`
-has not yet sent its message, it keeps the record's commit so that the next pass looks at that
-commit again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green
-while T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's
-message, that pass does the same. Older records, written before the file kept `broken`, name a
-failed tip only by its `check`, and that tip is red too.
+with `FIX`. A file that is missing or cannot be read means nothing is known. Older records,
+written before the file kept `broken`, name a failed tip only by its `check`, and that tip is red
+too.
+
+`fixed` and `held` are read from older records only: `tell` once sent crews a message as main
+turned green, and kept `fixed`, the green tip, while that message was owed, and `held`, the slugs
+whose message `rebase.held` kept back. No pass writes either now. `of` still reads `fixed` as
+green, and `typed` keeps both, so a record an older pass left reads as it did.
 """
 
 from __future__ import annotations
@@ -59,9 +61,10 @@ class Record(TypedDict):
     pending: NotRequired[list[str]]
     """The tips whose check has not ended, oldest first, looked at again each pass."""
     held: NotRequired[list[str]]
-    """The slugs whose main-moved message `rebase.held` kept back."""
+    """The slugs whose main-moved message `rebase.held` kept back, in an older record only."""
     fixed: NotRequired[str]
-    """The green tip that ended `broken`, written on the owed path: it reads as green."""
+    """The green tip that ended `broken` while an older pass owed its message: it reads as
+    green. In an older record only."""
     failed: NotRequired[list[str]]
     """The tests that failed at `broken`, as `failures` reads the red run's logs. It is empty
     where the logs name no test, or fewer than they count, and missing where they were not read."""
@@ -134,8 +137,6 @@ def record(
     check: str,
     broken: str = "",
     green: str = "",
-    held: Sequence[str] = (),
-    fixed: str = "",
     pending: Sequence[str] = (),
     failed: Sequence[str] | None = None,
 ) -> Record:
@@ -146,21 +147,11 @@ def record(
         made["broken"] = broken
         if failed is not None:
             made["failed"] = list(failed)
-    if fixed:
-        made["fixed"] = fixed
     if pending:
         made["pending"] = list(pending)
     if green:
         made["green"] = green
-    if held:
-        made["held"] = list(held)
     return made
-
-
-def owed(was: Record, fixed: str) -> Record:
-    """The record that a pass leaves when it has not yet sent its message. It is the last
-    record with `fixed` added, so that its readers see main as green at `fixed`."""
-    return {**was, "fixed": fixed}
 
 
 def fix_of(slug: str) -> bool:
