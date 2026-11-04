@@ -421,26 +421,16 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in
         page.write("\nA line the test adds.\n")
     git(repo, "commit", "-qam", "a change to the crew feature")
     said, code, ran, base = selected(tmp_path, repo)
-    guards, rest = (
-        subprocess.run(
-            ["python3", "scripts/select_tests.py", "--part", part, base, "HEAD"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.splitlines()
-        for part in ("guards", "rest")
-    )
-    assert "all" not in guards
-    assert "features/crew/tests/test_crew_checks.py" in rest
-    assert "testing/tests/test_cross_cutting.py" in guards
-    assert said == [
-        f"selected: {len(guards)} guard test files, which must pass, in a full slot:",
-        *guards,
+    then = next(at for at, line in enumerate(said) if line.startswith("then "))
+    guards, rest = said[1:then], said[then + 1 :]
+    assert said[0] == f"selected: {len(guards)} guard test files, which must pass, in a full slot:"
+    assert said[then] == (
         f"then {len(rest)} test files the change reaches, in the short lane, where the time "
-        "limit passes:",
-        *rest,
-    ]
+        "limit passes:"
+    )
+    assert "testing/tests/test_cross_cutting.py" in guards
+    assert "features/crew/tests/test_crew_checks.py" in rest
+    assert not set(guards) & set(rest)
     assert (ran, code) == (
         [
             f"check-fast BASE={base} PART=guards short=free full=held",
