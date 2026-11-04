@@ -171,7 +171,7 @@ def _grep(item: str, brief: Brief) -> tuple[Kind, str] | None:
     if symbol is None:
         return None
     within = " ".join(files[:1] or brief.where[:3] or ["."])
-    return "grep", f"`rg -nF '{symbol}' {within}`"
+    return "grep", f"`rg -nF -e '{symbol}' {within}`"
 
 
 def _judged(item: str, brief: Brief) -> tuple[Kind, str]:

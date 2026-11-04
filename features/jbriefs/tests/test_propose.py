@@ -38,8 +38,18 @@ def test_each_item_that_runs_nothing_gets_one_proposal_that_runs(kitchen, capsys
     assert [line.split(":", 1)[0] for line in lines] == ["2. test", "3. grep", "4. judged"]
     assert all(runs(line.split(": ", 1)[1]) for line in lines)
     assert "`uv run pytest -q tests/test_alpha.py::test_a_held_row_says_why_in`" in lines[0]
-    assert "`rg -nF 'green_run' release.yml`" in lines[1]
+    assert "`rg -nF -e 'green_run' release.yml`" in lines[1]
     assert lines[2].endswith("(judged: only the user can say)")
+
+
+def test_a_grep_of_a_flag_finds_it_where_it_is_and_not_where_it_is_not(tmp_path):
+    (made,) = propose.propose("# demo: x\nDone when:\n- `--status` names the rows in cli.py\n")
+    assert made.kind == "grep"
+    (command,) = re.findall(r"`([^`]+)`", made.check)
+    for text, exit in (("parser.add_argument('--status')\n", 0), ("nothing here\n", 1)):
+        (tmp_path / "cli.py").write_text(text)
+        ran = subprocess.run(["bash", "-c", command], cwd=tmp_path, capture_output=True)
+        assert ran.returncode == exit, ran.stderr
 
 
 def test_a_queued_row_with_no_go_gets_its_proposals(kitchen, capsys, tmp_path):
