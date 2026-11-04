@@ -2,8 +2,8 @@
 
 `ci.jsonl` has one line per job. `jbus ci` keeps a job once it has completed, and never adds a job
 that is already there, so a second run over the same days adds nothing. A collect rewrites the
-file only to add the failed step and what the log says to a red job kept with no `step` field,
-from before the collector kept it. A line has
+file only to add the failed step and what the log says to a red job it kept with no `step` field,
+before the collector kept that field. A line has
 `run`, `job` and `attempt`, and the job's `name`, `sha`, `branch`, `pr` (the pull request it ran
 for, or None), `event`, `created`, `started`, `completed` and `conclusion`. It also has the `runner`
 the job ran on, the runner's `kind` (`hosted` or `local`), and `steps`, the number of steps that
