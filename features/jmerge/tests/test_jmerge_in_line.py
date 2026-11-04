@@ -303,4 +303,4 @@ def test_the_one_in_line_keeps_it_on_a_wait_on_jmerge_github_or_its_check_alone(
     why = next((r for r in ready.reasons().values() if r.code == code), code)
     found = cli.Judgement("two", "wait", why, "", None)
     assert cli.in_line(one, found) == (code in KEPT)
-    assert KEPT <= ready.codes()
+    assert ready.codes() >= KEPT
