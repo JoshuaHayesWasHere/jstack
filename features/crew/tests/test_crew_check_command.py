@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -357,12 +358,16 @@ def test_a_check_the_old_block_started_is_joined_and_not_started_twice(tmp_path)
 def lanes(stub, locks, log, exits=None):
     """A `make` on the path that records its arguments, and which lane's slot was held while it
     ran: `short` when the first slot of the short lane was, `full` when any of the full lane's
-    were. It ends with the code `exits` gives the run's `PART=`, and 0 by default."""
+    were. It asks with `TAKEN`, by Python's fcntl, since macOS has no `flock` command. It ends
+    with the code `exits` gives the run's `PART=`, and 0 by default."""
     ends = "".join(f"*PART={part}*) exit {code} ;; " for part, code in (exits or {}).items())
+    taken = stub / "taken.py"
+    taken.write_text(TAKEN)
+    held = f"{shlex.quote(sys.executable)} {shlex.quote(str(taken))}"
     (stub / "make").write_text(
         "#!/bin/sh\nshort=free\nfull=free\n"
-        f"! flock -n {locks}/test-slot-short.1.lock true && short=held\n"
-        f'for one in {locks}/test-slot.*.lock; do [ -e "$one" ] && ! flock -n "$one" true '
+        f"{held} {locks}/test-slot-short.1.lock && short=held\n"
+        f'for one in {locks}/test-slot.*.lock; do [ -e "$one" ] && {held} "$one" '
         "&& full=held; done\n"
         f'echo "$* short=$short full=$full" >> {log}\n'
         f'case "$*" in {ends}esac\n'
