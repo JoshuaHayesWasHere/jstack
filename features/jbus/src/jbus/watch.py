@@ -1187,15 +1187,92 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
     """Return the check runs that judge a commit on main, and its push runs on the default
     branch. A check run counts unless it belongs to another workflow run at the commit: one not
     run by a push to the default branch. Where GitHub does not list the commit's workflow runs,
-    every check run counts."""
+    every check run counts. macos.yml's push run is never main's check, nor are its jobs by
+    their names where GitHub lists no run: a Mac red has its own path (`mac_check`,
+    `jbus.reverts.macos`), and never makes main red."""
     said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
     listed = (said if isinstance(said, dict) else {}).get("workflow_runs") or []
     branch = _default_branch(run)
-    pushed = [r for r in listed if r.get("event") == "push" and r.get("head_branch") == branch]
+    pushed = [
+        r
+        for r in listed
+        if r.get("event") == "push" and r.get("head_branch") == branch and not _of_mac(r)
+    ]
     other = {r.get("check_suite_id") for r in listed if r not in pushed} - {None}
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
     runs = (said if isinstance(said, dict) else {}).get("check_runs") or []
-    return [r for r in runs if (r.get("check_suite") or {}).get("id") not in other], pushed
+    return [
+        r
+        for r in runs
+        if (r.get("check_suite") or {}).get("id") not in other and r.get("name") not in MAC_JOBS
+    ], pushed
+
+
+MAC_FLOW = ".github/workflows/macos.yml"
+MAC_JOBS = ("macos-select", "macos")
+"""macos.yml, and its jobs' names: its run on each push to main judges that merge commit on a
+Mac, apart from main's check."""
+
+
+def _of_mac(one: dict) -> bool:
+    return str(one.get("path") or "").partition("@")[0] == MAC_FLOW
+
+
+def mac_runs(run: Pass, sha: str) -> list[dict] | None:
+    """The runs of macos.yml for the push of a commit to the default branch, or None where GitHub
+    does not list the commit's runs."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
+    if not isinstance(said, dict):
+        return None
+    branch = _default_branch(run)
+    return [
+        r
+        for r in said.get("workflow_runs") or []
+        if _of_mac(r) and r.get("event") == "push" and r.get("head_branch") == branch
+    ]
+
+
+def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
+    """Return what macos.yml's push run says of a commit on main, and keep a final answer in
+    `known`: `green` where it passed or skipped its Mac, `failed` where it failed after its one
+    rerun, `cancelled` where it was stopped, `pending` while it runs or its rerun does, or GitHub
+    gives no answer, and an empty string where the commit has no such run. A failed run at its
+    first attempt is rerun once (`_rerun_failed`), as main's check is."""
+    if sha in known:
+        return known[sha]
+    runs = mac_runs(run, sha)
+    if runs is None or any(r.get("status") != "completed" for r in runs):
+        return "pending"
+    if not runs:
+        return ""
+    failed = [r for r in runs if r.get("conclusion") not in NOT_RED]
+    first = [r for r in failed if (r.get("run_attempt") or 1) == 1]
+    if first and _rerun_failed(run, first, ask=True):
+        return "pending"
+    stopped = any(r.get("conclusion") == "cancelled" for r in runs)
+    known[sha] = "failed" if failed else "cancelled" if stopped else "green"
+    return known[sha]
+
+
+def mac_jobs(run: Pass, sha: str) -> list[tuple[str, str, Failed]] | None:
+    """Each failed job of macos.yml's push run at a commit, with its URL and the tests its log
+    names, or None where GitHub gives no answer or a log could not be read."""
+    runs = mac_runs(run, sha)
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    if runs is None or not isinstance(said, dict):
+        return None
+    suites = {r.get("check_suite_id") for r in runs} - {None}
+    jobs = []
+    for one in said.get("check_runs") or []:
+        if (one.get("check_suite") or {}).get("id") not in suites:
+            continue
+        if one.get("status") != "completed" or one.get("conclusion") in NOT_RED:
+            continue
+        found = _log_failed(run, one.get("id"))
+        if found is None:
+            return None
+        jobs.append((str(one.get("name") or "?"), str(one.get("html_url") or ""), found))
+    return jobs
 
 
 def job_log(run: Pass, repo: str, job: object) -> str | None:

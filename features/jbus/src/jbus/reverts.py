@@ -55,6 +55,14 @@ request is no longer open, and its culprit's slug is over: no pull request of it
 thread of it is unsettled and its row, if the queue still has one, is final. A slug that is over
 merges nothing more, so its record holds nothing, and `TWICE` no longer files a fix row for a
 later red that is due a revert.
+
+`macos` judges main's Mac by the same rule. macos.yml runs on each merge commit into main, one
+run for each, and that run is never main's check (`watch._judged`): a Mac red writes nothing to
+`main.json` and holds no pull request. After its one rerun (`watch.mac_check`), the newest red
+commit and every one since the last Mac green are a `Red`, with the Mac run's failed tests:
+`culprit`, `tested` and `covered` judge it, a clear culprit is reverted, and anything else files
+the row `macos-red-<commit>` under the home `macos`. Its revert is closed only once the Mac is
+green at a later commit (`MAC_MAIN`).
 """
 
 from __future__ import annotations
@@ -67,12 +75,12 @@ from datetime import timedelta
 from typing import Any
 
 from jbriefs import below
-from jbus import queue, verbs, write_json
+from jbus import Refused, queue, read_json, verbs, watch, write_json
 from jbus.ci.ledger import JOBS, PULLS
 from jbus.ci.ledger import read as ledger
 from jbus.ci.numbers import Facts, flake_branches
 from jbus.passes import Pass
-from jbus.watch import World, task_brief
+from jbus.watch import World, brief_of, fix_brief, task_brief, tests_said, when
 from jmerge import mainjson
 from jmerge import reverts as kept
 
@@ -84,6 +92,21 @@ FLAKE_WINDOW = timedelta(days=7)
 """How far back `flaky` reads `jbus ci`'s ledger for the tests that failed on another branch."""
 REVERTED = 'Revert "'
 """How a revert's title starts, GitHub's and jbus's."""
+MAIN = "main"
+MAC = "main's macOS"
+"""What went red: main's check, or macos.yml's run on a merge commit into main (`macos`)."""
+MAC_CHECKS = "macos-checks.json"
+"""The final answers of macos.yml's push runs, by commit (`watch.mac_check`)."""
+MAC_MAIN = "macos-main.json"
+"""main's last Mac answer, as `macos` read it: `red`, the newest commit whose Mac run ended red,
+or empty once a newer one is green; `green`, the newest green one; `reverted`, each red jbus opened
+a revert of."""
+MAC_FIX = "macos-red-"
+MAC_WALK = 20
+"""How many of main's newest commits `macos` reads, newest first."""
+NO_MAC_AFTER = timedelta(hours=1)
+"""How long after a commit landed a missing macos.yml run is taken as none, and not as one GitHub
+has yet to list."""
 
 
 class Keep(enum.StrEnum):
@@ -204,16 +227,17 @@ def flaky(run: Pass, branch: str) -> frozenset[str]:
     return frozenset(test for test, branches in found.items() if len(branches - {branch}) > 1)
 
 
-def brief(branch: str, red: Culprit, url: str, home: str) -> str:
+def brief(branch: str, red: Culprit, url: str, home: str, where: str = MAIN) -> str:
     """The brief jbus writes for its revert, which ties the pull request to its slug: its Result
-    names the pull request on its `Branch:` line."""
+    names the pull request on its `Branch:` line. `where` is what went red."""
     number = red.pull.get("number")
     return "\n".join(
         [
-            f"# {branch}: revert {red.slug} (#{number}), which turned main red at {red.red[:12]}",
-            f'Task: "main check failed at {red.red[:12]}" after its one rerun, the first red since '
-            "the last green, and no merge on top of it failed another test (jbus reverts its one "
-            "clear culprit, Josh's pick of 2026-11-02)",
+            f"# {branch}: revert {red.slug} (#{number}), which turned {where} red at "
+            f"{red.red[:12]}",
+            f'Task: "{where} check failed at {red.red[:12]}" after its one rerun, the first red '
+            "since the last green, and no merge on top of it failed another test (jbus reverts its "
+            "one clear culprit, Josh's pick of 2026-11-02)",
             "Pull request: opened by jbus with `gh pr revert`",
             "Review: none needed, jmerge merges jbus's revert by the normal path (jmerge.reverts)",
             f"Home: {home}",
@@ -242,10 +266,10 @@ def opened(run: Pass, red: Culprit) -> dict[str, str]:
     return found[0] if found else {}
 
 
-def revert(run: Pass, red: Culprit) -> bool:
+def revert(run: Pass, red: Culprit, where: str = MAIN) -> bool:
     """Open the revert of `red`, or take the one GitHub has, and keep it, which `jbus.culprits`
     tells the culprit's crew. Return False where GitHub did not open it, so the caller files the
-    fix row instead."""
+    fix row instead. `where` is what went red: main's check, or its macOS run."""
     said = opened(run, red)
     if not said:
         url = str(red.pull.get("url", ""))
@@ -255,9 +279,9 @@ def revert(run: Pass, red: Culprit) -> bool:
             "revert",
             url,
             "--body",
-            f"jbus reverts this: main went red at {red.red[:12]} and stayed red after its one "
-            "rerun. It was the first red since the last green, and no merge on top of it failed "
-            "another test.",
+            f"jbus reverts this: {where} went red at {red.red[:12]} and stayed red after its "
+            "one rerun. It was the first red since the last green, and no merge on top of it "
+            "failed another test.",
         )
         lines = asked.stdout.strip().splitlines()
         made = lines[-1].strip() if asked.returncode == 0 and lines else ""
@@ -278,7 +302,7 @@ def revert(run: Pass, red: Culprit) -> bool:
     home = below.line(task_brief(run, red.slug), "Home:") or "root"
     tasks = run.home / "tasks"
     tasks.mkdir(parents=True, exist_ok=True)
-    (tasks / f"{branch}.md").write_text(brief(branch, red, url, home))
+    (tasks / f"{branch}.md").write_text(brief(branch, red, url, home, where))
     write_json(
         run.state / kept.NAME,
         {
@@ -286,7 +310,7 @@ def revert(run: Pass, red: Culprit) -> bool:
             red.red: kept.record(kept.Revert(red.red, red.slug, branch, head, url)),
         },
     )
-    line = f"revert {red.slug}: main red at {red.red[:12]}, jbus opened {url} to revert it"
+    line = f"revert {red.slug}: {where} red at {red.red[:12]}, jbus opened {url} to revert it"
     run.find(red.slug, "revert", line, key=f"opened {red.red}")
     run.say(line)
     return True
@@ -318,17 +342,25 @@ def stuck(
 
 def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
     """Close each revert jbus opened that is still open once main's check passed at a later tip
-    without it, with a comment that names that tip. `main.json` keeps the red tip until a later
+    without it, with a comment that names that tip; a revert of a Mac red (`macos`) once main's
+    macOS run passed at a later commit too. `main.json` keeps the red tip until a later
     tip is green, and a revert is opened only while it does, so its `green` is then the later
     tip. A pull request GitHub would not close is a condition, and the next pass tries again.
     A revert no longer open whose culprit's slug is over is dropped from the record (`over`);
-    with no queue read (`rows` is None) none is."""
+    with no queue read (`rows` is None) none is. A revert of a Mac red is neither closed nor
+    dropped while the Mac is red: `macos` may have opened it in this pass, after `world` was
+    read."""
     main = mainjson.read(run.state)
     if main.red or not main.green:
         return
+    mac = read_json(run.state / MAC_MAIN, {})
+    of_mac = set(mac.get("reverted", ()))
+    held = of_mac if mac.get("red") or not mac.get("green") else set()
     urls = {str(pull.get("url", "")).rstrip("/") for pull in world.open.values()}
     made = kept.read(run.state)
-    ended = [red for red, one in made.items() if one.pull.rstrip("/") not in urls]
+    ended = [
+        red for red, one in made.items() if red not in held and one.pull.rstrip("/") not in urls
+    ]
     gone = [red for red in ended if rows is not None and over(made[red].slug, world, rows)]
     if gone:
         write_json(
@@ -336,10 +368,13 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
             {red: kept.record(one) for red, one in made.items() if red not in gone},
         )
     for one in made.values():
-        if one.red in ended:
+        if one.red in ended or one.red in held:
             continue
+        green, where = main.green, "main's check"
+        if one.red in of_mac:
+            green, where = mac["green"], "main's macOS run"
         comment = (
-            f"jbus closes this: main's check passed at {main.green[:12]}, a later tip than the "
+            f"jbus closes this: {where} passed at {green[:12]}, a later tip than the "
             f"red {one.red[:12]} it reverts, so main is green without it."
         )
         asked = run.run("gh", "pr", "close", one.pull, "--comment", comment)
@@ -347,7 +382,7 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
             why = (asked.stderr or "no answer").strip()
             run.condition(one.slug, f"its revert {one.pull} was not closed: {why}")
             continue
-        line = f"revert {one.slug}: main is green at {main.green[:12]}, jbus closed {one.pull}"
+        line = f"revert {one.slug}: {where} passed at {green[:12]}, jbus closed {one.pull}"
         run.find(one.slug, "revert", line, key=f"closed {one.red}")
         run.say(line)
 
@@ -362,7 +397,164 @@ def over(slug: str, world: World, rows: list[dict[str, Any]]) -> bool:
 
 QUIET = (Keep.OPENED, Keep.UNREAD)
 """The `Keep`s for which a pass files no row: the revert is open, or the next pass judges it."""
+
+
+def macos(run: Pass, world: World) -> None:
+    """Judge main's Mac as `culprit` judges main's check, one merge commit at a time.
+
+    macos.yml runs on each push to main over the merge commit and its first parent, one run for
+    each commit, none cancelled (`watch.mac_check` reads it, and reruns a failed run once). Its
+    run is no part of main's check (`watch._judged`), so a Mac red never writes `main.json` and
+    holds no pull request. `macos` reads the newest of main's commits whose Mac run ended green or
+    red. A red one, with every commit since the last Mac green, is a `Red`: its one clear culprit
+    is reverted (`revert`), as main's is, and otherwise it gets the fix row `macos-red-<commit>`
+    under the home `macos`, which says why nothing was reverted. A revert opened here is kept in
+    `MAC_MAIN` as well, so `close` closes it only once the Mac is green at a later commit. On a
+    project's first pass, and for a red whose revert is open or whose failed tests are not read
+    yet, nothing is done."""
+    branch = watch._default_branch(run)
+    commits = watch._api(run, f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page=50")
+    if not isinstance(commits, list) or not commits:
+        return
+    path = run.state / MAC_CHECKS
+    known: dict[str, str] = read_json(path, {})
+
+    def check(commit: dict[str, Any]) -> str:
+        sha = commit["sha"]
+        said = watch.mac_check(run, known, sha)
+        if not said and run.now - when(commit["commit"]["committer"]["date"]) > NO_MAC_AFTER:
+            known[sha] = said
+        return said
+
+    walked = commits[:MAC_WALK]
+    place = next((n for n, c in enumerate(walked) if check(c) in ("green", "failed")), None)
+    mac = read_json(run.state / MAC_MAIN, {})
+    made = kept.read(run.state)
+    mac["reverted"] = [red for red in mac.get("reverted", ()) if red in made]
+    if place is not None:
+        tip = walked[place]["sha"]
+        red = known[tip] == "failed"
+        mac = {**mac, "red": tip if red else "", "green": mac.get("green", "") if red else tip}
+        if red and not run.first:
+            mac = _mac_red(run, world, walked[place:], check, mac)
+    write_json(path, {c["sha"]: known[c["sha"]] for c in commits if c["sha"] in known})
+    write_json(run.state / MAC_MAIN, mac)
+
+
+def _mac_red(
+    run: Pass,
+    world: World,
+    commits: list[dict[str, Any]],
+    check: Callable[[dict[str, Any]], str],
+    mac: dict[str, Any],
+) -> dict[str, Any]:
+    """Revert the one clear culprit of the Mac red at `commits[0]`, or file its row, and return
+    `mac` with the revert kept."""
+    since, under = [], ""
+    for commit in commits:
+        said = "failed" if not since else check(commit)
+        if said == "green":
+            under = commit["sha"]
+            break
+        since.append((commit["sha"], said or "none"))
+    tip, oldest = since[0][0], since[-1][0]
+    by_commit = {
+        (pull.get("mergeCommit") or {}).get("oid"): (slug, pull)
+        for slug, pull in world.merged.items()
+    }
+
+    def briefed(sha: str) -> tuple[str, dict[str, Any] | None]:
+        slug, pull = by_commit.get(sha, ("", None))
+        return (slug if pull and brief_of(run, slug) and slug not in run.gated else ""), pull
+
+    slug, pull = briefed(oldest)
+    failed = _mac_failed(run, oldest) if pull else None
+    landed = when(commits[0]["commit"]["committer"]["date"])
+    one = Red(since, pull, slug, failed, run.now - landed, under)
+    head = str((pull or {}).get("headRefName", ""))
+    flakes = flaky(run, head) if pull and failed else frozenset[str]()
+    made = kept.read(run.state)
+    found = culprit(one, made, flakes)
+    if isinstance(found, Culprit):
+        found = tested(run, found, under, one.age)
+    if isinstance(found, Culprit):
+        found = covered(found, one, (_mac_failed(run, sha) for sha, _ in since[:-1]))
+    why = ""
+    if found == Keep.OPENED:
+        opened = next(sha for sha, _ in since if sha in made)
+        why = stuck(run, made[opened], watch.checks, opened != tip)
+    elif isinstance(found, Culprit):
+        if revert(run, found, MAC):
+            return {**mac, "reverted": sorted({*mac.get("reverted", ()), found.red})}
+        why = "jbus could not open its revert"
+    elif found not in QUIET:
+        why = str(found)
+        if found == Keep.OVERLAP:
+            reds = [sha[:12] for sha, said in since if said == "failed"]
+            why += f", and main's macOS is red at {' and '.join(reds)}"
+    if why:
+        _mac_file(run, briefed(tip)[0], tip, since, why)
+    return mac
+
+
+def _mac_failed(run: Pass, sha: str) -> list[str] | None:
+    """The tests macos.yml's push run failed at a commit (`mainjson.failures`), or None where
+    they cannot be read yet."""
+    jobs = watch.mac_jobs(run, sha)
+    if jobs is None:
+        return None
+    return mainjson.failures([(name, found.tests, found.count) for name, _, found in jobs])
+
+
+def _mac_file(
+    run: Pass, slug: str, sha: str, since: Sequence[tuple[str, str]], kept_why: str
+) -> None:
+    """Queue the fix row `macos-red-<commit>` for the Mac red at `sha`, under the home `macos`,
+    once, unapproved: a Mac red holds no pull request, so its row waits its turn."""
+    name = f"{MAC_FIX}{sha[:12]}"
+    if name in run.removed or queue.fresh(run.state, name) is not None:
+        return
+    jobs = watch.mac_jobs(run, sha) or []
+    reds = [one for one, said in since if said == "failed"]
+    text = fix_brief(
+        f"{name}: main's macOS run failed at {sha[:12]}"
+        + (f", after {slug} merged" if slug else ""),
+        f'"macos.yml failed at {sha[:12]} on main after its one rerun, {tests_said(jobs)}" '
+        f"(jbus, from macos.yml on main). jbus reverts nothing: {kept_why}",
+        [
+            "- each failed test named under Read passes on macOS: in macos.yml's run on the "
+            "commit that merges the fix, or a manual run of macos-nightly.yml with `ref` set to "
+            "the fix's branch",
+            "- the Result names the cause: the merge that broke it, or a flake with its evidence",
+        ],
+        "`make check-fast BASE=origin/main` passes, and so does a manual run of "
+        "macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)",
+        "macos.yml run on main",
+        [(job, url, failed.tests) for job, url, failed in jobs],
+        [f"- main's macOS run is red at {one}" for one in reds],
+        nowhere="the tests of `testing/macos-quick.txt` the merge reaches",
+        home="macos",
+        follows=slug,
+    )
+    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
+    (run.home / "tasks" / f"{name}.md").write_text(text)
+    try:
+        queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)
+    except (Refused, queue.Unparsable) as refused:
+        run.condition(name, f"its brief was not queued: {refused}")
+        return
+    line = f"retro {name}: main's macOS run failed at {sha[:12]}, {kept_why}"
+    run.find(name, "retro", line, key=f"macos red {sha}", past=True)
+
+
 STEPS = (
+    verbs.Step(
+        "after-expedite",
+        9,
+        "reverts.macos",
+        lambda half: macos(half.run, half.seen.world),
+        ("world", "budget"),
+    ),
     verbs.Step(
         "after-expedite",
         13,
