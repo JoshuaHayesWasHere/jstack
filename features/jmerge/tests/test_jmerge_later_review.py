@@ -19,8 +19,9 @@ from test_jmerge_fresh import LINES, Kitchen, url
 
 HEAD, FIX, AGAIN = "a" * 40, "b" * 40, "c" * 40
 PULL = "https://example.test/pull/7"
-FIRST = "warning a.py:3 the loop reads the list twice (principle: none) (bucket: Act on)"
-ERROR = "error a.py:40 the retry never stops (principle: none) (bucket: Consider)"
+PROOF = " (proof: `uv run pytest -q tests/test_a.py`, exit 1, 1 failed)"
+FIRST = "warning a.py:3 the loop reads the list twice (principle: none) (bucket: Act on)" + PROOF
+ERROR = "error a.py:40 the retry never stops (principle: none) (bucket: Consider)" + PROOF
 WARNING = "warning c.py:7 a test asserts what the code computed (principle: none) (bucket: Act on)"
 RISKY = WARNING.replace("c.py:7", "d.py:2") + " (risk: data)"
 INFO = "info b.py:9 a name says less than it could (principle: none) (bucket: Act on)"
@@ -131,7 +132,9 @@ def test_the_first_review_still_goes_to_the_crew_whatever_its_severity():
     text = brief() + review(HEAD, (FIRST, INFO))
     assert ready.short_of(text, HEAD) == ready.NO_FIXED
     held = brief(f"Fixed: {FIX}\n") + review(HEAD, (FIRST, INFO))
-    assert ready.short_of(held, FIX) == ready.UNANSWERED.format(ids="F1, F2")
+    assert ready.short_of(held, FIX) == ready.UNANSWERED.format(ids="F1")
+    answered = brief(f"Finding F1: fixed, the loop\nFixed: {FIX}\n") + review(HEAD, (FIRST, INFO))
+    assert ready.short_of(answered, FIX) == ready.UNPROVEN.format(ids="F2")
 
 
 def test_a_seat_that_writes_its_first_review_late_is_still_a_first_review():

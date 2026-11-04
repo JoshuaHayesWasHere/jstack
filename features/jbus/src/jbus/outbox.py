@@ -84,10 +84,7 @@ is on. `slot` and `review` never hold them."""
 ASKS = frozenset(
     {
         "unreviewed",
-        "twice",
-        "second",
         "fix",
-        "declines",
         "meets-no",
         "meets-unread",
         "meets-miscounted",

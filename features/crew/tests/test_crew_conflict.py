@@ -80,9 +80,9 @@ def test_a_conflict_that_does_not_resolve_is_reported_and_then_its_changes_are(t
     assert (pr.git_dir / "crew-before-rebase").read_text() == record
 
 
-def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
-    """Nothing refuses a rebased head, so neither the rebase nor the second pass waits, and the
-    second pass reviews the head it is given."""
+def test_a_conflict_is_rebased_while_a_scoped_review_is_still_owed(tmp_path):
+    """Nothing refuses a rebased head, so neither the rebase nor an owed scoped review waits,
+    and the scoped review reviews the head it is given."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     saw = pr.head()
     pr.commit(pr.work, "wider.txt", "the fix\n", "the fix")
@@ -97,7 +97,7 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
     def second_pass(result, reviews):
         (state / "tasks" / "alpha.md").write_text(BRIEF + result + reviews)
         ran = subprocess.run(
-            ["sh", "-c", block("The review", "Second pass:").replace("<slug>", "alpha")],
+            ["sh", "-c", block("The review", "--rounds").replace("<slug>", "alpha")],
             capture_output=True,
             text=True,
             cwd=pr.work,
@@ -106,26 +106,20 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
         )
         return ran.stdout.splitlines()
 
-    owed = f"Scoped review: needed since {saw}, the fix changed wider.txt\n"
-    assert second_pass("", review(saw)) == [f"write {owed.strip()}"]
+    owed = f"Scoped review: needed since {saw}, the review's Meets the brief line is no\n"
+    assert second_pass("", review(saw)) == [
+        "write Scoped review: none, one round: the fix merges on its checks"
+    ]
     (asked,) = second_pass(owed, review(saw))
     assert asked.startswith("scoped: launch the scoped reviewer, with ")
     assert f"..{saw} " in asked and asked.endswith(f"..{pr.head()}")
-    needed = f"Second pass: needed since {saw}, the fix also changed wider.txt\n"
-    launch = ["needed: launch the second reviewer"]
-    assert second_pass(needed, review(saw)) == launch
     fixed = pr.head()
     assert pr.run("mergeable").splitlines() == ["rebased onto origin/main"]
     assert pr.head() != fixed
     assert git(pr.work, "rev-parse", "HEAD~2") == pr.landed
-    assert second_pass(needed, review(saw)) == launch
     (asked,) = second_pass(owed, review(saw))
     assert asked.endswith(f"..{saw} {pr.landed}..{pr.head()}")
     assert second_pass(owed, review(saw) + review(pr.head())) == [HAD]
-    launched = needed + "Second reviewer: mcp:2222-bbbb\n"
-    assert second_pass(launched, review(saw) + review(pr.head())) == [
-        "had: the second pass is written, and it is the last"
-    ]
 
 
 @pytest.mark.parametrize("main_edits", ["other.txt", "shared.txt"])

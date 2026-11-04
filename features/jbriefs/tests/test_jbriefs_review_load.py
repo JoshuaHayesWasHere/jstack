@@ -23,8 +23,17 @@ def test_a_clean_brief_has_no_fault():
 
 @pytest.mark.parametrize("review", ["Review: twice\n", "Review: review\n", "Review: none\n"])
 def test_twice_review_and_none_need_no_word(review):
-    """The template offers `review` as it offers `twice`, so the linter takes it with no word."""
+    """The template offers `review` and `none`, so the linter takes them with no word, and it
+    still takes `twice`, which one round retired, so an old brief queues."""
     assert parse.faults(brief(review)) == []
+
+
+def test_an_old_twice_brief_queues_and_reads_as_review():
+    """One round retired `Review: twice`: a brief written before it queues as it did, and the
+    crew, `jmerge` and jbus read it as `review`, so it gets the one round and no second review."""
+    old = brief("Review: twice\n")
+    assert parse.faults(old) == []
+    assert findings.mode_of(old) == findings.REVIEW
 
 
 @pytest.mark.parametrize("mode", ["after", "standard", "none, docs only"])

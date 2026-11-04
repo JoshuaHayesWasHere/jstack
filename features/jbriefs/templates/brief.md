@@ -14,9 +14,8 @@ Holds: <a case of gates.md the task walks through, word for word, several split 
 Design: <the path of the design `/architect` wrote for this task> | none, <why it needs no design call>
 Skills: <the skills and principles the crewmate runs, comma-separated, by pstack's names: a skill's directory of `skills/`, `architect`, and a principle's directory of `features/principles/skills/`, `principle-model-the-domain`> | none
 Pull request: open one when done | ask first
-Review: twice | review | none
-<`twice`: one review, its findings fixed, then a second review of that fix, and `jmerge` merges once the second's findings are answered.>
-<`review`: one review, its findings answered in the pull request, a later review's error findings alone fixed there, and `jmerge` merges once they are; a later review's warnings go to the day's warnings row once it merged.>
+Review: review | none
+<`review`: one review round, launched once `check` has passed, whose blocking findings, each with a proof, are answered in the pull request, a fix for them getting no review, and which an old `twice` reads as.>
 <`none`: no reviewer, and `jmerge` leaves the pull request to wait for the user's word, so `jbus queue add` warns of it beside `Pull request: open one when done`.>
 <`jbus queue add` refuses any other word on the `Review:` line, and `cleanup` on any brief but the day's warnings row, which jbus files.>
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none

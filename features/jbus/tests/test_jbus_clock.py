@@ -180,23 +180,6 @@ def test_a_reviewer_whose_thread_is_gone_is_not_asked_again_and_the_home_gets_th
     )
 
 
-def test_a_second_reviewer_at_the_same_head_gets_its_own_line_after_the_first_was_relaunched(
-    short, kitchen
-):
-    first = kitchen.t3.thread("alpha", "completed", title="review: alpha")
-    result = f"Reviewer: {first['threadId']} #1\n"
-    short.out(NO_REVIEW, result=result, review=False)
-    short.passes(N)
-    assert len(to(kitchen, first)) == 1
-    second = kitchen.t3.thread("alpha", "completed", title="review: alpha, second pass")
-    twice = ready.TWICE_UNWRITTEN.format(head=short.head[:12])
-    short.out(twice, result=result + f"Second reviewer: {second['threadId']} #1\n")
-    said = short.passes(N)
-    (again,) = to(kitchen, second)
-    assert again == "/pr-review run alpha again"
-    assert any(one.endswith(second["threadId"]) and "relaunched" in one for one in said)
-
-
 def test_a_decline_the_scoped_review_did_not_uphold_waits_on_the_crew_not_the_reviewer(
     short, kitchen
 ):
@@ -212,8 +195,7 @@ def test_a_decline_the_scoped_review_did_not_uphold_waits_on_the_crew_not_the_re
     "reason",
     [
         ready.NO_VERDICT,
-        ready.SECOND_UNWRITTEN,
-        ready.DECLINES_UNRULED.format(ids="F1, F2"),
+        ready.FIX_UNREVIEWED,
         ready.SCOPED_UNRULED.format(files="a.py", command="nothing"),
     ],
 )

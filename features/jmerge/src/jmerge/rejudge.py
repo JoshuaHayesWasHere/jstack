@@ -134,53 +134,82 @@ class BaseMerge:
 
     def stuck(self, one: ready.PullRequest) -> dict:
         """What `jmerge` did about a run GitHub kept queued at the pull request's head
-        (`cli.Repo.unstuck`): `since`, when GitHub had queued the run it restarted, `reopen`
-        while the reopen of that restart is still owed, and `gave_up` once it gave up the line.
-        Nothing for another head."""
-        was = self.known().get(str(one.number))
-        kept = was.get("stuck") if isinstance(was, dict) else None
-        return kept if isinstance(kept, dict) and kept.get("head") == one.head else {}
+        (`cli.Repo.unstuck`): `since`, when GitHub had queued the run it restarts, `asked`, when
+        it first tried, `closed` once the close took, `took` once the reopen took too, `reopen`
+        while that reopen is owed, `unopened` once it asks it no more, `why` the last failure,
+        and `gave_up` once it gave up the line. Nothing for another head."""
+        return _stuck(self.known().get(str(one.number)), one.head)
 
     def keep_stuck(self, one: ready.PullRequest, **kept: object) -> None:
-        """Keep `kept` in what `stuck` says of the pull request's head, over what it said."""
-        was = self.known().get(str(one.number))
-        record = was if isinstance(was, dict) else {}
-        stuck = {**self.stuck(one), "head": one.head, **kept}
-        self.records = {**self.known(), str(one.number): {**record, "stuck": stuck}}
+        """Keep `kept` in what `stuck` says of the pull request's head, over what it said. A
+        value of None drops its key."""
+        self._keep_stuck(str(one.number), {**self.stuck(one), "head": one.head, **kept})
+
+    def _keep_stuck(self, number: str, stuck: dict, **record: object) -> None:
+        was = self.known().get(number)
+        kept = {key: value for key, value in stuck.items() if value is not None}
+        whole = {**(was if isinstance(was, dict) else {}), **record, "stuck": kept}
+        self.records = {**self.known(), number: whole}
         if self.run:
             store.write_json(self.path, self.records)
 
-    def restart(self, one: ready.PullRequest, since: datetime) -> str:
+    def restart(self, one: ready.PullRequest, check: str, since: datetime) -> str:
         """Close and reopen the pull request, so GitHub starts a new run of each of its
         workflows in their concurrency groups, which cancels the queued one: GitHub refuses to
-        rerun a run it has not ended, and a cancel can leave it queued (#1028, 2026-11-04). The
-        restart is kept before the close, with the reopen owed, so a run that stops between the
-        two leaves a record that the next run reopens by (`reopen`), and none restarts twice.
-        Return nothing, or why the close or the reopen failed."""
-        self.keep_stuck(one, since=since.isoformat(), reopen=True)
+        rerun a run it has not ended, and a cancel can leave it queued (#1028, 2026-11-04). Each
+        step is kept as it takes: the try before the close, with the reopen owed, `closed` once
+        the close took, and `took` once the reopen did, so a run that stops between two steps
+        leaves a record the next run goes on from (`reopen`). Only a restart that took is spent:
+        a close that failed is tried again on the next run. Return nothing, or why the close or
+        the reopen failed."""
+        now = datetime.now(UTC).isoformat()
+        asked = self.stuck(one).get("asked") or now
+        self.keep_stuck(
+            one, since=since.isoformat(), asked=asked, reopen=True, url=one.url, check=check
+        )
         closed = self.gh("pr", "close", str(one.number))
         if closed.returncode:
-            self.keep_stuck(one, reopen=False)
+            self.keep_stuck(one, reopen=None, why=_said(closed))
             return _said(closed)
+        self.keep_stuck(one, closed=now)
         why = self.reopened(one.number)
-        if not why:
-            self.keep_stuck(one, reopen=False)
+        self.keep_stuck(one, **({"why": why} if why else {"reopen": None, "took": now}))
         return why
 
     def reopen(self, numbers: Collection[str]) -> None:
-        """Reopen each pull request whose restart's reopen is owed, and that is not open, in
-        `numbers`: a run of `jmerge` stopped between the close and the reopen, or GitHub refused
-        the reopen. One that is open again owes none. A reopened one holds the line no more, for
-        another took it while it was closed."""
-        for number in [number for number in self.known() if _owed(self.known()[number])]:
-            if number in numbers or not self.reopened(number):
-                was = self.known()[number]
-                kept = {**was, "stuck": {**was["stuck"], "reopen": False}}
-                if number not in numbers:
-                    kept["line"] = False
-                self.records = {**self.known(), number: kept}
-                if self.run:
-                    store.write_json(self.path, self.records)
+        """Settle each restart whose reopen is owed, for `numbers`, the open pull requests. One
+        that is open again owes none: its restart took where its close had, and is not spent
+        where the close is not known to have taken. One that is closed is reopened, until
+        `ready.RESTART_MINUTES` from the restart's first try, and then `unopened`: `jmerge`
+        asks it no more, and says so on each run until it is open again (`unopened`). A
+        reopened one holds the line no more, for another took it while it was closed."""
+        now = datetime.now(UTC)
+        for number, was in list(self.known().items()):
+            stuck = _stuck(was)
+            if not (stuck.get("reopen") or stuck.get("unopened")):
+                continue
+            if number in numbers:
+                took = stuck.get("took") or (now.isoformat() if stuck.get("closed") else None)
+                self._keep_stuck(number, {**stuck, "reopen": None, "unopened": None, "took": took})
+            elif stuck.get("unopened"):
+                continue
+            elif late(stuck.get("asked"), now):
+                self._keep_stuck(number, {**stuck, "reopen": None, "unopened": True}, line=False)
+            elif why := self.reopened(number):
+                self._keep_stuck(number, {**stuck, "why": why})
+            else:
+                kept = {**stuck, "reopen": None, "took": now.isoformat()}
+                self._keep_stuck(number, kept, line=False)
+
+    def unopened(self, numbers: Collection[str]) -> list[tuple[str, dict]]:
+        """The number and `stuck` record of each pull request not in `numbers`, the open ones,
+        that a restart left closed: its reopen still owed, or `unopened`."""
+        return [
+            (number, stuck)
+            for number, was in self.known().items()
+            if number not in numbers
+            and ((stuck := _stuck(was)).get("reopen") or stuck.get("unopened"))
+        ]
 
     def reopened(self, number: int | str) -> str:
         """Reopen the pull request, and return nothing, or why it was not."""
@@ -262,9 +291,28 @@ class BaseMerge:
 
 
 def _owed(was: object) -> bool:
-    """Whether a record owes the reopen of a restart (`BaseMerge.restart`)."""
-    stuck = was.get("stuck") if isinstance(was, dict) else None
-    return isinstance(stuck, dict) and stuck.get("reopen") is True
+    """Whether a restart left the pull request closed (`BaseMerge.restart`): its reopen is
+    owed, or `jmerge` asks it no more."""
+    stuck = _stuck(was)
+    return stuck.get("reopen") is True or stuck.get("unopened") is True
+
+
+def _stuck(was: object, head: str = "") -> dict:
+    """The `stuck` part of a record, of `head` where one is given, or nothing."""
+    kept = was.get("stuck") if isinstance(was, dict) else None
+    if not isinstance(kept, dict) or (head and kept.get("head") != head):
+        return {}
+    return kept
+
+
+def late(at: object, now: datetime) -> bool:
+    """Whether `ready.RESTART_MINUTES` have passed since `at`, a time a restart kept. A time
+    `jmerge` cannot read, as in a record from before it kept one, is long past."""
+    try:
+        then = datetime.fromisoformat(str(at))
+    except ValueError:
+        return True
+    return now - then >= timedelta(minutes=ready.RESTART_MINUTES)
 
 
 def _said(ran: subprocess.CompletedProcess[str]) -> str:
