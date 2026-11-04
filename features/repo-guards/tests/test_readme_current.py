@@ -573,12 +573,12 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
 def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
     """A page may have JSON blocks that hold a hook entry or a status line for `<layout>`.
     Each such block is the group, or the status line, that `needs()` writes for the block's
-    event and script."""
+    event and script in Claude Code's file, the entry a page shows."""
     here = types.SimpleNamespace(layout=lambda harness: Path("<layout>"))
     written = {}
     for need in listed.needs(Machine.here(REPO)):
         kind = need.kind
-        if isinstance(kind, HookGroup):
+        if isinstance(kind, HookGroup) and kind.harness == "claude-code":
             written[kind.event, kind.script] = kind._group(here)
         elif isinstance(kind, StatusLine):
             written["statusLine", kind.script] = kind._ours(here)
