@@ -657,6 +657,48 @@ def test_a_test_no_rule_selects_runs_beside_what_a_change_selects(tmp_path):
     ]
 
 
+@pytest.mark.parametrize(
+    ("changed", "guards", "rest"),
+    [
+        (["src/beta/plug.py"], ["test_lone.py", "test_tree.py"], ["test_beta.py"]),
+        (
+            ["src/beta/plug.py", "testing/tests/test_beta.py"],
+            ["test_beta.py", "test_lone.py", "test_tree.py"],
+            [],
+        ),
+    ],
+    ids=["a module", "a module and its test"],
+)
+def test_the_guards_are_the_cross_cutting_the_catch_all_and_the_changed_tests(
+    tmp_path, changed, guards, rest
+):
+    """A desk runs `--part guards` first and must see it pass, then `--part rest`, and `--part
+    desk` names both from one selection: the two split the selection, and the guards are the
+    cross-cutting tests, the catch-all and the changed test files, never a file the change
+    reaches by an import alone."""
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+    head = repo.change(changed)
+    parts = [repo.run("--part", part, repo.base, head) for part in ("guards", "rest")]
+
+    assert [ran.returncode for ran in parts] == [0, 0], [ran.stderr for ran in parts]
+    said = [ran.stdout.split() for ran in parts]
+    assert said == [[f"testing/tests/{one}" for one in names] for names in (guards, rest)]
+    assert sorted(said[0] + said[1]) == repo.selected(head)
+    both = repo.run("--part", "desk", repo.base, head)
+    assert (both.returncode, both.stdout.splitlines()) == (
+        0,
+        [f"guards {one}" for one in said[0]] + [f"rest {one}" for one in said[1]],
+    ), both.stderr
+
+
+def test_a_part_of_a_selection_of_every_test_is_every_test(repo):
+    head = repo.change(["pyproject.toml"])
+
+    assert [
+        repo.run("--part", part, repo.base, head).stdout for part in ("guards", "rest", "desk")
+    ] == ["all\n", "all\n", "all\n"]
+
+
 TEE = """\
 # Tee
 
