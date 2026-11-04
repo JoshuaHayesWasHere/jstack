@@ -111,7 +111,7 @@ def test_a_worktree_is_stale_with_no_open_row_and_no_open_pull_request(kitchen):
     ]
 
 
-def tree(kitchen, branch, push=False, untracked=False):
+def tree(kitchen, branch, push=False, untracked=False, ignored=""):
     """Add a worktree on `branch` with a commit of its own, pushed to origin's `branch` or not,
     and return its path and head."""
     path = kitchen.root / "trees" / branch
@@ -123,6 +123,15 @@ def tree(kitchen, branch, push=False, untracked=False):
         kitchen.git("push", "-q", "origin", branch, cwd=path)
     if untracked:
         (path / "notes.txt").write_text("not saved\n")
+    if ignored:
+        (path / ".gitignore").write_text(".env\n__pycache__/\n")
+        kitchen.git("add", ".gitignore", cwd=path)
+        kitchen.git("commit", "-q", "-m", "ignore", cwd=path)
+        kitchen.git("push", "-q", "origin", branch, cwd=path)
+        (path / "__pycache__").mkdir()
+        (path / "__pycache__" / "a.pyc").write_text("cache\n")
+        if ignored == "env":
+            (path / ".env").write_text("TOKEN=not saved\n")
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=path, capture_output=True, text=True, check=True
     ).stdout.strip()
@@ -142,8 +151,9 @@ def branches(kitchen):
 
 def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(kitchen):
     """A clean worktree whose commits are on origin, or whose pull request merged at its head, is
-    removed with its branch and logged. One with an untracked file, or a commit on no branch of
-    origin, stays, and `jbus stale` says why. An open row's worktree is not touched."""
+    removed with its branch and logged, caches and all. One with an untracked file, an ignored file
+    that is no cache, or a commit on no branch of origin, stays, and `jbus stale` says why. An open
+    row's worktree is not touched."""
     home(kitchen)
     rows(kitchen, eps="running")
     pushed, pushed_head = tree(kitchen, "alpha", push=True)
@@ -154,15 +164,19 @@ def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(ki
     untracked, _ = tree(kitchen, "gamma", push=True, untracked=True)
     unpushed, _ = tree(kitchen, "delta")
     running, _ = tree(kitchen, "eps")
+    cached, cached_head = tree(kitchen, "zeta", push=True, ignored="cache")
+    secret, _ = tree(kitchen, "eta", push=True, ignored="env")
     kitchen.poll(NOW)
-    assert not pushed.exists() and not squashed.exists()
-    assert untracked.is_dir() and unpushed.is_dir() and running.is_dir()
-    assert branches(kitchen) == {"main", "gamma", "delta", "eps"}
+    assert not pushed.exists() and not squashed.exists() and not cached.exists()
+    assert untracked.is_dir() and unpushed.is_dir() and running.is_dir() and secret.is_dir()
+    assert branches(kitchen) == {"main", "gamma", "delta", "eps", "eta"}
     assert kitchen.lines("worktree-removed") == [
         f"worktree-removed demo: {pushed}, branch alpha at {pushed_head[:12]}, each commit is on "
         "origin",
         f"worktree-removed demo: {squashed}, branch beta at {squashed_head[:12]}, its pull "
         "request #6 merged",
+        f"worktree-removed demo: {cached}, branch zeta at {cached_head[:12]}, each commit is on "
+        "origin",
     ]
     (event,) = [e for e in kitchen.events("worktree-removed") if "alpha" in e["line"]]
     assert f"head: {pushed_head}" in event["text"]
@@ -170,9 +184,11 @@ def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(ki
     assert of(listed(kitchen)[1], "worktree") == [
         f"worktree {unpushed}: branch delta, {ended}: a commit is on neither origin's branch of "
         "its name nor its default one, and no pull request of it merged",
+        f"worktree {secret}: branch eta, {ended}: it has 1 ignored files that are no cache, such "
+        "as .env",
         f"worktree {untracked}: branch gamma, {ended}: it has 1 uncommitted or untracked files",
     ]
-    assert stale.read(kitchen.state)["kinds"]["worktree"] == 2
+    assert stale.read(kitchen.state)["kinds"]["worktree"] == 3
 
 
 def test_a_hold_is_stale_once_its_pull_request_is_not_open(kitchen):

@@ -28,10 +28,11 @@ guess. The last line counts each kind.
 
 Once an hour a pass runs the same audit and keeps its count in `stale.json` of the project's state
 (`audit`). Before it counts, that pass removes each stale worktree whose work is saved: one with no
-uncommitted or untracked file, each of whose commits is on origin's branch of the same name or on
-origin's default branch, or whose pull request merged at its head. It runs `git worktree remove`,
-which removes no worktree with a change in it, then deletes the branch, and logs a quiet
-`worktree-removed` event with the path, the branch and its head. The count is of what stays.
+uncommitted or untracked file and no ignored one but a cache such as `.venv`, each of whose commits
+is on origin's branch of the same name or on origin's default branch, or whose pull request merged
+at its head. It runs `git worktree remove`, which removes no worktree with a change in it, then
+deletes the branch, and logs a quiet `worktree-removed` event with the path, the branch and its
+head. The count is of what stays.
 A count above none is an item of the one list (`jbus.wakes`), so the root home hears it, and hears
 it again each time the count changes. While the root's own `home-id` is stale there is no home to
 hear it (`gone`), and the next home's start writes a new one.
@@ -62,6 +63,9 @@ if TYPE_CHECKING:
     from jbus.poll import Half
 
 EVENTS = {"worktree-removed": "quiet"}
+CACHES = frozenset(
+    {"__pycache__", ".venv", ".pytest_cache", ".ruff_cache", ".mypy_cache", "node_modules"}
+)
 NAME = "stale.json"
 KEY = "stale"
 HOUR = 60 * 60
@@ -210,13 +214,24 @@ def _merged_at(run: Pass, tree: Tree) -> str:
 
 
 def kept(run: Pass, tree: Tree) -> tuple[str, str]:
-    """Why a stale worktree stays, or nothing where its work is saved, with how it is saved."""
-    status = run.run("git", "-C", tree.path, "status", "--porcelain")
+    """Why a stale worktree stays, or nothing where its work is saved, with how it is saved.
+    `git worktree remove` deletes ignored files, so one that is not under a cache (`CACHES`),
+    such as a `.env`, keeps the worktree as an untracked file does."""
+    status = run.run("git", "-C", tree.path, "status", "--porcelain", "--ignored")
     if status.returncode:
         return f"git status failed there ({_failed(status)})", ""
-    changed = len(status.stdout.splitlines())
+    lines = status.stdout.splitlines()
+    changed = sum(not line.startswith("!! ") for line in lines)
     if changed:
         return f"it has {changed} uncommitted or untracked files", ""
+    ignored = [line[3:].rstrip("/") for line in lines if line.startswith("!! ")]
+    kept_ignored = [path for path in ignored if Path(path).name not in CACHES]
+    if kept_ignored:
+        return (
+            f"it has {len(kept_ignored)} ignored files that are no cache, such as "
+            f"{kept_ignored[0]}",
+            "",
+        )
     if _on_origin(run, tree):
         return "", "each commit is on origin"
     try:
