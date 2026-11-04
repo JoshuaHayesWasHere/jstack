@@ -13,6 +13,7 @@ Tests: none
 - `mcp-sign-in` answers a call with no live token with a 401 that names the protected resource metadata, and lets the one client in only with a sign-in code made on the machine and PKCE.
 - `mcp-tools` lists seven tools and runs each as its one jbus command line.
 - `mcp-runner` refuses any request whose command line the tool table does not build.
+- `mcp-off` stays off on every machine until its root renders the deploy files and installs them: jstack's install links nothing of it.
 
 ## How to get to it (user POV)
 

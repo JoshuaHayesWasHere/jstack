@@ -1,9 +1,11 @@
-#!/usr/bin/python3 -I
-"""The launcher the units run: jbus-mcp from its root-owned copy at /opt/jbus-mcp/src."""
+#!@PYTHON@ -I
+"""The launcher the units run: jbus-mcp from the root-owned copy of its code in the folder
+next to it, `src`."""
 
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/opt/jbus-mcp/src")
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from jbus_mcp.cli import main
 

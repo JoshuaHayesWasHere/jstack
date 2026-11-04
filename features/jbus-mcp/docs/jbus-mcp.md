@@ -4,6 +4,20 @@
 A Chef in claude.ai can then read the queue and the digest, queue a brief, and record the user's go or answer, all on the machine jbus runs on.
 It runs nothing else: no merge, no `jmerge`, no `--rule`, no `--follows`, no `--as`, and no message to a T3 Code thread.
 
+## Off by default
+
+jstack's install leaves the connector off, on every machine.
+The feature has no command, no hook and no `units/` folder, so `install.sh` and `jinstall` link nothing of it, and `--check` names nothing of it.
+Nothing makes the `jbus-mcp` user, the runner's socket, a unit, the tunnel or an Access application, and nothing listens, until a machine's root runs [Turn it on](#turn-it-on).
+Even a server started by hand refuses to serve without `JBUS_MCP_ORIGIN`, and the runner refuses every request without its config in `/etc/jbus-mcp/runner.json`.
+The files in `deploy/` are templates: each value a machine sets is a placeholder, and `jbus-mcp render` fills them in.
+
+To turn it off again, stop and disable the units, `systemctl disable --now jbus-mcp.service jbus-mcp-run.socket`, and delete the tunnel's DNS route.
+
+It needs Linux with systemd, root, Python 3.12 or later for the user `jbus-mcp`, and a claude.ai plan that can add custom connectors.
+The tunnel and Access need a Cloudflare account with a zone for the hostname.
+Any other way to put an `https` hostname in front of `127.0.0.1:<port>` works too, but loses the Access gate below.
+
 ## The tools
 
 | Tool | The jbus command it runs |
@@ -29,7 +43,7 @@ The row still waits for the user's go, and a crew runs it only after that go, re
 ## How it reaches jbus
 
 ```
-claude.ai -> Cloudflare (Access, then the tunnel) -> cloudflared -> 127.0.0.1:4391 jbus-mcp serve (user jbus-mcp)
+claude.ai -> Cloudflare (Access, then the tunnel) -> cloudflared -> 127.0.0.1:<port> jbus-mcp serve (user jbus-mcp)
   -> /run/jbus-mcp/run.sock -> jbus-mcp run (the user jbus runs as) -> jbus
 ```
 
@@ -41,7 +55,7 @@ systemd starts one runner for each connection, as the user jbus runs as.
 The runner trusts nothing the server sends but a tool's name and its arguments.
 It rebuilds the command line from the same tool table (`jbus_mcp.tools`), checks the project against its own config, and checks the whole line again: every flag must be one of the table's, and every word plain ASCII with no space, shell character, line break or `..`.
 It runs jbus with no shell.
-Its code is a root-owned copy in `/opt/jbus-mcp`, so neither user can change it.
+Its code is a root-owned copy, in `/opt/jbus-mcp` by default, so neither user can change it.
 
 Every call is one line of `/var/lib/jbus-mcp/log.jsonl`, with a brief kept only as its sha256 and length.
 Reads are limited to 60 a minute, writes to 10, and the sign-in endpoints to 20.
@@ -79,66 +93,78 @@ Every other address gets the Access login page and never reaches the server.
 An Access service token is no way out: Claude would have to send its two headers, and custom header names need Anthropic's approval.
 If Anthropic's range changes, the connector fails closed until the policy is updated.
 
-## Install on the machine
+## Turn it on
 
-Run these as root, from a checkout of the merged branch.
-Replace `josh` with the user jbus runs as, and `jbus-mcp.example.com` with the hostname.
+Run these as root, from a checkout of jstack.
+Set the four values first, and every step uses them:
 
-1. Make the user and the code's copy:
+```sh
+JBUS_USER=<the user jbus runs as>
+HOST=<the public hostname, such as jbus-mcp.example.com>
+PREFIX=/opt/jbus-mcp
+OUT=$(mktemp -d)/deploy
+```
+
+1. Write this machine's deploy files from the templates, with each project the connector may name.
+   `render` checks each value and writes only to the new folder `$OUT`.
+   `--home` names the jbus user's home when it is not that user's own, `--port` the loopback port (4391 by default), and `--python` a Python 3.12 or later when `/usr/bin/python3` is older:
 
    ```sh
-   useradd --system --home-dir /var/lib/jbus-mcp --shell /usr/bin/nologin jbus-mcp
-   install -d -o root -g root -m 0755 /opt/jbus-mcp /etc/jbus-mcp
-   cp -r features/jbus-mcp/src /opt/jbus-mcp/src
-   install -o root -g root -m 0755 features/jbus-mcp/deploy/jbus-mcp /opt/jbus-mcp/jbus-mcp
-   chown -R root:root /opt/jbus-mcp && chmod -R go-w /opt/jbus-mcp
+   PYTHONPATH=features/jbus-mcp/src python3 -m jbus_mcp render --user "$JBUS_USER" --host "$HOST" --project jstack --prefix "$PREFIX" --out "$OUT"
    ```
 
-2. Write the config, with the hostname and the projects the connector may name:
+2. Make the user and the code's root-owned copy:
 
    ```sh
-   install -o root -g root -m 0644 features/jbus-mcp/deploy/jbus-mcp.env /etc/jbus-mcp/jbus-mcp.env
-   sed 's/@JBUS_USER@/josh/g' features/jbus-mcp/deploy/runner.json > /etc/jbus-mcp/runner.json
-   chmod 0644 /etc/jbus-mcp/runner.json
+   useradd --system --home-dir /var/lib/jbus-mcp --shell "$(command -v nologin)" jbus-mcp
+   install -d -o root -g root -m 0755 "$PREFIX" /etc/jbus-mcp
+   cp -r features/jbus-mcp/src "$PREFIX/src"
+   install -o root -g root -m 0755 "$OUT/jbus-mcp" "$PREFIX/jbus-mcp"
+   chown -R root:root "$PREFIX" && chmod -R go-w "$PREFIX"
    ```
 
-3. Install and start the units, from the feature's `deploy` folder:
+3. Put the config in place:
 
    ```sh
-   cd features/jbus-mcp/deploy
-   install -m 0644 jbus-mcp.service jbus-mcp-run.socket /etc/systemd/system/
-   sed 's/@JBUS_USER@/josh/g' 'jbus-mcp-run@.service' > '/etc/systemd/system/jbus-mcp-run@.service'
-   cd -
+   install -o root -g root -m 0644 "$OUT/jbus-mcp.env" "$OUT/runner.json" /etc/jbus-mcp/
+   ```
+
+4. Install and start the units:
+
+   ```sh
+   install -o root -g root -m 0644 "$OUT"/*.service "$OUT"/*.socket /etc/systemd/system/
    systemctl daemon-reload
    systemctl enable --now jbus-mcp-run.socket jbus-mcp.service
-   curl -sS -H 'Host: 127.0.0.1:4391' http://127.0.0.1:4391/healthz
    ```
 
-4. Make the tunnel and route the hostname to it, with `features/jbus-mcp/deploy/cloudflared.yml` as its config:
+5. Make the tunnel, route the hostname to it, and run it with `$OUT/cloudflared.yml` as its config.
+   Copy the credentials file that `tunnel create` names to `/etc/cloudflared/jbus-mcp.json` before `service install`:
 
    ```sh
    cloudflared tunnel create jbus-mcp
-   cloudflared tunnel route dns jbus-mcp jbus-mcp.example.com
+   cloudflared tunnel route dns jbus-mcp "$HOST"
+   install -o root -g root -m 0644 "$OUT/cloudflared.yml" /etc/cloudflared/config.yml
+   cloudflared service install
    ```
 
-5. Add the two Access applications above in Cloudflare Zero Trust.
-6. Make the client, then add the connector in claude.ai with the URL `https://jbus-mcp.example.com/mcp`:
+6. Add the two Access applications above in Cloudflare Zero Trust, with your own email.
+7. Make the client, then add the connector in claude.ai with the URL `https://<host>/mcp` and the client's ID and secret:
 
    ```sh
-   sudo -u jbus-mcp /usr/bin/python3 -I /opt/jbus-mcp/jbus-mcp client
+   sudo -u jbus-mcp "$PREFIX/jbus-mcp" client
    ```
 
-7. Before you press Connect, make a sign-in code, and type it on the sign-in page:
+8. Before you press Connect, make a sign-in code, and type it on the sign-in page:
 
    ```sh
-   sudo -u jbus-mcp /usr/bin/python3 -I /opt/jbus-mcp/jbus-mcp code
+   sudo -u jbus-mcp "$PREFIX/jbus-mcp" code
    ```
 
-An upgrade is step 1's copy again, then `systemctl restart jbus-mcp.service`.
+An upgrade is step 2's `cp` again, then `systemctl restart jbus-mcp.service`.
 
 ## Operate it
 
-| Command, as `sudo -u jbus-mcp /usr/bin/python3 -I /opt/jbus-mcp/jbus-mcp ...` | What it does |
+| Command, as `sudo -u jbus-mcp <prefix>/jbus-mcp ...` | What it does |
 |---|---|
 | `code` | Makes a sign-in code, good for ten minutes, once. |
 | `revoke` | Signs every connector out. |

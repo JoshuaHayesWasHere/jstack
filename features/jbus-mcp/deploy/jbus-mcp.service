@@ -1,4 +1,4 @@
-# /etc/systemd/system/jbus-mcp.service: the MCP server, as its own user, on 127.0.0.1:4391.
+# /etc/systemd/system/jbus-mcp.service: the MCP server, as its own user, on 127.0.0.1:@PORT@.
 [Unit]
 Description=jbus-mcp: jbus as a remote MCP server for a claude.ai connector
 After=network-online.target jbus-mcp-run.socket
@@ -10,7 +10,7 @@ Type=simple
 User=jbus-mcp
 Group=jbus-mcp
 EnvironmentFile=/etc/jbus-mcp/jbus-mcp.env
-ExecStart=/usr/bin/python3 -I /opt/jbus-mcp/jbus-mcp serve
+ExecStart=@PYTHON@ -I @PREFIX@/jbus-mcp serve
 StateDirectory=jbus-mcp
 StateDirectoryMode=0700
 UMask=0077

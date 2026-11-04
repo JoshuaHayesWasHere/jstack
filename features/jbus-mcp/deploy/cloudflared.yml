@@ -1,8 +1,8 @@
 tunnel: jbus-mcp
 credentials-file: /etc/cloudflared/jbus-mcp.json
 ingress:
-  - hostname: jbus-mcp.example.com
-    service: http://127.0.0.1:4391
+  - hostname: @HOST@
+    service: http://127.0.0.1:@PORT@
     originRequest:
-      httpHostHeader: jbus-mcp.example.com
+      httpHostHeader: @HOST@
   - service: http_status:404

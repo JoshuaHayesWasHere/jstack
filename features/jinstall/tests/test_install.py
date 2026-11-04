@@ -37,7 +37,8 @@ FLAGGED = {harness.name: len(layout.assemble(REPO, harness).flagged) for harness
 NAMES = list(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
 PACKAGES = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]["build"]
 PACKAGE_ROOTS = sorted(
-    {str(Path(package).parent) for package in PACKAGES["targets"]["wheel"]["packages"]}
+    {str(Path(package).parent) for package in PACKAGES["targets"]["wheel"]["packages"]},
+    key=Path,
 )
 PROJECT = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]
 POINTS = {

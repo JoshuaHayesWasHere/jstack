@@ -18,7 +18,8 @@ VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
 NAME = "jbus-mcp"
 VERSION = "0.1.0"
 INSTRUCTIONS = (
-    "These tools read jbus on Yelena and queue work for the user. Reads are free to use. "
+    "These tools read jbus on the machine it runs on and queue work for the user. Reads are free "
+    "to use. "
     "jbus_queue_add only queues a row. jbus_queue_approve and jbus_answer need the user's own "
     "message in T3 Code, by its thread and message id, and jbus reads that message itself: never "
     "make one up, and ask the user for it. Nothing here merges, launches by itself or sends a "
@@ -42,7 +43,7 @@ def _initialize(params: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "protocolVersion": asked if asked in VERSIONS else VERSIONS[0],
         "capabilities": {"tools": {"listChanged": False}},
-        "serverInfo": {"name": NAME, "title": "jbus on Yelena", "version": VERSION},
+        "serverInfo": {"name": NAME, "title": "jbus", "version": VERSION},
         "instructions": INSTRUCTIONS,
     }
 

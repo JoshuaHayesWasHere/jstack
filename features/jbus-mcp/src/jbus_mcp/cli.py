@@ -1,5 +1,5 @@
 """The one entry point: `jbus-mcp serve`, `jbus-mcp run`, `jbus-mcp client`, `jbus-mcp code`,
-`jbus-mcp revoke` and `jbus-mcp log`.
+`jbus-mcp revoke`, `jbus-mcp log` and `jbus-mcp render`.
 
 `serve` runs the server (`jbus_mcp.server`), as its own system user. `run` is the runner
 (`jbus_mcp.run`), which only systemd starts, on a connection to its socket, as the user jbus
@@ -7,7 +7,8 @@ runs as. `client`, `code`
 and `revoke` are typed at a shell of the machine as the server's user: `client` makes the one
 OAuth client and prints its ID and secret once, `code` makes a sign-in code good for ten minutes
 and prints it once, and `revoke` signs every connector out. `log` prints the last lines of the
-server's log.
+server's log. `render` writes one machine's deploy files from the templates in `deploy/`
+(`jbus_mcp.deploy`), and installs nothing.
 """
 
 from __future__ import annotations
@@ -15,8 +16,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 
-from jbus_mcp import Refused, limits, oauth, run, server, state_dir
+from jbus_mcp import Refused, deploy, limits, oauth, run, server, state_dir
 
 AGENT = "CLAUDE_CODE_SESSION_ID"
 
@@ -43,12 +45,28 @@ def main(argv: list[str] | None = None) -> int:
     verbs.add_parser("revoke", help="sign every connector out")
     shown = verbs.add_parser("log", help="print the last lines of the server's log")
     shown.add_argument("--lines", type=int, default=20)
+    made = verbs.add_parser("render", help="write one machine's deploy files, and install nothing")
+    made.add_argument("--user", required=True, help="the user jbus runs as")
+    made.add_argument("--host", required=True, help="the public hostname, such as mcp.example.com")
+    made.add_argument("--project", action="append", required=True, help="a project it may name")
+    made.add_argument("--out", required=True, type=Path, help="a new or empty folder")
+    made.add_argument("--home", help="the jbus user's home, when it is not that user's own")
+    made.add_argument("--port", type=int, default=deploy.PORT)
+    made.add_argument("--prefix", default=deploy.PREFIX, help="the folder of the code's copy")
+    made.add_argument("--python", default=deploy.PYTHON, help="Python 3.12 or later")
     args = parser.parse_args(argv)
     try:
         if args.verb == "serve":
             return server.serve()
         if args.verb == "run":
             return run.main()
+        if args.verb == "render":
+            chosen = deploy.values(
+                args.user, args.host, args.project, args.home, args.port, args.prefix, args.python
+            )
+            for path in deploy.render(args.out, chosen):
+                print(path)
+            return 0
         if args.verb == "log":
             for one in limits.Log(state_dir() / limits.FILE).lines()[-max(args.lines, 1) :]:
                 print(json.dumps(one, sort_keys=True))
