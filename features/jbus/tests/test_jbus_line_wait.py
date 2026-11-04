@@ -3,9 +3,9 @@ line on a day: the in-line PR-minutes, the merges, the PR-minutes per merge, and
 of the line had its check started again because another pull request merged past it.
 
 The tests write a `merge.log` into a home, run the verb as a user types it, and read what it
-prints. `merge-1032.log` is #1032's own lines of 2026-11-04 as jmerge logged them; the
-merge-queue-scout's parse gave it 82 in-line minutes up to 13:05, which `merge-waits.json`'s
-4834 seconds agrees with.
+prints. `merge-1032.log` is #1032's own lines of 2026-11-04 as jmerge logged them, with the
+repo's URL put as example.com. The merge-queue-scout's parse gave it 82 in-line minutes up to
+13:05, which `merge-waits.json`'s 4834 seconds agrees with.
 """
 
 import contextlib
@@ -17,7 +17,7 @@ import pytest
 from jbus import cli
 
 FIXTURE = Path(__file__).parent / "fixtures" / "line-wait" / "merge-1032.log"
-URL = "https://github.com/o/r/pull"
+URL = "https://example.com/o/r/pull"
 TAIL = (
     "main moved after its check started, and GitHub merges main into the branch of one pull "
     "request at a time, the one to merge next [in-line]"
