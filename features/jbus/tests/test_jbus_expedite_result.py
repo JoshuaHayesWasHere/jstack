@@ -151,8 +151,8 @@ def says_unruled(short):
         "Your Result explains the lines the rebase dropped, and no scoped review has ruled on them "
         f"yet. Where the Result has no `Scoped reviewer:` line of {short.head}, launch ONE scoped "
         'reviewer, not a full review, the way the crew skill\'s "The review" launches a reviewer, '
-        f"with the message `{scoped}`, the two ranges of the range-diff the reason names, and add "
-        f"`Scoped reviewer: <threadId>, of {short.head}` to the Result. Where it has one and that "
+        f"with the message `{scoped}`, and add `Scoped reviewer: <threadId>, of {short.head}` to "
+        "the Result. Where it has one and that "
         "thread ended its turn with no `## Review`, send that thread the same line with "
         "`t3_thread_send`, and launch no second one. Push nothing and do not rebase until its "
         "`## Review` is written."
@@ -184,3 +184,42 @@ def test_drops_whose_scoped_reviewer_ended_with_no_review_tell_the_crew_its_line
     assert line + f"sent `{scoped}`" in said
     short.passes(6)
     assert len(sends(kitchen)) == 1
+
+
+@pytest.mark.parametrize(
+    ("kind", "word", "reason"),
+    [
+        ("no-head", "wait", ready.NO_HEAD),
+        ("fresh-conflict", "wait", ready.FRESH_CONFLICT),
+        ("base", "wait", ready.BASE.format(base="other", default="main")),
+        ("not-upheld", "hold", ready.NOT_UPHELD.format(user="user", refused="a.py")),
+        ("rereview", "wait", ready.SCOPED_UNRULED.format(files="a.py", command="nothing")),
+    ],
+)
+def test_each_new_row_as_jmerge_gives_it_tells_the_crew_once_in_words_it_can_run(
+    kind, word, reason, short, kitchen
+):
+    """Each sentence is formatted with the pull request's own fields, so a stray brace would fail
+    the pass. A scoped review whose reason names no range-diff takes its ranges from the head the
+    crew kept before its rebase, as the `unruled` row does."""
+    short.out(reason, word)
+    said = short.passes(3)
+    assert not [line for line in said if line.startswith("pass failed")]
+    (sent,) = sends(kitchen)
+    assert sent["clientRequestId"] == f"{kind}|alpha|{short.head[:12]}"
+    assert f"({reason})" in sent["message"] and "{" not in sent["message"]
+    if kind == "rereview":
+        ranges = f"{short.start}..{short.saw} {short.start}..{short.head}"
+        assert f"`/pr-review run alpha scoped {ranges}`" in sent["message"]
+    short.passes(6)
+    assert len(sends(kitchen)) == 1
+
+
+def test_a_scoped_review_with_no_range_anywhere_tells_no_crew_and_fails_no_pass(short, kitchen):
+    kitchen.git("update-ref", "-d", f"refs/jstack/pre-rebase/alpha/{short.saw[:12]}")
+    short.out(ready.SCOPED_UNRULED.format(files="a.py", command="nothing"))
+    said = short.passes(3)
+    assert not [line for line in said if line.startswith("pass failed")]
+    assert f"wait alpha: {expedite.NO_RANGES}" in said
+    short.passes(3)
+    assert sends(kitchen) == []

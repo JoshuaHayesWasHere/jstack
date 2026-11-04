@@ -133,6 +133,7 @@ REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
 REVIEW = "review: "
 NO_RANGE = "its crew kept no head before its rebase, so the hold is the user's"
+NO_RANGES = "jmerge names no range-diff and its crew kept no head before its rebase to ask for"
 _OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)
 SECOND_PASS = (
     'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
@@ -165,8 +166,8 @@ PROVE_ONLY = "Push nothing for it: the line is in the Result, not the branch."
 SCOPE_REBASE = (
     "Where the Result has no `Scoped reviewer:` line of {head}, launch ONE scoped reviewer, not a "
     'full review, the way the crew skill\'s "The review" launches a reviewer, with the message '
-    f"`{SCOPED}`, the two ranges of the range-diff the reason names, and add `Scoped reviewer: "
-    "<threadId>, of {head}` to the Result. Where it has one and that thread ended its turn with no "
+    f"`{SCOPED}`, and add `Scoped reviewer: <threadId>, of "
+    "{head}` to the Result. Where it has one and that thread ended its turn with no "
     "`## Review`, send that thread the same line with `t3_thread_send`, and launch no second one. "
     "Push nothing and do not rebase until its `## Review` is written."
 )
@@ -750,15 +751,11 @@ def _tell(
     message can lift, or nothing when the next pass must try the message again."""
     head = entry["head"]
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
-    named = _RANGE_DIFF.search(entry["reason"])
-    if named:
-        old, new = named.groups()
-        sentence = sentence.replace("{old}", old).replace("{new}", new)
-        sent = sent.replace("{old}", old).replace("{new}", new)
-    if row.kind in ("unruled", "fix"):
-        found = ranges(run, slug, head, row.kind)
-        if not found and row.kind == "unruled":
-            run.say(f"wait {slug}: {NO_RANGE}")
+    if row.kind in ("unruled", "fix", "rereview"):
+        named = _RANGE_DIFF.search(entry["reason"]) if row.kind == "rereview" else None
+        found = named.groups() if named else ranges(run, slug, head, row.kind)
+        if not found and row.kind != "fix":
+            run.say(f"wait {slug}: {NO_RANGE if row.word == 'hold' else NO_RANGES}")
             return "users"
         if found:
             sentence = sentence.replace("{old}", found[0]).replace("{new}", found[1])
