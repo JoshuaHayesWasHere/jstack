@@ -11,12 +11,14 @@ The health numbers are checked against a fixed slice of ci.jsonl written here (`
 
 import ast
 import configparser
+import itertools
 import json
 import os
 import shlex
 import shutil
 import subprocess
 import threading
+import time
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -25,7 +27,7 @@ import pytest
 
 import jsettings
 from ci_replay import FOLDER, Replay
-from jbus import passes, watch
+from jbus import ci, passes, watch
 from jbus.ci import collect, daily, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
@@ -1398,3 +1400,96 @@ def test_a_days_red_share_is_the_prs_with_a_red_check_over_the_prs_with_a_check_
     one = next(m for m in daily.MEASURES if m.key == "red_share")
     cell = one.cell(daily.Ledger(sliced, None, ""), SLICE_START - timedelta(hours=1), SLICE_NOW)
     assert (cell.value, cell.n) == (0.75, 4)
+
+
+def verdicts(found):
+    """What `jbus ci` says each number stands at, after its target and before its runners."""
+    return {
+        one.name: line.split(f"(held to {one.target}) ", 1)[1].split(";")[0]
+        for one, line in zip(found, ci.lines(found)[::2], strict=True)
+    }
+
+
+def test_the_verb_says_baseline_beside_a_health_number_with_a_value_and_no_data_beside_none(
+    sliced,
+):
+    """A health number has no target, so its value is a baseline. A number with no value has
+    no data."""
+    found = numbers.compute(sliced, SLICE_START - timedelta(hours=1), SLICE_NOW)
+    health = [one.name for one in found if one.key in HEALTH]
+    assert {name: verdicts(found)[name] for name in health} == dict.fromkeys(health, "baseline")
+    empty = numbers.compute(sliced, SLICE_NOW, SLICE_NOW + timedelta(days=1))
+    none = [one.name for one in empty if one.value is None]
+    assert set(HEALTH) <= {one.key for one in empty if one.value is None}
+    assert {name: verdicts(empty)[name] for name in none} == dict.fromkeys(none, "no data")
+
+
+@pytest.fixture
+def new_york_machine():
+    """The machine's own zone is New York's, as `TZ` sets it."""
+    before = os.environ.get("TZ")
+    os.environ["TZ"] = "America/New_York"
+    time.tzset()
+    yield
+    if before is None:
+        os.environ.pop("TZ", None)
+    else:
+        os.environ["TZ"] = before
+    time.tzset()
+
+
+def test_the_report_counts_its_days_in_the_machines_zone_where_the_user_set_none(
+    kitchen, monkeypatch, new_york_machine, tmp_path
+):
+    """The user sets no `timezone`. 23:01 on the 3rd in New York is the 4th in UTC."""
+    import jbus
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-settings"))
+    assert jbus.load().user.zone is None
+    project = jbus.load().projects[0]
+    state = jbus.load().state(project)
+    state.mkdir(parents=True, exist_ok=True)
+    (state / ledger.JOBS).write_text(
+        "".join(json.dumps(one, sort_keys=True) + "\n" for one in SLICE)
+    )
+    (state / ledger.PULLS).write_text(
+        "".join(json.dumps(pull(n, m)) + "\n" for n, m in ((10, 0), (20, 10), (30, 20), (40, 30)))
+    )
+    monkeypatch.setattr(collect, "Cli", Replay)
+    monkeypatch.setattr(Replay, "pages", lambda self, *args: [])
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project.checkout),
+            "remote",
+            "set-url",
+            "origin",
+            f"https://{HOST}/{REPO}",
+        ],
+        check=True,
+    )
+    monkeypatch.setattr(ci.verbs, "clock", lambda: SLICE_NOW)
+
+    code, said = kitchen.main("ci", "--report", "--days", "2")
+
+    assert code in (0, 1), said
+    text = next((jbus_home(project) / "reports").glob("ci-week-*.md")).read_text()
+    rows = [line.split(" | ")[:2] for line in text.splitlines() if line.startswith("| 2026-11-0")]
+    assert rows[-2:] == [
+        ["| 2026-11-03", "75% (3 of 4: 1 own, 2 shared)"],
+        ["| 2026-11-04", "0% (0 of 1: 0 own, 0 shared)"],
+    ]
+
+
+def test_the_verbs_help_names_the_six_health_numbers_beside_the_nine_targets(kitchen):
+    code, said = kitchen.main("--help")
+    page = said.splitlines()
+    at = next(n for n, line in enumerate(page) if line.split()[:1] == ["ci"])
+    rest = itertools.takewhile(lambda line: line.startswith(" " * 20), page[at + 1 :])
+    said = " ".join([page[at], *rest])
+    assert code == 0
+    assert "nine targets" in " ".join(said.split()) and "six health numbers" in " ".join(
+        said.split()
+    )
+    assert "six health numbers" in " ".join(ci.__doc__.split())
