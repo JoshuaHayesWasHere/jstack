@@ -6,8 +6,7 @@ Paths:
 - `features/skill-library/`
 - `skills/`
 - `templates/`
-Tests:
-- `features/jgauge/tests/test_room.py`
+Tests: none
 
 ## Sub-features
 
