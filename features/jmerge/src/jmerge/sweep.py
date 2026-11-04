@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 from jbriefs import below, parse
-from jmerge import green
 
 WORKTREE = "the worktree"
 LOCAL = "the local branch"
@@ -13,7 +12,9 @@ GATE = "the gate's ref"
 
 PAUSED = "paused"
 
-MARKERS = green.REF
+MARKERS = "refs/jstack/green-tree/"
+"""Where the desk once pushed its green-tree markers. Nothing pushes or reads one now; the sweep
+removes the old ones."""
 MARKER_DAYS = 7
 
 
