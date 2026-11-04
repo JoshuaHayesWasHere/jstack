@@ -448,10 +448,14 @@ SETTLED = (
     Settled(
         "exit 124",
         (_words(r"\bFixed\b"), _words(r"\b124\b|short lane|time limit|timed out|\blimit\b")),
-        "a check that ends 124 ran past the short lane's time limit, which says nothing of the "
-        "change (features/crew/do-the-task.md, On 124)",
-        "go on as on exit 0: open the pull request or write the Fixed: line, with the Checked: "
-        "line's exit 124, and let CI's check on the pull request be the proof",
+        "a 124 passes only when it is the import-reached rest's, after a guard step that passed: "
+        "the rest then ran past the short lane's time limit, which says nothing of the change, "
+        "while a guard step that ends 124 is a failure, since the guards never run under the "
+        "limit (features/crew/do-the-task.md, On 124)",
+        "on a guard step's 124, fix it as one; on the rest's 124 after the guards passed, go on "
+        "as on exit 0: open the pull request or write the Fixed: line, with the Checked: line "
+        "naming the guard step that passed and the rest's exit 124, and let CI's check on the "
+        "pull request be the proof",
     ),
     Settled(
         "a red that is its base's",
