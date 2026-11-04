@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -133,7 +134,7 @@ def briefs(
     rows: list[queue.Row],
     removed: set[str],
     open_: set[int] | None,
-    held: set[str] = frozenset(),
+    held: AbstractSet[str] = frozenset(),
 ) -> Found:
     """Each brief whose row or pull request ended with its last Result not clean, less those
     whose leftover jbus `held`."""
@@ -156,10 +157,11 @@ def briefs(
             why = f"its row is {status[slug]}"
         elif status.get(slug) not in queue.FINAL:
             number = named(result)[1] or pull.get(slug, "")
-            if number.isdigit() and open_ is None:
-                unjudged = True
-            elif number.isdigit() and int(number) not in open_:
-                why = f"its pull request #{number} is merged or closed"
+            if number.isdigit():
+                if open_ is None:
+                    unjudged = True
+                elif int(number) not in open_:
+                    why = f"its pull request #{number} is merged or closed"
         if why:
             found.stale.append(Stale("brief", slug, f"{why}, and {_says(result)}"))
     if unjudged:
@@ -180,7 +182,9 @@ def _worktrees(listed: str) -> list[Tree]:
     worktree on a detached head has no branch, and is left out."""
     found = []
     for block in listed.strip().split("\n\n")[1:]:
-        lines = dict(line.partition(" ")[::2] for line in block.splitlines())
+        lines = {
+            key: value for key, _, value in (line.partition(" ") for line in block.splitlines())
+        }
         if "worktree" in lines and lines.get("branch"):
             branch = lines["branch"].removeprefix("refs/heads/")
             found.append(Tree(lines["worktree"], branch, lines.get("HEAD", "")))

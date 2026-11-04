@@ -78,7 +78,7 @@ def of_transcript(path: Path) -> dict:
 
 def render(report: dict) -> str:
     heads = ("", "Calls", "Input", "Cache write", "Cache read", "Output", "Total", "Peak context")
-    lines = [heads]
+    lines: list[tuple[str, ...]] = [heads]
     for row in [*report["rows"], {**report["total"], "role": "total", "session": ""}]:
         output = row["tokens_out"] + row["out_floor"]
         name = f"{row['role']} {(row.get('agent') or row['session'])[:8]}".strip()

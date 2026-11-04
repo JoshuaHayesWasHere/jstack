@@ -5,6 +5,7 @@ import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import jsettings
 from jbriefs import meets
@@ -53,7 +54,7 @@ def merge_order(rows: list[Row] | None, slugs: dict[int, str]) -> list[int]:
     return placed
 
 
-def _state(checkout: Path) -> Path | None | bool:
+def _state(checkout: Path) -> Path | None | Literal[False]:
     try:
         found = bus.place(checkout)
     except jsettings.Refused:

@@ -559,13 +559,15 @@ class Turns:
             choice = routed.choice if routed else pool.Choice(None, "")
             if routed and choice.instance is None:
                 line = f"wait {slug}: no launch: {choice.why}"
-                if choice.until is None or choice.passed:
-                    run.say(line)
-                elif run.find(
-                    slug,
-                    "stall",
-                    f"stall {slug}: {choice.why}",
-                    key=f"capped {choice.until.isoformat()}",
+                if (
+                    choice.until is None
+                    or choice.passed
+                    or run.find(
+                        slug,
+                        "stall",
+                        f"stall {slug}: {choice.why}",
+                        key=f"capped {choice.until.isoformat()}",
+                    )
                 ):
                     run.say(line)
                 run.reasons[slug] = Slot()

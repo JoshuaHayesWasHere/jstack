@@ -197,6 +197,7 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
             if self.path == "/health":
                 return self.reply({"fake": "verify-jstack", "directory": str(fake.directory)})
             self.reply({}, 404)
+            return None
 
         def do_POST(self) -> None:
             body = self.rfile.read(int(self.headers.get("content-length", 0)))
@@ -213,6 +214,7 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
                 except Unknown as tool:
                     said = {"error": {"code": -32602, "message": f"Tool '{tool}' not found"}}
                 self.reply({"jsonrpc": "2.0", "id": asked["id"], **said})
+            return None
 
         def log_message(self, *_: Any) -> None:
             pass

@@ -184,6 +184,7 @@ def test_a_write_that_is_refused_or_meets_no_server_is_said_in_the_drawer(scene,
         questions.answer(
             scene.state, tea, party=party.USER, evidence=said, where=where, keeps=False, user=user
         )
+        return None
 
     ways = [{"number": tea}, {"number": milk, "option": 1}]
     gates = {"ways": ways, "batch": True}

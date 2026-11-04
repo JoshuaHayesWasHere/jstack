@@ -155,7 +155,7 @@ def setup(machine: Machine) -> Report:
             try:
                 if seeds:
                     machine.seed(kind.path, kind.text(machine), kind.mode)
-                elif said := kind.put(machine):
+                elif isinstance(kind, Carried) and (said := kind.put(machine)):
                     notes += [f"install.sh: {need.name}: {line}" for line in said.splitlines()]
             except (OSError, Moved, Refused) as error:
                 notes.append(f"install.sh: {need.name}: {error}")

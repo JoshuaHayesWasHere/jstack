@@ -109,6 +109,7 @@ loaded yet.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import ipaddress
 import json
 import os
@@ -198,22 +199,10 @@ _SEEN = {
     "checks": None,
     "check": _CHECK,
 }
-_THREAD = {key: None for key in record.THREAD}
-_WAITS = {
-    key: None
-    for key in (
-        "kind",
-        "key",
-        "line",
-        "since",
-        "slug",
-        "number",
-        "question",
-        "default",
-        "home",
-        "url",
-    )
-} | {"unblocks": [None]}
+_THREAD = dict.fromkeys(record.THREAD)
+_WAITS = dict.fromkeys(
+    ("kind", "key", "line", "since", "slug", "number", "question", "default", "home", "url")
+) | {"unblocks": [None]}
 _HOOK = {
     "failed_wakes": None,
     "last_error": None,
@@ -226,7 +215,7 @@ DIGEST = {
     "token_expires": None,
     "projects": {
         ANY: {
-            "rows": [{column: None for column in digest.COLUMNS} | {"depends": [None]}],
+            "rows": [dict.fromkeys(digest.COLUMNS) | {"depends": [None]}],
             "merged": [{"slug": None, "pr": None, "at": None}],
             "done": [{"slug": None, "at": None}],
             "pulls": [{"number": None, "slug": None, "url": None, "waits": None}],
@@ -235,7 +224,7 @@ DIGEST = {
             "routine": [{"at": None, "event": None, "slug": None, "line": None}],
             "sweep": None,
             "stops": {
-                "open": [{column: None for column in stop.SHOWN}],
+                "open": [dict.fromkeys(stop.SHOWN)],
                 "outside": {ANY: None},
             },
         }
@@ -313,10 +302,8 @@ class Code:
         the file's time."""
         files = {Path(file) for file in self.loaded()}
         files = {file for file in files if file.is_relative_to(self.root)}
-        try:
+        with contextlib.suppress(OSError):
             files |= {file for file in self.beside.iterdir() if file.is_file() and file != PAGE}
-        except OSError:
-            pass
         found = set()
         if self.panels is not None and panels.names(self.beside / "panels") != self.panels:
             found.add((self.beside / "panels", 0))
@@ -508,6 +495,11 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "jbus-view"
     sys_version = ""
 
+    @property
+    def door(self) -> Door:
+        assert isinstance(self.server, Door)
+        return self.server
+
     def _send(self, answer: Answer, allow: str = "") -> None:
         self.send_response(answer.status)
         self.send_header("Content-Type", answer.kind)
@@ -531,9 +523,9 @@ class Handler(BaseHTTPRequestHandler):
         port."""
         host = self.headers.get("Host", "").lower()
         name, _, port = host.rpartition(":")
-        named = port == str(self.server.server_port) and name.strip("[]") in self.server.names
+        named = port == str(self.door.server_port) and name.strip("[]") in self.door.names
         might = {f"{scheme}://{host.removesuffix(f':{at}')}" for scheme, at in DEFAULT.items()}
-        return self.server.origins & might | ({f"http://{host}"} if named else set())
+        return self.door.origins & might | ({f"http://{host}"} if named else set())
 
     def _known(self) -> bool:
         """Whether the `Host` header is one of this server's names, at its port, or the host
@@ -546,7 +538,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         path, _, query = self.path.partition("?")
         try:
-            answer = self.server.app.get(path, parse_qs(query))
+            answer = self.door.app.get(path, parse_qs(query))
         except Exception:
             traceback.print_exc(file=sys.stderr)
             answer = said(500, {"error": "the server could not answer"})
@@ -573,7 +565,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = self.rfile.read(length)
             key = self.headers.get("Authorization", "")
-            answer = self.server.app.post(path, parse_qs(query), body, key)
+            answer = self.door.app.post(path, parse_qs(query), body, key)
         except Exception:
             traceback.print_exc(file=sys.stderr)
             answer = said(500, {"error": "the server could not answer"})
@@ -640,21 +632,21 @@ class Doors:
         threading.Thread(target=door.serve_forever, args=(0.05,), daemon=True).start()
         return door
 
-    def _second(self) -> bool:
+    def _second(self, host: str) -> bool:
         """Open the second address. False where it cannot be opened now."""
         with self._lock:
             if self._closed.is_set():
                 return True
             try:
-                self._open.append(self._door(self.host))
+                self._open.append(self._door(host))
             except OSError:
                 return False
         return True
 
-    def _again(self) -> None:
+    def _again(self, host: str) -> None:
         while not self._closed.wait(self.retry):
-            if self._second():
-                print(f"jbus view: listening on {self.host}:{self.port} too", flush=True)
+            if self._second(host):
+                print(f"jbus view: listening on {host}:{self.port} too", flush=True)
                 return
 
     def open(self) -> None:
@@ -671,15 +663,16 @@ class Doors:
             self._open.append(self._door(LOOPBACK))
         except OSError as error:
             raise Refused(f"refused: {LOOPBACK}:{self.port} cannot be opened: {error}") from error
-        if self.host in (None, LOOPBACK):
+        host = self.host
+        if host is None or host == LOOPBACK:
             return
-        if not self._second():
+        if not self._second(host):
             print(
-                f"jbus view: {self.host}:{self.port} cannot be opened, serving {LOOPBACK} "
+                f"jbus view: {host}:{self.port} cannot be opened, serving {LOOPBACK} "
                 f"and trying again every {self.retry:g} s",
                 flush=True,
             )
-            threading.Thread(target=self._again, daemon=True).start()
+            threading.Thread(target=self._again, args=(host,), daemon=True).start()
 
     def addresses(self) -> list[tuple[str, int]]:
         with self._lock:
@@ -716,7 +709,7 @@ def origin(text: str) -> str:
     host, and a port only where it is not the scheme's default. It refuses anything else."""
     found = _ORIGIN.fullmatch(text.lower())
     port = int(found[3] or DEFAULT[found[1]]) if found else 0
-    if not 0 < port < 65536:
+    if found is None or not 0 < port < 65536:
         raise Refused(f"refused: JBUS_VIEW_ORIGINS {text!r} is not an origin, as https://<host>")
     scheme, host = found[1], found[2]
     return f"{scheme}://{host}" if str(port) == DEFAULT[scheme] else f"{scheme}://{host}:{port}"

@@ -944,7 +944,7 @@ def _parents_entry(
     try:
         parent, here = _parent_row(batch, slug, named) if named else (None, True)
     except Refused:
-        parent = None
+        parent, here = None, True
     if parent is not None and (parent.get("entry") or not here):
         found = entry(parent)
     elif parent is not None:
@@ -1331,7 +1331,7 @@ def request_faults(slug: str, text: str) -> list[str]:
     title = held[0][1][0] if held and held[0][0] == briefs.TITLE else ""
     if not title.startswith(f"{slug}: ") or not title.removeprefix(f"{slug}: ").strip():
         found.append(f"first line is not # {slug}: <what to find out>")
-    fields = {label: lines for label, lines in reversed(held)}
+    fields = dict(reversed(held))
     labels, placeholders = request_template()
     for label in labels:
         if label not in fields:
@@ -1346,9 +1346,11 @@ def request_faults(slug: str, text: str) -> list[str]:
             found.append(f"{label}: line is the template's own text")
         elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
             found.append(f"Out of bounds: line does not start {READ_ONLY}")
-    for label in CREWMATE_ONLY:
-        if label in fields:
-            found.append(f"a {label}: line, which only a crewmate's brief has")
+    found += [
+        f"a {label}: line, which only a crewmate's brief has"
+        for label in CREWMATE_ONLY
+        if label in fields
+    ]
     if long := briefs.overlong(text, "Request"):
         found.append(long)
     return [*found, *asks(text, "request")]
@@ -1461,12 +1463,12 @@ def _do(
         if not _SLUG.fullmatch(verb.slug):
             raise Refused(f"refused: {verb.slug} is not a slug")
         if verb.slug in batch.gone:
-            said = _was(verb.slug, batch.gone)
-            raise Refused(f"refused: {said}, and a removed slug is not added again")
+            gone = _was(verb.slug, batch.gone)
+            raise Refused(f"refused: {gone}, and a removed slug is not added again")
         for other in verb.depends:
             if other in batch.gone:
-                said = _was(other, batch.gone)
-                raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
+                gone = _was(other, batch.gone)
+                raise Refused(f"refused: {verb.slug} cannot depend on {other}: {gone}")
         _merge_after(batch, verb)
         _builds_on(rows, verb)
         _stacked_on(verb)
@@ -2131,8 +2133,9 @@ def _run(
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
             _store(state, slug, text)
-        for move in moves if asks else []:
-            asks.told(move)
+        if asks:
+            for move in moves:
+                asks.told(move)
     return said
 
 

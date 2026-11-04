@@ -177,7 +177,7 @@ def test_the_fix_of_main_s_browser_red_is_held_by_its_own_red(replay):
     filed(replay, 1)
     head = opened(replay, BROWSER_RED, slug="browser-red-2026-10-27")
     assert replay.run() == [f"wait 557 {url(557)}: {ready.BROWSER_RED.format(head=head[:12])}"]
-    assert rows.BROWSER_FIX == watch.BROWSER.prefix
+    assert watch.BROWSER.prefix == rows.BROWSER_FIX
 
 
 def test_main_s_browser_runs_that_github_does_not_give_leave_the_red_the_pull_request_s(replay):

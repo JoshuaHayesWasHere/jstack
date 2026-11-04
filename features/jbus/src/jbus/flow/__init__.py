@@ -10,11 +10,11 @@ jobs and merged pull requests of each configured project's repo, and prints for 
 - the classes of waiting ranked by hours lost, over every row with time in the window
   (`measure.pareto`), and what the hours behind a `depends` waited on at the head of the chain
   (`measure.behind`);
-- how long main was red, and what that held up (`measure.main_red`);
+- how long main was red, and what that held up (`runs.main_red`);
 - how long the machine had no room, why, and how long an account cap or a slot held a row
   (`measure.no_room`, `measure.caps`, `measure.slots`), and when jbus itself did not run;
 - GitHub's queue and run time, cancels and reruns, and the median and 90th percentile wall time
-  of a pull request's `check` (`measure.ci`); past `RUNNERS_BACK_P90_MIN` minutes, the
+  of a pull request's `check` (`runs.ci`); past `RUNNERS_BACK_P90_MIN` minutes, the
   text ends with a line that raises the parked row `RUNNERS_BACK`;
 - how many events paged the owner (`measure.pages`);
 - the share of the rows' time the records leave unexplained, and apart from it the share before
@@ -41,7 +41,7 @@ from typing import Any
 import jbus
 from jbus import digest, verbs
 from jbus.ci import ledger
-from jbus.flow import measure, records
+from jbus.flow import measure, records, runs
 
 DEFAULT_DAYS = 7
 RUNNERS_BACK = "jstack-runners-back"
@@ -98,13 +98,13 @@ def build(
         "lead_times": measure.lead_times(found, spans),
         "pareto": ranked,
         "behind": measure.behind(found),
-        "main_red": measure.main_red(found_runs, found, merges),
+        "main_red": runs.main_red(found_runs, found, merges),
         "no_room": measure.no_room(lines, since, until),
         "caps": measure.caps(projects, lines, since, until),
         "slots": measure.slots(projects, since, until),
         "jbus": measure.jbus_down(lines, since, until),
-        "ci": measure.ci(found_runs),
-        "ci_ledger": measure.ledger_jobs(jobs or {}, since, until),
+        "ci": runs.ci(found_runs),
+        "ci_ledger": runs.ledger_jobs(jobs or {}, since, until),
         "pages": measure.pages(projects, since, until),
     }
 

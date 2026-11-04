@@ -25,6 +25,7 @@ is 403, so only the server's own page can press a button.
 """
 
 import argparse
+import contextlib
 import hashlib
 import hmac
 import ipaddress
@@ -204,10 +205,8 @@ def serve(config: Path, page: Path, port: int, host: str | None, names: list[str
     for server in servers:
         print(f"bot ui: listening on {server.server_address[0]}:{port}", flush=True)
         threading.Thread(target=server.serve_forever, daemon=True).start()
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         threading.Event().wait()
-    except KeyboardInterrupt:
-        pass
 
 
 def main(argv: list[str] | None = None) -> int:

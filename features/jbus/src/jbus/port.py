@@ -16,7 +16,7 @@ and records nothing.
 
 from __future__ import annotations
 
-import types
+import argparse
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -138,7 +138,7 @@ class Port:
             )
         else:
             said = party.Evidence("typed", "", f"accept, by {user.user}", at or "")
-        who = acts.cli_party(types.SimpleNamespace(as_=as_), said)
+        who = acts.cli_party(argparse.Namespace(as_=as_), said)
         return bus.Acting(said.said_at, Acting(run, who, said))
 
     def accept(

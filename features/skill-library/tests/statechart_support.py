@@ -3,6 +3,7 @@ folder, the helpers that run its four commands as a user runs them, and the spec
 mappings that more than one test reads. The tests are pstack's statechart tests, one for one, in
 `test_statechart_charts.py`, `test_statechart_specs.py` and `test_statechart_runs.py`."""
 
+import contextlib
 import importlib
 import os
 import re
@@ -672,10 +673,8 @@ class Run:
         return self.child.returncode, self.stderr
 
     def kill_group(self):
-        try:
+        with contextlib.suppress(ProcessLookupError):
             os.killpg(self.child.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
 
 
 def until(ready, seconds=90):
