@@ -1195,14 +1195,14 @@ def test_the_head_reviewed_is_named_whatever_could_not_be_asked(tmp_path):
     brief = f"{crew.BRIEF}\n## Review\nVerdict: findings\n{section}\nFindings:\n- info a.py it\n"
     (state / "tasks" / "alpha.md").write_text(brief)
     ran = subprocess.run(
-        ["sh", "-c", crew.block("The review", "Second pass:").replace("<slug>", "alpha")],
+        ["sh", "-c", crew.block("The review", "--rounds").replace("<slug>", "alpha")],
         capture_output=True,
         text=True,
         cwd=pr.work,
         env={**os.environ, "H": str(state)},
         check=True,
     )
-    assert ran.stdout == "write Scoped review: none, nothing was pushed for the findings\n"
+    assert ran.stdout == "write Scoped review: none, one round: the fix merges on its checks\n"
 
 
 FINDINGS = {
@@ -1481,7 +1481,9 @@ class Launcher:
 
 
 @pytest.mark.parametrize("case", crew.ROLLUPS)
-def test_a_brief_is_ready_while_its_checks_run_and_once_they_passed(case, tmp_path):
+def test_a_brief_is_ready_only_once_its_checks_passed(case, tmp_path):
+    """The reviewer launches only once `check` has passed: a check still running, or none
+    reported yet, is not ready, as a failed one is not."""
     rollup, answer = crew.ROLLUPS[case]
     if rollup is None:
         launcher = Launcher(tmp_path, [])
@@ -1491,17 +1493,20 @@ def test_a_brief_is_ready_while_its_checks_run_and_once_they_passed(case, tmp_pa
     else:
         launcher = Launcher(tmp_path, rollup)
     (said,) = launcher.says()
-    if answer == "passed" or (answer == "wait" and rollup is not None):
+    if answer == "passed":
         assert said == f"a-task: ready, {URL} at {HEAD}"
     else:
         assert said.startswith(f"a-task: not ready, its checks, {answer}: ")
 
 
-def test_a_draft_with_no_check_reported_is_ready_as_any_pull_request(tmp_path):
-    """CI checks a draft as any open pull request, so a draft whose check has not reported is
-    ready at the head GitHub gives, as any pull request's is: the draft field is not read."""
+def test_a_draft_is_ready_as_any_pull_request_once_its_checks_passed(tmp_path):
+    """CI checks a draft as any open pull request, so a draft is ready once its checks passed,
+    and not while none is reported, as any pull request's is: the draft field is not read."""
     launcher = Launcher(tmp_path, [], draft=True)
-    assert launcher.says() == [f"a-task: ready, {URL} at {HEAD}"]
+    assert launcher.says() == ["a-task: not ready, its checks, wait: no check is reported yet"]
+    (tmp_path / "passed").mkdir()
+    passed = Launcher(tmp_path / "passed", draft=True)
+    assert passed.says() == [f"a-task: ready, {URL} at {HEAD}"]
 
 
 def test_with_github_s_budget_at_its_floor_no_brief_is_asked_about_and_the_block_is_held(tmp_path):
@@ -1616,13 +1621,15 @@ def test_a_reviewer_that_could_not_be_launched_is_no_reviewer(tmp_path):
 
 
 @pytest.mark.parametrize("had", ["\n## Review\nVerdict: findings\n", "Reviewer: mcp:9\n"])
-def test_a_second_pass_is_ready_with_a_review_and_not_over_a_failed_check(had, tmp_path):
+def test_a_second_pass_is_ready_with_a_review_once_its_checks_passed(had, tmp_path):
     launcher = Launcher(tmp_path)
     launcher.brief.write_text(BRIEF + DONE + had)
     assert launcher.says(again=True) == [f"a-task: ready, {URL} at {HEAD}"]
     view = {"state": "OPEN", "headRefOid": HEAD, "statusCheckRollup": [crew.RUNNING]}
     (launcher.stub / "view.json").write_text(json.dumps(view))
-    assert launcher.says(again=True) == [f"a-task: ready, {URL} at {HEAD}"]
+    assert launcher.says(again=True) == [
+        "a-task: not ready, its checks, wait: a check has not finished"
+    ]
     view["statusCheckRollup"] = crew.ROLLUPS["one ran and failed"][0]
     (launcher.stub / "view.json").write_text(json.dumps(view))
     assert launcher.says(again=True) == [

@@ -3,9 +3,9 @@
 A pull request gets one review, and the crewmate that opened it starts it: nobody types `/pr-review`.
 The review itself is done by a reviewer, in a new thread.
 This thread only launches it.
-A fix pushed for its findings gets one scoped review, of the fix alone, and that is the last: see "A second pass".
+A fix pushed for its findings gets no review: one round, and the pull request merges on its checks once each blocking finding has its answer. The one later pass is the one a `Meets the brief: no` owes: see "A second pass".
 
-The time to launch is when the pull request is open, straight after the Result names it, and not when it is green: the review runs beside CI. It goes by the first word the block of "The checks" prints then. On `passed` or `wait`, launch at once, in the turn that opened the pull request: the launch never waits for green. On `failed`, a red pull request is fixed first, and the reviewer is launched on the push that fixes it, without waiting for that push to turn green. On `unrun` no check ran, and no reviewer is launched: "The checks" parks it as a gate. Green is still what `jmerge` merges on, and what a pull request with no reviewer waits for: where the block below prints `none`, or the session has no launch tool, the `Reviewer: none` line and its message to the home are written on `passed` and not before.
+The time to launch is when `check` has passed at the pull request's head: the deterministic checks prove or fail the work first, and the reviewer reads only a head they passed. It goes by the first word the block of "The checks" prints. On `passed`, launch at once, in that turn. On `wait`, the checks still run: launch nothing, and end the turn, since jbus says when every check has passed. On `failed`, a red pull request is fixed first, and the reviewer is launched once the push that fixes it has passed. On `unrun` no check ran, and no reviewer is launched: "The checks" parks it as a gate. Where the block below prints `none`, or the session has no launch tool, the `Reviewer: none` line and its message to the home are written on `passed` too.
 
 Which of these it is, is what this prints, run with the first line of what the block of "The checks" printed in place of the words in angle brackets:
 
@@ -13,8 +13,8 @@ Which of these it is, is what this prints, run with the first line of what the b
 checked='<the line the block of "The checks" printed>'
 case ${checked%%:*} in
 passed) echo "launch: run the block below and do what it prints" ;;
-wait) echo "launch beside the checks: run the block below, and launch now if it says to; any other answer waits for passed" ;;
-failed) echo "fix first: do what \"The checks\" says, and launch on the push" ;;
+wait) echo "no launch yet: the checks still run, and the reviewer is launched once they have passed" ;;
+failed) echo "fix first: do what \"The checks\" says, and launch once the push has passed" ;;
 unrun) echo "no launch: no check ran, park the gate" ;;
 *) echo "not known: run the block of \"The checks\" first" ;;
 esac
@@ -26,7 +26,7 @@ What decides whether there is a reviewer to launch is this, run with the block a
 B="$H/tasks/<slug>.md"
 mode=$(awk '/^Review:/ {print $(2); exit}' "$B")
 case $mode in
-none | twice | cleanup) ;;
+none | cleanup) ;;
 *) mode=review ;;
 esac
 if [ "$mode" = none ]; then
@@ -39,18 +39,13 @@ fi
 ```
 
 It prints the brief's mode, then what to do.
-The mode is the brief's `Review:` line, the first line that starts with it: `none`, `twice`, `cleanup`, or `review` for anything else, an old `after` included.
+The mode is the brief's `Review:` line, the first line that starts with it: `none`, `cleanup`, or `review` for anything else, an old `after` or `twice` included.
 A brief with no such line is `review`, and so is one whose line says more than `review`, as briefs from before the reviewer stopped running tests do.
 The same words inside the task's text or a result do not count.
 A `## Review` or `Reviewer:` line counts only at or after the first `## Result`: a `Reviewer:` line in the brief's head is the home's guidance for the reviewer, not a reviewer.
 
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
-- `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
-  Once the `Fixed:` line names the head you pushed, launch the second review of that head by the launch block below with `second`, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
-  The second review's `error` findings come to this thread: answer each error by id, push the fix with the block below that pushes a fix and write the `Fixed:` line as for the first, and launch no third review.
-  Its `warning` findings go to the day's warnings row once the pull request merged, and its `info` ones are dropped.
-  `jmerge` merges once the second review is written and its findings are answered, and the `fixed and green` line below is sent once they are.
 - `cleanup`: the brief is the day's warnings row, `warnings-<day>`, which jbus filed, and it gets one review, of its own diff alone.
   Launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line: a fix for them gets no review.
   Only an `error` of that review comes to this thread, whatever its bucket or tag, and every other finding is dropped, so a review with no error asks no line of you and `jmerge` merges it on its checks.
@@ -64,7 +59,7 @@ Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the ord
 Do not wait for the reviewer or read its thread.
 
 Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/../source" jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configure` with no arguments gives as `threadId`.
-The block runs it, in this worktree, with that id in place of `<thread id>`, `first`, `second` or `scoped` in place of `<pass>`, and for a scoped pass the message "A second pass" gives, whole, in place of `<message>`:
+The block runs it, in this worktree, with that id in place of `<thread id>`, `first` or `scoped` in place of `<pass>`, and for a scoped pass the message "A second pass" gives, whole, in place of `<message>`:
 
 ```sh
 thread='<thread id>'
@@ -74,7 +69,6 @@ top=$(git rev-parse --show-toplevel 2> /dev/null)
 branch=$(git branch --show-current 2> /dev/null)
 case $pass in
 first) title='review: <slug>, $n' said='/pr-review run <slug> $n' ;;
-second) title='review: <slug>, second pass' said='/pr-review run <slug> again' ;;
 scoped)
     title='review: <slug>, scoped' said=$message
     case $message in '' | '<'*) title= ;; esac
@@ -83,7 +77,7 @@ scoped)
 esac
 case $thread in '' | '<'*) title= ;; esac
 if [ -z "$title" ]; then
-    echo "not filled in: put this thread's id in place of <thread id>, first, second or scoped in place of <pass>, and for scoped the message in place of <message>"
+    echo "not filled in: put this thread's id in place of <thread id>, first or scoped in place of <pass>, and for scoped the message in place of <message>"
 elif [ -z "$top" ] || [ -z "$branch" ]; then
     echo "no launch: this thread is in no worktree on a branch, and a reviewer runs in the crew's worktree"
 else
@@ -157,6 +151,8 @@ A finding listed `[Dismissed]` or `[Noted]` was not sent and asks for no line. O
 
 A reason says why the pull request is right as it is, or where the finding went: "I disagree" is not one.
 For an `Act on` finding, the one bucket that holds the merge, a decline counts only where its reason cites a `path:line`, a command in backticks, or the gate it is parked on as `question <n>` with the Result's `Gate: question <n>` line, and only where no other finding was declined for the same reason: `jmerge` waits on each one that does not, by id.
+A blocking finding carries its evidence in a `(proof: ...)` tag: a command that exited non-zero at the head, a check that failed, a doc line the pull request made wrong, or an unmet `Done when` line.
+One that `jbriefs --findings` lists with `proof: none` shows nothing a run, a check or a doc can show: it still waits for its answer by id, and a decline of it counts with any reason, a risky one still on its gate.
 The section's `Outside Where:` line is no finding and asks for no line: it is what `jmerge --scope` printed, which anyone can run again.
 A finding the reviewer marked `outside Where, not this pull request` asks for no fix here: queue it as `$T/a-fault-outside.md` says, or leave it when its fix is not known, and end it `not fixed`, with the reason that its remedy is outside the brief's `Where`, naming the `Where:` line's file it falls outside.
 A finding parked as a gate ends by its default: `fixed`, or `not fixed` with the reason that the default leaves the pull request as it is and `question <n>` holds it.
@@ -164,7 +160,7 @@ A finding parked as a gate ends by its default: `fixed`, or `not fixed` with the
 A finding tagged `(risk: <area>)`, on security, auth, billing, data, migrations or concurrency, holds the merge whatever its bucket, a `Consider` one too, and is not declined by this thread alone: the `Consider` default below does not apply to it. Where you would decline it, park it as a gate ("Do the task") whose default, the one you take, is "fix it": fix it and end it `fixed`. Where the user answers that it stays, end it `Finding F<n>: not fixed, ..., because question <n>: <the answer>`. `jmerge` waits on a risky decline that names no such gate. No other finding asks the user anything.
 
 In a first review, a finding's bucket is the lead's reading, and it sets the default; its severity is a field and decides nothing.
-After the first review, the severity alone decides, as the reviewer wrote it: a review of a later head, the scoped review of your fix or of a rebase, sends this thread its `error` findings, whatever their bucket or tag, and each is answered and fixed as an `Act on` one is.
+After the first review, the severity alone decides, as the reviewer wrote it: the scoped review a `Meets the brief: no` owes, or a rebase's, sends this thread its `error` findings, whatever their bucket or tag, and each is answered and fixed as an `Act on` one is.
 Its `warning` findings go to the day's warnings row, `warnings-<day>`, which jbus files from the briefs once the pull request merged (`jbus.daywarnings`), and its `info` findings are dropped.
 No bucket, `Act on` included, and no `(risk: <area>)` tag brings a warning or an info back into this pull request, and no fix push is owed for one.
 An `Act on` finding is handled as above: fixed, or not fixed with a reason of its own.
@@ -173,7 +169,7 @@ One worth doing later is a row, queued as `$T/a-fault-outside.md` says, and any 
 Fix one only when the fix is inside the lines the finding names, adds no test and touches no other file.
 A review from before the buckets is read by severity the same way: an `info` finding there is declined by default, `Finding: not fixed, <the finding in a few words>, because info: left for a follow-up`.
 A review whose findings are all declined pushes nothing, and the block below says `write Fixed: none needed`.
-The errors of a second pass and of a scoped review are handled the same way.
+The errors of a scoped review are handled the same way.
 
 Then run this, with the block at the top. It reads the same list, and says what is left:
 
@@ -187,7 +183,7 @@ On `write nothing`, the last review is a later one that sent this thread no find
 On `not yet`, a finding has no answer that counts: the ids after its colon are the ones, each with why its answer is refused where it has one, and a review from before the ids names none.
 Give each its line.
 Otherwise it says which `Fixed:` line to write.
-After a second pass or a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them.
+After a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them.
 The sections of one head are one review, one from each reviewer.
 Where the last review has findings and none of them is fixed, it says `none needed` whatever an earlier pass fixed.
 The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head.
@@ -228,7 +224,7 @@ Where origin's head is such a merge, this is the only way out, whatever else mad
 Then run the block again.
 A rebase for a conflict is pushed by the block of "A conflict", and a fix pushed after it starts from the head that block pushed.
 
-When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints.
+When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Scoped review:` line it prints.
 Then add one line to the Result in one of these two shapes.
 It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge`, run by jbus, the only merger, merges on it:
 
@@ -241,7 +237,7 @@ Where that line is missing, `jmerge` reads it from git and the `Checked:` line (
 The Result has one `Fixed:` line. If you push again for a failed check after writing it with a commit, set it to the new head. A rebase leaves it as it is: `jmerge` compares the rebased head with the commit that line names ("A conflict").
 
 jbus is the only merger, so no home waits to hear that the pull request is fixed and green: "Telling the home" sends the `fixed and green` line to nobody, and `jmerge`, run by jbus, reads the `Fixed:` line from the brief on its next pass, once the head is green.
-Wait for no message that every check passed after a `Fixed:` line: jbus sends that message only for a brief that says `Review: none` and has no `Reviewer: none` line yet (`rebase.owed`, `features/jbus/src/jbus/rebase.py`).
-The line is due only when the block of "A second pass" prints `none`, or prints `had` with the second pass's findings handled: on `needed`, on `scoped` and on `write Scoped review:` the pull request is not ready.
+Wait for no message that every check passed after a `Fixed:` line: jbus sends that message only for a brief with no reviewer launched, no `Reviewer: none` line and no `## Review` yet (`rebase.owed`, `features/jbus/src/jbus/rebase.py`).
+The line is due only when the block of "A second pass" prints `none`, or prints `had` with the scoped review's findings handled: on `scoped` and on `write Scoped review:` the pull request is not ready.
 
 Where no check ran, the head is not green and the line is not sent: "The checks" parks it as a gate.

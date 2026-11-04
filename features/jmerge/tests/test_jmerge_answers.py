@@ -12,6 +12,7 @@ from jmerge import ready
 from jsettings import Settings
 
 SAW, FIX = "a" * 40, "b" * 40
+PROOF = " (proof: `uv run pytest -q tests/test_a.py`, exit 1, 1 failed)"
 RESULT = "\n## Result\nStatus: done\nBranch: alpha   Pull request: https://example.test/pull/7\n"
 CODEX = "codex gpt-6-sol xhigh"
 CURSOR = "cursor grok-4.7 xhigh"
@@ -51,7 +52,7 @@ def test_a_brief_from_before_ids_reads_as_it_did_its_answers_matched_by_count():
     assert ready.short_of(RESULT + answers + f"Fixed: {FIX}\n" + section(OLD), FIX) == ""
 
 
-ACT = "error src/a.py:10 it runs twice (principle: none) (bucket: Act on)"
+ACT = "error src/a.py:10 it runs twice (principle: none) (bucket: Act on)" + PROOF
 CONSIDER = "info src/b.py:4 a shorter name reads better (principle: none) (bucket: Consider)"
 
 
@@ -93,7 +94,7 @@ def test_a_decline_counts_only_with_a_reason_that_cites_a_path_line_or_a_command
 
 
 def test_the_same_reason_given_twice_is_refused_after_the_first():
-    other = "warning src/c.py:40 it leaks the handle (principle: none) (bucket: Act on)"
+    other = "warning src/c.py:40 it leaks the handle (principle: none) (bucket: Act on)" + PROOF
     why = "because src/a.py:1 says so"
     answers = by_id(f"F1: not fixed, runs twice, {why}", f"F2: not fixed, leaks, {why}")
     brief = RESULT + answers + "Fixed: none needed, x\n" + section([ACT, other])
@@ -103,6 +104,7 @@ def test_the_same_reason_given_twice_is_refused_after_the_first():
 def test_two_reviewers_on_one_place_are_one_finding_and_one_answer():
     one = ACT.replace("principle: none", "principle: model-the-domain")
     near = "warning src/a.py:13 the loop runs twice (principle: model-the-domain) (bucket: Act on)"
+    near += PROOF
     pair = "Reviewer: mcp:1\nReviewer: mcp:2\n" + section([one], CODEX) + section([near], CURSOR)
     assert ready.short_of(RESULT + f"Fixed: {FIX}\n" + pair, FIX) == ready.UNANSWERED.format(
         ids="F1"

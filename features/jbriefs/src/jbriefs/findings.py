@@ -77,14 +77,30 @@ ANSWER = (
     "backticks, or the gate it is parked on, question <n>>`"
 )
 UNANSWERED, UNCITED, REPEATED, UNASKED = "unanswered", "uncited", "repeated", "unasked"
+UNPROVEN = "unproven"
 WHY = {
     UNANSWERED: "no answer by id",
+    UNPROVEN: "it blocks with no proof tag, so a decline of it needs no cited reason",
     UNCITED: "its decline cites no path:line, command or gate question",
     REPEATED: "its decline gives the reason of {first}",
     UNASKED: "a finding on {risk} declined with no gate question",
 }
 
-_TAGS = ("principle", "bucket", "risk", "dismissed")
+_TAGS = ("principle", "bucket", "risk", "dismissed", "proof")
+PROOFS = (
+    re.compile(r"`[^`]+`, exit [1-9]\d*\b.*"),
+    re.compile(r"check \S.* failed\b.*"),
+    re.compile(r"doc [\w./-]+:\d+\b.*"),
+    re.compile(r"unmet \d+\b.*"),
+)
+"""The shapes of a blocking finding's `(proof: ...)` tag, the one evidence one round blocks on:
+a command in backticks that exited non-zero at the head, a check that failed, a doc line the
+pull request made wrong, or the number of a `Done when` line it does not meet."""
+
+
+def proven(proof: str) -> bool:
+    """Whether a finding's `(proof: ...)` tag has one of the `PROOFS` shapes."""
+    return any(shape.fullmatch(proof.strip()) for shape in PROOFS)
 _PLACE = re.compile(r"(.+):(\d+)")
 _BY_ID = re.compile(r"Finding (F\d+): (fixed|not fixed), (.*)")
 _DECLINE = re.compile(r"(.+?), because (.*)")
@@ -135,6 +151,7 @@ class Raised:
     reason: str = ""
     legacy: bool = False
     scoped: bool = False
+    proof: str = ""
 
     @property
     def place(self) -> str:
@@ -306,6 +323,12 @@ class Finding:
         return next((one.risk for one in self.standing if one.risk), "")
 
     @property
+    def proven(self) -> bool:
+        """Whether a line that raised this finding carries a `(proof: ...)` tag of a shape
+        `PROOFS` gives. A finding from before the buckets needs none."""
+        return self.legacy or any(proven(one.proof) for one in self.standing)
+
+    @property
     def sent(self) -> bool:
         """Whether the finding goes to the crew, so that the crew must answer it (`route`)."""
         return self.route in (HOLDS, ASKS)
@@ -411,6 +434,7 @@ def _raised(text: str, section: int, by: str, head: str, dismissed: bool) -> Rai
         tags.get("risk", "").lower(),
         tags.get("dismissed", ""),
         legacy="bucket" not in tags and not dismissed,
+        proof=tags.get("proof", ""),
     )
 
 
@@ -555,13 +579,16 @@ def _judge(findings: list[Finding], text: str) -> None:
     """Refuse the answers that do not count. A decline of a finding in the `Act on` bucket
     does not count when it cites nothing, gives an earlier finding's reason, or leaves a
     risky finding with no gate. This function applies the old rule to an answer with no id,
-    which is an answer to a finding from before the ids."""
+    which is an answer to a finding from before the ids. A blocking finding with no proof
+    (`Finding.proven`) is refused as `UNPROVEN` until it has an answer, and any decline of it
+    counts, a risky one on its gate alone: one round blocks only on what a run, a check, a doc
+    line or a `Done when` line shows."""
     gates = set(re.findall(r"Gate: question (\d+)\b", text))
     given: dict[str, str] = {}
     for one in findings:
         answer = one.answer
         if answer is None:
-            one.refused = UNANSWERED if one.blocks else ""
+            one.refused = (UNANSWERED if one.proven else UNPROVEN) if one.blocks else ""
             continue
         if answer.fixed or not answer.by_id or not one.blocks:
             continue
@@ -569,6 +596,8 @@ def _judge(findings: list[Finding], text: str) -> None:
         said = " ".join(answer.reason.lower().split())
         if one.risk and not asked:
             one.refused = UNASKED
+        elif not one.proven:
+            continue
         elif not asked and not _CITED.search(answer.reason):
             one.refused = UNCITED
         elif said in given:
@@ -685,6 +714,11 @@ def _shown(one: Finding) -> list[str]:
     )
     if lead.head:
         lines.append(f"  head: {lead.head}")
+    proofs = [raised.proof for raised in one.standing if raised.proof]
+    if proofs:
+        lines.append(f"  proof: {proofs[0]}")
+    elif one.blocks and not one.proven:
+        lines.append("  proof: none, so a decline of it needs no cited reason")
     if one.contradicts:
         lines.append(f"  contradicts: {one.contradicts}")
     if one.bucket == DISMISSED:

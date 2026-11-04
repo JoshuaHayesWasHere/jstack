@@ -178,6 +178,11 @@ MEETS_MISCOUNTED = Reason(
 )
 UNENDED = Reason("findings", "its findings are not handled: {left} of {found} have no Finding line")
 UNANSWERED = Reason("findings", "its findings are not handled: {ids} have no answer by id")
+UNPROVEN = Reason(
+    "findings",
+    "its findings are not handled: {ids} block with no proof tag, so answer each by id, and a "
+    "decline of one needs no cited reason",
+)
 UNCITED = Reason(
     "findings",
     "its findings are not handled: the decline of {ids} cites no path:line, command or gate",
@@ -764,6 +769,7 @@ def unanswered(said: Said) -> str:
         return UNENDED.format(left=len(old), found=found)
     for why, reason in (
         (findings.UNANSWERED, UNANSWERED),
+        (findings.UNPROVEN, UNPROVEN),
         (findings.UNCITED, UNCITED),
         (findings.REPEATED, REPEATED),
         (findings.UNASKED, RISK_UNASKED),

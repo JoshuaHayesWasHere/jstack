@@ -172,7 +172,7 @@ def test_a_pass_that_finds_a_held_message_due_no_more_sends_nothing_late(launche
     finally:
         for fd in taken:
             os.close(fd)
-    assert keys(launched) == []
+    assert keys(launched) == [f"green|alpha|{'d' * 12}"]
     assert held(launched) == [("failed", "slot")]
 
 

@@ -135,7 +135,7 @@ class Fix:
         (self.state / "tasks" / "alpha.md").write_text(brief)
         told = {"H": str(self.state), "T": str(assembled() / "templates")}
         ran = subprocess.run(
-            [shell, "-c", block("The review", "Second pass:").replace("<slug>", "alpha")],
+            [shell, "-c", block("The review", "--rounds").replace("<slug>", "alpha")],
             capture_output=True,
             text=True,
             cwd=self.work,
@@ -145,7 +145,7 @@ class Fix:
         return ran.stdout.splitlines()
 
 
-HAD = "had: the review of the fix is written, and this head is owed none"
+HAD = "had: the scoped review the brief's line was owed is written, and it is the last"
 
 
 def opened(tmp_path, path, fix=None):
