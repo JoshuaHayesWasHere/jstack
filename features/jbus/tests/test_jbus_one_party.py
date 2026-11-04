@@ -15,8 +15,8 @@ from test_jbus_acts import CHAT, Route, bot_go
 from test_jbus_kitchen import RAN, SESSION, sends
 from test_jbus_queue import add, brief, rows, sha12
 
-TELEMETRY = ("--evidence", "bot-chat:t107u/bf6bc991", "--words", "Telemetry")
 ASKED = "Which of the KPIs with no instrument yet do you want first: Telemetry or cap spells?"
+TELEMETRY = ("--evidence", "bot-chat:t107u/bf6bc991", "--words", "Telemetry", "--answers", ASKED)
 HOME, MESSAGE = "mcp:a-home", "a-message-of-his"
 REF = f"{HOME}/{MESSAGE}"
 TM = ("tm-drift-s4", "tm-capped-spells", "tm-lab-records")
@@ -144,7 +144,7 @@ def test_the_users_own_message_that_names_the_row_is_never_refused(kitchen):
 def test_the_bots_go_on_its_chat_message_is_an_act_on_the_word_kept_for_it(kitchen, route):
     add(kitchen, "alpha", approve=False)
     add(kitchen, "beta", approve=False)
-    said = keep(kitchen, "--evidence", CHAT, "--words", "both of those")
+    said = keep(kitchen, "--evidence", CHAT, "--words", "both of those", "--answers", ASKED)
     status, answer = bot_go(route, kitchen, "alpha")
     assert status == 200, answer
     code, out = approve(kitchen, "beta", "--word", said)
@@ -183,7 +183,7 @@ def test_a_hold_gives_way_to_the_users_own_message_and_to_its_own_party(kitchen)
 
 
 def test_a_bot_chat_word_carries_the_bots_message_it_answers_to_the_home(kitchen):
-    said = keep(kitchen, *TELEMETRY, "--answers", ASKED)
+    said = keep(kitchen, *TELEMETRY)
     (one,) = [each for each in acts.read(kitchen.state) if each["id"] == said]
     assert (one["evidence"]["words"], one["evidence"]["answers"]) == ("Telemetry", ASKED)
     (sent,) = sends(kitchen)
