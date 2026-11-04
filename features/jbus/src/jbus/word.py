@@ -464,6 +464,10 @@ CHAT_WORDS = "refused: --evidence bot-chat takes the user's words with --words"
 SCOPE_CHECKED = "refused: --scope takes only the user's own message, --message <thread>/<message>"
 WORDS_ALONE = "refused: --words goes with --evidence bot-chat:<address>/<device>"
 ANSWERS_ALONE = "refused: --answers goes with --evidence bot-chat:<address>/<device>"
+BARE_WORD = (
+    "refused: a word from the bot's chat that names no row says nothing on its own: pass "
+    "--answers <the bot's message it answers>, or end the words with [for: <slug>]"
+)
 
 
 def _evidence(heard: queue.Said) -> party.Evidence:
@@ -521,6 +525,10 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     that names no thread (`recorded_by`), since a mistyped id would post the word back to the
     home that recorded it.
 
+    A word from the bot's chat that keeps no bot's message it answers (`--answers`) and names no
+    row of the projects by its slug (`queue.bare`) is refused before anything is kept or sent:
+    the home it went to could only guess what it means.
+
     The word goes to the home of the project that owns its subject (`owner`), so a home that
     records a word about another home's work forwards it there, and a word that names no home's
     work stays with the home it was said in or recorded by.
@@ -534,6 +542,14 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     projects = config.projects if args.all else (config.addressee(args.to),)
     now = datetime.now(UTC)
     heard = _heard(args, config, now)
+    if heard.source == queue.BOT_CHAT:
+        rows = {
+            slug
+            for project in projects
+            for slug in queue.known(Pass(config, project, now, lambda _: None).state)
+        }
+        if queue.bare(heard.words, heard.answers, rows):
+            raise Refused(BARE_WORD)
     who = acts.cli_party(args, heard)
     try:
         client = Client(config.server, config.token_path)
