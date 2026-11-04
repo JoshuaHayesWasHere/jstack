@@ -118,7 +118,7 @@
               git show "HEAD:$file" > "$tree/$file"
           done
       (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
-      list=$(printf '%s\n' "$tests" | paste -sd ' ')
+      list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
       PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
           env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $PROOF_TESTS > "$PROOF_TREE/.proof-head" 2>&1
           echo "head exit $?: $(tail -n 1 "$PROOF_TREE/.proof-head")"
