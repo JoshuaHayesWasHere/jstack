@@ -49,8 +49,10 @@ def test_a_finding_whose_proof_exits_non_zero_at_the_head_holds_until_answered()
         "`uv run pytest -q tests/test_a.py`, exit 0, 3 passed",
         "the retry can loop for ever",
         "",
+        "measured 1 runs, 3.9 s, spread 0, limited by a core, decided before the run: 2 s",
+        "measured 5 runs at the base and the head, 1.2 s and 3.9 s",
     ],
-    ids=["a run that passed", "prose", "empty"],
+    ids=["a run that passed", "prose", "empty", "one run", "no spread or limiter"],
 )
 def test_a_proof_of_no_shape_one_round_takes_is_no_proof(proof):
     brief = RESULT + f"Fixed: {FIX}\n" + section(proved(proof))
@@ -64,8 +66,10 @@ def test_a_proof_of_no_shape_one_round_takes_is_no_proof(proof):
         "check full failed at aaaaaaaaaaaa: tests/test_a.py::test_retry",
         "doc features/a/README.md:12 still says the retry stops after 3",
         "unmet 2: the retry stops after 3 tries",
+        "measured 5 runs at the base and the head, 1.2 s and 3.9 s, spread 0.1 s, limited by "
+        "one core in jmerge.ready.said_of, decided before the run: over 2 s blocks",
     ],
-    ids=["run", "check", "doc", "unmet"],
+    ids=["run", "check", "doc", "unmet", "measured"],
 )
 def test_each_shape_of_proof_blocks_and_a_bare_decline_of_it_does_not_count(proof):
     declined = answered("not fixed, the retry, because I disagree") + section(proved(proof))

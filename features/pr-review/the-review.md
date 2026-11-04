@@ -124,15 +124,26 @@ echo "$D/prompt.md"
   It tells nobody, since jbus reads the section.
 
 **3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
+`check` passed at this head before this thread was launched, so what it runs already holds: the reading looks for what blocks, whether the change meets the brief and is secure, stable and fast enough, and not for nits or warnings.
 
 **4: Lead judgment.**
 Judge the list of step 3 as a pragmatic senior engineer, not as a tally: merge the findings that say the same thing, then put each in one of pstack's four buckets.
 Judge it against what the reading was not given: the brief's decisions, and the repo to check a claim against.
 
-- **Act on**: a real issue of correctness, security or maintainability, given what the task is for, that would block a real pull request.
-- **Consider**: legitimate, but not plainly worth what it costs to address in this pull request.
+- **Act on**: a problem that blocks the merge, shown by evidence, and only then: a command you ran at this head that exits non-zero, a check that failed, a doc line the pull request made wrong, or a `Done when` line it does not meet. The evidence is the finding's `(proof: ...)` tag, in one of the forms below. A finding with no such evidence is not **Act on**, however sure the reading is of it: it is **Consider** or **Noted**.
+- **Consider**: legitimate, but not plainly worth what it costs to address in this pull request, or a problem no run, check, doc line or `Done when` line shows.
 - **Noted**: true but not actionable, since it depends on context, optimizes early or matters little at this stage.
 - **Dismissed**: wrong, a nitpick, or missing context.
+
+A finding's proof is one of these, the shapes `jbriefs.findings.PROOFS` reads:
+
+- `` (proof: `<the command>`, exit <n>, <the last line it printed>) ``: a targeted run at this head, a test or a script under `$D`, that fails loud, with `<n>` not 0. Run it in the short lane, as step 5's proof runs.
+- `(proof: check <name> failed at <head12>: <what failed>)`: a check of this head that failed.
+- `(proof: doc <path>:<line> <what it still says>)`: a line of a doc, a skill or a template that the change made wrong.
+- `(proof: unmet <k>: <the Done when line>)`: a `Done when` line the change does not meet, as the `Meets the brief:` line names it.
+- `(proof: measured <n> runs at the base and the head, <before> and <after>, spread <s>, limited by <the limiter>, decided before the run: <the result that blocks>)`: a change that is not optimized blocks only on this, a measure written to principle-explain-the-number, with `<n>` at least 2 and the decision written before the first run. A reading that the code looks slow is no proof.
+
+`jmerge` holds a blocking finding whose tag has none of these shapes under a reason that names it, and the crew may decline it with any reason: so an **Act on** finding with no proof costs a wait and blocks nothing.
 
 Hold back what a reading that finds nothing critical fills itself with:
 
@@ -141,6 +152,7 @@ Hold back what a reading that finds nothing critical fills itself with:
 - A finding that says only that the change touches a file outside the brief's `Where` is the section's `Outside Where:` line, which "Wider than the brief" writes from `jmerge --scope`: dismiss it, with that as the reason.
 - A finding of a class a check owns, a guard test of `features/repo-guards/tests` or a lint of `make lint` that fails on it, as a doc naming a module or a path the tree lacks (`test_names_resolve.py`) or an added line no test runs (`test_new_lines_run.py`), is that check's to fail before a reviewer sees it: dismiss it, with "the check owns it" as the reason.
 - A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
+- A finding of a class a check owns, such as lint, formatting, types, a guard test or a test the suite runs, is the check's: `check` passed before this review, so dismiss it, with `the check owns it` as the reason. A check that misses a case is a guard to add, not a finding of this pull request.
 - More than five **Act on** findings is a sign the list is not filtered hard enough.
 
 Send what the reading is for, and never hold a finding back because it is uncomfortable:
@@ -149,11 +161,11 @@ Send what the reading is for, and never hold a finding back because it is uncomf
 - A finding that shows the code does what you did not expect has found a gap in your picture of it, and that is the reason to read adversarially.
 - A finding on security or correctness deserves more scrutiny before it is dismissed, even when one reader alone raised it.
 
-- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on)` or `(bucket: Consider)`, in the forms "Outside the diff" gives. The bucket tag is what `jmerge` reads: an **Act on** finding holds the merge until the crewmate answers it by id, a **Consider** one does not. A finding on security, auth, billing, data, migrations or concurrency ends with one more tag, `(risk: <that area>)`: the crewmate may not decline it without a gate that asks the user. Write no id: `jbriefs --findings` gives each finding its id, and merges this reviewer's with another's of the same place. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
+- **Act on** and **Consider** are the review's findings. Write each as one line, `<severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on) (proof: <the evidence>)` or `(bucket: Consider)`, in the forms "Outside the diff" gives, the proof last. The bucket tag is what `jmerge` reads: an **Act on** finding holds the merge until the crewmate answers it by id, a **Consider** one does not. A finding on security, auth, billing, data, migrations or concurrency ends with one more tag, `(risk: <that area>)`: the crewmate may not decline it without a gate that asks the user. Write no id: `jbriefs --findings` gives each finding its id, and merges this reviewer's with another's of the same place. The tag names the principle the finding breaks, one the intent lists, or is `(principle: none)`. The severity is `error`, `warning` or `info`: the reading's `critical` is written `error`, the highest, its `warning` stays `warning`, and its `nit` is `info`. A crewmate declines an `info` finding by default and leaves it for a follow-up, so rate a thing `warning` when it must be fixed in this pull request.
 - **Noted** and **Dismissed** are counted, not sent. Each count is a line of the section, and each dismissed finding keeps one line there, `<severity> <file>:<line> <what is wrong> (principle: <name>) (dismissed: <the reason>)`: it is what lets the user overrule the lead, and where another reviewer raised the same finding, `jbriefs --findings` prints the dismissal beside it. Neither goes to the crewmate.
 - The buckets are the lead's reading. What the crewmate does with a finding is still its own: `Finding F<n>: fixed`, or `Finding F<n>: not fixed` with a reason (the crew skill, "The review").
-- In a review after the first, a scoped pass or a second pass, the severity alone routes each finding, and the bucket and the risk tag are written as they are and route nothing (`jbriefs.findings`, `_LATER`).
-  An `error` goes to the crewmate and holds the merge.
+- One round: a fix the crewmate pushes for the findings gets no review. The only review after the first is a scoped pass, the re-judgement a `Meets the brief: no` owes or the review of a rebase that changed the content. In it the severity alone routes each finding, and the bucket and the risk tag are written as they are and route nothing (`jbriefs.findings`, `_LATER`).
+  An `error` goes to the crewmate and holds the merge, and carries its `(proof: ...)` tag as an **Act on** finding does.
   A `warning` holds nothing and goes to no crewmate: jbus keeps it, once the pull request merged, for the day's warnings row, `warnings-<day>` (`jbus.daywarnings`).
   An `info` is dropped.
 - A brief that says `Review: cleanup` is that day's row, and its one review is of its own diff alone: an `error` goes to the crewmate and holds the merge, whatever the bucket or tag, and a `warning` or an `info` is dropped, so none of its findings goes to another row.
@@ -173,7 +185,7 @@ uv run --project "$T/../source" jgauge proof --dir "$D" --kept "$kept" --thread 
 THE_PROOF_ENDS_HERE
 ```
 
-- The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`. It is never the repo's whole suite and never its check command: CI's `check` ran those, and passed before this thread was launched.
+- The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`. It is never the repo's whole suite and never its check command: CI's `check` ran those, and the reviewer is launched only once it has passed at this head.
 - The block starts the proof on its own, under `jgauge test-slot --short`, which holds one of the slots of the short lane: no full suite takes those, so it waits only behind other short runs.
   `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
   Send the block as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
@@ -203,4 +215,4 @@ THE_PROOF_ENDS_HERE
   `jmerge` holds the pull request while the last round's line says `no`, and also where a section of that round has no line of this shape or a count that is not the brief's: a skipped or skimmed check is no pass.
   Each unmet line is also a finding, so the crew has it to fix, and the way out is that fix and a scoped review whose own line says `yes`.
 - `Head:` is the head reviewed, and `Patch-id:` is `git patch-id --stable` of the diff from the base to that head. The block of step 1 of "After the review" prints both lines whole.
-- CI's `check` is not the verdict, and not the precondition either: a reviewer is launched when the pull request opens, beside its checks, and never on one whose check failed. A green pull request can still have findings, and `jmerge` merges only one that is green.
+- CI's `check` is not the verdict, but it is the precondition: a reviewer is launched only once `check` has passed at the head it reviews, never while it runs and never on one whose check failed. A green pull request can still have findings, and `jmerge` merges only one that is green.

@@ -57,16 +57,14 @@ Without asking you, the threads do everything else that is reversible.
 | One of the six doors | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
-A brief that says `Review: twice`, the home's default, gets one review and one fix round.
-Then a second review reads the head the fix round pushed, unless that round changed nothing and wrote `Fixed: none needed`.
-The second review's `error` findings go to the same crewmate, which answers them before the merge, and its `info` findings are dropped.
+A brief that says `Review: review`, the home's default, gets one review round, launched once `check` has passed: the checks prove or fail the work first.
+A finding blocks the merge only with a proof, a run that exits non-zero at the head, a failed check, a doc line the pull request made wrong, an unmet `Done when` line, or a measure, and the crewmate answers each before the merge.
+A fix pushed for the findings gets no review: the pull request's checks stand behind it.
+The one later pass is a scoped review that judges again a `Meets the brief: no`. Its `error` findings go to the same crewmate, and its `info` findings are dropped.
 Its `warning` findings hold nothing: once the pull request merged, jbus keeps them for one follow-up row a day, `warnings-<day>`, which it files and approves by the follow-up rule.
 A day whose warnings are fewer than 3 files no row, and they carry to the next day's row.
 That row gets one review, of its own diff, in which only an error is fixed, and none of its findings becomes another row.
-A brief that says `Review: review` has every finding answered before the merge.
-There, a pushed fix gets one more review, of the fix alone, and that review is the last.
-A round that pushed nothing gets no second review, and the pull request's checks stand behind it.
-A blocking finding that the crewmate declines gets that review all the same, even when nothing was pushed.
+An old brief that says `Review: twice` reads as `review`.
 
 ## Who clears a blocker, and who pages you
 
