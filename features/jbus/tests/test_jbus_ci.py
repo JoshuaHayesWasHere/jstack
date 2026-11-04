@@ -152,6 +152,27 @@ def test_a_test_that_failed_on_one_branch_is_no_flake_beside_one_that_failed_on_
     assert (found.value, found.shown, found.n) == (1.0, "1", 2)
 
 
+def test_numbers_count_a_red_macos_job_on_main_as_no_red_main():
+    """macos.yml runs on each push to main, beside main's check, and is never main's check."""
+    jobs = [
+        hosted(1, "m1", "main", "success", event="push"),
+        hosted(2, "m1", "main", "failure", event="push", name="macos", tests=["tests/test_m.py"]),
+        hosted(3, "m1", "main", "success", event="push", name="macos-select"),
+    ]
+    facts = numbers.Facts(jobs, [], [], NOW)
+    assert facts.intervals == []
+    assert numbers.mainred(facts, NOW - timedelta(days=7), NOW).shown == "0 min"
+
+
+def test_numbers_end_no_red_main_at_a_green_macos_job():
+    red_at = NOW - timedelta(days=1) + timedelta(minutes=6)
+    jobs = [
+        hosted(0, "m1", "main", "failure", event="push"),
+        hosted(1, "m2", "main", "success", event="push", name="macos"),
+    ]
+    assert numbers.Facts(jobs, [], [], NOW).intervals == [(red_at, NOW)]
+
+
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):
     assert (nine["inode"].value, nine["inode"].shown, nine["inode"].met) == (None, "no data", None)
 
