@@ -792,11 +792,18 @@
       "name": "agent-sends.sh",
       "path": "features/home/hooks/agent-sends.sh",
       "harnesses": [
-        "claude-code"
+        "claude-code",
+        "codex"
       ],
       "events": [
         {
           "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "mcp__t3[-_]code__t3_thread_send",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
           "event": "PreToolUse",
           "matcher": "mcp__t3[-_]code__t3_thread_send",
           "refuses": true
@@ -871,13 +878,20 @@
       "name": "infra-files.sh",
       "path": "features/jleak/hooks/infra-files.sh",
       "harnesses": [
-        "claude-code"
+        "claude-code",
+        "codex"
       ],
       "events": [
         {
           "harness": "claude-code",
           "event": "PreToolUse",
-          "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+          "matcher": "Bash|apply_patch|Write|Edit|MultiEdit|NotebookEdit",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
+          "event": "PreToolUse",
+          "matcher": "Bash|apply_patch|Write|Edit|MultiEdit|NotebookEdit",
           "refuses": true
         }
       ]
@@ -894,11 +908,18 @@
       "name": "outbound-command.sh",
       "path": "features/jleak/hooks/outbound-command.sh",
       "harnesses": [
-        "claude-code"
+        "claude-code",
+        "codex"
       ],
       "events": [
         {
           "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        },
+        {
+          "harness": "codex",
           "event": "PreToolUse",
           "matcher": "Bash",
           "refuses": true
