@@ -318,6 +318,7 @@ def owned(
     brief has no home to own it, and `add` refuses it for that fault beside its fields' own,
     named as they are, `brief has no Home: line` and a request's `no Home: line`."""
     fault = homes.fault(home, text, project)
+
     if fault and requested(judgement.body(text)):
         return fault
     if fault:
