@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 
-from jbriefs import findings, meets, parse, skills
+from jbriefs import findings, meets, proved, skills
 from jbriefs.findings import CLEANUP, NONE, REVIEW, TWICE
 from jmerge.rangediff import Verdict
 from jmerge.stacked import Stacked
@@ -468,9 +468,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         unrun=unrun(listed.get("statusCheckRollup") or [], required),
         live=live(listed.get("statusCheckRollup") or [], required),
         passed_at=passed_at(listed.get("statusCheckRollup") or [], required),
-        removed=tuple(
-            one["path"] for one in listed["files"] if one.get("changeType") == "DELETED"
-        ),
+        removed=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "DELETED"),
     )
 
 
@@ -808,9 +806,7 @@ def changed_tests(one: PullRequest) -> tuple[str, ...]:
     and does not delete."""
     gone = set(one.removed)
     return tuple(
-        path
-        for path in one.files
-        if path not in gone and _TEST.fullmatch(path.rsplit("/", 1)[-1])
+        path for path in one.files if path not in gone and _TEST.fullmatch(path.rsplit("/", 1)[-1])
     )
 
 
@@ -820,19 +816,19 @@ def _of_kind(path: str, kind: str) -> bool:
         any(fnmatchcase("/".join(parts[at:]), pattern) for at in range(len(parts)))
         if "/" in pattern
         else fnmatchcase(parts[-1], pattern)
-        for pattern in parse.EXEMPT[kind]
+        for pattern in proved.EXEMPT[kind]
     )
 
 
 def short_on_proved(text: str, one: PullRequest) -> str:
     """Why the brief's `Proved:` line does not prove the pull request, or nothing
-    (`parse.proved`). A pull request that changes tests needs the line to name each of them,
+    (`proved.proved`). A pull request that changes tests needs the line to name each of them,
     with their run over its merge-base's code ending 1, a failure, and at its head ending 0. A
     run that passes at the base, or ends on anything but a failure there (no test collected, a
     time limit), passes vacuously. One that changes no test needs no line, and where it says
     `none, <kind>` each file it changes is of a kind it names."""
     tests = changed_tests(one)
-    said = parse.proved(text)
+    said = proved.proved(text)
     if said is None:
         return PROVED_MISSING.format(tests=", ".join(tests)) if tests else ""
     if said.fault:

@@ -101,21 +101,20 @@
               git show "HEAD:$file" > "$tree/$file"
           done
       (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
-      uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
-          tree=$1
-          shift
-          env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider "$@" > "$tree/.proof-head" 2>&1
-          echo "head exit $?: $(tail -n 1 "$tree/.proof-head")"
-          (cd "$tree" && env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider --continue-on-collection-errors "$@") > "$tree/.proof-base" 2>&1
-          echo "base exit $?: $(tail -n 1 "$tree/.proof-base")"
-      ' proof "$tree" $tests | tee "$tree/.proof-said"
+      list=$(printf '%s\n' "$tests" | paste -sd ' ')
+      PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
+          env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $PROOF_TESTS > "$PROOF_TREE/.proof-head" 2>&1
+          echo "head exit $?: $(tail -n 1 "$PROOF_TREE/.proof-head")"
+          (cd "$PROOF_TREE" && env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider --continue-on-collection-errors $PROOF_TESTS) > "$PROOF_TREE/.proof-base" 2>&1
+          echo "base exit $?: $(tail -n 1 "$PROOF_TREE/.proof-base")"
+      ' | tee "$tree/.proof-said"
       ran=${PIPESTATUS[0]}
       at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
       at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
       if [ "$ran" != 0 ] || [ -z "$at_head" ] || [ -z "$at_base" ]; then
           echo "no proof: the slot's run ended $ran"
       else
-          line="Proved: $(printf '%s\n' "$tests" | paste -sd ' ') base exit $at_base at $base, head exit $at_head at $head"
+          line="Proved: $list base exit $at_base at $base, head exit $at_head at $head"
           echo "$line"
           if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
       fi
@@ -134,7 +133,7 @@
   `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, or one with a base exit other than 1 or a head exit other than 0 (`ready.short_on_proved`).
 
   A pull request that changes no test file writes `Proved: none, <kind>`, with `docs`, `config`, or `docs and config`, and is exempt.
-  The kinds that are exempt, and the files each covers (`jbriefs.parse.EXEMPT`), are these:
+  The kinds that are exempt, and the files each covers (`jbriefs.proved.EXEMPT`), are these:
   - `docs`: `*.md`, `*.txt`, `*.rst`, and anything under a `docs/` directory.
   - `config`: `*.toml`, `*.json`, `*.yml`, `*.yaml`, `*.cfg`, `*.ini`, `*.lock`, a dotfile such as `.gitignore`, and anything under `.github/`.
 

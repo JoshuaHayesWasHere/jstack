@@ -2,20 +2,19 @@
 tests fail over its merge-base's code and pass at its head. A suite that also passes at the base
 proves nothing (#968's `Proves it` printed 853 passed at its base while its named test failed
 there). One that changes no test is exempt, and a `Proved: none, <kind>` line it writes holds
-where each file it changes is of that kind (`jbriefs.parse.EXEMPT`).
+where each file it changes is of that kind (`jbriefs.proved.EXEMPT`).
 
 The first tests run `jmerge` against the fake `gh` and real origin of `test_home_merge`: a held, a
 passing and an exempt pull request. The rest drive `ready.short_on_proved`, which `jmerge` calls
 before a merge, through each way a line falls short."""
 
-import json
 import re
 from dataclasses import replace
 
 import pytest
 
 import test_home_merge as merge
-from jbriefs import parse
+from jbriefs import proved as proved_line
 from jmerge import ready
 
 TEST = "features/x/tests/test_x.py"
@@ -157,8 +156,8 @@ def test_the_line_holds_only_where_the_tests_it_names_fail_at_the_base_and_pass_
 
 def test_the_last_proved_line_under_the_result_is_the_one_read():
     text = f"Proved: none, docs\n{result(proved(base_exit=0))}{proved()}"
-    assert parse.proved(text) == parse.Proved((TEST,), 1, BASE, 0, HEAD)
-    assert parse.proved("# alpha\nProved: none, docs\n") is None
+    assert proved_line.proved(text) == proved_line.Proved((TEST,), 1, BASE, 0, HEAD)
+    assert proved_line.proved("# alpha\nProved: none, docs\n") is None
 
 
 def test_github_s_deleted_files_are_the_ones_it_removes():
@@ -177,7 +176,7 @@ def test_github_s_deleted_files_are_the_ones_it_removes():
     assert pull.removed == (TEST,)
     assert ready.changed_tests(pull) == ()
     full = ready.listed_in_full(
-        replace(pull, files=(), removed=()), [{"filename": TEST, "status": "removed"}, {"filename": "a.py"}]
+        replace(pull, files=(), removed=()),
+        [{"filename": TEST, "status": "removed"}, {"filename": "a.py"}],
     )
     assert full.removed == (TEST,)
-
