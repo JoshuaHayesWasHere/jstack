@@ -50,6 +50,16 @@ reason with its sentence:
   the migration and the ones after it, consecutively.
 - `browser`, `its browser run failed at <head12>`: the pull request's own browser run failed, and
   main's last one did not. Fix the failed tests and push.
+- `skills`, `its Result has no artifact under Skills run: for <names>`: add the item each name
+  owes, and the line lists each with the artifact `templates/skill-artifacts.md` names for it;
+- the `proved-` reasons, each of `ready.short_on_proved`'s (`missing`, `unread`, `not-exempt`,
+  `unnamed`, `stale`): run the proof block of the crew skill's do-the-task.md, which appends the
+  `Proved:` line, and push nothing for it. For `base-passed` and `head-failed` the crew first fixes
+  and pushes the tests, and for `not-kind` it writes the kinds again or adds the test the change
+  needs.
+
+`UNTOLD` holds the reasons of `jmerge`'s `result` step no crew can fix, and every other one is a
+row: a test holds the table to `ready`.
 
 `tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
 thread is at work (`watch.at_work`: starting, `running` or `waiting`), since the line may be
@@ -126,6 +136,17 @@ RERUN = "rerun.md"
 ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
 AGAIN = "/pr-review run {slug} again"
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
+PROVE_STEP = "Once the check passed, prove the change with the tests it changes"
+PROVE = (
+    f'Run the proof block of the crew skill\'s do-the-task.md, its step "{PROVE_STEP}", in your '
+    "worktree, with the work committed: it appends the `Proved:` line to the Result itself, and "
+    "`jmerge` reads the last one. "
+)
+PROVE_ONLY = "Push nothing for it: the line is in the Result, not the branch."
+FIX_TESTS = (
+    "fix the tests until they fail over the base's code and pass at the head, commit and push "
+    "that fix alone, and run the block again at the new head."
+)
 MESSAGE = (
     "jbus: pull request #{number} waits on you, and jmerge keeps saying the same of it "
     "({reason}). {sentence} " + END_TURN
@@ -355,7 +376,83 @@ TABLE = (
         "has them: a moved shot fails no pull request's run, and only the shots row redraws "
         "them. `jmerge` merges once the browser run of the new head passes.",
     ),
+    Short(
+        "skills",
+        "wait",
+        ready.SKILLS_UNRUN,
+        "The Result's `Skills run:` leaves out a skill its brief names. For each name the reason "
+        "gives, do what the skill's file says if you have not, and add one item `- <name>: <the "
+        "artifact>` under `Skills run:` in the last Result, the artifact the crew skill's "
+        "`templates/skill-artifacts.md` names for it. Push nothing for it.",
+    ),
+    Short(
+        "proved-missing",
+        "wait",
+        ready.PROVED_MISSING,
+        PROVE + "The Result has no `Proved:` line, and the pull request changes the tests the "
+        "reason names. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-unread",
+        "wait",
+        ready.PROVED_UNREAD,
+        PROVE + "The last `Proved:` line has no shape `jmerge` reads: never write or mend the "
+        "line by hand, the block's line replaces it. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-not-exempt",
+        "wait",
+        ready.PROVED_NOT_EXEMPT,
+        PROVE + "The line says `none`, and the pull request changes the tests the reason names, "
+        "so it is no exemption: the block's line names those tests. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-not-kind",
+        "wait",
+        ready.PROVED_NOT_KIND,
+        "The `Proved:` line says `none` for kinds that leave out the file the reason names. "
+        "Where that file is docs or config, write the line again as `Proved: none, <kinds>` with "
+        "each kind the pull request's files are, and push nothing. Otherwise the change needs a "
+        "test that names it: add or change the test that fails without it, commit and push that "
+        "alone, then run the proof block of the crew skill's do-the-task.md, its step "
+        f'"{PROVE_STEP}", which appends the `Proved:` line that names the changed tests.',
+    ),
+    Short(
+        "proved-unnamed",
+        "wait",
+        ready.PROVED_UNNAMED,
+        PROVE + "The last `Proved:` line leaves out the tests the reason names, and the block's "
+        "line names every test the branch changes. " + PROVE_ONLY,
+    ),
+    Short(
+        "proved-base-passed",
+        "wait",
+        ready.PROVED_BASE_PASSED,
+        PROVE
+        + "The last line says the tests did not fail at the base, so they prove nothing: "
+        + FIX_TESTS,
+    ),
+    Short(
+        "proved-head-failed",
+        "wait",
+        ready.PROVED_HEAD_FAILED,
+        PROVE + "The last line says the tests did not pass at the head: " + FIX_TESTS,
+    ),
+    Short(
+        "proved-stale",
+        "wait",
+        ready.PROVED_STALE,
+        PROVE + "The last line is of a head whose patch the pull request no longer carries, so "
+        "run the block at the head as it is. " + PROVE_ONLY,
+    ),
 )
+UNTOLD = {
+    ready.NO_BRIEF.code: "no brief names the pull request, so there is no crew to tell",
+    ready.HAND_DRAFT.code: "the draft is somebody's by hand, and jmerge never marks it ready",
+}
+"""The code of each reason of `jmerge`'s `result` step that no crew can fix, and why. Every other
+reason of that step is a row of `TABLE`: `test_jbus_expedite_result.py` holds the two to
+`ready`, so a reason added there is never a quiet wait."""
 
 
 def short_of(said: merge.Line) -> Short | None:
@@ -533,6 +630,12 @@ def _tell(
     if row.kind in ANSWERED:
         left = [one.id for one in findings.triage(task_brief(run, slug)).blocking()]
         sentence += f" The findings with no answer that counts: {', '.join(left)}." if left else ""
+    if row.kind == "skills":
+        owes = [
+            f"`- {name}: {skills.owed(skills.resolve(name).name)}`"
+            for name in skills.missing(task_brief(run, slug))
+        ]
+        sentence += f" The items it owes: {'; '.join(owes)}." if owes else ""
     message = MESSAGE.replace("{sentence}", sentence)
     ask = rebase.Ask(
         row.kind, "", "told what it is short of", message, no_thread=NO_THREAD, refused=REFUSED
