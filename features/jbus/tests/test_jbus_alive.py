@@ -119,7 +119,10 @@ def test_the_third_alarm_in_a_row_alerts_once_on_the_desk_and_never_shows_the_ke
 
 
 def test_the_alarm_s_alert_reaches_the_infra_home_and_the_next_pass_ends_it(kitchen):
-    """The test runs the command as the unit runs it."""
+    """The test runs the command as the unit runs it, on the real clock, so the kitchen signs in
+    at the real now: a sign-in from the tests' fixed now runs out within a week of a real day,
+    and its reminder is a streak too."""
+    kitchen.signed_in(NOW - datetime.now(UTC))
     infra = kitchen.second("infra")
     assert [kitchen.main("alarm") for _ in range(2)] == [
         (0, "pass failed: 1 in a row\n"),
