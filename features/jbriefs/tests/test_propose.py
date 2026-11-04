@@ -189,11 +189,9 @@ def wrong(worktree, entries):
     ]
 
 
-@pytest.mark.skipif(
-    not all(present(entry["merge"]) for entry in CORPUS),
-    reason="the checkout lacks the corpus's merges: CI's is shallow (fetch-depth 2)",
-)
 def test_replay(tmp_path):
+    if not all(present(entry["merge"]) for entry in CORPUS):
+        pytest.skip("the checkout lacks the corpus's merges: CI's is shallow (fetch-depth 2)")
     worktree = tmp_path / "replay"
     assert git("worktree", "add", "-q", "--detach", str(worktree), "HEAD").returncode == 0
     try:
