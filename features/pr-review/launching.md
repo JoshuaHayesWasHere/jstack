@@ -2,7 +2,11 @@
 
 A pull request is reviewed by a **reviewer**: a new thread that knows the brief and the pull request and nothing of the conversation that wrote the code. The thread `/pr-review` is typed in never reviews. It launches the reviewer, gives the user the link, and goes back to what it was doing.
 
-There is one pass per pull request: the reviewer reviews once and the crewmate fixes once. A fix that changes files under `tests/` only is not reviewed: what stands behind it is the pull request's own checks. A fix that changes any other file gets one scoped pass, of the fix alone, by another reviewer, and that pass is the last ("A scoped pass"). The crewmate's own check decides which it is (the crew skill, "A second pass"). The reviewer finds, and fixes nothing: what to do with a finding is for the thread that did the work.
+There is one pass per pull request: the reviewer reviews once and the crewmate fixes once.
+A round that pushed nothing is not reviewed: what stands behind it is the pull request's own checks.
+A fix that changes any file, a test among them, gets one scoped pass, of the fix alone, by another reviewer, and that pass is the last ("A scoped pass").
+The crewmate's own check decides which it is (the crew skill, "A second pass").
+The reviewer finds, and fixes nothing: what to do with a finding is for the thread that did the work.
 
 | The message | Typed in | This thread |
 |---|---|---|
