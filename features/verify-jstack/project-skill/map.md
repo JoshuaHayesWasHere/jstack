@@ -131,6 +131,8 @@ Cross-cutting:
 - `features/jmerge/tests/test_main_contract.py`
 - `features/skill-library/tests/test_maintain_verification_skill.py`
 - `features/repo-guards/tests/test_module_size.py`
+- `features/repo-guards/tests/test_names_resolve.py`
+- `features/repo-guards/tests/test_new_lines_run.py`
 - `features/repo-guards/tests/test_no_comments.py`
 - `features/repo-guards/tests/test_no_mistakes_gone.py`
 - `features/repo-guards/tests/test_one_way.py`
