@@ -679,18 +679,22 @@ class Repo:
                 lost.append(ready.Drop(file, theirs, ours))
         return tuple(lost)
 
-    def over_main(self, one: ready.PullRequest) -> tuple[str, str]:
+    def over_main(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str]:
         """Why the head waits over today's base, or nothing, and the base's tip it was judged
-        over. A green check counts only over the base it ran over: where the base changed any
-        path since the check started, the head waits for a check over today's base. A head
-        that merges cleanly onto the tip with `git merge-tree` has GitHub merge the base into
-        its branch (`rejudge.BaseMerge`), and its check at the new head decides; one that
-        conflicts waits for a rebase. A path the pull request does not touch is no proof:
-        #923 and #935 each added their own new file and broke main together. GitHub merges the
-        base into one branch of each base at a time, the first into that base to get this far in
-        merge order while no other holds its line (`self.line`); every other into that base
-        waits in line behind it, so each merge costs one CI round and not one for each open pull
-        request."""
+        over. Where the base changed no path since the check started, the check ran over
+        today's base. Where it did, a head that conflicts with the tip with `git merge-tree`
+        waits for a rebase. A clean one whose files, and the old paths of its renames (`left`),
+        share none of the base's changed paths merges on its existing check, with no update of
+        its branch and no rerun (Josh's rule of 2026-11-02, #847, back on 2026-11-04 with
+        GitHub's strict rule off): `Repo.merge` runs the fast guards on its tree merged over
+        the tip first (`treeguards`), which catch a clash two pull requests make with no shared
+        file, as #923 and #935 made with two new `v007_` files. A repo with no guards has
+        nothing that checks that tree, so its pull request takes the line as one that overlaps.
+        One that overlaps has GitHub merge the base into its branch (`rejudge.BaseMerge`), and
+        its check at the new head decides. GitHub merges the base into one branch of each base
+        at a time, the first into that base to get this far in merge order while no other holds
+        its line (`self.line`); every other into that base that overlaps waits in line behind
+        it, so each merge costs one CI round and not one for each open pull request."""
         if one.started is None:
             return "", ""
         moved = self.moved(one.base, one.started)
@@ -704,6 +708,9 @@ class Repo:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ""
+        shared = left is None or bool({*one.files, *left} & set(paths))
+        if not shared and self.guards.command:
+            return "", tip
         return self.in_turn(one, tip, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE), ""
 
     def in_turn(self, one: ready.PullRequest, tip: str, asked: str, due: str) -> str:
@@ -956,7 +963,7 @@ class Repo:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
         if one.draft:
             return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
-        short, tip = self.over_main(one)
+        short, tip = self.over_main(one, left)
         short = short or self.guards.kept(one, tip)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
