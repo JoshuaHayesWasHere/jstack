@@ -356,11 +356,13 @@ The bot gives a go, an answer or a word with `POST /act?project=<name>` on `jbus
 ```
 {"action": "go", "slug": "alpha", "sha12": "52e43397dc8c", "evidence": "bot-chat:<address>/<device>", "seen": "<event id>"}
 {"action": "answer", "number": 3, "words": "tea", "keeps": true, "evidence": "bot-chat:<address>/<device>"}
-{"action": "word", "words": "read vision.md", "evidence": "bot-chat:<address>/<device>"}
+{"action": "word", "words": "read vision.md [for: alpha]", "evidence": "bot-chat:<address>/<device>"}
 ```
 
 The evidence of each is `bot-chat:<address>/<device>` with both parts named, and any other, `voice:` included, answers 400.
 A word is kept for the project's home and sent to its thread at once, as `jbus word` sends one ([Your word to a home](your-word-to-a-home.md)), and answers 200 with the act and `say`, the line `jbus word` prints for it.
+A word that keeps no `answers` and names no row of the project by its slug is refused as `jbus word` refuses it: it answers 409 with `word.BARE_WORD`'s text as `error`, and nothing is kept or sent.
+To pass it, give `answers`, the bot's message the words answer, or end the words with `[for: <slug>]`.
 
 `seen` may be left out, and so may `keeps`, which is false then.
 The route takes the bot's key, `Authorization: Bearer <key>`, and refuses any request without the right one with 401, from loopback or any other peer, whatever its `X-Forwarded-For` says.
