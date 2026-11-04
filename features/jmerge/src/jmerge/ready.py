@@ -286,6 +286,11 @@ BASE_MOVED_ASKED = Reason(
 BASE_MOVED_DUE = Reason(
     "check", "{base} moved after its check started: GitHub is to merge {base} at {tip} into it"
 )
+IN_LINE = Reason(
+    "check",
+    "it is in line behind #{number}: {base} moved after its check started, and GitHub merges"
+    " {base} into the branch of one pull request at a time, the one to merge next",
+)
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
