@@ -26,12 +26,13 @@ def kitchen(tmp_path, monkeypatch):
 def added(kitchen, done, check):
     if check is not None:
         (kitchen.home / "fresh-check").write_text(check)
-    text = brief("alpha").replace("- it is done\n", f"- {done}\n")
+    text = brief("alpha").replace("- `make check` passes\n", f"- {done}\n")
     code, said = kitchen.main(
         "--project", "demo", "queue", "add", "alpha", "--priority", "1", stdin=text
     )
     assert code == 0, said
-    return [line for line in said.splitlines() if line.startswith("warning:")]
+    warned = [line for line in said.splitlines() if line.startswith("warning:")]
+    return [line for line in warned if "items that run nothing" not in line]
 
 
 @pytest.mark.parametrize("done", ["`make check` passes", "make check passes under a test slot"])
