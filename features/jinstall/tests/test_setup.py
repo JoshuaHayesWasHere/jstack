@@ -3,6 +3,7 @@ passes the doctor with `doctor: ok`. Each test runs the script under a temporary
 the stand-ins of `test_doctor` for every program the doctor runs, and a `git` that has a user
 name set."""
 
+import json
 import os
 import re
 import shutil
@@ -37,6 +38,23 @@ GIT = 'case "$1" in config) echo "Sam Doe" ;; *) echo "git version 2.51.0" ;; es
 SERVER = "http://127.0.0.1:3773"
 FOLDS = [f"skills {harness.name}" for harness in HARNESSES]
 """What the line of each harness's skill links names, `<word> skills <harness>: <n> links`."""
+
+
+def hooks_folded(lines):
+    """`lines` with each `done hook <file> <Event>` counted in one `done hooks <file>: <n> hooks`
+    line where the file's first one was, as setup says them."""
+    out, at = [], {}
+    for line in lines:
+        if not line.startswith("done hook "):
+            out.append(line)
+            continue
+        file = line.split(" ")[2]
+        if file not in at:
+            at[file] = [len(out), 0]
+            out.append("")
+        at[file][1] += 1
+        out[at[file][0]] = f"done hooks {file}: {at[file][1]} hooks"
+    return out
 
 
 class Fresh(Doctored):
@@ -91,7 +109,7 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
     ]
     links = {f"hard {link}" for link in user.links()}
     parts = [part for part in [*user.parts(), f"optional units {user.units}"] if part not in links]
-    done = [f"done {part.split(' ', 1)[1]}" for part in parts]
+    done = hooks_folded([f"done {part.split(' ', 1)[1]}" for part in parts])
     folded = [f"done {fold}: {len(SKILLS)} links" for fold in FOLDS]
     assert said[17] == "already generated files are current"
     assert said[18:] == [*done[:3], *folded, *done[3:]]
@@ -114,8 +132,18 @@ def test_it_walks_every_need_the_doctor_lists_once_and_in_order(user):
         if link.parent == user.home / root
     }
     doctored = [line.split(" -> ")[0].split(" ", 2)[2] for line in user.doctor()[1][:-1]]
-    folded = [links.get(name, name) for name in doctored]
-    runs = [name for at, name in enumerate(folded) if name not in FOLDS or folded[at - 1] != name]
+    folded = [
+        f"hooks {name.split(' ')[1]}" if name.startswith("hook ") else links.get(name, name)
+        for name in doctored
+    ]
+    seen = set()
+    runs = []
+    for name in folded:
+        if name.startswith(("skills ", "hooks ")):
+            if name in seen:
+                continue
+            seen.add(name)
+        runs.append(name)
     assert named == runs
 
 
@@ -127,6 +155,19 @@ def test_a_clean_home_is_set_up_in_at_most_40_lines_with_one_line_for_each_layou
     ]
     assert [line for line in user.setup()[1] if " links" in line] == [
         f"already {fold}: {len(SKILLS)} links" for fold in FOLDS
+    ]
+
+
+def test_setup_says_the_hooks_of_each_hooks_file_in_one_line(user):
+    """A hook more in a harness's file costs setup no line more."""
+    user.setup()
+    hooked = {
+        file: sum(len(groups) for groups in json.loads(file.read_text())["hooks"].values())
+        for file in (user.settings, user.codex)
+    }
+    said = user.setup()[1]
+    assert [line for line in said if line.startswith("already hook")] == [
+        f"already hooks {file}: {count} hooks" for file, count in hooked.items()
     ]
 
 
@@ -412,7 +453,9 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
     probed, harness, units, left = 17, 1, 1, 5
-    parts = len(user.parts()) - len(user.links()) + len(FOLDS)
+    hooks = [part for part in user.parts() if part.startswith("hard hook ")]
+    files = {part.split(" ")[2] for part in hooks}
+    parts = len(user.parts()) - len(user.links()) + len(FOLDS) - len(hooks) + len(files)
     count = probed + harness + parts + units - left
     assert said[-2:] == [
         f"setup: 0 done, {count} already, 0 needs you, {left} optional left, exit 0",

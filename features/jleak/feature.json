@@ -17,7 +17,8 @@
       "matcher": "Bash",
       "script": "hooks/outbound-command.sh",
       "harnesses": [
-        "claude-code"
+        "claude-code",
+        "codex"
       ],
       "refuses": true
     },
@@ -33,10 +34,11 @@
     },
     {
       "event": "PreToolUse",
-      "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+      "matcher": "Bash|apply_patch|Write|Edit|MultiEdit|NotebookEdit",
       "script": "hooks/infra-files.sh",
       "harnesses": [
-        "claude-code"
+        "claude-code",
+        "codex"
       ],
       "refuses": true
     }
