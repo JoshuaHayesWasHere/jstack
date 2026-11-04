@@ -18,6 +18,8 @@ The tests run the command as `test_jmerge_rejudge` does, against a real origin a
 
 import json
 
+from jbus import clock
+from jbus.review import matches
 from jmerge import ready
 from test_home_merge import BORDERS, PASSED, RUNNING, run
 from test_jbus_held import Held
@@ -126,3 +128,41 @@ def test_rows_held_on_a_check_with_no_run_wake_their_home_after_the_hold_minutes
     held.until(31)
     (told,) = held.told()
     assert "macos has no run at abcdef123456" in told
+
+
+UNREOPENED = ready.QUEUED_UNREOPENED.format(
+    check="macos", head="abcdef123456", minutes=ready.RESTART_MINUTES, why="HTTP 502"
+)
+UNOPENED = ready.QUEUED_UNOPENED.format(
+    check="macos", head="abcdef123456", minutes=40, why="HTTP 502"
+)
+
+
+def closed(held):
+    """GitHub lists none of the rows' pull requests open: a restart left them closed."""
+    held.kitchen.set("open.json", [])
+
+
+def test_rows_left_closed_by_a_reopen_jmerge_asks_no_more_wake_their_home(kitchen):
+    """`jmerge` says the wait of a pull request GitHub no longer lists open, and nothing at work
+    reopens it, so it is a hold of its own."""
+    held = Held(kitchen, UNREOPENED)
+    closed(held)
+    held.until(31)
+    (told,) = held.told()
+    assert UNREOPENED in told
+
+
+def test_rows_whose_reopen_jmerge_still_asks_are_no_hold(kitchen):
+    held = Held(kitchen, UNOPENED)
+    closed(held)
+    held.until(31)
+    assert held.told() == []
+
+
+def test_only_the_restart_jmerge_still_tries_is_a_wait_on_the_merge_runner():
+    values = {"check": "macos", "head": "abc", "minutes": 40, "why": "HTTP 502"}
+    tried = (ready.QUEUED_RESTARTED, ready.QUEUED_UNCLOSED, ready.QUEUED_UNOPENED)
+    ended = (ready.QUEUED_GAVE_UP, ready.QUEUED_UNRESTARTED, ready.QUEUED_UNREOPENED)
+    assert all(matches(one.format(**values), clock.RUNNER) for one in tried)
+    assert not any(matches(one.format(**values), clock.RUNNER) for one in ended)

@@ -125,8 +125,10 @@ RUNNER = (
     ready.QUEUED_UNCLOSED,
 )
 """The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, CI,
-and the one restart of a run GitHub kept queued at the head of the line. A run still queued after
-that restart (`ready.QUEUED_GAVE_UP`) is a hold: nothing at work moves it."""
+and the one restart of a run GitHub kept queued at the head of the line, with the close or the
+reopen `jmerge` tries again for `ready.RESTART_MINUTES`. A run still queued after that restart
+(`ready.QUEUED_GAVE_UP`), a restart that never took (`ready.QUEUED_UNRESTARTED`) and a reopen
+`jmerge` asks no more (`ready.QUEUED_UNREOPENED`) are holds: nothing at work moves them."""
 AHEAD = (
     (ready.MERGES_AFTER, "slug"),
     (ready.STACKED_ON, "slug"),
@@ -352,6 +354,20 @@ def _on(slug: str, reason: str, rows: list[str]) -> bool:
     return slug in rows or slug in re.findall(r"[\w.-]+", reason)
 
 
+def _rows(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, int]]:
+    """Each row with a pull request, and its number, by number: the open ones, and those whose
+    brief names a pull request GitHub lists neither open nor merged that `jmerge` says a wait of,
+    as it does while a restart of its queued run left it closed (`ready.QUEUED_UNREOPENED`)."""
+    rows = [(slug, int(pull["number"])) for slug, pull in world.open.items()]
+    numbers = {str(number) for _, number in rows}
+    if any(number not in numbers for number in said):
+        for url, slug in watch.tied(run).items():
+            number = url.rstrip("/").rsplit("/", 1)[-1]
+            if number in said and number not in numbers and slug not in world.merged:
+                rows.append((slug, int(number)))
+    return sorted(rows, key=lambda row: row[1])
+
+
 def held(
     run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
 ) -> None:
@@ -361,8 +377,8 @@ def held(
         return
     was: dict[str, Any] = read_json(run.state / HELD_FILE, {})
     groups: dict[str, dict[str, Any]] = {}
-    for slug, pull in sorted(world.open.items(), key=lambda one: one[1]["number"]):
-        word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
+    for slug, number in _rows(run, world, waits.said):
+        word, _, reason = waits.said.get(str(number), "").partition(": ")
         if word != "wait" or not reason or class_of(reason) or matches(reason, RUNNER):
             continue
         if _ahead(reason, world):
@@ -372,7 +388,7 @@ def held(
         key = hashlib.sha256(f"{name}\n{reason}".encode()).hexdigest()[:12]
         group = groups.setdefault(key, {"reason": reason, "home": name, "rows": [], "numbers": []})
         group["rows"].append(slug)
-        group["numbers"].append(pull["number"])
+        group["numbers"].append(number)
     busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
     kept: dict[str, Any] = {}
     for key, group in groups.items():
