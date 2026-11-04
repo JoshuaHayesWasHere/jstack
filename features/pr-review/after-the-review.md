@@ -31,7 +31,7 @@
    The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells.
    On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
-3. Add what the reviewer finds itself: "Wider than the brief" and "In flight".
+3. Add the two lines the reviewer finds itself, neither of them a finding: `Outside Where:` from "Wider than the brief" and `In flight:` from "In flight".
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
    The section is this pass's one output: jbus reads it on its next pass, asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
    With no `Thread:` line in the brief, jbus tells the home in its place, and with no home it parks the findings as a gate.
