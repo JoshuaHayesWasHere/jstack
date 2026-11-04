@@ -16,12 +16,11 @@ read in T3 Code, that names it. This hook is the second, for what a thread runs 
 A command is read in pieces (`pieces`): cut at each shell separator, backtick and parenthesis,
 with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, and
 left out where it is an argument such as a commit message or a title, but for one word that is
-a flag or a refspec (`"--force"`, `'+main'`), which is read as that word. A push's refspec that
-forces or deletes, `+<ref>` or `:<ref>`, walks through the door of the `--force` or `--delete`
-it does the work of (`_spelled`). A heredoc's body is left out, since it is text a command
-reads, but where it feeds a shell or `ssh`, whose commands it is. A command that runs dry walks
-through nothing (`party.DRY`). A home can still wrap a door in a script of its own, which is why
-the go path is the main check.
+a flag or a refspec (`"--force"`, `'+main'`), which is read as that word, so that `party.walks`
+reads a quoted flag or refspec as it reads a bare one. A heredoc's body is left out, since it
+is text a command reads, but where it feeds a shell or `ssh`, whose commands it is. A command
+that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a script of
+its own, which is why the go path is the main check.
 
 Every refusing hook of jstack (this one, `agent-sends` and jleak's three) judges through
 `features/jbus/hooks/judge.sh`. The hook sets `hook` (its name), `input` (what the harness gave it
@@ -67,9 +66,6 @@ _FEEDS = re.compile(rf"(?:^|[;&|(]\s*|\s){_SHELL}\b[^<]*$|\bssh\s[^<]*$")
 """What runs a heredoc's body as commands: a shell, or `ssh <host>`, before the `<<`."""
 _FLAG = re.compile(r"[-+:][^\s'\"]+")
 """A quoted word the command reads as a flag or a refspec: `"--force"`, `'-D'`, `'+main'`."""
-_REFSPEC = re.compile(r"(?<=\s)(\+)?(:)?(?=[^\s`])")
-"""A push's refspec that forces, `+<ref>`, or deletes, `:<ref>`, at the start of a word."""
-_PUSH = re.compile(r"\bgit\b[^`]*?\bpush\b")
 
 
 def _unfold(command: str) -> str:
@@ -126,27 +122,9 @@ def pieces(command: str) -> list[str]:
     return found
 
 
-def _spelled(piece: str) -> str:
-    """The piece with each refspec of a push that forces or deletes spelled as the flag that does
-    the same, `+main` as `--force main` and `:main` as `--delete main`, the way `party.DOORS`
-    reads a push."""
-    pushed = _PUSH.search(piece)
-    if pushed is None:
-        return piece
-
-    def flags(found: re.Match[str]) -> str:
-        return ("--force " if found.group(1) else "") + ("--delete " if found.group(2) else "")
-
-    return piece[: pushed.end()] + _REFSPEC.sub(flags, piece[pushed.end() :])
-
-
 def walks(command: str) -> tuple[tuple[str, str], ...]:
     """The doors a shell command line walks through, each with the command that does."""
-    return tuple(
-        (case, one.strip("`").strip())
-        for one in pieces(command)
-        for case, _ in party.walks(_spelled(one))
-    )
+    return tuple(found for one in pieces(command) for found in party.walks(one))
 
 
 def _holds(state: Path, slug: str) -> bool:
