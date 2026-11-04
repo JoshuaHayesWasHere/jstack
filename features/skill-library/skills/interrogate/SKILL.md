@@ -9,6 +9,9 @@ card: "Distrust the change | 2 | Two reviewers that do not see each other challe
 
 Source: pstack, `pstack/skills/interrogate/SKILL.md`
 
+pstack #986 rewrote this skill to keep only findings a rerun proves, and deleted its four references.
+Here the pull request review reads those references, and the evals feature's skill-cut eval ruled #986's form of the review a regression, so this skill keeps its form and its references are jstack's own (`THIRD_PARTY.md`, the pstack section).
+
 Spawn two reviewers to adversarially review code changes, each with the same prompt and neither shown the other's answer. The deliverable is a synthesized verdict. Do NOT auto-apply changes.
 
 This is not a pull request's review.
