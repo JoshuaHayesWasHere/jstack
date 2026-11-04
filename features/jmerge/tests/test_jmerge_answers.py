@@ -191,3 +191,30 @@ def test_a_scoped_pass_written_again_at_one_head_is_the_whole_word_on_the_declin
     replaced = brief + scoped("upheld F1") + scoped()
     assert ready.short_of(replaced, SAW) == ready.DECLINES_UNRULED.format(ids="F1")
     assert ready.short_of(brief + scoped() + scoped("upheld F1"), SAW) == ""
+
+
+FIXED_F1 = by_id("F1: fixed, it runs twice")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Scoped review: none, the fix changed features/jgauge/tests/test_jgauge_sample.py only",
+        "Scoped review: none, the fix changed files under tests/ only",
+        "Scoped review: none",
+    ],
+)
+def test_a_fix_pushed_under_a_scoped_review_of_none_waits_for_its_scoped_review(line):
+    """mac-room-proc (#379): its crew pushed a fix for the findings and wrote, by hand,
+    `Scoped review: none` with a reason of its own. A pushed fix is owed its scoped review
+    whatever that reason says, and merges once a scoped pass of the fix is written."""
+    brief = RESULT + FIXED_F1 + f"{line}\nFixed: {FIX}\n" + section([ACT], CODEX)
+    assert ready.short_of(brief, FIX) == ready.FIX_UNREVIEWED
+    assert ready.short_of(brief + scoped(head=FIX), FIX) == ""
+
+
+def test_a_scoped_review_of_none_because_nothing_was_pushed_still_merges():
+    """The one `none` jmerge takes as it is: the block's line for a round that pushed nothing."""
+    none = "Scoped review: none, nothing was pushed for the findings\n"
+    brief = RESULT + by_id("F1: fixed, x") + none + "Fixed: none needed, x\n"
+    assert ready.short_of(brief + section([CONSIDER], CODEX), SAW) == ""
