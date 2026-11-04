@@ -9,6 +9,7 @@ much and why. The recording has no log of a hosted job, so each red hosted job i
 The health numbers are checked against a fixed slice of ci.jsonl written here (`SLICE`).
 """
 
+import ast
 import configparser
 import json
 import os
@@ -17,13 +18,14 @@ import shutil
 import subprocess
 import threading
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
 
 import jsettings
 from ci_replay import FOLDER, Replay
-from jbus import passes
+from jbus import passes, watch
 from jbus.ci import collect, daily, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
@@ -172,6 +174,20 @@ def test_numbers_end_no_red_main_at_a_green_macos_job():
         hosted(1, "m2", "main", "success", event="push", name="macos"),
     ]
     assert numbers.Facts(jobs, [], [], NOW).intervals == [(red_at, NOW)]
+
+
+def test_the_macos_yml_job_names_are_one_list_in_jbus_watch():
+    """`jbus.ci.numbers` judges main's runs by the list `jbus.watch` judges main by, not a copy."""
+    src = Path(watch.__file__).parent
+    defined = [
+        str(path.relative_to(src))
+        for path in sorted(src.rglob("*.py"))
+        for node in ast.parse(path.read_text()).body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "MAC_JOBS" for t in node.targets)
+    ]
+    assert defined == ["watch.py"]
+    assert numbers.MAC_JOBS is watch.MAC_JOBS
 
 
 def test_no_inode_figure_is_kept_until_a_job_writes_one(nine):
