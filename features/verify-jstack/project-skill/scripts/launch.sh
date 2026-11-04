@@ -140,7 +140,9 @@ if ! grep -q "^pr list " "$S/gh/calls.log" 2>/dev/null; then
   echo "launch.sh: not ready: \`jmerge --check\` did not ask the stand-in gh" >&2
   exit 1
 fi
-# A drive starts with no gh call on record: the one above was this probe's.
+# A drive starts with no gh call on record: the one above was this probe's, in the stand-in's
+# log and in the log and slots jstack keeps of every gh call (jsettings.proc).
 rm "$S/gh/calls.log"
+rm -r "$S/state/gh-calls.jsonl" "$S/state/gh-slots"
 
 echo "ready: . $S/env.sh"
