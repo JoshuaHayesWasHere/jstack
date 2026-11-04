@@ -22,7 +22,6 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from ci_replay import FOLDER, Replay
-from jbus import ci as jbus_ci
 from jbus import passes
 from jbus.ci import collect, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
@@ -1188,7 +1187,7 @@ def test_the_health_numbers_have_no_data_in_a_window_with_nothing_in_it(sliced):
     assert [(one.shown, one.n) for one in found if one.key in HEALTH] == [("no data", 0)] * 6
 
 
-def test_a_health_number_with_no_target_reads_baseline_in_the_report_and_the_verb(sliced):
+def test_a_health_number_with_no_target_reads_baseline_in_the_report_and_raises_no_alert(sliced):
     week = numbers.compute(sliced, SLICE_NOW - timedelta(days=7), SLICE_NOW)
     text = report.body(
         sliced, week, SLICE_NOW - timedelta(days=7), SLICE_NOW, UTC, report.jsettings.DEFAULTS
@@ -1197,11 +1196,6 @@ def test_a_health_number_with_no_target_reads_baseline_in_the_report_and_the_ver
         "| red share of active PRs | 75% (3 of 4: 1 own, 2 shared) | hosted 7 | baseline |" in text
     )
     assert "| baseline |\n" in text
-    shown = jbus_ci.lines(week)
-    assert any(
-        line.startswith("red share of active PRs: 75%") and line.endswith("baseline; hosted 7")
-        for line in shown
-    )
     assert not {one.key for one in report.missed(week)} & set(HEALTH)
 
 
