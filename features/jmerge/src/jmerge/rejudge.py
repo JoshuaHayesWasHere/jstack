@@ -107,11 +107,12 @@ class BaseMerge:
         held = (n for n in numbers if (known.get(str(n)) or {}).get("line") is True)
         return next(held, None)
 
-    def release(self, one: ready.PullRequest) -> None:
-        """Take the pull request from the head of the line."""
-        was = self.known().get(str(one.number))
+    def release(self, number: int) -> None:
+        """Take the pull request from the head of the line. Its record stays, so the update GitHub
+        was asked for is not asked again at the same head and tip."""
+        was = self.known().get(str(number))
         if isinstance(was, dict) and was.get("line"):
-            self.records = {**self.known(), str(one.number): {**was, "line": False}}
+            self.records = {**self.known(), str(number): {**was, "line": False}}
             if self.run:
                 store.write_json(self.path, self.records)
 

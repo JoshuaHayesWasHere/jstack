@@ -33,7 +33,7 @@ CARRIED = "deploy the changes that have landed so far to prod"
 
 def door(slug, more=""):
     """A brief whose `Done when:` runs a prod migration, with no `Holds:` line."""
-    return brief(slug, more).replace("- it is done\n", f"- `{DEPLOY}` is run on prod\n")
+    return brief(slug, more).replace("- `make check` passes\n", f"- `{DEPLOY}` is run on prod\n")
 
 
 def test_winnifreds_prod_deploy_brief_holds_for_prod_by_the_migration_it_runs():
@@ -108,7 +108,7 @@ def test_a_dry_run_and_a_command_that_only_names_a_door_walk_through_none(comman
 
 def test_a_briefs_push_by_refspec_holds_for_its_door_named_as_the_brief_wrote_it():
     said = brief("alpha").replace(
-        "- it is done\n",
+        "- `make check` passes\n",
         "- `git push origin +main` and `git push origin :feature` are run, then `make check`\n",
     )
     assert party.walked(said) == (
@@ -120,7 +120,7 @@ def test_a_briefs_push_by_refspec_holds_for_its_door_named_as_the_brief_wrote_it
 
 def test_a_segment_that_says_the_command_is_never_run_holds_nothing():
     said = brief("alpha").replace(
-        "- it is done\n",
+        "- `make check` passes\n",
         "- the fix ships; never `git push --force` to main\n"
         "- it runs `make check` without `terraform apply`\n"
         "- `DSQL_STAGE=prod db/apply.sh` is not run here\n"
@@ -138,7 +138,7 @@ def test_a_segment_that_says_the_command_is_never_run_holds_nothing():
     ],
 )
 def test_an_aside_hides_only_the_command_it_is_about_not_a_door_beside_it(line):
-    assert party.doors(brief("alpha").replace("- it is done\n", f"- {line}\n")) == (PROD,)
+    assert party.doors(brief("alpha").replace("- `make check` passes\n", f"- {line}\n")) == (PROD,)
 
 
 def test_a_command_outside_done_when_and_proves_it_holds_nothing():
@@ -501,7 +501,7 @@ def test_an_answer_to_a_may_go_gate_said_before_the_brief_now_stored_approves_no
     queued(
         kitchen,
         STALE,
-        brief(STALE, f"Holds: {DELETES}\n").replace("- it is done\n", "- all done\n"),
+        brief(STALE, f"Holds: {DELETES}\n").replace("- `make check` passes\n", "- all done\n"),
     )
     later = (datetime.now(UTC) + timedelta(minutes=2)).timestamp()
     os.utime(queue.brief_path(kitchen.state, STALE), (later, later))

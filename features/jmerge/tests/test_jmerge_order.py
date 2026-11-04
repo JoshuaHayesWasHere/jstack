@@ -234,6 +234,10 @@ def adds(*names):
 
 @pytest.fixture
 def lined(merged):
+    return three_in_line(merged)
+
+
+def three_in_line(merged):
     """The repo has `0004_start` on main. `alpha` (#7), `beta` (#8) and `gamma` (#9) are
     reviewed clean and green at one head, whose tree contains the migration that `alpha` adds."""
     home, tree = merged.home, merged.tree

@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import asks, below, cli, findings, home, page, parse, proof, skills
+from jbriefs import asks, below, cli, findings, home, page, parse, proof, runnable, skills
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
@@ -339,30 +339,55 @@ def test_a_brief_may_leave_out_design_and_skills_where_they_would_say_none(lines
 PROOFS = {
     "a test path": ("tests/test_briefs.py passes", "a test"),
     "a test's name": ("test_a_brief_is_proven_by_what_is_outside_the_agent", "a test"),
-    "the tests": ("the parser tests above", "a test"),
     "a command": ("`jbus --project jstack queue show` prints the row", "a test"),
     "make": ("make check exits 0", "a test"),
     "a metric": ("the p95 latency of a pass, from jgauge", "a metric"),
     "a percentage": ("under 2% of passes gated", "a metric"),
     "a dataset": ("the ten past briefs of the eval dataset", "a dataset"),
-    "an external judge": ("CI on the pull request", "an external judge"),
     "a judge by name": ("an external judge, blind to which brief is which", "an external judge"),
-    "the user": ("the user, on the page", "the user"),
-    "the operator": ("the operator's word on the screenshot", "the user"),
-    "the owner": ("the owner of the repo signs it off", "the user"),
-    "a review by the user": ("reviewed by the user", "the user"),
     "a test the crewmate runs": ("the crewmate runs tests/test_briefs.py", "a test"),
     "a command with no path": ("`jbus queue show` prints the row", "a test"),
     "a linter": ("`ruff check src` is clean", "a test"),
     "a make target": ("make build exits 0", "a test"),
     "another make target": ("make e2e passes", "a test"),
-    "a hyphenated test": ("the unit-tests pass", "a test"),
-    "a smoke test": ("the smoke-test passes", "a test"),
     "a bare percentage": ("coverage stays above 90%", "a metric"),
     "a rate": ("error rate under 2%", "a metric"),
     "a judge": ("a human judge scores it", "an external judge"),
-    "tests beside the crew": ("the skill text tests, and the crew's lines", "a test"),
-    "the crewmate's tests": ("the crewmate's tests", "a test"),
+    "a test path with its test": ("tests/test_briefs.py::test_x passes", "a test"),
+    "a judged line": ("judged: only the user can say the page reads well", "judged"),
+    "the user, judged": ("judged: the user's eye on the screenshot", "judged"),
+    "CI by its command": ("`gh pr checks` passes on the pull request", "a test"),
+}
+
+LOOSE = {
+    "CI": ("CI on the pull request", "an external judge", "names CI, which runs nothing by itself"),
+    "github": ("github says green", "an external judge", "names CI, which runs nothing by itself"),
+    "the user": ("the user, on the page", "the user", "names the user with no judged: <why>"),
+    "the operator": (
+        "the operator's word on the screenshot",
+        "the user",
+        "names the user with no judged: <why>",
+    ),
+    "the owner": (
+        "the owner of the repo signs it off",
+        "the user",
+        "names the user with no judged: <why>",
+    ),
+    "a review by the user": (
+        "reviewed by the user",
+        "the user",
+        "names the user with no judged: <why>",
+    ),
+    "the tests": ("the parser tests above", "a test", "names a test by the word alone"),
+    "a hyphenated test": ("the unit-tests pass", "a test", "names a test by the word alone"),
+    "a smoke test": ("the smoke-test passes", "a test", "names a test by the word alone"),
+    "tests beside the crew": (
+        "the skill text tests, and the crew's lines",
+        "a test",
+        "names a test by the word alone",
+    ),
+    "the crewmate's tests": ("the crewmate's tests", "a test", "names a test by the word alone"),
+    "an empty judged": ("judged:", "", "is empty"),
 }
 
 REFUSED = {
@@ -413,6 +438,10 @@ REFUSED = {
 }
 
 ASKED = "(name a test, a command, a metric, a dataset, an external judge or the user)"
+RUNS = (
+    "(name a command in backticks, a `tests/...py[::name]` path, or `judged: <why>` for what "
+    "only a person can judge)"
+)
 
 
 @pytest.mark.parametrize("case", PROOFS)
@@ -428,6 +457,90 @@ def test_a_proof_by_the_agents_own_word_is_refused_with_one_line_saying_why(case
     judged = proof.proof(said)
     assert judged.kind == ""
     assert judged.why == f"brief's Proves it: line {fault} {ASKED}"
+
+
+@pytest.mark.parametrize("case", LOOSE)
+def test_a_proof_by_ci_the_user_or_the_word_test_alone_is_not_taken(case):
+    """proof.py once took these as a proof. It no longer does: each names nothing anyone can run,
+    so the line says the command, the test's path, or `judged: <why>`. `was` keeps the kind the
+    older rule took, so jbus warns of the line before it refuses it (`parse.WARNED`)."""
+    said, was, fault = LOOSE[case]
+    judged = proof.proof(said)
+    assert (judged.kind, judged.was) == ("", was)
+    if was:
+        assert judged.why == f"brief's Proves it: line {fault} {RUNS}"
+
+
+def test_a_loose_proof_warns_and_an_agents_own_word_still_refuses():
+    text = CLEAN.replace("Proves it: `make check`", "Proves it: CI on the pull request")
+    warned = f"brief's Proves it: line names CI, which runs nothing by itself {RUNS}"
+    assert parse.faults(text) == []
+    assert warned in parse.warnings(text, "")
+    own = CLEAN.replace("Proves it: `make check`", "Proves it: the crewmate says so")
+    assert parse.faults(own) == [
+        f"brief's Proves it: line names the crewmate, the agent's own word {ASKED}"
+    ]
+
+
+DONE_WHEN_FAULT = (
+    "brief's Done when: has {n} of {of} items that run nothing, the first: {first} (in each, a "
+    "command in backticks that starts with a runner, a `tests/...py[::name]` path, or "
+    "`judged: <why>`)"
+)
+
+RUNNABLE = {
+    "a uv run command": "`uv run pytest -q features/x` passes",
+    "jbus": "`jbus --project jstack queue check` prints nothing",
+    "rg": "`rg -n TODO src` finds none",
+    "a test path": "features/jbriefs/tests/test_briefs.py passes",
+    "a test path and name": "tests/test_x.py::test_y fails at the base and passes at the head",
+    "a test path in backticks": "`features/jbus/tests/test_q.py::test_z` passes",
+    "test": "`test -f out.json` holds",
+    "judged": "judged: the page reads well, which only the user can say",
+}
+PROSE = {
+    "bare prose": "it is done",
+    "a backticked path that runs nothing": "`features/jbriefs/src/jbriefs/proof.py` is tighter",
+    "a backticked word that is no runner": "`CHECKS` has a new entry",
+    "a runner word with no backticks": "uv run pytest passes",
+    "a test path that is no python": "tests/fixtures/a.md is updated",
+    "an empty judged": "judged:",
+}
+
+
+@pytest.mark.parametrize("case", RUNNABLE)
+def test_a_done_when_item_that_runs_something_is_no_fault(case):
+    text = CLEAN.replace("- it is done", f"- {RUNNABLE[case]}")
+    assert runnable.runnable(text) == ""
+    assert parse.warnings(text, "") == []
+
+
+@pytest.mark.parametrize("case", PROSE)
+def test_a_done_when_item_in_prose_alone_is_warned_of_and_still_queued(case):
+    text = CLEAN.replace("- it is done", f"- {PROSE[case]}")
+    fault = DONE_WHEN_FAULT.format(n=1, of=1, first=PROSE[case])
+    assert runnable.runnable(text) == fault
+    assert parse.warnings(text, "") == [fault]
+    assert parse.faults(text) == []
+
+
+def test_the_done_when_fault_counts_the_items_and_names_the_first_that_runs_nothing():
+    text = CLEAN.replace(
+        "- it is done", "- `make check` passes\n- the page loads\n- it is done\n- judged: it reads"
+    )
+    assert runnable.runnable(text) == DONE_WHEN_FAULT.format(n=2, of=4, first="the page loads")
+
+
+def test_a_warned_check_refuses_once_it_leaves_warned(monkeypatch):
+    """The one switch: a check of `WARNED` warns, and the same check out of it refuses."""
+    text = CLEAN.replace("Proves it: `make check`", "Proves it: the user")
+    assert parse.faults(text) == []
+    monkeypatch.setattr(parse, "WARNED", ())
+    assert parse.faults(text) == [
+        DONE_WHEN_FAULT.format(n=1, of=1, first="it is done"),
+        f"brief's Proves it: line names the user with no judged: <why> {RUNS}",
+    ]
+    assert parse.warnings(text, "") == []
 
 
 def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until_filled_in():

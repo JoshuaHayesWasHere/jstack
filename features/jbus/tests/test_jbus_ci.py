@@ -1,10 +1,12 @@
-"""`jbus ci` keeps CI's jobs, and from them counts the plan's nine targets.
+"""`jbus ci` keeps CI's jobs, and from them counts the plan's nine targets and the six CI health
+numbers.
 
 The tests check the numbers against a recording of GitHub's Actions API for jstack, from 2026-10-14
 to 2026-10-17 (`features/jbus/tests/fixtures/ci/jstack`, which `ci_replay` replays). They run the
 collector as `jbus ci` runs it. The plan's figures held the local runner's jobs alone. The numbers
 now count the jobs of both runners together, so a figure that differs from the plan's says by how
 much and why. The recording has no log of a hosted job, so each red hosted job is counted unread.
+The health numbers are checked against a fixed slice of ci.jsonl written here (`SLICE`).
 """
 
 import configparser
@@ -15,6 +17,7 @@ import shutil
 import subprocess
 import threading
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -53,7 +56,7 @@ def nine(facts):
     return {one.key: one for one in numbers.compute(facts, START, NOW)}
 
 
-def test_the_nine_targets_come_in_the_order_of_the_plan(nine):
+def test_the_nine_targets_come_in_the_order_of_the_plan_and_the_health_numbers_after_them(nine):
     assert list(nine) == [
         "queue",
         "waste",
@@ -64,6 +67,7 @@ def test_the_nine_targets_come_in_the_order_of_the_plan(nine):
         "mainred",
         "flaky",
         "inode",
+        *HEALTH,
     ]
 
 
@@ -201,7 +205,7 @@ def test_a_week_of_hosted_jobs_only_has_a_number_for_each_of_the_nine_targets_an
         }
     ]
     week = numbers.compute(numbers.Facts(jobs, pulls, [], NOW), NOW - timedelta(days=7), NOW)
-    assert [(one.key, one.shown) for one in week] == [
+    assert [(one.key, one.shown) for one in week if one.key not in HEALTH] == [
         ("queue", "1 vs 5 min"),
         ("waste", "60.0%"),
         ("own", "33% (1 of 3: 1 own, 2 flake)"),
@@ -227,7 +231,11 @@ def test_a_week_of_hosted_jobs_only_has_a_number_for_each_of_the_nine_targets_an
         report.jsettings.DEFAULTS,
     )
     assert "| queue p50 under exec p50 | 1 vs 5 min | hosted 2 | queue under exec | met |" in text
-    assert "| no data |" not in text
+    table = text.split("## Counted")[0].splitlines()
+    assert [row for row in table if row.endswith("| no data |")] == [
+        "| shard queue wait p90 | no data | - | baseline | no data |",
+        "| macos queue wait p90 | no data | - | baseline | no data |",
+    ]
 
 
 def test_every_number_says_how_it_was_counted(nine):
@@ -240,8 +248,8 @@ def test_every_number_says_how_it_was_counted(nine):
 
 def test_a_target_with_no_job_in_the_window_has_no_data_and_is_not_missed(facts):
     nothing = numbers.compute(facts, START - timedelta(days=60), START - timedelta(days=59))
-    assert [one.shown for one in nothing] == ["no data"] * 9
-    assert [one.met for one in nothing] == [None] * 9
+    assert [one.shown for one in nothing] == ["no data"] * len(numbers.ALL)
+    assert [one.met for one in nothing] == [None] * len(numbers.ALL)
 
 
 def test_a_job_kept_once_is_not_added_by_a_second_run(kept, tmp_path):
@@ -1034,3 +1042,179 @@ def test_a_pass_keeps_no_ci_ledger_for_a_project_that_does_not_ask_for_its_repor
     assert not (kitchen.state / ledger.JOBS).exists()
     assert not (kitchen.state / ledger.PULLS).exists()
     assert not any(line.startswith("ci: ") for line in said), said
+
+
+SLICE_START = datetime(2026, 11, 4, 4, 0, tzinfo=UTC)
+"""The slice begins at 23:00 on Nov 3 in New York, an hour before midnight there."""
+SLICE_NOW = datetime(2026, 11, 4, 18, 0, tzinfo=UTC)
+NEW_YORK = ZoneInfo("America/New_York")
+
+
+def row(job, run, name, pr, sha, minute, *, wait=0, conclusion="success", tests=(), **more):
+    """A ci.jsonl row created `minute` minutes into the slice, which waited `wait` seconds and ran
+    5 minutes. A job that never started (skipped, or cancelled while it waited) has no start."""
+    created = SLICE_START + timedelta(minutes=minute)
+    started = None if conclusion == "skipped" or more.pop("queued", False) else created
+    started = started and created + timedelta(seconds=wait)
+    return {
+        "run": run,
+        "job": job,
+        "attempt": 1,
+        "name": name,
+        "sha": sha,
+        "branch": more.pop("branch", {10: "ten", 20: "twenty", 30: "thirty", 40: "forty"}.get(pr)),
+        "pr": pr,
+        "event": more.pop("event", "pull_request"),
+        "created": iso(created),
+        "started": started and iso(started),
+        "completed": iso((started or created) + timedelta(minutes=5)),
+        "conclusion": conclusion,
+        "runner": started and f"GitHub Actions {job}",
+        "kind": "hosted",
+        "steps": 5 if started else 0,
+        "tests": list(tests),
+        "signs": [],
+        **dict.fromkeys(ledger.TELEMETRY),
+    }
+
+
+OWN_TEST, SHARED_TEST = "tests/test_a.py::test_own", "tests/test_a.py::test_shared"
+SLICE = [
+    row(1, 101, "check", 10, "a1", 1, conclusion="failure"),
+    row(2, 101, "check 1 of 8", 10, "a1", 1, wait=10, conclusion="failure", tests=[OWN_TEST]),
+    row(3, 101, "macos", 10, "a1", 1, wait=100),
+    row(4, 102, "check", 10, "a2", 30),
+    row(5, 102, "check 1 of 8", 10, "a2", 30, wait=20),
+    row(6, 103, "check", 10, "a3", 60),
+    row(7, 103, "check 1 of 8", 10, "a3", 60, wait=30),
+    row(8, 201, "check", 20, "b1", 11, conclusion="failure"),
+    row(9, 201, "check 1 of 8", 20, "b1", 11, wait=40, conclusion="failure", tests=[SHARED_TEST]),
+    row(10, 202, "check", 20, "b9", 40, conclusion="skipped"),
+    row(11, 202, "check 1 of 8", 20, "b9", 40, conclusion="skipped"),
+    row(12, 203, "check", 20, "b2", 50),
+    row(13, 203, "check 1 of 8", 20, "b2", 50, wait=50),
+    row(14, 301, "check", 30, "c1", 21, conclusion="failure"),
+    row(15, 301, "check 1 of 8", 30, "c1", 21, wait=60, conclusion="failure", tests=[SHARED_TEST]),
+    row(16, 302, "check", 30, "c2", 90, conclusion="cancelled", queued=True),
+    row(17, 302, "check 1 of 8", 30, "c2", 90, conclusion="cancelled", queued=True),
+    row(18, 401, "check", 40, "d1", 31),
+    row(19, 401, "check 1 of 8", 40, "d1", 31, wait=1000),
+    row(20, 401, "macos", 40, "d1", 31, wait=300),
+    row(21, 501, "check 1 of 8", None, "m1", 5, wait=5000, event="push", branch="main"),
+    row(22, 601, "check", None, "e1", 100, conclusion="failure", branch="dependabot"),
+]
+"""#10 is red at its first head for a test of its own, green at the crew's second, and green again
+at the merge of main that jmerge asked GitHub for a minute after GitHub made it. #20 and #30 are red
+on the same test, so neither red is its own; #20's draft head was skipped, and #30's second run was
+cancelled while it waited. #40 is green at its first check, after the longest waits. A push to main
+waits long and counts in no pull request's wait, and a red check of no pull request is no pull
+request's red."""
+
+
+def pull(number, opened, merged=None):
+    return {
+        "number": number,
+        "branch": {10: "ten", 20: "twenty", 30: "thirty", 40: "forty"}[number],
+        "head": None,
+        "created": iso(SLICE_START + timedelta(minutes=opened)),
+        "merged": merged and iso(SLICE_START + timedelta(minutes=merged)),
+        "closed": merged and iso(SLICE_START + timedelta(minutes=merged)),
+        "merge_commit": None,
+        "pushes": [],
+    }
+
+
+def asked(number, minute):
+    """jmerge's line for an update-branch it asked GitHub for."""
+    return {
+        "at": iso(SLICE_START + timedelta(minutes=minute)),
+        "event": "jmerge",
+        "id": f"ask{number}{minute}",
+        "line": f"wait {number} https://github.com/JoshuaHayesWasHere/jstack/pull/{number}: GitHub"
+        " was asked to merge main at abc123def456 into it: main moved after its check started",
+        "loud": "quiet",
+        "slug": f"#{number}",
+        "text": "",
+    }
+
+
+@pytest.fixture
+def sliced(tmp_path):
+    """The facts of the fixed slice, read back from a ci.jsonl and a ci-prs.jsonl as jbus keeps
+    them. #20 is also asked for a merge of main that GitHub never made."""
+    jobs, pulls = tmp_path / ledger.JOBS, tmp_path / ledger.PULLS
+    jobs.write_text("".join(json.dumps(one, sort_keys=True) + "\n" for one in SLICE))
+    pulls.write_text(
+        "".join(
+            json.dumps(one) + "\n"
+            for one in (pull(10, 0, 120), pull(20, 10, 370), pull(30, 20), pull(40, 30))
+        )
+    )
+    return numbers.Facts(
+        ledger.read(jobs), ledger.read(pulls), [asked(10, 61), asked(20, 200)], SLICE_NOW
+    )
+
+
+HEALTH = (
+    "red_share",
+    "shas_per_pr",
+    "wait_p90_shard",
+    "wait_p90_macos",
+    "open_to_merge",
+    "first_check_own_red",
+)
+
+
+def test_the_slice_gives_each_health_number_its_value_its_n_and_how_it_counts(sliced):
+    found = {
+        one.key: one for one in numbers.compute(sliced, SLICE_START - timedelta(hours=1), SLICE_NOW)
+    }
+    health = {key: (round(found[key].value, 6), found[key].shown, found[key].n) for key in HEALTH}
+    assert health == {
+        "red_share": (0.75, "75% (3 of 4: 1 own, 2 shared)", 4),
+        "shas_per_pr": (2.0, "2.00 crew + 0.50 update = 2.50 (2 merged)", 2),
+        "wait_p90_shard": (436.0, "436 s (p50 40 s)", 7),
+        "wait_p90_macos": (280.0, "280 s (p50 200 s)", 2),
+        "open_to_merge": (4.0, "4 h p50, 5.6 h p90", 2),
+        "first_check_own_red": (0.25, "25% (1 of 4 first checks, 3 red)", 4),
+    }
+    for key in HEALTH:
+        assert found[key].how and found[key].met is None, key
+
+
+def test_the_health_numbers_have_no_data_in_a_window_with_nothing_in_it(sliced):
+    found = numbers.compute(sliced, SLICE_NOW, SLICE_NOW + timedelta(days=1))
+    assert [(one.shown, one.n) for one in found if one.key in HEALTH] == [("no data", 0)] * 6
+
+
+def test_a_health_number_with_no_target_reads_baseline_in_the_report_and_raises_no_alert(sliced):
+    week = numbers.compute(sliced, SLICE_NOW - timedelta(days=7), SLICE_NOW)
+    text = report.body(
+        sliced, week, SLICE_NOW - timedelta(days=7), SLICE_NOW, UTC, report.jsettings.DEFAULTS
+    )
+    assert (
+        "| red share of active PRs | 75% (3 of 4: 1 own, 2 shared) | hosted 7 | baseline |" in text
+    )
+    assert "| baseline |\n" in text
+    assert not {one.key for one in report.missed(week)} & set(HEALTH)
+
+
+def test_the_report_counts_the_health_numbers_by_day_of_the_users_zone(sliced):
+    """23:01 in New York is the 3rd there and the 4th in UTC."""
+    window = (SLICE_NOW - timedelta(days=2), SLICE_NOW)
+    two = numbers.compute(sliced, *window)
+
+    def days(zone):
+        text = report.body(sliced, two, *window, zone, report.jsettings.DEFAULTS)
+        return [
+            line.split(" | ")[:2] for line in text.splitlines() if line.startswith("| 2026-11-0")
+        ]
+
+    assert days(NEW_YORK) == [
+        ["| 2026-11-03", "75% (3 of 4: 1 own, 2 shared)"],
+        ["| 2026-11-04", "0% (0 of 1: 0 own, 0 shared)"],
+    ]
+    assert days(UTC) == [
+        ["| 2026-11-03", "no data"],
+        ["| 2026-11-04", "75% (3 of 4: 1 own, 2 shared)"],
+    ]
