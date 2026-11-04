@@ -20,7 +20,8 @@ from jbus_mcp import Refused, tools
 
 __all__ = ["PLACEHOLDER", "PREFIX", "PYTHON", "TEMPLATES", "Values", "render", "values"]
 
-TEMPLATES = Path(__file__).resolve().parents[2] / "deploy"
+TEMPLATES = Path("features/jbus-mcp/deploy")
+"""Where the templates are in a checkout, relative to its root, where `render` runs."""
 PREFIX = "/opt/jbus-mcp"
 PYTHON = "/usr/bin/python3"
 PORT = 4391
@@ -97,7 +98,7 @@ def render(out: Path, given: Values, source: Path = TEMPLATES) -> list[Path]:
     placeholder filled in, and return what it wrote. It refuses a placeholder it does not know,
     so no file is written with one left in."""
     if not source.is_dir():
-        raise Refused(f"refused: no templates at {source}: run render from a checkout")
+        raise Refused(f"refused: no templates at {source}: run render from a checkout's root")
     if out.exists() and (not out.is_dir() or any(out.iterdir())):
         raise Refused(f"refused: {out} is not a new or empty folder")
     table = given.table()

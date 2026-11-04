@@ -51,16 +51,17 @@ def test_the_server_names_no_machine_to_claude():
 
 
 def test_every_value_a_machine_sets_in_the_templates_is_a_placeholder():
-    text = "".join(path.read_text(encoding="utf-8") for path in deploy.TEMPLATES.iterdir())
+    text = "".join(path.read_text(encoding="utf-8") for path in (FEATURE / "deploy").iterdir())
     assert set(deploy.PLACEHOLDER.findall(text)) <= set(given().table())
     for fixed in ("/home/", "example.com", "4391", "/opt/", "/usr/bin/python3"):
         assert fixed not in text, fixed
 
 
 def test_render_fills_every_placeholder_and_keeps_the_launcher_executable(tmp_path):
-    written = deploy.render(tmp_path / "out", given(projects=["app", "jstack"], port=4500))
+    chosen = given(projects=["app", "jstack"], port=4500)
+    written = deploy.render(tmp_path / "out", chosen, FEATURE / "deploy")
     texts = {path.name: path.read_text(encoding="utf-8") for path in written}
-    assert set(texts) == {path.name for path in deploy.TEMPLATES.iterdir()}
+    assert set(texts) == {path.name for path in (FEATURE / "deploy").iterdir()}
     assert not deploy.PLACEHOLDER.search("".join(texts.values()))
     assert json.loads(texts["runner.json"]) == {
         "jbus": "/home/alex/.local/bin/jbus",
@@ -78,7 +79,7 @@ def test_render_fills_every_placeholder_and_keeps_the_launcher_executable(tmp_pa
 
 
 def test_the_runner_reads_the_config_render_wrote(tmp_path):
-    deploy.render(tmp_path / "out", given())
+    deploy.render(tmp_path / "out", given(), FEATURE / "deploy")
     assert run.load(tmp_path / "out" / "runner.json").projects == frozenset({"app"})
 
 
@@ -109,7 +110,7 @@ def test_render_writes_only_to_a_new_or_empty_folder(tmp_path):
     (tmp_path / "out").mkdir()
     (tmp_path / "out" / "kept").write_text("mine", encoding="utf-8")
     with pytest.raises(Refused, match="new or empty"):
-        deploy.render(tmp_path / "out", given())
+        deploy.render(tmp_path / "out", given(), FEATURE / "deploy")
     assert [path.name for path in (tmp_path / "out").iterdir()] == ["kept"]
 
 
@@ -125,3 +126,10 @@ def test_render_writes_nothing_when_a_template_has_a_placeholder_it_does_not_kno
 def test_render_looks_up_the_home_of_a_user_it_is_not_given():
     with pytest.raises(Refused, match="--home"):
         deploy.values("no-such-user-here", "mcp.example.org", ["app"])
+
+
+def test_render_away_from_a_checkout_s_root_refuses_and_writes_nothing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(Refused, match="checkout's root"):
+        deploy.render(tmp_path / "out", given())
+    assert not (tmp_path / "out").exists()
