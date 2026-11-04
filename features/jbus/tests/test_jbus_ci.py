@@ -555,6 +555,34 @@ def test_the_notice_a_job_prints_is_the_annotation_the_collector_reads(tmp_path)
     }
 
 
+@pytest.mark.parametrize(
+    "pairs,kept",
+    [
+        (["selection=212"], {"selection": 212, "reason": None}),
+        (
+            ["selection=all", "reason=pyproject.toml"],
+            {"selection": "all", "reason": "pyproject.toml"},
+        ),
+    ],
+)
+def test_the_selection_a_check_notices_is_kept_on_its_row(tmp_path, pairs, kept):
+    """The full suite step of a pull request's check notices how many test files it selected,
+    or `all` and the path that forced it, and the collector keeps that on the job's row."""
+    base = Replay()
+    ran = next(
+        job
+        for jobs in base.jobs.values()
+        for job in jobs
+        if job["steps"] and job["conclusion"] == "success"
+    )
+    printed = notice.write(["full=false", "tree=abc", *pairs])
+    title, _, message = printed.removeprefix("::notice title=").partition("::")
+    said = {ran["id"]: [{"annotation_level": "notice", "title": title, "message": message}]}
+    collect.collect(Replay(said), REPO, tmp_path, NOW, 14)
+    row = next(one for one in ledger.read(tmp_path / ledger.JOBS) if one["job"] == ran["id"])
+    assert {field: row[field] for field in kept} == kept
+
+
 def test_a_field_the_ledger_does_not_have_is_refused(tmp_path):
     with pytest.raises(notice.Refused, match="not a field of ci.jsonl"):
         notice.write(["fulll=true"])
