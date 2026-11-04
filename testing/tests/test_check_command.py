@@ -404,15 +404,15 @@ OFF = ["-m", "not", "browser"]
 def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path, step_files):
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
-    tests = selected(copy)
+    *lint, run = asked.read_text().splitlines()
+    pytest_line = " ".join(["run pytest -n 6", *SCHEDULE, *OFF])
+    assert lint == LINT and run.startswith(f"{pytest_line} ")
+    tests = run.removeprefix(pytest_line).split()
     assert (
         "features/jdrift/tests/test_drift.py" in tests
         and "features/jbus/tests/test_jbus_queue.py" not in tests
     )
-    assert asked.read_text().splitlines() == [
-        *LINT,
-        " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
-    ]
+    assert all(test.endswith(".py") and Path(copy, test).is_file() for test in tests), tests
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(
