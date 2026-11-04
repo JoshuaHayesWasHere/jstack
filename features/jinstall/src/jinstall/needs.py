@@ -236,7 +236,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     if machine.green is not None:
         found.append(Need(f"green copy {machine.green}", Level.HARD, GreenCopy(machine.green)))
     if repo is not None:
-        found.append(Need("generated files are current", Level.HARD, Generated()))
+        found.append(Need("generated files are current", Level.HARD, Generated(repo)))
     found += [
         Need(f"layout {harness.name} {machine.layout(harness.name)}", Level.HARD, Layout(harness))
         for harness in HARNESSES
@@ -323,8 +323,11 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for file in claude
     ]
     names = sorted(templates(machine))
-    opted = {"jbus-ci.timer": CiReport(jbus), "jbus-relay.service": RelayKeys(relay)}
-    opted["jbus-snapshot.timer"] = StateRepo(state)
+    opted = {
+        "jbus-ci.timer": CiReport(jbus),
+        "jbus-relay.service": RelayKeys(relay),
+        "jbus-snapshot.timer": StateRepo(state),
+    }
     timers = tuple(name for name in names if name.endswith(".timer") and name not in opted)
     chosen = tuple((name, need) for name, need in opted.items() if name in names)
     if machine.platform == "darwin":

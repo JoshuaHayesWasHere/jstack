@@ -24,9 +24,11 @@ def named(repo=REPO):
         for path in sorted([repo / top, *(repo / top).rglob("*")]):
             if not path.is_file():
                 continue
-            for line in path.read_text(errors="ignore").splitlines():
-                if any(name in line.lower() for name in GONE):
-                    found.append((str(path.relative_to(repo)), line.strip()))
+            found += [
+                (str(path.relative_to(repo)), line.strip())
+                for line in path.read_text(errors="ignore").splitlines()
+                if any(name in line.lower() for name in GONE)
+            ]
     return found
 
 

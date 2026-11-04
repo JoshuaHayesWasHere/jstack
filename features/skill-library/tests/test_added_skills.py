@@ -44,7 +44,7 @@ SUBAGENT_CALLS = [
 
 
 def test_each_skill_listed_as_here_before_the_understanding_skills_is_still_a_skill():
-    assert BEFORE <= set(SKILLS)
+    assert set(SKILLS) >= BEFORE
 
 
 def front(text):

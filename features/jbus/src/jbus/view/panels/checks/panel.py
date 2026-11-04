@@ -22,7 +22,7 @@ FIRST = True
 GITHUB_FRESH = 180
 RUNNERS = "actions-runner-*"
 AGENTS = "actions.runner."
-_RUN = {key: None for key in ("branch", "name", "state", "created", "started", "updated", "url")}
+_RUN = dict.fromkeys(("branch", "name", "state", "created", "started", "updated", "url"))
 _UNIT = {"unit": None, "active": None, "sub": None}
 SHAPE = {
     "checks": {

@@ -157,6 +157,7 @@ A finding listed `[Dismissed]` or `[Noted]` was not sent and asks for no line. O
 
 A reason says why the pull request is right as it is, or where the finding went: "I disagree" is not one.
 For an `Act on` finding, the one bucket that holds the merge, a decline counts only where its reason cites a `path:line`, a command in backticks, or the gate it is parked on as `question <n>` with the Result's `Gate: question <n>` line, and only where no other finding was declined for the same reason: `jmerge` waits on each one that does not, by id.
+The section's `Outside Where:` line is no finding and asks for no line: it is what `jmerge --scope` printed, which anyone can run again.
 A finding the reviewer marked `outside Where, not this pull request` asks for no fix here: queue it as `$T/a-fault-outside.md` says, or leave it when its fix is not known, and end it `not fixed`, with the reason that its remedy is outside the brief's `Where`, naming the `Where:` line's file it falls outside.
 A finding parked as a gate ends by its default: `fixed`, or `not fixed` with the reason that the default leaves the pull request as it is and `question <n>` holds it.
 

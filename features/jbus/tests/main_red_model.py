@@ -267,7 +267,7 @@ class Found:
 
     options: Options
     states: int = 0
-    broken: dict[str, int] = field(default_factory=lambda: {prop: 0 for prop in PROPERTIES})
+    broken: dict[str, int] = field(default_factory=lambda: dict.fromkeys(PROPERTIES, 0))
     traces: dict[str, list[str]] = field(default_factory=dict)
     events: set[str] = field(default_factory=set)
     seconds: float = 0.0

@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from jbus import flow
-from jbus.flow import measure, records
+from jbus.flow import measure, records, runs
 from test_jbus_kitchen import KEY, Kitchen, rate_limit
 
 T = datetime(2026, 10, 20, 14, 0, tzinfo=UTC)
@@ -333,7 +333,7 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
     }
     found = records.runs("o/demo", listed, jobs)
     found_rows = measure.rows([project()], at(-48), at(48), {})
-    red = measure.main_red(found, found_rows, {"o/demo": {"7": at(1.5), "8": at(5)}})
+    red = runs.main_red(found, found_rows, {"o/demo": {"7": at(1.5), "8": at(5)}})
     said = red["repos"]["o/demo"]
     assert {key: said[key] for key in said if key not in ("spans", "by_workflow")} == {
         "gate": "check",
@@ -352,7 +352,7 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
         }
     ]
     assert red["rows_held"] == 1 and red["row_hours_held"] == 1.0
-    said = measure.ci(found)["o/demo"]
+    said = runs.ci(found)["o/demo"]
     assert (said["runs"], said["failure"], said["reruns"], said["jobs"]) == (5, 3, 1, 1)
     assert said["queue_hours"] == 0.2 and said["queue_self_hosted_hours"] == 0.2
 
@@ -364,7 +364,7 @@ def test_each_workflow_of_main_is_red_on_its_own_and_one_left_red_is_said():
     broken = {**run(30, at(1), "failure"), "name": "gitleaks"}
     listed += [{**broken, "updated_at": (at(1) + timedelta(seconds=2)).isoformat()}]
     listed += [{**run(31, at(4), "success"), "name": "gitleaks"}]
-    red = measure.main_red(records.runs("o/demo", listed, {}), [], {})["repos"]["o/demo"]
+    red = runs.main_red(records.runs("o/demo", listed, {}), [], {})["repos"]["o/demo"]
     assert red["gate"] == "check" and red["red_hours"] == 1.0
     assert red["by_workflow"]["release"] == {
         "red_hours": 0.0,
@@ -421,7 +421,7 @@ def test_the_jobs_jbus_ci_kept_give_the_runner_queue():
         },
         {"created": at(-9).isoformat(), "started": at(-8).isoformat(), "kind": "local"},
     ]
-    said = measure.ledger_jobs({"demo": kept, "none": []}, at(-1), at(2))
+    said = runs.ledger_jobs({"demo": kept, "none": []}, at(-1), at(2))
     assert list(said) == ["demo"] and said["demo"]["jobs"] == 3
     assert said["demo"]["local"]["queue_hours"] == 0.8
     assert said["demo"]["hosted"] == {
@@ -440,7 +440,7 @@ def test_a_failed_run_that_ran_no_job_is_ci_down_and_not_main_red():
         {**run(3, at(2), "failure"), "updated_at": (at(2) + timedelta(seconds=3)).isoformat()},
         run(4, at(5), "success", minutes=0),
     ]
-    red = measure.main_red(records.runs("o/demo", listed, {}), [], {})["repos"]["o/demo"]
+    red = runs.main_red(records.runs("o/demo", listed, {}), [], {})["repos"]["o/demo"]
     assert (red["red_hours"], red["no_job_hours"], red["no_job_runs"]) == (0.0, 4.0, 2)
 
 

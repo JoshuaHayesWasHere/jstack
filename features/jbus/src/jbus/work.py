@@ -410,8 +410,10 @@ def _state(pattern: Pattern, facts: Facts, confirmed: bool) -> State:
 
 def every() -> Iterator[Facts]:
     """Yield every set of facts there is, once each, with no last state."""
-    for values in itertools.product(*FACETS.values()):
-        yield Facts(*values)
+    for row, thread, launch, written, pull, question, answered in itertools.product(
+        Row, Thread, Launch, Written, Pull, Question, Answered
+    ):
+        yield Facts(row, thread, launch, written, pull, question, answered)
 
 
 def status(state: State) -> str:

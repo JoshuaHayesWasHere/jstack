@@ -186,9 +186,10 @@ def pull_for(run: dict[str, Any], job: dict[str, Any], pulls: list[dict[str, Any
         return None
     for one in pulls:
         opened, ended = _time(one["created"]), _time(one["merged"] or one["closed"])
-        if one["branch"] == branch and made and opened and opened <= made:
-            if ended is None or made <= ended + timedelta(minutes=5):
-                return int(one["number"])
+        if one["branch"] != branch or not made or not opened or opened > made:
+            continue
+        if ended is None or made <= ended + timedelta(minutes=5):
+            return int(one["number"])
     return None
 
 

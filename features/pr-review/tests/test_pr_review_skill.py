@@ -534,6 +534,7 @@ LOOKED_FOR = [
     (6, "A changed line that does not trace to the task"),
     (6, "already unused before this change is named in the finding, not deleted"),
     (6, "What the change itself made unused goes in the same change"),
+    (6, "A doc the change made wrong"),
 ]
 
 
@@ -544,6 +545,15 @@ def test_the_reviewers_are_told_each_thing_to_look_for_under_its_question(
     assert named in asked(intent(reviewer), question)
 
 
+def test_the_reviewers_are_not_asked_whether_a_file_is_outside_where(reviewer):
+    """`jmerge --scope` answers that, on the section's `Outside Where:` line, so the reading
+    is told not to raise it, and no question of the six asks it."""
+    told = intent(reviewer)
+    assert "\n6. " in told and "\n7. " not in told
+    assert "do not report a file for being outside it" in told
+    assert "Each such file is a finding" not in told
+
+
 def test_what_the_reviewers_look_for_stays_inside_the_changed_lines(reviewer):
     told = intent(reviewer)
     rule = told.index("Review only the lines this pull request changes")
@@ -551,7 +561,7 @@ def test_what_the_reviewers_look_for_stays_inside_the_changed_lines(reviewer):
     for question in (4, 5, 6):
         assert asked(told, question).splitlines()[0].endswith("in the changed lines:")
     assert [line[:2] for line in told.splitlines() if re.match(r"\d\. ", line)] == [
-        f"{n}." for n in range(1, 8)
+        f"{n}." for n in range(1, 7)
     ]
 
 
@@ -1816,21 +1826,26 @@ ANSWERED = "Finding: not fixed, it is wrong, because it is asked\nFixed: none ne
 
 
 @pytest.mark.parametrize(
-    ("done", "ready_to_merge"),
-    [(ANSWERED, True), ("", False)],
-    ids=["its finding answered", "nothing answered"],
+    ("done", "found", "ready_to_merge"),
+    [
+        (ANSWERED, "- warning a.txt:1 it is wrong (principle: none)", True),
+        ("", "- warning a.txt:1 it is wrong (principle: none)", False),
+        ("", "- none", True),
+    ],
+    ids=["its finding answered", "nothing answered", "files outside Where and no finding"],
 )
 def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
-    tmp_path, done, ready_to_merge
+    tmp_path, done, found, ready_to_merge
 ):
     made = merge.Merged(merge.Home(tmp_path), tmp_path)
     filled = {
-        "Verdict": "findings",
+        "Verdict": "clean" if found == "- none" else "findings",
         "Head": f"{made.head}   Unchanged by the review: yes",
         "Patch-id": "0" * 40,
         "Reviewers": "1, 1   Proof: uv run pytest tests/test_a.py, exit 0, 1 passed",
         "Meets the brief": "yes, 0 of 0",
         "In flight": "none",
+        "Outside Where": "README.md, hooks/x.sh",
         "Dropped": "0",
         "Noted": "0",
         "Dismissed": "none",
@@ -1843,7 +1858,7 @@ def test_jmerge_reads_a_review_written_from_the_template_by_one_reader_as_ready(
     for line in template:
         label = line.split(":")[0]
         if line == "Findings:":
-            lines += [line, "- warning a.txt:1 it is wrong (principle: none)"]
+            lines += [line, found]
         elif label in filled:
             lines.append(f"{label}: {filled[label]}")
         elif not line.startswith("- "):

@@ -111,6 +111,15 @@ that runs the file (`-` for a file that collects no test), and an `all` lists ev
 suite with its part, after its first line. This form imports pytest, so it runs after `uv
 sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
+`select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
+cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
+it, the files the rules reached through imports, names and features alone. Each prints `all`
+where the selection is `all`. `--part desk` prints both from one selection, each file after the
+name of its part, `guards <file>` or `rest <file>`, the guards first, and `all` alone where the
+selection is `all`: the desk's check block selects once so. A desk runs the guards first, as a
+step that must pass, since a cheap guard mixed into a selection that runs past the short lane's
+limit reaches no verdict.
+
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
 `testing/macos-quick.txt` so. It selects by the same rules but for two. An import reaches a test
@@ -797,9 +806,10 @@ def read_sets():
     the tests it imports."""
     found = {}
     for name, path in modules().items():
-        if TEST.fullmatch(path):
-            if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
-                found[path] = patterns
+        if not TEST.fullmatch(path):
+            continue
+        if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
+            found[path] = patterns
     return found
 
 
@@ -1108,6 +1118,29 @@ def selection(changed, failed=()):
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
+DESK_PARTS = ("guards", "rest", "desk")
+
+
+def guards(changed, tests):
+    """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
+    tests, the catch-all and the changed test files. `["all"]` stays `["all"]`."""
+    if tests == ["all"]:
+        return tests
+    return sorted(set(tests) & (set(cross_cutting()) | unowned() | set(changed)))
+
+
+def desk_part(name, changed, tests):
+    """The `guards` or the `rest` of a selection's `tests`, or for `desk` both, each file after
+    the name of its part."""
+    first = guards(changed, tests)
+    if name == "guards" or tests == ["all"]:
+        return first
+    rest = sorted(set(tests) - set(first))
+    if name == "rest":
+        return rest
+    return [f"guards {one}" for one in first] + [f"rest {one}" for one in rest]
+
+
 def ask(path, gone=None, **query):
     """The answer GitHub's REST API gives to a GET of the repo's `path`, or `gone` where it
     answers 404 and `gone` is given. A log's answer is a redirect to storage that refuses the
@@ -1192,7 +1225,7 @@ def failed_on_main(days, kept_path):
         kept |= json.loads(kept_path.read_text())
     today = datetime.now(UTC).date()
     window = [(today - timedelta(days=back)).isoformat() for back in range(days + 1)]
-    listed = {day: None for day in window[:SETTLED]}
+    listed = dict.fromkeys(window[:SETTLED])
     listed |= {day: kept["days"].get(day) for day in window[SETTLED:]}
     listed |= side_by_side(red_runs, [day for day, runs in listed.items() if runs is None])
     runs = {run: kept["runs"].get(run) for day in window for run in listed[day]}
@@ -1382,14 +1415,17 @@ def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
-    listed = count = None
+    listed = count = cut = None
     if argv[:1] == ["--within"] and len(argv) == 4:
         listed, argv = argv[1], argv[2:]
     elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
         count, argv = int(argv[1]), argv[2:]
+    elif argv[:1] == ["--part"] and len(argv) == 4 and argv[1] in DESK_PARTS:
+        cut, argv = argv[1], argv[2:]
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> | --parts <n>] <base> <head>\n"
+            "       select_tests.py --part guards|rest|desk <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1417,6 +1453,9 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
+    if cut is not None:
+        print("\n".join(desk_part(cut, changed, tests)))
+        return
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:

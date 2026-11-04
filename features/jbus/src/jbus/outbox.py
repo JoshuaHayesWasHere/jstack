@@ -98,9 +98,9 @@ ASKS = frozenset(
 """The templates that ask for the review itself: `jbus.expedite`'s kinds whose reason is a review
 not written, and `jbus.rebase`'s asks for a scoped review. `review` never holds them, since the
 review it waits on is what they ask for."""
-FIXES = frozenset({"rebase", "mainmoved", "restack", "failed", "refailed", "conflict", "drops"})
-"""The templates of a rebase or a fix message to a crew: `jbus.rebase`'s, `jbus.mainmoved`'s and
-`jbus.stack`'s. `held` holds these and no other."""
+FIXES = frozenset({"rebase", "restack", "failed", "refailed", "conflict", "drops"})
+"""The templates of a rebase or a fix message to a crew: `jbus.rebase`'s and `jbus.stack`'s.
+`held` holds these and no other."""
 USERS = frozenset({"word", "item"})
 """The templates of the user's word and steer to a home (`jbus.word`, `jbus.steer`). No rule
 holds them."""

@@ -77,7 +77,7 @@ def shaped(said: Any, now: datetime) -> dict[str, Any]:
     found = said.get("workflow_runs") if isinstance(said, dict) else None
     if not isinstance(found, list):
         return {"runs": [], "at": iso(now), "error": DOWN}
-    runs = [
+    runs: list[dict[str, Any]] = [
         {
             "branch": text(one.get("head_branch"), 120),
             "name": text(one.get("name"), 60),
@@ -208,7 +208,7 @@ class GitHub:
             )
             if not isinstance(said, list):
                 return {"merged": [], "at": iso(self.clock()), "error": DOWN}
-            merged = [
+            merged: list[dict[str, Any]] = [
                 {"number": one["number"], "at": when(one.get("mergedAt"))}
                 for one in said
                 if isinstance(one, dict) and isinstance(one.get("number"), int)
