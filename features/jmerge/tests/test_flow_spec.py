@@ -92,24 +92,26 @@ def test_a_quote_of_one_python_line_holds_each_or_on_it():
     assert "if row and not judgement.has_go(row, brief):" in checked
 
 
-def action(text, name):
-    """The conditions of one action of a model: its `/\\ ` lines, comments taken off."""
-    start = text.index(f"\n{name}(p) ==")
-    body = text[start + 1 : text.index("\n\n", start + 1)]
-    return [line.split("\\*")[0].strip() for line in body.splitlines() if "/\\ " in line]
+LAUNCH_ON_PASSED = {
+    (
+        "features/crew/the-review.md",
+        'passed) echo "launch: run the block below and do what it prints" ;;',
+    ),
+    ("features/pr-review/launching.md", "passed*) head=${said##* } ;;"),
+}
 
 
 def test_the_reviewer_launches_only_once_the_check_has_passed_and_one_round_merges():
-    """The one order: a pull request's review round is written only once its check has passed,
-    and it merges only with that round written. No action but `Review` writes the round, and a
-    check that runs again leaves it as it is: one round gives a fix no review."""
-    text = (SPEC / "FlowToday.tla").read_text()
-    review = action(text, "Review")
-    assert '/\\ ci[p] = "pass"' in review and '/\\ rv[p] = "none"' in review, review
-    assert '/\\ rv[p] = "written"' in action(text, "Merges")
-    writes = [line for line in text.splitlines() if "rv' =" in line]
-    assert writes == ['    /\\ rv\' = [rv EXCEPT ![p] = "written"]']
-    assert "Review(p)" in text[text.index("System ==") :].split("\n\n")[0]
+    """The one order: the model's merge waits on a passed check, and that condition cites where
+    the crew and the reviewer launch only on `passed`, so the review round follows the pass. No
+    line of the crew's or the reviewer's launch says it runs beside the checks."""
+    text = flat(SPEC / "FlowToday.tla")
+    merges = text[text.index(" Merges(p) ==") : text.index(" Merge(p) ==")]
+    assert '/\\ ci[p] = "pass"' in merges
+    assert set(QUOTE.findall(merges)) >= LAUNCH_ON_PASSED
+    for path, _ in LAUNCH_ON_PASSED:
+        said = (REPO / path).read_text()
+        assert "beside the checks" not in said and "never waits for green" not in said, path
 
 
 def test_each_condition_of_the_design_s_rejudge_quotes_its_file():

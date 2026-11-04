@@ -12,9 +12,9 @@ Skills run:   <one item for each name on the brief's Skills: line, or none when 
 Unrun: at <the pushed head, in full>, no check ran   <this line only where the block of the crew skill's "The checks" says `unrun`: the pull request is not green, and a gate is parked>
 Rerun: at <the pushed head, in full>, workflow run <id> was run again whole   <this line only where the block of the crew skill's "A failed check" started one: the block writes it>
 Finding F<n>: fixed, <the finding in a few words> | not fixed, <the finding in a few words>, because <the reason in one line: for an Act on finding, one that cites a path:line, a command in backticks or question <n>>   <one such line for each finding `jbriefs --findings` lists as Act on or Consider, by its id, only once the review's findings are back>
-Second pass: <none, or needed since <the head the review saw>>, <why>   <this line only once the findings are handled, as the block of the crew skill's "A second pass" prints it>
+Scoped review: <none, one round: the fix merges on its checks, or needed since <the head the review saw>, the review's Meets the brief line is <no, unread or miscounted>>   <this line only once the findings are handled, as the block of the crew skill's "A second pass" prints it>
 Fixed: <the head commit pushed for the review's findings, in full, or none needed and the reason; this line only once the findings are handled>
-Second reviewer: <threadId>   <this line only after `Second pass: needed`, once the second reviewer is launched>
+Scoped reviewer: <threadId>, of <the head it reviews, in full>   <this line only after `Scoped review: needed since`, once the scoped reviewer is launched>
 Gate: question <n>   <one such line for each gate this crew parked, as the crew skill's "Do the task" prints it>
 Steers: <what the user changed along the way, or none>
 Left: <uncommitted or unpushed work, or none>
