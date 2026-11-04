@@ -36,20 +36,37 @@ def judge(run: Pass) -> None:
 
 def kept_why(run: Pass, tip: RedTip) -> str | None:
     """Why nothing is reverted for `tip`, or None where no row is to be filed: the revert is open,
-    or the next pass judges the tip. Two overlapping reds name every red tip."""
+    or the next pass judges the tip. The rule judges the red run's oldest commit, the first red
+    since the last green, and reads the tests that failed at each later tip only once that one is
+    clear. Two overlapping reds name every red tip."""
     record = mainjson.load(run.state) or {}
-    failed = record.get("failed") if record.get("broken") == tip.sha else None
+
+    def failed_of(sha: str) -> list[str] | None:
+        if record.get("broken") == sha:
+            return record.get("failed")
+        return mainmoved.failed_at(run, sha) if len(tip.red) > 1 else None
+
+    since = [
+        (c["sha"], "failed" if c["sha"] == tip.sha else mainmoved.main_check(run, c["sha"]))
+        for c in tip.red
+    ]
+    oldest = since[-1][0]
+    failed = failed_of(oldest) if tip.pull else None
     landed = when(tip.red[0]["commit"]["committer"]["date"])
-    one = reverts.Red(
-        tip.sha, [c["sha"] for c in tip.red], tip.pull, tip.culprit, failed, run.now - landed
-    )
+    one = reverts.Red(since, tip.pull, tip.culprit, failed, run.now - landed, tip.under)
     branch = str((tip.pull or {}).get("headRefName", ""))
     flakes = reverts.flaky(run, branch) if tip.pull and failed else frozenset[str]()
     made = kept.read(run.state)
     found = reverts.culprit(one, made, flakes)
     if isinstance(found, reverts.Culprit):
-        found = reverts.tested(run, found, str(record.get("green", "")), one.age)
-    if found == reverts.Keep.OPENED and (stuck := reverts.stuck(run, made[tip.sha], checks)):
+        under = tip.under or str(record.get("green", ""))
+        found = reverts.tested(run, found, under, one.age)
+    if isinstance(found, reverts.Culprit):
+        found = reverts.covered(found, one, (failed_of(sha) for sha, _ in since[:-1]))
+    opened = next((sha for sha, _ in since if sha in made), "")
+    if found == reverts.Keep.OPENED and (
+        stuck := reverts.stuck(run, made[opened], checks, opened != tip.sha)
+    ):
         return stuck
     if found in reverts.QUIET:
         return None
@@ -67,10 +84,10 @@ def kept_why(run: Pass, tip: RedTip) -> str | None:
 
 MESSAGE = (
     "jbus: main went red at {red} when your pull request merged, and stayed red after "
-    "its one rerun. It was the one merge since the last green, so jbus opened {revert} to revert "
-    "it (Josh's rule of 2026-11-02, guess-free reverts), which merges with no review. Do not push "
-    "to the revert's branch. Find the cause in main's failed run at {red}, and bring your change "
-    "back in a new pull request with the fix."
+    "its one rerun. It was the first red since the last green, and no merge on top of it failed "
+    "another test, so jbus opened {revert} to revert it (Josh's rule of 2026-11-02, guess-free "
+    "reverts), which merges with no review. Do not push to the revert's branch. Find the cause "
+    "in main's failed run at {red}, and bring your change back in a new pull request with the fix."
 )
 ASK = rebase.Ask(
     "revert",

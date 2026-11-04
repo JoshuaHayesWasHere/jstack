@@ -5,26 +5,35 @@ A red main holds no pull request (`jmerge`, "Main is not red"). Josh chose guess
 merge that turned it red only when one culprit is clear, and otherwise files the fix row that a
 red main got before (`watch._file`), for the owner to fix.
 
-`culprit` is the rule, a pure function of what `watch.retro` reads of main. One culprit is clear
-when the red tip is the merge commit of a briefed pull request and the commit under it was green,
-so it is the one merge since the last green. It reverts nothing, and says which `Keep` holds:
+`culprit` is the rule, a pure function of what `watch.retro` reads of main. It judges the red
+run: every commit since the last green, newest first, main's tip first. One culprit is clear when
+the run's oldest commit, the first red after the last green, is the merge commit of a briefed pull
+request, and every later tip of the run failed no test outside the ones that failed there
+(`covered`), the same comparison `watch._file` makes for one fix row per break (#962). The later
+merges landed on that red and broke nothing more, so the oldest is the culprit, as #334 was on
+2026-10-23 with four merges on top of it. It reverts nothing, and says which `Keep` holds:
 
-- `OVERLAP`: more than one merge since the last green, as when two reds overlap. The fix row names
-  every red tip among them.
-- `UNBRIEFED`: the tip is no briefed merge's commit, such as a merge by hand.
-- `OF_A_REVERT`: the tip is a revert, jbus's or anyone's: a revert that goes red is not reverted.
+- `OVERLAP`: a later tip failed a test that did not fail at the oldest, or named none, as when two
+  reds overlap; or a commit of the run ended neither red nor green; or no green is in reach. The
+  fix row names every red tip among them.
+- `UNREAD`, besides the case below: a commit of the run whose check has not ended is no second red
+  yet, as #864's under 52b82e7 on 2026-11-02, so the next pass judges the run again. Once the tip
+  is older than `READ_WAIT`, it is `OVERLAP`.
+- `UNBRIEFED`: the oldest is no briefed merge's commit, such as a merge by hand.
+- `OF_A_REVERT`: the oldest is a revert, jbus's or anyone's: a revert that goes red is not reverted.
 - `TWICE`: jbus reverted the same slug before, so a row is never reverted twice.
-- `FLAKES`: each test that failed at the tip is a flake by `jbus ci`'s rule (`flaky`).
+- `FLAKES`: each test that failed at the oldest is a flake by `jbus ci`'s rule (`flaky`).
 
 `tested` adds one more, on what GitHub says: `SKEW`, where the culprit's own head lacks the green
-commit under the red tip, so its check passed over a main without that merge. Each merge passed
+commit under the oldest red, so its check passed over a main without that merge. Each merge passed
 alone and the two went red together, as #864 and #866 did on 2026-11-02, so neither is the one
 culprit. Where GitHub does not say, the tip waits as `UNREAD` does, and gets its row as
 `UNANSWERED` once it is older than `READ_WAIT`.
 
-A red tip jbus already opened a revert for is `OPENED`: nothing more is done for it, no row
-either, while its revert's pull request goes the normal path, and `stuck` says when it no longer
-does: closed unmerged, in conflict or with a failed check, and the tip gets its row. A tip whose
+A red run with a commit jbus already opened a revert for is `OPENED`: nothing more is done for it,
+no row either, while its revert's pull request goes the normal path, and `stuck` says when it no
+longer does: closed unmerged, in conflict, with a failed check, or merged with main still red, and
+the tip gets its row. A tip whose
 failed tests `mainmoved.tell` could not read yet, earlier in the same pass, is `UNREAD`: the next
 pass judges it, and nothing is done for it in this one. Once the tip is older than `READ_WAIT` its
 logs are taken as unreadable, `NOT_READ`, and it gets its row.
@@ -52,7 +61,7 @@ from __future__ import annotations
 
 import enum
 import json
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -82,7 +91,7 @@ class Keep(enum.StrEnum):
 
     OPENED = "jbus already opened its revert"
     UNREAD = "what failed there, or what main its own check passed over, is not read yet"
-    OVERLAP = "two reds overlap: more than one merge came since the last green"
+    OVERLAP = "two reds overlap: the merges since the last green are not shown to be one break"
     UNBRIEFED = "it is no briefed merge's commit"
     OF_A_REVERT = "it is a revert, and a revert that goes red is not reverted"
     TWICE = "jbus reverted this row before, and a row is never reverted twice"
@@ -106,25 +115,36 @@ class Culprit:
 
 @dataclass(frozen=True)
 class Red:
-    """What `watch.retro` read of a red tip of main, after its one rerun: the tip, the merges
-    since the last green, newest first, the briefed pull request merged at the tip and its slug,
-    and the tests that failed there, None where `main.json` keeps none for the tip yet, and how
-    long ago the tip landed."""
+    """What `watch.retro` read of a red tip of main, after its one rerun: each commit since the
+    last green, newest first, the tip first, with what main's check says there (`watch._check`:
+    `failed`, `pending` and the rest); the briefed pull request merged at the oldest and its slug,
+    and the tests that failed there, None where they are not read yet; how long ago the tip
+    landed; and the green commit under the oldest, or nothing where none is in reach."""
 
-    tip: str
-    since: Sequence[str]
+    since: Sequence[tuple[str, str]]
     pull: dict[str, Any] | None
     slug: str
     failed: Sequence[str] | None
     age: timedelta = timedelta(0)
+    under: str = ""
+
+    @property
+    def tip(self) -> str:
+        return self.since[0][0]
+
+    @property
+    def oldest(self) -> str:
+        return self.since[-1][0]
 
 
 def culprit(red: Red, made: dict[str, kept.Revert], flakes: Collection[str]) -> Culprit | Keep:
     """The rule: the one clear culprit of `red`, or why none is reverted. `made` is every revert
     jbus opened (`jmerge.reverts`), and `flakes` the tests `flaky` names."""
-    if red.tip in made:
+    if any(sha in made for sha, _ in red.since):
         return Keep.OPENED
-    if len(red.since) > 1:
+    if any(check == "pending" for _, check in red.since):
+        return Keep.OVERLAP if red.age > READ_WAIT else Keep.UNREAD
+    if len(red.since) > 1 and (not red.under or any(check != "failed" for _, check in red.since)):
         return Keep.OVERLAP
     if red.pull is None or not red.slug:
         return Keep.UNBRIEFED
@@ -138,7 +158,22 @@ def culprit(red: Red, made: dict[str, kept.Revert], flakes: Collection[str]) -> 
         return Keep.NOT_READ if red.age > READ_WAIT else Keep.UNREAD
     if red.failed and all(test in flakes for test in red.failed):
         return Keep.FLAKES
-    return Culprit(red.tip, red.slug, red.pull)
+    return Culprit(red.oldest, red.slug, red.pull)
+
+
+def covered(found: Culprit, red: Red, later: Iterable[Sequence[str] | None]) -> Culprit | Keep:
+    """`found`, the merge at the oldest commit of `red`, where each later tip failed no test
+    outside the ones that failed at the oldest: one break, with merges on top of it. `OVERLAP`
+    where one failed another test, or names none, as a lint or a timeout does, so it may be a
+    break of its own; `UNREAD`, then `NOT_READ` once the tip is older than `READ_WAIT`, where a
+    tip's tests are not read yet. `later` gives each later tip's failed tests, None where they
+    could not be read, and is read only up to the first tip that settles it."""
+    for tests in later:
+        if tests is None:
+            return Keep.NOT_READ if red.age > READ_WAIT else Keep.UNREAD
+        if not red.failed or not tests or not set(tests) <= set(red.failed):
+            return Keep.OVERLAP
+    return found
 
 
 def tested(run: Pass, found: Culprit, under: str, age: timedelta) -> Culprit | Keep:
@@ -176,8 +211,9 @@ def brief(branch: str, red: Culprit, url: str, home: str) -> str:
     return "\n".join(
         [
             f"# {branch}: revert {red.slug} (#{number}), which turned main red at {red.red[:12]}",
-            f'Task: "main check failed at {red.red[:12]}" after its one rerun, the one merge since '
-            f"the last green (jbus reverts its one clear culprit, Josh's pick of 2026-11-02)",
+            f'Task: "main check failed at {red.red[:12]}" after its one rerun, the first red since '
+            "the last green, and no merge on top of it failed another test (jbus reverts its one "
+            "clear culprit, Josh's pick of 2026-11-02)",
             "Pull request: opened by jbus with `gh pr revert`",
             "Review: none needed, jmerge merges jbus's revert by the normal path (jmerge.reverts)",
             f"Home: {home}",
@@ -220,7 +256,8 @@ def revert(run: Pass, red: Culprit) -> bool:
             url,
             "--body",
             f"jbus reverts this: main went red at {red.red[:12]} and stayed red after its one "
-            "rerun, and it was the one merge since the last green.",
+            "rerun. It was the first red since the last green, and no merge on top of it failed "
+            "another test.",
         )
         lines = asked.stdout.strip().splitlines()
         made = lines[-1].strip() if asked.returncode == 0 and lines else ""
@@ -255,10 +292,13 @@ def revert(run: Pass, red: Culprit) -> bool:
     return True
 
 
-def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) -> str:
-    """Why the revert on record for a red tip will not merge by itself, or nothing: its pull
-    request closed unmerged, conflicts or has a failed check. Nothing where GitHub gives no
-    answer, as the next pass asks again."""
+def stuck(
+    run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str], above: bool = False
+) -> str:
+    """Why the revert on record for a red tip will not end the red by itself, or nothing: its
+    pull request closed unmerged, conflicts or has a failed check, or merged while main is still
+    red at a later tip, `above` the one it reverts. Nothing where GitHub gives no answer, as the
+    next pass asks again."""
     fields = "state,mergeable,statusCheckRollup"
     asked = run.run("gh", "pr", "view", one.pull, "--json", fields)
     try:
@@ -267,6 +307,8 @@ def stuck(run: Pass, one: kept.Revert, checks: Callable[[dict[str, Any]], str]) 
         said = {}
     if said.get("state") == "CLOSED":
         return f"its revert {one.pull} closed unmerged"
+    if said.get("state") == "MERGED" and above:
+        return f"its revert {one.pull} merged, and main is still red"
     if said.get("state") == "OPEN" and said.get("mergeable") == "CONFLICTING":
         return f"its revert {one.pull} conflicts with main"
     if said.get("state") == "OPEN" and checks(said) == "failed":

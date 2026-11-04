@@ -61,7 +61,7 @@ The Python code is one `uv` project.
 
 `make check` is the one check command.
 It runs `make lint`, then `make test`, and stops at the first that fails.
-`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then `scripts/generate-jstack-trees.py --check`, `scripts/check-jstack-docs.py`, `uv run ruff check .` and `uv run ruff format --check .`.
+`make lint` runs `features/writing/scripts/comment_lint.py` on the files the branch changed, which only warns, then `scripts/generate-jstack-trees.py --check`, `scripts/check-jstack-docs.py`, `uv run ruff check .`, `uv run ruff format --check .` and `uv run pyrefly check --summary=none features/*/src`, which type-checks each feature's `src`.
 `make test` runs `uv run pytest` on several workers with `-m "not browser"`, so it leaves out the tests that open a real browser.
 `make check-browser` runs those.
 

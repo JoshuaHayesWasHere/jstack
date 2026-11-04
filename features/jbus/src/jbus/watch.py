@@ -1809,14 +1809,17 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
 class RedTip:
     """Main's tip, red after its one rerun, as `retro` read it for `jbus.culprits.judge`, which
     reverts its one clear culprit or files its fix row (`_file`): the slug its row is filed after,
-    the tip, the merges since the last green, newest first, the pull request merged at the tip and
-    its slug."""
+    the tip, the merges since the last green, newest first, the pull request merged at the oldest
+    of them and its slug, and the green commit under the oldest, or nothing where none is in
+    reach. The oldest is the first red after the last green, so its merge is the one that turned
+    main red."""
 
     slug: str
     sha: str
     red: list[dict]
     pull: dict[str, Any] | None
     culprit: str
+    under: str = ""
 
 
 def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[str], str]) -> None:
@@ -1832,11 +1835,12 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
     again, and `retro` reports only a second cancelled run, or a run GitHub would not start
     again. It reports a red main once for each commit. A merge into another branch than main, a
     merge base's, did not land on main, so it takes no blame for it. `retro` files and queues a
-    brief for the fix once, and only for main's tip as this pass reads it: it hands the tip to
-    `jbus.culprits.judge` as `Pass.red`, which reverts its one clear culprit or files its row
-    (`_file`). A red commit that a later commit superseded is no longer main, so there is
-    nothing to fix. Once main's tip is green at a later commit than the one a fix row was filed
-    for, the red is gone: `_withdraw` takes out a row that never launched, and reports once a
+    brief for the fix once, and only for main's tip as this pass reads it: it hands the tip, with
+    every commit since the last green, to `jbus.culprits.judge` as `Pass.red`, which reverts its
+    one clear culprit, the merge at the first red after that green, or files its row (`_file`).
+    A red commit that a later commit superseded is no longer main, so there is nothing to fix.
+    Once main's tip is green at a later commit than the one a fix row was filed for, the red is
+    gone: `_withdraw` takes out a row that never launched, and reports once a
     row that did, which its crew and pull request keep. With no briefed merge and no open fix
     row, `retro` asks GitHub nothing until `main.json` keeps a red tip.
     """
@@ -1895,9 +1899,10 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
             run.find(slug, "retro", line, key=f"cancelled {sha}", past=True)
         if answer != "failed":
             continue
-        since = 1
+        since, under = 1, ""
         for older in commits[place + 1 : place + 20]:
             if older["sha"] == main.green or check(older["sha"]) == "green":
+                under = older["sha"]
                 break
             since += 1
         owner = slug or f"{mainjson.FIX}{sha[:12]}"
@@ -1907,9 +1912,10 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
         if place == 0 and not run.first and slug not in run.removed:
-            pull = by_commit.get(sha)
+            red = commits[place : place + since]
+            pull = by_commit.get(red[-1]["sha"])
             culprit = slug_of.get(pull["number"], "") if pull else ""
-            run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit)
+            run.red = RedTip(slug, sha, red, pull, culprit, under)
 
 
 STEPS = (
