@@ -130,3 +130,19 @@ def test_a_check_github_did_not_run_again_is_on_the_check_step_with_its_reason(
     scene.queue([row("oat-bowl", "pr", pr="#11", checks="failed", why=why)])
     found = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
     assert (found["step"], found["reason"]) == ("check", reason)
+
+
+@pytest.mark.parametrize("name", ["check", "macos"])
+@pytest.mark.parametrize("minutes", [[None, None], [30, 30], [12, 31]])
+@pytest.mark.parametrize("cause", ["", "its timeout of 30 min"])
+def test_a_check_cancelled_twice_is_on_the_check_step_with_its_reason(
+    scene, served, name, minutes, cause
+):
+    """The row's `why` that `cancelled` writes for a check cancelled at two attempts, with or
+    without how long each ran and what stopped it, is on the check step under its own code."""
+    why = f"#11: {cancelled.twice(name, minutes, cause)}"
+    reason = why.removeprefix("#11: ")
+    assert ready.code_of(reason) == ready.CANCELLED_TWICE.code
+    scene.queue([row("oat-bowl", "pr", pr="#11", checks="failed", why=why)])
+    found = tasks(served.json("/state.json?project=demo"))["oat-bowl"]
+    assert (found["step"], found["reason"]) == ("check", reason)
