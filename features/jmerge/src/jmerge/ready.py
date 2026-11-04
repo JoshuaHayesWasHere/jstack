@@ -194,6 +194,7 @@ CONTENT_CHANGED = Reason(
 NOT_PASSED = Reason("check", "{check} has not passed")
 CHECK_FAILED = Reason("check", "{check} has failed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
+CANCELLED_UNRUN = Reason("check", "its {check} was cancelled, and GitHub did not run it again")
 LIVE_RUN = Reason("check", "{check}'s run at {head} is {state}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
