@@ -173,3 +173,42 @@ def test_a_spent_window_waits_on_the_user_once_until_it_starts_again(kitchen):
     assert spent_items(kitchen) == []
     assert calls == ["api rate_limit"]
     assert kitchen.lines("decision") == []
+
+
+def test_the_callers_of_the_last_hour_are_counted_from_the_log_of_gh_calls(tmp_path, capsys):
+    from datetime import UTC, datetime
+
+    from jsettings import paths, proc
+
+    now = datetime.now(UTC)
+    state = paths.jbus_state_dir()
+    state.mkdir(parents=True, exist_ok=True)
+    lines = [
+        ("jbus.remarks.tell", 0, 4100, 10),
+        ("jbus.remarks.tell", 0, 4090, 20),
+        ("jbus.rebase.failure", 1, 4080, 30),
+        ("jbus.rebase.failure", 0, None, 90),
+    ]
+    (state / proc.CALLS).write_text(
+        "".join(
+            json.dumps(
+                {
+                    "at": (now - timedelta(minutes=minutes)).isoformat(timespec="seconds"),
+                    "caller": caller,
+                    "endpoint": "/graphql",
+                    "status": status,
+                    "remaining": left,
+                }
+            )
+            + "\n"
+            for caller, status, left, minutes in lines
+        )
+        + "not a line\n"
+    )
+    assert budget._budget(SimpleNamespace(callers=True, wait=0, calls=0), None) == 0
+    said = capsys.readouterr().out.splitlines()
+    assert said[0].startswith("3 gh calls since ")
+    assert said[1:] == [
+        "     2  jbus.remarks.tell (0 failed)",
+        "     1  jbus.rebase.failure (1 failed)",
+    ]
