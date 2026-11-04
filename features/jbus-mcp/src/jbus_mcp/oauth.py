@@ -18,13 +18,15 @@ kept only as its sha256, in `oauth.json` in the server's state, mode 0600.
 from __future__ import annotations
 
 import base64
+import fcntl
 import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
-import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -53,6 +55,7 @@ GRANT_TTL = 60
 ACCESS_TTL = 3600
 REFRESH_TTL = 30 * 86400
 LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+VERIFIER = re.compile(r"[A-Za-z0-9._~-]{43,128}")
 
 
 class Failed(Exception):
@@ -124,7 +127,19 @@ class Store:
         self.path, self.origin = path, origin
         self.resource = f"{origin}/mcp"
         self.clock = clock or (lambda: datetime.now(UTC))
-        self._lock = threading.Lock()
+        self.lock = path.with_suffix(".lock")
+
+    @contextmanager
+    def _held(self) -> Iterator[None]:
+        """Hold the file's lock, which the server and the `client`, `code` and `revoke`
+        commands share across processes, for one read and its write."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(self.lock, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
 
     def _now(self) -> float:
         return self.clock().timestamp()
@@ -156,7 +171,7 @@ class Store:
         and token of the old client is revoked."""
         client_id = "jbus-mcp-" + secrets.token_hex(6)
         secret = secrets.token_urlsafe(32)
-        with self._lock:
+        with self._held():
             made = self.clock().isoformat(timespec="seconds")
             self._write(
                 {
@@ -172,7 +187,7 @@ class Store:
     def make_code(self) -> str:
         """Make a sign-in code, in place of any other, and return it, shown this once."""
         code = "".join(secrets.choice(LETTERS) for _ in range(8))
-        with self._lock:
+        with self._held():
             kept = self._read()
             if "client" not in kept:
                 raise Refused("refused: there is no client yet: run jbus-mcp client first")
@@ -182,7 +197,7 @@ class Store:
 
     def revoke(self) -> int:
         """Drop every grant and token, and return how many tokens there were."""
-        with self._lock:
+        with self._held():
             kept = self._read()
             count = len(kept["access"]) + len(kept["refresh"])
             kept["grants"], kept["access"], kept["refresh"] = {}, {}, {}
@@ -192,7 +207,7 @@ class Store:
     def asked(self, query: Mapping[str, str]) -> Asked:
         """Check an authorization request. A client or a callback that is not this server's is a
         `Failed` the page shows, since a redirect would go somewhere unknown."""
-        with self._lock:
+        with self._held():
             client = self._read().get("client", {})
         if query.get("client_id") != client.get("id"):
             raise Failed("invalid_client", "this is not the client jbus-mcp client made")
@@ -217,7 +232,7 @@ class Store:
         """Spend the sign-in code `typed` and return the callback address with a grant. A wrong
         code is counted, and the fifth wrong one burns the code."""
         given = "".join(typed.upper().split()).replace("-", "")
-        with self._lock:
+        with self._held():
             kept = self._read()
             codes = kept["codes"]
             if not codes:
@@ -280,7 +295,7 @@ class Store:
 
     def token(self, form: Mapping[str, str], basic: str = "") -> dict[str, Any]:
         """The token endpoint: a grant, or a refresh token, for a new pair of tokens."""
-        with self._lock:
+        with self._held():
             kept = self._read()
             client_id = self._client(kept, form, basic)
             kind = form.get("grant_type")
@@ -309,7 +324,7 @@ class Store:
             self._write(kept)
             raise Failed("invalid_target", "the resource is not the one the grant was given for")
         verifier = form.get("code_verifier", "")
-        if not 43 <= len(verifier) <= 128 or not hmac.compare_digest(
+        if not VERIFIER.fullmatch(verifier) or not hmac.compare_digest(
             _challenge(verifier), one["challenge"]
         ):
             self._write(kept)
@@ -336,5 +351,5 @@ class Store:
         scheme, _, token = authorization.partition(" ")
         if scheme.lower() != "bearer" or not token.strip():
             return False
-        with self._lock:
+        with self._held():
             return _hash(token.strip()) in self._read()["access"]

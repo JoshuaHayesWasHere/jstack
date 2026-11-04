@@ -4,6 +4,9 @@ only with PKCE, and rotates refresh tokens, revoking a family whose spent token 
 import base64
 import hashlib
 import json
+import subprocess
+import sys
+import threading
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -213,6 +216,37 @@ def test_a_new_client_revokes_the_old_one(store):
     client_id, secret, tokens = signed_in(store)
     store.make_client()
     assert not store.allows(f"Bearer {tokens['access_token']}")
+
+
+HOLDER = """
+import fcntl, sys
+with open(sys.argv[1], "a") as held:
+    fcntl.flock(held, fcntl.LOCK_EX)
+    print("held", flush=True)
+    sys.stdin.read()
+"""
+
+
+def test_a_revoke_waits_for_another_process_that_holds_the_store(store):
+    signed_in(store)
+    holder = subprocess.Popen(
+        [sys.executable, "-I", "-c", HOLDER, str(store.lock)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert holder.stdout.readline() == "held\n"
+        counted = []
+        revoking = threading.Thread(target=lambda: counted.append(store.revoke()))
+        revoking.start()
+        revoking.join(0.5)
+        assert revoking.is_alive()
+    finally:
+        holder.stdin.close()
+        holder.wait(10)
+    revoking.join(10)
+    assert counted == [2]
 
 
 def test_the_metadata_names_the_endpoints_claude_reads():
