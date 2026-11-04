@@ -101,7 +101,6 @@ def runnable_main(project: str | None, statuses: str) -> int:
         return 1
     print(found.line())
     return 0
-||||||| parent of 7acc96bb7 (feat(jmerge): the flow model writes one review round only once check has passed, and findings' proof shapes move to jbriefs.proofs)
 
 
 def rounds(said: findings.Triage) -> str:
