@@ -577,10 +577,13 @@ def test_a_skill_selects_a_test_by_the_skills_it_reaches_and_not_by_the_names_be
 def test_a_change_to_the_home_skill_selects_the_tests_that_reach_it_and_not_most_of_them():
     """210 tests import `test_home_thread`, whose helpers name the home, crew, handoff and scout
     skills. Those that take no helper that reads the home skill do not run its blocks: once,
-    their imports alone made a change to it select 315 of 400 test files."""
-    tests, _ = select.selection(["features/home/skills/home/SKILL.md"])
+    their imports alone made a change to it select 315 of 400 test files.
+    `test_crew_reviewing.py` takes `blocks` from it and reads the crew skill alone."""
+    home, _ = select.selection(["features/home/skills/home/SKILL.md"])
+    crew, _ = select.selection(["features/crew/SKILL.md"])
 
-    assert len(tests) < len(select.collected()) / 2
+    assert "features/crew/tests/test_crew_reviewing.py" in set(crew) - set(home)
+    assert len(home) < len(select.collected()) * 2 / 3
 
 
 def test_the_selector_finds_the_skills_the_index_finds():
