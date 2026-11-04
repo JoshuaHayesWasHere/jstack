@@ -4,15 +4,16 @@ the repo the call ran in.
 
 Each test runs a hook from a source tree of its own, a copy of the hook and of
 `features/jbus/hooks/judge.sh` beside a judging module the test writes: one that raises, one that
-runs past its time, or one that is never reached because the machine has no python. `HOME` holds
-the jbus state of a repo named `Winnifred` and a checkout of it, which the call names as its
-`cwd`. No test touches the machine's own files.
+runs past its time, alone or with a child it started, or one that is never reached because the
+machine has no python. `HOME` holds the jbus state of a repo named `Winnifred` and a checkout of
+it, which the call names as its `cwd`. No test touches the machine's own files.
 """
 
 import json
 import os
 import shutil
 import subprocess
+import time
 
 import pytest
 
@@ -31,6 +32,7 @@ SENDS = (
 HOOKS = pytest.mark.parametrize("hook", [DOOR, SENDS], ids=["door-command", "agent-sends"])
 RAISES = "raise RuntimeError('the judge broke')\n"
 SLEEPS = "import time\ntime.sleep(30)\n"
+FORKS = "import subprocess, time\nsubprocess.Popen(['sleep', '8'])\ntime.sleep(30)\n"
 
 
 @pytest.fixture
@@ -111,6 +113,16 @@ def test_a_judge_that_runs_out_of_time_refuses_the_call(home, tmp_path, hook):
     assert code == 2
     assert f"{hook[0]}: refused: {hook[2]} ran past 1 seconds" in said
     refused(home, hook, "ran past 1 seconds")
+
+
+def test_a_judge_whose_child_hangs_is_cut_off_at_its_time(home, tmp_path):
+    script = tree(tmp_path / "source", DOOR, FORKS)
+    began = time.monotonic()
+    code, said = run(home, script, DOOR, JSTACK_HOOK_SECONDS="1")
+    assert time.monotonic() - began < 5
+    assert code == 2
+    assert "door-command: refused: jbus.door ran past 1 seconds" in said
+    refused(home, DOOR, "ran past 1 seconds")
 
 
 @HOOKS
