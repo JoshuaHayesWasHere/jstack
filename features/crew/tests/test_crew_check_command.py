@@ -427,7 +427,8 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in
     git(repo, "commit", "-qam", "a change to the crew feature")
     said, code, ran, base = selected(tmp_path, repo)
     then = next(at for at, line in enumerate(said) if line.startswith("then "))
-    guards, rest = said[1:then], said[then + 1 :]
+    guards, rest = said[1:then], said[then + 1 : -1]
+    assert re.fullmatch(r"guards: exit 0 in \d+ s", said[-1]), said
     assert said[0] == f"selected: {len(guards)} guard test files, which must pass, in a full slot:"
     assert said[then] == (
         f"then {len(rest)} test files the change reaches, in the short lane, where the time "
@@ -458,13 +459,18 @@ PARTS = (
 @pytest.mark.parametrize(
     ("exits", "parts", "end"),
     [
-        pytest.param({"guards": 1}, ["guards"], "PART=guards exit 1", id="a guard fails"),
-        pytest.param({"guards": 124}, ["guards"], "PART=guards exit 124", id="a guard is cut"),
+        pytest.param(
+            {"guards": 1}, ["guards"], "PART=guards (took S s) exit 1", id="a guard fails"
+        ),
+        pytest.param(
+            {"guards": 124}, ["guards"], "PART=guards (took S s) exit 124", id="a guard is cut"
+        ),
         pytest.param(
             {"rest": 124},
             ["guards", "rest"],
-            "PART=guards exit 0, then the import-reached remainder, where exit 124 is the short "
-            "lane's time limit and passes: make check-fast BASE={base} PART=rest exit 124",
+            "PART=guards exit 0 (took S s), then the import-reached remainder, where exit 124 "
+            "is the short lane's time limit and passes: "
+            "make check-fast BASE={base} PART=rest exit 124",
             id="the rest is cut",
         ),
     ],
@@ -474,7 +480,8 @@ def test_the_rest_runs_only_once_the_guards_passed_and_the_checked_line_names_bo
 ):
     """A guard that does not pass ends the check with its exit, 124 too, and the rest does not
     run. Only the rest's 124 is the time limit that passes, and the `Checked:` line says the
-    guards passed before it."""
+    guards passed before it. The guard step is timed: the block prints its exit and seconds, and
+    the `Checked:` line carries the seconds."""
     repo = stubbed(tmp_path, PARTS)
     tasks = tmp_path / "state" / "tasks"
     tasks.mkdir(parents=True)
@@ -483,8 +490,13 @@ def test_the_rest_runs_only_once_the_guards_passed_and_the_checked_line_names_bo
     head = git(repo, "rev-parse", "HEAD")
     assert code == int(end.split()[-1])
     assert [one.split()[2] for one in ran] == [f"PART={part}" for part in parts]
-    line = f"Checked: make check-fast BASE={base} {end.format(base=base)} at {head}\n"
-    assert (tasks / "a-task.md").read_text().endswith("## Result\n" + line)
+    first = 0 if "rest" in parts else exits["guards"]
+    assert re.search(rf"^guards: exit {first} in \d+ s$", "\n".join(said), re.M), said
+    line = f"Checked: make check-fast BASE={base} {end.format(base=base)} at {head}"
+    line = re.escape(line).replace(r"took\ S\ s", r"took\ \d+\ s")
+    assert re.fullmatch(
+        rf"# a-task: a task\n\n## Result\n{line}\n", (tasks / "a-task.md").read_text()
+    )
 
 
 @pytest.mark.parametrize(
@@ -578,15 +590,16 @@ def test_the_check_block_runs_jstacks_jgauge_from_a_worktree_whose_venv_has_an_o
     ("brief", "dirty", "written"),
     [
         pytest.param("# a-task: a task\n\n## Result\nStatus: done\n", False, True, id="a Result"),
-        pytest.param("# a-task: a task\n", False, False, id="no Result yet"),
+        pytest.param("# a-task: a task\n", False, True, id="no Result yet"),
         pytest.param("# a-task: a task\n\n## Result\n", True, False, id="uncommitted work"),
     ],
 )
 def test_the_block_adds_the_checked_line_for_a_check_of_a_committed_head(
     tmp_path, brief, dirty, written
 ):
-    """Once the brief has a Result, the block writes the `Checked:` line `jmerge` reads, for a
-    check that ran to its end on the head as it is committed, and on no other."""
+    """The block writes the `Checked:` line `jmerge` reads, for a check that ran to its end on the
+    head as it is committed, and on no other, from the first head on: a brief with no Result yet
+    gets it too, so the first head's check is on record."""
     repo = stubbed(tmp_path, "print('all')")
     if dirty:
         (repo / "page.md").write_text("An edit not committed.\n")
