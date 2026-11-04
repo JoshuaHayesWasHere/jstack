@@ -2,8 +2,10 @@
 pass first sees it, and a line with its minutes when a pass sees it end.
 
 The tests run the real pass against the faked T3 Code server of `test_jbus_kitchen`, and read the
-file the pass appends to. A spell is counted once however many passes see it, and a thread that
-waits on the user's answer, or a home's thread, is never in a spell.
+file the pass appends to. The first pass begins the file with the moment the record began, so a
+week the passes watched with no stall has 0 stall minutes per merged row, and a row merged before
+it is a gap. A spell is counted once however many passes see it, and a thread that waits on the
+user's answer, or a home's thread, is never in a spell.
 """
 
 import contextlib
@@ -17,9 +19,13 @@ from test_jbus_kpi_page import Cells, run
 from test_jbus_live import MIN, hanging, written
 
 
-def stalls(kitchen):
+def lines(kitchen):
     path = kitchen.state / "stalls.jsonl"
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def stalls(kitchen):
+    return [one for one in lines(kitchen) if "began" not in one]
 
 
 def ended(kitchen):
@@ -151,9 +157,10 @@ def test_a_week_the_passes_watched_with_no_stall_shows_no_stall_minute_per_merge
     for minute in range(3):
         kitchen.poll(NOW + minute * MIN)
         assert written(kitchen)[0]["live"] == "moving"
-    merged = {"slug": "beta", "from": "pr", "to": "merged", "at": iso(NOW + 60 * MIN)}
     with open(kitchen.state / "transitions.jsonl", "a") as log:
-        log.write(json.dumps(merged) + "\n")
+        for slug, at in (("before", NOW - timedelta(days=7)), ("beta", NOW + 60 * MIN)):
+            log.write(json.dumps({"slug": slug, "from": "pr", "to": "merged", "at": iso(at)}))
+            log.write("\n")
     with contextlib.redirect_stdout(io.StringIO()):
         assert cli.main(["telemetry"]) == 0
     out = kitchen.state_dir / "kpis.html"
@@ -163,5 +170,9 @@ def test_a_week_the_passes_watched_with_no_stall_shows_no_stall_minute_per_merge
     assert code == 0, said
     cells = Cells()
     cells.feed(out.read_text())
-    assert ended(kitchen) == []
-    assert cells.rows["Stall minutes per merged row"][5] == "0 min n 1 tracked: covers demo"
+    assert lines(kitchen) == [{"at": iso(NOW), "began": True}]
+    stall = cells.rows["Stall minutes per merged row"]
+    assert stall[5] == "0 min n 1 tracked: covers demo"
+    assert stall[4] == (
+        "n/a n 0 no data: covers demo; no stall record kept for 1 merged row, on 2026-10-05"
+    )

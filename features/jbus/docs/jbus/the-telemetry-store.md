@@ -29,7 +29,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
-| `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became` |
+| `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became`; and the file's first line, `began`, when the first pass that ran `jbus.stall.spells` began the record |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
 | `review_rounds` | `review-rounds.jsonl` | a settled review round of a row's pull request: its number, head, sections, `Meets the brief` verdict (`meets`, `met` of `done_when`) and its findings by severity (`errors`, `warnings`, `infos`, `others`, `dismissed`) |
@@ -178,7 +178,7 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `gate_outcomes` | each gate's label of a week, the first home's by name where two homes label one gate, with `closed_by`, and whether its outcome is `known` and `wrong` as `gate-labels.md` says, read by `weekly_wrong_closes` |
 | `weekly_wrong_closes` | each labelled week's S8 over its `labels`: of the gates silence closed, the known closes (`silence`), the wrong ones (`silence_wrong`) and `silence_share`, in percent, and the same of those your word closed (`word`, `word_wrong` and `word_share`) |
 | `weekly_first_load` | each week from the first `first_loads` row on: `kb`, the crew first load of the latest install by the week's end in KB of 1,000 bytes, and `installs`, how many the week ran on |
-| `stalls_since` | the first `day` of `stalls.jsonl`, before which a merged row's quiet spells were not kept |
+| `stalls_since` | the first `day` of `stalls.jsonl`: its `began` line, which the first pass that ran `jbus.stall.spells` wrote, or its first spell where the file began before that line was kept; a merged row before it is a gap, and one from it on with no spell had none |
 | `stall_spells` | each spell of `stalls` that a pass saw end, with its `minutes`, less the `unseen` minutes of a gap, and the `day` and `week` of that pass |
 | `stall_projects` | each project with a row merged since `stalls_since`: the projects the stall minutes count |
 | `stall_gaps` | each day with rows merged before `stalls_since`, and how many: rows whose spells the stall minutes leave out |
@@ -214,7 +214,7 @@ An inferred wait ends when GitHub's merge ended, so it counts the merge call's o
 A stall spell runs from the thread's last write to its next write, or to the pass that saw it wait on the user, end or go, and counts in the week that pass falls in.
 A spell counts only the silence the passes saw: a stretch of more than 20 minutes with no pass, as when the machine was suspended or jbus did not run, is a gap, and the part of a gap that falls in a spell is its `unseen` minutes, which `minutes` leaves out (`jbus.stall.GAP`).
 A shorter stretch between two passes counts whole, so a slow pass, or one that found the lock busy, takes nothing off a spell.
-`stalls.jsonl` begins with its first line, so stall minutes count only the rows merged from that day on, and the KPI page names the days of a week with rows merged before it.
+`stalls.jsonl` begins with its `began` line, which the first pass that ran `jbus.stall.spells` wrote, not a date set by hand, so stall minutes count only the rows merged from that day on, a week the passes watched with no stall has 0, and the KPI page names the days of a week with rows merged before it.
 `ci.jsonl` kept no `pull_request` check of 33 of the 48 jstack pull requests merged on 2026-10-20, of every one from 2026-10-21 to 2026-10-25, of 58 of 100 on 10-26 and of 46 of 49 on 10-27, the whole set in the store built on 2026-11-03, and `first_round` is none for those: whether a check of theirs failed is not known.
 
 ## The KPI page
