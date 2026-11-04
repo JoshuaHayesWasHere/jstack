@@ -8,8 +8,8 @@ check ran over today's main merges as before."""
 import pytest
 
 import test_home_merge as merge
-from jmerge import ready
-from test_jmerge_fresh import AFTER, LINES, Kitchen, asked, url
+from jmerge import cli, ready
+from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, asked, url
 
 
 @pytest.fixture
@@ -90,3 +90,78 @@ def test_one_whose_check_ran_over_today_s_main_merges_while_others_wait_in_line(
     assert said[0] == asked(7, tip) and said[1] == behind(8, 7)
     assert said[2].startswith("merged 9 four ")
     assert kitchen.updates() == ["7"]
+
+
+RED = {**merge.FAILED, "startedAt": STARTED["startedAt"]}
+
+
+def red_asked(number, tip):
+    """The line of a pull request whose check failed before main moved to `tip`, once GitHub was
+    asked to merge main into its branch."""
+    return f"wait {number} {url(number)}: " + ready.BASE_MERGE_ASKED.format(
+        base="main", tip=tip[:12]
+    )
+
+
+def test_red_ones_main_moved_past_wait_in_the_same_line_one_update_for_each_merge(kitchen):
+    """#1009's probe: one green pull request in line and two red ones whose check failed before
+    main moved. GitHub was asked to update all three each time main moved; now a red one takes
+    its place in the line, behind the green one at its head, and its update is its turn."""
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES}, checks=(RED,))
+    kitchen.crew("four", 9, {"a.txt": "ours\n" + LINES}, checks=(RED,))
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(8, 7), behind(9, 7)]
+    assert kitchen.updates() == ["7"]
+
+    kitchen.updated("two", AFTER)
+    first, second, third = kitchen.run()
+    assert first.startswith("merged 7 two ")
+    assert (second, third) == (red_asked(8, kitchen.tip()), behind(9, 8))
+    assert kitchen.updates() == ["7", "8"]
+
+    kitchen.updated("three", RUNNING)
+    assert kitchen.run() == [f"wait 8 {url(8)}: check has not passed", behind(9, 8)]
+    assert kitchen.updates() == ["7", "8"]
+
+    kitchen.updated("three", AFTER)
+    first, second = kitchen.run()
+    assert first.startswith("merged 8 three ")
+    assert second == red_asked(9, kitchen.tip())
+    assert kitchen.updates() == ["7", "8", "9"]
+
+    kitchen.updated("four", AFTER)
+    (said,) = kitchen.run()
+    assert said.startswith("merged 9 four ")
+    assert kitchen.updates() == ["7", "8", "9"]
+
+
+def test_a_red_one_whose_check_fails_again_at_its_updated_head_leaves_the_line(kitchen):
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES}, checks=(RED,))
+    kitchen.crew("four", 9, {"a.txt": "ours\n" + LINES}, checks=(RED,))
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [red_asked(8, tip), behind(9, 8)]
+    kitchen.updated("three", {**merge.FAILED, "startedAt": AFTER["startedAt"]})
+    assert kitchen.run() == [f"wait 8 {url(8)}: check has failed", red_asked(9, tip)]
+    assert kitchen.updates() == ["8", "9"]
+
+
+def unrun(kitchen, slug):
+    """Its `check` passed before main moved, and `borders`, which the repo requires too, has no
+    run at its head."""
+    (kitchen.home.state / cli.REQUIRED_CHECKS).write_text("check\nborders\n")
+    kitchen.pulls[slug]["statusCheckRollup"] = [STARTED]
+    kitchen.brief(slug, kitchen.pulls[slug]["headRefOid"])
+
+
+def test_one_with_a_check_that_has_no_run_waits_in_the_same_line(kitchen):
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    unrun(kitchen, "three")
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    kitchen.updated("two", AFTER)
+    first, second = kitchen.run()
+    assert first.startswith("merged 7 two ")
+    assert second == asked(8, kitchen.tip())
+    assert kitchen.updates() == ["7", "8"]
