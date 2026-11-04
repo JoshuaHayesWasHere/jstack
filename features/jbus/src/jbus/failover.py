@@ -569,14 +569,14 @@ def plan(
     fill: bool = False,
     checked: dict[str, bool] | None = None,
 ) -> Move | None:
-    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap added,
-    chooses the move, and writes nothing. It returns None for a thread whose configuration names no
-    model.
+    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap holding
+    the capped instance until the cap's reset (`ledger.held`), even where the instance's file has
+    a later window, chooses the move, and writes nothing. It returns None for a thread whose
+    configuration names no model.
 
     A replay sets `fill`. Then, when the ledger has a window running for the capped instance
-    and that window resets later, the cap fills that window. Without `fill`, a cap moved to now
-    would lose to that window, because the ledger keeps the later reset. A real cap carries
-    that window's own reset. A pass sets `checked`. With it, `plan` skips an instance that is not
+    and that window resets later, the cap fills that window, since a cap moved to now holds
+    nothing. A pass sets `checked`. With it, `plan` skips an instance that is not
     mirrored (`dispatch.mirrored_choice`), and that check may run the mirror."""
     cap, ran = found
     configuration = client.call("t3_thread_configure", {"threadId": thread["threadId"]})
@@ -589,7 +589,7 @@ def plan(
     running = ledger.read([capped]).get((capped, cap.window))
     if fill and running and running.resets > cap.resets.timestamp():
         cap = replace(cap, resets=datetime.fromtimestamp(running.resets, UTC))
-    kept = ledger.merge(ledger.read(instances), [cap.record(capped)])
+    kept = ledger.held(ledger.read(instances), cap.record(capped))
     if checked is None:
         choice = pool.choose(instances, kept, run.now)
     else:
