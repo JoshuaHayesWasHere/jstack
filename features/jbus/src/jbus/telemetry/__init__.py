@@ -15,7 +15,7 @@ A build reads only what is new. A log is read on from `cursors`, the file's inod
 its first line and the offset its last build read to, and only to its last newline, so a line
 still being written waits for the next build. A log whose inode or first line changed, or that
 is shorter than the offset, is read again from the start: its rows are keyed by their content
-(`records.key`), so a line read twice is one row, the one today's `records` makes of it, and a
+(`values.key`), so a line read twice is one row, the one today's `records` makes of it, and a
 row that would not change is not written. A snapshot is read again when its inode, size
 or time changed. Each file's rows and its cursor are written in one transaction, so a build
 stopped at any point leaves each file either read or not, and the next build reads on from
@@ -58,6 +58,7 @@ from jbus.telemetry import (
     migrations,
     records,
     tokens,
+    values,
     views,
 )
 from jbus.telemetry.records import SOURCES, Source
@@ -180,12 +181,12 @@ def _zone(connection: sqlite3.Connection, zone: tzinfo | None) -> None:
         found = connection.execute(f"SELECT project, key, {at} FROM {table}")
         connection.executemany(
             f"UPDATE {table} SET day = ? WHERE project = ? AND key = ?",
-            [(records.day(at, zone), project, key) for project, key, at in found.fetchall()],
+            [(values.day(at, zone), project, key) for project, key, at in found.fetchall()],
         )
     found = connection.execute("SELECT provider, call, at FROM calls")
     connection.executemany(
         "UPDATE calls SET day = ? WHERE provider = ? AND call = ?",
-        [(records.day(at, zone), provider, call) for provider, call, at in found.fetchall()],
+        [(values.day(at, zone), provider, call) for provider, call, at in found.fetchall()],
     )
     connection.execute("INSERT OR REPLACE INTO meta (name, value) VALUES ('zone', ?)", (name,))
     connection.execute("COMMIT")
@@ -205,7 +206,7 @@ def _files(config: jbus.Config) -> Iterator[tuple[str, Source, Path]]:
                 yield project.name, source, _file(config, project, source)
     for source in SOURCES:
         if source.where == "machine":
-            yield records.MACHINE, source, config.state_dir / source.file
+            yield values.MACHINE, source, config.state_dir / source.file
 
 
 def _insert(source: Source) -> str:
@@ -226,7 +227,7 @@ def _values(source: Source, project: str, key: str, row: records.Row, zone: tzin
         project,
         key,
         *(row.get(name) for name, _ in source.columns),
-        records.day(row.get(source.at), zone),
+        values.day(row.get(source.at), zone),
     )
 
 
@@ -259,7 +260,7 @@ def _log(connection, project: str, source: Source, file: Path, zone, built: Buil
             canon = json.dumps(record, sort_keys=True)
         if canon not in counts:
             counts[canon] = 0 if start == 0 else _seen(connection, source.table, project, canon)
-        key = records.key(canon, counts[canon])
+        key = values.key(canon, counts[canon])
         counts[canon] += 1
         rows.append(_values(source, project, key, source.row(record, zone), zone))
     connection.execute("BEGIN")
@@ -276,7 +277,7 @@ def _seen(connection, table: str, project: str, canon: str) -> int:
     count = 0
     while connection.execute(
         f"SELECT 1 FROM {table} WHERE project = ? AND key = ?",
-        (project, records.key(canon, count)),
+        (project, values.key(canon, count)),
     ).fetchone():
         count += 1
     return count
@@ -337,7 +338,7 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
         connection.execute(
             "INSERT INTO builds (at, ms, bytes, rows, left) VALUES (?, ?, ?, ?, ?)",
             (
-                records.utc(datetime.now(UTC).isoformat()),
+                values.utc(datetime.now(UTC).isoformat()),
                 built.ms,
                 built.bytes,
                 sum(built.rows.values()),

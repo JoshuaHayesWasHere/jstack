@@ -225,6 +225,42 @@ def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):
     assert ready.short_on_github(one) == short.format(head=one.head[:12])
 
 
+def mac(conclusion, name="macos"):
+    return {**merge.run(conclusion, name), "workflowName": "macos"}
+
+
+@pytest.mark.parametrize(
+    ("macos", "short"),
+    [
+        ((mac("SKIPPED"), mac("SUCCESS", "macos-select")), ""),
+        ((mac("SUCCESS"), mac("SUCCESS", "macos-select")), ""),
+        ((mac("SKIPPED"),), "macos has not passed"),
+        ((mac("SKIPPED"), mac("FAILURE", "macos-select")), "macos has not passed"),
+        ((merge.run("SKIPPED", "macos"), mac("SUCCESS", "macos-select")), "macos has not passed"),
+        ((mac("FAILURE"), mac("SUCCESS", "macos-select")), "macos has failed"),
+    ],
+    ids=[
+        "skipped by its selection",
+        "ran and passed",
+        "skipped alone",
+        "skipped after its selection failed",
+        "skipped with no workflow named",
+        "ran and failed",
+    ],
+)
+def test_a_required_check_its_own_workflow_skipped_after_a_job_of_it_passed_counts_as_passed(
+    macos, short
+):
+    """macos.yml skips its `macos` job by an `if:` where `macos-select` finds no Mac test the
+    change reaches, and GitHub's required checks take the skip as a pass. jmerge takes it so
+    only where the rest of that workflow passed: a skip on its own, or after a failed job, is
+    no pass."""
+    required = ready.required_of("check\nborders\nmacos\n")
+    checks = (merge.PASSED, BORDERS_PASSED, *macos)
+    one = pull_request("a.txt", checks=checks, rollup=list, required=required)
+    assert ready.short_on_github(one) == short
+
+
 def repo(proven_merged, monkeypatch):
     """The command's own view of the repo, in this process, with the fake `gh`."""
     home = proven_merged.home

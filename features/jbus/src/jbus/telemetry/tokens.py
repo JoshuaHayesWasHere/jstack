@@ -43,7 +43,7 @@ from typing import Any
 
 import jbus
 from jbus import boxes, roles
-from jbus.telemetry import cursors, records
+from jbus.telemetry import cursors, values
 from jgauge import transcript
 from jroles import inventory
 
@@ -213,7 +213,7 @@ def claude_calls(lines: Iterable[bytes], session: str, _: sqlite3.Connection) ->
         {
             "call": one.id,
             "session": session,
-            "at": records.utc(one.first_ts),
+            "at": values.utc(one.first_ts),
             "model": one.model,
             "input": one.tokens_in,
             "cache_write": one.cache_write,
@@ -245,9 +245,9 @@ def codex_calls(lines: Iterable[bytes], session: str, store: sqlite3.Connection)
         payload = entry.get("payload") if isinstance(entry, dict) else None
         if not isinstance(payload, dict):
             continue
-        at = records.utc(entry.get("timestamp"))
+        at = values.utc(entry.get("timestamp"))
         if entry.get("type") == "session_meta":
-            began = records.utc(payload.get("timestamp")) or at
+            began = values.utc(payload.get("timestamp")) or at
         elif entry.get("type") == "turn_context":
             model = payload.get("model") if isinstance(payload.get("model"), str) else model
         elif payload.get("type") == "token_count":
@@ -366,7 +366,7 @@ def read(
                 *(row[name] for name in _COLUMNS[1:3]),
                 one.agent,
                 *(row[name] for name in _COLUMNS[4:-1]),
-                records.day(row["at"], zone),
+                values.day(row["at"], zone),
             )
             for row in rows
         ],

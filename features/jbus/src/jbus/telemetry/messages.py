@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import boxes
-from jbus.telemetry import asks, records
+from jbus.telemetry import asks, records, values
 
 if TYPE_CHECKING:
     from datetime import tzinfo
@@ -171,7 +171,7 @@ def _t3(
                 return
             rows = []
             for rowid, mid, thread, role, at, project_id, by, source, head, length, size in found:
-                stamp = records.utc(at)
+                stamp = values.utc(at)
                 sort = kind(mid, head) if role == "user" else None
                 rows.append(
                     (
@@ -187,7 +187,7 @@ def _t3(
                         sort,
                         length,
                         (asks.label(head) if sort == "text" else "other") if sort else None,
-                        records.day(stamp, zone),
+                        values.day(stamp, zone),
                     )
                 )
                 built.bytes += size or 0
@@ -202,7 +202,7 @@ def _words(connection: sqlite3.Connection, zone: tzinfo | None, built: Built) ->
     place of a row that says otherwise: the thread a word went to can come after the word."""
     names = ["project", "key", *(name for name, _ in COLUMNS), "day"]
     found = connection.execute(WORDS).fetchall()
-    rows = {row[:2]: (*row, records.day(row[5], zone)) for row in found}
+    rows = {row[:2]: (*row, values.day(row[5], zone)) for row in found}
     held = set(
         connection.execute(f"SELECT {', '.join(names)} FROM {TABLE} WHERE key LIKE '{WORD}%'")
     )
