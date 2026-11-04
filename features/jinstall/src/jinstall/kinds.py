@@ -1651,8 +1651,8 @@ class StateRepo:
 @dataclass(frozen=True)
 class CiReport:
     """The projects of jbus's config whose table says `ci_report = true`, for which
-    `jbus-ci.timer` writes the week's CI report: an optional layer, off on a machine where no
-    project asks for it.
+    `jbus-ci.timer` writes the week's CI report and `jbus-ci-day.timer` the day's: an optional
+    layer, off on a machine where no project asks for it.
     ok: a project asks for it. The detail names each one.
     missing: there is no jbus config, or no project asks for it.
     old: jbus's loader refuses the config."""
@@ -1671,7 +1671,9 @@ class CiReport:
             return Found.old(_said(error))
         asked = [project.name for project in loaded.projects if project.ci_report]
         if not asked:
-            return Found.missing("no project has ci_report = true, so jbus-ci.timer is off")
+            return Found.missing(
+                "no project has ci_report = true, so jbus-ci.timer and jbus-ci-day.timer are off"
+            )
         return Found.ok(", ".join(asked))
 
 

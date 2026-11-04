@@ -227,6 +227,7 @@ DIGEST = {
                 "open": [dict.fromkeys(stop.SHOWN)],
                 "outside": {ANY: None},
             },
+            "ci": {"path": None, "date": None, "day": None, "stale": None, "lines": [None]},
         }
     },
     "status": {
