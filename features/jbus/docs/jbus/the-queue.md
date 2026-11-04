@@ -344,6 +344,8 @@ An answer to a gate that holds is held to the same: your message names the gate'
 `jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
 No plan entry's go, follow-up rule or close by silence approves such a row either.
 A home's or a scout's own shell command that walks through a door is refused before it runs by the `door-command` hook (`jbus.door`), and so is a crew's whose row did not go on your own word read in T3 Code.
+The hook refuses a command it cannot judge too: with no Python 3.12 or newer, when `jbus.door` crashes, and when it runs past 25 seconds.
+Each refusal is a quiet `hook` event in the project's log, with the hook, the command's head and the reason, which `jbus events` prints.
 
 A second go that the row's go already holds for is a `noop`, and writes nothing to the row.
 A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is refused as stale when the project's event log has an event for the row after that one, or has no event of that id.

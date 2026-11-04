@@ -138,7 +138,9 @@ def laid(home, harness="claude-code"):
 def group(script, home, matcher="startup", refuses=False, harness="claude-code"):
     run = f"sh '{laid(home, harness) / 'hooks' / script}'"
     command = run if refuses else f"{run} 2>/dev/null || true"
-    hooks = [{"type": "command", "command": command, "timeout": 30 if refuses else 5}]
+    hook = {"type": "command", "command": command, "timeout": 30 if refuses else 5}
+    blocks = {"onFailure": "block"} if refuses and harness == "claude-code" else {}
+    hooks = [hook | blocks]
     return ({"matcher": matcher} if matcher else {}) | {"hooks": hooks}
 
 
