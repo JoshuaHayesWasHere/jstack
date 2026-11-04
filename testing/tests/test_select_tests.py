@@ -1221,18 +1221,29 @@ def test_every_feature_has_both_lines_and_patterns_jmerge_can_read():
         assert select.ready().patterns_of("\n".join(paths)) == tuple(paths)
 
 
-def test_a_features_tests_line_names_only_what_no_import_and_no_name_selects():
+def test_a_features_tests_line_names_only_what_no_import_and_no_name_selects(monkeypatch):
     """The tests of a feature come from what they import and what they name. A `Tests:` entry names
     a test that reads a feature's files without naming them in a string, such as with a glob over a
-    tree of files. If an import or a name already selects that test, the entry is redundant."""
-    shown = []
-    for name, (owned, listed_tests) in select.features().items():
+    tree of files. If, with the entry gone, a change to each path the feature owns still selects
+    that test, the entry is redundant. An import or a name that selects the test for one of those
+    paths alone does not make it so: the skill tests name their skill, and read files beside it."""
+    features, pages, shown = select.features(), select.pages(), []
+    for name, (owned, listed_tests) in features.items():
         mine = [one for one, path in select.modules().items() if owns_module(owned, path)]
         seen = select.test_files(select.importers(mine))
         for path in tracked():
             if select.owns(owned, path) and path not in select.modules().values():
                 seen |= select.readers(path)
-        shown += [f"{name} lists {test}" for test in listed_tests if test in seen]
+        for test in set(listed_tests) & seen:
+            rest = {**features, name: (owned, [one for one in listed_tests if one != test])}
+            monkeypatch.setattr(select, "features", lambda rest=rest: rest)
+            ruled = [
+                select.ruled([path])[0]
+                for path in select.tracked()
+                if select.owns(owned, path) and path != pages[name]
+            ]
+            if all(tests == ["all"] or test in tests for tests in ruled):
+                shown.append(f"{name} lists {test}")
     assert shown == []
 
 
