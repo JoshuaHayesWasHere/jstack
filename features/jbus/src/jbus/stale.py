@@ -12,7 +12,8 @@ It lists five kinds, a line each, `<kind> <what>: <why>`:
 - `worktree`: a worktree of the project's checkout, other than the checkout itself, whose branch is
   no open row's slug or branch and no open pull request's head. An open row is one that is not
   removed, merged or done. A worktree on a detached head is on no branch, such as a build's source
-  tree, so no row or pull request can be its, and it is not listed.
+  tree, so no row or pull request can be its, and it is not listed. Its line says whether its work
+  is saved (`kept`): a saved one the next hourly pass removes, and any other stays, with why.
 - `hold`: a key of the home's `holds.json`, where `jmerge` keeps the heads it holds, whose pull
   request is not open.
 - `told`: a line of a home's `told` whose decision or stop has ended: a `question <n>` that has its
@@ -26,9 +27,15 @@ judged where it needs that answer, and a `not judged:` line says so: nothing is 
 guess. The last line counts each kind.
 
 Once an hour a pass runs the same audit and keeps its count in `stale.json` of the project's state
-(`audit`). A count above none is an item of the one list (`jbus.wakes`), so the root home hears
-it, and hears it again each time the count changes. While the root's own `home-id` is stale there
-is no home to hear it (`gone`), and the next home's start writes a new one.
+(`audit`). Before it counts, that pass removes each stale worktree whose work is saved: one with no
+uncommitted or untracked file and no ignored one but a cache such as `.venv`, not used within a day
+(`REST`), each of whose commits is on origin's branch of the same name or on origin's default
+branch, or whose pull request merged at its head. It runs `git worktree remove`, which removes no
+worktree with a change in it, then deletes the branch, and logs a quiet `worktree-removed` event
+with the path, the branch and its head. The count is of what stays.
+A count above none is an item of the one list (`jbus.wakes`), so the root home hears it, and hears
+it again each time the count changes. While the root's own `home-id` is stale there is no home to
+hear it (`gone`), and the next home's start writes a new one.
 """
 
 from __future__ import annotations
@@ -36,9 +43,8 @@ from __future__ import annotations
 import argparse
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import jbus
 from jbriefs import below
@@ -55,9 +61,15 @@ from jmerge.asked import Silent
 if TYPE_CHECKING:
     from jbus.poll import Half
 
+EVENTS = {"worktree-removed": "quiet"}
+CACHES = frozenset(
+    {"__pycache__", ".venv", ".pytest_cache", ".ruff_cache", ".mypy_cache", "node_modules"}
+)
 NAME = "stale.json"
 KEY = "stale"
 HOUR = 60 * 60
+REST = 24 * HOUR
+USED = ("index", "HEAD", "logs/HEAD")
 KINDS = ("brief", "worktree", "hold", "told", "home-id")
 HOLDS = "holds.json"
 TOLD = "told"
@@ -155,19 +167,131 @@ def briefs(
     return found
 
 
-def _worktrees(listed: str) -> list[tuple[str, str]]:
-    """Each worktree of `git worktree list --porcelain` but the first, the checkout itself, with
-    its branch. A worktree on a detached head has none, and is left out."""
+class Tree(NamedTuple):
+    """A worktree of the checkout: its path, its branch, and the commit its head is at."""
+
+    path: str
+    branch: str
+    head: str
+
+
+def _worktrees(listed: str) -> list[Tree]:
+    """Each worktree of `git worktree list --porcelain` but the first, the checkout itself. A
+    worktree on a detached head has no branch, and is left out."""
     found = []
     for block in listed.strip().split("\n\n")[1:]:
         lines = dict(line.partition(" ")[::2] for line in block.splitlines())
         if "worktree" in lines and lines.get("branch"):
-            found.append((lines["worktree"], lines["branch"].removeprefix("refs/heads/")))
+            branch = lines["branch"].removeprefix("refs/heads/")
+            found.append(Tree(lines["worktree"], branch, lines.get("HEAD", "")))
     return found
 
 
-def worktrees(run: Pass, rows: list[queue.Row], pulled: list[dict[str, Any]] | None) -> Found:
-    """Each worktree whose branch no open row and no open pull request has."""
+def _failed(asked: Any) -> str:
+    return _cut(asked.stderr.strip() or f"exit {asked.returncode}")
+
+
+def _on_origin(run: Pass, tree: Tree) -> bool:
+    """Whether each commit of the branch is on origin's default branch, or on its branch of the
+    same name, as origin has them now."""
+    asked = run.run("git", "ls-remote", "origin", "HEAD", f"refs/heads/{tree.branch}")
+    tips = [line.split()[0] for line in asked.stdout.splitlines() if line.strip()]
+    if asked.returncode or not tips:
+        return False
+    left = run.run("git", "rev-list", "--count", tree.head, "--not", *tips)
+    return left.returncode == 0 and left.stdout.strip() == "0"
+
+
+def _merged_at(run: Pass, tree: Tree) -> str:
+    """The number of a merged pull request of the branch whose head has the worktree's head,
+    or nothing. It raises `Silent` where GitHub gave no list."""
+    for pull in pulls(run, "merged", "number,headRefOid", "--head", tree.branch):
+        oid = str(pull.get("headRefOid") or "")
+        if oid == tree.head or (
+            oid and not run.run("git", "merge-base", "--is-ancestor", tree.head, oid).returncode
+        ):
+            return str(pull["number"])
+    return ""
+
+
+def _rested(run: Pass, tree: Tree) -> str:
+    """Why a worktree used within `REST` stays, or nothing. Its use is the last change to its git
+    index, `HEAD` or `HEAD`'s log, which a commit, a checkout or an add makes."""
+    try:
+        line = (Path(tree.path) / ".git").read_text().strip()
+        gitdir = Path(tree.path) / line.removeprefix("gitdir: ")
+        last = max((gitdir / name).stat().st_mtime for name in USED if (gitdir / name).exists())
+    except (OSError, ValueError):
+        return "jbus could not read when it was last used"
+    hours = (run.now.timestamp() - last) / HOUR
+    if hours < REST / HOUR:
+        return f"it was last used {max(hours, 0):.0f} h ago, under {REST // HOUR} h"
+    return ""
+
+
+def kept(run: Pass, tree: Tree) -> tuple[str, str]:
+    """Why a stale worktree stays, or nothing where its work is saved, with how it is saved.
+    `git worktree remove` deletes ignored files, so one that is not under a cache (`CACHES`),
+    such as a `.env`, keeps the worktree as an untracked file does. One used within `REST` stays,
+    so a crew woken again, or a thread with no row that has just made its worktree, keeps it."""
+    status = run.run(
+        "git", "--no-optional-locks", "-C", tree.path, "status", "--porcelain", "--ignored"
+    )
+    if status.returncode:
+        return f"git status failed there ({_failed(status)})", ""
+    lines = status.stdout.splitlines()
+    changed = sum(not line.startswith("!! ") for line in lines)
+    if changed:
+        return f"it has {changed} uncommitted or untracked files", ""
+    ignored = [line[3:].rstrip("/") for line in lines if line.startswith("!! ")]
+    kept_ignored = [path for path in ignored if Path(path).name not in CACHES]
+    if kept_ignored:
+        return (
+            f"it has {len(kept_ignored)} ignored files that are no cache, such as "
+            f"{kept_ignored[0]}",
+            "",
+        )
+    rested = _rested(run, tree)
+    if rested:
+        return rested, ""
+    if _on_origin(run, tree):
+        return "", "each commit is on origin"
+    try:
+        number = _merged_at(run, tree)
+    except Silent:
+        return "a commit is not on origin, and GitHub did not list its merged pull requests", ""
+    if number:
+        return "", f"its pull request #{number} merged"
+    return (
+        "a commit is on neither origin's branch of its name nor its default one, and no pull "
+        "request of it merged",
+        "",
+    )
+
+
+def _remove(run: Pass, tree: Tree, saved: str) -> str:
+    """Remove a saved worktree and its branch, log it, and return why it stays where git would
+    not remove it."""
+    removed = run.run("git", "worktree", "remove", tree.path)
+    if removed.returncode:
+        return f"git worktree remove failed ({_failed(removed)})"
+    deleted = run.run("git", "branch", "-D", tree.branch)
+    branch = "deleted" if deleted.returncode == 0 else f"kept ({_failed(deleted)})"
+    line = (
+        f"worktree-removed {run.project.name}: {tree.path}, branch {tree.branch} at "
+        f"{tree.head[:12]}, {saved}"
+    )
+    body = f"path: {tree.path}\nbranch: {tree.branch} ({branch})\nhead: {tree.head}\nsaved: {saved}"
+    run.box.send("", "worktree-removed", line, body)
+    run.say(line)
+    return ""
+
+
+def worktrees(
+    run: Pass, rows: list[queue.Row], pulled: list[dict[str, Any]] | None, remove: bool = False
+) -> Found:
+    """Each worktree whose branch no open row and no open pull request has, and why it stays.
+    With `remove`, each one whose work is saved is removed, and not listed."""
     found = Found()
     listed = run.run("git", "worktree", "list", "--porcelain")
     if listed.returncode:
@@ -179,10 +303,24 @@ def worktrees(run: Pass, rows: list[queue.Row], pulled: list[dict[str, Any]] | N
     live = [row for row in rows if row.get("status") not in queue.FINAL]
     names = {row["slug"] for row in live} | {row["branch"] for row in live if row.get("branch")}
     names |= {pull.get("headRefName", "") for pull in pulled}
-    for path, branch in _worktrees(listed.stdout):
-        if branch not in names:
-            why = f"branch {branch}, of no open row and no open pull request"
-            found.stale.append(Stale("worktree", path, why))
+    for tree in _worktrees(listed.stdout):
+        if tree.branch in names:
+            continue
+        why, saved = kept(run, tree)
+        if saved and remove:
+            why = _remove(run, tree, saved)
+            if not why:
+                continue
+        stays = (
+            f"saved ({saved}), the next hourly pass removes it" if not why else f"it stays: {why}"
+        )
+        found.stale.append(
+            Stale(
+                "worktree",
+                tree.path,
+                f"branch {tree.branch}, of no open row and no open pull request; {stays}",
+            )
+        )
     return found
 
 
@@ -297,9 +435,12 @@ def open_pulls(run: Pass) -> tuple[list[dict[str, Any]] | None, str]:
         return None, NO_GITHUB.format(why=silent)
 
 
-def audit(run: Pass, client: Client | None, pulled: list[dict[str, Any]] | None) -> Found:
+def audit(
+    run: Pass, client: Client | None, pulled: list[dict[str, Any]] | None, remove: bool = False
+) -> Found:
     """Everything stale in the project's state, with the open pull requests `pulled` (None where
-    GitHub gave none). It reads, and writes nothing."""
+    GitHub gave none). It reads, and writes nothing, but with `remove` it removes each stale
+    worktree whose work is saved (`worktrees`)."""
     try:
         rows = queue.load(run.state)
         removed = set(queue.removed(run.state))
@@ -311,7 +452,7 @@ def audit(run: Pass, client: Client | None, pulled: list[dict[str, Any]] | None)
     found = Found()
     for one in (
         briefs(run.home, rows, removed, open_, set(leftover.read(run.state))),
-        worktrees(run, rows, pulled),
+        worktrees(run, rows, pulled, remove),
         holds(run.home, open_),
         told(run.home, rows, removed, asked, open_lines),
         home_ids(run.home, client),
@@ -337,7 +478,8 @@ def line(project: str, kept: dict[str, Any]) -> str:
 
 
 def hourly(half: Half) -> None:
-    """Once an hour, run the audit and keep its count. It lists the open pull requests as the verb
+    """Once an hour, remove each stale worktree whose work is saved, run the audit, and keep its
+    count. It lists the open pull requests as the verb
     does, and not the pass's last hundred, so the count is what `jbus stale` prints."""
     run, hour = half.run, int(half.run.now.timestamp() // HOUR)
     if read(run.state).get("hour") == hour:
@@ -347,7 +489,7 @@ def hourly(half: Half) -> None:
         run.say(f"wait {run.project.name}: no stale count ({why})")
         return
     try:
-        found = audit(run, half.client, pulled)
+        found = audit(run, half.client, pulled, remove=True)
     except jbus.Refused as refused:
         run.say(f"wait {run.project.name}: no stale count ({refused})")
         return
@@ -358,7 +500,7 @@ def hourly(half: Half) -> None:
 
 
 def _stale(args: argparse.Namespace, config: jbus.Config) -> int:
-    run = passes.Pass(config, verbs.project(config, args.project), datetime.now(UTC))
+    run = passes.Pass(config, verbs.project(config, args.project), verbs.clock())
     try:
         client = Client(config.server, config.token_path)
     except jbus.Refused:

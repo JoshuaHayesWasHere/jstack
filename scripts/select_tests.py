@@ -33,8 +33,14 @@ directories until no other tracked file has the same ending: `crew` and `SKILL.m
 `features/crew/SKILL.md`. A file may include another: a line of a skill or a page that says to read
 `$T/../skills/<its folder>/<name>.md` now includes that file beside it, and the tests read the
 skill with it folded in. So a changed file that is included selects the tests that spell each file
-that includes it, up the chain of includes. A changed fixture selects the tests that spell it or
-the nearest directory above it. When no test spells either, the fixture selects `all`.
+that includes it, up the chain of includes. A test may also name a skill and read it through
+`testing.paths.skills()`, as `block("home", …)` of `test_home_thread` does. Where code the test
+runs reads skills so, each skill that code names spells that skill's `SKILL.md`, and with it each
+file the skill includes. That code is the test's own, a helper it calls or a fixture it asks for,
+and what each runs in turn, through the module's names and its imports: a skill a module names
+in a helper the test does not reach spells nothing for it. A changed fixture selects the
+tests that spell it or the nearest directory above it. When no test spells either, the fixture
+selects `all`.
 
 The map of verify-jstack's features, with each `features/<name>/verify.md`, adds more
 selections. A feature file names the paths a feature owns (`Paths:`, in jmerge's pattern
@@ -165,6 +171,8 @@ WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 DECLARED = "READ_SET"
 CHECKING = ("TYPE_CHECKING", "typing.TYPE_CHECKING")
 BY_NAME = {"import_module", "__import__"}
+SKILL_INDEX = "testing.paths.skills"
+SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
@@ -507,13 +515,19 @@ def parents(name):
     return {".".join(parts[:end]) for end in range(1, len(parts) + 1)}
 
 
+def parsed(name):
+    """A module's tree. It is parsed again on each call: a cache of the trees of every module
+    makes each collection of garbage walk them, and the script slower."""
+    return ast.parse((ROOT / modules()[name]).read_text())
+
+
 @cache
 def sources():
     """Each module, with what `read` finds in its source."""
     found = {}
     for name, path in modules().items():
         try:
-            found[name] = read(ast.parse((ROOT / path).read_text()))
+            found[name] = read(parsed(name))
         except SyntaxError as error:
             raise Unread(f"{path}: {error}") from error
     return found
@@ -640,9 +654,120 @@ def reached(name):
 
 
 @cache
+def skills():
+    """Each skill's folder by its name, from the root, as `testing.paths.skills` finds them."""
+    found = (path.parent for spot in SKILL_SPOTS for path in ROOT.glob(spot))
+    return {folder.name: folder.relative_to(ROOT).as_posix() for folder in sorted(found)}
+
+
+@cache
+def members(name):
+    """Each name a module binds at its top level, with what its code holds: `(words, names,
+    dotted, asks)`, the skills its strings name, the module's own names it reads and does not
+    bind itself (`f` of `f()`, not `x` of `x = 1` nor `f` of `x.f`), the dotted names it names
+    through the imports, and, for a test or a fixture, the fixtures it asks for by its
+    arguments. A name an import binds holds the dotted name it is bound to. The key `None` holds
+    the code that runs on import: each statement that binds no name, and each assignment that
+    calls something. A docstring is no code, and a string that is a part of a chain of `/`, as
+    the `"home"` of `state / "home"`, is a folder and names no skill."""
+    tree = parsed(name)
+    imports = bound(tree)
+    stars = [module for local, module in imports.items() if local.startswith("*")]
+    unread = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.body and isinstance(node.body[0], ast.Expr):
+                unread.add(id(node.body[0].value))
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            unread |= {id(node.left), id(node.right)}
+    found = {}
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        words, dots, loaded, own, calls = set(), set(), set(), set(), False
+        for one in ast.walk(node):
+            if isinstance(one, ast.Constant) and isinstance(one.value, str):
+                if id(one) not in unread:
+                    words |= {one.value, *WORDS.split(one.value)} & skills().keys()
+            elif isinstance(one, ast.arg):
+                own.add(one.arg)
+            elif isinstance(one, ast.Call):
+                calls = True
+            if isinstance(one, (ast.Name, ast.Attribute)):
+                if dot := dotted(one, imports):
+                    dots.add(dot)
+                elif isinstance(one, ast.Name):
+                    dots |= {f"{module}.{one.id}" for module in stars}
+            if isinstance(one, ast.Name):
+                (loaded if isinstance(one.ctx, ast.Load) else own).add(one.id)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            keys = {node.name}
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            keys = set().union(*map(named, targets)) | ({None} if calls else set())
+        else:
+            keys = {None}
+        asks = set()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+            node.name.startswith("test") or node.name in defined(name)
+        ):
+            asks = {one.arg for one in node.args.args}
+        for key in keys:
+            held = found.setdefault(key, (set(), set(), set(), set()))
+            for into, more in zip(held, (words, loaded - own - {key}, dots, asks), strict=True):
+                into |= more
+    for local, target in imports.items():
+        if not local.startswith("*"):
+            found.setdefault(local, (set(), set(), set(), set()))[2].add(target)
+    return found
+
+
+@cache
+def uses(at):
+    """`(skills, dotted)` of the code a top-level name of a module of the tests runs, `at` as
+    `(module, name)` (`members`): its own, and through each name it uses, in that module or
+    through an import in another, and each fixture it asks for, of its module, a `conftest`
+    above it or a plugin."""
+    todo, seen, words, dots = [at], set(), set(), set()
+    while todo:
+        one = todo.pop()
+        if one in seen or one[1] not in members(one[0]):
+            continue
+        seen.add(one)
+        found, names, through, asks = members(one[0])[one[1]]
+        words |= found
+        dots |= through
+        todo += [(one[0], other) for other in names]
+        given = [one[0], *sorted(conftests(one[0]) & modules().keys(), reverse=True), *plugins()]
+        for ask in asks:
+            todo += [(module, ask) for module in given if ask in defined(module)][:1]
+        for dot in through:
+            module, _, member = dot.rpartition(".")
+            if of_tests(modules().get(module, "")):
+                todo.append((module, member))
+    return frozenset(words), frozenset(dots)
+
+
+@cache
+def reaches(name):
+    """The skills the code of a test module names where that code reads skills through
+    `testing.paths.skills()`: for each top-level name of its own, and for the code each module of
+    the tests it imports runs on import, the skills what it runs names (`uses`), where that
+    reads skills."""
+    starts = [(name, key) for key in members(name)] + [(one, None) for one in reached(name)]
+    found = [uses(one) for one in starts]
+    return frozenset().union(*(words for words, dots in found if SKILL_INDEX in dots))
+
+
+@cache
 def spells(name):
-    """The paths a test module spells, and the test modules it imports."""
-    return frozenset().union(*(sources()[one][4] for one in reached(name)))
+    """The paths a test module spells, and the test modules it imports. Where code of the test
+    reads skills through `testing.paths.skills()`, a word of that code (`reaches`) that is a
+    skill's name spells that skill's `SKILL.md`: `block("home", …)` reads the home skill so. A
+    name of a skill elsewhere in a module it imports spells nothing: `test_home_thread` names
+    four skills, and a test that takes only its `git` reads none of them."""
+    paths = frozenset().union(*(sources()[one][4] for one in reached(name)))
+    return paths | {(*skills()[word].split("/"), "SKILL.md") for word in reaches(name)}
 
 
 @cache
@@ -781,12 +906,13 @@ def modules_named(tree):
     return {local: name for local, name in bound.items() if of_tests(modules().get(name, ""))}
 
 
+@cache
 def plugins():
     """The modules the root `conftest.py` names in `pytest_plugins`, which every test loads."""
     for node in ast.parse((ROOT / "conftest.py").read_text()).body:
         if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "pytest_plugins":
-            return [one.value for one in node.value.elts if modules().get(one.value)]
-    return []
+            return tuple(one.value for one in node.value.elts if modules().get(one.value))
+    return ()
 
 
 def used(node, bound):
@@ -843,10 +969,9 @@ def shared():
 def defined(name):
     """The fixtures a module defines at its top level: a test that asks for one of them by name
     gets its own, and not a plugin's."""
-    tree = ast.parse((ROOT / modules()[name]).read_text())
     return {
         node.name
-        for node in tree.body
+        for node in parsed(name).body
         if "fixture" in "".join(ast.unparse(one) for one in getattr(node, "decorator_list", ()))
     }
 
