@@ -34,7 +34,7 @@ KEPT = "merged-trees.json"
 TREE = "merged-tree"
 LIMIT_SECONDS = 600
 """How long the guards may run on one tree before they are stopped."""
-RUN_SECONDS = 300
+RUN_SECONDS = 240
 """The seconds of guards a run may spend before it starts no more: with one more at its limit, a
 run stays under the 17 minutes jbus gives `jmerge` (`jbus.wake.JMERGE_TIMEOUT`)."""
 UNNAMED = "its guards"

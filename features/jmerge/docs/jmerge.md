@@ -325,7 +325,7 @@ Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `f
 Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
 The clash shows on the tree of one merged over the other, so `jmerge` checks that tree before it merges a pull request on its existing check (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
-jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, about 150 s.
+jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
 A repo with no such file runs no guards, and merges as before.
 
 1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.
@@ -341,7 +341,7 @@ The guard is the first test pytest calls `FAILED`, else the make target the run 
 A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
 
 The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
-A run starts no guards once it has spent 5 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
+A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
 A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
 `merged-trees.json` in the state directory keeps what the guards said of a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
 A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
