@@ -296,10 +296,12 @@ So two pull requests ready together merge one after the other, each on a check o
 
 `jmerge` asks for that update for one pull request at a time, the one it would merge next, as a merge queue does, so each merge costs one CI round and not one for every open pull request (2026-11-03: about 30 open, each merge set off a wave of reruns, about 80 branch updates in an hour and 4 merges in 90 minutes).
 That pull request holds the line: of those whose only reason left to wait is that main moved after their check, it is the first `jmerge` gets to in merge order (each revert jbus opened for a red main first, then the order of their numbers, with "Migrations" ordering those that add one), with its review, findings, stack, migrations, `merge_after` and holds cleared.
-`base-merges.json` keeps it on its record (`line`), so it keeps the line across runs while its check at the new head runs.
-Every other pull request main moved past waits with `it is in line behind #<n>: <base> moved after its check started, and GitHub merges <base> into the branch of one pull request at a time, the one to merge next`, on the `check` step, and GitHub is asked nothing for it until its turn.
+Each base has a line of its own: a pull request into a stack branch or another merge base whose base moved holds no line for those into main, nor one into main for them.
+`base-merges.json` keeps it on its record (`line`, with the record's `base`), so it keeps the line across runs while its check at the new head runs.
+Every other pull request into that base that its base moved past waits with `it is in line behind #<n>: <base> moved after its check started, and GitHub merges <base> into the branch of one pull request at a time, the one to merge next`, on the `check` step, and GitHub is asked nothing for it until its turn.
 That holds for one ahead of `#<n>` in merge order that comes ready later: the update `#<n>` has is not spent again.
 The pull request at the head of the line gives it up when it merges, when a check of its fails (one whose failed check is what its turn is for keeps it until the check at its updated head ends), when GitHub keeps a run of its queued through a restart, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
+It gives it up too when its head is still the one GitHub took the update of 20 minutes (`rejudge.HELD`) after GitHub took it: GitHub makes the new head within seconds, so no check is coming to end its wait.
 
 A required run at the head of the line that GitHub queued and started none of for `ready.QUEUED_MINUTES` (30 minutes, above the p99 queue wait of every required check in `ci.jsonl`) gets one restart: `jmerge` closes and reopens the pull request, which starts a new run of each workflow in its concurrency group, and logs one wait, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed and reopened it to start a new run`.
 GitHub refuses to rerun a run it has not ended, and a cancel can leave it queued: on 2026-11-04 #1028 held the line for over an hour on a queued macos job while five pull requests waited behind it.
@@ -307,7 +309,7 @@ Where GitHub then lists no newer run, or the newer one is queued as long, the pu
 A run that started is never restarted, however long it runs.
 `base-merges.json` keeps the restart on the head's record (`stuck`) before the close, so a head is restarted once, and a reopen that failed is asked again on the next run, until GitHub lists the pull request open again.
 A pull request whose check ran over today's main is not in the line: it merges as before, while others wait.
-A revert jbus opened for a red main, one that `reverts.json` names (`jmerge.reverts`), comes first in merge order, and takes the line from a pull request that holds it and is no revert.
+A revert jbus opened for a red main, one that `reverts.json` names (`jmerge.reverts`), comes first in merge order, and takes its base's line from a pull request that holds it and is no revert.
 That pull request then waits `in line behind` the revert, and its record in `base-merges.json` stays, with `line` off, so its update is not asked again at the same head and tip.
 A revert branches from main's tip, so by number it came last: other pull requests keep merging onto a red main, each moved main past the revert's check, and the revert waited a turn behind every one of them.
 `jmerge` asks for the update while `main.json` names main red as well, since the fix of a red main must run over it: a pull request that the red tip fails is then held by its own failed check, as "A failed check over a base that moved" says.

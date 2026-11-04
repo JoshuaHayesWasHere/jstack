@@ -5,11 +5,15 @@ rerun, as a merge queue's does (2026-11-03: with about 30 pull requests open, ea
 every one of them through CI again, about 80 branch updates in an hour). A pull request whose
 check ran over today's main merges as before."""
 
+import json
+from datetime import datetime, timedelta
+
 import pytest
 
 import test_home_merge as merge
-from jmerge import cli, ready
-from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, asked, url
+from jmerge import cli, ready, rejudge
+from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, asked, git, url, write
+from test_jmerge_order import queue_of, row
 
 
 @pytest.fixture
@@ -165,3 +169,138 @@ def test_one_with_a_check_that_has_no_run_waits_in_the_same_line(kitchen):
     assert first.startswith("merged 7 two ")
     assert second == asked(8, kitchen.tip())
     assert kitchen.updates() == ["7", "8"]
+
+
+def into(kitchen, slug, number, files, base):
+    """A crewmate's pull request into `base`, a branch on the origin cut from main."""
+    if base != "main":
+        git(kitchen.home.main, "push", "-q", "origin", f"main:refs/heads/{base}")
+    kitchen.crew(slug, number, files)
+    kitchen.pulls[slug]["baseRefName"] = base
+    kitchen.brief(slug, kitchen.pulls[slug]["headRefOid"])
+
+
+def moves(kitchen, base, files):
+    """A commit to `base` on the origin now, after every check that started in 2000."""
+    if base == "main":
+        return kitchen.on_main(files)
+    tree = kitchen.tmp / "trees" / f"on-{base}"
+    if not tree.exists():
+        git(kitchen.home.main, "worktree", "add", "-q", "--detach", str(tree), f"origin/{base}")
+    write(tree, files)
+    git(tree, "commit", "-q", "-m", f"on {base}")
+    git(tree, "push", "-q", "origin", f"HEAD:refs/heads/{base}")
+    return git(tree, "rev-parse", "HEAD")
+
+
+def asked_into(number, base, tip):
+    return f"wait {number} {url(number)}: " + ready.BASE_MOVED_ASKED.format(base=base, tip=tip[:12])
+
+
+@pytest.mark.parametrize("first", ["main", "side"])
+def test_a_pull_request_into_one_base_holds_no_line_for_those_into_another(kitchen, first):
+    """A stack branch whose base moved holds the line of its own base: every pull request into
+    main does not wait behind it, nor it behind one into main."""
+    second = "side" if first == "main" else "main"
+    rows = [row(slug, pr=f"#{n}") for slug, n in (("two", 7), ("three", 8), ("four", 9))]
+    queue_of(kitchen.home, rows, 'merge_bases = ["side"]\n')
+    into(kitchen, "two", 7, {"b.txt": "ours\n" + LINES}, first)
+    into(kitchen, "three", 8, {"c.txt": "ours\n" + LINES}, second)
+    into(kitchen, "four", 9, {"a.txt": "ours\n" + LINES}, second)
+    tips = {base: moves(kitchen, base, {"d.txt": f"{base}\n"}) for base in ("main", "side")}
+    expected = [asked_into(7, first, tips[first]), asked_into(8, second, tips[second])]
+    behind = f"wait 9 {url(9)}: " + ready.IN_LINE.format(number=8, base=second)
+    assert kitchen.run() == [*expected, behind]
+    assert kitchen.updates() == ["7", "8"]
+
+
+def aged(kitchen, number, by):
+    """The record of the pull request's update in `base-merges.json`, kept `by` ago."""
+    path = kitchen.home.state / rejudge.NAME
+    records = json.loads(path.read_text())
+    at = datetime.now().astimezone() - by
+    records[str(number)]["at"] = f"{at:%Y-%m-%dT%H:%M:%S%z}"
+    path.write_text(json.dumps(records))
+
+
+def test_one_whose_head_github_never_moved_gives_the_line_up_after_a_while(kitchen):
+    """GitHub took the update and made no new head: no check is coming to end the wait, so the
+    one in line holds the line only `rejudge.HELD` after GitHub took it."""
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    aged(kitchen, 7, rejudge.HELD - timedelta(minutes=1))
+    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    aged(kitchen, 7, rejudge.HELD)
+    assert kitchen.run() == [asked(7, tip), asked(8, tip)]
+    assert kitchen.run() == [behind(7, 8), asked(8, tip)]
+    assert kitchen.updates() == ["7", "8"]
+
+
+def test_one_whose_new_head_s_check_runs_keeps_the_line_past_that_while(kitchen):
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    kitchen.updated("two", RUNNING)
+    aged(kitchen, 7, rejudge.HELD * 3)
+    assert kitchen.run() == [f"wait 7 {url(7)}: check has not passed", behind(8, 7)]
+    assert kitchen.updates() == ["7"]
+
+
+@pytest.mark.parametrize("wait", ["findings", "hold"])
+def test_one_that_waits_on_its_crew_or_the_user_gives_the_line_up(kitchen, wait):
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(8, 7)]
+    head = kitchen.updated("two", AFTER)
+    if wait == "findings":
+        kitchen.brief("two", head, verdict="findings")
+    else:
+        kitchen.pulls["two"]["files"].append(merge.file("secrets/prod.json"))
+        kitchen.brief("two", head)
+    first, second = kitchen.run()
+    assert first.startswith(f"{'hold' if wait == 'hold' else 'wait'} 7 ")
+    assert second == asked(8, tip)
+    assert kitchen.updates() == ["7", "8"]
+
+
+KEPT = {
+    "other-home",
+    "merge-off",
+    "merging",
+    "main-moved",
+    "undecided",
+    "not-passed",
+    "no-run",
+    "live-run",
+    "migration-merging",
+    "base-moved-asked",
+    "base-moved-due",
+    "queued-restarted",
+    "queued-unopened",
+    "queued-unclosed",
+}
+"""The codes of the waits on jmerge, GitHub and the check, which keep the head of the line.
+Each of these ends in a merge by itself, and every other code waits on a crew or the user."""
+
+
+@pytest.mark.parametrize("code", sorted(ready.codes()))
+def test_the_one_in_line_keeps_it_on_a_wait_on_jmerge_github_or_its_check_alone(code):
+    listed = {
+        "number": 7,
+        "url": url(7),
+        "headRefName": "two",
+        "headRefOid": "a" * 40,
+        "baseRefName": "main",
+        "statusCheckRollup": merge.rollup([AFTER]),
+        "files": [],
+        "changedFiles": 0,
+    }
+    one = ready.pull_request(listed)
+    why = next((r for r in ready.reasons().values() if r.code == code), code)
+    found = cli.Judgement("two", "wait", why, "", None)
+    assert cli.in_line(one, found) == (code in KEPT)
+    assert KEPT <= ready.codes()
