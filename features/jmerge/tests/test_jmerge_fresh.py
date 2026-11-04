@@ -357,6 +357,7 @@ def repo(kitchen, monkeypatch):
     monkeypatch.setenv("PATH", f"{home.stub}:{os.environ['PATH']}")
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
+    home.desk_checked()
     return cli.Repo(home.main, home.state, merge.ME, False, PROTECTED, user=ET)
 
 
