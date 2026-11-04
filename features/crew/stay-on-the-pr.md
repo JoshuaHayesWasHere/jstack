@@ -2,7 +2,12 @@ Once the pull request is open:
 
 1. Link it to this thread with the `t3-code` server's `link_pull_request` (if your harness defers it, load it first): `{"url": "<the pull request's url>"}`.
 2. Do the three steps of "End": write the Result, run its check of whether the home is told, say it here.
-3. Run the block of "The checks". On `passed`, start its review now, in this turn: the reviewer reads only a head whose checks passed (see "The review"). On `wait`, start none: jbus says when every check has passed, and the review starts then. On `failed`, fix and push first, as "The checks" says, and start it once the fixed head has passed. On `unrun`, park the gate and start none. Where there is no reviewer to launch, the brief's `Review: none` or a session with no launch tool, the line that tells the home is written on `passed` the same way: it says the pull request is green.
+3. Run the block of "The checks".
+   On `passed`, start its review now, in this turn: the reviewer reads only a head whose checks passed (see "The review").
+   On `wait`, start none: jbus says when every check has passed, and the review starts then.
+   On `failed`, fix and push first, as "The checks" says, and start it once the fixed head has passed.
+   On `unrun`, park the gate and start none.
+   Where there is no reviewer to launch, the brief's `Review: none` or a session with no launch tool, the line that tells the home is written on `passed` the same way: it says the pull request is green.
 4. End your turn. Nothing watches the pull request for this thread: arm no pull request watch of T3's, do not poll, and do not run a watcher of your own. jbus reads every open pull request on each pass and sends this thread a message only when there is something for it to do. A green pull request with nothing owed gets no message, and the thread shows in T3 as idle: `jbus view` is where its pull request's state is.
    Before you end it, ask jbus whether its wakes can come.
    Run this in this worktree, with the block at the top:

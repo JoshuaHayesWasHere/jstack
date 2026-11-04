@@ -3,9 +3,16 @@
 A pull request gets one review, and the crewmate that opened it starts it: nobody types `/pr-review`.
 The review itself is done by a reviewer, in a new thread.
 This thread only launches it.
-A fix pushed for its findings gets no review: one round, and the pull request merges on its checks once each blocking finding has its answer. The one later pass is the one a `Meets the brief: no` owes: see "A second pass".
+A fix pushed for its findings gets no review: one round, and the pull request merges on its checks once each blocking finding has its answer.
+The one later pass is the one a `Meets the brief: no` owes: see "A second pass".
 
-The time to launch is when `check` has passed at the pull request's head: the deterministic checks prove or fail the work first, and the reviewer reads only a head they passed. It goes by the first word the block of "The checks" prints. On `passed`, launch at once, in that turn. On `wait`, the checks still run: launch nothing, and end the turn, since jbus says when every check has passed. On `failed`, a red pull request is fixed first, and the reviewer is launched once the push that fixes it has passed. On `unrun` no check ran, and no reviewer is launched: "The checks" parks it as a gate. Where the block below prints `none`, or the session has no launch tool, the `Reviewer: none` line and its message to the home are written on `passed` too.
+The time to launch is when `check` has passed at the pull request's head: the deterministic checks prove or fail the work first, and the reviewer reads only a head they passed.
+It goes by the first word the block of "The checks" prints.
+On `passed`, launch at once, in that turn.
+On `wait`, the checks still run: launch nothing, and end the turn, since jbus says when every check has passed.
+On `failed`, a red pull request is fixed first, and the reviewer is launched once the push that fixes it has passed.
+On `unrun` no check ran, and no reviewer is launched: "The checks" parks it as a gate.
+Where the block below prints `none`, or the session has no launch tool, the `Reviewer: none` line and its message to the home are written on `passed` too.
 
 Which of these it is, is what this prints, run with the first line of what the block of "The checks" printed in place of the words in angle brackets:
 

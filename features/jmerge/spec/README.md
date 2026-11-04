@@ -20,7 +20,8 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
   Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red.
   Since cut 11 of the simplify pass it has a row's go, which jbus asks at launch and jmerge at merge (`rows.py` `ROW_HELD`, `NO_GO`), and a hold for your word, as a change that touches a protected path has (`ready.py` `TOUCHES`).
   Since fl-no-draft a crew opens its pull request ready, and jmerge marks no draft ready: the model has no draft, no `Ready` step and no lift that `jmerge --accept` keeps, and its `Accept` merges a held pull request whose check passed, as `Repo.accept` does.
-  Since review-after-green-one-round its one reviewer launches only once its check has passed, and one round gives a fix no review: `Merges` cites the launch-on-passed lines on its `ci[p] = "pass"` condition. The round is no variable, since no rule reads it: a history bit for it took today's model from 7.9M to 12.9M states, and a step of its own to 21.0M.
+  Since review-after-green-one-round its one reviewer launches only once its check has passed, and one round gives a fix no review: `Merges` cites the launch-on-passed lines on its `ci[p] = "pass"` condition.
+  The round is no variable, since no rule reads it: a history bit for it took today's model from 7.9M to 12.9M states, and a step of its own to 21.0M.
 - `FlowDesign.tla` models the design: cross-cutting-guard (`Check`), rejudge-red-prs (`Rejudge`) and crew-leftover-procs (`Sweep`), with today's fix path.
 - `canary/` holds the design with each fix taken out: `NoGuard`, `NoRejudge` and `NoSweep`.
   `NoProof`, the red hold as it was before #583, went with the hold.

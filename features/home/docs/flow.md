@@ -60,7 +60,8 @@ Without asking you, the threads do everything else that is reversible.
 A brief that says `Review: review`, the home's default, gets one review round, launched once `check` has passed: the checks prove or fail the work first.
 A finding blocks the merge only with a proof, a run that exits non-zero at the head, a failed check, a doc line the pull request made wrong, an unmet `Done when` line, or a measure, and the crewmate answers each before the merge.
 A fix pushed for the findings gets no review: the pull request's checks stand behind it.
-The one later pass is a scoped review that judges again a `Meets the brief: no`. Its `error` findings go to the same crewmate, and its `info` findings are dropped.
+The one later pass is a scoped review that judges again a `Meets the brief: no`.
+Its `error` findings go to the same crewmate, and its `info` findings are dropped.
 Its `warning` findings hold nothing: once the pull request merged, jbus keeps them for one follow-up row a day, `warnings-<day>`, which it files and approves by the follow-up rule.
 A day whose warnings are fewer than 3 files no row, and they carry to the next day's row.
 That row gets one review, of its own diff, in which only an error is fixed, and none of its findings becomes another row.

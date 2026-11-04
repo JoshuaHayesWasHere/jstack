@@ -83,7 +83,8 @@ The only other way out is the user's `Waived:` line ("The review").
   `jmerge` merges on the `Fixed:` line, so a Result never has it without the line that says whether a review is owed.
   It is the record: from then on the block reads it and decides nothing again, so a later rebase does not change what was decided.
   Then run the block again and do what it says.
-- `none`: no review of the fix. Go on to the `Fixed:` line.
+- `none`: no review of the fix.
+  Go on to the `Fixed:` line.
 - `scoped: launch the scoped reviewer ... with /pr-review run <slug> scoped <old range> <new range>`: launch it once the fixed head's checks have passed, as the first review is launched.
   Go by the first word the block of "The checks" prints for the fixed head, and run no block of "The review": its second block counts the first reviewer and would say to launch none.
   On `passed`, launch one reviewer now, by the launch block of "The review" with `scoped` and the message the line gives, whole.
@@ -95,11 +96,22 @@ The only other way out is the user's `Waived:` line ("The review").
   If the session has no `t3_thread_launch`, write `Scoped reviewer: none, no launch tool in this session, of <that head>` and send the thread that hears of a pull request ("Telling the home") one line, once: `<slug>: <pull request url> at <full head commit> is fixed, and its scoped review could not be launched (no launch tool in this session): it waits for the user's word`.
   Its `jroles review` runs with `--thread <thread id>`, and on exit 75 this thread makes no launch and ends its turn with the one line "The review" gives for a capped pool, whatever the "Launching" section says: jbus wakes it once the cap has ended.
 - `scoped: no scoped reviewer could be launched for this head`: the `Scoped reviewer: none` line is there and the home has been told. Nothing more to do: the pull request waits for the user's word.
-- `scoped: the scoped reviewer is launched`: nothing to do. Its findings come as a message in this thread, and the message comes after its `## Review` is written. One that arrives while this block still prints this line has no section behind it: write no answer and no `Fixed:` line for it, because `jmerge` goes by the section and waits for it, and jbus asks for a replacement reviewer when the section stays unwritten. Handle them as a review's: an answer by id for each, and the counting block until it says `write Fixed:`. A reviewer whose review could not be done says so in its message and writes a section with `Verdict: not run`. That section is not a review, and the block still prints this line for it: add one line to the Result saying why the review was not done, and park a gate ("Do the task"), with the default that the pull request waits. A `Scoped reviewer:` line counts for the head it names after `of` and for no other. A rebase's scoped reviewer is written the same way, `Scoped reviewer: <threadId>, of <head>`, as the message from jbus says.
-- `had`: the scoped review is in the brief, and its findings are handled as above. No reviewer is launched again, whatever a fix for its findings changed.
+- `scoped: the scoped reviewer is launched`: nothing to do.
+  Its findings come as a message in this thread, and the message comes after its `## Review` is written.
+  One that arrives while this block still prints this line has no section behind it: write no answer and no `Fixed:` line for it, because `jmerge` goes by the section and waits for it, and jbus asks for a replacement reviewer when the section stays unwritten.
+  Handle them as a review's: an answer by id for each, and the counting block until it says `write Fixed:`.
+  A reviewer whose review could not be done says so in its message and writes a section with `Verdict: not run`.
+  That section is not a review, and the block still prints this line for it: add one line to the Result saying why the review was not done, and park a gate ("Do the task"), with the default that the pull request waits.
+  A `Scoped reviewer:` line counts for the head it names after `of` and for no other.
+  A rebase's scoped reviewer is written the same way, `Scoped reviewer: <threadId>, of <head>`, as the message from jbus says.
+- `had`: the scoped review is in the brief, and its findings are handled as above.
+  No reviewer is launched again, whatever a fix for its findings changed.
 - `scoped: the head the review saw ... is not a commit here`, or `scoped: this worktree does not know its default branch`: no range can be given. Add what it printed to the Result and park a gate ("Do the task"), with the default that the pull request waits.
 
-A brief from before one round may have a `Second pass:` line, or a `Scoped review: needed since` line that a fix wrote. `jmerge` reads a `Second pass:` line as no line, so it owes nothing. A `Scoped review: needed since <head>` line, the last such line in the Result, holds the pull request until a review of a later head than `<head>` is written, and on every path until every finding that blocks, of every review, has its answer.
+A brief from before one round may have a `Second pass:` line, or a `Scoped review: needed since` line that a fix wrote.
+`jmerge` reads a `Second pass:` line as no line, so it owes nothing.
+A `Scoped review: needed since <head>` line, the last such line in the Result, holds the pull request until a review of a later head than `<head>` is written, and on every path until every finding that blocks, of every review, has its answer.
 Where that review stays unwritten, jbus says so in a message here that begins `jbus: pull request #<n> waits on you`.
 
-A rebase waits for a review that is running, and for nothing else: the first block of "A conflict" does nothing while a reviewer this thread launched has not written its section, so the head does not move from under it. A rebase starts a review only as "A conflict" says: a scoped review on the message that the rebase changed the content after its review.
+A rebase waits for a review that is running, and for nothing else: the first block of "A conflict" does nothing while a reviewer this thread launched has not written its section, so the head does not move from under it.
+A rebase starts a review only as "A conflict" says: a scoped review on the message that the rebase changed the content after its review.
