@@ -186,7 +186,7 @@ def pushes_of(
 
 def causes(pulls: list[dict], events: list[dict], since: datetime, until: datetime) -> Counter:
     """The cause of each force-push of each pull request merged in `[since, until)`."""
-    counted: Counter = Counter({cause: 0 for cause in CAUSES})
+    counted: Counter = Counter(dict.fromkeys(CAUSES, 0))
     for _, _, event in pushes_of(pulls, events, since, until):
         counted[event[1] if event else "other"] += 1
     return counted

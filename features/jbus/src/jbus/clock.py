@@ -128,6 +128,7 @@ AHEAD = (
     (ready.STACKED_ON, "slug"),
     (ready.CARRIES_AFTER, "slug"),
     (ready.MIGRATION_REBASING, "number"),
+    (ready.IN_LINE, "number"),
 )
 """The waits on a row ahead, each with the field that names that row. While its pull request is
 open, what holds it is its own wait, which the merge runner, a thread, `held` or a clock above is
@@ -304,7 +305,7 @@ def tick(
             continue
         seen = was.get(slug, {})
         same = (seen.get("kind"), seen.get("head"), seen.get("thread")) == (kind, head, thread)
-        wait = seen if same else {"passes": 0, "acted": False, "home": False}
+        wait: dict[str, Any] = seen if same else {"passes": 0, "acted": False, "home": False}
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
         wait |= {"number": pull["number"], "reason": reason}
         kept[slug] = wait

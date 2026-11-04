@@ -9,6 +9,7 @@ says when the token that `jbus t3 login` keeps runs out.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import urllib.error
 import urllib.parse
@@ -135,10 +136,8 @@ class Session:
         }
         self._session = None
         request = urllib.request.Request(self.url, headers=headers, method="DELETE")
-        try:
+        with contextlib.suppress(OSError, ValueError):
             urllib.request.urlopen(request, timeout=self._timeout).close()
-        except (OSError, ValueError):
-            pass
 
 
 def _seconds(value: Any) -> float | None:

@@ -155,7 +155,7 @@ def _whole(words: tuple[str, ...]) -> bool:
     if words == (INHERIT,):
         return True
     plain = len(words) - len(_options(words))
-    named = [_OPTION.fullmatch(word)[1] for word in words[plain:]]
+    named = [found[1] for word in words[plain:] if (found := _OPTION.fullmatch(word))]
     return (
         2 <= plain <= 3
         and words[0] != INHERIT
@@ -185,7 +185,9 @@ def _selection(role: str, words: tuple[str, ...]) -> Selection:
         raise Refused(f"refused {role}: {words[0]} is not {_names(PROVIDERS)}")
     known = PROVIDERS[words[0]]
     named = _options(words)
-    options = dict(_OPTION.fullmatch(word).groups() for word in named)
+    options = {
+        found[1]: found[2] for word in named if (found := _OPTION.fullmatch(word)) is not None
+    }
     plain = words[: len(words) - len(named)]
     effort = options.get("effort")
     if effort is not None and known.effort is None:

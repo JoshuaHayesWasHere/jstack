@@ -152,7 +152,7 @@ def test_the_file_the_install_makes_is_read_and_holds_the_home_and_the_thread_id
     said = tmp_path / "said.txt"
     said.write_text(
         f"in /burrow/quill/repos\nin /burrow/quillfeather\nfrom {thread}\n"
-        f"at box.tail{'9f' * 3}.ts.net\nat {'.'.join(('100', '101', '2', '3'))}\nat 100.2.3.4\n"
+        f"at box.tail{'9f' * 3}.ts.net\nat 100.{101}.2.3\nat 100.2.3.4\n"
     )
     code, lines, _ = run("--patterns", str(made), str(said))
     assert lines == [

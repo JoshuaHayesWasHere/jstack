@@ -68,9 +68,8 @@ from jbus.view.writes import SEND, VIEW, Answer, said
 from jmerge import judgement
 
 FIRST = True
-_WAITS = {
-    key: None
-    for key in (
+_WAITS = dict.fromkeys(
+    (
         "kind",
         "key",
         "line",
@@ -83,7 +82,7 @@ _WAITS = {
         "url",
         "holds",
     )
-} | {
+) | {
     "unblocks": [None],
     "answerable": None,
     "context": None,
@@ -93,12 +92,9 @@ _WAITS = {
     "role": None,
     "options": [{"name": None, "follows": None, "default": None, "recommended": None}],
 }
-_GATE = {
-    key: None for key in ("number", "question", "open", "status", "default", "built_on", "home")
-}
-_NEED = {
-    key: None
-    for key in (
+_GATE = dict.fromkeys(("number", "question", "open", "status", "default", "built_on", "home"))
+_NEED = dict.fromkeys(
+    (
         "project",
         "kind",
         "key",
@@ -118,7 +114,7 @@ _NEED = {
         "brief_at",
         "thread",
     )
-} | {"answerable": None, "unblocks": [None], "doors": [None]}
+) | {"answerable": None, "unblocks": [None], "doors": [None]}
 SHAPE = {
     "waiting": [_WAITS],
     "gates": [_GATE],

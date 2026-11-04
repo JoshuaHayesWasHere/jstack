@@ -94,6 +94,18 @@ def test_a_gate_a_rule_settles_is_not_asked_and_says_the_rule_and_what_to_do(kit
     assert kept(kitchen) == []
 
 
+def test_exit_124_passes_only_for_the_rest_after_the_guards_passed(kitchen):
+    """Since the desk check runs its guard step first, only the import-reached rest's 124 is the
+    short lane's time limit that passes. A guard step that ends 124 is a failure, and the answer
+    must not tell the thread to go on past it as on exit 0."""
+    asked, default, _, _ = SHAPES["exit 124"]
+    _, said = kitchen.main("gate", "alpha", stdin=lines(asked, default))
+    assert "the import-reached rest" in said
+    assert "after a guard step that passed" in said
+    assert "a guard step that ends 124 is a failure" in said
+    assert "fix it as one" in said
+
+
 @pytest.mark.parametrize(
     "asked",
     (

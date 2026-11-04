@@ -3,6 +3,7 @@ never a principle's text: a crew read the text at the path when a step names it,
 that carried it all ran to 16 KB, over the size a harness shows a call's output inline."""
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -41,7 +42,7 @@ def test_each_cited_principle_is_named_with_a_path_that_loads_it_and_its_text_is
     assert [one[1] for one in named] == principles(name)
     printed = "\n".join(said)
     for one in named:
-        text = open(one[2]).read()
+        text = Path(one[2]).read_text()
         assert text.startswith(f"---\nname: {one[1]}\n")
         body = text.split("\n---\n", 1)[1].strip()
         assert body.splitlines()[0] not in printed

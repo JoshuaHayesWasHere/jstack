@@ -191,6 +191,8 @@ def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
     found = {}
     for thread in listed:
         at = thread.get("threadId")
+        if at is None:
+            continue
         role, slug = roles.role_of(str(thread.get("title", "")))
         if at in homes:
             found[at] = Mover("home")
@@ -605,11 +607,12 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
     if record and ledger.write(cap.record(move.capped)):
         run.say(f"capped {move.capped}: {cap.window} until {cap.resets.isoformat()}")
     subject = move.mover.subject(at)
-    if choice.instance is None and (choice.until is None or choice.passed):
-        run.say(f"wait {move.mover.name}: no move: {choice.why}")
-        return
     if choice.instance is None:
-        if run.find(subject, "stall", line, key=f"capped {choice.until.isoformat()}"):
+        until = choice.until
+        if until is None or choice.passed:
+            run.say(f"wait {move.mover.name}: no move: {choice.why}")
+            return
+        if run.find(subject, "stall", line, key=f"capped {until.isoformat()}"):
             run.say(line)
         return
     message = threads.resume_message(

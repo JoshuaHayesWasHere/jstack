@@ -246,8 +246,10 @@ def test_the_blocks_of_a_rebase_say_the_same_in_zsh_which_splits_no_words(about,
         (pr.work / "shared.txt").write_text("one\nthe task\n")
         git(pr.work, "add", "shared.txt")
         git(pr.work, "-c", "core.editor=true", "rebase", "--continue")
-        for block_of in ("Kept:", "force-with-lease"):
-            ran.append(stays(pr, block_of, shell=shell if about == block_of else "sh"))
+        ran += [
+            stays(pr, block_of, shell=shell if about == block_of else "sh")
+            for block_of in ("Kept:", "force-with-lease")
+        ]
         said[shell] = [[line.replace(pr.head(), "<head>") for line in lines] for lines in ran]
     assert said["zsh"][1] == ["Dropped: 1 of main's lines in shared.txt"]
     assert [

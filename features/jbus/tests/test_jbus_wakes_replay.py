@@ -165,7 +165,7 @@ ALERT = "wake|jstack|340e04e230291b13"
 def test_the_day_woke_the_root_13_times_after_15_00_edt():
     sent = lines("outbox.jsonl")
     assert len(sent) == 13 and {one["thread"] for one in sent} == {ROOT}
-    assert all("2026-10-27T19:00" <= one["at"] for one in sent)
+    assert all(one["at"] >= "2026-10-27T19:00" for one in sent)
 
 
 @pytest.fixture

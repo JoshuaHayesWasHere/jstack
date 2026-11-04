@@ -353,20 +353,20 @@ def load(text: str) -> str:
     names = named(text)
     if not names:
         return ""
-    out = []
-    for one in names:
-        if one.path is None:
-            out.append(
-                f"unknown skill: {one.said} is no skill and no principle that skills.json "
-                "lists, so nothing is loaded for it"
-            )
+    out = [
+        f"unknown skill: {one.said} is no skill and no principle that skills.json "
+        "lists, so nothing is loaded for it"
+        for one in names
+        if one.path is None
+    ]
     known = [one for one in names if one.path is not None]
     if known:
         listed = " ".join(one.name for one in known)
         out.append(f"loaded: {listed}, the names on the Skills: line, each in full below")
         for one in known:
             out.append(f"\n==> {one.relative} <==")
-            out.append(one.path.read_text().rstrip("\n"))
+            if one.path is not None:
+                out.append(one.path.read_text().rstrip("\n"))
         table = artifacts()
         out.append(
             "\nthe artifact each owes under Skills run: in the Result, "

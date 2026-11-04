@@ -47,6 +47,14 @@ NOT_KEPT = (
 )
 
 
+def _setting(pattern: str, script: str) -> str:
+    """The first group of `pattern` in `room.sh`. The script names each of its settings once."""
+    found = re.search(pattern, script, re.M)
+    if found is None:
+        raise ValueError(f"{ROOM} has no line that matches {pattern}")
+    return found[1]
+
+
 def room_limits(user: jsettings.Settings) -> dict[str, float]:
     """The limits that `jgauge room` holds a launch to, read from its script, and the plan's
     limits. The plan's limits come from the user's headroom, which `jgauge room` passes to the
@@ -59,16 +67,14 @@ def room_limits(user: jsettings.Settings) -> dict[str, float]:
         "pressure": "PRESSURE",
         "slots": "SLOTS",
     }
-    found = {
-        key: int(re.search(rf"^\s*{name}=(\d+)$", script, re.M)[1]) for key, name in names.items()
-    }
+    found = {key: int(_setting(rf"^\s*{name}=(\d+)$", script)) for key, name in names.items()}
     return found | {"plan": user.headroom}
 
 
 def limits_path() -> Path:
     """The path of the plan's limits file, as `jgauge room` finds it."""
     named = os.environ.get("LIMITS")
-    below = re.search(r"LIMITS=\$\{LIMITS:-\$HOME/([^}]+)\}", ROOM.read_text())[1]
+    below = _setting(r"LIMITS=\$\{LIMITS:-\$HOME/([^}]+)\}", ROOM.read_text())
     return Path(named) if named else Path.home() / below
 
 

@@ -184,7 +184,7 @@ def test_a_removed_parent_is_followed_only_where_its_row_went_as_merged(kitchen,
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
     was = {**rows(kitchen)["alpha"], "status": status}
-    table = [row for row in json.loads((kitchen.state / "queue.json").read_text())]
+    table = list(json.loads((kitchen.state / "queue.json").read_text()))
     jbus.write_json(kitchen.state / "queue.json", [r for r in table if r["slug"] != "alpha"])
     at = "2026-10-12 10:00 ET"
     jbus.write_json(kitchen.state / "removed.json", {"alpha": {"at": at, "by": "user"}})
