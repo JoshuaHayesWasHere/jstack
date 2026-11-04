@@ -803,6 +803,23 @@ def test_a_path_every_test_rests_on_selects_all(repo, path):
     assert repo.selected(head) == ["all"]
 
 
+@pytest.mark.parametrize(
+    "path", ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml"]
+)
+def test_a_change_to_what_picks_and_runs_the_tests_selects_all(repo, path):
+    head = repo.change([path], text="# changed\n")
+
+    assert repo.selected(head) == ["all"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml", "testing/shard.py"],
+)
+def test_in_this_repo_a_change_to_what_picks_and_runs_the_tests_selects_all(path):
+    assert select.selection([path]) == (["all"], {"forced-by": path})
+
+
 def test_a_test_module_a_plugin_loads_for_every_test_selects_all(repo):
     head = repo.change(["testing/tests/daemons.py"], text="# changed\n")
 
