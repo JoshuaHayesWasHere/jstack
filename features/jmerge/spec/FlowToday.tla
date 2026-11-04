@@ -320,8 +320,9 @@ RerunEnds ==
 \* that broke more on a red tip, a skew (#899), or a culprit whose row jbus reverted before (the model keeps one
 \* revert at a time). A tip whose revert is open gets no row. The model's culprit is the oldest red
 \* since the last green (#992), and a merge on it that breaks nothing more is no overlap. It leaves
-\* out a pending check (UNREAD, judged on the next pass), and a break that lands on an open revert
-\* ("many" there) files its row here, where the code files it only once the revert merges.
+\* out a pending check (UNREAD, judged on the next pass until the tip is an hour old), and a break
+\* that lands on an open revert ("many" there) files its row here, where the code files it only once
+\* the revert is stuck (closed, in conflict, failed, or merged with main still red).
 JudgeRed ==
     /\ mainRed                              \* features/jbus/src/jbus/culprits.py `if run.red is not None:`
     /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, red, pull, culprit, under)`, after its one rerun
