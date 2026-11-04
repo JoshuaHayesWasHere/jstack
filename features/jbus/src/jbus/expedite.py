@@ -224,29 +224,6 @@ TABLE = (
         "<the answer>`, with the Result's `Gate: question <n>` line.",
     ),
     Short(
-        "second",
-        "wait",
-        ready.SECOND_UNWRITTEN,
-        'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
-        f"the message `{AGAIN}`, and add `Second reviewer: <threadId>` to the "
-        "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
-        "nothing until its `## Review` is written.",
-        reviewed=True,
-        sends=AGAIN,
-    ),
-    Short(
-        "twice",
-        "wait",
-        ready.TWICE_UNWRITTEN,
-        "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
-        f'the way the crew skill\'s "The review" says, with the message `{AGAIN}`, and add '
-        "`Second reviewer: <threadId>` to the Result, in place of a `Second reviewer:` line "
-        "whose thread wrote no `## Review`. Its errors alone come to this thread: answer "
-        "each by id and push the fix, and no third review follows.",
-        reviewed=True,
-        sends=AGAIN,
-    ),
-    Short(
         "fix",
         "wait",
         ready.FIX_UNREVIEWED,
@@ -286,14 +263,6 @@ TABLE = (
         unless=no_reviewer_by_rule,
         sends=AGAIN,
         rerun=True,
-    ),
-    Short(
-        "declines",
-        "wait",
-        ready.DECLINES_UNRULED,
-        SECOND_PASS + "each blocking decline is ruled on by one scoped pass, also where nothing "
-        "was pushed, and the block writes the `Scoped review:` line and gives the launch.",
-        reviewed=True,
     ),
     Short(
         "meets-no",

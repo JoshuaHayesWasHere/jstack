@@ -1,5 +1,5 @@
 """`jmerge` waits until every blocking finding has its answer, on every path, and not only where
-a `Second pass:` or `Scoped review:` line says that the fix still needs a review. The tests run
+a `Scoped review:` line says that the fix still needs a review. The tests run
 through `ready.short_of`, the function that `jmerge` calls before a merge, over briefs as the
 skills write them.
 
@@ -89,8 +89,7 @@ def test_a_decline_counts_only_with_a_reason_that_cites_a_path_line_or_a_command
         + "Fixed: none needed, x\n"
     )
     said = ready.short_of(answered + section([ACT]), SAW)
-    counted = ready.DECLINES_UNRULED.format(ids="F1")
-    assert said == (counted if counts else ready.UNCITED.format(ids="F1"))
+    assert said == ("" if counts else ready.UNCITED.format(ids="F1"))
 
 
 def test_the_same_reason_given_twice_is_refused_after_the_first():
@@ -123,7 +122,7 @@ def test_a_risky_finding_declined_waits_for_the_gate_that_asks_the_user():
     unparked = RESULT + asked + "Fixed: none needed, x\n" + section([risky])
     assert ready.short_of(unparked, SAW) == ready.RISK_UNASKED.format(ids="F1", risks="auth")
     parked = unparked.replace("Fixed:", "Gate: question 52\nFixed:")
-    assert ready.short_of(parked, SAW) == ready.DECLINES_UNRULED.format(ids="F1")
+    assert ready.short_of(parked, SAW) == ""
 
 
 USER = Settings("Josh")
@@ -186,11 +185,13 @@ def test_every_new_wait_is_a_reason_the_view_places_on_the_findings_step():
         assert judgement.step(said) == "findings"
 
 
-def test_a_scoped_pass_written_again_at_one_head_is_the_whole_word_on_the_declines():
+def test_a_decline_that_cites_counts_with_no_scoped_pass_to_rule_on_it():
+    """One round: no pass rules on a decline, so one whose reason cites a path:line merges on
+    its checks, and a scoped pass written again at one head still has the whole word."""
     brief = RESULT + DECLINED + "Fixed: none needed, x\n" + section([ACT], CODEX)
-    replaced = brief + scoped("upheld F1") + scoped()
-    assert ready.short_of(replaced, SAW) == ready.DECLINES_UNRULED.format(ids="F1")
-    assert ready.short_of(brief + scoped() + scoped("upheld F1"), SAW) == ""
+    assert ready.short_of(brief, SAW) == ""
+    overruled = brief + scoped("not upheld F1: no") + scoped()
+    assert ready.short_of(overruled, SAW) == ""
 
 
 FIXED_F1 = by_id("F1: fixed, it runs twice")
@@ -204,13 +205,11 @@ FIXED_F1 = by_id("F1: fixed, it runs twice")
         "Scoped review: none",
     ],
 )
-def test_a_fix_pushed_under_a_scoped_review_of_none_waits_for_its_scoped_review(line):
-    """mac-room-proc (#379): its crew pushed a fix for the findings and wrote, by hand,
-    `Scoped review: none` with a reason of its own. A pushed fix is owed its scoped review
-    whatever that reason says, and merges once a scoped pass of the fix is written."""
+def test_a_fix_pushed_under_a_scoped_review_of_none_merges_on_its_checks(line):
+    """One round: a pushed fix gets no scoped review, whatever reason a `Scoped review: none`
+    line gives, so it merges once its findings are answered."""
     brief = RESULT + FIXED_F1 + f"{line}\nFixed: {FIX}\n" + section([ACT], CODEX)
-    assert ready.short_of(brief, FIX) == ready.FIX_UNREVIEWED
-    assert ready.short_of(brief + scoped(head=FIX), FIX) == ""
+    assert ready.short_of(brief, FIX) == ""
 
 
 def test_a_scoped_review_of_none_because_nothing_was_pushed_still_merges():

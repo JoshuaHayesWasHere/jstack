@@ -96,7 +96,7 @@ _NOT_UPHELD = "Declines: not upheld "
 _ID = re.compile(r"F\d+")
 OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", "overruled"
 REVIEW, NONE, TWICE, CLEANUP = "review", "none", "twice", "cleanup"
-MODES = (NONE, TWICE, CLEANUP)
+MODES = (NONE, CLEANUP)
 CLEANUP_DECIDED = "none, jbus filed this from the warnings of later reviews "
 HOLDS, ASKS, KEPT, DROPPED, UNSENT = "holds", "asks", "kept", "dropped", "unsent"
 ROUTES = (HOLDS, ASKS, KEPT, DROPPED, UNSENT)
@@ -109,9 +109,10 @@ and 11-01). Every review of a `cleanup` brief, the day's row, is later and keeps
 
 
 def mode_of(text: str) -> str:
-    """A brief's review mode, from its first `Review:` line: `none`, `twice`, `cleanup`, or
-    `review`. Any other word reads as `review`, and so does a brief with no such line. Older
-    briefs use other words, such as `after`, which went with a review that held no merge."""
+    """A brief's review mode, from its first `Review:` line: `none`, `cleanup`, or `review`.
+    Any other word reads as `review`, and so does a brief with no such line. Older briefs use
+    other words: `after` went with a review that held no merge, and `twice` with a second review
+    of the fix, which one round retired."""
     line = next((one for one in text.splitlines() if one.startswith("Review:")), "")
     said = "".join(line.split()[1:2])
     return said if said in MODES else REVIEW
@@ -702,8 +703,6 @@ def _shown(one: Finding) -> list[str]:
         if one.state in (UPHELD, OVERRULED) and one.ruling is not None:
             ruled = "upheld" if one.state == UPHELD else f"not upheld, {one.ruling.why}"
             lines.append(f"  ruling: {ruled}")
-        elif one.state == UNRULED:
-            lines.append("  ruling: none, a scoped pass rules on it before the merge")
     elif one.sent:
         lines.append("  answer: none" + (", it blocks the merge" if one.blocks else ""))
     return lines
@@ -790,11 +789,9 @@ def _last_round(said: Triage) -> set[int]:
 
 def rounds(said: Triage) -> str:
     """The one line that the crew's second pass reads about the review. It gives how many
-    sections ran, the head the last of them saw, every head a section names, and the
-    blocking declines that no scoped pass has ruled on. It joins each list with commas, and
-    writes `-` for an empty one."""
+    sections ran, the head the last of them saw, and every head a section names, joined with
+    commas, or `-` where there is none."""
     ran = [one for one in said.sections if one.ran]
     saw = next((one.head for one in reversed(ran) if one.head), "-")
     heads = ",".join(dict.fromkeys(one.head for one in said.sections if one.head)) or "-"
-    unruled = ",".join(one.id for one in said.declines(UNRULED)) or "-"
-    return f"{len(ran)} {saw} {heads} {unruled}"
+    return f"{len(ran)} {saw} {heads}"

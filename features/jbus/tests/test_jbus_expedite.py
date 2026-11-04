@@ -34,10 +34,8 @@ what the crew is told of it here is `expedite`'s alone."""
 NO_FIXED = "its findings are not handled: the Result has no Fixed line"
 NOT_PUSHED = "its findings are not handled: nothing was pushed after them"
 NO_FINDING = "its findings are not handled: 1 of 2 have no Finding line"
-NO_SECOND = "its fix changed more than the findings named: the second pass is not written"
 NO_FIX_REVIEW = "its fix is not reviewed: the scoped review of it is not written"
 NO_REVIEW = "it has no review yet"
-NO_TWICE = "its second review is not written at bbbbbbbbbbbb"
 RENUMBER = ready.MIGRATION_TAKEN.format(
     name="0005_insulin", number="0005", default="main", free="0006"
 )
@@ -130,19 +128,6 @@ SAYS = {
         "Set `Fixed:` to the head you pushed where you push for them, and push nothing where "
         "you decline them."
     ),
-    "second": (
-        'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
-        "the message `/pr-review run alpha again`, and add `Second reviewer: <threadId>` to the "
-        "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
-        "nothing until its `## Review` is written."
-    ),
-    "twice": (
-        "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
-        'the way the crew skill\'s "The review" says, with the message `/pr-review run alpha '
-        "again`, and add `Second reviewer: <threadId>` to the Result, in place of a `Second "
-        "reviewer:` line whose thread wrote no `## Review`. Its errors alone come to this "
-        "thread: answer each by id and push the fix, and no third review follows."
-    ),
     "fix": (
         "Launch ONE scoped reviewer of the fix now, not a full review, the way the crew skill's "
         '"The review" launches a reviewer, with the message `/pr-review run alpha scoped {old} '
@@ -204,18 +189,14 @@ SAYS |= {
 def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():
     saw, fix, head = "a" * 40, "b" * 40, "c" * 40
     result = "\n## Result\nStatus: done\n"
-    second = f"Second pass: needed since {saw}, the fix also changed b.py\n"
     first, last = REVIEW.format(saw=saw), REVIEW.format(saw=fix).replace("- minor", "- error")
     assert ready.short_of(result + first, head) == NO_FIXED
     assert ready.short_of(result + f"Fixed: {saw}\n" + first, head) == NOT_PUSHED
-    assert ready.short_of(result + second + f"Fixed: {head}\n" + first, head) == NO_SECOND
     owed = f"Scoped review: needed since {saw}, the fix changed b.py\n"
     assert ready.short_of(result + owed + f"Fixed: {head}\n" + first, head) == NO_FIX_REVIEW
-    handled = f"Finding: fixed, a made up one\n{second}Fixed: {head}\n"
+    handled = f"Finding: fixed, a made up one\nFixed: {head}\n"
     assert ready.short_of(result + handled + first + last, head) == NO_FINDING
     assert ready.short_of(result + "Reviewer: mcp:9\n", head) == NO_REVIEW
-    twice = "Review: twice\n" + result + f"Finding F1: fixed, a made up one\nFixed: {fix}\n"
-    assert ready.short_of(twice + first, fix) == NO_TWICE
     assert ready.short_of(result + "Reviewer: none, no launch tool in this session\n", head) == (
         NO_REVIEW
     )
@@ -246,8 +227,6 @@ def said_to(short, kind, reason, sentence):
         ("unfixed", NO_FIXED),
         ("unpushed", NOT_PUSHED),
         ("unended", NO_FINDING),
-        ("second", NO_SECOND),
-        ("twice", NO_TWICE),
         ("renumber", RENUMBER),
         ("browser", BROWSER_RED),
         ("meets-no", MEETS_NO),
@@ -262,8 +241,6 @@ def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reas
     said = short.passes(1)
     assert sends(kitchen) == [said_to(short, kind, reason, SAYS[kind])]
     line = f"expedite alpha: told the crew what #7 is short of ({kind}, {short.head[:12]})"
-    if kind in ("second", "twice"):
-        line += ", sent `/pr-review run alpha again`"
     assert line in said
     (event,) = kitchen.events("expedite")
     assert (event["slug"], event["line"], event["loud"]) == ("alpha", line, "quiet")
@@ -709,7 +686,7 @@ def test_a_running_thread_is_left_alone_and_one_that_ended_its_turn_is_told(stat
 @pytest.mark.parametrize(
     ("title", "reason", "word"),
     [
-        ("review: alpha, second pass", NO_SECOND, "wait"),
+        ("review: alpha, scoped", NO_FIX_REVIEW, "wait"),
         ("review: alpha, scoped", None, "hold"),
     ],
 )
@@ -867,9 +844,9 @@ def test_a_silent_pass_after_the_crew_was_told_puts_no_hold_on_the_user_s_list(s
 
 
 def test_a_stall_after_work_that_ended_does_not_say_somebody_is_at_work(short, kitchen):
-    short.out(NO_SECOND)
+    short.out(NO_FIX_REVIEW)
     short.passes(3)
-    reviewer = kitchen.t3.thread("alpha", title="review: alpha, second pass")
+    reviewer = kitchen.t3.thread("alpha", title="review: alpha, scoped")
     short.passes(25)
     reviewer["status"] = "failed"
     short.passes(5)
@@ -938,15 +915,15 @@ def test_work_started_after_the_message_is_no_stall_until_it_ends_or_lasts_thirt
 
 
 def test_work_that_lasts_thirty_passes_after_the_message_is_the_stall_and_says_so(short, kitchen):
-    short.out(NO_SECOND)
+    short.out(NO_FIX_REVIEW)
     short.passes(3)
-    kitchen.t3.thread("alpha", title="review: alpha, second pass")
+    kitchen.t3.thread("alpha", title="review: alpha, scoped")
     short.passes(29)
     assert kitchen.lines("stall") == []
     short.passes(1)
     assert kitchen.lines("stall") == [
         "stall alpha: #7 is as short as it was 30 passes after its crew was told, with its crew "
-        f"or a reviewer at work, at {short.head[:12]}, {NO_SECOND}; its crew's thread is "
+        f"or a reviewer at work, at {short.head[:12]}, {NO_FIX_REVIEW}; its crew's thread is "
         "mcp:thread-1"
     ]
 

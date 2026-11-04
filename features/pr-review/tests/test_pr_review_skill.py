@@ -1430,13 +1430,13 @@ def later_pass(made, result, first):
     return says
 
 
-def test_jmerge_reads_a_clean_second_pass_nobody_was_sent_as_ready(tmp_path):
+def test_jmerge_reads_an_old_second_pass_line_as_owing_nothing(tmp_path):
+    """One round: a brief from before it, whose Result says `Second pass: needed since`, waits
+    for no second review, and a clean second pass written anyway changes nothing."""
     made = merge.Merged(merge.Home(tmp_path), tmp_path)
+    done = f"Finding: fixed, it is wrong\nFixed: {made.head}\n{merge.WIDER}"
+    assert ready.short_of(merge.brief(merge.review("findings"), done), made.head) == ""
     says = later_pass(made, merge.WIDER, merge.review("findings"))
-    assert says() == [
-        f"wait 7 {merge.URL}: its fix changed more than the findings named: "
-        "the second pass is not written"
-    ]
     assert says(merge.review("clean", made.head) + f"{NOT_SENT}\n") == [
         f"ready 7 {made.head} alpha alpha"
     ]
