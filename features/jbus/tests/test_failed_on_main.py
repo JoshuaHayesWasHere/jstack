@@ -182,6 +182,9 @@ def test_the_lookup_names_each_test_a_red_job_of_main_failed_in_the_window(githu
 
 
 def test_a_second_lookup_reads_no_log_or_job_list_it_kept(github, tmp_path):
+    """The second lookup lists again only the 4 newest days of its own window, which it leaves
+    in `kept`. The test's `NOW` is taken when the module is imported, and the script reads its
+    own clock, so a run across UTC midnight gives them two different todays."""
     kept = tmp_path / "kept.json"
     assert lookup(github, kept).returncode == 0
     GitHub.asked = []
@@ -189,7 +192,9 @@ def test_a_second_lookup_reads_no_log_or_job_list_it_kept(github, tmp_path):
     again = lookup(github, kept)
     assert again.returncode == 0, again.stderr
     assert again.stdout.splitlines() == FAILED
-    assert set(GitHub.days) == {stamp(days)[:10] for days in range(4)}
+    window = sorted(json.loads(kept.read_text())["days"])
+    assert len(window) == 31
+    assert set(GitHub.days) == set(window[-4:])
     assert GitHub.asked and all(
         path.endswith("/actions/workflows/check.yml/runs") for path in GitHub.asked
     )
