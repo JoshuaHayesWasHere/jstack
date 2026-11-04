@@ -182,7 +182,8 @@ def test_queue_add_says_which_door_the_commands_imply_and_the_brief_does_not_dec
 
 
 def carried_word(kitchen, route, slug):
-    code, said = kitchen.main("word", "--to", "demo", "--evidence", BOT, "--words", CARRIED)
+    carried = ("--evidence", BOT, "--words", CARRIED, "--answers", "Ship it now?")
+    code, said = kitchen.main("word", "--to", "demo", *carried)
     assert code == 0, said
     return approve(kitchen, slug, "--word", said.split()[-1])[1]
 
