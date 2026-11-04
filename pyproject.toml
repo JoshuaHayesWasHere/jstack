@@ -29,6 +29,7 @@ jbus = "jbus.port:Port"
 
 [dependency-groups]
 dev = [
+    "coverage>=7.17.1",
     "jsonschema>=4.26.0",
     "pillow>=11",
     "pyrefly>=1.4.0",
