@@ -825,9 +825,8 @@ def _review(said: Said, head: str) -> str:
         return SECOND_UNWRITTEN
     if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
-    if said.owes and _COMMIT.fullmatch(fixed) and head != fixed:
-        if head == reviewed:
-            return NOT_PUSHED
+    if said.owes and _COMMIT.fullmatch(fixed) and head != fixed and head == reviewed:
+        return NOT_PUSHED
     return unanswered(said) or unruled(said)
 
 

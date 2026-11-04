@@ -142,8 +142,10 @@ def test_a_crewmate_links_its_pull_request_and_arms_no_watch():
     blocks, unread = tools.read("crew", sections()["Stay on the pull request"])
     called = []
     for _, language, body, lead_in in blocks:
-        for inline in tools.INLINE.finditer(lead_in):
-            called.append(tools.Call("crew", lead_in[: inline.start()], inline[1]))
+        called += [
+            tools.Call("crew", lead_in[: inline.start()], inline[1])
+            for inline in tools.INLINE.finditer(lead_in)
+        ]
         if language == "json":
             called.append(tools.Call("crew", lead_in, body))
     assert unread == [] and [call.tool for call in called] == ["link_pull_request"]

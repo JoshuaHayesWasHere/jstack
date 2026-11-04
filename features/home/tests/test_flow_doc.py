@@ -90,9 +90,8 @@ def missing(page):
                 jmerge_parser().parse_args(shlex.split(code)[1:])
             except SystemExit:
                 wrong.append(f"{code}: jmerge does not take that")
-        elif TOOL.fullmatch(code):
-            if code not in TOOLS:
-                wrong.append(f"{code}: features/jbus/tests/fixtures/t3 has no schema of that tool")
+        elif TOOL.fullmatch(code) and code not in TOOLS:
+            wrong.append(f"{code}: features/jbus/tests/fixtures/t3 has no schema of that tool")
     return wrong
 
 

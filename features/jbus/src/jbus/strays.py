@@ -48,6 +48,7 @@ is no Result or Report yet, the line waits in `left-running.json` and goes in on
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -434,10 +435,8 @@ def busy(found: Iterable[Proc]) -> list[Proc]:
 def kill(found: list[Proc]) -> None:
     """TERM each process, then KILL each one still running after `GRACE` seconds."""
     for one in found:
-        try:
+        with contextlib.suppress(OSError):
             os.kill(one.pid, signal.SIGTERM)
-        except OSError:
-            pass
     waited, left = 0.0, found
     while waited < GRACE:
         now = _stats(str(one.pid) for one in found)
@@ -447,10 +446,8 @@ def kill(found: list[Proc]) -> None:
         time.sleep(0.1)
         waited += 0.1
     for one in left:
-        try:
+        with contextlib.suppress(OSError):
             os.kill(one.pid, signal.SIGKILL)
-        except OSError:
-            pass
 
 
 def working(out: list[threads.Out]) -> set[tuple[str, str]]:

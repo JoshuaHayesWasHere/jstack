@@ -89,9 +89,7 @@ def _check(instance: object, schema: dict[str, Any], where: str, out: list[str])
         for at, one in enumerate(instance):
             _check(one, schema["items"], _at(where, at), out)
     if isinstance(instance, dict):
-        for key in schema.get("required", ()):
-            if key not in instance:
-                out.append(f"{here}: lacks {key}")
+        out += [f"{here}: lacks {key}" for key in schema.get("required", ()) if key not in instance]
         properties = schema.get("properties", {})
         extra = schema.get("additionalProperties", True)
         for key, value in instance.items():

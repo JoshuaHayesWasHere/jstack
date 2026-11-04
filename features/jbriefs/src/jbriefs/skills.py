@@ -353,13 +353,12 @@ def load(text: str) -> str:
     names = named(text)
     if not names:
         return ""
-    out = []
-    for one in names:
-        if one.path is None:
-            out.append(
-                f"unknown skill: {one.said} is no skill and no principle that skills.json "
-                "lists, so nothing is loaded for it"
-            )
+    out = [
+        f"unknown skill: {one.said} is no skill and no principle that skills.json "
+        "lists, so nothing is loaded for it"
+        for one in names
+        if one.path is None
+    ]
     known = [one for one in names if one.path is not None]
     if known:
         listed = " ".join(one.name for one in known)

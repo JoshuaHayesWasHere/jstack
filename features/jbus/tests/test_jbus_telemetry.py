@@ -871,10 +871,10 @@ def test_a_migration_is_added_by_a_module_after_the_last_one(tmp_path, monkeypat
     file = f"v{len(migrations.MIGRATIONS) + 1:03d}_added.py"
     found = migrations_with(tmp_path, monkeypatch, "added_migrations", {file: added})
 
-    assert found.MIGRATIONS == {
+    assert {
         **migrations.MIGRATIONS,
         file[:-3]: "CREATE TABLE added (x TEXT);\n",
-    }
+    } == found.MIGRATIONS
 
 
 def test_two_migrations_of_one_number_both_run_once_whichever_a_store_had(

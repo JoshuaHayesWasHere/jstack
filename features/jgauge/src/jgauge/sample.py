@@ -18,7 +18,7 @@ The report reads the stalls from each project's `events.jsonl` under jbus's stat
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import fcntl
 import json
 import os
@@ -215,7 +215,7 @@ def since(asked: str) -> int:
     if asked.isdecimal():
         return int(asked)
     try:
-        return int(datetime.datetime.fromisoformat(asked).timestamp())
+        return int(dt.datetime.fromisoformat(asked).timestamp())
     except ValueError as error:
         raise ValueError(
             f"{asked!r} is not a time: give seconds since the epoch or an ISO date"
@@ -245,19 +245,18 @@ def report(
                 fields = line.rstrip("\n").split("\t")
                 if len(fields) == len(BEFORE_TMP):
                     fields += [""] * (len(COLUMNS) - len(BEFORE_TMP))
-                if len(fields) == len(COLUMNS) and fields[0].isdecimal():
-                    if (start is None or int(fields[0]) >= start) and (
-                        until is None or int(fields[0]) < until
-                    ):
-                        rows.append(fields)
+                if len(fields) != len(COLUMNS) or not fields[0].isdecimal():
+                    continue
+                if (start is None or int(fields[0]) >= start) and (
+                    until is None or int(fields[0]) < until
+                ):
+                    rows.append(fields)
     if not rows:
         said = [f"rows: 0 in {log}"]
         return said + ([_stalls(start, until)] if start is not None and until is not None else [])
     times = [int(fields[0]) for fields in rows]
     first, last = min(times), max(times)
-    shown = [
-        datetime.datetime.fromtimestamp(one).strftime("%Y-%m-%d %H:%M:%S") for one in (first, last)
-    ]
+    shown = [dt.datetime.fromtimestamp(one).strftime("%Y-%m-%d %H:%M:%S") for one in (first, last)]
     line = room_line("LOAD")
     read = over = low = 0
     for fields in rows:
@@ -272,7 +271,7 @@ def report(
             low += cpu < pressure_line
     return [
         f"rows: {len(rows)}, from {shown[0]} to {shown[1]}"
-        f" ({datetime.timedelta(seconds=last - first)});"
+        f" ({dt.timedelta(seconds=last - first)});"
         f" a row every {EVERY_SECONDS} s would give {(last - first) // EVERY_SECONDS + 1}",
         f"read: {read} rows have the 1-minute load and CPU pressure (some avg60),"
         f" and {len(rows) - read} of the {len(rows)} do not",
@@ -341,7 +340,7 @@ def _stalls(start: int, until: int) -> str:
         for line in _read(path).splitlines():
             try:
                 event = json.loads(line)
-                moment = datetime.datetime.fromisoformat(event["at"]).timestamp()
+                moment = dt.datetime.fromisoformat(event["at"]).timestamp()
             except (ValueError, KeyError, TypeError):
                 continue
             if not start <= moment < until:

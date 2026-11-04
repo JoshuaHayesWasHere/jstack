@@ -112,9 +112,9 @@ class Module:
                     yield node.name, node
             elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
                 for inner in node.body:
-                    if isinstance(inner, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        if inner.name.startswith("test"):
-                            yield f"{node.name}::{inner.name}", inner
+                    function = isinstance(inner, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    if function and inner.name.startswith("test"):
+                        yield f"{node.name}::{inner.name}", inner
 
 
 def fixture(node):

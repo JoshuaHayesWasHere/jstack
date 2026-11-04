@@ -518,7 +518,7 @@ def test_on_a_phone_questions_1_to_3_are_answered_above_the_fold(scene, tmp_path
     assert opened["hmenu"]["expanded"] == "true", opened["hmenu"]
     assert [i for i, one in opened.items() if not one["shown"]] == ["readat"], opened
     for one in [shut["tri"], shut["helpme"], shut["hmenu"], *opened.values()]:
-        assert 0 <= one["box"]["left"] and one["box"]["right"] <= PHONE[0], one
+        assert one["box"]["left"] >= 0 and one["box"]["right"] <= PHONE[0], one
 
 
 @pytest.mark.parametrize("day", list(DAYS))

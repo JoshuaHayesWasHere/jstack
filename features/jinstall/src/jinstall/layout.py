@@ -320,9 +320,9 @@ class Layout:
             target = at / path
             entry = assembled.entries.get(path)
             target.parent.mkdir(parents=True, exist_ok=True)
-            if entry is None or (isinstance(entry, Linked) and not target.is_symlink()):
-                if target.is_symlink() or target.exists():
-                    machine.unlink(target)
+            replaced = entry is None or (isinstance(entry, Linked) and not target.is_symlink())
+            if replaced and (target.is_symlink() or target.exists()):
+                machine.unlink(target)
             if isinstance(entry, Linked):
                 machine.link(target, entry.source)
             elif entry is not None:

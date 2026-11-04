@@ -551,21 +551,19 @@ def test_a_when_line_guards_a_step_on_the_other_regions_states_and_words_are_onl
     write(tmp_path / "lamp.mmd", LAMP)
     write(
         tmp_path / "flat.mmd",
-        "\n".join(
-            [
-                "stateDiagram-v2",
-                "  [*] --> OD",
-                '  state "Off | Dark" as OD',
-                '  state "On | Dark" as ND',
-                '  state "On | Lit" as NL',
-                '  state "Off | Lit" as OL',
-                "  OD --> ND : flip the switch",
-                "  ND --> OD : flip the switch",
-                "  ND --> NL : warm up",
-                "  NL --> OL : flip the switch",
-                "  OL --> NL : flip the switch",
-                "  OL --> OD : cool down",
-            ]
+        (
+            "stateDiagram-v2\n"
+            "  [*] --> OD\n"
+            '  state "Off | Dark" as OD\n'
+            '  state "On | Dark" as ND\n'
+            '  state "On | Lit" as NL\n'
+            '  state "Off | Lit" as OL\n'
+            "  OD --> ND : flip the switch\n"
+            "  ND --> OD : flip the switch\n"
+            "  ND --> NL : warm up\n"
+            "  NL --> OL : flip the switch\n"
+            "  OL --> NL : flip the switch\n"
+            "  OL --> OD : cool down"
         ),
     )
     same = node("compare-charts", ["lamp.mmd", "flat.mmd"], tmp_path)

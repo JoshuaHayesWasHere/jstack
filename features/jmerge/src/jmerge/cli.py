@@ -1278,7 +1278,7 @@ def _cwds_from_lsof() -> dict[int, str] | None:
 def _running(tree: str) -> int | None:
     """The lowest pid of a process whose working directory is in the tree, 0 for none, and None
     when no list of every process could be read. A Mac reads lsof, unless a caller set PROC."""
-    on_a_mac = sys.platform == "darwin" and PROC == Path("/proc")
+    on_a_mac = sys.platform == "darwin" and Path("/proc") == PROC
     cwds = _cwds_from_lsof() if on_a_mac else _cwds_from_proc()
     if cwds is None:
         return None

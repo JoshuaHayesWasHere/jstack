@@ -3,6 +3,7 @@ worktree, a server in a temporary folder it made. Its shell is gone, so the proc
 1, and it holds cores until somebody kills it. Like `test_jbus_resume.py`, the tests run the real
 pass against the fakes, and the processes they leave are real ones."""
 
+import contextlib
 import json
 import os
 import re
@@ -75,10 +76,8 @@ def stray():
     started = []
     yield started
     for pid in started:
-        try:
+        with contextlib.suppress(ProcessLookupError):
             os.kill(pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
 
 
 @pytest.fixture(params=["tmp", "slot"])
@@ -500,10 +499,8 @@ def test_a_check_the_crew_left_under_a_test_slot_is_left_while_it_runs(
         assert alive(check)
     finally:
         for pid in reversed(started):
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
 
 
 def tree_of(pid):

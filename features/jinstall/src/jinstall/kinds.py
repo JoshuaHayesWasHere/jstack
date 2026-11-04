@@ -680,7 +680,7 @@ class Attribution:
 
     def drop(self, machine: Machine) -> Dropped:
         def change(value: dict) -> bool:
-            ours = [key for key, want in self.wanted.items() if value.get(key, None) == want]
+            ours = [key for key, want in self.wanted.items() if value.get(key) == want]
             for key in ours:
                 del value[key]
             return bool(ours)

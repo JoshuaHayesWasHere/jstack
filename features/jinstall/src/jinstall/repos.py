@@ -15,6 +15,7 @@ A hook of jstack's own checkout is hard. A hook of any other repo is optional: a
 hook of its own keeps it, and its line says so for as long as it does not run jstack's.
 """
 
+import contextlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,12 +31,10 @@ def checkouts(machine: Machine, config: Path) -> list[Path]:
     `config` and the list, and probes nothing. A config that jbus's loader refuses names no
     project, and its own line says why."""
     found = [machine.checkout] if machine.checkout is not None else []
-    try:
+    with contextlib.suppress(Exception):
         found += (
             [one.checkout for one in jbus.load(config.parent).projects] if config.is_file() else []
         )
-    except Exception:
-        pass
     found += machine.repos()
     return list(dict.fromkeys(Path(os.path.abspath(one)) for one in found))
 

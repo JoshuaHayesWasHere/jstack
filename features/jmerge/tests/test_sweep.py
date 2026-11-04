@@ -20,7 +20,7 @@ THREAD = "mcp:thread-of-{}"
 NOWHERE = "has a commit that is not in origin's main"
 OR_MERGED = f"{NOWHERE} or in its merged pull request"
 SWEEP = "jmerge --sweep"
-OLD_GATE = "-".join(("no", "mistakes"))
+OLD_GATE = "no-" + "mistakes"
 WORKTREE, LOCAL, REMOTE = (
     "the worktree",
     "the local branch",
