@@ -147,3 +147,14 @@ def test_a_repo_jbus_keeps_no_log_for_still_refuses(home, tmp_path):
     code, _ = run(home, tree(tmp_path / "source", DOOR, RAISES), DOOR)
     assert code == 2
     assert not (home / ".local" / "state" / "jbus").exists()
+
+
+def test_a_jleak_hook_logs_the_tools_name_and_not_the_call_it_refused(home, tmp_path):
+    secret = "git push origin zorblat-codename"
+    leak = ("outbound-command", "jleak", "jleak.__main__", "Bash", {"command": secret})
+    body = "import sys\nprint('jleak: a finding', file=sys.stderr)\nsys.exit(2)\n"
+    code, _ = run(home, tree(tmp_path / "source", leak, body), leak)
+    assert code == 2
+    (event,) = logged(home)
+    assert event["head"] == "Bash" and event["reason"] == "jleak: a finding"
+    assert "zorblat" not in json.dumps(event)

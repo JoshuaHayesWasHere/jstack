@@ -11,6 +11,7 @@ here=$(realpath "$0") || {
 }
 source=${here%/features/jleak/hooks/*}
 hook=outbound-command
+withheld=1
 [ -r "$source/features/jbus/hooks/judge.sh" ] || {
   echo "outbound-command: refused: $source has no features/jbus/hooks/judge.sh to judge the call with" >&2
   exit 2

@@ -7,6 +7,10 @@ refuse() {
 judge() {
   seconds=${JSTACK_HOOK_SECONDS:-25}
   module=$1
+  run='import runpy, signal, sys
+signal.alarm(int(sys.argv[1]))
+sys.argv = sys.argv[2:]
+runpy.run_module(sys.argv[0], run_name="__main__", alter_sys=True)'
   release=1
   for folder in "$source"/features/*/src/"${module%%.*}"; do
     [ -d "$folder" ] && release=
@@ -15,7 +19,7 @@ judge() {
     python=${source%/share/jstack}/bin/python
     [ "$python" != "$source/bin/python" ] && [ -x "$python" ] ||
       refuse "$source is no checkout and no release, so it cannot judge the call"
-    set -- "$python" -I -m "$@"
+    set -- "$python" -I -c "$run" "$seconds" "$@"
   else
     path=
     for folder in "$source"/src "$source"/features/*/src; do
@@ -29,10 +33,7 @@ judge() {
       fi
     done
     [ -n "$python" ] || refuse "no python 3.12 or newer to judge the call with"
-    set -- env PYTHONSAFEPATH=1 "PYTHONPATH=$path" "$python" -m "$@"
-  fi
-  if command -v timeout >/dev/null 2>&1; then
-    set -- timeout -k 2 "$seconds" "$@"
+    set -- env PYTHONSAFEPATH=1 "PYTHONPATH=$path" "$python" -c "$run" "$seconds" "$@"
   fi
   exec 3>&1
   said=$(printf '%s' "$input" | PYTHONDONTWRITEBYTECODE=1 "$@" 2>&1 >&3)
@@ -47,7 +48,7 @@ judge() {
     logged "$said"
     exit 2
     ;;
-  124 | 137) refuse "$module ran past $seconds seconds, so it judged nothing" ;;
+  142) refuse "$module ran past $seconds seconds, so it judged nothing" ;;
   *) refuse "$module ended $code${last:+: $last}" ;;
   esac
 }
@@ -73,8 +74,11 @@ logged() {
     return 0
   bus=${JBUS_STATE_DIR:-$HOME/.local/state/jbus}/$(basename "$(dirname "$common")")
   [ -d "$bus" ] || return 0
-  head=$(field command)
-  [ -n "$head" ] || head=$(field file_path)
+  head=
+  if [ -z "$withheld" ]; then
+    head=$(field command)
+    [ -n "$head" ] || head=$(field file_path)
+  fi
   [ -n "$head" ] || head=$(field tool_name)
   head=$(plain "$head" 120)
   reason=$(plain "$1" 2000)
