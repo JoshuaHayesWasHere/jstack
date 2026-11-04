@@ -33,8 +33,12 @@ directories until no other tracked file has the same ending: `crew` and `SKILL.m
 `features/crew/SKILL.md`. A file may include another: a line of a skill or a page that says to read
 `$T/../skills/<its folder>/<name>.md` now includes that file beside it, and the tests read the
 skill with it folded in. So a changed file that is included selects the tests that spell each file
-that includes it, up the chain of includes. A changed fixture selects the tests that spell it or
-the nearest directory above it. When no test spells either, the fixture selects `all`.
+that includes it, up the chain of includes. A test may also name a skill and read it through
+`testing.paths.skills()`, as `block("home", …)` of `test_home_thread` does. Where the test or a
+module of the tests it imports reads skills so, each of their words that is a skill's name spells
+that skill's `SKILL.md`, and with it each file the skill includes. A changed fixture selects the
+tests that spell it or the nearest directory above it. When no test spells either, the fixture
+selects `all`.
 
 The map of verify-jstack's features, with each `features/<name>/verify.md`, adds more
 selections. A feature file names the paths a feature owns (`Paths:`, in jmerge's pattern
@@ -164,6 +168,8 @@ WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 DECLARED = "READ_SET"
 CHECKING = ("TYPE_CHECKING", "typing.TYPE_CHECKING")
 BY_NAME = {"import_module", "__import__"}
+SKILL_INDEX = "testing.paths.skills"
+SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
@@ -639,9 +645,23 @@ def reached(name):
 
 
 @cache
+def skills():
+    """Each skill's folder by its name, from the root, as `testing.paths.skills` finds them."""
+    found = (path.parent for spot in SKILL_SPOTS for path in ROOT.glob(spot))
+    return {folder.name: folder.relative_to(ROOT).as_posix() for folder in sorted(found)}
+
+
+@cache
 def spells(name):
-    """The paths a test module spells, and the test modules it imports."""
-    return frozenset().union(*(sources()[one][4] for one in reached(name)))
+    """The paths a test module spells, and the test modules it imports. Where one of those
+    modules reads skills through `testing.paths.skills()`, a word of theirs that is a skill's
+    name spells that skill's `SKILL.md`: `block("home", …)` reads the home skill so."""
+    held = [sources()[one] for one in reached(name)]
+    paths = frozenset().union(*(one[4] for one in held))
+    if not any(SKILL_INDEX in one[6] for one in held):
+        return paths
+    words = set().union(*(one[1] for one in held))
+    return paths | {(*skills()[word].split("/"), "SKILL.md") for word in words & skills().keys()}
 
 
 @cache
