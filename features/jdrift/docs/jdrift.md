@@ -20,6 +20,8 @@ Outside a checkout's root, `jdrift` prints `jdrift: THIRD_PARTY.md: No such file
 ## What it reads and prints
 
 `jdrift` reads two things from the pstack section of `THIRD_PARTY.md`: the pin, which is the commit of pstack that jstack last took from, and the map of files.
+An upstream path in the map can carry a pin of its own, as `pstack/<path>@<commit>`, when jstack took that one path at a later commit.
+`jdrift` compares that path from its own pin and ends the path with `at <commit>` on its line; a path with no pin of its own is compared from the `Commit:` line.
 It keeps a clone of pstack under `${XDG_CACHE_HOME:-~/.cache}/jstack/` and updates it to pstack's `main`.
 It needs only `git` and the network, calls no model, and changes nothing in the repo.
 
