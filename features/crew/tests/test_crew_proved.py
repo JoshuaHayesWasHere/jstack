@@ -4,8 +4,7 @@ test that fails without the change proves it; one that passes at the base as wel
 and the line says so with the base's exit 0. A branch that changes no test gets no run.
 
 The tests run the block in a real repo whose `origin/main` is the base, with a `uv` on PATH that
-runs pytest on this interpreter, takes the slot by running the command, and syncs and forgets
-nothing."""
+runs pytest on this interpreter, takes the slot by running the command, and syncs nothing."""
 
 import subprocess
 import sys
@@ -22,7 +21,7 @@ case " $* " in
     shift
     exec "$@"
     ;;
-*" jbus forget "* | *" sync "*) exit 0 ;;
+*" sync "*) exit 0 ;;
 *" run pytest "*)
     shift 2
     exec {sys.executable} -m pytest "$@"

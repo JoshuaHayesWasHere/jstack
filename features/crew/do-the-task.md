@@ -118,11 +118,10 @@
           echo "$line"
           if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
       fi
-      uv run --project "$T/../source" jbus forget "$tree"
   fi
   ```
 
-  The head's tests run at the head, then laid over a copy of the base's tree in a venv of its own, so the base run imports the base's code and not the head's.
+  The head's tests run at the head, then laid over a copy of the base's tree in a venv of its own, so the base run imports the base's code and not the head's; the copy stays in `/tmp`.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, and each `conftest.py`.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
