@@ -665,8 +665,9 @@ class Repo:
 
     def over_main(self, one: ready.PullRequest) -> tuple[str, str]:
         """Why the head waits over today's base, or nothing, and the base's tip it was judged
-        over. A green check counts only over the base it ran over: where the base changed any
-        path since the check started, the head waits for a check over today's base. A head
+        over. Main's ruleset is strict (`strict_required_status_checks_policy`): GitHub merges
+        no head that lacks the base's tip, whenever its check started, so a head is behind
+        whenever the tip is not its ancestor, and it waits for a check over today's base. A head
         that merges cleanly onto the tip with `git merge-tree` has GitHub merge the base into
         its branch (`rejudge.BaseMerge`), and its check at the new head decides; one that
         conflicts waits for a rebase. A path the pull request does not touch is no proof:
@@ -679,9 +680,12 @@ class Repo:
         moved = self.moved(one.base, one.started)
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", ""
-        tip, paths = moved
-        if not paths:
+        tip, _ = moved
+        has = _run(self.main, "git", "merge-base", "--is-ancestor", tip, one.head)
+        if not has.returncode:
             return "", tip
+        if has.returncode != 1:
+            return ready.UNMERGED.format(why=lines.said(has)), ""
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, one.head)
         if merged.returncode == 1:
             return ready.FRESH_CONFLICT, ""

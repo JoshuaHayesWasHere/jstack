@@ -235,7 +235,7 @@ The section "Protected paths" describes one more hold.
 
 Before a merge, when the start of the pull request's check is known, `jmerge` runs `git ls-remote` to see whether main is still the commit it judged against.
 If main moved, `jmerge` judges the pull request again, at most twice, before it prints `main moved while it was judged`.
-A main that moved after the pull request's check started has it wait for a check over the new tip, as "Merges cleanly over today's main" says.
+A head that lacks main's tip waits for a check over that tip, as "Merges cleanly over today's main" says.
 
 ## Migrations
 
@@ -283,9 +283,11 @@ The rule for a taken number is on the `rebase` step, and the rules for the two w
 A green check counts only over the main it ran over, so `jmerge` merges no pull request on a check that main has moved past.
 A check starts when the earliest run of the first required check at the head starts.
 When the repo names no required checks, that check is `check`.
-After a `git fetch` in the main checkout, `jmerge` lists the paths that the first-parent commits of the default branch changed since that start.
-When there are none, the check ran over today's main, and it counts.
-When there are any, whatever their paths, `jmerge` merges the head over today's main with `git merge-tree`.
+Main's ruleset is strict (`strict_required_status_checks_policy`, since 2026-11-04): GitHub merges no head that lacks main's tip, whenever its check started.
+So after a `git fetch` in the main checkout, a head is behind whenever main's tip is not its ancestor (`git merge-base --is-ancestor`).
+A head that has main's tip ran its check over today's main, and the check counts.
+A head that lacks it, whatever paths main changed and whenever its check started, `jmerge` merges over today's main with `git merge-tree`.
+A head that git cannot read waits with `its head could not be merged over today's base`, and GitHub is asked nothing.
 A head that does not merge over today's main waits with `it conflicts with today's main`, on the `rebase` step, and GitHub is asked nothing.
 A clean merge has GitHub merge main into the branch, as "A failed check over a base that moved" does, with `update-branch` and `expected_head_sha`, once for a head and a tip of main.
 The line is `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, on the `check` step, and `--check` says `<base> moved after its check started: GitHub is to merge <base> at <tip12> into it`.
