@@ -156,13 +156,20 @@ def test_the_replay_every_pull_request_red_only_on_its_base_merges_and_none_runs
 
 
 def test_github_s_update_alone_moves_it_on(tmp_path):
+    """Each red one takes its turn in the line for its update, one at a time
+    (`test_jmerge_in_line`)."""
     replay = Replay(tmp_path)
     (one, *_), fix = red_then_fixed(replay)
     said = replay.run()
-    assert f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}" in said
-    assert sorted(replay.updated()) == ["333", "339", "340", "341"]
-    replay.passes(2)
+    behind = ready.IN_LINE.format(number=333, base="main")
+    assert said == [
+        f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}",
+        *(f"wait {number} {url(number)}: {behind}" for number in (339, 340, 341)),
+    ]
+    assert replay.updated() == ["333"]
+    replay.passes(5)
     assert merged(replay.said) == [333, 340, 341]
+    assert sorted(replay.updated()) == ["333", "339", "340", "341"]
     assert replay.told == []
 
 
