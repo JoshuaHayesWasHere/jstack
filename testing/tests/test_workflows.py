@@ -985,11 +985,13 @@ def test_every_part_restores_one_tlc_cache_by_the_spec_files_and_saves_what_it_a
 
 
 def kept_key(home, restored):
-    """The key `tlc kept` gives the save, run here as the runner runs it, or "" for no save."""
+    """The key `tlc kept` gives the save, run here as the runner runs it, or "" for no save. It
+    runs on this PATH, where the test's skip found sha256sum: on macOS that is Homebrew's, which
+    /usr/bin does not hold."""
     output = home / "output"
     output.write_text("")
     env = {
-        "PATH": "/usr/bin:/bin",
+        "PATH": os.environ["PATH"],
         "HOME": str(home),
         "SPECS": "abc",
         "RESTORED": restored,
