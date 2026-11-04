@@ -16,6 +16,7 @@ import pytest
 import test_room as room
 from crew_helpers import FENCED, block, git, held_open, sections
 from jbriefs import parse as briefs
+from jmerge import ready
 from test_machine_sizes import fake_proc
 from test_portable_shell import bsd_tools
 from testing.layouts import assembled
@@ -599,7 +600,7 @@ def test_the_block_adds_the_checked_line_for_a_check_of_a_committed_head(
 ):
     """The block writes the `Checked:` line `jmerge` reads, for a check that ran to its end on the
     head as it is committed, and on no other, from the first head on: a brief with no Result yet
-    gets it too, so the first head's check is on record."""
+    gets it too, so the first head's check is on record, and `jmerge` reads it for that head."""
     repo = stubbed(tmp_path, "print('all')")
     if dirty:
         (repo / "page.md").write_text("An edit not committed.\n")
@@ -610,7 +611,9 @@ def test_the_block_adds_the_checked_line_for_a_check_of_a_committed_head(
     head = git(repo, "rev-parse", "HEAD")
     line = f"Checked: make check-fast BASE={base} PYTEST=: exit 0 at {head}\n"
     assert code == 0 and len(ran) == 1
-    assert (tasks / "a-task.md").read_text() == brief + (line if written else "")
+    text = (tasks / "a-task.md").read_text()
+    assert text == brief + (line if written else "")
+    assert ready.said_of(text).checked == ({head: "0"} if written else {})
 
 
 def test_the_block_names_the_exit_of_jgauge_check_on_the_checked_line(tmp_path):
