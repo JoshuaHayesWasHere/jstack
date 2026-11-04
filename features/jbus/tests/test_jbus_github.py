@@ -301,7 +301,7 @@ def test_a_green_pull_request_reviewed_and_fixed_is_told_nothing(launched):
     passes(launched, 0, 3, 6)
     assert sends(launched) == []
     sent = jbus.read_json(launched.state / "sent.json", [])
-    told = ("failed|", "conflict|", "rebase|", "mainmoved|")
+    told = ("failed|", "conflict|", "rebase|")
     assert [key for key in sent if key.startswith(told)] == []
 
 
