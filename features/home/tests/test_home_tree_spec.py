@@ -320,10 +320,15 @@ def test_one_merger_no_home_merges_and_jbus_merges_child_a_s_pull_request(mergin
     """OneMerger, along bug 3 of the chart. 1. The root makes child a: the scope `flow` has its
     home-id. 2-4. Child a launches a crew, which opens its pull request, green and reviewed: the
     scene's number 7. 5. A home runs jmerge for it, the root or child a itself, and merges
-    nothing, while an id is in home-thread. jbus's run, with no flag, merges it."""
+    nothing, while an id is in home-thread. jbus's run, with no flag, merges it, once GitHub has
+    merged main into its branch: main's ruleset merges no head that lacks main's tip."""
+    from test_jmerge_fresh import AFTER
+
     said = jmerge(merging, "--home", home)
     assert not any(line.startswith("merged ") for line in said), said
     assert merging.calls() == []
+    jmerge(merging)
+    merging.updated("fl-task", AFTER)
     said = jmerge(merging)
     assert any(line.startswith("merged 7 fl-task ") for line in said), said
 
@@ -332,10 +337,12 @@ def test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging(tmp_pat
     """NoBlindMerge, in the siblings' scene: two ready pull requests, one of each home. A second
     run of jmerge starts while the first is in the middle of its merge, after it read main's tip
     and before that merge lands. The second run merges nothing, so nothing lands over a tip its
-    merger did not read, and the first merges both, one after the other. The second is the merge
+    merger did not read, and the first merges number 6 and has GitHub merge main into number 7's
+    branch, which the run after merges, since main's ruleset merges no head that lacks main's
+    tip. The second is the merge
     tick's, `--if-free`: a plain run would wait on the run lock for the first, which here waits on
     it (`features/jmerge/tests/test_jmerge_one_run.py`)."""
-    from test_jmerge_fresh import GH
+    from test_jmerge_fresh import AFTER, GH, asked
     from test_jmerge_homes import kitchen
 
     made = kitchen.__wrapped__(tmp_path)
@@ -354,10 +361,11 @@ def test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging(tmp_pat
     assert not (stub / "hook").exists()
     second = (stub / "second.out").read_text().splitlines()
     assert second and not any(line.startswith("merged ") for line in second), second
-    assert [line.split()[:3] for line in first] == [
-        ["merged", "6", "root-task"],
-        ["merged", "7", "fl-task"],
-    ]
+    assert first[0].split()[:3] == ["merged", "6", "root-task"]
+    assert first[1:] == [asked(7, made.tip())]
+    made.updated("fl-task", AFTER)
+    (then,) = jmerge(made)
+    assert then.split()[:3] == ["merged", "7", "fl-task"]
     assert [call.split()[2] for call in made.calls()] == ["6", "7"]
 
 
