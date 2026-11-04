@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 
 import pytest
@@ -11,6 +12,7 @@ from jbriefs.runnable import runs
 from test_jbus_queue import add, brief, go
 from testing.paths import REPO
 
+NO_RG = pytest.mark.skipif(shutil.which("rg") is None, reason="rg is not installed")
 IDLE = (
     "- a held row says why in a test\n"
     "- `release.yml` has a step that calls `green_run`\n"
@@ -42,6 +44,7 @@ def test_each_item_that_runs_nothing_gets_one_proposal_that_runs(kitchen, capsys
     assert lines[2].endswith("(judged: only the user can say)")
 
 
+@NO_RG
 def test_a_grep_of_a_flag_finds_it_where_it_is_and_not_where_it_is_not(tmp_path):
     (made,) = propose.propose("# demo: x\nDone when:\n- `--status` names the rows in cli.py\n")
     assert made.kind == "grep"
@@ -189,6 +192,7 @@ def wrong(worktree, entries):
     ]
 
 
+@NO_RG
 def test_replay(tmp_path):
     if not all(present(entry["merge"]) for entry in CORPUS):
         pytest.skip("the checkout lacks the corpus's merges: CI's is shallow (fetch-depth 2)")
