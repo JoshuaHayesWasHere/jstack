@@ -1,4 +1,5 @@
-"""Count the nine targets of the CI plan from what `jbus ci` kept (`jbus.ci.ledger`).
+"""Count the nine targets of the CI plan, and the six CI health numbers, from what `jbus ci` kept
+(`jbus.ci.ledger`).
 
 Each number counts over a window of time and says how it counts: `Number.how` is the
 sentence shown with it on the panel and in the weekly report. Every number follows these
@@ -33,6 +34,23 @@ The nine, in order:
    The target is under 3 (set here). The scout counted 9 by hand; this number follows the rule.
 9. `inode`: the peak of /tmp's inode use a job wrote with `jbus ci --notice` (`tmp_inode_pct`).
    The target is under 80 (set here). It has no value until a job writes it.
+
+The six health numbers come after the nine, as cicd-metrics-scout defined them (2026-11-04). They
+are a baseline: none is held to a target yet, so each has `met` None and none raises an alert. The
+scout's goals, for 50 pull requests opened after the verify-trust moves, are in their `target`.
+
+10. `red_share`: of the pull requests with a completed `check` job in the window, the share with a
+    red one, split by cause: `own` where a red `check`'s run attempt failed a job whose `_causes`
+    cause is `own` or `unread`, or failed no job but `check`, and `shared` where every failed job's
+    cause is `main`, `runner` or `flake`.
+11. `shas_per_pr`: the heads a check ran on over each pull request merged in the window, split into
+    `update` (GitHub's merge of main into the branch, which jmerge asked for) and `crew` (anything
+    else). The value is the crew's.
+12. `wait_p90_shard`, 13. `wait_p90_macos`: the 90th percentile of the seconds a pull request's
+    `check N of M` job, or `macos` job, waited for a runner, over the jobs that started.
+14. `open_to_merge`: the median hours from a pull request's opening to its merge, with the 90th.
+15. `first_check_own_red`: of the pull requests whose first completed `check` is in the window, the
+    share whose first check was red for a cause of its own, by `red_share`'s rule.
 """
 
 from __future__ import annotations
@@ -42,6 +60,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, tzinfo
+from functools import cached_property
 from typing import Any
 
 import jsettings
@@ -62,7 +81,26 @@ TARGETS = {
     "mainred": ("main-red minutes per day", "under 30 min"),
     "flaky": ("flaky tests", "under 3"),
     "inode": ("/tmp inode peak", "under 80%"),
+    "red_share": ("red share of active PRs", "baseline"),
+    "shas_per_pr": ("shas per merged PR", "baseline, goal crew 1.5"),
+    "wait_p90_shard": ("shard queue wait p90", "baseline"),
+    "wait_p90_macos": ("macos queue wait p90", "baseline"),
+    "open_to_merge": ("open to merge p50", "baseline"),
+    "first_check_own_red": ("first-check own red", "baseline, goal 15%"),
 }
+CHECK = "check"
+"""The job of check.yml that passes only when the pull request's check passed."""
+SHARD = re.compile(r"check \d+ of \d+")
+ASKED = re.compile(r"\w+ (\d+) \S+: GitHub was asked to merge ")
+"""jmerge's line when it asked GitHub to merge the base into a pull request's branch."""
+ASK_LAG = timedelta(minutes=2)
+"""How long after GitHub made the merge jmerge may log its ask: it logs once the call returned."""
+ASK_LEAD = timedelta(minutes=10)
+"""How long before the merge's first job jmerge may have asked for it."""
+OPENED, MERGED = timedelta(minutes=5), timedelta(minutes=2)
+"""How far before its opening and after its merge a pull request's run still counts as its own."""
+OWN = {"own", "unread"}
+RAN = {"success", "failure", "cancelled"}
 PULLS = "pull requests, any runner"
 """What `Number.runners` says of a target that counts pull requests and not jobs."""
 
@@ -339,6 +377,86 @@ class Facts:
                 found.append((number, pushed, cause))
         return found
 
+    @cached_property
+    def attempts(self) -> dict[tuple[int, int], list[dict[str, Any]]]:
+        found: dict[tuple[int, int], list[dict[str, Any]]] = defaultdict(list)
+        for job in self.jobs:
+            found[(job["run"], job["attempt"])].append(job)
+        return found
+
+    @cached_property
+    def checks(self) -> list[dict[str, Any]]:
+        """Return the completed `check` jobs of pull requests, oldest first."""
+        return sorted(
+            (
+                j
+                for j in self.jobs
+                if j["name"] == CHECK
+                and j["event"] == "pull_request"
+                and j.get("pr") is not None
+                and j["conclusion"] in ("success", "failure")
+            ),
+            key=lambda j: jsettings.when(j["created"]),
+        )
+
+    def own_red(self, check: dict[str, Any]) -> bool:
+        """Whether a red `check` was red for a cause of the pull request's own."""
+        causes = {
+            self.causes[j["job"]]
+            for j in self.attempts[(check["run"], check["attempt"])]
+            if j["conclusion"] == "failure" and j["name"] != CHECK
+        }
+        return not causes or bool(causes & OWN)
+
+    @cached_property
+    def heads(self) -> dict[int, list[tuple[datetime, str, str]]]:
+        """Return the heads check.yml ran on for each pull request, oldest first, as (its first
+        job's `created`, sha, kind), between its opening and its merge. A run skipped whole ran on
+        no head. The kind is `update` where jmerge asked GitHub to merge the base into the branch
+        just before the head's first job (`ASK_LEAD`), or just after it (`ASK_LAG`), and after the
+        head before it, and `crew` otherwise."""
+        runs: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        for job in self.jobs:
+            if job["event"] == "pull_request" and job.get("pr") is not None:
+                runs[job["run"]].append(job)
+        lives = {
+            int(p["number"]): (
+                jsettings.when(p["created"]) - OPENED,
+                jsettings.when(p["merged"]) + MERGED if p.get("merged") else self.now,
+            )
+            for p in self.pulls
+            if p.get("created")
+        }
+        first: dict[int, dict[str, datetime]] = defaultdict(dict)
+        for run in runs.values():
+            number = int(run[0]["pr"])
+            if number not in lives or not any(j["name"] == CHECK for j in run):
+                continue
+            if not any(j["conclusion"] in RAN for j in run):
+                continue
+            at, sha = min(jsettings.when(j["created"]) for j in run), run[0]["sha"]
+            opened, closed = lives[number]
+            if opened <= at <= closed and at < first[number].get(sha, closed + MERGED):
+                first[number][sha] = at
+        asks: dict[int, list[datetime]] = defaultdict(list)
+        for event in self.events:
+            named = ASKED.match(event.get("line", "")) if event.get("event") == "jmerge" else None
+            if named and event.get("at"):
+                asks[int(named[1])].append(jsettings.when(event["at"]))
+        found: dict[int, list[tuple[datetime, str, str]]] = {}
+        for number, shas in first.items():
+            ordered, before = [], None
+            for sha, at in sorted(shas.items(), key=lambda one: one[1]):
+                asked = any(
+                    (before is None or ask > before + ASK_LAG)
+                    and at - ASK_LEAD <= ask <= at + ASK_LAG
+                    for ask in asks[number]
+                )
+                ordered.append((at, sha, "update" if asked else "crew"))
+                before = at
+            found[number] = ordered
+        return found
+
 
 def queue(facts: Facts, start: datetime, end: datetime) -> Number:
     green = [
@@ -544,6 +662,122 @@ def inode(facts: Facts, start: datetime, end: datetime) -> Number:
     return _number("inode", peak, f"{_text(peak)}%", peak < 80, len(wrote), how, _runners(wrote))
 
 
+def _share(part: int, whole: int) -> str:
+    return f"{part / whole:.0%}"
+
+
+def red_share(facts: Facts, start: datetime, end: datetime) -> Number:
+    active: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for job in facts.checks:
+        if _in(job["created"], start, end):
+            active[job["pr"]].append(job)
+    how = (
+        "of the pull requests with a completed `check` job created in the period, the share with "
+        "a red one, any attempt. A red pull request is own where a red check failed a job of its "
+        "own cause or one whose log was not read (`own`'s rule), or no job but `check`, and shared "
+        "where each failed job was main's, a runner's or a flake"
+    )
+    if not active:
+        return _number("red_share", None, "", None, 0, how)
+    red = [jobs for jobs in active.values() if any(j["conclusion"] == "failure" for j in jobs)]
+    own = sum(any(facts.own_red(j) for j in jobs if j["conclusion"] == "failure") for jobs in red)
+    shown = (
+        f"{_share(len(red), len(active))} ({len(red)} of {len(active)}: {own} own, "
+        f"{len(red) - own} shared)"
+    )
+    counted = [j for jobs in active.values() for j in jobs]
+    return _number(
+        "red_share", len(red) / len(active), shown, None, len(active), how, _runners(counted)
+    )
+
+
+def shas_per_pr(facts: Facts, start: datetime, end: datetime) -> Number:
+    merged = _merged(facts, start, end)
+    how = (
+        "heads check.yml ran on (a run skipped whole is none) from 5 minutes before a pull "
+        "request opened to 2 minutes after it merged, over the pull requests merged in the "
+        "period. A head is an update where jmerge asked GitHub to merge main into the branch "
+        "within 10 minutes before the head's first job or 2 minutes after it; any other is the "
+        "crew's. The value is the crew's"
+    )
+    if not merged:
+        return _number("shas_per_pr", None, "", None, 0, how)
+    kinds = Counter(kind for p in merged for _, _, kind in facts.heads.get(int(p["number"]), []))
+    crew, update = kinds["crew"] / len(merged), kinds["update"] / len(merged)
+    shown = f"{crew:.2f} crew + {update:.2f} update = {crew + update:.2f} ({len(merged)} merged)"
+    return _number("shas_per_pr", crew, shown, None, len(merged), how, PULLS)
+
+
+def _wait(key: str, facts: Facts, start: datetime, end: datetime, jobs: str) -> Number:
+    waited = [
+        j
+        for j in facts.jobs
+        if j["event"] == "pull_request"
+        and j.get("started")
+        and (SHARD.fullmatch(j["name"]) if key == "wait_p90_shard" else j["name"] == "macos")
+        and _in(j["created"], start, end)
+    ]
+    how = (
+        f"the 90th percentile of the seconds a pull request's {jobs} job waited for a runner "
+        "(`created` to `started`), with the median, over the jobs created in the period that "
+        "started; a job cancelled while it waited is not counted"
+    )
+    if not waited:
+        return _number(key, None, "", None, 0, how)
+    seconds = [minutes(j["created"], j["started"]) * 60 for j in waited]
+    high, middle = percentile(seconds, 0.9), percentile(seconds, 0.5)
+    shown = f"{high:.0f} s (p50 {middle:.0f} s)"
+    return _number(key, high, shown, None, len(waited), how, _runners(waited))
+
+
+def wait_p90_shard(facts: Facts, start: datetime, end: datetime) -> Number:
+    return _wait("wait_p90_shard", facts, start, end, "`check N of M`")
+
+
+def wait_p90_macos(facts: Facts, start: datetime, end: datetime) -> Number:
+    return _wait("wait_p90_macos", facts, start, end, "`macos`")
+
+
+def open_to_merge(facts: Facts, start: datetime, end: datetime) -> Number:
+    merged = [p for p in _merged(facts, start, end) if p.get("created")]
+    how = (
+        "hours from a pull request's opening to its merge, median and 90th percentile, over "
+        "the pull requests merged in the period"
+    )
+    if not merged:
+        return _number("open_to_merge", None, "", None, 0, how)
+    hours = [minutes(p["created"], p["merged"]) / 60 for p in merged]
+    middle, high = percentile(hours, 0.5), percentile(hours, 0.9)
+    shown = f"{_text(middle)} h p50, {_text(high)} h p90"
+    return _number("open_to_merge", middle, shown, None, len(merged), how, PULLS)
+
+
+def first_check_own_red(facts: Facts, start: datetime, end: datetime) -> Number:
+    first: dict[int, dict[str, Any]] = {}
+    for job in facts.checks:
+        first.setdefault(job["pr"], job)
+    counted = [j for j in first.values() if _in(j["created"], start, end)]
+    how = (
+        "of the pull requests whose first completed `check` job was created in the period, the "
+        "share whose first check was red for a cause of its own, by red share's rule (a log not "
+        "read counts as its own)"
+    )
+    if not counted:
+        return _number("first_check_own_red", None, "", None, 0, how)
+    red = [j for j in counted if j["conclusion"] == "failure"]
+    own = sum(facts.own_red(j) for j in red)
+    shown = f"{_share(own, len(counted))} ({own} of {len(counted)} first checks, {len(red)} red)"
+    return _number(
+        "first_check_own_red",
+        own / len(counted),
+        shown,
+        None,
+        len(counted),
+        how,
+        _runners(counted),
+    )
+
+
 ALL: tuple[Callable[[Facts, datetime, datetime], Number], ...] = (
     queue,
     waste,
@@ -554,11 +788,20 @@ ALL: tuple[Callable[[Facts, datetime, datetime], Number], ...] = (
     mainred,
     flaky,
     inode,
+    red_share,
+    shas_per_pr,
+    wait_p90_shard,
+    wait_p90_macos,
+    open_to_merge,
+    first_check_own_red,
 )
+HEALTH = ALL[9:]
+"""The six health numbers, which the report also gives day by day."""
 
 
 def compute(facts: Facts, start: datetime, end: datetime) -> list[Number]:
-    """Count the nine targets over the window from `start` up to `end`."""
+    """Count the nine targets and the six health numbers over the window from `start` up to
+    `end`."""
     return [one(facts, start, end) for one in ALL]
 
 

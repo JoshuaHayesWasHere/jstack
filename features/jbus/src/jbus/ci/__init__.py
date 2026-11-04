@@ -70,7 +70,7 @@ def facts_of(state: Path, now: datetime) -> numbers.Facts:
 def lines(nine: list[numbers.Number]) -> list[str]:
     found = []
     for one in nine:
-        verdict = "MISSED" if one.met is False else "met" if one.met else "no data"
+        verdict = "MISSED" if one.met is False else report.verdict(one)
         runners = f"; {one.runners}" if one.runners else ""
         found.append(f"{one.name}: {one.shown} (held to {one.target}) {verdict}{runners}")
         found.append(f"  counted: {one.how} (n = {one.n})")
