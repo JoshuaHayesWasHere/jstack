@@ -13,12 +13,12 @@ It also keeps AI co-author trailers out of your commits and pull requests, as [A
   Take the `#` off each line you need, and put in your own names.
 - **With no patterns file, the hooks refuse.**
   While the file is missing, the `pre-push` hook refuses every push.
-  The Claude Code hook then refuses every `gh pr create`, `gh pr edit`, `gh pr comment` and `gh pr review`, and every `git push` that skips the `pre-push` hook.
+  The Claude Code and Codex hook then refuses every `gh pr create`, `gh pr edit`, `gh pr comment` and `gh pr review`, and every `git push` that skips the `pre-push` hook.
   When you run `jleak` by hand, it checks only the built-in patterns and says so on stderr.
 - **Know which repos get the git hooks.**
   The install links `pre-push` and `commit-msg` into three kinds of repo: jstack's own checkout when the install runs from one, the checkout of each project in `jbus`'s config, and each repo you set up with `jinstall --repo`.
   To add them to another repo, run `jinstall --repo` in it.
-  The Claude Code hooks live in your own settings, so they read the commands of every repo on the machine, as [Which repos get the git hooks](#which-repos-get-the-git-hooks) describes.
+  The Claude Code and Codex hooks live in your own settings, so they read the commands of every repo on the machine, as [Which repos get the git hooks](#which-repos-get-the-git-hooks) describes.
 
 ## The private patterns
 
@@ -97,7 +97,7 @@ jleak: 3 findings, so the push is refused
 The install links it at `.git/hooks/pre-push` of each repo jstack works in, as [Which repos get the git hooks](#which-repos-get-the-git-hooks) says.
 The repo's worktrees run the same hook.
 
-`features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on Claude Code's shell commands.
+`features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on the shell commands of Claude Code and Codex.
 It runs `jleak --command` and refuses, with exit code 2:
 
 - A `gh pr create`, `gh pr edit`, `gh pr comment` or `gh pr review` whose text matches a pattern.
@@ -151,10 +151,10 @@ The install links it at `.git/hooks/commit-msg` of each repo jstack works in, be
 ## Infra's files
 
 Infra's files, port 3773 and T3 Code's tailnet setup are the infra home's to change.
-`features/jleak/hooks/infra-files.sh` is a `PreToolUse` hook on Claude Code's `Bash`, `Write`, `Edit`, `MultiEdit` and `NotebookEdit` calls.
+`features/jleak/hooks/infra-files.sh` is a `PreToolUse` hook on Claude Code's `Bash`, `Write`, `Edit`, `MultiEdit` and `NotebookEdit` calls, and on Codex's `Bash` and `apply_patch` calls.
 It runs `jleak --infra`, and `jleak.infra` (`features/jleak/src/jleak/infra.py`) says in full what it refuses, with exit code 2:
 
-- A call that writes `~/.config/jstack/roles`, `~/.config/jbus/config.toml`, the file a link of either points to, `~/.t3/userdata/server-runtime.json` (T3 Code's host and port), a `~/.config/systemd/user/t3-port-*` unit, or `~/.local/bin/t3-port-follow`.
+- A call that writes, or an `apply_patch` that adds, updates, deletes or moves to, `~/.config/jstack/roles`, `~/.config/jbus/config.toml`, the file a link of either points to, `~/.t3/userdata/server-runtime.json` (T3 Code's host and port), a `~/.config/systemd/user/t3-port-*` unit, or `~/.local/bin/t3-port-follow`.
 - A command that changes port 3773 or T3 Code's tailnet setup: `tailscale serve` or `funnel` on 3773, or its `reset`, a `systemctl` verb that is not a read on a `t3-port-*` unit, a listener on 3773, or `fuser -k` on it.
 
 A shell command writes a file when it redirects into it, or names it and is not a command that only reads it.
@@ -170,7 +170,7 @@ jleak: ~/.config/jbus/config.toml is infra's, so the call is refused: send the i
 ```
 
 The infra home and its crew are let through.
-The hook's test of which home runs a call reads the project the session started in, Claude Code's `CLAUDE_PROJECT_DIR`, and the hook's `cwd` when that is not set.
+The hook's test of which home runs a call reads the project the session started in, Claude Code's `CLAUDE_PROJECT_DIR`, and the hook's `cwd` when that is not set, as under Codex.
 A call passes when that folder is a checkout of the repo named `infra`, or a worktree of it.
 A thread of another repo whose shell moves into infra's checkout is still refused, since its project has not changed.
 
