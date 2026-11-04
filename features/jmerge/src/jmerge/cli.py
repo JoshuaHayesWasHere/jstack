@@ -686,12 +686,20 @@ class Repo:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ""
+        return self.in_turn(one, tip, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE), ""
+
+    def in_turn(self, one: ready.PullRequest, tip: str, asked: str, due: str) -> str:
+        """Why the pull request waits for GitHub's merge of the base at `tip` into its branch:
+        `asked` or `due` once it is its turn, and in line behind the pull request at the head of
+        the line (`self.line`) until then. Green, red and unrun alike take their place in one
+        line, in merge order, so each merge costs one CI round: #1009's probe, with one green
+        pull request in line and two red ones, asked GitHub to update all three each time main
+        moved."""
         if self.line not in (None, one.number):
-            return ready.IN_LINE.format(number=self.line, base=one.base), ""
-        reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-        said = self.base_merge.of(one, tip, *reasons, line=True)
+            return ready.IN_LINE.format(number=self.line, base=one.base)
+        said = self.base_merge.of(one, tip, asked, due, line=True)
         self.line = self.base_merge.holder((one.number,))
-        return said, ""
+        return said
 
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose required checks failed waits, judged over today's base. Its
@@ -700,7 +708,8 @@ class Repo:
         runs of a check that failed, whichever required check it is, failed a same test of its
         own (`rejudge.Repeated`): a merge would fail it again. Nor is a red main merged in while
         jbus's `main.json` names it red: its head would be red again, a CI round spent for nothing,
-        so the check waits as its own until main is green."""
+        so the check waits as its own until main is green. The merge waits its turn in the line
+        green pull requests take (`in_turn`)."""
         moved = None if one.started is None else self.moved(one.base, one.started)
         if (
             moved is None
@@ -709,7 +718,7 @@ class Repo:
             or any(self.base_merge.repeats(one, moved[0], check) for check in one.failed)
         ):
             return red
-        return self.base_merge.of(one, moved[0])
+        return self.in_turn(one, moved[0], ready.BASE_MERGE_ASKED, ready.BASE_MERGE_DUE)
 
     def proven_at(self, one: ready.PullRequest, text: str) -> str:
         """The head whose review proved the safety fact that holds at `one`'s head: that head's
@@ -828,8 +837,7 @@ class Repo:
         if red and re.fullmatch(ready.NO_RUN.pattern, red):
             moved = None if one.started is None else self.moved(one.base, one.started)
             if moved is not None and moved[1]:
-                reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-                red = self.base_merge.of(one, moved[0], *reasons)
+                red = self.in_turn(one, moved[0], ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
             return Judgement(brief.stem, "wait", red, note, None)
         if red:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
@@ -1862,10 +1870,16 @@ check, gives the line to the next pull request: one that waits on its crew or th
 hold every other one main moved past for as long."""
 
 
+UPDATING_RED = frozenset((ready.BASE_MERGE_ASKED.code, ready.BASE_MERGE_DUE.code))
+"""The waits of a pull request whose failed check is what its turn at the head of the line is
+for: GitHub's merge of the base into it, asked or due (`Repo.again`)."""
+
+
 def in_line(one: ready.PullRequest, found: Judgement) -> bool:
-    """Whether the pull request at the head of the line keeps it after this judgement."""
+    """Whether the pull request at the head of the line keeps it after this judgement. A failed
+    check gives it up, unless the base's merge into it, its turn, is for that check."""
     if one.failed:
-        return False
+        return ready.code_of(found.why) in UPDATING_RED
     return found.judged is not None or ready.code_of(found.why) in IN_LINE
 
 
