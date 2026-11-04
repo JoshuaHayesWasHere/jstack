@@ -36,6 +36,8 @@ def anchors(name, page):
 
 def test_the_units_are_the_ones_install_links():
     assert UNITS == [
+        "jbus-ci-day.service",
+        "jbus-ci-day.timer",
         "jbus-ci.service",
         "jbus-ci.timer",
         "jbus-failed.service",
