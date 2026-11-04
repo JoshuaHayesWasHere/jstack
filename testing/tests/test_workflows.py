@@ -999,6 +999,9 @@ def kept_key(home, restored):
     return output.read_text().strip().removeprefix("key=")
 
 
+@pytest.mark.skipif(
+    not shutil.which("sha256sum"), reason="the step runs on ubuntu, whose coreutils have sha256sum"
+)
 def test_a_part_saves_tlc_runs_only_when_it_added_some_under_the_spec_files_and_what_it_holds(
     tmp_path,
 ):
