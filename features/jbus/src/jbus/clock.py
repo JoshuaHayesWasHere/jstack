@@ -128,6 +128,7 @@ AHEAD = (
     (ready.STACKED_ON, "slug"),
     (ready.CARRIES_AFTER, "slug"),
     (ready.MIGRATION_REBASING, "number"),
+    (ready.IN_LINE, "number"),
 )
 """The waits on a row ahead, each with the field that names that row. While its pull request is
 open, what holds it is its own wait, which the merge runner, a thread, `held` or a clock above is
