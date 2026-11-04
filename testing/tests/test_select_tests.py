@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from test_home_thread import named
-from testing.paths import REPO, sources
+from testing.paths import REPO, skills, sources
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
@@ -515,6 +515,59 @@ def test_a_file_beside_a_skill_that_no_line_includes_selects_as_before(tmp_path)
     repo = Repo(tmp_path, files={**FILES, **INCLUDED})
 
     assert repo.selected(repo.change(["skills/three/alone.md"])) == ["testing/tests/test_tree.py"]
+
+
+BLOCKS = {
+    "skills/three/SKILL.md": "First read `$T/../skills/three/part.md` now.\n",
+    "skills/three/part.md": "part\n",
+    "testing/tests/reader.py": (
+        "from testing.paths import skills\n\n\n"
+        "def block(skill):\n    return (skills()[skill] / 'SKILL.md').read_text()\n"
+    ),
+    "testing/tests/test_block.py": "from reader import block\n\nB = block('three')\n",
+    "testing/tests/test_names_three.py": "from alpha import a\n\nWORD = 'three'\n",
+}
+
+
+@pytest.mark.parametrize("path", ["skills/three/SKILL.md", "skills/three/part.md"])
+def test_a_skill_selects_the_tests_that_read_it_by_its_name_through_the_index_of_skills(
+    tmp_path, path
+):
+    """`test_block.py` spells no path of the skill: it names the skill, and the module it imports
+    reads the skill's `SKILL.md` through `testing.paths.skills()`. `test_names_three.py` names the
+    skill too, but reads no skill, so it is not selected: its import of `alpha` keeps it out of
+    the catch-all."""
+    repo = Repo(tmp_path, files={**FILES, **BLOCKS})
+
+    assert repo.selected(repo.change([path])) == [
+        "testing/tests/test_block.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
+def test_the_selector_finds_the_skills_the_index_finds():
+    assert select.skills() == {
+        name: folder.relative_to(REPO).as_posix() for name, folder in skills().items()
+    }
+
+
+@pytest.mark.parametrize(
+    "path, reader",
+    [
+        ("features/home/skills/home/SKILL.md", "features/home/tests/test_quiet_turns.py"),
+        ("features/home/skills/home/SKILL.md", "features/home/tests/test_home_start.py"),
+        ("features/home/skills/handoff/SKILL.md", "features/home/tests/test_handoff_mail.py"),
+        ("features/crew/a-gate.md", "features/jbus/tests/test_gates.py"),
+        ("features/ketchup/SKILL.md", "features/home/tests/test_home_needs.py"),
+    ],
+)
+def test_a_change_to_a_skill_selects_the_tests_that_run_its_shell_blocks(path, reader):
+    """Each test runs a block of the skill that `test_home_thread` takes from
+    `skills()[name] / "SKILL.md"`, with the files that skill folds in. A break of the home skill's
+    turn-end block once failed `test_quiet_turns.py`, and the selection ran without it."""
+    tests, _ = select.selection([path])
+
+    assert reader in tests
 
 
 def test_the_selector_follows_the_includes_the_tests_fold_in():
