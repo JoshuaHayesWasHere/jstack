@@ -505,12 +505,29 @@ def test_a_rerun_github_refuses_is_told_to_the_home_once_and_not_tried_again(lau
     ran(launched)
     launched.set("open.json", [pull(launched, [cancelled()])])
     passes(launched, 0, 3, 6)
-    said = (
-        "alpha: #7: its check was cancelled at 30 min, and GitHub did not run it again: "
-        "run cannot be rerun"
-    )
+    why = "#7: its check was cancelled, and GitHub did not run it again (it ran 30 min)"
     assert reruns(launched) == ["run rerun 5 --failed"]
-    assert stalls_told(launched) == [said]
+    assert stalls_told(launched) == [f"alpha: {why}: run cannot be rerun"]
+    assert rows(launched)["alpha"]["why"] == why
+
+
+def test_a_refused_rerun_told_before_its_reason_had_a_name_is_said_with_it_at_the_next_pass(
+    launched,
+):
+    """A row told before the reason had its name kept the line of then, the minutes in its middle
+    and GitHub's refusal after it, which no rule places. The next pass says it as it is said now."""
+    (launched.home / "home-id").write_text("mcp:home\n")
+    launched.set("gh-no-rerun", "")
+    ran(launched)
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0)
+    old = "#7: its check was cancelled at 30 min, and GitHub did not run it again: HTTP 403"
+    path = launched.state / "cancelled.json"
+    path.write_text(json.dumps({"alpha": {"head": HEAD, "why": old}}))
+    passes(launched, 3)
+    why = "#7: its check was cancelled, and GitHub did not run it again (it ran 30 min)"
+    assert rows(launched)["alpha"]["why"] == why
+    assert reruns(launched) == ["run rerun 5 --failed"]
 
 
 def sharded(*parts):
