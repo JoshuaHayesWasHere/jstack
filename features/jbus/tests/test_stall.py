@@ -179,7 +179,7 @@ def test_a_row_that_takes_the_last_slot_does_not_hide_the_chain_behind_it(kitche
     kitchen.config(max_running=1)
     add(kitchen, "ready", priority=0)
     built = brief("jbus-e", "Builds on: jbus-d\n")
-    changed = built.replace("- it is done\n", "- it is done\n- more\n")
+    changed = built.replace("- `make check` passes\n", "- `make check` passes\n- more\n")
     add(kitchen, "jbus-e", priority=5, depends="jbus-d", approve=False, text=changed)
     said = kitchen.poll(later(3))
     assert any(
