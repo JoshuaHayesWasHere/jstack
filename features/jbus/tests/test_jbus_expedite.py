@@ -517,7 +517,8 @@ def test_a_line_about_a_head_that_is_gone_does_not_hide_a_review_that_never_came
     short.out(NO_REVIEW, result=f"Unrun: at {short.saw}, no check ran\n", review=False)
     short.passes(3)
     assert [sent["clientRequestId"] for sent in sends(kitchen)] == [
-        f"unreviewed|alpha|{short.head[:12]}"
+        f"green|alpha|{short.head[:12]}",
+        f"unreviewed|alpha|{short.head[:12]}",
     ]
 
 

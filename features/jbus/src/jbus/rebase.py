@@ -332,11 +332,16 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     The reviewer is launched only once `check` has passed, so a crew whose check was still
     running when it opened the pull request launched nothing and waits for this message. It owes
     the line where the brief has no reviewer launched, no `Reviewer: none` line, no `## Review`,
-    and no `Unrun:`, `Stuck:` or `Stale base:` line at this head, whatever its `Review:` line says.
+    and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. A brief whose `Review:` line is
+    not `none` owes it only once it has a `## Result`, which the crew writes before it launches:
+    a crew that stopped before its Result is carried on by the clock (`jbus.clock`) instead.
     The crew writes the `Reviewer:` line when it launches, and the `Reviewer: none` line when it
     sends its message. Each of the other three lines comes with a gate or a message that already
     tells of the pull request. jbus alone merges, so no home waits to hear of a fix on green.
     """
+    reviewed = "".join(below.line(brief, "Review:").split()[:1]) != "none"
+    if reviewed and not re.search(r"^## Result", brief, re.M):
+        return False
     said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
     return not (review.launched(brief) or said_none or review.reviewed(brief) or gated)

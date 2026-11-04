@@ -352,6 +352,7 @@ def test_a_pull_request_with_no_reviewer_yet_is_told_to_launch_it_once_its_check
     tells it nothing while the check runs or once a reviewer is out."""
     brief = launched.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text().replace("Review: review\n", f"Review: {mode}\n"))
+    result(launched, "Branch: alpha   Pull request: https://example.test/pull/7\n")
     launched.set("jmerge.txt", "")
     running = [{"status": "IN_PROGRESS", "conclusion": ""}]
     launched.set("open.json", [pull(launched, running)])
