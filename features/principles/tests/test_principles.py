@@ -40,7 +40,7 @@ def test_a_principle_opens_with_its_heading_and_has_a_body(path):
 def test_a_principle_is_a_skill_a_model_may_load_described_by_its_apply_when_line(path):
     front = frontmatter.parse(path.read_text())
     _, text = frontmatter.split(path.read_text())
-    apply = text.lstrip("\n").split("\n\n")[1]
+    apply = " ".join(text.lstrip("\n").split("\n\n")[1].splitlines())
     assert front == {
         "name": named(path),
         "description": apply,
