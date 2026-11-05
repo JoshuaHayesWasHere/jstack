@@ -448,11 +448,34 @@ def test_ci_day_ruleset_requiring_a_check_required_checks_does_not_name_is_drift
     assert "rules differ" not in line
 
 
-def test_ci_day_ruleset_gh_does_not_give_is_said_and_tells_nobody(guarded):
-    guarded.gh.code = 1
+@pytest.mark.parametrize(
+    ("code", "answer", "why"),
+    [(1, None, "gh: HTTP 502"), (0, {"message": "Not Found"}, "gh gave no rules")],
+)
+def test_ci_day_ruleset_gh_does_not_give_is_said_and_tells_nobody(guarded, code, answer, why):
+    guarded.gh.code, guarded.gh.ruleset = code, answer
 
-    code, said, _ = guarded.run()
+    ran, said, _ = guarded.run()
 
-    assert code == 0, said
-    assert "ruleset 25665226 not read: gh: HTTP 502" in said
+    assert ran == 0, said
+    assert f"ruleset 25665226 not read: {why}" in said
     assert told(guarded) == []
+
+
+def test_ci_day_ruleset_of_a_checkout_with_no_github_origin_is_said_and_never_asked(guarded):
+    guarded.kitchen.git("remote", "set-url", "origin", "/elsewhere/demo.git")
+
+    _, said, _ = guarded.run()
+
+    assert "ruleset 25665226 not read: the checkout has no GitHub origin" in said
+    assert guarded.gh.calls == []
+    assert told(guarded) == []
+
+
+def test_ci_day_ruleset_with_no_required_checks_file_is_held_to_jmerges_check_alone(guarded):
+    (guarded.home / "required-checks").unlink()
+
+    guarded.run()
+
+    (line,) = told(guarded)
+    assert "requires borders, macos, which required-checks does not name" in line
