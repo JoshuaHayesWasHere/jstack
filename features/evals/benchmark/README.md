@@ -27,6 +27,9 @@ It prints, over `--days` (default 7) and `--churn-days` (default 90):
 - The size of the skills' sh blocks at each commit.
 - The upkeep ledger: each duty's fix share over `--churn-days`, and its commits and cost over `--days`.
 
+Each window ends at `--until`, a UTC time such as `2026-11-03T01:37:48Z` (default now), and starts `--days` or `--churn-days` before it.
+The `--json` names that end as `until`, and no time of the run itself, so two runs with one `--until` over records that did not change write the same file.
+
 Every path comes from `--home` (default `$HOME`), `--project` (default `jstack`) and `--repo` (default this checkout).
 A record that is not on disk counts as empty, and stderr names it, as it does a model the prices do not have, which counts as $0.
 
