@@ -2,7 +2,7 @@
 
 The script defines the rules, and this module runs it on fixtures. Each test runs the script as a
 command, on the tree or on a small tree that has a fault in it. It then reads the `FAIL <doc>:<line>
-<why>` lines and the `<n> problems` line that the script prints.
+<why>` lines and the `<n> problems` line that the script prints, after its `read` line.
 """
 
 import importlib.util
@@ -29,21 +29,35 @@ ROOTS = (
 )
 
 
-def ran(root):
-    """The FAIL lines the script prints for `root`. It first asserts that the script's count of
-    problems and its exit code agree with those lines."""
+def printed(root):
+    """What the script prints for `root`: its `read` line and its FAIL lines. It first asserts that
+    the script's count of problems and its exit code agree with those lines."""
     done = subprocess.run(
         [sys.executable, "-I", SCRIPT, str(root)], capture_output=True, text=True, check=False
     )
     assert done.stderr == ""
-    *found, count = done.stdout.splitlines()
+    read, *found, count = done.stdout.splitlines()
+    assert read.startswith("read ")
     assert count == f"{len(found)} problems"
     assert done.returncode == (1 if found else 0)
-    return found
+    return read, found
+
+
+def ran(root):
+    """The FAIL lines the script prints for `root`."""
+    return printed(root)[1]
 
 
 def test_the_readme_and_the_docs_say_nothing_the_tree_does_not_have():
     assert ran(REPO) == []
+
+
+def test_the_trees_html_pages_are_read_and_named():
+    read, _ = printed(REPO)
+    pages = sorted(REPO.glob("features/*/docs/**/*.html"))
+    assert pages
+    for page in pages:
+        assert page.relative_to(REPO).as_posix() in read.split()
 
 
 def test_the_tree_is_read_whole_and_counted():
@@ -349,4 +363,41 @@ def test_a_skill_playbook_or_command_no_table_or_link_lists_is_found(small):
         "FAIL README.md:1 no page of the docs links features/delta/SKILL.md",
         "FAIL README.md:1 no page of the docs links features/eta/skills/epsilon/SKILL.md",
         "FAIL README.md:1 no page of the docs links skills/gamma/SKILL.md",
+    ]
+
+
+def test_an_html_page_of_the_docs_is_read_as_its_text_its_code_and_its_links(small):
+    make(
+        small,
+        {
+            "features/x/docs/a.html": (
+                "<!doctype html>\n<style>\n.a { background: url(/gamma) }\n"
+                "/* claude-gone-1-1 skills/gone/SKILL.md */\n</style>\n"
+                "<p>Run <code>/alpha &lt;slug&gt;</code>,"
+                ' see <a class="x" href="#top">top</a>.</p>\n'
+                '<h2 id="top">The script installs the two commands.</h2>\n'
+                "<p>It installs the nine commands and has 3 skills.</p>\n"
+                "<h4>/gamma</h4><p>Type <code>/delta now</code>"
+                " on <code>claude-fake-5-5</code>.</p>\n"
+                '<p><a href="b.html#there">b</a> <a href="b.html#nowhere">b</a>'
+                ' <a href="gone.html">g</a> <a href="#nowhere">n</a></p>\n'
+                "<p><code>skills/alpha/SKILL.md</code> <code>skills/gone/SKILL.md</code>"
+                " and claude-gone-4-7.</p>\n"
+            ),
+            "features/x/docs/b.html": '<p id="there">B</p>\n',
+        },
+    )
+    page, table = "features/x/docs/a.html", "the Models table of features/jroles/docs/jroles.md"
+    read, found = printed(small)
+    assert page in read.split() and "features/x/docs/b.html" in read.split()
+    assert found == [
+        f"FAIL {page}:8 it counts 3 skills and the tree has 2",
+        f"FAIL {page}:8 it counts 9 commands and the tree has 2",
+        f"FAIL {page}:9 /delta is named as a skill and skills/ has no delta",
+        f"FAIL {page}:9 /gamma is named as a skill and skills/ has no gamma",
+        f"FAIL {page}:10 the link b.html#nowhere goes to a heading that is not there",
+        f"FAIL {page}:10 the link gone.html goes to a file that is not there",
+        f"FAIL {page}:10 the link #nowhere goes to a heading that is not there",
+        f"FAIL {page}:11 skills/gone/SKILL.md is named and the tree has no such path",
+        f"FAIL {page}:11 the model claude-gone-4-7 is not in {table}",
     ]
