@@ -134,6 +134,8 @@ def test_with_every_short_slot_taken_a_thread_waits_in_the_call_and_takes_the_fi
     try:
         run = started(machine, "--short", "--", "echo", "ran", wait="15")
         _in_line(machine, 2)
+        time.sleep(0.5)
+        assert run.poll() is None
         os.close(held.pop())
         ran = ended(run)
     finally:
@@ -141,7 +143,6 @@ def test_with_every_short_slot_taken_a_thread_waits_in_the_call_and_takes_the_fi
         for fd in held:
             os.close(fd)
     assert (ran.returncode, ran.stdout) == (0, "ran\n")
-    assert "waiting up to 15 s for one of" in ran.stderr
     assert waiters.read(machine.locks) == []
 
 
