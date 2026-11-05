@@ -166,8 +166,6 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 
 | Limit | Where | Value | Protects | Its yelena basis |
 |---|---|---|---|---|
-| A docs page | `features/jbus/tests/test_jbus_pages.py` | `CAP = 300` | A page stays short | Design choice |
 | A SKILL.md | `features/repo-guards/tests/test_skill_size.py` | `CAP = 400` | A skill keeps a spine | Design choice |
 | A test file | `features/repo-guards/tests/test_test_size.py` | `CAP = 1500` | A test file stays short | Design choice |
 | A module | `features/repo-guards/tests/test_module_size.py` | `CAP = 800` | A module stays short | Design choice |
-| `jbus/poll.py` | `features/jbus/tests/test_jbus_poll_size.py` | `LINES = 300` | The pass stays thin | Design choice |
