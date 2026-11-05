@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from jbus import passes
-from jgauge import cli
+from jgauge import cli, slotlog
 
 DAY = 86400
 HEADER = (
@@ -323,7 +323,7 @@ def test_the_report_gives_the_test_slots_holds_occupancy_and_waits_by_lane(
     counts its part inside, a hold still running counts to the end, and one whose holder died
     with no release counts as lost. A thread waited for a full slot 10:10 to 10:20, when 2.5
     slots were held on average."""
-    log = tmp_path / "state" / "jgauge" / "slots.jsonl"
+    log = slotlog.path(tmp_path / "state" / "locks")
     log.parent.mkdir(parents=True)
     gone = subprocess.Popen(["true"])
     gone.wait()

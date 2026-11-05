@@ -236,7 +236,7 @@ Each row has:
 - `lane`, `slot`, the slot's number, and `slots`, the lane's size as the caller counted it
 - `thread`, empty with no `--thread`, `command` and `cwd`, which name the caller
 - on a take, `waited`, the seconds the call waited for the slot
-- on a release, `code`, the command's exit code, and `held`, the seconds it held the slot
+- on a release, `code`, the command's exit code, and `hold`, the seconds it held the slot
 
 The release row is written before the lock is let go, so a slot's next take comes after it in the log.
 A log that cannot be written stops no run.

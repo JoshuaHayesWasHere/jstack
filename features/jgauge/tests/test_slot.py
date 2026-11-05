@@ -642,7 +642,7 @@ def test_every_take_and_release_in_both_lanes_appends_one_row_to_the_slot_log(sl
     assert all(r["cwd"] == os.getcwd() and r["pid"] > 0 for r in rows)
     assert [r["code"] for r in releases] == [7, 0, 0]
     assert takes[0]["waited"] < 1 and takes[1]["waited"] >= 4 * slot.LOOK_EVERY_SECONDS
-    assert all(r["held"] >= 0 for r in releases)
+    assert all(r["hold"] >= 0 for r in releases)
     for one in rows:
         datetime.fromisoformat(one["at"])
 

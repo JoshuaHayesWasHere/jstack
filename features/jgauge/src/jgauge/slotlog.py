@@ -16,7 +16,7 @@ A row is one JSON object:
   caller counted it, so a run with `--slots 5` shows as one;
 - `thread`, the thread id or nothing, `command` and `cwd`, which name the caller;
 - on a take, `waited`, the seconds the call waited for the slot;
-- on a release, `code`, the command's exit code, and `held`, the seconds the slot was held.
+- on a release, `code`, the command's exit code, and `hold`, the seconds the slot was held.
 
 A row is one `write` with `O_APPEND`, under the lock on the log's directory that `jgauge sample`
 also takes. Once the first row is over 30 days old, the writer keeps the last 29 days, as the
@@ -144,7 +144,7 @@ def release(taken: Taken, code: int) -> None:
             "event": "release",
             **taken.fields,
             "code": code,
-            "held": round(held, 3),
+            "hold": round(held, 3),
         },
     )
 
