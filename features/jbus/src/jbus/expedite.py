@@ -558,13 +558,16 @@ UNTOLD = {
     ready.NO_RUN.code: "GitHub started no run at the head, a gate of The checks and no push's",
     ready.MAIN_BROWSER_RED.code: "main's own browser run failed too, so the red is not the crew's",
     ready.CANCELLED_UNRUN.code: "jbus.cancelled runs a cancelled check again, and a push does not",
+    ready.QUEUED_UNREOPENED.code: (
+        "jmerge closed the pull request and could not reopen it, and tell sees open ones only"
+    ),
     ready.CANCELLED_TWICE.code: "jbus.cancelled takes a check cancelled twice to the home",
     **dict.fromkeys(
         (
             "main-moved merging merge-failed no-messages undecided not-passed live-run "
             "queue-unreadable carries-unknown base-merge-asked base-merge-due base-merge-refused "
             "base-moved-asked base-moved-due in-line queued-restarted queued-unopened "
-            "queued-unclosed queued-gave-up"
+            "queued-unclosed queued-gave-up queued-unrestarted"
         ).split(),
         _RUNNER,
     ),
