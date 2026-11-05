@@ -44,6 +44,9 @@ PASS_MIN = 1.0
 """Minutes between jbus passes, each of which runs jmerge: the passes table (2026-11-02, the
 only day it held when kpi-lab-3 ran) has 199 gaps from 60.0 s to 66.0 s."""
 WARMUP_DAYS = 3
+THIN = {"arrival days": 7, "finished spells": 10}
+"""Fewer of these in the fit than this and the backtest warns: the arrivals bootstrap from that many
+days, and a run's restore times and change failures draw from that many spells."""
 RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 KPIS = {
     "pr_median": "PR open to merge, median min",
@@ -255,6 +258,19 @@ def oracle(db: sqlite3.Connection, span: Span, w: Week) -> tuple[dict[str, dict]
     }, g
 
 
+def thin(f: Fit) -> list[str]:
+    """What the fit has too little of to trust the bands it gives."""
+    days = f.notes["arrival_days"]
+    has = {"arrival days": len(days), "finished spells": f.notes["finished_spells"]}
+    seen = {"arrival days": f" ({days[0]}..{days[-1]})" if days else ""}
+    return [
+        f"the fit has {has[k]} {k}{seen.get(k, '')}, fewer than {least}: the bands rest on too "
+        "few draws"
+        for k, least in THIN.items()
+        if has[k] < least
+    ]
+
+
 def band(xs: list[float | None]) -> dict:
     ys = sorted(x for x in xs if x is not None)
     if not ys:
@@ -346,6 +362,7 @@ def backtest(db: sqlite3.Connection, span: Span, runs: int) -> dict:
             "notes": g.notes,
         },
         "swaps": out_swaps,
+        "warnings": thin(f),
     }
 
 
@@ -392,6 +409,8 @@ def show(o: dict) -> None:
         f"  limiter: {limiter[0]}, {limiter[1]}: each run draws from these, so a band is no "
         "wider than they vary"
     )
+    for w in o["warnings"]:
+        print(f"  warning: {w}")
 
 
 def main() -> None:
