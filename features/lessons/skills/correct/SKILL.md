@@ -31,8 +31,8 @@ H=~/.local/state/home/$R
 echo "## commits that fix or revert"
 git log -n 300 -i -E --grep='^(revert|fix)' --format='%h %s' | head -n 60
 echo "## steers, things noticed and review findings in the briefs"
-grep -HE '^(Steers:|Noticed:|- (error|warning|info) )' "$H"/tasks/*.md 2> /dev/null |
-    grep -vE ':(Steers|Noticed): none$' | sed "s|^$H/tasks/||" | head -n 120
+command grep -HE '^(Steers:|Noticed:|- (error|warning|info) )' "$H"/tasks/*.md 2> /dev/null |
+    command grep -vE ':(Steers|Noticed): none$' | sed "s|^$H/tasks/||" | head -n 120
 ```
 
 A `Steers:` line is the user correcting a crewmate.

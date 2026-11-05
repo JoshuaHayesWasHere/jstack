@@ -77,7 +77,7 @@ New prose is one sentence per line, and an old line the pull request did not tou
            echo "go: the brief has no ## Review with $by, so this is that line's review"
        fi ;;
    *)
-       if ! grep -qx '## Review' "$B"; then
+       if ! command grep -qx '## Review' "$B"; then
            echo "go: the brief has no ## Review, so this is the review it is owed"
        else
            echo "stop: the brief has a ## Review and the message does not end in again"
@@ -184,8 +184,8 @@ printf '%s\n' "$OPEN" | jq -r --argjson pr "$PR" '
   | "pull request \(.number) (\(.title)): \($both | join(", "))"'
 for other in "$H"/tasks/*.md; do
   [ "$other" = "$BRIEF" ] && continue
-  grep -q '^## Result' "$other" && continue
-  where=$(sed -n 's/^Where: //p' "$other" | grep -o '`[^`]*`' | tr -d '`' | tr '\n' ' ')
+  command grep -q '^## Result' "$other" && continue
+  where=$(sed -n 's/^Where: //p' "$other" | command grep -o '`[^`]*`' | tr -d '`' | tr '\n' ' ')
   both=$(printf '%s\n' "$PR" | jq -r '.files[].path' | awk -v where="$where" '
     BEGIN { n = split(where, w, " "); for (i = 1; i <= n; i++) sub(/\/$/, "", w[i]) }
     { for (i = 1; i <= n; i++) if ($(0) == w[i] || index($(0), w[i] "/") == 1) { print; next } }' |

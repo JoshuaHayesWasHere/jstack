@@ -23,7 +23,7 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
    ```sh
    for n in <the notes of this pass>; do
        for part in Answer Sources Confidence 'Not checked'; do
-           if [ "$(grep -c "^#* *$part\$" "$E/notes/$n")" != 1 ]; then echo "not once in $n: $part"; fi
+           if [ "$(command grep -c "^#* *$part\$" "$E/notes/$n")" != 1 ]; then echo "not once in $n: $part"; fi
        done
    done
    jpack lint "$E"

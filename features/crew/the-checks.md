@@ -50,7 +50,7 @@ else
         echo "wait: could not fetch origin/$base"
     elif ! git merge-base --is-ancestor "origin/$base" HEAD; then
         echo "stale: the check command passes here at $head, and the branch does not hold the tip of origin/$base: no rerun, no commit, no rebase"
-    elif grep -q "^Rerun: at $head," "$B"; then
+    elif command grep -q "^Rerun: at $head," "$B"; then
         echo "stuck: a fresh run at $head failed again while the check command passes here: not a flake, no second rerun"
     elif [ -z "$runs" ]; then
         echo "stuck: the failed check at $head is not a workflow run, so there is nothing to run again"

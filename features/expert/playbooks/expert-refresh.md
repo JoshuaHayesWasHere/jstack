@@ -21,7 +21,7 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
    new='<now>'
    at=$(git -C "$src" rev-parse -q --verify "$new^{commit}") || { echo "no list: $src has no commit $new"; exit 1; }
    behind() {
-       grep -owE '[0-9a-f]{7,40}' | sort -u | while read -r rev; do
+       command grep -owE '[0-9a-f]{7,40}' | sort -u | while read -r rev; do
            if is=$(git -C "$src" rev-parse -q --verify "$rev^{commit}") && [ "$is" != "$at" ]; then echo "$rev"; fi
        done | paste -sd' ' -
    }
@@ -29,18 +29,18 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
    for note in "$E"/notes/*.md; do
        name=${note##*/}
        if [ "$name" = INDEX.md ]; then continue; fi
-       row=$(grep -F -- "$name" "$E/notes/INDEX.md")
+       row=$(command grep -F -- "$name" "$E/notes/INDEX.md")
        revs=$(behind < "$note")
        since=$(sed -n 's/^Stale since \([0-9a-f]*\).*/\1/p' "$note" | head -n 1)
        if [ -n "$since" ] && [ "$(git -C "$src" rev-parse -q --verify "$since^{commit}")" = "$at" ]; then
            case $row in
-           *stale*) if grep -qF -- "$name" "$E/unknowns.md"; then echo "stale: $name"; continue; fi ;;
+           *stale*) if command grep -qF -- "$name" "$E/unknowns.md"; then echo "stale: $name"; continue; fi ;;
            esac
            echo "write: $name as stale in INDEX.md and unknowns.md"
        elif [ -n "$revs" ]; then
            cited=$(for rev in $revs; do git -C "$src" -c core.quotePath=false diff --name-only --no-renames "$rev" "$at"; done |
                sort -u | while IFS= read -r file; do
-                   if grep -qF -- "${file##*/}" "$note"; then echo "$file"; fi
+                   if command grep -qF -- "${file##*/}" "$note"; then echo "$file"; fi
                done | paste -sd' ' -)
            if [ -n "$cited" ]; then echo "recheck: $name at $revs cites $cited"; else echo "restamp: $name at $revs"; fi
        elif [ -n "$(printf '%s\n' "$row" | behind)" ]; then

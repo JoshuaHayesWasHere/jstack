@@ -152,16 +152,16 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        why=
        if [ ! -s "$note" ]; then
            why="$note is not there"
-       elif grep -q '^<' "$note"; then
+       elif command grep -q '^<' "$note"; then
            why="a line of it is still the template's"
        else
            above=$(awk '/^## Gate/ {exit} NF' "$note")
-           lines=$(printf '%s\n' "$above" | grep -c .)
+           lines=$(printf '%s\n' "$above" | command grep -c .)
            if [ "$lines" -gt "$N" ]; then why="it has $lines lines above its gates, and a note has at most $N"; fi
        fi
        if [ -z "$why" ]; then
            why=$(sed -n 's/^\([A-Z][^:<]*:\) <.*/\1/p' "$T/handoff.md" | while IFS= read -r label; do
-               printf '%s\n' "$above" | grep -q "^$label [^<]" || echo "it has no $label line above its gates that is filled in"
+               printf '%s\n' "$above" | command grep -q "^$label [^<]" || echo "it has no $label line above its gates that is filled in"
            done | head -n 1)
        fi
        if [ -n "$why" ]; then
@@ -194,12 +194,12 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
                    fi
                done)
                held=$(printf '%s\n' "$moved" | sed -n 's/^KEEP//p' | tr '\002' '\n')
-               moved=$(printf '%s\n' "$moved" | grep -v '^KEEP')
+               moved=$(printf '%s\n' "$moved" | command grep -v '^KEEP')
                if ! mv "$M/gates.md" "$M/gates-moved.md"; then
                    echo "not archived: $M/gates.md could not be renamed to gates-moved.md. Run this again once that is put right."
                    exit 1
                fi
-               out=$(printf '%s\n%s\n' "$out" "$moved" | grep .)
+               out=$(printf '%s\n%s\n' "$out" "$moved" | command grep .)
            fi
            if [ -n "$scope" ]; then label="Moved to the root:"; else label="Left with no home:"; fi
            kept=$M/log/$(date +%F-%H%M).md

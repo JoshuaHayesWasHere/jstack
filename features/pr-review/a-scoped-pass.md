@@ -63,7 +63,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    else
        printf '%s\n' "$said" | while IFS= read -r file; do
            echo "drop: $file"
-           grep -F "Dropped on rebase: $file, " "$B" | grep -F ", at $short: " | tail -n 1
+           command grep -F "Dropped on rebase: $file, " "$B" | command grep -F ", at $short: " | tail -n 1
            git diff "$kept" HEAD -- "$file"
        done
    fi

@@ -106,10 +106,10 @@ case $C$P in
     if ! command -v jinstall > /dev/null; then
         echo "3 git hooks: needs you: sh install.sh in the checkout that holds this skill, jinstall is not on PATH"
     elif hooked=$(jinstall --repo "$C" 2>&1); then
-        echo "3 git hooks: done, $(printf '%s\n' "$hooked" | grep -c '^ok ') ok in $C/.git/hooks"
+        echo "3 git hooks: done, $(printf '%s\n' "$hooked" | command grep -c '^ok ') ok in $C/.git/hooks"
     else
         echo "3 git hooks: needs you: jinstall --repo $C said:"
-        printf '%s\n' "$hooked" | grep -v '^ok '
+        printf '%s\n' "$hooked" | command grep -v '^ok '
     fi ;;
 esac
 ```
@@ -146,7 +146,7 @@ the_command() {
 THE_COMMAND_ENDS_HERE
 }
 K=$(the_command | awk 'NF {print; exit}')
-if grep -qs '^check:' "$C/Makefile"; then K='make check'; fi
+if command grep -qs '^check:' "$C/Makefile"; then K='make check'; fi
 case $C in
 '' | *'<'* | *'>'*)
     echo "not filled in: put the checkout step 1 printed in place of the placeholder" ;;
@@ -174,7 +174,7 @@ case $C in
         fi
     }
     reports() {
-        grep -qsE 'pull_request([^_]|$)' "${1}" && awk '
+        command grep -qsE 'pull_request([^_]|$)' "${1}" && awk '
             function close_job() {
                 if (id != "" && !matrix && (name == "check" || (name == "" && id == "check"))) found = 1
                 id = ""
@@ -215,7 +215,7 @@ case $C in
         if ! git -C "$C" cat-file -e "$sha^{commit}" 2> /dev/null; then
             need "git -C $C fetch origin, then type /new-home again: $default's tip is not in the checkout, and the check workflow is built on it"
         else
-            git -C "$C" ls-tree --name-only "$sha" .github/workflows/ | grep -E '\.ya?ml$' > "$tmp/names"
+            git -C "$C" ls-tree --name-only "$sha" .github/workflows/ | command grep -E '\.ya?ml$' > "$tmp/names"
             while IFS= read -r one; do
                 if git -C "$C" show "$sha:$one" > "$tmp/flow" 2> /dev/null && reports "$tmp/flow"; then checked=$default:$one; break; fi
             done < "$tmp/names"

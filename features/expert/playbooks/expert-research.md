@@ -24,7 +24,7 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
    F='<file>'
    ME='<threadId>'
    R="$E/reports/$F"
-   want=$(grep '^## ' "$T/expert-answer.md")
+   want=$(command grep '^## ' "$T/expert-answer.md")
    case $F$ME in
    '' | *'<'* | *'>'* | */*) echo "not filled in: put the file name and this thread's id in their places" ;;
    *)
@@ -34,10 +34,10 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
            echo "no template: $T/expert-answer.md gave no heading"
        elif [ ! -f "$R" ]; then
            echo "no report: $R is not there"
-       elif [ "$(grep '^## ' "$R")" != "$want" ]; then
+       elif [ "$(command grep '^## ' "$R")" != "$want" ]; then
            echo "not the four parts: the headings of $R must be these, in order, and no other:"
            echo "$want"
-       elif ! grep -qF "reports/$F" "$E/notes/INDEX.md" 2> /dev/null; then
+       elif ! command grep -qF "reports/$F" "$E/notes/INDEX.md" 2> /dev/null; then
            echo "not indexed: notes/INDEX.md has no line for reports/$F"
        else
            echo "report: $R"

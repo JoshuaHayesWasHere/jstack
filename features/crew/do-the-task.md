@@ -37,10 +37,10 @@
           printf 'make check-fast BASE=%s PYTEST=: PART=guards\n' "$base" > "$code.command"
           uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- make check-fast BASE="$base" PYTEST=: PART=guards
       else
-          echo "selected: $(printf '%s' "$guards" | grep -c .) guard test files, which must pass, in a full slot:"
-          printf '%s\n' "$guards" | grep .
-          echo "and $(printf '%s' "$rest" | grep -c .) test files the change reaches, which CI's check runs:"
-          printf '%s\n' "$rest" | grep .
+          echo "selected: $(printf '%s' "$guards" | command grep -c .) guard test files, which must pass, in a full slot:"
+          printf '%s\n' "$guards" | command grep .
+          echo "and $(printf '%s' "$rest" | command grep -c .) test files the change reaches, which CI's check runs:"
+          printf '%s\n' "$rest" | command grep .
           printf 'make check-fast BASE=%s PART=guards\n' "$base" > "$code.command"
           started=$(date +%s)
           uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- make check-fast BASE="$base" PART=guards
@@ -59,7 +59,7 @@
   ran=$(cat "$code")
   command=$(sed 's/ *$//' "$code.command" 2> /dev/null)
   case $command in
-  'jgauge check') tail -n 1 "$out" | grep -q '^done: the check exited ' || command= ;;
+  'jgauge check') tail -n 1 "$out" | command grep -q '^done: the check exited ' || command= ;;
   esac
   if [ -n "$command" ] && [ "$ran" != 76 ] && [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] &&
       [ "$(git rev-parse HEAD)" = "$head" ] && [ -f "$B" ]; then
@@ -97,16 +97,16 @@
       echo "no proof: commit the work first"
   elif ! base=$(git merge-base "$on" HEAD); then
       echo "no proof: the branch shares no commit with $on"
-  elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
+  elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
       echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
   else
       kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
       tree=$(mktemp -d)
-      if git diff --name-only --no-renames "$base" HEAD | grep -vE "$kept" | grep -q .; then
+      if git diff --name-only --no-renames "$base" HEAD | command grep -qvE "$kept"; then
           only=
           git clone -q --shared --no-checkout . "$tree"
           git -C "$tree" checkout -q --detach "$base"
-          git diff --name-only --diff-filter=d "$base" HEAD | grep -E "$kept" |
+          git diff --name-only --diff-filter=d "$base" HEAD | command grep -E "$kept" |
               while read -r file; do
                   mkdir -p "$tree/$(dirname "$file")"
                   git show "HEAD:$file" > "$tree/$file"
@@ -138,7 +138,7 @@
       fi
       if [ -n "$line" ]; then
           echo "$line"
-          if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
+          if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
       fi
   fi
   ```
@@ -152,7 +152,6 @@
   A test made faster, split or cleaned up is such a branch.
   For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`.
   `jmerge` takes that line only where every file the pull request changes is such a file and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
-  The block finds a file that is no test with `grep -vE "$kept" | grep -q .`, not `grep -qvE`: in Claude Code's bash `grep` is a shell function that runs ugrep, whose `-qv` ends 1 even where a line does not match, which would call a branch that changes code tests only.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
@@ -202,7 +201,7 @@
       echo "no label: this repo has no scripts/lint-borders.py"
   elif ! git fetch -q origin "$base" || ! said=$(python3 "$top/scripts/lint-borders.py" --base "origin/$base"); then
       echo "no label: the borders check could not read the diff from origin/$base"
-  elif printf '%s\n' "$said" | grep -q "label it cross-cutting"; then
+  elif printf '%s\n' "$said" | command grep -q "label it cross-cutting"; then
       echo "label cross-cutting: the diff touches two features"
   else
       echo "no label: the diff touches one feature at most"

@@ -156,12 +156,12 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    ```sh
    S="${M:?run the block that finds this home first}/read-seen"
-   grep -E '^(tasks|scouts)/[^/: ]+\.md: ## (Result|Report)' << 'READ' | while IFS= read -r line; do
+   command grep -E '^(tasks|scouts)/[^/: ]+\.md: ## (Result|Report)' << 'READ' | while IFS= read -r line; do
    <the lines step 4 printed that you read>
    READ
-       if ! grep -qxF -e "$line" "$S" 2> /dev/null; then printf '%s\n' "$line" >> "$S"; fi
+       if ! command grep -qxF -e "$line" "$S" 2> /dev/null; then printf '%s\n' "$line" >> "$S"; fi
    done
-   echo "marked read: $(grep -c '' "$S" 2> /dev/null || echo 0) headings in $S"
+   echo "marked read: $(command grep -c '' "$S" 2> /dev/null || echo 0) headings in $S"
    ```
 
    It keeps each line once. The lines under `## to read` are never cut, so each is the heading as it is. The status of "When a thread sends a message" runs step 4's block too, and marks in the same way.

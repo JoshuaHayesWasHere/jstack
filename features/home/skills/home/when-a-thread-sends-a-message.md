@@ -60,7 +60,7 @@ Then run the block of "Show the open ones" ("Gates") and show what it prints.
 Then show each `local` decision or stop this home told and nothing has ended yet ("How a turn ends"), with the block at the top and the block that finds this home:
 
 ```sh
-grep -E '^(decision|stop) local ' "${M:?run the block that finds this home first}/told" 2> /dev/null ||
+command grep -E '^(decision|stop) local ' "${M:?run the block that finds this home first}/told" 2> /dev/null ||
     echo "no local decision or stop is open"
 ```
 

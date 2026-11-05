@@ -141,10 +141,10 @@
    *)
        if [ ! -f "$B" ]; then
            echo "not written: there is no $B"
-       elif grep -qxF -e "$line" "$B"; then
+       elif command grep -qxF -e "$line" "$B"; then
            echo "not written: $B has $line"
-       elif grep -q '^Thread:' "$B"; then
-           was=$(grep -m 1 '^Thread:' "$B")
+       elif command grep -q '^Thread:' "$B"; then
+           was=$(command grep -m 1 '^Thread:' "$B")
            awk -v line="$line" '/^Thread:/ && !put { print line; put = 1; next } { print }' "$B" > "$B.thread" && mv "$B.thread" "$B"
            echo "written: $line, in place of $was, in $B"
        else
