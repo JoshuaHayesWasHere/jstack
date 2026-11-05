@@ -26,6 +26,10 @@ def proved(base_exit=1, head_exit=0, tests=TEST, head=HEAD):
     return f"Proved: {tests} base exit {base_exit} at {BASE}, head exit {head_exit} at {head}\n"
 
 
+def head_alone(head_exit=0, tests=TEST, head=HEAD):
+    return f"Proved: {tests} head exit {head_exit} at {head}, tests only\n"
+
+
 @pytest.fixture
 def merged(tmp_path):
     return merge.Merged(merge.Home(tmp_path), tmp_path)
@@ -66,6 +70,21 @@ def test_a_docs_and_config_pull_request_that_says_so_is_exempt_and_merges(merged
     opened(merged, ("README.md", ".github/workflows/check.yml"), "Proved: none, docs and config\n")
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
+
+
+def test_a_pull_request_that_changes_only_tests_and_says_so_merges_on_its_head_run(merged):
+    """A test made faster passes at its base too, since the code under it is the head's own: its
+    proof is the run at the head, and only where every file it changes is a test."""
+    opened(merged, (TEST, "features/x/tests/conftest.py"), head_alone(head=merged.head))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
+def test_a_pull_request_that_changes_code_and_says_tests_only_waits(merged):
+    opened(merged, ("a.py", TEST), head_alone(head=merged.head))
+    (said,) = merged.run()
+    assert said.startswith(f"wait 7 {merge.URL}: its Result's Proved: line says tests only")
+    assert merged.untouched()
 
 
 def test_a_pull_request_whose_tests_pass_at_its_base_waits(merged):
@@ -153,6 +172,32 @@ def result(line=""):
                 fault="is not <tests> base exit <n> at <base>, head exit <n> at <head>"
             ),
         ),
+        (one(TEST, "features/x/tests/conftest.py", "tests/data/a.json"), head_alone(), ""),
+        (one(TEST, "features/x/tests/helpers.py"), head_alone(), ""),
+        (
+            one("a.py", TEST),
+            head_alone(),
+            ready.PROVED_UNREAD.format(
+                fault="says tests only, and it changes a.py, which is no test file"
+            ),
+        ),
+        (
+            one(TEST, "x/ok.py", removed=("x/ok.py",)),
+            head_alone(),
+            ready.PROVED_UNREAD.format(
+                fault="says tests only, and it changes x/ok.py, which is no test file"
+            ),
+        ),
+        (
+            one(TEST),
+            head_alone(head_exit=1),
+            ready.PROVED_HEAD_FAILED.format(exit=1, head=HEAD[:12]),
+        ),
+        (
+            one(TEST, "b/b_test.py"),
+            head_alone(),
+            ready.PROVED_UNNAMED.format(tests="b/b_test.py"),
+        ),
     ],
 )
 def test_the_line_holds_only_where_the_tests_it_names_fail_at_the_base_and_pass_at_the_head(
@@ -164,10 +209,10 @@ def test_the_line_holds_only_where_the_tests_it_names_fail_at_the_base_and_pass_
         assert ready.step_of(ready.code_of(short)) == "result"
 
 
-def test_a_line_of_another_head_holds_only_where_the_head_carries_its_patch():
+@pytest.mark.parametrize(("line", "pull"), [(proved, one("a.py", TEST)), (head_alone, one(TEST))])
+def test_a_line_of_another_head_holds_only_where_the_head_carries_its_patch(line, pull):
     earlier = "e" * 40
-    text = result(proved(head=earlier))
-    pull = one("a.py", TEST)
+    text = result(line(head=earlier))
     assert ready.short_on_proved(text, pull) == ready.PROVED_STALE.format(
         at=earlier[:12], head=HEAD[:12]
     )
