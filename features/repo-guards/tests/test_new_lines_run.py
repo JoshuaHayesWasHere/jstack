@@ -336,3 +336,61 @@ def test_a_line_only_another_modules_own_test_runs_counts_as_run(tmp_path):
         "features/pkg/src/pkg/ready.py": {2, 3},
     }
     assert faults(lines, tmp_path / "unrun", repo) == []
+
+
+def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(tmp_path):
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    ended = tmp_path / "ended"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    ended.mkdir()
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    (code / "slow.py").write_text("def slow(row):\n    return row\n")
+    (tests / "test_held.py").write_text(
+        "import sys\n"
+        "import time\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n\n"
+        "def test_a_held_row():\n"
+        "    assert held.held('held')\n\n\n"
+        "def test_a_late_row():\n"
+        "    time.sleep(1.5)\n"
+        "    assert held.held('late')\n"
+    )
+    (tests / "test_slow.py").write_text(
+        "import sys\n"
+        "import time\n"
+        "from pathlib import Path\n\n"
+        "import pytest\n\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import slow\n\n\n"
+        "def test_no_row():\n"
+        "    assert slow.slow(None) == 0\n\n\n"
+        "@pytest.mark.parametrize('n', range(12))\n"
+        "def test_a_slow_row(n):\n"
+        "    time.sleep(2)\n"
+        f"    Path({str(ended)!r}, str(n)).touch()\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n"
+        "    if row is None:\n"
+        "        return False\n"
+        "    if row == 'late':\n"
+        "        return True\n"
+        "    return row == 'held'\n"
+    )
+    (code / "slow.py").write_text(
+        "def slow(row):\n    if row is None:\n        return 0\n    return row\n"
+    )
+    assert faults(added(since, repo), tmp_path / "unrun", repo) == [
+        "features/pkg/src/pkg/held.py:3 is a line this branch adds that no test runs: add a test "
+        "that runs it, among the tests that name its module (1 of them ran)",
+    ]
+    assert (tmp_path / "unrun/own/stopped").exists(), "the run went on to its end"
+    assert len(list(ended.iterdir())) < 12, "the run waited on every slow test of another module"
