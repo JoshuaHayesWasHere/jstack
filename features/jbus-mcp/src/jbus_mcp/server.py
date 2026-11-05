@@ -290,7 +290,11 @@ def _page(status: int, problem: str, asked: oauth.Asked | None = None) -> Answer
 class Handler(BaseHTTPRequestHandler):
     server_version = "jbus-mcp"
     sys_version = ""
-    server: Server
+
+    @property
+    def bound(self) -> Server:
+        assert isinstance(self.server, Server)
+        return self.server
 
     def _send(self, answer: Answer) -> None:
         self.send_response(answer.status)
@@ -306,8 +310,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(answer.body)
 
     def _allowed(self) -> Answer | None:
-        app, host = self.server.app, self.headers.get("Host", "").lower()
-        own = {app.host.lower(), f"{LOOPBACK}:{self.server.server_port}"}
+        app, host = self.bound.app, self.headers.get("Host", "").lower()
+        own = {app.host.lower(), f"{LOOPBACK}:{self.bound.server_port}"}
         if host not in own:
             return said(403, {"error": "this is not the server's name"})
         origin = self.headers.get("Origin")
@@ -325,7 +329,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(refused)
             return
         path, query = self._path()
-        self._send(self._guard(lambda: self.server.app.get(path, query)))
+        self._send(self._guard(lambda: self.bound.app.get(path, query)))
 
     def do_POST(self) -> None:
         refused = self._allowed()
@@ -344,7 +348,7 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(length)
         path, _ = self._path()
         key, kind = self.headers.get("Authorization", ""), self.headers.get("Content-Type", "")
-        self._send(self._guard(lambda: self.server.app.post(path, body, key, kind)))
+        self._send(self._guard(lambda: self.bound.app.post(path, body, key, kind)))
 
     def _guard(self, answer: Callable[[], Answer]) -> Answer:
         try:
