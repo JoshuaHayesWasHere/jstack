@@ -261,9 +261,10 @@ def test_a_worktree_named_through_a_variable_is_its_threads_where_the_command_se
     assert run(home, FLOW_CREW, made) == (0, "")
     assert run(home, FLOW_CREW, f'd={path}; git worktree remove --force "${{d}}"') == (0, "")
     assert run(home, FLOW_CREW, "git worktree remove --force $d")[0] == 2
-    assert run(home, FLOW_CREW, f"bash -c 'git worktree remove /x'; git worktree remove {path}")[
-        0
-    ] == 2
+    assert (
+        run(home, FLOW_CREW, f"bash -c 'git worktree remove /x'; git worktree remove {path}")[0]
+        == 2
+    )
 
 
 def test_the_last_thread_to_add_a_path_owns_it(home):
