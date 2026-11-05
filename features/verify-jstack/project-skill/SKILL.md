@@ -14,8 +14,8 @@ The live jstack on this machine is one shared instance: the queue in `~/.local/s
 Never drive it.
 In a shell that has not sourced a sandbox's `env.sh`, `jbus` and `jmerge` are the live ones and act on live state: run Doctor first, every time.
 
-What this skill cannot drive, so do not report it as verified: a real T3 thread (`jbus t3 login`, `jbus t3 launch-test`), a real merge (the stand-in `gh` refuses `gh pr merge`, so `jmerge` is driven with `--check` only), the systemd units, and what a skill makes an agent do inside a thread.
-The tests cover the merge against a temporary origin (`features/home/tests/test_home_merge.py`).
+What this skill cannot drive, so do not report it as verified: a real T3 thread (`jbus t3 login`, `jbus t3 launch-test`), GitHub's own merge and its ruleset (the stand-in `gh` refuses `gh pr merge` unless a drive writes `gh/merges`, and then squashes into the sandbox's origin as GitHub does), the systemd units, and what a skill makes an agent do inside a thread.
+`features/verify-jstack/tests/test_merge_path_fixtures.py` drives a plain `jmerge` that way on a good pull request, which merges, and on broken ones, which each hold for the one fault they name.
 
 Run every command below from the root of this checkout unless it says otherwise.
 Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-jstack/project-skill/map.md) before a drive, then the file of the feature you are proving: its page in that folder, or `features/<name>/verify.md` once it has moved.
@@ -26,6 +26,9 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
 
 - `fake-gh` answers `gh pr list` from `gh/*.json`, which Launch writes and a drive edits, and gives fixed answers to the rest: `main` for `repo view`, `sandbox-owner` as the repo's owner, no comment or review on a pull request, no pull request for `pr list --base`, nothing for `api --paginate`, a commit's check runs from `gh/checks.json` (none until a drive writes some) and a job's log from `gh/logs/<job id>`.
   The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
+- `fake-gh` answers `gh pr merge <number> --squash` only where `gh/merges` exists, and exits 64 where it does not.
+  It squashes the pull request's head over its base's tip in the sandbox's origin, moves the pull request from `gh/open.json` to `gh/merged.json` with its merge commit, and refuses a head its branch is not at and one that conflicts.
+  The real machine asks GitHub, which also refuses a merge its ruleset's required checks have not passed.
 - `fake-gh` answers `gh pr edit <number> --base <branch>` by changing that pull request's `baseRefName` in `gh/open.json`.
   The real machine asks GitHub, which also reruns the pull request's checks against the new base.
 - `fake_t3.py` is the T3 Code server and takes a token Launch made up and wrote to `config/t3.json`. The real machine signs in with `jbus t3 login`, approved in T3 Code.
@@ -151,6 +154,7 @@ What a drive sets up and reads, all under `$VERIFY_JSTACK_SANDBOX`:
 | Path | What it is | A drive |
 |---|---|---|
 | `gh/open.json`, `gh/merged.json`, `gh/commits.json`, `gh/checks.json`, `gh/logs/` | what GitHub would answer | edits them (`open-pull.sh` writes `open.json`) |
+| `gh/merges` | an empty file: GitHub merges the pull requests a plain `jmerge` asks it to | writes it before a drive that merges |
 | `gh/calls.log` | every `gh` call jbus and jmerge made | reads it |
 | `t3/threads.json` | the threads T3 Code has, each with its `modelSelection` and its `recentRuns` | edits a thread's `status`, `latestRunId`, `recentRuns` or `settled` between passes |
 | `t3/capabilities.json` | each provider instance T3 Code lists, by its id, with its constraints | gives an instance `Provider is not authenticated.` to sign it out, and clears it to sign it in |
@@ -217,10 +221,10 @@ All in `features/verify-jstack/project-skill/scripts/`, which `$VERIFY_JSTACK_SC
 | `launch.sh` | `features/verify-jstack/project-skill/scripts/launch.sh` | makes a sandbox, starts the stand-in, runs `jbus` and `jmerge` in it, prints `ready: . <sandbox>/env.sh` |
 | `doctor.sh` | `"$VERIFY_JSTACK_SCRIPTS/doctor.sh"` | the read-only check, each feature's seed included, `doctor: ok` or exit 1 |
 | `record.sh` | `record <name> <command>` (the function `env.sh` defines) | runs a command and keeps it in `$VERIFY_JSTACK_EVIDENCE/<name>.txt`, under the list of what a stand-in set up |
-| `open-pull.sh` | `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py` | gives the sandbox's GitHub one open pull request, number 7, and prints its head commit |
+| `open-pull.sh` | `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py [<conclusion>] [<head>]` | gives the sandbox's GitHub one open pull request, number 7, at a made-up head or a pushed one, and prints its head commit |
 | `cleanup.sh` | `"$VERIFY_JSTACK_SCRIPTS/cleanup.sh"` | stops the stand-in, removes the sandbox, keeps the evidence |
 | `fake_t3.py` | started by `launch.sh`, never by hand | the stand-in for T3 Code's MCP endpoint (`$VERIFY_JSTACK_URL/mcp`), which keeps each wake in `t3/wake.jsonl` |
-| `fake-gh` | linked as `gh` on the sandbox's PATH, never run by hand | the stand-in for `gh`: answers from `gh/*.json`, exits 64 on `pr merge` |
+| `fake-gh` | linked as `gh` on the sandbox's PATH, never run by hand | the stand-in for `gh`: answers from `gh/*.json`, squashes on `pr merge` where `gh/merges` exists and exits 64 where it does not |
 | `fake-systemctl` | linked as `systemctl` on the sandbox's PATH, never run by hand | the stand-in for `systemctl --user`: answers for the sandbox's HOME, links and unlinks as systemd does, starts nothing |
 | `fake-launchctl` | linked as `launchctl` on the sandbox's PATH, never run by hand | the stand-in for `launchctl` on macOS: loads and boots out agents as launchd does, starts nothing |
 

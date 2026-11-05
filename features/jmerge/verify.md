@@ -19,8 +19,9 @@ Tests: none
 - `decision-red` waits while the check named `check` has not passed.
 - `decision-over-main` waits on a green pull request whose check main moved past, for GitHub's update of its branch.
 - `decision-base` holds a pull request into another branch than the default.
-- `decision-tool-follows` reinstalls the tool after a merge that changes pyproject.toml's package list, and says so on the `merged` line (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `features/home/tests/test_home_merge.py` drives it).
-- `decision-install-follows` runs `sh install.sh` in the main checkout after a merge that changes what the install assembles (`skills.json`, a skill's files), where the machine's layouts were assembled from that checkout, and says so on the `merged` line, or says loudly that it failed (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `features/jmerge/tests/test_jmerge_follow.py` drives it; [jinstall's page](../jinstall/verify.md) drives the install it runs).
+- `decision-tool-follows` reinstalls the tool after a merge that changes pyproject.toml's package list, and says so on the `merged` line (not driven in a sandbox: `features/home/tests/test_home_merge.py` drives it).
+- `decision-install-follows` runs `sh install.sh` in the main checkout after a merge that changes what the install assembles (`skills.json`, a skill's files), where the machine's layouts were assembled from that checkout, and says so on the `merged` line, or says loudly that it failed (not driven in a sandbox: `features/jmerge/tests/test_jmerge_follow.py` drives it; [jinstall's page](../jinstall/verify.md) drives the install it runs).
+- `decision-merges` merges a known-good pull request through the whole path, and holds each known-broken one for its one fault with the reason it names (`features/verify-jstack/tests/test_merge_path_fixtures.py`).
 - `decision-claims` lists the briefs that still hold files.
 - `decision-check-merges-nothing` asks GitHub and merges nothing.
 
@@ -28,7 +29,7 @@ Tests: none
 
 - Run `jmerge --check` in the repo's main checkout.
 - Run `jmerge --claims` there.
-- Run `jmerge` there to merge what is ready (not reachable from a sandbox: the stand-in `gh` refuses a merge).
+- Run `jmerge` there to merge what is ready (in a sandbox, once `gh/merges` exists: see "Merge a good one").
 - Read the `jmerge` and `gate` lines a `jbus poll` sends, which runs `jmerge` where the repo's home is off.
 
 ## Driving it with verify-jstack
@@ -83,13 +84,22 @@ Preconditions:
 - **Check nothing merged.** Run `record jmerge-decision grep -c "pr merge" "$VERIFY_JSTACK_SANDBOX/gh/calls.log"`. It prints `0` (and exits 1, as `grep -c` does with no match). The demo checkout's `git log --oneline` still has the one commit `start`.
 - **Proof.** Copy `gh/calls.log` and the brief into `$VERIFY_JSTACK_EVIDENCE`.
 
+Merging takes a new sandbox, with the same preconditions.
+
+- **Merge a good one.**
+  Run `touch "$VERIFY_JSTACK_SANDBOX/gh/merges" && git switch -q -c beta && mkdir -p src/beta && echo 'a = 1' > src/beta/a.py && git add -A && git commit -qm 'feat: beta' && head=$(git rev-parse HEAD) && git push -q origin beta && git switch -q main && "$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py SUCCESS "$head" > /dev/null`, then `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$(git rev-parse main)" "$head" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-merge jmerge`.
+  It prints `merged 7 beta <the squash commit> "feat: beta", revert: gh pr revert https://example.test/pull/7`.
+  `git log --oneline` in the demo checkout has `feat: beta (#7)` on top of `start`, as origin's `main` does, `gh/merged.json` lists 7, and the branch `beta` is gone from both.
+  The broken pull requests that hold on this path, each for one fault, are the fixtures of `features/verify-jstack/tests/test_merge_path_fixtures.py`.
+
 ## Gotchas
 
 - `jmerge` reads the briefs from `$JBUS_HOME_DIR/<the main checkout's directory name>`, as jbus does, or from `$HOME/.local/state/home` where it is not set.
 - The recipe writes the brief through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops and writes nothing into the live briefs.
 - The review's `Head:` must be the pull request's head commit, whole. `open-pull.sh` prints it.
 - Only the check named `check` decides green. Another check's name in `statusCheckRollup` changes nothing.
-- A plain `jmerge` on a ready pull request reaches `gh pr merge`, which the stand-in refuses with exit 64. That is the harness ending, not a jmerge failure, and it is not proof of a merge.
+- A plain `jmerge` on a ready pull request reaches `gh pr merge`, which the stand-in refuses with exit 64 unless `gh/merges` exists. That refusal is the harness ending, not a jmerge failure, and it is not proof of a merge.
+- The stand-in merges only a head that is pushed to origin's branch: `open-pull.sh`'s made-up head is refused as `Head branch was modified`.
 - The stand-in answers a branch's check runs from the key of `gh/checks.json` that is the branch's name, as it answers a commit's from its sha.
 - Every line of `jmerge --check` exits 0, `wait` and `hold` included. Assert on the line, not the exit code.
 - `jmerge` without `--check` appends each line to `merge.log` in the repo's state. `--check` writes nothing.

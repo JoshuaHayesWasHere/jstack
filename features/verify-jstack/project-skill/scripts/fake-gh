@@ -44,10 +44,47 @@ case "$1 $2" in
   fi
   ;;
 "pr view")
+  # The current branch's open one, or the one named, open or merged; --jq as gh applies it.
   case $3 in
-  -* | '') jq -c '.[0] // error("no pull request")' "$G/open.json" ;;
-  *) jq -c --arg pr "$3" 'map(select((.number | tostring) == $pr or .url == $pr or .headRefName == $pr)) | .[0] // error("no pull request")' "$G/open.json" ;;
+  -* | '') pick='.[0][0]' ;;
+  *) pick='add | map(select((.number | tostring) == $pr or .url == $pr or .headRefName == $pr)) | .[0]' ;;
   esac
+  jq -rcs --arg pr "$3" "$pick // error(\"no pull request\") | $(arg_after --jq "$@" | grep . || echo .)" \
+    "$G/open.json" "$G/merged.json"
+  ;;
+"pr merge")
+  # GitHub's squash merge, only where a drive wrote gh/merges: otherwise refused, as before.
+  [ -f "$G/merges" ] || exit 64
+  case " $* " in *" --squash "*) ;; *) exit 64 ;; esac
+  pull=$(jq -c --arg pr "$3" 'map(select((.number | tostring) == $pr)) | .[0] // empty' "$G/open.json")
+  if [ -z "$pull" ]; then
+    echo "GraphQL: Could not resolve to a PullRequest with the number of $3." >&2
+    exit 1
+  fi
+  head=$(echo "$pull" | jq -r .headRefOid)
+  base=$(echo "$pull" | jq -r .baseRefName)
+  O=$VERIFY_JSTACK_SANDBOX/origin.git
+  branch=$(git -C "$O" rev-parse -q --verify "refs/heads/$(echo "$pull" | jq -r .headRefName)")
+  match=$(arg_after --match-head-commit "$@")
+  if [ "$branch" != "$head" ] || { [ -n "$match" ] && [ "$match" != "$head" ]; }; then
+    echo "GraphQL: Head branch was modified. Review and try the merge again." >&2
+    exit 1
+  fi
+  tip=$(git -C "$O" rev-parse -q --verify "refs/heads/$base") &&
+    tree=$(git -C "$O" merge-tree --write-tree "$tip" "$head" 2>/dev/null) || {
+    echo "X Pull request #$3 is not mergeable: the merge commit cannot be cleanly created." >&2
+    exit 1
+  }
+  subject=$(arg_after --subject "$@")
+  body=$(cat)
+  commit=$(printf '%s\n\n%s\n' "${subject:-$(echo "$pull" | jq -r .title)}" "$body" |
+    git -C "$O" commit-tree "$tree" -p "$tip") &&
+    git -C "$O" update-ref "refs/heads/$base" "$commit" "$tip" || exit 1
+  jq --argjson pull "$pull" --arg commit "$commit" \
+    '. + [$pull + {state: "MERGED", mergeCommit: {oid: $commit}}]' "$G/merged.json" >"$G/merged.json.new" &&
+    mv "$G/merged.json.new" "$G/merged.json"
+  jq --arg pr "$3" 'map(select((.number | tostring) != $pr))' "$G/open.json" >"$G/open.json.new" &&
+    mv "$G/open.json.new" "$G/open.json"
   ;;
 "pr edit")
   base=$(arg_after --base "$@")
