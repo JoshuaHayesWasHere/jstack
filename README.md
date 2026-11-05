@@ -40,7 +40,7 @@ jstack runs only when every **hard** need is met.
 | Need | Level | Notes |
 |---|---|---|
 | Linux or macOS | hard | Supported: macOS on Apple Silicon, and Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). |
-| T3 Code | hard | The desktop app the threads run in, with Claude Code as their agent, from [t3.codes](https://t3.codes): stable `0.1.2`, or nightly `0.1.2-nightly.20261022.3526` or newer. |
+| T3 Code | hard | The desktop app the threads run in, with Claude Code as their agent, from `t3.codes` ([how to install it](features/jinstall/docs/troubleshooting/the-platform-and-the-programs.md#where-to-get-each-program)): stable `0.1.2`, or nightly `0.1.2-nightly.20261022.3526` or newer. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the ten commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
@@ -62,8 +62,6 @@ jstack runs without it.
 | systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, `jbus-merge` every 5 seconds, the check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the week's and the day's CI reports (`jbus-ci.timer`, `jbus-ci-day.timer`), the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
-
-A visual shows in T3 Code's preview, so it needs nothing beyond the app.
 
 The threads run on Claude Code, and the install also links the skills for Codex and Cursor.
 It writes outside jstack's own folders: skill links in `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`, hook entries and keys in `~/.claude/settings.json`, `~/.codex/hooks.json` and `~/.cursor/cli-config.json`, the units in `~/.config/systemd/user` or `~/Library/LaunchAgents`, and each config it finds missing under `~/.config`.
@@ -114,7 +112,7 @@ In this tutorial we install jstack, point it at a repo of yours, and watch it me
 	jinstall --doctor
 	```
 
-	You see a line for each requirement, then the lines of step 2, and `doctor: ok` last once every hard need is met, whatever the optional lines say.
+	You see a line for each requirement, then the lines of step 2, and `doctor: ok` last once every hard need is met.
 	Every `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
 
 4. Pick the repo that you want work done in.
