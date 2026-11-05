@@ -118,6 +118,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | Memory pressure line | `features/jgauge/src/jgauge/room.sh` | `PRESSURE=10` | Launches stop when work waits for memory | A share of time. It was 0 in every run. |
 | Plan cushion, percent | `features/jgauge/src/jgauge/room.sh` | `CUSHION=${HEADROOM:-90}` | A launch passes an account by before its plan window is used up | The provider's, not the machine's. The user's `headroom` in `~/.config/jstack/config.toml` sets it, and with none it is `CUSHION=90`. |
 | `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh` | `SLOTS=85` | `/tmp` never fills, which fails every shell | A share. Six suites at once peak at 36%. |
+| `/tmp` bytes line, percent | `features/jgauge/src/jgauge/room.sh` | `BYTES=70` | Your `/tmp` scratch never fills your block quota there, or with no quota a tmpfs past 80% of its size | A share of the quota, or of 80% of a tmpfs, so it is the same on any machine. |
 | A review skips the load | `features/jgauge/src/jgauge/cli.py` | `"--light",` | A review is not held by load it does not add | A review is about 2% of a core |
 | Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py` | `room_passes=int(raw.get("room_passes", 10)),` | The owner hears of a row room holds for long | The busy night's hold was 7 passes |
 
