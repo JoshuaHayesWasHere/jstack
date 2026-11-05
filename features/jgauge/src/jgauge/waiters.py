@@ -24,7 +24,10 @@ reader never sees half a list. A waiter is one wait:
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
 lane and not yet woken, changes nothing but the command it will run. A thread that takes a slot
 leaves the file (`drop`). A woken wait claims a slot of its lane for `HOLDS` (`holding`), and
-another thread takes only a free slot that no such claim holds (`claims`).
+another thread takes only a free slot that no such claim holds (`claims`). A short call that
+waits in the call takes a slot ahead of the calls that wait with it when its thread holds such a
+claim (`claimed`), and once it has waited it leaves a freed slot to a thread that registered
+before it came and that jbus has not woken yet (`before`).
 
 A thread has one form of id, T3 Code's `mcp:<uuid>`, and `jsettings.thread_id` adds the prefix
 to an id given without it. A file written before this rule may hold two records for one thread. They
@@ -154,6 +157,33 @@ def claims(locks: Path, lane: str, but: str, now: datetime) -> int:
         return 0
     but = thread_id(but)
     return sum(one.lane == lane and one.thread != but and holding(one, now) for one in read(locks))
+
+
+def claimed(locks: Path, lane: str, thread: str, now: datetime) -> bool:
+    """Whether jbus woke a wait of `thread` on `lane` that still holds its slot (`holding`).
+    When there is no waiters file, the function says no and creates no file."""
+    if not FILE.there(locks):
+        return False
+    thread = thread_id(thread)
+    return any(
+        one.lane == lane and one.thread == thread and holding(one, now) for one in read(locks)
+    )
+
+
+def before(locks: Path, lane: str, thread: str, came: datetime) -> bool:
+    """Whether a thread other than `thread` has waited on `lane` since before `came`, and jbus
+    has not woken it yet. When there is no waiters file, the function says no and creates no
+    file."""
+    if not FILE.there(locks):
+        return False
+    thread = thread_id(thread)
+    return any(
+        one.lane == lane
+        and one.thread != thread
+        and not one.woken
+        and jsettings.when(one.since) < came
+        for one in read(locks)
+    )
 
 
 def lapsed(waiter: Waiter, now: datetime) -> bool:

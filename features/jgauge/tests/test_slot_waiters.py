@@ -66,8 +66,8 @@ def started(machine, *args, thread=THREAD, wait="0"):
     )
 
 
-def ended(run):
-    out, err = run.communicate(timeout=20)
+def ended(run, timeout=20):
+    out, err = run.communicate(timeout=timeout)
     return SimpleNamespace(returncode=run.returncode, stdout=out, stderr=err)
 
 
@@ -170,6 +170,46 @@ def test_a_freed_short_slot_goes_to_the_caller_that_came_first(machine):
             os.close(fd)
     assert (ran.returncode, ran.stdout) == (0, "ran\n")
     assert sorted(line.iterdir()) == []
+
+
+def test_a_woken_thread_takes_its_claimed_slot_ahead_of_a_call_waiting_in_the_line(machine):
+    """jbus claimed the freed slot for the woken thread, so the caller that waits ahead of it
+    in the line cannot take it: the woken thread takes it at once, and the other waits on."""
+    waiters.register(machine.locks, THREAD, "short", slot.short().slots, ["echo", "a"], NOW)
+    held = hold_short(machine)
+    try:
+        other = started(machine, "--short", "--", "echo", "b", thread="mcp:b", wait="15")
+        _in_line(machine, 1)
+        wake(machine, THREAD)
+        os.close(held.pop())
+        woken = ended(started(machine, "--short", "--", "echo", "a", wait="15"), timeout=5)
+        assert (woken.returncode, woken.stdout) == (0, "a\n")
+        assert other.poll() is None
+    finally:
+        for fd in held:
+            os.close(fd)
+    assert ended(other).stdout == "b\n"
+    assert waiters.read(machine.locks) == []
+
+
+def test_a_call_that_has_waited_leaves_a_freed_slot_to_an_older_waiter_jbus_has_not_woken(
+    machine,
+):
+    """A freed slot goes to the waiter that registered first, by way of jbus's wake, and not to
+    a call that came after it and waits in the call."""
+    held = hold_short(machine)
+    try:
+        run = started(machine, "--short", "--", "echo", "b", thread="mcp:b", wait="2")
+        _in_line(machine, 1)
+        time.sleep(0.5)
+        waiters.register(machine.locks, THREAD, "short", slot.short().slots, ["echo", "a"], NOW)
+        os.close(held.pop())
+        late = ended(run)
+    finally:
+        for fd in held:
+            os.close(fd)
+    assert late.returncode == slot.WAITING
+    assert [one.thread for one in waiters.read(machine.locks)] == [THREAD, "mcp:b"]
 
 
 def test_a_short_call_still_waiting_past_its_wait_registers_and_ends_its_turn(machine):

@@ -217,18 +217,29 @@ def _line(locks: Path) -> Iterator[Callable[[], bool]]:
         os.close(fd)
 
 
-def _wait_in_call(locks: Path, lane: Lane, thread: str) -> tuple[tuple[int, Path] | None, bool]:
-    """Wait in the line for up to the short lane's wait for a spare slot, and take it."""
+def _wait_in_call(
+    locks: Path, lane: Lane, thread: str, came: datetime
+) -> tuple[tuple[int, Path] | None, bool]:
+    """Wait in the line for up to the short lane's wait for a spare slot, and take it. A thread
+    whose woken wait holds a slot (`waiters.claimed`) takes it whatever its place in the line,
+    since no other caller may. After its first look, the first caller leaves a freed slot to a
+    thread that registered before it came and that jbus has not woken yet (`waiters.before`):
+    jbus wakes that thread, which then holds a claim on the slot."""
     limit = float(os.environ.get(WAIT_FOR) or SHORT_WAIT_SECONDS)
     until = time.monotonic() + limit
     said = False
+    looked = False
     with _line(locks) as first:
         while True:
             held, any_free = None, False
-            if first():
+            mine = waiters.claimed(locks, name(lane), thread, datetime.now(UTC))
+            if mine or (
+                first() and not (looked and waiters.before(locks, name(lane), thread, came))
+            ):
                 held, any_free = _spare(locks, lane, thread)
                 if held is not None:
                     return held, True
+            looked = True
             if time.monotonic() >= until:
                 return None, any_free
             if not said:
@@ -254,7 +265,7 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tupl
         if lane.limit is None:
             held, any_free = _spare(locks, lane, thread)
         else:
-            held, any_free = _wait_in_call(locks, lane, thread)
+            held, any_free = _wait_in_call(locks, lane, thread, now)
         if held is not None:
             return held
         waiters.register(locks, thread, name(lane), lane.slots, command or [], now)
