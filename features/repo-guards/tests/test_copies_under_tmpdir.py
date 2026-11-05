@@ -22,6 +22,7 @@ import pytest
 
 from testing.layouts import assembled
 
+READ_SET = ("*.md",)
 INSTALLED = ("skills/**/*.md", "playbooks/*.md", "principles/*.md", "templates/**/*.md")
 COPY = re.compile(r"mktemp|git worktree add|git clone|git archive")
 IDENTITY = ("-c", "user.name=t", "-c", "user.email=t@example.com")
