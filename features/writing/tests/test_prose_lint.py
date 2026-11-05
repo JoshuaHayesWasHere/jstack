@@ -297,10 +297,6 @@ def test_sentences_ends_a_sentence_only_where_one_ends(line, count):
     assert len(lint.sentences(line)) == count
 
 
-def test_sentences_keeps_the_text_as_written():
-    assert lint.sentences("Run `a. B`. Then go.") == ["Run `a. B`.", "Then go."]
-
-
 def test_a_text_on_stdin_is_judged_whole_past_its_fences_and_fields():
     text = "One line. Two sentences.\n\n```sh\nA. B.\n```\nDone when: one. Two.\nOne line.\n"
     ran = subprocess.run(

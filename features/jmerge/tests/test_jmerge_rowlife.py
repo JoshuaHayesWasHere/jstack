@@ -1,6 +1,6 @@
 """The user's word lifts what jbus shows as Needs you (simplify-4's RowLife rule WordLiftsHold),
-replayed against the real `jmerge` in the kitchen of `test_jmerge_accept_act` (a real origin, a
-fake `gh`, a jbus config whose project is the kitchen's main checkout).
+replayed against the real `jmerge` (`jmerge.cli`) in the kitchen of `test_jmerge_accept_act` (a
+real origin, a fake `gh`, a jbus config whose project is the kitchen's main checkout).
 
 A reason on the `hold` step is one `jmerge` prints as `hold`, so `jmerge --accept` takes it:
 `Review: none` was printed as `wait`, and the accept refused it as not held. jmerge marks no
@@ -24,6 +24,38 @@ def test_review_none_is_held_and_the_users_accept_merges_it(kitchen):
     assert out[0].startswith(f"accepted 8 {url(8)}: its brief says Review: none"), out
     assert [call.split()[2] for call in kitchen.calls()] == ["8"]
     assert last(kitchen) == ("accept", "home", "typed", "done")
+
+
+def test_the_users_accept_merges_a_review_none_brief_that_has_no_review(kitchen):
+    """A `Review: none` brief has no review, so no `## Review` section and no proof in one:
+    the user's word is all it waits on, and the accept merges it."""
+    unreviewed(kitchen)
+    out = accept(kitchen, 8)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out[0].startswith(f"accepted 8 {url(8)}: its brief says Review: none"), out
+    assert [call.split()[2] for call in kitchen.calls()] == ["8"]
+
+
+def test_merge_off_stops_the_accept_of_a_review_none_brief_that_has_no_review(kitchen):
+    unreviewed(kitchen)
+    (kitchen.home.state / "merge-off").write_text("")
+    out = accept(kitchen, 8)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 8 {url(8)}: {ready.MERGE_OFF}", out
+    assert kitchen.calls() == []
+
+
+def unreviewed(kitchen):
+    """Gamma's pull request 8, held for the user's word: its brief says `Review: none` and has
+    no `## Review` section."""
+    kitchen.crew("gamma", 8, {"a.txt": "ours\n" + LINES})
+    task = kitchen.home.tasks / "gamma.md"
+    task.write_text(
+        '# gamma: a task\nReview: none\nTask: "do it"\nPull request: open one when done\n\n'
+        f"## Result\nStatus: done\nBranch: gamma   Pull request: {url(8)}\n"
+    )
+    (said,) = kitchen.run()
+    assert said.startswith(f"hold 8 {url(8)}: {ready.REVIEW_NONE}"), said
 
 
 def listed(kitchen):

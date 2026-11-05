@@ -20,7 +20,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 5. Prove it on the real mistake (`principles/principle-prove-it-works.md`). Put the mistake from step 2 back, run the check command, and see it fail with the new error. Undo it and see it pass. A check that was never seen red is not kept.
 6. Name what enforces the rule now, in one line: `<the rule> (enforced by <the test, check or block>)`.
    It goes on the Result's `Proof:` line.
-   A rule this change could not code is a row for the home to queue: it is queued as `templates/a-fault-outside.md` says.
+   A rule this change could not code is a row you queue yourself, as `templates/a-fault-outside.md` says.
 7. Commit the check before the change that satisfies it where the two can be told apart, so the branch and the pull request read red, then green (`principles/principle-sequence-verifiable-units.md`).
 8. Run `features/writing/playbooks/opening-a-pr.md`.
 

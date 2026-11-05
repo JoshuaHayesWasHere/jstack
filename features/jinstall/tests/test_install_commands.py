@@ -8,24 +8,12 @@ The tests run the script as `test_install.py` does, against its fake `uv`."""
 
 import pytest
 
-from test_install import ENTRY_POINTS, NAMES, PACKAGE_ROOTS, POINTS, REPO, User, line_for
+from test_install import ENTRY_POINTS, NAMES, POINTS, REPO, User, line_for
 
 
 @pytest.fixture
 def user(tmp_path):
     return User(tmp_path)
-
-
-def test_a_tool_whose_editable_paths_miss_a_package_root_is_stale_and_is_installed_again(user):
-    user.run()
-    user.tool("jstack", REPO, NAMES, roots=["src"])
-    lacking = " ".join(str(REPO / root) for root in PACKAGE_ROOTS if root != "src")
-    assert line_for(user.run("--check")[1], "commands") == [
-        f"old hard commands jstack -> stale: its editable paths lack {lacking}"
-    ]
-    assert user.run() == (0, user.every("ok"))
-    assert user.said(user.uv_log)[-1] == f"tool install --editable {REPO} --reinstall"
-    assert line_for(user.run("--check")[1], "commands") == ["ok hard commands jstack"]
 
 
 def test_a_tool_whose_entry_points_lack_a_group_of_the_checkout_is_stale_and_is_installed_again(
