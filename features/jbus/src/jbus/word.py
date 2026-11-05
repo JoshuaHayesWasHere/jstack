@@ -204,34 +204,37 @@ def _whose(home: Path, brief: Path) -> str:
     return "" if found == home else found.name
 
 
-def _named(home: Path, name: str) -> str | None:
+def _named(home: Path, state: Path, name: str) -> str | None:
     """The scope of the home whose brief or request has the slug `name`, empty for the root home,
-    or None when no brief or request has it. A slug that no brief or request has yet is a scope's
-    when every brief and request that starts with its prefix, the slug up to its first dash, is
-    that scope's: a new `fl-` slug where every `fl-` brief is the flow home's."""
-    for kind in ("tasks", "scouts"):
-        brief = home / kind / f"{name}.md"
+    or None when no brief or request has it. A brief is the home's, in its tasks/, or the copy
+    jbus keeps of a queued row's (`queue.brief_path`), whose `Home:` line names the home that
+    queued it. A slug that no brief or request has yet is a scope's when every brief and request
+    that starts with its prefix, the slug up to its first dash, is that scope's: a new `fl-` slug
+    where every `fl-` brief is the flow home's."""
+    places = (home / "tasks", home / "scouts", queue.brief_path(state, name).parent)
+    for place in places:
+        brief = place / f"{name}.md"
         if brief.is_file():
             return _whose(home, brief)
     prefix = name.split("-")[0] + "-"
     found = {
         _whose(home, brief)
-        for kind in ("tasks", "scouts")
-        for brief in (home / kind).glob(f"{prefix}*.md")
+        for place in places
+        for brief in place.glob(f"{prefix}*.md")
         if brief.is_file()
     }
     return found.pop() if len(found) == 1 and "" not in found else None
 
 
-def _decided(home: Path, words: str) -> str | None:
+def _decided(home: Path, state: Path, words: str) -> str | None:
     """The scope that the words' slugs give a word (`owner`), or None when they do not decide."""
-    named = {_named(home, slug) for slug in SLUG.findall(words)} - {None}
+    named = {_named(home, state, slug) for slug in SLUG.findall(words)} - {None}
     if len(named) == 1:
         return named.pop() or ""
     return "" if named else None
 
 
-def owner(home: Path, words: str, *threads: str) -> str:
+def owner(home: Path, state: Path, words: str, *threads: str) -> str:
     """The scope of the home that owns a word's subject, or an empty string for the root home.
 
     The briefs, requests and rows that the words name by slug decide when they are all one home's
@@ -239,7 +242,7 @@ def owner(home: Path, words: str, *threads: str) -> str:
     none is the home's whose thread is the first of `threads` that is a home's thread: the thread
     it was said in, then the one that recorded it. So a scoped home's own word stays in that scope.
     With no such thread, it is the root home's."""
-    decided = _decided(home, words)
+    decided = _decided(home, state, words)
     if decided is not None:
         return decided
     homes = {
@@ -257,7 +260,7 @@ def _for_scopes(run: Pass, words: str) -> list[str]:
     name in the brackets is a row's or a brief's slug, so such a word keeps its slug's routing.
     A name that is neither a scope nor a slug is passed over."""
     tag = FOR.search(words)
-    if tag is None or _decided(run.home, words) is not None:
+    if tag is None or _decided(run.home, run.state, words) is not None:
         return []
     names = [" ".join(one.split()).lower().removesuffix(" home") for one in tag[1].split(",")]
     rows = queue.known(run.state)
@@ -329,7 +332,7 @@ def keep(
     with locked(run.state, acts.LOCK):
         whose = scope
         if whose is None:
-            whose = owner(run.home, words, ref.partition("/")[0], recorder)
+            whose = owner(run.home, run.state, words, ref.partition("/")[0], recorder)
         for one in load(run.state):
             if one.id == name or (one.words, one.at, one.ref, one.home) == (words, at, ref, whose):
                 return one
@@ -578,9 +581,10 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     that names no thread (`recorded_by`), since a mistyped id would post the word back to the
     home that recorded it.
 
-    A word from the bot's chat that keeps no bot's message it answers (`--answers`) and names no
-    row of the projects by its slug (`queue.bare`) is refused before anything is kept or sent:
-    the home it went to could only guess what it means.
+    A word from the bot's chat that keeps no bot's message it answers (`--answers`), names no
+    row of the projects by its slug (`queue.bare`) and names no scoped home in a trailing
+    `[for: ...]` (`_for_scopes`) is refused before anything is kept or sent: the home it went to
+    could only guess what it means.
 
     The word goes to the home of the project that owns its subject (`owner`), so a home that
     records a word about another home's work forwards it there, and a word that names no home's
@@ -596,12 +600,11 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     now = datetime.now(UTC)
     heard = _heard(args, config, now)
     if heard.source == queue.BOT_CHAT:
-        rows = {
-            slug
-            for project in projects
-            for slug in queue.known(Pass(config, project, now, lambda _: None).state)
-        }
-        if queue.bare(heard.words, heard.answers, rows):
+        runs = [Pass(config, project, now, lambda _: None) for project in projects]
+        rows = {slug for run in runs for slug in queue.known(run.state)}
+        if queue.bare(heard.words, heard.answers, rows) and not any(
+            _for_scopes(run, heard.words) for run in runs
+        ):
             raise Refused(BARE_WORD)
     who = acts.cli_party(args, heard)
     try:
