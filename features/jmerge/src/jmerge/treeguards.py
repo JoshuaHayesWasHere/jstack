@@ -72,10 +72,14 @@ def guard(said: str) -> str:
 
 def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> Ran:
     """Run `command` in `cwd` in a session of its own, so a stop at `timeout` stops the
-    processes it started too, which would outlive `sh` and hold the tree."""
+    processes it started too, which would outlive `sh` and hold the tree.
+
+    `sh` runs it as a login shell, so the guards see the machine's PATH as a desk's shell and CI
+    do, after the few entries jbus's unit gives `jmerge`: Arch keeps `shasum` in
+    /usr/bin/core_perl, which only /etc/profile adds."""
     began = time.monotonic()
     process = subprocess.Popen(
-        ["sh", "-c", command],
+        ["sh", "-lc", command],
         cwd=cwd,
         env={**os.environ, **env},
         stdout=subprocess.PIPE,
