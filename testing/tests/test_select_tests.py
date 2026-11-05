@@ -1999,8 +1999,12 @@ def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_qui
     assert len(spreads) > 1
 
 
-@pytest.mark.parametrize("argv", [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"]])
-def test_parts_takes_a_count_of_one_or_more(argv):
+@pytest.mark.parametrize(
+    "argv",
+    [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"], ["--part", "desk", "a", "b"]],
+    ids=["no parts", "a count that is no number", "the desk part, which is gone"],
+)
+def test_parts_takes_a_count_of_one_or_more_and_part_only_its_named_parts(argv):
     with pytest.raises(SystemExit, match="usage"):
         select.main(argv)
 
