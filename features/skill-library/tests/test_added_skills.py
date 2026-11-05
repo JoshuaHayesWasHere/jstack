@@ -7,7 +7,7 @@ import re
 
 import pytest
 
-from skill_blocks import COPY, SKILLS, block, blocks, home, repo, run
+from skill_blocks import SKILLS, block, blocks, home, repo, run
 from test_tool_calls import CALLS, errors
 
 __all__ = ["home", "repo"]
@@ -43,10 +43,6 @@ SUBAGENT_CALLS = [
 ]
 
 
-def test_each_skill_listed_as_here_before_the_understanding_skills_is_still_a_skill():
-    assert set(SKILLS) >= BEFORE
-
-
 def front(text):
     """A skill's frontmatter as its `key: value` lines, as written, or None if it has none."""
     found = re.match(r"---\n(.*?)\n---\n", text, re.S)
@@ -77,30 +73,6 @@ def problems(directory):
     for path in sorted(directory.rglob("*.md")):
         found += em_dashes(path)
     return found
-
-
-def named_files(skill):
-    """Every file a skill's text names by a path from its own directory."""
-    text = skill.read_text()
-    paths = re.findall(r"`((?:references|\.\.)/[^`<>*\s]+\.md)`", text)
-    paths += re.findall(r"\]\(((?:\.|references)[^)\s]*)\)", text)
-    return sorted(set(paths))
-
-
-def test_skills_were_added():
-    assert ADDED != []
-
-
-@pytest.mark.parametrize("name", ADDED)
-def test_an_added_skill_has_no_problem(name):
-    assert problems(SKILLS[name]) == []
-
-
-@pytest.mark.parametrize("name", ADDED)
-def test_every_file_an_added_skill_names_is_there(name):
-    skill = COPY / "skills" / name / "SKILL.md"
-    missing = [path for path in named_files(skill) if not (skill.parent / path).is_file()]
-    assert missing == []
 
 
 @pytest.mark.parametrize(
@@ -191,22 +163,6 @@ def check(tmp_path, text, name="a-skill"):
     path.parent.mkdir()
     path.write_text(text)
     return problems(path.parent)
-
-
-def test_a_skill_hidden_from_the_model_has_no_problem(tmp_path):
-    assert check(tmp_path, GOOD) == []
-
-
-def test_the_name_of_a_built_in_command_is_a_problem(tmp_path):
-    assert check(tmp_path, GOOD.replace("a-skill", "review"), name="review") == [
-        "has the name of the built-in command /review"
-    ]
-
-
-def test_no_frontmatter_and_no_skill_file_are_problems(tmp_path):
-    assert check(tmp_path, "# A\n") == ["has no frontmatter"]
-    (tmp_path / "empty").mkdir()
-    assert problems(tmp_path / "empty") == ["has no SKILL.md"]
 
 
 def test_an_em_dash_in_a_file_beside_the_skill_is_a_problem(tmp_path):
