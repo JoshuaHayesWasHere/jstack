@@ -775,43 +775,82 @@ class Repo:
     def unstuck(self, one: ready.PullRequest, found: Judgement) -> Judgement:
         """The judgement of the pull request at the head of the line, once a required run GitHub
         queued there and started none of is restarted, or the line is given up for it. A run
-        queued for `ready.QUEUED_MINUTES` gets one restart (`rejudge.BaseMerge.restart`). Where
-        GitHub then lists no newer run, or the newer one is queued as long, the pull request
-        gives the head of the line to the next, as on a failed check, and waits saying so while
-        its run stays queued. A run that started is never restarted, however long it runs.
-        Each step reads what GitHub lists and what the record of the head keeps, so a run of
-        `jmerge` again finds nothing left to do."""
+        queued for `ready.QUEUED_MINUTES` gets one restart (`rejudge.BaseMerge.restart`), spent
+        only once its close and reopen took: one that failed is tried again on each run for
+        `ready.RESTART_MINUTES`, and then the line goes to the next. Once it took, GitHub has
+        `ready.RESTART_MINUTES` to list a newer run. Where it then lists none, or the newer one
+        is queued for `ready.QUEUED_MINUTES` too, the pull request gives the head of the line to
+        the next, as on a failed check, and waits saying so while its run stays queued. A run
+        that started is never restarted, however long it runs. Each step reads what GitHub
+        lists and what the record of the head keeps, so a run of `jmerge` again finds nothing
+        left to do."""
         if not one.queued or not self.base_merge.run:
             return found
         check, since = min(one.queued, key=lambda queued: queued[1])
-        minutes = int((datetime.now(UTC) - since).total_seconds() // 60)
+        now = datetime.now(UTC)
+        minutes = int((now - since).total_seconds() // 60)
+        stuck = self.base_merge.stuck(one)
         restarted = self.restarted_by(one, since)
         if minutes < ready.QUEUED_MINUTES and not restarted:
             return found
         values = {"check": check, "head": one.head[:12], "minutes": minutes}
-        if restarted is None:
-            why = self.base_merge.restart(one, since)
+        if restarted is None and not rejudge.late(stuck.get("asked") or now.isoformat(), now):
+            why = self.base_merge.restart(one, check, since)
             if self.base_merge.stuck(one).get("reopen"):
                 return found._replace(why=ready.QUEUED_UNOPENED.format(**values, why=why))
             if why:
                 return found._replace(why=ready.QUEUED_UNCLOSED.format(**values, why=why))
             return found._replace(why=ready.QUEUED_RESTARTED.format(**values))
+        if restarted and not rejudge.late(stuck.get("took"), now):
+            return found._replace(why=ready.QUEUED_RESTARTED.format(**values))
         self.base_merge.keep_stuck(one, gave_up=True)
         return found._replace(why=self.gave_up(one))
 
     def restarted_by(self, one: ready.PullRequest, since: datetime) -> bool | None:
-        """None while the head was never restarted, True where the run queued `since` is the
-        one GitHub queued before the restart, or one from before it, and False for a newer run."""
-        kept = self.base_merge.stuck(one).get("since")
-        if not isinstance(kept, str):
+        """None while no restart of the head took, True where the run queued `since` is the one
+        GitHub queued before the restart, or one from before it, and False for a newer run."""
+        stuck = self.base_merge.stuck(one)
+        kept = stuck.get("since")
+        if not isinstance(stuck.get("took"), str) or not isinstance(kept, str):
             return None
         return since <= datetime.fromisoformat(kept)
 
     def gave_up(self, one: ready.PullRequest) -> ready.Reason:
+        """Why the pull request gave up the line for its queued run: its restart took and the
+        run is queued still, or its restart never took."""
         check = min(one.queued, key=lambda queued: queued[1])[0]
-        return ready.QUEUED_GAVE_UP.format(
-            check=check, head=one.head[:12], minutes=ready.QUEUED_MINUTES
+        stuck = self.base_merge.stuck(one)
+        if stuck.get("took"):
+            return ready.QUEUED_GAVE_UP.format(
+                check=check, head=one.head[:12], minutes=ready.QUEUED_MINUTES
+            )
+        return ready.QUEUED_UNRESTARTED.format(
+            check=check,
+            head=one.head[:12],
+            minutes=ready.RESTART_MINUTES,
+            why=stuck.get("why") or "not known",
         )
+
+    def unopened(self, listed: list[ready.PullRequest]) -> list[str]:
+        """A `wait` line for each pull request a restart left closed, which GitHub lists among
+        the open ones no more: its reopen is owed, and `jmerge` asks it again on the next run,
+        or it asks it no more (`rejudge.BaseMerge.reopen`). The second is a wait no runner is at
+        work on, which jbus raises to the home (`jbus.clock.held`)."""
+        said = []
+        for number, stuck in self.base_merge.unopened({str(one.number) for one in listed}):
+            values = {
+                "check": stuck.get("check") or "check",
+                "head": str(stuck.get("head") or "")[:12],
+                "why": stuck.get("why") or "not known",
+            }
+            if stuck.get("unopened"):
+                why = ready.QUEUED_UNREOPENED.format(**values, minutes=ready.RESTART_MINUTES)
+            else:
+                at = datetime.fromisoformat(str(stuck["since"]))
+                minutes = int((datetime.now(UTC) - at).total_seconds() // 60)
+                why = ready.QUEUED_UNOPENED.format(**values, minutes=minutes)
+            said.append(lines.waits("wait", int(number), str(stuck.get("url") or ""), why))
+        return said
 
     def judge(self, one: ready.PullRequest, default: str) -> Judgement:
         """The judgement of the pull request. Where all that holds it is a required check that
@@ -1915,6 +1954,8 @@ def _merging(
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
+    for line in repo.unopened(listed):
+        say(line)
     return 0
 
 

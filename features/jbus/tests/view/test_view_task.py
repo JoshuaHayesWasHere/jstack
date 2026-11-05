@@ -59,7 +59,7 @@ def test_the_two_rebase_reasons_are_the_rebase_step_and_the_second_pass(served):
         ("wait: it has no review yet", "review"),
         ("wait: its findings are not handled: the Result has no Fixed line", "findings"),
         (
-            "wait: its fix changed more than the findings named: the second pass is not written",
+            "wait: its fix is not reviewed: the scoped review of it is not written",
             "second",
         ),
         ("wait: the rebase changed the content after its review; scoped review of x", "second"),

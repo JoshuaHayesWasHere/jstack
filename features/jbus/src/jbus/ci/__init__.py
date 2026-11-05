@@ -1,13 +1,16 @@
-"""`jbus ci`: count what a project's CI costs, keep the numbers, and compare them to nine targets.
+"""`jbus ci`: count what a project's CI costs, keep the numbers, and compare them to nine targets
+and six health numbers.
 
 `jbus ci` asks GitHub for the Actions jobs and pull requests of the last `--days` days
 (`jbus.ci.collect`). It keeps each job once in `ci.jsonl` and each pull request in
-`ci-prs.jsonl` of the project's state (`jbus.ci.ledger`). Then it prints the nine targets
-(`jbus.ci.numbers`), each with how it counts. The `ci` panel of `jbus view` shows the
-same ledger.
+`ci-prs.jsonl` of the project's state (`jbus.ci.ledger`). Then it prints the nine targets and the
+six health numbers (`jbus.ci.numbers`), each with how it counts and how it stands: `met`, `missed`,
+`no data`, or `baseline` for a health number, which has no target. The `ci` panel of `jbus view`
+shows the same ledger.
 
 `--report` also writes `reports/ci-week-<date>.md` in the project's home over the last
-`WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`). The
+`WEEK` days, and alerts the project once if the project missed a target (`jbus.ci.report`). It
+counts the health numbers by day of the user's zone, the machine's own where the user set none. The
 report also gives S8, the wrong closes of gates, for each week a scout labelled, and queues the
 scout that labels the week that ended last (`jbus.ci.wrongcloses`).
 `--day` writes `reports/ci-day-<date>.md` instead, from the ledger the passes keep, and collects
@@ -72,9 +75,10 @@ def facts_of(state: Path, now: datetime) -> numbers.Facts:
 def lines(nine: list[numbers.Number]) -> list[str]:
     found = []
     for one in nine:
-        verdict = "MISSED" if one.met is False else "met" if one.met else "no data"
         runners = f"; {one.runners}" if one.runners else ""
-        found.append(f"{one.name}: {one.shown} (held to {one.target}) {verdict}{runners}")
+        found.append(
+            f"{one.name}: {one.shown} (held to {one.target}) {report.verdict(one)}{runners}"
+        )
         found.append(f"  counted: {one.how} (n = {one.n})")
     return found
 
@@ -129,7 +133,7 @@ def one(args: argparse.Namespace, config: jbus.Config, project: jbus.Project) ->
         return 0
     week = now - timedelta(days=WEEK)
     this_week = numbers.compute(facts, week, now)
-    zone = config.user.zone or UTC
+    zone = config.user.zone or config.user.local(now).tzinfo or UTC
     closes = wrongcloses.scorecard(config, project, now, print)
     text = report.body(facts, this_week, week, now, zone, config.user, closes)
     path = report.write(config.home(project), text, now, config.user)
@@ -168,7 +172,11 @@ def _arguments(shown: argparse.ArgumentParser) -> None:
 
 VERBS = (
     verbs.Verb(
-        "ci", "keep CI's job minutes and hold them to nine targets", _arguments, run, config=False
+        "ci",
+        "keep CI's job minutes, hold them to nine targets and give six health numbers",
+        _arguments,
+        run,
+        config=False,
     ),
 )
 

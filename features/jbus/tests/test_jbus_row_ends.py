@@ -441,7 +441,7 @@ def test_a_pull_request_opened_while_a_pass_runs_is_waited_on_and_never_left(kit
         pulls = listing(run, state, *more)
         if state == "open" and thread["status"] == "running":
             kitchen.set("open.json", [kitchen.opened("alpha", 9)])
-            kitchen.brief("alpha", result(pull=PULL))
+            kitchen.brief("alpha", result(pull=PULL) + "Reviewer: mcp:reviewer #1\n")
             thread["status"] = "completed"
         return pulls
 
