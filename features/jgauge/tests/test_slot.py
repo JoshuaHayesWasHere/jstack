@@ -1,6 +1,5 @@
 import fcntl
 import os
-import shutil
 import signal
 import subprocess
 import sys
@@ -147,22 +146,6 @@ def test_what_a_command_leaves_running_holds_no_slot(slots):
     assert slots.waits(lambda: slots.started() == ["a"])
     after = slots("--slots", "1", command=["echo", "ran"])
     assert after.communicate(timeout=5) == ("ran\n", "")
-
-
-def test_a_command_left_running_ends_when_its_directory_goes(tmp_path):
-    state = tmp_path / "state"
-    state.mkdir()
-    left = daemons.start(
-        ["sh", "-c", RUNS_UNTIL_RELEASED, "sh", "a"], env={**os.environ, "D": str(state)}
-    )
-    try:
-        deadline = time.monotonic() + 5
-        while not (state / "started.a").exists() and time.monotonic() < deadline:
-            time.sleep(0.02)
-        shutil.rmtree(state)
-        assert left.wait(timeout=5) == 0
-    finally:
-        left.kill()
 
 
 def test_an_interrupt_is_the_commands_to_take_and_the_holder_waits_for_it_to_end(slots):

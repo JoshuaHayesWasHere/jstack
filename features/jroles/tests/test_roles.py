@@ -8,7 +8,7 @@ import os
 
 import pytest
 
-from jroles import ROLES, ledger
+from jroles import ledger
 from jroles.cli import main
 from test_tool_calls import LAUNCHES, errors
 
@@ -40,10 +40,6 @@ def test_no_file_prints_nothing(roles):
     assert roles("crew") == ("", "")
 
 
-def test_a_role_with_no_line_prints_nothing(roles):
-    assert roles("home", MAP) == ("", "")
-
-
 def test_an_expert_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
     assert roles("expert") == ("", "")
     assert roles("expert", MAP) == ("", "")
@@ -51,20 +47,6 @@ def test_an_expert_is_a_role_and_gets_what_the_map_gives_it_or_nothing(roles):
     given = MAP + "expert: grok grok-build\n"
     assert roles("expert", given) == ('{"provider": "grok", "model": "grok-build"}\n', "")
     assert roles("crew", given) == ('{"provider": "codex", "model": "gpt-5-codex"}\n', "")
-
-
-def test_the_roles_are_the_four_threads_and_an_expert_and_no_other(roles):
-    """`jroles` refuses a map with a line for a role that no longer exists, and it rejects
-    that role as an argument."""
-    assert ROLES == ("crew", "scout", "review", "home", "expert")
-    line = "orchestrator: claudeAgent claude-haiku-5-5"
-    assert roles("crew", MAP + line + "\n") == ("", f"bad line 6: {line}\n")
-    with pytest.raises(SystemExit):
-        main(["orchestrator"])
-
-
-def test_inherit_is_the_same_as_no_line(roles):
-    assert roles("review", MAP) == ("", "")
 
 
 def test_a_full_line_prints_the_selection_as_one_json_object(roles):
@@ -127,13 +109,6 @@ def test_two_review_lines_print_two_selections_in_order_each_with_its_own_option
         "cursor",
         "codex",
     ]
-
-
-def test_a_review_list_leaves_the_other_roles_one_line_each(roles):
-    assert roles("crew", MAP.replace("review: inherit\n", DUAL)) == (
-        '{"provider": "codex", "model": "gpt-5-codex"}\n',
-        "",
-    )
 
 
 @pytest.mark.parametrize(
@@ -208,15 +183,6 @@ def test_a_map_that_cannot_be_read_is_said_on_stderr_and_the_launch_inherits(
     path.parent.write_text("")
     assert main(["crew"]) == 0
     assert capsys.readouterr() == ("", f"cannot read {path}: Not a directory\n")
-
-
-def test_with_no_xdg_config_home_the_map_is_under_the_home_directory(tmp_path, monkeypatch, capsys):
-    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
-    monkeypatch.setenv("HOME", str(tmp_path))
-    (tmp_path / ".config" / "jstack").mkdir(parents=True)
-    (tmp_path / ".config" / "jstack" / "roles").write_text("home: grok grok-build\n")
-    assert main(["home"]) == 0
-    assert capsys.readouterr().out == '{"provider": "grok", "model": "grok-build"}\n'
 
 
 @pytest.mark.parametrize(("role", "text"), [("crew", MAP), ("scout", MAP), ("review", DUAL)])

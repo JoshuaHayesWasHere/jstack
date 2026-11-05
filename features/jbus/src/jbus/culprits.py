@@ -4,9 +4,9 @@ crew of each culprit jbus reverted.
 Both are steps of their own, after `watch.retro`, which runs after `mainmoved.tell` in a pass:
 `watch.retro` reads main as `main.json` judges it and hands its tip, red after its one rerun,
 over as `Pass.red`. `jbus.reverts` reads `jbus ci`'s ledger for its flakes and
-`tell` sends through `rebase.once`, and `watch` may import neither, since each leads back to it
-(`test_jbus_layers.py`). `judge` needs no T3 Code, so a red tip gets its revert or its row in every
-pass that `watch` runs in. A revert opened in a pass is told in the same pass, and a message the
+`tell` sends through `rebase.once`, and `watch` may import neither, since each leads back to it.
+`judge` needs no T3 Code, so a red tip gets its revert or its row in every pass that `watch` runs
+in. A revert opened in a pass is told in the same pass, and a message the
 outbox held or T3 Code did not take is sent again by a later pass, once, by its mark in
 `sent.json`.
 """

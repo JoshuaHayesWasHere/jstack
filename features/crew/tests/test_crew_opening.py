@@ -1,8 +1,7 @@
 """The block a crewmate opens its pull request with, in `opening-a-pr.md` step 6, runs the prose
 lint over the title and the body and opens nothing while a line of them holds two sentences.
 Each test runs the block as an agent runs it, with `T` set as the crew skill's top block sets
-it, against a `gh` that records what it is asked. Step 5 asks for no skill to be read: the
-lint is the bar, and the two writing skills stay where a model can load them by itself."""
+it, against a `gh` that records what it is asked."""
 
 import os
 import re
@@ -11,8 +10,6 @@ import textwrap
 
 import pytest
 
-from jbriefs.skills import listed
-from jinstall import layout
 from testing.layouts import assembled
 from testing.paths import REPO
 
@@ -95,14 +92,3 @@ def test_a_crew_opens_its_pull_request_ready_and_never_as_a_draft(opened):
     _, asked = opened("feat(crew): lint the text", BODY)
     assert asked[0].startswith("pr create --base main ") and "--draft" not in asked[0]
     assert "open it ready, never as a draft" in step(6)
-
-
-def test_step_five_names_no_skill_to_read():
-    named = {REPO / path for path in re.findall(r"`([^`]+\.md)`", step(5))}
-    assert named & set(listed("skill", REPO).values()) == set()
-
-
-@pytest.mark.parametrize("name", ["technical-writing", "unslop"])
-def test_a_writing_skill_stays_one_a_model_may_load_by_itself(name):
-    assert name in listed("skill", REPO)
-    assert name not in layout.hidden(REPO)

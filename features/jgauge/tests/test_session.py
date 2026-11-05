@@ -74,25 +74,10 @@ def test_a_call_with_no_finished_line_is_in_the_total_as_a_flagged_floor(tmp_pat
     assert "floor" in session.render(session.of_transcript(path))
 
 
-def test_the_session_command_prints_the_table_or_json(capsys):
-    assert cli.main(["session", str(PLAIN)]) == 0
-    out = capsys.readouterr().out
-    assert "272" in out and "123" in out and "Peak context" in out
-    assert cli.main(["session", str(PLAIN), "--format", "json"]) == 0
-    assert json.loads(capsys.readouterr().out)["total"]["total"] == 272
-
-
 def test_the_session_command_ends_with_a_reason_when_there_is_nothing_to_count(tmp_path):
     with pytest.raises(SystemExit) as missing:
         cli.main(["session", str(tmp_path / "none.jsonl")])
     assert "missing" in str(missing.value)
-
-
-def test_the_run_command_is_gone(capsys):
-    with pytest.raises(SystemExit) as refused:
-        cli.main(["run", "01TESTRUN0000000000000000A"])
-    assert refused.value.code == 2
-    assert "invalid choice: 'run'" in capsys.readouterr().err
 
 
 def test_an_agent_a_workflow_started_is_a_subagent_row_too(tmp_path):

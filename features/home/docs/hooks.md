@@ -57,19 +57,20 @@ It refuses the send, exit 2 with one line on stderr, when the sender is a home o
 | a home that handed off | the id in its `home-id` now, or that none is there, and the channel below |
 | the root, from a scoped home | a stop, `jbus stop` |
 | a scoped home, from the root | the user's word, carried by `jbus word`, or the answer to its stop |
-| a scoped home from another scope, or any home from a reviewer | a finding kept by jbus for that home |
-| the crew of another home's brief | a finding kept by jbus for that home |
+| a scoped home from another scope, or any home from a reviewer | a row queued unapproved for that home, `jbus queue add` |
+| the crew of another home's brief | a row queued unapproved for that home, `jbus queue add` |
+| another repo's home, from a home | nothing: jbus carries each repo's events to its own home |
 | the crew of the brief a reviewer reviews | nothing: jbus sends the crew the review notice |
 
 Each line names the jbus command as the home skill's scoped-homes page gives it.
 
 A home's send to the crew of one of its own briefs, a steer, goes.
-So does any send to a scout, to a thread of another repo, and any send by a thread that is no home and no reviewer.
+So does any send to a scout, to a thread of another repo that is not that repo's home, and any send by a thread that is no home and no reviewer.
 The sender's thread is the one T3 Code's store, `~/.t3/userdata/statev2.sqlite`, runs the hook's Claude or Codex session in.
 A session the store does not know, a store that cannot be read and a repo with no homes' state let the send go: what is not known to be a home's or a reviewer's send is not refused.
 
 The hook needs `git` and Python 3.12 or newer, or the release's own Python.
-A hook that cannot judge refuses the send: no such Python, a `jbriefs.sends` that ends any way but 0 or 2, and one that runs past 25 seconds each end it 2, through `features/jbus/hooks/judge.sh`.
+A hook that cannot judge refuses the send and ends 2, through `features/jbus/hooks/judge.sh`: when it finds no such Python, when `jbriefs.sends` ends any way but 0 or 2, and when `jbriefs.sends` runs past 25 seconds.
 Each refusal is a quiet `hook` event in the repo's jbus log, with the hook, the call and the reason, which `jbus events` prints.
 `install.sh` merges this group into `~/.claude/settings.json`, where `onFailure` refuses the send too when the hook itself fails or runs out of time:
 
