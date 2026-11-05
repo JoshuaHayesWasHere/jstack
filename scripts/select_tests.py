@@ -63,6 +63,14 @@ spells no path and is on no list. A change it reads in some other way (a glob, a
 with it unrun. So every change also runs each such test, the catch-all, and the summary counts
 it with the cross-cutting tests.
 
+A change of the tests alone runs a narrow check. Where every changed path is a module of a
+folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`),
+the selection is the changed test files and the tests that import or name a helper they changed:
+no feature's tests, no cross-cutting tests, no catch-all and no test that failed on main. Such a
+change alters no code but the tests', and main's full run catches what a narrow check misses. A
+change that also touches a fixture, deletes a file or touches any path outside the tests selects
+by all the rules above.
+
 It prints `all` when a changed path is one that every test depends on, and never for the size of
 what it selected: a selection of nearly every test file still names its files, and main's full
 run catches what a selection misses. Those paths are `pyproject.toml`, `uv.lock` and the root
@@ -116,9 +124,14 @@ cross-cutting tests, the catch-all and the changed test files. `--part rest` pri
 it, the files the rules reached through imports, names and features alone. Each prints `all`
 where the selection is `all`. `--part desk` prints both from one selection, each file after the
 name of its part, `guards <file>` or `rest <file>`, the guards first, and `all` alone where the
-selection is `all`: the desk's check block selects once so. A desk runs the guards first, as a
-step that must pass, since a cheap guard mixed into a selection that runs past the short lane's
-limit reaches no verdict.
+selection is `all`. `jmerge` runs the guards on a pull request's tree merged over its base
+(`merged-tree-guards`).
+
+`select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
+edits, each one the check runs, and never `all`: a change that selects every test still names
+its own. It needs no selection, so it is quick. They are the desk's check, with the lint (the
+crew's check block, features/crew/do-the-task.md, runs each file alone in the short lane), and
+CI's check runs the rest of the selection.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -1113,21 +1126,43 @@ def unowned():
     return frozenset(collected() - owned)
 
 
+def tests_alone(changed):
+    """Whether every changed path is a module of a folder of tests that is still there: a test
+    file, a helper of the tests or a `conftest.py`. A fixture, a deleted file or a module of
+    `testing/` outside its tests is not."""
+    return bool(changed) and all(
+        TESTS.match(path) and path.endswith(".py") and (ROOT / path).is_file() for path in changed
+    )
+
+
 def selection(changed, failed=()):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
-    the check runs. `why["added"]` lists the failed ones nothing else selected."""
+    the check runs. `why["added"]` lists the failed ones nothing else selected. A change of the
+    tests alone selects only what its imports and names reach."""
     tests, why = ruled(changed)
     if tests == ["all"]:
         return tests, why
+    if tests_alone(changed):
+        narrow = sorted(set(why["imports"]) | set(why["names"]))
+        return narrow, {
+            "imports": why["imports"],
+            "names": why["names"],
+            **{key: [] for key in ("features", "cross-cutting", "catch-all", "added")},
+        }
     lone = unowned()
     chosen = set(tests) | lone
     added = set(failed) & collected() - chosen
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
-DESK_PARTS = ("guards", "rest", "desk")
+DESK_PARTS = ("guards", "rest", "desk", "touched")
+
+
+def touched(changed):
+    """The test files of `changed` that the check runs: the desk's own share of a change."""
+    return sorted(set(changed) & collected())
 
 
 def guards(changed, tests):
@@ -1440,7 +1475,7 @@ def main(argv):
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
-            "       select_tests.py --part guards|rest|desk <base> <head>\n"
+            "       select_tests.py --part guards|rest|desk|touched <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1460,6 +1495,9 @@ def main(argv):
             print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
             tests = ["all"]
         print("\n".join(tests))
+        return
+    if cut == "touched":
+        print("\n".join(touched(changed)))
         return
     failed = os.environ.get(FAILED_ON_MAIN)
     failed = None if failed is None else failed.split()

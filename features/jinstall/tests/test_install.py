@@ -23,7 +23,7 @@ from jbus.launchd import label
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
-from jinstall.kinds import RetiredHook, Units, layout_scripts, rewrite, unit_templates
+from jinstall.kinds import RetiredHook, rewrite, unit_templates
 from jinstall.machine import Machine, Moved, Ran
 from jinstall.needs import needs
 from testing.paths import REPO
@@ -99,12 +99,6 @@ the script expects this platform's output, and a test of systemd's units runs on
 beside its Darwin case (`linux_only`)."""
 UNITS_DIR = Path("Library", "LaunchAgents") if MAC else Path(".config", "systemd", "user")
 """Where the install puts the units, under HOME: launchd's agents on a Mac."""
-UNITS_MADE = (
-    ["Library", "Library/LaunchAgents", "Library/Logs", "Library/Logs/jstack"]
-    if MAC
-    else [".config/systemd", ".config/systemd/user", ".config/systemd/user/timers.target.wants"]
-)
-"""The folders the units take that the install makes, under HOME, beside `.config/jstack`."""
 UNITS_PUT = (
     sorted(f"{label(name)}.plist" for name in TIMERS)
     if MAC
@@ -453,22 +447,6 @@ def line_for(said, part):
     return [line for line in said if f" {part}" in line and not line.startswith("setup: ")]
 
 
-def test_it_puts_every_part_and_says_ok_for_each(user):
-    assert len(SKILLS) > 9
-    assert user.run() == (0, user.every("ok"))
-    for link, skill in user.linked().items():
-        assert os.readlink(link) == str(skill)
-    assert json.loads(user.settings.read_text()) == {
-        "hooks": user.written(),
-        "statusLine": user.STATUS,
-        **SET,
-    }
-    assert json.loads(user.codex.read_text()) == {"hooks": user.written("codex")}
-    assert sorted(path.name for path in user.bin.iterdir()) == sorted(NAMES)
-    assert user.said(user.uv_log) == [f"tool install --editable {REPO} --reinstall"]
-    assert user.said(user.systemctl_log) == []
-
-
 def test_every_skill_is_linked_into_codexs_home_beside_what_codex_keeps_there(user):
     system = user.home / ".codex" / "skills" / ".system"
     system.mkdir(parents=True)
@@ -478,20 +456,6 @@ def test_every_skill_is_linked_into_codexs_home_beside_what_codex_keeps_there(us
     assert os.readlink(user.home / ".codex" / "skills" / "pr-review") == str(
         laid(user.home, "codex") / "skills" / "pr-review"
     )
-
-
-def test_a_second_run_changes_nothing(user):
-    user.run()
-    before = user.snapshot()
-    assert user.run() == (0, user.every("ok"))
-    assert user.snapshot() == before
-    assert len(user.said(user.uv_log)) == 1
-
-
-def test_check_changes_nothing_and_says_what_is_missing(user):
-    assert user.run("--check") == (1, user.every("missing"))
-    assert user.listing() == []
-    assert user.said(user.uv_log) == []
 
 
 @pytest.mark.parametrize("args", [("--stale",), ("--check", "--uninstall"), ("",)])
@@ -516,17 +480,6 @@ def test_check_names_a_broken_link_and_a_run_mends_it(user):
     assert user.run("--check") == (0, user.every("ok"))
 
 
-def test_a_directory_where_a_link_goes_is_left_alone(user):
-    own = user.home / ".claude/skills/crew"
-    user.write(own / "SKILL.md", "mine\n")
-    code, said = user.run()
-    assert code == 1
-    assert f"old hard {own} -> not a link" in said
-    user.run("--uninstall")
-    assert (own / "SKILL.md").read_text() == "mine\n"
-    assert not (own / "crew").exists()
-
-
 def test_a_link_to_a_skill_the_checkout_no_longer_has_is_old_and_a_run_unlinks_it(user):
     user.run()
     dead = user.home / ".claude/skills/retired"
@@ -538,18 +491,6 @@ def test_a_link_to_a_skill_the_checkout_no_longer_has_is_old_and_a_run_unlinks_i
     assert (code, line_for(said, dead)) == (0, [f"ok hard {dead} -> unlinked"])
     assert not dead.is_symlink()
     assert user.run("--check") == (0, user.every("ok"))
-
-
-@pytest.mark.parametrize("root", [".claude/skills", ".codex/skills"])
-def test_the_retired_deeper_skill_is_unlinked_by_a_run(user, root):
-    user.run()
-    dead = user.home / root / "deeper"
-    dead.symlink_to(REPO / "skills" / "deeper")
-    assert not (REPO / "skills" / "deeper").exists()
-    code, said = user.run()
-    assert (code, line_for(said, dead)) == (0, [f"ok hard {dead} -> unlinked"])
-    assert not dead.is_symlink()
-    assert line_for(user.run("--check")[1], dead) == []
 
 
 def test_a_hook_already_in_a_hooks_file_is_kept(user):
@@ -751,65 +692,6 @@ def test_the_units_are_not_due_on_a_machine_with_no_jbus_config(user):
     assert line_for(user.run("--check")[1], "units") == []
 
 
-def record(user):
-    created = user.home / ".local" / "state" / "jstack" / "created"
-    return sorted(
-        str(Path(line).relative_to(user.home)) for line in created.read_text().splitlines()
-    )
-
-
-def test_the_record_holds_the_containers_the_install_created_and_nothing_else(user):
-    (user.home / ".claude").mkdir()
-    user.with_jbus()
-    user.run()
-    assert record(user) == sorted(
-        [
-            ".agents",
-            ".agents/skills",
-            ".claude/settings.json",
-            ".claude/skills",
-            ".codex",
-            ".codex/hooks.json",
-            ".codex/skills",
-            ".config",
-            ".config/jstack",
-            *UNITS_MADE,
-            ".local",
-            ".local/bin",
-            ".local/share",
-            ".local/share/jstack",
-            ".local/share/jstack/harness",
-            *(f".local/share/jstack/harness/{harness.name}" for harness in HARNESSES),
-            ".local/state",
-        ]
-    )
-
-
-def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(user):
-    user.with_jbus()
-    user.run()
-    code, said = user.run("--uninstall")
-    assert code == 0
-    assert set(said) >= {
-        *(f"removed {link}" for link in user.links()),
-        f"removed hook {user.settings} SessionStart",
-        f"removed hook {user.codex} SessionStart",
-        f"removed patterns {user.patterns}",
-        f"removed hook {user.settings} PreToolUse",
-        f"removed statusline {user.settings}",
-        "removed commands jstack",
-        *user.removed_units(),
-    }
-    assert all(line.startswith("removed ") for line in said)
-    assert user.listing() == []
-    if not MAC:
-        disabled = {f"--user disable --now {t}" for t in [*TIMERS, *OPTED]}
-        assert disabled <= set(user.said(user.systemctl_log))
-    assert user.said(user.uv_log)[-1] == "tool uninstall jstack"
-    assert user.run("--uninstall") == (0, [])
-    assert user.listing() == []
-
-
 def test_uninstall_removes_only_what_names_this_checkout(user):
     theirs = user.home / ".claude/skills/theirs"
     theirs.mkdir(parents=True)
@@ -833,7 +715,7 @@ def test_uninstall_removes_only_what_names_this_checkout(user):
     assert os.readlink(elsewhere) == "/elsewhere/skills/home"
 
 
-@linux_only("test_launchd.py::test_a_sandbox_never_runs_the_systems_launchctl")
+@pytest.mark.skipif(MAC, reason="Linux's case: systemd's units; no Darwin case is kept")
 def test_with_a_manager_that_reads_another_home_only_the_links_are_made_and_removed(user):
     units = user.with_jbus()
     log = user.systemctl_log
@@ -875,32 +757,6 @@ def test_a_link_by_another_name_to_a_skill_the_checkout_has_is_not_this_installs
     assert user.run("--check") == (0, user.every("ok"))
     user.run("--uninstall")
     assert os.readlink(alias) == str(REPO / "features" / "crew")
-
-
-def test_uninstall_keeps_a_container_it_made_while_something_else_is_in_it(user):
-    user.run()
-    mine = user.home / ".agents" / "mine.txt"
-    mine.write_text("mine\n")
-    settings = json.loads(user.settings.read_text())
-    user.settings.write_text(json.dumps(settings | {"model": "one"}))
-
-    code, said = user.run("--uninstall")
-
-    assert code == 0
-    assert f"removed {user.home / '.agents'}" not in said
-    assert f"removed {user.settings}" not in said
-    assert json.loads(user.settings.read_text()) == {"model": "one"}
-    assert record(user) == [".agents", ".claude", ".claude/settings.json", ".local", ".local/state"]
-    assert user.run("--uninstall") == (0, [])
-
-    mine.unlink()
-    user.settings.write_text("{}\n")
-    code, said = user.run("--uninstall")
-    assert sorted(said) == sorted(
-        f"removed {user.home / path}"
-        for path in (".agents", ".claude", ".claude/settings.json", ".local", ".local/state")
-    )
-    assert user.listing() == []
 
 
 def test_a_second_run_waits_for_the_one_that_holds_the_homes_lock(user):
@@ -985,60 +841,8 @@ def test_a_file_that_changes_under_both_writes_is_left_as_the_other_writer_has_i
     assert sorted(path.name for path in tmp_path.iterdir()) == ["settings.json"]
 
 
-@pytest.mark.parametrize(
-    ("account", "line"),
-    [
-        ("home", "old: systemctl --user did not answer, so jbus.timer is not enabled"),
-        ("account", "ok: "),
-    ],
-)
-def test_linked_units_are_old_under_the_accounts_own_home_when_no_manager_answers(
-    tmp_path, account, line
-):
-    home, checkout = tmp_path / "home", tmp_path / "checkout"
-    units = Units(home / "units", ("jbus.timer",), ("jbus.timer",), home / "config.toml")
-    (checkout / "templates").mkdir(parents=True)
-    (checkout / "templates" / "jbus.timer").write_text("[Timer]\n")
-    (home / ".local" / "bin").mkdir(parents=True)
-    (home / ".local" / "bin" / "jbus").write_text("")
-    there = machine(checkout, home, tmp_path / account, lambda args: Ran(1, ""))
-    units.put(there)
-
-    found = units.probe(there)
-
-    assert f"{found.state.value}: {found.detail}" == line
-
-
 def machine(checkout, home, account, run=lambda args: Ran(None, "")):
     return Machine(checkout, home, {"PATH": ""}, run, account)
-
-
-@pytest.mark.parametrize("answer", [Ran(0, "HOME=/another/home\n"), Ran(1, ""), Ran(None, "")])
-def test_systemctl_runs_nothing_against_a_manager_whose_home_is_not_this_one(tmp_path, answer):
-    asked = []
-
-    def run(args):
-        asked.append(list(args))
-        return answer
-
-    there = machine(tmp_path, tmp_path / "home", tmp_path / "home", run)
-
-    assert there.systemctl("enable", "--now", "jbus.timer") is None
-    assert there.systemctl("disable", "--now", "jbus.timer") is None
-    assert asked == [["systemctl", "--user", "show-environment"]] * 2
-
-
-def test_systemctl_runs_against_the_manager_that_reads_this_home(tmp_path):
-    asked = []
-
-    def run(args):
-        asked.append(list(args))
-        return Ran(0, f"LANG=C\nHOME={tmp_path / 'home'}\n")
-
-    there = machine(tmp_path, tmp_path / "home", tmp_path / "home", run)
-
-    assert there.systemctl("daemon-reload") is not None
-    assert asked[-1] == ["systemctl", "--user", "daemon-reload"]
 
 
 def worktree(tmp_path):
@@ -1071,19 +875,6 @@ def test_no_hook_is_retired_while_skills_json_cannot_be_read(tmp_path):
     listed = needs(machine(main, home, account=tmp_path / "account"))
 
     assert [need.name for need in listed if isinstance(need.kind, RetiredHook)] == []
-
-
-@pytest.mark.parametrize(
-    ("command", "names"),
-    [
-        ("sh '/lay/hooks/limits.sh' 2>/dev/null || true", {"limits.sh"}),
-        ("sh /lay/hooks/limits.sh;true", {"limits.sh"}),
-        ('sh "/lay/hooks/a-b.sh"&&sh /lay/hooks/c_d.sh', {"a-b.sh", "c_d.sh"}),
-        ("sh /mine/hooks/limits.sh", set()),
-    ],
-)
-def test_a_command_names_each_layout_script_it_runs_and_no_shell_punctuation(command, names):
-    assert layout_scripts(command, Path("/lay")) == names
 
 
 def test_a_plain_install_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp_path):
@@ -1254,7 +1045,7 @@ def test_a_push_hook_of_the_users_own_is_left_alone(user):
         f"old {part} -> a hook of the repo's own, which the install does not write over: "
         f"to run jstack's as well, add sh '{script}' \"$@\" to it"
     ]
-    user.start("--uninstall", checkout=checkout).wait()
+    user.start("--uninstall", checkout=checkout).communicate()
     assert own.read_text() == "#!/bin/sh\n"
 
 

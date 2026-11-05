@@ -308,7 +308,7 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 | `off` | Absent | Nothing | While it is there, a new thread in the repo does not become a home by itself. `/nohome repo` makes it and `/nohome on` removes it. | `features/home/hooks/home-start.sh` |
 | `merge-off` | Absent | Nothing | While it is there, `jmerge` merges nothing in the repo. `/nohome merge` makes it and `/nohome merge on` removes it. | `jmerge` |
 | `home-thread` | Absent | One line, a home's thread id | Whether the home runs `jmerge --sweep` at its start: with an id it does, and empty or absent nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. Only you write this file. | `jbus`, the `home` skill |
-| `fresh-check` | Absent | One line, a command such as `make check` | The repo's check command: a crewmate runs it once as the check of its change, and `jbus queue add` holds a brief's check line to it. | `crew`, `jbus` |
+| `fresh-check` | Absent | One line, a command such as `make check` | The repo's check command: CI's check runs it, a crewmate runs it once as the check of its change (but in a repo whose pull request check selects its tests, as jstack's does, the crewmate runs only the lint and the tests its change touches, and CI's check runs the rest (`features/crew/do-the-task.md`)), and `jbus queue add` holds a brief's check line to it. | `crew`, `jbus` |
 
 ## Environment variables
 

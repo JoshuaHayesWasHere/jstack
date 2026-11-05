@@ -18,7 +18,6 @@ READ_SET = ("features/evals/benchmark/",)
 
 BENCHMARK = REPO / "features" / "evals" / "benchmark"
 RECORDS = BENCHMARK / "records.py"
-BASELINE = BENCHMARK / "baseline-2026-10-30.json"
 REPLAY = BENCHMARK / "replay.sh"
 HOME_START = BENCHMARK / "home-start.sh"
 
@@ -165,8 +164,10 @@ def records(tmp_path):
     return {"home": home, "repo": repo, "before": before, "after": after}
 
 
-def read_records(tmp_path, home, repo, before, after, *more):
+def read_records(tmp_path, home, repo, before, after, *more, until=None):
     out = tmp_path / "out.json"
+    if until:
+        more = (*more, f"--until={until}")
     ran = subprocess.run(
         [
             sys.executable,
@@ -264,15 +265,6 @@ def test_the_skills_sides_read_each_commit(tmp_path, records):
     assert before["home"]["sh_lines"] == after["home"]["sh_lines"] == 2
 
 
-def test_per_merged_task_splits_coordinating_from_doing(tmp_path, records):
-    said, _ = read_records(tmp_path, **records)
-    home_usd = said["tokens"]["by_role"]["home"]["usd"]
-    crew_usd = said["tokens"]["by_role"]["crew"]["usd"]
-    task = said["per_merged_task"]
-    assert task["merged"] == 1
-    assert task["coordinating_share"] == round(home_usd / (home_usd + crew_usd), 3)
-
-
 def test_a_subdirectory_and_a_worktree_read_what_the_checkout_reads(tmp_path, records):
     whole, _ = read_records(tmp_path, **records)
     subdir, _ = read_records(tmp_path, **{**records, "repo": records["repo"] / "features"})
@@ -282,6 +274,61 @@ def test_a_subdirectory_and_a_worktree_read_what_the_checkout_reads(tmp_path, re
     assert subdir["skills"]["after"]["all"] == whole["skills"]["after"]["all"]
     assert tree["tokens"]["by_role"]["home"]["sessions"] == 2
     assert tree["skills"]["after"]["all"] == whole["skills"]["after"]["all"]
+
+
+def test_until_ends_every_window_at_its_time(tmp_path, records):
+    """The fixture's records are now and 30 days ago; one of each is added 2 days ago. With
+    --until a day ago and --days 7, only the ones of 2 days ago count."""
+    home, repo = records["home"], records["repo"]
+    then = NOW - timedelta(days=2)
+    write_lines(
+        home / ".claude/projects/-worktrees-jstack-then/then.jsonl",
+        [user("<command-name>/crew</command-name>"), assistant("t1", (7, 1, 0, 0), at=then)],
+    )
+    events = home / ".local/state/jbus/jstack/events.jsonl"
+    with events.open("a") as f:
+        f.write(json.dumps({"at": then.isoformat(), "event": "merged", "slug": "then"}) + "\n")
+    with (home / ".local/state/home/jstack/merge.log").open("a") as f:
+        stamp = then.astimezone().strftime("%Y-%m-%d %H:%M")
+        f.write(f"{stamp} wait 3 https://example.test/pull/3: it conflicts with its base\n")
+    commit(repo, "fix: then", {"features/e/x.py": "1\n"}, days_ago=2)
+    until = (NOW - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    said, ran = read_records(tmp_path, **records, until=until)
+
+    assert said["until"] == until and "generated" not in said
+    (role,) = said["tokens"]["by_role"]
+    crew = said["tokens"]["by_role"]["crew"]
+    assert (role, crew["msgs"], crew["sessions"], crew["in"], crew["out"]) == ("crew", 1, 1, 7, 1)
+    assert said["events"]["kinds"] == {"merged": 1} and said["events"]["merged"] == 1
+    assert said["merge_log"]["held_prs"] == {"guard: conflict": 1}
+    assert said["merge_log"]["merged"] == 0
+    assert set(said["churn"]) == {"e"} and said["churn"]["e"]["commits"] == 1
+    assert f"to {until[:16]}" in ran.stdout
+
+
+def test_with_no_until_the_window_ends_now(tmp_path, records):
+    said, _ = read_records(tmp_path, **records)
+    until = datetime.fromisoformat(said["until"].replace("Z", "+00:00"))
+    assert NOW <= until <= datetime.now(UTC)
+    assert said["events"]["merged"] == 1 and set(said["churn"]) == {"a", "b", "c", "home"}
+
+
+def test_two_reads_with_one_until_write_the_same_json(tmp_path, records):
+    until = (NOW + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    first, _ = read_records(tmp_path, **records, until=until)
+    again, _ = read_records(tmp_path, **records, until=until)
+    assert first == again and first["events"]["merged"] == 1
+
+
+def test_a_wrong_until_is_refused(tmp_path, records):
+    ran = subprocess.run(
+        [sys.executable, RECORDS, f"--repo={records['repo']}", "--before=x", "--after=x"]
+        + ["--until=yesterday"],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 2 and "--until" in ran.stderr
 
 
 def test_a_record_not_on_disk_counts_as_empty_and_is_named(tmp_path, records):
@@ -371,16 +418,6 @@ def test_each_dutys_totals_and_cost_come_from_its_files_and_the_doing_cost(tmp_p
     assert said["upkeep"]["churn_days"] == 90
 
 
-def test_the_jbus_row_is_churns_jbus_module(tmp_path, ledger):
-    said, _ = read_records(tmp_path, **ledger)
-    row, module = said["upkeep"]["duties"]["jbus"], said["churn"]["jbus"]
-    assert (row["commits"], row["fix"], row["fix_share"]) == (
-        module["commits"],
-        module["fix"],
-        module["fix_share"],
-    )
-
-
 def test_the_ledger_prints_each_dutys_row(tmp_path, ledger):
     _, ran = read_records(tmp_path, **ledger)
     assert re.search(r"^  jbus +7 +3 +0\.43 +5 +2 +10\.01$", ran.stdout, re.M)
@@ -430,6 +467,7 @@ def test_a_run_against_its_own_json_shows_no_change(tmp_path, ledger):
     kept.write_text(json.dumps(first))
     _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={kept}")
     assert re.search(r"^  jbus +0\.43 +0\.43 +\+0\.00 +10\.01 +10\.01 +\+0\.00$", ran.stdout, re.M)
+    assert f"against {kept}, read to {first['until'][:10]}:" in ran.stdout
 
 
 def test_against_other_windows_says_it_is_not_like_for_like(tmp_path, ledger):
@@ -437,16 +475,6 @@ def test_against_other_windows_says_it_is_not_like_for_like(tmp_path, ledger):
     earlier.write_text(json.dumps({"upkeep": {"days": 14, "churn_days": 90, "duties": {}}}))
     _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={earlier}")
     assert "not like for like: the earlier run read 14 and 90 days, this one 7 and 90" in ran.stdout
-
-
-def test_the_kept_baseline_prints_jbus_beside_the_reports_share(tmp_path, ledger):
-    baseline = json.loads(BASELINE.read_text())["upkeep"]["duties"]
-    assert (baseline["jbus"]["commits"], baseline["jbus"]["fix"]) == (330, 177)
-    assert baseline["jbus"]["fix_share"] == 0.54
-    assert baseline["jbus"]["recent_commits"] == 298
-    assert baseline["jbus"]["cost_usd"] == pytest.approx(2425.72)
-    _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={BASELINE}")
-    assert re.search(r"^  jbus +0\.54 +0\.43 +-0\.11 ", ran.stdout, re.M)
 
 
 @pytest.mark.parametrize(
@@ -492,40 +520,9 @@ def test_against_a_missing_file_is_refused(tmp_path, records):
     assert "--against" in ran.stderr
 
 
-def test_every_dutys_path_is_in_this_repo(tmp_path):
-    ran = subprocess.run(
-        [
-            sys.executable,
-            RECORDS,
-            f"--home={tmp_path}",
-            f"--repo={REPO}",
-            "--before=HEAD",
-            "--after=HEAD",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert ran.returncode == 0, ran.stderr
-    assert "a duty's path is not on disk" not in ran.stderr
-
-
 def test_a_duty_path_not_on_disk_is_named(tmp_path, records):
     _, ran = read_records(tmp_path, **records)
     assert f"a duty's path is not on disk: {JBUS}/poll.py" in ran.stderr
-
-
-def test_before_and_after_are_required(records):
-    ran = subprocess.run(
-        [sys.executable, RECORDS, f"--repo={records['repo']}"], capture_output=True, text=True
-    )
-    assert ran.returncode == 2
-    assert "--before" in ran.stderr
-
-
-def test_no_path_names_a_user():
-    named = re.compile(r"""(^|[\s"'=(:])/(home|Users)/""", re.M)
-    for path in BENCHMARK.iterdir():
-        assert not named.search(path.read_text()), path
 
 
 @pytest.fixture

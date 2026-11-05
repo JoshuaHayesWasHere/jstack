@@ -80,7 +80,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge limits` | Reads each Claude account's five-hour and weekly use into the ledger, ahead of any cap ("jgauge limits"). |
 | `jgauge limits --check` | Reads no account: prints `stale <instance>: <why>` for each Claude instance whose ledger file is missing or was written 15 min ago or more, and exits 1 when there is one. |
 | `jgauge sample` | Appends one row of load and pressure to the log ("jgauge sample"). |
-| `jgauge sample --report [--since <time>] [--until <time>] [--pressure <line>]` | Counts the rows of the log ("jgauge sample"). |
+| `jgauge sample --report [--since <time>] [--until <time>] [--pressure <line>]` | Counts the rows of the log ("jgauge sample"), then reports the test slots' holds from the slot log ("The slot log"). |
 | `jgauge sizes` | Prints the machine's three sizes, `test_slots`, `short_slots` and `max_running`, each as its caller gets it and where it came from (a flag or `TEST_SLOTS`, `~/.config/jstack/machine.toml` or jbus's config, else derived from the processors of `/proc/stat` and `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`), with the derived value beside an override, then room's six lines. [The limits and how to change them](jgauge/change-a-limit.md) has each one. |
 | `jgauge test-slot [--slots N] -- <command>` | Runs the command while it holds one of N machine-wide test slots, and ends with the command's exit code. A slot is a lock file, `~/.local/state/locks/test-slot.<n>.lock`. When all are held it prints `test-slot: waiting for one of <N> slots` on stderr and waits. N is `--slots`, else `TEST_SLOTS`, else `test_slots` in `~/.config/jstack/machine.toml`, else what the machine derives: every slot at once runs at most one desk worker a processor, 4 on most machines of 8 cores or more, 5 on 10, 11 or 15. |
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
@@ -213,15 +213,42 @@ Last, it prints what jbus recorded in the span, from each project's `events.json
 
 For a span with no rows, the report prints that last part only when both `--since` and `--until` are given.
 
+Then, when the slot log exists, the report prints the test slots over the span ("The slot log"), from `--since` or the first take, to `--until` or now.
+For each lane it prints:
+
+- the holds taken in the span, and how many of them are lost: a take with no release whose holder is gone, which counts nothing, while one still running counts to the end of the span
+- the mean occupancy, the slot-seconds held in the span over its length, out of the lane's slots
+- Little's law from the same holds, the takes per second times the mean hold, which a span that cuts few holds keeps near the mean occupancy
+- the wait in the call, p50 and p90, of the holds taken in the span
+- when a thread of the lane waited for a slot in the span, by jbus's `slot-wake` events, the mean occupancy over the time it waited, and its share of the lane's slots
+
+### The slot log
+
+`jgauge test-slot` appends one JSON row to `jgauge/slots.jsonl` beside the lock files' directory, `~/.local/state/jgauge/slots.jsonl`, each time it takes a slot and each time it lets one go, in both lanes, and it moves with the lock files when `JGAUGE_LOCKS_DIR` is set.
+A run with `--thread` that finds no slot and registers as a waiter takes nothing and writes no row.
+Each row has:
+
+- `at`, the time in UTC, and `event`, `take` or `release`
+- `id`, the same on a take and its release, and `pid`, the `jgauge test-slot` process that holds the slot
+- `lane`, `slot`, the slot's number, and `slots`, the lane's size as the caller counted it
+- `thread`, empty with no `--thread`, `command` and `cwd`, which name the caller
+- on a take, `waited`, the seconds the call waited for the slot
+- on a release, `code`, the command's exit code, and `hold`, the seconds it held the slot
+
+The release row is written before the lock is let go, so a slot's next take comes after it in the log.
+A log that cannot be written stops no run.
+Once the first row is over 30 days old, the next row written first rewrites the log with the last 29 days.
+
 ## How jstack uses it
 
 The `home` skill runs `jgauge room` before a launch, the `pr-review` skill runs it before a review, and `jbus` runs it before each launch.
 A crewmate runs the check command that the repo's `fresh-check` names.
 It runs that command once, under a test slot, as `jgauge check`, with the check command on stdin.
+In a repo whose check selects its tests, as jstack's does, the crewmate's check is instead the lint and the tests its change touches, each step its own `jgauge test-slot --short` call, and a step the short lane stops at its limit runs again alone in a full slot (`features/crew/do-the-task.md`).
 A reviewer's proof runs in the short lane as `jgauge proof`, with the proof on stdin.
 A crewmate's targeted test runs run in the short lane, as `jgauge test-slot --short -- uv run pytest <files>`.
 A thread's step calls `jgauge check` and `jgauge proof` so that it holds no delete and no inner shell, which Claude Code asks the user about before it runs them (`features/repo-guards/tests/test_blocks_ask_nothing.py`).
-The check command never runs in the short lane.
+`jgauge check` never runs in the short lane.
 
 ## How it counts tokens
 
