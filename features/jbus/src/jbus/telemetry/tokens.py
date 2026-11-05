@@ -334,6 +334,11 @@ the first one a line of it names, final or not, and that changes nothing else of
 a store copied before calls kept effort (`migrations.v013_call_effort`) takes it by reading each
 transcript again."""
 
+REREAD = f"DELETE FROM cursors WHERE project = '{CLAUDE}';\n"
+"""The SQL that drops the cursor of each Claude transcript, so the next build reads each one
+still on disk again: `migrations.v013_call_effort` runs it to copy the effort of the calls the
+store held before it kept one."""
+
 _FROM_T3 = ("thread", "instance", "project", "role", "slug")
 SESSION_INSERT = (
     "INSERT INTO sessions (provider, session, thread, instance, project, role, slug) "
