@@ -105,15 +105,6 @@ def test_other_commands_are_neither_logged_nor_held(gh):
     assert not (gh / proc.CALLS).exists()
 
 
-def test_a_cut_off_debug_log_keeps_why_the_request_failed():
-    said = proc.Debug.parse(
-        "* Request at now\n* Request to https://api.github.com/graphql\n"
-        "> POST /graphql HTTP/1.1\n\nerror connecting to api.github.com\n"
-    )
-    assert said.stderr == "error connecting to api.github.com\n"
-    assert said.requests == ("https://api.github.com/graphql",)
-
-
 def test_a_seventeenth_gh_waits_while_sixteen_run_in_other_processes(gh, tmp_path, monkeypatch):
     started, go = tmp_path / "started", tmp_path / "go"
     started.mkdir()

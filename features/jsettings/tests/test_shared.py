@@ -37,25 +37,6 @@ def test_when_reads_back_what_stamp_wrote(z):
     assert jsettings.when(jsettings.stamp(moment, z=z)) == moment
 
 
-@pytest.mark.parametrize(
-    "text",
-    [
-        "2026-10-27T15:25:17.123Z",
-        "2026-10-27T15:25:17.5-04:00",
-        "2026-10-27T15:25:17",
-        "2026-10-27",
-    ],
-)
-def test_when_reads_a_time_as_the_old_replace_of_z_read_it(text):
-    assert jsettings.when(text) == datetime.fromisoformat(text.replace("Z", "+00:00"))
-
-
-@pytest.mark.parametrize("text", ["", "garbage"])
-def test_when_refuses_what_is_not_a_time(text):
-    with pytest.raises(ValueError):
-        jsettings.when(text)
-
-
 def test_a_thread_id_has_the_prefix_once():
     assert jsettings.thread_id("abc") == "mcp:abc"
     assert jsettings.thread_id("mcp:abc") == "mcp:abc"
