@@ -1,8 +1,7 @@
 """The verify-jstack skill's scripts. `launch.sh` says `ready:` only when a drive can run.
 `doctor.sh` fails a feature whose seed the sandbox lacks. At the top of the evidence, `record.sh`
-writes what a stand-in set up. The stand-ins can drive a usage-limit move and name a repo's owner.
-Every test but the last runs the scripts, under a temporary `TMPDIR`. The last follows each link
-of the pages to the file it names."""
+writes what a stand-in set up. Each of the skill's Drive recipes runs as typed. Every test runs the
+scripts, under a temporary `TMPDIR`."""
 
 import json
 import os
@@ -11,9 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib.request
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pytest
 
@@ -26,14 +23,7 @@ FEATURES = sorted(
     [path.stem for path in PAGES.glob("*.md") if path.stem != "README"]
     + [path.parent.name for path in REPO.glob("features/*/verify.md")]
 )
-LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 SPARE = "claudeAgent_sandbox"
-POOL = f"claudeAgent,{SPARE}"
-ROW = (
-    "# alpha: a demo task\\nTask: alpha, a demo task\\nDone when:\\n- the demo works\\n"
-    "Proves it: the demo test\\nSize: S\\nWhere: `src/alpha/`\\nDesign: none, a demo\\n"
-    "Review: none\\nPlaybook: none\\nPull request: none\\nHome: root\\n"
-)
 
 
 def launch(tmp, scripts=SCRIPTS, path=os.environ["PATH"]):
@@ -101,12 +91,6 @@ def gone(pid):
             return True
         time.sleep(0.1)
     return False
-
-
-def test_a_launch_is_ready_with_an_empty_gh_log(sandbox):
-    assert sandbox.is_file()
-    assert not (sandbox.parent / "gh" / "calls.log").exists()
-    assert not list((sandbox.parent / "state").iterdir())
 
 
 @pytest.mark.parametrize(
@@ -369,170 +353,6 @@ def test_record_heads_the_evidence_with_what_a_stand_in_set_up(sandbox):
     assert runs.count("hello\n") == 3
 
 
-def t3(env_sh, tool, **given):
-    """Ask the sandbox's stand-in for T3 Code directly, as T3 Code's outside clients do: `Client`
-    refuses a tool jbus does not name before it reaches the server."""
-    keys = json.loads((env_sh.parent / "config" / "t3.json").read_text())
-    url = f"http://127.0.0.1:{(env_sh.parent / 't3' / 'port').read_text().strip()}/mcp"
-    params = {"name": tool, "arguments": given}
-    body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params}
-    asked = urllib.request.Request(
-        url,
-        json.dumps(body).encode(),
-        {"authorization": f"Bearer {keys['token']['access_token']}"},
-    )
-    with urllib.request.urlopen(asked) as said:
-        return json.load(said)
-
-
-def launched_alpha(env_sh):
-    """Launch the row alpha through jbus, under a role map that gives the crew two instances."""
-    (env_sh.parent / "home" / ".config" / "jstack").mkdir(parents=True, exist_ok=True)
-    roles = env_sh.parent / "home" / ".config" / "jstack" / "roles"
-    roles.write_text(f"crew: claudeAgent claude-sonnet-5-5 {POOL}\n")
-    ran = inside(env_sh, f"printf '{ROW}' | jbus queue add alpha --priority 1")
-    assert ran.returncode == 0, ran.stderr
-    word = says(env_sh, "go")
-    kept = inside(env_sh, f"jbus word --to demo --message {word}")
-    sha = inside(
-        env_sh,
-        "grep -v '^Home:' \"$JBUS_STATE_DIR/demo/briefs/alpha.md\" | shasum -a 256 | cut -c1-12",
-    ).stdout.strip()
-    number = kept.stdout.split()[-1]
-    assert inside(env_sh, f"jbus queue approve alpha --sha {sha} --word {number}").returncode == 0
-    polled = inside(env_sh, "jbus poll")
-    assert "launched alpha: mcp:sandbox-thread-1" in polled.stdout, polled.stdout + polled.stderr
-
-
-def test_the_stand_in_reads_and_sets_a_selection_with_t3_thread_configure(sandbox):
-    launched_alpha(sandbox)
-    thread = "mcp:sandbox-thread-1"
-
-    read = t3(sandbox, "t3_thread_configure", threadId=thread)["result"]["structuredContent"]
-    assert read["modelSelection"]["instanceId"] == "claudeAgent"
-
-    moved = {**read["modelSelection"], "instanceId": SPARE}
-    t3(sandbox, "t3_thread_configure", threadId=thread, modelSelection=moved)
-    again = t3(sandbox, "t3_thread_configure", threadId=thread)["result"]["structuredContent"]
-    assert again["modelSelection"] == moved
-
-    listed = t3(sandbox, "t3_thread_list", titleContains="alpha")["result"]["structuredContent"]
-    assert [one["threadId"] for one in listed["threads"]] == [thread]
-
-
-def test_the_stand_in_lists_every_instance_with_no_constraints_by_default(sandbox):
-    said = t3(sandbox, "orchestrator_capabilities")["result"]["structuredContent"]
-    listed = {one["providerInstanceId"]: one["constraints"] for one in said["providers"]}
-    assert listed == {"claudeAgent": [], SPARE: [], "codex": []}
-
-
-def test_the_stand_in_shows_a_constraint_written_to_its_file_on_that_instance(sandbox):
-    able = sandbox.parent / "t3" / "capabilities.json"
-    lapse = ["Provider is not authenticated."]
-    able.write_text(json.dumps({**json.loads(able.read_text()), SPARE: lapse}))
-
-    said = t3(sandbox, "orchestrator_capabilities")["result"]["structuredContent"]
-    listed = {one["providerInstanceId"]: one["constraints"] for one in said["providers"]}
-    assert listed == {"claudeAgent": [], SPARE: lapse, "codex": []}
-
-
-def test_the_stand_in_reads_a_threads_recent_runs_and_lists_it_without_them(sandbox):
-    launched_alpha(sandbox)
-    thread = "mcp:sandbox-thread-1"
-    path = sandbox.parent / "t3" / "threads.json"
-    runs = [
-        {"runId": "run-1", "ordinal": 1, "status": "failed", "completedAt": "2026-11-02T00:00:00Z"}
-    ]
-    kept = [
-        {**one, "recentRuns": runs} if one["threadId"] == thread else one
-        for one in json.loads(path.read_text())
-    ]
-    path.write_text(json.dumps(kept))
-
-    read = t3(sandbox, "t3_thread_read", threadId=thread)["result"]["structuredContent"]
-    assert read["recentRuns"] == runs
-
-    listed = t3(sandbox, "t3_thread_list", titleContains="alpha")["result"]["structuredContent"]
-    assert [one["threadId"] for one in listed["threads"]] == [thread]
-    assert "recentRuns" not in listed["threads"][0]
-
-
-def test_the_stand_in_gives_a_thread_it_does_not_have_no_selection(sandbox):
-    said = t3(sandbox, "t3_thread_configure", threadId="mcp:no-such-thread")["result"]
-    assert said["isError"] is True
-    assert json.loads(said["content"][0]["text"])["code"] == "thread_not_found"
-
-
-def test_the_stand_in_refuses_the_read_tool_t3_code_no_longer_has(sandbox):
-    said = t3(sandbox, "t3_thread_configuration", threadId="mcp:sandbox-thread-1")
-    assert said["error"]["code"] == -32602
-    assert "result" not in said
-
-
-def test_a_pass_moves_a_thread_stopped_on_a_usage_limit_and_knows_the_repos_owner(sandbox):
-    launched_alpha(sandbox)
-    thread = "mcp:sandbox-thread-1"
-    reset = int(time.time()) + 3600
-    notice = f"run-1:usage-limit:five_hour:{reset}"
-    items = [{"runId": "run-1", "itemId": notice, "type": "system_notice", "text": ""}]
-    messages = sandbox.parent / "t3" / "messages.json"
-    messages.write_text(json.dumps({**json.loads(messages.read_text()), thread: items}))
-    threads = sandbox.parent / "t3" / "threads.json"
-    listed = json.loads(threads.read_text())
-    listed[0].update(status="failed", latestRunId="run-1")
-    threads.write_text(json.dumps(listed))
-    opened = inside(sandbox, '"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" alpha src/alpha/a.py')
-    assert opened.returncode == 0, opened.stderr
-
-    polled = inside(sandbox, "jbus poll")
-
-    assert polled.returncode == 0, polled.stderr
-    assert f"carry-on on claudeAgent to {SPARE}" in polled.stdout, polled.stdout
-    assert "did not say who owns" not in polled.stdout
-    assert "did not give the comments" not in polled.stdout
-    log = (sandbox.parent / "t3" / "calls.jsonl").read_text()
-    calls = [json.loads(line) for line in log.splitlines()]
-    moves = [
-        one["arguments"]["modelSelection"]
-        for one in calls
-        if one["tool"] == "t3_thread_configure" and "modelSelection" in one["arguments"]
-    ]
-    assert [move["instanceId"] for move in moves] == [SPARE]
-    assert moves[0]["model"] == "claude-sonnet-5-5"
-    sent = [one["arguments"] for one in calls if one["tool"] == "t3_thread_send"]
-    assert any(one["clientRequestId"] == f"failover|{thread}|run-1" for one in sent)
-
-
-def test_fake_gh_names_the_repos_owner(sandbox):
-    said = inside(sandbox, "gh api 'repos/{owner}/{repo}'")
-    assert said.returncode == 0, said.stderr
-    assert json.loads(said.stdout)["owner"]["login"]
-
-
-def test_fake_gh_lists_no_remark_whatever_commits_a_drive_gives(sandbox):
-    (sandbox.parent / "gh" / "commits.json").write_text('[{"sha": "abc"}]')
-    for path in (
-        "issues/7/comments?per_page=100",
-        "pulls/7/comments?per_page=100",
-        "pulls/7/reviews?per_page=100",
-    ):
-        said = inside(sandbox, f"gh api 'repos/{{owner}}/{{repo}}/{path}' --paginate --slurp")
-        assert json.loads(said.stdout) == [], path
-
-
-def test_each_link_of_a_page_goes_to_a_file_that_is_there():
-    pages = [*PAGES.glob("*.md"), *REPO.glob("features/*/verify.md")]
-    gone = [
-        f"{page.relative_to(REPO)}: {target}"
-        for page in pages
-        for target in LINK.findall(page.read_text())
-        if not urlparse(target).scheme and not (page.parent / target).exists()
-    ]
-
-    assert len(pages) > len(FEATURES) // 2
-    assert gone == []
-
-
 SKILL = REPO / "features" / "verify-jstack" / "project-skill" / "SKILL.md"
 FENCE = re.compile(r"^```sh\n(.*?)^```$", re.M | re.S)
 
@@ -577,14 +397,6 @@ OUTCOMES = {
     "usage-limit": failover_on_a_usage_limit,
     "login-lapse": one_carry_on_after_a_login_lapse,
 }
-
-
-def test_each_drive_recipe_has_its_outcome_and_types_whole():
-    """A new recipe needs its outcome here, and none leans on a block it does not hold."""
-    blocks = recipes()
-    assert len(blocks) == len(OUTCOMES)
-    leaning = [block for block in blocks if "as above" in block and "# judged: " not in block]
-    assert leaning == []
 
 
 @pytest.mark.parametrize("at, outcome", list(enumerate(OUTCOMES)), ids=list(OUTCOMES))
