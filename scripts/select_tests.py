@@ -63,6 +63,14 @@ spells no path and is on no list. A change it reads in some other way (a glob, a
 with it unrun. So every change also runs each such test, the catch-all, and the summary counts
 it with the cross-cutting tests.
 
+A change of the tests alone runs a narrow check. Where every changed path is a module of a
+folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`),
+the selection is the changed test files and the tests that import or name a helper they changed:
+no feature's tests, no cross-cutting tests, no catch-all and no test that failed on main. Such a
+change alters no code but the tests', and main's full run catches what a narrow check misses. A
+change that also touches a fixture, deletes a file or touches any path outside the tests selects
+by all the rules above.
+
 It prints `all` when a changed path is one that every test depends on, and never for the size of
 what it selected: a selection of nearly every test file still names its files, and main's full
 run catches what a selection misses. Those paths are `pyproject.toml`, `uv.lock` and the root
@@ -1118,14 +1126,31 @@ def unowned():
     return frozenset(collected() - owned)
 
 
+def tests_alone(changed):
+    """Whether every changed path is a module of a folder of tests that is still there: a test
+    file, a helper of the tests or a `conftest.py`. A fixture, a deleted file or a module of
+    `testing/` outside its tests is not."""
+    return bool(changed) and all(
+        TESTS.match(path) and path.endswith(".py") and (ROOT / path).is_file() for path in changed
+    )
+
+
 def selection(changed, failed=()):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
     each cause the sorted files it selected, or the path that forced `all`. They are what the
     rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
-    the check runs. `why["added"]` lists the failed ones nothing else selected."""
+    the check runs. `why["added"]` lists the failed ones nothing else selected. A change of the
+    tests alone selects only what its imports and names reach."""
     tests, why = ruled(changed)
     if tests == ["all"]:
         return tests, why
+    if tests_alone(changed):
+        narrow = sorted(set(why["imports"]) | set(why["names"]))
+        return narrow, {
+            "imports": why["imports"],
+            "names": why["names"],
+            **{key: [] for key in ("features", "cross-cutting", "catch-all", "added")},
+        }
     lone = unowned()
     chosen = set(tests) | lone
     added = set(failed) & collected() - chosen

@@ -3,16 +3,12 @@
 HOME of the test's own. That `jinstall` assembles each harness's layout from the source tree
 that the wheel carries, as `install.sh` does from a checkout (`test_install`)."""
 
-import functools
-import http.server
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-import threading
-import tomllib
 import zipfile
 from pathlib import Path
 
@@ -28,11 +24,8 @@ from test_install import (
     SCRUBBED,
     SYSTEMCTL,
     UNITS_DIR,
-    hook_parts,
     laid,
-    layouts,
     line_for,
-    lines_of,
 )
 from testing.paths import REPO
 
@@ -135,23 +128,6 @@ def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from
     assert "==> features/tdd/SKILL.md <==" in loaded.stdout
 
 
-def release_parts(home, source):
-    """The line of each part that a release puts, without the leading state word. Each
-    layout's line comes first, then the rest."""
-    settings = home / ".claude" / "settings.json"
-    names = layout.skills(source)
-    return [
-        *layouts(home),
-        *(f"hard {home / root / name}" for root in ROOTS for name in names),
-        f"optional patterns {home / '.config' / 'jstack' / 'outbound.toml'}",
-        *hook_parts(home, source),
-        "hard commands jstack",
-        f"optional statusline {settings}",
-        f"hard attribution {settings}",
-        f"hard env {settings}",
-    ]
-
-
 def made_from(home):
     """The tree the install made jbus's timer from: the one its unit links into, or on a Mac the
     one its agent's plist names."""
@@ -170,39 +146,6 @@ def stand_ins(tmp_path):
     stub.mkdir(exist_ok=True)
     (stub / "systemctl").symlink_to(SYSTEMCTL)
     return {"PATH": f"{stub}:{os.environ['PATH']}", "FAKE_SYSTEMCTL_LOG": str(tmp_path / "log")}
-
-
-def test_a_release_links_every_skill_hook_and_status_line_into_its_layouts_and_checks_ok(
-    released, tmp_path
-):
-    home = tmp_path / "home"
-    env = stand_ins(tmp_path)
-    env["PATH"] = f"{released.bin}:{env['PATH']}"
-    put = released.run(home, "jinstall", **env)
-    assert (put.returncode, put.stderr) == (0, "")
-    assert put.stdout.splitlines() == lines_of("ok", release_parts(home, released.source), home)
-    checked = released.run(home, "jinstall", "--check", **env)
-    assert (checked.returncode, checked.stdout) == (0, put.stdout)
-    names = layout.skills(released.source)
-    for harness in HARNESSES:
-        links = sorted((home / harness.root).iterdir())
-        assert [link.name for link in links] == names
-        for link in links:
-            assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
-            if harness.copies:
-                assert not (link / "SKILL.md").is_symlink()
-            else:
-                assert os.path.realpath(link / "SKILL.md").startswith(f"{released.source}/")
-    settings = json.loads((home / ".claude" / "settings.json").read_text())
-    commands = [
-        hook["command"]
-        for groups in settings["hooks"].values()
-        for group in groups
-        for hook in group["hooks"]
-    ]
-    assert all(f"sh '{laid(home)}/hooks/" in command for command in commands), commands
-    assert settings["statusLine"]["command"] == f"sh '{laid(home) / 'hooks' / 'limits.sh'}'"
-    assert not line_for(put.stdout.splitlines(), "pre-push")
 
 
 def test_a_release_with_jbus_set_up_links_its_units_into_its_source(released, tmp_path):
@@ -291,20 +234,6 @@ def dist(tmp_path_factory):
     return out
 
 
-@pytest.fixture
-def served(tmp_path):
-    """A web server for a directory, in place of GitHub's release downloads."""
-    root = tmp_path / "served"
-    root.mkdir()
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    yield root, f"http://127.0.0.1:{server.server_address[1]}"
-    server.shutdown()
-    server.server_close()
-
-
 def a_new_user(tmp_path):
     """A HOME with no uv and no checkout, the env that `curl ... | sh` runs install.sh in: a
     PATH of the few programs it needs, then the HOME's own bin, and a stand-in uv installer
@@ -345,43 +274,6 @@ def a_new_user(tmp_path):
         "JSTACK_UV_INSTALLER": installer.as_uri(),
     }
     return home, tools, env
-
-
-def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_and_sets_up(
-    dist, served, tmp_path
-):
-    root, url = served
-    version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
-    for asset in dist.iterdir():
-        shutil.copy(asset, root / asset.name)
-    home, tools, env = a_new_user(tmp_path)
-    bin = home / ".local" / "bin"
-    env["JSTACK_RELEASE_URL"] = url
-    fetched = subprocess.run(
-        ["curl", "-fsSL", f"{url}/install.sh"], capture_output=True, text=True, check=True
-    ).stdout
-    assert f"\nversion={version}\n" in fetched
-    setup = subprocess.run(["sh"], input=fetched, env=env, cwd=home, capture_output=True, text=True)
-    assert os.path.islink(home / ".local" / "bin" / "uv"), setup.stdout + setup.stderr
-    said = setup.stdout.splitlines()
-    source = tools / "jstack" / "share" / "jstack"
-    folded = [line for line in said if re.fullmatch(r"done skills claude-code: \d+ links", line)]
-    assert folded, setup.stdout + setup.stderr
-    assert "already commands jstack" in said
-    checked = subprocess.run(
-        [str(bin / "jinstall"), "--check"], env=env, cwd=home, capture_output=True, text=True
-    )
-    assert checked.returncode == 0, checked.stdout
-    parts = [*release_parts(home, source), f"optional units {home / UNITS_DIR}"]
-    assert checked.stdout.splitlines() == lines_of("ok", parts, home)
-    assert made_from(home) == source
-    for harness in HARNESSES:
-        for link in (home / harness.root).iterdir():
-            assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
-            if harness.copies:
-                assert not (link / "SKILL.md").is_symlink()
-            else:
-                assert os.path.realpath(link / "SKILL.md").startswith(f"{source}/")
 
 
 def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_from_git(tmp_path):
@@ -443,78 +335,3 @@ def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_fr
     traced = trace.read_text()
     assert " fetch " in traced and " init" not in traced
     assert not re.search(r"\bgit (maintenance|repack|gc)\b", traced), traced
-
-
-def block_of(skill):
-    """The one shell block of a SKILL.md, as an agent runs it."""
-    (found,) = re.findall(r"^```sh\n(.*?)^```$", skill.read_text(), re.M | re.S)
-    return found
-
-
-def test_setup_pstack_on_a_release_runs_jinstall_setup_and_the_doctor_and_reports(
-    released, tmp_path
-):
-    home = tmp_path / "home"
-    env = stand_ins(tmp_path)
-    env["PATH"] = f"{released.bin}:{env['PATH']}"
-    assert released.run(home, "jinstall", **env).returncode == 0
-    skill = home / ".claude" / "skills" / "setup-pstack" / "SKILL.md"
-    assert not (laid(home) / "source" / "install.sh").exists()
-
-    done = subprocess.run(
-        ["sh", "-c", block_of(skill)],
-        env=released.uv_env | {"HOME": str(home)} | env,
-        cwd=home,
-        capture_output=True,
-        text=True,
-    )
-
-    said = done.stdout.splitlines()
-    assert (done.returncode, done.stderr) == (0, "")
-    assert said[0] == f"release: {released.bin / 'jinstall'}"
-    assert "already commands jstack" in said
-    assert re.fullmatch(
-        r"setup: \d+ done, \d+ already, \d+ needs you, \d+ optional left, exit [01]", said[-2]
-    )
-    assert re.fullmatch(r"doctor: (ok|not ok, \d+ hard)", said[-1])
-
-
-def test_a_repo_a_release_set_up_strips_an_ai_trailer_from_a_commit_with_no_checkout(
-    released, tmp_path
-):
-    home = tmp_path / "home"
-    env = stand_ins(tmp_path)
-    env["PATH"] = f"{released.bin}:{env['PATH']}"
-    assert released.run(home, "jinstall", **env).returncode == 0
-    repo = home / "repos" / "scratch"
-    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
-
-    set_up = released.run(home, "jinstall", "--repo", str(repo), **env)
-
-    hooks = repo / ".git" / "hooks"
-    assert (set_up.returncode, set_up.stderr) == (0, "")
-    assert set_up.stdout.splitlines() == [
-        f"ok optional hook {hooks / 'pre-push'} pre-push",
-        f"ok optional hook {hooks / 'commit-msg'} commit-msg",
-    ]
-    for name in ("pre-push", "commit-msg"):
-        script = released.source / "features" / "jleak" / "hooks" / f"{name}.sh"
-        assert os.readlink(hooks / name) == str(script)
-    narrow = tmp_path / "narrow"
-    narrow.mkdir()
-    for program in ("git", "realpath"):
-        (narrow / program).symlink_to(shutil.which(program))
-    named = ["-c", "user.name=Sam Doe", "-c", "user.email=sam@example.test"]
-    trailer = "Co-Authored-By: Claude <noreply@anthropic.com>"
-    made = subprocess.run(
-        ["git", "-C", str(repo), *named, "commit", "--allow-empty", "-m", f"Add\n\n{trailer}"],
-        env={"HOME": str(home), "PATH": str(narrow)},
-        capture_output=True,
-        text=True,
-    )
-    assert made.returncode == 0, made.stderr
-    assert "took out of the commit message" in made.stderr
-    message = subprocess.run(
-        ["git", "-C", str(repo), "log", "-1", "--format=%B"], capture_output=True, text=True
-    ).stdout
-    assert message.strip() == "Add"

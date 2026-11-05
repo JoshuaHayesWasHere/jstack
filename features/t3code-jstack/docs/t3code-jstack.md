@@ -64,7 +64,6 @@ The patches come from a T3 Code checkout with a `jstack` branch cut from the nig
 2. Write the series again: `git -C <checkout> format-patch <tag>..jstack -o <jstack>/features/t3code-jstack/packaging`.
    Take out the patch files the new series no longer has, and list each new one in `_patches`.
 3. Set the series in `pkgver`.
-   Until you do, `make check` fails on `test_the_pkgbuild_names_the_series_and_each_patch_of_its_folder` and names the series.
 4. Run `jinstall --setup` to build and install it.
 
 When the doctor says a nightly does not take the patches, rebase the checkout's `jstack` branch onto that tag, write the series again, and set `_tag` and `pkgver` to it.

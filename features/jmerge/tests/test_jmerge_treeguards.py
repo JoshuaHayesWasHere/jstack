@@ -32,6 +32,26 @@ def test_merged_tree_guards_that_run_past_their_time_are_stopped_with_their_chil
     assert not marker.exists(), "the guards' child outlived the stop"
 
 
+def test_guards_stopped_at_their_time_end_quietly_where_a_stopped_group_answers_eperm(
+    tmp_path, monkeypatch
+):
+    """Darwin answers a kill of a group that holds only zombies with EPERM, where Linux gives
+    ESRCH: once the stop at the time limit has killed the group and `sh` is reaped, a second kill
+    of it is refused, and the run still ends with the guards stopped (nightly run 42059155018)."""
+    kill = os.killpg
+    killed = []
+
+    def darwin(group, sig):
+        if killed:
+            raise PermissionError(1, "Operation not permitted")
+        killed.append(group)
+        kill(group, sig)
+
+    monkeypatch.setattr(treeguards.os, "killpg", darwin)
+    ran = treeguards.run_guards("sleep 30", tmp_path, {}, timeout=1)
+    assert ran.code is None and ran.seconds < 10
+
+
 SCOUT = "features/verify-jstack/tests/test_verify_jstack.py::" + (
     "test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch"
 )

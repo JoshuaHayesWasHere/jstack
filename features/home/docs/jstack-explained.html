@@ -403,7 +403,7 @@
     <tr><td>An approval</td><td>Before a task launches</td><td>That task does not launch. Other tasks go on.</td></tr>
     <tr><td>A gate</td><td>At any step of any thread</td><td>Nothing waits. The default stands until the operator changes it, and the gate says how to undo it.</td></tr>
     <tr><td>A held pull request</td><td>At the merge</td><td>The pull request stays open. Nothing else is held up unless it depends on it.</td></tr>
-    <tr><td>One of the six doors</td><td>Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes</td><td>The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only the operator's own answer closes that gate.</td></tr>
+    <tr><td>A door</td><td>Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes</td><td>The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only the operator's own answer closes that gate.</td></tr>
     <tr><td>A pull request with no review</td><td>Its brief says <code>Review: none</code></td><td>It never merges by itself. It waits for the operator's word.</td></tr>
   </tbody>
 </table>
