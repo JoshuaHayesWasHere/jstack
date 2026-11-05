@@ -432,27 +432,37 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_and_leaves_the_r
     assert said[then] == f"and {len(rest)} test files the change reaches, which CI's check runs:"
     assert "testing/tests/test_cross_cutting.py" in guards
     assert "features/crew/tests/test_crew_checks.py" in rest
-    assert not set(guards) & set(rest)
-    listed = guards + rest
-    assert all(test.endswith(".py") and (repo / test).is_file() for test in listed), said
+    desk = subprocess.run(
+        [sys.executable, "scripts/select_tests.py", "--part", "desk", base, "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert [f"guards {one}" for one in guards] + [f"rest {one}" for one in rest] == desk
+    assert all(test.endswith(".py") and (repo / test).is_file() for test in guards + rest), said
     assert (ran, code) == ([f"check-fast BASE={base} PART=guards short=free full=held"], 0)
 
 
-PARTS = (
-    "import sys\n"
-    "assert sys.argv[1:3] == ['--part', 'desk'], sys.argv\n"
-    "print('guards testing/tests/test_g.py')\n"
-    "print('rest testing/tests/test_r.py')"
-)
+def parts(*lines):
+    """A selector that prints `lines` for `--part desk`, and fails on any other ask."""
+    return "import sys\nassert sys.argv[1:3] == ['--part', 'desk'], sys.argv\n" + "".join(
+        f"print({line!r})\n" for line in lines
+    )
 
 
 @pytest.mark.parametrize("first", [0, 1, 124], ids=["the guards pass", "fail", "are cut"])
-def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_path, first):
+@pytest.mark.parametrize(
+    "rest",
+    [["rest testing/tests/test_r.py"], []],
+    ids=["with a rest", "with no rest"],
+)
+def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_path, first, rest):
     """The check is the guards alone, and ends with their exit, 124 too: the rest is CI's and
     never runs at the desk. The block prints the guards' exit and seconds, and the `Checked:`
     line is `make check-fast BASE=<base> PART=guards exit <n> at <head>`, the shape `jmerge`
-    reads (`ready.short_on_checked`)."""
-    repo = stubbed(tmp_path, PARTS)
+    reads (`ready.short_on_checked`), also where the selection leaves nothing for the rest."""
+    repo = stubbed(tmp_path, parts("guards testing/tests/test_g.py", *rest))
     tasks = tmp_path / "state" / "tasks"
     tasks.mkdir(parents=True)
     (tasks / "a-task.md").write_text("# a-task: a task\n\n## Result\n")
@@ -461,6 +471,7 @@ def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_
     assert code == first
     assert [one.split()[2] for one in ran] == ["PART=guards"]
     assert re.search(rf"^guards: exit {first} in \d+ s$", "\n".join(said), re.M), said
+    assert f"and {len(rest)} test files the change reaches, which CI's check runs:" in said
     line = f"Checked: make check-fast BASE={base} PART=guards exit {first} at {head}\n"
     assert (tasks / "a-task.md").read_text() == f"# a-task: a task\n\n## Result\n{line}"
 
