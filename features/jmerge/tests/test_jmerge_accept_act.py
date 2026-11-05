@@ -164,8 +164,8 @@ def test_the_check_of_an_accept_is_no_act(kitchen):
 def merged_main(kitchen, slug, number, own=None):
     """Main moves after the check, and GitHub merges it into the branch, as jmerge asks it to
     (`base-moved-asked`), with no new review. `own` is a change the merge commit makes to the
-    branch's own files besides. The check passes at the merged head, and `jmerge` holds it
-    there."""
+    branch's own files besides, which its crew's check block checks at the merged head. The
+    check passes at the merged head, and `jmerge` holds it there."""
     kitchen.on_main({"b.txt": "main moved\n"})
     tree = kitchen.tmp / "trees" / slug
     git(tree, "fetch", "-q", "origin")
@@ -175,6 +175,9 @@ def merged_main(kitchen, slug, number, own=None):
     git(tree, "commit", "-q", "-m", "Merge branch 'main'")
     git(tree, "push", "-q", "origin", slug)
     head = git(tree, "rev-parse", "HEAD")
+    if own:
+        with (kitchen.home.tasks / f"{slug}.md").open("a") as brief:
+            brief.write(merge.desk_checked(head))
     kitchen.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": merge.rollup([AFTER])}
     (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
     (said,) = kitchen.run()

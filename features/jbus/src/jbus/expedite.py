@@ -54,9 +54,21 @@ reason with its sentence:
   `Proved:` line, and push nothing for it. For `base-passed` and `head-failed` the crew first fixes
   and pushes the tests, and for `not-kind` it writes the kinds again or adds the test the change
   needs.
+- `checked-missing`, `checked-stale`, `checked-cut`, `checked-failed` and `checked-part`, the
+  brief's last `Checked:` line is missing, of a head whose patch changed since, a time limit's
+  124, a failure, or not the desk's check (`ready.short_on_checked`): run the crew's check block
+  at the head, fix what it finds, and run it again until it ends 0. A 124 is no pass.
+- `no-verdict` and `no-head`, a review with no verdict or no head: send its reviewer `/pr-review
+  run <slug> again`. A `Fixed:` line short of a full commit is the crew's own to write again;
+- `rereview`, drops no scoped review ruled on or a rebase that changed the content: launch the one
+  scoped reviewer over the reason's range-diff. It is `jbus.rebase`'s kind, so a head is told once,
+  and it tells where a scoped reviewer of the head the Result names ended with no review;
+- `fresh-conflict`, `merged-tree`, `base` and `not-upheld`: rebase with "A conflict" run with
+  `stale` (and fix the guards that fail for `merged-tree`), retarget to the default branch, or
+  put back a drop the review did not uphold, else tell the home.
 
-`UNTOLD` holds the reasons of `jmerge`'s `result` step no crew can fix, and every other one is a
-row: a test holds the table to `ready`.
+Every reason of `ready.reasons()` is a row of `TABLE`, in `UNTOLD` (no crew can fix it) or in
+`ELSEWHERE` (another part of jbus tells the crew), and a test holds the three to `ready`.
 
 `tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
 thread is at work (`watch.at_work`: starting, `running` or `waiting`), since the line may be
@@ -120,6 +132,7 @@ REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
 REVIEW = "review: "
 NO_RANGE = "its crew kept no head before its rebase, so the hold is the user's"
+NO_RANGES = "jmerge names no range-diff and its crew kept no head before its rebase to ask for"
 _OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)
 SECOND_PASS = (
     'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
@@ -149,6 +162,21 @@ PROVE = (
     "`jmerge` reads the last one. "
 )
 PROVE_ONLY = "Push nothing for it: the line is in the Result, not the branch."
+SCOPE_REBASE = (
+    "Where the Result has no `Scoped reviewer:` line of {head}, launch ONE scoped reviewer, not a "
+    'full review, the way the crew skill\'s "The review" launches a reviewer, with the message '
+    f"`{SCOPED}`, and add `Scoped reviewer: <threadId>, of {{head}}` to the Result. Where it "
+    "has one and that thread ended its turn with no `## Review`, send that thread the same line "
+    "with `t3_thread_send`, and launch no second one. Push nothing and do not rebase until its "
+    "`## Review` is written."
+)
+_RANGE_DIFF = re.compile(r"git range-diff --no-color (\S+\.\.\S+) (\S+\.\.\S+)$")
+RERUN_REVIEWER = (
+    "Send the thread of the Result's last `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` "
+    f"line, the one that wrote that `## Review`, the one line `{AGAIN}` with `t3_thread_send`, and "
+    f"write `Woke: jbus, sent {AGAIN}` in the Result, the line as sent. Never write or mend a "
+    "review's line yourself, and launch no second reviewer."
+)
 FIX_TESTS = (
     "fix the tests until they fail over the base's code and pass at the head, commit and push "
     "that fix alone, and run the block again at the new head."
@@ -193,6 +221,13 @@ def no_reviewer_by_rule(brief: str, head: str) -> bool:
     return bool(said) or bool(re.search(gated, brief, re.M))
 
 
+CHECKED = (
+    'Run the check block of the crew skill\'s "Do the task" in your worktree at the head the '
+    "reason names: it runs the guards in a full test slot and writes the `Checked:` line "
+    "`jmerge` reads. Where it ends other than 0, a 124 too, fix what it found, commit, push, and "
+    "run it again, until its line says `PART=guards exit 0` at the head. Never write a "
+    "`Checked:` line by hand."
+)
 TABLE = (
     Short(
         "unfixed",
@@ -428,14 +463,133 @@ TABLE = (
         PROVE + "The last line is of a head whose patch the pull request no longer carries, so "
         "run the block at the head as it is. " + PROVE_ONLY,
     ),
+    *(
+        Short(reason.code, "wait", reason, CHECKED)
+        for reason in (
+            ready.CHECKED_MISSING,
+            ready.CHECKED_STALE,
+            ready.CHECKED_CUT,
+            ready.CHECKED_FAILED,
+            ready.CHECKED_PART,
+        )
+    ),
+    Short(
+        "no-verdict",
+        "wait",
+        ready.NO_VERDICT,
+        "The last `## Review` has no verdict `jmerge` reads, so no review has judged the head. "
+        + RERUN_REVIEWER,
+        reviewed=True,
+        sends=AGAIN,
+        rerun=True,
+    ),
+    Short(
+        "no-head",
+        "wait",
+        ready.NO_HEAD,
+        "Neither the `Fixed:` line nor the last `## Review` names a full commit, so `jmerge` has "
+        "no head to compare the rebase with. Where your `Fixed:` line names the head you pushed "
+        "by less than its 40 characters, write it again with the full commit and push nothing. "
+        "Otherwise: " + RERUN_REVIEWER,
+        reviewed=True,
+        sends=AGAIN,
+        rerun=True,
+    ),
+    Short(
+        "rereview",
+        "wait",
+        ready.SCOPED_UNRULED,
+        "No scoped review ruled yet on the drops your Result explains. " + SCOPE_REBASE,
+        reviewed=True,
+        sends=SCOPED,
+    ),
+    Short(
+        "rereview",
+        "wait",
+        ready.CONTENT_CHANGED,
+        "Your rebase changed the content after its review. " + SCOPE_REBASE,
+        reviewed=True,
+        sends=SCOPED,
+    ),
+    Short(
+        "fresh-conflict",
+        "wait",
+        ready.FRESH_CONFLICT,
+        "`jmerge` merged your head over the default branch's tip and it conflicts, though GitHub "
+        'does not say so yet. Rebase with the crew skill\'s "A conflict" block, run with `stale`, '
+        "resolve the conflict, run the check command, and push with the block's push.",
+    ),
+    Short(
+        "merged-tree",
+        "wait",
+        ready.MERGED_TREE_FAILS,
+        "Merged over today's default branch, your head fails the guards the reason names: a clash "
+        'with what merged since your check. Rebase with the crew skill\'s "A conflict" block, run '
+        "with `stale`, run the check command, fix what fails, and push with the block's push.",
+    ),
+    Short(
+        "base",
+        "wait",
+        ready.BASE,
+        "Its base is not the default branch, and jbus stacked it on no link. Retarget it with `gh "
+        "pr edit {number} --base <the default branch the reason names>`, then rebase onto that "
+        'branch with the crew skill\'s "A conflict" block, run with `stale`, and push with the '
+        'block\'s push. Where that base is meant, send the home one line ("Telling the home"), '
+        "`<slug>: <pull request url>, its base <base> is meant`, and end your turn: only the user "
+        "adds a merge base, with `jbus project bases --add`.",
+    ),
+    Short(
+        "not-upheld",
+        "hold",
+        ready.NOT_UPHELD,
+        "The review did not uphold the drop in the files the reason names, so the lines come "
+        "back: put them back, take each such file's `Dropped on rebase:` line out of the Result, "
+        "run the check command, commit and push. Where you still hold a drop, send the home one "
+        'line ("Telling the home"), `<slug>: <pull request url>, the drop in <file> is not upheld '
+        "and I hold it: <why>`, and end your turn: the home settles it with you.",
+    ),
 )
+_USERS = "the user's to lift, by a word, a go or a setting, and no push of a crew's lifts it"
+_RUNNER = "a wait on GitHub or the merge runner, which jmerge asks again and no crew's push moves"
+_AHEAD = "a wait on a pull request that merges first, which ends when that one has merged"
+_CHECKOUT = "a failure of git in jmerge's main checkout, which no push of a crew's mends"
 UNTOLD = {
     ready.NO_BRIEF.code: "no brief names the pull request, so there is no crew to tell",
     ready.HAND_DRAFT.code: "the draft is somebody's by hand, and jmerge never marks it ready",
+    ready.OTHER_HOME.code: "another home's pull request, whose crew this home does not tell",
+    ready.RISKY_OVERRULED.code: "a decline on a risk is the user's to settle (findings.RISKS)",
+    ready.NO_RUN.code: "GitHub started no run at the head, a gate of The checks and no push's",
+    ready.MAIN_BROWSER_RED.code: "main's own browser run failed too, so the red is not the crew's",
+    ready.CANCELLED_UNRUN.code: "jbus.cancelled runs a cancelled check again, and a push does not",
+    ready.QUEUED_UNREOPENED.code: "jmerge closed it and could not reopen it: tell sees open ones",
+    ready.CANCELLED_TWICE.code: "jbus.cancelled takes a check cancelled twice to the home",
+    **{
+        code: why
+        for codes, why in (
+            (
+                "main-moved merging merge-failed no-messages undecided not-passed live-run "
+                "queue-unreadable carries-unknown base-merge-asked base-merge-due "
+                "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
+                "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
+                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time",
+                _RUNNER,
+            ),
+            ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),
+            ("unmerged cannot-check", _CHECKOUT),
+            ("merge-off no-go row-held review-none touches renames-unsaid unlisted", _USERS),
+        )
+        for code in codes.split()
+    },
 }
-"""The code of each reason of `jmerge`'s `result` step that no crew can fix, and why. Every other
-reason of that step is a row of `TABLE`: `test_jbus_expedite_result.py` holds the two to
-`ready`, so a reason added there is never a quiet wait."""
+"""Each code no crew can fix, and why: `tell` sends nothing for it, and a test checks each code."""
+ELSEWHERE = {
+    ready.MAIN_CHANGED.code: "jbus.rebase tells the crew to rebase, once for the pull request",
+    ready.CONFLICTS.code: "jbus.rebase tells the crew of the conflict at each head",
+    ready.DROPPED.code: "jbus.rebase tells the crew of the drop, once per head",
+    ready.CHECK_FAILED.code: "jbus.rebase tells the crew of the failed check, once per head",
+    ready.STACKED_UNMOVED.code: "jbus.stack tells the crew to move its commits onto the base",
+}
+"""Each code a crew fixes that another part of jbus tells it of: `tell` sends nothing for it."""
 
 
 def short_of(said: merge.Line) -> Short | None:
@@ -598,10 +752,11 @@ def _tell(
     message can lift, or nothing when the next pass must try the message again."""
     head = entry["head"]
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
-    if row.kind in ("unruled", "fix"):
-        found = ranges(run, slug, head, row.kind)
-        if not found and row.kind == "unruled":
-            run.say(f"wait {slug}: {NO_RANGE}")
+    if row.kind in ("unruled", "fix", "rereview"):
+        named = _RANGE_DIFF.search(entry["reason"]) if row.kind == "rereview" else None
+        found = named.groups() if named else ranges(run, slug, head, row.kind)
+        if not found and row.kind != "fix":
+            run.say(f"wait {slug}: {NO_RANGE if row.word == 'hold' else NO_RANGES}")
             return "users"
         if found:
             sentence = sentence.replace("{old}", found[0]).replace("{new}", found[1])

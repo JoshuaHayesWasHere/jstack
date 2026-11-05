@@ -412,13 +412,12 @@ def stubbed(tmp_path, selector):
     return repo
 
 
-def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in_a_short_one(
+def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_and_leaves_the_rest_to_ci(
     tmp_path,
 ):
-    """In jstack, the check of a change is the tests `scripts/select_tests.py` selects for it,
-    and never the whole suite: CI's check is the gate. The guards run first under a full slot,
-    which has no time limit, so they reach a verdict, and the rest then runs in the short
-    lane."""
+    """In jstack, the check of a change is the guards `scripts/select_tests.py` selects for it,
+    and never the whole suite: CI's check is the gate, and runs the rest. The guards run under a
+    full slot, which has no time limit, so they reach a verdict."""
     repo = tmp_path / "repo"
     subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(repo)], check=True)
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
@@ -426,26 +425,17 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_then_the_rest_in
         page.write("\nA line the test adds.\n")
     git(repo, "commit", "-qam", "a change to the crew feature")
     said, code, ran, base = selected(tmp_path, repo)
-    then = next(at for at, line in enumerate(said) if line.startswith("then "))
+    then = next(at for at, line in enumerate(said) if line.startswith("and "))
     guards, rest = said[1:then], said[then + 1 : -1]
     assert re.fullmatch(r"guards: exit 0 in \d+ s", said[-1]), said
     assert said[0] == f"selected: {len(guards)} guard test files, which must pass, in a full slot:"
-    assert said[then] == (
-        f"then {len(rest)} test files the change reaches, in the short lane, where the time "
-        "limit passes:"
-    )
+    assert said[then] == f"and {len(rest)} test files the change reaches, which CI's check runs:"
     assert "testing/tests/test_cross_cutting.py" in guards
     assert "features/crew/tests/test_crew_checks.py" in rest
     assert not set(guards) & set(rest)
     listed = guards + rest
     assert all(test.endswith(".py") and (repo / test).is_file() for test in listed), said
-    assert (ran, code) == (
-        [
-            f"check-fast BASE={base} PART=guards short=free full=held",
-            f"check-fast BASE={base} PART=rest short=held full=free",
-        ],
-        0,
-    )
+    assert (ran, code) == ([f"check-fast BASE={base} PART=guards short=free full=held"], 0)
 
 
 PARTS = (
@@ -456,47 +446,23 @@ PARTS = (
 )
 
 
-@pytest.mark.parametrize(
-    ("exits", "parts", "end"),
-    [
-        pytest.param(
-            {"guards": 1}, ["guards"], "PART=guards (took S s) exit 1", id="a guard fails"
-        ),
-        pytest.param(
-            {"guards": 124}, ["guards"], "PART=guards (took S s) exit 124", id="a guard is cut"
-        ),
-        pytest.param(
-            {"rest": 124},
-            ["guards", "rest"],
-            "PART=guards exit 0 (took S s), then the import-reached remainder, where exit 124 "
-            "is the short lane's time limit and passes: "
-            "make check-fast BASE={base} PART=rest exit 124",
-            id="the rest is cut",
-        ),
-    ],
-)
-def test_the_rest_runs_only_once_the_guards_passed_and_the_checked_line_names_both(
-    tmp_path, exits, parts, end
-):
-    """A guard that does not pass ends the check with its exit, 124 too, and the rest does not
-    run. Only the rest's 124 is the time limit that passes, and the `Checked:` line says the
-    guards passed before it. The guard step is timed: the block prints its exit and seconds, and
-    the `Checked:` line carries the seconds."""
+@pytest.mark.parametrize("first", [0, 1, 124], ids=["the guards pass", "fail", "are cut"])
+def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_path, first):
+    """The check is the guards alone, and ends with their exit, 124 too: the rest is CI's and
+    never runs at the desk. The block prints the guards' exit and seconds, and the `Checked:`
+    line is `make check-fast BASE=<base> PART=guards exit <n> at <head>`, the shape `jmerge`
+    reads (`ready.short_on_checked`)."""
     repo = stubbed(tmp_path, PARTS)
     tasks = tmp_path / "state" / "tasks"
     tasks.mkdir(parents=True)
     (tasks / "a-task.md").write_text("# a-task: a task\n\n## Result\n")
-    said, code, ran, base = selected(tmp_path, repo, exits=exits)
+    said, code, ran, base = selected(tmp_path, repo, exits={"guards": first})
     head = git(repo, "rev-parse", "HEAD")
-    assert code == int(end.split()[-1])
-    assert [one.split()[2] for one in ran] == [f"PART={part}" for part in parts]
-    first = 0 if "rest" in parts else exits["guards"]
+    assert code == first
+    assert [one.split()[2] for one in ran] == ["PART=guards"]
     assert re.search(rf"^guards: exit {first} in \d+ s$", "\n".join(said), re.M), said
-    line = f"Checked: make check-fast BASE={base} {end.format(base=base)} at {head}"
-    line = re.escape(line).replace(r"took\ S\ s", r"took\ \d+\ s")
-    assert re.fullmatch(
-        rf"# a-task: a task\n\n## Result\n{line}\n", (tasks / "a-task.md").read_text()
-    )
+    line = f"Checked: make check-fast BASE={base} PART=guards exit {first} at {head}\n"
+    assert (tasks / "a-task.md").read_text() == f"# a-task: a task\n\n## Result\n{line}"
 
 
 @pytest.mark.parametrize(
@@ -508,11 +474,12 @@ def test_the_rest_runs_only_once_the_guards_passed_and_the_checked_line_names_bo
 )
 def test_a_selection_of_no_test_or_of_every_test_runs_only_the_lint(tmp_path, selection, first):
     """A change no test covers, a doc only, still gets the lint, and a change every test covers
-    gets only the lint here: `PYTEST=:` stops `make check-fast` before any test."""
+    gets only the lint here: `PYTEST=:` stops `make check-fast` before any test. It is the guards'
+    step, in a full slot, so it reaches a verdict."""
     repo = stubbed(tmp_path, f"print({selection!r})")
     said, code, ran, base = selected(tmp_path, repo)
     assert (said, code) == ([first], 0)
-    assert ran == [f"check-fast BASE={base} PYTEST=: short=held full=free"]
+    assert ran == [f"check-fast BASE={base} PYTEST=: PART=guards short=free full=held"]
 
 
 def test_a_selector_that_fails_is_no_check_and_ends_the_block_1(tmp_path):
@@ -539,7 +506,7 @@ def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacke
     (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
     said, code, ran, base = selected(tmp_path, repo, on="origin/below")
     assert base == git(repo, "rev-parse", "HEAD~1")
-    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
+    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: PART=guards short=free full=held"], 0)
 
 
 def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
@@ -550,7 +517,7 @@ def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
     tasks.mkdir(parents=True)
     (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
     said, code, ran, base = selected(tmp_path, repo)
-    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
+    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: PART=guards short=free full=held"], 0)
 
 
 def test_the_check_block_runs_jstacks_jgauge_from_a_worktree_whose_venv_has_an_older_one(tmp_path):
@@ -608,7 +575,7 @@ def test_the_block_adds_the_checked_line_for_a_check_of_a_committed_head(
     (tasks / "a-task.md").write_text(brief)
     said, code, ran, base = selected(tmp_path, repo)
     head = git(repo, "rev-parse", "HEAD")
-    line = f"Checked: make check-fast BASE={base} PYTEST=: exit 0 at {head}\n"
+    line = f"Checked: make check-fast BASE={base} PYTEST=: PART=guards exit 0 at {head}\n"
     assert code == 0 and len(ran) == 1
     assert (tasks / "a-task.md").read_text() == brief + (line if written else "")
 
@@ -629,3 +596,95 @@ def test_the_block_names_the_exit_of_jgauge_check_on_the_checked_line(tmp_path):
     assert (said[-1], code) == ("done: the check exited 3", 3)
     named = f"\nChecked: jgauge check --wait 60 exit 3 at {head}\n"
     assert (tasks / "a-task.md").read_text().endswith(named)
+
+
+def pushed(tmp_path, lines, dirty=False, brief=True):
+    """Run the first-push block of "Do the task" once, in a worktree whose branch has one
+    commit and whose brief ends with `lines`, each `{head}` the head. It returns what the block
+    printed, its exit code, the head and the commit the branch has at the origin, or nothing."""
+    origin, repo = tmp_path / "origin.git", tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "a-task", str(repo)], check=True)
+    git(repo, "remote", "add", "origin", str(origin))
+    (repo / "file").write_text("one\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the task")
+    head = git(repo, "rev-parse", "HEAD")
+    if dirty:
+        (repo / "file").write_text("an edit not committed\n")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    if brief:
+        (tasks / "a-task.md").write_text(
+            "# a-task: a task\n\n## Result\n" + lines.format(head=head)
+        )
+    script = block("Do the task", "short_on_checked").replace("<slug>", "a-task")
+    ran = subprocess.run(
+        ["bash", "-c", script],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={
+            **{k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"},
+            "T": str(assembled() / "templates"),
+            "H": str(tmp_path / "state"),
+        },
+    )
+    at = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", "refs/heads/a-task"],
+        cwd=origin,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return ran.stdout.splitlines(), ran.returncode, head, at
+
+
+GUARDS = "Checked: make check-fast BASE=" + "c" * 40 + " PART=guards exit {exit} at {at}\n"
+
+
+def test_the_first_push_goes_out_once_the_guards_passed_at_the_head(tmp_path):
+    said, code, head, at = pushed(tmp_path, GUARDS.format(exit=0, at="{head}"))
+    assert (said, code, at) == ([f"pushed: a-task at {head}"], 0, head)
+
+
+@pytest.mark.parametrize(
+    ("lines", "why"),
+    [
+        pytest.param("", "its brief has no Checked: line", id="missing"),
+        pytest.param(
+            GUARDS.format(exit=1, at="{head}"), "its last Checked: line ends 1 at", id="exit 1"
+        ),
+        pytest.param(
+            GUARDS.format(exit=124, at="{head}"),
+            "its last Checked: line ends 124 at",
+            id="exit 124",
+        ),
+        pytest.param(
+            GUARDS.format(exit=0, at="{head}") + GUARDS.format(exit=124, at="{head}"),
+            "its last Checked: line ends 124 at",
+            id="a 124 after a pass",
+        ),
+        pytest.param(
+            GUARDS.format(exit=0, at="d" * 40), "its last Checked: line is of ", id="stale"
+        ),
+    ],
+)
+def test_the_first_push_is_refused_where_the_guards_did_not_pass_at_the_head(tmp_path, lines, why):
+    """The block asks `jmerge`'s own rule of the brief, with no other head carried, and
+    pushes nothing on any exit but 0, a time limit's 124 too."""
+    said, code, _, at = pushed(tmp_path, lines)
+    assert code == 1 and at == ""
+    assert len(said) == 1 and said[0].startswith(f"no push: {why}"), said
+    assert "the crew's check block (features/crew/do-the-task.md)" in said[0]
+
+
+def test_the_first_push_of_uncommitted_work_is_refused(tmp_path):
+    said, code, _, at = pushed(tmp_path, GUARDS.format(exit=0, at="{head}"), dirty=True)
+    assert (said, code, at) == (["no push: commit the work first"], 1, "")
+
+
+def test_the_first_push_with_no_brief_is_refused(tmp_path):
+    said, code, _, at = pushed(tmp_path, "", brief=False)
+    brief = tmp_path / "state" / "tasks" / "a-task.md"
+    assert (said, code, at) == ([f"no push: there is no brief at {brief}"], 1, "")
