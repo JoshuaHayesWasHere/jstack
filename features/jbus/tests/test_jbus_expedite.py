@@ -43,6 +43,9 @@ BROWSER_RED = ready.BROWSER_RED.format(head="c" * 12)
 MEETS_NO = ready.MEETS_NO.format(head="c" * 12, met=1, count=2, lines="2")
 MEETS_UNREAD = ready.MEETS_UNREAD.format(head="c" * 12)
 MEETS_MISCOUNTED = ready.MEETS_MISCOUNTED.format(head="c" * 12, said=3, count=2)
+CHECKED_MISSING = ready.CHECKED_MISSING.format(head="c" * 12)
+CHECKED_CUT = ready.CHECKED_CUT.format(at="c" * 12, head="c" * 12)
+CHECKED_STALE = ready.CHECKED_STALE.format(at="a" * 12, head="c" * 12)
 ENDED = ("completed", "failed", "interrupted", "cancelled")
 
 
@@ -202,6 +205,12 @@ def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():
     )
 
 
+SAYS |= dict.fromkeys(
+    ("checked-missing", "checked-stale", "checked-cut", "checked-failed", "checked-part"),
+    expedite.CHECKED,
+)
+
+
 NAMED = " The findings with no answer that counts: F1."
 for answered in ("unfixed", "unpushed", "unended"):
     SAYS[answered] += NAMED
@@ -232,6 +241,9 @@ def said_to(short, kind, reason, sentence):
         ("meets-no", MEETS_NO),
         ("meets-unread", MEETS_UNREAD),
         ("meets-miscounted", MEETS_MISCOUNTED),
+        ("checked-missing", CHECKED_MISSING),
+        ("checked-cut", CHECKED_CUT),
+        ("checked-stale", CHECKED_STALE),
     ],
 )
 def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reason, short, kitchen):

@@ -87,7 +87,7 @@ for event in $events; do
       trap '"$VERIFY_JSTACK_SCRIPTS/cleanup.sh" > /dev/null' EXIT
       S=$VERIFY_JSTACK_SANDBOX T=$HOME/.local/state/home/demo/tasks
       head=$("$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py)
-      brief="# beta: a demo task\nWhere: \`src/beta/\`\nPull request: open one when done\nThread: mcp:sandbox-thread-1\nGo: yes\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n\n## Review\nVerdict: clean\nHead: $head   Unchanged by the run: yes\nFindings:\nnone\n"
+      brief="# beta: a demo task\nWhere: \`src/beta/\`\nPull request: open one when done\nThread: mcp:sandbox-thread-1\nGo: yes\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: make check-fast BASE=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee PART=guards exit 0 at $head\n\n## Review\nVerdict: clean\nHead: $head   Unchanged by the run: yes\nFindings:\nnone\n"
       printf "$brief" > "$T/beta.md"
       jq -n '[{threadId: "mcp:sandbox-thread-1", title: "crew: beta", status: "idle", settled: false}]' > "$S/t3/threads.json"
       expect="merged 7"
