@@ -132,6 +132,7 @@ def machine(
         "PROC": str(proc),
         "LIMITS": str(where / "limits"),
         "TMPFS": str(tmp),
+        "QUOTA": str(tmp),
         "PATH": f"{stub}:{BIN}:{os.environ['PATH']}",
         "XDG_CONFIG_HOME": str(where / "config"),
     }
@@ -315,6 +316,7 @@ def test_the_file_slots_are_those_of_tmp_unless_told_otherwise(tmp_path):
 
 def test_the_file_slots_and_the_bytes_are_read_from_the_machine_it_runs_on(tmp_path):
     env = {**machine(tmp_path, **IDLE), "TMPFS": str(tmp_path)}
+    del env["QUOTA"]
     (tmp_path / "stub" / "df").unlink()
     (tmp_path / "stub" / "python3").unlink()
     assert re.fullmatch(
