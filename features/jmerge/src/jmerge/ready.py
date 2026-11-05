@@ -334,6 +334,27 @@ GitHub has this long to list the new run before the line goes to the next pull r
 lists the new run within seconds of the reopen, so a run of `jmerge` in the same minute still
 sees the old one."""
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
+MERGED_TREE_FAILS = Reason(
+    "rebase",
+    "merged over today's {base} at {tip}, it fails {guard}: its crew rebases it onto {base}, "
+    "runs the check, and fixes what fails",
+)
+"""The wait on a pull request whose tree merged over today's base fails the fast guards
+(`jmerge.treeguards`): a clash with what merged since its check, which only its crew can fix."""
+MERGED_TREE_UNENDED = Reason(
+    "check",
+    "the guards on its tree merged over today's {base} at {tip} ran past {minutes} minutes and "
+    "were stopped",
+)
+MERGED_TREE_UNBUILT = Reason(
+    "check",
+    "its tree merged over today's {base} at {tip} could not be built for the guards ({why})",
+)
+MERGED_TREE_NO_TIME = Reason(
+    "check",
+    "the guards of this run's other merges took its time: the next run runs them on its tree "
+    "merged over {base} at {tip}",
+)
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"

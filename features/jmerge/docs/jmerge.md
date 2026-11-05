@@ -323,6 +323,33 @@ A pull request whose check failed at its own head is judged as "A failed check o
 Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `full` job skips its suite only on a green run's artifact (`scripts/green_tree.py`), so a ref pushed by hand skips nothing.
 `jmerge --sweep` removes such a ref once it is seven days old (`sweep.MARKER_DAYS`); the old ones still on the origin are the owner's to remove with it.
 
+## The guards on the merged tree
+
+Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
+The clash shows on the tree of one merged over the other, so `jmerge` checks that tree before it merges a pull request on its existing check (`features/jmerge/src/jmerge/treeguards.py`).
+The command is the first line of the state's `merged-tree-guards` file that is not blank.
+jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
+A repo with no such file runs no guards, and merges as before.
+
+1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.
+2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
+3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
+   A worktree that a stopped run left there is removed first.
+4. Where the command exits 0, and the tip has not moved meanwhile, it merges.
+   The line of the merge says `the guards passed on its tree merged over <base> at <tip12> in <s> s`, and `merge.log` keeps that line.
+
+A head that already holds the tip is the tree its check ran on, so nothing is built for it.
+A non-zero exit holds the pull request with `merged over today's <base> at <tip12>, it fails <guard>: its crew rebases it onto <base>, runs the check, and fixes what fails`, on the `rebase` step.
+The guard is the first test pytest calls `FAILED`, else the make target the run stopped in, such as `lint`, else the last line the command printed.
+A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
+
+The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
+A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
+A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
+`merged-trees.json` in the state directory keeps what the guards said of a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
+A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
+A run drops the record of each pull request that is no longer open.
+
 ## A failed check over a base that moved
 
 A pull request's check runs on its merge with the base as the base was then, and a rerun runs on that same merge.
