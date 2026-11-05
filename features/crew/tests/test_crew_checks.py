@@ -90,7 +90,9 @@ def test_the_result_has_a_line_for_checks_that_did_not_run_and_none_that_stands_
     assert pushed.says().removeprefix("unrun: no check ran at ") == pushed.head
 
 
-def test_the_review_is_launched_when_the_pull_request_opens_and_not_on_a_green_wake(tmp_path):
+def test_the_review_is_launched_only_once_check_has_passed(tmp_path):
+    """The deterministic checks prove or fail the work before a reviewer reads it: the crew
+    launches on `passed` alone, and the reviewer's own readiness check agrees."""
     import test_pr_review_skill as review
 
     def launcher(name, rollup):
@@ -98,9 +100,10 @@ def test_the_review_is_launched_when_the_pull_request_opens_and_not_on_a_green_w
         return review.Launcher(tmp_path / name, rollup).says()
 
     ready_at = [f"a-task: ready, {review.URL} at {review.HEAD}"]
+    running = ["a-task: not ready, its checks, wait: a check has not finished"]
     pending = [{"__typename": "StatusContext", "state": "PENDING"}]
-    assert launcher("pending", pending) == ready_at
-    assert launcher("running", ROLLUPS["one still running"][0]) == ready_at
+    assert launcher("pending", pending) == running
+    assert launcher("running", ROLLUPS["one still running"][0]) == running
     assert launcher("passed", ROLLUPS["all passed"][0]) == ready_at
     failure = [{"__typename": "StatusContext", "state": "FAILURE"}]
     assert launcher("failed", failure) == [
@@ -119,7 +122,7 @@ def test_the_review_is_launched_when_the_pull_request_opens_and_not_on_a_green_w
         does[printed.split(":")[0]] = ran.stdout.split(":")[0]
     assert does == {
         "passed": "launch",
-        "wait": "launch beside the checks",
+        "wait": "no launch yet",
         "failed": "fix first",
         "unrun": "no launch",
     }
@@ -142,8 +145,10 @@ def test_a_crewmate_links_its_pull_request_and_arms_no_watch():
     blocks, unread = tools.read("crew", sections()["Stay on the pull request"])
     called = []
     for _, language, body, lead_in in blocks:
-        for inline in tools.INLINE.finditer(lead_in):
-            called.append(tools.Call("crew", lead_in[: inline.start()], inline[1]))
+        called += [
+            tools.Call("crew", lead_in[: inline.start()], inline[1])
+            for inline in tools.INLINE.finditer(lead_in)
+        ]
         if language == "json":
             called.append(tools.Call("crew", lead_in, body))
     assert unread == [] and [call.tool for call in called] == ["link_pull_request"]

@@ -279,7 +279,7 @@ def replay(records):
             continue
         took = [waiting[name].pop(0) for name in record["posted"] if waiting.get(name)]
         posts += 1
-        started += any([starts(one, told) for one in took])
+        started += any(starts(one, told) for one in took)
     return posts, started
 
 
@@ -341,7 +341,7 @@ def test_a_made_up_log_of_eighteen_posts_replays_as_three():
     records = [record for posted in MADE_UP for record in posted]
     assert replay(records) == (18, 3)
     told = set()
-    assert [any([starts(one, told) for one in posted[:-1]]) for posted in MADE_UP] == [
+    assert [any(starts(one, told) for one in posted[:-1]) for posted in MADE_UP] == [
         *(False, False, True, False, False, True, False, False, False),
         *(False, False, False, False, False, False, False, True, False),
     ]

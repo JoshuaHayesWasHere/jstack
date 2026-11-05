@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None, now: datetime | None = None) -> int:
         if len(instances) > 1 or choice.why:
             why = choice.why or f"the first of {','.join(instances)} with headroom"
             print(f"jroles: {role} on {choice.instance}: {why}", file=sys.stderr)
-            if unread := pool.unread(choice.instance, now):
+            if choice.instance is not None and (unread := pool.unread(choice.instance, now)):
                 print(f"jroles: {unread}", file=sys.stderr)
     for one in routed:
         print(json.dumps(one.as_json()))

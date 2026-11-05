@@ -1,13 +1,19 @@
 """The two hooks that call `jleak`: git's `pre-push`, and the hook on an agent's commands.
 
 The push tests make a repo with a bare remote, link `features/jleak/hooks/pre-push.sh` as its
-`pre-push` hook and run `git push`. The command tests feed
-`features/jleak/hooks/outbound-command.sh` what Claude Code gives a `PreToolUse` hook. The
-private patterns are made-up words in a file that the test writes for itself.
+`pre-push` hook and run `git push`. The lint tests give that repo a Makefile whose `lint` target
+stands in for jstack's, and a PATH that lacks a tool or holds a stand-in for the `perl` that
+holds the lint to its limit. The command tests feed `features/jleak/hooks/outbound-command.sh`
+what Claude Code gives a `PreToolUse` hook. The private patterns are made-up words in a file
+that the test writes for itself.
 """
 
 import json
+import os
+import shutil
 import subprocess
+import time
+from pathlib import Path
 
 import pytest
 
@@ -219,6 +225,105 @@ def test_deleting_a_branch_on_the_remote_is_not_checked(pushed):
     assert not pushed.remote_has("tidy-notes")
 
 
+def lint(pushed, recipe, branch="tidy-lint"):
+    """Commits a Makefile with `recipe` and switches to a branch to push it on."""
+    pushed.git("switch", "-q", "-c", branch)
+    pushed.commit("build: a lint", "Makefile", recipe)
+
+
+def tools(tmp_path, *names, own=None):
+    """A PATH of only `names` and the tools the hook needs to reach the lint, and `own` scripts."""
+    folder = tmp_path / "bin"
+    folder.mkdir(exist_ok=True)
+    for name in ("git", "sh", "realpath", "grep", "python3", *names):
+        os.symlink(os.path.realpath(shutil.which(name)), folder / name)
+    for name, text in (own or {}).items():
+        (folder / name).write_text(text)
+        (folder / name).chmod(0o755)
+    return str(folder)
+
+
+def test_a_push_whose_lint_passes_goes_through_and_runs_no_test(pushed, tmp_path):
+    lint(pushed, f"lint:\n\t@touch {tmp_path}/linted\ntest:\n\t@touch {tmp_path}/tested\n")
+    done = pushed.push("tidy-lint")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert pushed.remote_has("tidy-lint")
+    assert (tmp_path / "linted").exists()
+    assert not (tmp_path / "tested").exists()
+
+
+def test_a_repo_with_no_lint_target_pushes_and_runs_nothing(pushed, tmp_path):
+    lint(pushed, f"test:\n\t@touch {tmp_path}/tested\n")
+    done = pushed.push("tidy-lint")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert not (tmp_path / "tested").exists()
+
+
+def test_deleting_a_branch_on_the_remote_runs_no_lint(pushed, tmp_path):
+    pushed.git("switch", "-q", "-c", "gone")
+    pushed.commit("docs: more", "notes.md", "a line\nand one more\n")
+    assert pushed.push("gone").returncode == 0
+    lint(pushed, f"lint:\n\t@touch {tmp_path}/linted; exit 1\n", branch="red-lint")
+    done = pushed.push("gone", "--delete")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert not pushed.remote_has("gone")
+    assert not (tmp_path / "linted").exists()
+
+
+def test_a_push_whose_lint_fails_is_refused_with_what_the_lint_said(pushed):
+    lint(pushed, "lint:\n\t@echo 'notes.py:1:1: F401 unused import' >&2; exit 1\n")
+    done = pushed.push("tidy-lint")
+    assert done.returncode != 0
+    lines = done.stderr.splitlines()
+    assert "notes.py:1:1: F401 unused import" in lines
+    assert "lint: make lint failed, so the push is refused" in lines
+    assert not pushed.remote_has("tidy-lint")
+
+
+def test_a_lint_past_the_limit_is_refused(pushed, tmp_path, monkeypatch):
+    lint(pushed, "lint:\n\t@true\n")
+    asked = tmp_path / "asked"
+    stopped = f'#!/bin/sh\nshift 2\necho "$@" > {asked}\nexit 124\n'
+    monkeypatch.setenv("PATH", tools(tmp_path, "make", own={"perl": stopped}))
+    done = pushed.push("tidy-lint")
+    assert done.returncode != 0
+    assert asked.read_text() == "60 make --no-print-directory lint\n"
+    assert "lint: make lint ran past 60 s, so the push is refused" in done.stderr.splitlines()
+    assert not pushed.remote_has("tidy-lint")
+
+
+def test_a_lint_that_runs_past_the_limit_is_stopped_with_what_it_started(
+    pushed, tmp_path, monkeypatch
+):
+    lint(pushed, "lint:\n\t@sleep 30\n")
+    perl = shutil.which("perl")
+    quick = f'#!/bin/sh\ncode=$2\nshift 3\nexec {perl} -e "$code" 1 "$@"\n'
+    monkeypatch.setenv("PATH", tools(tmp_path, "make", "sleep", own={"perl": quick}))
+    started = time.monotonic()
+    done = pushed.push("tidy-lint")
+    assert time.monotonic() - started < 20
+    assert done.returncode != 0
+    assert "lint: make lint ran past 60 s, so the push is refused" in done.stderr.splitlines()
+
+
+@pytest.mark.parametrize(
+    ("missing", "line"),
+    [
+        ("make", "lint: no make to run make lint with, so the push is refused"),
+        ("perl", "lint: no perl to run make lint with, so the push is refused"),
+        ("uv", "lint: make lint failed, so the push is refused"),
+    ],
+)
+def test_a_push_with_a_tool_missing_is_refused(pushed, tmp_path, monkeypatch, missing, line):
+    lint(pushed, "lint:\n\tuv run ruff check .\n")
+    there = [name for name in ("make", "perl", "uv") if name != missing]
+    monkeypatch.setenv("PATH", tools(tmp_path, *there))
+    done = pushed.push("tidy-lint")
+    assert done.returncode != 0
+    assert line in done.stderr.splitlines()
+    assert not pushed.remote_has("tidy-lint")
+
+
 def hook(command, cwd=None, tool="Bash"):
     given = {"tool_name": tool, "tool_input": {"command": command}, "cwd": str(cwd or REPO)}
     done = subprocess.run(
@@ -371,10 +476,13 @@ def test_a_pull_request_command_with_no_private_patterns_file_is_refused(pattern
 
 
 def refused_from(root, hooks, given):
-    """Copy the command hook to `<root>/<hooks>`, feed it `given`, and give its exit
-    code and stderr."""
+    """Copy the command hook to `<root>/<hooks>`, and the judge it sources to its place in
+    `root`, feed it `given`, and give its exit code and stderr."""
     (root / hooks).mkdir(parents=True)
     (root / hooks / COMMAND.name).write_text(COMMAND.read_text())
+    judge = Path("features") / "jbus" / "hooks" / "judge.sh"
+    (root / judge).parent.mkdir(parents=True, exist_ok=True)
+    (root / judge).write_text((REPO / judge).read_text())
     done = subprocess.run(
         ["sh", str(root / hooks / COMMAND.name)],
         input=json.dumps(given),
@@ -393,14 +501,14 @@ def test_a_check_that_breaks_refuses_the_command(patterns, tmp_path):
     given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
     code, said = refused_from(broken, "features/jleak/hooks", given)
     assert code == 2
-    assert "no checkout and no release" not in said
+    assert "outbound-command: refused: jleak ended 1" in said
 
 
 def test_a_hook_that_is_in_no_checkout_and_no_release_refuses_the_command(patterns, tmp_path):
     given = {"tool_name": "Bash", "tool_input": {"command": "gh pr view 12"}, "cwd": "/"}
-    code, said = refused_from(tmp_path / "elsewhere", "hooks", given)
+    code, said = refused_from(tmp_path / "elsewhere", "features/jleak/hooks", given)
     assert code == 2
-    assert "is no checkout and no release, so the command is refused" in said
+    assert "is no checkout and no release, so it cannot judge the call" in said
 
 
 def test_what_the_hook_cannot_read_is_refused_only_when_it_may_be_a_command_it_checks(patterns):

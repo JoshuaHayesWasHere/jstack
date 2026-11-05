@@ -96,7 +96,7 @@ export GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.com
 case "$1 $2" in
     "pr list")
         if [ "$3" = "--base" ]; then
-            [ "$5 $6 $7 $8" = "--state open --json number" ] || exit 64
+            [ "$5 $6 $7 $8 $9 ${10}" = "--state open --limit 100 --json number" ] || exit 64
             cat "$STUB/based-on-$4.json" 2> /dev/null || echo "[]"
         else
             cat "$STUB/list.json" 2> /dev/null
@@ -194,6 +194,14 @@ def brief(review="", result="", field=""):
     )
 
 
+DESK_BASE = "e" * 40
+
+
+def desk_checked(head, ran=0):
+    """The `Checked:` line the crew's check block writes for the guards of a check at `head`."""
+    return f"Checked: make check-fast BASE={DESK_BASE} PART=guards exit {ran} at {head}\n"
+
+
 def review(verdict, head=REVIEWED):
     findings = "- error a.py:1 it is wrong\n" if verdict == "findings" else "none\n"
     return (
@@ -233,6 +241,7 @@ class Home:
             ignore=repo_template.LOCKS,
         )
         self.code = None
+        self.desk = True
 
     def open_pull_request(
         self,
@@ -277,8 +286,42 @@ class Home:
         asked = f"{line} {' '.join(flags)}".rstrip()
         return self.sh(f'{paths()}\nM="$H"\n{text.replace(line, asked)}', cwd, path)
 
+    def desk_checked(self):
+        """Give each brief of an open pull request the `Checked:` line its crew's check block
+        writes once the guards passed at the pull request's head, as GitHub lists it, unless the
+        brief has a `Checked:` line of its own: `jmerge` merges no pull request without one
+        (`ready.short_on_checked`). A test of that gate sets `desk` false and writes its own.
+        The line never decides a `Fixed:` line `jmerge` would read in the brief's place
+        (`ready.unwritten_fixed`, which reads `Checked:` lines): a brief where it would says so,
+        and its test writes its own line or sets `desk` false."""
+        listed = self.stub / "list.json"
+        if not self.desk or not listed.exists():
+            return
+        try:
+            pulls = json.loads(listed.read_text())
+        except ValueError:
+            return
+        heads = {
+            pull["url"]: pull["headRefOid"]
+            for pull in pulls
+            if isinstance(pull, dict) and pull.get("url") and pull.get("headRefOid")
+        }
+        for brief in self.user.glob(".local/state/home/*/tasks/*.md"):
+            text = brief.read_text()
+            if re.search(r"^Checked:", text, re.M):
+                continue
+            head = next((heads[url] for url in heads if f"Pull request: {url}\n" in text), "")
+            if head:
+                ending = "" if text.endswith("\n") else "\n"
+                checked = f"{text}{ending}{desk_checked(head)}"
+                if ready.unwritten_fixed(checked, head) != ready.unwritten_fixed(text, head):
+                    raise AssertionError(f"desk_checked would infer a Fixed: line for {brief}")
+                brief.write_text(checked)
+
     def sh(self, script, cwd=None, path=None):
-        """Run a script as a thread of this user would, with the fake `gh` first on PATH."""
+        """Run a script as a thread of this user would, with the fake `gh` first on PATH, once
+        each brief of an open pull request has its passing `Checked:` line (`desk_checked`)."""
+        self.desk_checked()
         ran = subprocess.run(
             ["sh", "-c", script],
             capture_output=True,
@@ -459,11 +502,6 @@ OWED = f"Scoped review: needed since {REVIEWED}, the fix changed a.py\n"
 NO_FIX_REVIEW = "its fix is not reviewed: the scoped review of it is not written"
 
 FIX_REVIEW = {
-    "a fix under tests only": (
-        f"{ENDED}Fixed: {PUSHED}\nScoped review: none, the fix changed files under tests/ only\n",
-        review("findings"),
-        PUSHED,
-    ),
     "a fix with a clean review of it": (
         f"{ENDED}Fixed: {PUSHED}\n{OWED}",
         review("findings") + review("clean", PUSHED),
@@ -495,6 +533,9 @@ def test_a_fix_whose_review_is_owed_waits_for_it_and_then_for_each_of_its_findin
     assert ready.short_of(brief(same_head, fixed), PUSHED) == NO_FIX_REVIEW
     written = review("findings") + review("clean", PUSHED)
     assert ready.short_of(brief(written, fixed), PUSHED) == ""
+    tests_only = f"{ENDED}Fixed: {PUSHED}\nScoped review: none, the fix changed tests/ only\n"
+    assert ready.short_of(brief(review("findings"), tests_only), PUSHED) == ""
+    assert ready.short_of(brief(written, tests_only), PUSHED) == ""
     unanswered = brief(SECOND, f"{ENDED}Fixed: {LATER}\n{OWED}")
     assert ready.short_of(unanswered, LATER) == (
         "its findings are not handled: 1 of 2 have no Finding line"
@@ -576,33 +617,10 @@ SHORT = {
         {"head": PUSHED},
         NO_FIX_REVIEW,
     ),
-    "a wider fix with no second pass": (
-        brief(review("findings"), f"Fixed: {PUSHED}\n{WIDER}"),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
-    ),
-    "a wider fix, and a second review of the head the first one saw": (
-        brief(review("findings") + review("clean"), f"Fixed: {PUSHED}\n{WIDER}"),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
-    ),
-    "a wider fix, and a line that does not say since which head": (
-        brief(review("findings"), f"Fixed: {PUSHED}\nSecond pass: needed\n"),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
-    ),
     "a wider fix, and a rebase moved the Fixed line before the second pass's findings came": (
         brief(SECOND, f"{ENDED}Fixed: {LATER}\n{WIDER}Rebase: range-diff empty, head {LATER}\n"),
         {"head": LATER},
         "its findings are not handled: 1 of 2 have no Finding line",
-    ),
-    "a wider fix, and a review that names no head": (
-        brief(
-            review("findings").replace(f"Head: {REVIEWED}", "Run: 1"),
-            f"{ENDED}Fixed: {PUSHED}\nSecond pass: needed since -, the fix could not be compared\n",
-        ),
-        {"head": PUSHED},
-        "its fix changed more than the findings named: the second pass is not written",
     ),
     "a wider fix, and a second reviewer whose run did not start": (
         brief(
@@ -1225,12 +1243,12 @@ def test_github_is_asked_about_the_repo_of_origin(merged):
     merged.run()
     about = f"--repo {merged.origin}"
     assert calls(merged.home) == [
-        f"pr list --state open --json {LIST} {about}",
+        f"pr list --state open --limit 100 --json {LIST} {about}",
         f"repo view {merged.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
         f"pr merge 7 --squash --match-head-commit {merged.head} --subject {TITLE} (#7)"
         f" --body-file - {about}",
         f"pr view 7 --json mergeCommit --jq .mergeCommit.oid {about}",
-        f"pr list --base alpha --state open --json number {about}",
+        f"pr list --base alpha --state open --limit 100 --json number {about}",
     ]
 
 
@@ -1238,7 +1256,7 @@ def test_a_checkout_with_no_origin_leaves_the_repo_to_gh(home):
     home.open_pull_request(REVIEWED)
     home.ready()
     assert calls(home) == [
-        f"pr list --state open --json {LIST}",
+        f"pr list --state open --limit 100 --json {LIST}",
         "repo view --json defaultBranchRef --jq .defaultBranchRef.name",
     ]
 

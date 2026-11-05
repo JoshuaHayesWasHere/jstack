@@ -2,14 +2,12 @@
 
 A rebase gives a reviewed pull request another head. `jmerge` compares the head the review saw with the rebased one by `git range-diff`. When no line the patch adds or removes changed, the review carries over and no reviewer is launched. When the content changed, which is a conflict someone resolved by hand, the pull request waits for one review of that change alone: jbus asks the crewmate to launch it, and the message that starts this thread is `/pr-review run <slug> scoped <old range> <new range>`. Each range is `<base>..<head>` in full commits: the reviewed patch, then the rebased one.
 
-A scoped pass is also the review of a fix.
-A fix pushed for a review's findings that changes a file outside `tests/` gets the same pass, of the fix alone, in place of a whole second review, and it is the last: a fix for its findings merges on the checks.
+A scoped pass is also the re-judgement a review's `Meets the brief: no` owes.
+One round gives a fix pushed for a review's findings no pass, and a decline no ruling: this pass judges again the `Done when` lines the `no` named, and it is the last, so a fix for its findings merges on the checks.
 Like any review after the first, it routes each finding by the severity it writes, whatever its bucket or tag: an `error` goes to the crewmate, a `warning` goes to the day's warnings row once the pull request merged, and an `info` is dropped.
-The crewmate launches it in the turn that pushes the fix, when the block of the crew skill's "A second pass" prints `scoped: launch the scoped reviewer`, and where it did not, jbus asks it to.
+The crewmate launches it once the fixed head's checks have passed, when the block of the crew skill's "A second pass" prints `scoped: launch the scoped reviewer`, and where it did not, jbus asks it to.
 The message is the same one.
 Its ranges are the patch up to the head the last review saw, then the patch up to the fixed head, so the range-diff shows the fix as the commits on the new side alone.
-A blocking decline is owed the same pass, also when nothing was pushed: a declined finding changes no line, so the range-diff alone would never show it again.
-Then both ranges end at the head the review saw, the range-diff shows no change, and the pass is its ruling on the declines (step 5).
 
 It is one pass per rebased or fixed head, and never a full review. It is not the second pass either: a brief that already has a `## Review` section is not refused for it, and in "Start" the check for a `## Review` section does not stop it. The rest of "Start" holds: the brief's `Review:` line, the pull request, the ground.
 
@@ -37,7 +35,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    The first line of the `SCOPE` text reads "Review only what this range-diff shows a rebase or a fix changed in a patch that was reviewed before it: the lines with two signs, and a commit on one side alone.
    The rest of the patch has had its review."
    And the code the reading is given is the range-diff: `git range-diff --no-color '<old range>' '<new range>'` in place of `gh pr diff <url>` on the line that writes `$D/code`.
-   And the `INTENT` has the earlier findings and the crew's answers to them: right above its last line, `printf '\n%s\n' "$SCOPE"`, goes the line `printf '\nThe findings of the reviews before this pass, and the answers of the crew to them, as jbriefs --findings prints them. This pass rules on each blocking decline.\n%s\n' "$(uv run --project "$T/../source" jbriefs --findings "$BRIEF")"`.
+   And the `INTENT` has the earlier findings and the crew's answers to them: right above its last line, `printf '\n%s\n' "$SCOPE"`, goes the line `printf '\nThe findings of the reviews before this pass, and the answers of the crew to them, as jbriefs --findings prints them.\n%s\n' "$(uv run --project "$T/../source" jbriefs --findings "$BRIEF")"`.
    The reading, the lead's judgment and the verdict are as they are for a first pass.
    The safety fact of step 5 is the one fact the rebased or fixed patch is still safe because of, proven at this head: it is never left out.
    A finding is about one of those lines, or about something it breaks.
@@ -72,33 +70,9 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    ```
 
    On `no drops`, the section gets no `Drops:` line. Otherwise read each diff against the reason on its line. A drop is upheld when the reason is true of the diff and the lines are right to be gone: the task replaces them, or the default branch's change makes them wrong. It is not upheld when the reason does not hold, the diff shows a line the task or the default branch still needs, or the diff could not be read. The section then has, right under `Scope:`, one line `Drops: upheld <file>, <file>` that names every file upheld, and one line `Drops: not upheld <file>: <why>` for each that is not. A drop that is not upheld is also a finding, of severity `error`, at that file. `jmerge` merges a rebase that dropped lines only when every such file is on the `Drops: upheld` line, and holds one that is not upheld for the user.
-5. Rule on each blocking decline.
-   Run this in this worktree, with the block at the top:
-
-   ```sh
-   B="$H/tasks/<slug>.md"
-   listed=$(uv run --project "$T/../source" jbriefs --findings "$B")
-   declined=$(printf '%s\n' "$listed" | awk '/^F[0-9]+ / {id = $(1)} /^  ruling: / {printf "%s%s", (n++ ? " " : ""), id}')
-   if [ -z "$declined" ]; then
-       echo "no declines: no blocking finding is declined by id"
-   else
-       echo "rule on: $declined"
-       printf '%s\n' "$listed"
-   fi
-   ```
-
-   On `no declines`, the section gets no `Declines:` line.
-   Otherwise it names each blocking finding the crew declined by id, the ones an earlier scoped pass ruled on too, and under it the list with each finding, its answer, the reason the decline gives and the ruling it has so far.
-   Rule on every one it names, an earlier ruling included: a scoped section you write at the head of an earlier one by the same `By:` takes its place, and its rulings with it, so a decline it leaves out has no ruling.
-   A finding of the bucket Consider, Noted or Dismissed is not ruled on, and neither is one answered `fixed`.
-   Check each reason at this head: read the `path:line` it cites, run the command it gives, read the gate it names.
-   A decline is upheld when its reason is true at this head and answers the finding: the case cannot happen, the brief decides it, or the user's answer to the gate does.
-   It is not upheld when the reason does not hold, or holds and leaves the finding standing; the disproof is what shows it, a `path:line` or a command and what it printed.
-   The section then has, right under `Scope:` and its `Drops:` lines, one line `Declines: upheld F2, F4` that names every finding upheld, and one line `Declines: not upheld F3: <the disproof>` for each that is not.
-   A decline not upheld is not written again as a finding: the ruling is its record, and it stands until the crew answers the finding `fixed`.
-   `jmerge` waits on a ruling that is missing, and on a decline not upheld: that one is the crew's to fix, then its home's, and it is the user's only for a finding on one of review-triage's categories, `(risk: <area>)`, which `jmerge` holds for the user.
+5. Rule on no decline: one round counts a decline of a blocking finding on the reason it cites (the crew skill, "The review"), and no pass rules on it, so the section gets no `Declines:` line.
 6. Report as "After the review" says for a first pass: the head checked again, what is outside the pull request's diff dropped, and `$T/review.md` appended, filled in, with nothing sent.
-   The section has one line more, right under `Verdict:`, the `Scope:` line the block of step 1 printed, and under it the `Drops:` lines of step 4 and the `Declines:` lines of step 5.
+   The section has one line more, right under `Verdict:`, the `Scope:` line the block of step 1 printed, and under it the `Drops:` lines of step 4.
    Its `Meets the brief:` line is written as a first pass writes it, with the brief's whole count, since `jmerge` reads the last round's line and no earlier one.
    It re-judges only the lines the round before it named `unmet`, against the fix or the rebase, and carries every line that round met: a scoped pass is never a whole second review, and its `yes` is what clears the earlier `no`.
    A pass over a rebase whose content changed carries the earlier round's line as it was, but for a line the changed content breaks.

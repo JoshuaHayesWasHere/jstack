@@ -379,7 +379,7 @@ def test_a_handoff_cut_off_anywhere_and_run_again_ends_in_the_same_state(home, c
     home.t3.runs(HOOK)
     if again == "the handoff":
         assert home.home_hands_off(THREAD).stdout.startswith("archived before: ")
-        (kept,) = [path for path in (home.home_dir / "log").iterdir()]
+        (kept,) = list((home.home_dir / "log").iterdir())
         assert kept.read_text().endswith(f"\nWas home: {THREAD}\n")
     home.starts(OTHER)
     assert home.starts(OTHER) == [

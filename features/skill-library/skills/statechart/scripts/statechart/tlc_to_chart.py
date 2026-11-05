@@ -624,15 +624,13 @@ def chart(args):
             warning = tlc_output_warning(text, f)
             if warning:
                 print(f"{f}: {warning}", file=sys.stderr)
-            for t in parse_traces(text):
-                found.append(
-                    {
-                        **t,
-                        "steps": [
-                            {**s, "vars": guard(s["vars"], list(paths), L)} for s in t["steps"]
-                        ],
-                    }
-                )
+            found += [
+                {
+                    **t,
+                    "steps": [{**s, "vars": guard(s["vars"], list(paths), L)} for s in t["steps"]],
+                }
+                for t in parse_traces(text)
+            ]
         return found
 
     def first_bad(raw):
@@ -1174,9 +1172,11 @@ def chart(args):
                 *((f"group{i}", fills[g]) for i, g in enumerate(group_names)),
             ]
             for base, fill in bases:
-                for border in ("", "Wrong", "Fixed", "Path"):
-                    if base + border in style_classes:
-                        out.append(f"  {group_class_def(base, fill, border)}")
+                out += [
+                    f"  {group_class_def(base, fill, border)}"
+                    for border in ("", "Wrong", "Fixed", "Path")
+                    if base + border in style_classes
+                ]
         else:
             out += [f"  {c}" for c in STATUS_CLASSES]
         if legend:
@@ -1203,15 +1203,15 @@ def chart(args):
         for e in edges.values():
             if not e["labels"]:
                 return {"why": "a step has no label"}
-            for label in e["labels"]:
-                steps.append(
-                    {
-                        "from": split(e["from"]),
-                        "to": split(e["to"]),
-                        "label": norm(label),
-                        "words": (e.get("guards") or {}).get(label, {"": None}),
-                    }
-                )
+            steps += [
+                {
+                    "from": split(e["from"]),
+                    "to": split(e["to"]),
+                    "label": norm(label),
+                    "words": (e.get("guards") or {}).get(label, {"": None}),
+                }
+                for label in e["labels"]
+            ]
 
         def bar(p):
             return " | ".join(p)

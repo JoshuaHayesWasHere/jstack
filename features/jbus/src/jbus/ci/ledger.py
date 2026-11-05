@@ -2,21 +2,23 @@
 
 `ci.jsonl` has one line per job. `jbus ci` keeps a job once it has completed, and never adds a job
 that is already there, so a second run over the same days adds nothing. A collect rewrites the
-file only to add what the log says to a red hosted job kept with no `logged` field, from before
-the collector read hosted logs. A line has
+file only to add the failed step and what the log says to a red job it kept with no `step` field,
+before the collector kept that field. A line has
 `run`, `job` and `attempt`, and the job's `name`, `sha`, `branch`, `pr` (the pull request it ran
 for, or None), `event`, `created`, `started`, `completed` and `conclusion`. It also has the `runner`
 the job ran on, the runner's `kind` (`hosted` or `local`), and `steps`, the number of steps that
 ran. A job cancelled while it waited has a conclusion of `cancelled` and no runner or start, and the
 ledger keeps and counts it. A red job also has `tests`, the failing tests its log names (None where
-GitHub did not give the log), `signs`, the runner faults that log shows, and `logged`, whether the
-collector read its log.
+GitHub did not give the log), `step`, the step GitHub says failed with the make target the log
+says failed first (`make check-fast: lint`, None where no step failed), `signs`, the runner faults
+that log shows, and `logged`, whether the collector read its log.
 
 Each lever's telemetry is a field of the same line, `None` where the run did not give it:
-`full` and `tree` (one suite per tree), `selection` (`all` or how many files) and `reason`
-(the test map), `slowest_s` and `tail_s` (the slow tail), `cpu_pressure`, `cgroup_pressure`
-and `workers` (the CPU), and `tmp_inode_pct`. A job writes these with `jbus ci --notice`; see
-`jbus.ci.notice`.
+`full` and `tree` (one suite per tree), `selection` (`all` or how many test files a pull
+request's check selected) and `reason` (the path that made it `all`, the test map), `slowest_s`
+and `tail_s` (the slow tail), `cpu_pressure`, `cgroup_pressure` and `workers` (the CPU), and
+`tmp_inode_pct`. A job writes these with `jbus ci --notice`; see `jbus.ci.notice`. The check
+keeps the list of test files it selected as the run's artifact `selected-tests-<attempt>`.
 
 `ci-prs.jsonl` has one line per pull request, and a collect that finds one changed rewrites the
 file: `number`, `branch`, `head`, `created`, `updated` (GitHub's last update of it, which a line

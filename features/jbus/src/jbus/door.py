@@ -15,10 +15,30 @@ read in T3 Code, that names it. This hook is the second, for what a thread runs 
 
 A command is read in pieces (`pieces`): cut at each shell separator, backtick and parenthesis,
 with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, and
-left out where it is an argument such as a commit message or a title. A heredoc's body is left
-out, since it is text a command reads, but where it feeds a shell or `ssh`, whose commands it is.
-A command that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a
-script of its own, which is why the go path is the main check.
+left out where it is an argument such as a commit message or a title, but for one word that is
+a flag or a refspec (`"--force"`, `'+main'`), which is read as that word, so that `party.walks`
+reads a quoted flag or refspec as it reads a bare one. A heredoc's body is left out, since it
+is text a command reads, but where it feeds a shell or `ssh`, whose commands it is. A command
+that runs dry walks through nothing (`party.DRY`). A home can still wrap a door in a script of
+its own, which is why the go path is the main check.
+
+Every refusing hook of jstack (this one, `agent-sends` and jleak's three) judges through
+`features/jbus/hooks/judge.sh`. The hook sets `hook` (its name), `input` (what the harness gave it
+on stdin) and `source` (jstack's source tree), sources the file, and calls `judge <module>
+[<argument>...]`, which ends the hook. The module reads the call on stdin and ends 0 to let it
+through, or 2 to refuse it with its reason on stderr. A hook that cannot judge refuses: a module
+that ends any other way, one that runs past `JSTACK_HOOK_SECONDS` (25 by default, inside the 30
+the harness gives the hook), and a machine with no Python 3.12 or newer each end it 2 too. The
+time is kept by the module's own Python, with `signal.alarm`, so it holds where no `timeout`
+command is, as on macOS.
+
+Each refusal adds one quiet `hook` event, declared here, to the jbus log of the repo the call ran
+in, where jbus keeps one: the hook, the head of the call and the reason. A hook that sets
+`withheld`, as jleak's do, logs the tool's name in place of the call, since the call it refused
+may hold a private pattern, which jleak's own reasons never repeat. The shell writes it, not
+Python, so a refusal for want of Python is logged too, and writes it as plain ASCII, since jbus
+reads the log as UTF-8 and a cut could split a character. A machine without the tools the line
+needs (`git`, `sed`, `date` and the like) still refuses, and logs nothing.
 """
 
 from __future__ import annotations
@@ -34,6 +54,8 @@ from jbriefs import home, sends
 from jbus import party
 from jsettings import paths
 
+EVENTS = {"hook": "quiet"}
+
 _HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)(\w+)\1")
 _SEPARATOR = set(";&|\n()`")
 _SHELL = r"(?:\S*/)?(?:ba|z|da|k)?sh"
@@ -42,6 +64,8 @@ _RUNS_TEXT = re.compile(rf"(?:^|\s){_SHELL}(?:\s+-\w+)*\s+-[a-z]*c\s*$|\bssh\s|\
 of flags as in `bash -lc`, `ssh <host>`, `eval`."""
 _FEEDS = re.compile(rf"(?:^|[;&|(]\s*|\s){_SHELL}\b[^<]*$|\bssh\s[^<]*$")
 """What runs a heredoc's body as commands: a shell, or `ssh <host>`, before the `<<`."""
+_FLAG = re.compile(r"[-+:][^\s'\"]+")
+"""A quoted word the command reads as a flag or a refspec: `"--force"`, `'-D'`, `'+main'`."""
 
 
 def _unfold(command: str) -> str:
@@ -87,7 +111,7 @@ def pieces(command: str) -> list[str]:
             if _RUNS_TEXT.search(now):
                 cut()
                 found.extend(pieces(quoted))
-            elif now.endswith("=") or not now.strip():
+            elif now.endswith("=") or not now.strip() or _FLAG.fullmatch(quoted):
                 now += quoted
             else:
                 now += " _ "

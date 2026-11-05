@@ -178,8 +178,10 @@ def test_diff_flag_adds_the_unified_diff_under_the_changed_line(upstream, capsys
     _, lines, _ = run(upstream, capsys, "--diff")
     at = next(n for n, line in enumerate(lines) if line.startswith("changed "))
     assert lines[at + 1] == "diff --git a/pstack/skills/beta/SKILL.md b/pstack/skills/beta/SKILL.md"
-    assert ["-first", "+second", "+third"] == [
-        line for line in lines if re.match(r"[-+][a-z]", line)
+    assert [line for line in lines if re.match(r"[-+][a-z]", line)] == [
+        "-first",
+        "+second",
+        "+third",
     ]
     assert not any(line.startswith("diff --git") for line in plain)
 
@@ -479,3 +481,79 @@ def test_every_principle_is_from_pstack_or_jstacks_own_and_depth_over_breadth_is
     }
     assert "features/principles/skills/principle-depth-over-breadth/SKILL.md" in pinned.own
     assert len(principles) == 25
+
+
+def pin_paths(upstream, pins, only=None):
+    """The checkout's `THIRD_PARTY.md`, with each upstream path in `pins` written
+    `<path>@<commit>`, on every line of `MAP` or, with `only`, on that local path's line."""
+    lines = []
+    for line in MAP.splitlines():
+        local, _, sources = line.partition(" <- ")
+        if only in (None, local):
+            sources = ", ".join(
+                f"{path}@{pins[path]}" if path in pins else path for path in sources.split(", ")
+            )
+        lines.append(f"{local} <- {sources}")
+    text = SECTION.format(pin=upstream.pin, map="\n".join(lines))
+    (upstream.checkout / "THIRD_PARTY.md").write_text(text)
+
+
+BETA = "pstack/skills/beta/SKILL.md"
+ONE = "pstack/skills/poteto-mode/playbooks/one.md"
+
+
+def test_two_paths_pinned_at_two_commits_are_each_compared_from_their_own(upstream, capsys):
+    upstream.drift()
+    upstream.write(ONE, "one\nsecond\n")
+    moved = upstream.commit("one: a second line")
+    pin_paths(upstream, {BETA: upstream.reworded, ONE: moved})
+    _, lines, _ = run(upstream, capsys)
+    assert lines[0].startswith(f"pstack {upstream.pin[:12]} .. ")
+    assert (
+        f"changed {BETA} at {upstream.reworded[:12]} +1 -0"
+        " -> playbooks/beta.md, skills/beta/SKILL.md"
+        f"; {upstream.short(upstream.added)} beta: add a line"
+    ) in lines
+    assert f"same {ONE} at {moved[:12]}" in lines
+
+
+def test_a_path_with_no_pin_of_its_own_is_compared_from_the_commit_line(upstream, capsys):
+    upstream.drift()
+    pin_paths(upstream, {ONE: upstream.reworded})
+    _, lines, _ = run(upstream, capsys)
+    assert "same pstack/skills/alpha/SKILL.md" in lines
+    assert (
+        f"changed {BETA} +2 -1 -> playbooks/beta.md, skills/beta/SKILL.md"
+        f"; {upstream.short(upstream.added)} beta: add a line"
+        f"; {upstream.short(upstream.reworded)} beta: reword"
+    ) in lines
+    assert f"same {ONE} at {upstream.reworded[:12]}" in lines
+
+
+def test_a_path_synced_to_its_own_pin_is_no_drift_under_strict(upstream, capsys):
+    upstream.write(BETA, "beta\nsecond\n")
+    synced = upstream.commit("beta: reword")
+    pin_paths(upstream, {BETA: synced})
+    code, lines, _ = run(upstream, capsys, "--strict")
+    assert code == 0
+    assert f"same {BETA} at {synced[:12]}" in lines
+
+
+def test_exit_2_with_one_upstream_path_named_at_two_commits(upstream, capsys):
+    pin_paths(upstream, {"pstack/skills/alpha/SKILL.md": upstream.pin}, only="playbooks/beta.md")
+    code, lines, err = run(upstream, capsys)
+    assert (code, lines) == (2, [])
+    assert err == (
+        "jdrift: THIRD_PARTY.md: the Upstream map: block names pstack/skills/alpha/SKILL.md "
+        "at two commits\n"
+    )
+
+
+def test_exit_2_with_a_path_pinned_at_a_commit_not_in_the_history_of_main(upstream, capsys):
+    git(upstream.path, "checkout", "-q", "--orphan", "aside")
+    stray = upstream.commit("aside: never on main")
+    git(upstream.path, "checkout", "-q", "main")
+    pin_paths(upstream, {ONE: stray})
+    code, lines, err = run(upstream, capsys)
+    assert (code, lines) == (2, [])
+    assert err == f"jdrift: the pin {stray[:12]} is not in the history of main upstream\n"

@@ -51,6 +51,14 @@ def said(status: int, value: Any) -> Answer:
 
 
 NOT_FOUND = said(404, {"error": "not found"})
+NOT_AN_ACT = said(
+    400,
+    {
+        "error": "an act is {action: go, slug, sha12}, {action: answer, number, "
+        "words, keeps} or {action: word, words, optional answers}, with evidence "
+        f"{party.CHAT} and an optional seen"
+    },
+)
 
 
 def reader(sources: Sources) -> jbus.Config:
@@ -145,7 +153,7 @@ class Writes:
                 where=WHERE,
             )
             closed = questions.question(state_dir, number)
-            assert closed is not None
+            assert closed is not None and closed.answer is not None
         except Refused as error:
             first = one.answer if one else None
             first = first or next(
@@ -203,7 +211,7 @@ class Writes:
                 and (words is None or isinstance(words, str))
             )
         except (ValueError, TypeError, KeyError, AttributeError):
-            shaped = False
+            numbers, option, words, shaped = [], None, None, False
         if not shaped:
             return said(400, {"error": "a write is the numbers to close, an option and words"})
         option, words = option or "", " ".join((words or "").split())
@@ -224,7 +232,7 @@ class Writes:
             id, seen = asked["item"], asked["seen_event"]
             shaped = isinstance(id, str) and 0 < len(id) <= 64 and isinstance(seen, str) and seen
         except (ValueError, TypeError, KeyError, AttributeError):
-            shaped = False
+            id, seen, shaped = "", "", False
         if not shaped:
             return said(400, {"error": "a go is an item and seen_event"})
         user, state_dir, now = self.sources.user, self.sources.state(name), self.clock()
@@ -308,16 +316,9 @@ class Writes:
             shaped = shaped and isinstance(seen, str) and isinstance(given, str)
             evidence = party.chat(given) if shaped else None
         except (ValueError, TypeError, KeyError, AttributeError):
-            shaped, evidence = False, None
+            return NOT_AN_ACT
         if not shaped or evidence is None:
-            return said(
-                400,
-                {
-                    "error": "an act is {action: go, slug, sha12}, {action: answer, number, "
-                    "words, keeps} or {action: word, words, optional answers}, with evidence "
-                    f"{party.CHAT} and an optional seen"
-                },
-            )
+            return NOT_AN_ACT
         now = self.clock()
         heard = replace(
             evidence,
@@ -353,7 +354,11 @@ class Writes:
     def _word(self, run: passes.Pass, heard: party.Evidence) -> Answer:
         """Keep the bot's word for the project's home, as the bot's act, and send it at once to
         the home's thread, as `jbus word` does. A word that cannot go yet waits for the next
-        pass (`word.deliver`), and the act says what became of it."""
+        pass (`word.deliver`), and the act says what became of it. A word that keeps no bot's
+        message it answers and names no row of the project by its slug (`queue.bare`) is
+        refused, as `jbus word` refuses it, before anything is kept or sent."""
+        if queue.bare(heard.words, heard.answers, queue.known(run.state)):
+            return said(409, {"error": word.BARE_WORD})
         try:
             kept = word.keep(run, party.BOT, heard)
         except Refused as error:

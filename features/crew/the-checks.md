@@ -14,7 +14,7 @@ Its first word is one of four answers:
   On `waiting`, stop as "Do the task" says.
   Then run the block of "A failed check" below, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked.
-  End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.
+  End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the review is owed a launch on green, when every check passed.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
 
 **Green**, everywhere in this skill, is `passed` and nothing else.
@@ -89,7 +89,7 @@ After each but `held`, end your turn.
   If the Result has no `Stale base:` line for this head, add `Stale base: at <head>, <the check that failed>`, park no gate, and end your turn.
   `jmerge` judges a red pull request again by itself once its base has moved since the check started and is not red: it runs its fresh check on this head over today's base, where the repo has one, and on a pass asks GitHub to merge the base into the branch, so a new check runs and the pull request goes on with its review.
   Nobody sends a rebase for it by hand, the home included.
-  The one message that wakes this thread for it is the one "A conflict" names, `<command> fails on <head> over today's main`: run the first block of "A conflict" with `stale` on it.
+  No message asks this thread to rebase for it: a check that fails again at the head GitHub's merge made comes as `jbus: <check> failed on your pull request`, and a conflict as "A conflict" says.
   After a merge of the base on GitHub, the branch there is ahead of this worktree: fetch it and run `git merge --ff-only origin/<branch>` before any later commit, so a push is never refused.
 - `rerun`: the block ran the whole workflow run again, once, and wrote the `Rerun:` line itself, as the last line of the brief, wherever the last Result is: it is what keeps a second failure at this head from a second run, so leave it where it is. A `wait` that says the brief could not be written asks you to add that line yourself. Never run a job again by itself, and never `gh run rerun --failed`.
 - `stuck`: a fresh run failed again at this head, or the failed check is no workflow run. It is not a flake, and the change passes here. If the Result has no `Stuck:` line for this head, add `Stuck: at <head>, <the check that failed>` and park a gate that asks what to do, with the default that the pull request waits.

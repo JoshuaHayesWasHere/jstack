@@ -33,8 +33,14 @@ directories until no other tracked file has the same ending: `crew` and `SKILL.m
 `features/crew/SKILL.md`. A file may include another: a line of a skill or a page that says to read
 `$T/../skills/<its folder>/<name>.md` now includes that file beside it, and the tests read the
 skill with it folded in. So a changed file that is included selects the tests that spell each file
-that includes it, up the chain of includes. A changed fixture selects the tests that spell it or
-the nearest directory above it. When no test spells either, the fixture selects `all`.
+that includes it, up the chain of includes. A test may also name a skill and read it through
+`testing.paths.skills()`, as `block("home", …)` of `test_home_thread` does. Where code the test
+runs reads skills so, each skill that code names spells that skill's `SKILL.md`, and with it each
+file the skill includes. That code is the test's own, a helper it calls or a fixture it asks for,
+and what each runs in turn, through the module's names and its imports: a skill a module names
+in a helper the test does not reach spells nothing for it. A changed fixture selects the
+tests that spell it or the nearest directory above it. When no test spells either, the fixture
+selects `all`.
 
 The map of verify-jstack's features, with each `features/<name>/verify.md`, adds more
 selections. A feature file names the paths a feature owns (`Paths:`, in jmerge's pattern
@@ -60,9 +66,12 @@ it with the cross-cutting tests.
 It prints `all` when a changed path is one that every test depends on, and never for the size of
 what it selected: a selection of nearly every test file still names its files, and main's full
 run catches what a selection misses. Those paths are `pyproject.toml`, `uv.lock` and the root
-`conftest.py`. They also include each plugin of `testing/` that the root `conftest.py` names
-in `pytest_plugins` (as `testing/jstack_fixtures.py`), with the modules that plugin uses at its
-top level. And they include each module that a plugin uses in an autouse fixture.
+`conftest.py`. They are also this script, the `Makefile` and `.github/workflows/check.yml`,
+since a pull request's check picks and runs its tests by its own new version of them: a change
+that made the script pick fewer tests would otherwise pick fewer for itself. They also include
+each plugin of `testing/` that the root `conftest.py` names in `pytest_plugins` (as
+`testing/jstack_fixtures.py`), with the modules that plugin uses at its top level. And they
+include each module that a plugin uses in an autouse fixture.
 
 When `pytest_plugins` names a test module, pytest loads that module for its fixtures. A module
 that only other fixtures use selects the tests that ask for those fixtures, directly or
@@ -74,9 +83,42 @@ With `$GITHUB_STEP_SUMMARY` set, it adds one line to that file: `check-fast sele
 files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n>
 forced-by=<path>`. The keys are always these, in this order. Each cause's count is the number of
 files it selected on its own, so the counts overlap. `forced-by` names the path that made the
-selection `all`, and it is `-` otherwise. A collector reads that line. With `$GITHUB_OUTPUT`
+selection `all`, and it is `-` otherwise. A collector reads that line. Last, after a blank line,
+a folded block holds the selection's list: a line for each selected test file, with the causes
+that selected it, comma-separated (`imports`, `names`, `features`, `cross-cutting`,
+`catch-all`, `failed-on-main`), or the one line `all forced-by=<path>`. With `$GITHUB_OUTPUT`
 set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
-tree's marker on a pass of `all`.
+tree's marker on a pass of `all`. It also gives `files`, `all` or how many test files it
+printed, and `forced_by`, the path that made it `all` or nothing: the check notices both to
+`jbus ci`, which keeps them in ci.jsonl as `selection` and `reason`. With `$SELECTED` set as
+well, it writes the selection's list to that file too, which the check keeps as an artifact,
+so a test a pull request did not run can be traced to the selection that left it out: only
+beside `$GITHUB_OUTPUT`, which the suite's fixtures clear, so a test that runs the script in
+the check's own environment leaves the step's list alone.
+
+`select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
+`<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
+collects the selection once with pytest, as `make test` does (`-m "not browser"`), and deals out
+the test files whole, slowest first, each to the part that would end soonest so far
+(`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
+its slowest test, which no part ends before). So a part collects only its own files. With
+`$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each a part's files,
+space-separated, or `none` for a part the selection left empty, and the summary gets one more
+line: `parts: <n> of <tests> tests in <files> files,
+<s> s of test time each`, from the least to the most. A selection that collects no test fails,
+as `make test` fails on one. In the selection's list each line then ends `part=<k>`, the part
+that runs the file (`-` for a file that collects no test), and an `all` lists every file of the
+suite with its part, after its first line. This form imports pytest, so it runs after `uv
+sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
+
+`select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
+cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
+it, the files the rules reached through imports, names and features alone. Each prints `all`
+where the selection is `all`. `--part desk` prints both from one selection, each file after the
+name of its part, `guards <file>` or `rest <file>`, the guards first, and `all` alone where the
+selection is `all`: the desk's check block selects once so. A desk runs the guards first, as a
+step that must pass, since a cheap guard mixed into a selection that runs past the short lane's
+limit reaches no verdict.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -86,7 +128,10 @@ every test imports the CLI of a feature, so through any other module a change wo
 the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
 cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
 changed path is one every test depends on, or the list itself. It writes nothing to the
-summary or the outputs.
+summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a name
+reaches a test only from a changed path of the tests or one that names Darwin, as an import does,
+and a feature's paths reach none of its tests. A pull request's macOS job selects so, and the
+run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days runs on each pull request's check, whatever
 the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
@@ -143,7 +188,14 @@ SCRIPTS = "scripts"
 PATHS = ("features/*/spec", "features/skill-library/skills/statechart/scripts")
 """The folders a test puts on `sys.path` and imports from by name. A test that loads a file by
 its path, as the skill-cut eval's test does, puts no folder here."""
-EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
+EVERYTHING = (
+    "pyproject.toml",
+    "uv.lock",
+    "conftest.py",
+    "scripts/select_tests.py",
+    "Makefile",
+    ".github/workflows/check.yml",
+)
 BACKTICKED = re.compile(r"`([^`]+)`")
 DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
 LABEL = re.compile(r"[A-Z][\w-]*:")
@@ -152,6 +204,8 @@ WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 DECLARED = "READ_SET"
 CHECKING = ("TYPE_CHECKING", "typing.TYPE_CHECKING")
 BY_NAME = {"import_module", "__import__"}
+SKILL_INDEX = "testing.paths.skills"
+SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
@@ -494,13 +548,19 @@ def parents(name):
     return {".".join(parts[:end]) for end in range(1, len(parts) + 1)}
 
 
+def parsed(name):
+    """A module's tree. It is parsed again on each call: a cache of the trees of every module
+    makes each collection of garbage walk them, and the script slower."""
+    return ast.parse((ROOT / modules()[name]).read_text())
+
+
 @cache
 def sources():
     """Each module, with what `read` finds in its source."""
     found = {}
     for name, path in modules().items():
         try:
-            found[name] = read(ast.parse((ROOT / path).read_text()))
+            found[name] = read(parsed(name))
         except SyntaxError as error:
             raise Unread(f"{path}: {error}") from error
     return found
@@ -627,9 +687,120 @@ def reached(name):
 
 
 @cache
+def skills():
+    """Each skill's folder by its name, from the root, as `testing.paths.skills` finds them."""
+    found = (path.parent for spot in SKILL_SPOTS for path in ROOT.glob(spot))
+    return {folder.name: folder.relative_to(ROOT).as_posix() for folder in sorted(found)}
+
+
+@cache
+def members(name):
+    """Each name a module binds at its top level, with what its code holds: `(words, names,
+    dotted, asks)`, the skills its strings name, the module's own names it reads and does not
+    bind itself (`f` of `f()`, not `x` of `x = 1` nor `f` of `x.f`), the dotted names it names
+    through the imports, and, for a test or a fixture, the fixtures it asks for by its
+    arguments. A name an import binds holds the dotted name it is bound to. The key `None` holds
+    the code that runs on import: each statement that binds no name, and each assignment that
+    calls something. A docstring is no code, and a string that is a part of a chain of `/`, as
+    the `"home"` of `state / "home"`, is a folder and names no skill."""
+    tree = parsed(name)
+    imports = bound(tree)
+    stars = [module for local, module in imports.items() if local.startswith("*")]
+    unread = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.body and isinstance(node.body[0], ast.Expr):
+                unread.add(id(node.body[0].value))
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            unread |= {id(node.left), id(node.right)}
+    found = {}
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        words, dots, loaded, own, calls = set(), set(), set(), set(), False
+        for one in ast.walk(node):
+            if isinstance(one, ast.Constant) and isinstance(one.value, str):
+                if id(one) not in unread:
+                    words |= {one.value, *WORDS.split(one.value)} & skills().keys()
+            elif isinstance(one, ast.arg):
+                own.add(one.arg)
+            elif isinstance(one, ast.Call):
+                calls = True
+            if isinstance(one, (ast.Name, ast.Attribute)):
+                if dot := dotted(one, imports):
+                    dots.add(dot)
+                elif isinstance(one, ast.Name):
+                    dots |= {f"{module}.{one.id}" for module in stars}
+            if isinstance(one, ast.Name):
+                (loaded if isinstance(one.ctx, ast.Load) else own).add(one.id)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            keys = {node.name}
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            keys = set().union(*map(named, targets)) | ({None} if calls else set())
+        else:
+            keys = {None}
+        asks = set()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+            node.name.startswith("test") or node.name in defined(name)
+        ):
+            asks = {one.arg for one in node.args.args}
+        for key in keys:
+            held = found.setdefault(key, (set(), set(), set(), set()))
+            for into, more in zip(held, (words, loaded - own - {key}, dots, asks), strict=True):
+                into |= more
+    for local, target in imports.items():
+        if not local.startswith("*"):
+            found.setdefault(local, (set(), set(), set(), set()))[2].add(target)
+    return found
+
+
+@cache
+def uses(at):
+    """`(skills, dotted)` of the code a top-level name of a module of the tests runs, `at` as
+    `(module, name)` (`members`): its own, and through each name it uses, in that module or
+    through an import in another, and each fixture it asks for, of its module, a `conftest`
+    above it or a plugin."""
+    todo, seen, words, dots = [at], set(), set(), set()
+    while todo:
+        one = todo.pop()
+        if one in seen or one[1] not in members(one[0]):
+            continue
+        seen.add(one)
+        found, names, through, asks = members(one[0])[one[1]]
+        words |= found
+        dots |= through
+        todo += [(one[0], other) for other in names]
+        given = [one[0], *sorted(conftests(one[0]) & modules().keys(), reverse=True), *plugins()]
+        for ask in asks:
+            todo += [(module, ask) for module in given if ask in defined(module)][:1]
+        for dot in through:
+            module, _, member = dot.rpartition(".")
+            if of_tests(modules().get(module, "")):
+                todo.append((module, member))
+    return frozenset(words), frozenset(dots)
+
+
+@cache
+def reaches(name):
+    """The skills the code of a test module names where that code reads skills through
+    `testing.paths.skills()`: for each top-level name of its own, and for the code each module of
+    the tests it imports runs on import, the skills what it runs names (`uses`), where that
+    reads skills."""
+    starts = [(name, key) for key in members(name)] + [(one, None) for one in reached(name)]
+    found = [uses(one) for one in starts]
+    return frozenset().union(*(words for words, dots in found if SKILL_INDEX in dots))
+
+
+@cache
 def spells(name):
-    """The paths a test module spells, and the test modules it imports."""
-    return frozenset().union(*(sources()[one][4] for one in reached(name)))
+    """The paths a test module spells, and the test modules it imports. Where code of the test
+    reads skills through `testing.paths.skills()`, a word of that code (`reaches`) that is a
+    skill's name spells that skill's `SKILL.md`: `block("home", …)` reads the home skill so. A
+    name of a skill elsewhere in a module it imports spells nothing: `test_home_thread` names
+    four skills, and a test that takes only its `git` reads none of them."""
+    paths = frozenset().union(*(sources()[one][4] for one in reached(name)))
+    return paths | {(*skills()[word].split("/"), "SKILL.md") for word in reaches(name)}
 
 
 @cache
@@ -638,9 +809,10 @@ def read_sets():
     the tests it imports."""
     found = {}
     for name, path in modules().items():
-        if TEST.fullmatch(path):
-            if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
-                found[path] = patterns
+        if not TEST.fullmatch(path):
+            continue
+        if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
+            found[path] = patterns
     return found
 
 
@@ -768,12 +940,13 @@ def modules_named(tree):
     return {local: name for local, name in bound.items() if of_tests(modules().get(name, ""))}
 
 
+@cache
 def plugins():
     """The modules the root `conftest.py` names in `pytest_plugins`, which every test loads."""
     for node in ast.parse((ROOT / "conftest.py").read_text()).body:
         if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "pytest_plugins":
-            return [one.value for one in node.value.elts if modules().get(one.value)]
-    return []
+            return tuple(one.value for one in node.value.elts if modules().get(one.value))
+    return ()
 
 
 def used(node, bound):
@@ -830,10 +1003,9 @@ def shared():
 def defined(name):
     """The fixtures a module defines at its top level: a test that asks for one of them by name
     gets its own, and not a plugin's."""
-    tree = ast.parse((ROOT / modules()[name]).read_text())
     return {
         node.name
-        for node in tree.body
+        for node in parsed(name).body
         if "fixture" in "".join(ast.unparse(one) for one in getattr(node, "decorator_list", ()))
     }
 
@@ -871,11 +1043,12 @@ def everywhere(path):
     return True
 
 
-def ruled(changed, follows=everywhere, cross=True):
+def ruled(changed, follows=everywhere, cross=True, strict=False):
     """`(tests, why)`: the sorted test files the rules select for the changed paths, or
-    `["all"]`, and for each cause the number of files it selected, or the path that forced
+    `["all"]`, and for each cause the sorted files it selected, or the path that forced
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
-    cross-cutting tests count only with `cross`."""
+    cross-cutting tests count only with `cross`. With `strict` a name reaches a test only from
+    such a path too, and a feature's paths reach none of its tests."""
     ready()
     for path in changed:
         if path in shared():
@@ -883,23 +1056,28 @@ def ruled(changed, follows=everywhere, cross=True):
     by_path = {path: name for name, path in modules().items()}
     found = {"imports": set(), "names": set(), "features": set()}
     for path in changed:
+        counts = not strict or follows(path)
         if path in by_path:
             if follows(path):
                 found["imports"] |= test_files(importers([by_path[path]])) | asking(by_path[path])
-            if of_tests(path):
+            if of_tests(path) and counts:
                 found["names"] |= readers(path)
         elif FIXTURES.match(path):
             if not (named := fixture_readers(path)):
                 return ["all"], {"forced-by": path}
-            found["names"] |= named
+            if counts:
+                found["names"] |= named
         else:
             if SOURCE.match(path) and follows(path):
                 found["imports"] |= test_files(importers(users(path)))
-            for one in {path} | includers(path):
-                found["names"] |= readers(one)
-        found["names"] |= globbers(path)
-    where = pages()
-    for name, (owned, listed_tests) in features().items():
+            if counts:
+                for one in {path} | includers(path):
+                    found["names"] |= readers(one)
+        if counts:
+            found["names"] |= globbers(path)
+    where = {} if strict else pages()
+    for name in where:
+        owned, listed_tests = features()[name]
         if any(owns(owned, path) for path in changed):
             found["features"] |= set(listed_tests)
         if where[name] in changed:
@@ -909,7 +1087,9 @@ def ruled(changed, follows=everywhere, cross=True):
         key: {one for one in tests if (ROOT / one).is_file() and not opens_browser(one)}
         for key, tests in found.items()
     }
-    return sorted(set().union(*present.values())), {key: len(one) for key, one in present.items()}
+    return sorted(set().union(*present.values())), {
+        key: sorted(one) for key, one in present.items()
+    }
 
 
 def collected():
@@ -935,18 +1115,39 @@ def unowned():
 
 def selection(changed, failed=()):
     """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
-    each cause the number of files it selected, or the path that forced `all`. They are what
-    the rules select, the test files no rule owns, counted as cross-cutting, and the `failed`
-    test files that the check runs. `why["added"]` lists the failed ones nothing else
-    selected."""
+    each cause the sorted files it selected, or the path that forced `all`. They are what the
+    rules select, the test files no rule owns (`catch-all`), and the `failed` test files that
+    the check runs. `why["added"]` lists the failed ones nothing else selected."""
     tests, why = ruled(changed)
     if tests == ["all"]:
         return tests, why
     lone = unowned()
-    why = {**why, "cross-cutting": len(set(cross_cutting()) & collected() | lone)}
     chosen = set(tests) | lone
     added = set(failed) & collected() - chosen
-    return sorted(chosen | added), {**why, "added": sorted(added)}
+    return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
+
+
+DESK_PARTS = ("guards", "rest", "desk")
+
+
+def guards(changed, tests):
+    """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
+    tests, the catch-all and the changed test files. `["all"]` stays `["all"]`."""
+    if tests == ["all"]:
+        return tests
+    return sorted(set(tests) & (set(cross_cutting()) | unowned() | set(changed)))
+
+
+def desk_part(name, changed, tests):
+    """The `guards` or the `rest` of a selection's `tests`, or for `desk` both, each file after
+    the name of its part."""
+    first = guards(changed, tests)
+    if name == "guards" or tests == ["all"]:
+        return first
+    rest = sorted(set(tests) - set(first))
+    if name == "rest":
+        return rest
+    return [f"guards {one}" for one in first] + [f"rest {one}" for one in rest]
 
 
 def ask(path, gone=None, **query):
@@ -1033,7 +1234,7 @@ def failed_on_main(days, kept_path):
         kept |= json.loads(kept_path.read_text())
     today = datetime.now(UTC).date()
     window = [(today - timedelta(days=back)).isoformat() for back in range(days + 1)]
-    listed = {day: None for day in window[:SETTLED]}
+    listed = dict.fromkeys(window[:SETTLED])
     listed |= {day: kept["days"].get(day) for day in window[SETTLED:]}
     listed |= side_by_side(red_runs, [day for day, runs in listed.items() if runs is None])
     runs = {run: kept["runs"].get(run) for day in window for run in listed[day]}
@@ -1066,12 +1267,15 @@ def on_a_mac(path):
     )
 
 
-def within(entries, changed, listed):
+def within(entries, changed, listed, strict=False):
     """The test files of a list's `entries` the changed paths reach on a Mac, sorted, or
-    `["all"]`. `listed` is the list's own path."""
+    `["all"]`. `listed` is the list's own path. With `strict`, only a changed path of the tests
+    or one that names Darwin reaches a test, by an import or by its name, and a feature's paths
+    reach none of its listed tests: what a pull request's macos job runs, a part of what the run
+    on each merge commit runs."""
     if listed in changed:
         return ["all"]
-    tests, _ = ruled(changed, on_a_mac, cross=False)
+    tests, _ = ruled(changed, on_a_mac, cross=False, strict=strict)
     if tests == ["all"]:
         return tests
     return [
@@ -1082,6 +1286,16 @@ def within(entries, changed, listed):
 
 
 CAUSES = ("imports", "names", "features", "cross-cutting")
+# Each cause of a selected file, as the selection's list names it: `added` is a test that
+# failed on main.
+WHY = {
+    "imports": "imports",
+    "names": "names",
+    "features": "features",
+    "cross-cutting": "cross-cutting",
+    "catch-all": "catch-all",
+    "added": "failed-on-main",
+}
 
 
 def total():
@@ -1091,10 +1305,43 @@ def total():
 def summary(tests, why, changed):
     chosen = "all" if tests == ["all"] else "some"
     count = total() if chosen == "all" else len(tests)
-    causes = " ".join(f"{key}={why.get(key, 0)}" for key in CAUSES)
+    counts = {key: len(why.get(key, ())) for key in CAUSES}
+    counts["cross-cutting"] = len({*why.get("cross-cutting", ()), *why.get("catch-all", ())})
+    causes = " ".join(f"{key}={counts[key]}" for key in CAUSES)
     return (
         f"check-fast selection={chosen} files={count} of={total()} changed={len(changed)} "
         f"{causes} forced-by={why.get('forced-by', '-')}"
+    )
+
+
+def reasons(tests, why, parts=None):
+    """The selection's list, a line each: a selected test file and the causes that selected
+    it, comma-separated; or first `all` and the path that forced it. With the `parts` it was
+    dealt to, each line ends `part=<k>`, `-` for a file that collects no test, and an `all`
+    lists each file of the suite after its first line."""
+    where = {one: at for at, part in enumerate(parts or [], 1) for one in part}
+
+    def placed(one):
+        return "" if parts is None else f" part={where.get(one, '-')}"
+
+    if tests == ["all"]:
+        return [
+            f"all forced-by={why['forced-by']}",
+            *(f"{one} all{placed(one)}" for one in sorted(where)),
+        ]
+    by = {key: set(why.get(key, ())) for key in WHY}
+    return [
+        f"{one} {','.join(WHY[key] for key in WHY if one in by[key])}{placed(one)}" for one in tests
+    ]
+
+
+def listing(lines):
+    """The summary's folded block of the selection's list."""
+    whole = lines[:1] and lines[0].startswith("all ")
+    count = "the whole suite" if whole else f"{len(lines)} test files"
+    body = "\n".join(lines)
+    return (
+        f"<details><summary>selected: {count}, and why</summary>\n\n```\n{body}\n```\n</details>\n"
     )
 
 
@@ -1110,16 +1357,90 @@ def unmapped(changed):
     )
 
 
+def node_ids(tests):
+    """The node ids pytest collects from the selected test files, or from the whole suite for
+    `all`, with the browser tests left out as `make test` leaves them."""
+    named = [] if tests == ["all"] else tests
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+        + ["-m", "not browser", *named],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if ran.returncode == 5:
+        return []
+    if ran.returncode:
+        sys.exit(
+            f"select_tests.py: pytest could not collect the selection:\n{ran.stdout}{ran.stderr}"
+        )
+    return [
+        line for line in ran.stdout.splitlines() if "::" in line and " " not in line.split("::")[0]
+    ]
+
+
+def dealt(nodeids, times, count):
+    """The test files of each of `count` parts, sorted, and each part's seconds: whole files
+    dealt by `testing/shard.py`'s split, by the summed seconds of each file's tests in `times`
+    (its table) and the seconds of each file's slowest test. No tests at all fails."""
+    from testing import shard
+
+    if not nodeids:
+        sys.exit("select_tests.py: the selection holds no test")
+    took, slowest = {}, {}
+    for nodeid in nodeids:
+        file = nodeid.partition("::")[0]
+        took[file] = took.get(file, 0.0) + shard.seconds(times, nodeid)
+        slowest[file] = max(slowest.get(file, 0.0), shard.seconds(times, nodeid))
+    parts = shard.split(
+        list(took), {shard.key(file): s for file, s in took.items()}, count, slowest
+    )
+    return [sorted(part) for part in parts], [sum(took[file] for file in part) for part in parts]
+
+
+def handed(tests, count):
+    """Hand the selection to `count` parts: print each part's files, one part a line, give the
+    step the output `part<k>` of each and the summary its line, and return the parts."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from testing import shard
+
+    nodeids = node_ids(tests)
+    parts, seconds = dealt(nodeids, shard.read_times(shard.TIMES), count)
+    for at, part in enumerate(parts, 1):
+        print(f"part {at}: {' '.join(part) or 'none'}")
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+            for at, part in enumerate(parts, 1):
+                file.write(f"part{at}={' '.join(part) or 'none'}\n")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
+            each = " ".join(f"{one:.0f}" for one in sorted(seconds))
+            file.write(
+                f"parts: {count} of {len(nodeids)} tests in {sum(map(len, parts))} files,"
+                f" {each} s of test time each\n\n"
+            )
+    return parts
+
+
 def main(argv):
     if argv[:1] == ["--failed-on-main"] and len(argv) == 3:
         print("\n".join(failed_on_main(int(argv[1]), Path(argv[2]))))
         return
-    listed = None
+    listed = count = cut = None
+    strict = argv[2:3] == ["--strict"] and argv[:1] == ["--within"] and len(argv) == 5
+    if strict:
+        argv = argv[:2] + argv[3:]
     if argv[:1] == ["--within"] and len(argv) == 4:
         listed, argv = argv[1], argv[2:]
+    elif argv[:1] == ["--parts"] and len(argv) == 4 and argv[1].isdigit() and int(argv[1]) > 0:
+        count, argv = int(argv[1]), argv[2:]
+    elif argv[:1] == ["--part"] and len(argv) == 4 and argv[1] in DESK_PARTS:
+        cut, argv = argv[1], argv[2:]
     if len(argv) != 2:
         sys.exit(
-            "usage: select_tests.py [--within <list>] <base> <head>\n"
+            "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
+            "       select_tests.py --part guards|rest|desk <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1134,7 +1455,7 @@ def main(argv):
     if listed is not None:
         entries = (ROOT / listed).read_text().split()
         try:
-            tests = within(entries, changed, listed)
+            tests = within(entries, changed, listed, strict)
         except Unread as error:
             print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
             tests = ["all"]
@@ -1147,6 +1468,9 @@ def main(argv):
     except Unread as error:
         print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
         tests, why = ["all"], {"forced-by": "unread"}
+    if cut is not None:
+        print("\n".join(desk_part(cut, changed, tests)))
+        return
     print("\n".join(tests))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
@@ -1160,7 +1484,16 @@ def main(argv):
             file.write("\n")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-            file.write(f"selection={'all' if tests == ['all'] else 'some'}\n")
+            chosen = "all" if tests == ["all"] else "some"
+            file.write(f"selection={chosen}\n")
+            file.write(f"files={'all' if chosen == 'all' else len(tests)}\n")
+            file.write(f"forced_by={why.get('forced-by', '')}\n")
+    lines = reasons(tests, why, None if count is None else handed(tests, count))
+    if os.environ.get("GITHUB_OUTPUT") and os.environ.get("SELECTED"):
+        Path(os.environ["SELECTED"]).write_text("\n".join(lines) + "\n")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
+            file.write(listing(lines) + "\n")
 
 
 if __name__ == "__main__":

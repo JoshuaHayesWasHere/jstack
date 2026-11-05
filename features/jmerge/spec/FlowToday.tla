@@ -12,8 +12,11 @@
 \* (#843, #850). Since fl-stack-by-depends-only it has no unstack: a link stays on its stack
 \* until its base merged, and a stack is made by a depends alone.
 \* Since fl-rules-1103 two of its rules say the flow the merged pull requests chose since.
-\* Since fl-no-draft a crew opens its pull request ready, so its check runs beside its review, and
-\* jmerge marks no draft ready: the draft, Ready and the lift --accept kept on a draft went.
+\* Since fl-no-draft a crew opens its pull request ready, and jmerge marks no draft ready: the
+\* draft, Ready and the lift --accept kept on a draft went. Since review-after-green-one-round its
+\* one reviewer launches only once its check has passed, and one round gives a fix no review. The
+\* round itself is no variable: no rule reads it, and the merge waits on the passed check it
+\* follows. A history bit for it took today's model from 7.9M to 12.9M states.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -53,7 +56,9 @@ PRs == {"a", "b"}
 \* rerun: main's push run failed at its red tip, and jbus's one rerun of it has not ended (#672).
 \* culprit: what made main's red tip, for jbus.reverts: "none" (no briefed merge: outside), "a" or
 \*   "b" (the one merge since the last green, its head over the green under it), "skew" (that one
-\*   merge, its head not over the green under it, #899), or "many" (a merge landed on a red tip).
+\*   merge, its head not over the green under it, #899), or "many" (a merge that broke more landed on
+\*   a red tip, or on a red with no culprit). A merge on a culprit's red tip that breaks nothing
+\*   more leaves the culprit as it was.
 \* judged: jbus.culprits judged the red tip there is now: it reverted it or filed its row.
 \* revert: "open" while jbus's revert of a culprit is open (#862), else "none".
 \* editsLeft: the edits still to come of b's brief that take a out of its Builds on: line, once.
@@ -121,7 +126,7 @@ Launch(p) ==
     /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py `on = world.stack_on(run, unmerged, brief)`
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
-    \* Its crew opens it ready, so its check runs beside its review.
+    \* Its crew opens it ready, and its check runs before its review.
     /\ Leaves(p)
     /\ UNCHANGED <<ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Fix, Browser,
                    go, needs, meets, Judge, editsLeft>>
@@ -155,6 +160,11 @@ Merges(p) ==
     \* Its row's go: a row you held, or whose go does not hold for its brief, waits on your approval.
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
+    \* Its one review round followed that pass: the crew launches its reviewer only once the check
+    \* has passed, and a fix it pushes for the findings gets no review (review-after-green-one-round).
+    \* features/crew/the-review.md `passed) echo "launch: run the block below and do what it prints" ;;`,
+    \* features/pr-review/launching.md `passed*) head=${said##* } ;;`,
+    \* features/jbus/src/jbus/rebase.py `green = mark("green", slug, head) not in sent and checks(pull) == "passed"`
     \* Its last review round says the brief is met (#843).
     /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
     \* A red main holds no pull request (red-main-no-hold, #862): only its own checks do.
@@ -172,11 +182,13 @@ Merges(p) ==
     \* A red tip's push run is rerun once before jbus judges it (#672), and judged again.
     /\ rerun' = mainRed'
     /\ judged' = FALSE
-    \* The merge is the one clear culprit only when it is the one merge since the last green
-    \* (features/jbus/src/jbus/reverts.py `if len(red.since) > 1:`), and only when its head holds the green
+    \* The merge is the one clear culprit only when it is the first red since the last green, and
+    \* a merge on a red main that breaks nothing more leaves that culprit as it is, while one that
+    \* breaks more is a second red (features/jbus/src/jbus/reverts.py `if not red.failed or not tests or not set(tests) <= set(red.failed):`),
+    \* and only when its head holds the green
     \* under the red tip (features/jbus/src/jbus/reverts.py `return found if status in ("ahead", "identical") else Keep.SKEW`, #899):
     \* the model leaves out what its head holds, so TLC takes either.
-    /\ culprit' \in IF ~mainRed' THEN {"none"} ELSE IF mainRed THEN {"many"} ELSE {p, "skew"}
+    /\ culprit' \in IF ~mainRed' THEN {"none"} ELSE IF mainRed THEN (IF breaks[p] \/ culprit = "none" THEN {"many"} ELSE {culprit}) ELSE {p, "skew"}
     \* A green tip withdraws a fix row that never launched (features/jbus/src/jbus/watch.py `_withdraw(run, fixes, tip)`), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = (fixRow /\ mainRed')
@@ -313,24 +325,30 @@ RerunEnds ==
 
 \* jbus.culprits judges main's tip, red after its one rerun: it reverts the one clear culprit
 \* (#862), and files main's fix row for a red that has none: a red from outside (#392), a merge
-\* on a red tip, a skew (#899), or a culprit whose row jbus reverted before (the model keeps one
-\* revert at a time). A tip whose revert is open gets no row.
+\* that broke more on a red tip, a skew (#899), or a culprit whose row jbus reverted before (the model keeps one
+\* revert at a time). A tip whose revert is open gets no row. The model's culprit is the oldest red
+\* since the last green (#992), and a merge on it that breaks nothing more is no overlap. It leaves
+\* out a pending check (UNREAD, judged on the next pass until the tip is an hour old), and a break
+\* that lands on an open revert ("many" there) files its row here, where the code files it only once
+\* the revert is stuck (closed, in conflict, failed, or merged with main still red).
 JudgeRed ==
     /\ mainRed                              \* features/jbus/src/jbus/culprits.py `if run.red is not None:`
-    /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit)`, after its one rerun
+    /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, red, pull, culprit, under)`, after its one rerun
     /\ ~judged
     /\ judged' = TRUE
     /\ IF culprit \in PRs /\ revert = "none"
          THEN /\ revert' = "open"           \* features/jbus/src/jbus/culprits.py `return None if reverts.revert(run, found) else "jbus could not open its revert"`
               /\ UNCHANGED fixRow
+       ELSE IF culprit \in PRs
+         THEN UNCHANGED <<revert, fixRow>>  \* features/jbus/src/jbus/reverts.py `if any(sha in made for sha, _ in red.since):`
          ELSE /\ fixRow' = TRUE             \* features/jbus/src/jbus/culprits.py `_file(run, run.red.slug, run.red.sha, run.red.red, why)`
               /\ UNCHANGED revert
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, link, on, Machine, Fix, Browser,
                    Row, rerun, culprit, editsLeft>>
 
 \* jmerge merges jbus's revert on its checks, with no review, and main is green again. The model's
-\* revert merges only while its culprit is still the red tip's: once another merge landed on the
-\* red tip, main's fix row ends the red, and jbus closes the revert.
+\* revert merges only while its culprit is still the red run's: once a merge that broke more landed
+\* on the red tip, main's fix row ends the red, and jbus closes the revert.
 RevertMerges ==
     /\ revert = "open"                      \* features/jmerge/src/jmerge/cli.py `reverted = not short and self.reverted(brief.stem, one)`
     /\ mainRed
@@ -342,8 +360,9 @@ RevertMerges ==
     /\ judged' = FALSE
     /\ fixRow' = FALSE
     /\ fixes' = NoFix
+    /\ rerun' = FALSE                       \* a merge on the red run left its rerun, which the green ends
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, Browser, Row,
-                   rerun, editsLeft>>
+                   editsLeft>>
 
 \* jbus closes its revert still open once main's check passed at a later tip without it (#899).
 RevertCloses ==

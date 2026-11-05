@@ -27,7 +27,7 @@ import time
 import tomllib
 import types
 from pathlib import Path
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -246,9 +246,11 @@ def broken(path):
         to = (path.parent / file).resolve() if file else path
         if re.match(r"[a-z]+:", target):
             continue
-        if not to.is_file():
-            wrong.append(target)
-        elif anchor and anchor not in map(slug, re.findall(r"^#+ (.*)", to.read_text(), re.M)):
+        if (
+            not to.is_file()
+            or anchor
+            and anchor not in map(slug, re.findall(r"^#+ (.*)", to.read_text(), re.M))
+        ):
             wrong.append(target)
     return wrong
 
@@ -306,7 +308,7 @@ def colours(rules):
 
 
 def test_the_picture_is_one_svg_that_draws_each_role_and_carries_both_themes():
-    drawn = ElementTree.parse(where("flow.svg")).getroot()
+    drawn = ET.parse(where("flow.svg")).getroot()
     space = "{http://www.w3.org/2000/svg}"
     assert drawn.tag == f"{space}svg" and drawn.get("viewBox")
     words = [text.text.strip() for text in drawn.iter(f"{space}text")]
@@ -407,9 +409,9 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     assert all(len(what) > 40 for _, what in lost)
     given = {need: "hard" for names in HARD.values() for need in names}
     given |= {need: "optional" for names in OPTIONAL.values() for need in names}
-    given |= {need: "optional" for need in NO_REQUIREMENT}
+    given |= dict.fromkeys(NO_REQUIREMENT, "optional")
     given |= {need: "optional" for need in ON_ARCH if pacman}
-    given |= {need: "hard" for need in (*OF_THE_CHECKOUT, *LAYOUTS)}
+    given |= dict.fromkeys((*OF_THE_CHECKOUT, *LAYOUTS), "hard")
     assert given == {name: need.level.value for name, need in found.items()}
 
 
@@ -573,12 +575,12 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
 def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
     """A page may have JSON blocks that hold a hook entry or a status line for `<layout>`.
     Each such block is the group, or the status line, that `needs()` writes for the block's
-    event and script."""
+    event and script in Claude Code's file, the entry a page shows."""
     here = types.SimpleNamespace(layout=lambda harness: Path("<layout>"))
     written = {}
     for need in listed.needs(Machine.here(REPO)):
         kind = need.kind
-        if isinstance(kind, HookGroup):
+        if isinstance(kind, HookGroup) and kind.harness == "claude-code":
             written[kind.event, kind.script] = kind._group(here)
         elif isinstance(kind, StatusLine):
             written["statusLine", kind.script] = kind._ours(here)

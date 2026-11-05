@@ -9,8 +9,9 @@ Meets the brief: yes, <n> of <n> | no, <m> of <n>
 - after-merge <k>: <a Done when line only provable once the pull request is merged>
 - waiting <k>: <a Done when line that only waits on CI>
 In flight: none | <each pull request or brief that shares a file, and the files>
+Outside Where: none | <each path `jmerge --scope` printed, joined with `, `> | not checked, <why>
 Findings:
-- <severity> <file>:<line> <what is wrong> (principle: <name> | none) (bucket: Act on | Consider) (risk: <area>, only on security, auth, billing, data, migrations or concurrency) (or the one word "none")
+- <severity> <file>:<line> <what is wrong> (principle: <name> | none) (bucket: Act on | Consider) (risk: <area>, only on security, auth, billing, data, migrations or concurrency) (proof: <the evidence, on an Act on finding: a command that exited non-zero here, a failed check, a doc line made wrong, an unmet Done when line, or a measure>) (or the one word "none")
 Dropped: <how many findings were outside the diff: the number only>
 Noted: <how many findings the lead judged true and not worth acting on: the number only>
 Dismissed: <how many findings the lead dismissed, and under this line one line for each, or none>

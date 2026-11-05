@@ -1,5 +1,5 @@
 """The crew skill's "The review" and "A second pass": how each finding ends, the Fixed: line,
-and the scoped review of a fix."""
+one round that gives a fix no review, and the one scoped review a `Meets the brief: no` owes."""
 
 import os
 import re
@@ -165,16 +165,10 @@ def test_with_two_reviewers_the_findings_wait_for_both_and_are_one_review(brief,
     assert said(tmp_path, "The review", "--left", brief) == [says]
 
 
-OLD_NONE = "Second pass: none, the fix stayed inside the files the findings named"
+ONE_ROUND = "write Scoped review: none, one round: the fix merges on its checks"
 
 
-TESTS_ONLY = "write Scoped review: none, the fix changed files under tests/ only"
-
-
-NOTHING_PUSHED = "write Scoped review: none, nothing was pushed for the findings"
-
-
-NO_REVIEW_OF_IT = "none: no review of the fix, as the Result says"
+NO_REVIEW_OF_IT = "none: one round, no review of the fix, as the Result says"
 
 
 LAUNCHED = "scoped: the scoped reviewer is launched, and its findings come to this thread"
@@ -192,54 +186,73 @@ def launch(fix, saw, head):
 
 
 @pytest.mark.parametrize(
-    ("fix", "outside"),
+    "fix",
     [
-        (["a.py"], "a.py"),
-        (["b.py"], "b.py"),
-        (["a.py", "tests/c.py", "docs/d.md"], "a.py docs/d.md"),
+        ["a.py"],
+        ["b.py"],
+        ["a.py", "tests/c.py", "docs/d.md"],
+        ["tests/c.py", "tests/unit/d.py"],
+        [f"src/{n}.py" for n in range(7)],
+        [GUARDED],
+        [],
     ],
-    ids=["inside the file a finding named", "in a file no finding named", "beside a test"],
+    ids=[
+        "inside the file a finding named",
+        "in a file no finding named",
+        "beside a test",
+        "tests only",
+        "many files",
+        "a skill",
+        "nothing pushed",
+    ],
 )
-def test_a_fix_that_changes_a_file_outside_tests_gets_one_scoped_review_of_it(
-    fix, outside, tmp_path
-):
+def test_a_fix_gets_no_review_whatever_it_changed(fix, tmp_path):
+    """One round: whatever the fix changed, or with nothing pushed, the block writes that no
+    review of it is owed, and then reads that line and decides nothing again."""
     fix = Fix(tmp_path, fix, opened=True)
-    needed = owed(fix, f"the fix changed {outside}")
-    assert fix.says("") == [f"write {needed.strip()}"]
-    assert fix.says(needed + f"Fixed: {fix.fixed}\n") == [launch(fix, fix.saw, fix.fixed)]
+    assert fix.says("") == [ONE_ROUND]
+    assert fix.says(f"Fixed: {fix.fixed}\n") == [ONE_ROUND]
+    decided = ONE_ROUND.removeprefix("write ") + "\n"
+    assert fix.says(decided) == [NO_REVIEW_OF_IT]
+    (fix.work / "later.py").write_text("a push after the line\n")
+    fix.commit("a push after the line")
+    assert fix.says(decided + f"Fixed: {fix.fixed}\n") == [NO_REVIEW_OF_IT]
 
 
-@pytest.mark.parametrize("finding", ["warning a.py:3 it runs twice", "warning - it has no test"])
-def test_a_fix_that_changes_tests_only_gets_no_review(finding, tmp_path):
-    fix = Fix(tmp_path, ["tests/c.py", "tests/unit/d.py"], [finding], opened=True)
-    assert fix.says("") == [TESTS_ONLY]
-    assert fix.says(TESTS_ONLY.removeprefix("write ") + "\n") == [NO_REVIEW_OF_IT]
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Second pass: none, the fix stayed inside the files the findings named\n",
+        "Second pass: needed since {saw}, the fix also changed b.py\n",
+        "Second pass: needed since {saw}, the fix also changed b.py\nSecond reviewer: mcp:2\n",
+        "Scoped review: none, the fix changed files under tests/ only\n",
+        "Scoped review: none, nothing was pushed for the findings\n",
+    ],
+    ids=[
+        "an old second pass none",
+        "an old second pass needed",
+        "an old second reviewer",
+        "an old tests-only none",
+        "an old nothing-pushed none",
+    ],
+)
+def test_a_line_from_before_one_round_owes_no_review_of_the_fix(line, tmp_path):
+    fix = Fix(tmp_path, ["a.py", "b.py"], opened=True)
+    said = fix.says(line.format(saw=fix.saw))
+    assert said in ([ONE_ROUND], [NO_REVIEW_OF_IT])
 
 
-def test_a_fix_that_declines_every_finding_gets_no_review(tmp_path):
-    fix = Fix(tmp_path, [], opened=True)
-    assert fix.says("") == [NOTHING_PUSHED]
-    assert fix.says(NOTHING_PUSHED.removeprefix("write ") + "\n") == [NO_REVIEW_OF_IT]
+def test_before_the_review_there_is_nothing_to_decide(tmp_path):
+    fix = Fix(tmp_path, ["a.py", "b.py"])
+    assert fix.says("", reviews="") == ["wait: no review is written in the brief yet"]
 
 
-def test_a_file_whose_name_only_starts_like_tests_is_outside_it_and_five_are_named(tmp_path):
-    fix = Fix(tmp_path, ["tests.py", "tests/c.py"])
-    assert fix.says("") == [f"write {owed(fix, 'the fix changed tests.py').strip()}"]
-    many = Fix(tmp_path / "many", [f"src/{n}.py" for n in range(7)])
-    named = " ".join(f"src/{n}.py" for n in range(5))
-    assert many.says("") == [f"write {owed(many, f'the fix changed {named} and 2 more').strip()}"]
-
-
-@pytest.mark.parametrize("saw", ["c" * 40, None])
-def test_a_fix_that_cannot_be_compared_gets_a_scoped_review(saw, tmp_path):
+def test_an_owed_scoped_review_whose_head_is_no_commit_here_gives_no_range(tmp_path):
     fix = Fix(tmp_path, ["a.py"], opened=True)
-    review = fix.reviewed(saw) if saw else fix.review.replace("Head: ", "Run: ")
-    needed = (
-        f"Scoped review: needed since {saw or '-'}, the fix could not be compared with that head"
-    )
-    assert fix.says("", review) == [f"write {needed}"]
-    assert fix.says(needed + "\n", review) == [
-        f"scoped: the head the review saw, {saw or '-'}, is not a commit here, "
+    saw = "c" * 40
+    needed = f"Scoped review: needed since {saw}, the review's Meets the brief line is no\n"
+    assert fix.says(needed, fix.reviewed(saw)) == [
+        f"scoped: the head the review saw, {saw}, is not a commit here, "
         "so its range cannot be given"
     ]
 
@@ -252,80 +265,18 @@ def test_a_worktree_that_does_not_know_its_default_branch_gives_no_range(tmp_pat
     ]
 
 
-def test_before_the_review_there_is_nothing_to_decide(tmp_path):
-    fix = Fix(tmp_path, ["a.py", "b.py"])
-    assert fix.says("", reviews="") == ["wait: no review is written in the brief yet"]
-
-
-def test_the_line_is_worked_out_before_the_fixed_line_is_written(tmp_path):
-    fix = Fix(tmp_path, ["a.py", "b.py"])
-    needed = [f"write {owed(fix, 'the fix changed a.py b.py').strip()}"]
-    assert fix.says("") == needed
-    assert fix.says(f"Fixed: {fix.fixed}\n") == needed
-
-
-def test_what_was_decided_is_read_from_the_result_and_not_worked_out_again(tmp_path):
-    fix = Fix(tmp_path, ["a.py", "b.py"])
-    decided = "Second pass: none, the fix stayed inside\n"
-    assert fix.says(decided) == ["none: no second pass, as the Result says"]
-
-
-def test_a_second_pass_is_launched_once_and_is_the_last(tmp_path):
-    fix = Fix(tmp_path, ["a.py", "b.py"])
-    needed = f"Second pass: needed since {fix.saw}, the fix also changed b.py\n"
-    assert fix.says(needed) == ["needed: launch the second reviewer"]
-    launched = needed + "Second reviewer: mcp:2222-bbbb\n"
-    waiting = ["needed: the second reviewer is launched, and its findings come to this thread"]
-    assert fix.says(launched) == waiting
-    assert fix.says(launched, fix.review + fix.review) == waiting
-    not_run = fix.review + fix.reviewed(fix.fixed).replace("Verdict: findings", "Verdict: not run")
-    assert fix.says(launched, not_run) == waiting
-    second = fix.review + fix.reviewed(fix.fixed)
-    had = ["had: the second pass is written, and it is the last"]
-    assert fix.says(launched, second) == had
-    (fix.work / "d.py").write_text("wider still\n")
-    fix.commit("the second fix")
-    assert fix.says(launched, second) == had
-
-
-def test_a_fix_after_two_reviews_is_decided_by_what_it_changed_too(tmp_path):
-    fix = Fix(tmp_path, ["a.py", "b.py"])
-    assert fix.says("", fix.review + fix.review) == [
-        f"write {owed(fix, 'the fix changed a.py b.py').strip()}"
-    ]
-    tests = Fix(tmp_path / "tests", ["tests/c.py"])
-    assert tests.says("", tests.review + tests.review) == [TESTS_ONLY]
-
-
-@pytest.mark.parametrize("path", ["docs/a.md", "skills/crew/SKILL.md"], ids=["docs", "a skill"])
-def test_the_review_of_a_fix_is_the_last_whatever_path_it_changes(path, tmp_path):
-    fix = opened(tmp_path, path)
-    needed = owed(fix, f"the fix changed {path}")
-    assert fix.says("") == [f"write {needed.strip()}"]
-    result = needed + f"Fixed: {fix.fixed}\n"
-    launched = result + f"Scoped reviewer: mcp:3333-cccc, of {fix.fixed}\n"
-    assert fix.says(launched) == [LAUNCHED]
-    not_run = fix.review + fix.reviewed(fix.fixed).replace("Verdict: findings", "Verdict: not run")
-    assert fix.says(launched, not_run) == [LAUNCHED]
-    written = fix.review + fix.reviewed(fix.fixed)
-    assert fix.says(launched, written) == [HAD]
-    (fix.work / "d.py").write_text("for the scoped review's findings\n")
-    fix.commit("the second fix")
-    assert fix.says(launched, written) == [HAD]
-
-
-def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_check(tmp_path):
+def test_the_launch_of_an_owed_scoped_review_asks_no_tool(tmp_path):
     fix = opened(tmp_path, "docs/a.md")
     stub = tmp_path / "stub"
     stub.mkdir()
     for tool in ("gh",):
         (stub / tool).write_text(f"#!/bin/sh\necho {tool} >> {stub}/calls\nexit 1\n")
         (stub / tool).chmod(0o755)
-    brief = BRIEF + owed(fix, "the fix changed docs/a.md") + fix.review
+    brief = BRIEF + owed(fix, "the review's Meets the brief line is no") + fix.review
     (fix.state / "tasks" / "alpha.md").write_text(brief)
     path = f"{stub}{os.pathsep}{os.environ['PATH']}"
     ran = subprocess.run(
-        ["sh", "-c", block("The review", "Second pass:").replace("<slug>", "alpha")],
+        ["sh", "-c", block("The review", "--rounds").replace("<slug>", "alpha")],
         capture_output=True,
         text=True,
         cwd=fix.work,
@@ -362,23 +313,21 @@ def test_a_review_of_info_findings_all_declined_pushes_nothing_and_is_handled(tm
     fix = Fix(tmp_path, [], INFO)
     brief = merge.brief(fix.review, declined())
     assert said(fix.state, "The review", "--left", brief) == [NONE_FIXED]
-    assert said(fix.state, "The review", "Second pass:", brief, cwd=fix.work) == [NOTHING_PUSHED]
+    assert said(fix.state, "The review", "--rounds", brief, cwd=fix.work) == [ONE_ROUND]
     home = merge.Home(tmp_path)
-    handled = f"{NOTHING_PUSHED.removeprefix('write ')}\n{ALL_INFO}"
+    handled = f"{ONE_ROUND.removeprefix('write ')}\n{ALL_INFO}"
     (home.tasks / "alpha.md").write_text(merge.brief(fix.review, declined() + handled))
     home.open_pull_request(fix.saw)
     assert home.ready() == [f"ready 7 {fix.saw} alpha alpha"]
 
 
-def test_a_warning_fixed_beside_info_findings_declined_gets_the_review_of_its_fix(tmp_path):
+def test_a_warning_fixed_beside_info_findings_declined_gets_no_review_of_its_fix(tmp_path):
     fix = Fix(tmp_path, ["a.py"], ["warning a.py:3 it runs twice", *INFO])
     brief = merge.brief(fix.review, FIXED_ONE + declined())
     assert said(fix.state, "The review", "--left", brief) == [
         "write Fixed: <the head you pushed>, 3 findings each have their ending"
     ]
-    assert said(fix.state, "The review", "Second pass:", brief, cwd=fix.work) == [
-        f"write {owed(fix, 'the fix changed a.py').strip()}"
-    ]
+    assert said(fix.state, "The review", "--rounds", brief, cwd=fix.work) == [ONE_ROUND]
 
 
 def test_a_scoped_review_of_info_findings_alone_owes_nothing_at_the_rebased_head(
@@ -396,9 +345,7 @@ def test_a_scoped_review_of_info_findings_alone_owes_nothing_at_the_rebased_head
     (left,) = said(state, "The review", "--left", brief)
     assert left.startswith("write nothing:"), "a later review's info findings are dropped"
     assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} alpha alpha"]
-    assert said(state, "The review", "Second pass:", brief, cwd=proven_merged.tree) == [
-        NOTHING_PUSHED
-    ]
+    assert said(state, "The review", "--rounds", brief, cwd=proven_merged.tree) == [ONE_ROUND]
     rebased.brief(reviews, declined() + ALL_INFO)
     assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} alpha alpha"]
 
@@ -411,10 +358,10 @@ SHELLS = [
 
 @pytest.mark.parametrize("shell", SHELLS)
 def test_a_scoped_review_owed_is_launched_once_for_its_head_and_is_the_last(shell, tmp_path):
+    """A scoped review owed since the head the review saw, as a `no` owes one, is launched
+    once for the head, and is the last."""
     fix = opened(tmp_path, GUARDED)
-    needed = owed(fix, f"the fix changed {GUARDED}")
-    assert fix.says("", shell=shell) == [f"write {needed.strip()}"]
-    decided = f"{OLD_NONE}\n{needed}"
+    decided = owed(fix, "the review's Meets the brief line is no")
     launch = (
         "scoped: launch the scoped reviewer, with /pr-review run alpha scoped "
         f"{fix.start}..{fix.saw} {fix.start}..{fix.fixed}"
@@ -434,54 +381,10 @@ def test_a_scoped_review_owed_is_launched_once_for_its_head_and_is_the_last(shel
         launch.replace(", with", f" in place of the one that stopped at {'d' * 40}, with")
     ]
     proven = fix.review + fix.reviewed(fix.fixed)
-    assert fix.says(launched, proven) == ["none: no second pass, as the Result says"]
+    assert fix.says(launched, proven) == [HAD]
     (fix.work / GUARDED).write_text("the second fix\n")
     fix.commit("the second fix")
-    assert fix.says(launched, proven) == ["none: no second pass, as the Result says"]
-
-
-@pytest.mark.parametrize("path", ["docs/a.md", GUARDED], ids=["docs", "a skill"])
-def test_a_fix_is_decided_by_what_it_changed_whatever_path_the_pull_request_changes(path, tmp_path):
-    fix = opened(tmp_path, path)
-    assert fix.says("") == [f"write {owed(fix, f'the fix changed {path}').strip()}"]
-    assert fix.says("", fix.review + fix.review) == [
-        f"write {owed(fix, f'the fix changed {path}').strip()}"
-    ]
-    assert fix.says("Second pass: none, the fix stayed inside\n") == [
-        "none: no second pass, as the Result says"
-    ]
-
-
-def test_the_shipped_list_guards_no_path_so_a_fix_to_a_skill_is_asked_no_scoped_review(tmp_path):
-    fix = opened(tmp_path, GUARDED, fix=["tests/c.py"])
-    assert fix.says("") == [TESTS_ONLY]
-    assert fix.says("Second pass: none, the fix stayed inside\n") == [
-        "none: no second pass, as the Result says"
-    ]
-
-
-@pytest.mark.parametrize(
-    "moved",
-    [
-        "",
-        "CI fix: {fixed}, after the review of {saw}\n",
-        "Rebase: patch unchanged, before {saw}, head {fixed}\n",
-        "Rebase: patch changed in a.py, before {saw}, head {fixed}\n",
-    ],
-    ids=[
-        "no line",
-        "an older brief's line for a failed check",
-        "an older brief's line for a rebase",
-        "an older brief's line for a rebase that changed the patch",
-    ],
-)
-def test_a_head_jmerge_compares_by_range_diff_is_asked_no_scoped_review_here(moved, tmp_path):
-    fix = opened(tmp_path, GUARDED)
-    none = ["none: no second pass, as the Result says"]
-    result = "Second pass: none, nothing was pushed\n" + moved.format(fixed=fix.fixed, saw=fix.saw)
-    for fixed in ("", f"Fixed: {fix.fixed}\n"):
-        assert fix.says(fixed + result) == none
-        assert fix.says(result + fixed) == none
+    assert fix.says(launched, proven) == [HAD]
 
 
 @pytest.mark.parametrize("endings", ["", FIXED_ONE + ANSWERED_ONE])
@@ -527,9 +430,7 @@ def test_a_review_that_says_the_brief_is_not_met_owes_a_scoped_review_of_a_tests
     written = needed + f"\nFixed: {fix.fixed}\n"
     assert fix.says(written, first) == [launch(fix, fix.saw, fix.fixed)]
     yes = judged(fix, fix.fixed, "Meets the brief: yes, 2 of 2\n", scoped=True)
-    assert fix.says(written, first + yes) == [
-        "had: the review of the fix is written, and this head is owed none"
-    ]
+    assert fix.says(written, first + yes) == [HAD]
     again = judged(fix, fix.fixed, MEETS_NO, scoped=True)
     owed_again = f"Scoped review: needed since {fix.fixed}, the review's Meets the brief line is no"
     assert fix.says(written, first + again) == [f"write {owed_again}"]

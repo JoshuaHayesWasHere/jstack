@@ -19,7 +19,7 @@ REASON = {
     "result": "no brief has a Result that names it",
     "review": "it has no review yet",
     "findings": "its findings are not handled: the Result has no Fixed line",
-    "second": "its fix changed more than the findings named: the second pass is not written",
+    "second": "its fix is not reviewed: the scoped review of it is not written",
     "check": "check has not passed",
     "rebase": "it conflicts with its base",
 }

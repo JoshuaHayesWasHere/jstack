@@ -239,7 +239,7 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
         "- brief's Size: line says medium (S, M or L)",
-        "- brief's Review: line says after (twice, review or none)",
+        "- brief's Review: line says after (review or none)",
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
         f"- {parse.NO_DESIGN}",
@@ -357,7 +357,7 @@ def test_a_gate_names_each_line_that_changed_and_a_line_taken_out(kitchen):
 
 
 def test_the_fingerprint_keeps_paths_numbers_and_values_exact_and_sorts_the_rest():
-    made = dict((label, lines) for label, lines in meaning.meaning(APPROVED))
+    made = dict(meaning.meaning(APPROVED))
     assert list(made) == [parse.TITLE, "Task", "Done when", "Where", "Do not touch", "Size"]
     assert made["Size"] == [["=m"]]
     assert ["=0", "=3", "=make check", "exits", "less", "minutes", "or"] in made["Done when"]

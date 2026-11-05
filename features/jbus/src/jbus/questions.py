@@ -281,7 +281,7 @@ def _kept(state: Path) -> tuple[int, list[Question]]:
         for one in kept["records"]:
             answer = Answer(**one["answer"]) if one["answer"] else None
             options = tuple(Option(**each) for each in one.get("options", ()))
-            found.append(Question(**{**one, "answer": answer, "options": options}))
+            found.append(Question(**(one | {"answer": answer, "options": options})))
     except (OSError, ValueError, TypeError, KeyError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
     highest = max((one.number for one in found), default=0)
@@ -448,10 +448,12 @@ SETTLED = (
     Settled(
         "exit 124",
         (_words(r"\bFixed\b"), _words(r"\b124\b|short lane|time limit|timed out|\blimit\b")),
-        "a check that ends 124 ran past the short lane's time limit, which says nothing of the "
-        "change (features/crew/do-the-task.md, On 124)",
-        "go on as on exit 0: open the pull request or write the Fixed: line, with the Checked: "
-        "line's exit 124, and let CI's check on the pull request be the proof",
+        "an exit 124 never passes: a check cut short reached no verdict, and jmerge holds a "
+        "pull request whose last Checked: line ends 124 (features/crew/do-the-task.md; "
+        "features/jmerge/src/jmerge/ready.py, short_on_checked). The desk runs only the guards, "
+        "in a full test slot with no time limit, and CI's check runs the rest",
+        "treat the 124 as a failure: run the check block again at the head, fix what it finds, "
+        "and go on only once its Checked: line says PART=guards exit 0",
     ),
     Settled(
         "a red that is its base's",

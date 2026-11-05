@@ -725,7 +725,7 @@ def _tasks(
         ]
         holds = [one for one in row.get("depends", []) if status.get(one) not in queue.FINAL]
         blockers = sorted(map(text, holds), key=lambda one: one in through)
-        watched = seen.get(slug) if isinstance(seen.get(slug), dict) else {}
+        watched = mine if isinstance(mine := seen.get(slug), dict) else {}
         has = _held(held[slug], now, user) if held and slug in held else None
         value = line["value"] if line else UNKNOWN.key
         about = About(
@@ -749,9 +749,9 @@ def _tasks(
             since = when(came[-1]) if came else when(row.get("since"), user)
         check = watched.get("check") if isinstance(watched.get("check"), dict) else None
         waited = (now - datetime.fromisoformat(since)).total_seconds() / 60 if since else 0
-        if step == "review" and out is not None and slug not in reviewed:
-            if waited >= REVIEW_MINUTES and NO_REVIEW in said["say"]:
-                said |= {"say": NO_REVIEWER, "waits": "its crewmate to start a reviewer"}
+        unreviewed = step == "review" and out is not None and slug not in reviewed
+        if unreviewed and waited >= REVIEW_MINUTES and NO_REVIEW in said["say"]:
+            said |= {"say": NO_REVIEWER, "waits": "its crewmate to start a reviewer"}
         crew = crews[slug][0] if len(crews.get(slug, [])) == 1 else {}
         thread = line["facts"].get("thread") if line else None
         doubt = unconfirmed
@@ -849,9 +849,8 @@ def _live(word: Any) -> str:
 
 SCOUTS = "scouts"
 REQUEST = {"state": None, "status": None, "asks": None}
-THREAD = {
-    key: None
-    for key in (
+THREAD = dict.fromkeys(
+    (
         "title",
         "role",
         "slug",
@@ -868,7 +867,7 @@ THREAD = {
         "open",
         "health",
     )
-} | {"request": REQUEST, "home": None, "retired": None}
+) | {"request": REQUEST, "home": None, "retired": None}
 
 
 def request(home: Path, slug: str) -> dict[str, str]:
@@ -1445,7 +1444,7 @@ class Read:
 
     def _merged_since(self, start: str) -> list[dict[str, Any]]:
         pull = {row["slug"]: row for row in self.rows}
-        merged = []
+        merged: list[dict[str, Any]] = []
         for move in self.moves or []:
             slug, at = text(move.get("slug"), 80), when(move.get("at"))
             if move.get("to") == "merged" and at and at >= start:
@@ -1761,7 +1760,7 @@ def key_of(one: dict[str, Any]) -> str:
     return f"wrong|{one['kind']}|{digest}|{one['to']}"
 
 
-def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
+def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str | None] | None:
     """What the owner was told and when: the wake that told it of the entry (`jbus.wakes`), the
     failed-check message to a crew since its run, any other message to the owner about the
     entry's row since the fault began (a stalled row's home line from `jbus.expedite`), the
@@ -1989,11 +1988,11 @@ def broken(wrong: list[dict[str, Any]], bus: dict[str, Any]) -> list[dict[str, s
         times = [one["since"] for one in unread if one["since"]]
         what = f"{len(unread)} source{'' if len(unread) == 1 else 's'} unread"
         found.append({"what": what, "open": "pulse", "since": min(times) if times else None})
-    for one in wrong:
-        if one["kind"] == "unasked":
-            found.append(
-                {"what": f"{one['subj']} did not answer", "open": "pulse", "since": one["since"]}
-            )
+    found += [
+        {"what": f"{one['subj']} did not answer", "open": "pulse", "since": one["since"]}
+        for one in wrong
+        if one["kind"] == "unasked"
+    ]
     return found
 
 

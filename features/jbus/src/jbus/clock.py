@@ -5,13 +5,13 @@ repeats its line.
 `tick` reads what jbus's own run of `jmerge` says in this pass of each open pull request that jbus
 launched a crew for, and sorts the wait into one of three classes:
 
-- `review`: the review is not written (`it has no review yet`, `its review has no verdict`, the
-  second review or the second pass is not written);
-- `scoped`: the scoped review of a fix or a rebase is not written or has not ruled;
+- `review`: the review is not written (`it has no review yet`, `its review has no verdict`);
+- `scoped`: the scoped review a `Meets the brief: no` owes, or a rebase's, is not written or has
+  not ruled;
 - `result`: no Result names the pull request, so the crew stopped before it wrote one.
 
 Each wait has one thread it waits on. For `review` and `scoped` that is the reviewer the brief's
-last `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` line names, and the crew where the brief
+last `Reviewer:` or `Scoped reviewer:` line names, and the crew where the brief
 names none, or where jbus cannot work out a scoped pass's two ranges. For `result` it is the crew
 on the brief's `Thread:` line. `clock.json` counts, for each slug, the passes of one wait at one
 head in which that thread was not at work: its turn ended, it hung, or T3 Code no longer lists
@@ -120,14 +120,21 @@ RUNNER = (
     ready.BASE_MERGE_DUE,
     ready.BASE_MOVED_ASKED,
     ready.BASE_MOVED_DUE,
+    ready.QUEUED_RESTARTED,
+    ready.QUEUED_UNOPENED,
+    ready.QUEUED_UNCLOSED,
 )
-"""The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, and
-CI."""
+"""The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, CI,
+and the one restart of a run GitHub kept queued at the head of the line, with the close or the
+reopen `jmerge` tries again for `ready.RESTART_MINUTES`. A run still queued after that restart
+(`ready.QUEUED_GAVE_UP`), a restart that never took (`ready.QUEUED_UNRESTARTED`) and a reopen
+`jmerge` asks no more (`ready.QUEUED_UNREOPENED`) are holds: nothing at work moves them."""
 AHEAD = (
     (ready.MERGES_AFTER, "slug"),
     (ready.STACKED_ON, "slug"),
     (ready.CARRIES_AFTER, "slug"),
     (ready.MIGRATION_REBASING, "number"),
+    (ready.IN_LINE, "number"),
 )
 """The waits on a row ahead, each with the field that names that row. While its pull request is
 open, what holds it is its own wait, which the merge runner, a thread, `held` or a clock above is
@@ -151,14 +158,12 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
     """Return the thread of the reviewer that a wait is for, or nothing where the brief names none.
 
     For a scoped wait it is the last `Scoped reviewer:` line of this head, or else the last one.
-    For a second review it is the last `Second reviewer:` line. Otherwise it is the last
+    Otherwise it is the last
     `Reviewer:` line whose seat, `#<n>`, has written no `## Review` with that seat on its `By:`
     line."""
     if kind == "scoped":
         named = below.reviewers(brief, "Scoped reviewer", head)
         named = named or below.reviewers(brief, "Scoped reviewer")
-    elif "second" in reason:
-        named = below.reviewers(brief, "Second reviewer")
     else:
         bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections)
         wrote = {seat[1] for seat in bys if seat}
@@ -304,7 +309,7 @@ def tick(
             continue
         seen = was.get(slug, {})
         same = (seen.get("kind"), seen.get("head"), seen.get("thread")) == (kind, head, thread)
-        wait = seen if same else {"passes": 0, "acted": False, "home": False}
+        wait: dict[str, Any] = seen if same else {"passes": 0, "acted": False, "home": False}
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
         wait |= {"number": pull["number"], "reason": reason}
         kept[slug] = wait
@@ -347,6 +352,20 @@ def _on(slug: str, reason: str, rows: list[str]) -> bool:
     return slug in rows or slug in re.findall(r"[\w.-]+", reason)
 
 
+def _rows(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, int]]:
+    """Each row with a pull request, and its number, by number: the open ones, and those whose
+    brief names a pull request GitHub lists neither open nor merged that `jmerge` says a wait of,
+    as it does while a restart of its queued run left it closed (`ready.QUEUED_UNREOPENED`)."""
+    rows = [(slug, int(pull["number"])) for slug, pull in world.open.items()]
+    numbers = {str(number) for _, number in rows}
+    if any(number not in numbers for number in said):
+        for url, slug in watch.tied(run).items():
+            number = url.rstrip("/").rsplit("/", 1)[-1]
+            if number in said and number not in numbers and slug not in world.merged:
+                rows.append((slug, int(number)))
+    return sorted(rows, key=lambda row: row[1])
+
+
 def held(
     run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
 ) -> None:
@@ -356,8 +375,8 @@ def held(
         return
     was: dict[str, Any] = read_json(run.state / HELD_FILE, {})
     groups: dict[str, dict[str, Any]] = {}
-    for slug, pull in sorted(world.open.items(), key=lambda one: one[1]["number"]):
-        word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
+    for slug, number in _rows(run, world, waits.said):
+        word, _, reason = waits.said.get(str(number), "").partition(": ")
         if word != "wait" or not reason or class_of(reason) or matches(reason, RUNNER):
             continue
         if _ahead(reason, world):
@@ -367,7 +386,7 @@ def held(
         key = hashlib.sha256(f"{name}\n{reason}".encode()).hexdigest()[:12]
         group = groups.setdefault(key, {"reason": reason, "home": name, "rows": [], "numbers": []})
         group["rows"].append(slug)
-        group["numbers"].append(pull["number"])
+        group["numbers"].append(number)
     busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
     kept: dict[str, Any] = {}
     for key, group in groups.items():

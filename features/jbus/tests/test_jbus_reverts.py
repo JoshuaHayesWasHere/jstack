@@ -109,7 +109,10 @@ def test_the_revert_of_a_red_tip_is_opened_once(kitchen):
 
 
 def test_two_overlapping_reds_revert_nothing_and_file_one_row_naming_both_tips(kitchen):
+    """beta landed on alpha's red and failed a test alpha's red did not: a second break, so
+    neither merge is the one clear culprit."""
     first, second = red_merges(kitchen, ("alpha", 7, None), ("beta", 8, None))
+    kitchen.set("logs.json", {"91": LOG, "92": f"FAILED {TEST}\nFAILED {OTHER}\n= 2 failed =\n"})
     passes(kitchen)
     assert asked(kitchen, "pr revert") == []
     (row,) = main_red(kitchen)
@@ -349,6 +352,39 @@ def test_a_revert_that_goes_red_gets_the_fix_row(kitchen):
     assert len(asked(kitchen, "pr revert")) == 1
 
 
+def test_a_revert_that_merged_under_a_main_still_red_gets_the_fix_row(kitchen):
+    """alpha's revert merged, and main is red at the revert's own merge, on another test: the
+    revert did not end the red, so the tip gets its row, which names why."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    made = kept.read(kitchen.state)[red]
+    pulls = json.loads((kitchen.stub / "open.json").read_text())
+    (revert,) = [one for one in pulls if one["url"] == made.pull]
+    again = move(kitchen, "failure")
+    kitchen.set("open.json", [one for one in pulls if one is not revert])
+    merged = json.loads((kitchen.stub / "merged.json").read_text())
+    landed = dict(revert, mergedAt=iso(NOW), mergeCommit={"oid": again})
+    kitchen.set("merged.json", [*merged, landed])
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    title = f"{revert['title']} (#{revert['number']})"
+    kitchen.set("commits.json", [kitchen.commit(again, title, ago=timedelta(0)), *commits])
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    runs[again] = [{**DONE, "conclusion": "failure", "name": "check", "id": 95}]
+    kitchen.set("check-runs.json", runs)
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    pushed[again] = [{**DONE, "id": 505, "conclusion": "failure", "run_attempt": 2}]
+    kitchen.set("push-runs.json", pushed)
+    logs = json.loads((kitchen.stub / "logs.json").read_text())
+    kitchen.set("logs.json", {**logs, "95": f"FAILED {OTHER}\n= 1 failed =\n"})
+    kitchen.poll(NOW + timedelta(minutes=30))
+    kitchen.poll(NOW + timedelta(minutes=33))
+    (row,) = main_red(kitchen)
+    assert row["slug"] == f"{mainjson.FIX}{again[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert f"its revert {made.pull} merged, and main is still red" in text
+    assert len(asked(kitchen, "pr revert")) == 1
+
+
 def test_a_revert_goes_to_the_home_s_digest(kitchen):
     import jbus
     from jbus import digest
@@ -377,28 +413,213 @@ def test_a_plain_launch_waits_on_a_red_main(kitchen):
 
 def test_the_rule_names_one_reason_for_each_red_it_does_not_revert():
     pull = {"number": 7, "title": "feat: alpha", "url": url(7)}
-    one = reverts.Red("r" * 40, ["r" * 40], pull, "alpha", [TEST])
+    tip, under = [("r" * 40, "failed")], "g" * 40
+    two = [("q" * 40, "failed"), *tip]
+    one = reverts.Red(tip, pull, "alpha", [TEST])
     made = {"o" * 40: kept.Revert("o" * 40, "beta", "revert-5-beta", "e" * 40, url(5))}
     assert reverts.culprit(one, {}, ()) == reverts.Culprit("r" * 40, "alpha", pull)
+    assert reverts.culprit(reverts.Red(two, pull, "alpha", [TEST], under=under), {}, ()) == (
+        reverts.Culprit("r" * 40, "alpha", pull)
+    )
+    late = timedelta(hours=2)
     cases = {
         reverts.Keep.OPENED: (one, {one.tip: made["o" * 40]}, ()),
-        reverts.Keep.OVERLAP: (
-            reverts.Red(one.tip, ["r" * 40, "q" * 40], pull, "alpha", [TEST]),
-            {},
-            (),
-        ),
-        reverts.Keep.UNBRIEFED: (reverts.Red(one.tip, [one.tip], None, "", [TEST]), {}, ()),
-        reverts.Keep.OF_A_REVERT: (
-            reverts.Red(one.tip, [one.tip], pull, "revert-5-beta", [TEST]),
-            made,
-            (),
-        ),
-        reverts.Keep.TWICE: (reverts.Red(one.tip, [one.tip], pull, "beta", [TEST]), made, ()),
-        reverts.Keep.UNREAD: (reverts.Red(one.tip, [one.tip], pull, "alpha", None), {}, ()),
+        reverts.Keep.OVERLAP: (reverts.Red(two, pull, "alpha", [TEST]), {}, ()),
+        reverts.Keep.UNBRIEFED: (reverts.Red(tip, None, "", [TEST]), {}, ()),
+        reverts.Keep.OF_A_REVERT: (reverts.Red(tip, pull, "revert-5-beta", [TEST]), made, ()),
+        reverts.Keep.TWICE: (reverts.Red(tip, pull, "beta", [TEST]), made, ()),
+        reverts.Keep.UNREAD: (reverts.Red(tip, pull, "alpha", None), {}, ()),
         reverts.Keep.FLAKES: (one, {}, (TEST,)),
     }
     for why, (red, kept_reverts, flakes) in cases.items():
         assert reverts.culprit(red, kept_reverts, flakes) == why, why
-    assert reverts.culprit(reverts.Red(one.tip, [one.tip], pull, "alpha", []), {}, (TEST,)) == (
+    assert reverts.culprit(reverts.Red(tip, pull, "alpha", []), {}, (TEST,)) == (
         reverts.Culprit(one.tip, "alpha", pull)
     )
+    opened = {"q" * 40: made["o" * 40]}
+    pending = [("q" * 40, "pending"), *tip]
+    cancelled = [("q" * 40, "cancelled"), *tip]
+    for red, why in (
+        (reverts.Red(two, pull, "alpha", [TEST], under=under), None),
+        (reverts.Red(pending, pull, "alpha", [TEST], under=under), reverts.Keep.UNREAD),
+        (reverts.Red(pending, pull, "alpha", [TEST], late, under), reverts.Keep.OVERLAP),
+        (reverts.Red(cancelled, pull, "alpha", [TEST], under=under), reverts.Keep.OVERLAP),
+    ):
+        assert reverts.culprit(red, opened if why is None else {}, ()) == (
+            why or reverts.Keep.OPENED
+        )
+
+
+def test_a_red_run_s_culprit_is_its_oldest_where_no_later_tip_fails_another_test():
+    pull = {"number": 7, "title": "feat: alpha", "url": url(7)}
+    run = [("q" * 40, "failed"), ("r" * 40, "failed")]
+    red = reverts.Red(run, pull, "alpha", [TEST], under="g" * 40)
+    found = reverts.Culprit("r" * 40, "alpha", pull)
+    assert reverts.covered(found, red, [[TEST]]) == found
+    assert reverts.covered(found, red, [[TEST, OTHER]]) == reverts.Keep.OVERLAP
+    assert reverts.covered(found, red, [[]]) == reverts.Keep.OVERLAP
+    assert reverts.covered(found, red, [None]) == reverts.Keep.UNREAD
+    late = reverts.Red(run, pull, "alpha", [TEST], timedelta(hours=2), "g" * 40)
+    assert reverts.covered(found, late, [None]) == reverts.Keep.NOT_READ
+    unnamed = reverts.Red(run, pull, "alpha", [], under="g" * 40)
+    assert reverts.covered(found, unnamed, [[TEST]]) == reverts.Keep.OVERLAP
+
+
+MAC_FLOW = ".github/workflows/macos.yml"
+
+
+def mac_red_merges(kitchen, *merges, attempt=2):
+    """Land the merges of `red_merges`, oldest first, on a commit where main's check and
+    macos.yml's push run passed, its job `macos` run. At each merge main's check passes, and
+    macos.yml's push run failed at `attempt`, its job `macos` with `TEST` failed in its log.
+    Return the merges."""
+    reds = red_merges(kitchen, *merges)
+    green = json.loads((kitchen.stub / "commits.json").read_text())[-1]["sha"]
+    mac = {"path": MAC_FLOW, "event": "push", "head_branch": "main", **DONE}
+    runs = {
+        green: [
+            {**DONE, "conclusion": "success", "name": "check", "id": 90},
+            {
+                **DONE,
+                "conclusion": "success",
+                "name": "macos",
+                "id": 190,
+                "check_suite": {"id": 70},
+            },
+        ]
+    }
+    pushed = {green: [{**mac, "id": 600, "conclusion": "success", "check_suite_id": 70}]}
+    for n, red in enumerate(reds):
+        runs[red] = [
+            {**DONE, "conclusion": "success", "name": "check", "id": 91 + n},
+            {**DONE, "conclusion": "failure", "name": "macos", "id": 191 + n}
+            | {"check_suite": {"id": 71 + n}},
+        ]
+        pushed[red] = [
+            {**DONE, "id": 501 + n, "conclusion": "success", "run_attempt": 1},
+            {**mac, "id": 601 + n, "conclusion": "failure", "run_attempt": attempt}
+            | {"check_suite_id": 71 + n},
+        ]
+    kitchen.set("check-runs.json", runs)
+    kitchen.set("push-runs.json", pushed)
+    kitchen.set("logs.json", {str(191 + n): LOG for n in range(len(reds))})
+    return reds
+
+
+def mac_rows(kitchen):
+    return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("macos-red-")]
+
+
+def mac_state(kitchen):
+    return json.loads((kitchen.state / reverts.MAC_MAIN).read_text())
+
+
+def test_a_macos_red_on_main_never_makes_main_red_and_reverts_its_one_clear_culprit(kitchen):
+    """macos.yml's run on a merge commit is no part of main's check: main's check passed there,
+    so main is green and holds no pull request. The Mac red, after its one rerun, is judged by
+    the culprit rule, and its one clear culprit gets a revert."""
+    (red,) = mac_red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    main = mainjson.read(kitchen.state)
+    assert (main.red, main.green) == ("", red)
+    assert main_red(kitchen) == []
+    (revert,) = asked(kitchen, "pr revert")
+    assert revert.startswith(f"pr revert {url(7)} --body jbus reverts this: main's macOS went red")
+    made = kept.read(kitchen.state)
+    assert list(made) == [red] and made[red].slug == "alpha"
+    text = (kitchen.home / "tasks" / "revert-7-alpha.md").read_text()
+    assert f"which turned main's macOS red at {red[:12]}" in text
+    assert mac_state(kitchen) | {"reverted": [red]} == mac_state(kitchen)
+    assert mac_rows(kitchen) == []
+
+
+def test_a_macos_red_at_its_first_attempt_is_rerun_once_before_it_is_judged(kitchen):
+    """A failed Mac run at its first attempt is rerun, its failed jobs only, and is no red until
+    the rerun ends: nothing is reverted and no row is filed while it runs."""
+    mac_red_merges(kitchen, ("alpha", 7, None), attempt=1)
+    passes(kitchen)
+    assert asked(kitchen, "run rerun --failed 601")
+    assert asked(kitchen, "pr revert") == []
+    assert mac_rows(kitchen) == [] and main_red(kitchen) == []
+
+
+def test_two_overlapping_macos_reds_revert_nothing_and_file_one_macos_red_row(kitchen):
+    """beta landed on alpha's Mac red and failed another test on the Mac: no one clear culprit,
+    so the newest Mac red gets the row `macos-red-<commit>` under the home macos, which names both
+    reds, and main.json stays green."""
+    first, second = mac_red_merges(kitchen, ("alpha", 7, None), ("beta", 8, None))
+    kitchen.set("logs.json", {"191": LOG, "192": f"FAILED {TEST}\nFAILED {OTHER}\n= 2 failed =\n"})
+    passes(kitchen)
+    assert asked(kitchen, "pr revert") == []
+    (row,) = mac_rows(kitchen)
+    assert row["slug"] == f"macos-red-{second[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert "Home: macos" in text and "Follows: beta" in text
+    task = next(line for line in text.splitlines() if line.startswith("Task:"))
+    assert reverts.Keep.OVERLAP in task and first[:12] in task and second[:12] in task
+    assert f"`{TEST}`" in text and f"`{OTHER}`" in text
+    assert mainjson.read(kitchen.state).red == "" and main_red(kitchen) == []
+
+
+def test_a_macos_revert_stays_open_until_macos_is_green_at_a_later_commit(kitchen):
+    """main's check is green all along, so the revert of a Mac red is closed only once
+    macos.yml's run passed at a later commit."""
+    (red,) = mac_red_merges(kitchen, ("alpha", 7, None))
+    passes(kitchen)
+    assert asked(kitchen, "pr close") == []
+    assert list(kept.read(kitchen.state)) == [red]
+    later = move(kitchen, "success")
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    kitchen.set("commits.json", [kitchen.commit(later, "fix: the mac (#9)"), *commits])
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    good = {"path": MAC_FLOW, **DONE, "id": 700, "conclusion": "success", "check_suite_id": 79}
+    kitchen.set("push-runs.json", {**pushed, later: [good]})
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    ran = {**DONE, "conclusion": "success", "name": "macos", "id": 199, "check_suite": {"id": 79}}
+    kitchen.set("check-runs.json", {**runs, later: [ran]})
+    passes(kitchen)
+    (closed,) = asked(kitchen, "pr close")
+    assert "main's macOS run passed at" in closed
+    assert mac_state(kitchen)["red"] == "" and mac_state(kitchen)["green"] == later
+
+
+def test_a_macos_job_never_counts_as_main_check_where_github_lists_no_runs(kitchen):
+    """Where GitHub lists no workflow run of a commit, every check run there counts as main's,
+    but for macos.yml's jobs by their names: a red `macos` job never makes main red."""
+    (red,) = mac_red_merges(kitchen, ("alpha", 7, None))
+    kitchen.set("push-runs.json", {})
+    passes(kitchen)
+    assert mainjson.read(kitchen.state).red == ""
+    assert main_red(kitchen) == []
+
+
+def test_a_later_macos_run_that_skipped_its_mac_neither_ends_nor_hides_a_macos_red(kitchen):
+    """Most merges reach no Mac test: their macos.yml run passes with its job `macos` skipped. Such
+    a run judged nothing on a Mac, so a later one neither ends the Mac red under it nor counts as
+    the green under a red: the red is still reverted, and its revert stays open."""
+    (red,) = mac_red_merges(kitchen, ("alpha", 7, None))
+    later = move(kitchen, "success")
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    kitchen.set("commits.json", [kitchen.commit(later, "chore: docs (#9)"), *commits])
+    pushed = json.loads((kitchen.stub / "push-runs.json").read_text())
+    skipped = {"path": MAC_FLOW, **DONE, "id": 700, "conclusion": "success", "check_suite_id": 79}
+    kitchen.set("push-runs.json", {**pushed, later: [skipped]})
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    kitchen.set(
+        "check-runs.json",
+        {
+            **runs,
+            later: [
+                {**DONE, "conclusion": "success", "name": "check", "id": 99},
+                {**DONE, "conclusion": "success", "name": "macos-select", "id": 198}
+                | {"check_suite": {"id": 79}},
+                {**DONE, "conclusion": "skipped", "name": "macos", "id": 199}
+                | {"check_suite": {"id": 79}},
+            ],
+        },
+    )
+    passes(kitchen)
+    assert len(asked(kitchen, "pr revert")) == 1
+    assert list(kept.read(kitchen.state)) == [red]
+    assert asked(kitchen, "pr close") == []
+    assert mac_state(kitchen)["red"] == red

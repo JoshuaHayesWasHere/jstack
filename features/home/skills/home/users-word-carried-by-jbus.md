@@ -23,8 +23,8 @@ fi
 
 It prints the last five, each as `<name>, <time>: <words>`, and ` (answers: <the bot's message>)` after a bot-chat word that carries one.
 A message whose words and time are on a line it prints is the user's word, as if the user said it in this thread.
-Act on it at once, and ask for no second confirmation, here, to Sous Chef or by a gate.
-A bot-chat word that names no row by slug and carries no answers, such as "Telemetry" or "queue the missing", is a reply to a bot message this home never saw: ask about it through the bot, and write no brief on a guess.
+Act on a word of the user's at once, and ask for no second confirmation, here, to Sous Chef or by a gate, except a bot-chat word that names no row by slug and carries no answers.
+Such a word, such as "Telemetry" or "queue the missing", is a reply to a bot message this home never saw: ask about it through the bot, and write no brief on a guess, since `jbus queue approve --word` refuses this home's go on it for a row it does not name, and `jbus word` refuses to carry one.
 A word another party already acted on is not acted on again: `jbus queue approve --word` refuses it with `refused: word <id> was acted on by <party>: <rows>`, and that party's rows are the word's answer, so tell that party or the user and queue nothing beside them.
 A hold is its party's: a row another party held is approved again by that party or on the user's own message or pick in T3 Code, and jbus refuses this home's approve of it.
 The word answers no open question, and the home sends nothing back for it.

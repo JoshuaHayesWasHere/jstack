@@ -43,7 +43,7 @@ from testing.paths import REPO
 
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT", "SHARD")
-SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY")
+SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "SELECTED")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
@@ -317,10 +317,10 @@ def test_every_test_has_the_same_id_a_second_later():
     assert collected() == first and first
 
 
-def changed_copy(tmp_path, path):
+def changed_copy(tmp_path, path, added="\n"):
     """A copy of the repo's files in a repo of its own, with two commits: the files as they are,
-    then one line added to `path`. Return the copy, and the file where the fake `uv` records each
-    command line it gets."""
+    then `added`, one blank line unless given, at the end of `path`. Return the copy, the `PATH`
+    with the fake `uv` first, and the file where it records each command line it gets."""
     copy, bin = tmp_path / "copy", tmp_path / "bin"
     listed = subprocess.run(
         ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True
@@ -334,7 +334,7 @@ def changed_copy(tmp_path, path):
     for message in ("base", "change"):
         if message == "change":
             with open(copy / path, "a") as changed:
-                changed.write("\n")
+                changed.write(added)
         subprocess.run([*git, "add", "-A"], check=True)
         subprocess.run([*git, "commit", "-q", "-m", message], check=True)
     bin.mkdir()
@@ -346,15 +346,17 @@ def changed_copy(tmp_path, path):
 
 @pytest.fixture
 def step_files(tmp_path, monkeypatch):
-    """The step's own output and summary files, as a check job's step sets them around this suite.
-    A test's `make check-fast` must leave them as they are: a line it added would be the step's,
-    and `selection=` there decides whether the job leaves the green tree marker."""
-    files = [tmp_path / "output", tmp_path / "summary"]
-    for name, file in zip(("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY"), files, strict=True):
+    """The step's own output and summary files, and the list of selected tests it keeps as an
+    artifact, as a check job's step sets them around this suite. A test's `make check-fast` must
+    leave them as they are: a line it added would be the step's, `selection=` there decides
+    whether the job leaves the green tree marker, and the artifact names what the check ran."""
+    files = [tmp_path / "output", tmp_path / "summary", tmp_path / "selected"]
+    names = ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "SELECTED")
+    for name, file in zip(names, files, strict=True):
         file.write_text("")
         monkeypatch.setenv(name, str(file))
     yield files
-    assert [file.read_text() for file in files] == ["", ""]
+    assert [file.read_text() for file in files] == ["", "", ""]
 
 
 def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, step_files):
@@ -371,11 +373,12 @@ def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, ste
     assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout[-2000:]
 
 
-def check_fast(copy, path):
-    """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line."""
+def check_fast(copy, path, *more):
+    """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line, with
+    `more` on its command line."""
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     made = subprocess.run(
-        ["make", "check-fast", "BASE=HEAD^1", "CORES=24"],
+        ["make", "check-fast", "BASE=HEAD^1", "CORES=24", *more],
         cwd=copy,
         env=env | {"PATH": path},
         capture_output=True,
@@ -397,22 +400,90 @@ def selected(copy):
     return ran.stdout.split()
 
 
-LINT = ["run ruff check .", "run ruff format --check ."]
+SRC = sorted(str(path.relative_to(REPO)) for path in REPO.glob("features/*/src"))
+LINT = [
+    "run ruff check .",
+    "run ruff format --check .",
+    " ".join(["run pyrefly check --summary=none", *SRC]),
+]
 OFF = ["-m", "not", "browser"]
 
 
 def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path, step_files):
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
-    tests = selected(copy)
+    *lint, run = asked.read_text().splitlines()
+    pytest_line = " ".join(["run pytest -n 6", *SCHEDULE, *OFF])
+    assert lint == LINT and run.startswith(f"{pytest_line} ")
+    tests = run.removeprefix(pytest_line).split()
     assert (
         "features/jdrift/tests/test_drift.py" in tests
         and "features/jbus/tests/test_jbus_queue.py" not in tests
     )
-    assert asked.read_text().splitlines() == [
-        *LINT,
-        " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *tests]),
-    ]
+    assert all(test.endswith(".py") and Path(copy, test).is_file() for test in tests), tests
+
+
+PARTS = [
+    ("guards", ["testing/tests/test_a.py", "testing/tests/test_b.py"], LINT),
+    ("rest", ["testing/tests/test_c.py"], []),
+    ("rest", [], None),
+    ("rest", ["all"], []),
+]
+
+
+@pytest.mark.parametrize(("part", "tests", "lint"), PARTS)
+def test_a_desk_part_of_check_fast_runs_only_its_own_tests_and_the_rest_no_lint(
+    tmp_path, step_files, part, tests, lint
+):
+    """`PART=guards` is the lint and the guard tests, and `PART=rest` the other tests the change
+    reaches, with no lint: the desk ran the lint with the guards. A rest of `all` is the whole
+    suite, and an empty rest runs nothing. The selector here is a stand-in that prints `tests`
+    for whatever part it is asked: the parts it prints are `test_select_tests.py`'s, and the real
+    one, run twice over a copy of the tree, takes most of a test's time limit on a runner."""
+    copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
+    argv = tmp_path / "argv"
+    (copy / "scripts" / "select_tests.py").write_text(
+        f"import sys\nopen({str(argv)!r}, 'w').write(' '.join(sys.argv[1:]))\n"
+        f"print({chr(10).join(tests)!r})\n"
+    )
+    check_fast(copy, path, f"PART={part}")
+    assert argv.read_text() == f"--part {part} HEAD^1 HEAD"
+    run = " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *(t for t in tests if t != "all")])
+    said = asked.read_text().splitlines() if asked.exists() else []
+    assert said == ([] if lint is None else [*lint, run])
+
+
+def test_928s_807_line_module_fails_the_desks_guard_part_with_neither_0_nor_124(tmp_path):
+    """#928's head, 969738d2d, grew `jbus/telemetry/records.py` to 807 lines, over the module cap,
+    and its desk check ended 124: the short lane stopped it a third of the way into some 356
+    selected files, before the size guard had run. The desk now runs `PART=guards` first, under a
+    full slot, as a step that must pass, so the check fails on the guard with an exit that is
+    neither 0 nor the lane's 124. The real selector picks the parts; the fake `uv` runs the size
+    guard for real wherever a call names it, and a call that names a test the change reaches by
+    import stands for the slow rest: it ends 124 at once, as the lane would stop it."""
+    records = "features/jbus/src/jbus/telemetry/records.py"
+    padding = "\n" * (807 - len((REPO / records).read_text().splitlines()))
+    copy, path, asked = changed_copy(tmp_path, records, padding)
+    guard = "features/repo-guards/tests/test_module_size.py"
+    reached = "features/jbus/tests/test_jbus_telemetry.py"
+    real = f"{sys.executable} -m pytest -q -p no:cacheprovider {guard}"
+    (tmp_path / "bin" / "uv").write_text(
+        f'#!/bin/sh\necho "$*" >> {asked}\n'
+        f'case " $* " in *" {reached} "*) exit 124 ;; *" {guard} "*) exec {real} ;; esac\n'
+    )
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
+    made = subprocess.run(
+        ["make", "check-fast", "BASE=HEAD^1", "CORES=24", "PART=guards"],
+        cwd=copy,
+        env=env | {"PATH": path},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    assert made.returncode not in (0, 124), made.stdout
+    assert "jbus/telemetry/records.py has 807 lines, over 800" in made.stdout
+    runs = [line for line in asked.read_text().splitlines() if line.startswith("run pytest")]
+    assert len(runs) == 1 and f" {guard}" in runs[0] and reached not in runs[0], runs
 
 
 def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(

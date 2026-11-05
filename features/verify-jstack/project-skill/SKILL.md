@@ -97,14 +97,20 @@ record queue-row jbus status
 
 `jbus poll` prints `launched alpha: mcp:sandbox-thread-1`, and the row's `status` and `thread` columns then say so.
 
-To stop that thread on a usage limit, give the crew's role a pool of two instances before the launch, then fail its run between passes.
+To stop that thread on a usage limit, give the crew's role a pool of two instances before the launch, launch the row as above, then fail its run between passes.
+Each block below is whole, from a new sandbox, so it carries the launch again.
 The next `jbus poll` prints `failover alpha: five_hour limit until ...`, and `t3/calls.jsonl` has the `t3_thread_configure` that moved it and the queued carry-on.
 The open pull request makes the pass ask GitHub who owns the repo, and it prints no line that GitHub did not say.
 
 ```sh
 mkdir -p "$VERIFY_JSTACK_SANDBOX/home/.config/jstack"
 echo 'crew: claudeAgent claude-sonnet-5-5 claudeAgent,claudeAgent_sandbox' > "$VERIFY_JSTACK_SANDBOX/home/.config/jstack/roles"
-# Add, approve and launch the row as above, then:
+printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: root\n' | record usage-limit jbus queue add alpha --priority 1
+printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
+word=$(record usage-limit jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
+sha=$(grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
+record usage-limit jbus queue approve alpha --sha "$sha" --word "$word"
+record usage-limit jbus poll
 T="$VERIFY_JSTACK_SANDBOX/t3"
 notice="run-1:usage-limit:five_hour:$(($(date +%s) + 3600))"
 jq --arg id "$notice" '."mcp:sandbox-thread-1" = [{runId: "run-1", itemId: $id, type: "system_notice", text: ""}]' "$T/messages.json" > "$T/m" && mv "$T/m" "$T/messages.json"
@@ -113,7 +119,7 @@ jq 'map(.status = "failed" | .latestRunId = "run-1")' "$T/threads.json" > "$T/t"
 record usage-limit jbus poll
 ```
 
-To stop that thread on a login lapse instead, sign its instance out and fail its run with the provider's words.
+To stop that thread on a login lapse instead, launch the row with no roles file, then sign its instance out and fail its run with the provider's words.
 The run ends ten minutes before the pass, since a pass counts an instance a run failed to sign in on less than five minutes ago (`failover.HOLD`) as signed out whatever T3 Code says, and so only the constraint holds the thread here.
 Each `jbus poll` while the constraint is there sends the thread nothing, and the first prints `signed out: claudeAgent cannot sign in, ...` once.
 Once the drive clears the constraint, the next pass prints `failover alpha: claudeAgent could not sign in, carry-on on claudeAgent, ...`, and `t3/calls.jsonl` has its one `t3_thread_send` keyed `lapse|mcp:sandbox-thread-1|run-1`.
@@ -121,7 +127,12 @@ A pass after it sends nothing more.
 Leave the pull request out of this drive: a pass tells the crew of a green one, and that send is not the carry-on.
 
 ```sh
-# Add, approve and launch the row as above, with no roles file, then:
+printf '# alpha: a demo task\nTask: alpha, a demo task\nDone when:\n- the demo works\nProves it: the demo test\nSize: S\nWhere: `src/alpha/`\nDesign: none, a demo\nReview: none\nPlaybook: none\nPull request: none\nHome: root\n' | record login-lapse jbus queue add alpha --priority 1
+printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"
+word=$(record login-lapse jbus word --to demo --message mcp:sandbox-chat/m1 | awk '{print $NF}')
+sha=$(grep -v '^Home:' "$JBUS_STATE_DIR/demo/briefs/alpha.md" | shasum -a 256 | cut -c1-12)
+record login-lapse jbus queue approve alpha --sha "$sha" --word "$word"
+record login-lapse jbus poll
 T="$VERIFY_JSTACK_SANDBOX/t3"
 ended=$(perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - 600))')
 jq --arg at "$ended" '."mcp:sandbox-thread-1" = [{runId: "run-1", itemId: "run-1:error", type: "error", text: "Not logged in · Please run /login", updatedAt: $at}]' "$T/messages.json" > "$T/m" && mv "$T/m" "$T/messages.json"

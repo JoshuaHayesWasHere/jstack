@@ -14,7 +14,8 @@ import json
 
 import pytest
 
-from test_jbus_kitchen import Kitchen, complete
+from jbriefs import parse
+from test_jbus_kitchen import Kitchen, complete, go
 
 DEEPER = "Read: `src/x.py:10`, the loop\nInstruments: `py-spy record -- python -m x`\n"
 
@@ -53,7 +54,7 @@ def files(kitchen):
     return {path: path.read_bytes() for root in roots for path in root.rglob("*") if path.is_file()}
 
 
-REVIEW_FAULT = "brief's Review: line says standard (twice, review or none)"
+REVIEW_FAULT = "brief's Review: line says standard (review or none)"
 
 
 def test_add_refuses_a_review_word_that_is_not_one_of_the_three(kitchen):
@@ -69,7 +70,7 @@ def test_add_refuses_a_review_word_that_is_not_one_of_the_three(kitchen):
 def test_add_refuses_a_review_line_that_says_more_or_other_than_one_word(kitchen, word):
     code, out = adds(kitchen, "alpha", said("alpha", "Review", word))
     assert code == 1
-    assert f"- brief's Review: line says {word} (twice, review or none)" in out.splitlines()
+    assert f"- brief's Review: line says {word} (review or none)" in out.splitlines()
 
 
 @pytest.mark.parametrize("word", ["twice", "review", "none"])
@@ -197,3 +198,46 @@ def test_deeper_work_with_read_and_instruments_is_queued(kitchen):
 def test_a_feature_brief_needs_no_read_or_instruments_line(kitchen):
     assert "Read:" not in complete("alpha")
     assert checks(kitchen, complete("alpha")) == (0, "")
+
+
+DONE_WHEN = (
+    "warning: alpha's brief's Done when: has 1 of 1 items that run nothing, the first: {first} "
+    "(in each, a command in backticks that starts with a runner, a `tests/...py[::name]` path, "
+    "or `judged: <why>`)"
+)
+RUNS = "- `uv run pytest -q tests/test_alpha.py` passes"
+
+
+def test_add_warns_of_a_done_when_in_prose_alone_and_still_queues(kitchen):
+    text = complete("alpha").replace("- `make check` passes", "- the page reads well")
+    code, out = adds(kitchen, "alpha", text)
+    assert code == 0, out
+    assert DONE_WHEN.format(first="the page reads well") in out.splitlines()
+    assert queued(kitchen) == ["alpha"]
+    assert checks(kitchen, text) == (0, DONE_WHEN.format(first="the page reads well") + "\n")
+
+
+@pytest.mark.parametrize(
+    "item", [RUNS, "- tests/test_alpha.py::test_it passes", "- judged: only the user can say"]
+)
+def test_add_queues_a_runnable_or_judged_done_when_with_no_warning(kitchen, item):
+    text = complete("alpha").replace("- `make check` passes", item)
+    assert checks(kitchen, text) == (0, "")
+    code, out = adds(kitchen, "alpha", text)
+    assert code == 0 and "warning:" not in out, out
+
+
+def test_an_approved_row_gets_no_new_fault_once_the_done_when_check_refuses(kitchen, monkeypatch):
+    """`_new_faults` grandfathers a row whose go holds: a lint that refuses its brief now, as the
+    Done when check will once it leaves `parse.WARNED`, never refuses the brief it approved, while
+    a new row with the same brief is refused."""
+    text = complete("alpha").replace("- `make check` passes", "- the page reads well")
+    assert adds(kitchen, "alpha", text)[0] == 0
+    assert go(kitchen, "alpha")[0] == 0
+    monkeypatch.setattr(parse, "WARNED", ())
+    code, out = adds(kitchen, "alpha", text)
+    assert code == 0, out
+    assert checks(kitchen, text)[0] == 0
+    code, out = adds(kitchen, "beta", text.replace("alpha", "beta"))
+    assert code == 1
+    assert "- brief's Done when: has 1 of 1 items that run nothing" in out

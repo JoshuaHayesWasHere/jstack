@@ -275,6 +275,10 @@ _CLAUSE = re.compile(r",(?=(?:[^`]*`[^`]*`)*[^`]*$)")
 _RUNS = tuple((one.case, re.compile(one.runs, re.I)) for one in DOORS if one.runs)
 _SEGMENT = re.compile(r"[;\n]|, (?=and |then )")
 _SPAN = re.compile(r"`[^`\n]*`")
+_PUSH = re.compile(r"(\bgit\b[^`\n]*?\bpush\b)([^`\n]*)")
+"""A git push, to the end of its command: the words up to `push`, and its arguments."""
+_REFSPEC = re.compile(r"(?<=\s)(\+)?(:)?(?=[^\s`])")
+"""A push's refspec that forces, `+<ref>`, or deletes, `:<ref>`, at the start of a word."""
 WALKED = ("Done when", "Proves it")
 """The fields of a brief whose commands it runs."""
 
@@ -283,20 +287,38 @@ def walks(command: str) -> tuple[tuple[str, str], ...]:
     """The doors one command walks through, by each case's `runs`, in the table's order, each
     with what it matched: the backticked command it is in, where it is in one. `command` is a
     segment of a brief's prose, its commands in backticks, or one command a thread runs, in
-    backticks. A command that runs dry (`DRY`) walks through none."""
+    backticks. A command that runs dry (`DRY`) walks through none, and a push's `+<ref>` and
+    `:<ref>` walk where its `--force` and `--delete` do (`_spelled`)."""
     if DRY.search(command):
         return ()
+    spelled, spans = _spelled(command), [one.group(0) for one in _SPAN.finditer(command)]
     found = []
     for case, runs in _RUNS:
-        matched = runs.search(command)
+        matched = runs.search(spelled)
         if matched is None:
             continue
         span = next(
-            (one for one in _SPAN.finditer(command) if one.start() <= matched.start() < one.end()),
-            None,
+            (
+                spans[at]
+                for at, one in enumerate(_SPAN.finditer(spelled))
+                if one.start() <= matched.start() < one.end()
+            ),
+            matched.group(0),
         )
-        found.append((case, (span.group(0) if span else matched.group(0)).strip("`").strip()))
+        found.append((case, span.strip("`").strip()))
     return tuple(found)
+
+
+def _spelled(command: str) -> str:
+    """The command with each refspec of a git push that forces or deletes spelled as the flag
+    that does the same, `+main` as `--force main` and `:main` as `--delete main`, so that `DOORS`
+    reads both spellings of a push. It adds no backtick, so its commands are the command's, in
+    order."""
+
+    def flags(found: re.Match[str]) -> str:
+        return ("--force " if found.group(1) else "") + ("--delete " if found.group(2) else "")
+
+    return _PUSH.sub(lambda one: one.group(1) + _REFSPEC.sub(flags, one.group(2)), command)
 
 
 def walked(brief: str) -> tuple[tuple[str, str], ...]:

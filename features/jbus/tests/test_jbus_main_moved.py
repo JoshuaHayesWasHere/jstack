@@ -1,7 +1,7 @@
-"""When the default branch goes from red to green, jbus tells the crew of each open red pull
-request once to rebase and carry on. So a pull request that main broke does not sit idle after
-main is fixed. When main moves from green to green, jbus tells nobody. `rebase.github` tells a
-crew of a conflict once per head, and this module does not (`test_jbus_github.py`). Like
+"""When the default branch goes from red to green, jbus tells no crew anything: `jmerge` judges a
+red pull request again by itself and asks GitHub to merge main into it (`jmerge.cli.Repo.again`,
+`features/jmerge/tests/test_jmerge_rejudge.py`). `mainmoved.tell` keeps `main.json`, the record of
+main's red tip and green tip that `jmerge` reads to know main is green again. Like
 `test_jbus_unlock.py`, the tests run the real pass against the fakes, with the kitchen's own
 origin as the remote whose main moves."""
 
@@ -13,13 +13,11 @@ import pytest
 
 import jbus
 from jmerge import mainjson, rows
-from test_jbus_kitchen import NOW, PROJECT, iso, sends_in_once
-from test_jbus_queue import add, gates, go
+from test_jbus_kitchen import NOW, iso
+from test_jbus_queue import add, go
 from test_jbus_watch import beside_a_dispatched_browser_run
 
 HEAD = "c" * 40
-RED = "red: checks failed"
-CHANGED = "main changed src/jbus/cli.py after its check started at 07:00 ET; it needs a fresh check"
 
 
 @pytest.fixture
@@ -81,81 +79,28 @@ def pull(kitchen, slug, number, state="SUCCESS", mergeable="MERGEABLE"):
     return {**kitchen.opened(slug, number, state), "mergeable": mergeable}
 
 
-def pending(kitchen, slug, number):
-    running = [{"status": "IN_PROGRESS", "conclusion": ""}]
-    return {**pull(kitchen, slug, number), "statusCheckRollup": running}
-
-
 def sends(kitchen):
-    """Return the main-moved messages that went out. Where this module did not first tell the
-    crew of a red head, `rebase.github` also tells that crew of its failed check once."""
-    every = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
-    return [given for given in every if given["clientRequestId"].startswith("mainmoved|")]
+    """Return every message jbus sent a crew."""
+    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
 
 
-def keys(kitchen):
-    return [given["clientRequestId"] for given in sends(kitchen)]
-
-
-def mine(gates):
-    return [line for line in gates if "failed check" not in line]
-
-
-def message(slug, number, main, why):
-    return (
-        f"jbus: main is green again at {main[:12]} while your pull request #{number} is {why}. "
-        "If main was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
-        f'refs/jstack/pre-rebase/{slug}/cccccccccccc {HEAD}`, rebase onto origin/main as "A '
-        'conflict" says, rerun the tests your change touches plus the ones that failed, and '
-        f"push with `git push --force-with-lease=refs/heads/{slug}:{HEAD} origin "
-        f"HEAD:refs/heads/{slug}`. Then carry on your flow: launch its reviewer on that push "
-        'if it has none, without waiting for green ("The review"), and handle the rest as '
-        '"Stay on the pull request" says.'
-    )
-
-
-def test_a_main_that_turns_green_while_t3_code_is_down_is_green_at_once_and_told_later(launched):
-    """A pass with no T3 Code still judges main: the red ends at the green tip, so `jmerge` no
-    longer holds a red pull request's merge of main (`jmerge.cli.Repo.again` reads the record as
-    `rows.main`). The message to the crew is owed, and the first pass with T3 Code sends it."""
+def test_the_replay_of_494_a_red_pull_request_is_told_nothing_when_main_is_green_again(launched):
+    """#494 was red over a red main. When main went green, mainmoved told its crew to rebase, and
+    `jmerge` asked GitHub to merge main into it as well: the crew's turn went on a rebase that
+    GitHub's merge had made needless. Now the pass only records main as green, which is what
+    `jmerge` reads before it asks for that merge (`rows.main`)."""
     red = tip(launched)
     assert rows.main(launched.checkout) == mainjson.Main(red=red)
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    launched.t3.down.add(PROJECT)
     main = move(launched)
-    launched.poll()
+    for minutes in (0, 3):
+        launched.poll(NOW + timedelta(minutes=minutes))
     assert rows.main(launched.checkout) == mainjson.Main(green=main)
-    assert sends(launched) == []
-    launched.t3.down.clear()
-    launched.poll(NOW + timedelta(minutes=3))
-    assert [one["clientRequestId"] for one in sends(launched)] == [
-        f"mainmoved|alpha|#7|{main[:12]}"
-    ]
-    assert rows.main(launched.checkout) == mainjson.Main(green=main)
-
-
-def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is_not(launched):
-    red = pull(launched, "alpha", 7, "FAILURE")
-    conflicting = pull(launched, "beta", 8, mergeable="CONFLICTING")
-    launched.set("open.json", [red, conflicting])
-    main = move(launched)
-    said = launched.poll()
-    assert sends(launched) == [
-        {
-            "threadId": "mcp:thread-1",
-            "message": message("alpha", 7, main, RED),
-            "mode": "queue",
-            "clientRequestId": f"mainmoved|alpha|#7|{main[:12]}",
-        },
-    ]
-    every = [
-        given["clientRequestId"] for tool, given in launched.t3.calls if tool == "t3_thread_send"
-    ]
-    assert every == [f"mainmoved|alpha|#7|{main[:12]}", "conflict|beta|cccccccccccc"]
-    line = f"mainmoved alpha: told the crew (#7, main {main[:12]})"
-    assert launched.lines("mainmoved") == [line] and line in said
+    told = [given["clientRequestId"] for given in sends(launched)]
+    assert not [key for key in told if key.startswith(("mainmoved|", "rebase|"))], told
+    assert launched.lines("mainmoved") == []
     sent = jbus.read_json(launched.state / "sent.json", [])
-    assert {f"mainmoved|alpha|#7|{main[:12]}", "failed|alpha|cccccccccccc"} <= set(sent)
+    assert not [key for key in sent if key.startswith(("mainmoved|", "moved|"))], sent
     assert json.loads((launched.state / "main.json").read_text()) == {
         "main": main,
         "at": NOW.isoformat(),
@@ -164,14 +109,27 @@ def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is
     }
 
 
-def test_a_red_pull_request_into_another_base_is_not_told_to_rebase_onto_main(launched):
-    into_main = pull(launched, "alpha", 7, "FAILURE")
-    into_a_merge_base = {**pull(launched, "beta", 8, "FAILURE"), "baseRefName": "t3code-jstack"}
-    launched.set("open.json", [into_main, into_a_merge_base])
+def test_a_record_left_owing_a_message_ends_the_red_at_its_fixed_tip(launched):
+    """A pass before `tell` stopped telling crews could leave `fixed`, the green tip, beside the
+    old commit while a message was owed. The next pass takes the red as ended there, though the
+    newest tip is pending and GitHub lists none of main's commits, and writes no `fixed` again."""
+    red = tip(launched)
+    fixed = move(launched)
+    owed = {**mainjson.record(main=red, at=iso(NOW), check="failed", broken=red), "fixed": fixed}
+    (launched.state / mainjson.NAME).write_text(json.dumps(owed))
+    move(launched, "")
+    launched.poll()
+    assert mainjson.read(launched.state).red == "", f"main reads red at {red[:12]}"
+    record = jbus.read_json(launched.state / mainjson.NAME, {})
+    assert ("fixed" in record, "held" in record, "broken" in record) == (False, False, False)
+
+
+def test_the_first_pass_with_no_main_json_records_the_commit(launched):
+    (launched.state / "main.json").unlink()
+    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
     main = move(launched)
     launched.poll()
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
-    assert sends(launched)[0]["message"] == message("alpha", 7, main, RED)
+    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
 
 
 def test_a_kept_red_at_a_tip_whose_push_run_passed_beside_a_failed_browser_run_clears(launched):
@@ -197,240 +155,6 @@ def test_a_kept_red_at_a_tip_whose_push_run_passed_beside_a_failed_browser_run_c
     assert mainjson.read(launched.state).red == ""
 
 
-def test_the_same_main_commit_tells_nobody_again_and_a_new_one_tells_once_more(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    first = move(launched)
-    for minutes in (0, 3, 6):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
-    move(launched, "failure")
-    launched.poll(NOW + timedelta(minutes=8))
-    second = move(launched)
-    for minutes in (9, 12):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [
-        f"mainmoved|alpha|#7|{first[:12]}",
-        f"mainmoved|alpha|#7|{second[:12]}",
-    ]
-    assert launched.lines("mainmoved") == [
-        f"mainmoved alpha: told the crew (#7, main {first[:12]})",
-        f"mainmoved alpha: told the crew (#7, main {second[:12]})",
-    ]
-
-
-def test_a_green_pull_request_is_told_nothing_up_to_date_or_behind_main(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7), pull(launched, "beta", 8)])
-    for minutes in (0, 3):
-        main = move(launched, "failure" if minutes else "success")
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert sends(launched) == [] and launched.lines("mainmoved") == [] and gates(launched) == []
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
-
-
-def test_a_pending_pull_request_is_told_nothing(launched):
-    launched.set("open.json", [pending(launched, "alpha", 7)])
-    move(launched)
-    launched.poll()
-    assert sends(launched) == [] and launched.lines("mainmoved") == []
-
-
-def test_the_first_pass_with_no_main_json_records_the_commit_and_tells_nobody(launched):
-    (launched.state / "main.json").unlink()
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    launched.poll()
-    assert sends(launched) == [] and launched.lines("mainmoved") == []
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
-
-
-def test_a_red_pull_request_with_no_launch_record_is_told_nothing(kitchen):
-    kitchen.brief("alpha", "Thread: mcp:crew\n")
-    kitchen.poll(NOW - timedelta(minutes=30))
-    kitchen.set("open.json", [pull(kitchen, "alpha", 7, "FAILURE")])
-    move(kitchen)
-    kitchen.poll()
-    assert sends(kitchen) == [] and kitchen.lines("mainmoved") == [] and gates(kitchen) == []
-
-
-def test_a_red_pull_request_with_no_thread_line_is_a_gate_once_per_main_commit(launched):
-    (launched.home / "tasks/alpha.md").unlink()
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    move(launched)
-    for minutes in (0, 3):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    gate = "condition alpha: red pull request with no thread to tell"
-    assert sends(launched) == []
-    assert [line for line in mine(gates(launched)) if "thread to tell" in line] == [gate]
-    move(launched, "failure")
-    launched.poll(NOW + timedelta(minutes=4))
-    move(launched)
-    launched.poll(NOW + timedelta(minutes=6))
-    assert [line for line in mine(gates(launched)) if "thread to tell" in line] == [gate, gate]
-
-
-def test_a_message_t3_code_refuses_is_a_gate_once_per_main_commit(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    move(launched)
-    launched.t3.refuse_send = True
-    for minutes in (0, 3):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert mine(gates(launched)) == ["condition alpha: T3 Code refused the main-moved message"]
-    assert len(sends(launched)) == 1 and launched.lines("mainmoved") == []
-
-
-def test_a_message_with_no_answer_waits_and_the_next_pass_sends_it_with_the_same_key(launched):
-    red = pull(launched, "alpha", 7, "FAILURE")
-    launched.set("open.json", [red, pull(launched, "beta", 8, "FAILURE")])
-    before = tip(launched)
-    main = move(launched)
-    launched.t3.lose_send = True
-    said = launched.poll()
-    waits = [line for line in said if "could not be told that main moved" in line]
-    assert [line.split(":")[0] for line in waits] == ["wait alpha", "wait beta"]
-    assert launched.lines("mainmoved") == [] and mine(gates(launched)) == []
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == before
-    launched.t3.lose_send = False
-    launched.poll(NOW + timedelta(minutes=3))
-    launched.poll(NOW + timedelta(minutes=6))
-    alpha, beta = f"mainmoved|alpha|#7|{main[:12]}", f"mainmoved|beta|#8|{main[:12]}"
-    assert keys(launched) == [alpha, beta, alpha, beta]
-    assert sorted(launched.t3.messages) == [alpha, beta]
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
-
-
-def test_a_pull_request_github_has_not_judged_yet_holds_up_no_main_commit(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, mergeable="UNKNOWN")])
-    main = move(launched)
-    launched.poll()
-    assert sends(launched) == []
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
-
-
-def test_a_head_the_rebase_message_went_to_is_not_told_again(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, mergeable="CONFLICTING")])
-    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
-    move(launched)
-    launched.poll()
-    every = [
-        given["clientRequestId"] for tool, given in launched.t3.calls if tool == "t3_thread_send"
-    ]
-    assert every == ["rebase|alpha|cccccccccccc"]
-    assert launched.lines("mainmoved") == []
-
-
-def test_a_red_head_the_rebase_message_went_to_earlier_is_still_told(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    launched.box = jbus.wake.Box(launched.state, jbus.load().projects[0])
-    launched.box.mark("rebase|alpha|cccccccccccc")
-    main = move(launched)
-    launched.poll()
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
-
-
-def test_a_crew_told_main_moved_still_has_its_one_rebase(launched):
-    """The main-moved message is no rebase, so a later stale head is told to rebase, with no
-    condition. A head stale again after that real rebase is the condition, as before."""
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    launched.poll()
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
-    assert "moved|alpha|cccccccccccc" in jbus.read_json(launched.state / "sent.json", [])
-
-    def stale(head, minutes):
-        for thread in launched.t3.threads:
-            thread["status"] = "completed"
-        launched.set("open.json", [{**pull(launched, "alpha", 7), "headRefOid": head}])
-        launched.set("jmerge.txt", f"wait 7 https://example.test/pull/7: {CHANGED}\n")
-        launched.poll(NOW + timedelta(minutes=minutes))
-
-    stale("d" * 40, 3)
-    every = [
-        given["clientRequestId"] for tool, given in launched.t3.calls if tool == "t3_thread_send"
-    ]
-    assert "rebase|alpha|dddddddddddd" in every
-    assert gates(launched) == []
-    stale("e" * 40, 6)
-    every = [
-        given["clientRequestId"] for tool, given in launched.t3.calls if tool == "t3_thread_send"
-    ]
-    assert "rebase|alpha|eeeeeeeeeeee" not in every
-    assert mine(gates(launched)) == ["condition alpha: stale again after its one rebase"]
-
-
-def test_a_refused_message_is_not_sent_again_while_another_is_owed(launched):
-    red, unjudged = pull(launched, "alpha", 7, "FAILURE"), pull(launched, "beta", 8)
-    launched.set("open.json", [red, {**unjudged, "mergeable": "UNKNOWN"}])
-    main = move(launched)
-    launched.t3.refuse_send = True
-    for minutes in (0, 3):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
-    assert mine(gates(launched)) == ["condition alpha: T3 Code refused the main-moved message"]
-
-
-def test_a_red_pull_request_is_told_each_time_main_is_fixed_under_one_head(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    fixes = []
-    for minutes in (0, 6, 12):
-        move(launched, "failure")
-        launched.poll(NOW + timedelta(minutes=minutes))
-        fixes.append(move(launched))
-        launched.poll(NOW + timedelta(minutes=minutes + 3))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}" for main in fixes]
-
-
-@pytest.mark.parametrize("launched", ["success"], indirect=True)
-def test_main_going_green_to_green_tells_a_red_pull_request_nothing(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    for minutes in (0, 3):
-        main = move(launched)
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert sends(launched) == [] and launched.lines("mainmoved") == []
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
-
-
-def test_main_going_red_to_green_tells_a_red_pull_request_once(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    for minutes in (0, 3):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
-
-
-def test_main_going_red_to_red_tells_nobody_and_the_green_after_it_tells_once(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    move(launched, "failure")
-    launched.poll()
-    assert sends(launched) == []
-    fixed = move(launched)
-    launched.poll(NOW + timedelta(minutes=3))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"]
-
-
-def test_a_main_whose_check_has_not_ended_tells_nobody_until_it_is_green(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched, "")
-    for minutes in (0, 3):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert sends(launched) == []
-    checks(launched, main, "success")
-    for minutes in (6, 9):
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{main[:12]}"]
-
-
-def test_a_main_whose_check_failed_after_it_landed_is_red_and_the_next_green_tells(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    first = move(launched, "")
-    launched.poll()
-    checks(launched, first, "failure")
-    launched.poll(NOW + timedelta(minutes=3))
-    assert sends(launched) == []
-    fixed = move(launched)
-    launched.poll(NOW + timedelta(minutes=6))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"]
-
-
 def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commit(launched):
     """A flake: main's check fails at its tip, and a rerun of that check passes while the tip
     stays where it is. jbus filed a fix row for the flake, and the row is not approved. jbus
@@ -447,7 +171,7 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
     assert mainjson.read(launched.state) == mainjson.Main(green=red)
     record = jbus.read_json(launched.state / "main.json", {})
     assert (record["check"], record["green"], "broken" in record) == ("green", red, False)
-    assert keys(launched) == [f"mainmoved|alpha|#7|{red[:12]}"]
+    assert not [one for one in sends(launched) if one["clientRequestId"].startswith("mainmoved|")]
     row = f"main-red-{red[:12]}"
     green = f"retro {row}: main is green again at {red[:12]}, and its row is left as it is"
     assert [line for line in launched.lines("retro") if "green again" in line] == [green]
@@ -477,49 +201,6 @@ def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(laun
     )
 
 
-def test_a_red_head_that_is_also_in_conflict_is_told_once_however_often_main_moves(launched):
-    both = pull(launched, "alpha", 7, "FAILURE", mergeable="CONFLICTING")
-    launched.set("open.json", [both])
-    first = move(launched)
-    launched.poll()
-    for minutes in (3, 6):
-        move(launched)
-        launched.poll(NOW + timedelta(minutes=minutes))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
-    assert sends(launched)[0]["message"] == message("alpha", 7, first, RED)
-
-
-def test_a_red_head_told_in_conflict_waits_while_github_has_not_judged_it_again(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE", mergeable="CONFLICTING")])
-    first = move(launched)
-    launched.poll()
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE", mergeable="UNKNOWN")])
-    red = move(launched, "failure")
-    launched.poll(NOW + timedelta(minutes=2))
-    main = move(launched)
-    launched.poll(NOW + timedelta(minutes=3))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == red
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE", mergeable="CONFLICTING")])
-    launched.poll(NOW + timedelta(minutes=6))
-    assert keys(launched) == [f"mainmoved|alpha|#7|{first[:12]}"]
-    assert jbus.read_json(launched.state / "main.json", {})["main"] == main
-
-
-def test_a_green_tip_whose_message_was_lost_ends_the_red_though_the_next_tip_is_pending(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    red = tip(launched)
-    fixed = move(launched)
-    launched.t3.lose_send = True
-    launched.poll()
-    assert mainjson.read(launched.state) == mainjson.Main(green=fixed)
-    launched.t3.lose_send = False
-    move(launched, "")
-    launched.poll(NOW + timedelta(minutes=3))
-    assert mainjson.read(launched.state).red == "", f"main reads red at {red[:12]}"
-    assert keys(launched) == [f"mainmoved|alpha|#7|{fixed[:12]}"] * 2
-
-
 @pytest.mark.parametrize("launched", ["success"], indirect=True)
 def test_a_tip_that_failed_under_one_no_pass_saw_is_red_while_the_newest_is_pending(launched):
     first = tip(launched)
@@ -532,55 +213,11 @@ def test_a_tip_that_failed_under_one_no_pass_saw_is_red_while_the_newest_is_pend
     assert mainjson.read(launched.state).red == red
 
 
-def test_a_message_told_writes_its_key_and_the_two_it_stands_for(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    launched.poll()
-    sent = jbus.read_json(launched.state / "sent.json", [])
-    assert {
-        f"mainmoved|alpha|#7|{main[:12]}",
-        "moved|alpha|cccccccccccc",
-        "failed|alpha|cccccccccccc",
-    } <= set(sent)
-    assert "rebase|alpha|cccccccccccc" not in sent
-
-
-def test_a_refused_message_writes_its_key_and_failed_and_not_moved(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    launched.t3.refuse_send = True
-    launched.poll()
-    sent = jbus.read_json(launched.state / "sent.json", [])
-    assert {f"mainmoved|alpha|#7|{main[:12]}", "failed|alpha|cccccccccccc"} <= set(sent)
-    assert "moved|alpha|cccccccccccc" not in sent
-
-
-def test_a_lost_message_writes_no_key_and_says_why_it_waits(launched):
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    launched.t3.lose_send = True
-    said = launched.poll()
-    sent = jbus.read_json(launched.state / "sent.json", [])
-    assert f"mainmoved|alpha|#7|{main[:12]}" not in sent
-    assert "moved|alpha|cccccccccccc" not in sent and "failed|alpha|cccccccccccc" not in sent
-    assert any(
-        line.startswith("wait alpha: its crew could not be told that main moved") for line in said
-    )
-
-
-def test_the_rebase_message_writes_its_key_and_the_main_moved_key_of_the_tip(launched):
+def test_the_rebase_message_writes_its_key_and_no_main_moved_key(launched):
     launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
     launched.set("open.json", [pull(launched, "alpha", 7, mergeable="CONFLICTING")])
     launched.poll()
     sent = jbus.read_json(launched.state / "sent.json", [])
-    assert {"rebase|alpha|cccccccccccc", f"mainmoved|alpha|#7|{tip(launched)[:12]}"} <= set(sent)
+    assert "rebase|alpha|cccccccccccc" in sent
+    assert [key for key in sent if key.startswith(("mainmoved|", "moved|"))] == []
     assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
-
-
-def test_the_main_moved_message_goes_out_inside_once(launched, monkeypatch):
-    spied = sends_in_once(monkeypatch)
-    launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
-    main = move(launched)
-    launched.poll()
-    assert (f"mainmoved|alpha|#7|{main[:12]}", True) in spied
-    assert all(inside for _, inside in spied)

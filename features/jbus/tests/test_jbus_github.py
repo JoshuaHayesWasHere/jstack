@@ -301,15 +301,15 @@ def test_a_green_pull_request_reviewed_and_fixed_is_told_nothing(launched):
     passes(launched, 0, 3, 6)
     assert sends(launched) == []
     sent = jbus.read_json(launched.state / "sent.json", [])
-    told = ("failed|", "conflict|", "rebase|", "mainmoved|")
+    told = ("failed|", "conflict|", "rebase|")
     assert [key for key in sent if key.startswith(told)] == []
 
 
 GREEN = (
-    "jbus: every check of your pull request #7 passed at cccccccccccc, and the home is owed a "
-    'line on green. In your own worktree, run the block of "The checks", then do what "The '
-    'review" says of a green pull request: the message of the `Reviewer: none` line, or the '
-    "`fixed and green` line. "
+    "jbus: every check of your pull request #7 passed at cccccccccccc, and its review is owed a "
+    'launch on green. In your own worktree, run the block of "The checks", then do what "The '
+    'review" says of a passed check: launch the reviewer, or write the `Reviewer: none` line and '
+    "its message. "
     "End your turn only once no check or proof you started runs in your "
     "worktree: wait for one that runs, in this turn."
 )
@@ -341,6 +341,36 @@ def test_a_green_pull_request_whose_brief_asks_for_no_review_is_told_once_for_a_
     assert [(given["clientRequestId"], given["message"]) for given in sends(launched)] == [
         ("green|alpha|cccccccccccc", GREEN)
     ]
+
+
+@pytest.mark.parametrize("mode", ["review", "cleanup", "twice"])
+def test_a_pull_request_with_no_reviewer_yet_is_told_to_launch_it_once_its_check_passed(
+    launched, mode
+):
+    """The reviewer launches only once `check` has passed. A crew whose check still ran when it
+    opened the pull request launched nobody, so jbus tells it on green, once for a head, and
+    tells it nothing while the check runs or once a reviewer is out."""
+    brief = launched.home / "tasks" / "alpha.md"
+    brief.write_text(brief.read_text().replace("Review: review\n", f"Review: {mode}\n"))
+    result(launched, "Branch: alpha   Pull request: https://example.test/pull/7\n")
+    launched.set("jmerge.txt", "")
+    running = [{"status": "IN_PROGRESS", "conclusion": ""}]
+    launched.set("open.json", [pull(launched, running)])
+    passes(launched, 0, 3)
+    assert sends(launched) == []
+    launched.set("open.json", [pull(launched)])
+    passes(launched, 6, 9)
+    assert [(given["clientRequestId"], given["message"]) for given in sends(launched)] == [
+        ("green|alpha|cccccccccccc", GREEN)
+    ]
+
+
+def test_a_pull_request_whose_reviewer_is_out_is_told_nothing_on_green(launched):
+    result(launched, "Reviewer: mcp:reviewer #1\n")
+    launched.set("jmerge.txt", "")
+    launched.set("open.json", [pull(launched)])
+    passes(launched, 0, 3)
+    assert sends(launched) == []
 
 
 def test_a_drafts_green_check_is_told_as_any_pull_requests(launched):
@@ -505,12 +535,29 @@ def test_a_rerun_github_refuses_is_told_to_the_home_once_and_not_tried_again(lau
     ran(launched)
     launched.set("open.json", [pull(launched, [cancelled()])])
     passes(launched, 0, 3, 6)
-    said = (
-        "alpha: #7: its check was cancelled at 30 min, and GitHub did not run it again: "
-        "run cannot be rerun"
-    )
+    why = "#7: its check was cancelled, and GitHub did not run it again (it ran 30 min)"
     assert reruns(launched) == ["run rerun 5 --failed"]
-    assert stalls_told(launched) == [said]
+    assert stalls_told(launched) == [f"alpha: {why}: run cannot be rerun"]
+    assert rows(launched)["alpha"]["why"] == why
+
+
+def test_a_refused_rerun_told_before_its_reason_had_a_name_is_said_with_it_at_the_next_pass(
+    launched,
+):
+    """A row told before the reason had its name kept the line of then, the minutes in its middle
+    and GitHub's refusal after it, which no rule places. The next pass says it as it is said now."""
+    (launched.home / "home-id").write_text("mcp:home\n")
+    launched.set("gh-no-rerun", "")
+    ran(launched)
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0)
+    old = "#7: its check was cancelled at 30 min, and GitHub did not run it again: HTTP 403"
+    path = launched.state / "cancelled.json"
+    path.write_text(json.dumps({"alpha": {"head": HEAD, "why": old}}))
+    passes(launched, 3)
+    why = "#7: its check was cancelled, and GitHub did not run it again (it ran 30 min)"
+    assert rows(launched)["alpha"]["why"] == why
+    assert reruns(launched) == ["run rerun 5 --failed"]
 
 
 def sharded(*parts):
@@ -650,3 +697,25 @@ def test_once_sends_nothing_under_a_key_already_written(launched):
     key = "rebase|alpha|cccccccccccc"
     went = rebase.once(run, None, ask, key, "mcp:t", "alpha", "text", at="c")
     assert went == rebase.ALREADY
+
+
+def test_a_jobs_log_is_read_from_github_once_a_pass_by_rebase_cancelled_and_wakes(launched):
+    """`rebase` digests a red job's log for its failure, `cancelled` reads it for the cause of a
+    stop, and `wakes` for its tests: in one pass, with its world, GitHub is asked once
+    (`watch.World.logs`), and a pass of its own asks again."""
+    from jbus import cancelled as stops
+    from jbus import wakes, watch
+
+    launched.set("logs.json", {"11": "FAILED tests/test_a.py::test_a\n" + TIMEOUT + "\n"})
+    config = jbus.load()
+    reads = []
+    for _ in range(2):
+        run = Pass(config, config.projects[0], NOW)
+        run.world = watch.World()
+        before = len(launched.log("gh"))
+        red = rebase.Red("check", 1, ("check",), (("o/r", "11"),))
+        assert rebase.failure(run, red) == rebase.failure(run, red)
+        assert stops._cause(run, "o/r", "11", cancelled()) == "its timeout of 30 min"
+        assert wakes._log_failed(run, 11).tests == ("tests/test_a.py::test_a",)
+        reads.append([line for line in launched.log("gh")[before:] if "/jobs/11/logs" in line])
+    assert [len(one) for one in reads] == [1, 1]

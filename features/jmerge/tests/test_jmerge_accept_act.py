@@ -164,8 +164,8 @@ def test_the_check_of_an_accept_is_no_act(kitchen):
 def merged_main(kitchen, slug, number, own=None):
     """Main moves after the check, and GitHub merges it into the branch, as jmerge asks it to
     (`base-moved-asked`), with no new review. `own` is a change the merge commit makes to the
-    branch's own files besides. The check passes at the merged head, and `jmerge` holds it
-    there."""
+    branch's own files besides, which its crew's check block checks at the merged head. The
+    check passes at the merged head, and `jmerge` holds it there."""
     kitchen.on_main({"b.txt": "main moved\n"})
     tree = kitchen.tmp / "trees" / slug
     git(tree, "fetch", "-q", "origin")
@@ -175,6 +175,9 @@ def merged_main(kitchen, slug, number, own=None):
     git(tree, "commit", "-q", "-m", "Merge branch 'main'")
     git(tree, "push", "-q", "origin", slug)
     head = git(tree, "rev-parse", "HEAD")
+    if own:
+        with (kitchen.home.tasks / f"{slug}.md").open("a") as brief:
+            brief.write(merge.desk_checked(head))
     kitchen.pulls[slug] |= {"headRefOid": head, "statusCheckRollup": merge.rollup([AFTER])}
     (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
     (said,) = kitchen.run()
@@ -186,7 +189,7 @@ def check(kitchen, number):
     return jmerge(kitchen, "--accept", str(number), "--check")
 
 
-@pytest.mark.parametrize("mode", ["review", "twice"])
+@pytest.mark.parametrize("mode", ["review", "cleanup"])
 def test_a_proof_carries_over_a_merge_of_main_that_left_the_patch_as_it_was(kitchen, mode):
     proven = held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, mode=mode)
     head = merged_main(kitchen, "beta", 7)
@@ -198,7 +201,7 @@ def test_a_proof_carries_over_a_merge_of_main_that_left_the_patch_as_it_was(kitc
 
 
 def test_a_merge_of_main_that_changed_the_patch_leaves_no_proven_fact(kitchen):
-    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, mode="twice")
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, mode="cleanup")
     head = merged_main(kitchen, "beta", 7, own={"a.txt": "ours, and more\n" + LINES})
     out = check(kitchen, 7)
     assert kitchen.home.code == 1, (out, kitchen.home.stderr)

@@ -57,6 +57,8 @@ def judged(half: Half) -> None:
 def derive(half: Half) -> None:
     """Rewrite the table's derived columns (`queue.derive`), and say whether the table changed."""
     run, world, states = half.run, half.seen.world, half.states
+    if world is None or states is None:
+        return
     waits = watch.waits(half.shown)
     unread = watch.unread(run, half.read)
 
@@ -77,7 +79,9 @@ def derive(half: Half) -> None:
 def unplaced(half: Half) -> None:
     """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`).
     `unplaced` uses what `jmerge` said of that pull request in this pass."""
-    run, world, states = half.run, half.seen.world, half.states
+    run, world, states, client = half.run, half.seen.world, half.states, half.client
+    if states is None or client is None:
+        return
     for row in half.table or []:
         slug = row["slug"]
         pull = (world.open if world else {}).get(slug)
@@ -86,7 +90,7 @@ def unplaced(half: Half) -> None:
         number = str(pull.get("number", ""))
         said = states.seen.said.get(number, "")
         thread = thread_of(home_of(run.home, watch.brief_of(run, slug)))
-        merge.unplaced(run, half.client, slug, number, said, thread)
+        merge.unplaced(run, client, slug, number, said, thread)
 
 
 def keep_work(half: Half) -> None:
@@ -94,6 +98,8 @@ def keep_work(half: Half) -> None:
     belongs to no row, and says who holds each one (`work.holder`). When the pass has no list of the
     threads out, the file keeps the threads of the last pass, which this pass has not confirmed."""
     run, rows, states = half.run, half.table or [], half.states
+    if states is None:
+        return
     held = leftover.read(run.state)
     listed = []
     for row in rows:

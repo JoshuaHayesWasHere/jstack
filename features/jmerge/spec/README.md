@@ -11,14 +11,17 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
   Since fl-flowtoday-1102 it follows the scout fl-statechart-1102's `FlowNow.tla` of main a978b7ba9 in six places.
   jbus reruns main's failed push run once before it judges the red tip (#672), and a red from outside may be a flake that the rerun passes.
   jbus then reverts the red tip's one clear culprit (`jbus.reverts`, #862), and jmerge merges the revert.
-  A tip with more than one merge since the last green, a culprit whose head lacks the green under the tip (a skew, #899), or a red from outside gets main's fix row instead, and jbus closes a revert still open once main is green without it (#899).
+  Since #992 jbus judges the oldest red tip since the last green, and reverts its one clear culprit there while no later tip of the run fails a test that did not fail at it.
+  Two reds that overlap (a later tip fails another test), a culprit whose head lacks the green under the tip (a skew, #899), or a red from outside gets main's fix row instead, a commit whose check has not ended is judged again on the next pass until the tip is an hour old, and jbus closes a revert still open once main is green without it (#899).
   jbus's pass approves both fix rows it files, main's and the browser run's, by rule and not by your word (#547).
   A stacked link is checked while it sits on its base's open branch, and its move onto main may keep that pass (`jmerge.reuse`, #868).
   Since fl-stack-by-depends-only it has no unstack: a stacked link stays on its stack until its base merged.
   A pull request whose last review round says the brief is not met is held (`MEETS_NO`, #843), and jbus tells its crew, which meets it (#850).
   Since #575 and #577 it has each pull request's browser run, which holds it when it failed, and main's browser red.
   Since cut 11 of the simplify pass it has a row's go, which jbus asks at launch and jmerge at merge (`rows.py` `ROW_HELD`, `NO_GO`), and a hold for your word, as a change that touches a protected path has (`ready.py` `TOUCHES`).
-  Since fl-no-draft a crew opens its pull request ready, so its check runs beside its review, and jmerge marks no draft ready: the model has no draft, no `Ready` step and no lift that `jmerge --accept` keeps, and its `Accept` merges a held pull request whose check passed, as `Repo.accept` does.
+  Since fl-no-draft a crew opens its pull request ready, and jmerge marks no draft ready: the model has no draft, no `Ready` step and no lift that `jmerge --accept` keeps, and its `Accept` merges a held pull request whose check passed, as `Repo.accept` does.
+  Since review-after-green-one-round its one reviewer launches only once its check has passed, and one round gives a fix no review: `Merges` cites the launch-on-passed lines on its `ci[p] = "pass"` condition.
+  The round is no variable, since no rule reads it: a history bit for it took today's model from 7.9M to 12.9M states, and a step of its own to 21.0M.
 - `FlowDesign.tla` models the design: cross-cutting-guard (`Check`), rejudge-red-prs (`Rejudge`) and crew-leftover-procs (`Sweep`), with today's fix path.
 - `canary/` holds the design with each fix taken out: `NoGuard`, `NoRejudge` and `NoSweep`.
   `NoProof`, the red hold as it was before #583, went with the hold.

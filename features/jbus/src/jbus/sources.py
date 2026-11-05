@@ -21,6 +21,8 @@ import ast
 import pkgutil
 import re
 from collections.abc import Iterable, Iterator
+from importlib.abc import InspectLoader, PathEntryFinder
+from typing import cast
 
 _END = re.compile(r"^[^\s)\]}]", re.M)
 
@@ -29,10 +31,15 @@ def modules(paths: Iterable[str], prefix: str, deep: bool = False) -> Iterator[t
     """Return every module under `paths`, each as its name and its source, and with `deep` the
     modules of its subfolders too."""
     for module in pkgutil.iter_modules(paths, prefix):
-        spec = module.module_finder.find_spec(module.name)
-        yield module.name, spec.loader.get_source(module.name)
+        finder = cast(PathEntryFinder, module.module_finder)
+        spec = finder.find_spec(module.name)
+        loader = spec.loader if spec is not None else None
+        source = loader.get_source(module.name) if isinstance(loader, InspectLoader) else None
+        if spec is None or source is None:
+            continue
+        yield module.name, source
         if deep and module.ispkg:
-            yield from modules(spec.submodule_search_locations, f"{module.name}.", deep)
+            yield from modules(spec.submodule_search_locations or [], f"{module.name}.", deep)
 
 
 def statement(source: str, name: str) -> ast.stmt | None:

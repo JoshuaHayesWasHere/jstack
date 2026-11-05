@@ -1,11 +1,13 @@
-"""Write the week's report of the nine targets, `reports/ci-week-<date>.md` in a project's
-home, and send the one alert for a missed target.
+"""Write the week's report of the nine targets and the six health numbers,
+`reports/ci-week-<date>.md` in a project's home, and send the one alert for a missed target.
 
 The report gives every number with how it counts (`Number.how`), the period, and what the
 counts are based on: the runners each number covers, the jobs of each kind of runner, and
-how many jobs were cancelled while they waited. jbus sends no alert for a week with every
-target met, or with no data. For a week that missed a target it raises one alert of the
-project's, which names each missed target.
+how many jobs were cancelled while they waited. The health numbers are also given for each day of
+the user's zone (`numbers.day_windows`). A health number is a baseline: it has no target to miss,
+and it reads `baseline`. jbus sends no alert for a week with every target met, or with no data.
+For a week that missed a target it raises one alert of the project's, which names each missed
+target.
 """
 
 from __future__ import annotations
@@ -24,8 +26,16 @@ def missed(nine: list[numbers.Number]) -> list[numbers.Number]:
     return [one for one in nine if one.met is False]
 
 
+def verdict(one: numbers.Number) -> str:
+    """How a number stands against its target: `missed`, `met`, `baseline` (a value with no target
+    held to it) or `no data`."""
+    if one.met is not None:
+        return "met" if one.met else "missed"
+    return "no data" if one.value is None else "baseline"
+
+
 def _counts(jobs: list[dict[str, Any]], start: datetime, end: datetime) -> list[str]:
-    inside = [j for j in jobs if start <= numbers.time(j["created"]) < end]
+    inside = [j for j in jobs if start <= jsettings.when(j["created"]) < end]
     lines = []
     for kind in ("local", "hosted"):
         ours = [j for j in inside if j["kind"] == kind]
@@ -47,9 +57,13 @@ def body(
 ) -> str:
     days = numbers.day_windows(end, max(1, round((end - start) / timedelta(days=1))), zone)
     red = [f"- {day}: {numbers.mainred(facts, a, b).shown}" for day, a, b in days]
+    health = [
+        f"| {day} | " + " | ".join(count(facts, a, b).shown for count in numbers.HEALTH) + " |"
+        for day, a, b in days
+    ]
+    names = [numbers.TARGETS[count.__name__][0] for count in numbers.HEALTH]
     rows = [
-        f"| {one.name} | {one.shown} | {one.runners or '-'} | {one.target} | "
-        f"{'missed' if one.met is False else 'met' if one.met else 'no data'} |"
+        f"| {one.name} | {one.shown} | {one.runners or '-'} | {one.target} | {verdict(one)} |"
         for one in nine
     ]
     how = [f"- **{one.name}** (n = {one.n}): {one.how}" for one in nine]
@@ -77,6 +91,14 @@ def body(
             "## Main red, by day",
             "",
             *red,
+            "",
+            "## Health, by day",
+            "",
+            f"Days of {zone}.",
+            "",
+            "| day | " + " | ".join(names) + " |",
+            "| --- |" + " --- |" * len(names),
+            *health,
             "",
             "## Wrong closes of gates (S8), by labelled week",
             "",

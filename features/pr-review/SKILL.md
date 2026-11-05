@@ -29,7 +29,7 @@ When this thread launches a reviewer, for `/pr-review` in a home or a crewmate's
 This thread is a **reviewer**. It reads the diff, judges what it found, proves one fact, reports, and ends. It starts no subagent and no other thread: the review is this one thread. It never edits a file, commits, pushes, or changes the pull request, and it never reads the crewmate's thread.
 
 A reviewer runs no test step and no suite, whatever the brief says.
-The tests are CI's `check`, which runs beside the review and has passed before `jmerge` merges, and the crewmate's own runs (the crew skill, "Do the task").
+The tests are CI's `check`, which has passed at the head before a reviewer is launched, and the crewmate's own runs (the crew skill, "Do the task").
 The one thing a reviewer runs is a targeted proof of the fact the change is safe because of ("The review", step 5).
 New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
 
@@ -157,10 +157,11 @@ uv run --project "$T/../source" jmerge --scope <slug>
 ```
 
 It compares the diff with the brief's `Where:`: it asks `jmerge` which changed files that line does not cover, with the one parser of that line (`jbriefs.parse.where`), and prints nothing when all are inside.
-Each file it prints as `outside: <path>` is a finding, a warning with no line: the pull request is wider than its brief.
-If the reading already raised the same file, keep one.
+What it prints goes on the section's `Outside Where:` line, each `outside: <path>` as its path, joined with `, `, or `none` when it printed nothing.
+That line is no finding: it carries no severity, asks the crewmate for no line, and holds no merge, since the command, not the reader, is the check, and anyone can run it again.
+So no finding restates it, and a finding of the reading that says only that a file is outside `Where` is dismissed (the lead judgment of "The review").
 Do not judge the width by reading the diff: the command's answer is the answer.
-A command that exits with something other than 0 (the brief's `Where:` names no path, or neither the branch nor the pull request can be read) printed why on stderr: say so in the section, not that the pull request is no wider.
+A command that exits with something other than 0 (the brief's `Where:` names no path, or neither the branch nor the pull request can be read) printed why on stderr: the line is then `Outside Where: not checked, <why>`, not `none`.
 
 A finding can be wider than the brief in a second way: it is about a changed line, and what it asks for is not in the brief's `Where`.
 That happens with the fifth question's things to look for (a restructuring, a file to split, a branch to move into a module of its own, a wrapper to remove, logic to move to its canonical layer), when the remedy would change a file outside `Where`.

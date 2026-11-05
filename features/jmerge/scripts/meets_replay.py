@@ -110,10 +110,8 @@ def number_of(url: str) -> str:
 
 
 def task_files(homes: Path) -> list[tuple[str, Path]]:
-    found = []
-    for path in sorted(homes.glob("*/tasks/*.md")) + sorted(homes.glob("*/*/tasks/*.md")):
-        found.append((path.relative_to(homes).parts[0], path))
-    return found
+    paths = sorted(homes.glob("*/tasks/*.md")) + sorted(homes.glob("*/*/tasks/*.md"))
+    return [(path.relative_to(homes).parts[0], path) for path in paths]
 
 
 def rows_of(homes: Path, home: str, data: Path) -> list[Row]:

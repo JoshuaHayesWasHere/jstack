@@ -51,6 +51,8 @@ ENTRY_POINTS = "".join(
 )
 """The entry_points.txt that uv writes when it installs this checkout."""
 UNITS = [
+    "jbus-ci-day.service",
+    "jbus-ci-day.timer",
     "jbus-ci.service",
     "jbus-ci.timer",
     "jbus-failed.service",
@@ -79,7 +81,7 @@ TIMERS = [
     "jgauge-sample.timer",
     "jroles-mirror.timer",
 ]
-OPTED = ["jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
+OPTED = ["jbus-ci-day.timer", "jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
 """The units only some machines run: each is enabled once the config that asks for it is
 there, and every other timer is enabled on every machine."""
 RELAY_KEYS = (
@@ -139,7 +141,9 @@ def laid(home, harness="claude-code"):
 def group(script, home, matcher="startup", refuses=False, harness="claude-code"):
     run = f"sh '{laid(home, harness) / 'hooks' / script}'"
     command = run if refuses else f"{run} 2>/dev/null || true"
-    hooks = [{"type": "command", "command": command, "timeout": 30 if refuses else 5}]
+    hook = {"type": "command", "command": command, "timeout": 30 if refuses else 5}
+    blocks = {"onFailure": "block"} if refuses and harness == "claude-code" else {}
+    hooks = [hook | blocks]
     return ({"matcher": matcher} if matcher else {}) | {"hooks": hooks}
 
 
@@ -239,11 +243,20 @@ class User:
         self.SENDS = group(
             "agent-sends.sh", self.home, matcher="mcp__t3[-_]code__t3_thread_send", refuses=True
         )
-        self.INFRA = group(
-            "infra-files.sh",
+        infra = "Bash|apply_patch|Write|Edit|MultiEdit|NotebookEdit"
+        self.INFRA = group("infra-files.sh", self.home, matcher=infra, refuses=True)
+        self.CODEX_OUTBOUND = group(
+            "outbound-command.sh", self.home, matcher="Bash", refuses=True, harness="codex"
+        )
+        self.CODEX_SENDS = group(
+            "agent-sends.sh",
             self.home,
-            matcher="Bash|Write|Edit|MultiEdit|NotebookEdit",
+            matcher="mcp__t3[-_]code__t3_thread_send",
             refuses=True,
+            harness="codex",
+        )
+        self.CODEX_INFRA = group(
+            "infra-files.sh", self.home, matcher=infra, refuses=True, harness="codex"
         )
         self.CODEX_TRAILER = group(
             "ai-trailer.sh", self.home, matcher="Bash", refuses=True, harness="codex"
@@ -551,7 +564,13 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
         "hooks": {
             "SessionStart": [other, user.CODEX_START],
             "Stop": stop,
-            "PreToolUse": [user.CODEX_TRAILER, user.CODEX_DOOR],
+            "PreToolUse": [
+                user.CODEX_SENDS,
+                user.CODEX_TRAILER,
+                user.CODEX_DOOR,
+                user.CODEX_INFRA,
+                user.CODEX_OUTBOUND,
+            ],
         }
     }
     before = user.codex.read_text()
@@ -572,7 +591,13 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     assert json.loads(user.codex.read_text()) == {
         "hooks": {
             "SessionStart": [{"matcher": "startup", "hooks": [beside]}, user.CODEX_START],
-            "PreToolUse": [user.CODEX_TRAILER, user.CODEX_DOOR],
+            "PreToolUse": [
+                user.CODEX_SENDS,
+                user.CODEX_TRAILER,
+                user.CODEX_DOOR,
+                user.CODEX_INFRA,
+                user.CODEX_OUTBOUND,
+            ],
         }
     }
 
@@ -1276,6 +1301,10 @@ def releasing(tmp_path, plugin=None):
     subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
     for name in ("Makefile", "pyproject.toml", "plugin.json"):
         shutil.copy(REPO / name, work / name)
+    lookup = Path("features", "jmerge", "src", "jmerge")
+    (work / lookup).mkdir(parents=True)
+    for name in ("__init__.py", "green.py"):
+        shutil.copy(REPO / lookup / name, work / lookup / name)
     if plugin is not None:
         made = json.loads((work / "plugin.json").read_text()) | {"version": plugin}
         (work / "plugin.json").write_text(json.dumps(made))
@@ -1296,8 +1325,30 @@ def tags(where):
     return found.stdout.split()
 
 
+GREEN_GH = """#!/bin/sh
+case $2 in
+*/actions/artifacts*)
+    echo '{"artifacts": [{"expired": false, "workflow_run":'
+    echo '{"id": 7, "repository_id": 1, "head_repository_id": 1}}]}' ;;
+*/actions/runs/7)
+    echo '{"conclusion": "success", "path": ".github/workflows/check.yml",'
+    echo '"html_url": "run 7", "repository": {"id": 1}, "head_repository": {"id": 1}}' ;;
+*) exit 1 ;;
+esac
+"""
+
+
 def release(work):
-    return subprocess.run(["make", "-s", "release"], cwd=work, capture_output=True, text=True)
+    """`make release` in `work`, with a `gh` that says a green run of the check left the
+    tree's marker, so `make release-green` lets the tag through."""
+    stub = work.parent / "gh-stub"
+    stub.mkdir(exist_ok=True)
+    (stub / "gh").write_text(GREEN_GH)
+    (stub / "gh").chmod(0o755)
+    env = os.environ | {"PATH": f"{stub}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(
+        ["make", "-s", "release"], cwd=work, capture_output=True, text=True, env=env
+    )
 
 
 def test_make_release_tags_nothing_when_plugin_json_has_another_version(tmp_path):

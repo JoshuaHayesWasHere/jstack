@@ -36,7 +36,7 @@ head. The row's `why` says `check failed twice` while it is held. The hold is li
 hold is, by an approve, and the count starts again from none.
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
-the stall minutes the telemetry store reads (`jbus.telemetry.schema`'s `weekly_stall`).
+the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
 """
 
 from __future__ import annotations
@@ -285,8 +285,10 @@ def _became(now: dict[str, Any] | None, at_run: str, call: dict[str, Any]) -> st
     if now["runs"] is None or now["run"] == at_run and at_run not in now["runs"]:
         return ""
     status = now["runs"].get(at_run)
-    if status is None or status in BECAME:
-        return BECAME.get(status, ENDED)
+    if status is None:
+        return ENDED
+    if status in BECAME:
+        return BECAME[status]
     try:
         wrote = datetime.fromisoformat(now["wrote"]) > datetime.fromisoformat(call["at"])
     except (TypeError, ValueError):
@@ -425,8 +427,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
 
 
 def _twice(half: Half) -> None:
-    if half.rows is not None:
-        twice(half.run, half.seen.world, half.rows)
+    world = half.seen.world
+    if half.rows is not None and world is not None:
+        twice(half.run, world, half.rows)
 
 
 def _open_spells(run: Pass) -> dict[str, dict[str, Any]]:
@@ -479,6 +482,10 @@ def _moment(said: object) -> datetime | None:
 def spells(run: Pass, out: list[dict[str, Any]]) -> None:
     """Keep `stalls.jsonl`, one spell for each stretch a running row's thread is `quiet` or `hung`.
 
+    The first pass that runs `spells` begins the file with `{"at", "began": true}`, when the record
+    began: a row merged from that day on with no spell had none, and one merged before it is a gap
+    (`jbus.telemetry.views.stalls_since`).
+
     A row's thread is one whose title names a slug and that is not a home's. The pass that first
     sees the thread quiet or hung adds `{"at", "thread", "role", "slug", "since"}`, where `since`
     is when the thread last wrote (`threads.out`'s `wrote`), so the spell holds the whole silence.
@@ -500,6 +507,8 @@ def spells(run: Pass, out: list[dict[str, Any]]) -> None:
     gap at once.
     """
     at = jsettings.stamp(run.now, z=True)
+    if not (run.state / SPELLS).exists():
+        _keep(run, {"at": at, "began": True}, SPELLS)
     last = _last_pass(run)
     gap = last if last is not None and run.now - last > GAP else None
 

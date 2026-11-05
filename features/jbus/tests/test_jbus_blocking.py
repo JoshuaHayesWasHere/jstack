@@ -53,6 +53,7 @@ class Second(Server):
         self.posts.append(taken.get("events"))
         self.said.append(taken["say"])
         self.reply(handler, {})
+        return None
 
 
 @pytest.fixture

@@ -194,7 +194,7 @@ def _filled(template):
     """Return a reason with each value it names filled in. A value is a word with no space or
     comma, like a user, a head or a path."""
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
-    return template.format(**{name: "x1" for name in fields})
+    return template.format(**dict.fromkeys(fields, "x1"))
 
 
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
@@ -321,7 +321,7 @@ def test_every_reason_ready_returns_is_one_of_its_constants():
         ("wait: it has no review yet", "review"),
         ("wait: its findings are not handled: the Result has no Fixed line", "findings"),
         (
-            "wait: its fix changed more than the findings named: the second pass is not written",
+            "wait: its fix is not reviewed: the scoped review of it is not written",
             "second",
         ),
         ("wait: check has not passed", "check"),

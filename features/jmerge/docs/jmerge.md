@@ -62,6 +62,7 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 | `wait <number> <url>: <reason>` | Not merged. The reason is the first thing the pull request is short of. A later run merges it once the reason is gone. |
 | `hold <number> <url>: <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. Every reason jbus shows as Needs you is a `hold`, but three your other words lift: `jbus queue approve` the queue's two, and `/nohome merge on` the merge that is off (`jmerge.judgement`). |
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
+| `listed: GitHub gave 100 open pull requests, the most jmerge asks for, ...` | `jmerge` asks `gh pr list` for at most 100 open pull requests, the cap jbus's own lists use, and this many came back, so there may be more. It judges the 100 it was given, and keeps the holds, base merges and wait records of every pull request, since one past the 100 is still open. |
 | `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
 In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has failed [check-failed]`, and the line it prints has none.
@@ -115,19 +116,22 @@ The section "Protected paths" describes one more hold.
   That line names the head, or the newest head kept under `refs/jstack/pre-rebase/<slug>/` that holds the fix, or says `none needed` where every finding was declined.
   `jmerge` judges the brief with it and writes nothing to the brief.
   A review after the first owes that line, and a push after it, only where it has an `error` finding.
-  A `Second pass: needed since <head>` line makes the pull request wait for a review of a later head.
+  One round: a fix pushed for the findings gets no review, and a `Second pass:` line, from a brief before one round, makes the pull request wait for nothing.
+  A `Scoped review: needed since <head>` line, which the crew writes only after a `Meets the brief: no`, makes it wait for a review of a later head.
 - **Every blocking finding is answered.**
-  Each blocking finding needs an answer that counts, for every pull request and not only after a second pass.
+  Each blocking finding needs an answer that counts, for every pull request.
   `jbriefs --findings` reads every `## Review` section into one list.
   Its parser, `features/jbriefs/src/jbriefs/findings.py`, is the one the crew skill and jbus use too.
   Each finding gets an id, `F1`, `F2`, ..., in the order it appears.
   Two reviewers' findings share one id when they are at the same head, in the same file within 5 lines (`NEAR`), and cite the same principle.
   In a first review, three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
   A `Consider` finding there does not block, and a finding's severity does not change whether it blocks.
-  In a review after the first, a scoped pass or a second pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
+  In a review after the first, a scoped pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
   An `error` blocks until the crew answers it, and an `info` is dropped.
   A `warning` blocks nothing and goes to no crew: once the pull request merged, jbus keeps it for the day's warnings row (`findings.KEPT`, `jbus.daywarnings`).
-  So a second review with no `error` owes no fix push and merges on its checks.
+  So a scoped review with no `error` owes no fix push and merges on its checks.
+  A blocking finding carries its evidence in a `(proof: ...)` tag of one of the shapes `proofs.PROOFS` reads: a command in backticks that exited non-zero at the head, a check that failed, a doc line the pull request made wrong, an unmet `Done when` line, or a measure of the base and the head.
+  One with no such tag waits as `its findings are not handled: F2 block with no proof tag, ...` until it has an answer by id, and a decline of it counts with any reason, a risky one still only on its gate.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).
   It also counts only if no other finding was declined for the same reason.
@@ -140,25 +144,19 @@ The section "Protected paths" describes one more hold.
   A decline that says `because .` is not an answer.
   jbus's `expedite` tells the crew about each of these waits, with the ids.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
-- A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
-  It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
-  The second review's `error` findings then wait for an answer by id, and for a `Fixed:` line pushed after that review where it sent any, its `warning` findings go to the day's warnings row, and its `info` findings are dropped.
-  `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
-  A brief whose first review was clean, or whose Result says `Fixed: none needed`, needs no second review.
 - A brief that says `Review: cleanup` is the day's warnings row, which only jbus files (`jbus.daywarnings`), and it gets one review, of its own diff.
   Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
-- A brief whose `Review:` line says anything else, `after` included, is read as `review`.
+- A brief whose `Review:` line says anything else, `after` and `twice` included, is read as `review`.
 - **The last review round says the brief is met.**
   The reviewer's judgement of the brief is a typed line of each `## Review` section, `Meets the brief: yes, <n> of <n>` or `no, <m> of <n>`, with an item under it for each `Done when` line it does not take as met (`features/pr-review/templates/review.md`).
   `<n>` is the count of the brief's `Done when` lines, and an `after-merge <k>` or `waiting <k>` item, a line only provable once merged or only waiting on CI, is not unmet.
   `features/jbriefs/src/jbriefs/meets.py` is its one parser and the one rule, and `jbriefs --meets <brief>` prints what it reads.
   The last round counts: of the sections that ran, those at the head and of the kind, scoped or not, of the last one, each reviewer's last.
-  So a later round, the scoped review of the fix or a pass at the same head that rules on the declines, takes the place of an earlier `no`, and a stale first-round `no` holds nothing.
+  So a later round, the scoped review a `no` owes, takes the place of an earlier `no`, and a stale first-round `no` holds nothing.
   The pull request waits with `its review at <head12> says the brief is not met, <m> of <n>: Done when <k> unmet, ...` (`meets-no`) while that round says `no`.
   It waits with `its review at <head12> has no Meets the brief line of the shape ...` (`meets-unread`) where a section of the round has no line of that shape, today's free text `yes` included, and with `its review at <head12> counts <said> Done when lines, and its brief has <n>` (`meets-miscounted`) where its count is not the brief's: a skipped or skimmed check is no pass.
   The way out is a fix and a scoped review whose own line says `yes`: the crew skill's "A second pass" gives that review for any round whose line is not `yes`, whatever the fix changed.
-  In a `Review: twice` brief, a clean first review whose line is not `yes` waits as one with findings does, for a fix and its second review.
   The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief, which names the line by its words, whole or by a start no other line has.
   `jmerge` asks jbus of each such word once a run (`jmerge.bus.Bus.heard`, `jbus.port.Port.heard`): the user's own message in T3 Code, read by the check `jbus queue approve --message` reads a word with, or a word the bot gave over `POST /act`, and its words name the row's slug, say they waive, and quote the words the `Waived:` line names the line by (`jbriefs.meets.quotes`).
   A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes.
@@ -166,6 +164,8 @@ The section "Protected paths" describes one more hold.
   `jmerge` judges it after every other wait of the review, so a pull request short of a `Fixed:` line or a scoped review says that first.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
+  A required check whose job its own workflow skipped by an `if:` counts as passed when every other job of that workflow at the head passed or was skipped, and one passed: macos.yml skips `macos` that way where its `macos-select` job finds no Mac test the change reaches (`ready.passed`).
+  Any other skip is no pass.
   A repo names its required checks in a `required-checks` file in its state directory.
   The file has one check name per line, and `jmerge` ignores blank lines and the spaces around a name.
   With no such file, or one that names no check, the only required check is `check` (`ready.REQUIRED`).
@@ -190,7 +190,8 @@ The section "Protected paths" describes one more hold.
   It judges them before today's main, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red: a red main holds no pull request.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).
-  No pull request waits on it, and no launch does.
+  No pull request waits on it.
+  A launch does: while main is red, jbus launches only a row that fixes main or launches stacked on an open row it depends on, and every other approved row waits as `main is red: waits for green` (`jbus.dispatch`, [What a pass launches](../../jbus/docs/jbus/what-a-pass-launches.md)).
   A pull request red at its own head is still held by its own checks, as `check has failed`.
   While `main.json` names a red tip, `jmerge` asks GitHub for no merge of main into such a pull request: its head would go red again, so the check stands until main's tip is green.
   jbus reverts the one clear culprit of a red main and files a fix row otherwise ([A red main](../../jbus/docs/jbus/a-red-main.md)).
@@ -276,25 +277,91 @@ The rule for a taken number is on the `rebase` step, and the rules for the two w
 
 ## Merges cleanly over today's main
 
-A green check counts only over the main it ran over, so `jmerge` merges no pull request on a check that main has moved past.
 A check starts when the earliest run of the first required check at the head starts.
 When the repo names no required checks, that check is `check`.
 After a `git fetch` in the main checkout, `jmerge` lists the paths that the first-parent commits of the default branch changed since that start.
 When there are none, the check ran over today's main, and it counts.
-When there are any, whatever their paths, `jmerge` merges the head over today's main with `git merge-tree`.
+When there are any, `jmerge` merges the head over today's main with `git merge-tree`.
 A head that does not merge over today's main waits with `it conflicts with today's main`, on the `rebase` step, and GitHub is asked nothing.
-A clean merge has GitHub merge main into the branch, as "A failed check over a base that moved" does, with `update-branch` and `expected_head_sha`, once for a head and a tip of main.
-The line is `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, on the `check` step, and `--check` says `<base> moved after its check started: GitHub is to merge <base> at <tip12> into it`.
-GitHub's check at the new head ran over today's main, and it decides by the normal path: the pull request merges once that check passes, and waits as `check has failed` if it fails.
-The review stands across that merge, as across a rebase: its range-diff shows no content.
-No path rule is safe: on 2026-11-03 #923 and #935 each added a new `v007_` file, neither touched a path main had changed since its check, each check passed alone, and main went red once both had merged on those checks.
-So two pull requests ready together merge one after the other, each on a check over the one before it, at the cost of a CI round for each.
+
+A head that merges cleanly then goes one of two ways, by its files.
+
+- **It overlaps none of main's changes: it merges on its existing check.**
+  None of the pull request's files, nor the old path of a file it renamed, is a path main changed since its check started.
+  GitHub is asked for no update of its branch, and no check runs again.
+  Before the merge, `jmerge` runs the fast guards on its tree merged over main ("The guards on the merged tree"), which catch a clash two pull requests make with no file in common, as #923 and #935 made on 2026-11-03 with two new `v007_` files.
+  A merge that GitHub refuses waits as `the merge failed: <what GitHub said>`, and the next run judges it again.
+  It takes no place in the line below, and merges while a pull request that overlaps holds it.
+- **It overlaps: it goes through the line.**
+  GitHub merges main into the branch, as "A failed check over a base that moved" does, with `update-branch` and `expected_head_sha`, once for a head and a tip of main.
+  The line is `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, on the `check` step, and `--check` says `<base> moved after its check started: GitHub is to merge <base> at <tip12> into it`.
+  GitHub's check at the new head ran over today's main, and it decides by the normal path: the pull request merges once that check passes, and waits as `check has failed` if it fails.
+  The review stands across that merge, as across a rebase: its range-diff shows no content.
+
+A repo with no `merged-tree-guards` file has nothing that checks the merged tree, so each of its pull requests whose check main moved past goes through the line, whatever its files.
+A pull request whose renamed files GitHub did not give is held for you before this (`ready.needs_the_user`), and one you accept is judged as one that overlaps.
+GitHub's strict "up to date" rule is off on main (ruleset 25665226, `features/repo-guards/main-ruleset.json`, since 2026-11-04), so GitHub merges a pull request whose branch does not hold main's tip.
+Were it on, GitHub would refuse each merge on an existing check, and each would wait as `the merge failed`.
+
+`jmerge` asks for that update for one pull request at a time, the overlapping one that `jmerge` would merge next, as a merge queue does, so each merge costs one CI round and not one for every open pull request (2026-11-03: about 30 open, each merge set off a wave of reruns, about 80 branch updates in an hour and 4 merges in 90 minutes).
+That pull request holds the line: of those whose only reason left to wait is that main moved after their check, it is the first `jmerge` gets to in merge order (each revert jbus opened for a red main first, then the order of their numbers, with "Migrations" ordering those that add one), with its review, findings, stack, migrations, `merge_after` and holds cleared.
+Each base has a line of its own: a pull request into a stack branch or another merge base whose base moved holds no line for those into main, nor one into main for them.
+`base-merges.json` keeps it on its record (`line`, with the record's `base`), so it keeps the line across runs while its check at the new head runs.
+Every other pull request into that base that overlaps what its base changed waits with `it is in line behind #<n>: <base> moved after its check started, and GitHub merges <base> into the branch of one pull request at a time, the one to merge next`, on the `check` step, and GitHub is asked nothing for it until its turn.
+That holds for one ahead of `#<n>` in merge order that comes ready later: the update `#<n>` has is not spent again.
+The pull request at the head of the line gives it up when it merges, when a check of its fails (one whose failed check is what its turn is for keeps it until the check at its updated head ends), when GitHub keeps a run of its queued through a restart, when a restart of that run never took, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
+It gives it up too when its head is still the one GitHub took the update of 20 minutes (`rejudge.HELD`) after GitHub took it: GitHub makes the new head within seconds, so no check is coming to end its wait.
+
+A required run at the head of the line that GitHub queued and started none of for `ready.QUEUED_MINUTES` (30 minutes, above the p99 queue wait of every required check in `ci.jsonl`) gets one restart (`cli.Repo.unstuck`): `jmerge` closes and reopens the pull request (`rejudge.BaseMerge.restart`), which starts a new run of each workflow in its concurrency group, and logs one wait, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed and reopened it to start a new run`.
+GitHub refuses to rerun a run it has not ended, and a cancel can leave it queued: on 2026-11-04 #1028 held the line for over an hour on a queued macos job while five pull requests waited behind it.
+The restart is spent only once its close and its reopen both took.
+`base-merges.json` keeps each step on the head's record (`stuck`) as it takes: the first try (`asked`) before the close, with the reopen owed, then `closed`, then `took`, so a run that stops between two steps leaves a record the next run goes on from.
+A close that failed is tried again on each run, and once `ready.RESTART_MINUTES` (10 minutes) have passed since the first try, the pull request gives up the line and waits with `QUEUED_UNRESTARTED`, `GitHub queued its <check> run at <head> and started none, and jmerge could not close and reopen it in 10 minutes of tries (<why>): it gave the head of the line to the next pull request`.
+A reopen that failed is owed, and `rejudge.BaseMerge.reopen` asks it again on each run for the same `ready.RESTART_MINUTES` from the first try, and then asks it no more (`unopened`): the pull request holds the line no more, and on each run `jmerge` says `QUEUED_UNREOPENED`, `GitHub queued its <check> run at <head> and started none: jmerge closed it to start a new run, and its reopen failed for 10 minutes of tries (<why>), so it asks no more and the pull request stays closed until a hand reopens it`, until GitHub lists it open again.
+One whose owed reopen took on a later run holds the line no more either, for another took it while it was closed.
+Once a restart took, the pull request keeps the line for `ready.RESTART_MINUTES`, since GitHub lists the new run within seconds of the reopen and a run of `jmerge` in the same minute still sees the old one.
+Where GitHub then lists no newer run, or the newer one is queued for `ready.QUEUED_MINUTES` too, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
+No runner is at work on `QUEUED_GAVE_UP`, `QUEUED_UNRESTARTED` or `QUEUED_UNREOPENED`, so jbus's `clock.held` raises each to the home as a hold, even for a pull request that GitHub no longer lists open.
+A run that started is never restarted, however long it runs.
+A pull request whose check ran over today's main, or that overlaps none of main's changes since it, is not in the line: it merges as before, while others wait.
+A revert jbus opened for a red main, one that `reverts.json` names (`jmerge.reverts`), comes first in merge order, and takes its base's line from a pull request that holds it and is no revert.
+That pull request then waits `in line behind` the revert, and its record in `base-merges.json` stays, with `line` off, so its update is not asked again at the same head and tip.
+A revert branches from main's tip, so by number it came last: other pull requests keep merging onto a red main, each moved main past the revert's check, and the revert waited a turn behind every one of them.
 `jmerge` asks for the update while `main.json` names main red as well, since the fix of a red main must run over it: a pull request that the red tip fails is then held by its own failed check, as "A failed check over a base that moved" says.
 Main's own full run at the merge commit still runs the whole suite, which a pull request's check, of the tests its change selects, does not.
 A pull request whose check failed at its own head is judged as "A failed check over a base that moved" says.
 `jmerge` judges this only once the pull request has no other reason to wait.
 `jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
-`jmerge` neither pushes nor reads a green-tree marker, and `jmerge --sweep` removes a `refs/jstack/green-tree/` ref once it is seven days old (`sweep.MARKER_DAYS`).
+Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `full` job skips its suite only on a green run's artifact (`scripts/green_tree.py`), so a ref pushed by hand skips nothing.
+`jmerge --sweep` removes such a ref once it is seven days old (`sweep.MARKER_DAYS`); the old ones still on the origin are the owner's to remove with it.
+
+## The guards on the merged tree
+
+Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
+The clash shows on the tree of one merged over the other, so `jmerge` checks that tree before it merges a pull request on its existing check (`features/jmerge/src/jmerge/treeguards.py`).
+The command is the first line of the state's `merged-tree-guards` file that is not blank.
+jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
+A repo with no such file runs no guards, and a pull request whose check main moved past goes through the line ("Merges cleanly over today's main").
+
+1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.
+2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
+3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
+   A worktree that a stopped run left there is removed first.
+4. Where the command exits 0, and the tip has not moved meanwhile, it merges.
+   The line of the merge says `the guards passed on its tree merged over <base> at <tip12> in <s> s`, and `merge.log` keeps that line.
+
+A head that already holds the tip is the tree its check ran on, so nothing is built for it.
+A non-zero exit holds the pull request with `merged over today's <base> at <tip12>, it fails <guard>: its crew rebases it onto <base>, runs the check, and fixes what fails`, on the `rebase` step.
+The guard is the first test pytest calls `FAILED`, else the make target the run stopped in, such as `lint`, else the last line the command printed.
+A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
+
+The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
+A stopped run is kept for no later run: the pull request waits for this run alone, and the next run tries the guards again, since a run that crossed the limit once on a loaded machine says nothing of the tree.
+A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
+A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
+`merged-trees.json` in the state directory keeps a pass or a failure of the guards on a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
+A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
+A run drops the record of each pull request that is no longer open.
 
 ## A failed check over a base that moved
 
@@ -308,6 +375,11 @@ It asks GitHub to merge the base into the branch, `PUT /repos/{owner}/{repo}/pul
 The line is then `GitHub was asked to merge <base> at <tip12> into it: its check failed before <base> moved`, or `GitHub did not merge <base> at <tip12> into it: <what GitHub said>`.
 It asks once for a head and a base tip, and keeps what GitHub said in `base-merges.json` in the state directory.
 `--check` asks nothing, and says `its check failed before <base> moved: GitHub is to merge <base> at <tip12> into it`.
+That update takes its place in the line "Merges cleanly over today's main" keeps, as a green pull request's does: GitHub merges the base into one branch at a time, red or green, the one first in merge order while no other holds the line.
+Every other red pull request main moved past waits `in line behind #<n>`, and GitHub is asked nothing for it until its turn, so each merge costs one CI round and not one for each red pull request (2026-11-03, #1009's probe: with one green pull request in line and two red ones, GitHub was asked to update all three each time main moved).
+A red one waits rather than going first: its update only guesses that main caused its failure, and the green one at the head of the line is nearer its merge.
+Once its turn comes it holds the line until its check at the updated head ends, and gives it up when that check fails, as a green one does.
+A red pull request whose update `jmerge` does not ask for at all, while `main.json` names main red or when its runs failed a same test twice (below), takes no place in the line and keeps the line `<check> has failed`.
 GitHub's new check at the new head then decides by the normal path, and a change broken on its own fails there as its own.
 A pull request broken on its own is not given its base again: when the last two runs of a required check it failed both failed a same pytest id, and main's run of that check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has failed`.
 It reads the runs of each failed check's own workflow, and a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`.
@@ -324,6 +396,7 @@ The review stands across the merge, as across a rebase: the range-diff of the re
 A check that a repo requires before its workflow reaches the base gets no run at a head whose checks ran before then, and no rerun starts it.
 `jmerge` tells it apart from a check still running: its line is `<check> has no run at <head12>`, not `<check> has not passed`.
 When that is all that holds the pull request, it merges cleanly, and its base has moved since its check started, `jmerge` asks GitHub to merge the base into the branch, as for a green pull request whose base moved.
+It waits its turn in the same line, behind the pull request at its head, as a red one does ("A failed check over a base that moved").
 The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, asked once for a head and a base tip, and GitHub runs the base's workflows at the new head.
 With the base unmoved, the line stays `<check> has no run at <head12>`: that is no wait on the merge runner, so jbus wakes the home once it is held longer than `clock.HOLD_MINUTES` (`features/jbus/src/jbus/clock.py`).
 A check that waits on other jobs of its workflow, as `check` waits on its eight parts, is not listed at the head until they end.

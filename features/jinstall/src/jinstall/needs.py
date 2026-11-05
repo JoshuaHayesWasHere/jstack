@@ -90,12 +90,14 @@ class Need:
     is a path, and for anything else it is a word and a path, or a program
     (`hook <file> <Event>`, `commands jstack`, `jq`). `fold` names the run of needs that
     `--setup` says in one line while each is done or already there, `skills <harness>` for a
-    harness's skill links."""
+    harness's skill links and `hooks <file>` for the hooks of one hooks file. `unit` is what
+    that line counts, `link` or `hook`."""
 
     name: str
     level: Level
     kind: Kind | Carried
     fold: str = ""
+    unit: str = "link"
 
 
 def needs(machine: Machine) -> tuple[Need, ...]:
@@ -234,7 +236,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     if machine.green is not None:
         found.append(Need(f"green copy {machine.green}", Level.HARD, GreenCopy(machine.green)))
     if repo is not None:
-        found.append(Need("generated files are current", Level.HARD, Generated()))
+        found.append(Need("generated files are current", Level.HARD, Generated(repo)))
     found += [
         Need(f"layout {harness.name} {machine.layout(harness.name)}", Level.HARD, Layout(harness))
         for harness in HARNESSES
@@ -272,6 +274,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                 refuses=one.get("refuses", False),
                 harness=one["harness"],
             ),
+            fold=f"hooks {files[one['harness']]}",
+            unit="hook",
         )
         for hook in hooked
         for one in hook["events"]
@@ -319,8 +323,12 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for file in claude
     ]
     names = sorted(templates(machine))
-    opted = {"jbus-ci.timer": CiReport(jbus), "jbus-relay.service": RelayKeys(relay)}
-    opted["jbus-snapshot.timer"] = StateRepo(state)
+    opted = {
+        "jbus-ci.timer": CiReport(jbus),
+        "jbus-ci-day.timer": CiReport(jbus),
+        "jbus-relay.service": RelayKeys(relay),
+        "jbus-snapshot.timer": StateRepo(state),
+    }
     timers = tuple(name for name in names if name.endswith(".timer") and name not in opted)
     chosen = tuple((name, need) for name, need in opted.items() if name in names)
     if machine.platform == "darwin":

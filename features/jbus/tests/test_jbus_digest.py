@@ -162,7 +162,7 @@ def test_a_pass_that_could_not_judge_keeps_the_list_and_sends_no_change(kitchen,
 
 
 def test_a_gate_sent_once_for_a_row_with_a_pull_request_is_not_listed_and_then_gone(kitchen):
-    """T3 Code refuses the main-moved message: the row is at `gate` for that one pass."""
+    """T3 Code refuses the failed check message: the row is at `gate` for that one pass."""
     kitchen.config(max_running=2)
     add(kitchen, "alpha")
     was = tip(kitchen)
@@ -175,7 +175,9 @@ def test_a_gate_sent_once_for_a_row_with_a_pull_request_is_not_listed_and_then_g
     move(kitchen)
     kitchen.t3.refuse_send = True
     kitchen.poll()
-    assert kitchen.lines("condition") == ["condition alpha: T3 Code refused the main-moved message"]
+    assert kitchen.lines("condition") == [
+        "condition alpha: T3 Code refused the failed check message"
+    ]
     kitchen.poll(later(3))
     assert listed(kitchen) == [] and kitchen.events("waiting") == []
 
@@ -326,6 +328,7 @@ def test_the_digest_is_each_project_s_rows_merges_pulls_and_waiting_list_then_th
     demo = said["projects"]["demo"]
     assert sorted(demo) == [
         "by_rule",
+        "ci",
         "done",
         "merged",
         "pulls",
@@ -414,6 +417,7 @@ def test_the_digest_of_a_project_no_pass_has_run_for_is_empty_and_makes_no_state
     said = printed(kitchen)
     assert said["projects"]["demo"] == {
         "by_rule": [],
+        "ci": None,
         "done": [],
         "merged": [],
         "pulls": [],
@@ -503,3 +507,57 @@ def test_no_url_no_key_and_no_token_is_in_the_list_the_digest_or_a_line(kitchen)
     assert "[redacted]" in everything and "gate 6: [redacted]" in waiting["text"]
     assert "as a Bearer with orchestration:read" in waiting["text"]
     assert [secret for secret in secrets if secret in everything] == []
+
+
+DAY_REPORT = """# CI by day, 2026-10-05 to 2026-10-11
+
+## By day
+
+| number | proposed | 10-11 |
+
+## The newest day, {day}
+
+- red share: 26% (n 35 PRs)
+- main-red: 0 min (n 40 runs)
+"""
+
+
+def day_report(kitchen, written, day):
+    reports = kitchen.home / "reports"
+    reports.mkdir(exist_ok=True)
+    path = reports / f"ci-day-{written}.md"
+    path.write_text(DAY_REPORT.format(day=day))
+    return path
+
+
+def test_the_digests_ci_is_the_newest_day_reports_lines_with_its_path_and_date(kitchen):
+    """The kitchen's clock is 11:00 ET on 2026-10-12: the 06:45 run wrote today's report."""
+    day_report(kitchen, "2026-10-10", "2026-10-09")
+    path = day_report(kitchen, "2026-10-12", "2026-10-11")
+    assert digest.build(jbus.load(), now=later(0))["projects"]["demo"]["ci"] == {
+        "path": str(path),
+        "date": "2026-10-12",
+        "day": "2026-10-11",
+        "stale": False,
+        "lines": ["red share: 26% (n 35 PRs)", "main-red: 0 min (n 40 runs)"],
+    }
+
+
+def test_a_ci_report_the_timer_did_not_write_today_shows_its_old_date_as_stale(kitchen):
+    path = day_report(kitchen, "2026-10-10", "2026-10-09")
+    said = digest.build(jbus.load(), now=later(0))["projects"]["demo"]["ci"]
+    assert (said["path"], said["date"], said["stale"]) == (str(path), "2026-10-10", True)
+
+
+def test_before_the_0645_run_yesterdays_ci_report_is_not_stale(kitchen):
+    day_report(kitchen, "2026-10-11", "2026-10-10")
+    early = datetime(2026, 10, 12, 10, 30, tzinfo=NOW.tzinfo)
+    assert digest.build(jbus.load(), now=early)["projects"]["demo"]["ci"]["stale"] is False
+    assert digest.build(jbus.load(), now=later(0))["projects"]["demo"]["ci"]["stale"] is True
+
+
+def test_a_ci_report_that_cannot_be_read_gives_no_ci(kitchen):
+    reports = kitchen.home / "reports"
+    reports.mkdir()
+    (reports / "ci-day-2026-10-12.md").write_text("# not a day's report\n")
+    assert printed(kitchen)["projects"]["demo"]["ci"] is None

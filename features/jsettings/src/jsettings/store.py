@@ -19,9 +19,9 @@ import json
 import os
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import Field, asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar, Protocol
 
 APPEND = 0o666
 """The mode of a log `append_jsonl` makes, before the umask: what `open(path, "a")` gives."""
@@ -102,8 +102,20 @@ def locked(state: Path, name: str, wait: bool = True) -> Iterator[None]:
         yield
 
 
+class Record(Protocol):
+    """A record of a `LockedList`: a dataclass with a `since` and an `id`."""
+
+    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
+
+    @property
+    def since(self) -> str: ...
+
+    @property
+    def id(self) -> str: ...
+
+
 @dataclass(frozen=True)
-class LockedList[T]:
+class LockedList[T: Record]:
     """A JSON list of records, the file `name` in a directory, which threads change under the lock
     file `lock` beside it. Each change replaces the whole file with a rename, so a reader never
     sees half a list. `parse` makes the records of the file's list, and may raise `ValueError`,

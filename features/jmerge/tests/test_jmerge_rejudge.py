@@ -136,7 +136,7 @@ def red_then_fixed(replay):
         f"wait {number} {url(number)}: check has failed" for number in (333, 339, 340, 341)
     ]
     assert replay.updated() == []
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     return heads, fix
 
 
@@ -156,13 +156,20 @@ def test_the_replay_every_pull_request_red_only_on_its_base_merges_and_none_runs
 
 
 def test_github_s_update_alone_moves_it_on(tmp_path):
+    """Each red one takes its turn in the line for its update, one at a time
+    (`test_jmerge_in_line`)."""
     replay = Replay(tmp_path)
     (one, *_), fix = red_then_fixed(replay)
     said = replay.run()
-    assert f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}" in said
-    assert sorted(replay.updated()) == ["333", "339", "340", "341"]
-    replay.passes(2)
+    behind = ready.IN_LINE.format(number=333, base="main")
+    assert said == [
+        f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}",
+        *(f"wait {number} {url(number)}: {behind}" for number in (339, 340, 341)),
+    ]
+    assert replay.updated() == ["333"]
+    replay.passes(5)
     assert merged(replay.said) == [333, 340, 341]
+    assert sorted(replay.updated()) == ["333", "339", "340", "341"]
     assert replay.told == []
 
 
@@ -171,7 +178,7 @@ def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
     (replay.kitchen.home.stub / "refuse").write_text("")
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     refused = "GitHub did not merge main at {tip} into it: merge conflict between base and head"
     for _ in range(3):
         assert replay.run()[-1] == f"wait 333 {url(333)}: {refused.format(tip=fix[:12])}"
@@ -191,7 +198,7 @@ def test_the_record_of_a_pull_request_goes_on_the_run_after_it_closes_and_stays_
     (replay.kitchen.home.stub / "refuse").write_text("")
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     path = replay.kitchen.home.state / rejudge.NAME
     for _ in range(2):
         replay.run()
@@ -210,7 +217,7 @@ def test_a_failure_to_ask_github_is_asked_again_on_the_next_run(tmp_path, status
     (replay.kitchen.home.stub / "down").write_text(status)
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     down = f"GitHub did not merge main at {fix[:12]} into it: Server Error"
     assert replay.run() == [f"wait 333 {url(333)}: {down}"]
     assert replay.run() == [f"wait 333 {url(333)}: {down}"]
@@ -228,7 +235,7 @@ def test_a_red_pull_request_short_of_anything_else_says_so_and_asks_nothing(repl
     order.queue_of(replay.kitchen.home, [order.row("one", pr="#333", held=True)])
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     assert replay.run() == [f"wait 333 {url(333)}: {ready.ROW_HELD}"]
     assert replay.updated() == []
     order.queue_of(replay.kitchen.home, [order.row("one", pr="#333")])
@@ -256,7 +263,7 @@ def test_a_check_run_asks_github_for_nothing(tmp_path):
     replay = Replay(tmp_path)
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     due = "its check failed before main moved: GitHub is to merge main at {tip} into it"
     assert replay.run("--check") == [f"wait 333 {url(333)}: {due.format(tip=fix[:12])}"]
     assert replay.updated() == []
@@ -441,7 +448,7 @@ def test_a_pull_request_red_twice_on_the_same_test_of_its_own_is_not_given_main_
         asks = True
     checked(replay, "one", [(80, "2026-10-23T12:00:00Z", (OURS,)), (81, STARTED, second)], check)
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     said = replay.run()
     if asks:
         assert said == [f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}"]
@@ -470,7 +477,7 @@ def side(tmp_path):
     }
     replay.kitchen.brief("one", reviewed)
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    fix = replay.main_at(dict.fromkeys(WHOLE_TREE), FIXED, "green")
     return replay, head, fix
 
 

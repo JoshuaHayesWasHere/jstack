@@ -7,7 +7,7 @@ import pytest
 from jbriefs import findings, parse
 
 
-def brief(review="Review: twice\n", more=""):
+def brief(review="Review: review\n", more=""):
     """Return a brief with every field that `queue add` asks for, and `more` under them."""
     return (
         '# alpha: a task\nTask: "do alpha"\nDone when:\n- it is done\n'
@@ -23,8 +23,17 @@ def test_a_clean_brief_has_no_fault():
 
 @pytest.mark.parametrize("review", ["Review: twice\n", "Review: review\n", "Review: none\n"])
 def test_twice_review_and_none_need_no_word(review):
-    """The template offers `review` as it offers `twice`, so the linter takes it with no word."""
+    """The template offers `review` and `none`, so the linter takes them with no word, and it
+    still takes `twice`, which one round retired, so an old brief queues."""
     assert parse.faults(brief(review)) == []
+
+
+def test_an_old_twice_brief_queues_and_reads_as_review():
+    """One round retired `Review: twice`: a brief written before it queues as it did, and the
+    crew, `jmerge` and jbus read it as `review`, so it gets the one round and no second review."""
+    old = brief("Review: twice\n")
+    assert parse.faults(old) == []
+    assert findings.mode_of(old) == findings.REVIEW
 
 
 @pytest.mark.parametrize("mode", ["after", "standard", "none, docs only"])
@@ -33,7 +42,7 @@ def test_an_old_or_unknown_mode_is_refused_and_a_stored_one_is_read_as_review(mo
     but the three, since the crew reads it as `review`: a stored brief that still names one
     launches a reviewer."""
     assert parse.faults(brief(f"Review: {mode}\n")) == [
-        f"brief's Review: line says {mode} (twice, review or none)"
+        f"brief's Review: line says {mode} (review or none)"
     ]
     assert findings.mode_of(brief(f"Review: {mode}\n")) == findings.REVIEW
 
@@ -42,7 +51,7 @@ def test_only_a_brief_jbus_filed_says_cleanup():
     """`cleanup` is the day's warnings row's, one review of errors alone, so a home cannot pick it
     for a row of its own: only the `Decisions:` line jbus writes lets a brief say it."""
     asked = brief("Review: cleanup\n")
-    assert parse.faults(asked) == ["brief's Review: line says cleanup (twice, review or none)"]
+    assert parse.faults(asked) == ["brief's Review: line says cleanup (review or none)"]
     filed = asked + f"Decisions: {findings.CLEANUP_DECIDED}of 2026-11-01\n"
     assert parse.faults(filed) == []
     assert findings.mode_of(filed) == findings.CLEANUP

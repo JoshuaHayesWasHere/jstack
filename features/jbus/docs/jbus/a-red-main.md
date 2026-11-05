@@ -17,28 +17,35 @@ The `retro` lines, the revert and the fix's brief come after it in the pass, and
 
 ## The revert
 
-One culprit is clear when the red tip is the merge commit of a briefed pull request and the commit under it was green, so it is the one merge since the last green (`features/jbus/src/jbus/reverts.py`).
+jbus judges the red run: every commit of main since the last green, main's tip first (`features/jbus/src/jbus/reverts.py`).
+One culprit is clear when the run's oldest commit, the first red after the last green, is the merge commit of a briefed pull request, and every later tip of the run failed no test outside the ones that failed at that oldest commit.
+The later merges landed on its red and broke nothing more, so a culprit with merges on top of it is still reverted, as #334 would have been on 2026-10-23 with four merges on top.
+With one commit since the last green, the oldest is the tip.
 Then jbus runs `gh pr revert`, which makes a new commit on a new branch, and never pushes to main.
-It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew and its home.
+It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew (`features/jbus/src/jbus/culprits.py`).
+The home is not sent it: the `revert` event is quiet, wakes no thread, and reaches the home only in the digest ([Events and wakes](events-and-wakes.md)).
 `jmerge` merges the revert by the normal path once its checks are green, with no review.
+It is first in `jmerge`'s merge order, ahead of every pull request `reverts.json` does not name, and once main moves past its check it takes the line of branch updates from the pull request that holds it ([Merges cleanly over today's main](../../../jmerge/docs/jmerge.md#merges-cleanly-over-todays-main)).
+Other pull requests still merge onto the red main as before: one whose check ran over today's main is in no line and can still move main past the revert's update, but none that needs an update of its own goes before it.
 
 jbus reverts nothing in the cases below (`Keep` in `reverts.py`).
 Where the outcome is the fix's brief, the brief says which case holds.
 
 | Case | Outcome |
 |---|---|
-| Two reds overlap: more than one merge came since the last green. | The fix's brief, which names every red tip among them. |
-| The tip is no briefed merge's commit, such as a merge by hand. | The fix's brief. |
-| The tip is itself a revert, jbus's or anyone's. | The fix's brief. |
+| Two reds overlap (`OVERLAP`): a later tip failed a test that did not fail at the oldest, or names no failed test, as a lint or a timeout does; or a commit of the run was cancelled or started no job; or no green commit is within 20 commits of the tip. | The fix's brief, which names every red tip among them. |
+| A commit of the run has a check that has not ended (`UNREAD`), as #864's had under 52b82e7 on 2026-11-02. | Nothing in this pass. The next pass judges the run again, and a commit whose check passes ends the run there. After `READ_WAIT` (1 hour), the fix's brief, as `OVERLAP`. |
+| The oldest is no briefed merge's commit, such as a merge by hand. | The fix's brief. |
+| The oldest is itself a revert, jbus's or anyone's. | The fix's brief. |
 | jbus reverted the same row before. A row is never reverted twice. | The fix's brief. |
-| Each test that failed at the tip is a flake by `jbus ci`'s rule. | The fix's brief. |
-| Two merges went red together (`SKEW`): the culprit's own check passed over a main that lacked the merge under the red tip. | The fix's brief. |
-| The tests that failed at the tip could not be read yet (`UNREAD`). | Nothing in this pass. The next pass judges the tip again. |
-| The tip is older than `READ_WAIT` (1 hour) and its failed tests still could not be read from its logs (`NOT_READ`). | The fix's brief. |
+| Each test that failed at the oldest is a flake by `jbus ci`'s rule. | The fix's brief. |
+| Two merges went red together (`SKEW`): the culprit's own check passed over a main that lacked the green commit under it. | The fix's brief. |
+| The tests that failed at the oldest, or at a later tip, could not be read yet (`UNREAD`). | Nothing in this pass. The next pass judges the tip again. |
+| The tip is older than `READ_WAIT` (1 hour) and those failed tests still could not be read from the logs (`NOT_READ`). | The fix's brief. |
 | GitHub has not said what main the culprit's own check passed over, and the tip is older than `READ_WAIT` (`UNANSWERED`). | The fix's brief. Before `READ_WAIT`, the tip waits as `UNREAD` does. |
-| jbus already opened a revert for the tip (`OPENED`). | Nothing, no brief either, while the revert goes the normal path. |
+| jbus already opened a revert for a commit of the run (`OPENED`). | Nothing, no brief either, while the revert goes the normal path. |
 | `gh pr revert` fails on a clear culprit. | The fix's brief, which says jbus could not open its revert. |
-| The revert jbus opened is stuck: it closed unmerged, conflicts with main, or has a failed check. | The fix's brief, which names why the revert is stuck. |
+| The revert jbus opened is stuck: it closed unmerged, conflicts with main, has a failed check, or merged while main is still red. | The fix's brief, which names why the revert is stuck. |
 
 `close` closes a revert jbus opened that is still open once main's check passes at a later tip without it, as when the fix's row merged first.
 Its comment names that green tip.
@@ -83,14 +90,15 @@ jbus reads a slug that starts `main-red-` as the fix of a red main, so do not gi
 ## `main.json`
 
 The one record of a red main is `main.json` beside the queue.
-The pass that tells a red pull request that main is green again writes it (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately.
+`mainmoved.tell` writes it once a pass (`features/jbus/src/jbus/mainmoved.py`), whether or not a pull request merged lately.
+It tells no crew anything: a pull request red over a red main is judged again by `jmerge`, which asks GitHub to merge main into it once main is green ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).
 
 | Field | Holds |
 |---|---|
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
 | `failed` | The tests that failed at `broken`, read once from the red run's logs. jbus reads them to tell a flake from a culprit's own red. |
-| `fixed` | The green tip, written by a pass that still owes a crew its message and keeps the old commit to look at again. Main reads as green from that pass on. |
+| `fixed` | Only in a record written before `tell` stopped telling crews: the green tip that ended the red while a message was owed. Main reads as green there, and the next pass writes no `fixed` again. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.
 `jmerge` reads the file to ask for no merge of a red main into a red pull request ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).

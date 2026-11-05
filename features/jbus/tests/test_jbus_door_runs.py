@@ -33,7 +33,7 @@ CARRIED = "deploy the changes that have landed so far to prod"
 
 def door(slug, more=""):
     """A brief whose `Done when:` runs a prod migration, with no `Holds:` line."""
-    return brief(slug, more).replace("- it is done\n", f"- `{DEPLOY}` is run on prod\n")
+    return brief(slug, more).replace("- `make check` passes\n", f"- `{DEPLOY}` is run on prod\n")
 
 
 def test_winnifreds_prod_deploy_brief_holds_for_prod_by_the_migration_it_runs():
@@ -56,12 +56,15 @@ def test_winnifreds_prod_deploy_brief_holds_for_prod_by_the_migration_it_runs():
         ("kubectl apply -f x.yaml", PROD),
         ("git push --force origin main", "rewrites history"),
         ("git push origin main -f", "rewrites history"),
+        ("git push origin +main", "rewrites history"),
+        ("git push origin +HEAD:main", "rewrites history"),
         ("git filter-repo --path x", "rewrites history"),
         ("psql -c DROP TABLE dose", "deletes data"),
         ("aws s3 rm s3://bucket/x --recursive", "deletes data"),
         ("git branch -D old", "deletes data"),
         ("git worktree remove ../old", "deletes data"),
         ("git push origin --delete old", "deletes data"),
+        ("git push origin :old", "deletes data"),
         ("gh repo delete x/y", "deletes data"),
         ("tailscale serve --bg 8491", "changes access or secrets"),
         ("tailscale funnel 443", "changes access or secrets"),
@@ -88,6 +91,8 @@ def test_each_command_of_the_table_walks_through_its_door(command, case):
         "scripts/deploy --help",
         "git push --force-with-lease=main:abc origin x",
         "git fetch origin --tags",
+        "git push origin HEAD:main",
+        "git push origin :",
         "git branch -d merged-old",
         "tailscale serve status",
         "tailscale funnel 443 off",
@@ -101,9 +106,21 @@ def test_a_dry_run_and_a_command_that_only_names_a_door_walk_through_none(comman
     assert party.walks(f"`{command}`") == ()
 
 
+def test_a_briefs_push_by_refspec_holds_for_its_door_named_as_the_brief_wrote_it():
+    said = brief("alpha").replace(
+        "- `make check` passes\n",
+        "- `git push origin +main` and `git push origin :feature` are run, then `make check`\n",
+    )
+    assert party.walked(said) == (
+        ("deletes data", "git push origin :feature"),
+        ("rewrites history", "git push origin +main"),
+    )
+    assert party.doors(said) == ("deletes data", "rewrites history")
+
+
 def test_a_segment_that_says_the_command_is_never_run_holds_nothing():
     said = brief("alpha").replace(
-        "- it is done\n",
+        "- `make check` passes\n",
         "- the fix ships; never `git push --force` to main\n"
         "- it runs `make check` without `terraform apply`\n"
         "- `DSQL_STAGE=prod db/apply.sh` is not run here\n"
@@ -121,7 +138,7 @@ def test_a_segment_that_says_the_command_is_never_run_holds_nothing():
     ],
 )
 def test_an_aside_hides_only_the_command_it_is_about_not_a_door_beside_it(line):
-    assert party.doors(brief("alpha").replace("- it is done\n", f"- {line}\n")) == (PROD,)
+    assert party.doors(brief("alpha").replace("- `make check` passes\n", f"- {line}\n")) == (PROD,)
 
 
 def test_a_command_outside_done_when_and_proves_it_holds_nothing():
@@ -182,7 +199,8 @@ def test_queue_add_says_which_door_the_commands_imply_and_the_brief_does_not_dec
 
 
 def carried_word(kitchen, route, slug):
-    code, said = kitchen.main("word", "--to", "demo", "--evidence", BOT, "--words", CARRIED)
+    carried = ("--evidence", BOT, "--words", CARRIED, "--answers", "Ship it now?")
+    code, said = kitchen.main("word", "--to", "demo", *carried)
     assert code == 0, said
     return approve(kitchen, slug, "--word", said.split()[-1])[1]
 
@@ -483,7 +501,7 @@ def test_an_answer_to_a_may_go_gate_said_before_the_brief_now_stored_approves_no
     queued(
         kitchen,
         STALE,
-        brief(STALE, f"Holds: {DELETES}\n").replace("- it is done\n", "- all done\n"),
+        brief(STALE, f"Holds: {DELETES}\n").replace("- `make check` passes\n", "- all done\n"),
     )
     later = (datetime.now(UTC) + timedelta(minutes=2)).timestamp()
     os.utime(queue.brief_path(kitchen.state, STALE), (later, later))

@@ -1,7 +1,9 @@
 """`jmerge` merges a pull request on its passing check while that check ran over today's main.
 When main changed any file after its check started, `git merge-tree` of the head onto main
-decides how it waits: a clean merge has GitHub merge main into its branch, and the check at the
-new head decides, and a conflict waits for a rebase (`test_jmerge_rejudge.py`). When a rebase
+decides how it waits: in a repo with no guards on the merged tree, as here, a clean merge has
+GitHub merge main into its branch, and the check at the new head decides, and a conflict waits
+for a rebase (`test_jmerge_rejudge.py`). With the guards, one that shares no file with main's
+changes merges on its existing check (`test_jmerge_existing_check.py`). When a rebase
 drops a line, the pull request waits until its crew says why
 (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after its
 merge.
@@ -45,11 +47,25 @@ case "$1 $2" in
         cat "$STUB/left-${number%/files}" ;;
     "pr merge")
         [ "$4 $5" = "--squash --match-head-commit" ] || exit 64
+        if [ -e "$STUB/merge-refused" ]; then
+            echo "GraphQL: Pull request is not mergeable (mergePullRequest)" >&2
+            exit 1
+        fi
         tree=$(git -C "$ORIGIN" merge-tree --write-tree refs/heads/main "$6") || exit 1
         commit=$(git -C "$ORIGIN" commit-tree "$tree" -p refs/heads/main -m "squash (#$3)")
         git -C "$ORIGIN" update-ref refs/heads/main "$commit"
         echo "$commit" > "$STUB/merged-$3" ;;
     "pr view") cat "$STUB/merged-$3" ;;
+    "pr close")
+        if [ -e "$STUB/no-close" ]; then
+            echo "gh: could not close (HTTP 502)" >&2
+            exit 1
+        fi ;;
+    "pr reopen")
+        if [ -e "$STUB/no-reopen" ]; then
+            echo "gh: could not reopen (HTTP 502)" >&2
+            exit 1
+        fi ;;
     "api -X")
         number=${4#*/pulls/}
         number=${number%/update-branch}
@@ -249,8 +265,8 @@ def test_two_ready_pull_requests_on_other_files_the_second_waits_for_a_check_ove
     kitchen,
 ):
     """The 20:53 replay: the check of the second pull request started before the first one
-    merged, so it never ran over the first's merge, and its own files are no proof that it would
-    pass there."""
+    merged, so it never ran over the first's merge, and with no guards on the merged tree its own
+    files are no proof that it would pass there."""
     one = kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
     two = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     first, second = kitchen.run()
@@ -258,12 +274,12 @@ def test_two_ready_pull_requests_on_other_files_the_second_waits_for_a_check_ove
     assert second == asked(7, kitchen.tip())
     about = f"--repo {kitchen.origin}"
     assert merge.calls(kitchen.home) == [
-        f"pr list --state open --json {merge.LIST} {about}",
+        f"pr list --state open --limit 100 --json {merge.LIST} {about}",
         f"repo view {kitchen.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
         f"pr merge 6 --squash --match-head-commit {one} --subject feat: one (#6)"
         f" --body-file - {about}",
         f"pr view 6 --json mergeCommit --jq .mergeCommit.oid {about}",
-        f"pr list --base one --state open --json number {about}",
+        f"pr list --base one --state open --limit 100 --json number {about}",
         f"api -X PUT repos/{{owner}}/{{repo}}/pulls/7/update-branch -f expected_head_sha={two}"
         " --include",
     ]
@@ -351,6 +367,7 @@ def repo(kitchen, monkeypatch):
     monkeypatch.setenv("PATH", f"{home.stub}:{os.environ['PATH']}")
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
+    home.desk_checked()
     return cli.Repo(home.main, home.state, merge.ME, False, PROTECTED, user=ET)
 
 

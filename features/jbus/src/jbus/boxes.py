@@ -128,9 +128,9 @@ def picks(answers: dict[str, Any], labels: dict[str, list[str]]) -> tuple[party.
     found = []
     for question, given in answers.items():
         chosen = given if isinstance(given, list) else [given]
-        for one in chosen:
-            if str(one) in labels.get(question, []):
-                found.append(party.Pick(question, str(one)))
+        found += [
+            party.Pick(question, str(one)) for one in chosen if str(one) in labels.get(question, [])
+        ]
     return tuple(found)
 
 

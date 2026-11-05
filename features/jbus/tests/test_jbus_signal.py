@@ -18,7 +18,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import alert, alive, item, mainmoved, passes, poll, wake
+from jbus import alert, alive, item, passes, poll, wake
 from test_jbus_kitchen import ASK, NOW, REFUSED
 from test_jbus_kitchen import HOME as HOME_THREAD
 from test_jbus_wake_failing import OWNED, refusing
@@ -197,7 +197,8 @@ def unknown(directory: pathlib.Path) -> set[str]:
 
 def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     """`word` is the one kind that jbus sends and the table lacks. `word.py` logs it by
-    `Box.record`, and `record` does not check the kind against the table."""
+    `Box.record`, and `record` does not check the kind against the table. `hook` is in the
+    table and no Python sends it: the refusing hooks' shell writes it (`jbus.door`)."""
     sent = sent_in(SRC)
     assert sent[("stall.py", "EVENT")] == {"waiting-on-user"}
     assert sent[("waiting.py", "EVENT")] == {"waiting"}
@@ -222,8 +223,7 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("record.py", "'heartbeat'")] == {"heartbeat"}
     assert sent[("item.py", "kind(verb)")] == set()
     every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}
-    every.add(mainmoved.ASK.kind)
-    assert mainmoved.ASK.kind in wake.LOUDNESS
+    every.add("hook")
     assert unknown(SRC) == {"word"}
     assert set(wake.LOUDNESS) - every == set()
 

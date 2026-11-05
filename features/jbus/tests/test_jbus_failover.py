@@ -139,6 +139,30 @@ def test_the_17th_prime_cap_stalls_once_then_carries_on_at_the_first_reset(kitch
     assert len(kitchen.lines("stall")) == 1
 
 
+def test_a_cap_that_resets_before_the_window_of_its_instance_s_file_stalls_and_sends_no_more(
+    kitchen,
+):
+    """2026-11-04: each run on prime failed on claudeAgent's weekly reset while prime's file held
+    a later weekly window at 0%. The cap of the failed run holds prime until its own reset, so
+    the thread gets one carry-on, then a stall, and not one carry-on a pass."""
+    later = int((WEEKLY_RESET + timedelta(days=1)).timestamp())
+    ledger.write(ledger.Record(PRIME, "seven_day", 0, later))
+    thread = crew(kitchen)
+    failed_on(thread, WEEKLY, notice=("seven_day", WEEKLY_RESET))
+    kitchen.poll(FAILED_16TH)
+    assert thread["selection"]["instanceId"] == PRIME
+    failed_on(thread, WEEKLY, run="run-2", ran_on=PRIME, notice=("seven_day", WEEKLY_RESET))
+    for minutes in (1, 2, 3, 60):
+        kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
+    assert [given["clientRequestId"] for given in asks(kitchen)] == [f"failover|{THREAD}|run-1"]
+    assert kitchen.lines("stall") == [
+        f"capped alpha: claudeAgent and {PRIME} are both capped until "
+        f"{WEEKLY_RESET.isoformat()}; it is sent on at the first reset"
+    ]
+    kitchen.poll(AFTER)
+    assert len(asks(kitchen)) == 2 and len(kitchen.lines("stall")) == 1
+
+
 def test_the_same_failure_seen_on_two_passes_acts_once(kitchen):
     thread = crew(kitchen)
     failed_on(thread, WEEKLY)
@@ -147,6 +171,69 @@ def test_the_same_failure_seen_on_two_passes_acts_once(kitchen):
     assert len(asks(kitchen)) == 1 and len(configures(kitchen)) == 1
     assert len(failovers(kitchen)) == 1 and kitchen.lines("resume") == []
     assert thread["selection"]["instanceId"] == PRIME
+
+
+TAIL = (
+    ". This thread is now on claudeAgent_claude_prime, with the model and options it had. Carry "
+    "on from where you stopped: read your handoff and `jbus`'s view of your queue first. Do not "
+    "start over."
+)
+NESTED = f"jbus: your last turn stopped on a usage limit ({WEEKLY}){TAIL}){TAIL}){TAIL}"
+"""The carry-on that started run 413 of the root home's thread on 2026-11-04, its limit line with
+the tails of the carry-ons before it glued on."""
+
+
+def carried_on(thread, run, failure, ran_on="claudeAgent"):
+    """End the thread's run `run` as T3 Code recorded run 413: the run starts with the carry-on
+    jbus queued for the run before it, which quotes a limit, and then fails on `failure`, the
+    items of the run's own failure."""
+    sent = {
+        "runId": run,
+        "itemId": f"{run}:carry-on",
+        "type": "user_message",
+        "createdBy": "agent",
+        "text": NESTED,
+    }
+    failed_on(thread, "", run=run, ran_on=ran_on)
+    thread.update(read_items=[sent, *({"runId": run, **one} for one in failure)])
+
+
+def test_the_carry_on_quotes_the_limit_of_the_failed_run_once_not_the_carry_on_before_it(
+    kitchen,
+):
+    thread = crew(kitchen)
+    carried_on(
+        thread,
+        "run-413",
+        [
+            {"itemId": "notice:seven_day:1794168000", "type": "system_notice", "text": "paused"},
+            {"itemId": "413:1", "type": "assistant_message", "text": WEEKLY},
+            {"itemId": "413:2", "type": "error", "text": "Claude API rate limit reached."},
+        ],
+    )
+    kitchen.poll(FAILED_16TH)
+    (carry,) = asks(kitchen)
+    assert carry["clientRequestId"] == f"failover|{THREAD}|run-413"
+    assert carry["message"].startswith(f"jbus: your last turn stopped on a usage limit ({WEEKLY}).")
+    assert carry["message"].count("You've hit your") == 1
+    assert carry["message"].count("This thread is now on") == 1
+
+
+def test_a_run_a_carry_on_started_that_failed_on_no_limit_gets_no_carry_on_of_the_failover(
+    kitchen,
+):
+    """The thread's last message is the carry-on, and it quotes a limit, but the run failed on
+    something else: that run is no cap, and the failover sends it nothing on any pass."""
+    thread = crew(kitchen)
+    failed_on(thread, WEEKLY)
+    for minutes in (0, 3):
+        kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
+    carried_on(thread, "run-2", [{"type": "error", "text": "Claude API overloaded"}], PRIME)
+    for minutes in (6, 9, 12):
+        kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
+    keys = [given["clientRequestId"] for given in asks(kitchen)]
+    assert [key for key in keys if key.startswith("failover|")] == [f"failover|{THREAD}|run-1"]
+    assert len(failovers(kitchen)) == 1 and kept(PRIME, FAILED_16TH) is None
 
 
 def test_a_thread_with_no_cap_is_never_moved(kitchen):

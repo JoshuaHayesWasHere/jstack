@@ -116,6 +116,10 @@ class World:
     GitHub's, so a pass judges one world. A crew opens its pull request and then writes the Result
     that names it, so a Result in `results` names no pull request GitHub's lists could miss, and a
     thread T3 Code listed as ended wrote its Result before `look` read it.
+
+    `logs` holds each job's log that a step of the pass read, by the job's id, or None where GitHub
+    did not give it, so that `watch`, `rebase` and `cancelled` read a failed job's log once a pass
+    (`job_log`).
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -128,6 +132,7 @@ class World:
     waiting: set[str] = field(default_factory=set)
     holding: set[str] = field(default_factory=set)
     results: dict[str, str] = field(default_factory=dict)
+    logs: dict[str, str | None] = field(default_factory=dict)
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
@@ -954,7 +959,7 @@ def status(
     return {
         "thread": (found or {}).get("threadId") or launched,
         "pr": f"#{pull['number']}" if pull else "",
-        "checks": checks(pull) if slug in world.open else "",
+        "checks": checks(pull) if pull is not None and slug in world.open else "",
         "status": word,
         "why": reason,
     }
@@ -1066,10 +1071,11 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             run.gate(slug, "thread completed with a Result and no pull request")
     for slug, thread in world.archived.items():
         taken = slug in world.open or slug in world.merged
-        if slug in queued and slug not in run.gated and not taken:
-            if not last_result(brief_of(run, slug)):
-                line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
-                run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
+        if slug not in queued or slug in run.gated or taken:
+            continue
+        if not last_result(brief_of(run, slug)):
+            line = f"stale {slug}: thread {thread['threadId']} is archived with no Result"
+            run.find(slug, "stale", line, key=f"{thread['threadId']} archived")
     for slug, pull in world.merged.items():
         if slug in run.gated or not brief_of(run, slug):
             continue
@@ -1181,23 +1187,120 @@ def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
     """Return the check runs that judge a commit on main, and its push runs on the default
     branch. A check run counts unless it belongs to another workflow run at the commit: one not
     run by a push to the default branch. Where GitHub does not list the commit's workflow runs,
-    every check run counts."""
+    every check run counts. macos.yml's push run is never main's check, nor are its jobs by
+    their names where GitHub lists no run: a Mac red has its own path (`mac_check`,
+    `jbus.reverts.macos`), and never makes main red."""
     said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
     listed = (said if isinstance(said, dict) else {}).get("workflow_runs") or []
     branch = _default_branch(run)
-    pushed = [r for r in listed if r.get("event") == "push" and r.get("head_branch") == branch]
+    pushed = [
+        r
+        for r in listed
+        if r.get("event") == "push" and r.get("head_branch") == branch and not _of_mac(r)
+    ]
     other = {r.get("check_suite_id") for r in listed if r not in pushed} - {None}
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
     runs = (said if isinstance(said, dict) else {}).get("check_runs") or []
-    return [r for r in runs if (r.get("check_suite") or {}).get("id") not in other], pushed
+    return [
+        r
+        for r in runs
+        if (r.get("check_suite") or {}).get("id") not in other and r.get("name") not in MAC_JOBS
+    ], pushed
+
+
+MAC_FLOW = ".github/workflows/macos.yml"
+MAC_JOBS = ("macos-select", "macos")
+"""macos.yml, and its jobs' names: its run on each push to main judges that merge commit on a
+Mac, apart from main's check."""
+
+
+def _of_mac(one: dict) -> bool:
+    return str(one.get("path") or "").partition("@")[0] == MAC_FLOW
+
+
+def mac_runs(run: Pass, sha: str) -> list[dict] | None:
+    """The runs of macos.yml for the push of a commit to the default branch, or None where GitHub
+    does not list the commit's runs."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
+    if not isinstance(said, dict):
+        return None
+    branch = _default_branch(run)
+    return [
+        r
+        for r in said.get("workflow_runs") or []
+        if _of_mac(r) and r.get("event") == "push" and r.get("head_branch") == branch
+    ]
+
+
+def mac_check(run: Pass, known: dict[str, str], sha: str) -> str:
+    """Return what macos.yml's push run says of a commit on main, and keep a final answer in
+    `known`: `green` where its job `macos` ran and passed, `skipped` where the run passed with
+    that job skipped, as for a change that reaches no Mac test, so nothing was judged on a Mac,
+    `failed` where it failed after its one rerun, `cancelled` where it was stopped, `pending`
+    while it runs or its rerun does, or GitHub gives no answer, and an empty string where the
+    commit has no such run. A failed run at its first attempt is rerun once (`_rerun_failed`), as
+    main's check is."""
+    if sha in known:
+        return known[sha]
+    runs = mac_runs(run, sha)
+    if runs is None or any(r.get("status") != "completed" for r in runs):
+        return "pending"
+    if not runs:
+        return ""
+    failed = [r for r in runs if r.get("conclusion") not in NOT_RED]
+    first = [r for r in failed if (r.get("run_attempt") or 1) == 1]
+    if first and _rerun_failed(run, first, ask=True):
+        return "pending"
+    stopped = any(r.get("conclusion") == "cancelled" for r in runs)
+    if failed or stopped:
+        known[sha] = "failed" if failed else "cancelled"
+        return known[sha]
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    if not isinstance(said, dict):
+        return "pending"
+    suites = {r.get("check_suite_id") for r in runs} - {None}
+    ran = [
+        one
+        for one in said.get("check_runs") or []
+        if (one.get("check_suite") or {}).get("id") in suites
+        and one.get("name") == MAC_JOBS[-1]
+        and one.get("conclusion") == "success"
+    ]
+    known[sha] = "green" if ran else "skipped"
+    return known[sha]
+
+
+def mac_jobs(run: Pass, sha: str) -> list[tuple[str, str, Failed]] | None:
+    """Each failed job of macos.yml's push run at a commit, with its URL and the tests its log
+    names, or None where GitHub gives no answer or a log could not be read."""
+    runs = mac_runs(run, sha)
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    if runs is None or not isinstance(said, dict):
+        return None
+    suites = {r.get("check_suite_id") for r in runs} - {None}
+    jobs = []
+    for one in said.get("check_runs") or []:
+        if (one.get("check_suite") or {}).get("id") not in suites:
+            continue
+        if one.get("status") != "completed" or one.get("conclusion") in NOT_RED:
+            continue
+        found = _log_failed(run, one.get("id"))
+        if found is None:
+            return None
+        jobs.append((str(one.get("name") or "?"), str(one.get("html_url") or ""), found))
+    return jobs
 
 
 def job_log(run: Pass, repo: str, job: object) -> str | None:
     """Return a job's log, or None where GitHub did not give it. GitHub's log has escape
-    sequences in it, which gh 2.102 gives only when asked to."""
-    path = f"repos/{repo}/actions/jobs/{job}/logs"
-    log = run.run("gh", "api", path, "--allow-escape-sequences")
-    return log.stdout if log.returncode == 0 else None
+    sequences in it, which gh 2.102 gives only when asked to. A job's id is GitHub's own, so once
+    the pass has its world, the first read of a job's log is the pass's answer (`World.logs`)."""
+    kept = run.world.logs if run.world is not None else {}
+    if str(job) not in kept:
+        path = f"repos/{repo}/actions/jobs/{job}/logs"
+        log = run.run("gh", "api", path, "--allow-escape-sequences")
+        kept[str(job)] = log.stdout if log.returncode == 0 else None
+    return kept[str(job)]
 
 
 def _log_failed(run: Pass, job: object) -> Failed | None:
@@ -1799,14 +1902,17 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
 class RedTip:
     """Main's tip, red after its one rerun, as `retro` read it for `jbus.culprits.judge`, which
     reverts its one clear culprit or files its fix row (`_file`): the slug its row is filed after,
-    the tip, the merges since the last green, newest first, the pull request merged at the tip and
-    its slug."""
+    the tip, the merges since the last green, newest first, the pull request merged at the oldest
+    of them and its slug, and the green commit under the oldest, or nothing where none is in
+    reach. The oldest is the first red after the last green, so its merge is the one that turned
+    main red."""
 
     slug: str
     sha: str
     red: list[dict]
     pull: dict[str, Any] | None
     culprit: str
+    under: str = ""
 
 
 def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[str], str]) -> None:
@@ -1822,11 +1928,12 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
     again, and `retro` reports only a second cancelled run, or a run GitHub would not start
     again. It reports a red main once for each commit. A merge into another branch than main, a
     merge base's, did not land on main, so it takes no blame for it. `retro` files and queues a
-    brief for the fix once, and only for main's tip as this pass reads it: it hands the tip to
-    `jbus.culprits.judge` as `Pass.red`, which reverts its one clear culprit or files its row
-    (`_file`). A red commit that a later commit superseded is no longer main, so there is
-    nothing to fix. Once main's tip is green at a later commit than the one a fix row was filed
-    for, the red is gone: `_withdraw` takes out a row that never launched, and reports once a
+    brief for the fix once, and only for main's tip as this pass reads it: it hands the tip, with
+    every commit since the last green, to `jbus.culprits.judge` as `Pass.red`, which reverts its
+    one clear culprit, the merge at the first red after that green, or files its row (`_file`).
+    A red commit that a later commit superseded is no longer main, so there is nothing to fix.
+    Once main's tip is green at a later commit than the one a fix row was filed for, the red is
+    gone: `_withdraw` takes out a row that never launched, and reports once a
     row that did, which its crew and pull request keep. With no briefed merge and no open fix
     row, `retro` asks GitHub nothing until `main.json` keeps a red tip.
     """
@@ -1885,9 +1992,10 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
             run.find(slug, "retro", line, key=f"cancelled {sha}", past=True)
         if answer != "failed":
             continue
-        since = 1
+        since, under = 1, ""
         for older in commits[place + 1 : place + 20]:
             if older["sha"] == main.green or check(older["sha"]) == "green":
+                under = older["sha"]
                 break
             since += 1
         owner = slug or f"{mainjson.FIX}{sha[:12]}"
@@ -1897,9 +2005,10 @@ def retro(run: Pass, world: World, rows: list[dict[str, Any]], check: Callable[[
         line += "" if slug else ", and no briefed merge came in the day before it"
         run.find(owner, "retro", line, key=f"red {sha}", past=True)
         if place == 0 and not run.first and slug not in run.removed:
-            pull = by_commit.get(sha)
+            red = commits[place : place + since]
+            pull = by_commit.get(red[-1]["sha"])
             culprit = slug_of.get(pull["number"], "") if pull else ""
-            run.red = RedTip(slug, sha, commits[place : place + since], pull, culprit)
+            run.red = RedTip(slug, sha, red, pull, culprit, under)
 
 
 STEPS = (

@@ -106,6 +106,8 @@ TOLD = timedelta(hours=1)
 """How long past its reset the alert of a held pool stays open, so a home on that pool, which the
 outbox holds a message from until then, still hears of it."""
 ITEMS = 12
+SENT = "user_message"
+"""The type of the items T3 Code records for a message sent to a thread, by the user or by jbus."""
 CARRY_ON = (
     "jbus: your last turn stopped on a usage limit ({text}). This thread is now on {instance}, "
     "with the model and options it had. Carry on from where you stopped: {where} Do not start "
@@ -189,6 +191,8 @@ def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
     found = {}
     for thread in listed:
         at = thread.get("threadId")
+        if at is None:
+            continue
         role, slug = roles.role_of(str(thread.get("title", "")))
         if at in homes:
             found[at] = Mover("home")
@@ -236,10 +240,14 @@ def failure_of(
 ) -> tuple[ledger.Cap | Lapse, str] | None:
     """Return what the thread's last run failed on, a usage limit or a login lapse, and the
     instance that run was on, or None for a run that failed on neither. It reads both from the
-    last items the thread wrote. The failure is the run's instance's, not the thread's instance's
-    now: a thread that the user moved by hand after the failure is on another one. When the text
-    of a cap gives a reset, it reads that reset relative to the time the run ended, not to the
-    time of the pass. A run whose items name a cap is a cap, whatever else they say."""
+    last items the thread wrote, leaving out the messages sent to it (`SENT`). The run's own
+    message may be the carry-on of the run before it, which quotes that run's limit: the limit
+    it reads is the one the run failed on, so a run that failed on anything else is no cap, and
+    a carry-on never quotes another. The failure is the run's instance's, not the thread's
+    instance's now: a thread that the user moved by hand after the failure is on another one.
+    When the text of a cap gives a reset, it reads that reset relative to the time the run
+    ended, not to the time of the pass. A run whose items name a cap is a cap, whatever else
+    they say."""
     items = thread.get("itemCount")
     asked = {
         "threadId": thread["threadId"],
@@ -261,7 +269,9 @@ def failure_of(
     last = [
         item
         for item in read.get("items") or []
-        if isinstance(item, dict) and item.get("runId") in (None, latest)
+        if isinstance(item, dict)
+        and item.get("runId") in (None, latest)
+        and item.get("type") != SENT
     ]
     stamps = [
         run_of.get("completedAt"),
@@ -559,14 +569,14 @@ def plan(
     fill: bool = False,
     checked: dict[str, bool] | None = None,
 ) -> Move | None:
-    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap added,
-    chooses the move, and writes nothing. It returns None for a thread whose configuration names no
-    model.
+    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap holding
+    the capped instance until the cap's reset (`ledger.held`), even where the instance's file has
+    a later window, chooses the move, and writes nothing. It returns None for a thread whose
+    configuration names no model.
 
     A replay sets `fill`. Then, when the ledger has a window running for the capped instance
-    and that window resets later, the cap fills that window. Without `fill`, a cap moved to now
-    would lose to that window, because the ledger keeps the later reset. A real cap carries
-    that window's own reset. A pass sets `checked`. With it, `plan` skips an instance that is not
+    and that window resets later, the cap fills that window, since a cap moved to now holds
+    nothing. A pass sets `checked`. With it, `plan` skips an instance that is not
     mirrored (`dispatch.mirrored_choice`), and that check may run the mirror."""
     cap, ran = found
     configuration = client.call("t3_thread_configure", {"threadId": thread["threadId"]})
@@ -579,7 +589,7 @@ def plan(
     running = ledger.read([capped]).get((capped, cap.window))
     if fill and running and running.resets > cap.resets.timestamp():
         cap = replace(cap, resets=datetime.fromtimestamp(running.resets, UTC))
-    kept = ledger.merge(ledger.read(instances), [cap.record(capped)])
+    kept = ledger.held(ledger.read(instances), cap.record(capped))
     if checked is None:
         choice = pool.choose(instances, kept, run.now)
     else:
@@ -597,11 +607,12 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
     if record and ledger.write(cap.record(move.capped)):
         run.say(f"capped {move.capped}: {cap.window} until {cap.resets.isoformat()}")
     subject = move.mover.subject(at)
-    if choice.instance is None and (choice.until is None or choice.passed):
-        run.say(f"wait {move.mover.name}: no move: {choice.why}")
-        return
     if choice.instance is None:
-        if run.find(subject, "stall", line, key=f"capped {choice.until.isoformat()}"):
+        until = choice.until
+        if until is None or choice.passed:
+            run.say(f"wait {move.mover.name}: no move: {choice.why}")
+            return
+        if run.find(subject, "stall", line, key=f"capped {until.isoformat()}"):
             run.say(line)
         return
     message = threads.resume_message(
