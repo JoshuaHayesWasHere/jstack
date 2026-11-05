@@ -23,13 +23,15 @@ counts per call, and no text of a message.
   has already copied keeps its first session, as a resumed or forked Claude session copies the
   calls it carries over.
   A Claude call keeps its reasoning `effort`, the one the first of its lines that names one
-  names (Claude Code 2.1.303 and later), and none where no line does, as a Codex call has none.
+  names (Claude Code 2.1.303 and later), its `effort` or else its `perTurnEffort`, and none
+  where no line does, as a Codex call has none.
 
 A build reads only the transcripts of the sessions `sessions` names, so a test's T3 home, which
 has no store, reads none. Each file is read on from a cursor in `cursors`, under the provider
-in place of a project and the file's path as its source, as a jbus log is (`telemetry._log`),
-and the oldest files first, so the ones nearest the cleanup are copied first when a pass's
-budget runs out.
+in place of a project and the file's path as its source, as a jbus log is (`telemetry._log`).
+The files written since the last build are read first, newest calls and all, and then the rest
+oldest first, so the ones nearest the cleanup are copied next when a pass's budget runs out: a
+backlog of old files, such as the reread of `REREAD`, holds up no new call.
 """
 
 from __future__ import annotations
@@ -39,7 +41,7 @@ import os
 import sqlite3
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
-from datetime import tzinfo
+from datetime import datetime, tzinfo
 from pathlib import Path
 from typing import Any
 
@@ -139,9 +141,10 @@ def _homes(driver: str, default: Path) -> list[Path]:
     return list(seen)
 
 
-def transcripts(known: set[tuple[str, str]]) -> list[Transcript]:
-    """The transcripts of the sessions in `known`, oldest first: a Claude session's under
-    each Claude home's `projects/`, with its subagents', and a Codex session's rollouts."""
+def transcripts(known: set[tuple[str, str]], since: datetime | None = None) -> list[Transcript]:
+    """The transcripts of the sessions in `known`: a Claude session's under each Claude home's
+    `projects/`, with its subagents', and a Codex session's rollouts. Those written after `since`
+    come first, then the rest, each part oldest first."""
     found: dict[Path, Transcript] = {}
     claude = {session for provider, session in known if provider == CLAUDE}
     codex = {session for provider, session in known if provider == CODEX}
@@ -170,7 +173,10 @@ def transcripts(known: set[tuple[str, str]]) -> list[Transcript]:
                     session = path.stem[-36:]
                     if session in codex:
                         found.setdefault(path.resolve(), Transcript(CODEX, session, path))
-    return sorted(found.values(), key=_age)
+    fresh = since.timestamp() * 1e9 if since else None
+    return sorted(
+        found.values(), key=lambda one: (fresh is None or _age(one)[0] <= fresh, _age(one))
+    )
 
 
 def _age(one: Transcript) -> tuple[int, str]:

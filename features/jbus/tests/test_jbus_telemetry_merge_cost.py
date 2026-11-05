@@ -20,12 +20,14 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import statistics
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from jbus import cli
+import jbus
+from jbus import cli, telemetry
 from jbus.telemetry import kpis
 from jgauge import spend
 from test_jbus_kpi_page import Cells
@@ -73,7 +75,8 @@ def efforts(machine):
 def test_a_call_keeps_the_effort_its_lines_name_and_none_where_they_name_none(machine):
     """Each call's effort is what its own lines name, the main thread's and a subagent's alike.
     A call that no T3 run covers, and one whose run named no effort option, still have the
-    effort their lines name; a call whose lines name none has none."""
+    effort their lines name; a line whose `effort` is null names its `perTurnEffort`; a call
+    whose lines name none has none."""
     machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
     run_of(machine, "mcp:crew-a", MERGED, MERGED + timedelta(minutes=5))
     machine.claude(
@@ -84,6 +87,11 @@ def test_a_call_keeps_the_effort_its_lines_name_and_none_where_they_name_none(ma
         at_effort(said(MERGED + timedelta(minutes=1), "m2", (1, 0, 0, 2), model=SONNET), "high"),
         said(MERGED + timedelta(minutes=2), "m3", (1, 0, 0, 1)),
         at_effort(said(MERGED + timedelta(hours=3), "m4", (1, 0, 0, 1)), "low"),
+        {
+            **said(MERGED + timedelta(hours=4), "m6", (1, 0, 0, 1)),
+            "effort": None,
+            "perTurnEffort": "high",
+        },
     )
     machine.claude("s1", at_effort(said(MERGED, "m5", (1, 0, 0, 1)), "xhigh"), agent="a1")
     machine.run()
@@ -94,6 +102,7 @@ def test_a_call_keeps_the_effort_its_lines_name_and_none_where_they_name_none(ma
         ("m3", None, None),
         ("m4", None, "low"),
         ("m5", "agent-a1", "xhigh"),
+        ("m6", None, "high"),
     ]
 
 
@@ -147,6 +156,32 @@ def test_a_store_copied_before_calls_kept_effort_takes_it_from_the_transcripts_o
         (f"{C1}:1030", None),
     ]
     assert "nothing new" in machine.run()
+
+
+def test_the_first_pass_after_the_reread_copies_a_new_call_before_the_old_transcripts(machine):
+    """A pass reads at most its budget of bytes. Once the store must read every transcript
+    again, the transcripts written since the last build come first, so a call made after it is
+    copied in the first pass, and the old ones wait for later passes."""
+    machine.thread("mcp:crew-a", "crew: row-a", "claudeAgent", "s1")
+    machine.thread("mcp:crew-b", "crew: row-b", "claudeAgent", "s2")
+    old = machine.claude(
+        "s1",
+        *(at_effort(said(MERGED, f"old-{n}", (1, 0, 0, 1)), "medium") for n in range(50)),
+    )
+    os.utime(old, (MERGED.timestamp(), MERGED.timestamp()))
+    machine.run()
+    older(machine)
+    new = machine.claude(
+        "s2", at_effort(said(datetime.now(UTC), "new", (1, 0, 0, 1), session="s2"), "high")
+    )
+
+    built = telemetry.build(jbus.load(), most=new.stat().st_size + 100)
+
+    assert built.left
+    with machine.store() as store:
+        copied = dict(store.execute("SELECT call, effort FROM calls"))
+    assert copied["new"] == "high"
+    assert copied["old-0"] is None
 
 
 def queue_and_merges(machine, merges, redoes):
@@ -383,9 +418,9 @@ def page(machine, week):
     return cells.rows
 
 
-def test_a_week_whose_merges_are_not_judged_yet_has_no_figure_and_says_how_many_wait(machine):
-    """A merge whose 7 days are not over is not successful yet, so its week has no merge to
-    divide by, and the page says how many of its merges wait."""
+def test_a_week_whose_merges_are_not_all_judged_has_no_figure_and_says_how_many_are(machine):
+    """A merge whose 7 days are not over is not successful yet, and all-in would count its calls
+    and not it, so its week shows no figure, and says how many of its merges are judged."""
     machine.thread("mcp:crew-a", "crew: fresh", "claudeAgent", "s1")
     merged_at = datetime.now(UTC) - timedelta(days=1)
     machine.claude("s1", at_effort(said(merged_at, "m1", (1, 0, 100, 10)), "medium"))
@@ -396,7 +431,9 @@ def test_a_week_whose_merges_are_not_judged_yet_has_no_figure_and_says_how_many_
 
     row = page(machine, week)["All-in dollars per successful merge"]
 
-    assert row[5] == "n/a n 0 no data: 1 merge of the week not judged yet, whose calls count"
+    assert row[5] == (
+        "n/a n 0 no data: 0 of 1 merges of the week judged, so no figure until the rest are"
+    )
 
 
 def test_the_kpi_page_puts_all_in_dollars_per_successful_merge_first_with_its_breakdown(week):
