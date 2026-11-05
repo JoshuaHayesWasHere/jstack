@@ -32,6 +32,10 @@ about a scoped home's work reaches that home alone, a scoped home's own word tha
 home's work stays in that scope, and two homes never act on one word. A home that records a word
 about another home's work with `--from` forwards it to the home that owns it.
 
+A word whose slugs decide no home and whose trailing `[for: ...]` names scoped homes, by name or
+as "<scope> home", goes to each of those homes as a word of its own, as `--scope` carries one
+(`_for_scopes`). A `[for: ...]` that names a slug keeps the slug's routing.
+
 `--scope <scope>`, given again for each scope or once as `--scope every`, carries one word to the
 scoped homes it names in place of `owner`'s one home: the root home runs it for the user's word to
 those homes, and writes no words of its own into them. It takes only `--message`, so the words are
@@ -109,6 +113,7 @@ BY_HOME = "it was recorded by this project's home thread {thread}"
 THREAD = re.compile(r"mcp:(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|launch:[0-9a-f]{64})")
 EVERY = "every"
 SLUG = re.compile(r"[a-z0-9]+(?:\.[a-z0-9]+)*(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)+")
+FOR = re.compile(r"\[for:([^\]]*)\]\s*$", re.IGNORECASE)
 
 
 class Unparsable(Refused):
@@ -245,6 +250,24 @@ def owner(home: Path, words: str, *threads: str) -> str:
     return next((homes[one] for one in threads if one in homes), "")
 
 
+def _for_scopes(run: Pass, words: str) -> list[str]:
+    """The scoped homes that the words' trailing `[for: ...]` names, each by its name or as
+    "<scope> home", in the order named: the homes a word goes to, one word for each, in place
+    of `owner`'s one home. Empty where the words' slugs decide its home (`_decided`), or where a
+    name in the brackets is a row's or a brief's slug, so such a word keeps its slug's routing.
+    A name that is neither a scope nor a slug is passed over."""
+    tag = FOR.search(words)
+    if tag is None or _decided(run.home, words) is not None:
+        return []
+    names = [" ".join(one.split()).lower().removesuffix(" home") for one in tag[1].split(",")]
+    rows = queue.known(run.state)
+    briefs = {path.stem for kind in ("tasks", "scouts") for path in (run.home / kind).glob("*.md")}
+    if any(one in rows or one in briefs for one in names):
+        return []
+    known = {scope.name for scope, _, _ in scopes(run.home)}
+    return list(dict.fromkeys(one for one in names if one in known))
+
+
 def _homes_dir(run: Pass, one: Word) -> Path:
     return run.home / one.home if one.home else run.home
 
@@ -285,10 +308,18 @@ def keep(
     A home that already holds the same word, kept by any path, gets no second act: `keep`
     returns the one it holds.
 
+    With no `scope`, a word whose trailing `[for: ...]` names scoped homes (`_for_scopes`) is kept
+    as with `scope` once for each of them, and `keep` returns the first: `line` says what became
+    of each.
+
     The act is logged under `acts.lock` with `acts.logged`, not through `acts.act`, since a word
     has no door and `keep` must find a word that is kept already and log a new one at once.
     """
     words, at, ref = said(heard.words), heard.said_at, heard.ref
+    if scope is None:
+        named = _for_scopes(run, words)
+        if named:
+            return [keep(run, who, heard, recorder, scope=one) for one in named][0]
     extra = [*([ref] if ref else []), *([f"scope:{scope}"] if scope is not None else [])]
     named = json.dumps([run.project.name, words, run.user.user, at, *extra])
     if heard.source == queue.BOT_CHAT:
@@ -411,8 +442,24 @@ def deliver(run: Pass, client: Client | None) -> None:
 
 def line(run: Pass, was: Word) -> str:
     """Return what `jbus word` prints for one project: the current state of the word that it
-    kept as `was`."""
-    (one,) = [one for one in load(run.state) if one.id == was.id]
+    kept as `was`, one line for each home it went to. A word that `keep` kept once for each scope
+    its `[for: ...]` names has a line for each of those homes, in the order named."""
+    named = _for_scopes(run, was.words)
+    if was.home not in named:
+        return _line(run, was, was)
+    alike = [
+        one
+        for one in load(run.state)
+        if (one.words, one.at, one.ref) == (was.words, was.at, was.ref) and one.home in named
+    ]
+    alike.sort(key=lambda one: named.index(one.home))
+    return "\n".join(_line(run, was, one) for one in alike)
+
+
+def _line(run: Pass, was: Word, now: Word) -> str:
+    """One line of `line`: the current state of the word `now`, which was sent before this
+    command where `was` was."""
+    (one,) = [one for one in load(run.state) if one.id == now.id]
     name = run.project.name
     if one.skipped:
         return f"kept: {name}, not posted, {one.skipped}, word {one.id}"
@@ -625,7 +672,7 @@ def _scoped(
                 "again"
             )
         else:
-            print(line(run, was))
+            print(_line(run, was, was))
     return 0
 
 

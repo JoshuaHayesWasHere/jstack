@@ -362,7 +362,8 @@ The bot gives a go, an answer or a word with `POST /act?project=<name>` on `jbus
 ```
 
 The evidence of each is `bot-chat:<address>/<device>` with both parts named, and any other, `voice:` included, answers 400.
-A word is kept for the project's home and sent to its thread at once, as `jbus word` sends one ([Your word to a home](your-word-to-a-home.md)), and answers 200 with the act and `say`, the line `jbus word` prints for it.
+A word is kept for the project's home and sent to its thread at once, as `jbus word` sends one ([Your word to a home](your-word-to-a-home.md)), and answers 200 with the act and `say`, the lines `jbus word` prints for it.
+A word whose trailing `[for: ...]` names scoped homes, such as `[for: cicd home, docs home]`, is kept and sent once for each of those homes, and the act is the first home's.
 A word that keeps no `answers` and names no row of the project by its slug is refused as `jbus word` refuses it: it answers 409 with `word.BARE_WORD`'s text as `error`, and nothing is kept or sent.
 To pass it, give `answers`, the bot's message the words answer, or end the words with `[for: <slug>]`.
 
