@@ -40,7 +40,7 @@ jstack runs only when every **hard** need is met.
 | Need | Level | Notes |
 |---|---|---|
 | Linux or macOS | hard | Supported: macOS on Apple Silicon, and Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). |
-| T3 Code | hard | The desktop app the threads run in, with Claude Code as their agent. Download it from [t3.codes](https://t3.codes). jstack needs stable `0.1.2`, or nightly `0.1.2-nightly.20261022.3526` or newer. [Where to get each program](features/jinstall/docs/troubleshooting/the-platform-and-the-programs.md#where-to-get-each-program) has its Homebrew and Arch packages. |
+| T3 Code | hard | The desktop app the threads run in, with Claude Code as their agent, from [t3.codes](https://t3.codes): stable `0.1.2`, or nightly `0.1.2-nightly.20261022.3526` or newer. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the ten commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
@@ -59,22 +59,15 @@ jstack runs without it.
 | Need | What you lose without it |
 |---|---|
 | `jbus` and its config | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. |
-| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, `jbus-merge` every 5 seconds, the check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the week's CI report (`jbus-ci.timer`), the day's CI report (`jbus-ci-day.timer`), the relay and the backup only once their config is there. |
+| systemd `--user`, or launchd on macOS | No background jobs. The install enables these timers: the `jbus` pass each minute, `jbus-merge` every 5 seconds, the check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the week's and the day's CI reports (`jbus-ci.timer`, `jbus-ci-day.timer`), the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 
 A visual shows in T3 Code's preview, so it needs nothing beyond the app.
 
 The threads run on Claude Code, and the install also links the skills for Codex and Cursor.
-It writes outside jstack's own folders for each of the three.
-`jinstall --uninstall` takes its links, hook entries, keys and units away:
-
-- Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line, the attribution keys and the skill listing's budget in `~/.claude/settings.json`.
-- Codex: a link for each skill in `~/.codex/skills`, and hook entries in `~/.codex/hooks.json`.
-- Cursor: a link for each skill in `~/.agents/skills`, and the attribution keys in `~/.cursor/cli-config.json` once Cursor's CLI has made it.
-- The units: in `~/.config/systemd/user`, or `~/Library/LaunchAgents` on macOS.
-- Configs, where none is there: `~/.config/jstack/config.toml`, a role map, and a `jbus` config that launches nothing.
-
+It writes outside jstack's own folders: skill links in `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`, hook entries and keys in `~/.claude/settings.json`, `~/.codex/hooks.json` and `~/.cursor/cli-config.json`, the units in `~/.config/systemd/user` or `~/Library/LaunchAgents`, and each config it finds missing under `~/.config`.
+`jinstall --uninstall` takes its links, hook entries, keys and units away.
 [jinstall](features/jinstall/docs/jinstall.md) lists every file, and [AI co-author trailers](features/jinstall/docs/jinstall.md#ai-co-author-trailers) says which keys it sets.
 
 ## Quickstart
@@ -112,9 +105,8 @@ In this tutorial we install jstack, point it at a repo of yours, and watch it me
 	jinstall --check
 	```
 
-	Each hard part prints a line that starts with `ok`, and the command exits 0.
-	An optional part can print an `old optional` or `missing optional` line instead, and the command then exits 1.
-	You can leave that line: the part is a layer jstack runs without.
+	Each hard part prints a line that starts with `ok`.
+	An `old optional` or `missing optional` line is a layer you may leave, and makes the command exit 1.
 
 3. Check the machine.
 
@@ -122,9 +114,7 @@ In this tutorial we install jstack, point it at a repo of yours, and watch it me
 	jinstall --doctor
 	```
 
-	You see a line for each requirement, then the lines of step 2, and `doctor: ok` last once every hard need is met.
-	A `missing optional` line, such as the one for the CI report, leaves that last line as it is.
-	While a hard need is left, the last line is `doctor: not ok, <n> hard`.
+	You see a line for each requirement, then the lines of step 2, and `doctor: ok` last once every hard need is met, whatever the optional lines say.
 	Every `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
 
 4. Pick the repo that you want work done in.
@@ -158,23 +148,18 @@ In this tutorial we install jstack, point it at a repo of yours, and watch it me
 	Then it fixes what the review found, and says the pull request is fixed and green.
 
 8. Watch it merge.
-	Step 5 put the repo in the `jbus` config, and step 1 enabled the `jbus` timers, so `jbus` runs `jmerge` for you.
-	`jbus-merge.timer` runs `jmerge --if-free` within about 15 seconds of a pull request's last check ending, and the `jbus` pass runs `jmerge` each minute.
+	Step 5 put the repo in the `jbus` config, so `jbus` runs `jmerge` within about 15 seconds of the last check ending.
 	`jmerge` merges each pull request that is reviewed, fixed and green, then removes its worktree and its branch.
 	The reviewer thread's review is the approval, so no person approves on GitHub.
-	To see what each open pull request waits on, run this in the repo's main checkout:
+	`jmerge --check` in the main checkout prints why each open pull request waits.
 
-	```sh
-	jmerge --check
-	```
+Where `jbus` does not run, merge from the repo's main checkout yourself:
 
-	You see a `ready` line for each pull request the next run merges, and the reason each other one waits.
+```sh
+jmerge
+```
 
-Run `jmerge` yourself only on a machine where `jbus` does not run: one with no `jbus` config, or with no systemd `--user` or launchd for its timers ([Merge what is ready](features/jmerge/docs/jmerge.md#merge-what-is-ready)).
-To merge a repo's pull requests yourself, type `/nohome merge` in a thread of that repo.
-From then on `jmerge` merges nothing there, and prints `auto-merge is off for this repo` for each pull request it would have merged.
-You merge those pull requests yourself.
-`/nohome merge on` switches the automatic merge back on.
+After `/nohome merge` in a repo, `jmerge` merges nothing there and says `auto-merge is off for this repo`: the merges are yours until `/nohome merge on`.
 To add jleak's git hooks to another repo, run `jinstall --repo` in it ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.
