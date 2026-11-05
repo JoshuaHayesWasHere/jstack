@@ -95,8 +95,6 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
            said=$(uv run --project "$T/../source" jmerge --checks "$pr")
            case $said in
            passed*) head=${said##* } ;;
-           "wait: a check has not finished" | "wait: no check is reported yet")
-               head=$(gh pr view "$pr" --json headRefOid | jq -r '.headRefOid // empty') ;;
            *) head= ;;
            esac
            if [ -z "$head" ]; then why="its checks, $said"; fi
@@ -117,19 +115,20 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    - it has no `## Review` section and no reviewer: no `Reviewer:` line but one that says `none`, which the block above reads the same way;
    - that pull request is open;
    - its `Review:` line, read as above, is not `none`;
-   - the pull request's checks are not red.
+   - the pull request's checks have passed at its head.
      `jmerge --checks` prints its four answers: `passed`, `failed`, `wait`, `unrun` (the crew skill, "The checks").
-     `passed` and `wait` are ready: a review runs beside the checks, and green is what `jmerge` merges on, not what a review waits for.
-     The `wait` of a GitHub that could not be asked is not ready: no rollup was read.
-     `failed` is never ready: a red pull request is fixed first, and its reviewer is launched on the push.
+     Only `passed` is ready: the deterministic checks prove or fail the work before a reviewer reads it, so the reviewer reads only a head they passed.
+     `wait` is not ready, a check still running or a GitHub that could not be asked: jbus tells the crew when every check has passed, and the reviewer is launched then.
+     `failed` is never ready: a red pull request is fixed first, and its reviewer is launched once the push that fixes it has passed.
      `unrun` means no check ran, every one failed with no step run or was skipped, because the repo's CI starts no job: nothing stands in for a check that did not run, so the brief is not ready, whatever its Result says of a check command that passed in the crewmate's worktree.
 
    One thing the block cannot see: `t3_thread_list` with `titleContains: "review: <slug>"` finds no thread. Check it for each brief printed as ready.
 
    In a home with no slug, take every ready brief, oldest first, and at most three. Name the ones left over, and the ones passed over with the reason in a few words each: for a brief with `Review: none`, that its brief asks for no review. In a crewmate's thread with no slug, take that one brief; if it is not ready, say which line fails and stop. With a slug, first do what "A brief the user names" says, then take that one brief the same way.
 2. A brief that already has a `## Review` section or a reviewer is refused: say so, and that it is one pass per pull request.
-   A scoped pass is not refused: the crewmate launches one for a fix it pushed for a review's findings, jbus asks it for one after a rebase that changed the content of a reviewed patch, its message is `/pr-review run <slug> scoped <old range> <new range>` with the two ranges as the crew skill's block or jbus gave them, its title is `review: <slug>, scoped`, and it is launched as a second pass is, with `PASS=second` ("A scoped pass").
-   A second pass is launched in three cases only, and then the message is `/pr-review run <slug> again`: the user asks for another pass in so many words; this is the crewmate's thread and the block of the crew skill's "A second pass" printed `needed: launch the second reviewer`, which it prints only for a brief from before a fix got a scoped pass; or this is the crewmate's thread, the brief says `Review: twice`, and its `Fixed:` line names the head the crewmate pushed for its one fix round, which runs no block of "A second pass".
+   A scoped pass is not refused: the crewmate launches one when a review's `Meets the brief:` line is not `yes`, jbus asks it for one after a rebase that changed the content of a reviewed patch, its message is `/pr-review run <slug> scoped <old range> <new range>` with the two ranges as the crew skill's block or jbus gave them, its title is `review: <slug>, scoped`, and it is launched as a second pass is, with `PASS=second` ("A scoped pass").
+   A fix pushed for a review's findings gets no pass: one round.
+   A second pass is launched in one case only, and then the message is `/pr-review run <slug> again`: the user asks for another pass in so many words.
    For a second pass send the readiness block with `PASS=second` as its first line: the lines about `## Review` and a reviewer then do not apply, the others do.
    The title is `review: <slug>, second pass`.
    A reviewer that ended its turn writing nothing is sent back to work with the same `again` line, whether or not the brief has a `## Review` (`$T/rerun.md`).

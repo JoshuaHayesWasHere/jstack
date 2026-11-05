@@ -189,7 +189,7 @@ def check(kitchen, number):
     return jmerge(kitchen, "--accept", str(number), "--check")
 
 
-@pytest.mark.parametrize("mode", ["review", "twice"])
+@pytest.mark.parametrize("mode", ["review", "cleanup"])
 def test_a_proof_carries_over_a_merge_of_main_that_left_the_patch_as_it_was(kitchen, mode):
     proven = held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, mode=mode)
     head = merged_main(kitchen, "beta", 7)
@@ -201,7 +201,7 @@ def test_a_proof_carries_over_a_merge_of_main_that_left_the_patch_as_it_was(kitc
 
 
 def test_a_merge_of_main_that_changed_the_patch_leaves_no_proven_fact(kitchen):
-    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, mode="twice")
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, mode="cleanup")
     head = merged_main(kitchen, "beta", 7, own={"a.txt": "ours, and more\n" + LINES})
     out = check(kitchen, 7)
     assert kitchen.home.code == 1, (out, kitchen.home.stderr)

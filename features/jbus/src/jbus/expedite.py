@@ -13,19 +13,16 @@ reason with its sentence:
 - `unpushed`, `nothing was pushed after them`: push the fix and name its head, or decline
   every finding in writing, as above;
 - `unended`, `<k> of <n> have no Finding line`: write the lines that are missing;
-- `unanswered`, `uncited`, `repeated` and `risky`, the waits of an answer by id
-  (`jbriefs.findings`): answer each finding by id, and give a decline a reason that cites a
-  path:line, a command or a gate. Give each finding its own reason, and park a gate for a
-  risky one. For each of these four reasons and the three above, the line lists by id the
+- `unanswered`, `unproven`, `uncited`, `repeated` and `risky`, the waits of an answer by id
+  (`jbriefs.findings`): answer each finding by id, and give a decline of a finding with a proof
+  a reason that cites a path:line, a command or a gate. Give each finding its own reason, and
+  park a gate for a risky one. A finding with no proof tag (`unproven`) takes a decline with
+  any reason. For each of these five reasons and the three above, the line lists by id the
   findings that have no answer that counts;
-- `second`, `the second pass is not written`: launch the second reviewer. `jmerge` gives this
-  reason for a brief written before fixes got a scoped review;
 - `fix`, `the scoped review of it is not written`: launch the scoped reviewer of the fix
-  with the two ranges, the patch the last review saw and the patch at the head. Where the
-  crew cannot work out a range, run the crew skill's block, which says what to do;
-- `declines`, `the scoped review has not ruled on the declines of <ids>`: run the crew
-  skill's block of "A second pass". The block launches the one scoped pass that a blocking
-  decline needs, even where the crew pushed nothing;
+  with the two ranges, the patch the last review saw and the patch at the head. One round owes
+  it only after a `Meets the brief: no`. Where the crew cannot work out a range, run the crew
+  skill's block, which says what to do;
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
@@ -137,7 +134,16 @@ NO_FIX_RANGE = (
     "ranges."
 )
 RERUN = "rerun.md"
-ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
+ANSWERED = (
+    "unfixed",
+    "unpushed",
+    "unended",
+    "unanswered",
+    "unproven",
+    "uncited",
+    "repeated",
+    "risky",
+)
 AGAIN = "/pr-review run {slug} again"
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
 PROVE_STEP = "Once the check passed, prove the change with the tests it changes"
@@ -232,6 +238,14 @@ TABLE = (
         "<the brief>` lists them. An answer with no id answers none of them.",
     ),
     Short(
+        "unproven",
+        "wait",
+        ready.UNPROVEN,
+        "Each finding the reason names blocks with no proof tag: no run, check, doc line or "
+        "`Done when` line shows it. Fix it or decline it, by its id, "
+        f"{findings.ANSWER}: a decline of it needs no cited reason.",
+    ),
+    Short(
         "uncited",
         "wait",
         ready.UNCITED,
@@ -254,29 +268,6 @@ TABLE = (
         "that it is fixed, fix it, and answer it `Finding F<n>: fixed, ...`; where the user "
         "answers that it stays, answer it `Finding F<n>: not fixed, ..., because question <n>: "
         "<the answer>`, with the Result's `Gate: question <n>` line.",
-    ),
-    Short(
-        "second",
-        "wait",
-        ready.SECOND_UNWRITTEN,
-        'Launch the second reviewer now, the way the crew skill\'s "A second pass" says, with '
-        f"the message `{AGAIN}`, and add `Second reviewer: <threadId>` to the "
-        "Result, in place of a `Second reviewer:` line whose thread wrote no `## Review`. Push "
-        "nothing until its `## Review` is written.",
-        reviewed=True,
-        sends=AGAIN,
-    ),
-    Short(
-        "twice",
-        "wait",
-        ready.TWICE_UNWRITTEN,
-        "Its brief says `Review: twice`: launch its second review of the head you pushed now, "
-        f'the way the crew skill\'s "The review" says, with the message `{AGAIN}`, and add '
-        "`Second reviewer: <threadId>` to the Result, in place of a `Second reviewer:` line "
-        "whose thread wrote no `## Review`. Its errors alone come to this thread: answer "
-        "each by id and push the fix, and no third review follows.",
-        reviewed=True,
-        sends=AGAIN,
     ),
     Short(
         "fix",
@@ -318,14 +309,6 @@ TABLE = (
         unless=no_reviewer_by_rule,
         sends=AGAIN,
         rerun=True,
-    ),
-    Short(
-        "declines",
-        "wait",
-        ready.DECLINES_UNRULED,
-        SECOND_PASS + "each blocking decline is ruled on by one scoped pass, also where nothing "
-        "was pushed, and the block writes the `Scoped review:` line and gives the launch.",
-        reviewed=True,
     ),
     Short(
         "meets-no",

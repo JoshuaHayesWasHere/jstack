@@ -11,7 +11,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from jbriefs import findings, meets, proved, skills
-from jbriefs.findings import CLEANUP, NONE, REVIEW, TWICE
+from jbriefs.findings import CLEANUP, NONE, REVIEW
 from jmerge.rangediff import Verdict
 from jmerge.stacked import Stacked
 from jsettings import Settings
@@ -25,7 +25,6 @@ _ACK = re.compile(
 _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
-_NOTHING_PUSHED = "nothing was pushed"
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -182,13 +181,7 @@ CHECKED_PART = Reason(
 NO_VERDICT = Reason("review", "its review has no verdict")
 NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
 NOT_PUSHED = Reason("findings", "its findings are not handled: nothing was pushed after them")
-SECOND_UNWRITTEN = Reason(
-    "second",
-    "its fix changed more than the findings named: the second pass is not written",
-)
-TWICE_UNWRITTEN = Reason("second", "its second review is not written at {head}")
 FIX_UNREVIEWED = Reason("second", "its fix is not reviewed: the scoped review of it is not written")
-DECLINES_UNRULED = Reason("second", "the scoped review has not ruled on the declines of {ids}")
 DECLINES_OVERRULED = Reason(
     "findings",
     "its findings are not handled: the scoped review did not uphold the decline of {ruled}",
@@ -212,6 +205,11 @@ MEETS_MISCOUNTED = Reason(
 )
 UNENDED = Reason("findings", "its findings are not handled: {left} of {found} have no Finding line")
 UNANSWERED = Reason("findings", "its findings are not handled: {ids} have no answer by id")
+UNPROVEN = Reason(
+    "findings",
+    "its findings are not handled: {ids} block with no proof tag, so answer each by id, and a "
+    "decline of one needs no cited reason",
+)
 UNCITED = Reason(
     "findings",
     "its findings are not handled: the decline of {ids} cites no path:line, command or gate",
@@ -338,12 +336,30 @@ QUEUED_GAVE_UP = Reason(
     "GitHub queued its {check} run at {head} again after jmerge closed and reopened it, and "
     "started none in {minutes} minutes: it gave the head of the line to the next pull request",
 )
+QUEUED_UNRESTARTED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} and started none, and jmerge could not close and "
+    "reopen it in {minutes} minutes of tries ({why}): it gave the head of the line to the next "
+    "pull request",
+)
+QUEUED_UNREOPENED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} and started none: jmerge closed it to start a new "
+    "run, and its reopen failed for {minutes} minutes of tries ({why}), so it asks no more and "
+    "the pull request stays closed until a hand reopens it",
+)
 QUEUED_MINUTES = 30
 """The minutes a required run at the head of the line may sit in GitHub's queue, not started,
 before `jmerge` restarts it, and the new run after the restart before it gives up the line. The
 queue waits `jbus ci` kept in `ci.jsonl` from 2026-10-28 to 2026-11-04 have a p99 of 1566
 seconds for macos, 290 for check and 278 for borders: 30 minutes is above each, and well under
 the hour #1028's macos run sat queued on 2026-11-04 while other branches' macos runs ran."""
+RESTART_MINUTES = 10
+"""The minutes a restart of a queued run (`cli.Repo.unstuck`) has to take: `jmerge` tries a close
+or a reopen that failed again on each run for this long from its first try, and once both took,
+GitHub has this long to list the new run before the line goes to the next pull request. GitHub
+lists the new run within seconds of the reopen, so a run of `jmerge` in the same minute still
+sees the old one."""
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
@@ -694,14 +710,11 @@ class Said:
     ran: int = 0
     reviewed: str = ""
     fixed: str = ""
-    wider: bool = False
-    since: str = ""
     owed: bool = False
     asked: str = ""
     asked_at: int = -1
     found: int = 0
     ended: int = 0
-    second: bool = False
     scoped: bool = False
     owes: bool = False
     rounds: list[Round] = field(default_factory=list)
@@ -725,7 +738,6 @@ def said_of(text: str) -> Said:
     said.found, said.ended = len(sent), sum(one.ended for one in sent)
     first = triage.sections[0].line if triage.sections else -1
     fixed_at = -1
-    unproven = False
     for at, line in enumerate(text.splitlines()):
         fixed = _second(line).rstrip(",") if line.startswith("Fixed:") else ""
         if _COMMIT.fullmatch(fixed) or fixed == "none":
@@ -735,22 +747,14 @@ def said_of(text: str) -> Said:
         checked = _CHECKED.fullmatch(line.strip())
         if checked:
             said.checked[checked[2]] = checked[1]
-        if line.startswith("Second pass:"):
-            fields = _fields(line)
-            said.wider = fields[2:3] == ["needed"]
-            said.second = said.second or said.wider
-            said.since = fields[4].rstrip(",") if said.wider and len(fields) > 4 else ""
         if line.startswith("Scoped review:"):
             fields = _fields(line)
             said.owed = fields[2:3] == ["needed"] and fields[5:] != ["guarded"]
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
-            unproven = fields[2:3] != ["needed"] and " ".join(fields[3:6]) != _NOTHING_PUSHED
     if said.mode == REVIEW and _stale(triage.sections, said.reviewed, fixed_at):
         said.fixed = ""
-    if unproven and _COMMIT.fullmatch(said.fixed) and said.fixed != said.reviewed:
-        said.owed, said.asked = True, said.reviewed
     _round(said)
     said.owes = _owes(said)
     return said
@@ -760,7 +764,7 @@ def _stale(sections: list[findings.Section], reviewed: str, at: int) -> bool:
     """Whether the `Fixed:` line at index `at` answers an earlier round than the last: a review
     is written above it, and the first section of the last round, the head `reviewed`, below
     it. Such a line is read as no line for the last round, so `unwritten_fixed` reads the one
-    that round is owed. A `twice` brief's line answers its first review, and is read as it is."""
+    that round is owed."""
     if at < 0 or not reviewed:
         return False
     starts = [one.line for one in sections if one.head == reviewed]
@@ -779,59 +783,10 @@ def _owes(said: Said) -> bool:
 
 
 def asks_no_ruling(text: str) -> bool:
-    """Whether the brief's mode needs no ruling from any review after the first: a `twice`
-    brief has two reviews and no more, and the day's warnings row (`cleanup`) gets one, so
-    neither asks for a scoped review of the fix, a ruling on a decline or a drop, or a range-diff
-    review after a rebase."""
-    return said_of(text).mode in (TWICE, CLEANUP)
-
-
-def _first_head(said: Said) -> str:
-    """The head of a brief's first review. The first review is the first section that ran, so
-    a section that wrote `Verdict: not run` and ran again at a later head is still the first."""
-    return next((one.head for one in said.triage.sections if one.ran and one.head), "")
-
-
-def second_review(text: str) -> tuple[str, ...]:
-    """The heads of a brief's reviews after the first: the heads a later section ran at
-    (`findings.Section.later`). For a `twice` brief they are the heads that the fix pushed."""
-    ran = (one.head for one in findings.triage(text).sections if one.ran and one.later)
-    return tuple(dict.fromkeys(ran))
-
-
-def _twice(said: Said, text: str, meets_short: str = "") -> str:
-    """What a `twice` brief still lacks. It needs the first review, then one fix round in which
-    the crew answers that review's findings and pushes the fix, then a second review of a
-    later head, whose errors the crew answers too, by id and with a push after it,
-    and no third review follows. A clean first review, or a round that declined every finding
-    and pushed nothing, needs no second review, because nothing changed after the first review.
-    A clean first review whose judgement of the brief holds the merge (`meets_short`) is owed
-    what one with findings is: a fix, and the second review of the head it pushed."""
-    if not said.written:
-        return NO_REVIEW
-    first = _first_head(said)
-    verdicts = [one.verdict for one in said.rounds if one.head == first]
-    owed = said.triage.roster.owed(said.triage.sections)
-    verdict = "" if owed or not verdicts else _worst(verdicts)
-    if verdict not in ("clean", "findings"):
-        return NO_VERDICT
-    if verdict == "clean" and not (meets_short and said.reviewed == first):
-        return ""
-    if not said.fixed:
-        return NO_FIXED
-    if said.fixed == first:
-        return NOT_PUSHED
-    second = second_review(text)
-    if second and said.verdict not in ("clean", "findings"):
-        return NO_VERDICT
-    if second and said.owes and said.fixed == said.reviewed:
-        return NOT_PUSHED
-    short = unanswered(said)
-    if short or second:
-        return short
-    if _COMMIT.fullmatch(said.fixed):
-        return TWICE_UNWRITTEN.format(head=said.fixed[:12])
-    return ""
+    """Whether the brief's mode needs no ruling from any review after the first: the day's
+    warnings row (`cleanup`) gets one review, so it asks for no scoped review of the fix, no
+    ruling on a decline or a drop, and no range-diff review after a rebase."""
+    return said_of(text).mode == CLEANUP
 
 
 def _cleanup(said: Said) -> str:
@@ -859,6 +814,7 @@ def unanswered(said: Said) -> str:
         return UNENDED.format(left=len(old), found=found)
     for why, reason in (
         (findings.UNANSWERED, UNANSWERED),
+        (findings.UNPROVEN, UNPROVEN),
         (findings.UNCITED, UNCITED),
         (findings.REPEATED, REPEATED),
         (findings.UNASKED, RISK_UNASKED),
@@ -913,12 +869,7 @@ def short_of(text: str, head: str, heard: Collection[meets.Waiver] = ()) -> str:
         return SKILLS_UNRUN.format(names=", ".join(unrun))
     if said.mode == NONE:
         return REVIEW_NONE
-    if said.mode == TWICE:
-        short = _twice(said, text, short_on_meets(text, heard))
-    elif said.mode == CLEANUP:
-        short = _cleanup(said)
-    else:
-        short = _review(said, head)
+    short = _cleanup(said) if said.mode == CLEANUP else _review(said, head)
     return short or short_on_meets(text, heard)
 
 
@@ -1028,8 +979,6 @@ def _review(said: Said, head: str) -> str:
         return NO_FIXED
     if said.owes and fixed == reviewed:
         return NOT_PUSHED
-    if said.wider and (not reviewed or said.since in ("", reviewed)):
-        return SECOND_UNWRITTEN
     if said.owed and not _scoped_since(said) and (not reviewed or said.asked in ("", reviewed)):
         return FIX_UNREVIEWED
     if said.owes and _COMMIT.fullmatch(fixed) and head != fixed and head == reviewed:
@@ -1085,15 +1034,13 @@ def _ruled(named: tuple[findings.Finding, ...]) -> str:
 
 
 def unruled(said: Said) -> str:
-    """Why the declines keep the pull request waiting on its crew, or nothing. The first cause
-    is a blocking decline that no scoped pass has ruled on. The next is a decline that the
-    pass did not uphold and that is on none of `findings.RISKS`. The crew fixes such a
+    """Why the declines keep the pull request waiting on its crew, or nothing: a decline that a
+    scoped pass did not uphold and that is on none of `findings.RISKS`. The crew fixes such a
     finding, and where the crew keeps its decline, the home decides. A decline on a risk is
-    the user's to decide (`declines`)."""
+    the user's to decide (`declines`). One round asks no pass to rule on a decline: a scoped
+    pass that runs for another reason, the re-judgement a `no` owes or a rebase's, still
+    rules."""
     triage = said.triage
-    left = triage.declines(findings.UNRULED)
-    if left:
-        return DECLINES_UNRULED.format(ids=", ".join(one.id for one in left))
     overruled = tuple(one for one in triage.declines(findings.OVERRULED) if not one.risk)
     return DECLINES_OVERRULED.format(ruled=_ruled(overruled)) if overruled else ""
 
@@ -1114,7 +1061,7 @@ def declines(text: str, *, user: Settings) -> tuple[str, str]:
 
 
 def _named(said: Said, head: str) -> bool:
-    if said.mode in (TWICE, CLEANUP):
+    if said.mode == CLEANUP:
         return head in (said.reviewed, said.fixed)
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
@@ -1134,7 +1081,7 @@ def under_fix(text: str, head: str) -> str:
     rebase, as for a `Fixed:` line it reads from git (`cli.Repo.kept_fix`)."""
     said = said_of(text)
     reviewed, fixed = said.reviewed, said.fixed
-    if said.mode in (TWICE, CLEANUP) or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
+    if said.mode == CLEANUP or fixed == reviewed or not _COMMIT.fullmatch(reviewed):
         return ""
     if fixed == head:
         return reviewed if _COMMIT.fullmatch(head) else ""
@@ -1276,7 +1223,7 @@ def to_range_diff(text: str, head: str) -> str | None:
     saw (`_covered`), also for a push for a failed check that no line names. An empty string is
     a review that names no commit to compare with."""
     said = said_of(text)
-    if said.mode in (TWICE, CLEANUP):
+    if said.mode == CLEANUP:
         return None
     if _named(said, head) or head == said.reviewed:
         return None

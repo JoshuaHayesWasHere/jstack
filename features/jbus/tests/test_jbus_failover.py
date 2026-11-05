@@ -139,6 +139,30 @@ def test_the_17th_prime_cap_stalls_once_then_carries_on_at_the_first_reset(kitch
     assert len(kitchen.lines("stall")) == 1
 
 
+def test_a_cap_that_resets_before_the_window_of_its_instance_s_file_stalls_and_sends_no_more(
+    kitchen,
+):
+    """2026-11-04: each run on prime failed on claudeAgent's weekly reset while prime's file held
+    a later weekly window at 0%. The cap of the failed run holds prime until its own reset, so
+    the thread gets one carry-on, then a stall, and not one carry-on a pass."""
+    later = int((WEEKLY_RESET + timedelta(days=1)).timestamp())
+    ledger.write(ledger.Record(PRIME, "seven_day", 0, later))
+    thread = crew(kitchen)
+    failed_on(thread, WEEKLY, notice=("seven_day", WEEKLY_RESET))
+    kitchen.poll(FAILED_16TH)
+    assert thread["selection"]["instanceId"] == PRIME
+    failed_on(thread, WEEKLY, run="run-2", ran_on=PRIME, notice=("seven_day", WEEKLY_RESET))
+    for minutes in (1, 2, 3, 60):
+        kitchen.poll(FAILED_16TH + timedelta(minutes=minutes))
+    assert [given["clientRequestId"] for given in asks(kitchen)] == [f"failover|{THREAD}|run-1"]
+    assert kitchen.lines("stall") == [
+        f"capped alpha: claudeAgent and {PRIME} are both capped until "
+        f"{WEEKLY_RESET.isoformat()}; it is sent on at the first reset"
+    ]
+    kitchen.poll(AFTER)
+    assert len(asks(kitchen)) == 2 and len(kitchen.lines("stall")) == 1
+
+
 def test_the_same_failure_seen_on_two_passes_acts_once(kitchen):
     thread = crew(kitchen)
     failed_on(thread, WEEKLY)

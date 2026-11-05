@@ -116,19 +116,22 @@ The section "Protected paths" describes one more hold.
   That line names the head, or the newest head kept under `refs/jstack/pre-rebase/<slug>/` that holds the fix, or says `none needed` where every finding was declined.
   `jmerge` judges the brief with it and writes nothing to the brief.
   A review after the first owes that line, and a push after it, only where it has an `error` finding.
-  A `Second pass: needed since <head>` line makes the pull request wait for a review of a later head.
+  One round: a fix pushed for the findings gets no review, and a `Second pass:` line, from a brief before one round, makes the pull request wait for nothing.
+  A `Scoped review: needed since <head>` line, which the crew writes only after a `Meets the brief: no`, makes it wait for a review of a later head.
 - **Every blocking finding is answered.**
-  Each blocking finding needs an answer that counts, for every pull request and not only after a second pass.
+  Each blocking finding needs an answer that counts, for every pull request.
   `jbriefs --findings` reads every `## Review` section into one list.
   Its parser, `features/jbriefs/src/jbriefs/findings.py`, is the one the crew skill and jbus use too.
   Each finding gets an id, `F1`, `F2`, ..., in the order it appears.
   Two reviewers' findings share one id when they are at the same head, in the same file within 5 lines (`NEAR`), and cite the same principle.
   In a first review, three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
   A `Consider` finding there does not block, and a finding's severity does not change whether it blocks.
-  In a review after the first, a scoped pass or a second pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
+  In a review after the first, a scoped pass, the severity the review wrote alone decides, whatever the bucket or tag (`findings._LATER`).
   An `error` blocks until the crew answers it, and an `info` is dropped.
   A `warning` blocks nothing and goes to no crew: once the pull request merged, jbus keeps it for the day's warnings row (`findings.KEPT`, `jbus.daywarnings`).
-  So a second review with no `error` owes no fix push and merges on its checks.
+  So a scoped review with no `error` owes no fix push and merges on its checks.
+  A blocking finding carries its evidence in a `(proof: ...)` tag of one of the shapes `proofs.PROOFS` reads: a command in backticks that exited non-zero at the head, a check that failed, a doc line the pull request made wrong, an unmet `Done when` line, or a measure of the base and the head.
+  One with no such tag waits as `its findings are not handled: F2 block with no proof tag, ...` until it has an answer by id, and a decline of it counts with any reason, a risky one still only on its gate.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).
   It also counts only if no other finding was declined for the same reason.
@@ -141,25 +144,19 @@ The section "Protected paths" describes one more hold.
   A decline that says `because .` is not an answer.
   jbus's `expedite` tells the crew about each of these waits, with the ids.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
-- A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
-  It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
-  The second review's `error` findings then wait for an answer by id, and for a `Fixed:` line pushed after that review where it sent any, its `warning` findings go to the day's warnings row, and its `info` findings are dropped.
-  `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
-  A brief whose first review was clean, or whose Result says `Fixed: none needed`, needs no second review.
 - A brief that says `Review: cleanup` is the day's warnings row, which only jbus files (`jbus.daywarnings`), and it gets one review, of its own diff.
   Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
-- A brief whose `Review:` line says anything else, `after` included, is read as `review`.
+- A brief whose `Review:` line says anything else, `after` and `twice` included, is read as `review`.
 - **The last review round says the brief is met.**
   The reviewer's judgement of the brief is a typed line of each `## Review` section, `Meets the brief: yes, <n> of <n>` or `no, <m> of <n>`, with an item under it for each `Done when` line it does not take as met (`features/pr-review/templates/review.md`).
   `<n>` is the count of the brief's `Done when` lines, and an `after-merge <k>` or `waiting <k>` item, a line only provable once merged or only waiting on CI, is not unmet.
   `features/jbriefs/src/jbriefs/meets.py` is its one parser and the one rule, and `jbriefs --meets <brief>` prints what it reads.
   The last round counts: of the sections that ran, those at the head and of the kind, scoped or not, of the last one, each reviewer's last.
-  So a later round, the scoped review of the fix or a pass at the same head that rules on the declines, takes the place of an earlier `no`, and a stale first-round `no` holds nothing.
+  So a later round, the scoped review a `no` owes, takes the place of an earlier `no`, and a stale first-round `no` holds nothing.
   The pull request waits with `its review at <head12> says the brief is not met, <m> of <n>: Done when <k> unmet, ...` (`meets-no`) while that round says `no`.
   It waits with `its review at <head12> has no Meets the brief line of the shape ...` (`meets-unread`) where a section of the round has no line of that shape, today's free text `yes` included, and with `its review at <head12> counts <said> Done when lines, and its brief has <n>` (`meets-miscounted`) where its count is not the brief's: a skipped or skimmed check is no pass.
   The way out is a fix and a scoped review whose own line says `yes`: the crew skill's "A second pass" gives that review for any round whose line is not `yes`, whatever the fix changed.
-  In a `Review: twice` brief, a clean first review whose line is not `yes` waits as one with findings does, for a fix and its second review.
   The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief, which names the line by its words, whole or by a start no other line has.
   `jmerge` asks jbus of each such word once a run (`jmerge.bus.Bus.heard`, `jbus.port.Port.heard`): the user's own message in T3 Code, read by the check `jbus queue approve --message` reads a word with, or a word the bot gave over `POST /act`, and its words name the row's slug, say they waive, and quote the words the `Waived:` line names the line by (`jbriefs.meets.quotes`).
   A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes.
@@ -300,14 +297,20 @@ Each base has a line of its own: a pull request into a stack branch or another m
 `base-merges.json` keeps it on its record (`line`, with the record's `base`), so it keeps the line across runs while its check at the new head runs.
 Every other pull request into that base that its base moved past waits with `it is in line behind #<n>: <base> moved after its check started, and GitHub merges <base> into the branch of one pull request at a time, the one to merge next`, on the `check` step, and GitHub is asked nothing for it until its turn.
 That holds for one ahead of `#<n>` in merge order that comes ready later: the update `#<n>` has is not spent again.
-The pull request at the head of the line gives it up when it merges, when a check of its fails (one whose failed check is what its turn is for keeps it until the check at its updated head ends), when GitHub keeps a run of its queued through a restart, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
+The pull request at the head of the line gives it up when it merges, when a check of its fails (one whose failed check is what its turn is for keeps it until the check at its updated head ends), when GitHub keeps a run of its queued through a restart, when a restart of that run never took, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
 It gives it up too when its head is still the one GitHub took the update of 20 minutes (`rejudge.HELD`) after GitHub took it: GitHub makes the new head within seconds, so no check is coming to end its wait.
 
-A required run at the head of the line that GitHub queued and started none of for `ready.QUEUED_MINUTES` (30 minutes, above the p99 queue wait of every required check in `ci.jsonl`) gets one restart: `jmerge` closes and reopens the pull request, which starts a new run of each workflow in its concurrency group, and logs one wait, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed and reopened it to start a new run`.
+A required run at the head of the line that GitHub queued and started none of for `ready.QUEUED_MINUTES` (30 minutes, above the p99 queue wait of every required check in `ci.jsonl`) gets one restart (`cli.Repo.unstuck`): `jmerge` closes and reopens the pull request (`rejudge.BaseMerge.restart`), which starts a new run of each workflow in its concurrency group, and logs one wait, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed and reopened it to start a new run`.
 GitHub refuses to rerun a run it has not ended, and a cancel can leave it queued: on 2026-11-04 #1028 held the line for over an hour on a queued macos job while five pull requests waited behind it.
-Where GitHub then lists no newer run, or the newer one is queued as long, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
+The restart is spent only once its close and its reopen both took.
+`base-merges.json` keeps each step on the head's record (`stuck`) as it takes: the first try (`asked`) before the close, with the reopen owed, then `closed`, then `took`, so a run that stops between two steps leaves a record the next run goes on from.
+A close that failed is tried again on each run, and once `ready.RESTART_MINUTES` (10 minutes) have passed since the first try, the pull request gives up the line and waits with `QUEUED_UNRESTARTED`, `GitHub queued its <check> run at <head> and started none, and jmerge could not close and reopen it in 10 minutes of tries (<why>): it gave the head of the line to the next pull request`.
+A reopen that failed is owed, and `rejudge.BaseMerge.reopen` asks it again on each run for the same `ready.RESTART_MINUTES` from the first try, and then asks it no more (`unopened`): the pull request holds the line no more, and on each run `jmerge` says `QUEUED_UNREOPENED`, `GitHub queued its <check> run at <head> and started none: jmerge closed it to start a new run, and its reopen failed for 10 minutes of tries (<why>), so it asks no more and the pull request stays closed until a hand reopens it`, until GitHub lists it open again.
+One whose owed reopen took on a later run holds the line no more either, for another took it while it was closed.
+Once a restart took, the pull request keeps the line for `ready.RESTART_MINUTES`, since GitHub lists the new run within seconds of the reopen and a run of `jmerge` in the same minute still sees the old one.
+Where GitHub then lists no newer run, or the newer one is queued for `ready.QUEUED_MINUTES` too, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
+No runner is at work on `QUEUED_GAVE_UP`, `QUEUED_UNRESTARTED` or `QUEUED_UNREOPENED`, so jbus's `clock.held` raises each to the home as a hold, even for a pull request that GitHub no longer lists open.
 A run that started is never restarted, however long it runs.
-`base-merges.json` keeps the restart on the head's record (`stuck`) before the close, so a head is restarted once, and a reopen that failed is asked again on the next run, until GitHub lists the pull request open again.
 A pull request whose check ran over today's main is not in the line: it merges as before, while others wait.
 A revert jbus opened for a red main, one that `reverts.json` names (`jmerge.reverts`), comes first in merge order, and takes its base's line from a pull request that holds it and is no revert.
 That pull request then waits `in line behind` the revert, and its record in `base-merges.json` stays, with `line` off, so its update is not asked again at the same head and tip.

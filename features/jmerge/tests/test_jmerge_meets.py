@@ -186,18 +186,12 @@ def test_a_waiver_that_names_its_line_by_part_of_a_word_names_none():
     assert meets.waivers(brief(section(NO), result="Waived: the d, mcp:josh/m1\n")) == ()
 
 
-def test_a_twice_brief_whose_first_review_is_clean_and_says_no_takes_the_findings_path():
-    """A clean first review that says `no` is owed what a first review with findings is: a fix,
-    and the second review of the head it pushed, whose own line then decides."""
+def test_an_old_twice_brief_is_judged_as_a_review_brief():
+    """`Review: twice` is retired: one round reads it as `review`, so a brief from before it is
+    held, and freed, exactly as a `review` brief is."""
     twice = HEAD.replace("Review: review", "Review: twice")
-    first = section(NO)
-    assert ready.short_of(brief(first, head=twice), SAW) == ready.NO_FIXED
-    pushed = f"Fixed: {FIX}\n"
-    assert ready.short_of(brief(first, head=twice, result=pushed), FIX) == (
-        ready.TWICE_UNWRITTEN.format(head=FIX[:12])
-    )
-    second = section(YES, head=FIX)
-    assert ready.short_of(brief(first, second, head=twice, result=pushed), FIX) == ""
+    for first in (section(NO), section(YES)):
+        assert ready.short_of(brief(first, head=twice), SAW) == ready.short_of(brief(first), SAW)
     assert ready.short_of(brief(section(YES), head=twice), SAW) == ""
 
 

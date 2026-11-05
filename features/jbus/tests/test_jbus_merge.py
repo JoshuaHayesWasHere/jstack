@@ -321,7 +321,7 @@ def test_every_reason_ready_returns_is_one_of_its_constants():
         ("wait: it has no review yet", "review"),
         ("wait: its findings are not handled: the Result has no Fixed line", "findings"),
         (
-            "wait: its fix changed more than the findings named: the second pass is not written",
+            "wait: its fix is not reviewed: the scoped review of it is not written",
             "second",
         ),
         ("wait: check has not passed", "check"),

@@ -228,7 +228,7 @@ def test_a_hung_turn(kitchen):
 
 def test_a_pull_request_on_a_step_is_that_step_and_a_hung_thread_over_it_is_hung(kitchen):
     add(kitchen, "alpha")
-    kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}"))
+    kitchen.brief("alpha", result(branch=f"alpha   Pull request: {PULL}") + "Reviewer: mcp:r #1\n")
     thread = kitchen.t3.thread("alpha", "completed")
     kitchen.set("open.json", [kitchen.opened("alpha", 9)])
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: {ready.NO_REVIEW}\n")
