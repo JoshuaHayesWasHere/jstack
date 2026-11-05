@@ -14,8 +14,8 @@ from testing.paths import REPO
 AB = REPO / "features" / "evals" / "ab" / "ab.py"
 SKILL_CUT = REPO / "features" / "evals" / "evals" / "skill-cut"
 
-# The stand-in answers from the file under test, so an answer tells which revision asked it.
-# Each call is logged. A prompt naming `flaky` fails the first time it is asked, and only then.
+READ_SET = ("features/evals/evals/skill-cut/",)
+
 STAND_IN = r"""#!/usr/bin/env python3
 import json, os, sys
 here = os.environ["AB_STAND_IN"]
@@ -65,10 +65,15 @@ TASKS = {
 @pytest.fixture
 def lab(tmp_path):
     """A repo whose `skill.md` reads "version one" at tag `one` and "version two" at tag `two`, a
-    task file, and a stand-in `claude` first on PATH."""
+    task file, and a stand-in `claude` first on PATH. The stand-in logs each call and answers from
+    the file under test, so an answer tells which revision asked it; a prompt naming `flaky` fails
+    the first time it is asked, and only then."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    git = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True)  # noqa: E731
+
+    def git(*a):
+        subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True)
+
     git("init", "-q", "-b", "main")
     for version in ("one", "two"):
         (repo / "skill.md").write_text(f"The skill, version {version}.\n")
@@ -172,9 +177,8 @@ def test_a_prompt_run_names_arms_only_in_its_key_and_interleaves_them(lab):
     out = lab.dir / "out"
     ran = run(lab, out, "--workers", "1")
     assert ran.returncode == 0, ran.stderr
-    # 6 tasks, 3 arms, 3 trials: every job asked once.
     asked = lab.calls()
-    assert len(asked) == 54
+    assert len(asked) == 6 * 3 * 3
     revision = ["one" if "version one" in p else "two" for p in asked]
     switches = sum(x != y for x, y in zip(revision, revision[1:], strict=False))
     assert switches > 10, revision
@@ -197,9 +201,13 @@ def test_the_same_seed_gives_the_same_order_and_results_and_run_json_says_what_r
     assert run(lab, lab.dir / "z", "--seed", "12").returncode == 0
     assert (lab.dir / "z" / "jobs.json").read_bytes() != (lab.dir / "x" / "jobs.json").read_bytes()
     said = json.loads((lab.dir / "x" / "run.json").read_text())
-    resolve = lambda rev: subprocess.run(  # noqa: E731
-        ["git", "rev-parse", rev + "^{commit}"], cwd=lab.repo, capture_output=True, text=True
-    ).stdout.strip()
+
+    def resolve(rev):
+        ran = subprocess.run(
+            ["git", "rev-parse", rev + "^{commit}"], cwd=lab.repo, capture_output=True, text=True
+        )
+        return ran.stdout.strip()
+
     assert said["seed"] == 11
     assert (said["a"]["sha"], said["b"]["sha"]) == (resolve("one"), resolve("two"))
     assert said["tasks"]["sha256"] == hashlib.sha256(lab.tasks.read_bytes()).hexdigest()
