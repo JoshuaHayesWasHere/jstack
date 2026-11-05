@@ -14,15 +14,14 @@ place of its age, and the tally line under a folded home is gone. A task's row i
 and is said to a screen reader.
 ---
  apps/web/src/components/Sidebar.tsx           |   4 +
- .../sidebar/JstackTreeRows.browser.test.tsx   | 414 +++++++++++++++---
- .../src/components/sidebar/JstackTreeRows.tsx | 148 ++++---
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 114 ++------------
+ .../src/components/sidebar/JstackTreeRows.tsx | 148 +++++++++++-------
  .../sidebar/jstackAskOnAdd.browser.test.tsx   |   1 +
- .../components/sidebar/jstackPinnedHomes.ts   |  26 ++
- .../sidebar/jstackRootOrder.browser.test.tsx  |   1 +
- .../sidebar/jstackTree.logic.test.ts          | 109 ++++-
- .../components/sidebar/jstackTree.logic.ts    |  79 +++-
+ .../components/sidebar/jstackPinnedHomes.ts   |  26 +++
+ .../sidebar/jstackTree.logic.test.ts          |   1 +
+ .../components/sidebar/jstackTree.logic.ts    |  79 +++++++---
  packages/contracts/src/settings.ts            |   5 +
- 9 files changed, 635 insertions(+), 152 deletions(-)
+ 8 files changed, 198 insertions(+), 180 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/jstackPinnedHomes.ts
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
@@ -62,51 +61,30 @@ index 237a056467..490ce41d72 100644
      onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
      onOpenProjectSettings: openProjectSettings,
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 7c93402028..e6ccff83fc 100644
+index 2c1e2edf17..972e06a56d 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -13,6 +13,11 @@ import { page, userEvent } from "vite-plus/test/browser";
+@@ -6,17 +6,18 @@ import {
+   type JbusStartingScope,
+   type JbusWorkSnapshot,
+ } from "@t3tools/contracts";
+-import axe from "axe-core";
+ import { useState } from "react";
+ import { describe, expect, it, vi } from "vite-plus/test";
+ import { page, userEvent } from "vite-plus/test/browser";
  
  import "~/index.css";
  import { render } from "../../../test/render";
-+import {
-+  __resetClientSettingsPersistenceForTests,
-+  getClientSettings,
-+  persistClientSettingsUpdate,
-+} from "../../hooks/useSettings";
++import { __resetClientSettingsPersistenceForTests } from "../../hooks/useSettings";
  import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
  import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
  import { makeThreadFixture } from "../../test-fixtures";
-@@ -24,6 +29,7 @@ import {
-   type JstackRootRow,
-   type JstackTreeRow,
- } from "./jstackTree.logic";
+ import { buildJstackTree, childHomeMessage, type JstackAnswering } from "./jstackTree.logic";
 +import { useJstackPinnedHomes } from "./jstackPinnedHomes";
  import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
  
  const environmentId = EnvironmentId.make("environment-local");
-@@ -83,9 +89,10 @@ const home: JstackTreeRow = {
-   threadId: ThreadId.make("flow"),
-   thread: null,
-   open: true,
-+  pinned: false,
-   asksYou: false,
-   dot: false,
--  work: { kind: "live", tally: { queue: 0, crew: 1, review: 0 } },
-+  work: { kind: "live", tally: { crew: 1, scout: 0, review: 0, queue: 0 } },
-   faded: false,
-   selected: false,
- };
-@@ -97,7 +104,7 @@ const worker: JstackTreeRow = {
-   depth: 2,
-   slug: "pump",
-   prefix: "fl-",
--  word: "crew",
-+  stage: "crew",
-   tone: "plain",
-   waited: null,
-   mark: { kind: "ring", thirds: 1, tone: "live" },
-@@ -122,6 +129,7 @@ function actions(): JstackTreeRowActions {
+@@ -57,6 +58,7 @@ function actions(): JstackTreeRowActions {
      onOpenThread: vi.fn(),
      onToggleProject: vi.fn(),
      onExpandHome: vi.fn(),
@@ -114,146 +92,7 @@ index 7c93402028..e6ccff83fc 100644
      onNewThread: vi.fn(),
      onCopyPath: vi.fn(),
      onOpenProjectSettings: vi.fn(),
-@@ -210,7 +218,7 @@ describe("JstackTreeRowView sizes", () => {
-           [root({ landed: 3 }), group("jstack")],
-           [home, group("jstack")],
-           [worker, group("jstack")],
--          // A folded home counts its work under its name.
-+          // A folded home sums up its work on its own row.
-           [{ ...home, key: "jstack-home:pipe", scope: "pipe", open: false }, group("jstack")],
-         ]}
-       />,
-@@ -246,13 +254,12 @@ describe("JstackTreeRowView sizes", () => {
-       ink: 0.6,
-     });
-     const small = { fontSize: "11px", fontWeight: "400" };
--    // The stage word, a count's word and its number, and what a root merged.
--    expect(typeOf(workerRow, "crew")).toEqual(small);
--    const tally = screen.container
--      .querySelector<HTMLElement>('[data-sidebar-row="jstack-home:pipe"]')!
--      .closest("li")!;
--    expect(typeOf(tally, "1")).toEqual(small);
--    expect(Math.round(alphaOf(getComputedStyle(tally.querySelector("b")!).color) * 100)).toBe(80);
-+    // A home's summary, folded or open, and what a root merged.
-+    expect(typeOf(homeRow, "1 crew")).toEqual(small);
-+    const folded = screen.container.querySelector<HTMLElement>(
-+      '[data-sidebar-row="jstack-home:pipe"]',
-+    )!;
-+    expect(typeOf(folded, "1 crew")).toEqual(small);
-     expect(typeOf(rootRow, "3 merged")).toEqual(small);
-   });
- });
-@@ -321,7 +328,7 @@ const queued: JstackTreeRow = {
-   ...worker,
-   key: "jstack-task:jstack/fl-meter",
-   slug: "meter",
--  word: "ready",
-+  stage: "ready",
-   mark: { kind: "ring", thirds: 0, tone: "still" },
-   threadId: null,
-   openThreadId: ThreadId.make("flow"),
-@@ -331,7 +338,7 @@ const asking: JstackTreeRow = {
-   ...worker,
-   key: "jstack-task:jstack/fl-valve",
-   slug: "valve",
--  word: "asks you",
-+  stage: "ready",
-   tone: "asks",
-   mark: { kind: "ring", thirds: 0, tone: "asks" },
-   threadId: null,
-@@ -459,9 +466,10 @@ describe("JstackTreeRowView context menus", () => {
-         ],
-       },
-       {
--        row: "flow home",
-+        row: "flow 1 crew home",
-         items: [
-           ["Open home", ["onOpenThread", ThreadId.make("flow")]],
-+          ["Pin open", ["onTogglePin", ThreadId.make("flow")]],
-           ["New crew task", ["onHomeWork", ThreadId.make("flow"), "crew"]],
-           ["New scout", ["onHomeWork", ThreadId.make("flow"), "scout"]],
-           ["Copy scope name", ["onCopyName", "flow", "scope name"]],
-@@ -481,7 +489,7 @@ describe("JstackTreeRowView context menus", () => {
-         items: [["Open root home", ["onOpenThread", ThreadId.make("root")]]],
-       },
-       {
--        row: "fl-pump crew live",
-+        row: "fl-pump crew, live",
-         items: [
-           ["Open thread", ["onOpenThread", ThreadId.make("crew-pump")]],
-           [
-@@ -492,7 +500,7 @@ describe("JstackTreeRowView context menus", () => {
-         ],
-       },
-       {
--        row: "fl-meter ready",
-+        row: "fl-meter crew, ready",
-         items: [
-           ["Open its home", ["onOpenThread", ThreadId.make("flow")]],
-           [
-@@ -503,14 +511,16 @@ describe("JstackTreeRowView context menus", () => {
-         ],
-       },
-       {
--        row: "fl-valve asks you",
-+        row: "fl-valve asks you crew, ready",
-         items: [
-           [
-             "Show what it asks",
-             async () => {
-               expect(asks()).toBe(true);
-               // The row's own click folds it again, so its menu reads the same for the next item.
--              await userEvent.click(screen.getByRole("treeitem", { name: "fl-valve asks you" }));
-+              await userEvent.click(
-+                screen.getByRole("treeitem", { name: "fl-valve asks you crew, ready" }),
-+              );
-               expect(asks()).toBe(false);
-             },
-           ],
-@@ -550,9 +560,12 @@ describe("JstackTreeRowView context menus", () => {
-     }
-     // Shown, the asking row's first item hides what it asks again.
-     for (const label of ["Show what it asks", "Hide what it asks"]) {
--      await userEvent.click(screen.getByRole("treeitem", { name: "fl-valve asks you" }), {
--        button: "right",
--      });
-+      await userEvent.click(
-+        screen.getByRole("treeitem", { name: "fl-valve asks you crew, ready" }),
-+        {
-+          button: "right",
-+        },
-+      );
-       await userEvent.click(page.getByRole("menuitem", { name: label }));
-       await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-     }
-@@ -562,7 +575,7 @@ describe("JstackTreeRowView context menus", () => {
-   it("opens the focused row's menu from the keyboard alone, on the ContextMenu key and on Shift+F10", async () => {
-     const spies = actions();
-     await using screen = await everyRow(spies);
--    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you" });
-+    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you crew, ready" });
- 
-     // Tab into the tree, then walk down to the asking row: root, home, crew, queued, asking.
-     await userEvent.keyboard("{Tab}");
-@@ -594,7 +607,7 @@ describe("JstackTreeRowView context menus", () => {
-     await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
-     await userEvent.keyboard("{Escape}");
-     await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
--    await expect.element(screen.getByRole("treeitem", { name: "flow home" })).toHaveFocus();
-+    await expect.element(screen.getByRole("treeitem", { name: "flow 1 crew home" })).toHaveFocus();
-     expect(spies.onOpenThread).not.toHaveBeenCalled();
-   });
- 
-@@ -606,7 +619,7 @@ describe("JstackTreeRowView context menus", () => {
-       return result.violations.map((violation) => `${violation.id}: ${violation.help}`);
-     };
-     expect(await audit()).toEqual([]);
--    await userEvent.click(screen.getByRole("treeitem", { name: "flow home" }), {
-+    await userEvent.click(screen.getByRole("treeitem", { name: "flow 1 crew home" }), {
-       button: "right",
-     });
-     await expect.element(page.getByRole("menu")).toBeVisible();
-@@ -665,6 +678,7 @@ function LiveTree(props: {
+@@ -135,6 +137,7 @@ function LiveTree(props: {
    const [editor, setEditor] = useState(false);
    const [answering, setAnswering] = useState<JstackAnswering | null>(null);
    const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
@@ -261,7 +100,7 @@ index 7c93402028..e6ccff83fc 100644
    const jstack = group("jstack");
    const tree = buildJstackTree({
      environmentId,
-@@ -688,6 +702,7 @@ function LiveTree(props: {
+@@ -158,6 +161,7 @@ function LiveTree(props: {
      selection:
        props.routeThreadId === undefined ? null : { kind: "thread", threadId: props.routeThreadId },
      expandedHomes: new Set(),
@@ -269,7 +108,7 @@ index 7c93402028..e6ccff83fc 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: editor,
-@@ -703,6 +718,10 @@ function LiveTree(props: {
+@@ -173,6 +177,10 @@ function LiveTree(props: {
    });
    const live: JstackTreeRowActions = {
      ...props.spies,
@@ -280,80 +119,23 @@ index 7c93402028..e6ccff83fc 100644
      onOpenChildHomeEditor: (opened) => {
        props.spies.onOpenChildHomeEditor(opened);
        setEditor(true);
-@@ -890,14 +909,15 @@ describe("JstackTreeRowView home actions", () => {
-     };
-     await pick(/^jstack .*main thread$/, "New crew task");
-     expect(spies.onHomeWork).toHaveBeenLastCalledWith(ThreadId.make("root"), "crew");
--    await pick("flow home", "New scout");
-+    await pick("flow 1 crew home", "New scout");
-     expect(spies.onHomeWork).toHaveBeenLastCalledWith(ThreadId.make("flow"), "scout");
--    await pick("flow home", "Archive home");
-+    await pick("flow 1 crew home", "Archive home");
-     expect(spies.onArchiveHome).toHaveBeenCalledWith(ThreadId.make("flow"), "the flow home");
+@@ -228,15 +236,6 @@ const rootItem = (screen: Screen) =>
  
-     // The same from the keyboard, on the row the menu gave its focus back to.
--    await expect.element(screen.getByRole("treeitem", { name: "flow home" })).toHaveFocus();
--    await userEvent.keyboard("{Shift>}{F10}{/Shift}{ArrowDown}{Enter}");
-+    await expect.element(screen.getByRole("treeitem", { name: "flow 1 crew home" })).toHaveFocus();
-+    // Open home, Pin open, then New crew task.
-+    await userEvent.keyboard("{Shift>}{F10}{/Shift}{ArrowDown}{ArrowDown}{Enter}");
-     expect(spies.onHomeWork).toHaveBeenLastCalledWith(ThreadId.make("flow"), "crew");
-   });
+ type Screen = Awaited<ReturnType<typeof render>>;
  
-@@ -972,7 +992,7 @@ describe("JstackTreeRowView row actions", () => {
-       await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-     };
+-const audit = async () => {
+-  // A bare render has no landmark around it; in the app the sidebar's own nav is one.
+-  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
+-  return result.violations.map(
+-    (violation) =>
+-      `${violation.id}: ${violation.help} at ${violation.nodes.map((node) => node.html).join(" | ")}`,
+-  );
+-};
+-
+ const sidebarHome = ThreadId.make("sidebar");
  
--    await pick("fl-meter asks you", "Approve...");
-+    await pick("fl-meter asks you crew, ready", "Approve...");
-     expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
-       expect.objectContaining({
-         repo: "jstack",
-@@ -982,21 +1002,21 @@ describe("JstackTreeRowView row actions", () => {
-         approvable: true,
-       }),
-     );
--    await pick("fl-pump crew live", "Open brief");
-+    await pick("fl-pump crew, live", "Open brief");
-     expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
-       expect.objectContaining({ slug: "pump", approvable: false }),
-     );
--    await pick("tidy behind", "Remove from queue...");
-+    await pick("tidy crew, behind", "Remove from queue...");
-     expect(spies.onRemoveTask).toHaveBeenCalledWith(
-       expect.objectContaining({ slug: "tidy", homeThreadId: ThreadId.make("root"), queued: true }),
-     );
- 
--    await pick("fl-valve asks you", "Answer...");
-+    await pick("fl-valve asks you crew", "Answer...");
-     const field = screen.getByRole("textbox", { name: "Your answer" });
-     await expect.element(field).toHaveFocus();
-     await expect.element(field).toHaveAccessibleDescription(/Which valve size\?/);
-     await expect
--      .element(screen.getByRole("treeitem", { name: "fl-valve asks you" }))
-+      .element(screen.getByRole("treeitem", { name: "fl-valve asks you crew" }))
-       .toHaveAttribute("aria-expanded", "true");
-     expect(await audit()).toEqual([]);
- 
-@@ -1016,13 +1036,15 @@ describe("JstackTreeRowView row actions", () => {
-       "the 3mm valve",
-     );
-     await expect.element(field).not.toBeInTheDocument();
--    await expect.element(screen.getByRole("treeitem", { name: "fl-valve asks you" })).toHaveFocus();
-+    await expect
-+      .element(screen.getByRole("treeitem", { name: "fl-valve asks you crew" }))
-+      .toHaveFocus();
-   });
- 
-   it("by keyboard alone: answers from the row's menu, puts the answer away on Escape, and opens a brief", async () => {
-     const spies = actions();
-     await using screen = await rowTree(spies);
--    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you" });
-+    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you crew" });
- 
-     // Root, tidy, flow, fl-meter, fl-valve.
-     await userEvent.keyboard("{Tab}");
-@@ -1133,6 +1155,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+ /** What jbus said at the user's click: a queued task waits on an approval, a gate asks. */
+@@ -311,6 +310,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
      selection: { kind: "thread", threadId: sidebarHome },
      answering: null,
      expandedHomes: new Set(),
@@ -361,407 +143,125 @@ index 7c93402028..e6ccff83fc 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -1266,12 +1289,12 @@ const shownText = (line: Element) => {
-   return copy.textContent;
- };
+@@ -427,51 +427,10 @@ function idleTree(spies: JstackTreeRowActions) {
+   return render(<LiveTree snapshot={IDLE_SNAPSHOT} spies={spies} sent={[]} />, { router: false });
+ }
  
+-/**
+- * The audit, less contrast: an idle home draws at half ink, as idle roots do, which axe counts
+- * against it whatever this change does.
+- */
+-const auditIdle = async () =>
+-  (await audit()).filter((violation) => !violation.startsWith("color-contrast:"));
+-
+ const homeItem = (screen: Screen, scope: string) =>
+   screen.getByRole("treeitem", { name: new RegExp(`^${scope} .*home`) });
+ 
+-/** What a line shows the eye: its text, less what only a screen reader says. */
+-const shownText = (line: Element) => {
+-  const copy = line.cloneNode(true) as Element;
+-  for (const unseen of copy.querySelectorAll(".sr-only")) unseen.remove();
+-  return copy.textContent;
+-};
+-
 -/** The home's own list item, which holds its line and, for a live home, its tally. */
-+/** The home's own list item, which holds its line and its pin. */
- const homeLine = (screen: Screen, scope: string) =>
-   homeItem(screen, scope).element().closest("li")!;
- 
+-const homeLine = (screen: Screen, scope: string) =>
+-  homeItem(screen, scope).element().closest("li")!;
+-
  describe("JstackTreeRowView idle homes", () => {
 -  it("draws a home with no live work as its one line, name and age, and a live one with its tally", async () => {
-+  it("draws a home with no live work as its one line, name and age, and a live one as its one line, name and summary", async () => {
-     await using screen = await idleTree(actions());
-     for (const scope of ["jview", "dictation"]) {
-       const line = homeLine(screen, scope);
-@@ -1286,10 +1309,11 @@ describe("JstackTreeRowView idle homes", () => {
-       expect(homeItem(screen, scope).element().hasAttribute("aria-expanded")).toBe(false);
-     }
- 
+-    await using screen = await idleTree(actions());
+-    for (const scope of ["jview", "dictation"]) {
+-      const line = homeLine(screen, scope);
+-      // One 28px line: the row itself, with nothing drawn under it.
+-      expect(line.getBoundingClientRect().height).toBe(28);
+-      expect(shownText(line)).not.toMatch(/idle/);
+-      // Its age, at the row's end.
+-      expect(line.querySelector(".tabular-nums")?.textContent).not.toBe("");
+-    }
+-    // What jview merged lately leaves the tree: neither idle home has anything to unfold.
+-    for (const scope of ["jview", "dictation"]) {
+-      expect(homeItem(screen, scope).element().hasAttribute("aria-expanded")).toBe(false);
+-    }
+-
 -    // The live home is as it was: a tally line under its row, and no fold of its own.
-+    // A folded live home sums up its work in place of its age, with no tally line under it.
-     const flow = homeLine(screen, "flow");
+-    const flow = homeLine(screen, "flow");
 -    expect(flow.getBoundingClientRect().height).toBeGreaterThan(28);
 -    expect(shownText(flow)).toMatch(/crew 1/);
-+    expect(flow.getBoundingClientRect().height).toBe(28);
-+    expect(flow.querySelector(".tabular-nums")?.textContent).toBe("1 crew");
-+    expect(shownText(flow)).not.toMatch(/crew 1/);
-     await expect.element(homeItem(screen, "flow")).toHaveAttribute("aria-expanded", "false");
-     expect(await auditIdle()).toEqual([]);
-   });
-@@ -1436,7 +1460,7 @@ const badgeOf = (container: Element) =>
+-    await expect.element(homeItem(screen, "flow")).toHaveAttribute("aria-expanded", "false");
+-    expect(await auditIdle()).toEqual([]);
+-  });
+-
+   it("lists nothing an idle home merged, and opens the home by keyboard, from its menu and by mouse", async () => {
+     const spies = actions();
+     await using screen = await idleTree(spies);
+@@ -526,37 +485,6 @@ const named = (color: string) =>
+         ? "muted"
+         : Math.round(alphaOf(color) * 100) / 100;
+ 
+-/**
+- * A row's mark as drawn: a ring by how many of its thirds are filled, a diamond by which of its
+- * halves are, upper then lower, each with its ink.
+- */
+-const markOf = (row: Element) => {
+-  const svg = row.querySelector<SVGSVGElement>("svg[data-jstack-mark]");
+-  if (svg === null) return null;
+-  const box = svg.getBoundingClientRect();
+-  const filled = [...svg.querySelectorAll("path")].map(
+-    (part) => getComputedStyle(part).fill !== "none",
+-  );
+-  const ink = named(getComputedStyle(svg).color);
+-  return svg.dataset.jstackMark === "ring"
+-    ? { ring: filled.filter(Boolean).length, size: box.width, ink }
+-    : { diamond: filled.slice(0, 2), size: box.width, ink };
+-};
+-
+-// One task in each part of its pull request's review, each as jbus's row value names it.
+-const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
+-  ...SNAPSHOT,
+-  tasks: [
+-    { ...crewTask("first", "root"), stage: "review" },
+-    { ...crewTask("fixes", "root"), stage: "findings" },
+-    { ...crewTask("again", "root"), stage: "second" },
+-    { ...crewTask("green", "root"), stage: "check" },
+-    { ...crewTask("onto", "root"), stage: "rebase" },
+-    crewTask("tidy", "root"),
+-    crewTask("fl-pump", "flow"),
+-  ],
+-};
+-
+ const scoutTask = (slug: string, scouting: "queued" | "scouting" | "report in") => ({
+   repo: "jstack",
+   slug,
+@@ -614,28 +542,6 @@ const badgeOf = (container: Element) =>
    );
  
  describe("JstackTreeRowView marks", () => {
 -  it("says which part of its review a task is in, and fills its 8px ring by thirds: crew, review, merge", async () => {
-+  it("says which part of its review a task is in only unseen, and fills its 8px ring by thirds: crew, review, merge", async () => {
-     await using screen = await render(
-       <LiveTree snapshot={REVIEW_SNAPSHOT} spies={actions()} sent={[]} />,
-       { router: false },
-@@ -1452,7 +1476,10 @@ describe("JstackTreeRowView marks", () => {
-     for (const [slug, word, ring] of parts) {
-       const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
-       await expect.element(row).toBeVisible();
+-    await using screen = await render(
+-      <LiveTree snapshot={REVIEW_SNAPSHOT} spies={actions()} sent={[]} />,
+-      { router: false },
+-    );
+-    const parts = [
+-      ["tidy", "crew", 1],
+-      ["first", "review 1", 2],
+-      ["fixes", "fixing", 2],
+-      ["again", "review 2", 2],
+-      ["green", "checks", 3],
+-      ["onto", "rebase", 3],
+-    ] as const;
+-    for (const [slug, word, ring] of parts) {
+-      const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
+-      await expect.element(row).toBeVisible();
 -      expect(shownText(row.element())).toBe(`${slug} ${word}`);
-+      // The row is bare: its home's summary counts it, and its name says where it stands.
-+      expect(shownText(row.element())?.trim()).toBe(slug);
-+      const stage = word === "crew" ? "crew" : `crew, ${word}`;
-+      await expect.element(row).toHaveAccessibleName(`${slug} ${stage}, live`);
-       expect(markOf(row.element())).toEqual({ ring, size: 8, ink: "sky" });
-     }
-     expect(await audit()).toEqual([]);
-@@ -1468,41 +1495,40 @@ describe("JstackTreeRowView marks", () => {
-         `[data-sidebar-row="jstack-task:jstack/${slug}"]`,
-       )!;
-     await expect.element(screen.getByRole("treeitem", { name: /^tidy / })).toBeVisible();
-+    // A row shows no stage word: only what asks you, or a hold, stays on it.
-     const expected = {
--      tidy: ["tidy crew", { ring: 1, size: 8, ink: "sky" }],
--      green: ["green checks", { ring: 3, size: 8, ink: "sky" }],
--      meter: ["meter ready", { ring: 0, size: 8, ink: "muted" }],
-+      tidy: ["tidy", { ring: 1, size: 8, ink: "sky" }],
-+      green: ["green", { ring: 3, size: 8, ink: "sky" }],
-+      meter: ["meter", { ring: 0, size: 8, ink: "muted" }],
-       valve: ["valve asks you", { ring: 2, size: 8, ink: "amber" }],
--      poc: ["poc review 2 held 1h", { ring: 2, size: 8, ink: 0.6 }],
-+      poc: ["poc held 1h", { ring: 2, size: 8, ink: 0.6 }],
-       // A scout's diamond: half filled while it scouts, filled once its report is in.
--      look: ["look scouting", { diamond: [false, true], size: 10, ink: "sky" }],
--      audit: ["audit report in", { diamond: [true, true], size: 10, ink: 0.6 }],
--      ideas: ["ideas queued", { diamond: [false, false], size: 10, ink: "muted" }],
-+      look: ["look", { diamond: [false, true], size: 10, ink: "sky" }],
-+      audit: ["audit", { diamond: [true, true], size: 10, ink: 0.6 }],
-+      ideas: ["ideas", { diamond: [false, false], size: 10, ink: "muted" }],
-     } as const;
-     for (const [slug, [text, mark]] of Object.entries(expected)) {
--      expect(shownText(rowOf(slug))).toBe(text);
-+      expect(shownText(rowOf(slug))?.replace(/\s+/g, " ").trim()).toBe(text);
-       expect(markOf(rowOf(slug))).toEqual(mark);
-     }
--    // Text stays neutral, on a live row as on any other: the name at 60% ink, the word muted.
--    const word = [...rowOf("look").querySelectorAll("span")].find(
--      (span) => span.textContent === "scouting",
--    )!;
--    expect(named(getComputedStyle(word).color)).toBe("muted");
-+    // Text stays neutral, on a live row as on any other: the name at 60% ink.
-     expect(named(getComputedStyle(rowOf("look").querySelector("span")!).color)).toBe(0.6);
--    // A screen reader hears which rows are live.
-+    // A screen reader hears a scout as one, where it stands, and which rows are live.
-     await expect
--      .element(screen.getByRole("treeitem", { name: "look scouting live" }))
-+      .element(screen.getByRole("treeitem", { name: "look scout, scouting, live" }))
-+      .toBeVisible();
-+    await expect
-+      .element(screen.getByRole("treeitem", { name: "audit scout, report in" }))
-       .toBeVisible();
--    await expect.element(screen.getByRole("treeitem", { name: "audit report in" })).toBeVisible();
-     // The root's badge is sky while live work is under it, as the root's name says unseen.
-     expect(badgeOf(screen.container)).toBe("sky");
-     await expect.element(rootItem(screen)).toHaveAccessibleName(/live work inside/);
-     // A diamond and a ring share one column, so the words beside them line up.
--    const wordEnd = (row: HTMLElement, text: string) =>
--      [...row.querySelectorAll("span")]
--        .find((span) => span.textContent === text)!
--        .getBoundingClientRect().right;
--    expect(wordEnd(rowOf("look"), "scouting")).toBe(wordEnd(rowOf("tidy"), "crew"));
-+    const markCentre = (row: HTMLElement) => {
-+      const box = row.querySelector("svg")!.getBoundingClientRect();
-+      return box.left + box.width / 2;
-+    };
-+    expect(markCentre(rowOf("look"))).toBe(markCentre(rowOf("tidy")));
-     expect(await audit()).toEqual([]);
-   });
- 
-@@ -1642,18 +1668,27 @@ describe("JstackTreeRowView stalled and held rows", () => {
-       />,
-       { router: false },
-     );
-+    // The wait stays on the row in amber; where the task stands is in its name.
-     const shown = [
--      ["green", "green checks stalled 45m"],
--      ["fixes", "fixes fixing stalled 3h"],
-+      ["green", "green stalled 45m", "crew, checks"],
-+      ["fixes", "fixes stalled 3h", "crew, fixing"],
-       // Under the threshold, and a crew still in its turn, are not stalled.
--      ["fresh", "fresh review 1"],
--      ["busy", "busy fixing"],
-+      ["fresh", "fresh", "crew, review 1"],
-+      ["busy", "busy", "crew, fixing"],
-     ] as const;
--    for (const [slug, text] of shown) {
-+    for (const [slug, text, stage] of shown) {
-       const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
-       await expect.element(row).toBeVisible();
--      expect(shownText(row.element())).toBe(text);
-+      expect(shownText(row.element())?.trim()).toBe(text);
-+      await expect.element(row).toHaveAccessibleName(new RegExp(stage));
-     }
-+    const stalled = [
-+      ...screen
-+        .getByRole("treeitem", { name: /^green / })
-+        .element()
-+        .querySelectorAll("span"),
-+    ].find((span) => span.textContent === "stalled 45m")!;
-+    expect(stalled.className).toContain("text-warning-foreground");
-     expect(await audit()).toEqual([]);
-   });
- 
-@@ -1685,14 +1720,249 @@ describe("JstackTreeRowView stalled and held rows", () => {
- 
-     await userEvent.hover(row);
-     await expect
--      .element(page.getByText("poc · #3 · asks you · held 3h: its brief says Review: none"))
-+      .element(
-+        page.getByText(
-+          "poc · #3 · crew, review 1 · asks you · held 3h: its brief says Review: none",
-+        ),
-+      )
-       .toBeVisible();
- 
-     await userEvent.click(row, { button: "right" });
-     await expect.element(page.getByRole("menu")).toBeVisible();
--    await expect
--      .element(page.getByRole("menu").getByText("Held 3h: its brief says Review: none"))
--      .toBeVisible();
-+    // Where it stands heads the menu, then why it is held, as lines and not items.
-+    expect(
-+      [...document.querySelectorAll<HTMLElement>('[role="menu"] div')]
-+        .filter((line) => line.children.length === 0 && line.textContent !== "")
-+        .map((line) => line.textContent)
-+        .slice(0, 2),
-+    ).toEqual(["Crew, review 1", "Held 3h: its brief says Review: none"]);
-     await userEvent.keyboard("{Escape}");
-   });
- });
-+
-+// ops holds a crew that asks you, a review jmerge holds and a queued task; flow holds what the
-+// sidebar home held in take 2: a stalled review, two scouts out, four reviews and a queued scout.
-+const SUMMARY_SNAPSHOT: JbusWorkSnapshot = {
-+  ...SNAPSHOT,
-+  homes: [
-+    ...SNAPSHOT.homes,
-+    { repo: "jstack", scope: "ops", threadId: ThreadId.make("ops"), prefix: "ops-" },
-+    { repo: "jstack", scope: "jview", threadId: ThreadId.make("jview"), prefix: "jv-" },
-+  ],
-+  tasks: [
-+    crewTask("tidy", "root"),
-+    { ...crewTask("ops-trim", "ops"), waitsOn: "word", waits: "your word" },
-+    {
-+      ...crewTask("ops-backup", "ops"),
-+      stage: "second",
-+      held: { since: "2026-10-29T09:00:00+00:00", reason: "draft" },
-+    },
-+    { ...crewTask("ops-cron", "ops"), stage: "ready", threadId: null },
-+    { ...crewTask("fl-stall", "flow"), stage: "review", pullRequest: "#770" },
-+    { ...scoutTask("fl-ring", "scouting"), homeThreadId: ThreadId.make("flow") },
-+    { ...scoutTask("fl-colour", "report in"), homeThreadId: ThreadId.make("flow") },
-+    { ...crewTask("fl-sizes", "flow"), stage: "review" },
-+    { ...crewTask("fl-menus", "flow"), stage: "findings" },
-+    { ...crewTask("fl-actions", "flow"), stage: "second" },
-+    { ...crewTask("fl-drag", "flow"), stage: "check" },
-+    { ...scoutTask("fl-badges", "queued"), homeThreadId: ThreadId.make("flow") },
-+  ],
-+};
-+const SUMMARY_THREADS = [
-+  crewThread("fl-stall", "2026-10-29T11:15:00.000Z"),
-+  ...["fl-sizes", "fl-menus", "fl-actions", "fl-drag"].map((slug) =>
-+    crewThread(slug, "2026-10-29T11:59:00.000Z", true),
-+  ),
-+  scoutThread("fl-ring"),
-+  scoutThread("fl-colour"),
-+];
-+
-+function summaryTree(spies: JstackTreeRowActions) {
-+  return render(
-+    <LiveTree
-+      snapshot={SUMMARY_SNAPSHOT}
-+      spies={spies}
-+      sent={[]}
-+      threads={SUMMARY_THREADS}
-+      attention="gates-and-quiet"
-+    />,
-+    { router: false },
-+  );
-+}
-+
-+const clearPins = () =>
-+  persistClientSettingsUpdate((current) => ({ ...current, jstackTreePinnedHomes: [] }));
-+
-+/** No home pinned for the test, and none left pinned after it. */
-+async function noPins(): Promise<AsyncDisposable> {
-+  await clearPins();
-+  return {
-+    [Symbol.asyncDispose]: async () => {
-+      await clearPins();
-+    },
-+  };
-+}
-+
-+/** A home's pin at its row's end, which the pointer reaches. */
-+const pinOf = (screen: Screen, scope: string) =>
-+  homeLine(screen, scope).querySelector<HTMLElement>("[data-jstack-pin]")!;
-+
-+describe("JstackTreeRowView pinned homes", () => {
-+  it("pins a home open from its menu, keeps it open across a reload, and unpins it the same way", async () => {
-+    await using _pins = await noPins();
-+    const spies = actions();
-+    const pick = async (screen: Screen, scope: string, item: string) => {
-+      await userEvent.click(homeItem(screen, scope), { button: "right" });
-+      await userEvent.click(page.getByRole("menuitem", { name: item }));
-+      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-+    };
-+    {
-+      await using screen = await summaryTree(spies);
-+      await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "false");
-+      await pick(screen, "ops", "Pin open");
-+      expect(spies.onTogglePin).toHaveBeenCalledWith(ThreadId.make("ops"));
-+      await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "true");
-+      await expect.element(homeItem(screen, "ops")).toHaveAccessibleName(/pinned open/);
-+      await expect.element(screen.getByRole("treeitem", { name: /^ops-trim / })).toBeVisible();
-+      expect(pinOf(screen, "ops").dataset.jstackPin).toBe("pinned");
-+    }
-+    // Kept in the client settings, apart from T3's own thread pins.
-+    expect(getClientSettings().jstackTreePinnedHomes).toEqual([ThreadId.make("ops")]);
-+
-+    // A reload: the store starts empty and reads the pin back from where it was kept.
-+    __resetClientSettingsPersistenceForTests();
-+    {
-+      await using screen = await summaryTree(spies);
-+      await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "true");
-+      await pick(screen, "ops", "Unpin");
-+      await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "false");
-+      expect(pinOf(screen, "ops").dataset.jstackPin).toBe("unpinned");
-+    }
-+    __resetClientSettingsPersistenceForTests();
-+    {
-+      await using screen = await summaryTree(spies);
-+      await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "false");
-+      expect(getClientSettings().jstackTreePinnedHomes).toEqual([]);
-+    }
-+  });
-+
-+  it("pins an idle home by the pin at its row's end, which shows on hover, and keeps it unfaded with a filled pin", async () => {
-+    await using _pins = await noPins();
-+    await using screen = await summaryTree(actions());
-+    const jview = homeItem(screen, "jview");
-+    const faded = () => getComputedStyle(jview.element()).opacity;
-+    expect(faded()).toBe("0.5");
-+    expect(getComputedStyle(pinOf(screen, "jview")).opacity).toBe("0");
-+
-+    await userEvent.hover(jview);
-+    await expect.poll(() => getComputedStyle(pinOf(screen, "jview")).opacity).toBe("1");
-+    await userEvent.hover(pinOf(screen, "jview"));
-+    await expect.element(page.getByText("Pin open", { exact: true })).toBeVisible();
-+    await userEvent.click(pinOf(screen, "jview"));
-+    await expect.poll(() => pinOf(screen, "jview").dataset.jstackPin).toBe("pinned");
-+    // Pinned: at full ink, its pin filled and in sight with the pointer elsewhere.
-+    expect(faded()).toBe("1");
-+    await userEvent.hover(rootItem(screen));
-+    await expect.poll(() => getComputedStyle(pinOf(screen, "jview")).opacity).toBe("1");
-+    const pinIcon = pinOf(screen, "jview").querySelector("svg")!;
-+    expect(getComputedStyle(pinIcon).fill).not.toBe("none");
-+    // An idle home has nothing to unfold, so it claims no fold.
-+    expect(jview.element().hasAttribute("aria-expanded")).toBe(false);
-+    await expect.element(jview).toHaveAccessibleName(/pinned open/);
-+
-+    await userEvent.click(pinOf(screen, "jview"));
-+    await expect.poll(() => pinOf(screen, "jview").dataset.jstackPin).toBe("unpinned");
-+    expect(faded()).toBe("0.5");
-+    expect(await auditIdle()).toEqual([]);
-+  });
-+
-+  it("pins and unpins a home by keyboard alone, from its menu", async () => {
-+    await using _pins = await noPins();
-+    await using screen = await summaryTree(actions());
-+    await userEvent.keyboard("{Tab}");
-+    await expect.element(rootItem(screen)).toHaveFocus();
-+    // Root, tidy, then the homes in jbus's order: flow, ops.
-+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
-+    await expect.element(homeItem(screen, "ops")).toHaveFocus();
-+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
-+    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
-+    await userEvent.keyboard("{ArrowDown}{Enter}");
-+    await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "true");
-+    await expect.element(homeItem(screen, "ops")).toHaveFocus();
-+    await userEvent.keyboard("{ContextMenu}");
-+    await expect.element(page.getByRole("menuitem", { name: "Unpin" })).toBeVisible();
-+    await userEvent.keyboard("{ArrowDown}{Enter}");
-+    await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "false");
-+  });
-+});
-+
-+describe("JstackTreeRowView home summaries", () => {
-+  it("sums up each home's work on its row, folded or pinned open, in place of its age", async () => {
-+    await using _pins = await noPins();
-+    await using screen = await summaryTree(actions());
-+    const summaryOf = (scope: string) =>
-+      homeLine(screen, scope).querySelector(".tabular-nums")?.textContent;
-+    const expected = { flow: "2 scouts, 5 review, 1 queued", ops: "1 crew, 1 review, 1 queued" };
-+    for (const [scope, summary] of Object.entries(expected)) {
-+      await expect.element(homeItem(screen, scope)).toHaveAttribute("aria-expanded", "false");
-+      expect(summaryOf(scope)).toBe(summary);
-+      // One line, with no tally under it.
-+      expect(homeLine(screen, scope).getBoundingClientRect().height).toBe(28);
-+    }
-+    for (const scope of ["flow", "ops"]) await userEvent.click(pinOf(screen, scope));
-+    for (const [scope, summary] of Object.entries(expected)) {
-+      await expect.element(homeItem(screen, scope)).toHaveAttribute("aria-expanded", "true");
-+      expect(summaryOf(scope)).toBe(summary);
-+    }
-+    // An idle home keeps its age.
-+    expect(summaryOf("jview")).not.toMatch(/crew|review|queued|scout/);
-+    expect(await auditIdle()).toEqual([]);
-+  });
-+
-+  it("shows a task's row bare but for what asks you or waits, in amber, and its stage in its tooltip and menu", async () => {
-+    await using _pins = await noPins();
-+    await using screen = await summaryTree(actions());
-+    for (const scope of ["flow", "ops"]) await userEvent.click(pinOf(screen, scope));
-+    const rowOf = (slug: string) => screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
-+    const shown = {
-+      "ops-trim": "ops-trim asks you",
-+      "ops-backup": "ops-backup held 3h",
-+      "ops-cron": "ops-cron",
-+      "fl-stall": "fl-stall stalled 45m",
-+      "fl-ring": "fl-ring",
-+      "fl-colour": "fl-colour",
-+      "fl-sizes": "fl-sizes",
-+      "fl-menus": "fl-menus",
-+      "fl-actions": "fl-actions",
-+      "fl-drag": "fl-drag",
-+      "fl-badges": "fl-badges",
-+    };
-+    for (const [slug, text] of Object.entries(shown)) {
-+      await expect.element(rowOf(slug)).toBeVisible();
-+      const row = rowOf(slug).element();
-+      expect(shownText(row)?.replace(/\s+/g, " ").trim()).toBe(text);
-+      // What stays on the row is amber.
-+      for (const word of ["asks you", "held 3h", "stalled 45m"]) {
-+        const span = [...row.querySelectorAll("span")].find((one) => one.textContent === word);
-+        if (span !== undefined) {
-+          expect(getComputedStyle(span).color).toBe(inkOf("text-warning-foreground"));
-+        }
-+      }
-+    }
-+    // A scout keeps its diamond, and its tooltip says it is a scout and where it stands.
-+    expect(markOf(rowOf("fl-ring").element())).toMatchObject({ diamond: [false, true] });
-+    await userEvent.hover(rowOf("fl-ring"));
-+    await expect.element(page.getByText("fl-ring · scout, scouting")).toBeVisible();
-+    await userEvent.hover(rowOf("fl-menus"));
-+    await expect.element(page.getByText("fl-menus · crew, fixing")).toBeVisible();
-+
-+    await userEvent.click(rowOf("fl-actions"), { button: "right" });
-+    await expect.element(page.getByRole("menu")).toBeVisible();
-+    const head = [...document.querySelectorAll<HTMLElement>('[role="menu"] div')].find(
-+      (line) => line.children.length === 0 && line.textContent !== "",
-+    );
-+    expect(head?.textContent).toBe("Crew, review 2");
-+    await userEvent.keyboard("{Escape}");
-+    expect(await auditIdle()).toEqual([]);
-+  });
-+});
+-      expect(markOf(row.element())).toEqual({ ring, size: 8, ink: "sky" });
+-    }
+-    expect(await audit()).toEqual([]);
+-  });
+-
+   it.each(["light", "dark"] as const)(
+     "keeps every mark, badge and text of the tree at 4.5:1 or more on the sidebar, %s",
+     async (theme) => {
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index 5bf9895718..d6986b517a 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
@@ -995,10 +495,10 @@ index 5bf9895718..d6986b517a 100644
                    .join(" · ")}
                </TooltipPopup>
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-index 559875ee0f..4e1c2ec5b0 100644
+index 8cb0765bb2..d5365e7193 100644
 --- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-@@ -167,6 +167,7 @@ function treeRoots(
+@@ -98,6 +98,7 @@ function treeRoots(
        collapsed: false,
        selection: null,
        expandedHomes: new Set(),
@@ -1038,39 +538,11 @@ index 0000000000..20492108bd
 +  };
 +  return { pinnedHomes, togglePin };
 +}
-diff --git a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-index c1f296abc5..7936b6b9f1 100644
---- a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-+++ b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-@@ -84,6 +84,7 @@ const actions = (order: ReturnType<typeof useJstackRootOrder<Root>>): JstackTree
-   onOpenThread: noop,
-   onToggleProject: noop,
-   onExpandHome: noop,
-+  onTogglePin: noop,
-   onNewThread: noop,
-   onCopyPath: noop,
-   onOpenProjectSettings: noop,
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index c1cc98af46..9b9a6becea 100644
+index 9f4dce0912..400212be83 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -18,12 +18,15 @@ import {
-   buildJstackTree,
-   childHomeMessage,
-   jstackRevealTarget,
-+  homeSummary,
-   jstackRootPlace,
-+  jstackStageText,
-   jstackRootReorder,
-   moveJstackRoot,
-   orderJstackRoots,
-   rowWordMessage,
-   scopeNameProblem,
-+  togglePinnedHome,
-   type JstackTreeInput,
-   type JstackTreeRow,
- } from "./jstackTree.logic";
-@@ -109,6 +112,7 @@ function build(
+@@ -75,6 +75,7 @@ function build(
      collapsed: false,
      selection: null,
      expandedHomes: new Set(),
@@ -1078,153 +550,6 @@ index c1cc98af46..9b9a6becea 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -123,7 +127,9 @@ function build(
- const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
-   (rows ?? []).flatMap((row) =>
-     row.kind === "worker"
--      ? [`${row.slug}:${row.word}${row.waited ? ` ${row.waited.kind} ${row.waited.age}` : ""}`]
-+      ? [
-+          `${row.slug}:${row.stage}${row.tone === "asks" ? " asks you" : ""}${row.waited ? ` ${row.waited.kind} ${row.waited.age}` : ""}`,
-+        ]
-       : [],
-   );
- 
-@@ -192,7 +198,7 @@ describe("buildJstackTree", () => {
-       { threads: [thread("crew-silent", { updatedAt: minutesAgo(45) })] },
-     );
-     expect(workers(tree.rows)).toEqual([
--      "gated:asks you",
-+      "gated:crew asks you",
-       "silent:crew quiet 45m",
-       "working:crew",
-       "reviewing:review 1",
-@@ -275,7 +281,7 @@ describe("buildJstackTree", () => {
-       { tasks: [...tasks, task("c", { waitsOn: "word" })] },
-       { frozenOrder: frozen },
-     );
--    expect(workers(next.rows)).toEqual(["a:review 1", "c:asks you", "b:crew"]);
-+    expect(workers(next.rows)).toEqual(["a:review 1", "c:crew asks you", "b:crew"]);
-   });
- 
-   it("caps a home's rows behind a +N row until it is expanded", () => {
-@@ -297,7 +303,7 @@ describe("buildJstackTree", () => {
-     expect(closed.rows.find((row) => row.kind === "domain")).toMatchObject({
-       open: false,
-       dot: true,
--      work: { kind: "live", tally: { queue: 1, crew: 1, review: 0 } },
-+      work: { kind: "live", tally: { crew: 1, scout: 0, review: 0, queue: 1 } },
-     });
-     expect(workers(closed.rows)).toEqual([]);
- 
-@@ -338,6 +344,31 @@ describe("buildJstackTree", () => {
-     expect(jstackRevealTarget(snapshot, [plain, jstack], "jstack", "fl-gone")).toBe(null);
-   });
- 
-+  it("keeps a pinned home open, idle or live, with nothing selected, and never fades it", () => {
-+    const flow = ThreadId.make("flow");
-+    const homeOf = (tree: ReturnType<typeof build>) =>
-+      tree.rows.find((row) => row.kind === "domain");
-+    const tasks = [
-+      task("fl-pump", { homeThreadId: flow, waitsOn: "word" }),
-+      ...Array.from({ length: 4 }, (_, index) => task(`fl-t${index}`, { homeThreadId: flow })),
-+    ];
-+    const options = { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 3 } as const;
-+
-+    const live = build({ tasks }, { options, pinnedHomes: new Set([flow]) });
-+    expect(homeOf(live)).toMatchObject({ pinned: true, open: true, dot: false, faded: false });
-+    // Its rows show as an open home's do, capped behind a +N row.
-+    expect(workers(live.rows)).toEqual(["pump:crew asks you", "t0:crew", "t1:crew"]);
-+    expect(live.rows.find((row) => row.kind === "more")).toMatchObject({
-+      count: 2,
-+      homeKey: "flow",
-+    });
-+
-+    const idle = (pinnedHomes: ReadonlySet<ThreadId>) =>
-+      homeOf(build({}, { pinnedHomes, threads: [thread("flow", { updatedAt: minutesAgo(90) })] }));
-+    expect(idle(new Set([flow]))).toMatchObject({ pinned: true, open: true, faded: false });
-+    expect(idle(new Set())).toMatchObject({ pinned: false, open: false, faded: true });
-+  });
-+
-   it("selects the task a brief's link showed in place of the route's, thread or none", () => {
-     const tasks = [
-       task("fl-pump", { homeThreadId: ThreadId.make("flow") }),
-@@ -591,6 +622,76 @@ describe("buildJstackTree marks", () => {
-   });
- });
- 
-+describe("a home's summary", () => {
-+  const tallyOf = (tasks: ReadonlyArray<JbusCrewTask | JbusScoutTask>) => {
-+    const home = build({
-+      tasks: tasks.map((each) => ({ ...each, homeThreadId: ThreadId.make("flow") })),
-+    }).rows.find((row) => row.kind === "domain");
-+    return home?.work.kind === "live" ? home.work.tally : null;
-+  };
-+
-+  it("counts a home's tasks by stage, a scout out of the queue apart from crew", () => {
-+    const tally = tallyOf([
-+      task("fl-stall", { stage: "review" }),
-+      scout("fl-ring", "scouting"),
-+      scout("fl-colour", "report in"),
-+      task("fl-sizes", { stage: "review" }),
-+      task("fl-menus", { stage: "findings" }),
-+      task("fl-actions", { stage: "second" }),
-+      task("fl-drag", { stage: "check" }),
-+      scout("fl-badges", "queued"),
-+    ]);
-+    expect(tally).toEqual({ crew: 0, scout: 2, review: 5, queue: 1 });
-+    expect(homeSummary(tally!)).toBe("2 scouts, 5 review, 1 queued");
-+  });
-+
-+  it("counts a task that asks you, or is quiet or held, at its own stage", () => {
-+    const tally = tallyOf([
-+      task("fl-backup", { stage: "review", waitsOn: "word" }),
-+      task("fl-trim", { held: { since: minutesAgo(180), reason: "" } }),
-+      task("fl-cron", { stage: "ready", threadId: null, waitsOn: "approval" }),
-+    ]);
-+    expect(homeSummary(tally!)).toBe("1 crew, 1 review, 1 queued");
-+  });
-+
-+  it("says each mix in one order, crew, scouts, review, queued, and leaves out what is none", () => {
-+    const of = (crew: number, scout: number, review: number, queue: number) =>
-+      homeSummary({ crew, scout, review, queue });
-+    expect(of(2, 1, 3, 0)).toBe("2 crew, 1 scout, 3 review");
-+    expect(of(0, 1, 0, 0)).toBe("1 scout");
-+    expect(of(0, 0, 0, 4)).toBe("4 queued");
-+    expect(of(1, 0, 0, 2)).toBe("1 crew, 2 queued");
-+    expect(of(0, 0, 2, 0)).toBe("2 review");
-+  });
-+});
-+
-+describe("a task's stage", () => {
-+  it("keeps the stage of a task that asks you, which its row shows in place of the word", () => {
-+    const rows = build({
-+      tasks: [task("asks", { stage: "findings", waitsOn: "word" }), scout("look", "scouting")],
-+    }).rows.flatMap((row) => (row.kind === "worker" ? [row] : []));
-+    expect(rows.map((row) => [row.slug, row.tone, jstackStageText(row)])).toEqual([
-+      ["asks", "asks", "crew, fixing"],
-+      ["look", "plain", "scout, scouting"],
-+    ]);
-+  });
-+
-+  it("says a crew task at work as crew alone", () => {
-+    expect(jstackStageText({ taskKind: "crew", stage: "crew" })).toBe("crew");
-+    expect(jstackStageText({ taskKind: "crew", stage: "review 2" })).toBe("crew, review 2");
-+    expect(jstackStageText({ taskKind: "scout", stage: "report in" })).toBe("scout, report in");
-+  });
-+});
-+
-+describe("togglePinnedHome", () => {
-+  it("pins a home once and unpins it on the next toggle, leaving the others", () => {
-+    const [a, b] = [ThreadId.make("a"), ThreadId.make("b")];
-+    expect(togglePinnedHome([], a)).toEqual([a]);
-+    expect(togglePinnedHome([a], b)).toEqual([a, b]);
-+    expect(togglePinnedHome([a, b], a)).toEqual([b]);
-+  });
-+});
-+
- describe("arrangeJstackRoots", () => {
-   const root = (name: string, faded: boolean, noProject = false) => ({
-     name,
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 76bf8f23c9..456d69a52a 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

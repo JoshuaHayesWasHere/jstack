@@ -9,12 +9,11 @@ and when jbus merged some of its tasks lately its chevron, its arrow keys and it
 them, newest first. A home with live work keeps its tally and opens as before.
 ---
  apps/web/src/components/Sidebar.tsx           |  10 +
- .../sidebar/JstackTreeRows.browser.test.tsx   | 188 +++++++++++++++++-
- .../src/components/sidebar/JstackTreeRows.tsx | 120 +++++++++--
- .../sidebar/jstackRootOrder.browser.test.tsx  |   1 +
- .../sidebar/jstackTree.logic.test.ts          |  54 ++++-
- .../components/sidebar/jstackTree.logic.ts    |  64 +++++-
- 6 files changed, 410 insertions(+), 27 deletions(-)
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 306 +++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx | 120 +++++--
+ .../sidebar/jstackTree.logic.test.ts          |  52 +++
+ .../components/sidebar/jstackTree.logic.ts    |  64 +++-
+ 5 files changed, 527 insertions(+), 25 deletions(-)
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
 index 78ab0c2fb5..b00baebdca 100644
@@ -52,10 +51,34 @@ index 78ab0c2fb5..b00baebdca 100644
      onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
      onOpenProjectSettings: openProjectSettings,
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index abc2134341..49743f8716 100644
+index 6d6d6b2d73..38cc294c36 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -84,7 +84,7 @@ const home: JstackTreeRow = {
+@@ -3,10 +3,13 @@ import {
+   EnvironmentId,
+   ProjectId,
+   ThreadId,
++  type JbusStartingScope,
+   type JbusWorkSnapshot,
+ } from "@t3tools/contracts";
++import axe from "axe-core";
++import { useState } from "react";
+ import { describe, expect, it, vi } from "vite-plus/test";
+-import { userEvent } from "vite-plus/test/browser";
++import { page, userEvent } from "vite-plus/test/browser";
+ 
+ import "~/index.css";
+ import { render } from "../../../test/render";
+@@ -15,6 +18,8 @@ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+ import {
+   buildJstackTree,
++  childHomeMessage,
++  type JstackAnswering,
+   type JstackRootPlace,
+   type JstackRootRow,
+   type JstackTreeRow,
+@@ -79,7 +84,7 @@ const home: JstackTreeRow = {
    open: true,
    asksYou: false,
    dot: false,
@@ -64,7 +87,7 @@ index abc2134341..49743f8716 100644
    faded: false,
    selected: false,
  };
-@@ -120,6 +120,7 @@ function actions(): JstackTreeRowActions {
+@@ -115,6 +120,7 @@ function actions(): JstackTreeRowActions {
      onOpenThread: vi.fn(),
      onToggleProject: vi.fn(),
      onExpandHome: vi.fn(),
@@ -72,49 +95,78 @@ index abc2134341..49743f8716 100644
      onNewThread: vi.fn(),
      onCopyPath: vi.fn(),
      onOpenProjectSettings: vi.fn(),
-@@ -594,6 +595,12 @@ describe("JstackTreeRowView context menus", () => {
+@@ -230,6 +236,14 @@ describe("JstackTreeRowView sizes", () => {
+ });
  
  const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
- const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
++const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
 +const jviewThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("jview") });
 +const dictationThread = makeThreadFixture({
 +  environmentId,
 +  projectId,
 +  id: ThreadId.make("dictation"),
 +});
- 
++
  const crewTask = (slug: string, home: string) => ({
    repo: "jstack",
-@@ -632,6 +639,7 @@ function LiveTree(props: {
-   const [editor, setEditor] = useState(false);
-   const [answering, setAnswering] = useState<JstackAnswering | null>(null);
-   const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
+   slug,
+@@ -243,6 +257,131 @@ const crewTask = (slug: string, home: string) => ({
+   brief: null,
+ });
+ 
++// Each home has a task running, so no row draws at the half ink of an idle one.
++const SNAPSHOT: JbusWorkSnapshot = {
++  ...EMPTY_JBUS_WORK_SNAPSHOT,
++  tasks: [crewTask("tidy", "root"), crewTask("fl-pump", "flow")],
++  homes: [
++    { repo: "jstack", scope: null, threadId: ThreadId.make("root"), prefix: null },
++    { repo: "jstack", scope: "flow", threadId: ThreadId.make("flow"), prefix: "fl-" },
++  ],
++};
++
++/**
++ * The tree as the sidebar keeps it: jbus's snapshot drawn by buildJstackTree, with the sidebar's
++ * own state for the open "New child home" row and the scopes asked from it. What the sidebar
++ * would send the root home lands in `sent`.
++ */
++function LiveTree(props: {
++  snapshot: JbusWorkSnapshot;
++  spies: JstackTreeRowActions;
++  sent: Array<string>;
++  routeThreadId?: ThreadId;
++}) {
++  const [editor, setEditor] = useState(false);
++  const [answering, setAnswering] = useState<JstackAnswering | null>(null);
++  const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
 +  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
-   const jstack = group("jstack");
-   const tree = buildJstackTree({
-     environmentId,
-@@ -640,13 +648,16 @@ function LiveTree(props: {
-     memberProjectRefs: [{ environmentId, projectId }],
-     snapshot: props.snapshot,
-     threadsById: new Map(
--      [rootThread, flowThread, opsThread].map((thread) => [thread.id, thread] as const),
++  const jstack = group("jstack");
++  const tree = buildJstackTree({
++    environmentId,
++    folderRowId: "folder:jstack",
++    noProject: false,
++    memberProjectRefs: [{ environmentId, projectId }],
++    snapshot: props.snapshot,
++    threadsById: new Map(
 +      [rootThread, flowThread, opsThread, jviewThread, dictationThread].map(
 +        (thread) => [thread.id, thread] as const,
 +      ),
-     ),
-     folderThreads: [],
-     hiddenThreads: [],
-     collapsed: false,
-     routeThreadId: props.routeThreadId ?? null,
-     expandedHomes: new Set(),
++    ),
++    folderThreads: [],
++    hiddenThreads: [],
++    collapsed: false,
++    routeThreadId: props.routeThreadId ?? null,
++    expandedHomes: new Set(),
 +    unfoldedHomes: unfolded,
-     frozenOrder: null,
-     lastVisitedAt: () => null,
-     childHomeEditor: editor,
-@@ -657,6 +668,14 @@ function LiveTree(props: {
-   });
-   const live: JstackTreeRowActions = {
-     ...props.spies,
++    frozenOrder: null,
++    lastVisitedAt: () => null,
++    childHomeEditor: editor,
++    answering,
++    requestedScopes: requested,
++    nowMs: Date.parse("2026-10-29T12:00:00.000Z"),
++    options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 },
++  });
++  const live: JstackTreeRowActions = {
++    ...props.spies,
 +    onToggleHome: (homeThreadId) => {
 +      props.spies.onToggleHome(homeThreadId);
 +      setUnfolded((current) => {
@@ -123,19 +175,74 @@ index abc2134341..49743f8716 100644
 +        return next;
 +      });
 +    },
-     onOpenChildHomeEditor: (opened) => {
-       props.spies.onOpenChildHomeEditor(opened);
-       setEditor(true);
-@@ -772,7 +791,7 @@ describe("JstackTreeRowView home actions", () => {
-         sent={sent}
-       />,
-     );
--    await expect.element(screen.getByRole("treeitem", { name: /^ops .*home$/ })).toBeVisible();
-+    await expect.element(screen.getByRole("treeitem", { name: /^ops .*home/ })).toBeVisible();
-     await expect.element(screen.getByText("starting...")).not.toBeInTheDocument();
-   });
++    onOpenChildHomeEditor: (opened) => {
++      props.spies.onOpenChildHomeEditor(opened);
++      setEditor(true);
++    },
++    onCloseChildHomeEditor: () => {
++      props.spies.onCloseChildHomeEditor();
++      setEditor(false);
++    },
++    onSendChildHome: async (row, scope, owns) => {
++      await props.spies.onSendChildHome(row, scope, owns);
++      props.sent.push(childHomeMessage(scope, owns));
++      setRequested((current) => [...current, { repo: row.repo, scope }]);
++      setEditor(false);
++      return true;
++    },
++    onDismissStartingHome: (repo, scope) => {
++      props.spies.onDismissStartingHome(repo, scope);
++      setRequested((current) => current.filter((each) => each.scope !== scope));
++    },
++    onOpenAnswer: (row) => {
++      props.spies.onOpenAnswer(row);
++      if (row.gate === null) return;
++      const slug = `${row.prefix ?? ""}${row.slug}`;
++      setAnswering({ repo: row.repo, slug, ...row.gate });
++    },
++    onCloseAnswer: () => {
++      props.spies.onCloseAnswer();
++      setAnswering(null);
++    },
++    onSendAnswer: async (row, text) => {
++      const sent = await props.spies.onSendAnswer(row, text);
++      if (sent) setAnswering(null);
++      return sent;
++    },
++  };
++  return (
++    <ul
++      {...SIDEBAR_TREE_PROPS}
++      ref={attachSidebarTree}
++      className="flex w-[300px] flex-col gap-px bg-sidebar"
++    >
++      {tree.rows.map((row) =>
++        row.kind === "loose" ? null : (
++          <JstackTreeRowView key={row.key} row={row} group={jstack} actions={live} />
++        ),
++      )}
++    </ul>
++  );
++}
++
++const rootItem = (screen: Screen) =>
++  screen.getByRole("treeitem", { name: /^jstack .*main thread$/ });
++
++type Screen = Awaited<ReturnType<typeof render>>;
++
++const audit = async () => {
++  // A bare render has no landmark around it; in the app the sidebar's own nav is one.
++  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
++  return result.violations.map(
++    (violation) =>
++      `${violation.id}: ${violation.help} at ${violation.nodes.map((node) => node.html).join(" | ")}`,
++  );
++};
++
+ const sidebarHome = ThreadId.make("sidebar");
  
-@@ -1087,6 +1106,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+ /** What jbus said at the user's click: a queued task waits on an approval, a gate asks. */
+@@ -317,6 +456,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
      routeThreadId: sidebarHome,
      answering: null,
      expandedHomes: new Set(),
@@ -143,7 +250,7 @@ index abc2134341..49743f8716 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -1184,3 +1204,165 @@ describe("JstackTreeRowView asks you", () => {
+@@ -414,3 +554,165 @@ describe("JstackTreeRowView asks you", () => {
      }
    });
  });
@@ -479,23 +586,11 @@ index 892d3b413b..fd4c118c1c 100644
            </Nest>
          </li>
        );
-diff --git a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-index e29c0fa630..65ab552620 100644
---- a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-+++ b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-@@ -83,6 +83,7 @@ const actions = (order: ReturnType<typeof useJstackRootOrder<Root>>): JstackTree
-   onOpenThread: noop,
-   onToggleProject: noop,
-   onExpandHome: noop,
-+  onToggleHome: noop,
-   onNewThread: noop,
-   onCopyPath: noop,
-   onOpenProjectSettings: noop,
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index 1d899e870c..d5c5acb067 100644
+index 0f84ed6211..91382c2241 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -87,6 +87,7 @@ function build(
+@@ -74,6 +74,7 @@ function build(
      collapsed: false,
      routeThreadId: null,
      expandedHomes: new Set(),
@@ -503,17 +598,8 @@ index 1d899e870c..d5c5acb067 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -269,7 +270,7 @@ describe("buildJstackTree", () => {
-     expect(closed.rows.find((row) => row.kind === "domain")).toMatchObject({
-       open: false,
-       dot: true,
--      tally: { queue: 1, crew: 1, review: 0 },
-+      work: { kind: "live", tally: { queue: 1, crew: 1, review: 0 } },
-     });
-     expect(workers(closed.rows)).toEqual([]);
- 
-@@ -282,6 +283,57 @@ describe("buildJstackTree", () => {
-     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
+@@ -136,6 +137,57 @@ describe("buildJstackTree", () => {
+     ]);
    });
  
 +  it("draws a home with no live work as one line that unfolds to what it merged, newest first", () => {
@@ -567,9 +653,9 @@ index 1d899e870c..d5c5acb067 100644
 +    expect(workers(live.rows)).toEqual(["pump:crew"]);
 +  });
 +
-   it("rolls everything inside up to the project row when folded", () => {
+   it("drops scouts whose thread settled or archived", () => {
      const tree = build(
-       { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOn: "word" })] },
+       {
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index a7ad8c9f81..177ca94a6b 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

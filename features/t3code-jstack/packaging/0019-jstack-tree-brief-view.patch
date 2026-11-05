@@ -26,13 +26,12 @@ and Button a row size. Its one accent, sky, is a theme colour (jstack-link) on t
 The approve flow is as it was: the sha line, Close and "Approve this brief", none for a scout.
 ---
  apps/web/src/components/Sidebar.tsx           |  35 +-
- .../JstackBriefDialog.browser.test.tsx        | 308 ++++++++++++++++-
  .../components/sidebar/JstackBriefDialog.tsx  |  56 +++-
  .../components/sidebar/JstackBriefView.tsx    | 317 ++++++++++++++++++
  .../sidebar/JstackTreeRows.browser.test.tsx   |   5 +-
  .../sidebar/jstackAskOnAdd.browser.test.tsx   |   2 +-
  .../components/sidebar/jstackBrief.logic.ts   | 213 ++++++++++++
- .../sidebar/jstackTree.logic.test.ts          |  72 +++-
+ .../sidebar/jstackTree.logic.test.ts          |   8 +-
  .../components/sidebar/jstackTree.logic.ts    |  46 ++-
  apps/web/src/components/ui/button.tsx         |   2 +
  apps/web/src/components/ui/dialog.tsx         |  38 ++-
@@ -40,7 +39,7 @@ The approve flow is as it was: the sha line, Close and "Approve this brief", non
  .../jstack-briefs/jinstall-retired-hooks.txt  |  15 +
  .../jstack-briefs/jv-color-design.txt         |  40 +++
  .../jstack-briefs/sb-type-b2-build.txt        |  24 ++
- 15 files changed, 1134 insertions(+), 45 deletions(-)
+ 14 files changed, 772 insertions(+), 35 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/JstackBriefView.tsx
  create mode 100644 apps/web/src/components/sidebar/jstackBrief.logic.ts
  create mode 100644 apps/web/test/fixtures/jstack-briefs/jinstall-retired-hooks.txt
@@ -130,361 +129,6 @@ index bf5708a6d3..237a056467 100644
          onApprove={(target, sha) =>
            sendJstackRowWord(target.homeThreadId, target.homeName, {
              kind: "approve",
-diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
-index f911fac586..e54946c148 100644
---- a/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
-+++ b/apps/web/src/components/sidebar/JstackBriefDialog.browser.test.tsx
-@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from "vite-plus/test";
- import { page, userEvent } from "vite-plus/test/browser";
- 
- import "~/index.css";
-+import B2_BUILD from "../../../test/fixtures/jstack-briefs/sb-type-b2-build.txt?raw";
-+import RETIRED_HOOKS from "../../../test/fixtures/jstack-briefs/jinstall-retired-hooks.txt?raw";
-+import COLOR_DESIGN from "../../../test/fixtures/jstack-briefs/jv-color-design.txt?raw";
- import { render } from "../../../test/render";
- import { JstackBriefDialog, useJstackBrief, type JstackBriefTarget } from "./JstackBriefDialog";
- 
-@@ -40,18 +43,45 @@ const target = (overrides: Partial<JstackBriefTarget> = {}): JstackBriefTarget =
-   ...overrides,
- });
- 
--/** A button that opens the brief, as a row's menu item does, with the sidebar's dialog. */
-+/**
-+ * A button that opens the brief, as a row's menu item does, with the sidebar's dialog, and the
-+ * tree's rows of `inTree`, which its links show.
-+ */
- function Opener(props: {
-   target: JstackBriefTarget;
-   onApprove: (target: JstackBriefTarget, sha: string) => Promise<boolean>;
-+  inTree?: ReadonlyArray<string>;
-+  onReveal?: (repo: string, slug: string) => void;
- }) {
-   const brief = useJstackBrief();
-+  const inTree = props.inTree ?? [];
-   return (
-     <>
-       <button type="button" onClick={() => brief.open(props.target)}>
-         Open brief
-       </button>
--      <JstackBriefDialog shown={brief.shown} onClose={brief.close} onApprove={props.onApprove} />
-+      <ul role="tree" aria-label="Tree">
-+        {inTree.map((slug) => (
-+          <li key={slug}>
-+            <button
-+              type="button"
-+              role="treeitem"
-+              tabIndex={-1}
-+              aria-selected={false}
-+              data-sidebar-row={`jstack-task:jstack/${slug}`}
-+            >
-+              {slug}
-+            </button>
-+          </li>
-+        ))}
-+      </ul>
-+      <JstackBriefDialog
-+        shown={brief.shown}
-+        onClose={brief.close}
-+        onApprove={props.onApprove}
-+        revealable={(repo, slug) => repo === "jstack" && inTree.includes(slug)}
-+        onReveal={props.onReveal ?? (() => undefined)}
-+      />
-     </>
-   );
- }
-@@ -76,9 +106,11 @@ describe("JstackBriefDialog", () => {
-     await openBrief();
-     const dialog = page.getByRole("dialog", { name: "Brief: fl-meter" });
-     await expect.element(dialog).toBeVisible();
--    const shown = page.getByRole("region", { name: "The brief of fl-meter" });
-+    await expect.element(page.getByRole("region", { name: "The brief of fl-meter" })).toBeVisible();
-+    // The stored copy as it is, the one an approval names, one click away.
-+    await userEvent.click(page.getByRole("button", { name: "Markdown" }));
-+    const shown = page.getByRole("region", { name: "The Markdown of fl-meter" });
-     await expect.element(shown).toBeVisible();
--    // The stored copy as it is, the one an approval names.
-     expect(shown.element().textContent).toBe(BRIEF);
-     await expect.element(dialog).toHaveAccessibleDescription(/brief sha f7de575cc0d0/);
-     expect(server.asked).toEqual([
-@@ -164,8 +196,9 @@ describe("JstackBriefDialog", () => {
-     await expect
-       .element(dialog)
-       .toHaveAccessibleDescription("The brief its home wrote for this scout.");
--    const shown = page.getByRole("region", { name: "The brief of probe" });
--    await expect.element(shown).toBeVisible();
-+    await expect.element(page.getByRole("region", { name: "The brief of probe" })).toBeVisible();
-+    await userEvent.click(page.getByRole("button", { name: "Markdown" }));
-+    const shown = page.getByRole("region", { name: "The Markdown of probe" });
-     expect(shown.element().textContent).toBe("# probe: look at the meter\n");
-     expect(server.asked).toEqual([
-       { environmentId, input: { repo: "jstack", slug: "probe", kind: "scout" } },
-@@ -175,3 +208,266 @@ describe("JstackBriefDialog", () => {
-       .not.toBeInTheDocument();
-   });
- });
-+
-+// The brief's own words, read back from the dialog as a reader meets them.
-+const inRegion = (slug: string) =>
-+  page.getByRole("region", { name: `The brief of ${slug}` }).element();
-+const textOf = (element: Element | null | undefined) =>
-+  (element?.textContent ?? "").replace(/\s+/g, " ").trim();
-+/** What a line says, after its label. */
-+const said = (name: string, role: "region" | "note" = "region") =>
-+  textOf(page.getByRole(role, { name }).element()).slice(name.length);
-+const labels = (slug: string) => [...inRegion(slug).querySelectorAll("h3")].map(textOf);
-+const chips = () =>
-+  [...page.getByRole("list", { name: "At a glance" }).element().querySelectorAll("li")].map(textOf);
-+const items = (name: string) =>
-+  [...page.getByRole("region", { name }).element().querySelectorAll("li")].map(textOf);
-+
-+/** Every size and weight a visible text in the dialog computes to. */
-+const typeIn = (root: Element) => {
-+  const seen = new Set<string>();
-+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-+    if (node.textContent?.trim() && node.parentElement) {
-+      const style = getComputedStyle(node.parentElement);
-+      seen.add(`${style.fontSize}/${style.fontWeight}`);
-+    }
-+  }
-+  return [...seen].toSorted();
-+};
-+
-+const tabTo = async (target: { element: () => Element }) => {
-+  for (let step = 0; step < 40 && document.activeElement !== target.element(); step += 1) {
-+    await userEvent.keyboard("{Tab}");
-+  }
-+  await expect.element(target as never).toHaveFocus();
-+};
-+
-+describe("JstackBriefDialog draws a brief as what it says", () => {
-+  it("a crew brief: the one line, chips, the caution band under them, its lines in order", async () => {
-+    server.briefs.set("sb-type-b2-build", { text: B2_BUILD, sha: "248905e4be30" });
-+    await using _screen = await render(
-+      <Opener
-+        target={target({ slug: "sb-type-b2-build", homeName: "the sidebar home" })}
-+        onApprove={async () => true}
-+        inTree={["sb-scout-report-state"]}
-+      />,
-+      { router: false },
-+    );
-+    await openBrief();
-+    const dialog = page.getByRole("dialog", { name: "Brief: sb-type-b2-build" });
-+    await expect
-+      .element(dialog)
-+      .toHaveAccessibleDescription(
-+        "The copy jbus keeps, brief sha 248905e4be30. Approve sends the sidebar home your go for it.",
-+      );
-+    const region = inRegion("sb-type-b2-build");
-+    expect(textOf(region.querySelector("p"))).toBe(
-+      "build take B2: one weight, a ring by thirds, scout diamonds, one sky accent for live work",
-+    );
-+    expect(chips()).toEqual([
-+      "Size M",
-+      "Review twice",
-+      "Playbook feature",
-+      "PR open one when done",
-+      "Home sidebar",
-+    ]);
-+    // The band is the first thing under the chips, before the brief's first line.
-+    const band = page.getByRole("note", { name: "Do not touch" }).element();
-+    expect(
-+      band.previousElementSibling?.contains(
-+        page.getByRole("list", { name: "At a glance" }).element(),
-+      ),
-+    ).toBe(true);
-+    expect(band.nextElementSibling?.getAttribute("aria-label")).toBe("Follows");
-+    expect(textOf(band)).toContain("~/.t3/userdata");
-+    // The brief's own order, with the chips, the band and More's lines out of it.
-+    expect(labels("sb-type-b2-build")).toEqual([
-+      "Follows",
-+      "Task",
-+      "Done when",
-+      "Proves it",
-+      "Where",
-+      "Builds on",
-+    ]);
-+    expect(said("Task")).toMatch(/^the user, 2026-10-29, picked take B2/);
-+    expect(items("Done when")).toHaveLength(8);
-+    expect(
-+      [...page.getByRole("region", { name: "Where" }).element().querySelectorAll("code")].map(
-+        textOf,
-+      ),
-+    ).toEqual([
-+      "features/t3code-jstack/packaging/",
-+      "apps/web/src/components/sidebar/",
-+      "JstackTreeRows.tsx",
-+      "jstackTree.logic.ts",
-+      "apps/server/src/jstack/",
-+      "packages/contracts/src/jbusWork.ts",
-+      "apps/web/src/index.css",
-+      "sb-type-proto",
-+      "~/repos/t3code-wt/sb-type-proto",
-+    ]);
-+    // A row the tree has is a link; one that left it says so.
-+    expect(items("Builds on")).toEqual([
-+      "sb-scout-report-state: the scout state jbus writes, which the tree reads",
-+    ]);
-+    await expect.element(page.getByRole("button", { name: "sb-scout-report-state" })).toBeVisible();
-+    expect(items("Follows")).toEqual(["sb-type-b-proto not in the tree"]);
-+    await expect
-+      .element(page.getByRole("button", { name: "sb-type-b-proto" }))
-+      .not.toBeInTheDocument();
-+    // Decisions, Design and Skills fold under More.
-+    const more = page.getByRole("button", { name: "More: Decisions, Design, Skills" });
-+    await expect.element(more).toHaveAttribute("aria-expanded", "false");
-+    expect(labels("sb-type-b2-build")).not.toContain("Decisions");
-+    await userEvent.click(more);
-+    expect(labels("sb-type-b2-build").slice(-3)).toEqual(["Decisions", "Design", "Skills"]);
-+    await userEvent.click(page.getByRole("button", { name: "Markdown" }));
-+
-+    expect(typeIn(dialog.element())).toEqual(["11px/400", "13px/400"]);
-+    expect(await audit()).toEqual([]);
-+    await expect.element(page.getByRole("button", { name: "Approve this brief" })).toBeEnabled();
-+  });
-+
-+  it("an S brief: the quote unquoted, two checks, and a playbook of none", async () => {
-+    server.briefs.set("jinstall-retired-hooks", { text: RETIRED_HOOKS, sha: "a6aa9139d598" });
-+    await using _screen = await render(
-+      <Opener target={target({ slug: "jinstall-retired-hooks" })} onApprove={async () => true} />,
-+      { router: false },
-+    );
-+    await openBrief();
-+    expect(chips()).toEqual(["Size S", "Review review", "Playbook none", "PR open one when done"]);
-+    expect(labels("jinstall-retired-hooks")).toEqual(["Task", "Done when", "Proves it", "Where"]);
-+    const task = page.getByRole("region", { name: "Task" }).element();
-+    expect(textOf(task.querySelector("blockquote"))).toMatch(/^jinstall writes a hook group/);
-+    expect(textOf(task.querySelector("blockquote"))).not.toMatch(/^"|"$/);
-+    expect(items("Done when")).toEqual([
-+      "install.sh --check on a settings.json with a home-gauge.sh group prints it as old, and install.sh removes it and keeps every other group",
-+      "a group the user wrote that names no layout script is left alone",
-+    ]);
-+    expect(said("Do not touch", "note")).toBe("the hooks features declare");
-+    await expect
-+      .element(page.getByRole("button", { name: "More: Decisions, Design, Skills" }))
-+      .toBeVisible();
-+    expect(typeIn(page.getByRole("dialog").element())).toEqual(["11px/400", "13px/400"]);
-+  });
-+
-+  it("keeps the list under any line, a quote, the caution band and file chips included", async () => {
-+    const listed = [
-+      "# fl-lists: lists under lines",
-+      'Task: "read the meter"',
-+      "- at noon",
-+      "- at midnight",
-+      "Do not touch:",
-+      "- the live state",
-+      "- `~/.t3/userdata`",
-+      "Where: `meter.ts`",
-+      "- `meter.test.ts`, its test",
-+      "",
-+    ].join("\n");
-+    server.briefs.set("fl-lists", { text: listed, sha: "333333333333" });
-+    await using _screen = await render(
-+      <Opener target={target({ slug: "fl-lists" })} onApprove={async () => true} />,
-+      { router: false },
-+    );
-+    await openBrief();
-+    expect(items("Task")).toEqual(["at noon", "at midnight"]);
-+    const band = page.getByRole("note", { name: "Do not touch" }).element();
-+    expect([...band.querySelectorAll("li")].map(textOf)).toEqual([
-+      "the live state",
-+      "~/.t3/userdata",
-+    ]);
-+    expect(items("Where")).toEqual(["meter.test.ts, its test"]);
-+  });
-+
-+  it("a scout request: a line no template names stays as written with its list, and no approve", async () => {
-+    server.briefs.set("jv-color-design", { text: COLOR_DESIGN, sha: "222222222222" });
-+    await using _screen = await render(
-+      <Opener
-+        target={target({ slug: "jv-color-design", kind: "scout", approvable: false })}
-+        onApprove={async () => true}
-+      />,
-+      { router: false },
-+    );
-+    await openBrief();
-+    expect(chips()).toEqual(["Playbook investigation", "Home jview"]);
-+    expect(said("Out of bounds", "note")).toMatch(/^read-only in the repo\./);
-+    expect(labels("jv-color-design")).toEqual(["Request", "Questions", "Deliver"]);
-+    // "Read first (change none of it):" is no line a template names: it shows where it was
-+    // written, between Request and Questions, as plain text with its three items.
-+    const region = inRegion("jv-color-design");
-+    const sections = [...region.querySelectorAll(":scope > section")];
-+    expect(sections.map((one) => one.getAttribute("aria-label"))).toEqual([
-+      "Request",
-+      null,
-+      "Questions",
-+      "Deliver",
-+    ]);
-+    const unknown = sections[1]!;
-+    expect(textOf(unknown.querySelector("p"))).toBe("Read first (change none of it):");
-+    expect([...unknown.querySelectorAll("li")].map(textOf)).toEqual([
-+      expect.stringMatching(/^features\/jbus\/src\/jbus\/view\/page\.html :root/),
-+      expect.stringMatching(/^the view's kept shots/),
-+      expect.stringMatching(/^reports\/jv-glance\/build\/design\.md/),
-+    ]);
-+    expect(items("Questions")).toHaveLength(4);
-+    expect(page.getByRole("region", { name: "Questions" }).element().querySelector("ol")).not.toBe(
-+      null,
-+    );
-+    // jbus's Thread line is under More, and the Report is its own fold.
-+    await userEvent.click(page.getByRole("button", { name: "More: Thread" }));
-+    expect(labels("jv-color-design").at(-1)).toBe("Thread");
-+    const report = page.getByRole("button", { name: "Report" });
-+    await userEvent.click(report);
-+    await expect.element(page.getByText(/^Status: done\nVerdict: PASS/)).toBeVisible();
-+
-+    expect(typeIn(page.getByRole("dialog").element())).toEqual(["11px/400", "13px/400"]);
-+    expect(await audit()).toEqual([]);
-+    await expect
-+      .element(page.getByRole("button", { name: "Approve this brief" }))
-+      .not.toBeInTheDocument();
-+  });
-+
-+  it("by keyboard: More and Markdown open, and a link shows its row in the tree", async () => {
-+    server.briefs.set("sb-type-b2-build", { text: B2_BUILD, sha: "248905e4be30" });
-+    const onReveal = vi.fn();
-+    await using _screen = await render(
-+      <Opener
-+        target={target({ slug: "sb-type-b2-build" })}
-+        onApprove={async () => true}
-+        inTree={["sb-scout-report-state"]}
-+        onReveal={onReveal}
-+      />,
-+      { router: false },
-+    );
-+    const opener = page.getByRole("button", { name: "Open brief" });
-+    await userEvent.keyboard("{Tab}");
-+    await expect.element(opener).toHaveFocus();
-+    await userEvent.keyboard("{Enter}");
-+    await expect.element(page.getByRole("dialog")).toBeVisible();
-+
-+    const more = page.getByRole("button", { name: "More: Decisions, Design, Skills" });
-+    await tabTo(more);
-+    await userEvent.keyboard("{Enter}");
-+    await expect.element(more).toHaveAttribute("aria-expanded", "true");
-+    await expect.element(page.getByRole("region", { name: "Decisions" })).toBeVisible();
-+
-+    const markdown = page.getByRole("button", { name: "Markdown" });
-+    await tabTo(markdown);
-+    await userEvent.keyboard("{Enter}");
-+    const raw = page.getByRole("region", { name: "The Markdown of sb-type-b2-build" });
-+    await tabTo(raw);
-+    expect(raw.element().textContent).toBe(B2_BUILD);
-+
-+    const link = page.getByRole("button", { name: "sb-scout-report-state" });
-+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
-+    await tabTo(link);
-+    await userEvent.keyboard("{Enter}");
-+    expect(onReveal).toHaveBeenCalledWith("jstack", "sb-scout-report-state");
-+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-+    // The dialog hands the focus to the row it showed, not back to the opener.
-+    await expect
-+      .element(page.getByRole("treeitem", { name: "sb-scout-report-state" }))
-+      .toHaveFocus();
-+  });
-+});
 diff --git a/apps/web/src/components/sidebar/JstackBriefDialog.tsx b/apps/web/src/components/sidebar/JstackBriefDialog.tsx
 index 73c01f5eed..6b7aaa10bb 100644
 --- a/apps/web/src/components/sidebar/JstackBriefDialog.tsx
@@ -910,10 +554,10 @@ index 0000000000..e6bc7e3c86
 +  );
 +}
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 50618c4eed..7c93402028 100644
+index cafe29d75c..2c1e2edf17 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -685,7 +685,8 @@ function LiveTree(props: {
+@@ -155,7 +155,8 @@ function LiveTree(props: {
      folderThreads: [],
      hiddenThreads: [],
      collapsed: false,
@@ -923,7 +567,7 @@ index 50618c4eed..7c93402028 100644
      expandedHomes: new Set(),
      frozenOrder: null,
      lastVisitedAt: () => null,
-@@ -1129,7 +1130,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+@@ -307,7 +308,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
      folderThreads: [],
      hiddenThreads: [],
      collapsed: false,
@@ -933,10 +577,10 @@ index 50618c4eed..7c93402028 100644
      expandedHomes: new Set(),
      frozenOrder: null,
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-index ae2cb3d71a..559875ee0f 100644
+index 663f387fb7..8cb0765bb2 100644
 --- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-@@ -165,7 +165,7 @@ function treeRoots(
+@@ -96,7 +96,7 @@ function treeRoots(
        folderThreads,
        hiddenThreads: [],
        collapsed: false,
@@ -1165,18 +809,10 @@ index 0000000000..bc24b15941
 +        : { slug: item.slice(0, colon).trim(), what: item.slice(colon + 2).trim() };
 +    });
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index d0528e723e..c1cc98af46 100644
+index 28c3cbcff9..9f4dce0912 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -17,6 +17,7 @@ import {
-   arrangeJstackRoots,
-   buildJstackTree,
-   childHomeMessage,
-+  jstackRevealTarget,
-   jstackRootPlace,
-   jstackRootReorder,
-   moveJstackRoot,
-@@ -106,7 +107,7 @@ function build(
+@@ -73,7 +73,7 @@ function build(
      folderThreads: all,
      hiddenThreads: [],
      collapsed: false,
@@ -1185,7 +821,7 @@ index d0528e723e..c1cc98af46 100644
      expandedHomes: new Set(),
      frozenOrder: null,
      lastVisitedAt: () => null,
-@@ -222,7 +223,9 @@ describe("buildJstackTree", () => {
+@@ -110,7 +110,9 @@ describe("buildJstackTree", () => {
          askedAt: minutesAgo(1),
        },
      ];
@@ -1196,73 +832,7 @@ index d0528e723e..c1cc98af46 100644
      const opens = rows.flatMap((row) =>
        row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
      );
-@@ -298,7 +301,10 @@ describe("buildJstackTree", () => {
-     });
-     expect(workers(closed.rows)).toEqual([]);
- 
--    const open = build({ tasks }, { routeThreadId: ThreadId.make("crew-fl-pump") });
-+    const open = build(
-+      { tasks },
-+      { selection: { kind: "thread", threadId: ThreadId.make("crew-fl-pump") } },
-+    );
-     expect(open.rows.find((row) => row.kind === "domain")).toMatchObject({
-       open: true,
-       dot: false,
-@@ -307,6 +313,53 @@ describe("buildJstackTree", () => {
-     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
-   });
- 
-+  it("finds what a brief's link unfolds: its repo's root home project and the task's home", () => {
-+    const tasks = [task("fl-pump", { homeThreadId: ThreadId.make("flow") })];
-+    const snapshot = { ...EMPTY_JBUS_WORK_SNAPSHOT, homes: HOMES, tasks };
-+    // A project with no home is listed first, with no root thread, as "No project" is.
-+    const plain = {
-+      name: "plain",
-+      tree: build({}, { memberProjectRefs: [{ environmentId, projectId: ProjectId.make("p") }] }),
-+    };
-+    const jstack = { name: "jstack", tree: build({ tasks }, { collapsed: true }) };
-+    expect(plain.tree.root.main).toBe(null);
-+
-+    expect(jstackRevealTarget(snapshot, [plain, jstack], "jstack", "fl-pump")).toEqual({
-+      root: jstack,
-+      homeThreadId: ThreadId.make("flow"),
-+    });
-+    // A repo with no root home draws no row for its task, so no project is unfolded for it.
-+    const noHome = {
-+      ...snapshot,
-+      tasks: [task("ot-pump", { repo: "other" })],
-+    };
-+    expect(jstackRevealTarget(noHome, [plain, jstack], "other", "ot-pump")).toBe(null);
-+    // A task jbus no longer lists has no row.
-+    expect(jstackRevealTarget(snapshot, [plain, jstack], "jstack", "fl-gone")).toBe(null);
-+  });
-+
-+  it("selects the task a brief's link showed in place of the route's, thread or none", () => {
-+    const tasks = [
-+      task("fl-pump", { homeThreadId: ThreadId.make("flow") }),
-+      task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
-+    ];
-+    const selected = (tree: ReturnType<typeof build>) =>
-+      tree.rows.flatMap((row) => ("selected" in row && row.selected ? [row.key] : []));
-+    // The route is on the flow home; the link names a queued task with no thread yet.
-+    const shown = build(
-+      { tasks },
-+      { selection: { kind: "task", repo: "jstack", slug: "fl-ready" } },
-+    );
-+    expect(selected(shown)).toEqual(["jstack-task:jstack/fl-ready"]);
-+    expect(shown.rows.find((row) => row.kind === "domain")).toMatchObject({ open: true });
-+    // Another repo's task of the same slug is not this one.
-+    const elsewhere = build(
-+      { tasks },
-+      { selection: { kind: "task", repo: "other", slug: "fl-ready" } },
-+    );
-+    expect(selected(elsewhere)).toEqual([]);
-+  });
-+
-   it("lists only a home's open rows, and counts what merged on the project row", () => {
-     const merged = (slug: string, minutes: number) => ({
-       repo: "jstack",
-@@ -317,7 +370,7 @@ describe("buildJstackTree", () => {
+@@ -144,7 +146,7 @@ describe("buildJstackTree", () => {
        tree.rows.flatMap((row) =>
          "parentKey" in row && row.parentKey === "jstack-home:flow" ? [row.key] : [],
        );
@@ -1271,38 +841,6 @@ index d0528e723e..c1cc98af46 100644
  
      const live = build(
        {
-@@ -851,7 +904,9 @@ describe("row actions: approve, remove, answer and the brief", () => {
-   };
- 
-   it("gives each task row the home its brief names, what it waits on, and its open question", () => {
--    const rows = build(snapshot, { routeThreadId: ThreadId.make("flow") }).rows;
-+    const rows = build(snapshot, {
-+      selection: { kind: "thread", threadId: ThreadId.make("flow") },
-+    }).rows;
-     expect(worker(rows, "meter")).toMatchObject({
-       homeThreadId: "flow",
-       homeName: "the flow home",
-@@ -883,7 +938,10 @@ describe("row actions: approve, remove, answer and the brief", () => {
-       number: 7,
-       question: "Which valve size?",
-     };
--    const rows = build(snapshot, { routeThreadId: ThreadId.make("flow"), answering }).rows;
-+    const rows = build(snapshot, {
-+      selection: { kind: "thread", threadId: ThreadId.make("flow") },
-+      answering,
-+    }).rows;
-     const at = rows.findIndex((row) => row.kind === "worker" && row.slug === "valve");
-     expect(rows[at]).toMatchObject({ answering: true });
-     expect(rows[at + 1]).toMatchObject({
-@@ -899,7 +957,7 @@ describe("row actions: approve, remove, answer and the brief", () => {
- 
-     const closed = build(
-       { ...snapshot, gates: [] },
--      { routeThreadId: ThreadId.make("flow"), answering },
-+      { selection: { kind: "thread", threadId: ThreadId.make("flow") }, answering },
-     ).rows;
-     expect(closed.find((row) => row.kind === "answer")).toMatchObject({ open: false });
-   });
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 671b2bfec7..76bf8f23c9 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts
@@ -1532,7 +1070,7 @@ index 0000000000..8c2d5b44c4
 +Playbook: none
 diff --git a/apps/web/test/fixtures/jstack-briefs/jv-color-design.txt b/apps/web/test/fixtures/jstack-briefs/jv-color-design.txt
 new file mode 100644
-index 0000000000..b3151cbb66
+index 0000000000..6ede22f047
 --- /dev/null
 +++ b/apps/web/test/fixtures/jstack-briefs/jv-color-design.txt
 @@ -0,0 +1,40 @@

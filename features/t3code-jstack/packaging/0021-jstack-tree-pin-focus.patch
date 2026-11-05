@@ -9,18 +9,38 @@ outside their row, so a click left focus on them and the tree's keys did nothing
 another click put it back on a row. Each now focuses its row once clicked, so ArrowUp, ArrowDown
 and the rest act at once.
 ---
- .../sidebar/JstackTreeRows.browser.test.tsx   | 35 +++++++++++++++++++
- .../src/components/sidebar/JstackTreeRows.tsx | 16 ++++++---
- 2 files changed, 47 insertions(+), 4 deletions(-)
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 150 +++++++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx |  16 +-
+ 2 files changed, 161 insertions(+), 5 deletions(-)
 
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index e6ccff83fc..989346d643 100644
+index 972e06a56d..f1eb018b5e 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -278,6 +278,18 @@ describe("JstackTreeRowView root rows", () => {
-     expect(fold.tabIndex).toBe(-1);
-   });
+@@ -6,13 +6,17 @@ import {
+   type JbusStartingScope,
+   type JbusWorkSnapshot,
+ } from "@t3tools/contracts";
++import axe from "axe-core";
+ import { useState } from "react";
+ import { describe, expect, it, vi } from "vite-plus/test";
+ import { page, userEvent } from "vite-plus/test/browser";
  
+ import "~/index.css";
+ import { render } from "../../../test/render";
+-import { __resetClientSettingsPersistenceForTests } from "../../hooks/useSettings";
++import {
++  __resetClientSettingsPersistenceForTests,
++  persistClientSettingsUpdate,
++} from "../../hooks/useSettings";
+ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+@@ -87,6 +91,20 @@ const alphaOf = (color: string) => {
+   return match === null ? 1 : Number(match[1]);
+ };
+ 
++describe("JstackTreeRowView root rows", () => {
 +  it("hands focus to the root's row once its chevron is clicked, so the arrow keys go on at once", async () => {
 +    const spies = actions();
 +    await using screen = await summaryTree(spies);
@@ -32,15 +52,139 @@ index e6ccff83fc..989346d643 100644
 +    await userEvent.keyboard("{ArrowDown}");
 +    await expect.element(screen.getByRole("treeitem", { name: /^tidy / })).toHaveFocus();
 +  });
++});
 +
-   it("folds a project with no home from its name, and offers a new thread in it", async () => {
+ const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
+ const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
+ const jviewThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("jview") });
+@@ -236,6 +254,15 @@ const rootItem = (screen: Screen) =>
+ 
+ type Screen = Awaited<ReturnType<typeof render>>;
+ 
++const audit = async () => {
++  // A bare render has no landmark around it; in the app the sidebar's own nav is one.
++  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
++  return result.violations.map(
++    (violation) =>
++      `${violation.id}: ${violation.help} at ${violation.nodes.map((node) => node.html).join(" | ")}`,
++  );
++};
++
+ const sidebarHome = ThreadId.make("sidebar");
+ 
+ /** What jbus said at the user's click: a queued task waits on an approval, a gate asks. */
+@@ -427,9 +454,20 @@ function idleTree(spies: JstackTreeRowActions) {
+   return render(<LiveTree snapshot={IDLE_SNAPSHOT} spies={spies} sent={[]} />, { router: false });
+ }
+ 
++/**
++ * The audit, less contrast: an idle home draws at half ink, as idle roots do, which axe counts
++ * against it whatever this change does.
++ */
++const auditIdle = async () =>
++  (await audit()).filter((violation) => !violation.startsWith("color-contrast:"));
++
+ const homeItem = (screen: Screen, scope: string) =>
+   screen.getByRole("treeitem", { name: new RegExp(`^${scope} .*home`) });
+ 
++/** The home's own list item, which holds its line and its pin. */
++const homeLine = (screen: Screen, scope: string) =>
++  homeItem(screen, scope).element().closest("li")!;
++
+ describe("JstackTreeRowView idle homes", () => {
+   it("lists nothing an idle home merged, and opens the home by keyboard, from its menu and by mouse", async () => {
      const spies = actions();
-     const winnifred = group("Winnifred");
-@@ -1894,6 +1906,29 @@ describe("JstackTreeRowView pinned homes", () => {
-     await userEvent.keyboard("{ArrowDown}{Enter}");
-     await expect.element(homeItem(screen, "ops")).toHaveAttribute("aria-expanded", "false");
-   });
+@@ -610,3 +648,113 @@ const contrast = (ink: string, background: string) => {
+   ].toSorted((a, b) => b - a);
+   return (lighter! + 0.05) / (darker! + 0.05);
+ };
 +
++/** A crew thread whose last turn ended at `endedAt`, or that is still in a turn. */
++const crewThread = (slug: string, endedAt: string, running = false) =>
++  makeThreadFixture({
++    environmentId,
++    projectId,
++    id: ThreadId.make(`crew-${slug}`),
++    updatedAt: endedAt,
++    latestRun: {
++      runId: `run-${slug}` as never,
++      status: running ? "running" : "completed",
++      requestedAt: endedAt,
++      startedAt: endedAt,
++      completedAt: running ? null : endedAt,
++      assistantMessageId: null,
++    },
++    runtime: running ? ({ status: "running", activeRunId: `run-${slug}` } as never) : null,
++  });
++
++// ops holds a crew that asks you, a review jmerge holds and a queued task; flow holds what the
++// sidebar home held in take 2: a stalled review, two scouts out, four reviews and a queued scout.
++const SUMMARY_SNAPSHOT: JbusWorkSnapshot = {
++  ...SNAPSHOT,
++  homes: [
++    ...SNAPSHOT.homes,
++    { repo: "jstack", scope: "ops", threadId: ThreadId.make("ops"), prefix: "ops-" },
++    { repo: "jstack", scope: "jview", threadId: ThreadId.make("jview"), prefix: "jv-" },
++  ],
++  tasks: [
++    crewTask("tidy", "root"),
++    { ...crewTask("ops-trim", "ops"), waitsOn: "word", waits: "your word" },
++    {
++      ...crewTask("ops-backup", "ops"),
++      stage: "second",
++      held: { since: "2026-10-29T09:00:00+00:00", reason: "draft" },
++    },
++    { ...crewTask("ops-cron", "ops"), stage: "ready", threadId: null },
++    { ...crewTask("fl-stall", "flow"), stage: "review", pullRequest: "#770" },
++    { ...scoutTask("fl-ring", "scouting"), homeThreadId: ThreadId.make("flow") },
++    { ...scoutTask("fl-colour", "report in"), homeThreadId: ThreadId.make("flow") },
++    { ...crewTask("fl-sizes", "flow"), stage: "review" },
++    { ...crewTask("fl-menus", "flow"), stage: "findings" },
++    { ...crewTask("fl-actions", "flow"), stage: "second" },
++    { ...crewTask("fl-drag", "flow"), stage: "check" },
++    { ...scoutTask("fl-badges", "queued"), homeThreadId: ThreadId.make("flow") },
++  ],
++};
++const SUMMARY_THREADS = [
++  crewThread("fl-stall", "2026-10-29T11:15:00.000Z"),
++  ...["fl-sizes", "fl-menus", "fl-actions", "fl-drag"].map((slug) =>
++    crewThread(slug, "2026-10-29T11:59:00.000Z", true),
++  ),
++  scoutThread("fl-ring"),
++  scoutThread("fl-colour"),
++];
++
++function summaryTree(spies: JstackTreeRowActions) {
++  return render(
++    <LiveTree
++      snapshot={SUMMARY_SNAPSHOT}
++      spies={spies}
++      sent={[]}
++      threads={SUMMARY_THREADS}
++      attention="gates-and-quiet"
++    />,
++    { router: false },
++  );
++}
++
++const clearPins = () =>
++  persistClientSettingsUpdate((current) => ({ ...current, jstackTreePinnedHomes: [] }));
++
++/** No home pinned for the test, and none left pinned after it. */
++async function noPins(): Promise<AsyncDisposable> {
++  await clearPins();
++  return {
++    [Symbol.asyncDispose]: async () => {
++      await clearPins();
++    },
++  };
++}
++
++/** A home's pin at its row's end, which the pointer reaches. */
++const pinOf = (screen: Screen, scope: string) =>
++  homeLine(screen, scope).querySelector<HTMLElement>("[data-jstack-pin]")!;
++
++describe("JstackTreeRowView pinned homes", () => {
 +  it("hands focus to the home's row once its pin is clicked, so the arrow keys go on at once", async () => {
 +    await using _pins = await noPins();
 +    await using screen = await summaryTree(actions());
@@ -63,9 +207,7 @@ index e6ccff83fc..989346d643 100644
 +    await expect.element(homeItem(screen, "jview")).toHaveFocus();
 +    expect(await auditIdle()).toEqual([]);
 +  });
- });
- 
- describe("JstackTreeRowView home summaries", () => {
++});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index d6986b517a..b41eee9b1a 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx

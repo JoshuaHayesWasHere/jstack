@@ -9,17 +9,16 @@ A home with no live work is one line with nothing to unfold: the rows it merged 
 The server reads no brief for a merged slug, and a landed merge no longer names its home.
 ---
  apps/server/src/jstack/JbusWork.ts            |   2 +-
- apps/server/src/jstack/jbusWork.logic.test.ts |  13 +-
+ apps/server/src/jstack/jbusWork.logic.test.ts |  15 +--
  apps/server/src/jstack/jbusWork.logic.ts      |  15 +--
  apps/web/src/components/Sidebar.tsx           |  10 --
  .../sidebar/JstackTreeRows.browser.test.tsx   | 127 ++++--------------
  .../src/components/sidebar/JstackTreeRows.tsx | 112 +++------------
  .../sidebar/jstackAskOnAdd.browser.test.tsx   |   2 -
- .../sidebar/jstackRootOrder.browser.test.tsx  |   1 -
- .../sidebar/jstackTree.logic.test.ts          |  72 ++++------
+ .../sidebar/jstackTree.logic.test.ts          |  61 +++------
  .../components/sidebar/jstackTree.logic.ts    |  52 +------
  packages/contracts/src/jbusWork.ts            |   1 -
- 11 files changed, 79 insertions(+), 328 deletions(-)
+ 10 files changed, 72 insertions(+), 325 deletions(-)
 
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
 index 806d74ca7c..43080b37cd 100644
@@ -35,22 +34,23 @@ index 806d74ca7c..43080b37cd 100644
        if (brief === null) continue;
        const line = readHomeLine(brief);
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index 94f4e3c14c..25366b1888 100644
+index 5586ec04ee..929267d37c 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -82,6 +82,11 @@ describe("buildRepoWork", () => {
-     ]);
-     expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
-     expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
-+    // A brief is read for each row the tree shows, and for none that merged.
-+    const briefs = slugsNeedingBriefs({ work });
-+    expect(briefs).toEqual(expect.arrayContaining(result.tasks.map((task) => task.slug)));
-+    expect(briefs).not.toEqual(expect.arrayContaining(["a-merged"]));
-+    expect(briefs).not.toEqual(expect.arrayContaining(["a-done"]));
-   });
+@@ -1,11 +1,6 @@
+ import { describe, expect, it } from "@effect/vitest";
  
-   it("waits on the user only for a question, an approval or a hold", () => {
-@@ -277,14 +282,8 @@ describe("buildRepoWork", () => {
+-import {
+-  buildRepoWork,
+-  readBriefTitle,
+-  slugsNeedingBriefs,
+-  type JbusRepoFiles,
+-} from "./jbusWork.logic.ts";
++import { buildRepoWork, readBriefTitle, type JbusRepoFiles } from "./jbusWork.logic.ts";
+ 
+ const NOW = Date.parse("2026-10-29T15:00:00Z");
+ 
+@@ -150,13 +145,7 @@ describe("buildRepoWork", () => {
        ["fl-scout", "scout", "mcp:flow-home"],
      ]);
      expect(result.landed).toEqual([
@@ -64,8 +64,7 @@ index 94f4e3c14c..25366b1888 100644
      ]);
 -    expect(slugsNeedingBriefs({ work: { work: [] }, merged: files().merged }, NOW)).toEqual([]);
    });
- 
-   it("is empty for a repo with no root home", () => {
+ });
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
 index d850e93434..6674494d2d 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
@@ -142,7 +141,7 @@ index fd2669c2c3..bf5708a6d3 100644
      onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
      onOpenProjectSettings: openProjectSettings,
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 33b02408a6..104d1fc253 100644
+index d1fef38af2..eeb16d7956 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 @@ -121,7 +121,6 @@ function actions(): JstackTreeRowActions {
@@ -153,7 +152,7 @@ index 33b02408a6..104d1fc253 100644
      onNewThread: vi.fn(),
      onCopyPath: vi.fn(),
      onOpenProjectSettings: vi.fn(),
-@@ -665,7 +664,6 @@ function LiveTree(props: {
+@@ -329,7 +328,6 @@ function LiveTree(props: {
    const [editor, setEditor] = useState(false);
    const [answering, setAnswering] = useState<JstackAnswering | null>(null);
    const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
@@ -161,7 +160,7 @@ index 33b02408a6..104d1fc253 100644
    const jstack = group("jstack");
    const tree = buildJstackTree({
      environmentId,
-@@ -688,7 +686,6 @@ function LiveTree(props: {
+@@ -352,7 +350,6 @@ function LiveTree(props: {
      collapsed: false,
      routeThreadId: props.routeThreadId ?? null,
      expandedHomes: new Set(),
@@ -169,7 +168,7 @@ index 33b02408a6..104d1fc253 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: editor,
-@@ -704,14 +701,6 @@ function LiveTree(props: {
+@@ -368,14 +365,6 @@ function LiveTree(props: {
    });
    const live: JstackTreeRowActions = {
      ...props.spies,
@@ -184,7 +183,7 @@ index 33b02408a6..104d1fc253 100644
      onOpenChildHomeEditor: (opened) => {
        props.spies.onOpenChildHomeEditor(opened);
        setEditor(true);
-@@ -1142,7 +1131,6 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+@@ -514,7 +503,6 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
      routeThreadId: sidebarHome,
      answering: null,
      expandedHomes: new Set(),
@@ -192,7 +191,7 @@ index 33b02408a6..104d1fc253 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -1250,18 +1238,8 @@ const IDLE_SNAPSHOT: JbusWorkSnapshot = {
+@@ -622,18 +610,8 @@ const IDLE_SNAPSHOT: JbusWorkSnapshot = {
      { repo: "jstack", scope: "dictation", threadId: ThreadId.make("dictation"), prefix: "di-" },
    ],
    landed: [
@@ -213,7 +212,7 @@ index 33b02408a6..104d1fc253 100644
    ],
  };
  
-@@ -1279,10 +1257,6 @@ const auditIdle = async () =>
+@@ -651,10 +629,6 @@ const auditIdle = async () =>
  const homeItem = (screen: Screen, scope: string) =>
    screen.getByRole("treeitem", { name: new RegExp(`^${scope} .*home`) });
  
@@ -224,7 +223,7 @@ index 33b02408a6..104d1fc253 100644
  /** What a line shows the eye: its text, less what only a screen reader says. */
  const shownText = (line: Element) => {
    const copy = line.cloneNode(true) as Element;
-@@ -1305,101 +1279,50 @@ describe("JstackTreeRowView idle homes", () => {
+@@ -677,101 +651,50 @@ describe("JstackTreeRowView idle homes", () => {
        // Its age, at the row's end.
        expect(line.querySelector(".tabular-nums")?.textContent).not.toBe("");
      }
@@ -505,10 +504,10 @@ index 22bb594438..4b3467d1d2 100644
          </li>
        );
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-index 903a815836..ae2cb3d71a 100644
+index d344afcc3a..663f387fb7 100644
 --- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-@@ -167,7 +167,6 @@ function treeRoots(
+@@ -98,7 +98,6 @@ function treeRoots(
        collapsed: false,
        routeThreadId: null,
        expandedHomes: new Set(),
@@ -516,7 +515,7 @@ index 903a815836..ae2cb3d71a 100644
        frozenOrder: null,
        lastVisitedAt: () => null,
        childHomeEditor: false,
-@@ -215,7 +214,6 @@ it("asks at once about a project added with no thread, and draws it as a root ro
+@@ -146,7 +145,6 @@ it("asks at once about a project added with no thread, and draws it as a root ro
        "onOpenThread",
        "onToggleProject",
        "onExpandHome",
@@ -524,23 +523,11 @@ index 903a815836..ae2cb3d71a 100644
        "onNewThread",
        "onCopyPath",
        "onOpenProjectSettings",
-diff --git a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-index 65ab552620..e29c0fa630 100644
---- a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-+++ b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-@@ -83,7 +83,6 @@ const actions = (order: ReturnType<typeof useJstackRootOrder<Root>>): JstackTree
-   onOpenThread: noop,
-   onToggleProject: noop,
-   onExpandHome: noop,
--  onToggleHome: noop,
-   onNewThread: noop,
-   onCopyPath: noop,
-   onOpenProjectSettings: noop,
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index 52a1bbc075..668671364c 100644
+index a9d8da2bc4..3f161cce9f 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -88,7 +88,6 @@ function build(
+@@ -75,7 +75,6 @@ function build(
      collapsed: false,
      routeThreadId: null,
      expandedHomes: new Set(),
@@ -548,8 +535,8 @@ index 52a1bbc075..668671364c 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -288,55 +287,35 @@ describe("buildJstackTree", () => {
-     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
+@@ -142,55 +141,35 @@ describe("buildJstackTree", () => {
+     ]);
    });
  
 -  it("draws a home with no live work as one line that unfolds to what it merged, newest first", () => {
@@ -623,25 +610,7 @@ index 52a1bbc075..668671364c 100644
 +    expect(idle.rows[0]).toMatchObject({ kind: "project", landed: 2 });
    });
  
-   it("rolls everything inside up to the project row when folded", () => {
-@@ -354,14 +333,9 @@ describe("buildJstackTree", () => {
- 
-   it("counts merges since the root home was last visited", () => {
-     const landed = [
--      {
--        repo: "jstack",
--        slug: "old",
--        homeThreadId: ThreadId.make("root"),
--        mergedAt: minutesAgo(90),
--      },
--      { repo: "jstack", slug: "new", homeThreadId: ThreadId.make("root"), mergedAt: minutesAgo(5) },
--      { repo: "infra", slug: "else", homeThreadId: ThreadId.make("x"), mergedAt: minutesAgo(5) },
-+      { repo: "jstack", slug: "old", mergedAt: minutesAgo(90) },
-+      { repo: "jstack", slug: "new", mergedAt: minutesAgo(5) },
-+      { repo: "infra", slug: "else", mergedAt: minutesAgo(5) },
-     ];
-     const project = (tree: ReturnType<typeof build>) => tree.rows[0];
-     expect(project(build({ landed }, { lastVisitedAt: () => minutesAgo(30) }))).toMatchObject({
+   it("drops scouts whose thread settled or archived", () => {
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 49fc71ce96..46cd5bdbdf 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts
