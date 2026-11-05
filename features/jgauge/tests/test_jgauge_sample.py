@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -38,6 +39,7 @@ def machine(tmp_path, monkeypatch):
     log = tmp_path / "state" / "jgauge" / "load.tsv"
     monkeypatch.setenv("PROC", str(proc))
     monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "state" / "locks"))
     monkeypatch.setenv("JBUS_STATE_DIR", str(tmp_path / "jbus"))
     monkeypatch.setenv("TMPFS", str(tmp_path))
     monkeypatch.setenv("TZ", "UTC")
@@ -312,3 +314,61 @@ def test_the_report_gives_the_peaks_against_rooms_lines_and_the_jbus_stalls(mach
 def test_a_span_with_no_rows_still_counts_the_jbus_stalls(machine, capsys):
     assert cli.main(["sample", "--report", "--since", "2025-10-20", "--until", "2025-10-21"]) == 0
     assert capsys.readouterr().out.splitlines()[1].startswith("jbus events: none read, ")
+
+
+def test_the_report_gives_the_test_slots_holds_occupancy_and_waits_by_lane(
+    machine, tmp_path, monkeypatch, capsys
+):
+    """Over 10:00 to 11:00 the full lane holds 8100 slot-seconds: a hold from before the span
+    counts its part inside, a hold still running counts to the end, and one whose holder died
+    with no release counts as lost. A thread waited for a full slot 10:10 to 10:20, when 2.5
+    slots were held on average."""
+    log = tmp_path / "state" / "jgauge" / "slots.jsonl"
+    log.parent.mkdir(parents=True)
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+
+    def hold(lane, start, end, waited=0, pid=1, slots=4):
+        key = f"{lane}{start}"
+        common = {"id": key, "pid": pid, "lane": lane, "slot": 1, "slots": slots}
+        common |= {"thread": "", "command": ["true"], "cwd": "/"}
+        rows = [{"at": f"2026-11-05T{start}+00:00", "event": "take", **common, "waited": waited}]
+        if end:
+            rows.append({"at": f"2026-11-05T{end}+00:00", "event": "release", **common, "code": 0})
+        return rows
+
+    rows = [
+        *hold("full", "09:30:00", "10:15:00"),
+        *hold("full", "10:00:00", "10:30:00"),
+        *hold("full", "10:00:01", "11:00:01", waited=60),
+        *hold("full", "10:10:00", None, pid=gone.pid),
+        *hold("full", "10:30:00", None, pid=os.getpid()),
+        *hold("short", "10:00:00", "10:00:36", waited=30, slots=3),
+    ]
+    log.write_text("".join(json.dumps(one) + "\n" for one in rows))
+    events = tmp_path / "jbus" / "jstack" / "events.jsonl"
+    events.parent.mkdir(parents=True)
+    events.write_text(
+        json.dumps(
+            {
+                "at": "2026-11-05T10:20:00+00:00",
+                "event": "slot-wake",
+                "line": "slot-wake: woke mcp:a, a full slot is free for `make`, after 10 min",
+            }
+        )
+        + "\n"
+    )
+
+    span = ["--since", "2026-11-05T10:00:00", "--until", "2026-11-05T11:00:00"]
+    assert cli.main(["sample", "--report", *span]) == 0
+    out = capsys.readouterr().out.splitlines()
+    at = out.index(next(line for line in out if line.startswith("test slots, from ")))
+    assert out[at:] == [
+        f"test slots, from {log}, 2026-11-05 10:00:00 to 2026-11-05 11:00:00 (1.00 h):",
+        "  full: 4 holds, 1 lost; mean occupancy 2.250 of 4 slots;"
+        " Little's law (takes/s x mean hold) 3.000; wait in the call p50 0.0 s, p90 60.0 s",
+        "  full, while a thread waited for a slot (0.17 h, from 1 slot-wake events):"
+        " mean occupancy 2.50 (62% of 4)",
+        "  short: 1 holds, 0 lost; mean occupancy 0.010 of 3 slots;"
+        " Little's law (takes/s x mean hold) 0.010; wait in the call p50 30.0 s, p90 30.0 s",
+    ]

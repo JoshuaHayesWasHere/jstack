@@ -1,4 +1,5 @@
 import fcntl
+import json
 import os
 import signal
 import subprocess
@@ -603,3 +604,51 @@ def test_a_holder_whose_pid_is_gone_is_not_counted(tmp_path):
     holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW)
     (one,) = holders.read(tmp_path)
     assert not holders.running(one) and holders.holding(tmp_path) == []
+
+
+def slot_log(slots):
+    path = Path(slots.env["HOME"]) / ".local" / "state" / "jgauge" / "slots.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()]
+
+
+def test_every_take_and_release_in_both_lanes_appends_one_row_to_the_slot_log(slots):
+    """The log names each run's caller, lane, slot and wait, and a release its exit code, so the
+    hold side of the slots can be measured and a stray holder named."""
+    slots.hold(1)
+    waiting = slots("--slots", "2", command=["sh", "-c", "exit 7"])
+    assert waiting.wait(timeout=5) == 7
+    slots.hold(2)
+    held_up = slots("--slots", "2", command=["true"])
+    time.sleep(5 * slot.LOOK_EVERY_SECONDS)
+    slots.free()
+    assert held_up.wait(timeout=5) == 0
+    ran = slots("--short", "--thread", "mcp:thread-7", command=["sh", "-c", "exit 0"])
+    assert ran.wait(timeout=5) == 0
+
+    rows = slot_log(slots)
+    assert [(r["event"], r["lane"], r["slot"], r["slots"]) for r in rows] == [
+        ("take", "full", 2, 2),
+        ("release", "full", 2, 2),
+        ("take", "full", 1, 2),
+        ("release", "full", 1, 2),
+        ("take", "short", 1, 3),
+        ("release", "short", 1, 3),
+    ]
+    takes, releases = rows[::2], rows[1::2]
+    assert [r["id"] for r in takes] == [r["id"] for r in releases]
+    assert len({r["id"] for r in takes}) == 3
+    assert [r["thread"] for r in takes] == ["", "", "mcp:thread-7"]
+    assert takes[0]["command"] == ["sh", "-c", "exit 7"] and takes[1]["command"] == ["true"]
+    assert all(r["cwd"] == os.getcwd() and r["pid"] > 0 for r in rows)
+    assert [r["code"] for r in releases] == [7, 0, 0]
+    assert takes[0]["waited"] < 1 and takes[1]["waited"] >= 4 * slot.LOOK_EVERY_SECONDS
+    assert all(r["held"] >= 0 for r in releases)
+    for one in rows:
+        datetime.fromisoformat(one["at"])
+
+
+def test_a_waiter_that_takes_no_slot_writes_no_row(slots):
+    slots.hold(1)
+    ran = slots("--slots", "1", "--thread", "mcp:thread-7", command=["true"])
+    assert ran.wait(timeout=5) == slot.WAITING
+    assert not (Path(slots.env["HOME"]) / ".local" / "state" / "jgauge" / "slots.jsonl").exists()

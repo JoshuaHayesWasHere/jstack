@@ -82,6 +82,15 @@ While 4 or more threads waited, CPU pressure was 31 at the median and 40 at most
 The threads were waiting for CPU time, and the slot count was not too low.
 The one stall came from a review that the reviewer had not written, and the machine did not cause it.
 
+### Measuring the slots
+
+The rows above count waits from jbus's `slot-wake` events, which say who waited and for how long, but not who held the slots.
+Since 2026-11-05 `jgauge test-slot` appends one row to `~/.local/state/jgauge/slots.jsonl` at each take and each release, in both lanes ([jgauge](jgauge.md#the-slot-log)).
+`jgauge sample --report --since --until` reads it and prints, for each lane, the holds, the mean occupancy, and the wait in the call at p50 and p90.
+It also prints the mean occupancy over the time a thread of that lane waited for a slot, from the `slot-wake` events.
+While a thread waits, every slot of its lane should be held, so a share near 100% says the log sees every holder.
+A share well under 100% says a holder takes slots without `jgauge test-slot`, or with another `--slots`, and the log's `command` and `cwd` name the runs it does see.
+
 ## The machine's sizes
 
 | Limit | Where | Value | Protects | Its yelena basis |
@@ -129,6 +138,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | jbus's pass | `features/jbus/units/jbus.timer` | `OnUnitActiveSec=1min` | How soon a launch, a wake or a merge happens | The busy night's passes took 29 s on average and 51.5 s at most |
 | A sample of the load | `features/jgauge/units/jgauge-sample.timer` | `OnUnitActiveSec=15s` | The load history | A sample is one read of `/proc` |
 | A look for a missing pass | `features/jbus/units/jbus-stale.timer` | `OnUnitActiveSec=15min` | An alert when jbus stops | Design choice |
+| The slot log's history | `features/jgauge/src/jgauge/slotlog.py` | `KEEP_DAYS = 30` | The slot log stays small: a take past it drops the rows over 29 days old | As the load log keeps |
 | A thread waits for a test slot | `features/jgauge/src/jgauge/sample.py` | `STALL_MINUTES = 5` | What the report counts as a stall | Design choice |
 | The report's low CPU pressure | `features/jgauge/src/jgauge/sample.py` | `PRESSURE_LINE = 10.0` | A load over the line while CPU pressure is low is load room needn't hold | Design choice, and not room's memory `PRESSURE` |
 | The hourly resend of what waits on the user | `features/jbus/src/jbus/stall.py` | `AGAIN = 60 * 60` | The owner is told again, once an hour | Design choice |

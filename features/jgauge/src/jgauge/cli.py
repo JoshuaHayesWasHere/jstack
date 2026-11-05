@@ -13,7 +13,18 @@ from pathlib import Path
 
 import jroles
 import jsettings
-from jgauge import limits, runner, sample, session, sizes, slot, spend, transcript, waiters
+from jgauge import (
+    limits,
+    runner,
+    sample,
+    session,
+    sizes,
+    slot,
+    slotlog,
+    spend,
+    transcript,
+    waiters,
+)
 from jgauge.transcript import TranscriptError
 from jroles import ledger, pool
 
@@ -131,6 +142,8 @@ def cmd_sample(args: argparse.Namespace) -> int:
         return 0
     pressure = sample.PRESSURE_LINE if args.pressure is None else args.pressure
     print("\n".join(sample.report(log, args.since, pressure, args.until)))
+    for line in slotlog.report(slotlog.path(slot.locks_dir()), args.since, args.until, time.time()):
+        print(line)
     return 0
 
 
@@ -370,7 +383,8 @@ def parser() -> argparse.ArgumentParser:
         "--report",
         action="store_true",
         help="print the rows, their span, and how many had the 1-minute load at or over room's"
-        " line while CPU pressure (some avg60) was under the pressure line",
+        " line while CPU pressure (some avg60) was under the pressure line, then the test slots'"
+        " holds, mean occupancy and wait by lane from the slot log",
     )
     sampled.add_argument(
         "--since",
