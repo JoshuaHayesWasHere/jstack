@@ -118,7 +118,6 @@ Cross-cutting:
 - `features/repo-guards/tests/test_docs_tree.py`
 - `features/repo-guards/tests/test_bash32.py`
 - `features/jdrift/tests/test_drift.py`
-- `features/home/tests/test_flow_doc.py`
 - `features/home/tests/test_home_merge.py`
 - `features/home/tests/test_home_merge_guard.py`
 - `features/home/tests/test_home_no_jmerge.py`

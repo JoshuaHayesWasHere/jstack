@@ -79,6 +79,10 @@ ROLLUP_OF_D2FDB509 = (
     timed("SKIPPED", "00:56:59", "00:56:59", "full"),
 )
 
+LIST = (
+    "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
+    "files,changedFiles,isDraft"
+)
 ME = "mcp:this-home"
 OTHER = "mcp:another-home"
 
