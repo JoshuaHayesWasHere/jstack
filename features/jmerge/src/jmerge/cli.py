@@ -37,6 +37,7 @@ from jmerge import (
     rows,
     sweep,
     trailers,
+    treeguards,
     waits,
 )
 from jmerge import reverts as reverting
@@ -157,6 +158,7 @@ class Repo:
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, asks)
+        self.guards = treeguards.Guards(main, state, asks)
         self.spells = waits.Spells(state, asks)
         self.began: dict[int, datetime] = {}
         self.listed, self.was = home_rule.ids(state)
@@ -955,6 +957,7 @@ class Repo:
         if one.draft:
             return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
         short, tip = self.over_main(one)
+        short = short or self.guards.kept(one, tip)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
@@ -1084,6 +1087,7 @@ class Repo:
         heads = {str(one.number): one.head for one in listed}
         self.base_merge.reopen(heads)
         self.base_merge.open_only(heads)
+        self.guards.open_only(heads)
         self.spells.open_only({one.number for one in listed})
         self.holds_are({number: head for number, head in self.holds().items() if number in heads})
 
@@ -1300,6 +1304,10 @@ class Repo:
         messages = self.messages(one)
         if messages is None:
             return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
+        tip = judged.tip or _run(self.main, "git", "rev-parse", f"origin/{one.base}").stdout.strip()
+        guarded, passed = self.guards.of(one, tip)
+        if guarded:
+            return lines.waits("wait", number, one.url, guarded)
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
         self.began[one.number] = datetime.now(UTC)
         ran = _run(
@@ -1322,7 +1330,7 @@ class Repo:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
         if self.line.get(one.base) == one.number:
             del self.line[one.base]
-        notes = [rebase] if rebase else []
+        notes = [note for note in (rebase, passed) if note]
         asked = _run(
             self.main,
             "gh",

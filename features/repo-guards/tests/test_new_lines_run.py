@@ -12,6 +12,8 @@ it), a new file's every line among them. The tests are each test file that names
 module: one that imports it, or spells its dotted name, as `jbus.stall` or `jbus.stall.twice`, or,
 for a script, spells its file name, as `force_pushes.py`. The test runs those under coverage,
 with the processes they start, and fails on each added line that is a statement none of them ran.
+The run stops once each of those lines has run (`features/repo-guards/ran/lines_ran.py`), so a
+branch whose lines a few tests run pays for those and not for every test that names its module.
 
 An exception is coverage's own pragma on the line, with its reason and the user's word:
 `# pragma: no cover, <reason> (the user, <when>: "<their words>")`. An added pragma without them
@@ -19,6 +21,7 @@ fails.
 """
 
 import ast
+import importlib.util
 import json
 import os
 import re
@@ -37,6 +40,10 @@ PRAGMA = re.compile(r"#\s*pragma[:\s]?\s*no\s*cover", re.I)
 EXCEPTION = re.compile(r"#\s*pragma: no cover, \S.*?\(the user[,:]\s*[^)]*\S\)\s*$")
 TESTS = ("features/*/tests/**/test_*.py", "testing/tests/**/test_*.py")
 WORKERS = "4"
+RAN = Path(__file__).parents[1] / "ran"
+SPEC = importlib.util.spec_from_file_location("new_lines_rounds", RAN / "new_lines_rounds.py")
+rounds = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(rounds)
 
 
 def added(since: str, repo: Path = REPO) -> dict[str, set[int]]:
@@ -121,7 +128,20 @@ def unrun(
         f"data_file = {scratch / 'data'}\n"
         f"include =\n{''.join(f'    {repo / path}\n' for path in lines)}"
     )
+    waited = scratch / "waited.json"
+    stopped = scratch / "stopped"
+    waited.write_text(
+        json.dumps(
+            {
+                "lines": {str(repo / path): sorted(numbers) for path, numbers in lines.items()},
+                "data": str(scratch / "data"),
+                "stopped": str(stopped),
+            }
+        )
+    )
     env = {key: value for key, value in os.environ.items() if not key.startswith("PYTEST_")}
+    env["NEW_LINES_RAN"] = str(waited)
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(RAN), env.get("PYTHONPATH")]))
     coverage = [sys.executable, "-m", "coverage"]
     pytest_run = [
         "-m",
@@ -129,6 +149,8 @@ def unrun(
         "-q",
         "-p",
         "no:cacheprovider",
+        "-p",
+        "lines_ran",
         "-n",
         WORKERS,
         "--dist",
@@ -141,7 +163,7 @@ def unrun(
         capture_output=True,
         text=True,
     )
-    if ran.returncode not in (0, 1):
+    if ran.returncode not in (0, 1) and not (ran.returncode == 2 and stopped.exists()):
         pytest.fail(
             f"the tests that name the code did not run (exit {ran.returncode}):\n{ran.stdout}"
         )
@@ -194,7 +216,7 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
             path: mine.get(path, set()) if own[path] else numbers for path, numbers in left.items()
         }
         left = {path: numbers for path, numbers in left.items() if numbers}
-    rest = sorted({one for path in left for one in tests[path]} - set(first))
+    rest = rounds.second(left, tests, own)
     if left and rest:
         left = unrun(left, rest, scratch / "rest", repo)
     said += [
@@ -262,3 +284,38 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
         )
     )
     assert faults(added(since, repo), tmp_path / "ran", repo) == []
+    assert (tmp_path / "ran/own/stopped").exists(), "the run went on after every line had run"
+
+
+def test_a_line_only_another_modules_own_test_runs_counts_as_run(tmp_path):
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    (code / "__init__.py").write_text("")
+    (code / "proved.py").write_text("def proved(row):\n    return row == 'proved'\n")
+    (code / "ready.py").write_text("def ready(row):\n    return row == 'ready'\n")
+    (tests / "test_proved.py").write_text(
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import proved, ready\n\n\n"
+        "def test_a_proved_row_is_ready():\n"
+        "    assert not proved.proved(None)\n"
+        "    assert not ready.ready(None)\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "proved.py").write_text(
+        "def proved(row):\n    if row is None:\n        return False\n    return row == 'proved'\n"
+    )
+    (code / "ready.py").write_text(
+        "def ready(row):\n    if row is None:\n        return False\n    return row == 'ready'\n"
+    )
+    lines = added(since, repo)
+    assert lines == {
+        "features/pkg/src/pkg/proved.py": {2, 3},
+        "features/pkg/src/pkg/ready.py": {2, 3},
+    }
+    assert faults(lines, tmp_path / "unrun", repo) == []
