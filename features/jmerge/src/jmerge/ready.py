@@ -988,9 +988,7 @@ def _checked(line: str) -> tuple[str, str, str] | None:
     two = _TWO_STEP.fullmatch(line.strip())
     if two:
         guards, _, first, rest, at = two.groups()
-        if first != "0":
-            return guards, first, at
-        return guards, "0" if rest in ("0", "124") else rest, at
+        return guards, rest if first == "0" and rest not in ("0", "124") else first, at
     one = _CHECK_LINE.fullmatch(line.strip())
     return (one[1], one[2], one[3]) if one else None
 
