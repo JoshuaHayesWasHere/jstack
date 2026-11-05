@@ -29,5 +29,5 @@ Go by it, and take the default back where it differs.
 On `not asked: not sent:`, nothing was queued: fill in the line it names and run it again.
 On any other `not asked`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread the block in step 3 of "End" prints, and with no home there put them in the report under "Findings", the one place left that can hold them.
 An answer that differs from the default comes back as a message here, from jbus.
-The four things "Carry on" never does on a default are such gates, each one that holds.
+The six cases of `$T/gates.md`, which "Carry on" never does on a default, are such gates, each one that holds.
 Besides a gate jbus could not take, a scout sends its home nothing before the End.

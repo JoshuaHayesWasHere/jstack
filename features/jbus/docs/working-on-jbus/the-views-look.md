@@ -17,6 +17,7 @@ The text is set in Atkinson Hyperlegible Next, one variable font that the view s
 The page's policy is `font-src 'self'`, so it loads fonts from no other host.
 The font's licence is beside it, in `features/jbus/src/jbus/view/OFL.txt`.
 The sizes are 13 px for the scratch-home line, the smallest on the page, 15 for a caption, 18 for body text, 20 for a heading and 24 for a title.
+The scale in `page.html` also has 16 px (`--text-md`) and 30 px (`--text-2xl`).
 Mono is for slugs and commits.
 
 ## The kept shots
