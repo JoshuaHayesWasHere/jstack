@@ -204,7 +204,7 @@
     <div class="row rev">
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the Result gains <code>Reviewer:</code></small></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">9</span>Launch the reviewer</b><small>Once, when the pull request opens, so the review runs beside CI. The crewmate fixes a failed check first. <code>t3_thread_launch</code> in the same worktree, with the message <code>/pr-review run &lt;slug&gt;</code>.</small></div><i class="ar l"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">9</span>Launch the reviewer</b><small>Once, when <code>check</code> has passed at the pull request's head. The crewmate fixes a failed check first. <code>t3_thread_launch</code> in the same worktree, with the message <code>/pr-review run &lt;slug&gt;</code>.</small></div><i class="ar l"></i></div>
       <div class="cell g"><div class="box"><b>Checks run</b><small>jbus wakes the crewmate when a check fails, when its review is written and it owes a line, when the pull request has a conflict, and when the owner comments on GitHub.</small></div></div>
     </div>
 

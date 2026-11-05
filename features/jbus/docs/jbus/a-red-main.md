@@ -108,7 +108,7 @@ A tip whose check has not ended or was cancelled changes neither field, so a mai
 A cancelled run of main is not a failed check.
 That holds when its check run ended `cancelled`, and also when the run was cancelled before it had a job, so the commit has no check run.
 jbus asks GitHub to run it again (`gh run rerun <id>`) while GitHub's `run_attempt` for it is 1.
-It says `retro <slug>: main check cancelled twice at <sha>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha>, and GitHub did not run it again` when GitHub refuses.
+It says `retro <slug>: main check cancelled twice at <sha12>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha12>, and GitHub did not run it again` when GitHub refuses.
 A job that `timeout-minutes` stops also ends `cancelled`, not `timed_out`.
 So jbus runs a suite that hangs on main again, and then reports `cancelled twice`, never `main check failed`.
 

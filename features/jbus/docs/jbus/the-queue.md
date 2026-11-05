@@ -102,7 +102,9 @@ The head must have the eight lines of `jbriefs.parse.REQUIRED`, `Task:`, `Done w
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-`add` then runs the eleven checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`:
+`add` then runs the thirteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
+The two checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable and that `Proves it:` runs, only warn.
+The other eleven and the three of `conduct` are these:
 
 - `Task:` is 2,000 characters or fewer.
 - `Design:` names a file, or says `none, <why>`.
@@ -396,7 +398,7 @@ A change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size
 It is deterministic and asks no model.
 
 The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
-It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Stack`, `Read`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
 These say how the work is done or who runs it, not what it is for.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
 The fingerprint normalises each field in these steps:
