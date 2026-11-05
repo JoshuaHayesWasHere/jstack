@@ -244,7 +244,8 @@ The store holds no text of a message.
 The first KPI is the headline, all-in dollars per successful merge: an estimate at API list prices of every priced call the week made, over the merges it made that were not redone.
 Dollars are the headline, and not raw tokens, because cache reads are most of every model's tokens and a small share of its dollars, so a raw sum ranks a long cheap session above a short dear one; `merge_cost` keeps the raw counts beside them.
 Its note gives a merge's own threads, mean and median, and their dollars by role, model and effort, dearest first.
-A week with merges whose 7 days are not over shows no figure, and says how many of its merges are judged: all-in would count their calls and not them, and run high. Each is judged by the end of the week it counts in, so this week shows none until about its last day, and last week always has one.
+A week with merges whose 7 days are not over shows no figure, and says how many of its merges are judged: all-in would count their calls and not them, and run high.
+Each is judged by the end of the week it counts in, so this week shows none until about its last day, and last week always has one.
 
 The crew first load is what a `/crew` thread reads of jstack's before its work: the crew `SKILL.md` and the largest print of `jbus playbook crewmate`, so no crew's is larger.
 The harness's wrapper around the skill's expansion is not counted, nor the brief.
