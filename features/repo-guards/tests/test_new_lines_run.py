@@ -212,7 +212,10 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
             path: mine.get(path, set()) if own[path] else numbers for path, numbers in left.items()
         }
         left = {path: numbers for path, numbers in left.items() if numbers}
-    rest = sorted({one for path in left for one in tests[path]} - set(first))
+    rest = sorted(
+        {one for path in left for one in tests[path]} - set(first),
+        key=lambda one: (min(len(tests[path]) for path in left if one in tests[path]), one),
+    )
     if left and rest:
         left = unrun(left, rest, scratch / "rest", repo)
     said += [
