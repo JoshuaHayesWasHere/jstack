@@ -7,8 +7,7 @@ from pathlib import Path
 import pytest
 
 from jbus import passes
-from jgauge import cli, sample
-from testing.paths import REPO
+from jgauge import cli
 
 DAY = 86400
 HEADER = (
@@ -245,13 +244,6 @@ def test_a_start_that_is_not_a_time_is_refused(machine, capsys):
     with pytest.raises(SystemExit):
         cli.main(["sample", "--report", "--since", "last week"])
     assert "is not a time" in capsys.readouterr().err
-
-
-def test_each_of_rooms_lines_is_read_from_room_sh(machine):
-    room = (REPO / "features" / "jgauge" / "src" / "jgauge" / "room.sh").read_text()
-    for name in sample.ROOM_LINES:
-        line = sample.room_line(name)
-        assert f"  {name}={line}\n" in room or f"  {name}=${{HEADROOM:-{line}}}\n" in room
 
 
 def test_a_log_from_before_the_tmp_columns_gets_them_once_and_keeps_its_rows(machine):

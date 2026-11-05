@@ -30,6 +30,14 @@ CGROUP ?= $(if $(wildcard /proc/self/cgroup),/sys/fs/cgroup$(shell sed -n 's/^0:
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))
 PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)
+# A runner of GitHub's own runs the suite alone, so the TLC runs the suite starts take no jgauge
+# test slot: `JGAUGE_TEST_SLOT` says one is held (features/jgauge/src/jgauge/slot.py). Were they
+# to take one, a macos-15 runner's 3 cores, which jgauge gives a single slot, would queue each on
+# the one before it, and its wait counts against the bound of the test that started it.
+ifeq ($(GITHUB_ACTIONS) $(RUNNER_ENVIRONMENT),true github-hosted)
+JGAUGE_TEST_SLOT ?= runner
+export JGAUGE_TEST_SLOT
+endif
 TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n" -ge 2 ] || n=2; echo "$$n")
 # Workers take the next test as each finishes (`worksteal`), so a slow file does not hold up
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`
