@@ -64,8 +64,9 @@ reason with its sentence:
   scoped reviewer over the reason's range-diff. The kind is `jbus.rebase`'s own ask, so a head is
   told once, and this row tells the crew where `rebase` asked nothing since the Result names a
   scoped reviewer of the head, and that reviewer ended its turn with no review;
-- `fresh-conflict`, `base` and `not-upheld`: rebase with "A conflict" run with `stale`, retarget
-  to the default branch, or put back a drop the review did not uphold, else tell the home.
+- `fresh-conflict`, `merged-tree`, `base` and `not-upheld`: rebase with "A conflict" run with
+  `stale` (and fix the guards that fail for `merged-tree`), retarget to the default branch, or
+  put back a drop the review did not uphold, else tell the home.
 
 Every reason of `ready.reasons()` is a row of `TABLE`, or is in `UNTOLD`, which no crew can fix,
 or in `ELSEWHERE`, which another part of jbus tells the crew of. A test holds the three to
@@ -522,6 +523,14 @@ TABLE = (
         "resolve the conflict, run the check command, and push with the block's push.",
     ),
     Short(
+        "merged-tree",
+        "wait",
+        ready.MERGED_TREE_FAILS,
+        "Merged over today's default branch, your head fails the guards the reason names: a clash "
+        'with what merged since your check. Rebase with the crew skill\'s "A conflict" block, run '
+        "with `stale`, run the check command, fix what fails, and push with the block's push.",
+    ),
+    Short(
         "base",
         "wait",
         ready.BASE,
@@ -567,7 +576,8 @@ UNTOLD = {
             "main-moved merging merge-failed no-messages undecided not-passed live-run "
             "queue-unreadable carries-unknown base-merge-asked base-merge-due base-merge-refused "
             "base-moved-asked base-moved-due in-line queued-restarted queued-unopened "
-            "queued-unclosed queued-gave-up queued-unrestarted"
+            "queued-unclosed queued-gave-up queued-unrestarted merged-tree-unended "
+            "merged-tree-unbuilt merged-tree-no-time"
         ).split(),
         _RUNNER,
     ),
