@@ -127,8 +127,9 @@
       echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
   else
       kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
+      exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
       tree=$(mktemp -d)
-      if git diff --name-only --no-renames "$base" HEAD | command grep -qvE "$kept"; then
+      if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
           only=
           sides='head base'
           git clone -q --shared --no-checkout . "$tree"
@@ -142,7 +143,7 @@
       else
           only=1
           sides=head
-          echo "tests only: every file the branch changes is a test, so its tests run at the head alone"
+          echo "tests only: every file the branch changes is a test, docs or config, so its tests run at the head alone"
       fi
       list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
       : > "$tree/.proof-said"
@@ -181,9 +182,9 @@
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
   The copy stays in the temp directory, as scratch does.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
-  A branch whose every changed file, a deleted one too, is such a file changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
-  A test made faster, split or cleaned up is such a branch.
-  For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`.
+  A branch whose every changed file, a deleted one too, is such a file or of a kind `jbriefs.proved.EXEMPT` names (docs, config, listed below) changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
+  A test made faster, split or cleaned up is such a branch, and so is a removal of tests with the doc that named them.
+  For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`; its `exempt` pattern matches the files `EXEMPT` covers.
   `jmerge` takes that line only where every file the pull request changes is such a file, or of a kind `jbriefs.proved.EXEMPT` names (docs, config), and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit in the head run or the base run, and the run after it does not start: lay over fewer tests, and run it again.
