@@ -284,3 +284,37 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
     )
     assert faults(added(since, repo), tmp_path / "ran", repo) == []
     assert (tmp_path / "ran/own/stopped").exists(), "the run went on after every line had run"
+
+
+def test_a_line_only_another_modules_own_test_runs_counts_as_run(tmp_path):
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    (code / "__init__.py").write_text("")
+    (code / "proved.py").write_text("def proved(row):\n    return row == 'proved'\n")
+    (code / "ready.py").write_text("def ready(row):\n    return row == 'ready'\n")
+    (tests / "test_proved.py").write_text(
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import proved, ready\n\n\n"
+        "def test_a_proved_row_is_ready():\n"
+        "    assert not proved.proved(None)\n"
+        "    assert not ready.ready(None)\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "proved.py").write_text(
+        "def proved(row):\n    if row is None:\n        return False\n    return row == 'proved'\n"
+    )
+    (code / "ready.py").write_text(
+        "def ready(row):\n    if row is None:\n        return False\n    return row == 'ready'\n"
+    )
+    lines = added(since, repo)
+    assert lines == {
+        "features/pkg/src/pkg/proved.py": {2, 3},
+        "features/pkg/src/pkg/ready.py": {2, 3},
+    }
+    assert faults(lines, tmp_path / "unrun", repo) == []
