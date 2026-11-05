@@ -108,7 +108,7 @@ The maintainer merges it once the findings are fixed and `check` and `borders` p
 | `macos-nightly` | each night, and by hand | `make check` on macOS over `main`, the whole suite. |
 | `borders` | each pull request, and each change of its labels | `scripts/lint-borders.py`: every path has one owner, and a pull request that touches two features carries the `cross-cutting` label, which a maintainer adds. Then `features/jbus/scripts/kept_shots.py`: a pull request that changes a kept shot of the view changes nothing else. |
 | `browser` | each night, a `v<version>` tag, each published release, by hand, and a pull request into `main` that changes the view, its browser tests, their kept shots or `browser.yml` | `make check-browser`, the tests that open a real browser. |
-| `release` | a `v<version>` tag | Checks, builds and publishes the release. |
+| `release` | a `v<version>` tag | Builds and publishes the release. It runs no check of its own: `make release-green` reuses `main`'s check of the same tree. |
 | `pstack-drift` | each Monday, and by hand | `make pstack-drift`: what changed upstream in the files taken from pstack. |
 
 A pull request into `main` needs `check` and `borders` to pass before it merges.
@@ -121,12 +121,17 @@ One command cuts a release from a clean `main` that is `origin/main`:
 make release
 ```
 
-It checks that `v<version>`, the version of `pyproject.toml`, is the version of `plugin.json` too (`make release-tag`), then tags it and pushes the tag.
+It checks that `v<version>`, the version of `pyproject.toml`, is the version of `plugin.json` too (`make release-tag`).
+Then `make release-green` checks that a green run of `check.yml` left the marker `green-tree-<tree>` for the tree of `HEAD`.
+`main`'s full run leaves that marker once its suite passes, and keeps it 7 days.
+Without the marker, `make release-green` fails and names the fix: wait for `main`'s run to pass, or, where the marker expired, run `gh workflow run check.yml --ref main`.
+`make release` refuses to tag until the marker exists, then tags it and pushes the tag.
 If the push fails, it drops the tag again, so the next `make release` starts clean.
 The tag runs `.github/workflows/release.yml`.
-It checks that the tag is the version of both `pyproject.toml` and `plugin.json` (`make release-tag`), then runs `make check` and `make dist`.
+It checks that the tag is the version of both `pyproject.toml` and `plugin.json` (`make release-tag`), then runs `make release-green` again on the tag's checkout and `make dist`.
+The tag runs no check of its own: the tag's tree is `main`'s, which already passed.
 It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.
 The release's assets are what `make dist` writes: the wheel, the sdist, and `install.sh` with the version written in.
 
 A version bump is an ordinary pull request: run `uv version --bump <major|minor|patch>`, and write the same version in `plugin.json`.
-`make check` fails while the two differ, since `scripts/generate-jstack-trees.py --check` holds `plugin.json` to `pyproject.toml`.
+The pull request's check fails while the two differ, since `scripts/generate-jstack-trees.py --check` holds `plugin.json` to `pyproject.toml`.

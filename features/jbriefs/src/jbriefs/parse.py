@@ -529,7 +529,7 @@ def tasked(text: str) -> str:
 
 
 REVIEWS = (findings.TWICE, findings.REVIEW, findings.NONE)
-_REVIEWS = "(twice, review or none)"
+_REVIEWS = "(review or none)"
 
 
 def reviewed(text: str) -> str:
