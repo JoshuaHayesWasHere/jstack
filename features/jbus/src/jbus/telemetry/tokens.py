@@ -22,6 +22,8 @@ counts per call, and no text of a message.
   less what it read from the cache and wrote to it, as Claude counts it. A call another session
   has already copied keeps its first session, as a resumed or forked Claude session copies the
   calls it carries over.
+  A Claude call keeps its reasoning `effort`, the one the first of its lines that names one
+  names (Claude Code 2.1.303 and later), and none where no line does, as a Codex call has none.
 
 A build reads only the transcripts of the sessions `sessions` names, so a test's T3 home, which
 has no store, reads none. Each file is read on from a cursor in `cursors`, under the provider
