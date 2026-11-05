@@ -54,7 +54,7 @@ Without asking you, the threads do everything else that is reversible.
 | An approval | Before a task launches | That task does not launch. Other tasks go on. |
 | A gate | At any step of any thread | Nothing waits. The default stands until you change it. |
 | A held pull request | At the merge | The pull request stays open. Nothing else is held up unless it depends on it. |
-| One of the six doors | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
+| A door, a case of [gates.md](../templates/gates.md) | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
 A brief that says `Review: review`, the home's default, gets one review round, launched once `check` has passed: the checks prove or fail the work first.
