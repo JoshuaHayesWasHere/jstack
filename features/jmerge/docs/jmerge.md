@@ -169,7 +169,7 @@ The section "Protected paths" describes one more hold.
   `Skills run:` has an artifact for each skill the brief's `Skills:` line names (`skills-unrun`).
   A pull request that changes tests has a `Proved:` line that names each of them, with their run ending 1 at its base and 0 at its head.
   One that changes only test files needs only the run at its head, and one that changes no test needs no line.
-  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=guards` or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
+  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint and the touched tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
   An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
   On the two-step line the crew's check block once wrote, only the guards' step counts.
   Each line it waits with is a `Reason` in `features/jmerge/src/jmerge/ready.py`, from `SKILLS_UNRUN` to `CHECKED_PART`.
@@ -353,7 +353,7 @@ Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `f
 Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
 The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
-jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
+jstack's is `make check-fast PART=guards`: the lint, the cross-cutting tests, the catch-all and the changed test files, 385 s in one run on 2026-11-04.
 A repo with no such file runs no guards, and a pull request whose check main moved past goes through the line ("Merges cleanly over today's main").
 
 1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.

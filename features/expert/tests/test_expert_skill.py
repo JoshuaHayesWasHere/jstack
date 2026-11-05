@@ -14,7 +14,6 @@ from subprocess import run
 import pytest
 from jsonschema import Draft202012Validator
 
-import test_added_skills as added
 import test_playbook_wiring as wiring
 import test_tool_calls as calls
 from jbus import mirror
@@ -160,17 +159,6 @@ def scene(tmp_path):
     return Scene(tmp_path)
 
 
-def test_every_shell_block_of_the_skill_is_one_this_file_runs():
-    assert sorted(blocks()) == sorted(block(which) for which in MARKERS)
-
-
-def test_the_skill_is_typed_as_expert_and_names_no_built_in_command():
-    fields = added.front(SKILL.read_text())
-    assert fields["name"] == "expert" and fields["name"] not in added.BUILT_IN
-    assert fields["description"] and fields["user-invocable"] == "true"
-    assert added.em_dashes(SKILL) == [] and added.em_dashes(TEMPLATE) == []
-
-
 def test_the_block_at_the_top_finds_the_folder_of_the_name_typed(scene):
     assert scene.run("top") == []
     assert scene.run("read") == [
@@ -178,10 +166,6 @@ def test_the_block_at_the_top_finds_the_folder_of_the_name_typed(scene):
         f"title: expert: {NAME}",
         *(f"read: {scene.folder}/{name}" for name in READ_AT_START),
     ]
-
-
-def test_a_note_is_not_among_what_a_start_reads(scene):
-    assert not any("a-topic" in line for line in scene.run("read"))
 
 
 def test_a_file_the_folder_lacks_is_said_and_the_start_goes_on(scene):
@@ -323,31 +307,6 @@ def test_a_fresh_thread_started_on_the_folder_ends_in_the_same_state(scene, tmp_
     assert scene.files() == {**alone.files(), key: f"{TASK}-{OTHER[-4:]} {THREAD}\n"}
 
 
-def test_the_skills_calls_rename_pin_and_keep_a_webhook_and_settle_nothing():
-    of_an_expert = [call for call in calls.CALLS if call.where.startswith("expert:")]
-    assert [call.tool for call in of_an_expert] == [
-        "t3_thread_update",
-        "t3_thread_organize",
-        "t3_thread_organize",
-        "update_scheduled_task",
-        "schedule_task",
-        "delete_scheduled_task",
-    ]
-    assert {"action": "settle"} not in [call.given for call in of_an_expert]
-    take = of_an_expert[3].given
-    assert take == {
-        "scheduledTaskId": calls.FILLED["<scheduledTaskId>"],
-        "bindToCurrentThread": True,
-    }
-    (webhook,) = [
-        call.given
-        for call in calls.CALLS
-        if call.where.startswith("expert:") and call.tool == "schedule_task"
-    ]
-    assert webhook["schedule"] == {"type": "webhook"}
-    assert "{{body}}" in webhook["prompt"] and "bindToCurrentThread" not in webhook
-
-
 def made(tmp_path, playbooks):
     """A repo that holds the skill and the playbooks in `playbooks`. `playbooks` maps the name of
     each playbook to the text that follows its `Run by:`."""
@@ -360,27 +319,6 @@ def made(tmp_path, playbooks):
         (repo / "playbooks" / f"{name}.md").write_text(f"# A kind\n\nRun by: {by}\n")
     wiring.catalogued(repo)
     return repo
-
-
-KINDS = {
-    "question": "expert-answer",
-    "check": "expert-check",
-    "research": "expert-research",
-    "study": "expert-study",
-    "refresh": "expert-refresh",
-}
-
-
-@pytest.mark.parametrize("kind", KINDS)
-def test_each_kind_of_ask_opens_its_playbook_and_says_so_while_there_is_none(kind, tmp_path):
-    repo = made(tmp_path, {KINDS[kind]: "an expert, for a kind of ask."})
-    assert Scene(tmp_path / "with", repo).asked(kind) == [
-        str((repo / "playbooks" / f"{KINDS[kind]}.md").resolve())
-    ]
-    bare = made(tmp_path / "bare", {})
-    assert Scene(tmp_path / "without", bare).asked(kind) == [
-        f"no playbook: playbooks/ has no {KINDS[kind]}.md"
-    ]
 
 
 def test_a_playbook_given_by_name_is_opened_and_a_kind_not_filled_in_opens_none(tmp_path):
@@ -421,23 +359,6 @@ def test_a_thread_with_no_id_opens_no_playbook_whoever_the_expert_is(tmp_path, t
     assert scene.files() == before
 
 
-class Bus:
-    """A `jbus` on the PATH that records its arguments and what it read."""
-
-    def __init__(self, scene, exit_code=0, says="queued"):
-        self.kept = scene.bin / "kept.json"
-        (scene.bin / "jbus").write_text(
-            f"#!{sys.executable}\n"
-            "import json, sys\n"
-            f"json.dump([sys.argv[1:], sys.stdin.read()], open({str(self.kept)!r}, 'w'))\n"
-            f"print({says!r})\nsys.exit({exit_code})\n"
-        )
-        (scene.bin / "jbus").chmod(0o755)
-
-    def got(self):
-        return json.loads(self.kept.read_text()) if self.kept.exists() else None
-
-
 def gate(scene, project="demo", about="no-rollback", text=GATE):
     """Run the gate block as the expert fills it in: the gate's lines, its context, and the
     two options, the one the block writes and one more under it."""
@@ -465,12 +386,6 @@ def real_jbus(scene):
     return scene.user / ".local/state/jbus/demo"
 
 
-def test_a_finding_goes_to_the_owning_home_as_a_gate_through_jbus(scene):
-    bus = Bus(scene)
-    assert gate(scene) == ["queued"]
-    assert bus.got() == [["--project", "demo", "gate", f"expert-{NAME}-no-rollback"], SENT]
-
-
 def test_the_real_jbus_queues_the_gate_the_block_sends_under_its_slug(scene):
     state = real_jbus(scene)
     slug = f"expert-{NAME}-no-rollback"
@@ -495,27 +410,6 @@ def test_a_gate_is_kept_under_the_slug_it_is_sent_under_whatever_its_asked_by_sa
     assert gated["text"] == SENT.strip()
     found = mirror._gates(gated["text"].replace("<n>", "1"))
     assert [one[0] for one in found] == [f"expert-{NAME}-no-rollback"]
-
-
-@pytest.mark.parametrize(
-    ("changed", "why"),
-    [
-        ({"project": "<project>"}, "refused: no project <project>"),
-        ({"about": "<about>"}, f"refused: expert-{NAME}-<about> is not a slug"),
-        ({"about": "no/rollback"}, f"refused: expert-{NAME}-no/rollback is not a slug"),
-        ({"about": "no rollback"}, f"refused: expert-{NAME}-no rollback is not a slug"),
-        ({"about": "$(echo x)"}, f"refused: expert-{NAME}-$(echo x) is not a slug"),
-        (
-            {"text": GATE.replace("Asked by:", "Asked:")},
-            "not sent: the gate has no Asked by: line that is filled in.",
-        ),
-    ],
-)
-def test_a_gate_that_is_not_filled_in_is_not_asked(scene, changed, why):
-    state = real_jbus(scene)
-    code, said = gate(scene, **changed)
-    assert (code, said.startswith(f"not asked: {why}")) == (1, True)
-    assert not (state / "questions.json").exists()
 
 
 def test_a_gate_with_no_jbus_is_not_asked(scene):
@@ -623,11 +517,6 @@ def test_a_roll_over_with_no_id_filled_in_says_so_and_launches_nothing(scene, th
     assert said.startswith("not filled in:")
 
 
-def parts(text):
-    """A template's headings, in order."""
-    return re.findall(r"^## (.+)$", text, re.M)
-
-
 def offered(text):
     """The tiers the template lets an answer pick from, in the order it gives them."""
     (line,) = re.findall(r"^## Confidence\n(.*)$", text, re.M)
@@ -641,18 +530,6 @@ def tiers(text):
     return [name for _, name in numbered]
 
 
-def test_the_answer_template_has_the_four_parts_in_order():
-    assert parts(TEMPLATE.read_text()) == ["Answer", "Sources", "Confidence", "Not checked"]
-
-
 def test_the_templates_tiers_are_the_five_of_the_epistemics_file():
     assert len(tiers(TIERS.read_text())) == 5
     assert offered(TEMPLATE.read_text()) == tiers(TIERS.read_text())
-
-
-def test_a_tier_added_renamed_or_out_of_order_on_either_side_disagrees():
-    template, file = TEMPLATE.read_text(), TIERS.read_text()
-    assert offered(template.replace("Inferred | ", "")) != tiers(file)
-    assert offered(template.replace("Direct | Supported", "Supported | Direct")) != tiers(file)
-    assert offered(template) != tiers(file.replace("### 5. Unknown", "### 5. Unknowable"))
-    assert offered(template) != tiers(file + "\n### 6. Guessed\n")

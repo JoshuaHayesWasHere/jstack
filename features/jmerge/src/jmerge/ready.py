@@ -153,7 +153,8 @@ PROVED_STALE = Reason(
 )
 _RUN_THE_BLOCK = (
     "the crew's check block (features/crew/do-the-task.md), which runs `make check-fast "
-    "PART=guards` in a full test slot"
+    "PART=touched`, the lint and the touched tests, and writes its line (a `PART=guards` line of "
+    "an earlier head binds too)"
 )
 CHECKED_MISSING = Reason(
     "result", f"its brief has no Checked: line: {_RUN_THE_BLOCK}, runs at {{head}} and writes it"
@@ -972,13 +973,15 @@ _TWO_STEP = re.compile(
 rest the change reaches in the short lane, whose 124 is that lane's time limit and passes, since
 CI's check runs the rest in full."""
 _DESK_CHECK = re.compile(
-    r"make check-fast BASE=[0-9a-f]{40}(?: PYTEST=:)? PART=guards|jgauge check"
+    r"make check-fast BASE=[0-9a-f]{40} PART=touched"
+    r"|make check-fast BASE=[0-9a-f]{40}(?: PYTEST=:)? PART=guards|jgauge check"
 )
 """The commands of a `Checked:` line that are a desk's whole check, as the crew's check block
-runs them: the guards of a repo whose check selects its tests, in a full test slot that has no
-time limit (`PYTEST=:` where the selection is none or all, lint only), and another repo's check
-command (`jgauge check`). A line of the `PART=rest` alone is none of them; the two-step line
-reads as its guards (`_checked`)."""
+runs them: the lint and the touched tests of a repo whose check selects its tests (`PART=touched`,
+each step in the short lane and a step it stops again in a full slot, so its 124 is no verdict),
+the guards the block ran before 2026-11-05 (`PYTEST=:` where the selection was none or all, lint
+only), and another repo's check command (`jgauge check`). A line of the `PART=rest` alone is none
+of them; the two-step line reads as its guards (`_checked`)."""
 
 
 def _checked(line: str) -> tuple[str, str, str] | None:

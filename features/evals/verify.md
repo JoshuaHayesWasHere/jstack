@@ -2,6 +2,7 @@
 
 An eval scores a skill's answers against a key, blind, under `features/evals/evals/`: the skill-cut eval, rerunnable on any branch, and the retired eval of the depth questions, kept read-only as a record of its two runs.
 The coordinating benchmark, under `features/evals/benchmark/`, measures what jstack's coordinating layer costs from the raw records and from a replay in a sandbox.
+The lab, under `features/evals/lab/`, reruns the zero-cost measurements against a pinned copy of the telemetry store and writes one dated result directory.
 
 Paths:
 - `features/evals/`
@@ -13,6 +14,7 @@ Tests: none
 - `benchmark-upkeep` prints each duty's fix share and cost from the same records, and with `--against` each duty's change since an earlier run.
 - `benchmark-replay` decides each seeded event with today's `jbus` and `jmerge`, with no model, and runs setup B only with `--spend`.
 - `benchmark-home-start` runs `/home` at a commit only with `--spend`.
+- `lab` copies the telemetry store, then runs the KPI backtest, the steps' shift tests, the A/B power, the records reader and the replay on that copy, with no model and no `--spend`.
 
 The skill-cut eval and the eval of the depth questions are not driven yet.
 
@@ -21,6 +23,9 @@ The skill-cut eval and the eval of the depth questions are not driven yet.
 - Run `uv run --script features/evals/benchmark/records.py --before <commit> --after <commit>`, with `--against features/evals/benchmark/baseline-2026-10-30.json` for the change against the kept baseline.
 - Run `features/evals/benchmark/replay.sh "$PWD" <out dir>`.
 - Run `features/evals/benchmark/home-start.sh "$PWD" <out dir> <label> <commit>`.
+- Run `uv run --script features/evals/lab/lab.py --fit <first day>..<cutoff> --week <Sunday> --end <UTC time> --runs 200`.
+  It writes `~/.local/state/home/<repo>/reports/lab/<UTC stamp>-<sha8>/` unless `--out` names a directory: `manifest.json`, a `<stage>.json` and `<stage>.txt` per stage, and `summary.md`, which opens with the KPI table.
+  The copy `store.sqlite` is deleted when the run ends, unless `--keep-store`.
 
 `features/evals/benchmark/README.md` says what each prints.
 
@@ -52,7 +57,23 @@ The replay makes its own sandbox for each run of each event, so it is run from a
 - **Proof.**
   Keep what the first run printed from `upkeep per duty:` on.
 
+### The lab backtests a week on a pinned copy of the store
+
+- **Run the lab.**
+  Run `uv run --script features/evals/lab/lab.py --fit 2026-10-11..2026-10-25 --week 2026-10-25 --end 2026-11-03T01:37:48Z --runs 200 --out /tmp/lab-run --keep-store`.
+  It prints `store copied from <the live store>`, then each stage as `=== <stage>: exit 0, <s> s` and what the stage printed.
+- **Check the copy and the table.**
+  `/tmp/lab-run/summary.md` opens with the KPI table: PR open to merge `miss`, blamed on `pairs`, and lead time, change failure rate and merges `hit`.
+  The change failure rate's `real` is `sqlite3 /tmp/lab-run/store.sqlite "select 100 * rate from weekly_change_failure where week = '2026-10-25'"`.
+- **Check that no model ran.**
+  `jq .tokens /tmp/lab-run/replay.json` gives `0`, and `jq .setup_b_ran` gives `false`.
+- **Proof.**
+  Keep `summary.md` and `manifest.json`.
+
 ## Gotchas
 
 - `limit`'s today side is `jbus failover --dry-run` over a recorded failure, which writes nothing, and its `expect` names what setup B should do, so the two can differ: with no instance with headroom in the sandbox's config, it prints `capped ...`.
 - `redmain`'s seed must be main's real tip, since jbus reads it from `git ls-remote`: a seed at any other commit gives `ready 7`.
+- The lab's days are the machine's local days, as the store's are: run it in the zone the store was built in.
+- `records` and `replay` read no store: records reads the transcripts and logs under `--home` from the fit's first day to `--end`, and the replay decides in a sandbox on the wall clock.
+  Two runs with the same flags and copy still write the same JSON for every stage: records stops at `--end`, and `replay.json` writes each wall time as `<time>`.

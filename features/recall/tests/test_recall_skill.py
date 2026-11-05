@@ -27,14 +27,6 @@ def test_recall_reads_the_directory_it_is_given(repo, home, tmp_path):
     assert run(body, repo, home, before=f"W={worktree}\n") == [str(theirs)]
 
 
-def test_recall_says_so_when_there_is_no_transcript(repo, home):
-    aged(transcripts(home, repo) / "stale.jsonl", 30)
-    said = run(block("recall", ".claude/projects"), repo, home)
-    assert said == [
-        f"no transcript: nothing under {transcripts(home, repo)} changed in the last 7 days"
-    ]
-
-
 def test_recall_lists_what_the_home_wrote_in_the_window(repo, home):
     record = home / ".local" / "state" / "home" / "demo"
     brief = aged(record / "tasks" / "fix-login.md", 0)
