@@ -2,6 +2,7 @@
 result directory. The store here is a fixture built with jbus's own schema and views, so the
 backtest's real side is held to the store's own KPI definitions."""
 
+import hashlib
 import json
 import os
 import random
@@ -253,7 +254,6 @@ def views(store, view, column, week):
 
 def test_the_store_is_copied_first_and_no_stage_opens_the_live_one(machine, run):
     copy = run["out"] / "store.sqlite"
-    assert copy.is_file()
     opened = machine["log"].read_text().splitlines()
     assert any(str(copy) in line for line in opened), "the hook saw no stage open the copy"
     assert not [line for line in opened if str(machine["store"]) in line]
@@ -292,7 +292,7 @@ def views_version(store):
 
 def test_the_backtests_real_week_is_the_stores_own(machine, run):
     doc = json.loads((run["out"] / "backtest.json").read_text())
-    copy = run["out"] / "store.sqlite"
+    copy = machine["store"]
     real = {k["key"]: k for k in doc["kpis"]}
     assert real["cfr_pct"]["real"] == pytest.approx(
         100 * views(copy, "weekly_change_failure", "rate", WEEK)
@@ -372,10 +372,29 @@ def test_records_and_replay_run_and_no_model_is_called(machine, run):
     assert "--spend" not in helped.stdout
 
 
+def size(out):
+    return sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
+
+
+def test_a_run_deletes_its_copy_at_its_end_and_names_the_copys_hash_and_size(run):
+    out = run["out"]
+    assert not list(out.glob("store.sqlite*"))
+    store = json.loads((out / "manifest.json").read_text())["store"]
+    assert store["kept"] is False
+    assert len(store["sha256"]) == 64 and int(store["sha256"], 16) >= 0
+    assert store["bytes"] > 0
+    assert size(out) < 10 * 2**20
+
+
 def test_two_runs_of_the_same_copy_write_the_same_stage_json(machine, run, tmp_path):
     again = tmp_path / "again"
-    ran = lab(machine, "--out", again, "--stages", ",".join(PINNED_STAGES))
+    ran = lab(machine, "--out", again, "--stages", ",".join(PINNED_STAGES), "--keep-store")
     assert ran.returncode == 0, ran.stdout + ran.stderr
+    copy = again / "store.sqlite"
+    store = json.loads((again / "manifest.json").read_text())["store"]
+    assert store["kept"] is True
+    assert store["sha256"] == hashlib.sha256(copy.read_bytes()).hexdigest()
+    assert store["bytes"] == copy.stat().st_size
     for stage in PINNED_STAGES:
         assert (again / f"{stage}.json").read_text() == (
             run["out"] / f"{stage}.json"
@@ -400,6 +419,8 @@ def test_an_out_directory_that_holds_files_is_refused_before_the_store_is_read(m
         (["--stages", "backtest,dials"], "no stage dials"),
         (["--end", "yesterday"], "Invalid isoformat"),
         (["--end", "2026-10-20T00:00:00Z"], "before the week 2026-10-25 starts"),
+        (["--end", "2026-10-05T00:00:00Z"], "before the week 2026-10-25 starts"),
+        (["--end", "2026-11-04T00:00:00Z"], "after the store's last build, " + BUILT),
     ],
 )
 def test_a_wrong_flag_is_refused_before_anything_is_copied(machine, tmp_path, flags, said):
@@ -409,9 +430,33 @@ def test_a_wrong_flag_is_refused_before_anything_is_copied(machine, tmp_path, fl
     assert not out.exists()
 
 
-def test_an_end_after_the_copy_was_built_is_refused(machine, tmp_path):
-    ran = lab(machine, "--out", tmp_path / "out", "--end", "2026-11-04T00:00:00Z")
-    assert ran.returncode == 2 and "after the copy was built" in ran.stderr
+def test_an_end_after_the_last_build_leaves_an_empty_out_directory_empty(machine, tmp_path):
+    out = tmp_path / "empty"
+    out.mkdir()
+    ran = lab(machine, "--out", out, "--end", "2026-11-04T00:00:00Z")
+    assert ran.returncode == 2 and "after the store's last build" in ran.stderr
+    assert not list(out.iterdir())
+
+
+def test_a_fit_with_few_finished_spells_warns_and_the_manifest_keeps_the_warning(run):
+    fit = json.loads((run["out"] / "backtest.json").read_text())["fit"]["notes"]
+    spells = fit["finished_spells"]
+    assert spells < 10 and len(fit["arrival_days"]) >= 7
+    warnings = json.loads((run["out"] / "manifest.json").read_text())["warnings"]
+    said = f"the fit has {spells} finished spells, fewer than 10"
+    assert [w for w in warnings if said in w] and said in run["stdout"]
+    assert not [w for w in warnings if "arrival days" in w]
+
+
+def test_a_fit_of_few_arrival_days_warns_and_the_manifest_keeps_the_warning(machine, tmp_path):
+    out = tmp_path / "short"
+    ran = lab(machine, "--out", out, "--stages", "backtest", "--fit", "2026-10-18..2026-10-25")
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    said = "the fit has 6 arrival days (2026-10-18..2026-10-23), fewer than 7"
+    assert said in ran.stdout
+    m = json.loads((out / "manifest.json").read_text())
+    assert [w for w in m["warnings"] if said in w]
+    assert "warning" in (out / "summary.md").read_text()
 
 
 def test_the_manifest_names_the_one_read_of_the_live_store(machine, run):
