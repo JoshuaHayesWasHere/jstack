@@ -500,7 +500,9 @@ def run_prompt(args, out: Path, a: str, b: str) -> int:
         (out / "answers.jsonl").open("a") as keep,
         (out / "errors.jsonl").open("a") as errs,
     ):
-        for name, said, error in pool.map(ask, missing):
+        asked = [pool.submit(ask, item) for item in missing]
+        for done in concurrent.futures.as_completed(asked):
+            name, said, error = done.result()
             if error is not None:
                 failed += 1
                 errs.write(json.dumps({"id": name, "error": error}) + "\n")
