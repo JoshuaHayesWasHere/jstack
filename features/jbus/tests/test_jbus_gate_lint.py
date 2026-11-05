@@ -58,7 +58,7 @@ SHAPES = {
         "passed, no test failed): write Fixed: on CI's check instead?",
         "no Fixed: line yet; the pull request waits",
         "features/crew/do-the-task.md",
-        "go on as on exit 0",
+        "treat the 124 as a failure",
     ),
     "merge base": (
         "#415 was moved onto main, but #404 under it merged into train/macos: should #415's base "
@@ -94,16 +94,16 @@ def test_a_gate_a_rule_settles_is_not_asked_and_says_the_rule_and_what_to_do(kit
     assert kept(kitchen) == []
 
 
-def test_exit_124_passes_only_for_the_rest_after_the_guards_passed(kitchen):
-    """Since the desk check runs its guard step first, only the import-reached rest's 124 is the
-    short lane's time limit that passes. A guard step that ends 124 is a failure, and the answer
-    must not tell the thread to go on past it as on exit 0."""
+def test_exit_124_never_passes(kitchen):
+    """The desk check is the guards alone, in a full slot, and jmerge holds a pull request whose
+    last `Checked:` line ends 124: the answer must not tell the thread to go on past a 124 as on
+    exit 0."""
     asked, default, _, _ = SHAPES["exit 124"]
     _, said = kitchen.main("gate", "alpha", stdin=lines(asked, default))
-    assert "the import-reached rest" in said
-    assert "after a guard step that passed" in said
-    assert "a guard step that ends 124 is a failure" in said
-    assert "fix it as one" in said
+    assert "an exit 124 never passes" in said
+    assert "short_on_checked" in said
+    assert "PART=guards exit 0" in said
+    assert "as on exit 0" not in said
 
 
 @pytest.mark.parametrize(
