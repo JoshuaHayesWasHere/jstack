@@ -34,12 +34,6 @@ Decisions:
 Pull request: open one when done
 Thread: mcp:1
 """
-INTENT = "".join(BRIEF.splitlines(keepends=True)[1:6]).rstrip("\n")
-COUNT = (
-    "Done when lines in the brief, numbered from 1 in the order above: {}, the n the Meets the "
-    "brief line counts against."
-)
-INTENT += "\n\n" + COUNT.format(1)
 URL = "https://github.com/someone/repo/pull/7"
 
 GH = """\
@@ -443,11 +437,6 @@ def asked(text, question):
     return after.split(f"\n{question + 1}. ", 1)[0]
 
 
-def placeholders(text):
-    """Each line of a prompt that is still one of the template's places to fill."""
-    return [line for line in text.splitlines() if re.fullmatch(r"(> )?\{[A-Z_]+\}", line)]
-
-
 def test_the_two_questions_are_the_ones_the_interrogate_skill_reads_out_of_this_block(reviewer):
     """Step 3 of the interrogate skill finds questions 4 and 5 in this skill by the line each one
     starts on, and reads them out."""
@@ -640,15 +629,6 @@ def test_each_review_builds_in_a_directory_of_its_own(reviewer):
     assert first.parent != second.parent
     assert first.read_text() == second.read_text()
     assert all(path.name.startswith("pr-review-a-task.") for path in reviewer.built())
-
-
-def calls(text):
-    """Every JSON block of a skill, as an agent sends it, with its placeholders filled."""
-    return [
-        json.loads(body.replace("<model selection>", "null"))
-        for kind, body in FENCED.findall(text)
-        if kind == "json"
-    ]
 
 
 @pytest.fixture
