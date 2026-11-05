@@ -62,7 +62,9 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
 
 Never done here, and who does it:
 
-- **Merge.** `jmerge`, run by jbus, squash-merges a pull request that is reviewed, fixed and green. One it holds waits for the user's word.
+- **Merge.**
+  `jmerge`, run by jbus, squash-merges a pull request that is reviewed, fixed and green.
+  One it holds waits for the user's word.
 - **Review**: one reviewer, in a new thread, reviews once, launched as `skills/crew/SKILL.md` "The review" says.
   Fix what you agree with, and push back, with a reason, on the rest.
   A fix gets no review: one round, and it merges on its checks ("A second pass").

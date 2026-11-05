@@ -39,6 +39,8 @@ Never done here, and who does it:
 - **Stopping to ask.**
   Nobody does.
   A gate holds the question, and each of the six cases "Carry on" never does on a default holds its action too.
-- **Merging, to make a line hold.** `jmerge`, run by jbus, merges. A "Done when" line that needs a merge is reported as waiting on it.
+- **Merging, to make a line hold.**
+  `jmerge`, run by jbus, merges.
+  A "Done when" line that needs a merge is reported as waiting on it.
 
 **Hand over:** in the pull request and the Result, to the reviewer and the home: the predicate command and what it printed at the end, the rounds run, what landed, what was discarded, the log's path and rows, and each gate parked.
