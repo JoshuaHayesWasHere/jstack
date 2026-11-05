@@ -967,7 +967,9 @@ def test_a_proof_with_every_short_slot_taken_registers_the_thread_and_ends_76(pr
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
     try:
-        printed, code = proof.ends("echo the fact holds\n", HOME=str(home))
+        printed, code = proof.ends(
+            "echo the fact holds\n", HOME=str(home), JGAUGE_SHORT_WAIT_SECONDS="0"
+        )
     finally:
         for fd in held:
             os.close(fd)

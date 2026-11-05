@@ -14,14 +14,20 @@ signal go to the whole group: a `sh -c` wrapper does not leave its pytest runnin
 is free. Since that group is out of the terminal's group, an interrupt reaches the command only
 through this process, which passes it on.
 
-A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
-and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`) and
-exits with code 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the
-lane is free. That wake claims the slot for the thread for `waiters.HOLDS`, and another thread
-with `--thread` takes a slot only while the free slots outnumber the claims of other threads:
-with none to spare it registers as a waiter, as it does with every slot taken. The woken thread
-then runs its command again. That run takes the slot and takes the thread out of the waiters
-file, and with it its claim.
+A thread that cannot wait in a call long does not wait long. In the full lane,
+`jgauge test-slot --thread <id>` tries once. In the short lane it waits in the call for up to
+`SHORT_WAIT_SECONDS`, the short lane's time limit, since every short slot held is free again by
+then unless the callers ahead of it take it. The callers that wait in the call take the slots
+freed in the order they came (`_line`), and jbus does not know of them, so it wakes none of
+them. With every slot of its lane still taken, the call registers the thread as a waiter
+(`jgauge.waiters`), with the time the call came as its place, and exits with code 76.
+
+`jbus poll` sends the oldest waiter of a lane one message when a slot of the lane is free. That
+wake claims the slot for the thread for `waiters.HOLDS`, and another thread with `--thread` takes
+a slot only while the free slots outnumber the claims of other threads: with none to spare it
+registers as a waiter, as it does with every slot taken. The woken thread then runs its command
+again. That run takes the slot and takes the thread out of the waiters file, and with it its
+claim.
 
 A run with `--thread` is on record as its thread's while its command runs, and its end is on
 record once the command ends, however it ends (`jgauge.holders`). So jbus counts a thread whose
@@ -58,6 +64,7 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -65,6 +72,9 @@ from pathlib import Path
 from jgauge import holders, sample, sizes, waiters
 
 SHORT_LIMIT_SECONDS = 120.0
+SHORT_WAIT_SECONDS = SHORT_LIMIT_SECONDS
+WAIT_FOR = "JGAUGE_SHORT_WAIT_SECONDS"
+LINE = "test-slot-short.line"
 LOOK_EVERY_SECONDS = 0.2
 STOP_GRACE_SECONDS = 5.0
 TIMED_OUT = 124
@@ -153,26 +163,104 @@ def _first_free(locks: Path, lane: Lane) -> tuple[int, Path] | None:
     return None
 
 
+def _spare(locks: Path, lane: Lane, thread: str) -> tuple[tuple[int, Path] | None, bool]:
+    """A free slot that no woken waiter of another thread claims, taken, and whether any slot
+    was free at all. A thread that takes one is no longer a waiter."""
+    claimed = waiters.claims(locks, name(lane), thread, datetime.now(UTC))
+    held = _first_free(locks, lane)
+    if held is not None and 1 + free(lane) > claimed:
+        waiters.drop(locks, thread)
+        return held, True
+    if held is not None:
+        os.close(held[0])
+    return None, held is not None
+
+
+def _ahead(line: Path, ticket: str) -> bool:
+    """Whether a caller that came before `ticket` still waits in the line. A ticket whose lock
+    no one holds is a caller that died or one that has just gone, and goes."""
+    for other in sorted(line.iterdir()):
+        if other.name.startswith(".") or other.name == ticket:
+            continue
+        if other.name > ticket:
+            return False
+        fd = os.open(other, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        else:
+            other.unlink(missing_ok=True)
+        finally:
+            os.close(fd)
+    return False
+
+
+@contextlib.contextmanager
+def _line(locks: Path) -> Iterator[Callable[[], bool]]:
+    """A place in the line of the callers that wait in the call: a file under `LINE` named for
+    the time it came, held with a lock while the caller waits. The file is locked under a
+    hidden name and then renamed, so no caller takes a live place for a dead one's. Yields a
+    function that says whether this caller is first."""
+    line = locks / LINE
+    line.mkdir(exist_ok=True)
+    ticket = f"{time.time_ns():020d}.{os.getpid()}"
+    hidden = line / f".{ticket}"
+    fd = os.open(hidden, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        hidden.rename(line / ticket)
+        yield lambda: not _ahead(line, ticket)
+    finally:
+        (line / ticket).unlink(missing_ok=True)
+        hidden.unlink(missing_ok=True)
+        os.close(fd)
+
+
+def _wait_in_call(locks: Path, lane: Lane, thread: str) -> tuple[tuple[int, Path] | None, bool]:
+    """Wait in the line for up to the short lane's wait for a spare slot, and take it."""
+    limit = float(os.environ.get(WAIT_FOR) or SHORT_WAIT_SECONDS)
+    until = time.monotonic() + limit
+    said = False
+    with _line(locks) as first:
+        while True:
+            held, any_free = None, False
+            if first():
+                held, any_free = _spare(locks, lane, thread)
+                if held is not None:
+                    return held, True
+            if time.monotonic() >= until:
+                return None, any_free
+            if not said:
+                print(
+                    f"test-slot: waiting up to {limit:g} s for one of {lane.called}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                said = True
+            time.sleep(LOOK_EVERY_SECONDS)
+
+
 def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tuple[int, Path] | None:
-    """Wait for a slot and take it, and give the held lock and its file. With a `thread` it does
-    not wait, and leaves the free slots that woken waiters of other threads claim to them: when
-    no slot is free for it, it registers the thread as a waiter on the lane, says so in one
-    line, and takes no slot. A thread that takes a slot is no longer a waiter."""
+    """Wait for a slot and take it, and give the held lock and its file. With a `thread` it
+    leaves the free slots that woken waiters of other threads claim to them, and waits in the
+    call only in the short lane and only for up to its wait: when no slot is free for it then,
+    it registers the thread as a waiter on the lane, says so in one line, and takes no slot. A
+    thread that takes a slot is no longer a waiter."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
     if thread:
         now = datetime.now(UTC)
-        claimed = waiters.claims(locks, name(lane), thread, now)
-        held = _first_free(locks, lane)
-        if held is not None and 1 + free(lane) > claimed:
-            waiters.drop(locks, thread)
-            return held
+        if lane.limit is None:
+            held, any_free = _spare(locks, lane, thread)
+        else:
+            held, any_free = _wait_in_call(locks, lane, thread)
         if held is not None:
-            os.close(held[0])
+            return held
         waiters.register(locks, thread, name(lane), lane.slots, command or [], now)
         why = (
             f"the free ones of {lane.called} are held for woken waiters"
-            if held is not None
+            if any_free
             else f"every one of {lane.called} is taken"
         )
         print(

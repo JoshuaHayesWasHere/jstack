@@ -1,11 +1,13 @@
 """A thread that finds every slot taken registers as a waiter in the slot queue's file, and
-says so in one line, instead of waiting in the call. The tests run as `test_slot.py` does: the
-real `jgauge test-slot`, against lock files in a temporary home that each test makes."""
+says so in one line, instead of waiting in the call, once a short call's wait in the call has
+run out. The tests run as `test_slot.py` does: the real `jgauge test-slot`, against lock files
+in a temporary home that each test makes."""
 
 import fcntl
 import json
 import os
 import subprocess
+import time
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -44,11 +46,11 @@ def _split(args):
     return args[:at], args[at : at + 1], args[at + 1 :]
 
 
-def jgauge(machine, *args, thread=THREAD):
-    """`jgauge test-slot` with these arguments, with the thread's option placed before the
-    `--`."""
+def started(machine, *args, thread=THREAD, wait="0"):
+    """`jgauge test-slot` with these arguments started, with the thread's option placed before
+    the `--`. A short call waits `wait` seconds in the call, none unless a test says."""
     head, dashes, command = (list(part) for part in _split(args))
-    return subprocess.run(
+    return subprocess.Popen(
         [
             str(BIN / "jgauge"),
             "test-slot",
@@ -57,11 +59,20 @@ def jgauge(machine, *args, thread=THREAD):
             *dashes,
             *command,
         ],
-        env={**os.environ, "HOME": str(machine.home)},
-        capture_output=True,
+        env={**os.environ, "HOME": str(machine.home), slot.WAIT_FOR: wait},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=20,
     )
+
+
+def ended(run):
+    out, err = run.communicate(timeout=20)
+    return SimpleNamespace(returncode=run.returncode, stdout=out, stderr=err)
+
+
+def jgauge(machine, *args, thread=THREAD, wait="0"):
+    return ended(started(machine, *args, thread=thread, wait=wait))
 
 
 def hold_short(machine):
@@ -92,6 +103,85 @@ def test_with_every_short_slot_taken_a_thread_registers_and_ends_its_turn(machin
         ("echo", "ran"),
     )
     assert not one.woken
+
+
+def _in_line(machine, count):
+    """Wait until `count` callers wait in the short lane's line."""
+    line = machine.locks / slot.LINE
+    for _ in range(100):
+        if line.is_dir() and len([one for one in line.iterdir() if one.name[0] != "."]) == count:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"{count} callers never waited in the line")
+
+
+def _gone(path):
+    for _ in range(100):
+        if not path.exists():
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"{path.name} never went")
+
+
+def test_with_every_short_slot_taken_a_thread_waits_in_the_call_and_takes_the_first_freed(
+    machine,
+):
+    held = hold_short(machine)
+    line = machine.locks / slot.LINE
+    line.mkdir()
+    later = os.open(line / ("9" * 20 + ".1"), os.O_RDWR | os.O_CREAT)
+    fcntl.flock(later, fcntl.LOCK_EX)
+    try:
+        run = started(machine, "--short", "--", "echo", "ran", wait="15")
+        _in_line(machine, 2)
+        os.close(held.pop())
+        ran = ended(run)
+    finally:
+        os.close(later)
+        for fd in held:
+            os.close(fd)
+    assert (ran.returncode, ran.stdout) == (0, "ran\n")
+    assert "waiting up to 15 s for one of" in ran.stderr
+    assert waiters.read(machine.locks) == []
+
+
+def test_a_freed_short_slot_goes_to_the_caller_that_came_first(machine):
+    """A caller that came before holds its place in the line, and a later one leaves a freed
+    slot to it until it goes. A place no caller holds any more is passed over."""
+    held = hold_short(machine)
+    line = machine.locks / slot.LINE
+    line.mkdir()
+    (line / f"{0:020d}.1").touch()
+    older = os.open(line / f"{1:020d}.2", os.O_RDWR | os.O_CREAT)
+    fcntl.flock(older, fcntl.LOCK_EX)
+    try:
+        run = started(machine, "--short", "--", "echo", "ran", wait="15")
+        _gone(line / f"{0:020d}.1")
+        assert len(list(line.iterdir())) == 2
+        os.close(held.pop())
+        time.sleep(1)
+        assert run.poll() is None
+        os.close(older)
+        (line / f"{1:020d}.2").unlink()
+        ran = ended(run)
+    finally:
+        for fd in held:
+            os.close(fd)
+    assert (ran.returncode, ran.stdout) == (0, "ran\n")
+    assert sorted(line.iterdir()) == []
+
+
+def test_a_short_call_still_waiting_past_its_wait_registers_and_ends_its_turn(machine):
+    held = hold_short(machine)
+    try:
+        ran = jgauge(machine, "--short", "--", "echo", "ran", wait="1")
+    finally:
+        for fd in held:
+            os.close(fd)
+    assert ran.returncode == slot.WAITING
+    assert f"{THREAD} is registered as a waiter and jbus will wake it" in ran.stdout
+    assert [one.thread for one in waiters.read(machine.locks)] == [THREAD]
+    assert [one.name for one in (machine.locks / slot.LINE).iterdir()] == []
 
 
 def test_a_thread_asked_twice_is_one_waiter_with_one_place(machine):
