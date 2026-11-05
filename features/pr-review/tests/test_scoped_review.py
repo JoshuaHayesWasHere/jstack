@@ -134,4 +134,3 @@ def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(proven
     )
     rebased.brief(review("clean", rebased.before) + section)
     assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} {slug} alpha"]
-
