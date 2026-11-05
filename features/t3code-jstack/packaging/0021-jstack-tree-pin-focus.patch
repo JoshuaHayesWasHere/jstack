@@ -9,15 +9,15 @@ outside their row, so a click left focus on them and the tree's keys did nothing
 another click put it back on a row. Each now focuses its row once clicked, so ArrowUp, ArrowDown
 and the rest act at once.
 ---
- .../sidebar/JstackTreeRows.browser.test.tsx   | 150 +++++++++++++++++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 146 ++++++++++++++++++
  .../src/components/sidebar/JstackTreeRows.tsx |  16 +-
- 2 files changed, 161 insertions(+), 5 deletions(-)
+ 2 files changed, 158 insertions(+), 4 deletions(-)
 
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 972e06a56d..f1eb018b5e 100644
+index 711ea0f5ea..b8af7f0a03 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -6,13 +6,17 @@ import {
+@@ -6,12 +6,14 @@ import {
    type JbusStartingScope,
    type JbusWorkSnapshot,
  } from "@t3tools/contracts";
@@ -28,15 +28,11 @@ index 972e06a56d..f1eb018b5e 100644
  
  import "~/index.css";
  import { render } from "../../../test/render";
--import { __resetClientSettingsPersistenceForTests } from "../../hooks/useSettings";
-+import {
-+  __resetClientSettingsPersistenceForTests,
-+  persistClientSettingsUpdate,
-+} from "../../hooks/useSettings";
++import { persistClientSettingsUpdate } from "../../hooks/useSettings";
  import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
  import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
  import { makeThreadFixture } from "../../test-fixtures";
-@@ -87,6 +91,20 @@ const alphaOf = (color: string) => {
+@@ -86,6 +88,20 @@ const alphaOf = (color: string) => {
    return match === null ? 1 : Number(match[1]);
  };
  
@@ -57,7 +53,7 @@ index 972e06a56d..f1eb018b5e 100644
  const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
  const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
  const jviewThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("jview") });
-@@ -236,6 +254,15 @@ const rootItem = (screen: Screen) =>
+@@ -235,6 +251,15 @@ const rootItem = (screen: Screen) =>
  
  type Screen = Awaited<ReturnType<typeof render>>;
  
@@ -73,7 +69,7 @@ index 972e06a56d..f1eb018b5e 100644
  const sidebarHome = ThreadId.make("sidebar");
  
  /** What jbus said at the user's click: a queued task waits on an approval, a gate asks. */
-@@ -427,9 +454,20 @@ function idleTree(spies: JstackTreeRowActions) {
+@@ -426,9 +451,20 @@ function idleTree(spies: JstackTreeRowActions) {
    return render(<LiveTree snapshot={IDLE_SNAPSHOT} spies={spies} sent={[]} />, { router: false });
  }
  
@@ -94,7 +90,7 @@ index 972e06a56d..f1eb018b5e 100644
  describe("JstackTreeRowView idle homes", () => {
    it("lists nothing an idle home merged, and opens the home by keyboard, from its menu and by mouse", async () => {
      const spies = actions();
-@@ -610,3 +648,113 @@ const contrast = (ink: string, background: string) => {
+@@ -609,3 +645,113 @@ const contrast = (ink: string, background: string) => {
    ].toSorted((a, b) => b - a);
    return (lighter! + 0.05) / (darker! + 0.05);
  };

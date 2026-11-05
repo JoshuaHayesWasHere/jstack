@@ -14,14 +14,14 @@ place of its age, and the tally line under a folded home is gone. A task's row i
 and is said to a screen reader.
 ---
  apps/web/src/components/Sidebar.tsx           |   4 +
- .../sidebar/JstackTreeRows.browser.test.tsx   | 114 ++------------
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 113 ++-----------
  .../src/components/sidebar/JstackTreeRows.tsx | 148 +++++++++++-------
  .../sidebar/jstackAskOnAdd.browser.test.tsx   |   1 +
  .../components/sidebar/jstackPinnedHomes.ts   |  26 +++
  .../sidebar/jstackTree.logic.test.ts          |   1 +
  .../components/sidebar/jstackTree.logic.ts    |  79 +++++++---
  packages/contracts/src/settings.ts            |   5 +
- 8 files changed, 198 insertions(+), 180 deletions(-)
+ 8 files changed, 197 insertions(+), 180 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/jstackPinnedHomes.ts
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
@@ -61,10 +61,10 @@ index 237a056467..490ce41d72 100644
      onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
      onOpenProjectSettings: openProjectSettings,
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 2c1e2edf17..972e06a56d 100644
+index 2c1e2edf17..711ea0f5ea 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -6,17 +6,18 @@ import {
+@@ -6,7 +6,6 @@ import {
    type JbusStartingScope,
    type JbusWorkSnapshot,
  } from "@t3tools/contracts";
@@ -72,11 +72,7 @@ index 2c1e2edf17..972e06a56d 100644
  import { useState } from "react";
  import { describe, expect, it, vi } from "vite-plus/test";
  import { page, userEvent } from "vite-plus/test/browser";
- 
- import "~/index.css";
- import { render } from "../../../test/render";
-+import { __resetClientSettingsPersistenceForTests } from "../../hooks/useSettings";
- import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+@@ -17,6 +16,7 @@ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
  import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
  import { makeThreadFixture } from "../../test-fixtures";
  import { buildJstackTree, childHomeMessage, type JstackAnswering } from "./jstackTree.logic";
@@ -84,7 +80,7 @@ index 2c1e2edf17..972e06a56d 100644
  import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
  
  const environmentId = EnvironmentId.make("environment-local");
-@@ -57,6 +58,7 @@ function actions(): JstackTreeRowActions {
+@@ -57,6 +57,7 @@ function actions(): JstackTreeRowActions {
      onOpenThread: vi.fn(),
      onToggleProject: vi.fn(),
      onExpandHome: vi.fn(),
@@ -92,7 +88,7 @@ index 2c1e2edf17..972e06a56d 100644
      onNewThread: vi.fn(),
      onCopyPath: vi.fn(),
      onOpenProjectSettings: vi.fn(),
-@@ -135,6 +137,7 @@ function LiveTree(props: {
+@@ -135,6 +136,7 @@ function LiveTree(props: {
    const [editor, setEditor] = useState(false);
    const [answering, setAnswering] = useState<JstackAnswering | null>(null);
    const [requested, setRequested] = useState<ReadonlyArray<JbusStartingScope>>([]);
@@ -100,7 +96,7 @@ index 2c1e2edf17..972e06a56d 100644
    const jstack = group("jstack");
    const tree = buildJstackTree({
      environmentId,
-@@ -158,6 +161,7 @@ function LiveTree(props: {
+@@ -158,6 +160,7 @@ function LiveTree(props: {
      selection:
        props.routeThreadId === undefined ? null : { kind: "thread", threadId: props.routeThreadId },
      expandedHomes: new Set(),
@@ -108,7 +104,7 @@ index 2c1e2edf17..972e06a56d 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: editor,
-@@ -173,6 +177,10 @@ function LiveTree(props: {
+@@ -173,6 +176,10 @@ function LiveTree(props: {
    });
    const live: JstackTreeRowActions = {
      ...props.spies,
@@ -119,7 +115,7 @@ index 2c1e2edf17..972e06a56d 100644
      onOpenChildHomeEditor: (opened) => {
        props.spies.onOpenChildHomeEditor(opened);
        setEditor(true);
-@@ -228,15 +236,6 @@ const rootItem = (screen: Screen) =>
+@@ -228,15 +235,6 @@ const rootItem = (screen: Screen) =>
  
  type Screen = Awaited<ReturnType<typeof render>>;
  
@@ -135,7 +131,7 @@ index 2c1e2edf17..972e06a56d 100644
  const sidebarHome = ThreadId.make("sidebar");
  
  /** What jbus said at the user's click: a queued task waits on an approval, a gate asks. */
-@@ -311,6 +310,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
+@@ -311,6 +309,7 @@ function AskingTree(props: { spies: JstackTreeRowActions }) {
      selection: { kind: "thread", threadId: sidebarHome },
      answering: null,
      expandedHomes: new Set(),
@@ -143,7 +139,7 @@ index 2c1e2edf17..972e06a56d 100644
      frozenOrder: null,
      lastVisitedAt: () => null,
      childHomeEditor: false,
-@@ -427,51 +427,10 @@ function idleTree(spies: JstackTreeRowActions) {
+@@ -427,51 +426,10 @@ function idleTree(spies: JstackTreeRowActions) {
    return render(<LiveTree snapshot={IDLE_SNAPSHOT} spies={spies} sent={[]} />, { router: false });
  }
  
@@ -195,7 +191,7 @@ index 2c1e2edf17..972e06a56d 100644
    it("lists nothing an idle home merged, and opens the home by keyboard, from its menu and by mouse", async () => {
      const spies = actions();
      await using screen = await idleTree(spies);
-@@ -526,37 +485,6 @@ const named = (color: string) =>
+@@ -526,37 +484,6 @@ const named = (color: string) =>
          ? "muted"
          : Math.round(alphaOf(color) * 100) / 100;
  
@@ -233,7 +229,7 @@ index 2c1e2edf17..972e06a56d 100644
  const scoutTask = (slug: string, scouting: "queued" | "scouting" | "report in") => ({
    repo: "jstack",
    slug,
-@@ -614,28 +542,6 @@ const badgeOf = (container: Element) =>
+@@ -614,28 +541,6 @@ const badgeOf = (container: Element) =>
    );
  
  describe("JstackTreeRowView marks", () => {
