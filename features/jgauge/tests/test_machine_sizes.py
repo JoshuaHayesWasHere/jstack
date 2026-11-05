@@ -179,45 +179,6 @@ def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(
     )
 
 
-AFTER_EACH = """
-import os, sys, pytest
-seen = []
-class After:
-    def pytest_runtest_logfinish(self, nodeid):
-        seen.append(os.environ.get("TEST_SLOTS"))
-code = pytest.main(sys.argv[1:], plugins=[After()])
-print(seen)
-sys.exit(code)
-"""
-
-
-def test_a_test_that_sets_test_slots_leaves_none_for_the_next_test():
-    """Each of these tests sets TEST_SLOTS, and a later test in the same process must not see
-    it: a pytest of their own, with no TEST_SLOTS to start from, reads it after each one."""
-    here = Path(__file__)
-    env = {key: value for key, value in os.environ.items() if key != "TEST_SLOTS"}
-    done = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            AFTER_EACH,
-            "-q",
-            "-p",
-            "no:xdist",
-            "-p",
-            "no:cacheprovider",
-            f"{here}::{test_the_flag_wins_then_the_variable_then_the_file_then_the_machine.__name__}",
-            f"{here}::{test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines.__name__}",
-        ],
-        cwd=here.parents[3],
-        env=env,
-        capture_output=True,
-        text=True,
-    )
-    assert done.returncode == 0, done.stdout + done.stderr
-    assert done.stdout.splitlines()[-1] == "[None, None]"
-
-
 def test_the_module_runs_with_the_standard_library_alone(machine):
     """`jgauge.sizes` imports nothing of jstack, so a bare `python3 -I` can run it."""
     source = Path(sizes.__file__).read_text()

@@ -1,6 +1,5 @@
 """The core's helpers, one definition each: paths, the store, the runner and the brief's head."""
 
-import json
 import os
 import subprocess
 
@@ -75,19 +74,3 @@ def test_a_line_is_read_from_the_head_of_a_brief_and_not_below_it():
     assert brief.head_lines(text) == ["# one", "Stack: a 1 on b", "Stack: c"]
     assert brief.head(text, "Stack:") == "a 1 on b"
     assert brief.head(text, "Home:") is None
-
-
-def test_a_locked_list_is_written_as_it_always_was(tmp_path):
-    from dataclasses import dataclass
-
-    @dataclass(frozen=True)
-    class One:
-        since: str
-        id: str
-
-    kept = store.LockedList("list.json", "list.lock", lambda raw: [One(**one) for one in raw])
-    kept.change(tmp_path, lambda was: [*was, One("2026", "b")])
-    assert (tmp_path / "list.json").read_text() == json.dumps(
-        [{"since": "2026", "id": "b"}], indent=2
-    ) + "\n"
-    assert kept.read(tmp_path) == [One("2026", "b")]

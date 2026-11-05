@@ -331,7 +331,7 @@ Its go on a row whose brief holds keeps a word of the view's and parks a gate fo
 
 #### Doors
 
-A door is an action that is irreversible or slow to revert, one of the six cases of the table in [Questions](questions.md#act-unless-stopped-and-the-gates-that-hold), and `party.DOORS` is that table.
+A door is an action that is irreversible or slow to revert, one of the cases of the table in [Questions](questions.md#act-unless-stopped-and-the-gates-that-hold), and `party.DOORS` is that table.
 A brief holds for a door when a line of its head, above its first `## `, is `Holds: <case>`, with several cases split by commas.
 A line that names a case the table does not have holds for every door.
 A brief also holds for each door that a command of its `Done when:` or `Proves it:` lines walks through, by the table's `runs` (`party.walks`), whether or not a `Holds:` line names it: `DSQL_STAGE=prod db/apply.sh dsql <file>`, `infra/deploy-backend.sh prod`, `scripts/deploy <service>`, `git push --force`, `gh release create` and the like.

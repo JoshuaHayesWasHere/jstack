@@ -12,7 +12,12 @@ A differing answer comes back as a message, and the thread takes the default bac
 The first jbus pass that sees the question closes it with its default, by silence.
 That close is not the user's word, and a later answer of theirs still replaces it.
 
-There is one exception. When the default is irreversible or slow to revert, the thread does not act. It does the fail-safe instead, and adds two lines under `Undo`, `Holds: <the case>` and `Fail-safe: <what was prepared, with its path or link>`. Then the action waits for the user's answer, and silence never closes it. A default is irreversible or slow to revert when undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. The case is one of these six, word for word:
+There is one exception.
+When the default is irreversible or slow to revert, the thread does not act.
+It does the fail-safe instead, and adds two lines under `Undo`, `Holds: <the case>` and `Fail-safe: <what was prepared, with its path or link>`.
+Then the action waits for the user's answer, and silence never closes it.
+A default is irreversible or slow to revert when undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
+The case is one of these, word for word:
 
 | Case | Examples | Fail-safe |
 |---|---|---|
@@ -28,6 +33,6 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 It refuses as `not sent:` a gate with no `Holds:` line whose default waits for the user's word, since the first pass closes it at once and nobody is left to give that word: the default says what is done with no word.
 
 A home that marks a gate `Status: answered` in its own `gates.md` closes a gate with no `Holds:` line, and never one that holds.
-Only the user's own answer, read by jbus in T3 Code with `jbus --as user answer <n> --message <thread>/<message>`, closes a gate that holds, and that message names the gate's number or its row.
+Only the user's own answer, read by jbus in T3 Code with `jbus --as user answer <n> --default --message <thread>/<message>` (`--differs` for an answer that is not the default), closes a gate that holds, and that message names the gate's number or its row.
 The page of `jbus view` refuses to close a gate that holds.
 A word a bot or a home carried, `bot-chat` evidence or typed words, opens no door, whatever it says.
