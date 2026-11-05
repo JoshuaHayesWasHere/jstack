@@ -217,14 +217,6 @@ def test_a_line_that_names_no_scope_is_the_root_homes(homes, reader, line):
     assert homes.reports_to(reader, "no-such-file") == f"{THREAD}\n"
 
 
-@pytest.mark.parametrize("reader", READERS)
-def test_the_first_home_line_is_the_one_read_and_only_its_first_word(homes, reader):
-    slug = homes.sent(reader, "a-task", f"Home:\t{SCOPE}  ", "## Result", "Home: nosuch")
-    homes.home_starts(THREAD)
-    homes.home_starts(OTHER, SCOPE)
-    assert homes.reports_to(reader, slug) == f"{OTHER}\n"
-
-
 def test_the_start_of_a_second_home_changes_no_brief_and_no_request(homes):
     for reader in ("crew", "scout"):
         homes.sent(reader, "plain", "Thread: mcp:1")

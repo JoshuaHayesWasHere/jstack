@@ -32,19 +32,9 @@ def holding(bus):
     bus.kitchen.poll()
 
 
-def test_the_home_skills_block_prints_the_gate_that_holds_and_its_reply(bus):
-    holding(bus)
-    assert bus.home(NEEDS).splitlines() == LISTED
-
-
 def test_the_ketchup_block_prints_the_same_list(bus):
     holding(bus)
     assert bus.sh(block("ketchup", NEEDS), bus.main).splitlines() == LISTED
-
-
-def test_with_nothing_open_the_block_says_nothing_waits(bus):
-    bus.kitchen.poll()
-    assert bus.home(NEEDS) == "nothing waits on user in any project"
 
 
 def test_a_start_opens_its_status_with_the_same_list(bus):

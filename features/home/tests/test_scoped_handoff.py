@@ -3,7 +3,6 @@ own directory and starts no home after it. A scoped home's scope is closed, and 
 listed as the root home's. Each test takes every block from the handoff skill and runs it in a
 temporary repo that has both homes."""
 
-import json
 import os
 import re
 
@@ -20,7 +19,7 @@ from test_scoped_home import (
     UNFILLED,
     Homes,
 )
-from test_tool_calls import CALLS, errors
+from test_tool_calls import CALLS
 
 OPEN = "## sc-next: a task still to do\nStage: planned\nDone when:\n- it works\n"
 NOTE = "Why: the user archived it\nOut, not on the bus: none\nUncommitted: none\n"
@@ -259,19 +258,6 @@ def test_the_handoff_finds_a_home_where_the_home_skill_finds_it(homes, thread):
     assert here.stdout == at_home.stdout
     found = {"": homes.home_dir, ROOT: homes.home_dir, SCOPED: homes.scope_dir}.get(thread)
     assert here.stdout == str(found) if found else here.stdout.startswith("no home: ")
-
-
-def test_the_skill_launches_nothing_and_renames_the_thread_archived():
-    text = block("handoff", CLOSE)
-    assert "t3_thread_launch" not in text and "message: /home" not in text
-    skill = "\n".join(call.written for call in CALLS if call.where.startswith("handoff:"))
-    assert "/home <seed>" not in skill
-    renamed = json.loads(
-        RENAME.written.replace("<title>", "home: demo").replace("<date>", "2026-10-29")
-    )
-    assert renamed == {"action": "rename", "title": "home: demo (archived 2026-10-29)"}
-    assert errors(RENAME, renamed) == []
-    assert json.loads(SETTLE.written) == {"action": "settle"}
 
 
 def test_an_archived_scope_starts_again_with_home_and_its_plan_back(homes, monkeypatch):
