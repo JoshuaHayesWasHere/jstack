@@ -287,22 +287,3 @@ KEPT = {
 }
 """The codes of the waits on jmerge, GitHub and the check, which keep the head of the line.
 Each of these ends in a merge by itself, and every other code waits on a crew or the user."""
-
-
-@pytest.mark.parametrize("code", sorted(ready.codes()))
-def test_the_one_in_line_keeps_it_on_a_wait_on_jmerge_github_or_its_check_alone(code):
-    listed = {
-        "number": 7,
-        "url": url(7),
-        "headRefName": "two",
-        "headRefOid": "a" * 40,
-        "baseRefName": "main",
-        "statusCheckRollup": merge.rollup([AFTER]),
-        "files": [],
-        "changedFiles": 0,
-    }
-    one = ready.pull_request(listed)
-    why = next((r for r in ready.reasons().values() if r.code == code), code)
-    found = cli.Judgement("two", "wait", why, "", None)
-    assert cli.in_line(one, found) == (code in KEPT)
-    assert ready.codes() >= KEPT

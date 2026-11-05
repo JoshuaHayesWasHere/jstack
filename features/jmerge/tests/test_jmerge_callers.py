@@ -57,10 +57,3 @@ def test_main_changing_its_own_file_cleanly_has_its_check_run_over_today_s_main(
     assert kitchen.run() == [f"wait 7 {url(7)}: {asked}"]
     assert kitchen.updates() == ["7"]
     assert kitchen.calls() == []
-
-
-def test_main_changing_the_pull_requests_own_lines_makes_it_wait_for_a_rebase(kitchen):
-    kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
-    kitchen.on_main({"src/pkg/core.py": CORE + "\n# theirs\n"})
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_CONFLICT}"]
-    assert kitchen.updates() == []

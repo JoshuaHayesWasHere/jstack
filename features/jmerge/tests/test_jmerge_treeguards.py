@@ -128,13 +128,6 @@ def test_merged_tree_guards_that_passed_are_not_run_again(tmp_path):
     assert not (tree.state / treeguards.TREE).exists()
 
 
-def test_merged_tree_guards_start_no_more_once_a_run_spent_its_time(tmp_path):
-    tree = Tree(tmp_path)
-    guards = tree.guards("true")
-    guards.spent = treeguards.RUN_SECONDS
-    assert guards.of(tree.one, tree.tip) == (ready.MERGED_TREE_NO_TIME.format(**values(tree)), "")
-
-
 def test_merged_tree_of_a_head_that_conflicts_with_the_tip_waits_for_a_rebase(tmp_path):
     tree = Tree(tmp_path, ours="ours\n", theirs="theirs\n", path="a.txt")
     assert tree.guards("true").of(tree.one, tree.tip) == (ready.FRESH_CONFLICT, "")

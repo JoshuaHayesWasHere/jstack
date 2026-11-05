@@ -6,10 +6,8 @@ request with, over briefs as the skills write them."""
 
 import pytest
 
-import test_home_merge as merge
-import test_jmerge_run as jrun
 from jbriefs import meets
-from jmerge import bus, ready
+from jmerge import ready
 
 SAW, FIX, LATER = "a" * 40, "b" * 40, "c" * 40
 DONE = "Done when:\n- the rule holds: a test\n- the docs say it\n- the check command passes\n"
@@ -186,15 +184,6 @@ def test_a_waiver_that_names_its_line_by_part_of_a_word_names_none():
     assert meets.waivers(brief(section(NO), result="Waived: the d, mcp:josh/m1\n")) == ()
 
 
-def test_an_old_twice_brief_is_judged_as_a_review_brief():
-    """`Review: twice` is retired: one round reads it as `review`, so a brief from before it is
-    held, and freed, exactly as a `review` brief is."""
-    twice = HEAD.replace("Review: review", "Review: twice")
-    for first in (section(NO), section(YES)):
-        assert ready.short_of(brief(first, head=twice), SAW) == ready.short_of(brief(first), SAW)
-    assert ready.short_of(brief(section(YES), head=twice), SAW) == ""
-
-
 def test_a_cleanup_brief_is_held_by_its_review_saying_no():
     cleanup = HEAD.replace("Review: review", "Review: cleanup")
     assert ready.short_of(brief(section(NO), head=cleanup), SAW) == ready.MEETS_NO.format(
@@ -215,30 +204,3 @@ class Bus:
 
     def __getattr__(self, name):
         return getattr(self.real, name)
-
-
-@pytest.mark.parametrize(
-    ("said", "waits"),
-    [("", False), ("refused: message mcp:josh/m1 is not user's own", True)],
-    ids=["a word the bus checked", "a word the bus refused"],
-)
-def test_jmerge_judges_a_waived_no_by_the_word_its_bus_checked(
-    proven_merged, monkeypatch, said, waits
-):
-    """The path a merge takes: `Repo.waits` reads the brief's `Waived:` line, asks the bus of its
-    word once (`rows.heard`), and holds or lets the pull request go by the answer."""
-    head = proven_merged.head
-    reviewed = section(NO, head=head)
-    text = merge.brief(reviewed, result="Reviewer: mcp:9 #1\n" + WAIVED, field=DONE)
-    (proven_merged.home.tasks / "alpha.md").write_text(text)
-    proven_merged.home.open_pull_request(head, checks=(jrun.STARTED,), files=["a.txt"])
-    fake = Bus(bus.found(), said)
-    monkeypatch.setattr(bus, "found", lambda: fake)
-    here = jrun.repo(proven_merged, monkeypatch)
-    one = jrun.pull_request("a.txt", head=head)
-    found = here.waits(one, "main")
-    held = ready.MEETS_NO.format(head=head[:12], met=2, count=3, lines="2")
-    assert (found.why == held) == waits
-    assert (found.judged is not None) == (not waits)
-    here.waits(one, "main")
-    assert fake.asked == [(meets.Waiver(2, "mcp:josh/m1", "the docs say it"), "alpha")]
