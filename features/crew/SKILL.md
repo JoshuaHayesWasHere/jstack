@@ -101,7 +101,7 @@ Never merge: `jmerge`, run by jbus, merges.
 
 1. Before your first test run: read `$T/../skills/crew/test-slots.md` now.
 2. Once every **Done when** line holds, with the work committed, and before you open the pull request: read `$T/../skills/crew/do-the-task.md` now.
-3. Opening the pull request: `features/writing/playbooks/opening-a-pr.md`, from `$T/..`, then "Stay on the pull request" below.
+3. Opening the pull request: `playbooks/opening-a-pr.md`, from `$T/..`, then "Stay on the pull request" below.
 
 | When | Do |
 |---|---|
