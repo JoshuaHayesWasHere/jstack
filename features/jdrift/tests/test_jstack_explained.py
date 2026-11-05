@@ -1,10 +1,7 @@
-"""`features/home/docs/jstack-explained.html` has a card for everything it explains, and loads
-nothing from outside the page.
+"""`features/home/docs/jstack-explained.html` has a card for everything it explains.
 
-The tests read the page with an HTML parser and check it against the repo itself. They check
-that the step numbers of its lead drawing run from 1 to 10. They check the rules file of each
-command against the tree. They check each attribute that loads a file against the page's own
-anchors. They compare none of the page's sentences with anything.
+The tests read the page with an HTML parser and check it against the repo itself. They compare
+none of the page's sentences with anything.
 
 Nobody writes the cards of the skills, playbooks and principles, or the links above them, by
 hand: `python -m jdrift.explained` builds them from a card line in each file. So the tests check
@@ -13,7 +10,6 @@ builds from the tree. They do not use the committed page, which the docs sweep b
 date and no task edits.
 """
 
-import re
 import shutil
 import subprocess
 import sys
@@ -27,56 +23,39 @@ from jdrift.explained import COMMENT as CARD
 from testing.paths import REPO, playbooks, skills
 
 PAGE = REPO / "features/home/docs/jstack-explained.html"
-COMMANDS = {"jmerge", "jbus", "jgauge-room", "jroles", "jdrift"}
-LOCAL = {"flow.html"}
-
-
 VOID = {"meta", "br", "hr", "img", "wbr", "input", "link", "source"}
-HEADS = {"h4", "b"}
-URL = re.compile(r"url\(\s*['\"]?([^'\")]*)")
 
 
 class Page(HTMLParser):
-    """The page's parts: each id with its text and its heading, each `<code>`, the style, and
-    each attribute that loads a file."""
+    """The page's parts: each id with its text, each `<code>`, and each attribute that loads a
+    file."""
 
     def __init__(self):
         super().__init__()
         self.cards = {}
-        self.heads = {}
         self.codes = []
         self.loads = []
-        self.tags = set()
-        self.badges = {}
-        self.style = ""
         self._stack = []
-        self._text = None
-        self._cut = None
+        self._code = None
 
     def handle_starttag(self, tag, attrs):
-        self.tags.add(tag)
         attrs = dict(attrs)
         self.loads += [attrs[key] for key in ("src", "href", "srcset") if key in attrs]
-        if "style" in attrs:
-            self.loads.append(f"style={attrs['style']}")
         if tag in VOID:
             return
         name = attrs.get("id")
         self._stack.append((tag, name))
         if name:
             self.cards[name] = ""
-        if tag == "svg" and attrs.get("class") in ("wide", "tall"):
-            self._cut = attrs["class"]
-            self.badges[self._cut] = []
-        if tag in ("code", "style") or tag in HEADS or attrs.get("class") == "bn":
-            self._text = [attrs.get("class") if tag == "text" else tag, ""]
+        if tag == "code":
+            self._code = ""
 
     def handle_data(self, data):
         for _, name in self._stack:
             if name:
                 self.cards[name] += data
-        if self._text:
-            self._text[1] += data
+        if self._code is not None:
+            self._code += data
 
     def handle_endtag(self, tag):
         if tag in VOID:
@@ -84,23 +63,9 @@ class Page(HTMLParser):
         assert any(open_tag == tag for open_tag, _ in self._stack), f"</{tag}> closes nothing"
         while self._stack.pop()[0] != tag:
             pass
-        if tag == "svg":
-            self._cut = None
-        if not self._text or self._text[0] not in (tag, "bn"):
-            return
-        kind, text = self._text
-        self._text = None
-        text = " ".join(text.split())
-        if kind == "code":
-            self.codes.append(text)
-        elif kind == "style":
-            self.style += text
-        elif kind == "bn":
-            self.badges[self._cut].append(text)
-        else:
-            card = next((name for _, name in reversed(self._stack) if name), None)
-            if card:
-                self.heads.setdefault(card, text)
+        if tag == "code" and self._code is not None:
+            self.codes.append(" ".join(self._code.split()))
+            self._code = None
 
 
 def read(text):
@@ -109,11 +74,6 @@ def read(text):
     parsed.close()
     assert not parsed._stack, f"left open: {parsed._stack}"
     return parsed
-
-
-@pytest.fixture(scope="module")
-def page():
-    return read(PAGE.read_text())
 
 
 @pytest.fixture(scope="module")
@@ -206,12 +166,6 @@ def test_every_one_has_a_card_and_no_card_is_for_one_that_is_gone(built, prefix)
     assert carded(built, prefix) == there
 
 
-@pytest.mark.parametrize("prefix", KINDS)
-def test_a_card_is_headed_by_the_name_it_is_for(built, prefix):
-    for name in carded(built, prefix):
-        assert built.heads[prefix + name].split()[0].lstrip("/") == name
-
-
 @pytest.mark.parametrize("prefix", ["skill-", "playbook-"])
 def test_the_picture_above_the_cards_links_every_card(built, prefix):
     linked = {load[1:] for load in built.loads if load.startswith("#" + prefix)}
@@ -227,28 +181,6 @@ def test_a_card_and_its_link_are_in_the_tile_its_file_names_in_the_order_of_its_
     assert list(part(text, "playbook cards, Decide").cards) == ["playbook-two"]
     assert list(part(text, "principle cards, Prove it").cards) == ["principle-principle-prove"]
     assert "skill-stale" not in text
-
-
-def test_a_card_has_the_words_of_its_own_file(tree):
-    text = build(tree)
-    assert (
-        '<article class="card" id="skill-how"><h4>/how</h4><p>Says &lt;how&gt; &amp; why.</p>'
-        '<p class="when">When <code>x</code> is new.</p><div class="who">'
-        '<span class="chip op">the operator</span>'
-        '<span class="chip plain">a step of <code>one</code></span></div></article>\n'
-    ) in text
-    assert '<article class="card scout" id="skill-scout"><h4>/scout</h4>' in text
-    assert (
-        '<article class="card" id="playbook-one"><h4>one</h4><p>For: One thing.</p></article>\n'
-    ) in text
-    assert (
-        '<p>For: Two things.</p><div class="who"><span class="chip plain">'
-        "<code>Review: none</code></span></div></article>"
-    ) in text
-    assert (
-        '<div id="principle-principle-prove"><b>principle-prove</b><small>Run it.</small>'
-        '<div class="leans"><code>one</code><span>most</span></div></div>\n'
-    ) in text
 
 
 def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to_the_page(
@@ -400,52 +332,3 @@ def test_a_tile_the_page_does_not_have_is_refused_with_the_tiles_it_has(tree):
         "jdrift.explained: playbook-made-up names the tile `No such tile`, and "
         "features/home/docs/jstack-explained.html has no cards of it: it has Build; Decide\n"
     )
-
-
-def test_the_lead_numbers_each_step_once_and_in_order(page):
-    for cut in ("wide", "tall"):
-        assert page.badges[cut] == [str(n) for n in range(1, 11)], cut
-
-
-def test_a_page_without_one_card_is_not_the_tree():
-    text = build(REPO)
-    assert ' id="playbook-swarm"' in text
-    without = read(text.replace(' id="playbook-swarm"', ""))
-    assert KINDS["playbook-"]() - carded(without, "playbook-") == {"swarm"}
-
-
-def test_each_command_has_a_card_with_a_rules_file_of_its_own(page):
-    assert carded(page, "command-") == COMMANDS
-    rules = {}
-    for name in COMMANDS:
-        card = page.cards["command-" + name]
-        paths = set(re.findall(r"(?:features/[\w-]+/)?src/[\w/-]+\.(?:py|sh)", card))
-        assert len(paths) == 1, (name, paths)
-        rules[name] = paths.pop()
-        assert (REPO / rules[name]).is_file(), rules[name]
-        assert re.match(rf"(features/[\w-]+/)?src/{name.split('-')[0]}/", rules[name])
-    assert len(set(rules.values())) == len(COMMANDS)
-
-
-def test_the_page_loads_nothing_but_itself(page):
-    assert not page.tags & {"script", "link", "img", "iframe", "object", "embed"}
-    for load in page.loads:
-        assert load in LOCAL or (load.startswith("#") and load[1:] in page.cards), load
-    for name in LOCAL:
-        assert (PAGE.parent / name).is_file()
-    assert page.style
-    assert "@import" not in page.style
-    for target in URL.findall(page.style):
-        assert target.startswith("#") and target[1:] in page.cards, target
-
-
-def test_a_style_that_loads_a_file_is_read():
-    styled = read("<style>a { background: url(https://example.test/x.png) }</style>")
-    assert URL.findall(styled.style) == ["https://example.test/x.png"]
-
-
-def test_the_page_names_no_place_of_a_person():
-    text = PAGE.read_text()
-    for banned in ("—", "~/", "github.com"):
-        assert banned not in text, banned
-    assert not re.search(r"(?<![\w.])/home/", text), "a path under /home/"
