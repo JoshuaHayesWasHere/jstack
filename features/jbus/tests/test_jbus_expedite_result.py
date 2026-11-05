@@ -148,8 +148,8 @@ def unruled(short):
 def says_unruled(short):
     scoped = f"/pr-review run alpha scoped {short.start}..{short.saw} {short.start}..{short.head}"
     return (
-        "Your Result explains the lines the rebase dropped, and no scoped review has ruled on them "
-        f"yet. Where the Result has no `Scoped reviewer:` line of {short.head}, launch ONE scoped "
+        "No scoped review ruled yet on the drops your Result explains. "
+        f"Where the Result has no `Scoped reviewer:` line of {short.head}, launch ONE scoped "
         'reviewer, not a full review, the way the crew skill\'s "The review" launches a reviewer, '
         f"with the message `{scoped}`, and add `Scoped reviewer: <threadId>, of {short.head}` to "
         "the Result. Where it has one and that "

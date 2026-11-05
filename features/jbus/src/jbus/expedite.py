@@ -61,16 +61,14 @@ reason with its sentence:
 - `no-verdict` and `no-head`, a review with no verdict or no head: send its reviewer `/pr-review
   run <slug> again`. A `Fixed:` line short of a full commit is the crew's own to write again;
 - `rereview`, drops no scoped review ruled on or a rebase that changed the content: launch the one
-  scoped reviewer over the reason's range-diff. The kind is `jbus.rebase`'s own ask, so a head is
-  told once, and this row tells the crew where `rebase` asked nothing since the Result names a
-  scoped reviewer of the head, and that reviewer ended its turn with no review;
+  scoped reviewer over the reason's range-diff. It is `jbus.rebase`'s kind, so a head is told once,
+  and it tells where a scoped reviewer of the head the Result names ended with no review;
 - `fresh-conflict`, `merged-tree`, `base` and `not-upheld`: rebase with "A conflict" run with
   `stale` (and fix the guards that fail for `merged-tree`), retarget to the default branch, or
   put back a drop the review did not uphold, else tell the home.
 
-Every reason of `ready.reasons()` is a row of `TABLE`, or is in `UNTOLD`, which no crew can fix,
-or in `ELSEWHERE`, which another part of jbus tells the crew of. A test holds the three to
-`ready`, so a reason added there is never a quiet wait.
+Every reason of `ready.reasons()` is a row of `TABLE`, in `UNTOLD` (no crew can fix it) or in
+`ELSEWHERE` (another part of jbus tells the crew), and a test holds the three to `ready`.
 
 `tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
 thread is at work (`watch.at_work`: starting, `running` or `waiting`), since the line may be
@@ -167,10 +165,10 @@ PROVE_ONLY = "Push nothing for it: the line is in the Result, not the branch."
 SCOPE_REBASE = (
     "Where the Result has no `Scoped reviewer:` line of {head}, launch ONE scoped reviewer, not a "
     'full review, the way the crew skill\'s "The review" launches a reviewer, with the message '
-    f"`{SCOPED}`, and add `Scoped reviewer: <threadId>, of "
-    "{head}` to the Result. Where it has one and that thread ended its turn with no "
-    "`## Review`, send that thread the same line with `t3_thread_send`, and launch no second one. "
-    "Push nothing and do not rebase until its `## Review` is written."
+    f"`{SCOPED}`, and add `Scoped reviewer: <threadId>, of {{head}}` to the Result. Where it "
+    "has one and that thread ended its turn with no `## Review`, send that thread the same line "
+    "with `t3_thread_send`, and launch no second one. Push nothing and do not rebase until its "
+    "`## Review` is written."
 )
 _RANGE_DIFF = re.compile(r"git range-diff --no-color (\S+\.\.\S+) (\S+\.\.\S+)$")
 RERUN_REVIEWER = (
@@ -501,8 +499,7 @@ TABLE = (
         "rereview",
         "wait",
         ready.SCOPED_UNRULED,
-        "Your Result explains the lines the rebase dropped, and no scoped review has ruled on "
-        "them yet. " + SCOPE_REBASE,
+        "No scoped review ruled yet on the drops your Result explains. " + SCOPE_REBASE,
         reviewed=True,
         sends=SCOPED,
     ),
@@ -553,10 +550,7 @@ TABLE = (
     ),
 )
 _USERS = "the user's to lift, by a word, a go or a setting, and no push of a crew's lifts it"
-_RUNNER = (
-    "a wait on GitHub or on the merge runner, which the next run of jmerge asks again and no push "
-    "of a crew's moves"
-)
+_RUNNER = "a wait on GitHub or the merge runner, which jmerge asks again and no crew's push moves"
 _AHEAD = "a wait on a pull request that merges first, which ends when that one has merged"
 _CHECKOUT = "a failure of git in jmerge's main checkout, which no push of a crew's mends"
 UNTOLD = {
@@ -567,32 +561,27 @@ UNTOLD = {
     ready.NO_RUN.code: "GitHub started no run at the head, a gate of The checks and no push's",
     ready.MAIN_BROWSER_RED.code: "main's own browser run failed too, so the red is not the crew's",
     ready.CANCELLED_UNRUN.code: "jbus.cancelled runs a cancelled check again, and a push does not",
-    ready.QUEUED_UNREOPENED.code: (
-        "jmerge closed the pull request and could not reopen it, and tell sees open ones only"
-    ),
+    ready.QUEUED_UNREOPENED.code: "jmerge closed it and could not reopen it: tell sees open ones",
     ready.CANCELLED_TWICE.code: "jbus.cancelled takes a check cancelled twice to the home",
-    **dict.fromkeys(
-        (
-            "main-moved merging merge-failed no-messages undecided not-passed live-run "
-            "queue-unreadable carries-unknown base-merge-asked base-merge-due base-merge-refused "
-            "base-moved-asked base-moved-due in-line queued-restarted queued-unopened "
-            "queued-unclosed queued-gave-up queued-unrestarted merged-tree-unended "
-            "merged-tree-unbuilt merged-tree-no-time"
-        ).split(),
-        _RUNNER,
-    ),
-    **dict.fromkeys(
-        ("merges-after carries-after stacked-on migration-merging migration-rebasing").split(),
-        _AHEAD,
-    ),
-    **dict.fromkeys(("unmerged", "cannot-check"), _CHECKOUT),
-    **dict.fromkeys(
-        ("merge-off no-go row-held review-none touches renames-unsaid unlisted").split(),
-        _USERS,
-    ),
+    **{
+        code: why
+        for codes, why in (
+            (
+                "main-moved merging merge-failed no-messages undecided not-passed live-run "
+                "queue-unreadable carries-unknown base-merge-asked base-merge-due "
+                "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
+                "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
+                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time",
+                _RUNNER,
+            ),
+            ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),
+            ("unmerged cannot-check", _CHECKOUT),
+            ("merge-off no-go row-held review-none touches renames-unsaid unlisted", _USERS),
+        )
+        for code in codes.split()
+    },
 }
-"""The code of each reason that no crew can fix, and why. `tell` sends no crew a message for it.
-A group is written as its codes: the guard test fails on a code `ready` does not give."""
+"""Each code no crew can fix, and why: `tell` sends nothing for it, and a test checks each code."""
 ELSEWHERE = {
     ready.MAIN_CHANGED.code: "jbus.rebase tells the crew to rebase, once for the pull request",
     ready.CONFLICTS.code: "jbus.rebase tells the crew of the conflict at each head",
@@ -600,8 +589,7 @@ ELSEWHERE = {
     ready.CHECK_FAILED.code: "jbus.rebase tells the crew of the failed check, once per head",
     ready.STACKED_UNMOVED.code: "jbus.stack tells the crew to move its commits onto the base",
 }
-"""The code of each reason a crew fixes that another part of jbus tells it of, and which one.
-`tell` sends nothing for it, so the crew never hears of one wait twice."""
+"""Each code a crew fixes that another part of jbus tells it of: `tell` sends nothing for it."""
 
 
 def short_of(said: merge.Line) -> Short | None:
