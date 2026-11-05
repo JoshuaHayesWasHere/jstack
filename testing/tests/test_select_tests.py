@@ -1188,7 +1188,7 @@ TABLE = [
     ),
     (
         "chain",
-        ["features/skill-library/tests/skill_blocks.py"],
+        ["features/crew/tests/crew_helpers.py"],
         {"features/expert/tests/test_expert_skill.py"},
         (),
     ),
