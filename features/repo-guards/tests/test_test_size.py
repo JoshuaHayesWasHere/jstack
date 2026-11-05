@@ -15,7 +15,7 @@ from pathlib import Path
 from testing.paths import REPO
 
 CAP = 1500
-ALLOWED = {"features/pr-review/tests/test_pr_review_skill.py"}
+ALLOWED: set[str] = set()
 
 
 def files(root):

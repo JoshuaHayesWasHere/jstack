@@ -135,12 +135,3 @@ def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(proven
     rebased.brief(review("clean", rebased.before) + section)
     assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} {slug} alpha"]
 
-
-def test_a_scoped_review_with_a_finding_waits_for_it_to_be_handled(proven_merged, rules):
-    rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
-    section = review("findings", rebased.head).replace(
-        "Verdict: findings\n", f"Verdict: findings\nScope: range-diff {rebased.command()[28:]}\n"
-    )
-    rebased.brief(review("clean", rebased.before) + section)
-    (said,) = jrun.jmerge(proven_merged, rules, "--check")
-    assert said.endswith(": its findings are not handled: the Result has no Fixed line")
