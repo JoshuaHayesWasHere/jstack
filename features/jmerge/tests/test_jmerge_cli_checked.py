@@ -9,7 +9,7 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import ready
-from test_jmerge_ready_checked import checked
+from test_jmerge_ready_checked import checked, two_step
 
 
 @pytest.fixture
@@ -24,8 +24,15 @@ def briefed(merged, lines):
     (merged.home.tasks / "alpha.md").write_text(text)
 
 
-def test_a_pull_request_whose_guards_passed_at_its_head_merges(merged):
-    briefed(merged, checked(head=merged.head))
+@pytest.mark.parametrize(
+    "line",
+    [
+        pytest.param(lambda head: checked(head=head), id="the guards"),
+        pytest.param(lambda head: two_step(0, 124, head), id="two steps, the rest's 124"),
+    ],
+)
+def test_a_pull_request_whose_guards_passed_at_its_head_merges(merged, line):
+    briefed(merged, line(merged.head))
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
 
@@ -43,6 +50,11 @@ def test_a_pull_request_whose_guards_passed_at_its_head_merges(merged):
             checked(124, "{head}"),
             lambda m: ready.CHECKED_CUT.format(at=m.head[:12], head=m.head[:12]),
             id="exit 124",
+        ),
+        pytest.param(
+            two_step(124, 124, "{head}"),
+            lambda m: ready.CHECKED_CUT.format(at=m.head[:12], head=m.head[:12]),
+            id="two steps, the guards' 124",
         ),
         pytest.param(
             checked(0, "{start}"),
