@@ -45,14 +45,13 @@ It pulls by ref and never reads FETCH_HEAD, so another fetch in that checkout ca
 The subject is the pull request's title and ` (#<number>)`.
 The body lists the branch's commit messages as GitHub's default does.
 `jmerge` removes every AI co-author trailer line from each message (`jmerge.trailers`).
-A landing's merge commit keeps GitHub's subject, and its body is the title.
-A landing that is a squash gets the squash's message.
 When the crewmate's worktree is clean and its branch is at the merged head, `jmerge` removes the worktree, the local branch and the remote branch.
 It writes no plan, because `jbus plan` works out an entry's status from its queue rows.
 It needs `gh` and `git`.
 
 It prints one line per open pull request, and appends the lines to `merge.log`.
-It takes the open pull requests lowest number first, the oldest first, so an older pull request is not passed over by newer ones that became ready with it.
+It takes each revert jbus opened for a red main first ([A red main](../../jbus/docs/jbus/a-red-main.md)).
+It takes the rest lowest number first, the oldest first, so an older pull request is not passed over by newer ones that became ready with it.
 The migration order ("Migrations") and `merge_after` still come before the number.
 When a `wait` or `hold` line repeats from run to run, it logs the line only once.
 
@@ -67,7 +66,7 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 
 In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has failed [check-failed]`, and the line it prints has none.
 The code is fixed for a reason whatever its text says: a `Reason` in `features/jmerge/src/jmerge/ready.py` has its constant's name in lower case, its words joined by `-` (`CHECK_FAILED` is `check-failed`), and a reason given as plain text has the code of its rule in `ready.rules`.
-`check has failed` (`check-failed`) is a check every latest run of which failed, `check has not passed` (`not-passed`) one that is queued, running or passed, and a reason no rule names is `unknown`.
+`check has failed` (`check-failed`) is a check every latest run of which failed, `check has not passed` (`not-passed`) one that is queued, running or cancelled, and a reason no rule names is `unknown`.
 jbus and the view read a pull request's step from the code, and from the text on a line logged before the codes and on a line as `jmerge` prints it, which `ready.code_of` gives the same code.
 
 For each pull request it merges, `jmerge` also appends one line to `merge-waits.jsonl` beside `merge.log`, which `jbus telemetry` reads (`features/jmerge/src/jmerge/waits.py`).
@@ -78,7 +77,8 @@ From one run that sees it wait to the next, the wait is the code of the reason t
 `merge-waits.json` keeps the waits of the open pull requests between runs, and `--check` writes neither file.
 
 A pull request that waits does not make `jmerge` exit non-zero.
-`jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, or when it refuses an `--accept`.
+`jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, when it refuses an `--accept`, or when it cannot read the protected list or a pattern in it.
+With `--if-free` it exits 75 while another run holds the run lock (`lock.BUSY`).
 
 ## What ready means
 
@@ -162,6 +162,15 @@ The section "Protected paths" describes one more hold.
   A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes.
   The rule does not apply to a brief that says `Review: none`, to one with no review that ran, or to one with no `Done when` list.
   `jmerge` judges it after every other wait of the review, so a pull request short of a `Fixed:` line or a scoped review says that first.
+- **Its Result proves the work.**
+  The pull request waits on the `result` step while one of three lines of its brief's Result is short (`ready.short_of`, `ready.short_on_proved`, `ready.short_on_checked`).
+  `Skills run:` has an artifact for each skill the brief's `Skills:` line names (`skills-unrun`).
+  A pull request that changes tests has a `Proved:` line that names each of them, with their run ending 1 at its base and 0 at its head.
+  One that changes only test files needs only the run at its head, and one that changes no test needs no line.
+  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=guards` or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
+  An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
+  On the two-step line the crew's check block once wrote, only the guards' step counts.
+  Each line it waits with is a `Reason` in `features/jmerge/src/jmerge/ready.py`, from `SKILLS_UNRUN` to `CHECKED_PART`.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
   A required check whose job its own workflow skipped by an `if:` counts as passed when every other job of that workflow at the head passed or was skipped, and one passed: macos.yml skips `macos` that way where its `macos-select` job finds no Mac test the change reaches (`ready.passed`).
@@ -317,7 +326,9 @@ GitHub refuses to rerun a run it has not ended, and a cancel can leave it queued
 The restart is spent only once its close and its reopen both took.
 `base-merges.json` keeps each step on the head's record (`stuck`) as it takes: the first try (`asked`) before the close, with the reopen owed, then `closed`, then `took`, so a run that stops between two steps leaves a record the next run goes on from.
 A close that failed is tried again on each run, and once `ready.RESTART_MINUTES` (10 minutes) have passed since the first try, the pull request gives up the line and waits with `QUEUED_UNRESTARTED`, `GitHub queued its <check> run at <head> and started none, and jmerge could not close and reopen it in 10 minutes of tries (<why>): it gave the head of the line to the next pull request`.
+While the close is still being tried, the wait is `QUEUED_UNCLOSED`, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge could not close and reopen it to start a new run (<why>)`.
 A reopen that failed is owed, and `rejudge.BaseMerge.reopen` asks it again on each run for the same `ready.RESTART_MINUTES` from the first try, and then asks it no more (`unopened`): the pull request holds the line no more, and on each run `jmerge` says `QUEUED_UNREOPENED`, `GitHub queued its <check> run at <head> and started none: jmerge closed it to start a new run, and its reopen failed for 10 minutes of tries (<why>), so it asks no more and the pull request stays closed until a hand reopens it`, until GitHub lists it open again.
+While the reopen is still being asked, the wait is `QUEUED_UNOPENED`, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed it to start a new run, and its reopen failed (<why>), which the next run asks again`.
 One whose owed reopen took on a later run holds the line no more either, for another took it while it was closed.
 Once a restart took, the pull request keeps the line for `ready.RESTART_MINUTES`, since GitHub lists the new run within seconds of the reopen and a run of `jmerge` in the same minute still sees the old one.
 Where GitHub then lists no newer run, or the newer one is queued for `ready.QUEUED_MINUTES` too, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
@@ -338,7 +349,7 @@ Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `f
 ## The guards on the merged tree
 
 Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
-The clash shows on the tree of one merged over the other, so `jmerge` checks that tree before it merges a pull request on its existing check (`features/jmerge/src/jmerge/treeguards.py`).
+The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
 jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
 A repo with no such file runs no guards, and a pull request whose check main moved past goes through the line ("Merges cleanly over today's main").

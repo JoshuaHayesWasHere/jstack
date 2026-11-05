@@ -7,9 +7,10 @@ You see one of these:
 
 - A `sign-in` alert on the desk and in the infra home, as the end comes near and once after it.
   [The reminder](../jbus/the-sign-in.md#the-reminder) has each of its lines and the day it comes.
-- `condition <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login`, on the desktop from 5 days before the end, on Linux only, since macOS has no `notify-send`.
+- `T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login`, in each project's `sign_in` field of the status file that `jbus status` prints, from `warn_days` (5) days before the end.
 - `wait <project>: T3 Code could not be asked (<why>)`, from each pass after the end.
-- `old optional jbus sign-in <path> -> expired <date>, run jbus t3 login`, from `jinstall --doctor`.
+- `old hard jbus sign-in <path> -> expired <date>, run jbus t3 login`, from `jinstall --doctor`.
+  The need is `optional` only while jbus's config has no project.
 
 Sign in again:
 
@@ -18,7 +19,7 @@ Sign in again:
 2. Run `t3 auth pairing create`, and enter the code it prints on that page.
    Approve with full access, because `jbus` launches threads.
 3. Run `jinstall --doctor`.
-   Its line is `ok optional jbus sign-in <path>`.
+   Its line is `ok hard jbus sign-in <path>`.
 
 The next pass ends the sign-in alert and launches again.
 [The sign-in](../jbus/the-sign-in.md) has when each line comes.

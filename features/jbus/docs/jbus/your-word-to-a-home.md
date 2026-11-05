@@ -19,7 +19,7 @@ So a bot-chat word takes that message with `--answers "<the bot's message>"`, or
 jbus keeps it on the word's evidence as `answers`, and the message it carries to the home holds it under your words: `The bot's message these words answer: <the bot's message>`.
 `--answers` goes only with `bot-chat` evidence, and is refused otherwise with `refused: --answers goes with --evidence bot-chat:<address>/<device>`.
 The same message answering another bot message is still the same word: `answers` is not in its id.
-A bot-chat word that keeps no `answers` and whose words name no queued row by its slug, such as one that ends `[for: <slug>]`, says nothing on its own, and `jbus word` refuses it before anything is kept or sent: `refused: a word from the bot's chat that names no row says nothing on its own: pass --answers <the bot's message it answers>, or end the words with [for: <slug>]`.
+A bot-chat word that keeps no `answers`, whose words name no queued row by its slug, such as one that ends `[for: <slug>]`, and that names no scoped home in a trailing `[for: ...]`, such as `[for: cicd home]`, says nothing on its own, and `jbus word` refuses it before anything is kept or sent: `refused: a word from the bot's chat that names no row says nothing on its own: pass --answers <the bot's message it answers>, or end the words with [for: <slug>]`.
 A home's `jbus queue approve <slug> --word <id>` on such a kept word is refused too, for a row the words do not name: `refused: word <id> is from the bot's chat, keeps no bot's message it answers and does not name <slug>: ask <user> through the bot whether it means <slug>`.
 
 ## One party acts on a word
@@ -52,6 +52,7 @@ A word that could not go waits, and each pass tries it again.
 
 A word goes to the one home of the project that owns its subject, so two homes never act on one word.
 It is the home of the briefs, requests and rows the words name by slug, when they are all one home's, and a new slug is a scope's when every brief with its prefix is that scope's.
+A row's brief is found in the home's `tasks/` or, where only jbus keeps it, in `~/.local/state/jbus/<project>/briefs/`, and its `Home:` line names the home that queued it.
 A word that names the work of two homes goes to the root home.
 A word that names none goes to the home it was said in (the thread of `--message`) or recorded by (`--from`), so a scoped home's own word stays in that scope, and otherwise to the root home.
 A home that records a word about another home's work with `--from` forwards it to that home, and the command prints `sent: <project>, to the <scope> home at <thread>, word <id>`.

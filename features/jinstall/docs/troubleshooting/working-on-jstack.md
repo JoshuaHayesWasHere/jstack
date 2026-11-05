@@ -14,6 +14,7 @@ The lines below print only in a checkout.
 | `usage: install.sh [--check \| --uninstall \| --doctor \| --setup \| --repo [<path>]]` | The argument is not one of the verbs. The script exits 2. | Run it with one verb or none. |
 | `install.sh: <checkout> is a linked worktree, and HOME is your own: install from the main checkout` | A plain install from a worktree would point every skill at that worktree. The script wrote nothing. | Run `sh install.sh` in the main checkout. |
 | `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout` | A `--setup` from a worktree would do the same. The script wrote nothing. | Run `sh install.sh --setup` in the main checkout. |
+| `install.sh: <checkout> is a linked worktree, and HOME is your own: set a repo up from the main checkout` | A `--repo` from a worktree would do the same. The script wrote nothing. | Run `sh install.sh --repo <path>` in the main checkout. |
 
 ## The generated files
 
@@ -24,13 +25,15 @@ The lines below print only in a checkout.
 
 ## The commands of a checkout
 
-A checkout installs the commands as an editable install of itself, `uv tool install --editable <checkout>`.
+A checkout installs the commands as an editable install of its source, `uv tool install --editable <source>`.
+The source is the green copy once jbus's config names the checkout as a project ([The green copy](../jinstall.md#the-green-copy)), and the checkout otherwise.
 
 | Line | Meaning | Do this |
 |---|---|---|
 | `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the ten commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
 | `old hard commands jstack -> lacks <names>` | The tool was installed before those commands were added. | Run `sh install.sh`. |
 | `old hard commands jstack -> an install of <path>` | The tool runs the code of another checkout. | Run `sh install.sh` in the checkout you want live. |
+| `old hard commands jstack -> stale: its entry points differ from pyproject.toml in <groups>` | A group of entry points in the checkout's `pyproject.toml`, such as its scripts, differs from the one the installed tool has. | Run `sh install.sh`. |
 | `old hard commands jstack -> stale: its editable paths lack <paths>` | A package moved in the checkout after `uv` built the install, so the install's paths lack its new folder. | Run `sh install.sh`. |
 | `old hard commands jstack -> tool <tool> is installed from a release or an index, not as an editable install of this checkout` | A tool of that name came from a release, an index or a git URL. The install does not replace it. | Run `uv tool uninstall <tool>`, then `sh install.sh`. |
 | `old hard commands jstack -> tool jgauge, from before the rename` | The tool is installed under its old name, `jgauge`. | Run `sh install.sh`. It removes the old tool. |
