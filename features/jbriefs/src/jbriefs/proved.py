@@ -39,7 +39,8 @@ TEST_FILE = re.compile(r"(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$
 `*_test.py`, and a `conftest.py`. A pull request whose every file is one, or of an `EXEMPT` kind,
 changes no code, so the code at its base is its head's own and its tests pass there too: its
 `Proved: <tests> head exit <n> at <head>, tests only` line runs them at the head alone. The proof
-block's `grep -E` matches the same files."""
+block's `grep -E` matches the test files alone, so it prints that line only where every file is
+one."""
 _PROVED_NONE = re.compile(r"Proved: none, (?P<kinds>.+)")
 _KIND_SEPARATOR = re.compile(r"\s*,\s*|\s+and\s+")
 
