@@ -1,15 +1,17 @@
-"""A pytest plugin that stops a run under coverage once every line it waits for has run.
+"""A pytest plugin that stops a run under coverage once every file it waits on is decided.
 
 `test_new_lines_run.unrun` loads it into the run of the tests that name the code a branch adds,
-with `NEW_LINES_RAN` the path of a JSON file: `{"lines": {<absolute path>: [<line>, ...]}, "data":
-<coverage's data file>, "stopped": <a path>}`. After each test, a process that runs tests reads
-what coverage has measured in it so far, writes that to a file of its own beside the data file,
-and reads the same from every other process: the other workers, and each process a test started
-that has ended and saved its data. Once every line waited for is among them, it writes the
-`stopped` file and stops the run, and pytest ends 2. It waits only for the lines coverage counts
-as statements, so a line a pragma excludes holds no run to its end. Lines seen here did run, so a
-stop never hides a line no test runs: the verdict is still the data coverage combines once the run
-ends.
+with `NEW_LINES_RAN` the path of a JSON file: `{"lines": {<absolute path>: [<line>, ...]},
+"reach": {<absolute path>: [<absolute test file>, ...]}, "data": <coverage's data file>,
+"stopped": <a path>}`. A file is decided once each of its lines has run, or once every test of the
+test files that can reach it, its `reach`, has ended. After each test, a process that runs tests
+reads what coverage has measured in it so far and the tests it has ended, writes that to a file of
+its own beside the data file, and reads the same from every other process: the other workers, and
+each process a test started that has ended and saved its data. Once every file waited on is
+decided, it writes the `stopped` file and stops the run, and pytest ends 2. It waits only for the
+lines coverage counts as statements, so a line a pragma excludes holds no run to its end. Lines
+seen here did run, so a stop never hides a line no test runs: the verdict is still the data
+coverage combines once the run ends.
 """
 
 import json
@@ -28,11 +30,26 @@ class Waiting:
             Path(path).resolve(): set(lines) & set(cov.analysis2(path)[1])
             for path, lines in said["lines"].items()
         }
+        self.reach = {
+            Path(path).resolve(): {Path(test).resolve() for test in tests}
+            for path, tests in said["reach"].items()
+        }
         self.data = Path(said["data"])
         self.stopped = Path(said["stopped"])
         self.mine = self.data.parent / f"ran.{os.getpid()}.json"
         self.read: dict[Path, tuple[float, int]] = {}
         self.seen: dict[Path, set[int]] = {}
+        self.tests: dict[Path, set[str]] = {}
+        self.ended: set[str] = set()
+        self.ours: list[str] = []
+
+    def collected(self, items: list[pytest.Item]) -> None:
+        """The tests of the run that each file waited on can be reached by."""
+        self.tests = {path: set() for path in self.lines}
+        for item in items:
+            for path, tests in self.reach.items():
+                if item.path.resolve() in tests:
+                    self.tests[path].add(item.nodeid)
 
     def add(self, data: coverage.CoverageData) -> None:
         for name in data.measured_files():
@@ -41,8 +58,8 @@ class Waiting:
                 self.seen.setdefault(path, set()).update(data.lines(name) or ())
 
     def others(self) -> None:
-        """The lines in each data file of an ended process, and each other worker's file, read
-        again whenever it changed."""
+        """The lines in each data file of an ended process, and the lines and ended tests in each
+        other worker's file, read again whenever it changed."""
         for file in self.data.parent.glob(f"{self.data.name}.*"):
             if self.changed(file):
                 saved = coverage.CoverageData(basename=str(file))
@@ -59,8 +76,9 @@ class Waiting:
                 except ValueError:
                     self.read.pop(file, None)
                     continue
-                for path, lines in ran.items():
+                for path, lines in ran["lines"].items():
                     self.seen.setdefault(Path(path), set()).update(lines)
+                self.ended.update(ran["ended"])
 
     def changed(self, file: Path) -> bool:
         try:
@@ -73,14 +91,19 @@ class Waiting:
         self.read[file] = mark
         return True
 
-    def done(self, cov: coverage.Coverage) -> bool:
+    def done(self, cov: coverage.Coverage, test: str) -> bool:
         self.add(cov.get_data())
+        self.ended.add(test)
+        self.ours.append(test)
         here = {str(path): sorted(self.seen.get(path, ())) for path in self.lines}
         part = self.mine.with_suffix(".part")
-        part.write_text(json.dumps(here))
+        part.write_text(json.dumps({"lines": here, "ended": self.ours}))
         part.replace(self.mine)
         self.others()
-        return all(lines <= self.seen.get(path, set()) for path, lines in self.lines.items())
+        return all(
+            lines <= self.seen.get(path, set()) or self.tests[path] <= self.ended
+            for path, lines in self.lines.items()
+        )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -95,8 +118,11 @@ class Stop:
         self.waiting = waiting
         self.cov = cov
 
+    def pytest_collection_finish(self, session: pytest.Session) -> None:
+        self.waiting.collected(session.items)
+
     @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(self, item: pytest.Item) -> None:
-        if self.waiting.done(self.cov):
+        if self.waiting.done(self.cov, item.nodeid):
             self.waiting.stopped.touch()
-            item.session.shouldstop = "every line waited for has run"
+            item.session.shouldstop = "every file waited on has run or its tests have ended"
