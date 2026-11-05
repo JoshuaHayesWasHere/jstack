@@ -19,7 +19,6 @@ from test_scoped_home import (
     UNFILLED,
     Homes,
 )
-from test_tool_calls import CALLS
 
 OPEN = "## sc-next: a task still to do\nStage: planned\nDone when:\n- it works\n"
 NOTE = "Why: the user archived it\nOut, not on the bus: none\nUncommitted: none\n"
@@ -35,11 +34,6 @@ ARCHIVED_ROOT = (
 WHERE = "printf 'write:"
 CLOSE = 'jbus forget "$M/home-id"'
 KEPT = re.compile(r"log/\d{4}-\d\d-\d\d-\d{4}(\d\d)?\.md")
-RENAME, SETTLE = (
-    call
-    for call in CALLS
-    if call.where.startswith("handoff:") and call.tool in ("t3_thread_update", "t3_thread_organize")
-)
 
 
 class HandingOff(Homes):

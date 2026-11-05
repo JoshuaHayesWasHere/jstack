@@ -16,13 +16,9 @@ from test_home_thread import NAME, OTHER, THREAD, Scene, block, paths, start_blo
 from test_home_thread import NOTE as PAGE
 from test_scoped_handoff import HandingOff, jbus_says
 from test_scoped_home import ROOT, SCOPE, SCOPED
-from test_tool_calls import CALLS
 
 NEXT = "mcp:the-next-home"
 COOK = "mcp:a-cook"
-TELL_THE_SENDER, NO_HOME = (
-    call for call in CALLS if call.where.startswith("handoff:") and call.tool == "t3_thread_send"
-)
 
 
 class Mail(Scene):
