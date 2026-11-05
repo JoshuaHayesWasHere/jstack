@@ -1,6 +1,7 @@
 # Rationale template
 
-For the thread that runs `architect`: paste what is below the line into the Phase B prompt. "Synthesis decision" is yours to fill, from steps 5 and 6 of Phase B: the pick, each graft, and what was rejected.
+For the thread that runs `architect`: paste what is below the line into the Phase B prompt.
+"Synthesis decision" is yours to fill, from steps 5 and 6 of Phase B: the pick, each graft, and what was rejected.
 
 ---
 

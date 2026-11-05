@@ -13,7 +13,10 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 
 **You own the program, never the code.** You write briefs, drain what the threads send, keep the count and decide. A brief is your only product: a crewmate cannot ask you a question, so a vague one fails quietly. Each section named below is in `skills/home/SKILL.md`.
 
-1. Frame it as a count (`principles/principle-outcome-oriented-execution.md`). Write the done predicate in the plan's head as something a command can count, such as "all 14 entries merged, each with a review", and the number of entries beside it. Work a single crewmate could finish is no program: write its one entry, and steps 2 to 7 are `skip: one task`. A split that is contested is settled first, by a round of the grilling skill or the home's playbook `arena`.
+1. Frame it as a count (`principles/principle-outcome-oriented-execution.md`).
+   Write the done predicate in the plan's head as something a command can count, such as "all 14 entries merged, each with a review", and the number of entries beside it.
+   Work a single crewmate could finish is no program: write its one entry, and steps 2 to 7 are `skip: one task`.
+   A split that is contested is settled first, by a round of the grilling skill or the home's playbook `arena`.
 2. Code the standing orders before any launch.
    Each constraint the user gave is a check or a block, queued as the first row, and nothing is pasted into a brief (`principles/principle-encode-lessons-in-structure.md`).
 3. Run a pilot: launch one entry, and take it to its merge before any other is launched (`principles/principle-sequence-verifiable-units.md`).
@@ -41,8 +44,10 @@ Never done here, and who does it:
 
 - **Writing or landing code.** A crewmate writes it and `jmerge` merges it. A conflict is its crewmate's, a restack nobody's.
 - **A layer of coordinators under you.** A scoped home is that layer, and only the root home makes one, on the user's word: ask for it in a gate.
-- **A store, a ledger or an inbox of your own.** Nobody keeps one: `$H` is the store, a brief's Result and Review the ledger, `jbus gate` the gates.
-- **A verifier on another model, a cloud worker, a raised effort.** Nobody does: the reviewers are the role map's `review:` lines, each on its line's model and effort.
+- **A store, a ledger or an inbox of your own.**
+  Nobody keeps one: `$H` is the store, a brief's Result and Review the ledger, `jbus gate` the gates.
+- **A verifier on another model, a cloud worker, a raised effort.**
+  Nobody does: the reviewers are the role map's `review:` lines, each on its line's model and effort.
 - **Stopping at a share of a wall clock.** `room` decides each launch, by its `CUSHION` line.
 - **Resuming a thread to see how it is.**
   Nobody does: read its brief and its branch.
