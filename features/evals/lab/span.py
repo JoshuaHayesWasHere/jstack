@@ -96,8 +96,8 @@ def minutes(db: sqlite3.Connection, at: str) -> float:
     return db.execute(f"SELECT {em('?')}", (at,)).fetchone()[0]
 
 
-def bounds(db: sqlite3.Connection, span: Span, week: str | None = None) -> tuple[float, float]:
-    """A week's first and last minute, the last cut at `--end`."""
-    w = week or span.week
-    end = (date.fromisoformat(w) + timedelta(days=7)).isoformat()
-    return local_midnight(db, w), min(local_midnight(db, end), minutes(db, span.end))
+def bounds(db: sqlite3.Connection, span: Span) -> tuple[float, float]:
+    """The week's first and last minute, the last cut at `--end`."""
+    return local_midnight(db, span.week), min(
+        local_midnight(db, span.week_end), minutes(db, span.end)
+    )

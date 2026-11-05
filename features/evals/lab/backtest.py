@@ -44,7 +44,6 @@ PASS_MIN = 1.0
 """Minutes between jbus passes, each of which runs jmerge: the passes table (2026-11-02, the
 only day it held when kpi-lab-3 ran) has 199 gaps from 60.0 s to 66.0 s."""
 WARMUP_DAYS = 3
-RED = "('failure', 'timed_out', 'startup_failure', 'action_required')"
 KPIS = {
     "pr_median": "PR open to merge, median min",
     "lead_median": "lead time, median min",
