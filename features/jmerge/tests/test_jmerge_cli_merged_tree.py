@@ -115,8 +115,8 @@ def test_merged_tree_with_no_guards_file_merges_as_before(kitchen):
 
 def test_merged_tree_held_pull_request_holds_up_no_other(kitchen):
     """#7, held for its crew, keeps no place that #8 behind it waits for: #8, whose check main
-    moved past, has GitHub merge main into its branch in the same run."""
-    kitchen.crew("one", 6, {"mig/v007_one.txt": "one\n"})
+    moved past on a file it changes too, has GitHub merge main into its branch in the same run."""
+    kitchen.crew("one", 6, {"mig/v007_one.txt": "one\n", "a.txt": LINES + "one\n"})
     kitchen.crew("two", 7, {"mig/v007_two.txt": "two\n"}, checks=(AFTER,))
     kitchen.crew("three", 8, {"a.txt": "three\n" + LINES}, checks=(STARTED,))
     first, second, third = kitchen.run()
