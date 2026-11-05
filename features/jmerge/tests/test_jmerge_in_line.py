@@ -267,23 +267,3 @@ def test_one_that_waits_on_its_crew_or_the_user_gives_the_line_up(kitchen, wait)
     assert first.startswith(f"{'hold' if wait == 'hold' else 'wait'} 7 ")
     assert second == asked(8, tip)
     assert kitchen.updates() == ["7", "8"]
-
-
-KEPT = {
-    "other-home",
-    "merge-off",
-    "merging",
-    "main-moved",
-    "undecided",
-    "not-passed",
-    "no-run",
-    "live-run",
-    "migration-merging",
-    "base-moved-asked",
-    "base-moved-due",
-    "queued-restarted",
-    "queued-unopened",
-    "queued-unclosed",
-}
-"""The codes of the waits on jmerge, GitHub and the check, which keep the head of the line.
-Each of these ends in a merge by itself, and every other code waits on a crew or the user."""

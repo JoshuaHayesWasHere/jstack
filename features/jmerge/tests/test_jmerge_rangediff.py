@@ -795,7 +795,6 @@ def test_a_ci_fix_that_takes_out_a_line_of_its_own_with_no_rebase_drops_nothing(
 
 
 REVIEWED, BEFORE, FIRST, HEAD = ("a" * 40, "b" * 40, "c" * 40, "d" * 40)
-TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
 
 
 def test_findings_written_after_the_fixed_line_keep_a_head_that_moved_on_from_a_merge():
@@ -942,11 +941,6 @@ def test_a_ci_fix_after_a_rebase_is_compared_with_the_head_the_review_saw(proven
         f"wait 7 {merge.URL}: the rebase changed the content after its review; scoped review "
         f"of git range-diff --no-color {rebased.tip}..{rebased.head} {rebased.tip}..{pushed}"
     ]
-
-
-CLEAN = rangediff.Verdict(
-    True, "git range-diff", "", f"{'1' * 40}..{'2' * 40}", f"{'3' * 40}..{'4' * 40}"
-)
 
 
 def handled(rebased, review_of, head, line, answer="Finding: fixed, it is wrong\n"):

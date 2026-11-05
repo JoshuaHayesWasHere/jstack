@@ -338,9 +338,6 @@ def test_pull_requests_with_no_declared_order_go_by_number_and_an_order_runs_thr
     assert jrows.merge_order(cycle, {1: "a", 2: "b"}) == [1, 2]
 
 
-TAKEN = ready.MIGRATION_TAKEN.format(name="0005_x", number="0005", default="main", free="0006")
-
-
 def mark(home, number, **fields):
     """Change the fields of one listed pull request as GitHub gives them."""
     listed = json.loads((home.stub / "list.json").read_text())

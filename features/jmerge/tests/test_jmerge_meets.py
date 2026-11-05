@@ -190,17 +190,3 @@ def test_a_cleanup_brief_is_held_by_its_review_saying_no():
         head=SAW[:12], met=2, count=3, lines="2"
     )
     assert ready.short_of(brief(section(YES), head=cleanup), SAW) == ""
-
-
-class Bus:
-    """The bus there is, but for the waivers: `heard` answers `said` and keeps what it was asked."""
-
-    def __init__(self, real, said):
-        self.real, self.said, self.asked = real, said, []
-
-    def heard(self, checkout, waiver, slug):
-        self.asked.append((waiver, slug))
-        return self.said
-
-    def __getattr__(self, name):
-        return getattr(self.real, name)
