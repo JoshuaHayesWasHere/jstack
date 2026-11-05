@@ -386,7 +386,13 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
 
 def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_from_git(tmp_path):
     """Its origin is a commit of HEAD's tree in a repo of its own: CI's checkout is shallow, and
-    a fetch from a shallow repo into another makes no branch."""
+    a fetch from a shallow repo into another makes no branch.
+
+    The git uv runs has no auto maintenance. uv fetches into its git db, then clones the db at
+    once. The fetch starts `git maintenance run --auto --detach`. When the db already holds a
+    pack from an earlier run (setup-uv restores the cache on each CI run, and this URL is the
+    same in each one), that maintenance repacks the db, and the clone fails to copy a
+    `.tmp-<pid>-pack` file that the repack has renamed."""
     origin = tmp_path / "jstack"
     origin.mkdir()
     tree = subprocess.run(
@@ -407,6 +413,11 @@ def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_fr
     subprocess.run([*git, "commit", "-q", "--no-verify", "-m", "main"], check=True)
     home, tools, env = a_new_user(tmp_path)
     env["JSTACK_GIT_URL"] = f"git+{origin.as_uri()}@main"
+    env |= {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "maintenance.auto",
+        "GIT_CONFIG_VALUE_0": "false",
+    }
     assert "\nversion=\n" in INSTALL.read_text()
 
     setup = subprocess.run(
