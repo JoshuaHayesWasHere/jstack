@@ -168,7 +168,7 @@
   On anything else, fix the tests until they fail without the change, commit, and run it again.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.
   The line is of the head it ran at: a rebase or a merge of the base keeps it, and a push that changes the patch, a fix for a finding among them, runs the block again; the last `Proved:` line is the one `jmerge` reads.
-  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
+  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, a `tests only` line, which has no base exit, where the pull request changes a file that is no test, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
 
   A pull request that changes no test file writes `Proved: none, <kind>`, with `docs`, `config`, or `docs and config`, and is exempt.
   The kinds that are exempt, and the files each covers (`jbriefs.proved.EXEMPT`), are these:
