@@ -54,7 +54,7 @@ def files(kitchen):
     return {path: path.read_bytes() for root in roots for path in root.rglob("*") if path.is_file()}
 
 
-REVIEW_FAULT = "brief's Review: line says standard (twice, review or none)"
+REVIEW_FAULT = "brief's Review: line says standard (review or none)"
 
 
 def test_add_refuses_a_review_word_that_is_not_one_of_the_three(kitchen):
@@ -70,7 +70,7 @@ def test_add_refuses_a_review_word_that_is_not_one_of_the_three(kitchen):
 def test_add_refuses_a_review_line_that_says_more_or_other_than_one_word(kitchen, word):
     code, out = adds(kitchen, "alpha", said("alpha", "Review", word))
     assert code == 1
-    assert f"- brief's Review: line says {word} (twice, review or none)" in out.splitlines()
+    assert f"- brief's Review: line says {word} (review or none)" in out.splitlines()
 
 
 @pytest.mark.parametrize("word", ["twice", "review", "none"])
