@@ -1,6 +1,8 @@
 """Each week's cost per successful merge (`merge_cost`): `merges`, the successful merges whose 7
-days end in the week, each one's own dollars and units, their sum, mean and median, and the
-week's all-in dollars over them (`all_in_per_merge`).
+days end in the week, and `waiting`, its merges whose 7 days are not over yet, which are not
+successful yet and whose calls all-in counts; the successful merges' own dollars and units, their
+sum, mean and median; and the week's all-in dollars over them (`all_in_per_merge`), none for a
+week with no successful merge.
 
 All-in is the dollars of every priced call of the week, a call of no merged row too: a home's, a
 scout's, a crew's whose row never merged and a redone row's, though not a call of a thread of no
@@ -21,14 +23,17 @@ SQL = (
     "ranked AS (SELECT week, dollars, units, count(*) OVER (PARTITION BY week) AS n, "
     "row_number() OVER (PARTITION BY week ORDER BY dollars) AS by_dollars, "
     "row_number() OVER (PARTITION BY week ORDER BY units) AS by_units FROM own), "
-    "weeks AS (SELECT week, count(*) AS merges, sum(dollars) AS own_dollars, "
-    "avg(dollars) AS own_dollars_mean, "
+    "costs AS (SELECT week, sum(dollars) AS own_dollars, avg(dollars) AS own_dollars_mean, "
     "avg(CASE WHEN by_dollars IN ((n + 1) / 2, (n + 2) / 2) THEN dollars END) "
     "AS own_dollars_median, avg(units) AS own_units_mean, "
     "avg(CASE WHEN by_units IN ((n + 1) / 2, (n + 2) / 2) THEN units END) AS own_units_median "
     "FROM ranked GROUP BY week), "
+    "weeks AS (SELECT week, sum(judged AND redone_by IS NULL) AS merges, "
+    "sum(NOT judged) AS waiting FROM redo_rows GROUP BY week), "
     f"spent AS (SELECT {WEEK.format(day=f"date(day, '+{REDO_DAYS} days')")} AS week, "
     f"sum(dollars) AS dollars FROM call_rows WHERE role IS NOT '{OTHER}' GROUP BY 1) "
-    "SELECT w.*, s.dollars AS all_in_dollars, s.dollars / w.merges AS all_in_per_merge "
-    "FROM weeks w LEFT JOIN spent s ON s.week = w.week"
+    "SELECT w.week, w.merges, w.waiting, c.own_dollars, c.own_dollars_mean, "
+    "c.own_dollars_median, c.own_units_mean, c.own_units_median, s.dollars AS all_in_dollars, "
+    "s.dollars / nullif(w.merges, 0) AS all_in_per_merge "
+    "FROM weeks w LEFT JOIN costs c ON c.week = w.week LEFT JOIN spent s ON s.week = w.week"
 )

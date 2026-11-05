@@ -1,11 +1,21 @@
 from jbus.telemetry.kpis import Kpi, Measured
 from jgauge import spend
 
+WAITING = (
+    "CASE WHEN waiting > 0 THEN waiting || ' merge' || iif(waiting = 1, '', 's') "
+    "|| ' of the week not judged yet, whose calls count' END"
+)
+"""The week's merges whose 7 days are not over: all-in counts their calls, and not them yet."""
+OWN = (
+    "CASE WHEN merges > 0 THEN 'own threads $' || printf('%.2f', own_dollars_mean) || "
+    "' mean, $' || printf('%.2f', own_dollars_median) || ' median a merge' END"
+)
 BY = (
-    "(SELECT group_concat(name || ' $' || printf('%.2f', dollars / weekly_merge_cost.merges), "
-    "', ') FROM (SELECT role || ' ' || model || ' ' || coalesce(effort, 'no effort') AS name, "
-    "sum(dollars) AS dollars FROM merge_cost WHERE week = weekly_merge_cost.week "
-    "AND dollars IS NOT NULL GROUP BY role, model, effort ORDER BY sum(dollars) DESC, name))"
+    "'by role, model and effort a merge: ' || (SELECT group_concat(name || ' $' || "
+    "printf('%.2f', dollars / weekly_merge_cost.merges), ', ') FROM (SELECT role || ' ' || "
+    "model || ' ' || coalesce(effort, 'no effort') AS name, sum(dollars) AS dollars "
+    "FROM merge_cost WHERE week = weekly_merge_cost.week AND dollars IS NOT NULL "
+    "GROUP BY role, model, effort ORDER BY sum(dollars) DESC, name))"
 )
 """Each role, model and effort's own-thread dollars of the week's successful merges, a merge, the
 dearest first."""
@@ -26,10 +36,6 @@ KPI = Kpi(
         "weekly_merge_cost",
         "all_in_per_merge",
         "merges",
-        detail=(
-            "'own threads $' || printf('%.2f', own_dollars_mean) || ' mean, $' || "
-            "printf('%.2f', own_dollars_median) || ' median a merge; by role, model and effort "
-            f"a merge: ' || {BY}"
-        ),
+        detail=f"concat_ws('; ', {WAITING}, {OWN}, {BY})",
     ),
 )

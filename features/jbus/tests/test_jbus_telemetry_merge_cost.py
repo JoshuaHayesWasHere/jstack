@@ -344,7 +344,7 @@ def test_a_weeks_cost_per_merge_divides_all_its_priced_calls_by_its_successful_m
     with week.store() as store:
         found = store.execute(
             "SELECT week, merges, own_dollars, own_dollars_mean, own_dollars_median, "
-            "own_units_mean, own_units_median, all_in_dollars, all_in_per_merge "
+            "own_units_mean, own_units_median, all_in_dollars, all_in_per_merge, waiting "
             "FROM weekly_merge_cost"
         ).fetchall()
     own = [dollars("m1", "m2", "m3", "m4"), dollars("m5"), dollars("m6")]
@@ -361,22 +361,45 @@ def test_a_weeks_cost_per_merge_divides_all_its_priced_calls_by_its_successful_m
             pytest.approx(statistics.median(own_units)),
             pytest.approx(all_in),
             pytest.approx(all_in / 3),
+            0,
         )
     ]
 
 
-def test_the_kpi_page_puts_all_in_dollars_per_successful_merge_first_with_its_breakdown(week):
-    assert kpis.KPIS[0].name == "All-in dollars per successful merge"
-    out = week.root / "page" / "kpis.html"
+def page(machine, week):
+    """The KPI page `jbus kpis` writes with `week` as this week, as its table's cells."""
+    out = machine.root / "page" / "kpis.html"
     said_out = io.StringIO()
     with contextlib.redirect_stdout(said_out):
-        code = cli.main(["kpis", "--week", "2026-10-25", "--out", str(out)])
+        code = cli.main(["kpis", "--week", week, "--out", str(out)])
     assert code == 0, said_out.getvalue()
     cells = Cells()
     cells.feed(out.read_text())
+    return cells.rows
 
-    assert list(cells.rows)[0] == "All-in dollars per successful merge"
-    last = cells.rows["All-in dollars per successful merge"][4]
+
+def test_a_week_whose_merges_are_not_judged_yet_has_no_figure_and_says_how_many_wait(machine):
+    """A merge whose 7 days are not over is not successful yet, so its week has no merge to
+    divide by, and the page says how many of its merges wait."""
+    machine.thread("mcp:crew-a", "crew: fresh", "claudeAgent", "s1")
+    merged_at = datetime.now(UTC) - timedelta(days=1)
+    machine.claude("s1", at_effort(said(merged_at, "m1", (1, 0, 100, 10)), "medium"))
+    queue_and_merges(machine, [("fresh", merged_at)], [])
+    machine.run()
+    with machine.store() as store:
+        (week,) = store.execute("SELECT week FROM redo_rows").fetchone()
+
+    row = page(machine, week)["All-in dollars per successful merge"]
+
+    assert row[5] == "n/a n 0 no data: 1 merge of the week not judged yet, whose calls count"
+
+
+def test_the_kpi_page_puts_all_in_dollars_per_successful_merge_first_with_its_breakdown(week):
+    assert kpis.KPIS[0].name == "All-in dollars per successful merge"
+    rows = page(week, "2026-10-25")
+
+    assert list(rows)[0] == "All-in dollars per successful merge"
+    last = rows["All-in dollars per successful merge"][4]
     all_in = dollars("m1", "m2", "m3", "m5", "m6", "m7", "m8", "m9") / 3
     own = [dollars("m1", "m2", "m3", "m4"), dollars("m5"), dollars("m6")]
     by = sorted(
