@@ -124,6 +124,41 @@ def test_a_real_conflict_or_failure_tells_the_crew_to_rebase(launched, reason):
     assert [given["clientRequestId"] for given in sends(launched)] == ["rebase|alpha|cccccccccccc"]
 
 
+MERGED_TREE = (
+    "merged over today's main at 0123456789ab, it fails lint: its crew rebases it onto main, "
+    "runs the check, and fixes what fails"
+)
+
+
+def test_a_merged_tree_that_fails_a_guard_tells_its_crew_once_per_head_to_rebase_and_fix_it(
+    launched,
+):
+    """`jmerge` merged the pull request over today's main, and the tree fails `lint`
+    (`ready.MERGED_TREE_FAILS`): only the crew can lift that wait. Its crew is told once for each
+    head, with the guard named, to rebase onto main and fix what fails. A new head that fails
+    again is told again, as a conflict is, and is no gate."""
+    out(launched, reason=MERGED_TREE)
+    for minutes in (0, 3, 6):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    (given,) = sends(launched)
+    assert given["threadId"] == "mcp:thread-1" and given["mode"] == "queue"
+    assert given["clientRequestId"] == "rebase|alpha|cccccccccccc"
+    assert f"({MERGED_TREE})" in given["message"]
+    assert "rebase onto origin/main" in given["message"]
+    assert "--force-with-lease=refs/heads/alpha:" + "c" * 40 in given["message"]
+    assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+    launched.t3.threads[0]["status"] = "completed"
+    out(launched, head="d" * 40, reason=MERGED_TREE.replace("lint", "the migration numbers"))
+    for minutes in (9, 12):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert [given["clientRequestId"] for given in sends(launched)] == [
+        "rebase|alpha|cccccccccccc",
+        "rebase|alpha|dddddddddddd",
+    ]
+    assert "it fails the migration numbers:" in sends(launched)[1]["message"]
+    assert gates(launched) == []
+
+
 def test_a_fresh_check_that_is_queued_tells_its_crew_nothing(launched):
     out(launched, reason="a fresh check is queued")
     launched.poll()
