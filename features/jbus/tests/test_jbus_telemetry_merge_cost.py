@@ -8,6 +8,11 @@ transcripts still on disk, and changes nothing else; `merge_cost` gives each suc
 own spend by role, model and effort, and leaves a redone row out; `weekly_merge_cost` divides all
 of a week's priced calls, a home's and an unmerged crew's too, by its successful merges; and
 `jbus kpis` shows that figure first.
+
+The code is `jbus.telemetry.tokens` and `jgauge.transcript`, which copy the effort, the migration
+`jbus.telemetry.migrations.v013_call_effort`, the views `jbus.telemetry.views.call_rows`,
+`jbus.telemetry.views.merge_cost` and `jbus.telemetry.views.weekly_merge_cost`, and the KPI
+`jbus.telemetry.kpis.k00_cost_per_merge`.
 """
 
 from __future__ import annotations
