@@ -326,11 +326,12 @@ RerunEnds ==
 \* jbus.culprits judges main's tip, red after its one rerun: it reverts the one clear culprit
 \* (#862), and files main's fix row for a red that has none: a red from outside (#392), a merge
 \* that broke more on a red tip, a skew (#899), or a culprit whose row jbus reverted before (the model keeps one
-\* revert at a time). A tip whose revert is open gets no row. The model's culprit is the oldest red
-\* since the last green (#992), and a merge on it that breaks nothing more is no overlap. It leaves
-\* out a pending check (UNREAD, judged on the next pass until the tip is an hour old), and a break
-\* that lands on an open revert ("many" there) files its row here, where the code files it only once
-\* the revert is stuck (closed, in conflict, failed, or merged with main still red).
+\* revert at a time). A red run that holds the commit of an open revert gets no row, also where a
+\* merge broke more on top of it ("many" there): the row waits until the revert is stuck. The
+\* model's culprit is the oldest red since the last green (#992), and a merge on it that breaks
+\* nothing more is no overlap. It leaves out a pending check (UNREAD, judged on the next pass until
+\* the tip is an hour old), and of the ways a revert is stuck (closed, in conflict, failed, or merged
+\* with main still red) it keeps the last, in RevertMerges.
 JudgeRed ==
     /\ mainRed                              \* features/jbus/src/jbus/culprits.py `if run.red is not None:`
     /\ ~rerun                               \* features/jbus/src/jbus/watch.py `run.red = RedTip(slug, sha, red, pull, culprit, under)`, after its one rerun
@@ -339,28 +340,31 @@ JudgeRed ==
     /\ IF culprit \in PRs /\ revert = "none"
          THEN /\ revert' = "open"           \* features/jbus/src/jbus/culprits.py `return None if reverts.revert(run, found) else "jbus could not open its revert"`
               /\ UNCHANGED fixRow
-       ELSE IF culprit \in PRs
+       ELSE IF culprit \in PRs \cup {"many"} /\ revert = "open"
          THEN UNCHANGED <<revert, fixRow>>  \* features/jbus/src/jbus/reverts.py `if any(sha in made for sha, _ in red.since):`
          ELSE /\ fixRow' = TRUE             \* features/jbus/src/jbus/culprits.py `_file(run, run.red.slug, run.red.sha, run.red.red, why)`
               /\ UNCHANGED revert
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, link, on, Machine, Fix, Browser,
                    Row, rerun, culprit, editsLeft>>
 
-\* jmerge merges jbus's revert on its checks, with no review, and main is green again. The model's
-\* revert merges only while its culprit is still the red run's: once a merge that broke more landed
-\* on the red tip, main's fix row ends the red, and jbus closes the revert.
+\* jmerge merges jbus's revert on its checks, with no review, and main is green again. Where a merge
+\* broke more on top of the revert's culprit ("many"), main is still red once the revert merged: the
+\* revert is stuck, and the tip is judged again, which files main's fix row
+\* (features/jbus/src/jbus/culprits.py `found == reverts.Keep.OPENED`).
 RevertMerges ==
     /\ revert = "open"                      \* features/jmerge/src/jmerge/cli.py `reverted = not short and self.reverted(brief.stem, one)`
     /\ mainRed
-    /\ culprit \in PRs
+    /\ culprit \in PRs \cup {"many"}
     /\ revert' = "none"
-    /\ mainRed' = FALSE
-    /\ redBy' = "none"
-    /\ culprit' = "none"
     /\ judged' = FALSE
-    /\ fixRow' = FALSE
-    /\ fixes' = NoFix
-    /\ rerun' = FALSE                       \* a merge on the red run left its rerun, which the green ends
+    /\ IF culprit = "many"
+         THEN UNCHANGED <<mainRed, redBy, culprit, fixRow, Fix, rerun>>
+         ELSE /\ mainRed' = FALSE
+              /\ redBy' = "none"
+              /\ culprit' = "none"
+              /\ fixRow' = FALSE
+              /\ fixes' = NoFix
+              /\ rerun' = FALSE             \* a merge on the red run left its rerun, which the green ends
     /\ UNCHANGED <<st, ci, ranRed, missed, breaks, told, outsideLeft, link, on, Machine, Browser, Row,
                    editsLeft>>
 

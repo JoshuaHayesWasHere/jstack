@@ -1488,12 +1488,17 @@ def main(argv):
             file.write(f"selection={chosen}\n")
             file.write(f"files={'all' if chosen == 'all' else len(tests)}\n")
             file.write(f"forced_by={why.get('forced-by', '')}\n")
-    lines = reasons(tests, why, None if count is None else handed(tests, count))
-    if os.environ.get("GITHUB_OUTPUT") and os.environ.get("SELECTED"):
-        Path(os.environ["SELECTED"]).write_text("\n".join(lines) + "\n")
-    if os.environ.get("GITHUB_STEP_SUMMARY"):
-        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
-            file.write(listing(lines) + "\n")
+    lines = reasons(tests, why)
+    try:
+        if count is not None:
+            lines = reasons(tests, why, handed(tests, count))
+    finally:
+        # The list is kept and shown also where `handed` fails the step: that run needs it most.
+        if os.environ.get("GITHUB_OUTPUT") and os.environ.get("SELECTED"):
+            Path(os.environ["SELECTED"]).write_text("\n".join(lines) + "\n")
+        if os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
+                file.write(listing(lines) + "\n")
 
 
 if __name__ == "__main__":

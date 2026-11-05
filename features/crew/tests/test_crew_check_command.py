@@ -375,10 +375,28 @@ def lanes(stub, locks, log, exits=None):
     (stub / "make").chmod(0o755)
 
 
-def selected(tmp_path, repo, on="origin/main", exits=None):
+def teed(stub, kept):
+    """A `python3` first on the path that writes what `scripts/select_tests.py` printed to `kept`
+    as it passes it on, so a test reads the block's own selection and runs no second one: the
+    real selector over a clone of the tree takes much of a test's time limit on a runner."""
+    real = shutil.which("python3", path=os.environ["PATH"])
+    (stub / "python3").write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = scripts/select_tests.py ]; then\n'
+        f'    out=$({shlex.quote(real)} "$@") || exit $?\n'
+        f"    printf '%s\\n' \"$out\" | tee {shlex.quote(str(kept))}\n"
+        "    exit 0\n"
+        "fi\n"
+        f'exec {shlex.quote(real)} "$@"\n'
+    )
+    (stub / "python3").chmod(0o755)
+
+
+def selected(tmp_path, repo, on="origin/main", exits=None, kept=None):
     """Run the check block once in `repo`, a worktree whose `origin/main` the test has set, with
-    a `make` that records each run. It returns what the block printed, its exit code, the
-    runs of `make` and the commit the branch left `origin/main` at."""
+    a `make` that records each run, and with `teed` writing the selector's output to `kept` where
+    given. It returns what the block printed, its exit code, the runs of `make` and the commit
+    the branch left `origin/main` at."""
     stub, locks, log = (
         tmp_path / "stub",
         tmp_path / "home" / ".local" / "state" / "locks",
@@ -387,6 +405,8 @@ def selected(tmp_path, repo, on="origin/main", exits=None):
     stub.mkdir()
     room.uv(stub)
     lanes(stub, locks, log, exits)
+    if kept is not None:
+        teed(stub, kept)
     said, code, _ = checked(tmp_path, "echo the full lane")
     base = subprocess.run(
         ["git", "merge-base", on, "HEAD"], cwd=repo, capture_output=True, text=True
@@ -424,7 +444,8 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_and_leaves_the_r
     with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
         page.write("\nA line the test adds.\n")
     git(repo, "commit", "-qam", "a change to the crew feature")
-    said, code, ran, base = selected(tmp_path, repo)
+    kept = tmp_path / "selector.out"
+    said, code, ran, base = selected(tmp_path, repo, kept=kept)
     then = next(at for at, line in enumerate(said) if line.startswith("and "))
     guards, rest = said[1:then], said[then + 1 : -1]
     assert re.fullmatch(r"guards: exit 0 in \d+ s", said[-1]), said
@@ -432,27 +453,31 @@ def test_a_change_to_one_feature_runs_its_guards_in_a_full_slot_and_leaves_the_r
     assert said[then] == f"and {len(rest)} test files the change reaches, which CI's check runs:"
     assert "testing/tests/test_cross_cutting.py" in guards
     assert "features/crew/tests/test_crew_checks.py" in rest
-    assert not set(guards) & set(rest)
-    listed = guards + rest
-    assert all(test.endswith(".py") and (repo / test).is_file() for test in listed), said
+    desk = kept.read_text().splitlines()
+    assert [f"guards {one}" for one in guards] + [f"rest {one}" for one in rest] == desk
+    assert all(test.endswith(".py") and (repo / test).is_file() for test in guards + rest), said
     assert (ran, code) == ([f"check-fast BASE={base} PART=guards short=free full=held"], 0)
 
 
-PARTS = (
-    "import sys\n"
-    "assert sys.argv[1:3] == ['--part', 'desk'], sys.argv\n"
-    "print('guards testing/tests/test_g.py')\n"
-    "print('rest testing/tests/test_r.py')"
-)
+def parts(*lines):
+    """A selector that prints `lines` for `--part desk`, and fails on any other ask."""
+    return "import sys\nassert sys.argv[1:3] == ['--part', 'desk'], sys.argv\n" + "".join(
+        f"print({line!r})\n" for line in lines
+    )
 
 
 @pytest.mark.parametrize("first", [0, 1, 124], ids=["the guards pass", "fail", "are cut"])
-def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_path, first):
+@pytest.mark.parametrize(
+    "rest",
+    [["rest testing/tests/test_r.py"], []],
+    ids=["with a rest", "with no rest"],
+)
+def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_path, first, rest):
     """The check is the guards alone, and ends with their exit, 124 too: the rest is CI's and
     never runs at the desk. The block prints the guards' exit and seconds, and the `Checked:`
     line is `make check-fast BASE=<base> PART=guards exit <n> at <head>`, the shape `jmerge`
-    reads (`ready.short_on_checked`)."""
-    repo = stubbed(tmp_path, PARTS)
+    reads (`ready.short_on_checked`), also where the selection leaves nothing for the rest."""
+    repo = stubbed(tmp_path, parts("guards testing/tests/test_g.py", *rest))
     tasks = tmp_path / "state" / "tasks"
     tasks.mkdir(parents=True)
     (tasks / "a-task.md").write_text("# a-task: a task\n\n## Result\n")
@@ -461,6 +486,7 @@ def test_only_the_guards_run_and_the_checked_line_names_them_and_their_exit(tmp_
     assert code == first
     assert [one.split()[2] for one in ran] == ["PART=guards"]
     assert re.search(rf"^guards: exit {first} in \d+ s$", "\n".join(said), re.M), said
+    assert f"and {len(rest)} test files the change reaches, which CI's check runs:" in said
     line = f"Checked: make check-fast BASE={base} PART=guards exit {first} at {head}\n"
     assert (tasks / "a-task.md").read_text() == f"# a-task: a task\n\n## Result\n{line}"
 

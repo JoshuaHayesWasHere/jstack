@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import inspect
 import json
 import os
 import subprocess
@@ -68,7 +69,7 @@ def run(
     from jsettings import paths
 
     state = paths.jbus_state_dir()
-    caller = _caller()
+    caller = _caller(command)
     began = time.monotonic()
     with _slot(state / SLOTS):
         waited = time.monotonic() - began
@@ -135,23 +136,35 @@ def _slot(where: Path) -> Iterator[None]:
         time.sleep(WAIT)
 
 
-def _caller() -> str:
+def _caller(command: tuple[str, ...]) -> str:
     """Who asked for the call: the function that wrote `gh` in it, which a helper that only
     passes a command on never does, then `<` and the function that called that one. A command
-    whose `gh` no frame wrote is of the first frame outside this module."""
+    whose `gh` no frame wrote, one built from a constant such as `jsettings.budget.ASK`, is of
+    the first frame outside this module that was not handed the command, as a helper that
+    passes it on is (`jbus.passes.Pass.run`)."""
     outside = sys._getframe(1)
     while outside.f_back is not None and outside.f_globals.get("__name__") == __name__:
         outside = outside.f_back
     frame: FrameType | None = outside
     while frame is not None and not _writes_gh(frame.f_code):
         frame = frame.f_back
-    if frame is None:
-        return _name(outside)
-    return _name(frame) + (f" < {_name(frame.f_back)}" if frame.f_back is not None else "")
+    if frame is not None:
+        return _name(frame) + (f" < {_name(frame.f_back)}" if frame.f_back is not None else "")
+    while outside.f_back is not None and _handed(outside, command):
+        outside = outside.f_back
+    return _name(outside)
 
 
 def _writes_gh(code: CodeType) -> bool:
     return any(one == "gh" or (isinstance(one, tuple) and "gh" in one) for one in code.co_consts)
+
+
+def _handed(frame: FrameType, command: tuple[str, ...]) -> bool:
+    """Whether one of the frame's arguments is the command itself."""
+    code = frame.f_code
+    count = code.co_argcount + code.co_kwonlyargcount + bool(code.co_flags & inspect.CO_VARARGS)
+    given = (frame.f_locals.get(name) for name in code.co_varnames[:count])
+    return any(isinstance(one, list | tuple) and tuple(one) == command for one in given)
 
 
 def _name(frame: FrameType) -> str:
