@@ -4,6 +4,7 @@
 # It answers from the files in $VERIFY_JSTACK_SANDBOX/gh, which a drive edits:
 #   open.json    the open pull requests, as `gh pr list --json` gives them
 #   merged.json  the merged ones
+#   merges       an empty file: while it exists, `gh pr merge --squash` merges as GitHub does
 #   commits.json what `gh api` gives for the default branch's commits
 #   checks.json  each commit's check runs, by its sha: `{}` gives every commit none
 #   logs/<id>    the log of the job whose id is <id>, which is not found when the file is not
@@ -14,8 +15,11 @@
 # A commit asked for by its sha lists no changed files. The repo's owner is sandbox-owner, and a
 # pull request has no comment, line comment or review.
 # `gh pr edit <number> --base <branch>` bases that pull request of open.json on the branch.
-# Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. It never merges: `gh pr merge`
-# and anything else it does not know exit 64.
+# `gh pr merge <number> --squash`, where gh/merges exists, squashes the head over its base's tip
+# in $VERIFY_JSTACK_SANDBOX/origin.git and moves the pull request from open.json to merged.json
+# with its merge commit. It refuses a head its branch is not at and one that conflicts.
+# Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. `gh pr merge` with no gh/merges,
+# and anything else it does not know, exit 64.
 G=${VERIFY_JSTACK_SANDBOX:?source the sandbox env.sh first}/gh
 echo "$*" >>"$G/calls.log"
 arg_after() {
