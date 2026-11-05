@@ -767,8 +767,9 @@ def test_a_read_set_of_a_module_of_the_tests_selects_the_tests_that_import_it(gl
 )
 def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test(changed, reader):
     """`test_lessons.py` declares the folders of the lessons skills in its `READ_SET`, and a
-    change to a file in one of them selects it. `test_tdd_skill.py` checks each playbook the tdd skill names, through
-    `skill_blocks`. Neither feature lists the test, and no test spells the file."""
+    change to a file in one of them selects it. `test_tdd_skill.py` checks each playbook the tdd
+    skill names, through `skill_blocks`. Neither feature lists the test, and no test spells the
+    file."""
     tests, _ = select.selection([changed])
 
     assert reader in tests
