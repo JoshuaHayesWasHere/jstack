@@ -388,11 +388,11 @@ def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_fr
     """Its origin is a commit of HEAD's tree in a repo of its own: CI's checkout is shallow, and
     a fetch from a shallow repo into another makes no branch.
 
-    The git uv runs has no auto maintenance. uv fetches into its git db, then clones the db at
-    once. The fetch starts `git maintenance run --auto --detach`. When the db already holds a
-    pack from an earlier run (setup-uv restores the cache on each CI run, and this URL is the
-    same in each one), that maintenance repacks the db, and the clone fails to copy a
-    `.tmp-<pid>-pack` file that the repack has renamed."""
+    The second install fetches into a git db that already holds a pack. uv fetches into its git
+    db, then clones the db at once, and the fetch would start `git maintenance run --auto
+    --detach`, which can repack the db and rename a `.tmp-<pid>-pack` file the clone is copying.
+    install.sh runs that fetch with no auto maintenance, and keeps the git config the user set in
+    the env, as the `insteadOf` here shows."""
     origin = tmp_path / "jstack"
     origin.mkdir()
     tree = subprocess.run(
@@ -412,11 +412,11 @@ def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_fr
     subprocess.run([*git, "add", "-A"], check=True)
     subprocess.run([*git, "commit", "-q", "--no-verify", "-m", "main"], check=True)
     home, tools, env = a_new_user(tmp_path)
-    env["JSTACK_GIT_URL"] = f"git+{origin.as_uri()}@main"
     env |= {
+        "JSTACK_GIT_URL": "git+https://jstack.invalid/jstack@main",
         "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "maintenance.auto",
-        "GIT_CONFIG_VALUE_0": "false",
+        "GIT_CONFIG_KEY_0": f"url.{origin.as_uri()}.insteadOf",
+        "GIT_CONFIG_VALUE_0": "https://jstack.invalid/jstack",
     }
     assert "\nversion=\n" in INSTALL.read_text()
 
@@ -433,11 +433,16 @@ def test_install_sh_piped_to_sh_with_no_checkout_and_no_release_installs_main_fr
     assert made_from(home) == tools / "jstack" / "share" / "jstack"
     loose = tmp_path / "install.sh"
     shutil.copy(INSTALL, loose)
+    trace = tmp_path / "git-trace.log"
+    env["GIT_TRACE"] = str(trace)
     checked = subprocess.run(
         ["sh", str(loose), "--check"], env=env, cwd=tmp_path, capture_output=True, text=True
     )
     assert checked.returncode == 0, checked.stdout + checked.stderr
     assert all(line.startswith("ok ") for line in checked.stdout.splitlines()), checked.stdout
+    traced = trace.read_text()
+    assert " fetch " in traced and " init" not in traced
+    assert not re.search(r"\bgit (maintenance|repack|gc)\b", traced), traced
 
 
 def block_of(skill):

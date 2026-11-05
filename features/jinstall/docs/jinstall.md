@@ -7,6 +7,7 @@ The [Quickstart](../../../README.md#quickstart) install puts `jinstall` as a com
 
 The [Quickstart](../../../README.md#quickstart) has the install commands: the script from `main`, the same by hand with `uv`, and the script of a release.
 The script's `JSTACK_GIT_URL` names another `git+` source in place of `main`, as a sandbox does with `git+file://<a clone>@main`.
+The script runs that `uv tool install` with git's `maintenance.auto` false, added to any `GIT_CONFIG_COUNT` you set: a fetch into uv's git db would otherwise start git's auto maintenance, which can repack the db while uv clones it, and the second install then fails with `Git operation failed`.
 
 To work on jstack itself, install from a clone, as [Set up a checkout](../../../CONTRIBUTING.md#set-up-a-checkout) shows.
 [Working on jstack](#working-on-jstack) has what a clone's install does in addition.
