@@ -86,6 +86,7 @@ def repo(tmp_path):
 
 def commit(tree, files):
     for name, text in files.items():
+        (tree / name).parent.mkdir(parents=True, exist_ok=True)
         (tree / name).write_text(text)
     git(tree, "add", "-A")
     git(tree, "commit", "-q", "-m", "the change")
@@ -224,9 +225,33 @@ def test_a_branch_that_changes_only_tests_runs_them_at_the_head_alone(repo):
     assert line == proved.Proved(("tests/test_calc.py",), head_exit=0, head=head, tests_only=True)
 
 
-def test_a_branch_that_changes_a_test_and_anything_else_runs_it_at_the_base_too(repo):
+def test_a_branch_that_changes_tests_with_docs_and_config_runs_them_at_the_head_alone(repo):
+    """A removal of tests with the doc that named them changes no code either: `jmerge` takes
+    the `tests only` line where every other file is of a `jbriefs.proved.EXEMPT` kind, so the
+    block prints it for such a branch."""
+    head = commit(
+        repo,
+        {
+            "tests/test_calc.py": PASSES_AT_BASE,
+            "README.md": "how\n",
+            "docs/guide": "why\n",
+            "pyproject.toml": "[project]\n",
+            ".github/workflows/ci.yml": "on: push\n",
+            ".gitignore": "*.pyc\n",
+        },
+    )
+    said, line = proof(repo)
+    assert "tests only: every file the branch changes is a test" in said
+    assert "base exit" not in said
+    assert f"Proved: tests/test_calc.py head exit 0 at {head}, tests only\n" in said
+    assert line == proved.Proved(("tests/test_calc.py",), head_exit=0, head=head, tests_only=True)
+
+
+def test_a_branch_that_changes_a_test_docs_and_any_other_file_runs_it_at_the_base_too(repo):
     base = git(repo, "rev-parse", "HEAD")
-    head = commit(repo, {"tests/test_calc.py": PASSES_AT_BASE, "README.md": "how\n"})
+    head = commit(
+        repo, {"tests/test_calc.py": PASSES_AT_BASE, "README.md": "how\n", "util.py": ""}
+    )
     said, line = proof(repo)
     assert "tests only" not in said
     assert "base exit 0: 2 passed" in said
