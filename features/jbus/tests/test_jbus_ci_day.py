@@ -21,7 +21,7 @@ import pytest
 import jbus
 import jsettings
 from jbus import verbs
-from jbus.ci import collect, daily
+from jbus.ci import collect, daily, ruleset
 from test_jbus_ci import fire, unit
 from testing.paths import REPO as CHECKOUT
 
@@ -50,15 +50,22 @@ GH = [
 ]
 
 
+KEPT = CHECKOUT / ruleset.KEPT
+RULESET = ["gh", "api", "repos/JoshuaHayesWasHere/jstack/rulesets/25665226"]
+
+
 class Gh:
-    """Stands in for `gh`: each call is kept, and `gh run list` answers with `runs`."""
+    """Stands in for `gh`: each call is kept, `gh run list` answers with `runs` and `gh api` with
+    `ruleset`, the live ruleset, by default the checked-in body."""
 
     def __init__(self, runs=RUNS, code=0):
         self.runs, self.code, self.calls = runs, code, []
+        self.ruleset = json.loads(KEPT.read_text())
 
     def __call__(self, command):
         self.calls.append(list(command))
-        said = "" if self.code else json.dumps(self.runs)
+        given = self.ruleset if command[1] == "api" else self.runs
+        said = "" if self.code else json.dumps(given)
         return subprocess.CompletedProcess(command, self.code, said, "gh: HTTP 502")
 
 
@@ -384,3 +391,68 @@ def test_ci_day_writes_a_moves_medians_as_the_number_writes_its_cells():
     assert daily._moved(shift, measures["wall"]) == "9 min to 16 min, moved"
     assert daily._moved(shift, measures["wait_p90_shard"]) == "4 s to 45 s, moved"
     assert daily._moved(shift, measures["red_share"]) == "20% to 20%, held"
+
+
+@pytest.fixture
+def guarded(day):
+    """The day's run in a checkout that keeps main's ruleset body, with the home's
+    `required-checks` naming check, borders and macos, as jstack's does."""
+    (day.kitchen.checkout / ruleset.KEPT).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(KEPT, day.kitchen.checkout / ruleset.KEPT)
+    (day.home / "required-checks").write_text("check\nborders\nmacos\n")
+    return day
+
+
+def told(day):
+    """What a pass tells the home about the ruleset."""
+    day.kitchen.poll(NOW.astimezone(UTC))
+    return [line for line in day.kitchen.wakes.said if "ruleset" in line]
+
+
+def lacking_macos(body):
+    body = json.loads(json.dumps(body))
+    for rule in body["rules"]:
+        if rule["type"] == "required_status_checks":
+            checks = rule["parameters"]["required_status_checks"]
+            checks[:] = [one for one in checks if one["context"] != "macos"]
+    return body
+
+
+def test_ci_day_ruleset_that_matches_tells_nobody_after_one_read(guarded):
+    code, said, _ = guarded.run()
+
+    assert code == 0, said
+    assert guarded.gh.calls == [GH, RULESET]
+    assert "ruleset 25665226 on JoshuaHayesWasHere/jstack matches" in said
+    assert told(guarded) == []
+
+
+def test_ci_day_ruleset_that_lacks_macos_tells_the_home_its_drift(guarded):
+    guarded.gh.ruleset = lacking_macos(guarded.gh.ruleset)
+
+    code, said, _ = guarded.run()
+
+    assert code == 0, said
+    (line,) = told(guarded)
+    assert "ruleset 25665226" in line and "drifted" in line
+    assert "required_status_checks" in line and "lacks macos of required-checks" in line
+
+
+def test_ci_day_ruleset_requiring_a_check_required_checks_does_not_name_is_drift(guarded):
+    (guarded.home / "required-checks").write_text("check\nborders\n")
+
+    guarded.run()
+
+    (line,) = told(guarded)
+    assert "requires macos, which required-checks does not name" in line
+    assert "rules differ" not in line
+
+
+def test_ci_day_ruleset_gh_does_not_give_is_said_and_tells_nobody(guarded):
+    guarded.gh.code = 1
+
+    code, said, _ = guarded.run()
+
+    assert code == 0, said
+    assert "ruleset 25665226 not read: gh: HTTP 502" in said
+    assert told(guarded) == []

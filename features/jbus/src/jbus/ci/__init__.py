@@ -14,7 +14,8 @@ counts the health numbers by day of the user's zone, the machine's own where the
 report also gives S8, the wrong closes of gates, for each week a scout labelled, and queues the
 scout that labels the week that ended last (`jbus.ci.wrongcloses`).
 `--day` writes `reports/ci-day-<date>.md` instead, from the ledger the passes keep, and collects
-nothing (`jbus.ci.daily`). `jbus-ci-day.timer` runs `jbus ci --day --each` every day at 06:45.
+nothing (`jbus.ci.daily`). Then it reads main's live ruleset once, and tells the home where it
+drifted from the checked-in body or `required-checks` (`jbus.ci.ruleset`). `jbus-ci-day.timer` runs `jbus ci --day --each` every day at 06:45.
 `--each` runs it for every project whose table says `ci_report = true`, and for none when no
 project does. `jbus-ci.timer` runs `jbus ci --report --each` every Monday at 09:00, in the
 machine's own zone.
@@ -40,7 +41,7 @@ from typing import TYPE_CHECKING
 
 import jbus
 from jbus import verbs
-from jbus.ci import collect, daily, ledger, notice, numbers, report, wrongcloses
+from jbus.ci import collect, daily, ledger, notice, numbers, report, ruleset, wrongcloses
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -146,7 +147,9 @@ def _day(config: jbus.Config, project: jbus.Project, now: datetime) -> int:
         repo: str | None = repo_of(project.checkout)
     except jbus.Refused:
         repo = None
-    return daily.one(config, project, now, repo)
+    code = daily.one(config, project, now, repo)
+    ruleset.check(config, project, now, repo, daily.ask)
+    return code
 
 
 def _arguments(shown: argparse.ArgumentParser) -> None:
