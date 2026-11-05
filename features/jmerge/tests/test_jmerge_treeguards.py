@@ -3,11 +3,15 @@ tree merged over today's base pass, fail, wait and are kept, and how a failed gu
 `test_jmerge_cli_merged_tree.py` drives the same through the `jmerge` command."""
 
 import json
+import os
+import re
+import shutil
 import time
 from types import SimpleNamespace
 
 from jmerge import ready, treeguards
 from test_jmerge_fresh import git
+from testing.paths import REPO
 
 
 def test_merged_tree_guard_named_from_the_output():
@@ -26,6 +30,36 @@ def test_merged_tree_guards_that_run_past_their_time_are_stopped_with_their_chil
     assert ran.code is None and ran.seconds < 10
     time.sleep(3)
     assert not marker.exists(), "the guards' child outlived the stop"
+
+
+SCOUT = "features/verify-jstack/tests/test_verify_jstack.py::" + (
+    "test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch"
+)
+
+
+def jbus_environment():
+    """The environment jbus's merge unit gives `jmerge`, and with it the guards: systemd's few
+    variables and the unit's PATH, with this run's uv on it, as a machine with jbus has its
+    own in ~/.local/bin."""
+    unit = (REPO / "features" / "jbus" / "units" / "jbus-merge.service").read_text()
+    path = re.search(r"^Environment=PATH=(.*)$", unit, re.MULTILINE)[1]
+    path = path.replace("%h", os.environ["HOME"])
+    uv = os.path.dirname(shutil.which("uv"))
+    names = ("HOME", "USER", "LOGNAME", "LANG", "TMPDIR")
+    return {name: os.environ[name] for name in names if name in os.environ} | {
+        "PATH": path if uv in path.split(":") else f"{uv}:{path}"
+    }
+
+
+def test_merged_tree_guards_drive_the_sandbox_on_the_path_jbus_gives_them(monkeypatch):
+    """The guards run where jbus runs `jmerge`, on its unit's short PATH, and still find what a
+    desk's shell finds: on Arch the drive's `shasum` is in /usr/bin/core_perl, off that PATH,
+    and a guard that missed it held every pull request with this test."""
+    monkeypatch.setattr(os, "environ", jbus_environment())
+    command = f"uv run pytest -q -p no:cacheprovider {SCOUT}"
+    ran = treeguards.run_guards(command, REPO, {"BASE": "HEAD"}, treeguards.LIMIT_SECONDS)
+    assert ran.code == 0, ran.said
+    assert treeguards.guard(ran.said).startswith("1 passed")
 
 
 class Tree:
