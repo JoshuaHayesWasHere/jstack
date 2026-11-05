@@ -29,6 +29,8 @@ LAST_WEEK = "2026-10-18"
 END = "2026-11-02T00:00:00Z"
 BUILT = "2026-11-02T00:05:00Z"
 COPY_STAGES = ("backtest", "steps", "power")
+PINNED_STAGES = (*COPY_STAGES, "records")
+"""The stages whose JSON the same flags and copy fix: records reads up to --end, not now."""
 
 HOOK = """
 import os, sys
@@ -372,9 +374,9 @@ def test_records_and_replay_run_and_no_model_is_called(machine, run):
 
 def test_two_runs_of_the_same_copy_write_the_same_stage_json(machine, run, tmp_path):
     again = tmp_path / "again"
-    ran = lab(machine, "--out", again, "--stages", ",".join(COPY_STAGES))
+    ran = lab(machine, "--out", again, "--stages", ",".join(PINNED_STAGES))
     assert ran.returncode == 0, ran.stdout + ran.stderr
-    for stage in COPY_STAGES:
+    for stage in PINNED_STAGES:
         assert (again / f"{stage}.json").read_text() == (
             run["out"] / f"{stage}.json"
         ).read_text(), stage
@@ -419,4 +421,11 @@ def test_the_manifest_names_the_one_read_of_the_live_store(machine, run):
     assert m["tz"] == "UTC" and isinstance(m["dirty"], bool)
     for name, stage in m["stages"].items():
         assert not [arg for arg in stage["argv"] if live in str(arg)], name
-        assert stage["pinned"] == (name in COPY_STAGES)
+        assert stage["pinned"] == (name in PINNED_STAGES)
+
+
+def test_records_reads_the_days_from_the_fits_first_day_to_the_end(run):
+    argv = json.loads((run["out"] / "manifest.json").read_text())["stages"]["records"]["argv"]
+    assert argv[argv.index("--until") + 1] == END
+    assert argv[argv.index("--days") + 1] == "22"
+    assert json.loads((run["out"] / "records.json").read_text())["until"] == END

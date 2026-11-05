@@ -16,8 +16,8 @@ its output in `<stage>.txt` and its numbers in `<stage>.json`:
   copy's real KPIs (backtest.py).
 - steps: each step's weekly distribution and week-to-week shift tests (steps.py).
 - power: rows per arm for a 20% change (power.py).
-- records: features/evals/benchmark/records.py over the days since the fit's first day, which
-  reads transcripts, events and merge.log under `--home`, not the store.
+- records: features/evals/benchmark/records.py over the days from the fit's first day to `--end`
+  (`--until`), which reads transcripts, events and merge.log under `--home`, not the store.
 - replay: features/evals/benchmark/replay.sh, one run of each event, with no `--spend`.
 
 The out directory is `<home>/.local/state/home/<repo>/reports/lab/<UTC stamp>-<sha8>/` unless
@@ -45,9 +45,9 @@ sys.path.insert(0, str(HERE))
 from span import Span, parse_span  # noqa: E402
 
 STAGES = ("backtest", "steps", "power", "records", "replay")
-PINNED = ("backtest", "steps", "power")
-"""The stages that read only the copy, so the same flags and copy give the same JSON. records reads
-the transcripts and logs under `--home` up to now, and the replay decides on the wall clock."""
+PINNED = ("backtest", "steps", "power", "records")
+"""The stages whose JSON the same flags and copy fix: three read only the copy, and records reads
+the transcripts and logs under `--home` up to `--end`. The replay decides on the wall clock."""
 COPY = "store.sqlite"
 
 
@@ -88,7 +88,8 @@ def commands(
 ) -> dict[str, list[str]]:
     flags = ["--store", str(copy), *span.flags()]
     since = datetime.fromisoformat(span.fit_start).replace(tzinfo=UTC)
-    days = max(1, math.ceil((datetime.now(UTC) - since).total_seconds() / 86400))
+    end = datetime.fromisoformat(span.end.replace("Z", "+00:00"))
+    days = max(1, math.ceil((end - since).total_seconds() / 86400))
     run = ["uv", "run", "--script"]
     return {
         "backtest": [
@@ -111,6 +112,8 @@ def commands(
             sha,
             "--days",
             str(days),
+            "--until",
+            span.end,
             "--home",
             str(a.home),
             "--repo",
