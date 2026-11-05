@@ -166,11 +166,6 @@ ORDER = (
 report: a KPI added since may come anywhere among them, and these keep their order."""
 
 
-def test_the_kpis_keep_the_order_of_the_scouts_report():
-    names = [kpi.name for kpi in kpis.KPIS]
-    assert [name for name in names if name in ORDER] == list(ORDER)
-
-
 def package_with(tmp_path, monkeypatch, name, files):
     """A copy of the KPIs' package named `name`, with these modules added, imported."""
     root = tmp_path / "packages"

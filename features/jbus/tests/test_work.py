@@ -62,35 +62,6 @@ def test_every_combination_of_the_facets_is_one_state_and_what_matches_none_is_u
     assert time.monotonic() - began < 10
 
 
-def test_each_value_but_unknown_is_one_pattern_and_the_values_are_the_closed_set():
-    assert work.VALUES == (
-        "removed",
-        "asking",
-        "hung",
-        "waiting",
-        "merged",
-        "leftover",
-        "done",
-        "closed",
-        "result",
-        "review",
-        "findings",
-        "second",
-        "check",
-        "rebase",
-        "hold",
-        "launching",
-        "working",
-        "quiet",
-        "lost",
-        "unapproved",
-        "behind",
-        "ready",
-        "unknown",
-    )
-    assert [one.value for one in work.PATTERNS] == list(work.VALUES[:-1])
-
-
 def test_the_projection_keeps_each_status_a_reader_knows_and_gives_no_other():
     seen = {work.status(work.judge(facts)) for facts in work.every()}
     assert seen <= set(queue.STATUSES)

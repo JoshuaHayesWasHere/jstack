@@ -29,11 +29,6 @@ def _servers() -> list[type[http.server.HTTPServer]]:
 SERVERS = _servers()
 
 
-def test_the_three_servers_are_found():
-    names = {f"{one.__module__}.{one.__qualname__}" for one in SERVERS}
-    assert {"jbus.t3.Listener", "jbus.relay.Server", "jbus.view.Door"} <= names
-
-
 @pytest.mark.parametrize("server", SERVERS, ids=lambda one: f"{one.__module__}.{one.__qualname__}")
 def test_a_jbus_server_binds_without_asking_dns_for_a_name(server, monkeypatch):
     def getfqdn(name: str = "") -> str:

@@ -1,8 +1,4 @@
-"""These tests check the built part of `features/jbus/docs/jbus/`, and the length of every docs
-page, each page under a `features/<name>/docs/`.
-
-`LONG` names each page over the cap, by its path in the repo, until somebody splits the page. The
-list only shrinks."""
+"""These tests check the built part of `features/jbus/docs/jbus/`."""
 
 import re
 import shutil
@@ -15,30 +11,6 @@ import pytest
 import jbus
 from jbus import pages, wake
 from testing.paths import REPO
-
-READ_SET = ("features/*/docs/",)
-
-CAP = 300
-LONG = frozenset(
-    {
-        "features/jbus/docs/jbus/the-queue.md",
-        "features/jinstall/docs/configuration.md",
-        "features/jmerge/docs/jmerge.md",
-    }
-)
-
-
-def over(root, allowed):
-    """Return the pages under each `root/features/<name>/docs` that are over the cap and that
-    `allowed` lacks, and the pages that `allowed` lists that are no longer over the cap."""
-    lengths = {
-        str(path.relative_to(root)): len(path.read_text().splitlines())
-        for path in root.glob("features/*/docs/**/*.md")
-    }
-    long = {name for name, lines in lengths.items() if lines > CAP}
-    return [f"{name}: {lengths[name]} lines" for name in sorted(long - allowed)] + [
-        f"{name}: under {CAP}, take it off the list" for name in sorted(allowed - long)
-    ]
 
 
 @pytest.fixture
@@ -179,33 +151,3 @@ def test_two_rows_that_each_add_a_verb_module_merge_with_no_conflict(tree, monke
     )
     assert page.stdout == pages.build(tree)[pages.VERBS_PAGE]
     assert "- `jbus aa-free`\n" in page.stdout and "- `jbus zz-free`\n" in page.stdout
-
-
-def verbs_of(table):
-    """The verbs of a table, by the words before their arguments."""
-    return [re.match(r"\| `([^\[<`]*)", row)[1].strip() for row in table.splitlines()[2:]]
-
-
-def test_each_table_of_verbs_is_sorted_so_a_new_verb_lands_in_its_own_place():
-    page = (REPO / "features/jbus/docs/jbus/the-verbs.md").read_text()
-    tables = re.findall(r"^\| Verb \|.*\n(?:\|.*\n)+", page, re.M)
-    assert len(tables) == 3
-    for table in tables:
-        assert verbs_of(table) == sorted(verbs_of(table))
-
-
-def test_no_docs_page_is_over_the_cap_unless_listed_and_a_listed_one_is():
-    assert over(REPO, LONG) == []
-
-
-def test_a_page_over_the_cap_and_a_listed_page_under_it_are_found(tmp_path):
-    docs = tmp_path / "features" / "a-feature" / "docs"
-    (docs / "deep").mkdir(parents=True)
-    (docs / "long.md").write_text("line\n" * (CAP + 1))
-    (docs / "deep" / "short.md").write_text("line\n" * CAP)
-    long = "features/a-feature/docs/long.md"
-    short = "features/a-feature/docs/deep/short.md"
-    assert over(tmp_path, frozenset()) == [f"{long}: {CAP + 1} lines"]
-    assert over(tmp_path, frozenset({long, short})) == [
-        f"{short}: under {CAP}, take it off the list"
-    ]

@@ -11,7 +11,6 @@ Each token is set once, as `light-dark(<light>, <dark>)`, in the page's one `:ro
 The page uses colour only where it means something.
 Amber (`due`) is what waits on you, and red (`missed`) is what broke.
 The page shows who holds a task by a shape and a name, not by a colour.
-`features/jbus/tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every background, and a control's border and the focus ring at 3:1.
 
 The text is set in Atkinson Hyperlegible Next, one variable font that the view serves itself at `/font.woff2`.
 The page's policy is `font-src 'self'`, so it loads fonts from no other host.
