@@ -2691,9 +2691,11 @@ def test_every_pull_request_run_checks_for_an_ai_trailer_a_reuse_included():
 
 
 class Compare:
-    """GitHub's compare API for one range, served on localhost a page at a time."""
+    """GitHub's compare API for one range, served on localhost a page at a time. It records
+    the requests for that range's path and answers 404 to any other, such as a stray probe of
+    local ports from another process on the desk."""
 
-    def __init__(self, messages):
+    def __init__(self, messages, path):
         import http.server
         import threading
         from urllib.parse import parse_qs, urlsplit
@@ -2705,6 +2707,9 @@ class Compare:
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
                 url = urlsplit(self.path)
+                if url.path != path:
+                    self.send_error(404)
+                    return
                 asked.append((url.path, self.headers.get("Authorization")))
                 query = parse_qs(url.query)
                 size, page = int(query["per_page"][0]), int(query["page"][0])
@@ -2724,18 +2729,17 @@ class Compare:
         self.server.shutdown()
 
 
-def no_ai_trailers(
-    tmp_path, messages, title="feat: a change", body="Why it changed.", strays=()
-):
+def no_ai_trailers(tmp_path, messages, title="feat: a change", body="Why it changed.", strays=()):
     """Run the check's script on a pull request with these commits, as the step runs it, after
     the fake server is sent a GET for each stray path, as another process on the desk may."""
     import urllib.error
     import urllib.request
 
     event = tmp_path / "event.json"
-    pull = {"title": title, "body": body, "base": {"sha": "b" * 40}, "head": {"sha": "h" * 40}}
+    base, head = "b" * 40, "h" * 40
+    pull = {"title": title, "body": body, "base": {"sha": base}, "head": {"sha": head}}
     event.write_text(json.dumps({"pull_request": pull}))
-    compare = Compare(messages)
+    compare = Compare(messages, f"/repos/owner/repo/compare/{base}...{head}")
     try:
         for stray in strays:
             with pytest.raises(urllib.error.HTTPError) as refused:
