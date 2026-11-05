@@ -11,13 +11,13 @@ from typing import Literal
 
 Kind = Literal["graded", "pass/fail"]
 KINDS: tuple[Kind, ...] = ("graded", "pass/fail")
-# The smallest difference a family calls, when its task file names none: 0.03 on a graded score,
-# one failed trial in nine on a pass/fail one.
 MDE: dict[Kind, float] = {"graded": 0.03, "pass/fail": 1 / 9}
+"""The smallest difference a family calls when its task file names none: 0.03 on a graded score,
+one failed trial in nine on a pass/fail one."""
 RESAMPLES = 10_000
 ALPHA = 0.05
-# A mean of differences that are all 0 can come out as 1e-17: below this it is 0.
 EPS = 1e-12
+"""A mean of differences that are all 0 can come out as 1e-17: below this it is 0."""
 
 Word = Literal["B better", "B worse", "no measurable difference", "inconclusive: A/A not clean"]
 
@@ -44,11 +44,13 @@ class Exact:
 
 @dataclass(frozen=True)
 class Verdict:
+    """The rule's word for one family, with what it rests on: `exact` and `exact_aa` are B
+    against A and A-again against A, for a pass/fail family only."""
+
     word: Word
     diff: Interval
     aa: Interval
     mde: float
-    # Pass/fail families only: B against A, and A-again against A.
     exact: Exact | None = None
     exact_aa: Exact | None = None
 
@@ -66,8 +68,8 @@ def paired_interval(diffs: list[float], seed: str) -> Interval:
     n = len(diffs)
     rng = random.Random(seed)
     means = sorted(math.fsum(rng.choices(diffs, k=n)) / n for _ in range(RESAMPLES))
-    at = lambda q: means[round(q * (RESAMPLES - 1))]  # noqa: E731
-    return Interval(math.fsum(diffs) / n, at(0.025), at(0.975))
+    low, high = (means[round(q * (RESAMPLES - 1))] for q in (0.025, 0.975))
+    return Interval(math.fsum(diffs) / n, low, high)
 
 
 def fisher(failed_a: int, total_a: int, failed_b: int, total_b: int) -> float:
@@ -123,10 +125,9 @@ def verdict(
         shows, shows_aa = exact.p < ALPHA, exact_aa.p < ALPHA
     else:
         shows, shows_aa = diff.excludes_zero, aa.excludes_zero
-    big = lambda i: abs(i.mean) >= mde - EPS  # noqa: E731
-    if shows_aa and big(aa):
+    if shows_aa and abs(aa.mean) >= mde - EPS:
         word: Word = "inconclusive: A/A not clean"
-    elif shows and big(diff):
+    elif shows and abs(diff.mean) >= mde - EPS:
         word = "B better" if diff.mean > 0 else "B worse"
     else:
         word = "no measurable difference"

@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import hashlib
+import importlib.util
 import json
 import os
 import random
@@ -38,9 +39,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
 
-import stats  # noqa: E402
+
+def _stats():
+    """`stats.py` beside this file, loaded under a name of its own."""
+    name = "ab_stats"
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, HERE / "stats.py")
+        sys.modules[name] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sys.modules[name])
+    return sys.modules[name]
+
+
+stats = _stats()
 
 ARMS = ("A", "A-again", "B")
 SKILL_CUT_ARMS = {"base": "A", "base-again": "A-again", "variant": "B"}
@@ -55,11 +66,10 @@ class Refused(SystemExit):
         super().__init__(f"ab.py: {said}")
 
 
-# The run, as every source becomes it before any statistics.
-
-
 @dataclass(frozen=True)
 class Job:
+    """One call of one task in one arm: what every source becomes before any statistics."""
+
     task: str
     family: str
     arm: str
@@ -74,11 +84,13 @@ class Call:
 
 @dataclass(frozen=True)
 class Run:
+    """A run of any source. `calls` and `errors` are None where the source kept no cost or no
+    count of failed calls, as a skill-cut run did not."""
+
     meta: dict
     families: dict[str, tuple[stats.Kind, float]]
     jobs: dict[str, Job]
     scores: dict[str, float]
-    # None when the source kept no cost or no count of failed calls (a skill-cut run).
     calls: dict[str, Call] | None
     errors: dict[str, int] | None
 
@@ -142,8 +154,11 @@ def report(run: Run, seed: int) -> tuple[list[str], str]:
     return lines, "\n".join(md) + "\n"
 
 
+def fmt(i: stats.Interval) -> str:
+    return f"{i.mean:+.3f} [{i.low:+.3f}, {i.high:+.3f}]"
+
+
 def verdict_line(run: Run, family: str, arms: dict, said: stats.Verdict) -> str:
-    fmt = lambda i: f"{i.mean:+.3f} [{i.low:+.3f}, {i.high:+.3f}]"  # noqa: E731
     tasks = len(arms["A"])
     per_arm = sum(len(v) for v in arms["A"].values())
     parts = [
@@ -186,9 +201,6 @@ def verdict_line(run: Run, family: str, arms: dict, said: stats.Verdict) -> str:
             + ", ".join(f"{arm} ${usd:.2f} {tokens} tokens" for arm, (usd, tokens) in cost.items())
         )
     return "; ".join(parts)
-
-
-# Reading kept runs.
 
 
 def read_skill_cut(path: Path) -> Run:
@@ -273,9 +285,6 @@ def families_of(spec: dict) -> dict[str, tuple[stats.Kind, float]]:
     }
 
 
-# The task file.
-
-
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -337,9 +346,6 @@ def score(answer: str, task: dict, spec: dict, where: Path) -> float:
             f"exit {ran.returncode}"
         )
     return value
-
-
-# A prompt run.
 
 
 def git(*args: str) -> str:
@@ -520,8 +526,6 @@ def run_prompt(args, out: Path, a: str, b: str) -> int:
     return 0
 
 
-# A replay run.
-
 _SANDBOX = re.compile(r"verify-jstack\.[A-Za-z0-9]{6,}")
 _TIME = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)")
 _SHA = re.compile(r"\b[0-9a-f]{40}\b")
@@ -639,9 +643,6 @@ def run_replay(args, out: Path, a: str, b: str) -> int:
     print("\n".join(lines))
     print(f"results: {out}/results.md")
     return 0
-
-
-# The commands.
 
 
 def rescore(args) -> int:
