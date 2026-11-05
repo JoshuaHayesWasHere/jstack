@@ -45,14 +45,13 @@ It pulls by ref and never reads FETCH_HEAD, so another fetch in that checkout ca
 The subject is the pull request's title and ` (#<number>)`.
 The body lists the branch's commit messages as GitHub's default does.
 `jmerge` removes every AI co-author trailer line from each message (`jmerge.trailers`).
-A landing's merge commit keeps GitHub's subject, and its body is the title.
-A landing that is a squash gets the squash's message.
 When the crewmate's worktree is clean and its branch is at the merged head, `jmerge` removes the worktree, the local branch and the remote branch.
 It writes no plan, because `jbus plan` works out an entry's status from its queue rows.
 It needs `gh` and `git`.
 
 It prints one line per open pull request, and appends the lines to `merge.log`.
-It takes the open pull requests lowest number first, the oldest first, so an older pull request is not passed over by newer ones that became ready with it.
+It takes each revert jbus opened for a red main first ([A red main](../../jbus/docs/jbus/a-red-main.md)).
+It takes the rest lowest number first, the oldest first, so an older pull request is not passed over by newer ones that became ready with it.
 The migration order ("Migrations") and `merge_after` still come before the number.
 When a `wait` or `hold` line repeats from run to run, it logs the line only once.
 
@@ -67,7 +66,7 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 
 In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has failed [check-failed]`, and the line it prints has none.
 The code is fixed for a reason whatever its text says: a `Reason` in `features/jmerge/src/jmerge/ready.py` has its constant's name in lower case, its words joined by `-` (`CHECK_FAILED` is `check-failed`), and a reason given as plain text has the code of its rule in `ready.rules`.
-`check has failed` (`check-failed`) is a check every latest run of which failed, `check has not passed` (`not-passed`) one that is queued, running or passed, and a reason no rule names is `unknown`.
+`check has failed` (`check-failed`) is a check every latest run of which failed, `check has not passed` (`not-passed`) one that is queued, running or cancelled, and a reason no rule names is `unknown`.
 jbus and the view read a pull request's step from the code, and from the text on a line logged before the codes and on a line as `jmerge` prints it, which `ready.code_of` gives the same code.
 
 For each pull request it merges, `jmerge` also appends one line to `merge-waits.jsonl` beside `merge.log`, which `jbus telemetry` reads (`features/jmerge/src/jmerge/waits.py`).
@@ -162,6 +161,15 @@ The section "Protected paths" describes one more hold.
   A crew's or a home's own message, a word of the bot's that a home typed, and the user's word about the row that waives nothing, its go included, waive nothing, and a word waives only the line it quotes.
   The rule does not apply to a brief that says `Review: none`, to one with no review that ran, or to one with no `Done when` list.
   `jmerge` judges it after every other wait of the review, so a pull request short of a `Fixed:` line or a scoped review says that first.
+- **Its Result proves the work.**
+  The pull request waits on the `result` step while one of three lines of its brief's Result is short (`ready.short_of`, `ready.short_on_proved`, `ready.short_on_checked`).
+  `Skills run:` has an artifact for each skill the brief's `Skills:` line names (`skills-unrun`).
+  A pull request that changes tests has a `Proved:` line that names each of them, with their run ending 1 at its base and 0 at its head.
+  One that changes only test files needs only the run at its head, and one that changes no test needs no line.
+  The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=guards` or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
+  An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
+  On the two-step line the crew's check block once wrote, only the guards' step counts.
+  Each line it waits with is a `Reason` in `features/jmerge/src/jmerge/ready.py`, from `SKILLS_UNRUN` to `CHECKED_PART`.
 - **The required checks passed, and GitHub reports that the pull request can merge.**
   Green means that the latest run of each required check at the head passed, whatever the other checks say.
   A required check whose job its own workflow skipped by an `if:` counts as passed when every other job of that workflow at the head passed or was skipped, and one passed: macos.yml skips `macos` that way where its `macos-select` job finds no Mac test the change reaches (`ready.passed`).

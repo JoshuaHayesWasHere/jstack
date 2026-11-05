@@ -15,7 +15,7 @@ The timer runs `jbus-snapshot.service`, which runs `jbus snapshot`:
 4. It pushes to `origin`, whether or not it committed, so a commit whose push failed goes out with the next snapshot.
    It then prints `snapshot: committed, pushed` or `snapshot: nothing changed, pushed`.
    In a tree with no `origin`, the commit stays in the tree, so you can still undo an edit back to it.
-   The snapshot then succeeds with `snapshot: committed, not pushed: <tree> has no origin, so the backup is off`.
+   The snapshot then succeeds with `snapshot: committed, not pushed: <tree> has no origin, so the backup is off`, or `snapshot: nothing changed, not pushed: ...` when nothing changed.
 
 The backup needs two things a fresh install does not have: a private repository of yours as the remote, which nothing else pushes to, and gitleaks on the machine.
 Without them the timer stays off, and nothing alerts.

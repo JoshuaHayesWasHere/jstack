@@ -77,7 +77,7 @@ A check added after a row got its go does not apply to that row, so it refuses n
 
 A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in pstack and in jstack.
 `skills.json`, at the root of jstack's source tree, lists the names, and the resolver reads them from that file, not from the directories.
-The canonical form of a skill is its directory under `skills/`, such as `architect`.
+The canonical form of a skill is the name of the directory that holds its `SKILL.md`, such as `architect`.
 The canonical form of a principle is its directory under `features/principles/skills/`, such as `principle-model-the-domain`.
 Three aliases resolve too:
 
@@ -118,6 +118,7 @@ Its `items` are sorted by kind, then by name, and each item has these keys:
 | `pstack_name` | Only where pstack's name for it differs from `name`: an alias the resolver maps to `name`. |
 | `description` | A skill's frontmatter `description`, or the paragraph under a principle's title. |
 | `nameable` | Only on a playbook a `Skills:` line may name, because its feature lists it as `nameable`. |
+| `hidden` | Only on a skill its feature lists as `hidden`. |
 
 At runtime, code finds any of these files only through `jbriefs.skills.where(kind, name)`, as in `where("template", "gates.md")`.
 No module computes a path in the checkout from its own location in the checkout.
