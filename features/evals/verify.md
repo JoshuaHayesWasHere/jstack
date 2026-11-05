@@ -15,6 +15,7 @@ Tests: none
 - `benchmark-replay` decides each seeded event with today's `jbus` and `jmerge`, with no model, and runs setup B only with `--spend`.
 - `benchmark-home-start` runs `/home` at a commit only with `--spend`.
 - `lab` copies the telemetry store, then runs the KPI backtest, the steps' shift tests, the A/B power, the records reader and the replay on that copy, with no model and no `--spend`.
+- `ab` compares two revisions on one task set: the `prompt` kind asks `claude -p` in arms A, A-again and B, interleaved and scored blind, and prints a verdict per family with its interval; the `replay` kind runs the replay's today side once per arm, each in its own worktree, and diffs every event's decision; `rescore` reports a kept run, a skill-cut one too, with no model.
 
 The skill-cut eval and the eval of the depth questions are not driven yet.
 
@@ -26,8 +27,9 @@ The skill-cut eval and the eval of the depth questions are not driven yet.
 - Run `uv run --script features/evals/lab/lab.py --fit <first day>..<cutoff> --week <Sunday> --end <UTC time> --runs 200`.
   It writes `~/.local/state/home/<repo>/reports/lab/<UTC stamp>-<sha8>/` unless `--out` names a directory: `manifest.json`, a `<stage>.json` and `<stage>.txt` per stage, and `summary.md`, which opens with the KPI table.
   The copy `store.sqlite` is deleted when the run ends, unless `--keep-store`.
+- Run `uv run python features/evals/ab/ab.py run --a <rev> --b <rev> --tasks <task file> [--kind replay]`, or `ab.py rescore <run dir>`.
 
-`features/evals/benchmark/README.md` says what each prints.
+`features/evals/benchmark/README.md` and `features/evals/ab/README.md` say what each prints.
 
 ## Driving it with verify-jstack
 
@@ -44,6 +46,18 @@ The replay makes its own sandbox for each run of each event, so it is run from a
   `/tmp/replay/today.jsonl` has `"tokens":0`, and there is no `/tmp/replay/b.jsonl`.
 - **Proof.**
   Keep `/tmp/replay/redmain.1.today.txt` and `/tmp/replay/redmain.1.today-gh.log`, which has no `pr merge` line, as `jmerge --check` merges nothing.
+
+### The A/B harness's replay kind finds no change between main and main
+
+- **Run the A/A.**
+  From a shell with no `claude` on PATH, run `uv run python features/evals/ab/ab.py run --a main --b main --tasks features/evals/ab/tasks/replay.json --kind replay --out /tmp/ab-replay`.
+  It prints one line per event, `<event>: same: A <decision> | B <decision>`, then `replay: 0 of 7 events decided differently; tokens A 0, B 0`.
+- **Check that each arm had its own worktree and left none.**
+  `/tmp/ab-replay/A.log` and `/tmp/ab-replay/B.log` each start with the limits ledger, and `git worktree list` names no `ab-<sha>-A-` or `ab-<sha>-B-` path after.
+- **Check that it repeats.**
+  The same command with `--out /tmp/ab-replay-2` writes a `results.md` that `cmp` finds the same as `/tmp/ab-replay/results.md`.
+- **Proof.**
+  Keep `/tmp/ab-replay/results.md` and `/tmp/ab-replay/run.json`, which holds both resolved SHAs and the task file's sha256.
 
 ### The upkeep ledger says jbus's share beside the baseline's 0.54
 
