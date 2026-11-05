@@ -900,7 +900,8 @@ class Repo:
             short = short or ready.short_on_proved(text, one, carries)
             short = short or ready.short_on_checked(text, one.head, carries)
         rebase: ready.Rebase | None = None
-        covered = None if reverted else ready.to_range_diff(text, one.head)
+        unreviewed = ready.said_of(text).mode == ready.NONE
+        covered = None if reverted or unreviewed else ready.to_range_diff(text, one.head)
         under = ready.under_fix(text, one.head)
         lost: tuple[ready.Drop, ...] = ()
         if not short and covered:
@@ -1164,10 +1165,13 @@ class Repo:
         text = _read(self.state / "tasks" / f"{first.slug}.md")
         at = self.proven_at(one, text)
         proven = proof.fact(text, at)
-        if proven is None:
+        unreviewed = ready.said_of(text).mode == ready.NONE
+        if proven is None and not unreviewed:
             say(f"refused {about}: {proof.short(text, at)}")
             return 1
-        safe = f"safe because {proven[0]} (proven at {at[:12]})"
+        safe = "no review proof, its brief says Review: none"
+        if proven:
+            safe = f"safe because {proven[0]} (proven at {at[:12]})"
         self.accepted = (one.number, one.head)
         found = self.waits(one, default)
         if found.judged is None:
