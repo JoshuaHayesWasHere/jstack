@@ -21,6 +21,7 @@ fails.
 """
 
 import ast
+import importlib.util
 import json
 import os
 import re
@@ -40,6 +41,9 @@ EXCEPTION = re.compile(r"#\s*pragma: no cover, \S.*?\(the user[,:]\s*[^)]*\S\)\s
 TESTS = ("features/*/tests/**/test_*.py", "testing/tests/**/test_*.py")
 WORKERS = "4"
 RAN = Path(__file__).parents[1] / "ran"
+SPEC = importlib.util.spec_from_file_location("new_lines_rounds", RAN / "new_lines_rounds.py")
+rounds = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(rounds)
 
 
 def added(since: str, repo: Path = REPO) -> dict[str, set[int]]:
@@ -212,10 +216,7 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
             path: mine.get(path, set()) if own[path] else numbers for path, numbers in left.items()
         }
         left = {path: numbers for path, numbers in left.items() if numbers}
-    rest = sorted(
-        {one for path in left for one in tests[path] if one not in own[path]},
-        key=lambda one: (min(len(tests[path]) for path in left if one in tests[path]), one),
-    )
+    rest = rounds.second(left, tests, own)
     if left and rest:
         left = unrun(left, rest, scratch / "rest", repo)
     said += [
