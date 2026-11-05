@@ -110,29 +110,43 @@
   elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$'); then
       echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind"
   else
+      kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
       tree=$(mktemp -d)
-      git clone -q --shared --no-checkout . "$tree"
-      git -C "$tree" checkout -q --detach "$base"
-      git diff --name-only --diff-filter=d "$base" HEAD | grep -E '(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$' |
-          while read -r file; do
-              mkdir -p "$tree/$(dirname "$file")"
-              git show "HEAD:$file" > "$tree/$file"
-          done
-      (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
+      if git diff --name-only --no-renames "$base" HEAD | grep -qvE "$kept"; then
+          only=
+          git clone -q --shared --no-checkout . "$tree"
+          git -C "$tree" checkout -q --detach "$base"
+          git diff --name-only --diff-filter=d "$base" HEAD | grep -E "$kept" |
+              while read -r file; do
+                  mkdir -p "$tree/$(dirname "$file")"
+                  git show "HEAD:$file" > "$tree/$file"
+              done
+          (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
+      else
+          only=1
+          echo "tests only: every file the branch changes is a test, so its tests run at the head alone"
+      fi
       list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
-      PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
+      PROOF_ONLY=$only PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
           env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $PROOF_TESTS > "$PROOF_TREE/.proof-head" 2>&1
           echo "head exit $?: $(tail -n 1 "$PROOF_TREE/.proof-head")"
-          (cd "$PROOF_TREE" && env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider --continue-on-collection-errors $PROOF_TESTS) > "$PROOF_TREE/.proof-base" 2>&1
-          echo "base exit $?: $(tail -n 1 "$PROOF_TREE/.proof-base")"
+          if [ -z "$PROOF_ONLY" ]; then
+              (cd "$PROOF_TREE" && env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider --continue-on-collection-errors $PROOF_TESTS) > "$PROOF_TREE/.proof-base" 2>&1
+              echo "base exit $?: $(tail -n 1 "$PROOF_TREE/.proof-base")"
+          fi
       ' | tee "$tree/.proof-said"
       ran=${PIPESTATUS[0]}
       at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
       at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
-      if [ "$ran" != 0 ] || [ -z "$at_head" ] || [ -z "$at_base" ]; then
+      line=
+      if [ "$ran" != 0 ] || [ -z "$at_head" ] || { [ -z "$only" ] && [ -z "$at_base" ]; }; then
           echo "no proof: the slot's run ended $ran"
+      elif [ -n "$only" ]; then
+          line="Proved: $list head exit $at_head at $head, tests only"
       else
           line="Proved: $list base exit $at_base at $base, head exit $at_head at $head"
+      fi
+      if [ -n "$line" ]; then
           echo "$line"
           if grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi
       fi
@@ -143,14 +157,18 @@
   The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
   The copy stays in the temp directory, as scratch does.
-  The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, and each `conftest.py`.
+  The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
+  A branch whose every changed file, a deleted one too, is such a file changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
+  A test made faster, split or cleaned up is such a branch.
+  For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`.
+  `jmerge` takes that line only where every file the pull request changes is such a file and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
   On anything else, fix the tests until they fail without the change, commit, and run it again.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.
   The line is of the head it ran at: a rebase or a merge of the base keeps it, and a push that changes the patch, a fix for a finding among them, runs the block again; the last `Proved:` line is the one `jmerge` reads.
-  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
+  `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, a `tests only` line, which has no base exit, where the pull request changes a file that is no test, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
 
   A pull request that changes no test file writes `Proved: none, <kind>`, with `docs`, `config`, or `docs and config`, and is exempt.
   The kinds that are exempt, and the files each covers (`jbriefs.proved.EXEMPT`), are these:
