@@ -388,14 +388,14 @@ def test_a_run_deletes_its_copy_at_its_end_and_names_the_copys_hash_and_size(run
 
 def test_two_runs_of_the_same_copy_write_the_same_stage_json(machine, run, tmp_path):
     again = tmp_path / "again"
-    ran = lab(machine, "--out", again, "--stages", ",".join(PINNED_STAGES), "--keep-store")
+    ran = lab(machine, "--out", again, "--keep-store")
     assert ran.returncode == 0, ran.stdout + ran.stderr
     copy = again / "store.sqlite"
     store = json.loads((again / "manifest.json").read_text())["store"]
     assert store["kept"] is True
     assert store["sha256"] == hashlib.sha256(copy.read_bytes()).hexdigest()
     assert store["bytes"] == copy.stat().st_size
-    for stage in PINNED_STAGES:
+    for stage in (*PINNED_STAGES, "replay"):
         assert (again / f"{stage}.json").read_text() == (
             run["out"] / f"{stage}.json"
         ).read_text(), stage

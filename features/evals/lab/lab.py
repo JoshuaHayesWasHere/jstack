@@ -156,17 +156,20 @@ def commands(
 
 
 EVENT = re.compile(r"^today: (\w+), run (\d+), \d+ ms, expect (.*)$")
+CLOCK = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)?")
+"""A wall time the replay prints, such as the reset a capped launch waits for: an hour from now."""
 
 
 def replay_json(text: str, out: Path) -> dict:
-    """What the replay decided for each event, from what it printed, with no wall time."""
+    """What the replay decided for each event, from what it printed, with no wall time: its
+    timings are dropped and each time it prints is `<time>`."""
     events, cur = [], None
     for line in text.splitlines():
         if m := EVENT.match(line):
             cur = {"event": m[1], "run": int(m[2]), "expect": m[3], "decided": []}
             events.append(cur)
         elif cur is not None and line.startswith("  ") and not line.startswith("  limits"):
-            cur["decided"].append(line.strip())
+            cur["decided"].append(CLOCK.sub("<time>", line.strip()))
         else:
             cur = None
     rows = (
