@@ -20,6 +20,7 @@ import pytest
 from crew_helpers import block, git
 from jbriefs import proved
 from jbus import door
+from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 
 UV = f"""#!/bin/bash
@@ -104,10 +105,10 @@ def worktrees(tree):
     return git(tree, "worktree", "list", "--porcelain")
 
 
-def proof(tree):
+def proof(tree, shell=""):
     before = worktrees(tree)
     ran = subprocess.run(
-        ["bash", "-c", script()],
+        ["bash", "-c", shell + script()],
         cwd=tree,
         capture_output=True,
         text=True,
@@ -226,3 +227,15 @@ def test_a_branch_that_changes_a_test_and_anything_else_runs_it_at_the_base_too(
     assert "tests only" not in said
     assert "base exit 0: 2 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 0, base, 0, head)
+
+
+def test_a_change_to_source_and_tests_runs_at_the_base_where_grep_is_claude_codes_ugrep(repo):
+    """In a Claude Code agent shell `grep` is a function that runs its embedded ugrep, which
+    answered `grep -qvE` with no line kept where grep kept one: the block said "tests only" for
+    a change to `calc.py`. `UGREP` stands in for it."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, shell=UGREP)
+    assert "tests only" not in said
+    assert "base exit 1: 1 failed, 1 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
