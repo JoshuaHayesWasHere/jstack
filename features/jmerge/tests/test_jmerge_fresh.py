@@ -1,7 +1,9 @@
 """`jmerge` merges a pull request on its passing check while that check ran over today's main.
 When main changed any file after its check started, `git merge-tree` of the head onto main
-decides how it waits: a clean merge has GitHub merge main into its branch, and the check at the
-new head decides, and a conflict waits for a rebase (`test_jmerge_rejudge.py`). When a rebase
+decides how it waits: in a repo with no guards on the merged tree, as here, a clean merge has
+GitHub merge main into its branch, and the check at the new head decides, and a conflict waits
+for a rebase (`test_jmerge_rejudge.py`). With the guards, one that shares no file with main's
+changes merges on its existing check (`test_jmerge_existing_check.py`). When a rebase
 drops a line, the pull request waits until its crew says why
 (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after its
 merge.
@@ -45,6 +47,10 @@ case "$1 $2" in
         cat "$STUB/left-${number%/files}" ;;
     "pr merge")
         [ "$4 $5" = "--squash --match-head-commit" ] || exit 64
+        if [ -e "$STUB/merge-refused" ]; then
+            echo "GraphQL: Pull request is not mergeable (mergePullRequest)" >&2
+            exit 1
+        fi
         tree=$(git -C "$ORIGIN" merge-tree --write-tree refs/heads/main "$6") || exit 1
         commit=$(git -C "$ORIGIN" commit-tree "$tree" -p refs/heads/main -m "squash (#$3)")
         git -C "$ORIGIN" update-ref refs/heads/main "$commit"
@@ -259,8 +265,8 @@ def test_two_ready_pull_requests_on_other_files_the_second_waits_for_a_check_ove
     kitchen,
 ):
     """The 20:53 replay: the check of the second pull request started before the first one
-    merged, so it never ran over the first's merge, and its own files are no proof that it would
-    pass there."""
+    merged, so it never ran over the first's merge, and with no guards on the merged tree its own
+    files are no proof that it would pass there."""
     one = kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
     two = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     first, second = kitchen.run()
