@@ -3,10 +3,11 @@ another brief, and this message is the safety that replaces that hold.
 
 No row waits for another brief's files, so two crews may change the same file, each in its own
 worktree. The merge decides which change goes in. `jmerge` waits on a pull request when the default
-branch moved under the pull request or when the pull request conflicts with its base. `jmerge` says
-so on a `wait` line. `tell` reads those lines and sends the crew one message for each head. The
-message names a backup ref for the head that the rebase rewrites, and a lease that names that head.
-With the backup ref and the lease, a rebase never loses what was on the branch.
+branch moved under the pull request, when the pull request conflicts with its base, or when its tree
+merged over today's base fails a guard (`ready.MERGED_TREE_FAILS`, whose line names the guard).
+`jmerge` says so on a `wait` line. `tell` reads those lines and sends the crew one message for each
+head. The message names a backup ref for the head that the rebase rewrites, and a lease that names
+that head. With the backup ref and the lease, a rebase never loses what was on the branch.
 jbus alone merges, so no home waits on a crew's line on green after a fix (`owed`).
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
@@ -14,8 +15,8 @@ the key in `sent.json` as a mark of the send. So a pass that got no answer tries
 never tells the same head twice. For main moving or for a failure, jbus tells a pull request to
 rebase only once. A crew may rebase and then find its pull request stale or failing again at a new
 head. jbus then parks a gate (`SECOND`) with the default that the pull request waits, and asks for
-no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
-resolves a conflict.
+no second rebase. jbus tells of a conflict with the base, and of a merged tree that fails a guard,
+at every head (`EVERY_HEAD`), since nothing but the crew's rebase and fix resolves either.
 
 `tell` also reads a second kind of `wait` line, about a rebase that changed what the patch says.
 `jmerge` keeps a review valid across a rebase whose range-diff changes no content, and waits on a
@@ -102,9 +103,12 @@ EVENTS = {
     "refailed": "quiet",
     "green": "quiet",
 }
-STALE = (ready.MAIN_CHANGED.code, ready.CONFLICTS.code)
+EVERY_HEAD = (ready.CONFLICTS.code, ready.MERGED_TREE_FAILS.code)
+"""The codes of the `wait` reasons that only the crew's rebase and fix lift, told at every head: a
+conflict with the base, and a tree merged over today's base that fails a guard."""
+STALE = (ready.MAIN_CHANGED.code, *EVERY_HEAD)
 """The codes of the `wait` reasons that only a rebase lifts: the default branch changed under the
-check, and a conflict with the base."""
+check, and the two of `EVERY_HEAD`."""
 NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
 SECOND = "stale again after its one rebase"
@@ -528,7 +532,7 @@ def post(
     if ask.head and not head.startswith(ask.head):
         return None
     again = any(one.startswith(f"rebase|{slug}|") for one in sent)
-    if ask.kind == "rebase" and again and ready.code_of(reason) != ready.CONFLICTS.code:
+    if ask.kind == "rebase" and again and ready.code_of(reason) not in EVERY_HEAD:
         run.gate(slug, SECOND, f"#{number}: {reason}", key=f"{SECOND} {head[:12]}")
         return None
     thread = thread_of(run.home, slug)
