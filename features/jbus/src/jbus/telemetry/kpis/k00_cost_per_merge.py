@@ -2,10 +2,11 @@ from jbus.telemetry.kpis import Kpi, Measured
 from jgauge import spend
 
 WAITING = (
-    "CASE WHEN waiting > 0 THEN waiting || ' merge' || iif(waiting = 1, '', 's') "
-    "|| ' of the week not judged yet, whose calls count' END"
+    "CASE WHEN waiting > 0 THEN merges || ' of ' || (merges + waiting) || ' merges of the week "
+    "judged, so no figure until the rest are' END"
 )
-"""The week's merges whose 7 days are not over: all-in counts their calls, and not them yet."""
+"""The week's merges whose 7 days are not over: all-in would count their calls and not them, so
+the week shows no figure until every one is judged, as each is by the end of the week after."""
 OWN = (
     "CASE WHEN merges > 0 THEN 'own threads $' || printf('%.2f', own_dollars_mean) || "
     "' mean, $' || printf('%.2f', own_dollars_median) || ' median a merge' END"
@@ -34,7 +35,7 @@ KPI = Kpi(
     "lower",
     Measured(
         "weekly_merge_cost",
-        "all_in_per_merge",
+        "CASE WHEN waiting = 0 THEN all_in_per_merge END",
         "merges",
         detail=f"concat_ws('; ', {WAITING}, {OWN}, {BY})",
     ),

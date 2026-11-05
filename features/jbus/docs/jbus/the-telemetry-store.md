@@ -111,11 +111,11 @@ Each pass copies the calls written since the last one, so a call is in the store
 A Claude call is one message, counted with its final counts once Claude Code wrote them.
 A Codex call is one `token_count` event.
 `input` is the input not read from the cache, for both.
-A Claude call's `effort` is the one its transcript's lines name (`effort`, written on each assistant line since Claude Code 2.1.303 on 2026-10-19), such as `medium`, `high` or `xhigh`, a subagent's its own.
+A Claude call's `effort` is the one its transcript's lines name (`effort`, written on each assistant line since Claude Code 2.1.303 on 2026-10-19, or `perTurnEffort` on a line whose `effort` is null), such as `medium`, `high` or `xhigh`, a subagent's its own.
 A call whose lines name none has none, never a guess: a Codex call, and a Claude call of an older Claude Code.
 It is not T3 Code's run record, which names only the effort jroles asked for, and none where the model ran at its own default.
 The store gained `effort` with migration `v013_call_effort`, which drops each Claude transcript's cursor, so the next build reads every transcript still on disk again and sets the effort of each call it holds, and changes nothing else of it.
-A pass reads at most 16 MiB, so on a machine with gigabytes of transcripts, a `jbus telemetry` by hand copies them in one go.
+A pass reads at most 16 MiB, the transcripts written since the last build first, so the reread holds up no new call; on a machine with gigabytes of transcripts, a `jbus telemetry` by hand finishes it in one go.
 
 | View | Gives |
 |---|---|
@@ -243,7 +243,8 @@ The store holds no text of a message.
 
 The first KPI is the headline, all-in dollars per successful merge: an estimate at API list prices of every priced call the week made, over the merges it made that were not redone.
 Dollars are the headline, and not raw tokens, because cache reads are most of every model's tokens and a small share of its dollars, so a raw sum ranks a long cheap session above a short dear one; `merge_cost` keeps the raw counts beside them.
-Its note gives a merge's own threads, mean and median, their dollars by role, model and effort, dearest first, and how many of the week's merges are not judged yet: until they are, all-in counts their calls and not them, so this week's figure runs high.
+Its note gives a merge's own threads, mean and median, and their dollars by role, model and effort, dearest first.
+A week with merges whose 7 days are not over shows no figure, and says how many of its merges are judged: all-in would count their calls and not them, and run high. Each is judged by the end of the week it counts in, so this week shows none until about its last day, and last week always has one.
 
 The crew first load is what a `/crew` thread reads of jstack's before its work: the crew `SKILL.md` and the largest print of `jbus playbook crewmate`, so no crew's is larger.
 The harness's wrapper around the skill's expansion is not counted, nor the brief.
