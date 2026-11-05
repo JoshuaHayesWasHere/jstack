@@ -31,10 +31,12 @@ The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so 
 knows a slot is held: a TLC model check in a suite takes no second slot, and cannot wait on the
 one its own suite holds.
 
-Each slot has a temporary directory of its own under `/tmp` (`TMPFS`),
+Each slot has a temporary directory of its own on disk, under `/var/tmp` (`SLOTS_ROOT`),
 `jgauge-<uid>/<hash of the lock directory>/test-slot.<n>` (or `test-slot-short.<n>`), and the
-command runs with `TMPDIR` set to it. It is not beside the lock file, since a path with a hidden
-directory in it, such as `~/.local`, makes asar unpack no native binaries. So pytest's basetemp,
+command runs with `TMPDIR` set to it. It is not under `/tmp`, since a suite's basetemp runs to
+hundreds of MiB and `/tmp` may be a tmpfs whose per-user quota it fills. It is not beside the
+lock file, since a path with a hidden directory in it, such as `~/.local`, makes asar unpack no
+native binaries. So pytest's basetemp,
 `pytest-of-<user>` under the temporary directory, is the slot's, for the suite and for every
 pytest it starts, and nothing goes to the `pytest-of-<user>` in `/tmp` that every worktree's runs
 shared. Pytest's own retention did not keep that one small: a run that was killed never cleaned
@@ -67,7 +69,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jgauge import holders, sample, sizes, slotlog, waiters
+from jgauge import holders, sizes, slotlog, waiters
 
 SHORT_LIMIT_SECONDS = 120.0
 LOOK_EVERY_SECONDS = 0.2
@@ -75,6 +77,7 @@ STOP_GRACE_SECONDS = 5.0
 TIMED_OUT = 124
 WAITING = 76
 HELD = "JGAUGE_TEST_SLOT"
+SLOTS_ROOT = Path("/var/tmp")
 
 
 @dataclass(frozen=True)
@@ -198,8 +201,8 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tupl
 def _temporary(lock: Path) -> Path:
     """The temporary directory of the slot whose lock file is `lock`, emptied of what a holder
     that died left in it. The lock files' directory is in its name, so a sandbox's HOME on the
-    same `/tmp` has one of its own."""
-    mine = sample.tmpfs() / f"jgauge-{os.getuid()}"
+    same machine has one of its own."""
+    mine = SLOTS_ROOT / f"jgauge-{os.getuid()}"
     mine.mkdir(mode=0o700, exist_ok=True)
     of = hashlib.sha256(str(lock.parent).encode()).hexdigest()[:12]
     own = mine / of / lock.stem
