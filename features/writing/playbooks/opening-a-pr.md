@@ -17,7 +17,7 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 Its base is the default branch, and nothing is stacked on another task's branch, but for a link of a stack, whose brief says so (step 6).
 Work that turns out to be more than one pull request goes on the Result's `Left:` line: the home splits it.
 
-1. Run the repo's check command (`$H/fresh-check`) until it passes.
+1. Have the check of the change pass at the head you push: the one run `skills/crew/SKILL.md` "Do the task" asks for, run again only after a fix for what it found.
    A heavy suite is run as `skills/crew/SKILL.md` "Do the task" says, by whoever it says.
    Where the repo has a verify skill, run it on what you changed.
    A pass is the real thing run and read, not "it compiles" (`principles/principle-prove-it-works.md`).
@@ -62,7 +62,7 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
 
 Never done here, and who does it:
 
-- **Merge.** The home merges a pull request that is reviewed, fixed and green. Anything else waits for the user's word.
+- **Merge.** `jmerge`, run by jbus, squash-merges a pull request that is reviewed, fixed and green. One it holds waits for the user's word.
 - **Review**: one reviewer, in a new thread, reviews once, launched as `skills/crew/SKILL.md` "The review" says.
   Fix what you agree with, and push back, with a reason, on the rest.
   A fix gets no review: one round, and it merges on its checks ("A second pass").

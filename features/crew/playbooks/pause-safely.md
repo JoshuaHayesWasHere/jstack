@@ -29,7 +29,7 @@ Never done here, and who does it:
   Nobody does: the `wip:` commit and the Result are the checkpoint.
   `features/writing/playbooks/opening-a-pr.md` is run on resume, when "Done when" holds.
 - **A resume file of your own, in `/tmp` or the repo.** Nobody writes one: the brief is the one place the next thread reads.
-- **Squashing or rewording the `wip:` commit.** The home squash-merges, so it never reaches the default branch.
+- **Squashing or rewording the `wip:` commit.** `jmerge`, run by jbus, squash-merges, so it never reaches the default branch.
 - **Resuming.** The user or the home says when, in this thread or with a new one on the same worktree. The round that follows appends `## Result, follow-up`, as `skills/crew/SKILL.md` "End" says.
 
 **Hand over:** in the Result, to the home and to the thread that resumes: which "Done when" lines hold, what is on disk and at which commit, whether the check command passes there, and the first action on resume. This is a pause, not a final report.
