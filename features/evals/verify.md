@@ -51,7 +51,8 @@ The replay makes its own sandbox for each run of each event, so it is run from a
 
 - **Run the A/A.**
   From a shell with no `claude` on PATH, run `uv run python features/evals/ab/ab.py run --a main --b main --tasks features/evals/ab/tasks/replay.json --kind replay --out /tmp/ab-replay`.
-  It prints one line per event, `<event>: same: A <decision> | B <decision>`, then `replay: 0 of 7 events decided differently; tokens A 0, B 0`.
+  It prints one line per event, `<event>: same: A <decision> | B <decision>`, then `replay: 0 of 7 events decided differently`.
+  Each arm's `/tmp/ab-replay/<arm>/today.jsonl` has `"tokens":0` on every row.
 - **Check that each arm had its own worktree and left none.**
   `/tmp/ab-replay/A.log` and `/tmp/ab-replay/B.log` each start with the limits ledger, and `git worktree list` names no `ab-<sha>-A-` or `ab-<sha>-B-` path after.
 - **Check that it repeats.**
