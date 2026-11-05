@@ -2724,13 +2724,23 @@ class Compare:
         self.server.shutdown()
 
 
-def no_ai_trailers(tmp_path, messages, title="feat: a change", body="Why it changed."):
-    """Run the check's script on a pull request with these commits, as the step runs it."""
+def no_ai_trailers(
+    tmp_path, messages, title="feat: a change", body="Why it changed.", strays=()
+):
+    """Run the check's script on a pull request with these commits, as the step runs it, after
+    the fake server is sent a GET for each stray path, as another process on the desk may."""
+    import urllib.error
+    import urllib.request
+
     event = tmp_path / "event.json"
     pull = {"title": title, "body": body, "base": {"sha": "b" * 40}, "head": {"sha": "h" * 40}}
     event.write_text(json.dumps({"pull_request": pull}))
     compare = Compare(messages)
     try:
+        for stray in strays:
+            with pytest.raises(urllib.error.HTTPError) as refused:
+                urllib.request.urlopen(compare.url + stray, timeout=10)
+            assert refused.value.code == 404
         ran = subprocess.run(
             [sys.executable, str(NO_AI_TRAILERS)],
             capture_output=True,
@@ -2767,6 +2777,21 @@ def test_a_commit_with_an_ai_trailer_fails_the_check_naming_the_commit_and_the_l
     sha = f"{1:040x}"[:12]
     assert printed[0] == f"::error title=AI co-author trailer::commit {sha} line 5: {line}"
     assert len(printed) == 2
+    path = f"/repos/owner/repo/compare/{'b' * 40}...{'h' * 40}"
+    assert asked == [(path, "Bearer t0ken")]
+
+
+def test_a_stray_local_request_to_the_fake_compare_server_leaves_the_ai_trailer_check_alone(
+    tmp_path,
+):
+    """A bare `GET /` from another process probing local ports is answered 404 and not
+    recorded, so the check still reads the one compare request it made."""
+    code, printed, asked = no_ai_trailers(
+        tmp_path, ["feat: one", f"fix: two\n\nWhy.\n\n{CLAUDE}"], strays=["/"]
+    )
+    assert code == 1
+    sha = f"{1:040x}"[:12]
+    assert printed[0] == f"::error title=AI co-author trailer::commit {sha} line 5: {CLAUDE}"
     path = f"/repos/owner/repo/compare/{'b' * 40}...{'h' * 40}"
     assert asked == [(path, "Bearer t0ken")]
 
