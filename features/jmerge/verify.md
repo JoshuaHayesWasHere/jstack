@@ -17,7 +17,7 @@ Tests: none
 - `decision-review-after` reads a brief that still says `Review: after` as `review`: its findings hold the merge.
 - `decision-review-proof` reads a brief that still says `Review: twice` as `review`, holds a blocking finding with no `(proof: ...)` tag under a reason that names it until it has any answer, and holds one whose proof is a run that exited non-zero until its decline cites a path:line, a command or a gate.
 - `decision-red` waits while the check named `check` has not passed.
-- `decision-over-main` waits on a green pull request whose check main moved past, for GitHub's update of its branch.
+- `decision-over-main` is ready on a green pull request whose check main moved past on none of its files, and waits for GitHub's update of its branch once main moved on one of them.
 - `decision-base` holds a pull request into another branch than the default.
 - `decision-tool-follows` reinstalls the tool after a merge that changes pyproject.toml's package list, and says so on the `merged` line (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `features/home/tests/test_home_merge.py` drives it).
 - `decision-install-follows` runs `sh install.sh` in the main checkout after a merge that changes what the install assembles (`skills.json`, a skill's files), where the machine's layouts were assembled from that checkout, and says so on the `merged` line, or says loudly that it failed (not reachable from a sandbox: the stand-in `gh` refuses a merge, and `features/jmerge/tests/test_jmerge_follow.py` drives it; [jinstall's page](../jinstall/verify.md) drives the install it runs).
@@ -69,7 +69,9 @@ Preconditions:
 - **Over a main that moved.**
   The pull request's check started in 2000, and main gets a commit after it.
   Run `jq '(.[0].statusCheckRollup[] | select(.name == "check")).startedAt = "2000-01-01T00:00:00Z"' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json"`, then `git switch -q -c moved && echo moved > moved.txt && git add moved.txt && git commit -qm moved && git push -q origin moved:main && git switch -q main && git branch -q -D moved`, then `record jmerge-decision jmerge --check`.
-  It prints `wait 7 https://example.test/pull/7: main moved after its check started: GitHub is to merge main at <the new tip's first 12> into it`.
+  It prints `ready 7 <the head> beta beta`: main changed none of its files, so it merges on its existing check, with no guards file in the sandbox to run on its merged tree.
+  Then run `git switch -q -c moved2 origin/main && mkdir -p src/beta && echo theirs >> src/beta/a.py && git add src/beta/a.py && git commit -qm moved2 && git push -q origin moved2:main && git switch -q main && git branch -q -D moved2`, then `record jmerge-decision jmerge --check`.
+  It prints `wait 7 https://example.test/pull/7: main moved after its check started: GitHub is to merge main at <the new tip's first 12> into it`: main changed `src/beta/a.py`, a file it changes.
   `--check` asks for no update: `grep -cE 'pr merge|update-branch' "$VERIFY_JSTACK_SANDBOX/gh/calls.log"` prints `0`.
   The demo checkout's `main` stays at `start`, and only origin's moved.
 - **Queue it with no go.**

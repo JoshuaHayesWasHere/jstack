@@ -12,14 +12,14 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import cli, ready, rejudge
-from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, asked, git, url, write
+from test_jmerge_fresh import AFTER, LINES, SHARED, STARTED, Kitchen, asked, git, url, write
 from test_jmerge_order import queue_of, row
 
 
 @pytest.fixture
 def kitchen(tmp_path):
     files = {"a.txt": LINES, "b.txt": LINES, "c.txt": LINES, "d.txt": LINES}
-    return Kitchen(tmp_path, {**files, "Makefile": "check:\n"})
+    return Kitchen(tmp_path, {**files, "Makefile": "check:\n"}, overlap=True)
 
 
 def behind(number, ahead):
@@ -187,7 +187,9 @@ def moves(kitchen, base, files):
     tree = kitchen.tmp / "trees" / f"on-{base}"
     if not tree.exists():
         git(kitchen.home.main, "worktree", "add", "-q", "--detach", str(tree), f"origin/{base}")
-    write(tree, files)
+    shared = (tree / SHARED).read_text().split("\n")
+    shared[1] = base
+    write(tree, {SHARED: "\n".join(shared), **files})
     git(tree, "commit", "-q", "-m", f"on {base}")
     git(tree, "push", "-q", "origin", f"HEAD:refs/heads/{base}")
     return git(tree, "rev-parse", "HEAD")
