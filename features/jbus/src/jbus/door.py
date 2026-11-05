@@ -13,6 +13,14 @@ read in T3 Code, that names it. This hook is the second, for what a thread runs 
 - any other thread, and a session T3 Code's store does not know, is let through, as
   `jbriefs.sends` lets a send through.
 
+A thread may remove a worktree it added itself, such as a bisect's or a proof's copy in `/tmp`,
+with no door (`_own_removes`). The hook keeps each `git worktree add` it reads, with its path and
+its thread, in `OWN` in the repo's jbus state, where a path is the thread's that added it last.
+A path counts only where the command names it: literally, or through a variable the same command
+sets to one. One added through `$(mktemp -d)`, or named through a variable an earlier command set,
+is no thread's, and its remove keeps the door. A path that is already something when it is added,
+such as another thread's worktree, is not taken.
+
 A command is read in pieces (`pieces`): cut at each shell separator, backtick and parenthesis,
 with a quoted string read as a command of its own where `ssh`, `bash -c` or `eval` runs it, and
 left out where it is an argument such as a commit message or a title, but for one word that is
@@ -44,7 +52,9 @@ needs (`git`, `sed`, `date` and the like) still refuses, and logs nothing.
 from __future__ import annotations
 
 import json
+import os
 import re
+import shlex
 import sys
 from pathlib import Path
 from typing import Any
@@ -55,6 +65,9 @@ from jbus import party
 from jsettings import paths
 
 EVENTS = {"hook": "quiet"}
+OWN = "own-worktrees.jsonl"
+"""Each `git worktree add` the hook read, one JSON line `{"thread", "path"}`, in the repo's jbus
+state."""
 
 _HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)(\w+)\1")
 _SEPARATOR = set(";&|\n()`")
@@ -122,6 +135,142 @@ def pieces(command: str) -> list[str]:
     return found
 
 
+_REMOVE = re.compile(r"\bworktree\s+remove\b")
+_VARIABLE = re.compile(r"\$(?:\{(\w+)\}|(\w+))")
+_ASSIGN = re.compile(r"([A-Za-z_]\w*)=(.*)", re.S)
+_TAKES_ONE = {"-b", "-B", "--reason"}
+"""The flags of `git worktree add` whose value is the next word."""
+_GIT_TAKES_ONE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
+
+
+def worktrees(command: str) -> list[tuple[str, Path | None]]:
+    """Each `git worktree add` and `git worktree remove` of the command line, in order, as `add`
+    or `remove` with the absolute path it names, or None where the path is relative or names a
+    variable the command does not set to a plain value. A command quoted inside another, as in
+    `bash -c`, is not read here."""
+    text = _unfold(command).replace("\\\n", " ").replace("\n", ";")
+    lexer = shlex.shlex(text, posix=True, punctuation_chars=";&|()")
+    lexer.whitespace_split = True
+    try:
+        words = list(lexer)
+    except ValueError:
+        return []
+    found: list[tuple[str, Path | None]] = []
+    known: dict[str, str | None] = {}
+    one: list[str] = []
+    for word in [*words, ";"]:
+        if set(word) <= set(";&|()"):
+            _read(one, known, found)
+            one = []
+        else:
+            one.append(word)
+    return found
+
+
+def _read(
+    words: list[str], known: dict[str, str | None], found: list[tuple[str, Path | None]]
+) -> None:
+    """Read one simple command: a bare assignment sets a variable, a worktree add or remove is
+    found."""
+    if words[:1] == ["export"]:
+        words = words[1:]
+    sets = [match for word in words if (match := _ASSIGN.fullmatch(word))]
+    if words and len(sets) == len(words):
+        for match in sets:
+            known[match.group(1)] = _expand(match.group(2), known)
+        return
+    while words and _ASSIGN.fullmatch(words[0]):
+        words = words[1:]
+    if not words or words[0].rpartition("/")[2] != "git":
+        return
+    at = 1
+    while at < len(words) and words[at].startswith("-"):
+        at += 2 if words[at] in _GIT_TAKES_ONE else 1
+    verb = words[at + 1] if words[at : at + 1] == ["worktree"] and at + 1 < len(words) else ""
+    if verb not in ("add", "remove"):
+        return
+    rest = iter(words[at + 2 :])
+    for word in rest:
+        if word == "--":
+            word = next(rest, "")
+        elif word in _TAKES_ONE:
+            next(rest, "")
+            continue
+        elif word.startswith("-"):
+            continue
+        path = _expand(word, known)
+        absolute = path is not None and os.path.isabs(path)
+        found.append((verb, Path(os.path.normpath(path)) if absolute and path else None))
+        return
+
+
+def _expand(word: str, known: dict[str, str | None]) -> str | None:
+    """The word with `~` and the variables the command set put in, or None where it names
+    another or runs a command."""
+    if "`" in word or "$(" in word:
+        return None
+    if word == "~" or word.startswith("~/"):
+        word = str(Path.home()) + word[1:]
+    missing = False
+
+    def put(match: re.Match[str]) -> str:
+        nonlocal missing
+        value = known.get(match.group(1) or match.group(2))
+        missing = missing or value is None
+        return value or ""
+
+    word = _VARIABLE.sub(put, word)
+    return None if missing or "$" in word else word
+
+
+def _made(buses: Path, thread: str) -> set[Path]:
+    """The paths whose last add the hook read was the thread's."""
+    last: dict[Path, str] = {}
+    try:
+        lines = (buses / OWN).read_text(errors="replace").splitlines()
+    except OSError:
+        return set()
+    for line in lines:
+        try:
+            one = json.loads(line)
+            last[Path(one["path"])] = one["thread"]
+        except (ValueError, KeyError, TypeError):
+            continue
+    return {path for path, who in last.items() if who == thread}
+
+
+def _keep(buses: Path, thread: str, command: str) -> None:
+    """Keep each path the command adds a worktree at as the thread's, where it is nothing yet
+    or an empty directory, such as one `mktemp -d` made."""
+    added = [
+        path
+        for verb, path in worktrees(command)
+        if verb == "add" and path and not (path.exists() and any(_entries(path)))
+    ]
+    if not added:
+        return
+    buses.mkdir(parents=True, exist_ok=True)
+    with (buses / OWN).open("a") as kept:
+        kept.write("".join(json.dumps({"thread": thread, "path": str(p)}) + "\n" for p in added))
+
+
+def _entries(path: Path) -> list[Path]:
+    """What is in the directory, or the path itself where it is no directory."""
+    return list(path.iterdir()) if path.is_dir() else [path]
+
+
+def _own_removes(
+    buses: Path, thread: str, command: str, walked: tuple[tuple[str, str], ...]
+) -> tuple[tuple[str, str], ...]:
+    """The doors walked, but for the worktree removes where each one the command runs removes a
+    worktree the thread added itself."""
+    removes = [path for verb, path in worktrees(command) if verb == "remove"]
+    counted = sum(1 for _, matched in walked if _REMOVE.search(matched))
+    if not removes or len(removes) < counted or not set(removes) <= _made(buses, thread):
+        return walked
+    return tuple(one for one in walked if not _REMOVE.search(one[1]))
+
+
 def walks(command: str) -> tuple[tuple[str, str], ...]:
     """The doors a shell command line walks through, each with the command that does."""
     return tuple(found for one in pieces(command) for found in party.walks(one))
@@ -154,12 +303,17 @@ def _holds(state: Path, slug: str) -> bool:
 def refusal(homes: Path, buses: Path, thread: str, command: str) -> str:
     """Why the thread may not run the command, or nothing where it may. `homes` is the repo's
     homes' state and `buses` its jbus state."""
-    walked = walks(command)
+    walked = _own_removes(buses, thread, command, walks(command))
     if not walked:
         return ""
     case, matched = walked[0]
     user = _user()
     door = f"`{matched}` walks through a door ({case})"
+    if _REMOVE.search(matched):
+        door += (
+            ", as a worktree this thread did not add: one it added at a path its command named, "
+            "literally or through a variable that command set, it may remove"
+        )
     row = (
         f"the door goes in a row whose brief has Holds: {case}, and jbus queue approve <slug> "
         f"--sha <sha12> --message <thread>/<message>, on {user}'s own message in T3 Code that "
@@ -211,7 +365,8 @@ def main() -> int:
     except ValueError:
         return 0
     command = _command(call)
-    if not command or not walks(command):
+    adds = any(verb == "add" for verb, _ in worktrees(command)) if command else False
+    if not command or not (adds or walks(command)):
         return 0
     repo = sends.repo_of(str(call.get("cwd") or ""))
     state = home.homes_dir() / repo
@@ -220,7 +375,9 @@ def main() -> int:
     thread = sends.thread_of_session(str(call.get("session_id") or ""), Path.home() / sends.STORE)
     if not thread:
         return 0
-    why = refusal(state, paths.jbus_state_dir() / repo, thread, command)
+    buses = paths.jbus_state_dir() / repo
+    _keep(buses, thread, command)
+    why = refusal(state, buses, thread, command)
     if not why:
         return 0
     print(f"door-command: refused: {why}", file=sys.stderr)
