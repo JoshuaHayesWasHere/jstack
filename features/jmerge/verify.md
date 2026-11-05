@@ -98,7 +98,8 @@ Merging takes a new sandbox, with the same preconditions.
 - The recipe writes the brief through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops and writes nothing into the live briefs.
 - The review's `Head:` must be the pull request's head commit, whole. `open-pull.sh` prints it.
 - Only the check named `check` decides green. Another check's name in `statusCheckRollup` changes nothing.
-- A plain `jmerge` on a ready pull request reaches `gh pr merge`, which the stand-in refuses with exit 64 unless `gh/merges` exists. That refusal is the harness ending, not a jmerge failure, and it is not proof of a merge.
+- A plain `jmerge` on a ready pull request reaches `gh pr merge`, which the stand-in refuses with exit 64 unless `gh/merges` exists.
+  That refusal is the harness ending, not a jmerge failure, and it is not proof of a merge.
 - The stand-in merges only a head that is pushed to origin's branch: `open-pull.sh`'s made-up head is refused as `Head branch was modified`.
 - The stand-in answers a branch's check runs from the key of `gh/checks.json` that is the branch's name, as it answers a commit's from its sha.
 - Every line of `jmerge --check` exits 0, `wait` and `hold` included. Assert on the line, not the exit code.
