@@ -55,7 +55,11 @@ A question is this home's by the brief or the request of the slug that asked, as
 One that no brief, no request and no home asked, as an expert's finding is, is the root home's.
 `$WHY` says why nothing could be read.
 
-**Ask one** when the question is this home's own. Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and put the action in a row whose brief has `Holds: <the case>`, which the user's own go in T3 Code opens for that row's crew. Fill in the lines of `$T/gates.md` (read it first), its `<n>` left as it is, with the `Holds:` and `Fail-safe:` lines under `Undo:` for a gate that holds, and carry on. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. With the entry in place of the line in angle brackets, and `own` left as it is:
+**Ask one** when the question is this home's own.
+Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and put the action in a row whose brief has `Holds: <the case>`, which the user's own go in T3 Code opens for that row's crew.
+Fill in the lines of `$T/gates.md` (read it first), its `<n>` left as it is, with the `Holds:` and `Fail-safe:` lines under `Undo:` for a gate that holds, and carry on.
+Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark.
+With the entry in place of the line in angle brackets, and `own` left as it is:
 
 ```sh
 : "${SEP:?run the block that reads jbus first}"

@@ -15,7 +15,13 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 1. Turn the predicate into one command before the first change (`principles/principle-build-the-lever.md`): a script in the scratch directory `mktemp -d /tmp/<slug>-run.XXXXXX` that runs a check for each "Done when" line and prints `holds` or `does not hold` beside it, and exits zero only when all hold. A line that no command can check gets the nearest check that can fail, and the Result says what it leaves unproved (`principles/principle-prove-it-works.md`). Run it now and see it print `does not hold`. If it already says every line holds, the predicate is wrong or the task is done: find out which before any change.
 2. Open the log: read `features/show-me-your-work/SKILL.md` in full and write the first row with its block, the predicate command and what it printed.
-3. Loop. Make the smallest change the evidence so far justifies, run the predicate command and the targeted tests of the files you changed, and read what they print. If a line moved to `holds` and nothing moved back, commit. If not, discard the change in full, `git checkout -- <files>` and `git clean -f -- <the files it added>`: what "might help" is reverted, not left to ride. Log one row per round, what changed and which lines moved. Each round ends in those runs before the next begins, never several changes and one run at the end, and the check of the change runs once, as `skills/crew/SKILL.md` "Do the task" says (`principles/principle-sequence-verifiable-units.md`). Wait for every command inside this turn: a thread that ends its turn on a background command is not woken.
+3. Loop.
+   Make the smallest change the evidence so far justifies, run the predicate command and the targeted tests of the files you changed, and read what they print.
+   If a line moved to `holds` and nothing moved back, commit.
+   If not, discard the change in full, `git checkout -- <files>` and `git clean -f -- <the files it added>`: what "might help" is reverted, not left to ride.
+   Log one row per round, what changed and which lines moved.
+   Each round ends in those runs before the next begins, never several changes and one run at the end, and the check of the change runs once, as `skills/crew/SKILL.md` "Do the task" says (`principles/principle-sequence-verifiable-units.md`).
+   Wait for every command inside this turn: a thread that ends its turn on a background command is not woken.
 4. What turns up on the way is yours when it is inside the brief's **Where** and reversible: a flaky check, a broken script, a related bug in a file you are in.
    Fix it at its cause in a commit of its own, log the row, and go back to the predicate (`principles/principle-fix-root-causes.md`).
    What is outside **Where** is a queued row or nothing (`templates/a-fault-outside.md`).
