@@ -1119,7 +1119,7 @@ def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
     assert {
         "testing/tests/test_jtrees.py",
         "testing/tests/test_jtrees_one_feature.py",
-        "features/jinstall/tests/test_docs_hooks.py",
+        "features/jinstall/tests/test_layout.py",
     } <= set(selected)
     assert why["imports"]
 

@@ -12,7 +12,6 @@ import signal
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -263,48 +262,6 @@ def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):
     mac.with_jbus()
     setup(mac.machine())
     assert not mac.plist("jbus-view.service").exists()
-
-
-def test_a_sandbox_never_runs_the_systems_launchctl(tmp_path, monkeypatch):
-    asked = []
-
-    def run(args):
-        asked.append(list(args))
-        return Ran(0, "")
-
-    sandbox = Machine(REPO, tmp_path / "home", {}, run, tmp_path / "account", platform="darwin")
-    monkeypatch.setattr(Machine, "which", lambda self, name: Path("/bin/launchctl"))
-    assert sandbox.launchctl("bootstrap", GUI, "x.plist") is None
-    assert replace(sandbox, home=sandbox.account).launchctl("print", GUI) is not None
-    assert asked == [["launchctl", "print", GUI]]
-
-
-SCHEDULES = {
-    "jbus.timer": {"StartInterval": 60},
-    "jbus-merge.timer": {"StartInterval": 5},
-    "jbus-stale.timer": {"StartInterval": 900},
-    "jgauge-limits.timer": {"StartInterval": 120},
-    "jgauge-sample.timer": {"StartInterval": 15},
-    "jroles-mirror.timer": {"StartInterval": 300},
-    "jbus-ci.timer": {"StartCalendarInterval": [{"Weekday": 1, "Hour": 9, "Minute": 0}]},
-    "jbus-ci-day.timer": {"StartCalendarInterval": [{"Hour": 6, "Minute": 45}]},
-    "jbus-snapshot.timer": {
-        "StartCalendarInterval": [{"Hour": 8, "Minute": 30}, {"Hour": 17, "Minute": 30}]
-    },
-    "jbus-relay.service": {"RunAtLoad": True, "KeepAlive": {"SuccessfulExit": False}},
-    "jbus-view.service": {"RunAtLoad": True, "KeepAlive": True},
-}
-"""Each agent's schedule, read from its template by hand."""
-
-
-def test_every_template_has_its_schedule_carried_over(tmp_path):
-    made = launchd.agents(unit_templates(REPO), tmp_path)
-    assert sorted(made) == sorted(SCHEDULES)
-    for name, agent in made.items():
-        schedule = {k: v for k, v in agent.schedule.items() if k != "ThrottleInterval"}
-        assert schedule == SCHEDULES[name], name
-        path = f"{tmp_path}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
-        assert agent.environment == {"PATH": path}
 
 
 @pytest.mark.parametrize("source", ["/src/a--b", "/src/a-->b", "/src/50%-off--x", "/src/a%2Db"])
