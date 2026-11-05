@@ -164,8 +164,10 @@ def records(tmp_path):
     return {"home": home, "repo": repo, "before": before, "after": after}
 
 
-def read_records(tmp_path, home, repo, before, after, *more):
+def read_records(tmp_path, home, repo, before, after, *more, until=None):
     out = tmp_path / "out.json"
+    if until:
+        more = (*more, f"--until={until}")
     ran = subprocess.run(
         [
             sys.executable,
@@ -272,6 +274,61 @@ def test_a_subdirectory_and_a_worktree_read_what_the_checkout_reads(tmp_path, re
     assert subdir["skills"]["after"]["all"] == whole["skills"]["after"]["all"]
     assert tree["tokens"]["by_role"]["home"]["sessions"] == 2
     assert tree["skills"]["after"]["all"] == whole["skills"]["after"]["all"]
+
+
+def test_until_ends_every_window_at_its_time(tmp_path, records):
+    """The fixture's records are now and 30 days ago; one of each is added 2 days ago. With
+    --until a day ago and --days 7, only the ones of 2 days ago count."""
+    home, repo = records["home"], records["repo"]
+    then = NOW - timedelta(days=2)
+    write_lines(
+        home / ".claude/projects/-worktrees-jstack-then/then.jsonl",
+        [user("<command-name>/crew</command-name>"), assistant("t1", (7, 1, 0, 0), at=then)],
+    )
+    events = home / ".local/state/jbus/jstack/events.jsonl"
+    with events.open("a") as f:
+        f.write(json.dumps({"at": then.isoformat(), "event": "merged", "slug": "then"}) + "\n")
+    with (home / ".local/state/home/jstack/merge.log").open("a") as f:
+        stamp = then.astimezone().strftime("%Y-%m-%d %H:%M")
+        f.write(f"{stamp} wait 3 https://example.test/pull/3: it conflicts with its base\n")
+    commit(repo, "fix: then", {"features/e/x.py": "1\n"}, days_ago=2)
+    until = (NOW - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    said, ran = read_records(tmp_path, **records, until=until)
+
+    assert said["until"] == until and "generated" not in said
+    (role,) = said["tokens"]["by_role"]
+    crew = said["tokens"]["by_role"]["crew"]
+    assert (role, crew["msgs"], crew["sessions"], crew["in"], crew["out"]) == ("crew", 1, 1, 7, 1)
+    assert said["events"]["kinds"] == {"merged": 1} and said["events"]["merged"] == 1
+    assert said["merge_log"]["held_prs"] == {"guard: conflict": 1}
+    assert said["merge_log"]["merged"] == 0
+    assert set(said["churn"]) == {"e"} and said["churn"]["e"]["commits"] == 1
+    assert f"to {until[:16]}" in ran.stdout
+
+
+def test_with_no_until_the_window_ends_now(tmp_path, records):
+    said, _ = read_records(tmp_path, **records)
+    until = datetime.fromisoformat(said["until"].replace("Z", "+00:00"))
+    assert NOW <= until <= datetime.now(UTC)
+    assert said["events"]["merged"] == 1 and set(said["churn"]) == {"a", "b", "c", "home"}
+
+
+def test_two_reads_with_one_until_write_the_same_json(tmp_path, records):
+    until = (NOW + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    first, _ = read_records(tmp_path, **records, until=until)
+    again, _ = read_records(tmp_path, **records, until=until)
+    assert first == again and first["events"]["merged"] == 1
+
+
+def test_a_wrong_until_is_refused(tmp_path, records):
+    ran = subprocess.run(
+        [sys.executable, RECORDS, f"--repo={records['repo']}", "--before=x", "--after=x"]
+        + ["--until=yesterday"],
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 2 and "--until" in ran.stderr
 
 
 def test_a_record_not_on_disk_counts_as_empty_and_is_named(tmp_path, records):
@@ -410,6 +467,7 @@ def test_a_run_against_its_own_json_shows_no_change(tmp_path, ledger):
     kept.write_text(json.dumps(first))
     _, ran = read_records(tmp_path, *ledger_args(ledger), f"--against={kept}")
     assert re.search(r"^  jbus +0\.43 +0\.43 +\+0\.00 +10\.01 +10\.01 +\+0\.00$", ran.stdout, re.M)
+    assert f"against {kept}, read to {first['until'][:10]}:" in ran.stdout
 
 
 def test_against_other_windows_says_it_is_not_like_for_like(tmp_path, ledger):
