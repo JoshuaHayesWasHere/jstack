@@ -12,7 +12,12 @@ A differing answer comes back as a message, and the thread takes the default bac
 The first jbus pass that sees the question closes it with its default, by silence.
 That close is not the user's word, and a later answer of theirs still replaces it.
 
-There is one exception. When the default is irreversible or slow to revert, the thread does not act. It does the fail-safe instead, and adds two lines under `Undo`, `Holds: <the case>` and `Fail-safe: <what was prepared, with its path or link>`. Then the action waits for the user's answer, and silence never closes it. A default is irreversible or slow to revert when undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. The case is one of these, word for word:
+There is one exception.
+When the default is irreversible or slow to revert, the thread does not act.
+It does the fail-safe instead, and adds two lines under `Undo`, `Holds: <the case>` and `Fail-safe: <what was prepared, with its path or link>`.
+Then the action waits for the user's answer, and silence never closes it.
+A default is irreversible or slow to revert when undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
+The case is one of these, word for word:
 
 | Case | Examples | Fail-safe |
 |---|---|---|
