@@ -868,7 +868,7 @@ def test_jmerge_reads_the_fixed_line_a_later_round_is_owed_from_its_checked_line
     handled = (
         "Finding: fixed, it is wrong\n"
         "Scoped review: none, the fix stayed inside the reviewed files\n"
-        f"Checked: make check-fast BASE=origin/main exit 0 at {HEAD}\n"
+        f"Checked: make check-fast BASE={merge.DESK_BASE} PART=guards exit 0 at {HEAD}\n"
     )
     text = merge.brief(FIRST_ROUND + handled)
     assert ready.unwritten_fixed(text, HEAD) == ready.Unwritten(FIRST)
@@ -1016,7 +1016,7 @@ def handled(rebased, review_of, head, line, answer="Finding: fixed, it is wrong\
     crew = (
         f"{answer}"
         "Second pass: none, the fix stayed inside the reviewed files\n"
-        f"Checked: make check-fast BASE=origin/main exit 0 at {head}\n"
+        f"Checked: make check-fast BASE={merge.DESK_BASE} PART=guards exit 0 at {head}\n"
         f"{line}"
     )
     rebased.brief(merge.review("findings", review_of) + crew)
@@ -1110,6 +1110,7 @@ def test_a_fixed_line_that_names_no_full_commit_is_read_as_no_line(proven_merged
     assert run.jmerge(proven_merged, rules, "--check") == [f"ready 7 {pushed} alpha alpha"]
     brief = handled(rebased, rebased.head, pushed, told)
     brief.write_text(brief.read_text().replace("Checked:", "Ran:"))
+    proven_merged.home.desk = False
     assert run.jmerge(proven_merged, rules, "--check") == [
         f"wait 7 {merge.URL}: its findings are not handled: the Result has no Fixed line"
     ]

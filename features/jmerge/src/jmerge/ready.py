@@ -152,6 +152,33 @@ PROVED_STALE = Reason(
     "its Proved: line is of {at}, and its patch changed after it: the proof block runs again at "
     "{head}",
 )
+_RUN_THE_BLOCK = (
+    "the crew's check block (features/crew/do-the-task.md), which runs `make check-fast "
+    "PART=guards` in a full test slot"
+)
+CHECKED_MISSING = Reason(
+    "result", f"its brief has no Checked: line: {_RUN_THE_BLOCK}, runs at {{head}} and writes it"
+)
+CHECKED_STALE = Reason(
+    "result",
+    f"its last Checked: line is of {{at}}, and its patch changed after it: {_RUN_THE_BLOCK}, "
+    "runs again at {head}",
+)
+CHECKED_CUT = Reason(
+    "result",
+    "its last Checked: line ends 124 at {at}, a time limit, which is no pass: "
+    f"{_RUN_THE_BLOCK}, runs again at {{head}}",
+)
+CHECKED_FAILED = Reason(
+    "result",
+    f"its last Checked: line ends {{exit}} at {{at}}, a failure: fix it, and {_RUN_THE_BLOCK}, "
+    "runs again at {head}",
+)
+CHECKED_PART = Reason(
+    "result",
+    f"its last Checked: line names {{command}}, not the desk's check: {_RUN_THE_BLOCK}, runs "
+    "at {head}",
+)
 NO_VERDICT = Reason("review", "its review has no verdict")
 NO_FIXED = Reason("findings", "its findings are not handled: the Result has no Fixed line")
 NOT_PUSHED = Reason("findings", "its findings are not handled: nothing was pushed after them")
@@ -933,6 +960,41 @@ def short_on_proved(
         return PROVED_HEAD_FAILED.format(exit=said.head_exit, head=said.head[:12])
     if said.head != one.head and not carries(said.head):
         return PROVED_STALE.format(at=said.head[:12], head=one.head[:12])
+    return ""
+
+
+_CHECK_LINE = re.compile(r"Checked: (.+) exit (\d+) at ([0-9a-f]{40})")
+_DESK_CHECK = re.compile(
+    r"make check-fast BASE=[0-9a-f]{40}(?: PYTEST=:)? PART=guards|jgauge check"
+)
+"""The commands of a `Checked:` line that are a desk's whole check, as the crew's check block
+runs them: the guards of a repo whose check selects its tests, in a full test slot that has no
+time limit (`PYTEST=:` where the selection is none or all, lint only), and another repo's check
+command (`jgauge check`). A line of the `PART=rest` the crew once ran in the short lane is none
+of them."""
+
+
+def short_on_checked(
+    text: str, head: str, carries: Callable[[str], bool] = lambda at: False
+) -> str:
+    """Why the brief's last `Checked:` line does not bind the pull request's `head`, or nothing.
+    The line binds where it names a desk's whole check (`_DESK_CHECK`) that exited 0 at `head`,
+    or at a head whose patch `head` carries unchanged (`carries`, as `short_on_proved` reads
+    it). Every exit but 0 holds, a time limit's 124 too: a check cut short reached no verdict.
+    The crew's push block asks this before the first push, with no head carried, and `jmerge`
+    before a merge."""
+    lines = [found for line in text.splitlines() if (found := _CHECK_LINE.fullmatch(line.strip()))]
+    if not lines:
+        return CHECKED_MISSING.format(head=head[:12])
+    command, ran, at = lines[-1].groups()
+    if at != head and not carries(at):
+        return CHECKED_STALE.format(at=at[:12], head=head[:12])
+    if ran == "124":
+        return CHECKED_CUT.format(at=at[:12], head=head[:12])
+    if ran != "0":
+        return CHECKED_FAILED.format(exit=ran, at=at[:12], head=head[:12])
+    if not _DESK_CHECK.fullmatch(command):
+        return CHECKED_PART.format(command=command, head=head[:12])
     return ""
 
 

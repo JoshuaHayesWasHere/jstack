@@ -20,6 +20,7 @@ from testing.paths import REPO
 
 URL = "https://example.test/pull/7"
 PROOF = "(proof: `sh src/beta/proof.sh`, exit 1, it loops)"
+DESK_BASE = "e" * 40
 
 
 @pytest.fixture(scope="module")
@@ -42,10 +43,12 @@ def opened(sandbox):
 
 
 def judged(sandbox, head, mode, finding, answer=""):
-    """What `jmerge --check` says of pull request 7 under a brief with one review at `head`."""
+    """What `jmerge --check` says of pull request 7 under a brief with one review at `head`, and
+    the passing `Checked:` line at `head` its crew writes."""
     brief = (
         f"# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\n{mode}\n"
         f"## Result\nStatus: done\nBranch: beta   Pull request: {URL}\nReviewer: mcp:9 #1\n"
+        f"Checked: make check-fast BASE={DESK_BASE} PART=guards exit 0 at {head}\n"
         f"Fixed: none needed, declined\n{answer}\n"
         f"## Review\nBy: demo #1\nVerdict: findings\nHead: {head}\nFindings:\n- {finding}\n"
     )

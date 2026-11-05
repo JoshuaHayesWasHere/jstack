@@ -268,6 +268,7 @@ def repo(proven_merged, monkeypatch):
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
     monkeypatch.setenv("LOG", str(home.state / "merge.log"))
+    home.desk_checked()
     return cli.Repo(home.main, home.state, merge.ME, False, user=ET)
 
 
