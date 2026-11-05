@@ -117,9 +117,10 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
             if argv[0] == sys.executable and not _slotted(process, started):
                 _stop(process.pid)
                 said, _ = process.communicate()
-                if process.returncode is not None and process.returncode >= 0:
-                    return _last(said) or f"jgauge test-slot exited {process.returncode}"
-                return None
+                if process.returncode < 0:
+                    return None
+                lines = (said or "").strip().splitlines()
+                return lines[-1] if lines else f"jgauge test-slot exited {process.returncode}"
             began = time.monotonic()
             code: int | None
             try:
@@ -147,11 +148,6 @@ def _slotted(process: subprocess.Popen, started: Path) -> bool:
             return started.exists()
         time.sleep(LOOK_SECONDS)
     return True
-
-
-def _last(said: str) -> str:
-    lines = [line.strip() for line in (said or "").splitlines() if line.strip()]
-    return lines[-1] if lines else ""
 
 
 def _stop(group: int) -> None:

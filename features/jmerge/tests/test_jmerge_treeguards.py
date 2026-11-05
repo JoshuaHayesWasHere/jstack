@@ -253,3 +253,14 @@ def test_merged_tree_guards_time_limit_counts_from_the_slot_not_the_wait(tmp_pat
     said, note = tree.guards("sleep 1").of(tree.one, tree.tip)
     assert time.monotonic() - began >= 3
     assert (said, note) == ("", treeguards.PASSED.format(**values(tree), seconds=1))
+
+
+def test_merged_tree_guards_whose_slot_command_fails_say_why_and_do_not_run(tmp_path, monkeypatch):
+    """A `jgauge test-slot` that ends before the guards start, here on a slot count it refuses,
+    is why the guards did not run, and nothing of it is a guard that failed."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setenv("TEST_SLOTS", "none")
+    marker = tmp_path / "ran"
+    why = treeguards.run_guards(f"touch {marker}", tmp_path, {}, 60)
+    assert isinstance(why, str) and "none" in why
+    assert not marker.exists()
