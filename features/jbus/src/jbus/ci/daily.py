@@ -9,8 +9,9 @@ definition. In short:
   midnight, never UTC (`days`). A day with fewer than `FLOOR` pull requests with a `check` run
   reads `no data` for every number from the ledger, its n still shown, since the ledger misses
   runs while jbus is down.
-- Every number but main-red comes from the ledger the passes keep (`ci.jsonl`, `ci-prs.jsonl`),
-  with jmerge's shadow pull requests (`LINE`) left out. `--day` collects nothing.
+- Every number but main-red and the review step's comes from the ledger the passes keep
+  (`ci.jsonl`, `ci-prs.jsonl`), with jmerge's shadow pull requests (`LINE`) left out. `--day`
+  collects nothing.
 - Main-red is the spell method (`spells`): from a failed run of check.yml on a push to main to the
   next success's last update, split at local midnight. It reads main's runs from one
   `gh run list` (`RUNS`), the only call to GitHub. `gh` shows a run's last attempt only, so a red

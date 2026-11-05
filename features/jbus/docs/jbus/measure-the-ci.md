@@ -97,7 +97,7 @@ A run that fails shows in `journalctl --user -u jbus-ci` on Linux, and in `~/Lib
 `jbus --project <name> ci --day` writes `reports/ci-day-<date>.md` in the project's home, and then checks main's live ruleset.
 `jbus-ci-day.timer` runs `jbus-ci-day.service` every day at 06:45 in the machine's own zone, with `Persistent=true`, and the service runs `jbus ci --day --each` for each project whose table says `ci_report = true`.
 The install enables the timer only while a project asks, as it does `jbus-ci.timer`.
-`--day` collects nothing and starts no CI job: every number but main-red comes from the ledger the passes keep, `ci.jsonl` and `ci-prs.jsonl`, and the rows that merged come from `transitions.jsonl`.
+`--day` collects nothing and starts no CI job: every number but main-red and the review step's comes from the ledger the passes keep, `ci.jsonl` and `ci-prs.jsonl`, and the rows that merged come from `transitions.jsonl`.
 Main-red comes from one call, `gh run list -R <repo> --workflow check.yml --branch main --event push --limit 400 --json conclusion,status,createdAt,updatedAt,headSha`, the only call `--day` makes to GitHub.
 Where that call fails, main-red reads `no data`, the report says why, and the rest of the report is written as usual.
 The review step's numbers come from T3 Code's store, `~/.t3/userdata/statev2.sqlite`, opened read-only (`jgauge.spend.reviews`).
