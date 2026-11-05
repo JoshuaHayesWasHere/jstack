@@ -8,9 +8,9 @@ names `gates.md`, or lists the cases, and gives no number.
 
 A line is about the gate cases when it is in a `gates.md`, or names one, `party.DOORS`, a gate
 that holds, what is "never done on a default", or one of the cases word for word, or when a case's
-own words from `party.DOORS` match it. It states a count when a number, in words or digits, comes before `things`, `cases`, `doors`
-or `gates`, or ends "these <number>". The tests and the recorded evals under
-`features/evals/evals/` are data about the past and are not read.
+own words from `party.DOORS` match it. It states a count when a number, in words or digits, comes
+before `things`, `cases`, `doors` or `gates`, or ends "these <number>". The tests and the recorded
+evals under `features/evals/evals/` are data about the past and are not read.
 """
 
 import re
