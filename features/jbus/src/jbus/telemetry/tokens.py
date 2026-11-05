@@ -220,6 +220,7 @@ def claude_calls(lines: Iterable[bytes], session: str, _: sqlite3.Connection) ->
             "cache_read": one.cache_read,
             "output": one.out,
             "final": int(one.final),
+            "effort": one.effort,
         }
         for one in transcript.calls(entries)
     ]
@@ -273,6 +274,7 @@ def codex_calls(lines: Iterable[bytes], session: str, store: sqlite3.Connection)
                     "cache_read": read,
                     "output": transcript.count(last.get("output_tokens")),
                     "final": 1,
+                    "effort": None,
                 },
             )
     return list(out.values())
@@ -283,22 +285,54 @@ READERS: dict[str, Callable[[Iterable[bytes], str, sqlite3.Connection], list[Cal
     CODEX: codex_calls,
 }
 
-_COLUMNS = ("provider", "call", "session", "agent", "at", "model", *COUNTS, "final", "day")
+_COLUMNS = (
+    "provider",
+    "call",
+    "session",
+    "agent",
+    "at",
+    "model",
+    *COUNTS,
+    "final",
+    "effort",
+    "day",
+)
+
+
+def _while_open(name: str, value: str) -> str:
+    return f"{name} = CASE WHEN calls.final = 0 THEN {value} ELSE calls.{name} END"
+
+
 _KEEP = ", ".join(
-    f"{name} = CASE WHEN excluded.final > calls.final THEN excluded.{name} "
-    f"ELSE max(calls.{name}, excluded.{name}) END"
-    for name in COUNTS
+    [
+        *(
+            _while_open(
+                name,
+                f"CASE WHEN excluded.final > calls.final THEN excluded.{name} "
+                f"ELSE max(calls.{name}, excluded.{name}) END",
+            )
+            for name in COUNTS
+        ),
+        _while_open(
+            "model",
+            "CASE WHEN excluded.final > calls.final THEN excluded.model ELSE calls.model END",
+        ),
+        _while_open("at", "min(calls.at, excluded.at)"),
+        _while_open("final", "max(calls.final, excluded.final)"),
+        "effort = coalesce(calls.effort, excluded.effort)",
+    ]
 )
 CALL_INSERT = (
     f"INSERT INTO calls ({', '.join(_COLUMNS)}) VALUES ({', '.join('?' for _ in _COLUMNS)}) "
-    f"ON CONFLICT (provider, call) DO UPDATE SET {_KEEP}, "
-    "model = CASE WHEN excluded.final > calls.final THEN excluded.model ELSE calls.model END, "
-    "at = min(calls.at, excluded.at), final = max(calls.final, excluded.final) "
-    "WHERE calls.final = 0"
+    f"ON CONFLICT (provider, call) DO UPDATE SET {_KEEP} "
+    "WHERE calls.final = 0 OR (calls.effort IS NULL AND excluded.effort IS NOT NULL)"
 )
 """A call not held is added. One held is changed only while it is not final: a final line's
 counts replace a floor's, and another floor's raise it, as `jgauge.transcript.calls` merges a
-message's lines. Its session stays the one that first copied it."""
+message's lines. Its session stays the one that first copied it. A call held with no effort takes
+the first one a line of it names, final or not, and that changes nothing else of a final call, so
+a store copied before calls kept effort (`migrations.v013_call_effort`) takes it by reading each
+transcript again."""
 
 _FROM_T3 = ("thread", "instance", "project", "role", "slug")
 SESSION_INSERT = (
