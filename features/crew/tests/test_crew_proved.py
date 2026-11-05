@@ -204,3 +204,25 @@ def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):
     said, line = proof(repo)
     assert "base exit 0: 1 passed" in said
     assert (line.base_exit, line.head_exit) == (0, 0)
+
+
+def test_a_branch_that_changes_only_tests_runs_them_at_the_head_alone(repo):
+    """A test made faster changes no code: the base's code is the head's own, so the tests pass
+    there too and a base run proves nothing. The block runs them at the head and says so."""
+    faster = OLD_TEST + "\n\ndef test_one():\n    assert add(1, 0) == 1\n"
+    head = commit(repo, {"tests/test_calc.py": faster, "tests/conftest.py": ""})
+    said, line = proof(repo)
+    assert "tests only: every file the branch changes is a test" in said
+    assert "head exit 0: 2 passed" in said
+    assert "base exit" not in said
+    assert f"Proved: tests/test_calc.py head exit 0 at {head}, tests only\n" in said
+    assert line == proved.Proved(("tests/test_calc.py",), head_exit=0, head=head, tests_only=True)
+
+
+def test_a_branch_that_changes_a_test_and_anything_else_runs_it_at_the_base_too(repo):
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"tests/test_calc.py": PASSES_AT_BASE, "README.md": "how\n"})
+    said, line = proof(repo)
+    assert "tests only" not in said
+    assert "base exit 0: 2 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 0, base, 0, head)

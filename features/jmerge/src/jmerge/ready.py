@@ -136,6 +136,7 @@ PROVED_UNREAD = Reason("result", "its Result's Proved: line {fault}")
 PROVED_NOT_EXEMPT = Reason(
     "result", "its Proved: line says it changes no test, and it changes {tests}"
 )
+_PROVED_CODE = "says tests only, and it changes {path}, which is no test file"
 PROVED_NOT_KIND = Reason("result", "its Proved: line says none, {kinds}, and it changes {path}")
 PROVED_UNNAMED = Reason("result", "its Proved: line does not name {tests}, which it changes")
 PROVED_BASE_PASSED = Reason(
@@ -334,6 +335,27 @@ GitHub has this long to list the new run before the line goes to the next pull r
 lists the new run within seconds of the reopen, so a run of `jmerge` in the same minute still
 sees the old one."""
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
+MERGED_TREE_FAILS = Reason(
+    "rebase",
+    "merged over today's {base} at {tip}, it fails {guard}: its crew rebases it onto {base}, "
+    "runs the check, and fixes what fails",
+)
+"""The wait on a pull request whose tree merged over today's base fails the fast guards
+(`jmerge.treeguards`): a clash with what merged since its check, which only its crew can fix."""
+MERGED_TREE_UNENDED = Reason(
+    "check",
+    "the guards on its tree merged over today's {base} at {tip} ran past {minutes} minutes and "
+    "were stopped",
+)
+MERGED_TREE_UNBUILT = Reason(
+    "check",
+    "its tree merged over today's {base} at {tip} could not be built for the guards ({why})",
+)
+MERGED_TREE_NO_TIME = Reason(
+    "check",
+    "the guards of this run's other merges took its time: the next run runs them on its tree "
+    "merged over {base} at {tip}",
+)
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
@@ -876,7 +898,10 @@ def short_on_proved(
     with their run over its merge-base's code ending 1, a failure, and at its head ending 0. A
     run that passes at the base, or ends on anything but a failure there (no test collected, a
     time limit), passes vacuously. One that changes no test needs no line, and where it says
-    `none, <kind>` each file it changes is of a kind it names. A line of another head holds
+    `none, <kind>` each file it changes is of a kind it names. One whose every file, a deleted
+    one too, is a `proved.TEST_FILE` changes no code, so its tests pass at its base as well: its
+    `tests only` line needs only the run at its head, ending 0, and the same line on a pull
+    request that changes anything else proves nothing. A line of another head holds
     where the head carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads
     after a rebase or a merge of the base): a push that changed the patch, a fix for a review's
     finding most of all, may have changed the tests too."""
@@ -895,10 +920,14 @@ def short_on_proved(
         )
         kinds = " and ".join(said.kinds)
         return PROVED_NOT_KIND.format(kinds=kinds, path=other) if other else ""
+    if said.tests_only:
+        code = next((path for path in one.files if not proved.TEST_FILE.search(path)), "")
+        if code:
+            return PROVED_UNREAD.format(fault=_PROVED_CODE.format(path=code))
     unnamed = [path for path in tests if path not in said.tests]
     if unnamed:
         return PROVED_UNNAMED.format(tests=", ".join(unnamed))
-    if said.base_exit != 1:
+    if said.base_exit != 1 and not said.tests_only:
         return PROVED_BASE_PASSED.format(exit=said.base_exit, base=said.base[:12])
     if said.head_exit != 0:
         return PROVED_HEAD_FAILED.format(exit=said.head_exit, head=said.head[:12])
