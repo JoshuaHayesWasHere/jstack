@@ -12,8 +12,10 @@ it), a new file's every line among them. The tests are each test file that names
 module: one that imports it, or spells its dotted name, as `jbus.stall` or `jbus.stall.twice`, or,
 for a script, spells its file name, as `force_pushes.py`. The test runs those under coverage,
 with the processes they start, and fails on each added line that is a statement none of them ran.
-The run stops once each of those lines has run (`features/repo-guards/ran/lines_ran.py`), so a
-branch whose lines a few tests run pays for those and not for every test that names its module.
+The run stops once each file's lines have run, or once every test that names the file has ended
+(`features/repo-guards/ran/lines_ran.py`), so a branch whose lines a few tests run pays for those
+and not for every test that names its module, and a line no test runs is listed once the tests
+that name its module have ended, not the tests that name every other module the branch touches.
 
 An exception is coverage's own pragma on the line, with its reason and the user's word:
 `# pragma: no cover, <reason> (the user, <when>: "<their words>")`. An added pragma without them
@@ -117,10 +119,16 @@ def unexcused(lines: dict[str, set[int]], repo: Path = REPO) -> list[str]:
 
 
 def unrun(
-    lines: dict[str, set[int]], tests: list[str], scratch: Path, repo: Path = REPO
+    lines: dict[str, set[int]],
+    tests: list[str],
+    naming: dict[str, list[str]],
+    scratch: Path,
+    repo: Path = REPO,
 ) -> dict[str, set[int]]:
-    """The lines of `lines` that `tests` do not run. A run that breaks, not one whose tests fail,
-    fails the test with what pytest printed."""
+    """The lines of `lines` that `tests` do not run. The run stops early once each file's lines
+    have run, or once the tests among `tests` that name it (`naming`), all of `tests` when none
+    does, have ended. A run that breaks, not one whose tests fail, fails the test with what pytest
+    printed."""
     scratch.mkdir(parents=True, exist_ok=True)
     config = scratch / "coveragerc"
     config.write_text(
@@ -134,6 +142,12 @@ def unrun(
         json.dumps(
             {
                 "lines": {str(repo / path): sorted(numbers) for path, numbers in lines.items()},
+                "reach": {
+                    str(repo / path): [
+                        str(repo / one) for one in [t for t in naming[path] if t in tests] or tests
+                    ]
+                    for path in lines
+                },
                 "data": str(scratch / "data"),
                 "stopped": str(stopped),
             }
@@ -211,14 +225,16 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
     own = {path: [one for one in tests[path] if Path(path).stem in Path(one).stem] for path in left}
     first = sorted({one for path in left for one in own[path]})
     if first:
-        mine = unrun({path: left[path] for path in left if own[path]}, first, scratch / "own", repo)
+        mine = unrun(
+            {path: left[path] for path in left if own[path]}, first, tests, scratch / "own", repo
+        )
         left = {
             path: mine.get(path, set()) if own[path] else numbers for path, numbers in left.items()
         }
         left = {path: numbers for path, numbers in left.items() if numbers}
     rest = rounds.second(left, tests, own)
     if left and rest:
-        left = unrun(left, rest, scratch / "rest", repo)
+        left = unrun(left, rest, tests, scratch / "rest", repo)
     said += [
         f"{path}:{number} is a line this branch adds that no test runs: add a test that runs it, "
         f"among the tests that name its module ({len(tests[path])} of them ran)"
@@ -271,6 +287,7 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
         "features/pkg/src/pkg/held.py:3 is a line this branch adds that no test runs: add a test "
         "that runs it, among the tests that name its module (1 of them ran)",
     ]
+    assert (tmp_path / "unrun/own/stopped").exists(), "the run went on after its tests had ended"
     (tests / "test_held.py").write_text(
         (tests / "test_held.py").read_text()
         + "\n\ndef test_no_row():\n    assert not held.held(None)\n"
@@ -319,3 +336,61 @@ def test_a_line_only_another_modules_own_test_runs_counts_as_run(tmp_path):
         "features/pkg/src/pkg/ready.py": {2, 3},
     }
     assert faults(lines, tmp_path / "unrun", repo) == []
+
+
+def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(tmp_path):
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    ended = tmp_path / "ended"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    ended.mkdir()
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    (code / "slow.py").write_text("def slow(row):\n    return row\n")
+    (tests / "test_held.py").write_text(
+        "import sys\n"
+        "import time\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n\n"
+        "def test_a_held_row():\n"
+        "    assert held.held('held')\n\n\n"
+        "def test_a_late_row():\n"
+        "    time.sleep(1.5)\n"
+        "    assert held.held('late')\n"
+    )
+    (tests / "test_slow.py").write_text(
+        "import sys\n"
+        "import time\n"
+        "from pathlib import Path\n\n"
+        "import pytest\n\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import slow\n\n\n"
+        "def test_no_row():\n"
+        "    assert slow.slow(None) == 0\n\n\n"
+        "@pytest.mark.parametrize('n', range(12))\n"
+        "def test_a_slow_row(n):\n"
+        "    time.sleep(2)\n"
+        f"    Path({str(ended)!r}, str(n)).touch()\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n"
+        "    if row is None:\n"
+        "        return False\n"
+        "    if row == 'late':\n"
+        "        return True\n"
+        "    return row == 'held'\n"
+    )
+    (code / "slow.py").write_text(
+        "def slow(row):\n    if row is None:\n        return 0\n    return row\n"
+    )
+    assert faults(added(since, repo), tmp_path / "unrun", repo) == [
+        "features/pkg/src/pkg/held.py:3 is a line this branch adds that no test runs: add a test "
+        "that runs it, among the tests that name its module (1 of them ran)",
+    ]
+    assert (tmp_path / "unrun/own/stopped").exists(), "the run went on to its end"
+    assert len(list(ended.iterdir())) < 12, "the run waited on every slow test of another module"
