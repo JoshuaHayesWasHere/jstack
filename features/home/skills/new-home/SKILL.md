@@ -77,7 +77,8 @@ When no entry has that checkout, make one with `t3_project_create`, called with 
 
 ## 3. The project's table in jbus's config
 
-This block is the one registration there is: the home skill's start runs it too, for a repo whose home started with no project in jbus's config ("On the bus" in `skills/home/SKILL.md`). Run it with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
+This block is the one registration there is: the home skill's start runs it too, for a repo whose home started with no project in jbus's config ("On the bus" in `skills/home/when-a-home-starts.md`).
+Run it with the `checkout:` line of step 1 and the id of step 2 in place of the words in angle brackets:
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi

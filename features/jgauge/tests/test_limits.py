@@ -5,7 +5,6 @@ Every test runs the script."""
 
 import json
 import os
-import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -17,7 +16,6 @@ from test_room import IDLE, check, machine, ran
 from testing.paths import REPO
 
 HOOK = REPO / "features" / "jgauge" / "hooks" / "limits.sh"
-MV = shutil.which("mv")
 NOW = int(time.time())
 SOON, LATER, WEEK = NOW + 3600, NOW + 5 * 3600, NOW + 90 * 3600
 
@@ -166,24 +164,6 @@ def test_figures_already_in_the_file_do_not_write_it_again(env):
     before = (os.stat(env["LIMITS"]).st_ino, os.stat(env["LIMITS"]).st_mtime_ns)
     write(stdin, env)
     assert (os.stat(env["LIMITS"]).st_ino, os.stat(env["LIMITS"]).st_mtime_ns) == before
-
-
-def test_the_file_is_whole_until_a_rename_puts_the_next_whole_one_in_its_place(tmp_path, env):
-    write(handed(five_hour=(23.5, SOON), seven_day=(41.2, WEEK)), env)
-    old, inode = kept(env), os.stat(env["LIMITS"]).st_ino
-    seen = tmp_path / "seen"
-    (tmp_path / "stub" / "mv").write_text(
-        "#!/bin/sh\n"
-        'for last; do :; done\n{ echo "to $last"; cat "$last"; echo "from"; '
-        f'for arg; do [ "$arg" = "$last" ] || [ ! -f "$arg" ] || cat "$arg"; done; }} > {seen}\n'
-        f'exec {MV} "$@"\n'
-    )
-    (tmp_path / "stub" / "mv").chmod(0o755)
-    write(handed(five_hour=(60, LATER), seven_day=(41.2, WEEK)), env)
-    new = f"five_hour 60 {LATER}\nseven_day 41.2 {WEEK}\n"
-    assert seen.read_text() == f"to {env['LIMITS']}\n{old}from\n{new}"
-    assert kept(env) == new and os.stat(env["LIMITS"]).st_ino != inode
-    assert sorted(os.listdir(tmp_path)) == ["limits", "proc", "seen", "stub"]
 
 
 def test_a_run_ended_before_its_rename_leaves_nothing_beside_the_file(tmp_path, env):

@@ -30,7 +30,10 @@ The two templates are beside this file, in `references/`.
 
 If the scope is ambiguous, state your interpretation and explore. The user can redirect.
 
-- **Simple** (a single module, a small utility, a narrow question such as "how does function X work"): no explorers. Spawn one explainer that explores and explains in one pass, built from `references/explainer-prompt.md` without the explorer-findings section. That template is written for an explainer that explorers ran before, so on this path also swap its three passages about them (the second sentence of its opening paragraph, the first paragraph under Instructions, and the sentence "The explorers did the work, so you shouldn't need to re-explore from scratch") for one sentence: no explorer ran, so explore the code yourself first, then explain. Go to step 4.
+- **Simple** (a single module, a small utility, a narrow question such as "how does function X work"): no explorers.
+  Spawn one explainer that explores and explains in one pass, built from `references/explainer-prompt.md` without the explorer-findings section.
+  That template is written for an explainer that explorers ran before, so on this path also swap its four passages about them (the second sentence of its opening paragraph, the first paragraph under Instructions, the sentence "The explorers did the work, so you shouldn't need to re-explore from scratch", and the line "If the explorers flagged open questions or gaps, acknowledge them rather than hiding them") for one sentence: no explorer ran, so explore the code yourself first, then explain.
+  Go to step 4.
 - **Complex** (a subsystem spanning multiple files or services, a cross-cutting feature, a full architectural overview): go to step 2.
 
 When in doubt, take the simple path.

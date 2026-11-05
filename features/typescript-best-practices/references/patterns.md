@@ -1,6 +1,7 @@
 # TypeScript patterns
 
-Code examples for each rule in `SKILL.md`. The underlying principles are language-agnostic: `principles/principle-type-system-discipline.md` and `principles/principle-boundary-discipline.md`, from the root of the repo this file lives in.
+Code examples for each rule in `SKILL.md` but the last two, Real tests and Structured telemetry.
+The underlying principles are language-agnostic: `principles/principle-type-system-discipline.md` and `principles/principle-boundary-discipline.md`, from the root of the repo this file lives in.
 
 ## Branded types
 
