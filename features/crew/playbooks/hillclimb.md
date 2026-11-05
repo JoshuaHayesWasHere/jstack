@@ -20,7 +20,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
    Run it on a harder and an easier case and see them apart: if they are not, change the case or the metric.
    Vet it with that skill's seven questions (`principles/principle-explain-the-number.md`).
    Commit it, then do not touch it.
-   Write down the baseline commit, median and range, and a passing run of the repo's check command, the gate every attempt must keep.
+   Write down the baseline commit, median and range, and a passing run of the targeted tests of the code path, the gate every attempt must keep.
 3. Open the log: read `features/show-me-your-work/SKILL.md` in full and write the first row with its block, the frozen harness and the baseline.
    One row per attempt after that, kept or reverted: the phase is the attempt (`a1`, `a2`), the decision the change, the why the mechanism, the evidence the commit or `reverted`, the result the verdict with before and after.
    Read it before each attempt.

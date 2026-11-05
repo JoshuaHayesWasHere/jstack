@@ -118,7 +118,7 @@ On `no launch`, make none, and add what it printed to the Result.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 
-A pull request with no reviewer is merged only on the user's word and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open.
+A pull request with no reviewer is never merged and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open.
 So it tells the home, once.
 Run this before adding the `Reviewer: none` line, with the block at the top:
 
