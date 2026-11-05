@@ -93,3 +93,12 @@ def test_the_report_reads_only_rows_and_merges_waits_that_overlap(tmp_path, monk
         "  full, while a thread waited for a slot (0.12 h, from 2 slot-wake events):"
         " mean occupancy 1.00 (50% of 2)",
     ]
+
+
+def test_a_log_whose_first_line_is_not_a_row_is_appended_to_as_it_is(tmp_path):
+    log = slotlog.path(tmp_path / "locks")
+    log.parent.mkdir()
+    log.write_text("not a row\n")
+    slotlog.take(log, "full", 1, 4, "", ["true"], 0)
+    first, take = log.read_text().splitlines()
+    assert first == "not a row" and json.loads(take)["event"] == "take"
