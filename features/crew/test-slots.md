@@ -6,7 +6,7 @@
 
   The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one.
   A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once.
-  The check of the change never runs in the short lane: it always runs in a full test slot.
+  The check of the change runs here too, one step to a call, and its block runs a step the lane stopped again alone in a full test slot, as "Do the task" says.
 
   `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
   With `--thread` the call waits for no slot.

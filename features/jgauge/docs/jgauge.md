@@ -244,10 +244,11 @@ Once the first row is over 30 days old, the next row written first rewrites the 
 The `home` skill runs `jgauge room` before a launch, the `pr-review` skill runs it before a review, and `jbus` runs it before each launch.
 A crewmate runs the check command that the repo's `fresh-check` names.
 It runs that command once, under a test slot, as `jgauge check`, with the check command on stdin.
+In a repo whose check selects its tests, as jstack's does, the crewmate's check is instead the lint and the tests its change touches, each step its own `jgauge test-slot --short` call, and a step the short lane stops at its limit runs again alone in a full slot (`features/crew/do-the-task.md`).
 A reviewer's proof runs in the short lane as `jgauge proof`, with the proof on stdin.
 A crewmate's targeted test runs run in the short lane, as `jgauge test-slot --short -- uv run pytest <files>`.
 A thread's step calls `jgauge check` and `jgauge proof` so that it holds no delete and no inner shell, which Claude Code asks the user about before it runs them (`features/repo-guards/tests/test_blocks_ask_nothing.py`).
-The check command never runs in the short lane.
+`jgauge check` never runs in the short lane.
 
 ## How it counts tokens
 

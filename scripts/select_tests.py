@@ -124,9 +124,14 @@ cross-cutting tests, the catch-all and the changed test files. `--part rest` pri
 it, the files the rules reached through imports, names and features alone. Each prints `all`
 where the selection is `all`. `--part desk` prints both from one selection, each file after the
 name of its part, `guards <file>` or `rest <file>`, the guards first, and `all` alone where the
-selection is `all`: the desk's check block selects once so. A desk runs the guards first, as a
-step that must pass, since a cheap guard mixed into a selection that runs past the short lane's
-limit reaches no verdict.
+selection is `all`. `jmerge` runs the guards on a pull request's tree merged over its base
+(`merged-tree-guards`).
+
+`select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
+edits, each one the check runs, and never `all`: a change that selects every test still names
+its own. It needs no selection, so it is quick. They are the desk's check, with the lint (the
+crew's check block, features/crew/do-the-task.md, runs each file alone in the short lane), and
+CI's check runs the rest of the selection.
 
 `select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
 or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
@@ -1152,7 +1157,12 @@ def selection(changed, failed=()):
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
-DESK_PARTS = ("guards", "rest", "desk")
+DESK_PARTS = ("guards", "rest", "desk", "touched")
+
+
+def touched(changed):
+    """The test files of `changed` that the check runs: the desk's own share of a change."""
+    return sorted(set(changed) & collected())
 
 
 def guards(changed, tests):
@@ -1465,7 +1475,7 @@ def main(argv):
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
-            "       select_tests.py --part guards|rest|desk <base> <head>\n"
+            "       select_tests.py --part guards|rest|desk|touched <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
@@ -1485,6 +1495,9 @@ def main(argv):
             print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
             tests = ["all"]
         print("\n".join(tests))
+        return
+    if cut == "touched":
+        print("\n".join(touched(changed)))
         return
     failed = os.environ.get(FAILED_ON_MAIN)
     failed = None if failed is None else failed.split()

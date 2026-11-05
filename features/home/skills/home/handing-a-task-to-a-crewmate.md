@@ -8,7 +8,7 @@
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user. `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty, and a launch checks it again.
 
-   A **Done when** line that asks for the check names it as "the check command (`$H/fresh-check`)", never as a literal `make check`: the crewmate runs the command `fresh-check` names, once.
+   A **Done when** line that asks for the check names it as "the check command (`$H/fresh-check`)", never as a literal `make check`: the crewmate runs the command `fresh-check` names, once, or, in a repo whose check selects its tests, the lint and the tests its change touches, and CI's check runs it whole.
    `jbus queue add` prints a line that begins ``warning: <slug>'s brief's Done when: asks for `make check` `` for a brief whose **Done when** asks for a bare `make check` while `fresh-check` names another check command: mend the line and add the brief again.
 
    Its `Size:` line is the task's t-shirt size, `S`, `M` or `L`, as its plan entry's `Size:` line has it: the feature playbook's step 4 reads it to decide on a design read.
@@ -24,7 +24,7 @@
    A brief with no line, or with any other word, an old `after` included, counts as `review`.
    `Review: cleanup` is the day's warnings row's alone, which jbus files: `jbus queue add` refuses it on a brief the home writes.
    With `none` the crewmate launches no reviewer, and `jmerge` holds the pull request for the user's word.
-   No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
+   No reviewer runs a test step or a suite: the desk's one run of the check is the crewmate's, and CI's check on the pull request is the check of record.
 
    A brief is checked when it is queued, not when it launches.
    `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line, where the brief has one, that names the design or says `none, <why>`; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`.
