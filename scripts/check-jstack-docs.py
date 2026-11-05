@@ -3,6 +3,9 @@
 This is a stdlib port of pstack's check-pstack-docs.mjs, and `make check` and `make check-fast`
 run it. It reads the tree once and checks each page of `docs_of` against it: README.md,
 CATALOG.md, CONTRIBUTING.md, SECURITY.md, every page of the docs and every skill's `SKILL.md`.
+A page of the docs is Markdown or HTML. The script reads an HTML page line by line as the Markdown
+it would be: a `<code>` span as a code span, an `<a href>` as a link, no other tag, and no line of
+a `<style>` or a `<script>`. So each check below reads an HTML page as it reads a Markdown page.
 
 - slash commands: a `/<name>` in prose, or as the first word of a code span or of a line of a
   fenced block, is a skill under `skills/` or in `EXTERNAL`. The same holds for
@@ -17,8 +20,9 @@ CATALOG.md, CONTRIBUTING.md, SECURITY.md, every page of the docs and every skill
   `hooks/<h>`, `skills/<n>/<file>`), even after a move has put the file somewhere else in the
   source tree.
 - links and anchors: a relative Markdown link outside code points at a file that exists. A link
-  with a `#anchor` into a Markdown file points at a heading of that file, as GitHub slugs the
-  heading. The script skips fences and adds `-N` to a repeated heading.
+  with a `#anchor` into a Markdown or HTML file points at a heading of that file, as GitHub slugs
+  the heading, or at an `id` or a `name` of it. The script skips fences and adds `-N` to a
+  repeated heading.
 - counts: a count such as "has 39 skills" in the README or a docs page matches the number of
   skills, commands, principles or playbooks the tree has. A skill counts things of its own, so
   the script does not read a skill's counts.
@@ -27,12 +31,14 @@ CATALOG.md, CONTRIBUTING.md, SECURITY.md, every page of the docs and every skill
 - tables: a row of a README table names each command, and a page of the docs links each skill's
   `SKILL.md` and each playbook (the generated catalog of `CATALOG.md` does).
 
-It prints `FAIL <doc>:<line> <why>` for each problem, then `<n> problems`, and exits 1 on any.
+It prints `read <n> pages`, with the HTML pages among them by name, then `FAIL <doc>:<line> <why>`
+for each problem, then `<n> problems`, and exits 1 on any.
 When no page lists a thing, it reports that thing at `README.md:1`.
 """
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import sys
@@ -78,6 +84,7 @@ ROOTS = (
 TREE_PATH = re.compile(
     rf"(?<![\w/.~<>*$-])((?:{'|'.join(map(re.escape, ROOTS))})/[\w.-]+(?:/[\w.-]+)*)"
 )
+PAGES = (".md", ".html")
 FRONT = ("README.md", "CATALOG.md", "CONTRIBUTING.md", "SECURITY.md")
 LINK = re.compile(r"\]\(<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\)")
 SCHEME = re.compile(r"([a-z][a-z0-9+.-]*:|//)", re.I)
@@ -88,7 +95,7 @@ NUMBERS = (
     "zero one two three four five six seven eight nine ten "
     "eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
 ).split()
-HAS = r"(?:has|have|holds?|lists?|contains?|ships|are|is)"
+HAS = r"(?:has|have|installs?|holds?|lists?|contains?|ships|are|is)"
 NOUNS = ("skills", "commands", "principles", "playbooks")
 COUNT = {
     noun: re.compile(rf"\b{HAS} (?:the |all )?(\d+|{'|'.join(NUMBERS)}) {noun}\b", re.I)
@@ -120,7 +127,9 @@ class Doc:
 
     @classmethod
     def read(cls, root: Path, path: Path) -> Doc:
-        return cls(path, path.relative_to(root).as_posix(), lines_of(path.read_text()))
+        text = path.read_text()
+        lines = html_lines(text) if path.suffix == ".html" else lines_of(text)
+        return cls(path, path.relative_to(root).as_posix(), lines)
 
 
 def lines_of(text: str) -> tuple[Line, ...]:
@@ -131,6 +140,23 @@ def lines_of(text: str) -> tuple[Line, ...]:
             found.append(Line(number, line, None))
         else:
             found.append(Line(number, line, fenced))
+    return tuple(found)
+
+
+def html_lines(text: str) -> tuple[Line, ...]:
+    """An HTML page's lines as the Markdown they would be, each at its own number. A line of a
+    `<style>` or a `<script>` is blank. A `<code>` span is a code span and an `<a href>` a link.
+    Each other tag is a space. The text is unescaped last, so `&lt;slug&gt;` stays text."""
+    found, inside = [], False
+    for number, line in enumerate(text.splitlines(), 1):
+        inside = inside or bool(re.search(r"<(?:style|script)\b", line))
+        if inside:
+            inside = not re.search(r"</(?:style|script)>", line)
+            found.append(Line(number, "", None))
+            continue
+        line = re.sub(r"</?code>", "`", line)
+        line = re.sub(r"""<a\b[^>]*\bhref=["']([^"']*)["'][^>]*>(.*?)</a>""", r"[\2](\1)", line)
+        found.append(Line(number, html.unescape(re.sub(r"<[^>]*>", " ", line)), False))
     return tuple(found)
 
 
@@ -258,13 +284,14 @@ def playbook_files(root: Path) -> list[Path]:
 
 
 def docs_of(root: Path) -> list[Doc]:
-    """The README and each other page of `FRONT` the tree has, every page of the docs tree, and
-    each skill's `SKILL.md`, in that order."""
+    """The README and each other page of `FRONT` the tree has, every Markdown and HTML page of the
+    docs tree, and each skill's `SKILL.md`, in that order."""
     pages = [
         root / "README.md",
         *(root / name for name in FRONT[1:] if (root / name).is_file()),
         *sorted((root / "docs").rglob("*.md")),
         *sorted(root.glob("features/*/docs/**/*.md")),
+        *sorted(root.glob("features/*/docs/**/*.html")),
         *skill_files(root),
     ]
     return [Doc.read(root, page) for page in pages]
@@ -285,7 +312,7 @@ def links(tree: Tree, doc: Doc) -> Found:
             at = (doc.path.parent / path) if path else doc.path
             if not at.exists():
                 found.append((line.number, f"the link {target} goes to a file that is not there"))
-            elif anchor and at.suffix == ".md" and anchor not in anchors_of(at.read_text()):
+            elif anchor and at.suffix in PAGES and anchor not in anchors_of(at.read_text()):
                 why = f"the link {target} goes to a heading that is not there"
                 found.append((line.number, why))
     return found
@@ -389,8 +416,7 @@ def listing(tree: Tree, docs: list[Doc]) -> list[str]:
     ]
 
 
-def problems(root: Path) -> list[str]:
-    tree, docs = Tree.read(root), docs_of(root)
+def problems(tree: Tree, docs: list[Doc]) -> list[str]:
     found = [f"README.md:1 {why}" for why in listing(tree, docs)]
     for doc in docs:
         said = sorted(
@@ -402,7 +428,11 @@ def problems(root: Path) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    found = problems(Path(argv[0]).resolve() if argv else REPO)
+    root = Path(argv[0]).resolve() if argv else REPO
+    tree, docs = Tree.read(root), docs_of(root)
+    pages = " ".join(doc.name for doc in docs if doc.path.suffix == ".html")
+    print(f"read {len(docs)} pages" + (f", and in HTML {pages}" if pages else ""))
+    found = problems(tree, docs)
     for problem in found:
         print(f"FAIL {problem}")
     print(f"{len(found)} problems")

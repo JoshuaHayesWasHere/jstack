@@ -107,7 +107,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | CPU pressure line | `features/jgauge/src/jgauge/room.sh` | `CPU=40` | Launches stop when work waits for a core | A share of time. Five suites reach 30 and six reach 55, so it holds the sixth. |
 | Memory floor, GB | `features/jgauge/src/jgauge/room.sh` | `MEMORY=6` | Room for one more launch and its check | A floor, not a size. A launch and a suite are 1.4 GB, and the idle machine has 49 GiB available. |
 | Memory pressure line | `features/jgauge/src/jgauge/room.sh` | `PRESSURE=10` | Launches stop when work waits for memory | A share of time. It was 0 in every run. |
-| Plan cushion, percent | `features/jgauge/src/jgauge/room.sh` | `CUSHION=${HEADROOM:-90}` | A launch passes an account by before its plan window is used up | The provider's, not the machine's. The user's `headroom` in `config.toml` sets it, and with none it is `CUSHION=90`. |
+| Plan cushion, percent | `features/jgauge/src/jgauge/room.sh` | `CUSHION=${HEADROOM:-90}` | A launch passes an account by before its plan window is used up | The provider's, not the machine's. The user's `headroom` in `~/.config/jstack/config.toml` sets it, and with none it is `CUSHION=90`. |
 | `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh` | `SLOTS=85` | `/tmp` never fills, which fails every shell | A share. Six suites at once peak at 36%. |
 | A review skips the load | `features/jgauge/src/jgauge/cli.py` | `"--light",` | A review is not held by load it does not add | A review is about 2% of a core |
 | Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py` | `room_passes=int(raw.get("room_passes", 10)),` | The owner hears of a row room holds for long | The busy night's hold was 7 passes |
@@ -166,8 +166,6 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 
 | Limit | Where | Value | Protects | Its yelena basis |
 |---|---|---|---|---|
-| A docs page | `features/jbus/tests/test_jbus_pages.py` | `CAP = 300` | A page stays short | Design choice |
 | A SKILL.md | `features/repo-guards/tests/test_skill_size.py` | `CAP = 400` | A skill keeps a spine | Design choice |
 | A test file | `features/repo-guards/tests/test_test_size.py` | `CAP = 1500` | A test file stays short | Design choice |
 | A module | `features/repo-guards/tests/test_module_size.py` | `CAP = 800` | A module stays short | Design choice |
-| `jbus/poll.py` | `features/jbus/tests/test_jbus_poll_size.py` | `LINES = 300` | The pass stays thin | Design choice |

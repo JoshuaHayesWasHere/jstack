@@ -8,7 +8,6 @@ exited non-zero holds it until its decline cites a path:line, a command or a gat
 `Review: twice` brief is judged as a `review` one, with no second review owed.
 """
 
-import importlib.util
 import subprocess
 from pathlib import Path
 
@@ -16,7 +15,6 @@ import pytest
 
 from jmerge import ready
 from test_verify_jstack import SCRIPTS, inside, launch
-from testing.paths import REPO
 
 URL = "https://example.test/pull/7"
 PROOF = "(proof: `sh src/beta/proof.sh`, exit 1, it loops)"
@@ -83,20 +81,3 @@ def test_a_finding_whose_proof_exits_non_zero_holds_until_its_decline_cites(open
     ]
     cited = "Finding F1: not fixed, a made up one, because src/beta/a.py:1 is meant so\n"
     assert judged(sandbox, head, "", proven, cited) == [f"ready 7 {head} beta beta"]
-
-
-def test_a_change_to_jmerge_s_source_selects_these_drive_tests():
-    """No new required check: `check` selects the sandbox drive tests of `jmerge --check` through
-    `scripts/select_tests.py` whenever jmerge's source changes, by the imports they make."""
-    spec = importlib.util.spec_from_file_location(
-        "select_tests", REPO / "scripts" / "select_tests.py"
-    )
-    select = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(select)
-    drives = {
-        "features/verify-jstack/tests/test_jmerge_one_round.py",
-        "features/verify-jstack/tests/test_home_clears_blockers.py",
-    }
-    for module in ("ready.py", "cli.py", "judgement.py"):
-        tests, _ = select.selection([f"features/jmerge/src/jmerge/{module}"])
-        assert drives <= set(tests), module

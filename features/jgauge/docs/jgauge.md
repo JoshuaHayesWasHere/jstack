@@ -93,7 +93,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 
 `jgauge room` prints `go`, or `wait: ` and the first reading with no room.
 It checks the machine's readings, each against its line in [The limits that are fixed](jgauge/change-a-limit.md#the-limits-that-are-fixed).
-It also checks the plan's five-hour and weekly limits against your `headroom`, which `config.toml` sets and which is 90% when not set.
+It also checks the plan's five-hour and weekly limits against your `headroom`, which `~/.config/jstack/config.toml` sets and which is 90% when not set.
 
 `jgauge room` passes `headroom` to `room.sh` as `HEADROOM`.
 If `jgauge room` cannot read a machine reading, it prints `wait: `.
