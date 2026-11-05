@@ -21,4 +21,4 @@ Foundations should serve the experience.
 [Foundational Thinking](../principle-foundational-thinking/SKILL.md) governs the *sequence* of work.
 This principle governs the *target*.
 
-<!-- card: Keep it small | 5 | Where convenience for the builder conflicts with delight for the user, choose delight. Fewer features, polished. | `prototype` -->
+<!-- card: Keep it small | 5 | Where convenience for the builder conflicts with delight for the user, choose delight. Fewer features, polished. | no skill or playbook names it yet -->
