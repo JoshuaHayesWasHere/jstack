@@ -319,6 +319,13 @@ def load_tasks(path: Path) -> dict:
             raise Refused(
                 f"--tasks {path}: task {t['id']} is pass/fail: it names `must` expressions"
             )
+    for name in families:
+        held = sum(t["family"] == name for t in tasks)
+        if held < 2:
+            raise Refused(
+                f"--tasks {path}: family {name} holds {held} task{'' if held == 1 else 's'}: "
+                'the paired interval needs two or more, as README.md, "The rule", says'
+            )
     return spec
 
 

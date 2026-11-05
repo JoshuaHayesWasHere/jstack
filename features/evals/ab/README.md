@@ -70,6 +70,10 @@ For a pass/fail family the test is Fisher's exact test on failed against all tri
 
 Each family also has its **mde80**, the smallest mean difference the run sees at 80% power: `(1.96 + 0.84) * sd / sqrt(n)`, with `sd` the standard deviation of the A/A per-task differences (A-again minus A, the run's own noise between two arms) and `n` its task count.
 
+- **`inconclusive: underpowered`** when the family has fewer than two tasks.
+  A bootstrap of one per-task difference resamples that one value, so its interval has zero width, [d, d], and says nothing of another task; its mde80 is infinite, since one difference has no spread.
+  Read as the rules below read an interval, one task would be called `B better` on a single difference of 0.1.
+  So `run` refuses a task file with a family of fewer than two tasks before any call, and `rescore` of a kept run that has one says `inconclusive: underpowered`.
 - **`inconclusive: A/A not clean`** when A-again against A would itself be called: its interval excludes 0 (Fisher p under 0.05 for pass/fail) and its mean is at least the mde.
 - When the mde80 is above the mde, the run is too small to see the mde, and it says only what its interval settles:
   **`B better`** or **`B worse`** when B against A shows a difference by the same test and the whole interval lies beyond the mde, **`no measurable difference`** when the whole interval lies within the mde, and else **`inconclusive: underpowered`**.
