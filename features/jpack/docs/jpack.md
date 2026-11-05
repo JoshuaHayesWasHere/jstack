@@ -28,7 +28,8 @@ It calls no model and writes nothing.
 
 Each verb prints one line for each fault it finds and exits 1.
 For a pack with no faults, it prints nothing and exits 0.
-It exits 2 when the folder has no `notes/`, or when the pack is not in a git checkout.
+It exits 2 when the folder has no `notes/`.
+`verify` and `stale` also exit 2 when the pack is in no git checkout and no `--repo` names one, and `stale` when `--rev` names no commit.
 
 `jpack lint` is the same lint that an expert's folder uses, one shell copy at `features/jpack/src/jpack/lint-notes.sh`.
 `jpack verify` reads white space as one space when it looks for the quoted words.

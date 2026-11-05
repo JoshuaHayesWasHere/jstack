@@ -33,9 +33,10 @@ When a word is recorded `--from` the home's own thread, jbus keeps it and does n
 `jbus word --all` goes to the home of every project.
 A scratch home is no project's home, so a word about the repos does not reach it.
 A word that waits, such as one sent before the home's start wrote its `home-id`, goes on the next pass.
-Sending the words that wait for its thread is all a pass does for a scratch home.
-That step, `word.scratch`, is a chore.
-A chore runs once a pass, for the machine and for no project, so this step also runs in a config that has no repo project.
+A pass does two things for a scratch home, each in a chore.
+It sends the words that wait for its thread (`word.scratch`).
+It sends again, once the account frees, each ask of yours whose turn on one of its threads stopped on a usage limit or an auth error (`jbus.owed`).
+A chore runs once a pass, for the machine and for no project, so both steps also run in a config that has no repo project.
 
 ## Where it shows
 

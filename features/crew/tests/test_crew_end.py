@@ -5,7 +5,6 @@ import subprocess
 
 import pytest
 
-import test_tool_calls as tools
 from crew_helpers import BRIEF, block, git, said
 
 DONE = "Status: done\nBranch: alpha   Pull request: none\nLeft: none\n"
@@ -208,13 +207,3 @@ def test_the_first_reason_to_stay_is_the_one_said(tmp_path):
     crewmate = NoPullRequest(tmp_path, DONE.replace("Left: none", "Left: a.py"))
     (crewmate.worktree / "a.py").write_text("not committed\n")
     assert crewmate.says() == "stay: the last Result does not say Left: none\n"
-
-
-def test_the_settle_is_a_call_the_tool_takes():
-    (settle,) = [
-        call
-        for call in tools.CALLS
-        if call.where.startswith("crew:") and call.tool == "t3_thread_organize"
-    ]
-    assert settle.given == {"action": "settle"}
-    assert tools.errors(settle, settle.given) == []

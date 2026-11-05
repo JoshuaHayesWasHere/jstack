@@ -224,6 +224,9 @@ All in `features/verify-jstack/project-skill/scripts/`, which `$VERIFY_JSTACK_SC
 | `fake-systemctl` | linked as `systemctl` on the sandbox's PATH, never run by hand | the stand-in for `systemctl --user`: answers for the sandbox's HOME, links and unlinks as systemd does, starts nothing |
 | `fake-launchctl` | linked as `launchctl` on the sandbox's PATH, never run by hand | the stand-in for `launchctl` on macOS: loads and boots out agents as launchd does, starts nothing |
 
+After a change to these scripts, run the two deterministic end-to-end scripts in [`features/verify-jstack/e2e/`](../../../features/verify-jstack/e2e/README.md), each with `bash <script>` from a shell in no sandbox.
+Each ends `e2e: ok` and prints the same lines on a rerun.
+
 When jstack changes, the feature files are what go stale first.
 `/maintain-verification-skill` finds this skill through `skills.json`, where `projectSkills` names it, but it reads a feature map only from the skill's own `features/` folder, which this skill does not have: on jstack it stops at `no feature map`.
 

@@ -3,6 +3,7 @@
 `jinstall --setup` prints one line for each need the doctor lists, in the same order, and exits 1 while a `hard` need is left to you.
 For a missing optional need, setup prints the doctor's own words, `missing optional`, because it is a layer you may leave off.
 The skill links of each harness are one line, `done skills <harness>: <n> links` or `already skills <harness>: <n> links`, while each link is done or already there.
+The hook entries of each hooks file are one line too, `done hooks <file>: <n> hooks` or `already hooks <file>: <n> hooks`.
 When a step is left to you, the last line names each `needs you` again, `setup: <n> needs you: <name> -> <command>; ...`.
 A second run writes nothing.
 

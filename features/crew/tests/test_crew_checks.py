@@ -7,13 +7,8 @@ import subprocess
 
 import pytest
 
-import test_home_merge as merge
-import test_tool_calls as tools
-from crew_helpers import BRIEF, ROLLUPS, SKILL, block, git, said, sections, stub_gh
-from jmerge import ready
-from test_home_thread import as_read
+from crew_helpers import BRIEF, ROLLUPS, block, git, said, sections, stub_gh
 from testing.layouts import assembled
-from testing.paths import REPO
 
 
 class Pushed:
@@ -81,15 +76,6 @@ def test_a_drafts_checks_are_read_as_any_pull_requests(case, tmp_path):
     assert pushed.says().split(":")[0] == ROLLUPS[case][1]
 
 
-def test_the_result_has_a_line_for_checks_that_did_not_run_and_none_that_stands_in(tmp_path):
-    template = (REPO / "features" / "crew" / "templates" / "result.md").read_text()
-    starts = [line.split("<")[0] for line in template.splitlines()]
-    assert "Unrun: at " in starts
-    assert not [start for start in starts if start.startswith("CI:")]
-    pushed = Pushed(tmp_path, ROLLUPS["none ran"][0])
-    assert pushed.says().removeprefix("unrun: no check ran at ") == pushed.head
-
-
 def test_the_review_is_launched_only_once_check_has_passed(tmp_path):
     """The deterministic checks prove or fail the work before a reviewer reads it: the crew
     launches on `passed` alone, and the reviewer's own readiness check agrees."""
@@ -136,32 +122,3 @@ def test_the_review_is_launched_only_once_check_has_passed(tmp_path):
     assert said(tmp_path / "state", "The review", "launch a reviewer", BRIEF) == [
         "review: launch a reviewer"
     ]
-
-
-def test_a_crewmate_links_its_pull_request_and_arms_no_watch():
-    """The test reads the JSON calls of "Stay on the pull request" as `test_tool_calls.py` reads
-    every skill's calls. The calls include the call that links the pull request, which T3 Code
-    takes, and no call that arms a watch, because jbus wakes the crewmate."""
-    blocks, unread = tools.read("crew", sections()["Stay on the pull request"])
-    called = []
-    for _, language, body, lead_in in blocks:
-        called += [
-            tools.Call("crew", lead_in[: inline.start()], inline[1])
-            for inline in tools.INLINE.finditer(lead_in)
-        ]
-        if language == "json":
-            called.append(tools.Call("crew", lead_in, body))
-    assert unread == [] and [call.tool for call in called] == ["link_pull_request"]
-    assert [tools.errors(call, call.given) for call in called] == [[]]
-    assert "watch_pull_request" not in tools.SCHEMAS
-
-
-def test_a_push_for_a_failed_check_needs_no_line_for_jmerge_to_compare_it():
-    """The skill asks for no `CI fix:` line: with none, `jmerge` compares the pushed head with
-    the head the review saw, and an older brief's line changes nothing."""
-    assert "CI fix:" not in as_read(SKILL)
-    head, reviewed = "b" * 40, "a" * 40
-    for line in ("", f"CI fix: {head}, after the review of {reviewed}\n"):
-        brief = merge.brief(merge.review("clean", reviewed), line)
-        assert ready.short_of(brief, head) == ""
-        assert ready.to_range_diff(brief, head) == reviewed

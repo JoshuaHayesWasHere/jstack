@@ -62,7 +62,7 @@ It tracks the incident in `streaks.json`, as it does every other alert.
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
 It goes to the desktop with `notify-send`.
 On macOS, which has no `notify-send`, it goes to no desktop.
-It also goes to the home thread of every project, as an event of the machine.
+It also goes to the infra home, as an alert of the machine's.
 A check that could not be read leaves its incident as it is.
 Some checks go away: a mount or an instance is gone, or the config no longer posts to the relay.
 The incident of such a check ends with no page.
