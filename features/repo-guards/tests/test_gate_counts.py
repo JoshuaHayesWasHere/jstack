@@ -19,6 +19,7 @@ import subprocess
 from jbus import party
 from testing.paths import REPO
 
+READ_SET = ("features/",)
 NUMBER = r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)"
 COUNT = re.compile(
     rf"\b{NUMBER}\s+(?:gate\s+)?(?:things|cases|doors|gates)\b|\bthese\s+{NUMBER}\b(?!\s+\w)",
