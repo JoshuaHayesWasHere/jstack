@@ -213,7 +213,7 @@ def faults(lines: dict[str, set[int]], scratch: Path, repo: Path = REPO) -> list
         }
         left = {path: numbers for path, numbers in left.items() if numbers}
     rest = sorted(
-        {one for path in left for one in tests[path]} - set(first),
+        {one for path in left for one in tests[path] if one not in own[path]},
         key=lambda one: (min(len(tests[path]) for path in left if one in tests[path]), one),
     )
     if left and rest:
