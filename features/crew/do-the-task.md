@@ -112,7 +112,7 @@
   else
       kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
       tree=$(mktemp -d)
-      if git diff --name-only --no-renames "$base" HEAD | grep -qvE "$kept"; then
+      if git diff --name-only --no-renames "$base" HEAD | grep -vE "$kept" | grep -q .; then
           only=
           git clone -q --shared --no-checkout . "$tree"
           git -C "$tree" checkout -q --detach "$base"
@@ -162,6 +162,7 @@
   A test made faster, split or cleaned up is such a branch.
   For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`.
   `jmerge` takes that line only where every file the pull request changes is such a file and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
+  The block finds a file that is no test with `grep -vE "$kept" | grep -q .`, not `grep -qvE`: in Claude Code's bash `grep` is a shell function that runs ugrep, whose `-qv` ends 1 even where a line does not match, which would call a branch that changes code tests only.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
