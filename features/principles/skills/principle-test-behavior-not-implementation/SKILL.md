@@ -20,4 +20,15 @@ The contract decides, not the shape of the assertion. When "an empty cart never 
 
 A test can pin an invariant instead of a call, such as a key that must exist in two tables or a compile-time type check. The invariant is the behavior.
 
+## In an agent-first repo, tests are not the primary guard
+
+In an agent-first repo, agents write most of the code and most of its tests. A test that an agent writes beside its own code tends to restate that code, so it passes for the same reason the code was written and catches little. There, four guards come before any unit test, in this order:
+
+1. CI: the check that every pull request must pass before it merges.
+2. Lint: a rule that fails the build on the wrong shape, so that nobody has to remember the rule.
+3. Deterministic scripts: a script that drives the real command, request, or page end to end and prints the same verdict on every run, such as the repo's verify skill.
+4. Validation pipelines: the evals and checks that run the product on real inputs and judge what comes out.
+
+A unit test is still worth writing, or keeping, when it is a keeper: a test pinned to a real bug or a real invariant that must never regress. Name the bug or the invariant it pins. A test that catches nothing a CI job, a lint rule, a script, or a validation pipeline would not catch is noise. So is a test written to match the code rather than the requirement. Put what such a test checks in the first guard that can own it. A keeper still has to pass the two edits above.
+
 <!-- card: Prove it | 2 | A test fails when the behavior its users can observe breaks, and keeps passing when only the internals change. | `bug-fix`; `feature`; `authoring-a-skill` -->

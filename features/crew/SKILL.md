@@ -87,7 +87,7 @@ Never merge: `jmerge`, run by jbus, merges.
 
 ## Do the task
 
-- The **Done when** list is the whole target. Write the tests for it first where the repo has tests.
+- The **Done when** list is the whole target. Guard it agent-first, a unit test only for a keeper: `$T/../principles/principle-test-behavior-not-implementation.md`.
 - The brief is trusted.
   Read the files it names; where it names none, read only what the task needs.
   Do not check its findings again, and do not explore beyond it.
