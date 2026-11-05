@@ -1,16 +1,13 @@
-"""A pull request merges only once the brief's last `Checked:` line says the desk's guards passed
-at its head: `PART=guards exit 0`, as the crew's check block (features/crew/do-the-task.md)
-writes it, at the head or at a head whose patch the head carries unchanged. A missing line, a
-failed one, a time limit's 124 and a line of a head whose patch changed since each hold it: a
-check cut short reached no verdict. The hold says what the crew runs to clear it.
-
-The first tests run `jmerge` against the fake `gh` and real origin of `test_home_merge`. The rest
-drive `ready.short_on_checked`, which `jmerge` calls before a merge and the crew's push block
-before the first push, through each way a line falls short."""
+"""A brief's last `Checked:` line binds only where the desk's guards passed at the head:
+`PART=guards exit 0`, as the crew's check block (features/crew/do-the-task.md) writes it, at the
+head or at a head whose patch the head carries unchanged. These drive `ready.short_on_checked`,
+which `jmerge` calls before a merge and the crew's push block before the first push, through
+each way a line falls short: a missing line, a failed one, a time limit's 124 (a check cut
+short reached no verdict) and a line of a head whose patch changed since. Each hold says what
+the crew runs to clear it. test_jmerge_cli_checked.py runs the same holds through `jmerge`."""
 
 import pytest
 
-import test_home_merge as merge
 from jmerge import ready
 
 BASE = "c" * 40
@@ -22,54 +19,6 @@ LINT = f"make check-fast BASE={BASE} PYTEST=: PART=guards"
 
 def checked(code=0, head=HEAD, command=GUARDS):
     return f"Checked: {command} exit {code} at {head}\n"
-
-
-@pytest.fixture
-def merged(tmp_path):
-    made = merge.Merged(merge.Home(tmp_path), tmp_path)
-    made.home.desk = False
-    return made
-
-
-def briefed(merged, lines):
-    text = merge.brief(merge.review("clean", merged.head), lines)
-    (merged.home.tasks / "alpha.md").write_text(text)
-
-
-def test_a_pull_request_whose_guards_passed_at_its_head_merges(merged):
-    briefed(merged, checked(head=merged.head))
-    (said,) = merged.run()
-    assert said.startswith("merged 7 alpha ")
-
-
-@pytest.mark.parametrize(
-    ("line", "why"),
-    [
-        pytest.param("", lambda m: ready.CHECKED_MISSING.format(head=m.head[:12]), id="missing"),
-        pytest.param(
-            checked(1, "{head}"),
-            lambda m: ready.CHECKED_FAILED.format(exit=1, at=m.head[:12], head=m.head[:12]),
-            id="exit 1",
-        ),
-        pytest.param(
-            checked(124, "{head}"),
-            lambda m: ready.CHECKED_CUT.format(at=m.head[:12], head=m.head[:12]),
-            id="exit 124",
-        ),
-        pytest.param(
-            checked(0, "{start}"),
-            lambda m: ready.CHECKED_STALE.format(at=m.start[:12], head=m.head[:12]),
-            id="stale",
-        ),
-    ],
-)
-def test_a_pull_request_whose_guards_did_not_pass_at_its_head_waits(merged, line, why):
-    """The stale line is of main's own commit, whose patch is not the head's, as the line of a
-    head before a fix for a review's finding is."""
-    briefed(merged, line.format(head=merged.head, start=merged.start))
-    (said,) = merged.run()
-    assert said == f"wait 7 {merge.URL}: {why(merged)}"
-    assert merged.untouched()
 
 
 def result(lines=""):
