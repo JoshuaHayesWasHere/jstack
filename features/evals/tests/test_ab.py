@@ -164,12 +164,13 @@ def test_a_rescore_writes_the_same_results_byte_for_byte_and_nothing_into_the_ke
     assert {p.name: p.read_bytes() for p in kept.iterdir()} == before
 
 
-def skill_cut_run(where, family, trials):
-    """A run dir as skill-cut's `score.py` leaves one: `trials(task)` gives each arm's trial
-    scores for a task, as a dict from `base`, `base-again` and `variant` to a list."""
+def skill_cut_run(where, family, trials, tasks=10):
+    """A run dir as skill-cut's `score.py` leaves one, of `tasks` tasks: `trials(task)` gives
+    each arm's trial scores for a task, as a dict from `base`, `base-again` and `variant` to a
+    list."""
     where.mkdir()
     key, scores = {}, {}
-    for task in range(10):
+    for task in range(tasks):
         for arm, values in trials(task).items():
             for trial, value in enumerate(values, 1):
                 name = f"{task}-{arm}-{trial}"
@@ -221,6 +222,41 @@ def test_a_run_too_noisy_to_see_its_mde_is_underpowered_and_a_quiet_one_calls_th
     assert calm.returncode == 0, calm.stderr
     assert calm.stdout.startswith("lead: B better; B - A +0.040")
     assert "mde 0.030; power: mde80 0.000;" in calm.stdout
+
+
+def test_a_family_of_one_task_is_underpowered_and_a_task_file_with_one_is_refused(lab):
+    """One task, B 0.6 against A 0.5 in all three trials: a bootstrap of one difference resamples
+    that one value, so its interval is [+0.100, +0.100] and says nothing about the next task. A
+    kept run of one task reads underpowered, and a task file whose family holds one task is
+    refused before any call."""
+    made = skill_cut_run(
+        lab.dir / "run-one",
+        "lead",
+        lambda _: {"base": [0.5] * 3, "base-again": [0.5] * 3, "variant": [0.6] * 3},
+        tasks=1,
+    )
+    said = lab.ab("rescore", str(made), refuse=True)
+    assert said.returncode == 0, said.stderr
+    assert said.stdout.startswith("lead: inconclusive: underpowered; B - A +0.100")
+    assert "1 tasks, 3 runs an arm" in said.stdout
+    one = json.loads(lab.tasks.read_text())
+    one["tasks"] = [t for t in one["tasks"] if t["id"] not in ("g1", "g2")]
+    lab.tasks.write_text(json.dumps(one))
+    refused = lab.ab(
+        "run",
+        "--a",
+        "one",
+        "--b",
+        "two",
+        "--tasks",
+        str(lab.tasks),
+        "--out",
+        str(lab.dir / "out"),
+        refuse=True,
+    )
+    assert refused.returncode != 0
+    assert "family grade holds 1 task" in refused.stderr
+    assert lab.calls() == []
 
 
 def test_a_pass_fail_family_calls_b_worse_on_failed_trials(lab):
