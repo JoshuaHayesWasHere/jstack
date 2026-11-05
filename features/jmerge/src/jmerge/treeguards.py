@@ -7,7 +7,7 @@ merge, `jmerge` merges the head over the base's tip with `git merge-tree`, makes
 commit whose parents are the tip and the head (as GitHub's merge ref is), pushes nothing, checks
 it out in a worktree of its own, and runs the command the state's `merged-tree-guards` file names
 there, with `BASE` set to the tip. jstack's names `make check-fast PART=guards`, the lint and the
-guard tests a desk runs first.
+guard tests: the cross-cutting tests, the catch-all and the changed test files.
 
 A repo with no such file runs no guards. A head that holds the tip already is the tree its check
 ran on, so nothing is built for it. A pass or a failure of the guards on a head over a tip is kept
