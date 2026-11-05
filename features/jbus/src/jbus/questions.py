@@ -492,7 +492,7 @@ WAITS = (
     "the Default: line waits for the user's word, and a pass closes a gate with no Holds: line "
     "with its default at once, so nobody is left to give that word. Write as the default what "
     "is done with no word, which the user's answer can still take back, or, where the default "
-    "is one of the six cases of the gates table, add Holds: and Fail-safe: under Undo:"
+    "is one of the cases of the gates table, add Holds: and Fail-safe: under Undo:"
 )
 
 
