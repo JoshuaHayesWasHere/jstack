@@ -3,8 +3,10 @@
 head or at a head whose patch the head carries unchanged. These drive `ready.short_on_checked`,
 which `jmerge` calls before a merge and the crew's push block before the first push, through
 each way a line falls short: a missing line, a failed one, a time limit's 124 (a check cut
-short reached no verdict) and a line of a head whose patch changed since. Each hold says what
-the crew runs to clear it. test_jmerge_cli_checked.py runs the same holds through `jmerge`."""
+short reached no verdict) and a line of a head whose patch changed since. The two-step line the
+block once wrote, the guards and then the rest in the short lane, binds where the guards exited
+0 and the rest 0 or the short lane's 124, since CI's check runs the rest in full. Each hold says
+what the crew runs to clear it. test_jmerge_cli_checked.py runs the same holds through `jmerge`."""
 
 import pytest
 
@@ -19,6 +21,16 @@ LINT = f"make check-fast BASE={BASE} PYTEST=: PART=guards"
 
 def checked(code=0, head=HEAD, command=GUARDS):
     return f"Checked: {command} exit {code} at {head}\n"
+
+
+def two_step(guards, rest, head=HEAD, command=GUARDS):
+    """The line the crew's check block once wrote, of the guards in a full slot and then the
+    rest in the short lane, whose 124 is that lane's time limit."""
+    return (
+        f"Checked: {command} exit {guards} (took 150 s), then the import-reached remainder, "
+        "where exit 124 is the short lane's time limit and passes: "
+        f"make check-fast BASE={BASE} PART=rest exit {rest} at {head}\n"
+    )
 
 
 def result(lines=""):
@@ -45,15 +57,35 @@ def result(lines=""):
             ready.CHECKED_STALE.format(at=EARLIER[:12], head=HEAD[:12]),
             id="stale",
         ),
+        pytest.param(two_step(0, 124), "", id="two steps, the guards passed, the rest's 124"),
+        pytest.param(two_step(0, 0), "", id="two steps, the guards and the rest passed"),
         pytest.param(
-            checked(
-                124,
-                command=f"{GUARDS} exit 0 (took 150 s), then the import-reached remainder, "
-                f"where exit 124 is the short lane's time limit and passes: "
-                f"make check-fast BASE={BASE} PART=rest",
-            ),
+            two_step(0, 124, command=LINT), "", id="two steps, the lint passed, the rest's 124"
+        ),
+        pytest.param(
+            two_step(124, 124),
             ready.CHECKED_CUT.format(at=HEAD[:12], head=HEAD[:12]),
-            id="the old short lane's 124",
+            id="two steps, the guards' 124",
+        ),
+        pytest.param(
+            two_step(1, 124),
+            ready.CHECKED_FAILED.format(exit=1, at=HEAD[:12], head=HEAD[:12]),
+            id="two steps, the guards failed",
+        ),
+        pytest.param(
+            two_step(0, 1),
+            ready.CHECKED_FAILED.format(exit=1, at=HEAD[:12], head=HEAD[:12]),
+            id="two steps, the rest failed",
+        ),
+        pytest.param(
+            two_step(0, 124, head=EARLIER),
+            ready.CHECKED_STALE.format(at=EARLIER[:12], head=HEAD[:12]),
+            id="two steps, of another head",
+        ),
+        pytest.param(
+            two_step(0, 124) + checked(124),
+            ready.CHECKED_CUT.format(at=HEAD[:12], head=HEAD[:12]),
+            id="the last line is read, a guards' 124 after two steps",
         ),
         pytest.param(
             checked(command=f"make check-fast BASE={BASE} PART=rest"),
