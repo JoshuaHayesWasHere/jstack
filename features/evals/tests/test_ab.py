@@ -313,9 +313,6 @@ def test_a_run_dir_of_another_run_is_refused(lab):
 
 
 STAND_IN_REPLAY = r"""#!/usr/bin/env bash
-# replay.sh's interface: <tree> <out> --runs 1 --events "<events>". Each event's decision is read
-# from the arm's tree, and stamped with what differs between any two replays: a sandbox
-# directory, a time and a commit made at launch.
 tree=$1 out=$2
 events=$6
 mkdir -p "$out"
@@ -333,9 +330,12 @@ done
 
 def test_the_replay_kind_finds_no_change_in_an_aa_and_names_the_event_b_decides_otherwise(lab):
     """The harness copied beside a stand-in replay.sh whose `conflict` event is held at `two`
-    and merged at `one`. Two replays of one revision differ only in what `normal` makes the
-    same, so their results are byte for byte equal; `one` against `two` changes `conflict`
-    alone. replay.sh's token count is a constant it writes, not a measure, so none is said."""
+    and merged at `one`. It takes replay.sh's arguments, `<tree> <out> --runs 1 --events
+    "<events>"`, and stamps each decision with what differs between any two replays: a sandbox
+    directory, a time and a commit made at launch. Two replays of one revision differ only in
+    what `normal` makes the same, so their results are byte for byte equal; `one` against `two`
+    changes `conflict` alone. replay.sh's token count is a constant it writes, not a measure, so
+    none is said."""
     harness = lab.dir / "harness"
     (harness / "ab").mkdir(parents=True)
     for name in ("ab.py", "stats.py"):
@@ -348,9 +348,20 @@ def test_the_replay_kind_finds_no_change_in_an_aa_and_names_the_event_b_decides_
 
     def replay(a, b, out):
         return lab.ab(
-            "run", "--a", a, "--b", b, "--tasks", str(events), "--kind", "replay",
-            "--out", str(lab.dir / out), refuse=True, script=harness / "ab" / "ab.py",
-        )  # fmt: skip
+            "run",
+            "--a",
+            a,
+            "--b",
+            b,
+            "--tasks",
+            str(events),
+            "--kind",
+            "replay",
+            "--out",
+            str(lab.dir / out),
+            refuse=True,
+            script=harness / "ab" / "ab.py",
+        )
 
     for out in ("aa1", "aa2"):
         same = replay("one", "one", out)
