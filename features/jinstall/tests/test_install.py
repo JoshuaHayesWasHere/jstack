@@ -99,7 +99,6 @@ the script expects this platform's output, and a test of systemd's units runs on
 beside its Darwin case (`linux_only`)."""
 UNITS_DIR = Path("Library", "LaunchAgents") if MAC else Path(".config", "systemd", "user")
 """Where the install puts the units, under HOME: launchd's agents on a Mac."""
-"""The folders the units take that the install makes, under HOME, beside `.config/jstack`."""
 UNITS_PUT = (
     sorted(f"{label(name)}.plist" for name in TIMERS)
     if MAC

@@ -264,9 +264,6 @@ def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):
     assert not mac.plist("jbus-view.service").exists()
 
 
-"""Each agent's schedule, read from its template by hand."""
-
-
 @pytest.mark.parametrize("source", ["/src/a--b", "/src/a-->b", "/src/50%-off--x", "/src/a%2Db"])
 def test_a_source_path_with_dashes_and_percents_is_named_in_a_comment_the_plist_parses(
     tmp_path, source
