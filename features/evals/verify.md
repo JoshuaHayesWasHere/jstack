@@ -24,7 +24,8 @@ The skill-cut eval and the eval of the depth questions are not driven yet.
 - Run `features/evals/benchmark/replay.sh "$PWD" <out dir>`.
 - Run `features/evals/benchmark/home-start.sh "$PWD" <out dir> <label> <commit>`.
 - Run `uv run --script features/evals/lab/lab.py --fit <first day>..<cutoff> --week <Sunday> --end <UTC time> --runs 200`.
-  It writes `~/.local/state/home/<repo>/reports/lab/<UTC stamp>-<sha8>/` unless `--out` names a directory: `manifest.json`, the copy `store.sqlite`, a `<stage>.json` and `<stage>.txt` per stage, and `summary.md`, which opens with the KPI table.
+  It writes `~/.local/state/home/<repo>/reports/lab/<UTC stamp>-<sha8>/` unless `--out` names a directory: `manifest.json`, a `<stage>.json` and `<stage>.txt` per stage, and `summary.md`, which opens with the KPI table.
+  The copy `store.sqlite` is deleted when the run ends, unless `--keep-store`.
 
 `features/evals/benchmark/README.md` says what each prints.
 
@@ -59,7 +60,7 @@ The replay makes its own sandbox for each run of each event, so it is run from a
 ### The lab backtests a week on a pinned copy of the store
 
 - **Run the lab.**
-  Run `uv run --script features/evals/lab/lab.py --fit 2026-10-11..2026-10-25 --week 2026-10-25 --end 2026-11-03T01:37:48Z --runs 200 --out /tmp/lab-run`.
+  Run `uv run --script features/evals/lab/lab.py --fit 2026-10-11..2026-10-25 --week 2026-10-25 --end 2026-11-03T01:37:48Z --runs 200 --out /tmp/lab-run --keep-store`.
   It prints `store copied from <the live store>`, then each stage as `=== <stage>: exit 0, <s> s` and what the stage printed.
 - **Check the copy and the table.**
   `/tmp/lab-run/summary.md` opens with the KPI table: PR open to merge `miss`, blamed on `pairs`, and lead time, change failure rate and merges `hit`.
@@ -74,4 +75,5 @@ The replay makes its own sandbox for each run of each event, so it is run from a
 - `limit`'s today side is `jbus failover --dry-run` over a recorded failure, which writes nothing, and its `expect` names what setup B should do, so the two can differ: with no instance with headroom in the sandbox's config, it prints `capped ...`.
 - `redmain`'s seed must be main's real tip, since jbus reads it from `git ls-remote`: a seed at any other commit gives `ready 7`.
 - The lab's days are the machine's local days, as the store's are: run it in the zone the store was built in.
-- `records` and `replay` read no store: records reads the transcripts and logs under `--home` over the days since the fit's first day, and the replay decides in a sandbox on the wall clock, so only `backtest`, `steps` and `power` repeat exactly on the same copy.
+- `records` and `replay` read no store: records reads the transcripts and logs under `--home` from the fit's first day to `--end`, and the replay decides in a sandbox on the wall clock.
+  Two runs with the same flags and copy still write the same JSON for every stage: records stops at `--end`, and `replay.json` writes each wall time as `<time>`.
