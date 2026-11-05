@@ -192,9 +192,12 @@ def test_a_launched_crews_tmpdir_is_its_scratch_folder_on_disk(scene, tmp_path):
     env_file = tmp_path / "env"
     scene.start(tree, env_file=env_file)
     exported = subprocess.run(
-        ["bash", "-c", f'. "{env_file}"; mktemp -d'], capture_output=True, text=True, check=True
-    ).stdout.strip()
-    assert exported.startswith(f"{folder}/")
+        ["bash", "-c", f'. "{env_file}"; printf %s "$TMPDIR"'],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert exported == str(folder)
 
 
 def test_a_thread_with_no_scratch_folder_keeps_its_tmpdir(scene, tmp_path):

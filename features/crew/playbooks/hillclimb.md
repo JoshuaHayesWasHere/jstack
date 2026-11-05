@@ -28,7 +28,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 5. Loop, one hypothesis per attempt.
    Make the change.
    Measure it with the frozen harness, both sides in turn, and run the gate.
-   The other side is one second worktree, made once at the baseline with its `<path>` under `$TMPDIR`, `git worktree add --detach "$(mktemp -d)/base" <commit>`, and run once unreported so both are warm.
+   The other side is one second worktree, made once at the baseline with its `<path>` under `$TMPDIR`, `git worktree add --detach "$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")/base" <commit>`, and run once unreported so both are warm.
    After each kept change move it to the commit before the next attempt, `git -C <path> checkout --detach <commit>`.
    Keep it only when the metric moves by more than the spread between runs and the gate passes: commit it by itself, with `git add <files>` and never `-A`.
    Otherwise revert it in full: `git checkout -- <files>`, and `git clean -f -- <the files it added>`.
