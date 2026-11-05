@@ -18,7 +18,7 @@ What this skill cannot drive, so do not report it as verified: a real T3 thread 
 The tests cover the merge against a temporary origin (`features/home/tests/test_home_merge.py`).
 
 Run every command below from the root of this checkout unless it says otherwise.
-Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-jstack/project-skill/map.md) before a drive, then the file of the feature you are proving: its page in that folder, or `features/<name>/verify.md` once it has moved.
+Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-jstack/project-skill/map.md) before a drive, then the file of the feature you are proving: its `features/<name>/verify.md`, or its page in `testing/verify/`.
 
 ## Set up by a stand-in
 
