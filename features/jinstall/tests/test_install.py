@@ -1045,7 +1045,7 @@ def test_a_push_hook_of_the_users_own_is_left_alone(user):
         f"old {part} -> a hook of the repo's own, which the install does not write over: "
         f"to run jstack's as well, add sh '{script}' \"$@\" to it"
     ]
-    user.start("--uninstall", checkout=checkout).wait()
+    user.start("--uninstall", checkout=checkout).communicate()
     assert own.read_text() == "#!/bin/sh\n"
 
 
