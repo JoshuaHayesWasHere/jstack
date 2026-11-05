@@ -66,7 +66,7 @@ class Scene:
         self.main.mkdir(parents=True)
         git(self.main, "init", "-q")
 
-    def start(self, cwd=None, *, source="startup", t3=T3[0], homes=None, **more):
+    def start(self, cwd=None, *, source="startup", t3=T3[0], homes=None, env_file=None, **more):
         """Run the session-start hook as the harness does for a thread opened in `cwd`. `t3`
         is the variable T3 Code sets for the thread, or None outside T3 Code. `homes` is the
         `JBUS_HOME_DIR` the thread has, or None for none."""
@@ -76,6 +76,9 @@ class Scene:
             env[HOMES] = str(homes)
         if t3:
             env[t3] = "x"
+        env.pop("CLAUDE_ENV_FILE", None)
+        if env_file:
+            env["CLAUDE_ENV_FILE"] = str(env_file)
         stdin = json.dumps({"source": source, "cwd": str(cwd or self.main), **more})
         done = subprocess.run(
             ["sh", str(HOOK)], input=stdin.encode(), capture_output=True, env=env, check=True
@@ -179,6 +182,26 @@ def a_worktree(scene, tmp_path):
     git(scene.main, "commit", "-q", "--allow-empty", "-m", "start")
     git(scene.main, "worktree", "add", "-q", str(tmp_path / "trees" / "a-task"))
     return {"cwd": tmp_path / "trees" / "a-task"}
+
+
+def test_a_launched_crews_tmpdir_is_its_scratch_folder_on_disk(scene, tmp_path):
+    tree = a_worktree(scene, tmp_path)["cwd"]
+    branch = "a-task"
+    folder = scene.user / ".cache" / "jstack" / "scratch" / scene.main.name / branch
+    folder.mkdir(parents=True)
+    env_file = tmp_path / "env"
+    scene.start(tree, env_file=env_file)
+    exported = subprocess.run(
+        ["bash", "-c", f'. "{env_file}"; mktemp -d'], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    assert exported.startswith(f"{folder}/")
+
+
+def test_a_thread_with_no_scratch_folder_keeps_its_tmpdir(scene, tmp_path):
+    env_file = tmp_path / "env"
+    scene.start(a_worktree(scene, tmp_path)["cwd"], env_file=env_file)
+    scene.start(env_file=env_file)
+    assert not env_file.exists() or env_file.read_text() == ""
 
 
 def the_off_file(scene, tmp_path):

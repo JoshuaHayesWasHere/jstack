@@ -737,6 +737,7 @@ class Kitchen:
         monkeypatch.setenv("JBUS_STATE_DIR", str(self.state_dir))
         monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "home"))
         monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
+        monkeypatch.setenv("JSTACK_SCRATCH_DIR", str(tmp_path / "scratch"))
         monkeypatch.chdir(self.checkout)
         monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
         monkeypatch.setattr(queue, "clock", lambda: NOW)
