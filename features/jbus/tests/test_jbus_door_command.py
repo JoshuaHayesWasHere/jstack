@@ -11,6 +11,7 @@ migration of its deploy brief. No test touches the machine's own files.
 import json
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -274,3 +275,31 @@ def test_the_last_thread_to_add_a_path_owns_it(home):
     assert run(home, SCOUT, f"git worktree add {path}") == (0, "")
     assert run(home, ROOT, f"git worktree remove {path}")[0] == 2
     assert run(home, SCOUT, f"git worktree remove {path}") == (0, "")
+
+
+def test_the_worktrees_a_command_line_adds_and_removes(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    said = door.worktrees(
+        "D=/tmp/nl-1; git -C ~/repos/x worktree add -b try -q $D/main HEAD;"
+        " git worktree add ~/copy && git worktree remove -f ${D}/main\n"
+        "git worktree remove $(mktemp -d) | git worktree add ../rel; E=$(mktemp -d)"
+        " git worktree add $E; git worktree list"
+    )
+    assert said == [
+        ("add", Path("/tmp/nl-1/main")),
+        ("add", tmp_path / "copy"),
+        ("remove", Path("/tmp/nl-1/main")),
+        ("remove", None),
+        ("add", None),
+        ("add", None),
+    ]
+    assert door.worktrees("git worktree remove 'unclosed") == []
+
+
+def test_a_remove_reads_no_record_or_a_cut_one_as_no_worktree_of_the_thread(home):
+    path = home / "tmp" / "tg-1"
+    assert run(home, ROOT, f"git worktree remove {path}")[0] == 2
+    assert run(home, ROOT, f"git worktree add {path}") == (0, "")
+    kept = home / ".local" / "state" / "jbus" / "Winnifred" / door.OWN
+    kept.write_text('{"thread": "mcp:cut\n' + kept.read_text())
+    assert run(home, ROOT, f"git worktree remove {path}") == (0, "")

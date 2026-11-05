@@ -172,8 +172,6 @@ def _read(
 ) -> None:
     """Read one simple command: a bare assignment sets a variable, a worktree add or remove is
     found."""
-    if words[:1] == ["export"]:
-        words = words[1:]
     sets = [match for word in words if (match := _ASSIGN.fullmatch(word))]
     if words and len(sets) == len(words):
         for match in sets:
@@ -191,12 +189,10 @@ def _read(
         return
     rest = iter(words[at + 2 :])
     for word in rest:
-        if word == "--":
-            word = next(rest, "")
-        elif word in _TAKES_ONE:
+        if word in _TAKES_ONE:
             next(rest, "")
             continue
-        elif word.startswith("-"):
+        if word.startswith("-"):
             continue
         path = _expand(word, known)
         absolute = path is not None and os.path.isabs(path)
@@ -207,8 +203,6 @@ def _read(
 def _expand(word: str, known: dict[str, str | None]) -> str | None:
     """The word with `~` and the variables the command set put in, or None where it names
     another or runs a command."""
-    if "`" in word or "$(" in word:
-        return None
     if word == "~" or word.startswith("~/"):
         word = str(Path.home()) + word[1:]
     missing = False
@@ -220,7 +214,7 @@ def _expand(word: str, known: dict[str, str | None]) -> str | None:
         return value or ""
 
     word = _VARIABLE.sub(put, word)
-    return None if missing or "$" in word else word
+    return None if missing or "$" in word or "`" in word else word
 
 
 def _made(buses: Path, thread: str) -> set[Path]:
