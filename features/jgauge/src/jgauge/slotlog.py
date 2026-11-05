@@ -160,11 +160,9 @@ class Hold:
 
 
 def _rows(log: Path) -> Iterator[dict]:
-    try:
-        lines = log.read_text().splitlines()
-    except OSError:
-        return
-    for line in lines:
+    """The rows of a JSON lines file, each with its `at` in seconds since the epoch, and none
+    of the lines that are not such a row."""
+    for line in log.read_text().splitlines():
         try:
             row = json.loads(line)
             row["at"] = datetime.fromisoformat(row["at"]).timestamp()
@@ -183,21 +181,12 @@ def holds(log: Path) -> list[Hold]:
         elif row.get("event") == "release":
             ended[row["id"]] = row["at"]
     return [
-        Hold(
-            row["lane"],
-            int(row.get("slots") or 0),
-            row["at"],
-            ended.get(key),
-            int(row.get("pid") or 0),
-            float(row.get("waited") or 0),
-        )
+        Hold(row["lane"], row["slots"], row["at"], ended.get(key), row["pid"], row["waited"])
         for key, row in taken.items()
     ]
 
 
 def _alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -261,15 +250,15 @@ def report(log: Path, start: float | None, until: float | None, now: float) -> l
     waited_for = _waits(start, end)
     for lane in ("full", "short"):
         mine = [one for one in every if one.lane == lane]
+        if not mine:
+            continue
         alive = [one for one in mine if one.end is None and _alive(one.pid)]
         spans = [(one.start, one.end) for one in mine if one.end is not None]
         spans += [(one.start, end) for one in alive]
         inside = [one for one in mine if start <= one.start < end]
         lost = sum(one.end is None and one not in alive for one in inside)
         held = _held(spans, start, end)
-        size = max((one.slots for one in inside), default=0) or max(
-            (one.slots for one in mine), default=0
-        )
+        size = max(one.slots for one in inside or mine)
         done = [one.end - one.start for one in inside if one.end is not None]
         little = len(inside) / span * statistics.fmean(done) if done else 0.0
         waits = [one.waited for one in inside]
