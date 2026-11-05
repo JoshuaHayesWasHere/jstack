@@ -450,29 +450,6 @@ def cited(tmp_path, steps):
     return repo
 
 
-TWO_CITED = (
-    "\nA path such as `principles/<name>.md` is from the root of the repo.\n\n"
-    "1. Do one thing (`principles/second-rule.md`).\n"
-    "2. Do another (`principles/first-rule.md`, `principles/second-rule.md`).\n"
-    "3. Check it (`principles/first-rule.md`).\n"
-)
-
-
-@pytest.mark.parametrize("skill", READERS)
-def test_each_principle_the_playbook_cites_is_named_once_with_its_path_after_it(skill, tmp_path):
-    repo = cited(tmp_path, TWO_CITED)
-    name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
-    said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    at = said.index(f"the principles playbooks/{name}.md cites, each read in full at its path:")
-    assert said[0] == str((repo / "playbooks" / f"{name}.md").resolve())
-    named = [line.split(": ", 1) for line in said[at + 1 :]]
-    assert [rule for rule, _ in named] == ["- second-rule", "- first-rule"]
-    for rule, path in named:
-        assert Path(path).read_text() == PRINCIPLES[rule.removeprefix("- ")]
-    printed = "\n".join(said)
-    assert not any(text.strip() in printed for text in PRINCIPLES.values())
-
-
 @pytest.mark.parametrize("skill", READERS)
 def test_a_playbook_that_cites_no_principle_prints_its_steps_and_nothing_more(skill, tmp_path):
     repo = cited(

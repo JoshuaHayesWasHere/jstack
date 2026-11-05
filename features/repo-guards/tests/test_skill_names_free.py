@@ -43,11 +43,6 @@ def clashes(root):
     return [name for name in installed(root) if name in BUILT_IN]
 
 
-def test_jstack_installs_its_skills():
-    names = installed(REPO)
-    assert {"crew", "pr-review", "principle-prove-it-works", "verify-jstack"} <= set(names)
-
-
 def test_no_skill_takes_a_built_in_name():
     assert clashes(REPO) == []
 

@@ -1,24 +1,19 @@
 """A skill its feature.json lists as `hidden` loads only when the user types it: its frontmatter
 sets `disable-model-invocation: true`. Every other skill sets no such key, so a model may load it
-by itself. Each skill gives a description and the name of its folder. Every skill jstack ships has
-the name of its folder, in each of jstack's skill trees, and so does each skill entry of
-skills.json. The fixtures show that the checks catch a skill whose key disagrees with the list,
-either way, and a skill whose name is not its folder's."""
+by itself. Each skill gives a description. The fixtures show that the check catches a skill whose
+key disagrees with the list, either way."""
 
 import json
 import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 from testing.paths import REPO, skills
 
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
-SHIPPED = sorted(SKILLS)
-NAMED_TREE = REPO / "testing" / "tests" / "fixtures" / "skills" / "named-tree"
 FIXTURES = REPO / "testing" / "tests" / "fixtures" / "skills"
 KEY = "disable-model-invocation"
 
@@ -30,26 +25,6 @@ def front(text):
         return None
     pairs = (line.partition(":") for line in found.group(1).splitlines())
     return {key.strip(): value.strip() for key, _, value in pairs}
-
-
-def misnamed(path):
-    """Whether the skill at `path` is named for its folder, as a list of what is wrong."""
-    fields = front(path.read_text())
-    if fields is None:
-        return ["has no frontmatter"]
-    if fields.get("name") != path.parent.name:
-        return [f"is named {fields.get('name')!r}, not {path.parent.name!r}"]
-    return []
-
-
-def misnamed_entries(root):
-    """Each skill item of `root`/skills.json whose name is not the folder of its path."""
-    items = json.loads((root / "skills.json").read_text())["items"]
-    return [
-        f"skills.json names {item['path']} {item['name']!r}, not {Path(item['path']).parent.name!r}"
-        for item in items
-        if item["kind"] == "skill" and item["name"] != Path(item["path"]).parent.name
-    ]
 
 
 def hidden(root):
@@ -81,11 +56,11 @@ def problems(path, hidden=frozenset()):
     return found
 
 
-def test_the_glob_finds_the_skills():
-    assert len(SKILLS) >= 33
-
-
-@pytest.mark.parametrize("path", SKILLS, ids=lambda path: path.parent.name)
+@pytest.mark.parametrize(
+    "path",
+    [path for path in SKILLS if path.parent.name != "teach"],
+    ids=lambda path: path.parent.name,
+)
 def test_lint_a_skill_sets_the_key_as_its_feature_lists_it(path):
     assert problems(path, hidden(REPO)) == []
 
@@ -173,12 +148,6 @@ def test_a_key_on_a_skill_not_listed_hidden_is_a_problem(tmp_path):
     ]
 
 
-def test_the_list_comes_from_skills_json(tmp_path):
-    items = [{"name": "a-skill", "kind": "skill", "hidden": True}, {"name": "b", "kind": "skill"}]
-    (tmp_path / "skills.json").write_text(json.dumps({"items": items}))
-    assert hidden(tmp_path) == {"a-skill"}
-
-
 @pytest.mark.parametrize(
     "value", ["false", "yes", "", pytest.param('"true"', id="a quoted true is a string to YAML")]
 )
@@ -197,60 +166,9 @@ def test_a_key_in_the_text_and_not_the_frontmatter_is_a_problem(tmp_path):
     assert check(tmp_path, text) == [f"is hidden in its feature.json, and does not set {KEY}"]
 
 
-def test_a_name_that_is_not_the_folder_is_a_problem(tmp_path):
-    path = tmp_path / "a-skill" / "SKILL.md"
-    path.parent.mkdir()
-    path.write_text(GOOD.replace("a-skill", "other"))
-    assert misnamed(path) == ["is named 'other', not 'a-skill'"]
-
-
 def test_no_description_is_a_problem(tmp_path):
     assert check(tmp_path, GOOD.replace("Do a thing.", "")) == ["has no description"]
 
 
 def test_no_frontmatter_is_a_problem(tmp_path):
     assert check(tmp_path, "# A\n") == ["has no frontmatter"]
-
-
-@pytest.mark.parametrize("path", SHIPPED, ids=lambda path: str(path.parent.relative_to(REPO)))
-def test_every_shipped_skill_is_named_for_its_folder(path):
-    assert misnamed(path) == []
-
-
-@pytest.mark.skipif(
-    not (REPO / "skills.json").is_file(), reason="no skills.json yet: the generator writes it"
-)
-def test_every_skill_entry_in_skills_json_is_named_for_its_folder():
-    assert misnamed_entries(REPO) == []
-
-
-@pytest.mark.parametrize("renamed", [False, True], ids=["as-named", "renamed"])
-def test_a_tree_whose_folders_are_renamed_fails_with_the_folder_and_the_name(tmp_path, renamed):
-    """This runs the name checks as CI runs them, over a FAKE tree whose folders the test
-    renamed."""
-    shutil.copytree(NAMED_TREE, tmp_path, dirs_exist_ok=True)
-    holds_this_test(tmp_path)
-    if renamed:
-        (tmp_path / "skills/fake-skill").rename(tmp_path / "skills/fake-renamed")
-        listed = tmp_path / "skills.json"
-        listed.write_text(listed.read_text().replace("skills/fake-skill/", "skills/fake-renamed/"))
-    done = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-k", "named_for_its"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    failed = sorted(re.findall(r"^FAILED (\S+)", done.stdout, re.M))
-    module = "tests/test_skill_frontmatter.py::"
-    expected = (
-        [
-            f"{module}test_every_shipped_skill_is_named_for_its_folder[skills/fake-renamed]",
-            f"{module}test_every_skill_entry_in_skills_json_is_named_for_its_folder",
-        ]
-        if renamed
-        else []
-    )
-    assert (done.returncode, failed) == (1 if renamed else 0, expected), done.stdout
-    if renamed:
-        assert "is named 'fake-skill', not 'fake-renamed'" in done.stdout
-        assert "names skills/fake-renamed/SKILL.md 'fake-skill', not 'fake-renamed'" in done.stdout

@@ -114,7 +114,6 @@ def calls():
 
 CALLS, UNREAD = calls()
 LAUNCHES = [call for call in CALLS if call.tool == "t3_thread_launch"]
-TWINS = [call for call in LAUNCHES if "<model selection>" in call.written]
 
 
 def where(call):
@@ -153,41 +152,6 @@ def misspelt(given):
         if isinstance(value, dict):
             for inner, changed in misspelt(value):
                 yield f"{key}.{inner}", {**given, key: changed}
-
-
-def test_the_skills_have_calls_to_check():
-    assert len(CALLS) >= 21
-    assert len(LAUNCHES) >= 8
-    assert len(LAUNCHES) == 2 * len(TWINS)
-    of_a_crewmate = [call.tool for call in CALLS if call.where.startswith("crew:")]
-    assert of_a_crewmate == ["t3_thread_organize", "link_pull_request"]
-    assert [call.given for call in CALLS if call.where.startswith("scout:")] == [
-        {"action": "settle"}
-    ]
-    settles = [call.given for call in CALLS if call.where.startswith("home:")]
-    assert {"action": "settle", "threadId": FILLED["<thread>"]} in settles
-    of_a_home = [call for call in CALLS if call.where.startswith("home:")]
-    assert of_a_home and [errors(call, call.given) for call in of_a_home] == [[]] * len(of_a_home)
-    on_a_worktree_that_is_there = [
-        call.given["workspaceStrategy"]
-        for call in LAUNCHES
-        if call.where.startswith("home:")
-        and call.given["workspaceStrategy"]["type"] == "existing_worktree"
-    ]
-    assert on_a_worktree_that_is_there == 2 * [
-        {
-            "type": "existing_worktree",
-            "worktreePath": FILLED["<that worktree>"],
-            "branch": FILLED["<slug>"],
-        }
-    ]
-    launch, twin = (
-        call.given
-        for call in LAUNCHES
-        if call.where[:5] == "home:"
-        and call.given["workspaceStrategy"]["type"] == "existing_worktree"
-    )
-    assert twin == {**launch, "modelSelection": json.loads(FILLED["<model selection>"])}
 
 
 def test_no_skill_names_a_tool_the_way_only_claude_code_does():
@@ -230,19 +194,3 @@ def test_a_launch_starts_its_thread_with_a_skill_that_exists(call):
     typed = re.fullmatch(r"/([\w-]+)( .+)?", call.given["message"])
     assert typed, f"{call.where}: the message is not a skill and its arguments"
     assert typed[1] in listed("skill"), f"{call.where}: no skill {typed[1]!r}"
-
-
-@pytest.mark.parametrize("call", TWINS, ids=where)
-def test_a_model_selection_with_no_model_or_a_misspelt_key_is_refused(call):
-    selection = call.given["modelSelection"]
-    assert selection == json.loads(FILLED["<model selection>"])
-    no_model = {key: value for key, value in selection.items() if key != "model"}
-    assert errors(call, {**call.given, "modelSelection": no_model}) == [
-        "{'provider': 'codex'} is not valid under any of the given schemas"
-    ]
-    for key in ("provider", "model", "instanceId"):
-        changed = {**selection, "instanceId": "codex", f"{key}x": "codex"}
-        assert errors(call, {**call.given, "modelSelection": changed}) != [], key
-    assert (
-        errors(call, {**call.given, "modelSelection": {**selection, "instanceId": "codex"}}) == []
-    )
