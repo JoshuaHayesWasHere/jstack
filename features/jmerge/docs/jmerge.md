@@ -297,14 +297,20 @@ Each base has a line of its own: a pull request into a stack branch or another m
 `base-merges.json` keeps it on its record (`line`, with the record's `base`), so it keeps the line across runs while its check at the new head runs.
 Every other pull request into that base that its base moved past waits with `it is in line behind #<n>: <base> moved after its check started, and GitHub merges <base> into the branch of one pull request at a time, the one to merge next`, on the `check` step, and GitHub is asked nothing for it until its turn.
 That holds for one ahead of `#<n>` in merge order that comes ready later: the update `#<n>` has is not spent again.
-The pull request at the head of the line gives it up when it merges, when a check of its fails (one whose failed check is what its turn is for keeps it until the check at its updated head ends), when GitHub keeps a run of its queued through a restart, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
+The pull request at the head of the line gives it up when it merges, when a check of its fails (one whose failed check is what its turn is for keeps it until the check at its updated head ends), when GitHub keeps a run of its queued through a restart, when a restart of that run never took, or when it waits on anything but `jmerge`, GitHub and its check (`cli.IN_LINE`), such as a review, a finding or a hold; the next one in merge order then takes it, in that same run where it comes after.
 It gives it up too when its head is still the one GitHub took the update of 20 minutes (`rejudge.HELD`) after GitHub took it: GitHub makes the new head within seconds, so no check is coming to end its wait.
 
-A required run at the head of the line that GitHub queued and started none of for `ready.QUEUED_MINUTES` (30 minutes, above the p99 queue wait of every required check in `ci.jsonl`) gets one restart: `jmerge` closes and reopens the pull request, which starts a new run of each workflow in its concurrency group, and logs one wait, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed and reopened it to start a new run`.
+A required run at the head of the line that GitHub queued and started none of for `ready.QUEUED_MINUTES` (30 minutes, above the p99 queue wait of every required check in `ci.jsonl`) gets one restart (`cli.Repo.unstuck`): `jmerge` closes and reopens the pull request (`rejudge.BaseMerge.restart`), which starts a new run of each workflow in its concurrency group, and logs one wait, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed and reopened it to start a new run`.
 GitHub refuses to rerun a run it has not ended, and a cancel can leave it queued: on 2026-11-04 #1028 held the line for over an hour on a queued macos job while five pull requests waited behind it.
-Where GitHub then lists no newer run, or the newer one is queued as long, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
+The restart is spent only once its close and its reopen both took.
+`base-merges.json` keeps each step on the head's record (`stuck`) as it takes: the first try (`asked`) before the close, with the reopen owed, then `closed`, then `took`, so a run that stops between two steps leaves a record the next run goes on from.
+A close that failed is tried again on each run, and once `ready.RESTART_MINUTES` (10 minutes) have passed since the first try, the pull request gives up the line and waits with `QUEUED_UNRESTARTED`, `GitHub queued its <check> run at <head> and started none, and jmerge could not close and reopen it in 10 minutes of tries (<why>): it gave the head of the line to the next pull request`.
+A reopen that failed is owed, and `rejudge.BaseMerge.reopen` asks it again on each run for the same `ready.RESTART_MINUTES` from the first try, and then asks it no more (`unopened`): the pull request holds the line no more, and on each run `jmerge` says `QUEUED_UNREOPENED`, `GitHub queued its <check> run at <head> and started none: jmerge closed it to start a new run, and its reopen failed for 10 minutes of tries (<why>), so it asks no more and the pull request stays closed until a hand reopens it`, until GitHub lists it open again.
+One whose owed reopen took on a later run holds the line no more either, for another took it while it was closed.
+Once a restart took, the pull request keeps the line for `ready.RESTART_MINUTES`, since GitHub lists the new run within seconds of the reopen and a run of `jmerge` in the same minute still sees the old one.
+Where GitHub then lists no newer run, or the newer one is queued for `ready.QUEUED_MINUTES` too, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
+No runner is at work on `QUEUED_GAVE_UP`, `QUEUED_UNRESTARTED` or `QUEUED_UNREOPENED`, so jbus's `clock.held` raises each to the home as a hold, even for a pull request that GitHub no longer lists open.
 A run that started is never restarted, however long it runs.
-`base-merges.json` keeps the restart on the head's record (`stuck`) before the close, so a head is restarted once, and a reopen that failed is asked again on the next run, until GitHub lists the pull request open again.
 A pull request whose check ran over today's main is not in the line: it merges as before, while others wait.
 A revert jbus opened for a red main, one that `reverts.json` names (`jmerge.reverts`), comes first in merge order, and takes its base's line from a pull request that holds it and is no revert.
 That pull request then waits `in line behind` the revert, and its record in `base-merges.json` stays, with `line` off, so its update is not asked again at the same head and tip.
@@ -316,6 +322,33 @@ A pull request whose check failed at its own head is judged as "A failed check o
 `jmerge` reads no `fresh-check` file: that file names the check command a crew runs, and nothing of a merge.
 Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `full` job skips its suite only on a green run's artifact (`scripts/green_tree.py`), so a ref pushed by hand skips nothing.
 `jmerge --sweep` removes such a ref once it is seven days old (`sweep.MARKER_DAYS`); the old ones still on the origin are the owner's to remove with it.
+
+## The guards on the merged tree
+
+Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
+The clash shows on the tree of one merged over the other, so `jmerge` checks that tree before it merges a pull request on its existing check (`features/jmerge/src/jmerge/treeguards.py`).
+The command is the first line of the state's `merged-tree-guards` file that is not blank.
+jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
+A repo with no such file runs no guards, and merges as before.
+
+1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.
+2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
+3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
+   A worktree that a stopped run left there is removed first.
+4. Where the command exits 0, and the tip has not moved meanwhile, it merges.
+   The line of the merge says `the guards passed on its tree merged over <base> at <tip12> in <s> s`, and `merge.log` keeps that line.
+
+A head that already holds the tip is the tree its check ran on, so nothing is built for it.
+A non-zero exit holds the pull request with `merged over today's <base> at <tip12>, it fails <guard>: its crew rebases it onto <base>, runs the check, and fixes what fails`, on the `rebase` step.
+The guard is the first test pytest calls `FAILED`, else the make target the run stopped in, such as `lint`, else the last line the command printed.
+A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
+
+The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
+A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
+A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
+`merged-trees.json` in the state directory keeps what the guards said of a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
+A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
+A run drops the record of each pull request that is no longer open.
 
 ## A failed check over a base that moved
 

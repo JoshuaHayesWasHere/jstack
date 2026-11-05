@@ -917,47 +917,66 @@ def test_the_macos_job_starts_no_mac_for_a_change_to_a_jbus_queue_module(merged)
     )
 
 
-def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reaches(merged):
+@pytest.mark.parametrize(
+    ("path", "test", "unreached"),
+    [
+        (DARWIN_LISTED, DARWIN_LISTED, "features/jgauge/tests/test_room.py"),
+        (DARWIN_SOURCE, "features/jbus/tests/test_jbus_launchd.py", None),
+    ],
+    ids=["a listed test", "a module"],
+)
+def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reaches(
+    merged, path, test, unreached
+):
     """A change to a test of the list that branches on Darwin runs that test, and only tests of
     the list. A change to a module that names Darwin runs the tests of the list that import it.
     The summary names each test it runs. A test that reads the whole tree runs on Linux, and a
     change to Darwin code reaches it on a Mac only through an import."""
     entries = MAC_QUICK.read_text().split()
-    for path, test in (
-        (DARWIN_LISTED, DARWIN_LISTED),
-        (DARWIN_SOURCE, "features/jbus/tests/test_jbus_launchd.py"),
-    ):
-        reached, summary, output = merged(path)
-        assert test in reached, path
-        assert all(
-            one in entries or any(e.endswith("/") and one.startswith(e) for e in entries)
-            for one in reached
-        )
-        assert summary.splitlines() == [
-            f"macOS: the change reaches {len(reached)} test files of testing/macos-quick.txt:",
-            *(f"- `{one}`" for one in reached),
-        ]
-        assert output == {"run": "true", "tests": "\n".join(reached)}
-    assert "features/jgauge/tests/test_room.py" not in merged(DARWIN_LISTED)[0]
+    reached, summary, output = merged(path)
+    assert test in reached
+    assert unreached not in reached
+    assert all(
+        one in entries or any(e.endswith("/") and one.startswith(e) for e in entries)
+        for one in reached
+    )
+    assert summary.splitlines() == [
+        f"macOS: the change reaches {len(reached)} test files of testing/macos-quick.txt:",
+        *(f"- `{one}`" for one in reached),
+    ]
+    assert output == {"run": "true", "tests": "\n".join(reached)}
 
 
+@pytest.mark.parametrize("event", ["pull_request", "push"], ids=["its pull request", "its push"])
 @pytest.mark.parametrize(
     "path", ["features/crew/verify.md", "README.md"], ids=["a feature's page", "a doc"]
 )
 def test_a_pull_requests_macos_selects_strictly_and_the_push_of_its_merge_runs_the_rest(
-    merged, path
+    merged, path, event
 ):
     """A pull request selects with `--strict`: a change to code off Darwin starts no Mac there.
     The push of its merge commit into main selects with `--within` alone and runs the list's tests
-    that the change reaches by a feature or a name, and those it reaches strictly too."""
-    reached, summary, output = merged(path)
-    assert (reached, output["run"]) == ([], "false")
-    assert summary.startswith("macOS: the change reaches no test")
-    pushed, summary, output = merged(path, event="push")
-    assert pushed and output == {"run": "true", "tests": "\n".join(pushed)}
-    assert summary.startswith(f"macOS: the change reaches {len(pushed)} test files")
-    for path in (DARWIN_LISTED, DARWIN_SOURCE):
-        assert set(merged(path)[0]) <= set(merged(path, event="push")[0])
+    that the change reaches by a feature or a name. Each case runs one selection of the whole tree,
+    and that the push runs every test the pull request ran is
+    `test_a_pull_requests_strict_macos_selects_a_part_of_what_the_push_of_its_merge_does`."""
+    reached, summary, output = merged(path, event=event)
+    if event == "pull_request":
+        assert (reached, output["run"]) == ([], "false")
+        assert summary.startswith("macOS: the change reaches no test")
+    else:
+        assert reached and output == {"run": "true", "tests": "\n".join(reached)}
+        assert summary.startswith(f"macOS: the change reaches {len(reached)} test files")
+
+
+@pytest.mark.parametrize("path", [DARWIN_LISTED, DARWIN_SOURCE], ids=["a listed test", "a module"])
+def test_a_pull_requests_strict_macos_selects_a_part_of_what_the_push_of_its_merge_does(
+    merged, path
+):
+    """A change to Darwin code that reaches tests of the list on a pull request reaches each of
+    them on the push of its merge too: `--strict` selects a part of what `--within` does, so the
+    push runs every test the pull request ran."""
+    reached = merged(path)[0]
+    assert reached and set(reached) <= set(merged(path, event="push")[0])
 
 
 ADDED = "features/jbus/tests/test_item.py"

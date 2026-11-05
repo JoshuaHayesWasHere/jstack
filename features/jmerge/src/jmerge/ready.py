@@ -309,13 +309,52 @@ QUEUED_GAVE_UP = Reason(
     "GitHub queued its {check} run at {head} again after jmerge closed and reopened it, and "
     "started none in {minutes} minutes: it gave the head of the line to the next pull request",
 )
+QUEUED_UNRESTARTED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} and started none, and jmerge could not close and "
+    "reopen it in {minutes} minutes of tries ({why}): it gave the head of the line to the next "
+    "pull request",
+)
+QUEUED_UNREOPENED = Reason(
+    "check",
+    "GitHub queued its {check} run at {head} and started none: jmerge closed it to start a new "
+    "run, and its reopen failed for {minutes} minutes of tries ({why}), so it asks no more and "
+    "the pull request stays closed until a hand reopens it",
+)
 QUEUED_MINUTES = 30
 """The minutes a required run at the head of the line may sit in GitHub's queue, not started,
 before `jmerge` restarts it, and the new run after the restart before it gives up the line. The
 queue waits `jbus ci` kept in `ci.jsonl` from 2026-10-28 to 2026-11-04 have a p99 of 1566
 seconds for macos, 290 for check and 278 for borders: 30 minutes is above each, and well under
 the hour #1028's macos run sat queued on 2026-11-04 while other branches' macos runs ran."""
+RESTART_MINUTES = 10
+"""The minutes a restart of a queued run (`cli.Repo.unstuck`) has to take: `jmerge` tries a close
+or a reopen that failed again on each run for this long from its first try, and once both took,
+GitHub has this long to list the new run before the line goes to the next pull request. GitHub
+lists the new run within seconds of the reopen, so a run of `jmerge` in the same minute still
+sees the old one."""
 UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
+MERGED_TREE_FAILS = Reason(
+    "rebase",
+    "merged over today's {base} at {tip}, it fails {guard}: its crew rebases it onto {base}, "
+    "runs the check, and fixes what fails",
+)
+"""The wait on a pull request whose tree merged over today's base fails the fast guards
+(`jmerge.treeguards`): a clash with what merged since its check, which only its crew can fix."""
+MERGED_TREE_UNENDED = Reason(
+    "check",
+    "the guards on its tree merged over today's {base} at {tip} ran past {minutes} minutes and "
+    "were stopped",
+)
+MERGED_TREE_UNBUILT = Reason(
+    "check",
+    "its tree merged over today's {base} at {tip} could not be built for the guards ({why})",
+)
+MERGED_TREE_NO_TIME = Reason(
+    "check",
+    "the guards of this run's other merges took its time: the next run runs them on its tree "
+    "merged over {base} at {tip}",
+)
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"
