@@ -17,7 +17,7 @@ The browser never holds the webhook's URL or its key, and neither goes into chat
 
 ## Pick the smaller one first
 
-jstack already has a way for a page to reach a thread, and it is smaller than this one: `jbus view`'s one write, `POST /answer` (`features/jbus/src/jbus/view/__init__.py`), for a button that answers a question jbus already asked.
+jstack already has a way for a page to reach a thread, and it is smaller than this one: `jbus view`'s write `POST /answer` (`features/jbus/src/jbus/view/__init__.py`), for a button that answers a question jbus already asked.
 
 Make a bot UI only when the page must wake a thread that is not watching, at any time, with an action of its own.
 Say which of the two you took, and why, before you go on.
