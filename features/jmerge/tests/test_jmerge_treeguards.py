@@ -96,13 +96,21 @@ def test_merged_tree_that_cannot_be_built_says_why(tmp_path):
     assert said.endswith("already exists)")
 
 
-def test_merged_tree_guards_past_their_limit_wait_and_are_kept(tmp_path, monkeypatch):
+def test_merged_tree_guards_past_their_limit_wait_once_and_run_again_next_run(
+    tmp_path, monkeypatch
+):
     monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 1)
     tree = Tree(tmp_path)
     guards = tree.guards("sleep 20")
     unended = ready.MERGED_TREE_UNENDED.format(**values(tree), minutes=0)
     assert guards.of(tree.one, tree.tip) == (unended, "")
-    assert treeguards.Guards(tree.main, tree.state, True).kept(tree.one, tree.tip) == unended
+    assert guards.kept(tree.one, tree.tip) == ""
+    assert not (tree.state / treeguards.KEPT).exists()
+    again = treeguards.Guards(tree.main, tree.state, True)
+    assert again.kept(tree.one, tree.tip) == ""
+    again.command = "true"
+    said, note = again.of(tree.one, tree.tip)
+    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
 
 
 def test_merged_tree_that_passed_while_main_moved_waits_for_the_next_run(tmp_path):

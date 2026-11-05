@@ -356,9 +356,10 @@ The guard is the first test pytest calls `FAILED`, else the make target the run 
 A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
 
 The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
+A stopped run is kept for no later run: the pull request waits for this run alone, and the next run tries the guards again, since a run that crossed the limit once on a loaded machine says nothing of the tree.
 A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
 A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
-`merged-trees.json` in the state directory keeps what the guards said of a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
+`merged-trees.json` in the state directory keeps a pass or a failure of the guards on a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
 A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
 A run drops the record of each pull request that is no longer open.
 
