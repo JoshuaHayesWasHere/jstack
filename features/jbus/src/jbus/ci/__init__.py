@@ -15,7 +15,8 @@ report also gives S8, the wrong closes of gates, for each week a scout labelled,
 scout that labels the week that ended last (`jbus.ci.wrongcloses`).
 `--day` writes `reports/ci-day-<date>.md` instead, from the ledger the passes keep, and collects
 nothing (`jbus.ci.daily`). Then it reads main's live ruleset once, and tells the home where it
-drifted from the checked-in body or `required-checks` (`jbus.ci.ruleset`). `jbus-ci-day.timer` runs `jbus ci --day --each` every day at 06:45.
+drifted from the checked-in body or `required-checks` (`jbus.ci.ruleset`).
+`jbus-ci-day.timer` runs `jbus ci --day --each` every day at 06:45.
 `--each` runs it for every project whose table says `ci_report = true`, and for none when no
 project does. `jbus-ci.timer` runs `jbus ci --report --each` every Monday at 09:00, in the
 machine's own zone.
