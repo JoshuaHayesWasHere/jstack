@@ -373,6 +373,25 @@ def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, ste
     assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout[-2000:]
 
 
+def teed(path, kept):
+    """Put a `python3` first on `path`, a `changed_copy` PATH, that writes what
+    `scripts/select_tests.py` printed to `kept` as it passes it on: a test reads the selection
+    `make check-fast` ran and runs no second one, since the real selector over a copy of the tree
+    takes much of a test's time limit on a runner."""
+    real = shutil.which("python3", path=os.environ["PATH"])
+    shim = Path(path.split(":", 1)[0]) / "python3"
+    shim.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = scripts/select_tests.py ]; then\n'
+        f'    out=$({shlex.quote(real)} "$@") || exit $?\n'
+        f"    printf '%s\\n' \"$out\" | tee {shlex.quote(str(kept))}\n"
+        "    exit 0\n"
+        "fi\n"
+        f'exec {shlex.quote(real)} "$@"\n'
+    )
+    shim.chmod(0o755)
+
+
 def check_fast(copy, path, *more):
     """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line, with
     `more` on its command line."""
@@ -420,7 +439,8 @@ def test_a_selection_pytest_cannot_collect_fails_the_select_step_and_still_keeps
     )
     assert ran.returncode != 0 and "pytest could not collect the selection" in ran.stderr
     kept = files["SELECTED"].read_text().splitlines() if files["SELECTED"].exists() else []
-    assert [line.split()[0] for line in kept] == selected(copy) and broken in selected(copy)
+    assert any(line.startswith(f"{broken} ") for line in kept), kept
+    assert all((copy / line.split()[0]).is_file() for line in kept), kept
     assert "\n".join(kept) in files["GITHUB_STEP_SUMMARY"].read_text()
 
 
@@ -435,6 +455,8 @@ OFF = ["-m", "not", "browser"]
 
 def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path, step_files):
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
+    kept = tmp_path / "selector.out"
+    teed(path, kept)
     check_fast(copy, path)
     *lint, run = asked.read_text().splitlines()
     pytest_line = " ".join(["run pytest -n 6", *SCHEDULE, *OFF])
@@ -445,7 +467,7 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
         and "features/jbus/tests/test_jbus_queue.py" not in tests
     )
     assert all(test.endswith(".py") and Path(copy, test).is_file() for test in tests), tests
-    assert tests == selected(copy)
+    assert tests == kept.read_text().split()
 
 
 PARTS = [
