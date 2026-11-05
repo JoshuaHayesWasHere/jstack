@@ -22,13 +22,13 @@ It is the only check: do not go by what a report said, or by what you remember.
 L="$H/merge.log"
 S="${M:?run the block that finds this home first}/merge-seen"
 news() {
-    tail -n "+$((${1} + 1))" "$L" | head -n "$((${2} - ${1}))" | cut -c18- | grep '^merged ' |
+    tail -n "+$((${1} + 1))" "$L" | head -n "$((${2} - ${1}))" | cut -c18- | command grep '^merged ' |
         while IFS= read -r line; do
             slug=${line#merged * }
             if [ "$(whose "$H/tasks/${slug%% *}.md")" = "$M" ]; then printf '%s\n' "$line"; fi
         done
 }
-lines=$(grep -c '' "$L" 2> /dev/null)
+lines=$(command grep -c '' "$L" 2> /dev/null)
 lines=${lines:-0}
 seen=$(cat "$S" 2> /dev/null)
 case $seen in

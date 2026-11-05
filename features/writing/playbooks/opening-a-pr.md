@@ -43,10 +43,10 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
        exit 1
    fi
    said=$(gh pr create --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
-   url=$(printf '%s\n' "$said" | grep -o 'https://[^ ]*/pull/[0-9][0-9]*' | head -n 1)
+   url=$(printf '%s\n' "$said" | command grep -o 'https://[^ ]*/pull/[0-9][0-9]*' | head -n 1)
    if [ -z "$url" ]; then
        echo "not opened: $(printf '%s\n' "$said" | head -n 1)"
-   elif locked=$(gh pr lock "$url" 2>&1) || printf '%s\n' "$locked" | grep -q 'already locked'; then
+   elif locked=$(gh pr lock "$url" 2>&1) || printf '%s\n' "$locked" | command grep -q 'already locked'; then
        echo "opened and locked: $url"
    else
        echo "opened: $url"

@@ -18,7 +18,7 @@ echo sent >> "$W"
 said=$(uv run --project "$T/../source" jgauge room --light --wait 540) || [ "$?" = 75 ] || said="wait: jgauge room did not run"
 if [ "$said" != go ]; then
   printf '%s\n' "$said"
-  [ "$(grep -c . "$W")" -lt 6 ] && exit 75
+  [ "$(command grep -c . "$W")" -lt 6 ] && exit 75
   uv run --project "$T/../source" jbus forget "$W" > /dev/null
   exit 69
 fi

@@ -111,9 +111,9 @@ Its lines, in order: `Status:`, `Answers:`, `Findings:`, `Sources:`, `Ruled out:
 
    ```sh
    echo "There at the start:"
-   git status --porcelain | grep -Fxf "$H/scouts/$S.start"
+   git status --porcelain | command grep -Fxf "$H/scouts/$S.start"
    echo "New since the start:"
-   git status --porcelain | grep -Fxvf "$H/scouts/$S.start"
+   git status --porcelain | command grep -Fxvf "$H/scouts/$S.start"
    ```
 
    The repo is unchanged only if both lists are empty. Put back what this thread itself wrote into the repo, and nothing else: a line that was there at the start, or a change somebody else made while you worked, stays as it is. Name every line that is left, and whose it is, here and on the report's `Repo:` line, which you correct now if it says otherwise. A path that was already changed at the start cannot be shown untouched: say that, not "unchanged". Never commit, push or open a pull request.

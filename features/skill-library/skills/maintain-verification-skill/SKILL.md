@@ -39,7 +39,7 @@ base=$(git symbolic-ref -q --short refs/remotes/origin/HEAD || echo HEAD)
 tracked=$(git ls-tree -d --name-only "$base" .claude/skills/ 2> /dev/null | sed -n 's|^\.claude/skills/verify-\([^/]*\)$|\1 &|p')
 declared=$(git show "$base:skills.json" 2> /dev/null | jq -r '.projectSkills[]? | select(.name | startswith("verify-")) | "\(.name | ltrimstr("verify-")) \(.path)"' 2> /dev/null || true)
 found=$(printf '%s\n%s\n' "$tracked" "$declared" | sed '/^$/d' | sort -u -k 1,1)
-if [ -n "$app" ]; then found=$(printf '%s\n' "$found" | grep "^$app " || true); fi
+if [ -n "$app" ]; then found=$(printf '%s\n' "$found" | command grep "^$app " || true); fi
 if [ -z "$found" ]; then
     echo "no verify skill: $base has no .claude/skills/verify-${app:-*}/ and its skills.json names no verify-${app:-*} project skill: brief a crewmate to run /create-verification-skill instead"
 elif [ "$(printf '%s\n' "$found" | wc -l)" -gt 1 ]; then
@@ -49,7 +49,7 @@ else
     app=${found%% *}
     dir=${found#* }
     run="maintain-$app-$(git rev-parse --short=7 "$base")"
-    features=$(git ls-tree --name-only "$base" "$dir/features/" | sed -n 's|.*/\([^/]*\)\.md$|\1|p' | grep -vx README || true)
+    features=$(git ls-tree --name-only "$base" "$dir/features/" | sed -n 's|.*/\([^/]*\)\.md$|\1|p' | command grep -vx README || true)
     if [ -z "$features" ]; then
         echo "no feature map: $dir/features/ on $base has no feature file: where $dir/SKILL.md keeps its map elsewhere, this audit cannot read it, so stop; otherwise brief a crewmate to seed it, as section 3 of /create-verification-skill says"
     else

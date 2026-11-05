@@ -21,7 +21,7 @@ elif ! command -v jbus > /dev/null; then
     echo "not added: jbus is not installed here, so no word reaches this home"
 elif ! listed=$(jbus status 2> /dev/null | jq -r '(.scratch // {}) | keys[]'); then
     echo "not known: jbus status did not answer, so nothing is written"
-elif [ -z "$NAME" ] && [ "$(printf '%s\n' "$listed" | grep -c .)" != 1 ]; then
+elif [ -z "$NAME" ] && [ "$(printf '%s\n' "$listed" | command grep -c .)" != 1 ]; then
     echo "which: name the scratch home, one of: $(printf '%s ' $listed)"
 else
     NAME=${NAME:-$listed}
@@ -31,7 +31,7 @@ else
     esac
     if [ -n "$bad" ]; then
         echo "not a name: a scratch home's name is letters, digits, dots, dashes and underscores, and starts with a letter or a digit"
-    elif ! printf '%s\n' "$listed" | grep -Fqx -- "$NAME"; then
+    elif ! printf '%s\n' "$listed" | command grep -Fqx -- "$NAME"; then
         echo "not added: jbus has no scratch home ${NAME}: add it with jbus project add ${NAME} --scratch --project-id <the No project id>"
     else
         mkdir -p "$S/$NAME"

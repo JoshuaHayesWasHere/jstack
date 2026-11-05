@@ -22,7 +22,7 @@ DAYS=${DAYS:-7}
 W=${W:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}
 D=~/.claude/projects/$(printf %s "$W" | sed 's/[^A-Za-z0-9]/-/g')
 found=$(find "$D" -maxdepth 1 -name '*.jsonl' -mtime "-$DAYS" -exec ls -t {} + 2> /dev/null |
-    grep -v "/${CLAUDE_CODE_SESSION_ID:-this-thread}\.jsonl$")
+    command grep -v "/${CLAUDE_CODE_SESSION_ID:-this-thread}\.jsonl$")
 if [ -n "$found" ]; then
     printf '%s\n' "$found"
 else

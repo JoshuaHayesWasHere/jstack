@@ -95,9 +95,9 @@ else
     elif [ "$code" -ne 0 ]; then
         echo "no launch: jroles review ended $code"
     else
-        printf '%s\n' "$selections" | grep -q '^{' || selections=null
-        [ "$pass" = first ] || selections=$(printf '%s\n' "$selections" | grep -m 1 .)
-        printf '%s\n' "$selections" | grep . | jq -cn --arg top "$top" --arg branch "$branch" \
+        printf '%s\n' "$selections" | command grep -q '^{' || selections=null
+        [ "$pass" = first ] || selections=$(printf '%s\n' "$selections" | command grep -m 1 .)
+        printf '%s\n' "$selections" | command grep . | jq -cn --arg top "$top" --arg branch "$branch" \
             --arg title "$title" --arg said "$said" '
             [inputs] | to_entries[] | (.key + 1 | tostring) as $n
             | {title: ($title | sub("\\$n"; $n)),
