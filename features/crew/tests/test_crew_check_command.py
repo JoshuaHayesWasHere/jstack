@@ -218,6 +218,7 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
+    monkeypatch.setenv("JGAUGE_SHORT_WAIT_SECONDS", "0")
     (tmp_path / "stub").mkdir()
     room.uv(tmp_path / "stub")
     home = tmp_path / "home"
