@@ -12,6 +12,8 @@ it), a new file's every line among them. The tests are each test file that names
 module: one that imports it, or spells its dotted name, as `jbus.stall` or `jbus.stall.twice`, or,
 for a script, spells its file name, as `force_pushes.py`. The test runs those under coverage,
 with the processes they start, and fails on each added line that is a statement none of them ran.
+The run stops once each of those lines has run (`ran/lines_ran.py`), so a branch whose lines a
+few tests run pays for those and not for every test that names its module.
 
 An exception is coverage's own pragma on the line, with its reason and the user's word:
 `# pragma: no cover, <reason> (the user, <when>: "<their words>")`. An added pragma without them
@@ -37,6 +39,7 @@ PRAGMA = re.compile(r"#\s*pragma[:\s]?\s*no\s*cover", re.I)
 EXCEPTION = re.compile(r"#\s*pragma: no cover, \S.*?\(the user[,:]\s*[^)]*\S\)\s*$")
 TESTS = ("features/*/tests/**/test_*.py", "testing/tests/**/test_*.py")
 WORKERS = "4"
+RAN = Path(__file__).parent / "ran"
 
 
 def added(since: str, repo: Path = REPO) -> dict[str, set[int]]:
@@ -121,7 +124,20 @@ def unrun(
         f"data_file = {scratch / 'data'}\n"
         f"include =\n{''.join(f'    {repo / path}\n' for path in lines)}"
     )
+    waited = scratch / "waited.json"
+    stopped = scratch / "stopped"
+    waited.write_text(
+        json.dumps(
+            {
+                "lines": {str(repo / path): sorted(numbers) for path, numbers in lines.items()},
+                "data": str(scratch / "data"),
+                "stopped": str(stopped),
+            }
+        )
+    )
     env = {key: value for key, value in os.environ.items() if not key.startswith("PYTEST_")}
+    env["NEW_LINES_RAN"] = str(waited)
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(RAN), env.get("PYTHONPATH")]))
     coverage = [sys.executable, "-m", "coverage"]
     pytest_run = [
         "-m",
@@ -129,6 +145,8 @@ def unrun(
         "-q",
         "-p",
         "no:cacheprovider",
+        "-p",
+        "lines_ran",
         "-n",
         WORKERS,
         "--dist",
@@ -141,7 +159,7 @@ def unrun(
         capture_output=True,
         text=True,
     )
-    if ran.returncode not in (0, 1):
+    if ran.returncode not in (0, 1) and not (ran.returncode == 2 and stopped.exists()):
         pytest.fail(
             f"the tests that name the code did not run (exit {ran.returncode}):\n{ran.stdout}"
         )
@@ -262,3 +280,4 @@ def test_an_added_branch_no_test_runs_fails_and_one_a_test_runs_passes(tmp_path)
         )
     )
     assert faults(added(since, repo), tmp_path / "ran", repo) == []
+    assert (tmp_path / "ran/own/stopped").exists(), "the run went on after every line had run"
