@@ -2,7 +2,8 @@
 
 `jbriefs` shows you, on one HTML page, what every home on this machine is doing: each repo's open plan entries and every brief with its result.
 Where an earlier home left a `handoff.md`, the page also shows its `Next` and `Open decisions` sections.
-It reads only the files under `~/.local/state/home/`, and asks neither T3 Code nor GitHub.
+The page reads only the files under `~/.local/state/home/`, and asks neither T3 Code nor GitHub.
+Two other modes read jbus: `--propose` asks `jbus queue verify` whether the brief has a go, and `--runnable` reads jbus's state for the project's queue.
 The crew, scout and pr-review skills also run it to read a brief's skills and findings.
 
 ## See every home's work
@@ -82,7 +83,7 @@ The canonical form of a principle is its directory under `features/principles/sk
 Three aliases resolve too:
 
 - an item's `pstack_name` in `skills.json`, where pstack names the item otherwise
-- a principle's name from before it took pstack's prefix, such as `model-the-domain`
+- a principle's name without its `principle-` prefix, such as `model-the-domain`
 - `arena` and `swarm`, pstack skills that jstack keeps as playbooks
 
 A brief uses the canonical form, which the resolver finds on its first lookup: `principle-build-the-lever`, not `build-the-lever`.

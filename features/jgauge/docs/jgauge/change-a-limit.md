@@ -48,7 +48,7 @@ A thread that is already running moves to another account only at a real cap of 
 
 | Limit | Default | Set it in | Read by |
 |---|---|---|---|
-| `test_slots`, how many whole suites run at once, machine-wide | One slot for each desk run's workers, a quarter of the processors, and at most one for each 4 GiB: 4 on most machines of 8 cores or more | `~/.config/jstack/machine.toml`; `--slots` and `TEST_SLOTS` come before it | `jgauge test-slot`, `jbus poll` |
+| `test_slots`, how many whole suites run at once, machine-wide | The processors divided by one desk run's workers (a quarter of the processors, at least 2), and at most one for each 4 GiB: 4 on most machines of 8 cores or more | `~/.config/jstack/machine.toml`; `--slots` and `TEST_SLOTS` come before it | `jgauge test-slot`, `jbus poll` |
 | `short_slots`, how many targeted runs and reviewers' proofs run at once | One for each 8 processors, from 2 to 8 | `~/.config/jstack/machine.toml` | `jgauge test-slot --short`, `jbus poll` |
 | `max_running`, how many crewmates run at once, across every project | One for each processor, while each has 2 GiB | `~/.config/jbus/config.toml` | `jbus` |
 | `headroom`, the share of a usage window at which a launch counts an account as full | `90` | `~/.config/jstack/config.toml` | `jroles`, `jbus`, `jgauge room` |

@@ -106,6 +106,7 @@ The install leaves every other key of those files as it was.
 
 jleak's `pre-push` and `commit-msg` hooks go into every repo jstack works in:
 
+- jstack's own checkout, the one `install.sh` runs from
 - the checkout of each project of `jbus`'s config, which `/new-home` adds
 - each repo you set up with `jinstall --repo`, whose path the install records in `~/.local/state/jstack/repos`
 
@@ -194,7 +195,7 @@ The next install removes a link there whose skill no feature declares.
 An install from a release makes none of these links.
 Neither does a run under a HOME that is not your own, when the checkout is outside that HOME.
 A linked worktree gets none either.
-Under your own HOME, `install.sh` refuses to run from a worktree, so a worktree reads a project skill from its feature's folder.
+Under your own HOME, an install that writes, `--setup` and `--repo` refuse to run from a worktree, so a worktree reads a project skill from its feature's folder.
 
 ### The green copy
 
