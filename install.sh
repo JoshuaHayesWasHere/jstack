@@ -18,7 +18,13 @@ if [ -n "$from" ]; then
     }
     PATH=${XDG_BIN_HOME:-$HOME/.local/bin}:$PATH
   }
-  uv tool install --reinstall "$from" || exit 1
+  n=${GIT_CONFIG_COUNT:-0}
+  case $n in *[!0-9]*) n=0 ;; esac
+  (
+    export "GIT_CONFIG_KEY_$n=maintenance.auto" "GIT_CONFIG_VALUE_$n=false"
+    export GIT_CONFIG_COUNT=$((n + 1))
+    uv tool install --reinstall "$from"
+  ) || exit 1
   bin=$(uv tool dir --bin) || exit 1
   [ "$#" -gt 0 ] || set -- --setup
   exec "$bin/jinstall" "$@"
