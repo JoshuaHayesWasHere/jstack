@@ -26,6 +26,23 @@ def test_review_none_is_held_and_the_users_accept_merges_it(kitchen):
     assert last(kitchen) == ("accept", "home", "typed", "done")
 
 
+def test_the_users_accept_merges_a_review_none_brief_that_has_no_review(kitchen):
+    """A `Review: none` brief has no review, so no `## Review` section and no proof in one:
+    the user's word is all it waits on, and the accept merges it."""
+    kitchen.crew("gamma", 8, {"a.txt": "ours\n" + LINES})
+    task = kitchen.home.tasks / "gamma.md"
+    task.write_text(
+        '# gamma: a task\nReview: none\nTask: "do it"\nPull request: open one when done\n\n'
+        f"## Result\nStatus: done\nBranch: gamma   Pull request: {url(8)}\n"
+    )
+    (said,) = kitchen.run()
+    assert said.startswith(f"hold 8 {url(8)}: {ready.REVIEW_NONE}"), said
+    out = accept(kitchen, 8)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out[0].startswith(f"accepted 8 {url(8)}: its brief says Review: none"), out
+    assert [call.split()[2] for call in kitchen.calls()] == ["8"]
+
+
 def listed(kitchen):
     (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
 
