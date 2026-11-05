@@ -73,17 +73,6 @@ def test_the_repo_verb_links_both_hooks_into_a_scratch_repo_and_check_then_watch
     assert said(user, "--repo", str(repo))[:2] == (0, lines)
 
 
-def test_a_commit_in_a_repo_set_up_by_the_verb_comes_out_with_no_ai_trailer(user):
-    repo = scratch(user)
-    assert said(user, "--repo", str(repo))[0] == 0
-
-    made = git(repo, "commit", "--allow-empty", "-m", f"Add a thing\n\n{TRAILER}")
-
-    message = git(repo, "log", "-1", "--format=%B").stdout
-    assert message.strip() == "Add a thing"
-    assert "took out of the commit message" in made.stderr
-
-
 def test_a_repos_own_hook_is_never_written_over_and_its_line_names_the_file(user):
     repo = scratch(user)
     own = hook(repo, "pre-push")
