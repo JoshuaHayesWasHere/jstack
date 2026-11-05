@@ -42,9 +42,10 @@ TREE = "merged-tree"
 LIMIT_SECONDS = 600
 """How long the guards may run on one tree before they are stopped, from when they hold a slot."""
 SLOT_SECONDS = 15
-"""How long the guards wait for a full test slot before the pull request waits for the next run:
-jbus starts the next one 5 s after this one ends (`jbus-merge.timer`), so a skip costs a merge
-seconds, where a wait in the run would hold every other merge of it."""
+"""How long the guards wait for a full test slot before the pull request waits for the next run,
+which jbus's next pass makes about a minute later (`jbus.tick` runs `jmerge` sooner only when a
+check ends): a skip costs a merge about a minute, where a wait in the run would hold every other
+merge of it for as long as a full suite holds a slot."""
 LOOK_SECONDS = 0.2
 RUN_SECONDS = 240
 """The seconds of guards a run may spend before it starts no more: with one more at its limit, a

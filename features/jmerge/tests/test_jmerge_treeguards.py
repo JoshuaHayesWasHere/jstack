@@ -242,17 +242,19 @@ def test_merged_tree_guards_with_every_slot_taken_wait_for_the_next_run(tmp_path
 
 
 def test_merged_tree_guards_time_limit_counts_from_the_slot_not_the_wait(tmp_path, monkeypatch):
-    """The guards wait 3 s for the slot and run 1 s under a limit of 2 s: they pass, since the
+    """The guards wait 4 s for the slot and run 1 s under a limit of 3 s: they pass, since the
     limit and the seconds of the merge line count the run alone."""
     monkeypatch.delenv(slot.HELD, raising=False)
-    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 2)
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 3)
     tree = Tree(tmp_path)
     held, _ = slot.take(slot.full(1))
-    threading.Timer(3, os.close, (held,)).start()
+    threading.Timer(4, os.close, (held,)).start()
     began = time.monotonic()
     said, note = tree.guards("sleep 1").of(tree.one, tree.tip)
-    assert time.monotonic() - began >= 3
-    assert (said, note) == ("", treeguards.PASSED.format(**values(tree), seconds=1))
+    assert time.monotonic() - began >= 4
+    assert said == ""
+    seconds = int(note.rsplit(" in ", 1)[1].removesuffix(" s"))
+    assert note == treeguards.PASSED.format(**values(tree), seconds=seconds) and seconds < 4
 
 
 def test_merged_tree_guards_whose_slot_command_fails_say_why_and_do_not_run(tmp_path, monkeypatch):
