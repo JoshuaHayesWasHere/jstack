@@ -100,6 +100,8 @@ The install enables the timer only while a project asks, as it does `jbus-ci.tim
 `--day` collects nothing and starts no CI job: every number but main-red comes from the ledger the passes keep, `ci.jsonl` and `ci-prs.jsonl`, and the rows that merged come from `transitions.jsonl`.
 Main-red comes from one call, `gh run list -R <repo> --workflow check.yml --branch main --event push --limit 400 --json conclusion,status,createdAt,updatedAt,headSha`, the only call `--day` makes to GitHub.
 Where that call fails, main-red reads `no data`, the report says why, and the rest of the report is written as usual.
+The review step's numbers come from T3 Code's store, `~/.t3/userdata/statev2.sqlite`, opened read-only (`jgauge.spend.reviews`).
+Where the store is not there or cannot be read, they read `no data`, the report says why, and the rest of the report is written as usual.
 `--day` with `--report` is refused.
 
 The ruleset check (`jbus.ci.ruleset`) reads the ruleset GitHub holds main to with one more call, `gh api repos/<repo>/rulesets/25665226`.
@@ -123,6 +125,14 @@ The figures the cicd plan started from, 64% red and 5.6 shas per pull request, c
 - **A wave day** is a day whose shard wait p90 is over 300 s, and its column reads `wave`.
   A wave confounds a before and after: Nov 3 and 4 measure #970 and #1009, not the rows that merged then.
 - **jmerge's shadow pull requests**, whose branch starts `jstack/line/`, are left out of every count.
+- **A review launch** is a thread of the project's T3 Code project that jbus titled `review: <slug>, <round>`, `<round>` being `1` or `scoped`, of any model.
+  A launch that failed on its provider and was launched again on another counts twice, its tokens with it.
+  Its day is the local day its first run started.
+  Its tokens are its runs' summed: input is every input token, the cached and the cache-written among them.
+  Its **active wall** is the time its runs ran, each from its `startedAt` to its completion, so the wait between two turns is not in it.
+- **A launch's pull request** is the one its slug's brief, `tasks/<slug>.md` in the home, names on the first `Branch:` line that names one, as `jbus.watch.tied` reads it.
+  Per pull request, a day sums the launches of that pull request that started that day, so a pull request reviewed on two days counts on each.
+  The review numbers are not under the floor, since the store gives them.
 
 | Number | Target | Counted as |
 | --- | --- | --- |
@@ -134,6 +144,11 @@ The figures the cicd plan started from, 64% red and 5.6 shas per pull request, c
 | open to merge p50 | at most 1 h (proposal) | the median hours from a pull request's opening to its merge, over those merged that day. |
 | first-check own red | none proposed | of the pull requests whose first `check` was created that day, the share whose first check was red for a cause of its own, as the health numbers count it. |
 | main-red | at most 30 min (proposal) | the minutes of the day inside a spell, by the spell method of gap-revert-oldest-red: a spell runs from the `createdAt` of a failed run of check.yml on a push to main, found green, to the `updatedAt` of the next run to succeed, in the order the runs were created, and it is split at local midnight. A run not completed, cancelled or skipped says nothing, and a spell still open runs to now. `gh run list` shows a run's last attempt only, so a red that went green on a rerun is not a spell. A day that starts before the oldest run the call gave reads `no data`. n is the runs created that day. |
+| review launches | none proposed | the review launches that started that day, those of a slug whose brief names no pull request among them. n is the pull requests they are joined to. |
+| review input tokens per PR p50 | none proposed | the median, over the pull requests reviewed that day, of the input tokens of each one's launches that day. n is the pull requests. |
+| review output tokens per PR p50 | none proposed | the same, for the output tokens. |
+| review active wall per PR p50 | none proposed | the same, for the minutes of active wall. |
+| review launches before check | none proposed | of the launches that day joined to a pull request whose newest head, `head` in `ci-prs.jsonl`, has a `check` job in the ledger, those that started before the first green `check` at that head completed, or at a head whose `check` was never green. The newest head is the ledger's as the report runs, so a push after a day's reviews counts those reviews as before `check`. n is the launches counted. |
 
 Each target is a proposal only, from the quiet days of Oct 29 to 31.
 No number is held to one, and the report raises no alert or page.
