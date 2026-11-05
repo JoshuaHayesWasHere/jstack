@@ -28,6 +28,9 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `blockers.json` | Each blocker this home briefed a fix of, by its key, with each fix queued for it: `jbus queue add` counts them against `retry_cap` ([Decisions](../../jbus/docs/jbus/decisions.md)). |
 | `home-id` | The home's thread id. The home's start writes it. |
 | `prefix` | A scoped home's slug prefix, such as `ux-`, which starts each of its briefs and requests. The root home writes it when it makes the scope. |
+| `read-seen` | The Result and Report headings a start has shown this home, one a line, so each is shown once. |
+| `told` | Each decision and stop a turn's end told you, one a line, so each is told once. |
+| `merge-seen` | How many lines of `merge.log` this home has read, so each `merged` line is relayed once. |
 | `log/` | The note of each home archived here, dated: what it had out that jbus did not hold, what was uncommitted, what it handed to the root home, and its `Was home:` line. Older notes too. |
 | `plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that nothing counts the scope as a home. `/home <scope>` moves it back. |
 

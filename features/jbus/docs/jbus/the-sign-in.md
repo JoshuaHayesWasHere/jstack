@@ -14,7 +14,7 @@ jbus counts the days by the calendar of your zone, up to the day the sign-in run
 | When | The line |
 |---|---|
 | From 7 days out, until 3 days out | `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, at most a week left: run jbus t3 login` |
-| Each day from 3 days out, the last day included | `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, <n> days left: run jbus t3 login` |
+| Each day from 3 days out, the last day included | `sign-in: jbus's T3 sign-in expires <YYYY-MM-DD HH:MM zone>, <n> days left: run jbus t3 login`, and `1 day left` on the last day |
 | After it ran out | `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login` |
 
 The alert is one item, `sign-in`, and each row is a new line of it, so the infra home hears each line once.

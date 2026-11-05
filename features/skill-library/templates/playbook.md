@@ -1,13 +1,14 @@
 # <the kind of task, in two or three words>
 
-Run by: <a crewmate | a scout | the home>, for <the trigger: the kind of task or question, in one line>.
+Run by: <a crewmate | a scout | the home | an expert>, for <the trigger: the kind of task or question, in one line>.
 
 Source: <this repo | pstack, `<the file it is drawn from>`>
 
 Work the numbered steps below in order.
 Report a step you do not do as `skip: <reason>`.
 
-A path such as `principles/<name>.md` or `skills/<crew, scout or home>/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo. Read a principle in full when a step you are doing names it.
+A path such as `principles/<name>.md` or `skills/<crew, scout, home or expert>/SKILL.md` is from the root of the repo this file lives in, also when the work is in another repo.
+Read a principle in full when a step you are doing names it.
 
 **You own <what the reader owns>.** <what that asks of the reader, in a sentence or two>
 

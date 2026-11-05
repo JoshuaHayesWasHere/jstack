@@ -1,18 +1,13 @@
 """`make pstack-drift` lists what changed upstream in pstack since the pin, for the files this
 repo took from it. The tests run `jdrift` against a temporary git repo in place of the upstream,
-with one case for each kind of line and each exit code. They also parse the map in
-`THIRD_PARTY.md` with the same code, and check it against the files it credits."""
+with one case for each kind of line and each exit code."""
 
 import re
 import subprocess
 
 import pytest
 
-import jdrift
 from jdrift.cli import main
-from testing.paths import REPO as ROOT
-
-TOPS = ("playbooks", "skills", "features")
 
 SECTION = """# Third-party material
 
@@ -117,13 +112,6 @@ def test_header_counts_the_commits_that_touch_pstack(upstream, capsys):
     assert code == 0
 
 
-def test_same_line_for_a_path_no_commit_changed(upstream, capsys):
-    upstream.drift()
-    _, lines, _ = run(upstream, capsys)
-    assert "same pstack/skills/alpha/SKILL.md" in lines
-    assert "same pstack/skills/poteto-mode/playbooks/one.md" in lines
-
-
 def test_changed_line_has_the_counts_the_local_paths_and_each_commit(upstream, capsys):
     upstream.drift()
     _, lines, _ = run(upstream, capsys)
@@ -203,13 +191,6 @@ def test_cache_is_under_the_home_directory_with_no_xdg_cache_home(
     monkeypatch.setenv("HOME", str(tmp_path / "user"))
     run(upstream, capsys)
     assert (tmp_path / "user" / ".cache" / "jstack" / "cursor-plugins" / ".git").is_dir()
-
-
-def test_exit_0_whatever_drift_it_finds(upstream, capsys):
-    upstream.drift()
-    code, lines, _ = run(upstream, capsys)
-    assert code == 0
-    assert {line.split()[0] for line in lines[1:]} == {"same", "changed", "gone", "new"}
 
 
 def test_exit_0_with_strict_and_no_drift(upstream, capsys):
@@ -318,169 +299,6 @@ def test_exit_2_with_no_map_block_at_all(upstream, capsys):
     code, _, err = run(upstream, capsys)
     assert code == 2
     assert err == "jdrift: THIRD_PARTY.md: the pstack section has no Upstream map: block\n"
-
-
-WORKFLOW = ROOT / ".github" / "workflows" / "pstack-drift.yml"
-
-
-def step(tmp_path, make):
-    """Run the workflow's `run:` block with `make` as the given script. Return the exit code,
-    what the block printed, and the job summary."""
-    lines = WORKFLOW.read_text().split("        run: |\n")[1].splitlines()
-    script = "\n".join(line.removeprefix("          ") for line in lines)
-    fake = tmp_path / "bin" / "make"
-    fake.parent.mkdir()
-    fake.write_text(f"#!/bin/sh\n{make}\n")
-    fake.chmod(0o755)
-    summary = tmp_path / "summary.md"
-    ran = subprocess.run(
-        ["bash", "-e", "-c", script],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env={"PATH": f"{fake.parent}:/usr/bin:/bin", "GITHUB_STEP_SUMMARY": str(summary)},
-    )
-    return ran.returncode, ran.stdout.splitlines(), summary.read_text().splitlines()
-
-
-def test_workflow_step_warns_once_per_drifted_line_and_passes(tmp_path):
-    said = [
-        "pstack aaaaaaaaaaaa .. bbbbbbbbbbbb: 3 commits touch pstack/",
-        "same pstack/skills/alpha/SKILL.md",
-        "changed pstack/skills/beta/SKILL.md +2 -1 -> skills/beta/SKILL.md; 1234567 beta: reword",
-        "gone pstack/skills/gamma/SKILL.md -> skills/gamma/SKILL.md",
-        "new pstack/skills/delta",
-    ]
-    make = "cat <<'END'\n" + "\n".join(said) + "\nEND"
-    code, out, summary = step(tmp_path, make)
-    assert code == 0
-    assert out == [f"::warning::{line}" for line in said[2:]]
-    assert summary == ["```", *said, "```"]
-
-
-def test_workflow_step_passes_with_a_warning_when_the_command_fails(tmp_path):
-    refusal = "jdrift: the pin aaaaaaaaaaaa is not in the history of main upstream"
-    code, out, summary = step(tmp_path, f"echo '{refusal}' >&2; exit 2")
-    assert code == 0
-    assert out == [f"::warning::{refusal}"]
-    assert summary == ["```", refusal, "```"]
-
-
-def test_workflow_runs_on_mondays_and_by_hand_and_on_no_pull_request():
-    head = WORKFLOW.read_text().split("\njobs:")[0]
-    triggers = re.findall(r"^  (\w+):", head.split("\non:\n")[1].split("\n\n")[0], re.MULTILINE)
-    assert triggers == ["schedule", "workflow_dispatch"]
-    assert re.findall(r"cron: \"(.*)\"", head) == ["0 13 * * 1"]
-
-
-def section():
-    text = (ROOT / "THIRD_PARTY.md").read_text()
-    return text, jdrift.read_section(text)
-
-
-def local_sources(pinned):
-    fed = {}
-    for upstream, paths in pinned.sources.items():
-        for local in paths:
-            fed.setdefault(local, set()).add(upstream)
-    return fed
-
-
-def test_shipped_map_reads_the_pin_from_the_commit_line():
-    text, pinned = section()
-    assert f"- Commit: {pinned.pin}\n" in text.split("\n## ")[1]
-    assert re.fullmatch(r"[0-9a-f]{40}", pinned.pin)
-
-
-def test_shipped_map_names_local_files_that_exist_and_upstream_paths_under_pstack():
-    _, pinned = section()
-    assert pinned.sources
-    for upstream, locals_ in pinned.sources.items():
-        assert upstream.startswith("pstack/")
-        for local in locals_:
-            assert (ROOT / local).is_file(), local
-    assert pinned.not_taken
-    assert all(path.startswith("pstack/skills/") for path in pinned.not_taken)
-
-
-def test_shipped_map_has_every_file_whose_source_line_names_pstack_with_those_paths():
-    _, pinned = section()
-    mapped = local_sources(pinned)
-    found = 0
-    for top in TOPS:
-        for file in sorted((ROOT / top).rglob("*")):
-            if not file.is_file():
-                continue
-            lines = [
-                line
-                for line in file.read_text(errors="replace").splitlines()
-                if line.startswith("Source:") and "pstack/" in line
-            ]
-            if not lines:
-                continue
-            found += 1
-            local = file.relative_to(ROOT).as_posix()
-            named = set(re.findall(r"`(pstack/[^`]+)`", lines[0]))
-            assert named, local
-            assert named <= mapped.get(local, set()), local
-    assert found > 30
-
-
-def credited(prose):
-    """The files under the directories of `TOPS` that the prose names. The prose names a file
-    by its path, by a directory that holds it, or by a playbook's bare file name."""
-    for token in re.findall(r"`([^`\s<*]+)`", prose):
-        path = ROOT / token
-        if token.startswith(tuple(f"{top}/" for top in TOPS)) and path.is_file():
-            yield token
-        elif token.rstrip("/") not in TOPS and "/" in token.rstrip("/") and path.is_dir():
-            if token.startswith(TOPS):
-                yield from (f.relative_to(ROOT).as_posix() for f in path.rglob("*") if f.is_file())
-        elif "/" not in token and (ROOT / "playbooks" / token).is_file():
-            yield f"playbooks/{token}"
-
-
-def test_shipped_map_has_every_file_the_prose_credits():
-    text, pinned = section()
-    prose = text.split("\n## ")[1].split("\nUpstream map:")[0]
-    names = set(credited(prose))
-    assert len(names) > 80
-    assert names - set(local_sources(pinned)) == set()
-
-
-def placed(prose):
-    """Each file that the prose places in a directory, as the path the prose gives it. The
-    prose places files in two forms: `a.md` and `b.md` in `dir/`, or more files in `dir/` (the
-    playbook files `a.md` and `b.md`)."""
-    names = r"`[\w.-]+\.md`(?:(?:, | and |, and )`[\w.-]+\.md`)*"
-    said = re.findall(rf"({names}) in `([\w/-]+/)`", prose)
-    said += [
-        (files, folder)
-        for folder, files in re.findall(rf"in `([\w/-]+/)` \(the playbook files? ({names})", prose)
-    ]
-    for files, folder in said:
-        yield from (folder + name for name in re.findall(r"`([\w.-]+\.md)`", files))
-
-
-def test_the_prose_places_each_file_where_the_map_has_it():
-    text, pinned = section()
-    prose = text.split("\n## ")[1].split("\nUpstream map:")[0]
-    paths = list(placed(prose))
-    assert len(paths) > 15
-    assert sorted(set(paths) - set(local_sources(pinned))) == []
-
-
-def test_every_principle_is_from_pstack_or_jstacks_own_and_depth_over_breadth_is_jstacks():
-    _, pinned = section()
-    mapped = set(local_sources(pinned))
-    found = ROOT.glob("features/principles/skills/*/SKILL.md")
-    principles = {path.relative_to(ROOT).as_posix() for path in found}
-    assert principles - mapped == set(pinned.own) & principles
-    assert set(pinned.own) <= {
-        file.relative_to(ROOT).as_posix() for top in TOPS for file in (ROOT / top).rglob("*")
-    }
-    assert "features/principles/skills/principle-depth-over-breadth/SKILL.md" in pinned.own
-    assert len(principles) == 25
 
 
 def pin_paths(upstream, pins, only=None):

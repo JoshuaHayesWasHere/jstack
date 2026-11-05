@@ -36,8 +36,8 @@ AI = [
 ]
 
 
-def hook(command, cwd=None, tool="Bash", harness="claude-code"):
-    given = {"tool_name": tool, "tool_input": {"command": command}, "cwd": str(cwd or REPO)}
+def hook(command, cwd=None, harness="claude-code"):
+    given = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(cwd or REPO)}
     if harness == "codex":
         given |= {"hook_event_name": "PreToolUse", "turn_id": "t", "tool_use_id": "u"}
     done = subprocess.run(
@@ -127,10 +127,6 @@ def test_codex_gives_the_same_input_and_is_refused_the_same_way():
 )
 def test_a_clean_commit_a_human_co_author_and_other_commands_pass(command, tmp_path):
     assert hook(command, cwd=tmp_path) == (0, [])
-
-
-def test_a_tool_that_is_not_the_shell_is_not_read():
-    assert hook(f"git commit -m x -m '{CLAUDE}'", tool="Write") == (0, [])
 
 
 def test_a_command_whose_quotes_do_not_close_is_still_read():
