@@ -167,7 +167,7 @@ To install from `main` with no release, as the docs' `curl .../main/install.sh |
   Run `PATH="$HOME/.local/bin:$PATH" record git jinstall --check`, which exits 0.
 
 To follow a move, use a third sandbox with a clone of this checkout at the commit before a merge that moved a skill, so that you can pull the merge as `jmerge` pulls it.
-A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a merge.
+This recipe does not drive `jmerge`'s own merge: the stand-in `gh` merges only where a drive writes `gh/merges`, and a clone of this checkout is no repo it merges into.
 `features/jmerge/tests/test_jmerge_follow.py` drives the run that `jmerge` makes after such a merge.
 
 - **Clone at the commit before #202, which moved pr-review into `features/`.** Run `git clone -q --bare "$VERIFY_JSTACK_REPO" "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" && git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413~1 && git clone -q -b main "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" "$VERIFY_JSTACK_SANDBOX/jstack" && cd "$VERIFY_JSTACK_SANDBOX/jstack"`.

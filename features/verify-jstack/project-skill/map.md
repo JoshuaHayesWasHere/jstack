@@ -62,7 +62,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 ## Features
 
 - [jbus](../../jbus/verify.md) covers a queue row from `jbus queue add` to the pass that launches the crew thread, a decision that wakes the home thread through `jbus gate`, `jbus done`, the outbox and the wake, and a red main that files the brief for its fix.
-- [jmerge says ready, wait or hold](../../../features/jmerge/verify.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, and `jmerge --claims`.
+- [jmerge says ready, wait or hold](../../../features/jmerge/verify.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, a plain `jmerge` that merges a good one once `gh/merges` exists, and `jmerge --claims`.
 - [jgauge room](../../../features/jgauge/verify.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
 - [Installing jstack](../../../features/jinstall/verify.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
 
