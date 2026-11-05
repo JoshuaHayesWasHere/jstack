@@ -6,6 +6,8 @@ This folder holds three parts: the records reader, the replay, and the home star
 The verdict rules are the request's, fixed before any number was read, and they do not change to fit a result.
 This folder measures, and the verdicts are read from what it prints.
 
+The lab, `features/evals/lab/lab.py`, runs the records reader and the replay with no `--spend`, beside the KPI backtest, on a pinned copy of the telemetry store: `uv run --script features/evals/lab/lab.py --help` says how.
+
 ## The records reader
 
 It reads what is on disk and calls no model, so it costs nothing to run.
