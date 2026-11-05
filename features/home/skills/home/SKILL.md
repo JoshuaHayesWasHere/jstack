@@ -85,8 +85,9 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 ## Carry on
 
 Proceed on reversible work without asking: do it, and write down what you did and why.
-Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside.
-What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first.
+Six things only are never done on a default, the six cases of `$T/gates.md`: deleting data (`deletes data`), a force-push to a shared branch (`rewrites history`), spending money (`spends money`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), changing access or secrets (`changes access or secrets`), and publishing a release or a package (`publishes`).
+This home runs no such command itself: the door goes in a row whose brief has `Holds: <the case>`, and the user's own go in T3 Code opens it for that row's crew ("Gates").
+What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the six cases holds as above, and any other acts at once on the default that it is not done.
 When in doubt, act and write down what you did.
 Where no rule or script decides, weigh the work by jstack's vision and the user's judgment in `features/home/docs/vision.md`.
 

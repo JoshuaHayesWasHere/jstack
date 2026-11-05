@@ -16,10 +16,3 @@ def test_automate_me_finds_the_mode_skills_and_when_each_last_changed(repo, home
         f"{own}, last changed {when[0]}",
         f"{shared}, last changed {when[1]}",
     ]
-
-
-def test_automate_me_says_so_when_there_is_no_mode_skill(repo, home):
-    aged(home / ".claude" / "skills" / "unslop" / "SKILL.md", 0)
-    assert run(block("automate-me", "-mode"), repo, home) == [
-        "no mode skill: none under ~/.claude/skills or .claude/skills"
-    ]

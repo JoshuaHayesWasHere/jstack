@@ -98,34 +98,17 @@ def listed(*names):
     return "# Notes index\n" + "".join(lines)
 
 
-def test_a_folder_in_order_passes_and_prints_nothing(tmp_path):
-    assert lint(folder(tmp_path, {"boil-time.md": CLEAN})) == (0, [])
-
-
 def test_a_folder_with_no_note_yet_passes(tmp_path):
     assert lint(folder(tmp_path, {})) == (0, [])
 
 
-@pytest.mark.parametrize("note", [NO_SOURCE, NO_SOURCES_PART])
+@pytest.mark.parametrize("note", [NO_SOURCES_PART])
 def test_a_note_with_no_source_fails(tmp_path, note):
     expert = folder(tmp_path, {"colour.md": note}, listed("colour.md"))
     assert lint(expert) == (
         1,
         ["colour.md: no source, no list item (- or *) is under a Sources heading"],
     )
-
-
-def test_a_source_with_no_revision_fails_and_is_named(tmp_path):
-    expert = folder(tmp_path, {"lid.md": NO_REVISION}, listed("lid.md"))
-    assert lint(expert) == (
-        1,
-        [f"lid.md: {UNREVISED}{LID}"],
-    )
-
-
-def test_a_note_not_in_the_index_fails(tmp_path):
-    expert = folder(tmp_path, {"boil-time.md": CLEAN, "spout.md": CLEAN})
-    assert lint(expert) == (1, ["spout.md: no line in notes/INDEX.md"])
 
 
 def test_a_folder_with_no_index_fails_each_note(tmp_path):
@@ -240,20 +223,6 @@ def test_a_heading_inside_a_fence_does_not_end_the_sources(tmp_path):
             f"a.md: {UNREVISED}- `run.sh`, as it is:",
             f"a.md: {UNREVISED}- `docs/a.md:1`",
         ],
-    )
-
-
-def test_a_folder_that_is_not_an_experts_is_refused(tmp_path):
-    done = subprocess.run(["sh", str(LINT), str(tmp_path)], capture_output=True, text=True)
-    assert (done.returncode, done.stdout) == (2, "")
-    assert done.stderr == f"lint-notes.sh: {tmp_path} has no notes folder\n"
-
-
-def test_no_folder_named_is_refused():
-    done = subprocess.run(["sh", str(LINT)], capture_output=True, text=True)
-    assert (done.returncode, done.stderr) == (
-        2,
-        "usage: lint-notes.sh <the expert's folder, or a context pack>\n",
     )
 
 

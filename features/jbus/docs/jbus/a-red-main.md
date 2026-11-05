@@ -98,7 +98,7 @@ It tells no crew anything: a pull request red over a red main is judged again by
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
 | `failed` | The tests that failed at `broken`, read once from the red run's logs. jbus reads them to tell a flake from a culprit's own red. |
-| `fixed` | Only in a record written before `tell` stopped telling crews: the green tip that ended the red while a message was owed. Main reads as green there, and the next pass writes no `fixed` again. |
+| `fixed` | Only in an old record, since `tell` writes it no more: the green tip that ended the red while a message was owed. Main reads as green there, and the next pass writes no `fixed` again. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.
 `jmerge` reads the file to ask for no merge of a red main into a red pull request ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).

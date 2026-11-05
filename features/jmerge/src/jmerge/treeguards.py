@@ -102,7 +102,10 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
 
 
 def _stop(group: int) -> None:
-    with contextlib.suppress(ProcessLookupError):
+    """Kill the group. A group already gone gives ESRCH on Linux, and EPERM on Darwin once it
+    holds only zombies, as it does after the stop at the time limit, when `finally` stops it
+    again."""
+    with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(group, signal.SIGKILL)
 
 

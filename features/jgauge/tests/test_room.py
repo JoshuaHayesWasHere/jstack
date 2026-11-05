@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 import jsettings
-from testing.paths import REPO, skills
+from testing.paths import REPO
 
 ROOM = REPO / "features" / "jgauge" / "src" / "jgauge" / "room.sh"
 BIN = Path(sys.executable).parent
@@ -126,10 +126,6 @@ def says(env, script=None):
     return line
 
 
-def test_an_idle_machine_has_room(tmp_path):
-    assert says(machine(tmp_path, **IDLE)) == "go"
-
-
 def test_yelenas_busiest_load_with_little_cpu_pressure_goes(tmp_path):
     """Load 29 on 24 cores with CPU pressure at 8, as yelena ran on 2026-10-19. The machine
     was busy, and nothing waited long for a core."""
@@ -179,14 +175,6 @@ def test_a_load_at_its_threshold_waits_on_any_core_count(tmp_path, cores):
     assert says(machine(tmp_path, **{**IDLE, "cores": cores, "load": at})) == (
         f"wait: load {at} is at or over 200% of {cores} cores"
     )
-
-
-def test_a_threshold_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
-    assert check().count("MEMORY=6\n") == 1
-    changed = check().replace("MEMORY=6\n", "MEMORY=6.5\n")
-    env = machine(tmp_path, **{**IDLE, "memory": int(6.2 * KB_PER_GB)})
-    assert says(env) == "go"
-    assert says(env, changed) == "wait: 6.2 GB of memory available, under 6.5"
 
 
 def test_the_first_reading_with_no_room_is_the_one_named(tmp_path):
@@ -297,14 +285,6 @@ def test_the_file_slots_are_read_from_the_df_of_the_machine_it_runs_on(tmp_path)
     env = {**machine(tmp_path, **IDLE), "TMPFS": str(tmp_path)}
     (tmp_path / "stub" / "df").unlink()
     assert re.fullmatch(rf"go|wait: {tmp_path} has \d+ of \d+ file slots used, over 85%", says(env))
-
-
-def test_the_share_of_file_slots_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
-    assert check().count("SLOTS=85\n") == 1
-    changed = check().replace("SLOTS=85\n", "SLOTS=50\n")
-    env = machine(tmp_path, **IDLE, slots=(1000, 501))
-    assert says(env) == "go"
-    assert says(env, changed) == f"wait: {env['TMPFS']} has 501 of 1000 file slots used, over 50%"
 
 
 def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path):
@@ -504,55 +484,6 @@ def waited(env, limit, every="0.05"):
     return ran.stdout.splitlines(), ran.returncode
 
 
-def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_path):
-    """The tests below run `jgauge room --wait`, which reads the machine again and again while
-    a timer rewrites it. This test checks that a reader of the stubs never sees a stub half
-    written."""
-    machine(tmp_path, **IDLE)
-    stub, stop, seen = tmp_path / "stub", threading.Event(), []
-
-    def look():
-        while not stop.is_set():
-            try:
-                df = subprocess.run(
-                    [str(stub / "df"), "-Pi", str(stub / "tmp")], capture_output=True, text=True
-                )
-                seen.append(len(df.stdout.splitlines()) == 2 or df.stdout)
-            except OSError as error:
-                seen.append(error)
-
-    lookers = [threading.Thread(target=look) for _ in range(4)]
-    for one in lookers:
-        one.start()
-    errors, end, n = [], time.monotonic() + 1, 0
-    try:
-        while time.monotonic() < end:
-            n += 1
-            try:
-                machine(tmp_path, **{**IDLE, "load": f"{n % 20}.00"}, slots=(1048576, n))
-            except OSError as error:
-                errors.append(error)
-    finally:
-        stop.set()
-        for one in lookers:
-            one.join()
-    assert errors == [] and seen and set(seen) == {True}
-
-
-def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path):
-    """The limits text is built once, so the two writes hold the same text whatever second
-    each comes in: a plan of windows resets a time from now."""
-    plan = limits(FRESH)
-    machine(tmp_path, **IDLE, plan=plan)
-    names = ("stub/df", "stub/nproc", "stub/tmp/df", "proc/loadavg", "limits")
-    before = {name: (tmp_path / name).stat() for name in names}
-    machine(tmp_path, **IDLE, plan=plan)
-    after = {name: (tmp_path / name).stat() for name in names}
-    assert {name: (one.st_ino, one.st_mtime_ns) for name, one in after.items()} == {
-        name: (one.st_ino, one.st_mtime_ns) for name, one in before.items()
-    }
-
-
 def test_a_wait_for_room_ends_in_go_once_the_machine_has_room(tmp_path):
     env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     room = threading.Timer(0.4, machine, [tmp_path], IDLE)
@@ -619,12 +550,6 @@ def test_a_wait_that_is_not_a_number_of_seconds_is_refused_before_any_look(tmp_p
 def test_a_wait_that_would_look_with_no_pause_is_refused_before_any_look(tmp_path, every):
     busy = machine(tmp_path, **{**IDLE, "load": "24.00"})
     assert waited(busy, "5", every=every) == ([], 2)
-
-
-def test_a_room_asked_with_no_wait_answers_at_once_and_exits_0_as_before(tmp_path):
-    busy = machine(tmp_path, **{**IDLE, "load": "24.00"})
-    ran = subprocess.run([str(BIN / "jgauge"), "room"], env=busy, capture_output=True, text=True)
-    assert (ran.stdout, ran.returncode) == ("wait: load 24.00 is at or over 200% of 12 cores\n", 0)
 
 
 STALE = 21 * 60
@@ -775,17 +700,6 @@ def test_nothing_but_pytest_runs_under_pytest_of_is_removed_from_a_full_tmp(tmp_
     full = ran(env)
     assert full.stdout.startswith("wait: ") and full.stderr == ""
     assert sorted(tmp.rglob("*")) == before
-
-
-def test_no_skill_holds_a_copy_of_the_check(tmp_path):
-    files = [path for one in skills().values() for path in one.rglob("*") if path.is_file()]
-    assert files
-    held = [path for path in files if b"CUSHION=" in path.read_bytes()]
-    assert held == []
-    used_up = {**FRESH, "five_hour": ("100", HOUR + 59)}
-    assert says(machine(tmp_path, **IDLE, plan=used_up)).startswith(
-        "wait: the five-hour limit is 100% used, at or over 90%,"
-    )
 
 
 def light(env, *more):

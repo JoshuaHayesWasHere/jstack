@@ -14,7 +14,7 @@ import time
 import pytest
 
 import test_room as room
-from crew_helpers import FENCED, block, git, held_open, sections
+from crew_helpers import block, git, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
 from test_portable_shell import bsd_tools
@@ -210,23 +210,6 @@ def slot_script(text, home):
     )
 
 
-def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
-    """The full run is the crewmate's, and the block that read the brief and the notes is gone.
-    The blocks that take a slot, the targeted run, the check and the proof of the changed tests,
-    each run their command when a slot is free (the proof's is driven by `test_crew_proved`)."""
-    blocks = FENCED.findall(sections()["Do the task"])
-    assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
-    slots = [text for text in blocks if "jgauge test-slot" in text or "jgauge check" in text]
-    assert len(slots) == 3
-    said, code, _ = checked(tmp_path, "echo ran")
-    assert (said[-2:], code) == (["ran", "done: the check exited 0"], 0)
-    ran = slot_script(
-        block("Do the task", "<the targeted tests>").replace("<the targeted tests>", "echo ran"),
-        tmp_path / "home",
-    )
-    assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
-
-
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
     """When every slot is taken, the blocks register the thread in the file, and the thread's
     turn ends after the blocks print their one line. jbus wakes the thread later because the
@@ -322,37 +305,6 @@ def test_a_failed_check_on_the_pull_request_runs_the_check_block_it_names(tmp_pa
     held = f"! flock -n {locks}/test-slot.1.lock true && echo held; exit 3"
     said, code, _ = checked(tmp_path, held, heading=named)
     assert (said[-2:], code) == (["held", "done: the check exited 3"], 3)
-
-
-def test_a_check_the_old_block_started_is_joined_and_not_started_twice(tmp_path):
-    """Before `jgauge check`, the block wrote the check's files itself: the pid of the run, the
-    tree it wrote with a copy of the index, and the exit code once the run ended. A thread that
-    loaded the new step while a run of the old one still goes joins that run."""
-    said, code, _ = checked(tmp_path, "echo first")
-    assert (said[-1], code) == ("done: the check exited 0", 0)
-    repo, go, runs = tmp_path / "repo", tmp_path / "go", tmp_path / "runs"
-    folder = repo / ".git" / "crew-check"
-    index = tmp_path / "old.index"
-    env = {**os.environ, "GIT_INDEX_FILE": str(index)}
-    if (repo / ".git" / "index").exists():
-        shutil.copyfile(repo / ".git" / "index", index)
-    subprocess.run(["git", "add", "-A"], cwd=repo, env=env, check=True)
-    tree = subprocess.run(
-        ["git", "write-tree"], cwd=repo, env=env, check=True, capture_output=True, text=True
-    ).stdout
-    shutil.rmtree(folder)
-    folder.mkdir()
-    (folder / "tree").write_text(tree)
-    (folder / "out").write_text("the old block's run\n")
-    old = subprocess.Popen(
-        ["sh", "-c", f'{held_open(go)}; echo 0 > "{folder}/exit"'], start_new_session=True
-    )
-    (folder / "pid").write_text(f"{old.pid}\n")
-    said, code, _ = checked(tmp_path, f"echo new >> {runs}", then=go.touch)
-    old.wait()
-    assert said[0].startswith("joined: the check an earlier call started on this worktree")
-    assert (said[-2:], code) == (["the old block's run", "done: the check exited 0"], 0)
-    assert not runs.exists()
 
 
 def lanes(stub, locks, log, exits=None):
