@@ -104,6 +104,7 @@
       tree=$(mktemp -d)
       if git diff --name-only --no-renames "$base" HEAD | command grep -qvE "$kept"; then
           only=
+          sides='head base'
           git clone -q --shared --no-checkout . "$tree"
           git -C "$tree" checkout -q --detach "$base"
           git diff --name-only --diff-filter=d "$base" HEAD | command grep -E "$kept" |
@@ -114,18 +115,23 @@
           (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
       else
           only=1
+          sides=head
           echo "tests only: every file the branch changes is a test, so its tests run at the head alone"
       fi
       list=$(printf '%s\n' "$tests" | paste -sd ' ' -)
-      PROOF_ONLY=$only PROOF_TREE=$tree PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
-          env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $PROOF_TESTS > "$PROOF_TREE/.proof-head" 2>&1
-          echo "head exit $?: $(tail -n 1 "$PROOF_TREE/.proof-head")"
-          if [ -z "$PROOF_ONLY" ]; then
-              (cd "$PROOF_TREE" && env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider --continue-on-collection-errors $PROOF_TESTS) > "$PROOF_TREE/.proof-base" 2>&1
-              echo "base exit $?: $(tail -n 1 "$PROOF_TREE/.proof-base")"
-          fi
-      ' | tee "$tree/.proof-said"
-      ran=${PIPESTATUS[0]}
+      : > "$tree/.proof-said"
+      for side in $sides; do
+          if [ "$side" = head ]; then at=$PWD more=; else at=$tree more=--continue-on-collection-errors; fi
+          PROOF_AT=$at PROOF_MORE=$more PROOF_SIDE=$side PROOF_OUT=$tree/.proof-$side PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- bash -c '
+              cd "$PROOF_AT" || exit
+              workers=
+              if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n auto --dist worksteal"; fi
+              env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $PROOF_MORE $PROOF_TESTS > "$PROOF_OUT" 2>&1
+              echo "$PROOF_SIDE exit $?: $(tail -n 1 "$PROOF_OUT")"
+          ' | tee -a "$tree/.proof-said"
+          ran=${PIPESTATUS[0]}
+          [ "$ran" = 0 ] || break
+      done
       at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
       at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
       line=
@@ -144,6 +150,7 @@
   ```
 
   The head's tests run at the head, then laid over a copy of the base's files with a venv of its own, so the base run imports the base's code and not the head's.
+  The head run and the base run each take a short slot of their own, so each has the lane's whole time limit, and each runs on pytest's workers (`-n auto --dist worksteal`) where the tree's venv has pytest-xdist, on one process where it has not.
   The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
   The copy stays in the temp directory, as scratch does.
@@ -153,7 +160,7 @@
   For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`.
   `jmerge` takes that line only where every file the pull request changes is such a file and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
-  A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit: lay over fewer tests, and run it again.
+  A slot run that ends 76 is a wait for a slot, as in "test slots"; one that ends 124 hit the lane's time limit in the head run or the base run, and the run after it does not start: lay over fewer tests, and run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
   On anything else, fix the tests until they fail without the change, commit, and run it again.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.

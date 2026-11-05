@@ -144,6 +144,8 @@ The section "Protected paths" describes one more hold.
   A decline that says `because .` is not an answer.
   jbus's `expedite` tells the crew about each of these waits, with the ids.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
+  It has no review, so `--accept` asks it for no proven safety fact and no range-diff from a reviewed head: your word stands in for both.
+  Every other rule still holds: green checks, a protected path's door, and `merge-off`.
 - A brief that says `Review: cleanup` is the day's warnings row, which only jbus files (`jbus.daywarnings`), and it gets one review, of its own diff.
   Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
@@ -505,7 +507,7 @@ The typed form, `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zo
 
 It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
-It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head.
+It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
 
 **A proven safety fact.**
 At the commit it saw, the review proved the one fact that makes the change safe.

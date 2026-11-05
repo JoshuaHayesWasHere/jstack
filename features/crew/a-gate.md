@@ -1,6 +1,6 @@
 A question only the user can answer does not wait.
 A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in.
-The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
+The one exception is a default that is irreversible or slow to revert, one of the cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
 Do not act on that one.
 Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer.
 Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept.
