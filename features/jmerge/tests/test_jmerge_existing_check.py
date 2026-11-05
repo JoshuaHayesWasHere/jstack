@@ -13,8 +13,8 @@ with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it s
 import pytest
 
 from jmerge import ready, treeguards
-from test_jmerge_fresh import LINES, Kitchen, asked, url
 from test_jmerge_cli_merged_tree import MAKEFILE, fails, runs
+from test_jmerge_fresh import LINES, Kitchen, asked, url
 
 
 @pytest.fixture
