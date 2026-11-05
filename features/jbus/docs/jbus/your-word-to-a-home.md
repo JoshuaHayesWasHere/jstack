@@ -56,6 +56,10 @@ A word that names the work of two homes goes to the root home.
 A word that names none goes to the home it was said in (the thread of `--message`) or recorded by (`--from`), so a scoped home's own word stays in that scope, and otherwise to the root home.
 A home that records a word about another home's work with `--from` forwards it to that home, and the command prints `sent: <project>, to the <scope> home at <thread>, word <id>`.
 
+A word whose slugs decide no home and that ends `[for: ...]` naming scoped homes of the project, each by its name or as `<scope> home`, such as `[for: cicd home, docs home]`, goes to each of those homes in place of one, from the bot's chat or from a T3 message.
+It is kept once for each scope, as `--scope` keeps it (below), and sent to each one's thread, and the command prints a line for each home, in the order named.
+A `[for: ...]` that also names a row's or a brief's slug keeps that slug's routing, and a name that is neither a scope nor a slug is passed over.
+
 A home is not told a word it recorded itself.
 A word said in the home's own thread (`--message` whose thread is the one in that project's `home-id`), or recorded by it (`--from <thread id>`, since no environment variable names the calling thread), is kept with `thread` and `sent_at` set and `skipped` saying why, and the command and the pass post no message for it.
 It prints `kept: <project>, not posted, <why>, word <id>`.

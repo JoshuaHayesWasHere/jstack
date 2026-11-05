@@ -37,7 +37,11 @@ def homes(kitchen):
 
 def kept(kitchen):
     """The home each word act is for, by the order jbus kept them."""
-    return [one["action"]["subject"] for one in acts.read(kitchen.state) if one["action"]["verb"] == "word"]
+    return [
+        one["action"]["subject"]
+        for one in acts.read(kitchen.state)
+        if one["action"]["verb"] == "word"
+    ]
 
 
 def to(kitchen):
@@ -68,7 +72,9 @@ def test_jbus_word_for_two_scoped_homes_goes_to_each_and_not_to_the_root(kitchen
     assert kept(kitchen) == ["cicd", "docs"]
     assert sorted(to(kitchen)) == [CICD, DOCS]
     code, again = kitchen.main(*argv)
-    assert code == 0 and all(one.startswith("already sent: demo, to the ") for one in again.splitlines())
+    assert code == 0 and all(
+        one.startswith("already sent: demo, to the ") for one in again.splitlines()
+    )
     kitchen.poll()
     assert kept(kitchen) == ["cicd", "docs"] and sorted(to(kitchen)) == [CICD, DOCS]
 
@@ -83,8 +89,15 @@ def test_a_word_for_a_slug_beside_a_scope_keeps_its_slug_routing(kitchen):
 
 def test_a_name_that_is_no_scope_and_no_slug_changes_nothing(kitchen):
     code, out = kitchen.main(
-        "word", "--to", "demo", "--evidence", CHAT, "--words", "go [for: ops home]",
-        "--answers", ASKED,
+        "word",
+        "--to",
+        "demo",
+        "--evidence",
+        CHAT,
+        "--words",
+        "go [for: ops home]",
+        "--answers",
+        ASKED,
     )
     assert code == 0, out
     assert kept(kitchen) == [""] and to(kitchen) == [ROOT]
