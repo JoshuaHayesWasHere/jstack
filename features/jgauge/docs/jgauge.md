@@ -216,18 +216,15 @@ For a span with no rows, the report prints that last part only when both `--sinc
 Then, when the slot log exists, the report prints the test slots over the span ("The slot log"), from `--since` or the first take, to `--until` or now.
 For each lane it prints:
 
-- the holds taken in the span, and how many of them are lost: a take with no release whose holder is gone
+- the holds taken in the span, and how many of them are lost: a take with no release whose holder is gone, which counts nothing, while one still running counts to the end of the span
 - the mean occupancy, the slot-seconds held in the span over its length, out of the lane's slots
 - Little's law from the same holds, the takes per second times the mean hold, which a span that cuts few holds keeps near the mean occupancy
 - the wait in the call, p50 and p90, of the holds taken in the span
 - when a thread of the lane waited for a slot in the span, by jbus's `slot-wake` events, the mean occupancy over the time it waited, and its share of the lane's slots
 
-A hold still running counts to the end of the span, and a lost one counts nothing.
-
 ### The slot log
 
-`jgauge test-slot` appends one JSON row to `jgauge/slots.jsonl` beside the lock files' directory, `~/.local/state/jgauge/slots.jsonl`, each time it takes a slot and each time it lets one go, in both lanes.
-With `JGAUGE_LOCKS_DIR` set, the log moves with the lock files.
+`jgauge test-slot` appends one JSON row to `jgauge/slots.jsonl` beside the lock files' directory, `~/.local/state/jgauge/slots.jsonl`, each time it takes a slot and each time it lets one go, in both lanes, and it moves with the lock files when `JGAUGE_LOCKS_DIR` is set.
 A run with `--thread` that finds no slot and registers as a waiter takes nothing and writes no row.
 Each row has:
 
