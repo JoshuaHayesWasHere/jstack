@@ -548,7 +548,8 @@ def reviews(day):
     - #1041 (green at 19:09:28Z): one review at 19:10Z, 4 minutes;
     - #1043 (green at 19:31:46Z): one review at 19:35Z, 2 minutes;
     - a review of a slug whose brief names no pull request, and one of another T3 project;
-    - on 11-02, a review of a slug whose brief names #99999, which the ledger does not hold.
+    - on 11-02, a review of a slug whose brief names #99999, which the ledger does not hold, and
+      one of a slug with no brief.
     """
     store = day.store()
     us, them = day.project, "another-project"
@@ -564,7 +565,9 @@ def reviews(day):
     store.run("review: no-pull, 1", "2026-11-04T20:00:00Z", "2026-11-04T20:09:00Z", 9, 9, us)
     store.run(pair, "2026-11-04T19:10:00Z", "2026-11-04T19:59:00Z", 9_000_000, 90_000, them)
     gone = "review: gone-pull, 1"
-    store.run(gone, "2026-11-02T15:00:00Z", "2026-11-02T15:03:00Z", 100_000, 1_000, us)
+    store.run(gone, "2026-11-02T15:00:00Z", "2026-11-02T15:03:00Z", 2_000_000, 1_000, us)
+    unbriefed = "review: no-brief, 1"
+    store.run(unbriefed, "2026-11-02T16:00:00Z", "2026-11-02T16:01:00Z", 9, 9, us)
     day.task("cicd-pstack-pins", PULL.format(1038), "none")
     day.task("cicd-macos-pair-reuse", PULL.format(1041))
     day.task("cicd-ci-health-numbers", PULL.format(1043))
@@ -596,15 +599,17 @@ def test_ci_day_gives_the_review_steps_launches_tokens_and_active_wall_per_pull_
 def test_ci_day_counts_the_review_launches_before_check_passed_at_the_newest_head(day):
     """Of the 4 launches on 11-04 joined to a pull request, only #1038's first came before
     `check` was green at its newest head. On 11-02 the one launch's pull request has no `check`
-    in the ledger, so it is not counted either way."""
+    in the ledger, so it is not counted either way, and a launch of a slug with no brief is a
+    launch alone."""
     reviews(day)
     found = by_day(day.run()[2])
     before = "review launches before check"
     assert (found[before]["11-04"], found[f"{before} n"]["11-04"]) == ("1", "4 launches")
     assert (found["review launches"]["11-02"], found["review launches n"]["11-02"]) == (
-        "1",
+        "2",
         "1 PRs",
     )
+    assert found["review input tokens per PR p50"]["11-02"] == "2M"
     assert (found[before]["11-02"], found[f"{before} n"]["11-02"]) == ("no data", "0 launches")
 
 
@@ -614,3 +619,12 @@ def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_is_not_t
     assert f"T3 Code's store was not read: {spend.STORE} is not T3 Code's store" in text
     assert set(by_day(text)["review launches"].values()) == {"no data"}
     assert by_day(text)["red share"]["11-03"] == "62%"
+
+
+def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_cannot_be_read(day):
+    spend.STORE.parent.mkdir(parents=True, exist_ok=True)
+    spend.STORE.write_text("not a database")
+    code, said, text = day.run()
+    assert code == 0, said
+    assert f"T3 Code's store was not read: {spend.STORE} cannot be read: " in text
+    assert set(by_day(text)["review launches"].values()) == {"no data"}
