@@ -1,8 +1,8 @@
 """Each agent call with its session's thread, project, role and slug, the reasoning `effort` its
-transcript named (NULL where it named none, as a Codex call's and a Claude call's before Claude
-Code 2.1.303), its spend in `jgauge spend`'s units (`jbus.telemetry.schema.UNITS`), and its
-estimated dollars at `jgauge.spend`'s price table (`jbus.telemetry.schema.DOLLARS`), NULL for a
-model the table does not price."""
+transcript named (NULL where it named none, as a Codex call's and one an older agent wrote),
+its spend in `jgauge spend`'s units (`jbus.telemetry.schema.UNITS`), and its estimated dollars
+at `jgauge.spend`'s price table (`jbus.telemetry.schema.DOLLARS`), NULL for a model the table
+does not price."""
 
 from jbus.telemetry.schema import DOLLARS, UNITS
 
