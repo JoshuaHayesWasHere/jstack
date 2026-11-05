@@ -9,8 +9,8 @@
   The check of the change never runs in the short lane: it always runs in a full test slot.
 
   `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
-  With `--thread` the call waits for no slot.
-  When every slot of the lane is taken it registers this thread as a waiter, prints one line saying so, and ends 76.
+  With `--thread` the call waits in the call for a short slot for up to the lane's time limit, and waits for no full slot.
+  When every slot of the lane is still taken by then it registers this thread as a waiter, prints one line saying so, and ends 76.
   Then end your turn at once, with one line: `Waiting on a test slot: jbus will wake this thread when one is free.`
   Never poll for a slot, never loop on the call, never wait in a background job, and never end the turn with nothing said: `jbus poll` sends this thread one message when a slot of the lane is free, and that message is the wake.
   On it, run the same command again.

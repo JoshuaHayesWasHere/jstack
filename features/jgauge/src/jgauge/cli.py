@@ -442,8 +442,9 @@ def parser() -> argparse.ArgumentParser:
         "--thread",
         metavar="ID",
         default="",
-        help="this thread's id: wait for no slot, and with every one taken register as a waiter"
-        f" jbus wakes when one is free, and end {slot.WAITING}",
+        help="this thread's id: in the full lane wait for no slot, and in the short lane wait up"
+        f" to {slot.SHORT_WAIT_SECONDS:g} s in the call; with every one still taken, register as"
+        f" a waiter jbus wakes when one is free, and end {slot.WAITING}",
     )
     held.add_argument(
         "--waiters", action="store_true", help="print the threads that wait on a slot, and end"
