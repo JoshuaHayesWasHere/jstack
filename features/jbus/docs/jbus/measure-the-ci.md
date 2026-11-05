@@ -94,13 +94,20 @@ A run that fails shows in `journalctl --user -u jbus-ci` on Linux, and in `~/Lib
 
 ### The day's report
 
-`jbus --project <name> ci --day` writes `reports/ci-day-<date>.md` in the project's home, and nothing else.
+`jbus --project <name> ci --day` writes `reports/ci-day-<date>.md` in the project's home, and then checks main's live ruleset.
 `jbus-ci-day.timer` runs `jbus-ci-day.service` every day at 06:45 in the machine's own zone, with `Persistent=true`, and the service runs `jbus ci --day --each` for each project whose table says `ci_report = true`.
 The install enables the timer only while a project asks, as it does `jbus-ci.timer`.
 `--day` collects nothing and starts no CI job: every number but main-red comes from the ledger the passes keep, `ci.jsonl` and `ci-prs.jsonl`, and the rows that merged come from `transitions.jsonl`.
 Main-red comes from one call, `gh run list -R <repo> --workflow check.yml --branch main --event push --limit 400 --json conclusion,status,createdAt,updatedAt,headSha`, the only call `--day` makes to GitHub.
 Where that call fails, main-red reads `no data`, the report says why, and the rest of the report is written as usual.
 `--day` with `--report` is refused.
+
+The ruleset check (`jbus.ci.ruleset`) reads the ruleset GitHub holds main to with one more call, `gh api repos/<repo>/rulesets/25665226`.
+It compares the ruleset's `rules` with `features/repo-guards/main-ruleset.json` in the project's checkout, and its required status checks with the home's `required-checks`, which jmerge waits for.
+Where they differ, it tells the home one line that names each difference, such as `it lacks macos of required-checks`, raised once for the day.
+Where they agree, it prints `no drift`.
+A checkout with no `main-ruleset.json` is not checked and costs no call, and a ruleset `gh` does not give is printed and tells no one.
+It runs here and not in `make check`, so no pull request's check reads GitHub for it.
 
 This is the one definition of the numbers the report gives, and `jbus.ci.daily` counts by it.
 The figures the cicd plan started from, 64% red and 5.6 shas per pull request, came from a UTC day and from grouping `gh` runs by branch, and they stay as history, not as the baseline.

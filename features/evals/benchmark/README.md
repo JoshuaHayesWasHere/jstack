@@ -6,6 +6,8 @@ This folder holds three parts: the records reader, the replay, and the home star
 The verdict rules are the request's, fixed before any number was read, and they do not change to fit a result.
 This folder measures, and the verdicts are read from what it prints.
 
+The lab, `features/evals/lab/lab.py`, runs the records reader and the replay with no `--spend`, beside the KPI backtest, on a pinned copy of the telemetry store: `uv run --script features/evals/lab/lab.py --help` says how.
+
 ## The records reader
 
 It reads what is on disk and calls no model, so it costs nothing to run.
@@ -24,6 +26,9 @@ It prints, over `--days` (default 7) and `--churn-days` (default 90):
 - Each module's fix share, flagged `OVER-BUILT` above 0.5.
 - The size of the skills' sh blocks at each commit.
 - The upkeep ledger: each duty's fix share over `--churn-days`, and its commits and cost over `--days`.
+
+Each window ends at `--until`, a UTC time such as `2026-11-03T01:37:48Z` (default now), and starts `--days` or `--churn-days` before it.
+The `--json` names that end as `until`, and no time of the run itself, so two runs with one `--until` over records that did not change write the same file.
 
 Every path comes from `--home` (default `$HOME`), `--project` (default `jstack`) and `--repo` (default this checkout).
 A record that is not on disk counts as empty, and stderr names it, as it does a model the prices do not have, which counts as $0.

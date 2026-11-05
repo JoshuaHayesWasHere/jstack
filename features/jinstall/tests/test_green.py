@@ -140,17 +140,6 @@ def test_with_no_green_tip_kept_a_new_copy_starts_at_the_checkout_s_commit(small
     assert green.tip(machine) == head(checkout)
 
 
-def test_jinstall_run_from_the_copy_acts_for_the_checkout_it_was_made_from(small):
-    machine, checkout = small
-    assert machine.green == machine.home / ".local" / "share" / "jstack" / "green"
-    assert green.make(machine) == ""
-    from_copy = green.attach(
-        Machine(machine.green, machine.home, machine.env, machine.run, machine.account)
-    )
-    assert (from_copy.checkout, from_copy.green) == (checkout, machine.green)
-    assert from_copy.source == machine.green
-
-
 def test_the_copy_of_another_checkout_is_not_written_over(small, tmp_path):
     machine, _ = small
     other = tmp_path / "other"

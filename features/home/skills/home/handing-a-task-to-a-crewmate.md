@@ -23,7 +23,7 @@
 
    A brief with no line, or with any other word, an old `after` included, counts as `review`.
    `Review: cleanup` is the day's warnings row's alone, which jbus files: `jbus queue add` refuses it on a brief the home writes.
-   With `none` the crewmate launches no reviewer and the home never merges the pull request by itself: it waits for the user's word.
+   With `none` the crewmate launches no reviewer, and `jmerge` holds the pull request for the user's word.
    No reviewer runs a test step or a suite: the one run of the check command is the crewmate's.
 
    A brief is checked when it is queued, not when it launches.

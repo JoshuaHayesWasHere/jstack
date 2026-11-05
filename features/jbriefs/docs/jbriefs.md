@@ -2,7 +2,8 @@
 
 `jbriefs` shows you, on one HTML page, what every home on this machine is doing: each repo's open plan entries and every brief with its result.
 Where an earlier home left a `handoff.md`, the page also shows its `Next` and `Open decisions` sections.
-It reads only the files under `~/.local/state/home/`, and asks neither T3 Code nor GitHub.
+The page reads only the files under `~/.local/state/home/`, and asks neither T3 Code nor GitHub.
+Two other modes read jbus: `--propose` asks `jbus queue verify` whether the brief has a go, and `--runnable` reads jbus's state for the project's queue.
 The crew, scout and pr-review skills also run it to read a brief's skills and findings.
 
 ## See every home's work
@@ -20,11 +21,29 @@ To write the page somewhere else, run `jbriefs --out <path>`.
 | `state` | The directory that holds one home per repo. Defaults to `~/.local/state/home`. |
 | `--out <path>` | Where to write the page. Defaults to `$XDG_CACHE_HOME/jbriefs/briefs.html`, or `~/.cache/jbriefs/briefs.html`. |
 | `--skills-run <brief>` | Writes no page. Prints the artifact the brief's Results hold under `Skills run:` for each skill its `Skills:` line names, as `jmerge` reads it, or `- <name>: no artifact`. The pr-review skill puts this output in the intent it gives the reviewer. |
-| `--findings <brief>` | Writes no page. Prints the findings of every `## Review` section of the brief as one triaged list, the same on every run. Each finding has its id (`F1`, `F2`, ...), its bucket, severity, place and principle, the reviewers that raised it, and the head. It also has the answer the finding has by id, and whether that answer counts, and a blocking finding has its `proof:`, or `none`, where a decline of it needs no cited reason. A blocking decline that a scoped pass of an older brief ruled on also has that ruling, `upheld` or `not upheld`, with the disproof: one round rules on no decline. A finding of a review after the first that is not the crew's says where it goes: a warning to the day's warnings row once the pull request merged (`jbus.daywarnings`), and an info nowhere, since only an error of such a review goes to the crew. When another reviewer wrote a dismissal of the same place, the list prints it beside the finding it contradicts. The last line, `next:`, says what the crew does next. With `--left` it prints only what that line says, with no `next:`, and the crew skill reads it. With `--rounds` it prints how many sections ran, the head the last one saw, and every head a section names (`jbriefs.cli.rounds`). The crew skill's "A second pass" reads that output. `features/jbriefs/src/jbriefs/findings.py` is the one parser of findings and answers. `jmerge`, the crew skill and jbus's `expedite` read briefs through it. |
+| `--findings <brief>` | Writes no page. Prints the findings of every `## Review` section of the brief as one triaged list, the same on every run, with `--left` and `--rounds` as [The findings list](#the-findings-list) says. |
 | `--meets <brief>` | Writes no page. Prints what the last round of the brief's review says of the brief, as `jmerge` reads it, in four fields: `yes`, `no`, `unread` (a section of the round has no `Meets the brief:` line of the template's shape), `miscounted` (its count is not the brief's) or `none` (no review that ran, `Review: none`, or no `Done when` list), then the lines met (`-` where none was read), the brief's count of `Done when` lines, and the head (`-` for none). The crew skill's "A second pass" reads it, and pr-review gives the count to the reviewer. `features/jbriefs/src/jbriefs/meets.py` is the one parser of the line and the one rule `jmerge` reads it by. |
 | `--propose <brief>` | Writes no page. Prints one proposal for each `Done when` item of the brief that runs nothing (`jbriefs.runnable.runs`), `<n>. <kind>: <the item with its check>`, each one for which `runs` is then true. The kind is `test` (a `uv run pytest -q` path the crew writes or renames), `run` (a `jbus`, `jmerge` or `jgauge` verb that only reads), `drive` (a verb of theirs that writes, as a verify-jstack drive, never in backticks), `grep` (an `rg` of a symbol it names, which shows text and not behaviour) or `judged` (`judged: <why>`). It refuses a brief whose go holds, for the file given or for the brief jbus keeps, since a new `Done when` voids a go: it asks `jbus queue verify`, and a row the queue does not have has no go. `features/jbriefs/src/jbriefs/propose.py` holds the rules. |
 | `--runnable` | Writes no page. Prints how many `Done when` items of the stored briefs of the queue's rows run something, on rows of the statuses `--status` names with commas (default `queued,running,pr`), in the jbus project `--project` names (default: the repo's name). |
 | `--skills <brief>` | Writes no page. Prints in full each skill or principle the brief's `Skills:` line names, under a line `loaded: <names>`, then the artifact each owes under `Skills run:` in the Result (`features/skill-library/templates/skill-artifacts.md`). A name it does not resolve gets a line `unknown skill: <name> ...`. The crew and scout skills run it at their start. |
+
+## The findings list
+
+`jbriefs --findings <brief>` prints the findings of every `## Review` section of the brief as one triaged list, the same on every run.
+Each finding has its id (`F1`, `F2`, ...), its bucket, severity, place and principle, the reviewers that raised it, and the head.
+It also has the answer the finding has by id, and whether that answer counts.
+A blocking finding has its `proof:`, or `none`, where a decline of it needs no cited reason.
+A blocking decline that a scoped pass of an older brief ruled on also has that ruling, `upheld` or `not upheld`, with the disproof: one round rules on no decline.
+A finding of a review after the first that is not the crew's says where it goes: a warning to the day's warnings row once the pull request merged (`jbus.daywarnings`), and an info nowhere, since only an error of such a review goes to the crew.
+When another reviewer wrote a dismissal of the same place, the list prints it beside the finding it contradicts.
+The last line, `next:`, says what the crew does next.
+
+With `--left` it prints only what that line says, with no `next:`, and the crew skill reads it.
+With `--rounds` it prints how many sections ran, the head the last one saw, and every head a section names (`jbriefs.cli.rounds`).
+The crew skill's "A second pass" reads that output.
+
+`features/jbriefs/src/jbriefs/findings.py` is the one parser of findings and answers.
+`jmerge`, the crew skill and jbus's `expedite` read briefs through it.
 
 ## `jbriefs pick`
 
@@ -82,7 +101,7 @@ The canonical form of a principle is its directory under `features/principles/sk
 Three aliases resolve too:
 
 - an item's `pstack_name` in `skills.json`, where pstack names the item otherwise
-- a principle's name from before it took pstack's prefix, such as `model-the-domain`
+- a principle's name without its `principle-` prefix, such as `model-the-domain`
 - `arena` and `swarm`, pstack skills that jstack keeps as playbooks
 
 A brief uses the canonical form, which the resolver finds on its first lookup: `principle-build-the-lever`, not `build-the-lever`.

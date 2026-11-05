@@ -77,7 +77,8 @@ From one run that sees it wait to the next, the wait is the code of the reason t
 `merge-waits.json` keeps the waits of the open pull requests between runs, and `--check` writes neither file.
 
 A pull request that waits does not make `jmerge` exit non-zero.
-`jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, or when it refuses an `--accept`.
+`jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, when it refuses an `--accept`, or when it cannot read the protected list or a pattern in it.
+With `--if-free` it exits 75 while another run holds the run lock (`lock.BUSY`).
 
 ## What ready means
 
@@ -143,6 +144,8 @@ The section "Protected paths" describes one more hold.
   A decline that says `because .` is not an answer.
   jbus's `expedite` tells the crew about each of these waits, with the ids.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
+  It has no review, so `--accept` asks it for no proven safety fact and no range-diff from a reviewed head: your word stands in for both.
+  Every other rule still holds: green checks, a protected path's door, and `merge-off`.
 - A brief that says `Review: cleanup` is the day's warnings row, which only jbus files (`jbus.daywarnings`), and it gets one review, of its own diff.
   Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
@@ -325,7 +328,9 @@ GitHub refuses to rerun a run it has not ended, and a cancel can leave it queued
 The restart is spent only once its close and its reopen both took.
 `base-merges.json` keeps each step on the head's record (`stuck`) as it takes: the first try (`asked`) before the close, with the reopen owed, then `closed`, then `took`, so a run that stops between two steps leaves a record the next run goes on from.
 A close that failed is tried again on each run, and once `ready.RESTART_MINUTES` (10 minutes) have passed since the first try, the pull request gives up the line and waits with `QUEUED_UNRESTARTED`, `GitHub queued its <check> run at <head> and started none, and jmerge could not close and reopen it in 10 minutes of tries (<why>): it gave the head of the line to the next pull request`.
+While the close is still being tried, the wait is `QUEUED_UNCLOSED`, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge could not close and reopen it to start a new run (<why>)`.
 A reopen that failed is owed, and `rejudge.BaseMerge.reopen` asks it again on each run for the same `ready.RESTART_MINUTES` from the first try, and then asks it no more (`unopened`): the pull request holds the line no more, and on each run `jmerge` says `QUEUED_UNREOPENED`, `GitHub queued its <check> run at <head> and started none: jmerge closed it to start a new run, and its reopen failed for 10 minutes of tries (<why>), so it asks no more and the pull request stays closed until a hand reopens it`, until GitHub lists it open again.
+While the reopen is still being asked, the wait is `QUEUED_UNOPENED`, `GitHub queued its <check> run at <head> <n> minutes ago and started none: jmerge closed it to start a new run, and its reopen failed (<why>), which the next run asks again`.
 One whose owed reopen took on a later run holds the line no more either, for another took it while it was closed.
 Once a restart took, the pull request keeps the line for `ready.RESTART_MINUTES`, since GitHub lists the new run within seconds of the reopen and a run of `jmerge` in the same minute still sees the old one.
 Where GitHub then lists no newer run, or the newer one is queued for `ready.QUEUED_MINUTES` too, the pull request gives up the line and waits with `GitHub queued its <check> run at <head> again after jmerge closed and reopened it, and started none in 30 minutes: it gave the head of the line to the next pull request` while that run stays queued.
@@ -346,7 +351,7 @@ Nothing pushes a `refs/jstack/green-tree/` ref, and nothing reads one: main's `f
 ## The guards on the merged tree
 
 Two pull requests can each pass their check alone and break main together, as #923 and #935 did with two `v007_` files.
-The clash shows on the tree of one merged over the other, so `jmerge` checks that tree before it merges a pull request on its existing check (`features/jmerge/src/jmerge/treeguards.py`).
+The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
 jstack's is `make check-fast PART=guards`: the lint and the guard tests a desk runs first, 385 s in one run on 2026-11-04.
 A repo with no such file runs no guards, and a pull request whose check main moved past goes through the line ("Merges cleanly over today's main").
@@ -502,7 +507,7 @@ The typed form, `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zo
 
 It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
-It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head.
+It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head, unless its brief says `Review: none`.
 
 **A proven safety fact.**
 At the commit it saw, the review proved the one fact that makes the change safe.

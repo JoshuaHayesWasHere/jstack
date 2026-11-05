@@ -82,7 +82,7 @@ Open `multi-phase-plan` with the block of "A playbook of the home's own" in `ski
 - Each brief's `Decisions:` line also says that no step starts a subagent: a playbook step that would, such as `playbooks/feature.md` step 4, is a `skip:`, and its work is done in the crewmate's own thread.
 
 Before a brief is queued, run this with the block at the top and the briefs' slugs in place of the words in angle brackets.
-It runs the brief lint that `jbus queue add` runs, and reads the `Skills:` line as the crew skill loads it:
+It runs the field checks (`jbriefs.parse.faults`) of the brief lint that `jbus queue add` runs, and reads the `Skills:` line as the crew skill loads it:
 
 ```sh
 slugs='<the slugs>'

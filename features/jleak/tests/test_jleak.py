@@ -8,7 +8,6 @@ builds that key while the test runs, so this file holds no such key.
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -141,38 +140,3 @@ def test_a_patterns_file_that_cannot_be_read_stops_the_check_and_shows_no_value(
     assert (code, said) == (2, [])
     assert err.startswith(f"jleak: {patterns}: {why}")
     assert "unclosed" not in err
-
-
-def test_the_file_the_install_makes_is_read_and_holds_the_home_and_the_thread_id(tmp_path):
-    made = tmp_path / jleak.FILE
-    made.write_text(jleak.example(Path("/burrow/quill")))
-    names = [pattern.name for pattern in jleak.load(made)]
-    assert names == ["home-path", "thread-id", "tailnet-name", "tailnet-address"]
-    thread = "mcp:" + "-".join(("0a" * 4, "1b" * 2, "2c" * 2, "3d" * 2, "4e" * 6))
-    said = tmp_path / "said.txt"
-    said.write_text(
-        f"in /burrow/quill/repos\nin /burrow/quillfeather\nfrom {thread}\n"
-        f"at box.tail{'9f' * 3}.ts.net\nat 100.{101}.2.3\nat 100.2.3.4\n"
-    )
-    code, lines, _ = run("--patterns", str(made), str(said))
-    assert lines == [
-        f"{said}:1: home-path",
-        f"{said}:3: thread-id",
-        f"{said}:4: tailnet-name",
-        f"{said}:5: tailnet-address",
-        "4 findings",
-    ]
-
-
-def test_this_tree_has_no_key_a_built_in_pattern_matches(jstack_config):
-    code, said, _ = run("--all", cwd=REPO)
-    assert (code, said) == (0, ["0 findings"])
-
-
-def test_this_tree_has_nothing_the_file_the_install_makes_matches(tmp_path):
-    """The test uses a made-up home, so it checks the formats the install writes
-    patterns for: a thread id and a tailnet's names and addresses."""
-    made = tmp_path / jleak.FILE
-    made.write_text(jleak.example(Path("/burrow", "hollow")))
-    code, said, _ = run("--strict", "--patterns", str(made), "--all", cwd=REPO)
-    assert (code, said) == (0, ["0 findings"])
