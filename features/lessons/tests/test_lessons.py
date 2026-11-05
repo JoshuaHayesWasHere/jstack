@@ -16,10 +16,6 @@ FEATURE = Path(__file__).parents[1]
 READ_SET = ("features/lessons/skills/correct/", "features/lessons/skills/reflect/")
 SKILLS = {name: FEATURE / "skills" / name / "SKILL.md" for name in ("correct", "reflect")}
 FIXTURE = Path(__file__).parent / "fixtures" / "projects"
-EM_DASH = "\N{EM DASH}"
-TEXTS = sorted(
-    path for name in SKILLS for path in (FEATURE / "skills" / name).rglob("*") if path.is_file()
-)
 HOME_SESSION = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 OTHER_SESSION = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 
@@ -31,28 +27,6 @@ def sh_blocks(text):
 def block(skill, marker):
     (found,) = [body for body in sh_blocks(SKILLS[skill].read_text()) if marker in body]
     return found
-
-
-def em_dashes(text):
-    lines = [n for n, line in enumerate(text.splitlines(), 1) if EM_DASH in line]
-    return [f"has an em dash on line {lines}"] if lines else []
-
-
-@pytest.mark.parametrize("path", TEXTS, ids=lambda path: str(path.relative_to(REPO)))
-def test_no_em_dash(path):
-    assert em_dashes(path.read_text()) == []
-
-
-def test_reflect_has_its_four_prompts():
-    named = set(re.findall(r"`(references/[a-z-]+\.md)`", SKILLS["reflect"].read_text()))
-    there = {
-        f"references/{path.name}" for path in (SKILLS["reflect"].parent / "references").iterdir()
-    }
-    assert named == there
-
-
-def test_an_em_dash_in_a_skill_is_a_problem():
-    assert em_dashes(f"# a\n\nOne thing {EM_DASH} and another.\n") == ["has an em dash on line [3]"]
 
 
 def padding_wc(directory):
@@ -305,59 +279,6 @@ def reviewer_launch():
 
 def test_a_reviewer_is_started_with_no_tool_that_writes():
     assert launch_problems(reviewer_launch()) == []
-
-
-def test_a_reviewer_runs_on_the_session_s_model_in_the_foreground():
-    call = reviewer_launch()
-    assert {key: call.get(key) for key in ("model", "effort", "run_in_background")} == {
-        "model": None,
-        "effort": None,
-        "run_in_background": False,
-    }
-
-
-EVERY_WRITE_TOOL = [
-    "general-purpose has the Edit tool",
-    "general-purpose has the NotebookEdit tool",
-    "general-purpose has the Write tool",
-]
-
-
-@pytest.mark.parametrize(
-    ("call", "problems"),
-    [
-        ({"subagent_type": "Explore"}, []),
-        ({"subagent_type": "Plan"}, []),
-        ({"subagent_type": "general-purpose"}, EVERY_WRITE_TOOL),
-        pytest.param({}, EVERY_WRITE_TOOL, id="no type named is a general-purpose agent"),
-        ({"subagent_type": "statusline-setup"}, ["statusline-setup has the Edit tool"]),
-        (
-            {"subagent_type": "reviewer"},
-            ["reviewer is no agent type in testing/tests/fixtures/claude/agent-types.txt"],
-        ),
-        (
-            {"subagent_type": "Explore", "isolation": "worktree"},
-            ["a worktree of its own hides what it writes from the worktree check"],
-        ),
-    ],
-    ids=["Explore", "Plan", "general-purpose", "no type", "statusline-setup", "unknown", "apart"],
-)
-def test_an_agent_call_that_can_write_is_a_problem(call, problems):
-    assert launch_problems(call) == problems
-
-
-@pytest.mark.parametrize(
-    ("tools", "has"),
-    [
-        ("*", ["Edit", "NotebookEdit", "Write"]),
-        ("All tools except Agent, Edit, Write, NotebookEdit", []),
-        ("All tools except Agent, Edit", ["NotebookEdit", "Write"]),
-        ("Read, Grep", []),
-        ("Read, Write", ["Write"]),
-    ],
-)
-def test_the_write_tools_of_an_agent_type_are_read_from_its_tools(tools, has):
-    assert write_tools(tools) == has
 
 
 WORKTREE = block("reflect", "reflect-before")

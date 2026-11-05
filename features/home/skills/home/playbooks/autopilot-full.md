@@ -42,7 +42,8 @@ Each section named below is in `skills/home/SKILL.md`.
 Never done here, and who does it:
 
 - **Merging by hand, or having a crewmate merge its own pull request.** `jmerge` does, on review, fix and green. What is short of that waits for the user's word.
-- **A swarm of verifiers, live lanes, or a second reviewer on another model.** Nobody does: one review a pull request, and a second pass only where the crew skill's block asks for one.
+- **A swarm of verifiers or live lanes.**
+  Nobody does: one review from each reviewer the role map names, and a second pass only where the crew skill's block asks for one.
 - **Raising a limit or a budget a check enforces.** The user does: park it as a gate, with the default that the limit stays.
 - **A rebase, a fix or a push from the home.** The crewmate that owns the pull request does, on its own wakes.
 - **A watch loop, or a schedule.**

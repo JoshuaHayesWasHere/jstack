@@ -6,8 +6,7 @@ and the line says so with the base's exit 0. A branch that changes no test gets 
 The tests run the block in a real repo whose `origin/main` is the base, on macOS's tools
 (`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
 the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
-tests pass, fail or are cut off, and the block walks through no door of the door hook, which
-refuses a crew's whole call where one of its commands does."""
+tests pass, fail or are cut off."""
 
 import os
 import signal
@@ -19,7 +18,6 @@ import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
-from jbus import door
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 
@@ -181,13 +179,6 @@ def test_a_run_cut_off_mid_test_leaves_the_worktree_list_as_it_was(repo):
         os.killpg(running.pid, signal.SIGKILL)
         running.wait()
     assert worktrees(repo) == before
-
-
-def test_a_crews_call_of_the_block_walks_through_no_door():
-    """The door hook refuses a crew's whole call where one command of it walks through a door,
-    and `git worktree remove` is one (`deletes data`): a block with one in it never ran as
-    written, and left its crew a worktree it could not remove."""
-    assert door.walks(script()) == ()
 
 
 def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):

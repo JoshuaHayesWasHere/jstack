@@ -11,5 +11,6 @@
 | `alert: health relay silent: ...` | No body reached the relay in `RELAY_SILENT_MINUTES`. | See whether passes run (`jbus status`) and post to the relay's port. |
 | `alert: health relay errors: ...` | Your chat bot's webhook or the pager has refused the relay's POSTs for 10 minutes. | The relay's journal, or `~/Library/Logs/jstack/jstack.jbus-relay.log` on macOS, names the target and the status. |
 | `alert: health relay refused: ...` | A target refused a body permanently, and the relay will not send it again. | Read the body in the `dead/` file the line names, and mend what the target refused. |
+| `alert: health quota <instance> seven_day: <n>% of the seven_day window used, resets <time>` | The instance has used 80% or more of its weekly window. Only the weekly window alerts before it is full. | Nothing yet. At 100% the instance is capped, as the next row says. |
 | `alert: health capped <instance>: ...` | The instance is at 100% of a window, and launches skip it until the reset. | Nothing. Launches resume by themselves, and `recovered: ... launches on <instance> resume` says so. |
 | `?    health <check>: ... could not be read` | The source of the check did not answer. | Run the command it reads (`journalctl`, `systemctl --user show`, or `launchctl print` on macOS) by hand. |
