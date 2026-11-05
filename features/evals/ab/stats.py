@@ -123,6 +123,9 @@ def verdict(
     """The rule for one family. Each arm maps a task to its trials' scores; a task's score is
     the mean of its trials, and the arms are paired by task.
 
+    - `inconclusive: underpowered` when the family has fewer than two tasks: a bootstrap of one
+      difference resamples that one value, an interval of zero width that says nothing of
+      another task, and no test of the rest reads it.
     - `inconclusive: A/A not clean` when A-again against A would itself be called: its test
       shows a difference (the interval excludes 0, or for a pass/fail family Fisher p < 0.05)
       and its mean is at least the mde.
@@ -150,8 +153,10 @@ def verdict(
         shows, shows_aa = exact.p < ALPHA, exact_aa.p < ALPHA
     else:
         shows, shows_aa = diff.excludes_zero, aa.excludes_zero
-    if shows_aa and abs(aa.mean) >= mde - EPS:
-        word: Word = "inconclusive: A/A not clean"
+    if len(tasks) < 2:
+        word: Word = "inconclusive: underpowered"
+    elif shows_aa and abs(aa.mean) >= mde - EPS:
+        word = "inconclusive: A/A not clean"
     elif power > mde + EPS:
         if shows and (diff.low >= mde - EPS or diff.high <= -mde + EPS):
             word = "B better" if diff.mean > 0 else "B worse"
