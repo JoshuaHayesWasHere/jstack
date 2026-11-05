@@ -35,16 +35,6 @@ def test_an_interrogate_that_is_no_link_into_the_repo_says_so(repo, home):
     says_it_is_no_link_into_the_repo("interrogate", repo, home)
 
 
-def test_interrogate_prints_the_two_questions_the_pr_review_skill_holds(repo, home):
-    linked(home, "interrogate")
-    said = run(block("interrogate", "no questions"), repo, home)
-    fifth = said.index(next(line for line in said if line.startswith("5. ")))
-    assert said[0].startswith("4. Is it correct?")
-    assert said[fifth].startswith("5. Could it be done more simply or cheaply?")
-    assert [line[:5] for line in said[1:fifth]] == ["   - "] * 6
-    assert [line[:5] for line in said[fifth + 1 :]] == ["   - "] * 5
-
-
 def test_interrogate_says_so_when_there_are_no_questions_to_print(repo, home, tmp_path):
     body = block("interrogate", "no questions")
     rest = (

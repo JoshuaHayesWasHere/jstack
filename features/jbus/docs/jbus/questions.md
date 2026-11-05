@@ -73,7 +73,7 @@ After `--differs`, the next pass sends your words to the thread that asked.
 You can also answer on the page of `jbus view`, which sends a differing answer at once: [Answer a question on the page](the-view.md#answer-a-question-on-the-page).
 
 The answer is a message of yours, which jbus reads as `jbus word --message` does ([Your word to a home](your-word-to-a-home.md)), or is typed, and its `checked` is false then.
-A gate that holds is answered only by you, on words jbus read itself: `jbus --as user answer <n> --message <thread>/<message>`.
+A gate that holds is answered only by you, on words jbus read itself: `jbus --as user answer <n> --default --message <thread>/<message>` (`--differs` for an answer that is not the default).
 A typed answer, an answer from a home, the bot's answer over `POST /act` and an answer on the page of `jbus view` are refused for it, with `refused: question <n> holds (<case>): ...`, and it stays open.
 The bot's answer closes any other gate.
 Each answer is an act, a line of `acts.jsonl`: [Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log).
