@@ -156,10 +156,10 @@ CONFLICTED = (
     "not rebase while a review is running. " + END_TURN
 )
 GREEN = (
-    "jbus: every check of your pull request #{number} passed at {short}, and the home is owed "
-    'a line on green. In your own worktree, run the block of "The checks", then do what "The '
-    'review" says of a green pull request: the message of the `Reviewer: none` line, or the '
-    "`fixed and green` line. " + END_TURN
+    "jbus: every check of your pull request #{number} passed at {short}, and its review is owed "
+    'a launch on green. In your own worktree, run the block of "The checks", then do what "The '
+    'review" says of a passed check: launch the reviewer, or write the `Reviewer: none` line and '
+    "its message. " + END_TURN
 )
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
 SENT, REFUSED_SEND, OWED, ALREADY = "sent", "refused", "owed", "already"
@@ -292,6 +292,7 @@ def github(run: Pass, client: Client, world: World) -> None:
                 ask = _asked("conflict", CONFLICTED, head)
             deliver(run, client, world, number, reason, ask)
         green = mark("green", slug, head) not in sent and checks(pull) == "passed"
+        green = green and pull.get("mergeable") != "CONFLICTING"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
 
@@ -325,17 +326,21 @@ def crew(run: Pass, slug: str) -> str:
 
 
 def owed(run: Pass, brief: str, head: str) -> bool:
-    """Say whether the crew owes a line on green.
+    """Say whether the crew owes a line on green: its reviewer's launch, or the `Reviewer: none`
+    line and its message.
 
-    The crew never owes the line while a reviewer that it launched has not yet written a
-    `## Review`, since the reviewer's findings decide the line. Otherwise it owes the line where
-    the brief's first `Review:` line says `none`, and the brief has no `Reviewer: none` line and
-    no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew writes the `Reviewer: none`
-    line when it sends its message. Each of the other three lines comes with a gate or a message
-    that already tells of the pull request. jbus alone merges, so no home waits to hear of a fix
-    on green.
+    The reviewer is launched only once `check` has passed, so a crew whose check was still
+    running when it opened the pull request launched nothing and waits for this message. It owes
+    the line where the brief has no reviewer launched, no `Reviewer: none` line, no `## Review`,
+    and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. A brief whose `Review:` line is
+    not `none` owes it only once it has a `## Result`, which the crew writes before it launches:
+    a crew that stopped before its Result is carried on by the clock (`jbus.clock`) instead.
+    The crew writes the `Reviewer:` line when it launches, and the `Reviewer: none` line when it
+    sends its message. Each of the other three lines comes with a gate or a message that already
+    tells of the pull request. jbus alone merges, so no home waits to hear of a fix on green.
     """
-    if "".join(below.line(brief, "Review:").split()[:1]) != "none":
+    reviewed = "".join(below.line(brief, "Review:").split()[:1]) != "none"
+    if reviewed and not below.results(brief):
         return False
     said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)

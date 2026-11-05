@@ -538,7 +538,9 @@ def reviewed(text: str) -> str:
 
     The line is the one word and nothing else. The crew reads its first word, and reads any word
     it does not know as `review` (`findings.mode_of`), so `standard` would launch a reviewer
-    unasked and `none, docs only` would too. A stored brief with an older word keeps it.
+    unasked and `none, docs only` would too. A stored brief with an older word keeps it, and
+    `twice` is still taken, so a brief written before one round retired it queues, and reads as
+    `review`.
     `cleanup` is the day's warnings row's, which only jbus files: a brief whose `Decisions:` line
     begins `findings.CLEANUP_DECIDED` may say it, and no other.
     """
