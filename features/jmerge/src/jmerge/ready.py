@@ -383,6 +383,11 @@ MERGED_TREE_NO_TIME = Reason(
     "the guards of this run's other merges took its time: the next run runs them on its tree "
     "merged over {base} at {tip}",
 )
+MERGED_TREE_NO_SLOT = Reason(
+    "check",
+    "every full test slot stayed taken for {seconds} s, so the guards did not start on its tree "
+    "merged over {base} at {tip}: the next run tries again",
+)
 _MAINS_LOST = "{count} of main's lines in {file}"
 _OWN_LOST = "{count} of its own in {file}"
 _REFUSED = "{file}: {why}"

@@ -8,6 +8,8 @@ commit whose parents are the tip and the head (as GitHub's merge ref is), pushes
 it out in a worktree of its own, and runs the command the state's `merged-tree-guards` file names
 there, with `BASE` set to the tip. jstack's names `make check-fast PART=guards`, the lint and the
 guard tests: the cross-cutting tests, the catch-all and the changed test files.
+They run inside a full test slot (`run_guards`), and a run that finds none free for
+`SLOT_SECONDS` leaves the pull request to the next run.
 
 A repo with no such file runs no guards. A head that holds the tip already is the tree its check
 ran on, so nothing is built for it. A pass or a failure of the guards on a head over a tip is kept
@@ -23,11 +25,14 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from jgauge import slot
 from jmerge import ready
 from jsettings import store
 
@@ -35,7 +40,12 @@ NAME = "merged-tree-guards"
 KEPT = "merged-trees.json"
 TREE = "merged-tree"
 LIMIT_SECONDS = 600
-"""How long the guards may run on one tree before they are stopped."""
+"""How long the guards may run on one tree before they are stopped, from when they hold a slot."""
+SLOT_SECONDS = 15
+"""How long the guards wait for a full test slot before the pull request waits for the next run:
+jbus starts the next one 5 s after this one ends (`jbus-merge.timer`), so a skip costs a merge
+seconds, where a wait in the run would hold every other merge of it."""
+LOOK_SECONDS = 0.2
 RUN_SECONDS = 240
 """The seconds of guards a run may spend before it starts no more: with one more at its limit, a
 run stays under the 17 minutes jbus gives `jmerge` (`jbus.wake.JMERGE_TIMEOUT`)."""
@@ -48,11 +58,13 @@ _IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 @dataclass(frozen=True)
 class Ran:
     """What the guards did: their exit code, None where they were stopped at their time limit,
-    the whole seconds they took, and what they printed."""
+    the whole seconds they took once they held a slot, what they printed, and the whole seconds
+    they waited for the slot."""
 
     code: int | None
     seconds: int
     said: str
+    waited: int = 0
 
 
 def guard(said: str) -> str:
@@ -70,35 +82,76 @@ def guard(said: str) -> str:
     return lines[-1][:120] if lines else UNNAMED
 
 
-def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> Ran:
-    """Run `command` in `cwd` in a session of its own, so a stop at `timeout` stops the
-    processes it started too, which would outlive `sh` and hold the tree.
+def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> Ran | str | None:
+    """Run `command` in `cwd` inside a full test slot, in a session of its own, so a stop at
+    `timeout` stops the processes it started too, which would outlive `sh` and hold the tree.
+
+    The guards are a suite at `-n 6`, so they take a slot as every other suite on the machine
+    does: through `jgauge test-slot`, or the caller's own where it holds one already
+    (`JGAUGE_TEST_SLOT` set), since a second would wait on its own. `timeout` and the seconds
+    of the `Ran` count from the slot, not the wait for it. The wait is at most `SLOT_SECONDS`:
+    with every slot still taken it returns None, and a slot taken, why the guards did not start
+    where `jgauge test-slot` ended before they did.
 
     `sh` runs it as a login shell, so the guards see the machine's PATH as a desk's shell and CI
     do, after the few entries jbus's unit gives `jmerge`: Arch keeps `shasum` in
     /usr/bin/core_perl, which only /etc/profile adds."""
-    began = time.monotonic()
-    process = subprocess.Popen(
-        ["sh", "-lc", command],
-        cwd=cwd,
-        env={**os.environ, **env},
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,
-        text=True,
-        start_new_session=True,
-    )
-    code: int | None
-    try:
-        said, _ = process.communicate(timeout=timeout)
-        code = process.returncode
-    except subprocess.TimeoutExpired:
-        _stop(process.pid)
-        said, _ = process.communicate()
-        code = None
-    finally:
-        _stop(process.pid)
-    return Ran(code, round(time.monotonic() - began), said or "")
+    with tempfile.TemporaryDirectory(prefix="jmerge-slot-") as scratch:
+        started = Path(scratch) / "started"
+        argv = ["sh", "-lc", command]
+        if not os.environ.get(slot.HELD):
+            argv = [sys.executable, "-m", "jgauge", "test-slot", "--", "sh", "-c", _MARK]
+            argv += [str(started), command]
+        process = subprocess.Popen(
+            argv,
+            cwd=cwd,
+            env={**os.environ, **env},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            asked = time.monotonic()
+            if argv[0] == sys.executable and not _slotted(process, started):
+                _stop(process.pid)
+                said, _ = process.communicate()
+                if process.returncode is not None and process.returncode >= 0:
+                    return _last(said) or f"jgauge test-slot exited {process.returncode}"
+                return None
+            began = time.monotonic()
+            code: int | None
+            try:
+                said, _ = process.communicate(timeout=timeout)
+                code = process.returncode
+            except subprocess.TimeoutExpired:
+                _stop(process.pid)
+                said, _ = process.communicate()
+                code = None
+        finally:
+            _stop(process.pid)
+    return Ran(code, round(time.monotonic() - began), said or "", round(began - asked))
+
+
+_MARK = ': > "$0" && exec sh -lc "$1"'
+"""What runs inside the slot: it marks that the slot is held, then becomes the guards."""
+
+
+def _slotted(process: subprocess.Popen, started: Path) -> bool:
+    """Wait until the guards start inside their slot, and say whether they did within
+    `SLOT_SECONDS`. A `jgauge test-slot` that ends first did not start them."""
+    until = time.monotonic() + SLOT_SECONDS
+    while not started.exists():
+        if process.poll() is not None or time.monotonic() >= until:
+            return started.exists()
+        time.sleep(LOOK_SECONDS)
+    return True
+
+
+def _last(said: str) -> str:
+    lines = [line.strip() for line in (said or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
 
 
 def _stop(group: int) -> None:
@@ -139,6 +192,7 @@ class Guards:
         self.run = run
         self.command = command_of(state)
         self.spent = 0
+        self.slotless = False
         self.records: dict | None = None
 
     def known(self) -> dict:
@@ -192,6 +246,8 @@ class Guards:
         values = {"base": one.base, "tip": tip[:SHA]}
         if self.spent >= RUN_SECONDS:
             return ready.MERGED_TREE_NO_TIME.format(**values), ""
+        if self.slotless:
+            return ready.MERGED_TREE_NO_SLOT.format(**values, seconds=SLOT_SECONDS), ""
         merged = _git(self.main, "merge-tree", "--write-tree", tip, one.head)
         tree = merged.stdout.split()[:1]
         if merged.returncode == 1 and tree:
@@ -203,9 +259,13 @@ class Guards:
             self.main, *_IDENTITY, "commit-tree", tree[0], "-p", tip, "-p", one.head, "-m", message
         )
         ran = self.in_tree(made.stdout.strip(), tip)
+        if ran is None:
+            self.slotless = True
+            self.spent += SLOT_SECONDS
+            return ready.MERGED_TREE_NO_SLOT.format(**values, seconds=SLOT_SECONDS), ""
         if isinstance(ran, str):
             return ready.MERGED_TREE_UNBUILT.format(**values, why=ran), ""
-        self.spent += ran.seconds
+        self.spent += ran.waited + ran.seconds
         if ran.code is None:
             return ready.MERGED_TREE_UNENDED.format(**values, minutes=LIMIT_SECONDS // 60), ""
         said, note = "", ""
@@ -219,10 +279,11 @@ class Guards:
             return ready.MAIN_MOVED.format(base=one.base), ""
         return said, note
 
-    def in_tree(self, commit: str, tip: str) -> Ran | str:
+    def in_tree(self, commit: str, tip: str) -> Ran | str | None:
         """Run the guards in a worktree of `commit` at the state's `TREE`, and remove it after.
         One a run that was stopped left behind is removed first. Return why the worktree could
-        not be made, where it could not."""
+        not be made or the guards not started, where they could not, and None where no full test
+        slot came free for them (`run_guards`)."""
         path = self.state / TREE
         self.clear(path)
         added = _git(self.main, "worktree", "add", "--detach", "-q", str(path), commit)

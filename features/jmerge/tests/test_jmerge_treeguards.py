@@ -6,12 +6,25 @@ import json
 import os
 import re
 import shutil
+import sys
+import threading
 import time
 from types import SimpleNamespace
 
+import pytest
+
+from jgauge import slot
 from jmerge import ready, treeguards
 from test_jmerge_fresh import git
 from testing.paths import REPO
+
+
+@pytest.fixture(autouse=True)
+def locks(tmp_path, monkeypatch):
+    """The test slots a run outside one takes, a machine of one full slot of its own."""
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
+    monkeypatch.setenv("TEST_SLOTS", "1")
+    return tmp_path / "locks"
 
 
 def test_merged_tree_guard_named_from_the_output():
@@ -65,7 +78,7 @@ def jbus_environment():
     path = re.search(r"^Environment=PATH=(.*)$", unit, re.MULTILINE)[1]
     path = path.replace("%h", os.environ["HOME"])
     uv = os.path.dirname(shutil.which("uv"))
-    names = ("HOME", "USER", "LOGNAME", "LANG", "TMPDIR")
+    names = ("HOME", "USER", "LOGNAME", "LANG", "TMPDIR", "JGAUGE_LOCKS_DIR", "TEST_SLOTS")
     return {name: os.environ[name] for name in names if name in os.environ} | {
         "PATH": path if uv in path.split(":") else f"{uv}:{path}"
     }
@@ -182,3 +195,61 @@ def test_merged_tree_records_of_pull_requests_no_longer_open_are_dropped(tmp_pat
     guards.open_only({"8": "x"})
     assert json.loads((tree.state / treeguards.KEPT).read_text()) == {}
     assert treeguards.Guards(tree.main, tree.state, True).kept(tree.one, tree.tip) == ""
+
+
+HOLDS_THE_SLOT = (
+    f'test "$JGAUGE_TEST_SLOT" = full && "{sys.executable}" -c'
+    ' "from jgauge import slot; raise SystemExit(slot.free(slot.full(1)))"'
+)
+"""Guards that pass only where they run inside the machine's one full test slot, and hold it."""
+
+
+def test_merged_tree_guards_outside_a_slot_run_inside_a_full_one(tmp_path, monkeypatch):
+    """A `jmerge` that holds no slot runs the guards, a suite at `-n 6`, inside one of the full
+    lane's, so the machine runs no suite the slot count does not see. One that holds a slot
+    already runs them in it, and takes no second, which would wait on its own."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    tree = Tree(tmp_path)
+    said, note = tree.guards(HOLDS_THE_SLOT).of(tree.one, tree.tip)
+    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
+    monkeypatch.setenv(slot.HELD, "full")
+    ran = treeguards.run_guards('test "$JGAUGE_TEST_SLOT" = full', tmp_path, {}, 60)
+    assert ran.code == 0, ran.said
+
+
+def test_merged_tree_guards_with_every_slot_taken_wait_for_the_next_run(tmp_path, monkeypatch):
+    """With every full slot taken past `SLOT_SECONDS`, the guards do not start, and the pull
+    request waits for the next run, which keeps nothing of this one and runs them once a slot
+    is free. The rest of the run tries no more trees."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setattr(treeguards, "SLOT_SECONDS", 1)
+    tree = Tree(tmp_path)
+    marker = tmp_path / "ran"
+    guards = tree.guards(f"touch {marker}")
+    held, _ = slot.take(slot.full(1))
+    try:
+        unslotted = ready.MERGED_TREE_NO_SLOT.format(**values(tree), seconds=1)
+        assert guards.of(tree.one, tree.tip) == (unslotted, "")
+        guards.command = "true"
+        assert guards.of(tree.one, tree.tip) == (unslotted, "")
+    finally:
+        os.close(held)
+    assert not marker.exists() and guards.kept(tree.one, tree.tip) == ""
+    assert not (tree.state / treeguards.TREE).exists()
+    said, note = treeguards.Guards(tree.main, tree.state, True).of(tree.one, tree.tip)
+    assert said == "" and note
+    assert marker.exists()
+
+
+def test_merged_tree_guards_time_limit_counts_from_the_slot_not_the_wait(tmp_path, monkeypatch):
+    """The guards wait 3 s for the slot and run 1 s under a limit of 2 s: they pass, since the
+    limit and the seconds of the merge line count the run alone."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 2)
+    tree = Tree(tmp_path)
+    held, _ = slot.take(slot.full(1))
+    threading.Timer(3, os.close, (held,)).start()
+    began = time.monotonic()
+    said, note = tree.guards("sleep 1").of(tree.one, tree.tip)
+    assert time.monotonic() - began >= 3
+    assert (said, note) == ("", treeguards.PASSED.format(**values(tree), seconds=1))
