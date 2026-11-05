@@ -146,8 +146,9 @@ def report(run: Run, seed: int) -> tuple[list[str], str]:
         "## How to read it",
         "",
         "Each verdict line gives B minus A over the tasks with its 95% interval, the same for "
-        "A-again minus A (the noise floor), and the mde, the smallest mean difference the rule "
-        "calls.",
+        "A-again minus A (the noise floor), the mde, the smallest mean difference the rule "
+        "calls, and mde80, the smallest one this run sees at 80% power, from its A/A spread and "
+        "its task count.",
         "`no measurable difference` with an interval of [-0.02, +0.02] says the run could not have "
         "shown a change smaller than about 0.02, not that there is none.",
     ]
@@ -167,6 +168,7 @@ def verdict_line(run: Run, family: str, arms: dict, said: stats.Verdict) -> str:
         f"A/A {fmt(said.aa)}"
         + (", excludes 0 below the mde" if said.aa_excludes_below_mde else ""),
         f"mde {said.mde:.3f}",
+        f"power: mde80 {said.mde80:.3f}" + (", above the mde" if said.mde80 > said.mde else ""),
         f"{tasks} tasks, {per_arm} runs an arm",
     ]
     if said.exact is not None and said.exact_aa is not None:
@@ -436,7 +438,35 @@ def claude(text: str, model: str, effort: str) -> dict:
     }
 
 
-def identity(args, kind: str, a: str, b: str, tasks: Path) -> dict:
+def harness_sha() -> str | None:
+    """The commit of the checkout this file runs from, whose replay.sh and rule a run used; None
+    outside a git checkout."""
+    ran = subprocess.run(["git", "rev-parse", "HEAD"], cwd=HERE, capture_output=True, text=True)
+    return ran.stdout.strip() if ran.returncode == 0 else None
+
+
+def claude_version() -> str | None:
+    if not shutil.which("claude"):
+        return None
+    ran = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=60)
+    return ran.stdout.strip() or None
+
+
+def score_files(spec: dict, where: Path) -> dict[str, dict[str, str]]:
+    """The sha256 of every file each graded family's `score` command names, read from the task
+    file's directory as the command runs: the scorer's own bytes, which a rescore runs again."""
+    return {
+        name: {
+            arg: sha256(where / arg)
+            for arg in f["score"]
+            if isinstance(arg, str) and (where / arg).is_file()
+        }
+        for name, f in sorted(spec["families"].items())
+        if f["kind"] == "graded"
+    }
+
+
+def identity(args, kind: str, a: str, b: str, tasks: Path, spec: dict | None = None) -> dict:
     """What a run is: the same identity resumes it, any other is refused in its directory."""
     return {
         "kind": kind,
@@ -444,6 +474,9 @@ def identity(args, kind: str, a: str, b: str, tasks: Path) -> dict:
         "a": {"rev": args.a, "sha": a},
         "b": {"rev": args.b, "sha": b},
         "tasks": {"path": str(tasks.resolve()), "sha256": sha256(tasks)},
+        "harness": harness_sha(),
+        "claude": claude_version() if kind == "prompt" else None,
+        "score": score_files(spec, tasks.parent) if spec is not None else {},
         "model": args.model if kind == "prompt" else None,
         "effort": args.effort if kind == "prompt" else None,
         "trials": args.trials if kind == "prompt" else 1,
@@ -461,7 +494,7 @@ def start(out: Path, ran: dict) -> None:
 def run_prompt(args, out: Path, a: str, b: str) -> int:
     tasks = Path(args.tasks)
     spec = load_tasks(tasks)
-    ran = identity(args, "prompt", a, b, tasks)
+    ran = identity(args, "prompt", a, b, tasks, spec)
     order = plan(spec, args.trials, args.seed)
     start(out, ran)
     (out / "jobs.json").write_text(json.dumps([n for n, _ in order], indent=2) + "\n")
@@ -601,13 +634,6 @@ def run_replay(args, out: Path, a: str, b: str) -> int:
     start(out, identity(args, "replay", a, b, tasks))
     for arm, sha in (("A", a), ("B", b)):
         replay_arm(sha, arm, out / arm, events)
-    tokens = {
-        arm: sum(
-            json.loads(line)["tokens"]
-            for line in (out / arm / "today.jsonl").read_text().splitlines()
-        )
-        for arm in ("A", "B")
-    }
     lines, changed = [], 0
     md = [
         "# A/B: replay",
@@ -618,7 +644,6 @@ def run_replay(args, out: Path, a: str, b: str) -> int:
         "",
         f"A: `{a}` (`{args.a}`).",
         f"B: `{b}` (`{args.b}`).",
-        f"Tokens: A {tokens['A']}, B {tokens['B']}.",
         "",
         "| Event | A decides | B decides | Same |",
         "|---|---|---|---|",
@@ -629,10 +654,7 @@ def run_replay(args, out: Path, a: str, b: str) -> int:
         changed += not same
         lines.append(f"{event}: {'same' if same else 'CHANGED'}: A {say(da)} | B {say(db)}")
         md.append(f"| `{event}` | {say(da)} | {say(db)} | {'yes' if same else '**no**'} |")
-    lines.append(
-        f"replay: {changed} of {len(events)} events decided differently; "
-        f"tokens A {tokens['A']}, B {tokens['B']}"
-    )
+    lines.append(f"replay: {changed} of {len(events)} events decided differently")
     md += [
         "",
         lines[-1] + ".",

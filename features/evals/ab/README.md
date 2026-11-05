@@ -21,6 +21,7 @@ uv run python features/evals/ab/ab.py rescore <run dir> [--out results.md]
   The events stay this checkout's; the sandbox (`launch.sh`, the stand-ins) and the `jbus` and `jmerge` that decide are the arm's own.
   No model runs and no `claude` is needed on PATH: the today side is deterministic, so one run per arm is the whole answer, and the result is a diff of decisions, not a statistic.
   Two replays of one checkout differ only in the sandbox's directory, the time of day and the commits the sandbox makes at launch, so those three are made the same before the diff, and nothing else is.
+  The replay prints no token count: `replay.sh` writes a constant 0 there, not a measure.
 
 ## A task file
 
@@ -67,28 +68,40 @@ For each family, a task's score in an arm is the mean of its trials.
 Over the tasks, paired by task: the mean difference B minus A and its 95% interval, from 10,000 bootstrap resamples of the tasks seeded from `--seed`, at the 2.5th and 97.5th percentiles; the same for A-again minus A.
 For a pass/fail family the test is Fisher's exact test on failed against all trials, B against A and A-again against A, since a bootstrap over tasks that all tie is degenerate.
 
+Each family also has its **mde80**, the smallest mean difference the run sees at 80% power: `(1.96 + 0.84) * sd / sqrt(n)`, with `sd` the standard deviation of the A/A per-task differences (A-again minus A, the run's own noise between two arms) and `n` its task count.
+
 - **`inconclusive: A/A not clean`** when A-again against A would itself be called: its interval excludes 0 (Fisher p under 0.05 for pass/fail) and its mean is at least the mde.
-- **`B better`** or **`B worse`** when B against A shows a difference by the same test and its mean difference is at least the mde.
+- When the mde80 is above the mde, the run is too small to see the mde, and it says only what its interval settles:
+  **`B better`** or **`B worse`** when B against A shows a difference by the same test and the whole interval lies beyond the mde, **`no measurable difference`** when the whole interval lies within the mde, and else **`inconclusive: underpowered`**.
+- Otherwise **`B better`** or **`B worse`** when B against A shows a difference by the same test and its mean difference is at least the mde.
 - Else **`no measurable difference`**.
 
+The A/A gate needs the mde too, by the home's choice of 2026-11-05: an A/A interval that excludes 0 makes the run `inconclusive: A/A not clean` only when the A/A mean is at least the mde, since an A/A shift under the mde cannot change a verdict, and the power line is what catches a run too small to read.
 An A/A interval that excludes 0 by less than the mde is printed as `excludes 0 below the mde` and does not void the run.
 A 95% interval excludes 0 about one time in twenty with no change at all: one lead A/A of the fifteen kept skill-cut runs did (`run-crew-scout-priming-2`, lead, -0.018 [-0.034, -0.002]).
+
+The power rule is why two runs of the same inputs read the same.
+`run-0d1d871af1a3` and `run-0d1d871af1a3-2` gave lead B - A -0.002 [-0.037, +0.034] and -0.038 [-0.075, -0.007]; by the mde alone the second was `B worse`.
+Their mde80 are 0.038 and 0.031, above the mde of 0.03, so both are `inconclusive: underpowered`.
+`run-interrogate-986` (mde80 0.041) is still `B worse`, since its whole interval, [-0.433, -0.210], lies past -0.03, and `run-crew-scout-priming` (mde80 0.037) is still `no measurable difference`, since its whole interval, [-0.027, +0.021], lies within ±0.03.
 
 ## Reading `results.md`
 
 Each family has a table of its tasks, each arm the mean of the task's trials, then its verdict line, as `run` and `rescore` print it:
 
 ```
-lead: no measurable difference; B - A -0.004 [-0.027, +0.021]; A/A -0.001 [-0.028, +0.023]; mde 0.030; 17 tasks, 51 runs an arm; errors A 0, A-again 0, B 0; cost A $1.20 ..., A-again ..., B ...
+lead: no measurable difference; B - A -0.004 [-0.027, +0.021]; A/A -0.001 [-0.028, +0.023]; mde 0.030; power: mde80 0.037, above the mde; 17 tasks, 51 runs an arm; errors A 0, A-again 0, B 0; cost A $1.20 ..., A-again ..., B ...
 ```
 
 - `B - A` is the mean of the per-task differences and its interval; `A/A` the same for A-again minus A.
+- `power: mde80` is the smallest change this run sees four times in five; `above the mde` says the run is too small for its mde, and the rule reads it as "The rule" says.
 - `no measurable difference` with the interval [-0.027, +0.021] says this run could not have shown a change smaller than about 0.02 either way, not that there is none.
 - A pass/fail family adds its failed trials per arm and the two Fisher p values.
 - `errors` counts the calls that failed, retried or not, per arm; `cost` sums `total_cost_usd` and the tokens of `usage` per arm.
   A kept skill-cut run recorded neither, and says so.
 
-`run.json` records the seed, both revisions as given and resolved, the task file's path and sha256, the model, the effort and the trials.
+`run.json` records the seed, both revisions as given and resolved, the task file's path and sha256, the commit of the harness's own checkout (`harness`, whose rule and `replay.sh` ran), `claude --version` (`claude`, prompt kind only), the sha256 of each file a graded family's `score` command names (`score`, the scorer a rescore runs again), the model, the effort and the trials.
+A run directory whose `run.json` differs in any of these is another run.
 The same task file, revisions and seed give the same `jobs.json` (the call order), the same `key.json` and, with the same answers, the same `results.md`, byte for byte.
 
 ## Rescoring a skill-cut run
@@ -102,4 +115,4 @@ Skill-cut's own rule, in its `README.md`, stays the verdict of those runs; this 
 - Fisher's test counts every trial as independent, so one task that fails in all its trials weighs as much as three tasks failing once.
 - The default pass/fail mde of 1/9 is coarse at a ceiling: in `run-crew-scout-priming` B failed 0 of 126 steps trials against A's 7 (Fisher p 0.014), a change of 0.056 in pass rate, which this rule does not call.
   A family that cares about smaller moves names a smaller `mde`.
-- Twenty tasks or fewer give wide intervals: on the skill-cut lead family the 95% half-width is about 0.015 to 0.035.
+- Twenty tasks or fewer give wide intervals: on the skill-cut lead family the 95% half-width is about 0.015 to 0.035, and the mde80 is 0.023 to 0.047 against an mde of 0.03, so 6 of the 15 kept runs read `inconclusive: underpowered`.
