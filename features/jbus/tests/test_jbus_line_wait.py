@@ -1,6 +1,7 @@
-"""`jbus line-wait` reads a home's `merge.log` and prints how long pull requests waited in jmerge's
-line on a day: the in-line PR-minutes, the merges, the PR-minutes per merge, and each time the head
-of the line had its check started again because another pull request merged past it.
+"""`jbus line-wait` (`jbus.linewait`) reads a home's `merge.log` and prints how long pull requests
+waited in jmerge's line on a day: the in-line PR-minutes, the merges, the PR-minutes per merge, and
+each time the head of the line had its check started again because another pull request merged
+past it.
 
 The tests write a `merge.log` into a home, run the verb as a user types it, and read what it
 prints. `merge-1032.log` is #1032's own lines of 2026-11-04 as jmerge logged them, with the
