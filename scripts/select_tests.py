@@ -665,7 +665,7 @@ def facts():
     when they were kept. No tree is kept: a cache of the trees of every module makes each
     collection of garbage walk them, and the script slower."""
     salt, where = kept()
-    old = load(where, salt)
+    old = load(where, salt) if where else {}
     found, new = {}, {}
     for name, path in modules().items():
         text = (ROOT / path).read_text()
