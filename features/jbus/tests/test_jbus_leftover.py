@@ -323,6 +323,40 @@ def test_a_message_t3_code_does_not_take_is_sent_on_the_next_pass(kitchen):
     assert len(kitchen.t3.messages) == 1 and listed(kitchen) == [] and stalls(kitchen) == []
 
 
+AFTER = result("the docs").replace("Pull request: none", "Pull request: after the review")
+REVIEW = (
+    "\n## Review\nBy: claudeAgent claude-sonnet-5-5 high #1\nVerdict: clean\n"
+    f"Head: {'b' * 40}   Unchanged by the review: yes\nSent to: not sent\nFindings:\n- none\n"
+)
+
+
+def awaiting(kitchen, after):
+    """Make a row whose crew wrote its Result at its desk proof, with its pull request to open
+    after its review, then `after` under it, and whose thread ended its turn."""
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", AFTER + after)
+    return kitchen.t3.thread("alpha", "completed")
+
+
+@pytest.mark.parametrize("review", ["", "Reviewer: mcp:r1 #1\n"], ids=["due", "running"])
+def test_a_row_that_waits_on_its_review_before_its_pull_request_is_not_left(kitchen, review):
+    home(kitchen)
+    awaiting(kitchen, review)
+    for _ in range(2):
+        kitchen.poll()
+    assert leftover.read(kitchen.state) == {}
+    assert not [one for one in sends(kitchen) if "ended with something left" in one["message"]]
+    assert not [line for line in listed(kitchen) if line.startswith("left alpha")]
+
+
+def test_a_row_whose_review_is_written_and_that_ends_with_no_pull_request_is_left(kitchen):
+    home(kitchen)
+    awaiting(kitchen, "Reviewer: mcp:r1 #1\n" + REVIEW)
+    kitchen.poll()
+    (sent,) = [one for one in sends(kitchen) if "ended with something left" in one["message"]]
+    assert "It ended with no pull request.\nLeft: the docs\n" in sent["message"]
+
+
 def test_a_row_that_leaves_nothing_or_is_still_out_has_no_record_and_no_message(kitchen):
     home(kitchen)
     add(kitchen, "alpha")
