@@ -17,6 +17,9 @@
 \* one reviewer launches only once its check has passed, and one round gives a fix no review. The
 \* round itself is no variable: no rule reads it, and the merge waits on the passed check it
 \* follows. A history bit for it took today's model from 7.9M to 12.9M states.
+\* Since vision-merge-overlap-no-rerun (Josh's vision of 2026-11-06, item F) a green pull request
+\* main moved past merges on its pass where its head merges cleanly over main's tip and the
+\* merged-tree guards pass there, whether or not it shares a file with main's changes: see Merges.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -160,6 +163,15 @@ Merges(p) ==
     \* Its row's go: a row you held, or whose go does not hold for its brief, waits on your approval.
     /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
+    \* A pass over a main that moved since it started counts, with no branch update and no rerun:
+    \* for one that shares no file with main's changes (#847), and for one that shares a file, merges
+    \* cleanly over main's tip and passes the merged-tree guards at its head over that tip (item F,
+    \* features/jmerge/src/jmerge/cli.py `return "", ready.Judged(tip, overlaps=True)`). One that
+    \* conflicts waits for its rebase, and one that shares a file and whose guards failed has GitHub
+    \* merge main into its branch and its check run again (features/jmerge/src/jmerge/cli.py
+    \* `guarded = self.base_moved(one, tip)`). The model keeps no record of the main a check ran over:
+    \* what the guards and the check both miss of such a merge is breaks[p] with missed[p], which main's
+    \* own run and jbus's revert of its one clear culprit catch (RevertMerges).
     \* Its one review round followed that pass: the crew launches its reviewer only once the check
     \* has passed, and a fix it pushes for the findings gets no review (review-after-green-one-round).
     \* features/crew/the-review.md `passed) echo "launch: run the block below and do what it prints" ;;`,
