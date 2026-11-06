@@ -157,6 +157,23 @@ def test_a_review_before_the_pull_request_that_never_comes_is_asked_again_by_the
     assert [one["message"] for one in asked] == ["/pr-review run alpha again"]
 
 
+def test_a_review_before_the_pull_request_that_did_not_run_tells_the_crew_nothing(kitchen):
+    """A reviewer with no room writes a section that says `Verdict: not run` and ends its turn.
+    That is no review: the crew is not told its review is written, and the clock asks the
+    reviewer again, as for a reviewer that wrote nothing."""
+    thread, path, head = proved_crew(kitchen)
+    kitchen.poll()
+    made = kitchen.t3.threads[-1]
+    made["status"] = "completed"
+    kitchen.t3.at_work.discard(made["threadId"])
+    path.write_text(path.read_text() + section(head, "not run", "- none, no room\n"))
+    for minutes in range(3, 3 * (clock.PASSES + 2), 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [one for one in sends(kitchen) if one["threadId"] == thread["threadId"]] == []
+    asked = [one for one in sends(kitchen) if one["threadId"] == made["threadId"]]
+    assert [one["message"] for one in asked] == ["/pr-review run alpha again"]
+
+
 def launched_after(kitchen, minutes=0):
     kitchen.poll(NOW + timedelta(minutes=minutes))
     return reviewers(kitchen)
