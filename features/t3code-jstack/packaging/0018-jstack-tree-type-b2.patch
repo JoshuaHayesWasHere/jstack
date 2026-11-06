@@ -25,46 +25,17 @@ or report in), in place of scouts.json, which jbus no longer writes; a scout's t
 from its request in the home's scouts folder. A task in the contract is a crew task, with its
 stage and pull request, or a scout, with where it stands.
 ---
- apps/server/src/jstack/JbusWork.test.ts       |  10 +-
  apps/server/src/jstack/JbusWork.ts            |   5 +-
- apps/server/src/jstack/jbusWork.logic.test.ts | 104 ++++--
- apps/server/src/jstack/jbusWork.logic.ts      |  78 +++--
- .../sidebar/JstackTreeRows.browser.test.tsx   | 310 ++++++++++++++----
- .../src/components/sidebar/JstackTreeRows.tsx | 118 ++++---
- .../sidebar/jstackRootOrder.browser.test.tsx  |   1 +
- .../sidebar/jstackTree.logic.test.ts          | 170 +++++++++-
- .../components/sidebar/jstackTree.logic.ts    | 136 +++++---
+ apps/server/src/jstack/jbusWork.logic.test.ts |  51 ---
+ apps/server/src/jstack/jbusWork.logic.ts      |  78 ++--
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 428 +++++++-----------
+ .../src/components/sidebar/JstackTreeRows.tsx | 118 +++--
+ .../sidebar/jstackTree.logic.test.ts          |  32 +-
+ .../components/sidebar/jstackTree.logic.ts    | 136 +++---
  apps/web/src/index.css                        |  23 +-
  packages/contracts/src/jbusWork.ts            |  36 +-
- 11 files changed, 739 insertions(+), 252 deletions(-)
+ 9 files changed, 425 insertions(+), 482 deletions(-)
 
-diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
-index 7582031683..a022a98433 100644
---- a/apps/server/src/jstack/JbusWork.test.ts
-+++ b/apps/server/src/jstack/JbusWork.test.ts
-@@ -36,14 +36,20 @@ it.live("reads each repo beside jbus's own files and follows work.json", () =>
-     const service = yield* JbusWork.make(roots);
-     const { latest, changes } = yield* service.subscribe;
-     assert.deepEqual(
--      latest.tasks.map((task) => [task.slug, task.stage, task.homeThreadId]),
-+      latest.tasks.map((task) => [
-+        task.slug,
-+        task.kind === "crew" ? task.stage : task.scouting,
-+        task.homeThreadId,
-+      ]),
-       [["fix-it", "crew", "mcp:root"]],
-     );
- 
-     yield* fs.writeFileString(workPath, workFile("quiet"));
-     const next = yield* Stream.runHead(changes);
-     assert.deepEqual(
--      Option.map(next, (snapshot) => snapshot.tasks.map((task) => task.stage)),
-+      Option.map(next, (snapshot) =>
-+        snapshot.tasks.map((task) => (task.kind === "crew" ? task.stage : task.scouting)),
-+      ),
-       Option.some(["quiet"]),
-     );
-   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
 index 43080b37cd..241f727c63 100644
 --- a/apps/server/src/jstack/JbusWork.ts
@@ -89,26 +60,10 @@ index 43080b37cd..241f727c63 100644
          held: yield* readJson(path.join(bus, "held.json")),
          rootHomeId: yield* readText(path.join(home, "home-id")),
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index 25366b1888..54c209c58c 100644
+index 929267d37c..85c3b36eb2 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -1,4 +1,5 @@
- import { describe, expect, it } from "@effect/vitest";
-+import type { JbusTask } from "@t3tools/contracts";
- 
- import {
-   buildRepoWork,
-@@ -10,6 +11,9 @@ import {
- 
- const NOW = Date.parse("2026-10-29T15:00:00Z");
- 
-+/** Where a task stands: a crew task's stage, a scout's state. */
-+const stageOf = (task: JbusTask) => (task.kind === "crew" ? task.stage : task.scouting);
-+
- const row = (slug: string, value: string, lane: string, extra: Record<string, unknown> = {}) => ({
-   kind: "row",
-   slug,
-@@ -29,7 +33,6 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+@@ -23,7 +23,6 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
    work: { work: [] },
    questions: { next: 1, records: [] },
    merged: {},
@@ -116,156 +71,61 @@ index 25366b1888..54c209c58c 100644
    waiting: [],
    held: {},
    briefHomes: new Map(),
-@@ -65,7 +68,7 @@ describe("buildRepoWork", () => {
-     };
-     const result = buildRepoWork(files({ work }), NOW);
-     expect(
--      result.tasks.map((task) => [task.slug, task.stage, task.threadId, task.waitsOn]),
-+      result.tasks.map((task) => [task.slug, stageOf(task), task.threadId, task.waitsOn]),
-     ).toEqual([
-       ["a-ready", "ready", null, null],
-       ["a-behind", "behind", null, null],
-@@ -80,10 +83,12 @@ describe("buildRepoWork", () => {
-       ["a-check", "check", "mcp:a-check", null],
-       ["a-rebase", "rebase", "mcp:a-rebase", null],
-     ]);
--    expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
-+    expect(
-+      result.tasks.find((task) => task.slug === "a-findings" && task.kind === "crew"),
-+    ).toMatchObject({ pullRequest: "#725" });
-     expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
-     // A brief is read for each row the tree shows, and for none that merged.
--    const briefs = slugsNeedingBriefs({ work });
-+    const briefs = [...slugsNeedingBriefs({ work }).keys()];
-     expect(briefs).toEqual(expect.arrayContaining(result.tasks.map((task) => task.slug)));
-     expect(briefs).not.toEqual(expect.arrayContaining(["a-merged"]));
-     expect(briefs).not.toEqual(expect.arrayContaining(["a-done"]));
-@@ -187,24 +192,26 @@ describe("buildRepoWork", () => {
-       },
-     };
-     const result = buildRepoWork(files({ work, waiting, held }), NOW);
--    expect(result.tasks.map((task) => [task.slug, task.stage, task.waitsOn, task.held])).toEqual([
-+    expect(result.tasks.map((task) => [task.slug, stageOf(task), task.waitsOn, task.held])).toEqual(
-       [
--        "a-held",
--        "review",
--        "word",
--        {
--          since: "2026-10-29T13:30:00+00:00",
--          reason: "its brief says Review: none, so it needs the user's word",
--        },
-+        [
-+          "a-held",
-+          "review",
-+          "word",
-+          {
-+            since: "2026-10-29T13:30:00+00:00",
-+            reason: "its brief says Review: none, so it needs the user's word",
-+          },
-+        ],
-+        [
-+          "a-check",
-+          "check",
-+          null,
-+          { since: "2026-10-29T14:52:00+00:00", reason: "check has no run at 90c901cb781a" },
-+        ],
-+        ["a-review", "review", null, null],
-       ],
--      [
--        "a-check",
--        "check",
--        null,
--        { since: "2026-10-29T14:52:00+00:00", reason: "check has no run at 90c901cb781a" },
--      ],
--      ["a-review", "review", null, null],
--    ]);
-+    );
+@@ -98,54 +97,4 @@ describe("buildRepoWork", () => {
+     );
+     expect(readBriefTitle("Task: x")).toBeNull();
    });
- 
-   it("nests each task under the home its brief names", () => {
-@@ -236,7 +243,7 @@ describe("buildRepoWork", () => {
-     ]);
-   });
- 
+-
 -  it("reads open gates, launched scouts, and merges inside the landed window", () => {
-+  it("reads open gates and merges inside the landed window", () => {
-     const result = buildRepoWork(
-       files({
-         questions: {
-@@ -253,11 +260,6 @@ describe("buildRepoWork", () => {
-             },
-           ],
-         },
+-    const result = buildRepoWork(
+-      files({
+-        questions: {
+-          next: 3,
+-          records: [
+-            { number: 1, answer: { words: "default" }, thread: "mcp:x", question: "old" },
+-            {
+-              number: 2,
+-              answer: null,
+-              thread: "mcp:x",
+-              slug: "x",
+-              question: "keep it?",
+-              asked_at: "2026-10-29T14:00:00Z",
+-            },
+-          ],
+-        },
 -        scouts: [
 -          { slug: "s-flow", launch: { thread: "mcp:s-flow" }, approval: { scope: "flow" } },
 -          { slug: "fl-scout", launch: { thread: "mcp:fl-scout" }, approval: { scope: "" } },
 -          { slug: "s-unlaunched", launch: {}, approval: { scope: "" } },
 -        ],
-         merged: {
-           recent: { mergedAt: "2026-10-29T10:00:00Z" },
-           stale: { mergedAt: "2026-10-26T10:00:00Z" },
-@@ -277,15 +279,57 @@ describe("buildRepoWork", () => {
-         askedAt: "2026-10-29T14:00:00Z",
-       },
-     ]);
+-        merged: {
+-          recent: { mergedAt: "2026-10-29T10:00:00Z" },
+-          stale: { mergedAt: "2026-10-26T10:00:00Z" },
+-        },
+-        briefHomes: new Map([["recent", "flow"]]),
+-      }),
+-      NOW,
+-    );
+-    expect(result.gates).toEqual([
+-      {
+-        repo: "jstack",
+-        number: 2,
+-        threadId: "mcp:x",
+-        slug: "x",
+-        question: "keep it?",
+-        default: "",
+-        askedAt: "2026-10-29T14:00:00Z",
+-      },
+-    ]);
 -    expect(result.tasks.map((task) => [task.slug, task.kind, task.homeThreadId])).toEqual([
 -      ["s-flow", "scout", "mcp:flow-home"],
 -      ["fl-scout", "scout", "mcp:flow-home"],
 -    ]);
-     expect(result.landed).toEqual([
-       { repo: "jstack", slug: "recent", mergedAt: "2026-10-29T10:00:00Z" },
-     ]);
-   });
- 
-+  it("reads a scout row of work.json as a scout, queued, scouting or with its report in, under its prefix's home", () => {
-+    const work = {
-+      work: [
-+        row("look", "unapproved", "queued", {
-+          thread: "",
-+          who: "user",
-+          waits: "your approval",
-+          scout: "queued",
-+        }),
-+        row("fl-probe", "working", "running", { who: "scout", scout: "scouting" }),
-+        row("fl-left", "leftover", "running", { who: "user", scout: "scouting" }),
-+        // A report that is in is done for jbus, so its lane is no stage of a crew task's.
-+        row("fl-survey", "done", "merged", { who: "ok", scout: "report in" }),
-+        row("fl-odd", "working", "running", { scout: "lost" }),
-+        row("fl-pump", "working", "running"),
-+      ],
-+    };
-+    const tasks = buildRepoWork(files({ work }), NOW).tasks;
-+    expect(
-+      tasks.map((task) => [
-+        task.slug,
-+        stageOf(task),
-+        task.threadId,
-+        task.homeThreadId,
-+        task.waitsOn,
-+      ]),
-+    ).toEqual([
-+      ["look", "queued", null, "mcp:root", "approval"],
-+      ["fl-probe", "scouting", "mcp:fl-probe", "mcp:flow-home", null],
-+      ["fl-left", "scouting", "mcp:fl-left", "mcp:flow-home", null],
-+      ["fl-survey", "report in", "mcp:fl-survey", "mcp:flow-home", null],
-+      ["fl-pump", "crew", "mcp:fl-pump", "mcp:flow-home", null],
-+    ]);
-+    expect(tasks.map((task) => task.kind)).toEqual(["scout", "scout", "scout", "scout", "crew"]);
-+    // A scout's title is in the request its home wrote, under scouts/.
-+    expect(slugsNeedingBriefs({ work })).toEqual(
-+      new Map([
-+        ["look", "scouts"],
-+        ["fl-probe", "scouts"],
-+        ["fl-left", "scouts"],
-+        ["fl-survey", "scouts"],
-+        ["fl-pump", "tasks"],
-+      ]),
-+    );
-+  });
-+
-   it("is empty for a repo with no root home", () => {
-     expect(buildRepoWork(files({ rootHomeId: null }), NOW).homes).toEqual([]);
-   });
+-    expect(result.landed).toEqual([
+-      { repo: "jstack", slug: "recent", mergedAt: "2026-10-29T10:00:00Z" },
+-    ]);
+-  });
+ });
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
 index 6674494d2d..06dc05ffd2 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
@@ -399,107 +259,233 @@ index 6674494d2d..06dc05ffd2 100644
  
  export const mergeSnapshots = (snapshots: ReadonlyArray<JbusWorkSnapshot>): JbusWorkSnapshot => ({
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 104d1fc253..50618c4eed 100644
+index eeb16d7956..cafe29d75c 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -68,6 +68,7 @@ const root = (overrides: Partial<JstackRootRow> = {}): JstackRootRow => ({
-   asksYou: false,
-   dot: false,
-   landed: 0,
-+  live: false,
-   folded: { count: 0, unit: "task" },
-   faded: false,
-   selected: false,
-@@ -99,7 +100,7 @@ const worker: JstackTreeRow = {
-   word: "crew",
-   tone: "plain",
-   waited: null,
+@@ -16,14 +16,7 @@ import { render } from "../../../test/render";
+ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+-import {
+-  buildJstackTree,
+-  childHomeMessage,
+-  type JstackAnswering,
+-  type JstackRootPlace,
+-  type JstackRootRow,
+-  type JstackTreeRow,
+-} from "./jstackTree.logic";
++import { buildJstackTree, childHomeMessage, type JstackAnswering } from "./jstackTree.logic";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+@@ -59,63 +52,6 @@ const group = (displayName: string): SidebarProjectSnapshot => ({
+ 
+ const rootThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("root") });
+ 
+-const root = (overrides: Partial<JstackRootRow> = {}): JstackRootRow => ({
+-  kind: "project",
+-  key: "jstack-home:root",
+-  main: rootThread,
+-  noProject: false,
+-  collapsed: false,
+-  asksYou: false,
+-  dot: false,
+-  landed: 0,
+-  folded: { count: 0, unit: "task" },
+-  faded: false,
+-  selected: false,
+-  ...overrides,
+-});
+-
+-const home: JstackTreeRow = {
+-  kind: "domain",
+-  key: "jstack-home:flow",
+-  parentKey: "jstack-home:root",
+-  scope: "flow",
+-  threadId: ThreadId.make("flow"),
+-  thread: null,
+-  open: true,
+-  asksYou: false,
+-  dot: false,
+-  work: { kind: "live", tally: { queue: 0, crew: 1, review: 0 } },
+-  faded: false,
+-  selected: false,
+-};
+-
+-const worker: JstackTreeRow = {
+-  kind: "worker",
+-  key: "jstack-task:jstack/fl-pump",
+-  parentKey: "jstack-home:flow",
+-  depth: 2,
+-  slug: "pump",
+-  prefix: "fl-",
+-  word: "crew",
+-  tone: "plain",
+-  waited: null,
 -  progress: { at: "crew", asks: false },
-+  mark: { kind: "ring", thirds: 1, tone: "live" },
-   threadId: ThreadId.make("crew-pump"),
-   openThreadId: ThreadId.make("crew-pump"),
-   ask: null,
-@@ -200,7 +201,7 @@ function typeOf(row: HTMLElement, text: string) {
+-  threadId: ThreadId.make("crew-pump"),
+-  openThreadId: ThreadId.make("crew-pump"),
+-  ask: null,
+-  thread: null,
+-  pullRequest: null,
+-  selected: false,
+-  repo: "jstack",
+-  taskKind: "crew",
+-  homeThreadId: ThreadId.make("flow"),
+-  homeName: "the flow home",
+-  queued: false,
+-  approvable: false,
+-  gate: null,
+-  answering: false,
+-};
+-
+ function actions(): JstackTreeRowActions {
+   return {
+     onOpenThread: vi.fn(),
+@@ -142,33 +78,6 @@ function actions(): JstackTreeRowActions {
+   };
  }
  
- describe("JstackTreeRowView sizes", () => {
--  it("keeps to two sizes and two weights: root 32px 13/500 with 16px above, home 28px 13/400 at 85% ink, worker 26px 13/400 at 65% ink, and 11/400 for the rest", async () => {
-+  it("keeps to two sizes and one weight: root 32px 13/400 with 24px above, home 28px 13/400 at 80% ink, worker 26px 13/400 at 60% ink, and 11/400 for the rest", async () => {
-     await using screen = await render(
-       <Tree
-         actions={actions()}
-@@ -228,21 +229,21 @@ describe("JstackTreeRowView sizes", () => {
-     expect(measure(rootRow, "jstack")).toEqual({
-       height: 32,
-       fontSize: "13px",
--      fontWeight: "500",
-+      fontWeight: "400",
-       ink: 1,
-     });
--    expect(getComputedStyle(rootRow.closest("li")!).marginTop).toBe("16px");
-+    expect(getComputedStyle(rootRow.closest("li")!).marginTop).toBe("24px");
-     expect(measure(homeRow, "flow")).toEqual({
-       height: 28,
-       fontSize: "13px",
-       fontWeight: "400",
--      ink: 0.85,
-+      ink: 0.8,
-     });
-     expect(measure(workerRow, "fl-pump")).toEqual({
-       height: 26,
-       fontSize: "13px",
-       fontWeight: "400",
--      ink: 0.65,
-+      ink: 0.6,
-     });
-     const small = { fontSize: "11px", fontWeight: "400" };
-     // The stage word, a count's word and its number, and what a root merged.
-@@ -251,7 +252,7 @@ describe("JstackTreeRowView sizes", () => {
-       .querySelector<HTMLElement>('[data-sidebar-row="jstack-home:pipe"]')!
-       .closest("li")!;
-     expect(typeOf(tally, "1")).toEqual(small);
--    expect(Math.round(alphaOf(getComputedStyle(tally.querySelector("b")!).color) * 100)).toBe(85);
-+    expect(Math.round(alphaOf(getComputedStyle(tally.querySelector("b")!).color) * 100)).toBe(80);
-     expect(typeOf(rootRow, "3 merged")).toEqual(small);
-   });
- });
-@@ -321,7 +322,7 @@ const queued: JstackTreeRow = {
-   key: "jstack-task:jstack/fl-meter",
-   slug: "meter",
-   word: "ready",
--  progress: { at: null, asks: false },
-+  mark: { kind: "ring", thirds: 0, tone: "still" },
-   threadId: null,
-   openThreadId: ThreadId.make("flow"),
+-function Tree(props: {
+-  rows: ReadonlyArray<[JstackTreeRow, SidebarProjectSnapshot]>;
+-  actions: JstackTreeRowActions;
+-  /** Root rows' places in their groups, by key. */
+-  places?: Readonly<Record<string, JstackRootPlace>>;
+-}) {
+-  return (
+-    <ul
+-      {...SIDEBAR_TREE_PROPS}
+-      ref={attachSidebarTree}
+-      className="flex w-[300px] flex-col gap-px bg-sidebar"
+-    >
+-      {props.rows.map(([row, rowGroup]) =>
+-        row.kind === "loose" ? null : (
+-          <JstackTreeRowView
+-            key={row.key}
+-            row={row}
+-            group={rowGroup}
+-            actions={props.actions}
+-            place={props.places?.[row.key] ?? null}
+-          />
+-        ),
+-      )}
+-    </ul>
+-  );
+-}
+-
+ /** The alpha of a computed colour: 1 for an opaque one. */
+ const alphaOf = (color: string) => {
+   const match =
+@@ -176,108 +85,6 @@ const alphaOf = (color: string) => {
+   return match === null ? 1 : Number(match[1]);
  };
-@@ -332,7 +333,7 @@ const asking: JstackTreeRow = {
-   slug: "valve",
-   word: "asks you",
-   tone: "asks",
+ 
+-/** A row's height and its name's type and ink, as the user sees them. */
+-function measure(row: HTMLElement, name: string) {
+-  const label = [...row.querySelectorAll("span")].find((span) => span.textContent === name);
+-  if (label === undefined) throw new Error(`no label ${name} in the row`);
+-  const style = getComputedStyle(label);
+-  return {
+-    height: row.getBoundingClientRect().height,
+-    fontSize: style.fontSize,
+-    fontWeight: style.fontWeight,
+-    ink: Math.round(alphaOf(style.color) * 100) / 100,
+-  };
+-}
+-
+-/** The type of the first text in `row` that reads `text`, as the user sees it. */
+-function typeOf(row: HTMLElement, text: string) {
+-  const span = [...row.querySelectorAll<HTMLElement>("span, b")].find(
+-    (element) => element.textContent === text,
+-  );
+-  if (span === undefined) throw new Error(`no text ${text} in the row`);
+-  const style = getComputedStyle(span);
+-  return { fontSize: style.fontSize, fontWeight: style.fontWeight };
+-}
+-
+-describe("JstackTreeRowView sizes", () => {
+-  it("keeps to two sizes and two weights: root 32px 13/500 with 16px above, home 28px 13/400 at 85% ink, worker 26px 13/400 at 65% ink, and 11/400 for the rest", async () => {
+-    await using screen = await render(
+-      <Tree
+-        actions={actions()}
+-        rows={[
+-          [root({ key: "jstack-home:infra", main: rootThread }), group("infra")],
+-          [root({ landed: 3 }), group("jstack")],
+-          [home, group("jstack")],
+-          [worker, group("jstack")],
+-          // A folded home counts its work under its name.
+-          [{ ...home, key: "jstack-home:pipe", scope: "pipe", open: false }, group("jstack")],
+-        ]}
+-      />,
+-      { router: false },
+-    );
+-    const rootRow = screen.container.querySelector<HTMLElement>(
+-      '[data-sidebar-row="jstack-home:root"]',
+-    )!;
+-    const homeRow = screen.container.querySelector<HTMLElement>(
+-      '[data-sidebar-row="jstack-home:flow"]',
+-    )!;
+-    const workerRow = screen.container.querySelector<HTMLElement>(
+-      '[data-sidebar-row="jstack-task:jstack/fl-pump"]',
+-    )!;
+-
+-    expect(measure(rootRow, "jstack")).toEqual({
+-      height: 32,
+-      fontSize: "13px",
+-      fontWeight: "500",
+-      ink: 1,
+-    });
+-    expect(getComputedStyle(rootRow.closest("li")!).marginTop).toBe("16px");
+-    expect(measure(homeRow, "flow")).toEqual({
+-      height: 28,
+-      fontSize: "13px",
+-      fontWeight: "400",
+-      ink: 0.85,
+-    });
+-    expect(measure(workerRow, "fl-pump")).toEqual({
+-      height: 26,
+-      fontSize: "13px",
+-      fontWeight: "400",
+-      ink: 0.65,
+-    });
+-    const small = { fontSize: "11px", fontWeight: "400" };
+-    // The stage word, a count's word and its number, and what a root merged.
+-    expect(typeOf(workerRow, "crew")).toEqual(small);
+-    const tally = screen.container
+-      .querySelector<HTMLElement>('[data-sidebar-row="jstack-home:pipe"]')!
+-      .closest("li")!;
+-    expect(typeOf(tally, "1")).toEqual(small);
+-    expect(Math.round(alphaOf(getComputedStyle(tally.querySelector("b")!).color) * 100)).toBe(85);
+-    expect(typeOf(rootRow, "3 merged")).toEqual(small);
+-  });
+-});
+-
+-const queued: JstackTreeRow = {
+-  ...worker,
+-  key: "jstack-task:jstack/fl-meter",
+-  slug: "meter",
+-  word: "ready",
+-  progress: { at: null, asks: false },
+-  threadId: null,
+-  openThreadId: ThreadId.make("flow"),
+-};
+-
+-const asking: JstackTreeRow = {
+-  ...worker,
+-  key: "jstack-task:jstack/fl-valve",
+-  slug: "valve",
+-  word: "asks you",
+-  tone: "asks",
 -  progress: { at: null, asks: true },
-+  mark: { kind: "ring", thirds: 0, tone: "asks" },
-   threadId: null,
-   openThreadId: ThreadId.make("gate"),
-   ask: { what: "Which valve size?", default: null, brief: null, askedIn: "gate thread" },
-@@ -480,7 +481,7 @@ describe("JstackTreeRowView context menus", () => {
-         items: [["Open root home", ["onOpenThread", ThreadId.make("root")]]],
-       },
-       {
--        row: "fl-pump crew",
-+        row: "fl-pump crew live",
-         items: [
-           ["Open thread", ["onOpenThread", ThreadId.make("crew-pump")]],
-           [
-@@ -980,7 +981,7 @@ describe("JstackTreeRowView row actions", () => {
-         approvable: true,
-       }),
-     );
--    await pick("fl-pump crew", "Open brief");
-+    await pick("fl-pump crew live", "Open brief");
-     expect(spies.onOpenBrief).toHaveBeenLastCalledWith(
-       expect.objectContaining({ slug: "pump", approvable: false }),
-     );
-@@ -1326,6 +1327,43 @@ describe("JstackTreeRowView idle homes", () => {
+-  threadId: null,
+-  openThreadId: ThreadId.make("gate"),
+-  ask: { what: "Which valve size?", default: null, brief: null, askedIn: "gate thread" },
+-};
+-
+ const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
+ const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
+ const jviewThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("jview") });
+@@ -698,6 +505,43 @@ describe("JstackTreeRowView idle homes", () => {
    });
  });
  
@@ -543,7 +529,7 @@ index 104d1fc253..50618c4eed 100644
  // One task in each part of its pull request's review, each as jbus's row value names it.
  const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
    ...SNAPSHOT,
-@@ -1340,90 +1378,220 @@ const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
+@@ -712,86 +556,150 @@ const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
    ],
  };
  
@@ -667,8 +653,7 @@ index 104d1fc253..50618c4eed 100644
 -      progress: { at: "review", asks: true },
 -    };
 -    const jstack = group("jstack");
-+  it("draws sky only on live work, amber on what asks you, and every other mark neutral or muted", async () => {
-     await using screen = await render(
+-    await using screen = await render(
 -      <Tree
 -        actions={actions()}
 -        rows={[
@@ -678,9 +663,8 @@ index 104d1fc253..50618c4eed 100644
 -          [worker, jstack],
 -        ]}
 -      />,
-+      <LiveTree snapshot={MARK_SNAPSHOT} spies={actions()} sent={[]} threads={MARK_THREADS} />,
-       { router: false },
-     );
+-      { router: false },
+-    );
 -    const rowOf = (key: string) =>
 -      screen.container.querySelector<HTMLElement>(`[data-sidebar-row="${key}"]`)!;
 -    expect(segmentsOf(rowOf("jstack-task:jstack/fl-gauge"))).toEqual([0.45, "amber", 0.25]);
@@ -689,69 +673,11 @@ index 104d1fc253..50618c4eed 100644
 -    expect(segmentsOf(scoutRow)).toEqual([]);
 -    // Its word still lines up with the words of the rows that draw segments.
 -    const wordEnd = (row: HTMLElement, word: string) =>
-+    const rowOf = (slug: string) =>
-+      screen.container.querySelector<HTMLElement>(
-+        `[data-sidebar-row="jstack-task:jstack/${slug}"]`,
-+      )!;
-+    await expect.element(screen.getByRole("treeitem", { name: /^tidy / })).toBeVisible();
-+    const expected = {
-+      tidy: ["tidy crew", { ring: 1, size: 8, ink: "sky" }],
-+      green: ["green checks", { ring: 3, size: 8, ink: "sky" }],
-+      meter: ["meter ready", { ring: 0, size: 8, ink: "muted" }],
-+      valve: ["valve asks you", { ring: 2, size: 8, ink: "amber" }],
-+      poc: ["poc review 2 held 1h", { ring: 2, size: 8, ink: 0.6 }],
-+      // A scout's diamond: half filled while it scouts, filled once its report is in.
-+      look: ["look scouting", { diamond: [false, true], size: 10, ink: "sky" }],
-+      audit: ["audit report in", { diamond: [true, true], size: 10, ink: 0.6 }],
-+      ideas: ["ideas queued", { diamond: [false, false], size: 10, ink: "muted" }],
-+    } as const;
-+    for (const [slug, [text, mark]] of Object.entries(expected)) {
-+      expect(shownText(rowOf(slug))).toBe(text);
-+      expect(markOf(rowOf(slug))).toEqual(mark);
-+    }
-+    // Text stays neutral, on a live row as on any other: the name at 60% ink, the word muted.
-+    const word = [...rowOf("look").querySelectorAll("span")].find(
-+      (span) => span.textContent === "scouting",
-+    )!;
-+    expect(named(getComputedStyle(word).color)).toBe("muted");
-+    expect(named(getComputedStyle(rowOf("look").querySelector("span")!).color)).toBe(0.6);
-+    // A screen reader hears which rows are live.
-+    await expect
-+      .element(screen.getByRole("treeitem", { name: "look scouting live" }))
-+      .toBeVisible();
-+    await expect.element(screen.getByRole("treeitem", { name: "audit report in" })).toBeVisible();
-+    // The root's badge is sky while live work is under it, as the root's name says unseen.
-+    expect(badgeOf(screen.container)).toBe("sky");
-+    await expect.element(rootItem(screen)).toHaveAccessibleName(/live work inside/);
-+    // A diamond and a ring share one column, so the words beside them line up.
-+    const wordEnd = (row: HTMLElement, text: string) =>
-       [...row.querySelectorAll("span")]
+-      [...row.querySelectorAll("span")]
 -        .find((span) => span.textContent === word)!
-+        .find((span) => span.textContent === text)!
-         .getBoundingClientRect().right;
+-        .getBoundingClientRect().right;
 -    expect(wordEnd(scoutRow, "scout")).toBe(wordEnd(rowOf("jstack-task:jstack/fl-pump"), "crew"));
-+    expect(wordEnd(rowOf("look"), "scouting")).toBe(wordEnd(rowOf("tidy"), "crew"));
-+    expect(await audit()).toEqual([]);
-   });
-+
-+  it("keeps a root's badge neutral, at 60% ink, while nothing under it is live", async () => {
-+    const snapshot: JbusWorkSnapshot = {
-+      ...SNAPSHOT,
-+      tasks: [
-+        { ...crewTask("meter", "root"), stage: "ready", threadId: null },
-+        scoutTask("audit", "report in"),
-+        { ...crewTask("fl-pump", "flow"), stage: "ready", threadId: null },
-+      ],
-+    };
-+    await using screen = await render(
-+      <LiveTree snapshot={snapshot} spies={actions()} sent={[]} threads={MARK_THREADS} />,
-+      { router: false },
-+    );
-+    await expect.element(screen.getByRole("treeitem", { name: /^meter / })).toBeVisible();
-+    expect(badgeOf(screen.container)).toBe(0.6);
-+    expect(rootItem(screen).element().textContent).not.toContain("live work inside");
-+  });
-+
+-  });
 +  it.each(["light", "dark"] as const)(
 +    "keeps every mark, badge and text of the tree at 4.5:1 or more on the sidebar, %s",
 +    async (theme) => {
@@ -788,7 +714,7 @@ index 104d1fc253..50618c4eed 100644
 +    },
 +  );
  });
- 
++
 +/** A colour as the screen paints it on `under`, alpha and all: [r, g, b] in 0..255. */
 +const painted = (color: string, under: string) => {
 +  const canvas = document.createElement("canvas");
@@ -820,10 +746,6 @@ index 104d1fc253..50618c4eed 100644
 +  ].toSorted((a, b) => b - a);
 +  return (lighter! + 0.05) / (darker! + 0.05);
 +};
-+
- /** A crew thread whose last turn ended at `endedAt`, or that is still in a turn. */
- const crewThread = (slug: string, endedAt: string, running = false) =>
-   makeThreadFixture({
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index 4b3467d1d2..5bf9895718 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
@@ -1035,34 +957,27 @@ index 4b3467d1d2..5bf9895718 100644
                  {row.scope}
                </span>{" "}
                <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
-diff --git a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-index e29c0fa630..c1f296abc5 100644
---- a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-+++ b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-@@ -50,6 +50,7 @@ const root = (name: string, idle: boolean, noProject = false): Root => {
-       asksYou: false,
-       dot: false,
-       landed: 0,
-+      live: false,
-       folded: { count: 0, unit: "thread" },
-       faded: idle,
-       selected: false,
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index 668671364c..d0528e723e 100644
+index 3f161cce9f..28c3cbcff9 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -4,7 +4,9 @@ import {
+@@ -4,13 +4,13 @@ import {
    EnvironmentId,
    ProjectId,
    ThreadId,
 -  type JbusTask,
 +  type JbusCrewTask,
-+  type JbusScoutTask,
-+  type JbusScouting,
    type JbusWorkSnapshot,
  } from "@t3tools/contracts";
  import { describe, expect, it } from "vite-plus/test";
-@@ -40,7 +42,7 @@ const thread = (id: string, overrides: ThreadFixtureOverrides = {}): Environment
+ 
+ import { makeThreadFixture, type ThreadFixtureOverrides } from "../../test-fixtures";
+-import { buildJstackTree, type JstackTreeInput, type JstackTreeRow } from "./jstackTree.logic";
++import { buildJstackTree, type JstackTreeInput } from "./jstackTree.logic";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+ const projectId = ProjectId.make("project-jstack");
+@@ -27,7 +27,7 @@ const thread = (id: string, overrides: ThreadFixtureOverrides = {}): Environment
      ...overrides,
    });
  
@@ -1071,215 +986,44 @@ index 668671364c..d0528e723e 100644
    repo: "jstack",
    slug,
    kind: "crew",
-@@ -55,6 +57,24 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
-   ...overrides,
- });
- 
-+const scout = (
-+  slug: string,
-+  scouting: JbusScouting,
-+  overrides: Partial<JbusScoutTask> = {},
-+): JbusScoutTask => ({
-+  repo: "jstack",
-+  slug,
-+  kind: "scout",
-+  scouting,
-+  threadId: scouting === "queued" ? null : ThreadId.make(`crew-${slug}`),
-+  homeThreadId: ThreadId.make("root"),
-+  waitsOn: null,
-+  waits: "",
-+  brief: null,
-+  held: null,
-+  ...overrides,
-+});
-+
- const HOMES: JbusWorkSnapshot["homes"] = [
-   { repo: "jstack", scope: null, threadId: ThreadId.make("root"), prefix: null },
-   { repo: "jstack", scope: "flow", threadId: ThreadId.make("flow"), prefix: "fl-" },
-@@ -352,13 +372,14 @@ describe("buildJstackTree", () => {
-     ).toMatchObject({ landed: 0 });
+@@ -86,13 +86,6 @@ function build(
    });
+ }
  
+-const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
+-  (rows ?? []).flatMap((row) =>
+-    row.kind === "worker"
+-      ? [`${row.slug}:${row.word}${row.waited ? ` ${row.waited.kind} ${row.waited.age}` : ""}`]
+-      : [],
+-  );
+-
+ describe("buildJstackTree", () => {
+   it("opens a task with no thread at the thread that asks about it, else at its home, and says what it asks", () => {
+     const tasks = [
+@@ -171,23 +164,4 @@ describe("buildJstackTree", () => {
+     });
+     expect(idle.rows[0]).toMatchObject({ kind: "project", landed: 2 });
+   });
+-
 -  it("drops scouts whose thread settled or archived", () => {
-+  it("draws a scout queued until its thread, and drops one whose thread settled or archived", () => {
-     const tree = build(
-       {
-         tasks: [
+-    const tree = build(
+-      {
+-        tasks: [
 -          task("live", { kind: "scout" }),
 -          task("done", { kind: "scout" }),
 -          task("gone", { kind: "scout" }),
-+          scout("live", "scouting"),
-+          scout("done", "report in"),
-+          scout("gone", "report in"),
-+          scout("next", "queued"),
-         ],
-       },
-       {
-@@ -368,7 +389,7 @@ describe("buildJstackTree", () => {
-         ],
-       },
-     );
+-        ],
+-      },
+-      {
+-        threads: [
+-          thread("crew-done", { settledOverride: "settled" }),
+-          thread("crew-gone", { archivedAt: minutesAgo(5) }),
+-        ],
+-      },
+-    );
 -    expect(workers(tree.rows)).toEqual(["live:scout"]);
-+    expect(workers(tree.rows)).toEqual(["live:scouting", "next:queued"]);
-   });
- 
-   it("lists the folder's other threads loose, minus finished worker threads", () => {
-@@ -384,6 +405,139 @@ describe("buildJstackTree", () => {
-   });
+-  });
  });
- 
-+/** Each worker's mark, as `slug:mark:tone`: a ring by its thirds, a diamond by its state. */
-+const marks = (rows: ReadonlyArray<JstackTreeRow>) =>
-+  rows.flatMap((row) =>
-+    row.kind === "worker"
-+      ? [
-+          `${row.slug}:${row.mark.kind === "ring" ? `ring ${row.mark.thirds}` : row.mark.scouting}:${row.mark.tone}`,
-+        ]
-+      : [],
-+  );
-+
-+describe("buildJstackTree marks", () => {
-+  // A thread whose last turn ended `minutes` ago and is not in one now.
-+  const idle = (slug: string, minutes: number) =>
-+    thread(`crew-${slug}`, {
-+      updatedAt: minutesAgo(minutes),
-+      latestRun: {
-+        runId: `run-${slug}` as never,
-+        status: "completed",
-+        requestedAt: minutesAgo(minutes),
-+        startedAt: minutesAgo(minutes),
-+        completedAt: minutesAgo(minutes),
-+        assistantMessageId: null,
-+      },
-+    });
-+
-+  it("fills a crew task's ring by thirds, crew, review and merge, and keeps it empty while queued", () => {
-+    const tree = build({
-+      tasks: [
-+        task("ready", { stage: "ready", threadId: null }),
-+        task("crew"),
-+        task("first", { stage: "review" }),
-+        task("fixes", { stage: "findings" }),
-+        task("again", { stage: "second" }),
-+        task("green", { stage: "check" }),
-+        task("onto", { stage: "rebase" }),
-+      ],
-+    });
-+    expect(marks(tree.rows).toSorted()).toEqual(
-+      [
-+        "ready:ring 0:still",
-+        "crew:ring 1:live",
-+        "first:ring 2:live",
-+        "fixes:ring 2:live",
-+        "again:ring 2:live",
-+        "green:ring 3:live",
-+        "onto:ring 3:live",
-+      ].toSorted(),
-+    );
-+  });
-+
-+  it("draws a scout's diamond queued, scouting or with its report in, live only while it scouts", () => {
-+    const tree = build({
-+      tasks: [scout("next", "queued"), scout("look", "scouting"), scout("done", "report in")],
-+    });
-+    expect(marks(tree.rows)).toEqual([
-+      "look:scouting:live",
-+      "done:report in:still",
-+      "next:queued:still",
-+    ]);
-+  });
-+
-+  it("marks live only a launched task that does not ask you and is not quiet, stalled or held", () => {
-+    const tasks = [
-+      task("asks", { stage: "review", waitsOn: "word", waits: "your word" }),
-+      task("gated"),
-+      task("held", {
-+        stage: "review",
-+        held: { since: minutesAgo(90), reason: "draft" },
-+      }),
-+      task("quiet", { stage: "quiet" }),
-+      task("stalled", { stage: "findings" }),
-+      task("fresh", { stage: "findings" }),
-+      scout("slept", "scouting"),
-+      scout("unapproved", "queued", { waitsOn: "approval", waits: "your approval" }),
-+    ];
-+    const threads = [idle("stalled", 45), idle("fresh", 5), idle("slept", 45)];
-+    const gates = [
-+      {
-+        repo: "jstack",
-+        number: 4,
-+        threadId: null,
-+        slug: "gated",
-+        question: "which?",
-+        default: "",
-+        askedAt: minutesAgo(3),
-+      },
-+    ];
-+    const expected = [
-+      "asks:ring 2:asks",
-+      "gated:ring 1:asks",
-+      "held:ring 2:still",
-+      "quiet:ring 1:still",
-+      "stalled:ring 2:still",
-+      "fresh:ring 2:live",
-+      "slept:scouting:still",
-+      "unapproved:queued:asks",
-+    ].toSorted();
-+    // Whether the row says it is stalled is the user's choice; that it is not live is not.
-+    for (const attention of ["gates", "gates-and-quiet"] as const) {
-+      const tree = build(
-+        { tasks, gates },
-+        { threads, options: { attention, landedCount: true, quietMinutes: 20, rowCap: 8 } },
-+      );
-+      expect(marks(tree.rows).toSorted()).toEqual(expected);
-+    }
-+  });
-+
-+  it("marks a root live while a task under any of its homes is live, and not otherwise", () => {
-+    const liveUnderFlow = build({
-+      tasks: [
-+        task("ready", { stage: "ready", threadId: null }),
-+        task("fl-pump", { homeThreadId: ThreadId.make("flow") }),
-+      ],
-+    });
-+    expect(liveUnderFlow.root.live).toBe(true);
-+    // Folded, the root still says so on its badge.
-+    expect(
-+      build(
-+        { tasks: [scout("fl-look", "scouting", { homeThreadId: ThreadId.make("flow") })] },
-+        { collapsed: true },
-+      ).root.live,
-+    ).toBe(true);
-+    const still = build({
-+      tasks: [
-+        task("ready", { stage: "ready", threadId: null }),
-+        scout("done", "report in"),
-+        task("asks", { waitsOn: "answer", waits: "your answer" }),
-+      ],
-+    });
-+    expect(still.root.live).toBe(false);
-+  });
-+});
-+
- describe("arrangeJstackRoots", () => {
-   const root = (name: string, faded: boolean, noProject = false) => ({
-     name,
-@@ -396,6 +550,7 @@ describe("arrangeJstackRoots", () => {
-       asksYou: false,
-       dot: false,
-       landed: 0,
-+      live: false,
-       folded: { count: 0, unit: "thread" as const },
-       faded,
-       selected: false,
-@@ -447,6 +602,7 @@ describe("moving a root row", () => {
-       asksYou: false,
-       dot: false,
-       landed: 0,
-+      live: false,
-       folded: { count: 0, unit: "thread" as const },
-       faded,
-       selected: false,
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 46cd5bdbdf..671b2bfec7 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

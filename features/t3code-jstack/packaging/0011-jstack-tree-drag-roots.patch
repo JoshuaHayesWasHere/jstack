@@ -15,15 +15,12 @@ The order is the projects' order (`projectOrder`), written through the UI state'
 split, so a root that turns active or idle keeps its rank among the others, and a project never
 dragged follows the ranked ones in the sidebar's order.
 ---
- apps/web/src/components/Sidebar.tsx           |  41 ++-
- .../sidebar/JstackTreeRows.browser.test.tsx   |  21 +-
- .../src/components/sidebar/JstackTreeRows.tsx |  55 +++
- .../sidebar/jstackRootOrder.browser.test.tsx  | 324 ++++++++++++++++++
- .../src/components/sidebar/jstackRootOrder.ts | 134 ++++++++
- .../sidebar/jstackTree.logic.test.ts          | 133 +++++++
- .../components/sidebar/jstackTree.logic.ts    | 103 +++++-
- 7 files changed, 801 insertions(+), 10 deletions(-)
- create mode 100644 apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
+ apps/web/src/components/Sidebar.tsx           |  41 ++++--
+ .../sidebar/JstackTreeRows.browser.test.tsx   |  19 ++-
+ .../src/components/sidebar/JstackTreeRows.tsx |  55 +++++++
+ .../src/components/sidebar/jstackRootOrder.ts | 134 ++++++++++++++++++
+ .../components/sidebar/jstackTree.logic.ts    | 103 +++++++++++++-
+ 5 files changed, 341 insertions(+), 11 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/jstackRootOrder.ts
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
@@ -144,18 +141,24 @@ index 36e2c6fb44..78ab0c2fb5 100644
            ) : null}
            {!isSearchingThreads &&
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index fe847a567f..abc2134341 100644
+index d116d72c2d..6d6d6b2d73 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -20,6 +20,7 @@ import {
-   buildJstackTree,
-   childHomeMessage,
-   type JstackAnswering,
+@@ -13,7 +13,12 @@ import { render } from "../../../test/render";
+ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+-import { buildJstackTree, type JstackRootRow, type JstackTreeRow } from "./jstackTree.logic";
++import {
++  buildJstackTree,
 +  type JstackRootPlace,
-   type JstackRootRow,
-   type JstackTreeRow,
- } from "./jstackTree.logic";
-@@ -135,12 +136,16 @@ function actions(): JstackTreeRowActions {
++  type JstackRootRow,
++  type JstackTreeRow,
++} from "./jstackTree.logic";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
+ 
+ const environmentId = EnvironmentId.make("environment-local");
+@@ -126,12 +131,16 @@ function actions(): JstackTreeRowActions {
      onOpenAnswer: vi.fn(),
      onCloseAnswer: vi.fn(),
      onSendAnswer: vi.fn(async () => true),
@@ -172,7 +175,7 @@ index fe847a567f..abc2134341 100644
  }) {
    return (
      <ul
-@@ -150,7 +155,13 @@ function Tree(props: {
+@@ -141,7 +150,13 @@ function Tree(props: {
      >
        {props.rows.map(([row, rowGroup]) =>
          row.kind === "loose" ? null : (
@@ -187,35 +190,6 @@ index fe847a567f..abc2134341 100644
          ),
        )}
      </ul>
-@@ -357,6 +368,11 @@ describe("JstackTreeRowView context menus", () => {
-     await using screen = await render(
-       <Tree
-         actions={spies}
-+        // jstack first of three active roots, Winnifred the middle one; No project never moves.
-+        places={{
-+          "jstack-home:root": { index: 0, count: 3, idle: false },
-+          "folder:Winnifred": { index: 1, count: 3, idle: false },
-+        }}
-         rows={[
-           [root(), jstack],
-           [home, jstack],
-@@ -393,6 +409,7 @@ describe("JstackTreeRowView context menus", () => {
-           ["New thread", ["onNewThread", jstack]],
-           ["Copy path", ["onCopyPath", jstack]],
-           ["Project settings", ["onOpenProjectSettings", jstack]],
-+          ["Move down", ["onStepRoot", "jstack-home:root", 1]],
-           ["Archive home", ["onArchiveHome", ThreadId.make("root"), "jstack's root home"]],
-         ],
-       },
-@@ -404,6 +421,8 @@ describe("JstackTreeRowView context menus", () => {
-           ["New thread", ["onNewThread", winnifred]],
-           ["Copy path", ["onCopyPath", winnifred]],
-           ["Project settings", ["onOpenProjectSettings", winnifred]],
-+          ["Move up", ["onStepRoot", "folder:Winnifred", -1]],
-+          ["Move down", ["onStepRoot", "folder:Winnifred", 1]],
-         ],
-       },
-       {
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index 23cc633a62..892d3b413b 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
@@ -336,336 +310,6 @@ index 23cc633a62..892d3b413b 100644
              )}
            >
              <span className="min-w-0 flex-1 truncate text-tree-root text-sidebar-foreground">
-diff --git a/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-new file mode 100644
-index 0000000000..e29c0fa630
---- /dev/null
-+++ b/apps/web/src/components/sidebar/jstackRootOrder.browser.test.tsx
-@@ -0,0 +1,324 @@
-+import { getProjectOrderKey } from "@t3tools/client-runtime/state/project-grouping";
-+import { EnvironmentId, ProjectId } from "@t3tools/contracts";
-+import { describe, expect, it, vi } from "vite-plus/test";
-+import { userEvent } from "vite-plus/test/browser";
-+
-+import "~/index.css";
-+import { act, render } from "../../../test/render";
-+import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
-+import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
-+import {
-+  parsePersistedState,
-+  PERSISTED_STATE_KEY,
-+  type PersistedUiState,
-+  useUiStateStore,
-+} from "../../uiStateStore";
-+import type { JstackRootRow } from "./jstackTree.logic";
-+import { useJstackRootOrder } from "./jstackRootOrder";
-+import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
-+
-+const environmentId = EnvironmentId.make("environment-local");
-+
-+interface Root {
-+  readonly row: JstackRootRow;
-+  readonly group: SidebarProjectSnapshot;
-+}
-+
-+/** A project's root row: active unless idle, and "No project" pinned last. */
-+const root = (name: string, idle: boolean, noProject = false): Root => {
-+  const projectId = ProjectId.make(`project-${name}`);
-+  const member = {
-+    id: projectId,
-+    environmentId,
-+    title: name,
-+    workspaceRoot: `/repos/${name}`,
-+    physicalProjectKey: `${environmentId}:/repos/${name}`,
-+    environmentLabel: null,
-+    defaultModelSelection: null,
-+    scripts: [],
-+    projectIcon: null,
-+    createdAt: "2026-10-29T00:00:00.000Z",
-+    updatedAt: "2026-10-29T00:00:00.000Z",
-+  };
-+  return {
-+    row: {
-+      kind: "project",
-+      key: `root:${name}`,
-+      main: null,
-+      noProject,
-+      collapsed: false,
-+      asksYou: false,
-+      dot: false,
-+      landed: 0,
-+      folded: { count: 0, unit: "thread" },
-+      faded: idle,
-+      selected: false,
-+    },
-+    group: {
-+      ...member,
-+      projectKey: name,
-+      displayName: name,
-+      memberProjects: [member],
-+      memberProjectRefs: [{ environmentId, projectId }],
-+      groupedProjectCount: 1,
-+      environmentPresence: "local-only",
-+      allRemoteMembersAreDesktopLocal: false,
-+      allRemoteMembersAreWsl: false,
-+      remoteEnvironmentLabels: [],
-+    } as SidebarProjectSnapshot,
-+  };
-+};
-+
-+// The sidebar's own order: alpha and gamma are active, beta and delta idle.
-+const ROOTS = [
-+  root("alpha", false),
-+  root("beta", true),
-+  root("gamma", false),
-+  root("delta", true),
-+  root("No project", true, true),
-+];
-+
-+const noop = () => {};
-+const actions = (order: ReturnType<typeof useJstackRootOrder<Root>>): JstackTreeRowActions => ({
-+  onOpenThread: noop,
-+  onToggleProject: noop,
-+  onExpandHome: noop,
-+  onNewThread: noop,
-+  onCopyPath: noop,
-+  onOpenProjectSettings: noop,
-+  onCopyName: noop,
-+  onHomeWork: noop,
-+  onArchiveHome: noop,
-+  onStartHome: noop,
-+  onOpenChildHomeEditor: noop,
-+  onCloseChildHomeEditor: noop,
-+  onSendChildHome: async () => true,
-+  onDismissStartingHome: noop,
-+  onOpenBrief: noop,
-+  onRemoveTask: noop,
-+  onOpenAnswer: noop,
-+  onCloseAnswer: noop,
-+  onSendAnswer: async () => true,
-+  onPressRoot: order.press,
-+  onStepRoot: order.step,
-+});
-+
-+/** The tree's roots as the sidebar draws them, with the divider above the idle ones. */
-+function Roots(props: { roots: ReadonlyArray<Root> }) {
-+  const order = useJstackRootOrder({
-+    roots: props.roots,
-+    head: (one) => one.row,
-+    orderIds: (one) => one.group.memberProjects.map(getProjectOrderKey),
-+    dragDistance: 6,
-+  });
-+  return (
-+    <>
-+      <ul
-+        {...SIDEBAR_TREE_PROPS}
-+        ref={attachSidebarTree}
-+        className="flex w-[300px] flex-col gap-px bg-sidebar"
-+      >
-+        {order.roots.flatMap((one) => [
-+          one === order.dividerBefore ? (
-+            <li key="divider" aria-hidden data-testid="divider" className="my-2 border-t" />
-+          ) : null,
-+          <JstackTreeRowView
-+            key={one.row.key}
-+            row={one.row}
-+            group={one.group}
-+            actions={actions(order)}
-+            place={order.placeOf(one.row.key)}
-+            dragging={order.drag?.key === one.row.key}
-+          />,
-+        ])}
-+      </ul>
-+      <p aria-live="polite" data-testid="said">
-+        {order.said}
-+      </p>
-+    </>
-+  );
-+}
-+
-+/** The roots in drawn order, "|" for the divider. */
-+const drawn = (container: HTMLElement) =>
-+  [
-+    ...container.querySelectorAll<HTMLElement>(
-+      '[data-testid="jstack-tree-project"], [data-testid="divider"]',
-+    ),
-+  ].map((item) =>
-+    item.dataset.testid === "divider"
-+      ? "|"
-+      : item.querySelector("[data-sidebar-row] span")!.textContent,
-+  );
-+
-+const rowOf = (container: HTMLElement, name: string) =>
-+  container.querySelector<HTMLElement>(`[data-sidebar-row="root:${name}"]`)!;
-+
-+const pointer = (type: string, x: number, y: number, buttons: number) =>
-+  new PointerEvent(type, {
-+    bubbles: true,
-+    cancelable: true,
-+    composed: true,
-+    pointerId: 1,
-+    isPrimary: true,
-+    button: 0,
-+    buttons,
-+    clientX: x,
-+    clientY: y,
-+  });
-+
-+/** Presses a root row and drags it to `y`, in steps, as a mouse does; release ends it. */
-+async function drag(row: HTMLElement, y: number, release = true) {
-+  const rect = row.getBoundingClientRect();
-+  const x = rect.left + 40;
-+  let at = rect.top + rect.height / 2;
-+  await act(() => row.dispatchEvent(pointer("pointerdown", x, at, 1)));
-+  const step = (y - at) / 8;
-+  for (let index = 0; index < 8; index++) {
-+    at += step;
-+    await act(() => document.dispatchEvent(pointer("pointermove", x, at, 1)));
-+  }
-+  if (release) await act(() => document.dispatchEvent(pointer("pointerup", x, at, 0)));
-+}
-+
-+const centerOf = (row: HTMLElement) => {
-+  const rect = row.getBoundingClientRect();
-+  return rect.top + rect.height / 2;
-+};
-+
-+/** What a reload reads back: the UI state as the browser keeps it. */
-+const reload = () => {
-+  const kept = window.localStorage.getItem(PERSISTED_STATE_KEY);
-+  useUiStateStore.setState(
-+    parsePersistedState(kept === null ? {} : (JSON.parse(kept) as PersistedUiState)),
-+  );
-+};
-+
-+/** A project order no other test sees, kept nowhere once the test ends. */
-+function freshOrder() {
-+  const forget = () => {
-+    window.localStorage.removeItem(PERSISTED_STATE_KEY);
-+    useUiStateStore.setState({ projectOrder: [] });
-+  };
-+  forget();
-+  const stack = new DisposableStack();
-+  stack.defer(forget);
-+  return stack;
-+}
-+
-+describe("dragging a jstack root row", () => {
-+  it("moves a root by mouse within its group, and keeps the place across a reload", async () => {
-+    using _order = freshOrder();
-+    const screen = await render(<Roots roots={ROOTS} />, { router: false });
-+    expect(drawn(screen.container)).toEqual(["alpha", "gamma", "|", "beta", "delta", "No project"]);
-+
-+    // Mid-drag, the row shows at the place it would drop at, and its group makes room.
-+    const gamma = rowOf(screen.container, "gamma");
-+    await drag(gamma, centerOf(rowOf(screen.container, "alpha")) - 10, false);
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+    expect(gamma.closest("li")!.hasAttribute("data-dragging")).toBe(true);
-+    await act(() => document.dispatchEvent(pointer("pointerup", 0, 0, 0)));
-+    expect(gamma.closest("li")!.hasAttribute("data-dragging")).toBe(false);
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+
-+    // The UI state writes it down, and a fresh start draws the same order.
-+    await vi.waitFor(() =>
-+      expect(window.localStorage.getItem(PERSISTED_STATE_KEY)).toContain("/repos/gamma"),
-+    );
-+    await screen[Symbol.asyncDispose]();
-+    useUiStateStore.setState({ projectOrder: [] });
-+    reload();
-+    await using again = await render(<Roots roots={ROOTS} />, { router: false });
-+    expect(drawn(again.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+  });
-+
-+  it("never drags a root across the divider, and Escape puts it back", async () => {
-+    using _order = freshOrder();
-+    await using screen = await render(<Roots roots={ROOTS} />, { router: false });
-+    // Dragged far below the idle group, an active root stops at the end of its own.
-+    await drag(
-+      rowOf(screen.container, "alpha"),
-+      centerOf(rowOf(screen.container, "No project")) + 40,
-+    );
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+
-+    await drag(
-+      rowOf(screen.container, "delta"),
-+      centerOf(rowOf(screen.container, "gamma")) - 30,
-+      false,
-+    );
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "delta", "beta", "No project"]);
-+    await userEvent.keyboard("{Escape}");
-+    await act(() => document.dispatchEvent(pointer("pointerup", 0, 0, 0)));
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+  });
-+
-+  it("still folds on a click that does not move", async () => {
-+    using _order = freshOrder();
-+    const onToggleProject = vi.fn();
-+    function Clicked() {
-+      const order = useJstackRootOrder({
-+        roots: ROOTS,
-+        head: (one) => one.row,
-+        orderIds: (one) => one.group.memberProjects.map(getProjectOrderKey),
-+        dragDistance: 6,
-+      });
-+      return (
-+        <ul {...SIDEBAR_TREE_PROPS} ref={attachSidebarTree} className="w-[300px]">
-+          {order.roots.map((one) => (
-+            <JstackTreeRowView
-+              key={one.row.key}
-+              row={one.row}
-+              group={one.group}
-+              actions={{ ...actions(order), onToggleProject }}
-+              place={order.placeOf(one.row.key)}
-+            />
-+          ))}
-+        </ul>
-+      );
-+    }
-+    await using screen = await render(<Clicked />, { router: false });
-+    await userEvent.click(rowOf(screen.container, "beta"));
-+    expect(onToggleProject).toHaveBeenCalledOnce();
-+  });
-+});
-+
-+describe("moving a jstack root row by keyboard", () => {
-+  it("moves the focused root with Alt+Arrow within its group, keeps focus, and says where", async () => {
-+    using _order = freshOrder();
-+    await using screen = await render(<Roots roots={ROOTS} />, { router: false });
-+    const alpha = rowOf(screen.container, "alpha");
-+    alpha.focus();
-+
-+    await userEvent.keyboard("{Alt>}{ArrowDown}{/Alt}");
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+    await vi.waitFor(() => expect(document.activeElement).toBe(rowOf(screen.container, "alpha")));
-+    expect(screen.getByTestId("said").element().textContent).toBe(
-+      "Moved to 2 of 2 active projects.",
-+    );
-+
-+    // The end of the active group is a wall: the divider and the idle group stay put.
-+    await userEvent.keyboard("{Alt>}{ArrowDown}{/Alt}");
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "beta", "delta", "No project"]);
-+
-+    rowOf(screen.container, "delta").focus();
-+    await userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}");
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "delta", "beta", "No project"]);
-+    await vi.waitFor(() => expect(document.activeElement).toBe(rowOf(screen.container, "delta")));
-+    expect(screen.getByTestId("said").element().textContent).toBe("Moved to 1 of 2 idle projects.");
-+
-+    // No project stays pinned last.
-+    rowOf(screen.container, "No project").focus();
-+    await userEvent.keyboard("{Alt>}{ArrowUp}{/Alt}");
-+    expect(drawn(screen.container)).toEqual(["gamma", "alpha", "|", "delta", "beta", "No project"]);
-+  });
-+
-+  it("leaves plain arrows to the tree, which moves focus and not rows", async () => {
-+    using _order = freshOrder();
-+    await using screen = await render(<Roots roots={ROOTS} />, { router: false });
-+    rowOf(screen.container, "alpha").focus();
-+    await userEvent.keyboard("{ArrowDown}");
-+    expect(document.activeElement).toBe(rowOf(screen.container, "gamma"));
-+    expect(drawn(screen.container)).toEqual(["alpha", "gamma", "|", "beta", "delta", "No project"]);
-+  });
-+});
 diff --git a/apps/web/src/components/sidebar/jstackRootOrder.ts b/apps/web/src/components/sidebar/jstackRootOrder.ts
 new file mode 100644
 index 0000000000..f70b81782e
@@ -806,161 +450,6 @@ index 0000000000..f70b81782e
 +    press,
 +  };
 +}
-diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index fd7d640a3f..1d899e870c 100644
---- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-+++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -10,10 +10,15 @@ import {
- import { describe, expect, it } from "vite-plus/test";
- 
- import { makeThreadFixture, type ThreadFixtureOverrides } from "../../test-fixtures";
-+import { reorderProjects, type UiState } from "../../uiStateStore";
- import {
-   arrangeJstackRoots,
-   buildJstackTree,
-   childHomeMessage,
-+  jstackRootPlace,
-+  jstackRootReorder,
-+  moveJstackRoot,
-+  orderJstackRoots,
-   rowWordMessage,
-   scopeNameProblem,
-   type JstackTreeInput,
-@@ -399,6 +404,134 @@ describe("arrangeJstackRoots", () => {
-   });
- });
- 
-+describe("moving a root row", () => {
-+  const root = (name: string, faded: boolean, noProject = false) => ({
-+    name,
-+    head: {
-+      kind: "project" as const,
-+      key: name,
-+      main: null,
-+      noProject,
-+      collapsed: false,
-+      asksYou: false,
-+      dot: false,
-+      landed: 0,
-+      folded: { count: 0, unit: "thread" as const },
-+      faded,
-+      selected: false,
-+    },
-+  });
-+  type Root = ReturnType<typeof root>;
-+  const head = (one: Root) => one.head;
-+  const names = (roots: ReadonlyArray<Root>) => roots.map((one) => one.name);
-+  const drawn = (roots: ReadonlyArray<Root>) => names(arrangeJstackRoots(roots, head).roots);
-+  // The sidebar's order: A and C active, B and D idle, and No project.
-+  const sidebar = [
-+    root("A", false),
-+    root("B", true),
-+    root("C", false),
-+    root("D", true),
-+    root("No project", false, true),
-+  ];
-+
-+  it("moves a root within its own group, active or idle", () => {
-+    const arranged = arrangeJstackRoots(sidebar, head).roots;
-+    expect(names(arranged)).toEqual(["A", "C", "B", "D", "No project"]);
-+    expect(names(moveJstackRoot(arranged, head, "C", 0)!.roots)).toEqual([
-+      "C",
-+      "A",
-+      "B",
-+      "D",
-+      "No project",
-+    ]);
-+    expect(names(moveJstackRoot(arranged, head, "B", 1)!.roots)).toEqual([
-+      "A",
-+      "C",
-+      "D",
-+      "B",
-+      "No project",
-+    ]);
-+  });
-+
-+  it("never crosses into the other group, and never moves No project", () => {
-+    const arranged = arrangeJstackRoots(sidebar, head).roots;
-+    // Past the end of the active group is its last place, still above the divider.
-+    expect(names(moveJstackRoot(arranged, head, "A", 9)!.roots)).toEqual([
-+      "C",
-+      "A",
-+      "B",
-+      "D",
-+      "No project",
-+    ]);
-+    expect(moveJstackRoot(arranged, head, "B", -3)).toBeNull();
-+    expect(moveJstackRoot(arranged, head, "No project", 0)).toBeNull();
-+    expect(moveJstackRoot(arranged, head, "A", 0)).toBeNull();
-+  });
-+
-+  it("says where a root stands in its group", () => {
-+    const arranged = arrangeJstackRoots(sidebar, head).roots;
-+    expect(jstackRootPlace(arranged, head, "C")).toEqual({ index: 1, count: 2, idle: false });
-+    expect(jstackRootPlace(arranged, head, "B")).toEqual({ index: 0, count: 2, idle: true });
-+    expect(jstackRootPlace(arranged, head, "No project")).toBeNull();
-+  });
-+
-+  const state = (projectOrder: string[]): UiState => ({
-+    projectExpandedById: {},
-+    projectOrder,
-+    sidebarProjectScopeKeys: [],
-+    threadLastVisitedAtById: {},
-+    threadChangedFilesExpandedById: {},
-+    defaultAdvertisedEndpointKey: null,
-+    pullRequestMergeMethod: "merge",
-+  });
-+  const ids = (one: Root) => [`key:${one.name}`];
-+  /** Moves a root as the sidebar does, and gives the project order it keeps. */
-+  const keep = (roots: ReadonlyArray<Root>, stored: string[], key: string, to: number) => {
-+    const ordered = orderJstackRoots(roots, head, ids, stored);
-+    const reorder = jstackRootReorder(ordered, head, ids, stored, { key, to })!;
-+    return reorderProjects(state(stored), reorder.current, reorder.dragged, reorder.target)
-+      .projectOrder;
-+  };
-+
-+  it("keeps the order a drag leaves, so the next draw shows it", () => {
-+    const stored = keep(sidebar, [], "D", 0);
-+    expect(drawn(orderJstackRoots(sidebar, head, ids, stored))).toEqual([
-+      "A",
-+      "C",
-+      "D",
-+      "B",
-+      "No project",
-+    ]);
-+  });
-+
-+  it("keeps each root's rank among the others when it turns active or idle", () => {
-+    // B was ranked above C; dragging D above B in the idle group keeps that.
-+    const stored = keep(sidebar, ["key:A", "key:B", "key:C", "key:D"], "D", 0);
-+    const cIdle = sidebar.map((one) => (one.name === "C" ? root("C", true) : one));
-+    expect(drawn(orderJstackRoots(cIdle, head, ids, stored))).toEqual([
-+      "A",
-+      "D",
-+      "B",
-+      "C",
-+      "No project",
-+    ]);
-+  });
-+
-+  it("puts a project it has not ranked last in its group, and keeps keys it does not draw", () => {
-+    const stored = keep(sidebar, ["key:gone"], "C", 0);
-+    expect(stored).toContain("key:gone");
-+    const added = [...sidebar, root("E", false)];
-+    expect(drawn(orderJstackRoots(added, head, ids, stored))).toEqual([
-+      "C",
-+      "A",
-+      "E",
-+      "B",
-+      "D",
-+      "No project",
-+    ]);
-+  });
-+});
-+
- const shape = (rows: ReadonlyArray<JstackTreeRow>) =>
-   rows.flatMap((row) => {
-     switch (row.kind) {
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 7f135ccfd8..a7ad8c9f81 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

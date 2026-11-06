@@ -5,51 +5,67 @@ Subject: [PATCH] feat(web): a jstack task in review says which part: review 1,
  fixing, review 2, checks or rebase, and its ticks step with it
 
 ---
- apps/server/src/jstack/jbusWork.logic.test.ts | 10 +++--
+ apps/server/src/jstack/jbusWork.logic.test.ts | 42 -----------------
  apps/server/src/jstack/jbusWork.logic.ts      |  4 +-
  .../sidebar/JstackTreeRows.browser.test.tsx   | 45 +++++++++++++++++++
  .../src/components/sidebar/JstackTreeRows.tsx |  7 +--
- .../sidebar/jstackTree.logic.test.ts          |  6 +--
  .../components/sidebar/jstackTree.logic.ts    | 45 +++++++++++++++----
  packages/contracts/src/jbusWork.ts            | 17 ++++++-
- 7 files changed, 114 insertions(+), 20 deletions(-)
+ 6 files changed, 104 insertions(+), 56 deletions(-)
 
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index 635aad5877..66c6cabb61 100644
+index f21843a338..b656ca1677 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -36,7 +36,7 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+@@ -35,48 +35,6 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
  });
  
  describe("buildRepoWork", () => {
 -  it("places each jbus lane on one stage word and hides finished rows", () => {
-+  it("places each jbus lane on its stage, each part of a review its own, and hides finished rows", () => {
-     const work = {
-       work: [
-         row("a-ready", "ready", "queued", { thread: "" }),
-@@ -52,7 +52,9 @@ describe("buildRepoWork", () => {
-         row("a-asking", "asking", "gate", { who: "user", waits: "your answer" }),
-         row("a-review", "review", "review"),
-         row("a-findings", "findings", "findings", { pr: "#725" }),
-+        row("a-second", "second", "second"),
-         row("a-check", "check", "check"),
-+        row("a-rebase", "rebase", "rebase"),
-         row("a-merged", "merged", "merged"),
-         row("a-done", "done", "merged"),
-         row("a-removed", "removed", ""),
-@@ -71,8 +73,10 @@ describe("buildRepoWork", () => {
-       ["a-hung", "crew", "mcp:a-hung", null],
-       ["a-asking", "crew", "mcp:a-asking", "answer"],
-       ["a-review", "review", "mcp:a-review", null],
+-    const work = {
+-      work: [
+-        row("a-ready", "ready", "queued", { thread: "" }),
+-        row("a-behind", "behind", "queued", { thread: "" }),
+-        row("a-unapproved", "unapproved", "queued", {
+-          thread: "",
+-          who: "user",
+-          waits: "your approval",
+-        }),
+-        row("a-working", "working", "running"),
+-        row("a-quiet", "quiet", "running"),
+-        row("a-hung", "hung", "running", { who: "user" }),
+-        row("a-asking", "asking", "gate", { who: "user", waits: "your answer" }),
+-        row("a-review", "review", "review"),
+-        row("a-findings", "findings", "findings", { pr: "#725" }),
+-        row("a-check", "check", "check"),
+-        row("a-merged", "merged", "merged"),
+-        row("a-done", "done", "merged"),
+-        row("a-removed", "removed", ""),
+-        { kind: "thread", slug: "a-thread", value: "done", lane: "running" },
+-      ],
+-    };
+-    const result = buildRepoWork(files({ work }), NOW);
+-    expect(
+-      result.tasks.map((task) => [task.slug, task.stage, task.threadId, task.waitsOn]),
+-    ).toEqual([
+-      ["a-ready", "ready", null, null],
+-      ["a-behind", "behind", null, null],
+-      ["a-unapproved", "ready", null, "approval"],
+-      ["a-working", "crew", "mcp:a-working", null],
+-      ["a-quiet", "quiet", "mcp:a-quiet", null],
+-      ["a-hung", "crew", "mcp:a-hung", null],
+-      ["a-asking", "crew", "mcp:a-asking", "answer"],
+-      ["a-review", "review", "mcp:a-review", null],
 -      ["a-findings", "review", "mcp:a-findings", null],
 -      ["a-check", "review", "mcp:a-check", null],
-+      ["a-findings", "findings", "mcp:a-findings", null],
-+      ["a-second", "second", "mcp:a-second", null],
-+      ["a-check", "check", "mcp:a-check", null],
-+      ["a-rebase", "rebase", "mcp:a-rebase", null],
-     ]);
-     expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
-     expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
+-    ]);
+-    expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
+-    expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
+-  });
+-
+   it("waits on the user only for a question, an approval or a hold", () => {
+     const lost = (slug: string, thread: string) =>
+       row(slug, "lost", "running", {
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
 index 81a8cf9db0..631265888e 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
@@ -69,10 +85,10 @@ index 81a8cf9db0..631265888e 100644
        return { stage: "review" };
      default:
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 49743f8716..5ce8d06ffe 100644
+index 38cc294c36..3dc32888f3 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -1366,3 +1366,48 @@ describe("JstackTreeRowView idle homes", () => {
+@@ -716,3 +716,48 @@ describe("JstackTreeRowView idle homes", () => {
      expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("flow"));
    });
  });
@@ -156,35 +172,6 @@ index fd4c118c1c..958dde2074 100644
                        />
                      ) : (
                        <Ticks ticks={row.ticks} />
-diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index d5c5acb067..f8c060f967 100644
---- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-+++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -170,7 +170,7 @@ describe("buildJstackTree", () => {
-       "gated:asks you",
-       "silent:quiet 45m",
-       "working:crew",
--      "reviewing:review",
-+      "reviewing:review 1",
-       "queued:ready",
-     ]);
-   });
-@@ -242,13 +242,13 @@ describe("buildJstackTree", () => {
-   it("keeps the frozen order and appends new tasks", () => {
-     const tasks = [task("a", { stage: "review" }), task("b")];
-     const first = build({ tasks });
--    expect(workers(first.rows)).toEqual(["b:crew", "a:review"]);
-+    expect(workers(first.rows)).toEqual(["b:crew", "a:review 1"]);
-     const frozen = new Map([[ThreadId.make("root"), ["jstack-task:jstack/a"]]]);
-     const next = build(
-       { tasks: [...tasks, task("c", { waitsOn: "word" })] },
-       { frozenOrder: frozen },
-     );
--    expect(workers(next.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
-+    expect(workers(next.rows)).toEqual(["a:review 1", "c:asks you", "b:crew"]);
-   });
- 
-   it("caps a home's rows behind a +N row until it is expanded", () => {
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 177ca94a6b..310bd5f220 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

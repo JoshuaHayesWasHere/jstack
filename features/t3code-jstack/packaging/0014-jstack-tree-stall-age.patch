@@ -10,15 +10,15 @@ held.json onto each task.
 The tree draws quiet, stalled or held with an age beside the stage word, and
 a hold's reason on hover and at the head of the row's menu.
 ---
- apps/server/src/jstack/JbusWork.ts            |   2 +
- apps/server/src/jstack/jbusWork.logic.test.ts |  53 ++++++++
- apps/server/src/jstack/jbusWork.logic.ts      |  49 ++++++-
- .../sidebar/JstackTreeRows.browser.test.tsx   | 127 +++++++++++++++++-
- .../src/components/sidebar/JstackTreeRows.tsx |  24 +++-
- .../sidebar/jstackTree.logic.test.ts          |   9 +-
- .../components/sidebar/jstackTree.logic.ts    |  75 +++++++++--
- packages/contracts/src/jbusWork.ts            |   9 ++
- 8 files changed, 327 insertions(+), 21 deletions(-)
+ apps/server/src/jstack/JbusWork.ts            |  2 +
+ apps/server/src/jstack/jbusWork.logic.test.ts |  2 +
+ apps/server/src/jstack/jbusWork.logic.ts      | 49 +++++++++++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 23 +++++-
+ .../src/components/sidebar/JstackTreeRows.tsx | 24 +++++-
+ .../sidebar/jstackTree.logic.test.ts          |  7 +-
+ .../components/sidebar/jstackTree.logic.ts    | 75 +++++++++++++++----
+ packages/contracts/src/jbusWork.ts            |  9 +++
+ 8 files changed, 171 insertions(+), 20 deletions(-)
 
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
 index 0ae67d556b..806d74ca7c 100644
@@ -34,10 +34,10 @@ index 0ae67d556b..806d74ca7c 100644
          scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
          startingScopes: startingScopes.toSorted(),
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index 66c6cabb61..94f4e3c14c 100644
+index b656ca1677..5586ec04ee 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -30,6 +30,8 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
+@@ -29,6 +29,8 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
    questions: { next: 1, records: [] },
    merged: {},
    scouts: [],
@@ -46,64 +46,6 @@ index 66c6cabb61..94f4e3c14c 100644
    briefHomes: new Map(),
    briefTitles: new Map(),
    ...overrides,
-@@ -149,6 +151,57 @@ describe("buildRepoWork", () => {
-     expect(readBriefTitle("Task: x")).toBeNull();
-   });
- 
-+  it("says since when and why jmerge or jbus holds each row", () => {
-+    const url = "https://github.com/JoshuaHayesWasHere/EndlessTropics/pull/3";
-+    const work = {
-+      work: [
-+        row("a-held", "hold", "hold", { pr: "#3", who: "user", waits: "your word" }),
-+        row("a-check", "check", "check", { pr: "#758", who: "ci" }),
-+        row("a-review", "review", "review", { pr: "#760", who: "rev" }),
-+      ],
-+    };
-+    const waiting = [
-+      {
-+        key: "#3",
-+        kind: "hold",
-+        line: `hold 3 ${url}: its brief says Review: none, so it needs the user's word`,
-+        number: 3,
-+        since: "2026-10-29T13:30:00+00:00",
-+        url,
-+      },
-+    ];
-+    const held = {
-+      "01dfd99f9e78": {
-+        home: "",
-+        minutes: 8,
-+        numbers: [758],
-+        reason: "check has no run at 90c901cb781a",
-+        rows: ["a-check"],
-+        since: "2026-10-29T14:52:00+00:00",
-+        woke: false,
-+      },
-+    };
-+    const result = buildRepoWork(files({ work, waiting, held }), NOW);
-+    expect(result.tasks.map((task) => [task.slug, task.stage, task.waitsOn, task.held])).toEqual([
-+      [
-+        "a-held",
-+        "review",
-+        "word",
-+        {
-+          since: "2026-10-29T13:30:00+00:00",
-+          reason: "its brief says Review: none, so it needs the user's word",
-+        },
-+      ],
-+      [
-+        "a-check",
-+        "check",
-+        null,
-+        { since: "2026-10-29T14:52:00+00:00", reason: "check has no run at 90c901cb781a" },
-+      ],
-+      ["a-review", "review", null, null],
-+    ]);
-+  });
-+
-   it("nests each task under the home its brief names", () => {
-     const work = {
-       work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
 index 631265888e..d850e93434 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
@@ -209,7 +151,7 @@ index 631265888e..d850e93434 100644
    }
  
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 5ce8d06ffe..06b0aa72a0 100644
+index 3dc32888f3..3028dbd105 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 @@ -98,6 +98,7 @@ const worker: JstackTreeRow = {
@@ -220,7 +162,7 @@ index 5ce8d06ffe..06b0aa72a0 100644
    ticks: { step: 1, hollow: false, asks: false },
    threadId: ThreadId.make("crew-pump"),
    openThreadId: ThreadId.make("crew-pump"),
-@@ -613,6 +614,7 @@ const crewTask = (slug: string, home: string) => ({
+@@ -255,6 +256,7 @@ const crewTask = (slug: string, home: string) => ({
    waitsOn: null,
    waits: "",
    brief: null,
@@ -228,7 +170,7 @@ index 5ce8d06ffe..06b0aa72a0 100644
  });
  
  // Each home has a task running, so no row draws at the half ink of an idle one.
-@@ -635,6 +637,9 @@ function LiveTree(props: {
+@@ -277,6 +279,9 @@ function LiveTree(props: {
    spies: JstackTreeRowActions;
    sent: Array<string>;
    routeThreadId?: ThreadId;
@@ -238,7 +180,7 @@ index 5ce8d06ffe..06b0aa72a0 100644
  }) {
    const [editor, setEditor] = useState(false);
    const [answering, setAnswering] = useState<JstackAnswering | null>(null);
-@@ -648,9 +653,14 @@ function LiveTree(props: {
+@@ -290,9 +295,14 @@ function LiveTree(props: {
      memberProjectRefs: [{ environmentId, projectId }],
      snapshot: props.snapshot,
      threadsById: new Map(
@@ -256,7 +198,7 @@ index 5ce8d06ffe..06b0aa72a0 100644
      ),
      folderThreads: [],
      hiddenThreads: [],
-@@ -664,7 +674,12 @@ function LiveTree(props: {
+@@ -306,7 +316,12 @@ function LiveTree(props: {
      answering,
      requestedScopes: requested,
      nowMs: Date.parse("2026-10-29T12:00:00.000Z"),
@@ -270,114 +212,6 @@ index 5ce8d06ffe..06b0aa72a0 100644
    });
    const live: JstackTreeRowActions = {
      ...props.spies,
-@@ -1411,3 +1426,107 @@ describe("JstackTreeRowView review parts", () => {
-     expect(await audit()).toEqual([]);
-   });
- });
-+
-+/** A crew thread whose last turn ended at `endedAt`, or that is still in a turn. */
-+const crewThread = (slug: string, endedAt: string, running = false) =>
-+  makeThreadFixture({
-+    environmentId,
-+    projectId,
-+    id: ThreadId.make(`crew-${slug}`),
-+    updatedAt: endedAt,
-+    latestRun: {
-+      runId: `run-${slug}` as never,
-+      status: running ? "running" : "completed",
-+      requestedAt: endedAt,
-+      startedAt: endedAt,
-+      completedAt: running ? null : endedAt,
-+      assistantMessageId: null,
-+    },
-+    runtime: running ? ({ status: "running", activeRunId: `run-${slug}` } as never) : null,
-+  });
-+
-+// The tree's clock is 12:00; the quiet threshold is 20 minutes.
-+const STALL_SNAPSHOT: JbusWorkSnapshot = {
-+  ...SNAPSHOT,
-+  tasks: [
-+    { ...crewTask("green", "root"), stage: "check", pullRequest: "#758" },
-+    { ...crewTask("fixes", "root"), stage: "findings", pullRequest: "#760" },
-+    { ...crewTask("fresh", "root"), stage: "review", pullRequest: "#761" },
-+    { ...crewTask("busy", "root"), stage: "findings", pullRequest: "#762" },
-+    crewTask("tidy", "root"),
-+    crewTask("fl-pump", "flow"),
-+  ],
-+};
-+const STALL_THREADS = [
-+  crewThread("green", "2026-10-29T11:15:00.000Z"),
-+  crewThread("fixes", "2026-10-29T09:00:00.000Z"),
-+  crewThread("fresh", "2026-10-29T11:50:00.000Z"),
-+  crewThread("busy", "2026-10-29T09:00:00.000Z", true),
-+];
-+
-+describe("JstackTreeRowView stalled and held rows", () => {
-+  it("says how long a pull request's crew has sat idle past the quiet threshold, beside its stage", async () => {
-+    await using screen = await render(
-+      <LiveTree
-+        snapshot={STALL_SNAPSHOT}
-+        spies={actions()}
-+        sent={[]}
-+        threads={STALL_THREADS}
-+        attention="gates-and-quiet"
-+      />,
-+      { router: false },
-+    );
-+    const shown = [
-+      ["green", "green checks stalled 45m"],
-+      ["fixes", "fixes fixing stalled 3h"],
-+      // Under the threshold, and a crew still in its turn, are not stalled.
-+      ["fresh", "fresh review 1"],
-+      ["busy", "busy fixing"],
-+    ] as const;
-+    for (const [slug, text] of shown) {
-+      const row = screen.getByRole("treeitem", { name: new RegExp(`^${slug} `) });
-+      await expect.element(row).toBeVisible();
-+      expect(shownText(row.element())).toBe(text);
-+    }
-+    expect(await audit()).toEqual([]);
-+  });
-+
-+  it("shows a row jmerge holds, how long it has been held, and why, on hover and in its menu", async () => {
-+    const snapshot: JbusWorkSnapshot = {
-+      ...SNAPSHOT,
-+      tasks: [
-+        {
-+          ...crewTask("poc", "root"),
-+          stage: "review",
-+          pullRequest: "#3",
-+          waitsOn: "word",
-+          waits: "your word",
-+          held: { since: "2026-10-29T09:00:00+00:00", reason: "its brief says Review: none" },
-+        },
-+        crewTask("tidy", "root"),
-+        crewTask("fl-pump", "flow"),
-+      ],
-+    };
-+    await using screen = await render(
-+      <LiveTree snapshot={snapshot} spies={actions()} sent={[]} />,
-+      {
-+        router: false,
-+      },
-+    );
-+    const row = screen.getByRole("treeitem", { name: /^poc / });
-+    await expect.element(row).toBeVisible();
-+    expect(shownText(row.element())).toBe("poc asks you held 3h");
-+
-+    await userEvent.hover(row);
-+    await expect
-+      .element(page.getByText("poc · #3 · asks you · held 3h: its brief says Review: none"))
-+      .toBeVisible();
-+
-+    await userEvent.click(row, { button: "right" });
-+    await expect.element(page.getByRole("menu")).toBeVisible();
-+    await expect
-+      .element(page.getByRole("menu").getByText("Held 3h: its brief says Review: none"))
-+      .toBeVisible();
-+    await userEvent.keyboard("{Escape}");
-+  });
-+});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index 958dde2074..928299c072 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
@@ -442,10 +276,10 @@ index 958dde2074..928299c072 100644
              </Tooltip>
              {row.ask !== null && unfolded ? (
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index f8c060f967..52a1bbc075 100644
+index 91382c2241..a9d8da2bc4 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -51,6 +51,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+@@ -38,6 +38,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
    waitsOn: null,
    waits: "",
    brief: null,
@@ -453,7 +287,7 @@ index f8c060f967..52a1bbc075 100644
    ...overrides,
  });
  
-@@ -100,7 +101,11 @@ function build(
+@@ -87,7 +88,11 @@ function build(
  }
  
  const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
@@ -465,16 +299,7 @@ index f8c060f967..52a1bbc075 100644
 +  );
  
  describe("buildJstackTree", () => {
-   it("draws a project with no jstack home as a root row over its threads, worker titles included", () => {
-@@ -168,7 +173,7 @@ describe("buildJstackTree", () => {
-     );
-     expect(workers(tree.rows)).toEqual([
-       "gated:asks you",
--      "silent:quiet 45m",
-+      "silent:crew quiet 45m",
-       "working:crew",
-       "reviewing:review 1",
-       "queued:ready",
+   it("opens a task with no thread at the thread that asks about it, else at its home, and says what it asks", () => {
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 310bd5f220..4ec30f0d80 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

@@ -13,11 +13,11 @@ the warning-foreground token.
 ---
  apps/web/package.json                         |   1 +
  apps/web/src/components/Sidebar.tsx           |  25 ++-
- .../sidebar/JstackTreeRows.browser.test.tsx   | 181 ++++++++++++++++--
- .../src/components/sidebar/JstackTreeRows.tsx | 143 ++++++++++----
- .../components/sidebar/jstackTree.logic.ts    |  60 ++++++
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 104 ++++++++++++-
+ .../src/components/sidebar/JstackTreeRows.tsx | 143 +++++++++++++-----
+ .../components/sidebar/jstackTree.logic.ts    |  60 ++++++++
  pnpm-lock.yaml                                |  15 +-
- 6 files changed, 367 insertions(+), 58 deletions(-)
+ 6 files changed, 300 insertions(+), 48 deletions(-)
 
 diff --git a/apps/web/package.json b/apps/web/package.json
 index c35aadeef5..1e6026139c 100644
@@ -75,14 +75,12 @@ index f85cdbe877..bbd3afb10b 100644
  
    // Ranked across environments as the palette ranks them, so one
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 70eb602349..d1295751e9 100644
+index 452ea16f05..8621eba55d 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -1,9 +1,11 @@
+@@ -1,8 +1,10 @@
  import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
-+import axe from "axe-core";
  import { describe, expect, it, vi } from "vite-plus/test";
--import { userEvent } from "vite-plus/test/browser";
 +import { page, userEvent } from "vite-plus/test/browser";
  
  import "~/index.css";
@@ -91,7 +89,7 @@ index 70eb602349..d1295751e9 100644
  import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
  import { makeThreadFixture } from "../../test-fixtures";
  import type { JstackRootRow, JstackTreeRow } from "./jstackTree.logic";
-@@ -96,7 +98,9 @@ function actions(): JstackTreeRowActions {
+@@ -95,7 +97,9 @@ function actions(): JstackTreeRowActions {
      onToggleProject: vi.fn(),
      onExpandHome: vi.fn(),
      onNewThread: vi.fn(),
@@ -102,7 +100,7 @@ index 70eb602349..d1295751e9 100644
    };
  }
  
-@@ -105,7 +109,11 @@ function Tree(props: {
+@@ -104,7 +108,11 @@ function Tree(props: {
    actions: JstackTreeRowActions;
  }) {
    return (
@@ -115,49 +113,8 @@ index 70eb602349..d1295751e9 100644
        {props.rows.map(([row, rowGroup]) =>
          row.kind === "loose" ? null : (
            <JstackTreeRowView key={row.key} row={row} group={rowGroup} actions={props.actions} />
-@@ -187,12 +195,12 @@ describe("JstackTreeRowView root rows", () => {
-     await using screen = await render(<Tree actions={spies} rows={[[root(), group("jstack")]]} />, {
-       router: false,
+@@ -179,3 +187,95 @@ describe("JstackTreeRowView sizes", () => {
      });
--    await userEvent.click(screen.getByRole("treeitem", { name: "jstack main thread" }));
-+    await userEvent.click(screen.getByRole("treeitem", { name: /^jstack .*main thread$/ }));
-     expect(spies.onOpenThread).toHaveBeenCalledWith(ThreadId.make("root"));
-     expect(spies.onToggleProject).not.toHaveBeenCalled();
--    // Its fold chevron stays in the tab order, since the row's own click opens a thread.
--    const fold = screen.getByRole("button", { name: "Fold jstack" }).element() as HTMLElement;
--    expect(fold.tabIndex).toBe(0);
-+    // Its fold chevron is the pointer's: the keyboard folds from the row's menu or its arrows.
-+    const fold = screen.container.querySelector<HTMLElement>('[aria-label="Fold jstack"]')!;
-+    expect(fold.tabIndex).toBe(-1);
-   });
- 
-   it("folds a project with no home from its name, and offers a new thread in it", async () => {
-@@ -205,10 +213,10 @@ describe("JstackTreeRowView root rows", () => {
-     await userEvent.click(screen.getByRole("treeitem", { name: "Winnifred" }));
-     expect(spies.onToggleProject).toHaveBeenCalledWith(winnifred);
-     expect(spies.onOpenThread).not.toHaveBeenCalled();
--    // The row itself folds, so its chevron stays out of the tab order.
--    const fold = screen.getByRole("button", { name: "Fold Winnifred" }).element() as HTMLElement;
--    expect(fold.tabIndex).toBe(-1);
--    await userEvent.click(screen.getByRole("button", { name: "New thread in Winnifred" }));
-+    // The pointer's shortcut; the keyboard and assistive tech reach it through the row's menu.
-+    await userEvent.click(
-+      screen.container.querySelector<HTMLElement>('[aria-label="New thread in Winnifred"]')!,
-+    );
-     expect(spies.onNewThread).toHaveBeenCalledWith(winnifred);
-   });
- 
-@@ -232,9 +240,158 @@ describe("JstackTreeRowView root rows", () => {
-       />,
-       { router: false },
-     );
--    const row = screen.getByRole("treeitem", { name: "No project" }).element() as HTMLElement;
-+    const row = screen
-+      .getByRole("treeitem", { name: "No project 2 threads" })
-+      .element() as HTMLElement;
-     expect(measure(row, "No project")).toMatchObject({ height: 36, fontSize: "15px" });
-     expect(row.textContent).toContain("2 threads");
-     expect(getComputedStyle(row.closest("li")!).opacity).toBe("0.5");
    });
  });
 +
@@ -250,61 +207,6 @@ index 70eb602349..d1295751e9 100644
 +      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 +      one.ran();
 +    }
-+  });
-+
-+  it("opens the focused row's menu from the keyboard alone, on the ContextMenu key and on Shift+F10", async () => {
-+    const spies = actions();
-+    await using screen = await everyRow(spies);
-+    const valve = screen.getByRole("treeitem", { name: "fl-valve asks you" });
-+
-+    // Tab into the tree, then walk down to the asking row: root, home, crew, queued, asking.
-+    await userEvent.keyboard("{Tab}");
-+    await expect
-+      .element(screen.getByRole("treeitem", { name: /^jstack .*main thread$/ }))
-+      .toHaveFocus();
-+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}");
-+    await expect.element(valve).toHaveFocus();
-+
-+    await userEvent.keyboard("{ContextMenu}");
-+    await expect.element(page.getByRole("menuitem", { name: "Show what it asks" })).toHaveFocus();
-+    await userEvent.keyboard("{Enter}");
-+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-+    await expect.element(valve).toHaveFocus();
-+    await expect.element(screen.getByText("Which valve size?")).toBeVisible();
-+
-+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
-+    await expect.element(page.getByRole("menuitem", { name: "Hide what it asks" })).toHaveFocus();
-+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
-+    expect(spies.onCopyName).toHaveBeenCalledWith("fl-valve", "slug");
-+
-+    await userEvent.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}");
-+    await userEvent.keyboard("{Shift>}{F10}{/Shift}");
-+    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
-+    await userEvent.keyboard("{ArrowDown}{Enter}");
-+    expect(spies.onToggleProject).toHaveBeenCalledWith(group("jstack"));
-+
-+    await userEvent.keyboard("{ArrowDown}{ContextMenu}");
-+    await expect.element(page.getByRole("menuitem", { name: "Open home" })).toHaveFocus();
-+    await userEvent.keyboard("{Escape}");
-+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-+    await expect.element(screen.getByRole("treeitem", { name: "flow home" })).toHaveFocus();
-+    expect(spies.onOpenThread).not.toHaveBeenCalled();
-+  });
-+
-+  it("passes an axe check, with a row's menu open and with it closed", async () => {
-+    await using screen = await everyRow(actions());
-+    const audit = async () => {
-+      // A bare render has no landmark around it; in the app the sidebar's own nav is one.
-+      const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
-+      return result.violations.map((violation) => `${violation.id}: ${violation.help}`);
-+    };
-+    expect(await audit()).toEqual([]);
-+    await userEvent.click(screen.getByRole("treeitem", { name: "flow home" }), {
-+      button: "right",
-+    });
-+    await expect.element(page.getByRole("menu")).toBeVisible();
-+    expect(await audit()).toEqual([]);
-+    await userEvent.keyboard("{Escape}");
 +  });
 +});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx

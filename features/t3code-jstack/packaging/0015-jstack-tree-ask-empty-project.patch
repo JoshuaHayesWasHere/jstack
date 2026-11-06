@@ -5,10 +5,11 @@ Subject: [PATCH] fix(web): a project added with no thread is a jstack tree
  root at once, so it is asked about on add and offers Start a home
 
 ---
- apps/web/src/components/Sidebar.tsx           |  25 ++--
- .../sidebar/jstackAskOnAdd.browser.test.tsx   | 114 +++++++++++++++++-
- .../src/components/sidebar/jstackAskOnAdd.ts  |  29 +++++
- 3 files changed, 159 insertions(+), 9 deletions(-)
+ apps/web/src/components/Sidebar.tsx           |  25 ++-
+ .../sidebar/jstackAskOnAdd.browser.test.tsx   | 184 ++++++++++++++++++
+ .../src/components/sidebar/jstackAskOnAdd.ts  |  29 +++
+ 3 files changed, 230 insertions(+), 8 deletions(-)
+ create mode 100644 apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
 index b00baebdca..fd2669c2c3 100644
@@ -97,38 +98,91 @@ index b00baebdca..fd2669c2c3 100644
      startJstackHome,
    );
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-index 908f9872cb..903a815836 100644
---- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
+new file mode 100644
+index 0000000000..d344afcc3a
+--- /dev/null
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-@@ -1,15 +1,23 @@
--import { EnvironmentId, ProjectId } from "@t3tools/contracts";
+@@ -0,0 +1,184 @@
 +import { EMPTY_JBUS_WORK_SNAPSHOT, EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
- import { expect, it, vi } from "vite-plus/test";
- import { page, userEvent } from "vite-plus/test/browser";
- 
++import { expect, it, vi } from "vite-plus/test";
++import { page, userEvent } from "vite-plus/test/browser";
++
 +import "~/index.css";
- import { render } from "../../../test/render";
++import { render } from "../../../test/render";
 +import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
- import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
 +import { makeThreadFixture } from "../../test-fixtures";
 +import { groupSidebarThreadsByProject } from "../Sidebar.logic";
- import { ToastProvider } from "../ui/toast";
- import {
-   JSTACK_SEEN_PROJECTS_KEY,
++import { ToastProvider } from "../ui/toast";
++import {
++  JSTACK_SEEN_PROJECTS_KEY,
 +  jstackAskCandidates,
 +  jstackProjectFolders,
-   useJstackAskOnAdd,
-   type JstackAskCandidate,
- } from "./jstackAskOnAdd";
++  useJstackAskOnAdd,
++  type JstackAskCandidate,
++} from "./jstackAskOnAdd";
 +import { buildJstackTree } from "./jstackTree.logic";
 +import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
- 
- const environmentId = EnvironmentId.make("environment-local");
- 
-@@ -139,3 +147,107 @@ it("waits for every project and thread to load before it seeds or asks", async (
-   await show([jstack, winnifred]);
-   await expect.element(page.getByText(/Start a jstack home/)).not.toBeInTheDocument();
- });
++
++const environmentId = EnvironmentId.make("environment-local");
++
++function project(name: string): SidebarProjectSnapshot {
++  const projectId = ProjectId.make(`project-${name}`);
++  return {
++    id: projectId,
++    environmentId,
++    title: name,
++    workspaceRoot: `/repos/${name}`,
++    defaultModelSelection: null,
++    scripts: [],
++    projectIcon: { kind: "monogram", text: name[0]!, color: "pink" },
++    createdAt: "2026-10-29T00:00:00.000Z",
++    updatedAt: "2026-10-29T00:00:00.000Z",
++    projectKey: name,
++    displayName: name,
++    memberProjects: [],
++    memberProjectRefs: [{ environmentId, projectId }],
++    groupedProjectCount: 1,
++    environmentPresence: "local-only",
++    allRemoteMembersAreDesktopLocal: false,
++    allRemoteMembersAreWsl: false,
++    remoteEnvironmentLabels: [],
++  };
++}
++
++function Asker(props: {
++  candidates: ReadonlyArray<JstackAskCandidate> | null;
++  startHome: (group: SidebarProjectSnapshot) => void;
++}) {
++  useJstackAskOnAdd(props.candidates, props.startHome);
++  return null;
++}
++
++/** The sidebar as the ask sees it: the client's projects over time, one render each. */
++async function sidebar(startHome: (group: SidebarProjectSnapshot) => void) {
++  const screen = await render(
++    <ToastProvider>
++      <Asker candidates={null} startHome={startHome} />
++    </ToastProvider>,
++  );
++  return {
++    screen,
++    show: (candidates: ReadonlyArray<JstackAskCandidate> | null) =>
++      screen.rerender(
++        <ToastProvider>
++          <Asker candidates={candidates} startHome={startHome} />
++        </ToastProvider>,
++      ),
++  };
++}
++
++const ask = () => page.getByText("Start a jstack home for Winnifred?");
++
++/** A client that has seen no project yet, as before the tree first loaded. */
++function freshClient(): Disposable {
++  window.localStorage.removeItem(JSTACK_SEEN_PROJECTS_KEY);
++  return { [Symbol.dispose]: () => window.localStorage.removeItem(JSTACK_SEEN_PROJECTS_KEY) };
++}
 +
 +/** The sidebar's root rows while the tree is on, from its projects and their threads. */
 +function treeRoots(
