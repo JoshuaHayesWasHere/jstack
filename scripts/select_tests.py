@@ -117,16 +117,17 @@ collects the selection once with pytest, as `make test` does (`-m "not browser"`
 the test files, slowest first, each to the part that would end soonest so far
 (`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
 its slowest test, which no part ends before). So a part collects only its own files. A file
-whose tests sum past a part's share is dealt by test instead, and each part that holds some of
-its tests gets the file and the word `--shard-tests=<keys>`, which runs only those. With
-`$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each a part's words,
-space-separated, or `none` for a part the selection left empty, and the summary gets one more
-line: `parts: <n> of <tests> tests in <files> files, <s> s of test time each`, from the least to
-the most. A selection that collects no test fails, as `make test` fails on one. In the
-selection's list each line then ends `part=<k>`, the part that runs the file (`-` for a file
-that collects no test, and the parts, comma-separated, for a file dealt by test), and an `all`
-lists every file of the suite with its part, after its first line. This form imports pytest, so
-it runs after `uv sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
+whose tests sum past a part's share is cut by test into the fewest pieces that each fit a share,
+and each part that holds a piece gets the file and the word `--shard-tests=<keys>`, which runs
+only those. With `$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each
+a part's words, space-separated, or `none` for a part the selection left empty, and the summary
+gets one more line: `parts: <n> of <tests> tests in <files> files, <s> s of test time each`,
+from the least to the most. A selection that collects no test fails, as `make test` fails on
+one. In the selection's list each line then ends `part=<k>`, the part that runs the file (`-`
+for a file that collects no test, and the parts, comma-separated, for a file cut by test), and
+an `all` lists every file of the suite with its part, after its first line. This form imports
+pytest, so it runs after `uv sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1
+HEAD`.
 
 `select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
@@ -190,6 +191,7 @@ changes to the diff, which selects more tests and never fewer.
 
 import ast
 import json
+import math
 import os
 import re
 import subprocess
@@ -1624,9 +1626,12 @@ def dealt(nodeids, times, count):
     seconds. The test files are dealt by `testing/shard.py`'s split, by the summed seconds of each
     file's tests in `times` (its table) and the seconds of each file's slowest test, which no part
     ends before. A file whose tests sum past a part's share, the selection's seconds over `count`,
-    would make its part the last to end whole, so its tests are dealt one by one with the files:
-    a part that holds some of them gets the file and, after its files, the word
-    `--shard-tests=<key>,...`, which names them by `shard.key`. No tests at all fails."""
+    would make its part the last to end whole, so it is cut by test into the fewest pieces that
+    each fit a share, split as evenly by seconds, and the pieces are dealt with the files. Fewest,
+    since a test file can build a cache once a worker, as the selector's tests build its import
+    graph, and each part a piece lands in builds it again. A part that holds a piece gets the file
+    and, after its files, the word `--shard-tests=<key>,...`, which names its tests by
+    `shard.key`. No tests at all fails."""
     from testing import shard
 
     if not nodeids:
@@ -1638,18 +1643,23 @@ def dealt(nodeids, times, count):
         slowest[file] = max(slowest.get(file, 0.0), shard.seconds(times, nodeid))
         tests.setdefault(file, []).append(nodeid)
     share = sum(took.values()) / count
-    items = {}
+    items, pieces = {}, {}
     for file, seconds in took.items():
-        if seconds > share and len(tests[file]) > 1:
-            items |= {nodeid: shard.seconds(times, nodeid) for nodeid in tests[file]}
-        else:
+        cut = min(len(tests[file]), math.ceil(seconds / share))
+        if cut < 2:
             items[file] = seconds
+            continue
+        for at, piece in enumerate(shard.split(tests[file], times, cut), 1):
+            name = f"{file}::{at}"
+            pieces[name] = piece
+            items[name] = sum(shard.seconds(times, nodeid) for nodeid in piece)
+            slowest[name] = max(shard.seconds(times, nodeid) for nodeid in piece)
     parts = shard.split(
         list(items), {shard.key(item): seconds for item, seconds in items.items()}, count, slowest
     )
     words = []
     for part in parts:
-        keys = sorted(shard.key(item) for item in part if "::" in item)
+        keys = sorted(shard.key(nodeid) for item in part for nodeid in pieces.get(item, ()))
         words.append(
             sorted({item.partition("::")[0] for item in part})
             + ([f"--shard-tests={','.join(keys)}"] if keys else [])

@@ -1446,6 +1446,24 @@ def test_the_deal_of_no_tests_fails():
         select.dealt([], {}, 8)
 
 
+def test_a_file_past_a_part_s_share_is_cut_into_the_fewest_pieces_that_fit_a_share():
+    """A file of 40 tests of 10 s beside 200 files of 1 s, over 4 parts: its 400 s are past a
+    share of 150 s, so it is cut into 3 pieces, each in a part of its own, and not spread over
+    every part, since each part a piece lands in builds the file's caches again. Each test of it
+    is named in exactly one part's `--shard-tests`."""
+    from testing import shard
+
+    big = [f"a/test_big.py::test_{n}" for n in range(40)]
+    rest = [f"a/test_{n}.py::test_one" for n in range(200)]
+    times = {shard.key(test): 10 for test in big} | {shard.key(test): 1 for test in rest}
+    parts, seconds = select.dealt(big + rest, times, 4)
+    holding = [part for part in parts if "a/test_big.py" in part]
+    assert len(holding) == 3
+    named = [key for part in holding for key in part[-1].removeprefix("--shard-tests=").split(",")]
+    assert sorted(named) == sorted(shard.key(test) for test in big)
+    assert max(seconds) - min(seconds) <= 10
+
+
 def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_quick_tests_is_not():
     """Files are dealt whole, and a part never ends before the slowest test of its files: a file
     of one 60 s test gets a part to itself, and a file of 60 tests of 1 s, as long in all, shares
