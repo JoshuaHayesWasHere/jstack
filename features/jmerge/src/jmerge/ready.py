@@ -864,12 +864,16 @@ def _round(said: Said) -> None:
     """The last head's verdict: the worst of its reviewers' last sections, a reviewer's scoped
     pass apart from its full review. A section that did not run counts for nothing beside one
     of the same reviewer's that ran at that head, so a scoped pass that found no room does not
-    hide the review that ran; another reviewer's that did not run still holds the round."""
+    hide the review that ran, and a section that did not run never replaces the same pass's
+    section that ran before it at that head; another reviewer's that did not run still holds
+    the round."""
     if not said.rounds:
         return
     heads: dict[str, dict[tuple[str | int, bool], str]] = {}
     for number, one in enumerate(said.rounds):
-        heads.setdefault(one.head or f"#{number}", {})[(one.reviewer, one.scoped)] = one.verdict
+        head = heads.setdefault(one.head or f"#{number}", {})
+        if one.verdict in _RANKS or head.get((one.reviewer, one.scoped)) not in _RANKS:
+            head[(one.reviewer, one.scoped)] = one.verdict
     last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
     ran = {who for (who, _), verdict in last.items() if verdict in _RANKS}
     said.verdict = _worst(
