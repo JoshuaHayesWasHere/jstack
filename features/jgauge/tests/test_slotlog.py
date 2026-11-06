@@ -74,6 +74,17 @@ def test_a_run_from_a_directory_since_removed_runs_and_logs_an_empty_cwd(tmp_pat
     )
 
 
+def test_a_take_from_a_directory_since_removed_logs_an_empty_cwd(tmp_path, monkeypatch):
+    log, gone = slotlog.path(tmp_path / "locks"), tmp_path / "gone"
+    gone.mkdir()
+    monkeypatch.chdir(gone)
+    gone.rmdir()
+
+    slotlog.release(slotlog.take(log, "short", 1, 3, "", ["true"], 0), 0)
+
+    assert [row["cwd"] for row in rows(log)] == ["", ""]
+
+
 @pytest.mark.parametrize("blocked", ["parent is a file", "log is a directory"])
 def test_a_log_that_cannot_be_written_stops_nothing(tmp_path, blocked):
     log = slotlog.path(tmp_path / "locks")
