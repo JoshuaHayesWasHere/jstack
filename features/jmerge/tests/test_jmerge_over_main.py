@@ -15,7 +15,7 @@ import pytest
 
 from jmerge import ready, treeguards
 from test_jmerge_cli_merged_tree import MAKEFILE, runs
-from test_jmerge_fresh import LINES, Kitchen, asked, url
+from test_jmerge_fresh import LINES, Kitchen, asked, git, repo, url
 from test_jmerge_in_line import behind
 from test_jmerge_order import queue_of
 from test_jmerge_revert_line import named
@@ -115,3 +115,16 @@ def test_over_main_an_overlapping_revert_still_takes_the_line(kitchen):
     assert second.startswith("merged 7 two ")
     assert kitchen.updates() == ["9"]
     assert runs(kitchen) == 1
+
+
+def test_over_main_a_base_that_cannot_be_fetched_waits_saying_so(kitchen, monkeypatch):
+    """With no fetch of main, what main changed after the check is not known: the pull request
+    waits, judged over no tip, and nothing is merged or asked of GitHub."""
+    kitchen.crew("two", 7, OURS)
+    kitchen.on_main(THEIRS)
+    here = repo(kitchen, monkeypatch)
+    git(kitchen.home.main, "remote", "set-url", "origin", str(kitchen.tmp / "gone"))
+    why, judged = here.over_main(ready.pull_request(kitchen.pulls["two"]), ())
+    assert why == "main could not be fetched to see what changed after its check"
+    assert judged == ready.Judged()
+    assert kitchen.updates() == []
