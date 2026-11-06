@@ -4,11 +4,13 @@ be written stops no run, and the report reads only what is a row. `test_slot.py`
 
 import json
 import os
+import subprocess
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from jgauge import slotlog
+from test_room import BIN
 
 NOON = datetime(2026, 11, 5, 10, 0, tzinfo=UTC)
 
@@ -42,6 +44,34 @@ def test_the_log_keeps_the_last_29_days_once_its_first_row_is_over_30_days_old(t
         "hold": release["hold"],
     }
     assert 0 <= release["hold"] < 5
+
+
+def test_a_run_from_a_directory_since_removed_runs_and_logs_an_empty_cwd(tmp_path):
+    locks, gone = tmp_path / "locks", tmp_path / "gone"
+    gone.mkdir()
+    env = {**os.environ, "JGAUGE_LOCKS_DIR": str(locks), "TMPFS": str(tmp_path)}
+    ran = subprocess.run(
+        [
+            "sh",
+            "-c",
+            'cd "$1" && rmdir "$1" && exec "$2" test-slot -- true',
+            "sh",
+            gone,
+            BIN / "jgauge",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert ran.returncode == 0, ran.stderr
+    take, release = rows(slotlog.path(locks))
+    assert (take["event"], take["cwd"], release["event"], release["cwd"]) == (
+        "take",
+        "",
+        "release",
+        "",
+    )
 
 
 @pytest.mark.parametrize("blocked", ["parent is a file", "log is a directory"])
