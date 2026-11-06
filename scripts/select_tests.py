@@ -936,13 +936,26 @@ def tracked():
     return frozenset(ran.stdout.splitlines())
 
 
+@cache
+def endings():
+    """How many tracked files end in each run of their last parts: `a/b/c.md` ends in `c.md`,
+    `b/c.md` and `a/b/c.md`."""
+    found = {}
+    for one in tracked():
+        parts = one.split("/")
+        for start in range(len(parts)):
+            ending = "/".join(parts[start:])
+            found[ending] = found.get(ending, 0) + 1
+    return found
+
+
 def called(path):
     """The parts of a path a test spells to name it: its file name, and with it the directories
     above it until no other file has the same ending."""
     parts = path.split("/")
+    itself = int(path in tracked())
     for start in range(len(parts) - 1, -1, -1):
-        ending = "/".join(parts[start:])
-        if not [one for one in tracked() - {path} if f"/{one}".endswith(f"/{ending}")]:
+        if endings().get("/".join(parts[start:]), 0) == itself:
             return tuple(parts[start:])
     return tuple(parts)
 
