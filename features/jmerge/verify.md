@@ -40,8 +40,12 @@ Preconditions:
 - A new sandbox, `env.sh` sourced, `doctor: ok`.
 - The shell is in `$VERIFY_JSTACK_SANDBOX/demo`, and `gh/open.json` is `[]`.
 
-- **Open a pull request.** Run `base=$(git rev-parse HEAD) && head=$("$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py)`. `gh/open.json` has pull request 7 on the branch `beta`, green, changing `src/beta/a.py`, and `base` is the demo's 40-hex `start` commit, the `BASE=` of each brief's `Checked:` line.
-- **Write its brief.** Run `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n' "$base" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`. The brief has a Result, whose `Checked:` line says the desk's check passed at the head, and no review.
+- **Open a pull request.**
+  Run `base=$(git rev-parse HEAD) && head=$("$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py)`.
+  `gh/open.json` has pull request 7 on the branch `beta`, green, changing `src/beta/a.py`, and `base` is the demo's 40-hex `start` commit, the `BASE=` of each brief's `Checked:` line.
+- **Write its brief.**
+  Run `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n' "$base" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`.
+  The brief has a Result, whose `Checked:` line says the desk's check passed at the head, and no review.
 - **Ask, unreviewed.** Run `record jmerge-decision jmerge --check`. It prints `wait 7 https://example.test/pull/7: it has no review yet`.
 - **Add a clean review.** Run `printf '## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`. It prints `ready 7 <the head> beta beta`.
 - **Review after.**
