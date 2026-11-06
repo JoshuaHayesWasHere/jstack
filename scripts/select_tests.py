@@ -154,8 +154,7 @@ names Darwin. A name reaches a test only from a changed path of the tests or one
 an import does, a feature's paths reach none of its tests, and only `EVERY_RUN`, which changes
 every run, and the list itself print `all`: the rest of what every test depends on, such as the
 fixtures, the Makefile and check.yml, reaches the tests that import or name it. A pull request's
-macOS job
-selects so, and the run on each merge commit into main runs the whole `--within`.
+macOS job selects so, and the run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days runs on each pull request's check, whatever
 the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
