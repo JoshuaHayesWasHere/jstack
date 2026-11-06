@@ -57,7 +57,6 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there.
    Run `gh pr view` before you say anything about its state.
 7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, end the turn.
-   Its one review came before it opened: jbus launched it once the desk proof bound the pushed head, so this step starts none.
    With none, steps 5 and 6 are `skip: the brief asks for no pull request` and the task ends as `skills/crew/SKILL.md` "End" says.
 
 Never done here, and who does it:
@@ -65,7 +64,7 @@ Never done here, and who does it:
 - **Merge.**
   `jmerge`, run by jbus, merges a pull request that is reviewed, fixed and green.
   One it holds waits for the user's word.
-- **Review**: one reviewer, in a new thread, reviews once, before the pull request opens: jbus launches it once the desk proof binds the pushed head, as `skills/crew/SKILL.md` "The review" says.
+- **Review**: one reviewer, in a new thread, reviews once, launched by jbus at the desk proof, before the pull request opens, as `skills/crew/SKILL.md` "The review" says.
   Fix what you agree with, and push back, with a reason, on the rest.
   A fix gets no review: one round, and it merges on its checks ("A second pass").
 - **Poll.** jbus wakes this thread when its pull request needs it: no loop, no watcher of your own.
