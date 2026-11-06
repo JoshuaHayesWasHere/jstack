@@ -118,8 +118,7 @@ On macOS `jgauge room` and `jgauge test-slot` also skip their sweep of stale pyt
 ### jgauge test-slot --thread
 
 `jgauge test-slot --thread <id>` tries for a slot of the full lane once and never waits in the call.
-In the short lane it waits in the call for up to `SHORT_WAIT_SECONDS`, the lane's time limit of 120 s, and the calls that wait take the slots freed in the order they came.
-jbus knows nothing of a call that waits in it, and wakes none.
+In the short lane it waits in the call for up to `SHORT_WAIT_SECONDS`, the lane's time limit of 120 s, the calls that wait take the slots freed in the order they came, and jbus wakes none of them.
 With a slot free, it runs the command as `jgauge test-slot` does and takes the thread out of the waiters.
 A lane can be full, or each free slot can be held for a woken waiter of another thread.
 When that is still so once the call has stopped waiting, it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`.
