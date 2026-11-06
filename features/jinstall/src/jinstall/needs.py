@@ -409,7 +409,7 @@ def _commands(machine: Machine) -> Commands:
 
 def _t3_jstack(machine: Machine) -> list[Need]:
     """The jstack build's need, listed only on Arch, since its PKGBUILD builds for no other
-    machine. It is due only where T3 Code is a nightly, which the build replaces."""
+    machine. It is due only where T3 Code is a jstack build or a nightly, which it replaces."""
     if not machine.which("pacman"):
         return []
     packaging = machine.source / "features" / "t3code-jstack" / "packaging"

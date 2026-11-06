@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from jinstall.__main__ import doctor
-from jinstall.kinds import T3Code, T3JstackBuild
+from jinstall.kinds import T3Code, T3JstackBuild, patch_series
 from jinstall.machine import Refused
 from jinstall.needs import T3_FLOOR, needs
 from test_install import REPO, T3_WHERE, Machine, Ran, User, line_for, machine
@@ -612,8 +612,9 @@ def test_a_claude_home_with_no_skills_is_missing(user):
     ]
 
 
-PINNED = "v0.1.5-nightly.20261029.3877"
-NEWER = "v0.1.5-nightly.20261030.3900"
+PINNED = "v0.1.7"
+NEWER = "v0.1.8"
+NIGHTLY = "v0.1.8-nightly.20261105.4000"
 
 
 class Upstream:
@@ -678,45 +679,41 @@ SERIES = hashlib.sha256(b"a\n").hexdigest()[:10]
 @pytest.mark.parametrize(
     ("says", "tags", "found"),
     [
+        (f"0.1.7+jstack.{SERIES}", (PINNED,), ("ok", f"0.1.7+jstack.{SERIES}")),
+        (f"0.1.7+jstack.{SERIES}", None, ("ok", f"0.1.7+jstack.{SERIES}")),
+        (f"0.1.7+jstack.{SERIES}", (PINNED, NIGHTLY), ("ok", f"0.1.7+jstack.{SERIES}")),
         (
-            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
-            (PINNED,),
-            ("ok", f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"),
-        ),
-        (
-            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
-            None,
-            ("ok", f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"),
-        ),
-        (
-            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+            f"0.1.7+jstack.{SERIES}",
             (PINNED, NEWER),
+            ("old", f"built 0.1.7+jstack.{SERIES}, and jstack builds 0.1.8+jstack.{SERIES}"),
+        ),
+        (
+            "0.1.7+jstack.1234567890",
+            (PINNED,),
+            ("old", f"built 0.1.7+jstack.1234567890, and jstack builds 0.1.7+jstack.{SERIES}"),
+        ),
+        (
+            f"0.1.6-nightly.20261030.3917+jstack.{SERIES}",
+            (PINNED, NIGHTLY),
             (
                 "old",
-                f"built 0.1.5-nightly.20261029.3877+jstack.{SERIES},"
-                f" and jstack builds 0.1.5-nightly.20261030.3900+jstack.{SERIES}",
+                f"built 0.1.6-nightly.20261030.3917+jstack.{SERIES},"
+                f" and jstack builds 0.1.7+jstack.{SERIES}",
             ),
         ),
         (
-            "0.1.5-nightly.20261029.3877+jstack.1234567890",
-            (PINNED,),
+            f"0.1.6-nightly.20261030.3917+jstack.{SERIES}",
+            None,
             (
                 "old",
-                "built 0.1.5-nightly.20261029.3877+jstack.1234567890,"
-                f" and jstack builds 0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+                f"built 0.1.6-nightly.20261030.3917+jstack.{SERIES},"
+                f" and jstack builds 0.1.7+jstack.{SERIES}",
             ),
         ),
-        (
-            "0.1.5-nightly.20261029.3877",
-            (PINNED,),
-            (
-                "missing",
-                "0.1.5-nightly.20261029.3877 is upstream's build, without the tree sidebar",
-            ),
-        ),
+        ("0.1.7", (PINNED,), ("missing", "0.1.7 is upstream's build, without the tree sidebar")),
     ],
 )
-def test_the_jstack_build_is_ok_on_the_newest_nightly_with_jstacks_patches(
+def test_the_t3_jstack_build_is_ok_on_the_newest_stable_release_with_jstacks_patches(
     tmp_path, says, tags, found
 ):
     upstream = Upstream(tmp_path, says, tags)
@@ -724,37 +721,40 @@ def test_the_jstack_build_is_ok_on_the_newest_nightly_with_jstacks_patches(
     assert (probed.state.value, probed.detail) == found
 
 
-def test_a_build_falls_back_from_a_nightly_its_patches_do_not_apply_to_and_remembers_it(tmp_path):
-    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED, NEWER), refuses=(NEWER,))
+def test_a_t3_nightly_jstack_build_is_replaced_by_the_stable_and_never_rebuilt(tmp_path):
+    upstream = Upstream(tmp_path, f"0.1.6-nightly.20261030.3917+jstack.{SERIES}", (PINNED, NIGHTLY))
+    said = upstream.kind.put(upstream.machine)
+    assert upstream.built() == [PINNED]
+    assert said.startswith(f"installed 0.1.7+jstack.{SERIES}:")
+
+
+def test_a_t3_build_falls_back_from_a_release_its_patches_refuse_and_remembers_it(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.7", (PINNED, NEWER), refuses=(NEWER,))
     said = upstream.kind.put(upstream.machine)
     assert upstream.built() == [NEWER, PINNED]
-    assert said == (
-        f"installed 0.1.5-nightly.20261029.3877+jstack.{SERIES}: quit T3 Code and open it again"
-        " to run it"
-    )
+    assert said == f"installed 0.1.7+jstack.{SERIES}: quit T3 Code and open it again to run it"
     assert upstream.ran[-1][:5] == ["sudo", "pacman", "-U", "--noconfirm", "--ask"]
-    upstream.says = f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"
+    upstream.says = f"0.1.7+jstack.{SERIES}"
     probed = upstream.kind.probe(upstream.machine)
     assert (probed.state.value, probed.detail) == (
         "ok",
-        f"0.1.5-nightly.20261029.3877+jstack.{SERIES};"
-        " 0.1.5-nightly.20261030.3900 does not take jstack's patches: rebase them",
+        f"0.1.7+jstack.{SERIES}; 0.1.8 does not take jstack's patches: rebase them",
     )
     upstream.ran.clear()
     upstream.kind.put(upstream.machine)
     assert upstream.built() == [PINNED]
 
 
-def test_a_build_that_fails_for_another_reason_stops_and_names_its_log(tmp_path):
-    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED, NEWER), breaks=(NEWER,))
+def test_a_t3_build_that_fails_for_another_reason_stops_and_names_its_log(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.7", (PINNED, NEWER), breaks=(NEWER,))
     with pytest.raises(Refused, match=f"makepkg failed on {NEWER}: .*build.log holds its log"):
         upstream.kind.put(upstream.machine)
     assert upstream.built() == [NEWER]
     assert not (upstream.cache / "failed").exists()
 
 
-def test_makepkg_stages_under_the_builds_cache_and_the_build_clears_it_after(tmp_path):
-    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED, NEWER), refuses=(NEWER,))
+def test_t3_makepkg_stages_under_the_builds_cache_and_the_build_clears_it_after(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.7", (PINNED, NEWER), refuses=(NEWER,))
     (upstream.cache / "tmp" / "left").mkdir(parents=True)
     upstream.kind.put(upstream.machine)
     temp = str(upstream.cache / "tmp")
@@ -783,8 +783,8 @@ FULL = "Error: ENOSPC: no space left on device, write"
         (FULL, None),
     ],
 )
-def test_a_build_that_ran_out_of_temp_space_says_so_and_where(tmp_path, line, place):
-    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", fills={PINNED: line})
+def test_a_t3_build_that_ran_out_of_temp_space_says_so_and_where(tmp_path, line, place):
+    upstream = Upstream(tmp_path, "0.1.7", fills={PINNED: line})
     place = place or str(upstream.cache / "tmp")
     with pytest.raises(Refused, match=f"the build ran out of temp space at {re.escape(place)}"):
         upstream.kind.put(upstream.machine)
@@ -794,34 +794,70 @@ def test_a_build_that_ran_out_of_temp_space_says_so_and_where(tmp_path, line, pl
     )
 
 
-def test_with_no_nightly_that_takes_the_patches_the_build_waits_for_a_rebase(tmp_path):
-    upstream = Upstream(tmp_path, "0.1.5-nightly.20261029.3877", (PINNED,), refuses=(PINNED,))
-    with pytest.raises(Refused, match="no nightly takes jstack's patches"):
+def test_with_no_t3_release_that_takes_the_patches_the_build_waits_for_a_rebase(tmp_path):
+    upstream = Upstream(tmp_path, "0.1.7", (PINNED,), refuses=(PINNED,))
+    with pytest.raises(Refused, match="no stable release takes jstack's patches"):
         upstream.kind.put(upstream.machine)
-    upstream.says = "0.1.5-nightly.20261029.3877+jstack.1234567890"
+    upstream.says = "0.1.7+jstack.1234567890"
     probed = upstream.kind.probe(upstream.machine)
     assert (probed.state.value, probed.replaceable) == ("old", False)
 
 
-def test_uninstall_keeps_the_jstack_build_and_says_so_only_where_it_runs(tmp_path):
-    upstream = Upstream(tmp_path, f"0.1.5-nightly.20261029.3877+jstack.{SERIES}")
+PACKAGING = REPO / "features" / "t3code-jstack" / "packaging"
+
+
+def test_the_pkgbuild_builds_upstreams_stable_release_with_every_patch_and_the_nightly_links():
+    """A bare makepkg builds a stable tag, `v<major>.<minor>.<patch>`, under the stable name,
+    and keeps the nightly's commands as links for autostart entries and scripts."""
+    env = {key: value for key, value in os.environ.items() if key != "T3CODE_JSTACK_TAG"}
+    said = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source PKGBUILD; printf "%s\\n" "$_tag" "$pkgver" "$pkgdesc" "${provides[*]}"'
+            ' "${conflicts[*]}" "${_patches[*]}" "${#sha256sums[@]}"; declare -f package',
+        ],
+        cwd=PACKAGING,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    tag, version, description, provides, conflicts, patches, sums = said[:7]
+    package = "\n".join(said[7:])
+    assert re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag)
+    assert version == f"{tag[1:]}.jstack.{patch_series(PACKAGING)}"
+    assert "nightly" not in description.lower()
+    assert provides == f"t3code={tag[1:]}"
+    assert conflicts.split()[:2] == ["t3code-bin", "t3code"]
+    assert patches.split() == sorted(one.name for one in PACKAGING.glob("*.patch"))
+    assert int(sums) == len(patches.split()) + 1
+    for link in ("t3code", "t3-code-desktop", "t3code-nightly", "t3-code-nightly-desktop"):
+        assert f'ln -s t3code-jstack "$pkgdir/usr/bin/{link}"' in package
+
+
+def test_uninstall_keeps_the_t3_jstack_build_and_says_so_only_where_it_runs(tmp_path):
+    upstream = Upstream(tmp_path, f"0.1.7+jstack.{SERIES}")
     assert upstream.kind.drop(upstream.machine).kept == (
-        "t3code-jstack -> it is T3 Code: yay -S t3code-nightly-bin puts upstream's back",
+        "t3code-jstack -> it is T3 Code: yay -S t3code-bin puts upstream's back",
     )
-    upstream.says = "0.1.5-nightly.20261029.3877"
+    upstream.says = "0.1.7"
     assert upstream.kind.drop(upstream.machine).kept == ()
 
 
 @pytest.mark.parametrize(
     ("pacman", "says", "due"),
     [
-        (True, "0.1.5-nightly.20261029.3877", True),
-        (True, f"0.1.5-nightly.20261029.3877+jstack.{SERIES}", True),
+        (True, f"0.1.7+jstack.{SERIES}", True),
+        (True, "0.1.6-nightly.20261030.3917", True),
+        (True, f"0.1.6-nightly.20261030.3917+jstack.{SERIES}", True),
         (True, T3_STABLE, False),
-        (False, "0.1.5-nightly.20261029.3877", False),
+        (False, f"0.1.7+jstack.{SERIES}", False),
     ],
 )
-def test_the_jstack_build_is_due_only_on_arch_with_a_nightly(tmp_path, pacman, says, due):
+def test_the_t3_jstack_build_is_due_on_arch_with_a_jstack_build_or_a_nightly(
+    tmp_path, pacman, says, due
+):
     upstream = Upstream(tmp_path, says)
     if not pacman:
         (tmp_path / "bin" / "pacman").unlink()
