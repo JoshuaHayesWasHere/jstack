@@ -58,6 +58,13 @@ or that import such a module, and the summary counts them with the names.
 `testing/tests/test_cross_cutting.py` fails on a test that reads the tree so with neither a
 read set nor a place on the `Cross-cutting:` list.
 
+A model check, a test that runs TLC for minutes, runs only where the change reaches what it
+checks. `MODEL_CHECKS` names each one with the paths that run it: the spec or the charts it
+checks and the scripts that run TLC. Each file of a `src/` that a `.tla` file under those
+folders cites, as the code it models, runs it too, and so does an edit to the test itself. No
+other rule selects these tests, though nearly every change reaches them through an import or
+a name. Main's full run and the nightly run them whatever changed.
+
 A test file that no change to any other path selects is owned by no rule: it imports nothing,
 spells no path and is on no list. A change it reads in some other way (a glob, a walk) would merge
 with it unrun. So every change also runs each such test, the catch-all, and the summary counts
@@ -65,11 +72,11 @@ it with the cross-cutting tests.
 
 A change of the tests alone runs a narrow check. Where every changed path is a module of a
 folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`),
-the selection is the changed test files and the tests that import or name a helper they changed:
-no feature's tests, no cross-cutting tests, no catch-all and no test that failed on main. Such a
-change alters no code but the tests', and main's full run catches what a narrow check misses. A
-change that also touches a fixture, deletes a file or touches any path outside the tests selects
-by all the rules above.
+the selection is the changed test files, the model checks they reach and the tests that import
+or name a helper they changed: no feature's tests, no cross-cutting tests, no catch-all and no
+test that failed on main. Such a change alters no code but the tests', and main's full run
+catches what a narrow check misses. A change that also touches a fixture, deletes a file or
+touches any path outside the tests selects by all the rules above.
 
 It prints `all` when a changed path is one that every test depends on, and never for the size of
 what it selected: a selection of nearly every test file still names its files, and main's full
@@ -93,7 +100,7 @@ forced-by=<path>`. The keys are always these, in this order. Each cause's count 
 files it selected on its own, so the counts overlap. `forced-by` names the path that made the
 selection `all`, and it is `-` otherwise. A collector reads that line. Last, after a blank line,
 a folded block holds the selection's list: a line for each selected test file, with the causes
-that selected it, comma-separated (`imports`, `names`, `features`, `cross-cutting`,
+that selected it, comma-separated (`imports`, `names`, `features`, `cross-cutting`, `models`,
 `catch-all`, `failed-on-main`), or the one line `all forced-by=<path>`. With `$GITHUB_OUTPUT`
 set, it gives the step the output `selection`, `all` or `some`: the check workflow leaves the
 tree's marker on a pass of `all`. It also gives `files`, `all` or how many test files it
@@ -199,6 +206,26 @@ SCRIPTS = "scripts"
 PATHS = ("features/*/spec", "features/skill-library/skills/statechart/scripts")
 """The folders a test puts on `sys.path` and imports from by name. A test that loads a file by
 its path, as the skill-cut eval's test does, puts no folder here."""
+STATECHART = (
+    "features/skill-library/skills/statechart/",
+    "features/skill-library/tests/statechart/",
+    "features/skill-library/tests/statechart_support.py",
+)
+MODEL_CHECKS = {
+    "features/jmerge/tests/test_flow_spec.py": (
+        "features/jmerge/spec/",
+        "features/skill-library/skills/statechart/scripts/",
+    ),
+    "features/skill-library/tests/test_statechart_runs.py": STATECHART,
+    "features/skill-library/tests/test_statechart_specs.py": STATECHART,
+}
+"""The model checks, each a test file that runs TLC for minutes, and the paths, in jmerge's
+syntax, whose change runs it on a pull request's check: the spec or the charts it checks and
+the scripts that run TLC. Each file of a `src/` that a `.tla` file under those folders cites,
+as the code it models, runs it too, and so does a change to the test file itself. Nearly every
+change reaches these tests through an import or a name, so this table alone selects them.
+Main's full run and the nightly run them whatever changed."""
+CITED = re.compile(r"features/[\w-]+/src/[\w/]+\.py")
 EVERYTHING = (
     "pyproject.toml",
     "uv.lock",
@@ -289,6 +316,24 @@ def features():
 
 def cross_cutting():
     return listed((ROOT / CROSS).read_text(), "Cross-cutting")
+
+
+@cache
+def models():
+    """Each model check, with the patterns of the paths that select it: its own path, its row
+    of `MODEL_CHECKS`, and each file of a `src/` that a `.tla` file under a folder of that row
+    cites."""
+    found = {}
+    for test, patterns in MODEL_CHECKS.items():
+        specs = [
+            one
+            for pattern in patterns
+            if pattern.endswith("/")
+            for one in ROOT.glob(f"{pattern}**/*.tla")
+        ]
+        cited = {cite for spec in specs for cite in CITED.findall(spec.read_text(encoding="utf-8"))}
+        found[test] = (test, *patterns, *sorted(cited))
+    return found
 
 
 def owns(patterns, path):
@@ -1094,6 +1139,11 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
         if where[name] in changed:
             found["features"] |= feature_tests(name)
     found["cross-cutting"] = set(cross_cutting()) if cross else set()
+    for key in found:
+        found[key] -= models().keys()
+    found["models"] = {
+        test for test, paths in models().items() if any(owns(paths, path) for path in changed)
+    }
     present = {
         key: {one for one in tests if (ROOT / one).is_file() and not opens_browser(one)}
         for key, tests in found.items()
@@ -1143,10 +1193,11 @@ def selection(changed, failed=()):
     if tests == ["all"]:
         return tests, why
     if tests_alone(changed):
-        narrow = sorted(set(why["imports"]) | set(why["names"]))
+        narrow = sorted(set(why["imports"]) | set(why["names"]) | set(why["models"]))
         return narrow, {
             "imports": why["imports"],
             "names": why["names"],
+            "models": why["models"],
             **{key: [] for key in ("features", "cross-cutting", "catch-all", "added")},
         }
     lone = unowned()
@@ -1326,6 +1377,7 @@ WHY = {
     "names": "names",
     "features": "features",
     "cross-cutting": "cross-cutting",
+    "models": "models",
     "catch-all": "catch-all",
     "added": "failed-on-main",
 }
