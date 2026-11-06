@@ -64,6 +64,7 @@ def with_group(kitchen, act):
 
 
 def test_a_jmerge_jbus_stops_at_its_timeout_leaves_none_of_its_guards_running(kitchen):
+    """Its worktree of the merged tree is left, as before, for the next run to clear."""
     kitchen.crew("two", 7, {"b.txt": "two\n"}, checks=(AFTER,))
     kitchen.on_main({"c.txt": "main\n"})
     kitchen.home.desk_checked()
@@ -74,3 +75,9 @@ def test_a_jmerge_jbus_stops_at_its_timeout_leaves_none_of_its_guards_running(ki
     while with_group(kitchen, lambda group: os.killpg(group, 0)):
         assert time.monotonic() < until, "the guards outlived the jmerge jbus stopped"
         time.sleep(0.1)
+    tree = kitchen.home.state / treeguards.TREE
+    (kitchen.home.state / treeguards.NAME).write_text("true\n")
+    done = proc.run("jmerge", cwd=kitchen.home.main, timeout=60)
+    assert done.returncode == 0, done.stderr
+    listed = proc.run("git", "worktree", "list", "--porcelain", cwd=kitchen.home.main).stdout
+    assert not tree.exists() and str(tree) not in listed, "the next run left the stopped tree"

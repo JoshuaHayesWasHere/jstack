@@ -86,6 +86,10 @@ def guard(said: str) -> str:
 def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> Ran | str | None:
     """Run `command` in `cwd` inside a full test slot, in a session of its own, so a stop at
     `timeout` stops the processes it started too, which would outlive `sh` and hold the tree.
+    The session also ends with this process, however it ends: `_TIED` reads a pipe only this
+    process writes to, and stops the session at its end. jbus kills `jmerge` alone at its
+    `JMERGE_TIMEOUT`, and the guards would otherwise run on beside the next `jmerge`. The
+    worktree such a stop leaves is the next run's to clear (`Guards.in_tree`).
 
     The guards are a suite at `-n 6`, so they take a slot as every other suite on the machine
     does: through `jgauge test-slot`, or the caller's own where it holds one already
@@ -103,16 +107,23 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
         if not os.environ.get(slot.HELD):
             argv = [sys.executable, "-m", "jgauge", "test-slot", "--", "sh", "-c", _MARK]
             argv += [str(started), command]
-        process = subprocess.Popen(
-            argv,
-            cwd=cwd,
-            env={**os.environ, **env},
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            start_new_session=True,
-        )
+        alive, tie = os.pipe()
+        try:
+            process = subprocess.Popen(
+                ["sh", "-c", _TIED, "sh", *argv],
+                cwd=cwd,
+                env={**os.environ, **env},
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=alive,
+                text=True,
+                start_new_session=True,
+            )
+        except BaseException:
+            os.close(tie)
+            raise
+        finally:
+            os.close(alive)
         try:
             asked = time.monotonic()
             if argv[0] == sys.executable and not _slotted(process, started):
@@ -133,9 +144,16 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
                 code = None
         finally:
             _stop(process.pid)
+            os.close(tie)
     return Ran(code, round(time.monotonic() - began), said or "", round(began - asked))
 
 
+_TIED = (
+    'exec 3<&0; { cat <&3 > /dev/null; kill -s KILL 0; } < /dev/null > /dev/null 2>&1 & '
+    'exec 3<&-; exec "$@" < /dev/null'
+)
+"""What the session runs first: a watcher that kills the session's group once its stdin, the
+pipe `run_guards` holds open, ends, and in its place the guards, with nothing to read."""
 _MARK = ': > "$0" && exec sh -lc "$1"'
 """What runs inside the slot: it marks that the slot is held, then becomes the guards."""
 
