@@ -873,14 +873,20 @@ def uses(at):
         words |= found
         dots |= through
         todo += [(one[0], other) for other in names]
-        given = [one[0], *sorted(conftests(one[0]) & modules().keys(), reverse=True), *plugins()]
         for ask in asks:
-            todo += [(module, ask) for module in given if ask in defined(module)][:1]
+            todo += [(module, ask) for module in givers(one[0]) if ask in defined(module)][:1]
         for dot in through:
             module, _, member = dot.rpartition(".")
             if of_tests(modules().get(module, "")):
                 todo.append((module, member))
     return frozenset(words), frozenset(dots)
+
+
+@cache
+def givers(name):
+    """Where a fixture a module of the tests asks for comes from, nearest first: the module, the
+    `conftest` of each folder above it, and the plugins."""
+    return [name, *sorted(conftests(name) & modules().keys(), reverse=True), *plugins()]
 
 
 @cache
@@ -964,13 +970,16 @@ def called(path):
 def spelled_by():
     """The test files that spell each run of consecutive parts of a spelled path. It gives the
     result of `inside` for every test file at once, and reads each file once."""
-    found = {}
+    spellers = {}
     for name, path in modules().items():
         if TEST.fullmatch(path):
             for spelling in spells(name):
-                for start in range(len(spelling)):
-                    for end in range(start + 1, len(spelling) + 1):
-                        found.setdefault(spelling[start:end], set()).add(path)
+                spellers.setdefault(spelling, set()).add(path)
+    found = {}
+    for spelling, paths in spellers.items():
+        for start in range(len(spelling)):
+            for end in range(start + 1, len(spelling) + 1):
+                found.setdefault(spelling[start:end], set()).update(paths)
     return found
 
 
