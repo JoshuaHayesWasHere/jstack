@@ -32,6 +32,7 @@ from jbus import (
     outbox,
     queue,
     record,
+    review,
     stall,
     t3,
     verbs,
@@ -427,7 +428,9 @@ def resume(run: Pass, client: Client, world: World) -> None:
     thread's next end goes to the brief's home in one line, or is a gate where the brief has no
     home (`_stopped`). A new thread for the slug starts again from zero. A thread whose turn ended
     on a wait that jbus owns (`World.awaits`), a test slot or its own run that holds one, gets no
-    carry-on: jbus wakes it when a slot is free or the run ends (`slotwait`).
+    carry-on: jbus wakes it when a slot is free or the run ends (`slotwait`). Nor does a crew whose
+    Result says its pull request opens after its review, while that review is to come
+    (`review.awaited`): `jbus.prereview` tells it once the review is written.
     """
     briefs = _briefs(run)
     sent = run.box.sent()
@@ -446,6 +449,8 @@ def resume(run: Pass, client: Client, world: World) -> None:
         if not dispatch.launched(run, slug) or (result and not owes):
             continue
         if thread_of(run.home, slug) != at or world.awaits(thread):
+            continue
+        if owes and review.awaited(brief, result):
             continue
         key = f"owes-pull|{slug}|{at}" if owes else f"resume|{slug}|{at}|{ended}"
         if key in sent:

@@ -2,12 +2,11 @@
 answers."""
 
 import os
-import re
 import subprocess
 
 import pytest
 
-from crew_helpers import BRIEF, ROLLUPS, block, git, said, sections, stub_gh
+from crew_helpers import BRIEF, ROLLUPS, block, git, said, stub_gh
 from testing.layouts import assembled
 
 
@@ -76,9 +75,10 @@ def test_a_drafts_checks_are_read_as_any_pull_requests(case, tmp_path):
     assert pushed.says().split(":")[0] == ROLLUPS[case][1]
 
 
-def test_the_review_is_launched_only_once_check_has_passed(tmp_path):
-    """The deterministic checks prove or fail the work before a reviewer reads it: the crew
-    launches on `passed` alone, and the reviewer's own readiness check agrees."""
+def test_a_review_launched_on_an_open_pull_request_waits_for_its_checks(tmp_path):
+    """The first review comes before the pull request, and jbus launches it
+    (`test_jbus_prereview.py`). A review launched by hand on a pull request already open reads
+    only a head whose checks passed: the reviewer's own readiness check says so."""
     import test_pr_review_skill as review
 
     def launcher(name, rollup):
@@ -98,26 +98,8 @@ def test_the_review_is_launched_only_once_check_has_passed(tmp_path):
     (tmp_path / "crew").mkdir()
     assert Pushed(tmp_path / "crew", pending).says() == "wait: a check has not finished"
 
-    when = block("The review", "checked=")
-    does = {}
-    for case in ("all passed", "one still running", "one ran and failed", "none ran"):
-        (tmp_path / case).mkdir()
-        printed = Pushed(tmp_path / case, ROLLUPS[case][0]).says()
-        script = when.replace('<the line the block of "The checks" printed>', printed)
-        ran = subprocess.run(["sh", "-c", script], capture_output=True, text=True, check=True)
-        does[printed.split(":")[0]] = ran.stdout.split(":")[0]
-    assert does == {
-        "passed": "launch",
-        "wait": "no launch yet",
-        "failed": "fix first",
-        "unrun": "no launch",
-    }
 
-    stay = sections()["Stay on the pull request"]
-    steps = re.findall(r"^(\d)\. (.*)$", stay.split("What wakes this thread")[0], re.M)
-    (launch,) = [int(number) for number, step in steps if "start its review now" in step]
-    (end,) = [int(number) for number, step in steps if step.startswith("End your turn")]
-    assert launch < end
+def test_the_crew_s_review_block_still_says_whether_a_reviewer_is_owed(tmp_path):
     (tmp_path / "state").mkdir()
     assert said(tmp_path / "state", "The review", "launch a reviewer", BRIEF) == [
         "review: launch a reviewer"

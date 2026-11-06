@@ -4,38 +4,36 @@
 
    ```sh
    kept='<the head kept at the start>'
-   if ! view=$(gh pr view <url> --json baseRefName,headRefOid); then
-       echo "Head: $kept   Unchanged by the review: not checked, could not ask GitHub"
-       echo "Patch-id: not worked out, could not ask GitHub"
+   base='<the base kept at the start>'
+   branch=$(git branch --show-current)
+   if ! pushed=$(git ls-remote origin "refs/heads/$branch" | cut -f1) || [ -z "$pushed" ]; then
+       echo "Head: $kept   Unchanged by the review: not checked, could not ask origin"
+       echo "Patch-id: $(git diff "$base" "$kept" | git patch-id --stable | cut -d' ' -f1)"
        exit 1
    fi
-   if [ "$(printf %s "$view" | jq -r .headRefOid)" = "$kept" ] && [ "$(git rev-parse HEAD)" = "$kept" ] && [ -z "$(git status --porcelain)" ]; then
+   if [ "$pushed" = "$kept" ] && [ "$(git rev-parse HEAD)" = "$kept" ] && [ -z "$(git status --porcelain)" ]; then
        same=yes
    else
        same=no
    fi
    echo "Head: $kept   Unchanged by the review: $same"
-   base=$(printf %s "$view" | jq -r .baseRefName)
-   if git fetch -q origin "$base"; then
-       echo "Patch-id: $(git diff "$(git merge-base "origin/$base" "$kept")" "$kept" | git patch-id --stable | cut -d' ' -f1)"
-   else
-       echo "Patch-id: not worked out, could not fetch origin/$base"
-       exit 1
-   fi
+   echo "Patch-id: $(git diff "$base" "$kept" | git patch-id --stable | cut -d' ' -f1)"
    ```
 
    It prints the section's `Head:` and `Patch-id:` lines whole.
-   `yes` means the pull request's head and this checkout's are both still the head kept at the start, with nothing uncommitted.
+   `yes` means origin's branch and this checkout are both still at the head kept at the start, with nothing uncommitted.
    On `no`, say that first in the section.
    The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and `jmerge` compares a rebase from that head.
    It is the one round: a fix pushed for its findings gets no review.
    The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells.
-   On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
+   On exit code 1 the lines say what could not be asked: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff".
    From here on, the findings are the ones that block kept, each **Act on** one with its `(proof: ...)` tag ("The review", step 4).
 3. Add the two lines the reviewer finds itself, neither of them a finding: `Outside Where:` from "Wider than the brief" and `In flight:` from "In flight".
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
-   The section is this pass's one output: jbus reads it on its next pass, asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
+   The section is this pass's one output: jbus reads it on its next pass.
+   Before the pull request opens, jbus tells the crewmate once every reviewer it launched has written, with the findings by id, and the crewmate handles them and opens the pull request (`jbus.prereview`).
+   Once it is open, jbus asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
    With no `Thread:` line in the brief, jbus tells the home in its place, and with no home it parks the findings as a gate.
 5. Read `$T/review.md` now.
    Append it, filled in, to `$H/tasks/<slug>.md`, with the `By:` line Start printed under its heading, and `Sent to: not sent, jbus tells the crew when it owes a line` as its last line.

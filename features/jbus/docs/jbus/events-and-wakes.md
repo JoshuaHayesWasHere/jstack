@@ -67,7 +67,6 @@ It is in the log, which `jbus events` prints and the view shows.
 - `failover`
 - `gate`
 - `gate answered`
-- `green`
 - `heartbeat`
 - `hold-stall`
 - `home-stall`
@@ -87,6 +86,8 @@ It is in the log, which `jbus events` prints and the view shows.
 - `note`
 - `pack`
 - `pool-wake`
+- `prereview`
+- `prereviewed`
 - `queue`
 - `rebase`
 - `recovered`

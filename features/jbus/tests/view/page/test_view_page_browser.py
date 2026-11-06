@@ -83,6 +83,34 @@ def test_two_runs_at_once_never_have_a_browser_each(own_home, monkeypatch):
     assert most == [1, 1]
 
 
+def test_a_test_that_waits_on_the_lock_has_it_before_one_that_asked_later(own_home):
+    """A worker of a `-n auto` run takes the lock again for its next browser test as soon as it
+    lets it go. A test that was already waiting has the lock before that next test does, so a
+    run whose workers browse back to back makes no test wait out its patience."""
+    order, held, waiting = [], threading.Event(), threading.Event()
+
+    def worker():
+        for turn in range(10):
+            with heavy():
+                order.append(f"worker {turn}")
+                held.set()
+                waiting.wait(5)
+                time.sleep(0.3)
+
+    def waiter():
+        held.wait(5)
+        threading.Timer(0.2, waiting.set).start()
+        with heavy():
+            order.append("waiter")
+
+    runs = [threading.Thread(target=worker), threading.Thread(target=waiter)]
+    for one in runs:
+        one.start()
+    for one in runs:
+        one.join()
+    assert order.index("waiter") == 1, order
+
+
 def test_a_browser_that_never_finishes_is_stopped_with_every_process_it_started(
     own_home, tmp_path, monkeypatch
 ):

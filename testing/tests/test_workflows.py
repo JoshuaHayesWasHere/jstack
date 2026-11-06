@@ -45,7 +45,11 @@ The drift step keeps jdrift's clone of pstack in the runner's temporary director
 does not outlive the job.
 
 Every setup-uv step installs one exact uv, the workflow's own `UV_VERSION`, and every
-workflow names the same one: with no version, setup-uv fetches the latest release on each job."""
+workflow names the same one: with no version, setup-uv fetches the latest release on each job.
+
+The module reads every file under `.github/` and the files the TLC cache's key hashes, the spec
+files and statechart's scripts, through globs: its `READ_SET` names them, so a change runs these
+tests only where it reaches one of them, or a path the tests spell or import, and not else."""
 
 import json
 import os
@@ -74,6 +78,7 @@ NIGHTLY = WORKFLOWS / "macos-nightly.yml"
 MAC = WORKFLOWS / "macos.yml"
 MAC_QUICK = REPO / "testing" / "macos-quick.txt"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
+READ_SET = ("/.github/", "spec/", "statechart/")
 HOSTED = "ubuntu-24.04"
 MACOS = "macos-15"
 
@@ -1575,7 +1580,12 @@ def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
     for job, gate, asks in (("check-shard", "check", False), ("full-shard", "full", True)):
         said = " ".join(map(str, steps(CHECK.read_text(), job)[0]))
         assert [word for word in asking if word in said] == (list(asking) if asks else []), job
-        assert "upload-artifact" not in said, job
+        uploads = [
+            step
+            for step in steps(CHECK.read_text(), job)[0]
+            if "upload-artifact" in step.get("uses", "")
+        ]
+        assert [step for step in uploads if "green-tree" in str(step)] == [], job
         said = " ".join(map(str, steps(CHECK.read_text(), gate)[0]))
         assert [word for word in leaving if word in said] == list(leaving), gate
 
@@ -1690,7 +1700,15 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         KEPT,
         "actions/cache/save",
         "|",
+        "actions/upload-artifact",
     ]
+    assert found[-1]["if"] == "steps.suite.outcome == 'success'"
+    assert found[-1]["with"] == {
+        "name": "junit-${{ github.run_attempt }}-${{ matrix.shard }}",
+        "path": "${{ runner.temp }}/junit.xml",
+        "retention-days": "30",
+        "if-no-files-found": "error",
+    }
     gate, _ = steps(CHECK.read_text(), "full")
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in gate][1:] == [
         "actions/checkout",

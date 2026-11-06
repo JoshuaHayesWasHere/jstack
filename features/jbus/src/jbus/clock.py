@@ -5,7 +5,9 @@ repeats its line.
 `tick` reads what jbus's own run of `jmerge` says in this pass of each open pull request that jbus
 launched a crew for, and sorts the wait into one of three classes:
 
-- `review`: the review is not written (`it has no review yet`, `its review has no verdict`);
+- `review`: the review is not written (`it has no review yet`, `its review has no verdict`), or
+  a reviewer jbus launched before the pull request opened has not written (`jbus.prereview`),
+  a wait numbered 0, since no pull request is open yet;
 - `scoped`: the scoped review a `Meets the brief: no` owes, or a rebase's, is not written or has
   not ruled;
 - `result`: no Result names the pull request, so the crew stopped before it wrote one.
@@ -70,9 +72,11 @@ from jbus import (
     dispatch,
     expedite,
     merge,
+    mirror,
     outbox,
     read_json,
     rebase,
+    review,
     threads,
     verbs,
     watch,
@@ -159,13 +163,13 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
 
     For a scoped wait it is the last `Scoped reviewer:` line of this head, or else the last one.
     Otherwise it is the last
-    `Reviewer:` line whose seat, `#<n>`, has written no `## Review` with that seat on its `By:`
-    line."""
+    `Reviewer:` line whose seat, `#<n>`, has written no `## Review` that ran with that seat on
+    its `By:` line: a `Verdict: not run` section leaves its seat to be asked again."""
     if kind == "scoped":
         named = below.reviewers(brief, "Scoped reviewer", head)
         named = named or below.reviewers(brief, "Scoped reviewer")
     else:
-        bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections)
+        bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections if one.ran)
         wrote = {seat[1] for seat in bys if seat}
         named = below.reviewers(brief, "Reviewer")
         named = [said for said in named if (s := _SEAT.search(said)) is None or s[1] not in wrote]
@@ -296,10 +300,9 @@ def tick(
     live = {one["id"]: one["live"] for one in out}
     reviewing = {one["slug"] for one in out if one["role"] == "reviewer" and one["live"] in AT_WORK}
     kept: dict[str, Any] = {}
-    for slug, pull in sorted(world.open.items()):
-        word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
-        kind, head = class_of(reason), pull.get("headRefOid", "")
-        if word != "wait" or not kind or not head:
+    for slug, number, reason, head in _waiting(run, world, waits.said):
+        kind = class_of(reason)
+        if not kind or not head:
             continue
         if not dispatch.launched(run, slug) or slug in run.limited or slug in run.gated:
             continue
@@ -311,7 +314,7 @@ def tick(
         same = (seen.get("kind"), seen.get("head"), seen.get("thread")) == (kind, head, thread)
         wait: dict[str, Any] = seen if same else {"passes": 0, "acted": False, "home": False}
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
-        wait |= {"number": pull["number"], "reason": reason}
+        wait |= {"number": number, "reason": reason}
         kept[slug] = wait
         busy = {live.get(thread), live.get(thread_of(run.home, slug))} & set(AT_WORK)
         if wait["home"] or busy or slug in reviewing:
@@ -331,6 +334,27 @@ def tick(
             wait["home"] = True
     if kept != was:
         write_json(run.state / FILE, kept)
+
+
+def _waiting(run: Pass, world: World, said: dict[str, str]) -> list[tuple[str, int, str, str]]:
+    """Each wait a clock takes: the slug, the pull request's number, `jmerge`'s reason and the
+    head, for each open pull request `jmerge` says waits; and for each row whose review comes
+    before its pull request (`review.awaited`) and whose reviewer jbus launched has not written,
+    a wait on the review at the head its desk proof names, numbered 0, since no pull request is
+    open yet."""
+    found = []
+    for slug, pull in sorted(world.open.items()):
+        word, _, reason = said.get(str(pull["number"]), "").partition(": ")
+        if word == "wait":
+            found.append((slug, pull["number"], reason, pull.get("headRefOid", "")))
+    for slug in sorted(world.threads):
+        if slug in world.open or slug in world.merged:
+            continue
+        brief = task_brief(run, slug)
+        result = mirror.last_result(brief)
+        if review.awaited(brief, result) and review.launched(brief):
+            found.append((slug, 0, str(ready.NO_VERDICT), review.desk_head(brief)))
+    return found
 
 
 def _ahead(reason: str, world: World) -> bool:

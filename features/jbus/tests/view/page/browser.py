@@ -27,6 +27,8 @@ them out, and `make check-browser` runs them, nightly and on a release. Where th
 `~/.local/state/locks/browser.lock` exists, each run of them takes that file, the machine's
 browser lock. So only one browser of these tests runs at a time on the machine, however many
 runs there are.
+The tests have the lock in the order they asked for it, whichever run or worker asks, so a run
+of many workers does not starve one of them.
 A test waits `PATIENCE` seconds for the lock and then fails with a line that says so. The lock is
 theirs alone, and it is not the heavy-suite lock, `heavy-suite.lock` beside it. So a run that has
 the heavy-suite lock through `flock` never waits on a lock it already has. With no `chromium` on
@@ -288,20 +290,67 @@ def heavy():
     if not held.parent.is_dir():
         yield
         return
-    with open(held, "a") as lock:
-        until = time.monotonic() + PATIENCE
+    until = time.monotonic() + PATIENCE
+
+    def waited():
+        if time.monotonic() > until:
+            pytest.fail(
+                f"{held} was held for {PATIENCE} s: other runs of these tests had "
+                "a browser up all that time. Run it again."
+            )
+        time.sleep(0.05)
+
+    with in_line(held.parent / "browser.line", waited), open(held, "a") as lock:
         while True:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 break
             except BlockingIOError:
-                if time.monotonic() > until:
-                    pytest.fail(
-                        f"{held} was held for {PATIENCE} s: other runs of these tests had "
-                        "a browser up all that time. Run it again."
-                    )
-                time.sleep(0.2)
+                waited()
         yield
+
+
+@contextmanager
+def in_line(line, waited):
+    """A place in the browser lock's line, first come, first served, held until the block ends.
+
+    A worker of a `-n auto` run asks for the lock again as soon as it lets it go, for its next
+    test, so a lock that each waiter tries now and then goes to whoever asks at the moment it
+    is free, and a test can wait out its patience while later ones have the lock. So each
+    waiter puts a ticket in `line`, a file named for when it asked and locked as long as the
+    waiter lives, and takes the lock only once no older ticket is locked. A ticket that is not
+    locked is a waiter that is gone, and the next waiter removes it. The ticket gets its name
+    once it is locked, so no waiter takes a live one for a gone one.
+    """
+    line.mkdir(exist_ok=True)
+    name = f"{time.time_ns():020d}-{os.getpid()}-{threading.get_ident()}"
+    with open(line / f".{name}", "a") as ticket:
+        fcntl.flock(ticket, fcntl.LOCK_EX)
+        os.rename(line / f".{name}", line / name)
+        try:
+            while ahead(line, name):
+                waited()
+            yield
+        finally:
+            (line / name).unlink(missing_ok=True)
+
+
+def ahead(line, name):
+    """Whether a waiter that asked before `name` is still in `line`."""
+    for older in sorted(one.name for one in line.iterdir()):
+        if older >= name:
+            return False
+        if older.startswith("."):
+            continue
+        try:
+            with open(line / older) as other:
+                fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                (line / older).unlink(missing_ok=True)
+        except FileNotFoundError:
+            continue
+        except BlockingIOError:
+            return True
+    return False
 
 
 def browse(*arguments, dump=True):

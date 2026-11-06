@@ -13,10 +13,12 @@
 \* until its base merged, and a stack is made by a depends alone.
 \* Since fl-rules-1103 two of its rules say the flow the merged pull requests chose since.
 \* Since fl-no-draft a crew opens its pull request ready, and jmerge marks no draft ready: the
-\* draft, Ready and the lift --accept kept on a draft went. Since review-after-green-one-round its
-\* one reviewer launches only once its check has passed, and one round gives a fix no review. The
-\* round itself is no variable: no rule reads it, and the merge waits on the passed check it
-\* follows. A history bit for it took today's model from 7.9M to 12.9M states.
+\* draft, Ready and the lift --accept kept on a draft went. Since review-after-green-one-round one
+\* round gives a fix no review. Since vision-review-before-pr the round comes before the pull
+\* request: jbus launches the reviewer once the crew's desk proof binds the head it pushed, and the
+\* crew opens the pull request after the review, so its check runs once, after the round. The
+\* round itself is no variable: no rule reads it, and the merge waits on the passed check and the
+\* round before it. A history bit for it took today's model from 7.9M to 12.9M states.
 \* Since vision-merge-overlap-no-rerun (Josh's vision of 2026-11-06, item F) a green pull request
 \* main moved past merges on its pass where its head merges cleanly over main's tip and the
 \* merged-tree guards pass there, whether or not it shares a file with main's changes: see Merges.
@@ -129,7 +131,9 @@ Launch(p) ==
     /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py `on = world.stack_on(run, unmerged, brief)`
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
-    \* Its crew opens it ready, and its check runs before its review.
+    \* Its crew proves it at the desk, jbus launches its one review round, and its crew opens it
+    \* ready after that round, so its check runs after its review.
+    \* features/jbus/src/jbus/prereview.py `short = proved(run, brief, head)`
     /\ Leaves(p)
     /\ UNCHANGED <<ci, ranRed, missed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Fix, Browser,
                    go, needs, meets, Judge, editsLeft>>
@@ -172,11 +176,10 @@ Merges(p) ==
     \* `guarded = self.base_moved(one, tip)`). The model keeps no record of the main a check ran over:
     \* what the guards and the check both miss of such a merge is breaks[p] with missed[p], which main's
     \* own run and jbus's revert of its one clear culprit catch (RevertMerges).
-    \* Its one review round followed that pass: the crew launches its reviewer only once the check
-    \* has passed, and a fix it pushes for the findings gets no review (review-after-green-one-round).
-    \* features/crew/the-review.md `passed) echo "launch: run the block below and do what it prints" ;;`,
-    \* features/pr-review/launching.md `passed*) head=${said##* } ;;`,
-    \* features/jbus/src/jbus/rebase.py `green = mark("green", slug, head) not in sent and checks(pull) == "passed"`
+    \* Its one review round came before it opened, at the head its desk proof binds, and a fix its
+    \* crew pushes for the findings gets no review (review-after-green-one-round,
+    \* vision-review-before-pr): the merge waits on that pass and the round's verdict at the head.
+    \* features/jmerge/src/jmerge/ready.py `short = _cleanup(said) if said.mode == CLEANUP else _review(said, head)`
     \* Its last review round says the brief is met (#843).
     /\ meets[p]                             \* features/jmerge/src/jmerge/ready.py `return short or short_on_meets(text, heard)`
     \* A red main holds no pull request (red-main-no-hold, #862): only its own checks do.

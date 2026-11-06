@@ -143,7 +143,6 @@ Cross-cutting:
 - `features/repo-guards/tests/test_readme_current.py`
 - `features/jgauge/tests/test_room.py`
 - `features/repo-guards/tests/test_run_not_read.py`
-- `testing/tests/test_select_tests.py`
 - `testing/tests/test_select_tests_rules.py`
 - `features/repo-guards/tests/test_skill_args.py`
 - `features/repo-guards/tests/test_skill_frontmatter.py`
@@ -156,5 +155,4 @@ Cross-cutting:
 - `features/repo-guards/tests/test_tool_project.py`
 - `features/verify-jstack/tests/test_verify_jstack.py`
 - `features/jbus/tests/view/test_view_sources.py`
-- `testing/tests/test_workflows.py`
 - `features/skill-library/tests/test_statechart_tlc_bounds.py`

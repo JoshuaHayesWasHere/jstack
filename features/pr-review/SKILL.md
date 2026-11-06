@@ -29,7 +29,7 @@ When this thread launches a reviewer, for `/pr-review` in a home or a crewmate's
 This thread is a **reviewer**. It reads the diff, judges what it found, proves one fact, reports, and ends. It starts no subagent and no other thread: the review is this one thread. It never edits a file, commits, pushes, or changes the pull request, and it never reads the crewmate's thread.
 
 A reviewer runs no test step and no suite, whatever the brief says.
-The tests are CI's `check`, which has passed at the head before a reviewer is launched, and the crewmate's own runs (the crew skill, "Do the task").
+The tests are the crewmate's desk proof, its `Checked:` and `Proved:` lines, which bind the head before jbus launches a reviewer (`jbus.prereview`), and CI's `check`, which runs on the pull request the crewmate opens after the review.
 The one thing a reviewer runs is a targeted proof of the fact the change is safe because of ("The review", step 5).
 New prose is one sentence per line, and an old line the pull request did not touch is no finding for how many sentences it holds.
 
@@ -89,10 +89,30 @@ New prose is one sentence per line, and an old line the pull request did not tou
 
    On `stop`, say what it printed, the line it would accept included, and end: no review, no section.
    On `go`, go on.
-2. Read the pull request: `gh pr view <url> --json number,title,body,state,headRefName,headRefOid,files,statusCheckRollup`. The diff is read in step 3 of "The review". Open a file only to judge a finding, or to find and prove the safety fact.
-3. Check the ground, and stop with the reason if any line fails:
-   - `git status -sb`: this checkout is on the pull request's branch and has nothing uncommitted.
-   - `git rev-parse HEAD` is the pull request's `headRefOid`. Keep it: this is the head under review.
+2. Find the change under review: the branch this worktree is on, at the head origin has, over its base.
+   The review comes before the pull request, so there may be none yet: the change is read from git, never from GitHub.
+   Run this with the block at the top:
+
+   ```sh
+   B="$H/tasks/<slug>.md"
+   branch=$(git branch --show-current)
+   on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$B")
+   [ -n "$on" ] || on=$(git symbolic-ref -q --short refs/remotes/origin/HEAD | sed 's|^origin/||')
+   on=${on:-main}
+   if [ -z "$branch" ] || ! git fetch -q origin "$branch" "$on"; then
+       echo "stop: could not fetch origin's $branch and $on"
+   elif [ -n "$(git status --porcelain)" ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$branch")" ]; then
+       echo "stop: this worktree is not at origin's $branch with nothing uncommitted"
+   else
+       echo "head $(git rev-parse HEAD) base $(git merge-base "origin/$on" HEAD) on $on"
+   fi
+   ```
+
+   On `stop`, say what it printed and end: no review, no section.
+   Otherwise keep the head and the base it printed: the head is the head under review, and wherever this skill reads the diff it is `git diff --no-color <the base> <the head>`.
+   The diff is read in step 3 of "The review".
+   Open a file only to judge a finding, or to find and prove the safety fact.
+3. Read the brief's last Result: its `Checked:` and `Proved:` lines name the head under review, or a head whose patch it carries, since jbus launched this review on them.
 4. Say in two lines what is about to be reviewed, then start.
 
 ### The review
@@ -138,7 +158,7 @@ It sends nobody anything.
    Its `By:` line says whose it is, so that this reviewer's section at the same head, once it runs again, takes its place, and another reviewer's does not.
    Its `Scope:` line, on a scoped pass, keeps it a scoped pass: a scoped section takes the place of no section but a scoped one, so the first review of the same head keeps its findings.
    Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict").
-   jbus's stall clock (`jbus.clock`) reads a review with no verdict as a wait on the review: it carries the crewmate on, and then tells the home.
+   jbus's stall clock (`jbus.clock`) reads a review with no verdict as a wait on the review: it asks this reviewer again, with `/pr-review run <slug> again`, and then tells the home.
    Sent a second time for the same head, the block writes no second section.
 2. Say the same in this thread in two lines, and stop without settling: a thread that settled would look like a review that was done.
 
@@ -174,17 +194,18 @@ A finding whose remedy stays inside `Where` is an ordinary finding.
 
 ```sh
 BRIEF="$H/tasks/<slug>.md"
-PR=$(gh pr view <url> --json number,files) || exit 1
-OPEN=$(gh pr list --state open --json number,title,files) || exit 1
+FILES=$(git diff --name-only '<the base>' '<the head>') || exit 1
+PR=$(printf '%s\n' "$FILES" | jq -R 'select(. != "")' | jq -s --arg branch "$(git branch --show-current)" '{branch: $branch, files: map({path: .})}') || exit 1
+OPEN=$(gh pr list --state open --json number,title,files,headRefName) || exit 1
 printf '%s\n' "$OPEN" | jq -r --argjson pr "$PR" '
   ($pr.files | map(.path)) as $mine
-  | .[] | select(.number != $pr.number)
+  | .[] | select(.headRefName != $pr.branch)
   | (.files | map(.path) | map(select(IN($mine[])))) as $both
   | select($both | length > 0)
   | "pull request \(.number) (\(.title)): \($both | join(", "))"'
 for other in "$H"/tasks/*.md; do
   [ "$other" = "$BRIEF" ] && continue
-  command grep -q '^## Result' "$other" && continue
+  awk '/^## Result/ {r = 1; after = 0} r && /^Branch:.*Pull request: after the review$/ {after = 1} END {exit !(r && !after)}' "$other" && continue
   where=$(sed -n 's/^Where: //p' "$other" | command grep -o '`[^`]*`' | tr -d '`' | tr '\n' ' ')
   both=$(printf '%s\n' "$PR" | jq -r '.files[].path' | awk -v where="$where" '
     BEGIN { n = split(where, w, " "); for (i = 1; i <= n; i++) sub(/\/$/, "", w[i]) }
@@ -194,11 +215,11 @@ for other in "$H"/tasks/*.md; do
 done
 ```
 
-It prints one line for each open pull request that changes a file this one changes, and one for each brief with no result yet whose `Where:` covers a file this one changes.
+It prints one line for each open pull request that changes a file this one changes, and one for each brief with no pull request yet whose `Where:` covers a file this one changes: a brief with no Result, or one whose last Result says its pull request opens after its review.
 Those lines go into the section's `In flight:` line, as they are.
 They say that two pieces of work touch the same file, so that whoever merges second knows: they are not a fault in this pull request and carry no severity.
 Do not open the other pull requests or briefs to look further.
-A failed `gh` ends the block with exit code 1, and then the section's `In flight:` line says "not checked", not "none".
+A failed `git diff` or `gh` ends the block with exit code 1, and then the section's `In flight:` line says "not checked", not "none".
 
 ### A scoped pass
 

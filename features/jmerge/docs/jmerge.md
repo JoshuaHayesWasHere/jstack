@@ -113,6 +113,8 @@ The section "Protected paths" describes one more hold.
   The repo's ruleset requires `check` at the head itself, so `jmerge` counts no other head's run: the reuse is CI's own run at the moved head.
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
+  The review comes before the pull request: jbus launches it once the brief's `Checked:` and `Proved:` lines bind the head the crew pushed, and adds its `Reviewer:` lines under the Result the crew wrote then, with `Pull request: after the review` (`jbus.prereview`).
+  The crew opens the pull request after the review and names it in a follow-up Result, so `jmerge` merges on the required checks plus the review at the head, and waits for each reviewer those lines name.
   If the review had findings, the Result has a `Fixed:` line that names the head or says `none needed`.
   The crewmate writes that line, and the crew's check block writes the `Checked: <command> exit <code> at <head>` line each time the check command ends on a committed head.
   Where the crewmate wrote no `Fixed:` line, `jmerge` reads one from the brief and git (`ready.unwritten_fixed`): `jbriefs --findings --left` says `write Fixed:`, a `Checked:` line says exit 0 at the head, and in `review` mode a `Second pass:` or `Scoped review:` line follows the review.
