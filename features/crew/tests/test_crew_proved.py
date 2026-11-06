@@ -9,7 +9,7 @@ the command, and syncs nothing. Each run leaves `git worktree list` as it found 
 tests pass, fail or are cut off."""
 
 import os
-import shutil
+import shlex
 import signal
 import subprocess
 import sys
@@ -22,12 +22,23 @@ from jbriefs import proved
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 
+TIMEOUT = """import os, signal, subprocess, sys
+run = subprocess.Popen(sys.argv[2:], process_group=0)
+try:
+    sys.exit(run.wait(float(sys.argv[1])))
+except subprocess.TimeoutExpired:
+    os.killpg(run.pid, signal.SIGTERM)
+    run.wait()
+    sys.exit(124)
+"""
+"""GNU `timeout`, which macOS lacks: the command in a group of its own, sent TERM at the limit,
+exit 124."""
 UV = f"""#!/bin/bash
 case " $* " in
 *" jgauge test-slot "*)
     while [ "$1" != -- ]; do shift; done
     shift
-    if [ -n "$LIMIT" ]; then exec {shutil.which("timeout")} "$LIMIT" "$@"; fi
+    if [ -n "$LIMIT" ]; then exec {sys.executable} -c {shlex.quote(TIMEOUT)} "$LIMIT" "$@"; fi
     exec "$@"
     ;;
 *" sync "*) exit 0 ;;

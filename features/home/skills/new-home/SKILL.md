@@ -212,7 +212,7 @@ case $C in
     done
     flow=.github/workflows/check.yml
     if [ -z "$checked" ] && [ -n "$sha" ]; then
-        tmp=$(mktemp -d)
+        tmp=$(mktemp -d "${TMPDIR:-/tmp}/new-home.XXXXXX")
         if ! git -C "$C" cat-file -e "$sha^{commit}" 2> /dev/null; then
             need "git -C $C fetch origin, then type /new-home again: $default's tip is not in the checkout, and the check workflow is built on it"
         else
