@@ -14,8 +14,9 @@ A part runs its tests on `WORKERS` workers at once, so it ends once its tests' s
 `WORKERS` has passed, and never before its slowest test, which one worker runs alone. The
 selected tests are dealt out slowest first, each to the part it would end soonest in, and where
 it would end as soon in several, to the one with the fewest seconds so far. So a test longer than
-the others' share of a part gets a part of its own, and tests that move no part's end spread over the parts by their
-seconds, and do not pile onto the part whose slowest test leaves its workers room.
+the others' share of a part gets a part of its own, and tests that move no part's end spread
+over the parts by their seconds, and do not pile onto the part whose slowest test leaves its
+workers room.
 `WORKERS` is the Makefile's TEST_WORKERS in CI, one for each of the 4 cores of GitHub's hosted
 runner: a constant, not this machine's count, so every job deals the same parts.
 
