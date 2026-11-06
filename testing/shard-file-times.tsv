@@ -66,7 +66,7 @@
 6.03	3.36	features/jbriefs/tests/test_propose.py
 4.89	0.55	features/jbriefs/tests/test_skills_named.py
 31.13	5.04	features/jbus/tests/test_children.py
-19.75	16.07	features/jbus/tests/test_failed_on_main.py
+18.55	16.07	features/jbus/tests/test_failed_on_main.py
 40.93	3.00	features/jbus/tests/test_gates.py
 6.17	1.25	features/jbus/tests/test_gh_said.py
 16.54	0.87	features/jbus/tests/test_item.py
@@ -418,7 +418,7 @@
 5.00	0.10	testing/tests/test_jtrees_schema.py
 0.20	0.10	testing/tests/test_loopback.py
 343.27	10.38	testing/tests/test_select_tests.py
-6.60	0.10	testing/tests/test_select_tests_rules.py
-34.94	12.31	testing/tests/test_shards.py
+6.70	0.10	testing/tests/test_select_tests_rules.py
+35.04	12.31	testing/tests/test_shards.py
 0.49	0.39	testing/tests/test_test_plugins.py
-156.44	23.88	testing/tests/test_workflows.py
+156.64	23.88	testing/tests/test_workflows.py
