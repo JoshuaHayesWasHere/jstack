@@ -1,17 +1,19 @@
-# T3 Code nightly with jstack's tree sidebar and fixes: an upstream nightly tag, plus this folder's patches.
+# T3 Code with jstack's tree sidebar and fixes: an upstream stable release tag, plus this folder's patches.
 # `jinstall --setup` builds and installs it. It picks the tag in $T3CODE_JSTACK_TAG: upstream's
-# newest nightly, or the last one the patches applied to. `_tag` below is the tag a bare
-# makepkg builds. makepkg's work stays out of this folder, under BUILDDIR, PKGDEST and SRCDEST.
-# The version is the nightly's, plus `.jstack.<series>`: the first 10 hex digits of the sha256
+# newest stable release, or the last one the patches applied to. `_tag` below is the tag a bare
+# makepkg builds; set T3CODE_JSTACK_TAG by hand to build another tag, a nightly included.
+# makepkg's work stays out of this folder, under BUILDDIR, PKGDEST and SRCDEST.
+# The version is the release's, plus `.jstack.<series>`: the first 10 hex digits of the sha256
 # of this folder's patches in name order. jinstall's tests fail while `pkgver` names another
 # series, so set it with every change to a patch.
 
 pkgname=t3code-jstack
-_tag="${T3CODE_JSTACK_TAG:-v0.1.5-nightly.20261029.3877}"
-_nightly="${_tag#v}"
-pkgver="${_nightly/-nightly./_nightly.}.jstack.4d9be3c6e1"
+_tag="${T3CODE_JSTACK_TAG:-v0.1.7}"
+_release="${_tag#v}"
+# A nightly picked by hand has a hyphen, which pkgver cannot hold.
+pkgver="${_release/-nightly./_nightly.}.jstack.4f7a1d9983"
 pkgrel=1
-pkgdesc='T3 Code nightly with the jstack tree sidebar'
+pkgdesc='T3 Code with the jstack tree sidebar'
 arch=('x86_64')
 url='https://github.com/pingdotgg/t3code'
 license=('MIT')
@@ -50,8 +52,8 @@ depends=(
 # vite-plus is from the AUR (vite-plus-bin), so makepkg -s cannot install it: it must be on PATH.
 # libxcrypt-compat: electron-builder's fpm, which also writes a .deb, needs libcrypt.so.1.
 makedepends=('imagemagick' 'libxcrypt-compat' 'nodejs' 'patch' 'pkgconf' 'rust')
-provides=("t3code-nightly=${pkgver%%.jstack*}")
-conflicts=('t3code-nightly-bin' 't3code-nightly' 't3code-bin' 't3code')
+provides=("t3code=${pkgver%%.jstack*}")
+conflicts=('t3code-bin' 't3code' 't3code-nightly-bin' 't3code-nightly')
 options=('!debug' '!strip')
 
 _patches=(0001-jstack-tree-sidebar.patch 0002-jstack-tree-asking-and-projects.patch 0003-jstack-tree-unfold-asks.patch
@@ -70,10 +72,12 @@ _patches=(0001-jstack-tree-sidebar.patch 0002-jstack-tree-asking-and-projects.pa
           0019-jstack-tree-brief-view.patch
           0020-jstack-tree-pin-crew.patch
           0021-jstack-tree-pin-focus.patch
-          0022-cursor-instance-shell.patch)
+          0022-cursor-instance-shell.patch
+          0023-jstack-tree-v0.1.7-tab-order.patch)
 source=("t3code-${_tag#v}.tar.gz::https://github.com/pingdotgg/t3code/archive/refs/tags/${_tag}.tar.gz"
         "${_patches[@]}")
 sha256sums=('SKIP'
+            'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
@@ -146,7 +150,10 @@ package() {
 export T3CODE_DISABLE_AUTO_UPDATE=1
 exec /opt/$pkgname/AppRun "\$@"
 EOF
-  # The nightly package's names, which autostart entries and scripts already call.
+  # The stable package's names, and the nightly's that earlier jstack builds kept, which
+  # autostart entries and scripts already call.
+  ln -s t3code-jstack "$pkgdir/usr/bin/t3code"
+  ln -s t3code-jstack "$pkgdir/usr/bin/t3-code-desktop"
   ln -s t3code-jstack "$pkgdir/usr/bin/t3code-nightly"
   ln -s t3code-jstack "$pkgdir/usr/bin/t3-code-nightly-desktop"
 
@@ -160,7 +167,7 @@ EOF
   install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/t3code.desktop" <<EOF
 [Desktop Entry]
 Name=T3 Code (jstack)
-Comment=T3 Code nightly with the jstack tree sidebar
+Comment=T3 Code with the jstack tree sidebar
 Exec=t3code-jstack %U
 TryExec=t3code-jstack
 Terminal=false

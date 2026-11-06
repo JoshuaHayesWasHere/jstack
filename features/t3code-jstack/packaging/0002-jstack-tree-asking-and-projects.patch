@@ -1,7 +1,7 @@
-From e7d800e0950ed9fb946167e2e7901813d15f64db Mon Sep 17 00:00:00 2001
+From e306219c0c8ebe322829f60f48fa797546370a8d Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 13:30:58 -0400
-Subject: [PATCH 2/4] fix(web): jstack tree opens queued rows at their asking
+Subject: [PATCH] fix(web): jstack tree opens queued rows at their asking
  thread; other projects use the tree's rows
 
 ---
@@ -13,10 +13,10 @@ Subject: [PATCH 2/4] fix(web): jstack tree opens queued rows at their asking
  5 files changed, 241 insertions(+), 38 deletions(-)
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index 2768d204dc..092b833e17 100644
+index 650abdc2c7..4119c5a17a 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -258,7 +258,12 @@ import {
+@@ -270,7 +270,12 @@ import {
    sidebarFolderRowId,
  } from "./sidebar/SidebarProjectFolderHeader";
  import { buildJstackTree, type JstackTree } from "./sidebar/jstackTree.logic";
@@ -30,7 +30,7 @@ index 2768d204dc..092b833e17 100644
  import { useJbusWork } from "../lib/jbusWorkState";
  import {
    SidebarDragBoundary,
-@@ -3264,18 +3269,22 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3385,18 +3390,22 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                          // The tree row of the project folder this row sits in.
                          folderRow?: string,
                        ) => {
@@ -60,7 +60,7 @@ index 2768d204dc..092b833e17 100644
                          return (
                            <SortableThreadRow
                              key={threadKey}
-@@ -3398,7 +3407,31 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3519,7 +3528,31 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                            continue;
                          }
                          if (projectFolders !== null && item.marker === "active-placeholder") {
@@ -93,7 +93,7 @@ index 2768d204dc..092b833e17 100644
                              const tree = jstackTrees.get(folder.group.projectKey);
                              if (tree !== undefined) {
                                for (const row of tree.rows) {
-@@ -3417,6 +3450,31 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3538,6 +3571,31 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                }
                                continue;
                              }
@@ -254,10 +254,10 @@ index 936a72ff86..119f3f4a56 100644
 +  );
 +});
 diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
-index 5e9ea0d588..225efeba17 100644
+index 050ab37375..fff89a03c1 100644
 --- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx
 +++ b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
-@@ -535,7 +535,8 @@ type SidebarThreadRowProps = {
+@@ -536,7 +536,8 @@ type SidebarThreadRowProps = {
    thread: SidebarThreadSummary;
    // "folder" is a one-line row inside a boring sidebar project folder;
    // "folder-multiline" adds the card's branch and PR line under it.
@@ -267,7 +267,7 @@ index 5e9ea0d588..225efeba17 100644
    navigationParent?: string | undefined;
    variantAction: SidebarSweepAction;
    settlementSupported: boolean;
-@@ -1014,26 +1015,33 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1016,26 +1017,33 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
        aria-hidden
        className={cn(
          "min-w-0 flex-1 text-start text-sm transition-opacity motion-reduce:transition-none",
@@ -334,8 +334,8 @@ index 5e9ea0d588..225efeba17 100644
          data-thread-item={threadKey}
 @@ -1200,6 +1213,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
          className={cn(
-           "list-none [content-visibility:auto] [contain-intrinsic-size:auto_36px]",
-           metaLine !== null && multiline && "[contain-intrinsic-size:auto_54px]",
+           "list-none [content-visibility:auto] [contain-intrinsic-size:auto_--spacing(9)]",
+           metaLine !== null && multiline && "[contain-intrinsic-size:auto_--spacing(13.5)]",
 +          // The tree's nest: a 16px indent and its rule, as JstackTreeRows draws them.
 +          tree && "ms-4 border-s border-sidebar-border/70 ps-2 [contain-intrinsic-size:auto_28px]",
            sortable?.isDragging && "relative z-20",
@@ -355,7 +355,7 @@ index 5e9ea0d588..225efeba17 100644
                  )}
                  onClick={handleClick}
                  onDoubleClick={handleDoubleClick}
-@@ -1295,6 +1312,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1296,6 +1313,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                          />
                          <TooltipPopup side="top">Dismiss Woke notification</TooltipPopup>
                        </Tooltip>
@@ -372,7 +372,7 @@ index 5e9ea0d588..225efeba17 100644
                      ) : inFolder && topStatus ? (
                        // Folder rows have no status line, so the status takes the time slot.
                        <span
-@@ -1307,7 +1334,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1308,7 +1335,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                          {topStatus.label}
                        </span>
                      ) : (

@@ -1,18 +1,19 @@
 # t3code-jstack
 
-`t3code-jstack` is T3 Code nightly built with a patch series that this feature keeps.
+`t3code-jstack` is T3 Code's newest stable release built with a patch series that this feature keeps.
 The series adds jstack's tree sidebar, which draws each jstack project from jbus's state in place of T3 Code's list of threads ([What the tree shows](#what-the-tree-shows)).
 Upstream T3 Code knows nothing of jbus, so only this build has the tree.
 The series also makes a Cursor instance's agent run its commands in bash or zsh, whichever the `SHELL` of the instance's environment names, so that it can run bash while your login shell and T3's terminals stay zsh.
 The Cursor SDK runs only those two, so another `SHELL` there falls back as the SDK chooses.
 With no `SHELL` there, or an empty one, it runs the server's shell, as upstream does.
-`t3code-jstack` is for Arch only, where it replaces `t3code-nightly-bin`, and `jinstall --doctor` lists it only where T3 Code is a nightly build.
+`t3code-jstack` is for Arch only, where it replaces `t3code-bin`.
+`jinstall --doctor` lists it only where T3 Code is already a jstack build or upstream's prerelease channel, which it moves to the stable build; upstream's stable `t3code-bin` stays as it is until you build the package once by hand ([Stay up to date](#stay-up-to-date)).
 
 ## Install it
 
 1. Install the build's tools: `yay -S vite-plus-bin imagemagick libxcrypt-compat`.
 2. Run `jinstall --setup`.
-   It downloads upstream's newest nightly tag, applies the patches, builds the AppImage, and installs it as the package `t3code-jstack`, which replaces `t3code-nightly-bin`.
+   It downloads upstream's newest stable release tag, `v<major>.<minor>.<patch>`, applies the patches, builds the AppImage, and installs it as the package `t3code-jstack`, which replaces `t3code-bin`.
    The build takes a few minutes, and everything it writes is under `~/.cache/t3code-jstack`, with its log in `build.log`.
 3. Quit T3 Code and open it again, so that the new build runs and writes `~/.t3/bin/t3`.
 4. Run `jinstall --doctor`, and read `ok optional t3 jstack build -> <version>+jstack.<series>`.
@@ -20,24 +21,26 @@ With no `SHELL` there, or an empty one, it runs the server's shell, as upstream 
 ## Stay up to date
 
 `yay` does not update T3 Code, because `t3code-jstack` is a local package.
-`jinstall --setup` does: the doctor reads `old` when upstream has a newer nightly or jstack's patches changed, and setup builds and installs the newer one.
+`jinstall --setup` does: the doctor reads `old` when upstream has a newer stable release or jstack's patches changed, and setup builds and installs the newer one.
+A running build of a prerelease reads `old` too, and setup moves it to the stable release.
 
-Each build tries three tags in turn: upstream's newest nightly, the nightly of the running build, and the tag in the PKGBUILD.
+Each build tries three tags in turn: upstream's newest stable release, the release of the running build, and the tag in the PKGBUILD.
 When the patches do not apply to a tag, setup writes the tag and the series to `~/.cache/t3code-jstack/failed`, so that it does not try that pair again, and tries the next tag.
-While the newest nightly refuses the patches, the doctor reads `ok` with `<tag> does not take jstack's patches: rebase them`, and the build stays on the last nightly that took them.
+While the newest release refuses the patches, the doctor reads `ok` with `<tag> does not take jstack's patches: rebase them`, and the build stays on the last release that took them.
 Any other failure stops the build and names its log.
 
 To build by hand, without jinstall, run the command below.
-`T3CODE_JSTACK_TAG` picks the tag, and the PKGBUILD's tag is the default.
+`T3CODE_JSTACK_TAG` picks the tag, and the PKGBUILD's tag, a stable release, is the default.
+To pick a nightly by hand, set `T3CODE_JSTACK_TAG` to its tag, such as `v0.1.6-nightly.20261030.3917`; jinstall never picks one, and its doctor reads that build as `old`.
 
 ```sh
 env BUILDDIR=~/.cache/t3code-jstack PKGDEST=~/.cache/t3code-jstack SRCDEST=~/.cache/t3code-jstack \
   makepkg -si -D <jstack>/features/t3code-jstack/packaging
 ```
 
-The package keeps the nightly's commands, `t3code-nightly` and `t3-code-nightly-desktop`, and adds `t3code-jstack`.
+The package has the stable package's commands, `t3code` and `t3-code-desktop`, adds `t3code-jstack`, and keeps the two commands of the earlier jstack builds as links, so that autostart entries and scripts that call them keep working.
 Its updater is off, so the app never swaps itself back to upstream's build.
-It is a nightly build, so it reads and writes the nightly's data.
+T3 Code's stable and prerelease builds share their data in `~/.t3`, so the move to the stable build keeps every thread and setting.
 
 ## Switch the tree
 
@@ -53,12 +56,12 @@ The doctor never reads the switch, so it stays quiet whatever you choose.
 | `packaging/PKGBUILD` | The package: upstream's tag in `_tag`, the patches in `_patches`, and the version in `pkgver`. |
 | `packaging/*.patch` | The patch series, in the order of its names. |
 
-`pkgver` is the nightly's version with `.jstack.<series>` added, where the series is the first 10 hex digits of the sha256 of the patches, read in name order.
+`pkgver` is the release's version with `.jstack.<series>` added, where the series is the first 10 hex digits of the sha256 of the patches, read in name order.
 The app's version carries it as `+jstack.<series>`, and the doctor compares that with the patches in the folder.
 
 ## Change the patches
 
-The patches come from a T3 Code checkout with a `jstack` branch cut from the nightly tag in `_tag`.
+The patches come from a T3 Code checkout with a `jstack` branch cut from the stable tag in `_tag`.
 
 1. Commit the change on the checkout's `jstack` branch.
 2. Write the series again: `git -C <checkout> format-patch <tag>..jstack -o <jstack>/features/t3code-jstack/packaging`.
@@ -66,7 +69,7 @@ The patches come from a T3 Code checkout with a `jstack` branch cut from the nig
 3. Set the series in `pkgver`.
 4. Run `jinstall --setup` to build and install it.
 
-When the doctor says a nightly does not take the patches, rebase the checkout's `jstack` branch onto that tag, write the series again, and set `_tag` and `pkgver` to it.
+When the doctor says a release does not take the patches, rebase the checkout's `jstack` branch onto that tag, write the series again, and set `_tag` and `pkgver` to it.
 
 ## What the tree shows
 

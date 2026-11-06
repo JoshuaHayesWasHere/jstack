@@ -1,7 +1,7 @@
-From 624e3b521c15bb5d528118915c41188462856e22 Mon Sep 17 00:00:00 2001
+From 8e8a07171810b361307b20e3ea82a7f498783ac8 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 12:32:44 -0400
-Subject: [PATCH 1/4] feat(web): jstack tree sidebar, fed by jbus
+Subject: [PATCH] feat(web): jstack tree sidebar, fed by jbus
 
 The sidebar draws a jstack project as one row merged with its root home,
 its domain homes under it, and its worker tasks (scout, crew, review) as
@@ -30,7 +30,7 @@ nightly channel.
  .../components/sidebar/jstackTree.logic.ts    | 369 ++++++++++++++++++
  apps/web/src/hooks/useSettings.ts             |  10 +-
  apps/web/src/lib/jbusWorkState.ts             |  16 +
- apps/web/src/shortcuts/chatRouteCommands.ts   |   6 +-
+ apps/web/src/shortcuts/chatRouteCommands.ts   |   3 +-
  packages/client-runtime/src/rpc/client.ts     |   1 +
  packages/client-runtime/src/state/server.ts   |   5 +
  packages/contracts/src/index.ts               |   1 +
@@ -38,7 +38,7 @@ nightly channel.
  packages/contracts/src/rpc.ts                 |  10 +
  packages/contracts/src/settings.ts            |  30 ++
  scripts/build-desktop-artifact.ts             |   3 +-
- 26 files changed, 1700 insertions(+), 8 deletions(-)
+ 26 files changed, 1698 insertions(+), 7 deletions(-)
  create mode 100644 apps/server/src/jstack/JbusWork.ts
  create mode 100644 apps/server/src/jstack/jbusWork.logic.test.ts
  create mode 100644 apps/server/src/jstack/jbusWork.logic.ts
@@ -50,10 +50,10 @@ nightly channel.
  create mode 100644 packages/contracts/src/jbusWork.ts
 
 diff --git a/apps/server/src/auth/RpcAuthorization.ts b/apps/server/src/auth/RpcAuthorization.ts
-index a1b05c32a0..2d61240c30 100644
+index f040dbc459..c1d8ffaa14 100644
 --- a/apps/server/src/auth/RpcAuthorization.ts
 +++ b/apps/server/src/auth/RpcAuthorization.ts
-@@ -166,6 +166,7 @@ export const RPC_REQUIRED_SCOPES = {
+@@ -170,6 +170,7 @@ export const RPC_REQUIRED_SCOPES = {
    [WS_METHODS.subscribeWorktreeSetup]: AuthOrchestrationReadScope,
    [WS_METHODS.worktreeSetupCancel]: AuthOrchestrationOperateScope,
    [WS_METHODS.subscribeResourceTelemetry]: AuthDiagnosticsReadScope,
@@ -593,10 +593,10 @@ index 0000000000..43e838a2f0
 +  landed: snapshots.flatMap((each) => each.landed),
 +});
 diff --git a/apps/server/src/observability/RpcInstrumentation.ts b/apps/server/src/observability/RpcInstrumentation.ts
-index 259fa92a66..423f6b3474 100644
+index 17940b8371..4fc32dd0aa 100644
 --- a/apps/server/src/observability/RpcInstrumentation.ts
 +++ b/apps/server/src/observability/RpcInstrumentation.ts
-@@ -169,6 +169,7 @@ const RPC_AGGREGATES = {
+@@ -174,6 +174,7 @@ const RPC_AGGREGATES = {
    [WS_METHODS.subscribeWorktreeSetup]: "vcs",
    [WS_METHODS.worktreeSetupCancel]: "vcs",
    [WS_METHODS.subscribeResourceTelemetry]: "server",
@@ -605,10 +605,10 @@ index 259fa92a66..423f6b3474 100644
    [WS_METHODS.vcsPull]: "git",
    [WS_METHODS.gitRunStackedAction]: "vcs",
 diff --git a/apps/server/src/server.ts b/apps/server/src/server.ts
-index 741fc73103..e478dd7908 100644
+index 395afcf566..4bc32e17f6 100644
 --- a/apps/server/src/server.ts
 +++ b/apps/server/src/server.ts
-@@ -87,6 +87,7 @@ import * as PreviewBrowser from "./preview/PreviewBrowser.ts";
+@@ -90,6 +90,7 @@ import * as PreviewBrowser from "./preview/PreviewBrowser.ts";
  import * as ProcessRunner from "./processRunner.ts";
  import * as GitManager from "./git/GitManager.ts";
  import * as EnvironmentTheme from "./environmentTheme.ts";
@@ -616,7 +616,7 @@ index 741fc73103..e478dd7908 100644
  import * as Keybindings from "./keybindings.ts";
  import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
  import * as ServerOwnership from "./serverOwnership.ts";
-@@ -635,7 +636,12 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
+@@ -673,7 +674,12 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
    Layer.provideMerge(Layer.mergeAll(layerTerminal, layerPreview, layerDevice)),
    Layer.provideMerge(layerPersistence),
    Layer.provideMerge(
@@ -631,10 +631,10 @@ index 741fc73103..e478dd7908 100644
    Layer.provideMerge(ProviderRegistry.layer),
    Layer.provideMerge(ProviderInstanceRegistryHydration.layer),
 diff --git a/apps/server/src/ws.test.ts b/apps/server/src/ws.test.ts
-index bce9450778..8cbad7968b 100644
+index d1d0d36414..303334a5b2 100644
 --- a/apps/server/src/ws.test.ts
 +++ b/apps/server/src/ws.test.ts
-@@ -76,6 +76,7 @@ import * as RelayClient from "@t3tools/shared/relayClient";
+@@ -83,6 +83,7 @@ import * as RelayClient from "@t3tools/shared/relayClient";
  import * as RemoteOpenTargets from "./environment/RemoteOpenTargets.ts";
  import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
  import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
@@ -642,7 +642,7 @@ index bce9450778..8cbad7968b 100644
  import * as ReviewService from "./review/ReviewService.ts";
  import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
  import * as SecretRequests from "./secrets/SecretRequests.ts";
-@@ -514,6 +515,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
+@@ -704,6 +705,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
    Layer.mock(RelayClient.RelayClient)({}),
    Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({}),
    Layer.mock(ResourceTelemetry.ResourceTelemetry)({}),
@@ -651,10 +651,10 @@ index bce9450778..8cbad7968b 100644
    Layer.mock(ScheduledTasks.ScheduledTaskService)({}),
    Layer.mock(SecretRequests.SecretRequests)({}),
 diff --git a/apps/server/src/ws.ts b/apps/server/src/ws.ts
-index 8c8509550b..ffe26d1283 100644
+index 2bd0acc22b..b77b912fec 100644
 --- a/apps/server/src/ws.ts
 +++ b/apps/server/src/ws.ts
-@@ -232,6 +232,7 @@ import { RpcInstrumentation, rpcInstrumentationLayer } from "./observability/Rpc
+@@ -235,6 +235,7 @@ import { RpcInstrumentation, rpcInstrumentationLayer } from "./observability/Rpc
  import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
  import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
  import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
@@ -662,7 +662,7 @@ index 8c8509550b..ffe26d1283 100644
  import * as HostResources from "./resourceTelemetry/HostResources.ts";
  import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
  import { commandFeatureUsage, featureUsage } from "./telemetry/FeatureUsage.ts";
-@@ -1370,6 +1371,7 @@ export const layerWsRpc = (
+@@ -1499,6 +1500,7 @@ export const layerWsRpc = (
        const hostResources = yield* HostResources.HostResources;
        const processResourceMonitor = yield* ProcessResourceMonitor.ProcessResourceMonitor;
        const resourceTelemetry = yield* ResourceTelemetry.ResourceTelemetry;
@@ -670,7 +670,7 @@ index 8c8509550b..ffe26d1283 100644
        const relayClient = yield* RelayClient.RelayClient;
        // Webhook URLs start agents; expose them only to operate-scoped sessions while keeping tasks readable.
        const withVisibleWebhookUrls = (result: ScheduledTaskListResult): ScheduledTaskListResult =>
-@@ -3239,6 +3241,12 @@ export const layerWsRpc = (
+@@ -3397,6 +3399,12 @@ export const layerWsRpc = (
                Stream.concat(Stream.make(latest), changes),
              ),
            ),
@@ -684,10 +684,10 @@ index 8c8509550b..ffe26d1283 100644
        const splitHandlers: Pick<typeof handlers, SplitWsRpc["_tag"]> = handlers;
        const otherHandlers: Pick<typeof handlers, Exclude<ServerWsRpc, SplitWsRpc>["_tag"]> =
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index de16be6d2d..2768d204dc 100644
+index 18aa27709e..650abdc2c7 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -203,6 +203,7 @@ import {
+@@ -214,6 +214,7 @@ import {
    type SidebarListItem,
    type SidebarSection,
    resolveSidebarRowThreadId,
@@ -695,7 +695,7 @@ index de16be6d2d..2768d204dc 100644
  } from "./Sidebar.logic";
  import {
    createSidebarCollisionDetection,
-@@ -256,6 +257,9 @@ import {
+@@ -268,6 +269,9 @@ import {
    SidebarProjectFolderHeader,
    sidebarFolderRowId,
  } from "./sidebar/SidebarProjectFolderHeader";
@@ -705,8 +705,8 @@ index de16be6d2d..2768d204dc 100644
  import {
    SidebarDragBoundary,
    SidebarSectionHeader,
-@@ -1289,6 +1293,70 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
-     keepEmptyFolders: scopedProjectGroups.length > 0,
+@@ -1362,6 +1366,70 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+       scopedProjectGroups.length > 0 || (group.pinned && !group.archived),
    });
  
 +  // jstack fork: a project with a jstack root home draws as the tree instead of its folder.
@@ -776,10 +776,10 @@ index de16be6d2d..2768d204dc 100644
    // Ranked across environments as the palette ranks them, so one
    // environment's list does not sit above another's better matches; rows
    // already shown keep their places while slower environments answer.
-@@ -3177,6 +3245,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
-                   <ul
-                     {...SIDEBAR_TREE_PROPS}
-                     ref={attachTreeRef}
+@@ -3298,6 +3366,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+                     // Presentation flattens VoiceOver's list interaction boundary while preserving descendant
+                     // controls.
+                     role="presentation"
 +                    onPointerEnter={
 +                      jstackTrees.size > 0 ? () => setJstackFrozenOrder(jstackOrder) : undefined
 +                    }
@@ -789,7 +789,7 @@ index de16be6d2d..2768d204dc 100644
                      className={cn(
                        "relative flex flex-col gap-px",
                        sidebarListItems.length > 0 && "flex-1",
-@@ -3325,6 +3399,24 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3446,6 +3520,24 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                          }
                          if (projectFolders !== null && item.marker === "active-placeholder") {
                            for (const folder of projectFolders) {
@@ -970,18 +970,18 @@ index 0000000000..6b1e6f0643
 +  );
 +}
 diff --git a/apps/web/src/components/settings/LabsSettingsPanel.tsx b/apps/web/src/components/settings/LabsSettingsPanel.tsx
-index ce3f68eac4..7eedab7ff5 100644
+index 36c289b833..e18f2ebb90 100644
 --- a/apps/web/src/components/settings/LabsSettingsPanel.tsx
 +++ b/apps/web/src/components/settings/LabsSettingsPanel.tsx
-@@ -8,6 +8,7 @@ import { Switch } from "../ui/switch";
+@@ -9,6 +9,7 @@ import { Switch } from "../ui/switch";
  import { ScopedSwitch } from "./ScopedSwitch";
  import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
  import { searchableSetting } from "./settingsSearch";
 +import { JstackTreeSettingsSection } from "./JstackTreeSettings";
  import { LegacyFeaturesSection } from "./SettingsPanels";
  import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
- 
-@@ -15,6 +16,7 @@ import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings"
+ import { useOptionalSettingsScope } from "./SettingsScopeContext";
+@@ -18,6 +19,7 @@ import { firstManagedDenial, usePrimaryManagedPolicy } from "~/state/managedPoli
  export function LabsSettingsPanel() {
    return (
      <SettingsPageContainer>
@@ -990,10 +990,10 @@ index ce3f68eac4..7eedab7ff5 100644
          <BoringSidebarRow />
          <BoringSidebarMultilineRow />
 diff --git a/apps/web/src/components/settings/settingsSearch.ts b/apps/web/src/components/settings/settingsSearch.ts
-index 1d5c13e72a..48672b764a 100644
+index e61a064431..b0a7a776ee 100644
 --- a/apps/web/src/components/settings/settingsSearch.ts
 +++ b/apps/web/src/components/settings/settingsSearch.ts
-@@ -433,6 +433,36 @@ export const SETTINGS_SEARCH_ITEMS = [
+@@ -453,6 +453,36 @@ export const SETTINGS_SEARCH_ITEMS = [
      to: "/settings/general",
      searchTerms: ["hide fold running monitoring threads inbox sidebar shelf"],
    },
@@ -1307,10 +1307,10 @@ index 0000000000..936a72ff86
 +  }
 +});
 diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
-index a111126342..5e9ea0d588 100644
+index ed3a8276be..050ab37375 100644
 --- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx
 +++ b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
-@@ -135,7 +135,7 @@ function compactSidebarTimeLabel(label: string): string {
+@@ -136,7 +136,7 @@ function compactSidebarTimeLabel(label: string): string {
  
  // Subscribes to the minute tick itself, so only the label re-renders each
  // minute. The minute is passed as the clock so it is the formatter's input.
@@ -1319,7 +1319,7 @@ index a111126342..5e9ea0d588 100644
    const nowMinute = useNowMinute();
    return props.timestamp === null
      ? null
-@@ -144,7 +144,7 @@ function RelativeTimeLabel(props: { timestamp: string | null }) {
+@@ -145,7 +145,7 @@ function RelativeTimeLabel(props: { timestamp: string | null }) {
        );
  }
  
@@ -1819,7 +1819,7 @@ index 0000000000..bdd92721e2
 +  };
 +}
 diff --git a/apps/web/src/hooks/useSettings.ts b/apps/web/src/hooks/useSettings.ts
-index 2c24f13760..6f2ec9816c 100644
+index 43dfe3e045..ffdcf06023 100644
 --- a/apps/web/src/hooks/useSettings.ts
 +++ b/apps/web/src/hooks/useSettings.ts
 @@ -415,10 +415,16 @@ export function useEnvironmentIdentificationMode(): EnvironmentIdentificationMod
@@ -1864,22 +1864,22 @@ index 0000000000..2aec5d7fc8
 +  ).data;
 +}
 diff --git a/apps/web/src/shortcuts/chatRouteCommands.ts b/apps/web/src/shortcuts/chatRouteCommands.ts
-index f0f80dfed8..1bbc876dd3 100644
+index cb9474c9a9..96b18c2a20 100644
 --- a/apps/web/src/shortcuts/chatRouteCommands.ts
 +++ b/apps/web/src/shortcuts/chatRouteCommands.ts
-@@ -119,8 +119,10 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
+@@ -123,10 +123,11 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
+         void scratch.startScratchThread(environmentId);
+       },
        "chat.new": (event) => {
-         // The boring sidebar's folders already show the context, so it starts in
-         // the current project like the legacy sidebar did.
--        const { boringSidebarEnabled, legacySidebarEnabled } = getClientSettings();
--        if (!boringSidebarEnabled && !legacySidebarEnabled && readProjectGroupCount() > 1) {
-+        const { boringSidebarEnabled, legacySidebarEnabled, jstackTreeSidebarEnabled } =
-+          getClientSettings();
-+        const folders = boringSidebarEnabled || legacySidebarEnabled || jstackTreeSidebarEnabled;
-+        if (!folders && readProjectGroupCount() > 1) {
-           claim(event);
-           openCommandPalette({ open: "new-thread-in" });
-           return;
+-        const { legacySidebarEnabled } = getClientSettings();
++        const { legacySidebarEnabled, jstackTreeSidebarEnabled } = getClientSettings();
+         const groups = readProjectGroups();
+         if (
+           !legacySidebarEnabled &&
++          !jstackTreeSidebarEnabled &&
+           !shouldCreateNewThreadInCurrentProject(
+             false,
+             groups.filter((group) => !group.archived).length,
 diff --git a/packages/client-runtime/src/rpc/client.ts b/packages/client-runtime/src/rpc/client.ts
 index 2832a4e231..5608c3ca8d 100644
 --- a/packages/client-runtime/src/rpc/client.ts
@@ -1893,10 +1893,10 @@ index 2832a4e231..5608c3ca8d 100644
    | typeof WS_METHODS.subscribeVcsStatus
    | typeof WS_METHODS.subscribeWorktreeSetup
 diff --git a/packages/client-runtime/src/state/server.ts b/packages/client-runtime/src/state/server.ts
-index dadaf2dafb..9082768574 100644
+index 04a2d66321..6e62b0616d 100644
 --- a/packages/client-runtime/src/state/server.ts
 +++ b/packages/client-runtime/src/state/server.ts
-@@ -1309,6 +1309,11 @@ export function createServerEnvironmentAtoms<R, E>(
+@@ -1358,6 +1358,11 @@ export function createServerEnvironmentAtoms<R, E>(
        tag: WS_METHODS.subscribeResourceTelemetry,
        idleTtlMs: 0,
      }),
@@ -1909,10 +1909,10 @@ index dadaf2dafb..9082768574 100644
        label: "environment-data:server:resource-telemetry-history",
        tag: WS_METHODS.serverGetResourceTelemetryHistory,
 diff --git a/packages/contracts/src/index.ts b/packages/contracts/src/index.ts
-index e61597e52e..ebb6e29cea 100644
+index 896733c519..2317b554de 100644
 --- a/packages/contracts/src/index.ts
 +++ b/packages/contracts/src/index.ts
-@@ -64,6 +64,7 @@ export * from "./usage.ts";
+@@ -66,6 +66,7 @@ export * from "./usage.ts";
  export * from "./scheduledTask.ts";
  export * from "./worktreeMcp.ts";
  export * from "./resourceTelemetry.ts";
@@ -1995,10 +1995,10 @@ index 0000000000..4a1dda396a
 +  landed: [],
 +};
 diff --git a/packages/contracts/src/rpc.ts b/packages/contracts/src/rpc.ts
-index aae86bd9db..7403252133 100644
+index 737059e855..dbe88ea066 100644
 --- a/packages/contracts/src/rpc.ts
 +++ b/packages/contracts/src/rpc.ts
-@@ -339,6 +339,7 @@ import {
+@@ -346,6 +346,7 @@ import {
    ResourceTelemetryRetryResult,
    ResourceTelemetrySnapshot,
  } from "./resourceTelemetry.ts";
@@ -2006,7 +2006,7 @@ index aae86bd9db..7403252133 100644
  import {
    UsageLimitSourceError,
    ProviderConsumeResetCreditInput,
-@@ -600,6 +601,7 @@ export const WS_METHODS = {
+@@ -612,6 +613,7 @@ export const WS_METHODS = {
    subscribeServerLifecycle: "subscribeServerLifecycle",
    subscribeAuthAccess: "subscribeAuthAccess",
    subscribeResourceTelemetry: "subscribeResourceTelemetry",
@@ -2014,7 +2014,7 @@ index aae86bd9db..7403252133 100644
  } as const;
  
  const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
-@@ -1927,6 +1929,13 @@ const WsSubscribeResourceTelemetryRpc = Rpc.make(WS_METHODS.subscribeResourceTel
+@@ -1982,6 +1984,13 @@ const WsSubscribeResourceTelemetryRpc = Rpc.make(WS_METHODS.subscribeResourceTel
    stream: true,
  });
  
@@ -2028,19 +2028,19 @@ index aae86bd9db..7403252133 100644
  export class RpcScopeAuthorization extends RpcMiddleware.Service<RpcScopeAuthorization>()(
    "t3/contracts/RpcScopeAuthorization",
    { error: EnvironmentAuthorizationError },
-@@ -2119,6 +2128,7 @@ export const WsRpcGroup = RpcGroup.make(
+@@ -2178,6 +2187,7 @@ export const WsRpcGroup = RpcGroup.make(
    WsSubscribeServerLifecycleRpc,
    WsSubscribeAuthAccessRpc,
    WsSubscribeResourceTelemetryRpc,
 +  WsSubscribeJbusWorkRpc,
    WsOrchestrationV2DispatchCommandRpc,
    WsOrchestrationV2GetWorkflowScriptRpc,
-   WsOrchestrationV2StopWorkflowRpc,
+   WsOrchestrationV2GetNativeChildWorkRpc,
 diff --git a/packages/contracts/src/settings.ts b/packages/contracts/src/settings.ts
-index 16eb51aa17..a3b644d7ca 100644
+index 7f6e8a4aea..f7f8b85493 100644
 --- a/packages/contracts/src/settings.ts
 +++ b/packages/contracts/src/settings.ts
-@@ -72,6 +72,21 @@ export const SidebarProjectGroupingMode = Schema.Literals([
+@@ -75,6 +75,21 @@ export const SidebarProjectGroupingMode = Schema.Literals([
  ]);
  export type SidebarProjectGroupingMode = typeof SidebarProjectGroupingMode.Type;
  const DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE: SidebarProjectGroupingMode = "repository";
@@ -2062,7 +2062,7 @@ index 16eb51aa17..a3b644d7ca 100644
  export const MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 1;
  export const MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 90;
  export const SidebarAutoSettleAfterDays = Schema.Number.check(
-@@ -484,6 +499,16 @@ export const ClientSettingsSchema = Schema.Struct({
+@@ -487,6 +502,16 @@ export const ClientSettingsSchema = Schema.Struct({
    threadDetailsItems: Schema.Record(Schema.String, Schema.Boolean).pipe(
      Schema.withDecodingDefault(Effect.succeed({})),
    ),
@@ -2079,7 +2079,7 @@ index 16eb51aa17..a3b644d7ca 100644
    // Opt-in for the removed legacy sidebar. Still read so those users land in
    // the boring sidebar; the boring sidebar toggle clears it.
    legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-@@ -1729,6 +1754,11 @@ export const ClientSettingsPatch = Schema.Struct({
+@@ -1819,6 +1844,11 @@ export const ClientSettingsPatch = Schema.Struct({
    boringSidebarMultilineRows: Schema.optionalKey(Schema.Boolean),
    threadDetailsUsageEnabled: Schema.optionalKey(Schema.Boolean),
    threadDetailsItems: Schema.optionalKey(Schema.Record(Schema.String, Schema.Boolean)),
@@ -2092,7 +2092,7 @@ index 16eb51aa17..a3b644d7ca 100644
    sidebarWorkingShelfEnabled: Schema.optionalKey(Schema.Boolean),
    sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),
 diff --git a/scripts/build-desktop-artifact.ts b/scripts/build-desktop-artifact.ts
-index 3a8686f248..47e373e019 100644
+index 6756f6fea8..c7b2611f0f 100644
 --- a/scripts/build-desktop-artifact.ts
 +++ b/scripts/build-desktop-artifact.ts
 @@ -2705,8 +2705,9 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"

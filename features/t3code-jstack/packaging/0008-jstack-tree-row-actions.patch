@@ -1,4 +1,4 @@
-From 0cd40d1a9cc418a548e1f0d4133bcb59204c8eca Mon Sep 17 00:00:00 2001
+From 23070714bbcd3a6d3003850f2a8b0734db7d1e7e Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:35:44 -0400
 Subject: [PATCH] feat(web): jstack tree rows approve, remove and answer
@@ -32,10 +32,10 @@ waitsOn: approval, answer or word.
  create mode 100644 apps/web/src/components/sidebar/JstackBriefDialog.tsx
 
 diff --git a/apps/server/src/auth/RpcAuthorization.ts b/apps/server/src/auth/RpcAuthorization.ts
-index 2d61240c30..65477ca730 100644
+index c1d8ffaa14..bd661302d2 100644
 --- a/apps/server/src/auth/RpcAuthorization.ts
 +++ b/apps/server/src/auth/RpcAuthorization.ts
-@@ -167,6 +167,7 @@ export const RPC_REQUIRED_SCOPES = {
+@@ -171,6 +171,7 @@ export const RPC_REQUIRED_SCOPES = {
    [WS_METHODS.worktreeSetupCancel]: AuthOrchestrationOperateScope,
    [WS_METHODS.subscribeResourceTelemetry]: AuthDiagnosticsReadScope,
    [WS_METHODS.subscribeJbusWork]: AuthOrchestrationReadScope,
@@ -209,10 +209,10 @@ index 3a93cb3923..0a809071ca 100644
      });
    }
 diff --git a/apps/server/src/observability/RpcInstrumentation.ts b/apps/server/src/observability/RpcInstrumentation.ts
-index 423f6b3474..eab249713e 100644
+index 4fc32dd0aa..0ee5317d71 100644
 --- a/apps/server/src/observability/RpcInstrumentation.ts
 +++ b/apps/server/src/observability/RpcInstrumentation.ts
-@@ -170,6 +170,7 @@ const RPC_AGGREGATES = {
+@@ -175,6 +175,7 @@ const RPC_AGGREGATES = {
    [WS_METHODS.worktreeSetupCancel]: "vcs",
    [WS_METHODS.subscribeResourceTelemetry]: "server",
    [WS_METHODS.subscribeJbusWork]: "server",
@@ -221,10 +221,10 @@ index 423f6b3474..eab249713e 100644
    [WS_METHODS.vcsPull]: "git",
    [WS_METHODS.gitRunStackedAction]: "vcs",
 diff --git a/apps/server/src/ws.ts b/apps/server/src/ws.ts
-index ffe26d1283..83f07a2356 100644
+index b77b912fec..016253703d 100644
 --- a/apps/server/src/ws.ts
 +++ b/apps/server/src/ws.ts
-@@ -3241,6 +3241,7 @@ export const layerWsRpc = (
+@@ -3399,6 +3399,7 @@ export const layerWsRpc = (
                Stream.concat(Stream.make(latest), changes),
              ),
            ),
@@ -233,10 +233,10 @@ index ffe26d1283..83f07a2356 100644
            Stream.unwrap(
              Effect.map(jbusWork.subscribe, ({ latest, changes }) =>
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index e5b36ba422..e12ce665f3 100644
+index 3ab374da1e..e8bfa73810 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -266,8 +266,12 @@ import {
+@@ -278,8 +278,12 @@ import {
    buildJstackTree,
    childHomeMessage,
    HOME_WORK_PROMPT,
@@ -249,7 +249,7 @@ index e5b36ba422..e12ce665f3 100644
  import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
  import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
  import { useJbusWork } from "../lib/jbusWorkState";
-@@ -1345,6 +1349,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1418,6 +1422,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
    > | null>(null);
    // The one root whose "New child home" row is open, by its folder's project key.
    const [jstackChildHomeEditor, setJstackChildHomeEditor] = useState<string | null>(null);
@@ -259,7 +259,7 @@ index e5b36ba422..e12ce665f3 100644
    // Scopes asked of a root home from here, shown as starting until jbus's home state has them.
    const [jstackRequestedScopes, setJstackRequestedScopes] = useState<
      ReadonlyArray<JbusStartingScope>
-@@ -1393,6 +1400,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1466,6 +1473,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
          expandedHomes: jstackExpandedHomes,
          frozenOrder: jstackFrozenOrder,
          childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
@@ -267,7 +267,7 @@ index e5b36ba422..e12ce665f3 100644
          requestedScopes: jstackRequestedScopes,
          lastVisitedAt: (thread) =>
            resolveThreadLastVisitedAt(
-@@ -1411,6 +1419,39 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1484,6 +1492,39 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      }
    }
    const jstackOrder = new Map(jstackRoots.flatMap(({ tree }) => [...tree.order]));
@@ -307,7 +307,7 @@ index e5b36ba422..e12ce665f3 100644
    const jstackRowActions: JstackTreeRowActions = {
      onOpenThread: (threadId) => {
        if (primaryEnvironmentId !== null) {
-@@ -1486,6 +1527,55 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1559,6 +1600,55 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
        setJstackRequestedScopes((current) =>
          current.filter((each) => each.repo !== repo || each.scope !== scope),
        ),
@@ -363,7 +363,7 @@ index e5b36ba422..e12ce665f3 100644
    };
  
    // Ranked across environments as the palette ranks them, so one
-@@ -3765,6 +3855,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3884,6 +3974,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
          </SidebarGroup>
        </SidebarContent>
        <SidebarChromeFooter />
@@ -1115,10 +1115,10 @@ index c915f21f25..b2808a1496 100644
 +  }
 +}
 diff --git a/packages/client-runtime/src/state/server.ts b/packages/client-runtime/src/state/server.ts
-index 9082768574..ea3481d802 100644
+index 6e62b0616d..a8d306f0e6 100644
 --- a/packages/client-runtime/src/state/server.ts
 +++ b/packages/client-runtime/src/state/server.ts
-@@ -1166,6 +1166,11 @@ export function createServerEnvironmentAtoms<R, E>(
+@@ -1207,6 +1207,11 @@ export function createServerEnvironmentAtoms<R, E>(
        tag: WS_METHODS.serverRunStorageCleanup,
        concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
      }),
@@ -1189,10 +1189,10 @@ index 7213d5a42a..786b16ee36 100644
 +});
 +export type JbusBrief = typeof JbusBrief.Type;
 diff --git a/packages/contracts/src/rpc.ts b/packages/contracts/src/rpc.ts
-index 7403252133..6de9a997c4 100644
+index dbe88ea066..e5e4e6dd02 100644
 --- a/packages/contracts/src/rpc.ts
 +++ b/packages/contracts/src/rpc.ts
-@@ -339,7 +339,7 @@ import {
+@@ -346,7 +346,7 @@ import {
    ResourceTelemetryRetryResult,
    ResourceTelemetrySnapshot,
  } from "./resourceTelemetry.ts";
@@ -1201,7 +1201,7 @@ index 7403252133..6de9a997c4 100644
  import {
    UsageLimitSourceError,
    ProviderConsumeResetCreditInput,
-@@ -602,6 +602,7 @@ export const WS_METHODS = {
+@@ -614,6 +614,7 @@ export const WS_METHODS = {
    subscribeAuthAccess: "subscribeAuthAccess",
    subscribeResourceTelemetry: "subscribeResourceTelemetry",
    subscribeJbusWork: "subscribeJbusWork",
@@ -1209,7 +1209,7 @@ index 7403252133..6de9a997c4 100644
  } as const;
  
  const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
-@@ -1936,6 +1937,12 @@ const WsSubscribeJbusWorkRpc = Rpc.make(WS_METHODS.subscribeJbusWork, {
+@@ -1991,6 +1992,12 @@ const WsSubscribeJbusWorkRpc = Rpc.make(WS_METHODS.subscribeJbusWork, {
    stream: true,
  });
  
@@ -1222,14 +1222,14 @@ index 7403252133..6de9a997c4 100644
  export class RpcScopeAuthorization extends RpcMiddleware.Service<RpcScopeAuthorization>()(
    "t3/contracts/RpcScopeAuthorization",
    { error: EnvironmentAuthorizationError },
-@@ -2129,6 +2136,7 @@ export const WsRpcGroup = RpcGroup.make(
+@@ -2188,6 +2195,7 @@ export const WsRpcGroup = RpcGroup.make(
    WsSubscribeAuthAccessRpc,
    WsSubscribeResourceTelemetryRpc,
    WsSubscribeJbusWorkRpc,
 +  WsJbusReadBriefRpc,
    WsOrchestrationV2DispatchCommandRpc,
    WsOrchestrationV2GetWorkflowScriptRpc,
-   WsOrchestrationV2StopWorkflowRpc,
+   WsOrchestrationV2GetNativeChildWorkRpc,
 -- 
 2.56.0
 

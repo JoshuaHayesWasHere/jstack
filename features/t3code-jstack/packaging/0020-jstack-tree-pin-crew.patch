@@ -1,4 +1,4 @@
-From 16b88ddf1b13a600039f09854ec5a942276532d0 Mon Sep 17 00:00:00 2001
+From aad1ddc12ca8ef825141406021f1ade98fee4f49 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Fri, 30 Oct 2026 01:10:23 -0400
 Subject: [PATCH] feat(web): a jstack child home pins open in the tree, and its
@@ -25,10 +25,10 @@ and is said to a screen reader.
  create mode 100644 apps/web/src/components/sidebar/jstackPinnedHomes.ts
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index 237a056467..490ce41d72 100644
+index d1d27475ca..aa16c62399 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -283,6 +283,7 @@ import {
+@@ -293,6 +293,7 @@ import {
    jstackProjectFolders,
    useJstackAskOnAdd,
  } from "./sidebar/jstackAskOnAdd";
@@ -36,7 +36,7 @@ index 237a056467..490ce41d72 100644
  import { useJstackRootOrder } from "./sidebar/jstackRootOrder";
  import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
  import { useJbusWork } from "../lib/jbusWorkState";
-@@ -1361,6 +1362,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1433,6 +1434,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
    const [jstackExpandedHomes, setJstackExpandedHomes] = useState<ReadonlySet<string>>(
      () => new Set(),
    );
@@ -44,7 +44,7 @@ index 237a056467..490ce41d72 100644
    // Rows keep their order while the pointer is in the sidebar, so a row never moves under it.
    const [jstackFrozenOrder, setJstackFrozenOrder] = useState<ReadonlyMap<
      string,
-@@ -1433,6 +1435,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1505,6 +1507,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
          collapsed: folder.collapsed,
          selection: jstackSelection,
          expandedHomes: jstackExpandedHomes,
@@ -52,7 +52,7 @@ index 237a056467..490ce41d72 100644
          frozenOrder: jstackFrozenOrder,
          childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
          answering: jstackAnswering,
-@@ -1529,6 +1532,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1601,6 +1604,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      },
      onToggleProject: toggleProjectFolder,
      onExpandHome: (homeKey) => setJstackExpandedHomes((current) => new Set(current).add(homeKey)),
@@ -491,7 +491,7 @@ index 5bf9895718..d6986b517a 100644
                    .join(" · ")}
                </TooltipPopup>
 diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
-index 8cb0765bb2..d5365e7193 100644
+index a32b6fa83e..26da018471 100644
 --- a/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/jstackAskOnAdd.browser.test.tsx
 @@ -98,6 +98,7 @@ function treeRoots(
@@ -737,10 +737,10 @@ index 76bf8f23c9..456d69a52a 100644
   * Root rows in drawn order: the active ones, then the idle ones below one divider, with
   * "No project" pinned last. Each group keeps the sidebar's order.
 diff --git a/packages/contracts/src/settings.ts b/packages/contracts/src/settings.ts
-index a3b644d7ca..5577d11df3 100644
+index f7f8b85493..7e312aaea0 100644
 --- a/packages/contracts/src/settings.ts
 +++ b/packages/contracts/src/settings.ts
-@@ -509,6 +509,10 @@ export const ClientSettingsSchema = Schema.Struct({
+@@ -512,6 +512,10 @@ export const ClientSettingsSchema = Schema.Struct({
      Schema.withDecodingDefault(Effect.succeed(20)),
    ),
    jstackTreeRowCap: JstackTreeRowCap.pipe(Schema.withDecodingDefault(Effect.succeed(8))),
@@ -751,7 +751,7 @@ index a3b644d7ca..5577d11df3 100644
    // Opt-in for the removed legacy sidebar. Still read so those users land in
    // the boring sidebar; the boring sidebar toggle clears it.
    legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-@@ -1759,6 +1763,7 @@ export const ClientSettingsPatch = Schema.Struct({
+@@ -1849,6 +1853,7 @@ export const ClientSettingsPatch = Schema.Struct({
    jstackTreeLandedCount: Schema.optionalKey(Schema.Boolean),
    jstackTreeQuietMinutes: Schema.optionalKey(JstackTreeQuietMinutes),
    jstackTreeRowCap: Schema.optionalKey(JstackTreeRowCap),

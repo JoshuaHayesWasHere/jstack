@@ -1,4 +1,4 @@
-From a34c25a55a8279795aca782b347fa71e4c005cd0 Mon Sep 17 00:00:00 2001
+From 344a98ba0c020c4a996f2a6a891c59e57ba8a6cd Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Fri, 30 Oct 2026 05:16:33 -0400
 Subject: [PATCH] fix(web): a clicked jstack hover pin or root chevron hands

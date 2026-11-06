@@ -1,4 +1,4 @@
-From a0b0bcaf6d1d3474081bd7b1c836df67e98870a2 Mon Sep 17 00:00:00 2001
+From 343ff80b63c46d0287e4e8520e4b41e60bc8c9e9 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 17:19:44 -0400
 Subject: [PATCH] feat(web): jstack tree root rows drag to a new place within
@@ -15,31 +15,27 @@ The order is the projects' order (`projectOrder`), written through the UI state'
 split, so a root that turns active or idle keeps its rank among the others, and a project never
 dragged follows the ranked ones in the sidebar's order.
 ---
- apps/web/src/components/Sidebar.tsx           |  41 ++++--
+ apps/web/src/components/Sidebar.tsx           |  37 ++++-
  .../sidebar/JstackTreeRows.browser.test.tsx   |  19 ++-
  .../src/components/sidebar/JstackTreeRows.tsx |  55 +++++++
  .../src/components/sidebar/jstackRootOrder.ts | 134 ++++++++++++++++++
  .../components/sidebar/jstackTree.logic.ts    | 103 +++++++++++++-
- 5 files changed, 341 insertions(+), 11 deletions(-)
+ 5 files changed, 338 insertions(+), 10 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/jstackRootOrder.ts
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index 36e2c6fb44..78ab0c2fb5 100644
+index 7f33c39bd8..85fe804038 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -107,7 +107,10 @@ import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../termina
- import { isMacPlatform } from "~/lib/utils";
- import { readLocalApi } from "../localApi";
+@@ -110,6 +110,7 @@ import { readLocalApi } from "../localApi";
+ import { configuredHostedAppUrl } from "../hostedPairing";
  import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
--import { selectProjectGroupingSettings } from "@t3tools/client-runtime/state/project-grouping";
-+import {
-+  getProjectOrderKey,
-+  selectProjectGroupingSettings,
-+} from "@t3tools/client-runtime/state/project-grouping";
  import {
-   projectGroupsSpanEnvironments,
-   resolveSidebarProjectScopeKeys,
-@@ -263,7 +266,6 @@ import {
++  getProjectOrderKey,
+   pickableProjectGroups,
+   selectProjectGroupingSettings,
+ } from "@t3tools/client-runtime/state/project-grouping";
+@@ -275,7 +276,6 @@ import {
    sidebarFolderRowId,
  } from "./sidebar/SidebarProjectFolderHeader";
  import {
@@ -47,7 +43,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
    buildJstackTree,
    childHomeMessage,
    HOME_WORK_PROMPT,
-@@ -275,6 +277,7 @@ import {
+@@ -287,6 +287,7 @@ import {
  import { JstackBriefDialog, useJstackBrief } from "./sidebar/JstackBriefDialog";
  import { focusComposerSoon, placeHomeWork, useJstackHomeSends } from "./sidebar/jstackHomeActions";
  import { useJstackAskOnAdd } from "./sidebar/jstackAskOnAdd";
@@ -55,7 +51,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
  import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
  import { useJbusWork } from "../lib/jbusWorkState";
  import {
-@@ -1421,6 +1424,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1494,6 +1495,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      }
    }
    const jstackOrder = new Map(jstackRoots.flatMap(({ tree }) => [...tree.order]));
@@ -69,7 +65,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
    // A project's home, started from its row's "Start a home" or from the ask when it was added.
    const startJstackHome = (group: SidebarProjectSnapshot) => {
      void jstackHomeSends.startHome(group).then((started) => {
-@@ -1469,6 +1479,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1542,6 +1550,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      return sent;
    };
    const jstackRowActions: JstackTreeRowActions = {
@@ -78,7 +74,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
      onOpenThread: (threadId) => {
        if (primaryEnvironmentId !== null) {
          navigateToThread(scopeThreadRef(primaryEnvironmentId, threadId));
-@@ -2225,9 +2237,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -2298,9 +2308,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
        .join("\n") ?? "",
      visibleDraftSessionCount,
      routeDraftIdForRows ?? "",
@@ -93,8 +89,8 @@ index 36e2c6fb44..78ab0c2fb5 100644
 +    sidebarListItems.length + visibleDraftSessionCount > 0;
    // Cache on both fields so layout-key changes trigger the effect even when animate is unchanged.
    const listMotionPass = { layoutKey: listMotionLayoutKey, animate: listMotionAnimate };
-   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- tells the list motion controller to animate or not after each layout-affecting commit
-@@ -3640,10 +3657,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+   const shelfExpansionKey = [workingShelfExpanded, snoozedShelfExpanded, settledShelfExpanded].join(
+@@ -3761,10 +3776,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                            // jstack fork: every folder is a root row of the tree, with idle ones
                            // below one divider and "No project" pinned last.
                            if (jstackTreeOn) {
@@ -106,7 +102,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
                              for (const one of arranged.roots) {
                                if (one === arranged.dividerBefore) {
                                  items.push(
-@@ -3654,7 +3668,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3775,7 +3787,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                    />,
                                  );
                                }
@@ -117,7 +113,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
                                  items.push(
                                    row.kind === "loose" ? (
                                      renderThreadRow(row.thread, "active", row.parentKey)
-@@ -3664,6 +3680,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3785,6 +3799,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                        row={row}
                                        group={one.folder.group}
                                        actions={jstackRowActions}
@@ -127,7 +123,7 @@ index 36e2c6fb44..78ab0c2fb5 100644
                                      />
                                    ),
                                  );
-@@ -3835,6 +3854,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -3954,6 +3971,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                    </ul>
                  </SortableContext>
                </DndContext>
