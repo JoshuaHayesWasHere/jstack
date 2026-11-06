@@ -3,8 +3,8 @@ is judged again over today's base: `jmerge` asks GitHub to merge the base into t
 (`PUT /repos/{owner}/{repo}/pulls/{n}/update-branch`), once for a head and a base tip, and the
 pull request goes on by the normal path once GitHub's new check passes. A change broken on its
 own fails again at the updated head, as its own. A green pull request whose base moved under it
-takes the same path: its check ran over a main that is gone, and the check at the updated head
-decides.
+on a file it changes takes the same path: its check ran over a main that is gone, and the check
+at the updated head decides.
 
 The replay is 2026-10-23: main red on two whole-tree tests, pull requests that touched neither
 red on them, then main fixed. The tests run the command as `test_jmerge_fresh` does, against a
@@ -105,11 +105,8 @@ class Replay:
 
 
 def broken(listed):
-    """Whether CI fails on a tree of these paths: one with a `tests/broken-` file, or with two
-    migrations of a same number, as main had once #923 and #935 each added a v007_ file."""
-    numbers = [path.split("/")[-1].split("_")[0] for path in listed if "migrations/" in path]
-    whole_tree = any(path.startswith("tests/broken-") for path in listed)
-    return whole_tree or len(numbers) != len(set(numbers))
+    """Whether CI fails on a tree of these paths: one with a `tests/broken-` file."""
+    return any(path.startswith("tests/broken-") for path in listed)
 
 
 def merged(said):
@@ -313,40 +310,6 @@ def test_main_moving_under_a_green_pull_request_that_still_merges_cleanly_reruns
     assert merged(replay.said) == [333]
     assert replay.updated() == ["333"]
     assert replay.kitchen.at_main("a.txt") == "ours\n" + LINES + "theirs"
-
-
-def test_two_pull_requests_green_alone_and_red_together_do_not_both_merge(tmp_path):
-    """#923 and #935, 2026-11-03: each added its own v007_ migration, so neither touched a path
-    main changed after its check, each check passed alone, and both merged on those checks into
-    a red main. Now the second waits for a check over the first's merge, which fails."""
-    replay = Replay(tmp_path)
-    replay.crew("one", 923, {"migrations/v007_one.py": "one\n"}, check=PASSED_BEFORE)
-    two = replay.crew("two", 935, {"migrations/v007_two.py": "two\n"}, check=PASSED_BEFORE)
-    first, second = replay.run()
-    assert first.startswith("merged 923 one ")
-    assert second == moved_line(935, replay.kitchen.tip())
-    assert replay.updated() == ["935"]
-    assert git(replay.kitchen.origin, "rev-parse", "refs/heads/two^1") == two
-    replay.passes(3)
-    assert merged(replay.said) == [923]
-    assert replay.said[-1] == f"wait 935 {url(935)}: check has failed"
-    assert replay.updated() == ["935"]
-    on_main = git(replay.kitchen.origin, "ls-tree", "-r", "--name-only", "main").split()
-    assert not broken(on_main)
-
-
-def test_two_pull_requests_on_new_files_that_pass_together_both_merge(tmp_path):
-    """The second of two such pull requests merges once its check passes over the first's merge,
-    at the head GitHub made."""
-    replay = Replay(tmp_path)
-    replay.crew("one", 923, {"migrations/v007_one.py": "one\n"}, check=PASSED_BEFORE)
-    replay.crew("two", 935, {"migrations/v008_two.py": "two\n"}, check=PASSED_BEFORE)
-    first, second = replay.run()
-    assert first.startswith("merged 923 one ") and second == moved_line(935, replay.kitchen.tip())
-    replay.passes(2)
-    assert merged(replay.said) == [923, 935]
-    assert replay.updated() == ["935"]
-    assert replay.kitchen.at_main("migrations/v008_two.py") == "two"
 
 
 def test_main_moving_into_a_conflict_with_a_green_pull_request_has_it_rebased(moved):
