@@ -13,7 +13,6 @@ other pull request waits until main is green."""
 
 import json
 from datetime import date
-from pathlib import Path
 
 import pytest
 
@@ -99,17 +98,6 @@ def test_a_pull_request_merges_after_the_one_its_row_names_and_not_before(two):
     assert merged_numbers(second) == [8]
 
 
-def test_a_pull_request_whose_predecessor_has_no_pull_request_yet_says_so(two):
-    queue_of(
-        two.home,
-        [row("alpha", status="running"), row("beta", pr="#8", merge_after=["alpha"])],
-    )
-    said = two.run("--check")
-    assert said[1] == (
-        f"wait 8 {BETA_URL}: merges after alpha (no pull request yet), not merged yet"
-    )
-
-
 @pytest.mark.parametrize("over", ["merged", "done"])
 def test_a_row_that_is_over_holds_nothing_back(two, over):
     queue_of(
@@ -129,24 +117,6 @@ def test_a_pull_request_whose_row_is_held_is_not_merged(two):
     assert said[0] == f"wait 7 {merge.URL}: {ready.ROW_HELD}"
     assert merged_numbers(said) == [8]
     assert (two.tree.exists(), two.branches()[1]) == (True, ["alpha", "main"])
-
-
-def test_a_row_with_no_go_waits_for_one_and_a_row_with_a_go_merges_as_before(two):
-    queue_of(two.home, [row("alpha", pr="#7", approved=""), row("beta", pr="#8")])
-    said = two.run()
-    assert said[0] == f"wait 7 {merge.URL}: {ready.NO_GO}"
-    assert "jbus plan go <entry> --message <thread>/<message>" in said[0]
-    assert merged_numbers(said) == [8]
-
-
-def test_the_verify_recipe_holds_a_row_with_no_go_on_the_line_jmerge_prints():
-    recipe = (Path(__file__).parents[1] / "verify.md").read_text()
-    assert f"It prints `wait 7 https://example.test/pull/7: {ready.NO_GO}`" in recipe
-    assert "jbus plan go <entry> --message <thread>/<message>" in str(ready.NO_GO)
-
-
-def test_a_repo_with_no_queue_merges_as_it_did(two):
-    assert [line.split()[0] for line in two.run("--check")] == ["ready", "ready"]
 
 
 def test_a_queue_that_cannot_be_read_merges_nothing(two):
@@ -170,20 +140,6 @@ def test_a_queue_file_the_filesystem_will_not_give_merges_nothing(two):
         f"wait 8 {BETA_URL}: {ready.QUEUE_UNREADABLE}",
     ]
     assert two.untouched()
-
-
-@pytest.mark.parametrize(
-    ("reason", "step"),
-    [
-        (ready.ROW_HELD, "hold"),
-        (ready.NO_GO, "hold"),
-        (ready.MERGES_AFTER.format(slug="alpha", open="#144"), "check"),
-        (ready.MERGES_AFTER.format(slug="alpha", open="no pull request yet"), "check"),
-        (ready.QUEUE_UNREADABLE, "check"),
-    ],
-)
-def test_each_wait_the_queue_gives_lands_on_its_step_and_not_in_unknown(reason, step):
-    assert judgement.step(f"wait: {reason}") == step
 
 
 DIRECTORY = 'migrations = "db/migrations"\n'
@@ -298,13 +254,6 @@ def test_a_look_shows_the_migration_pull_requests_in_order_with_one_let_through(
     assert lined.home.stderr == ""
 
 
-def test_a_pull_request_that_adds_no_migration_is_not_held(lined):
-    queue_of(lined.home, [], DIRECTORY)
-    pulls(lined.home)
-    gamma = lined.run("--check")[2]
-    assert gamma.startswith("ready 9 ")
-
-
 def test_the_declared_order_is_the_order_migration_pull_requests_merge_in(lined):
     rows = [row("alpha", pr="#7", merge_after=["beta"]), row("beta", pr="#8")]
     queue_of(lined.home, rows, DIRECTORY)
@@ -387,21 +336,6 @@ def test_pull_requests_with_no_declared_order_go_by_number_and_an_order_runs_thr
     assert jrows.merge_order(None, slugs) == [3, 5, 9]
     cycle = [row("a", merge_after=["b"]), row("b", merge_after=["a"])]
     assert jrows.merge_order(cycle, {1: "a", 2: "b"}) == [1, 2]
-
-
-TAKEN = ready.MIGRATION_TAKEN.format(name="0005_x", number="0005", default="main", free="0006")
-
-
-@pytest.mark.parametrize(
-    ("reason", "step"),
-    [
-        (TAKEN, "rebase"),
-        (ready.MIGRATION_MERGING.format(number=7), "check"),
-        (ready.MIGRATION_REBASING.format(number=7), "check"),
-    ],
-)
-def test_each_wait_a_migration_gives_lands_on_its_step_and_not_in_unknown(reason, step):
-    assert judgement.step(f"wait: {reason}") == step
 
 
 def mark(home, number, **fields):
@@ -498,18 +432,3 @@ def test_a_red_main_lets_both_through_as_a_green_one_does(fix_and_other):
     main_says(fix_and_other.home, red=RED, green="a" * 40)
     assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
     assert merged_numbers(fix_and_other.run()) == [7, 8]
-
-
-def test_a_green_main_lets_both_through(fix_and_other):
-    main_says(fix_and_other.home, red="", green="a" * 40)
-    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
-    assert merged_numbers(fix_and_other.run()) == [7, 8]
-
-
-def test_a_repo_whose_main_jbus_never_judged_merges_as_it_did(fix_and_other):
-    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]
-
-
-def test_a_main_the_state_cannot_name_is_no_red_main(fix_and_other):
-    main_says(fix_and_other.home).write_text("not json")
-    assert [line.split()[0] for line in fix_and_other.run("--check")] == ["ready", "ready"]

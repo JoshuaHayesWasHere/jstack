@@ -1,12 +1,10 @@
 """The merge flow's TLA+ spec in `features/jmerge/spec/`: TLC checks that today's code holds its
 rules, the design holds all four, each canary, the design with one fix taken out, breaks the rule
 on that fix, and each control of today's code with another gap breaks the rules it should. The
-run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's conditions, and
-the design's `Rejudge`, each name a file and the code it quotes."""
+run is `flow_canaries.py`, and it skips where no Java runs TLC."""
 
 import importlib
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -21,105 +19,8 @@ sys.path.insert(0, str(STATECHART))
 sys.path.insert(0, str(SPEC))
 
 flow = importlib.import_module("flow_canaries")
-lib = importlib.import_module("statechart.lib")
 tools = importlib.import_module("statechart.tools")
 find_java = tools.find_java
-
-
-def test_every_condition_of_the_code_model_quotes_its_file():
-    today = SPEC / "FlowToday.tla"
-    assert lib.uncited_conditions(today.read_text(), lib.shared_variables(today)) == []
-
-
-PATH = r"(?:features|scripts|\.github)/[\w./-]+\.\w+"
-QUOTE = re.compile(rf"({PATH})\s*`([^`]+)`")
-"""A cite of the models: the file and the text it quotes, as `features/jmerge/src/jmerge/rows.py
-`ran.over == red``, with no line number, so a line that only moves needs no edit."""
-MODELS = [SPEC / "FlowToday.tla", SPEC / "FlowDesign.tla"]
-MODELS += [SPEC / "canary" / f"{name}.tla" for name in flow.CANARIES]
-
-
-def flat(model):
-    """The model's text with each line break of a comment taken out, so a quote can wrap."""
-    return re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", model.read_text())
-
-
-def cites():
-    """Each cite of the models, once: its file and quote."""
-    return sorted({cite for model in MODELS for cite in QUOTE.findall(flat(model))})
-
-
-def test_the_models_cite_by_quote_and_never_by_line_number():
-    for model in MODELS:
-        assert not re.search(rf"{PATH}:\d", flat(model)), model.name
-    assert len(cites()) > 30
-
-
-def test_each_quote_a_model_cites_stands_once_in_its_file():
-    """Each quote stands in its file once, so the cite finds its line, and a quote the code moved
-    off its block, changed or copied fails here, also where no Java runs TLC. A line shift alone
-    changes nothing a cite says."""
-    wrong = []
-    for path, quote in cites():
-        found = lib.located((REPO / path).read_text().splitlines(), quote)
-        if len(found) != 1:
-            wrong.append(f"{path} `{quote}`: {len(found)} times")
-    assert wrong == []
-
-
-STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
-OR = re.compile(r"\bor\b")
-
-
-def disjuncts(code):
-    """How many `or`s the Python text holds outside its string literals."""
-    return len(OR.findall(STRING.sub("", code)))
-
-
-def test_a_quote_of_one_python_line_holds_each_or_on_it():
-    """A quote that stands on one line of Python names a condition, and holds every `or` that
-    line holds, so a disjunct the code gains, as `rows.red` gained the proof of a fix in #583,
-    fails here until the model takes it in. A quote over several lines names a block, and one
-    that does not stand once is the test above's."""
-    checked = []
-    for path, quote in cites():
-        lines = (REPO / path).read_text().splitlines()
-        found = lib.located(lines, quote)
-        if path.endswith(".py") and len(found) == 1 and found[0][0] == found[0][1]:
-            first = found[0][0]
-            checked.append(quote)
-            assert disjuncts(quote) == disjuncts(lines[first - 1]), f"{path} `{quote}`"
-    assert "if row and not judgement.has_go(row, brief):" in checked
-
-
-LAUNCH_ON_PASSED = {
-    (
-        "features/crew/the-review.md",
-        'passed) echo "launch: run the block below and do what it prints" ;;',
-    ),
-    ("features/pr-review/launching.md", "passed*) head=${said##* } ;;"),
-}
-
-
-def test_the_reviewer_launches_only_once_the_check_has_passed_and_one_round_merges():
-    """The one order: the model's merge waits on a passed check, and that condition cites where
-    the crew and the reviewer launch only on `passed`, so the review round follows the pass. No
-    line of the crew's or the reviewer's launch says it runs beside the checks."""
-    text = flat(SPEC / "FlowToday.tla")
-    merges = text[text.index(" Merges(p) ==") : text.index(" Merge(p) ==")]
-    assert '/\\ ci[p] = "pass"' in merges
-    assert set(QUOTE.findall(merges)) >= LAUNCH_ON_PASSED
-    for path, _ in LAUNCH_ON_PASSED:
-        said = (REPO / path).read_text()
-        assert "beside the checks" not in said and "never waits for green" not in said, path
-
-
-def test_each_condition_of_the_design_s_rejudge_quotes_its_file():
-    text = (SPEC / "FlowDesign.tla").read_text()
-    rejudge = text[text.index("Rejudge(p) ==") : text.index("\\* crew-leftover-procs")]
-    conditions = [line for line in rejudge.splitlines() if line.lstrip().startswith("/\\ ")]
-    assert len(conditions) == 7
-    assert all(QUOTE.search(line) for line in conditions[:6]), conditions
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")

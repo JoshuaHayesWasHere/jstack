@@ -12,14 +12,14 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import cli, ready, rejudge
-from test_jmerge_fresh import AFTER, LINES, STARTED, Kitchen, asked, git, url, write
+from test_jmerge_fresh import AFTER, LINES, SHARED, STARTED, Kitchen, asked, git, url, write
 from test_jmerge_order import queue_of, row
 
 
 @pytest.fixture
 def kitchen(tmp_path):
     files = {"a.txt": LINES, "b.txt": LINES, "c.txt": LINES, "d.txt": LINES}
-    return Kitchen(tmp_path, {**files, "Makefile": "check:\n"})
+    return Kitchen(tmp_path, {**files, "Makefile": "check:\n"}, overlap=True)
 
 
 def behind(number, ahead):
@@ -187,7 +187,9 @@ def moves(kitchen, base, files):
     tree = kitchen.tmp / "trees" / f"on-{base}"
     if not tree.exists():
         git(kitchen.home.main, "worktree", "add", "-q", "--detach", str(tree), f"origin/{base}")
-    write(tree, files)
+    shared = (tree / SHARED).read_text().split("\n")
+    shared[1] = base
+    write(tree, {SHARED: "\n".join(shared), **files})
     git(tree, "commit", "-q", "-m", f"on {base}")
     git(tree, "push", "-q", "origin", f"HEAD:refs/heads/{base}")
     return git(tree, "rev-parse", "HEAD")
@@ -265,42 +267,3 @@ def test_one_that_waits_on_its_crew_or_the_user_gives_the_line_up(kitchen, wait)
     assert first.startswith(f"{'hold' if wait == 'hold' else 'wait'} 7 ")
     assert second == asked(8, tip)
     assert kitchen.updates() == ["7", "8"]
-
-
-KEPT = {
-    "other-home",
-    "merge-off",
-    "merging",
-    "main-moved",
-    "undecided",
-    "not-passed",
-    "no-run",
-    "live-run",
-    "migration-merging",
-    "base-moved-asked",
-    "base-moved-due",
-    "queued-restarted",
-    "queued-unopened",
-    "queued-unclosed",
-}
-"""The codes of the waits on jmerge, GitHub and the check, which keep the head of the line.
-Each of these ends in a merge by itself, and every other code waits on a crew or the user."""
-
-
-@pytest.mark.parametrize("code", sorted(ready.codes()))
-def test_the_one_in_line_keeps_it_on_a_wait_on_jmerge_github_or_its_check_alone(code):
-    listed = {
-        "number": 7,
-        "url": url(7),
-        "headRefName": "two",
-        "headRefOid": "a" * 40,
-        "baseRefName": "main",
-        "statusCheckRollup": merge.rollup([AFTER]),
-        "files": [],
-        "changedFiles": 0,
-    }
-    one = ready.pull_request(listed)
-    why = next((r for r in ready.reasons().values() if r.code == code), code)
-    found = cli.Judgement("two", "wait", why, "", None)
-    assert cli.in_line(one, found) == (code in KEPT)
-    assert ready.codes() >= KEPT

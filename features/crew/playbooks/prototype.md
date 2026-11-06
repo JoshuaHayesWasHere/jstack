@@ -17,7 +17,12 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 
 1. Write the decision the prototype exists to make, in one line, and what you would have to see to settle it. No decision, no prototype: a brief that asks for a thing to be built is `playbooks/feature.md`'s. Stop and say so in the Result.
 2. When the design space is open, gather references before building: prior art in the repo and outside it, summed up as three or more directions (themes, layouts, approaches), each in a line. Pick the two or three to build and say why. The user may redirect in this thread, and you do not wait for it (`principles/principle-never-block-on-the-human.md`). When the brief sets the direction: `skip: the brief sets the direction`.
-3. Make the scratch directory, outside the repo's source: `mktemp -d /tmp/<slug>-proto.XXXXXX`. Everything you build goes there. For a visual decision, plain HTML, CSS and JavaScript, or the lightest stack that renders the idea. For a behaviour or a timing, the smallest script that exercises the question. No production framework, no tests, no abstractions. Run `git status --porcelain` in the worktree and see it print nothing.
+3. Make the scratch directory, outside the repo's source: `mktemp -d "${TMPDIR:-/tmp}/<slug>-proto.XXXXXX"`.
+   Everything you build goes there.
+   For a visual decision, plain HTML, CSS and JavaScript, or the lightest stack that renders the idea.
+   For a behaviour or a timing, the smallest script that exercises the question.
+   No production framework, no tests, no abstractions.
+   Run `git status --porcelain` in the worktree and see it print nothing.
 4. Build the alternatives behind one switcher (buttons, a keypress, or one argument to the script), each variant labelled with a name the Result can use (`principles/principle-exhaust-the-design-space.md`). One switcher, so that every variant is seen under the same conditions.
 5. Observe on the surface the decision is about: the repo's verify skill where it has one, otherwise the surface the brief names. For a visual decision, a screenshot of each variant, and the interaction driven. For a behaviour or a timing, the output printed or the timing logged, per variant. The observation is the test here, not an assertion (`principles/principle-prove-it-works.md`). Keep each one in the scratch directory, named for its variant.
 6. Write the alternatives, what each costs and gives, and one recommendation.

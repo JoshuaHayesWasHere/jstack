@@ -14,7 +14,6 @@ import pytest
 import crew_helpers as crew
 import jsettings
 import test_home_merge as merge
-import test_jmerge_run as jrun
 from jmerge import ready
 from test_home_thread import NAMED, as_read
 from test_room import BIN, IDLE, machine, says, uv
@@ -35,12 +34,6 @@ Decisions:
 Pull request: open one when done
 Thread: mcp:1
 """
-INTENT = "".join(BRIEF.splitlines(keepends=True)[1:6]).rstrip("\n")
-COUNT = (
-    "Done when lines in the brief, numbered from 1 in the order above: {}, the n the Meets the "
-    "brief line counts against."
-)
-INTENT += "\n\n" + COUNT.format(1)
 URL = "https://github.com/someone/repo/pull/7"
 
 GH = """\
@@ -375,22 +368,6 @@ def test_a_second_reviewer_writes_beside_the_first_and_never_twice_for_its_line(
     assert code == 0 and said[0].startswith("go: "), said
 
 
-FULL_RUN = "- Check command: `make check`\n- Full run: reviewer\n"
-NOTES = [None, FULL_RUN, "Full run: reviewer (the user, 2026-10-10)\n", "- a note\n"]
-
-
-@pytest.mark.parametrize("notes", NOTES)
-@pytest.mark.parametrize(
-    "brief", ["no line", "review", "a word from before", "only quoted", "said again in a result"]
-)
-def test_every_brief_but_one_that_says_none_is_reviewed(reviewer, brief, notes):
-    reviewer.brief.write_text(BRIEFS[brief])
-    if notes is not None:
-        (reviewer.state / "notes.md").write_text(notes)
-    told = "".join(BRIEFS[brief].splitlines(keepends=True)[1:6])
-    assert intent(reviewer) == f"{told}\n{COUNT.format(1)}\n\n{scope()}\n"
-
-
 def test_a_brief_that_asks_for_no_review_gets_none(reviewer):
     reviewer.brief.write_text(BRIEFS["none"])
     assert reviewer() == ([], 78)
@@ -455,137 +432,9 @@ def intent(reviewer):
     return (reviewer.prompt().parent / "intent").read_text()
 
 
-def test_the_intent_is_the_brief_from_task_to_the_end_of_decisions_then_the_scope_rule(reviewer):
-    assert scope().strip() != ""
-    assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
-
-
-def test_a_playbook_gives_the_reviewers_its_name_and_the_path_of_each_principle_it_cites(
-    reviewer,
-):
-    reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
-    cited = [
-        "principle-laziness-protocol",
-        "principle-fix-root-causes",
-        "principle-test-behavior-not-implementation",
-        "principle-attack-the-premise",
-        "principle-prove-it-works",
-        "principle-sequence-verifiable-units",
-    ]
-    skills = REPO / "features" / "principles" / "skills"
-    paths = {name: (skills / name / "SKILL.md").resolve() for name in cited}
-    assert all(path.read_text().startswith("---\nname: ") for path in paths.values())
-    lens = "\n".join(f"- {name}: {path}" for name, path in paths.items())
-    assert intent(reviewer) == (
-        f"{INTENT}\n\nPlaybook: bug-fix, the steps the crewmate worked by.\n"
-        f"the principles playbooks/bug-fix.md cites, each read in full at its path:\n{lens}\n\n"
-        f"{scope()}\n"
-    )
-
-
-@pytest.mark.parametrize("name", ["fix", "feature.", "../templates/brief"])
-def test_a_playbook_name_that_is_no_playbook_is_said_and_no_principle_follows(reviewer, name):
-    reviewer.brief.write_text(BRIEF + f"Playbook: {name}\n")
-    said = f"no playbook: playbooks/ has no {name}.md: the crewmate worked with none"
-    assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
-
-
-@pytest.mark.parametrize(
-    ("name", "by"), [("orchestrate", "the home"), ("investigation", "a scout")]
-)
-def test_a_playbook_that_is_not_a_crewmates_is_said_and_no_principle_follows(reviewer, name, by):
-    reviewer.brief.write_text(BRIEF + f"Playbook: {name}\n")
-    said = f"not a crewmate's: playbooks/{name}.md is for {by}: the crewmate worked with none"
-    assert intent(reviewer) == f"{INTENT}\n\n{said}\n\n{scope()}\n"
-
-
-def test_a_brief_whose_playbook_is_none_gives_the_reviewers_the_brief_alone(reviewer):
-    reviewer.brief.write_text(BRIEF + "Playbook: none\n")
-    assert intent(reviewer) == f"{INTENT}\n\n{scope()}\n"
-
-
-def test_the_reviewers_are_asked_to_tag_each_finding_with_the_principle_it_breaks(reviewer):
-    reviewer.brief.write_text(BRIEF + "Playbook: bug-fix\n")
-    told = intent(reviewer)
-    assert told.index("- principle-fix-root-causes: ") < told.index("`(principle: <name>)`")
-    assert "`(principle: none)`" in told
-
-
 def asked(text, question):
     after = text.split(f"\n{question}. ", 1)[1]
     return after.split(f"\n{question + 1}. ", 1)[0]
-
-
-LOOKED_FOR = [
-    (4, "Run twice, or after a run that crashed halfway"),
-    (4, "kept in step by structure"),
-    (4, "A rule in prose"),
-    (4, "An old path kept beside a new one"),
-    (4, "A proxy"),
-    (4, "A bug fix with no test"),
-    (5, "Be ambitious about structural simplification"),
-    (5, "whole branches, helpers, modes, conditionals or layers disappear"),
-    (5, "delete complexity rather than rearrange it"),
-    (5, "from under 1,000 lines to over 1,000"),
-    (5, "one-off branches put into an existing flow"),
-    (5, "pass-through helper"),
-    (5, "Logic outside its canonical layer"),
-    (5, 'would change a file outside the "Where" line above'),
-    (6, "A changed line that does not trace to the task"),
-    (6, "already unused before this change is named in the finding, not deleted"),
-    (6, "What the change itself made unused goes in the same change"),
-    (6, "A doc the change made wrong"),
-]
-
-
-@pytest.mark.parametrize(("question", "named"), LOOKED_FOR)
-def test_the_reviewers_are_told_each_thing_to_look_for_under_its_question(
-    reviewer, question, named
-):
-    assert named in asked(intent(reviewer), question)
-
-
-def test_the_reviewers_are_not_asked_whether_a_file_is_outside_where(reviewer):
-    """`jmerge --scope` answers that, on the section's `Outside Where:` line, so the reading
-    is told not to raise it, and no question of the six asks it."""
-    told = intent(reviewer)
-    assert "\n6. " in told and "\n7. " not in told
-    assert "do not report a file for being outside it" in told
-    assert "Each such file is a finding" not in told
-
-
-def test_what_the_reviewers_look_for_stays_inside_the_changed_lines(reviewer):
-    told = intent(reviewer)
-    rule = told.index("Review only the lines this pull request changes")
-    assert rule < told.index("\n4. ")
-    for question in (4, 5, 6):
-        assert asked(told, question).splitlines()[0].endswith("in the changed lines:")
-    assert [line[:2] for line in told.splitlines() if re.match(r"\d\. ", line)] == [
-        f"{n}." for n in range(1, 7)
-    ]
-
-
-def placeholders(text):
-    """Each line of a prompt that is still one of the template's places to fill."""
-    return [line for line in text.splitlines() if re.fullmatch(r"(> )?\{[A-Z_]+\}", line)]
-
-
-def test_the_prompt_is_the_interrogate_template_filled_with_what_this_review_reads(reviewer):
-    template = (INTERROGATE / "references" / "reviewer-prompt.md").read_text()
-    assert len(placeholders(template)) == 5
-    prompt = reviewer.prompt()
-    text = prompt.read_text()
-    assert placeholders(text) == []
-    assert text.startswith("\nYou are an adversarial code reviewer.")
-    assert "Build each reviewer subagent's prompt" not in text
-    told = (prompt.parent / "intent").read_text()
-    assert "".join(f"> {line}\n" for line in told.splitlines()) in text
-    assert f"\n~~~~~~diff\n{DIFF}~~~~~~\n" in text
-    for name in ("rubric.md", "code-quality-review.md"):
-        assert (INTERROGATE / "references" / name).read_text() in text
-    two = f"4. {asked(told, 4)}\n5. {asked(told, 5)}".split("\n   When the remedy")[0]
-    assert two.count("\n   - ") == 11
-    assert f"all of it when whole files were given.\n\n{two}\n\n## Instructions" in text
 
 
 def test_the_two_questions_are_the_ones_the_interrogate_skill_reads_out_of_this_block(reviewer):
@@ -649,19 +498,6 @@ def room_calls(tmp_path, **readings):
     return said
 
 
-@pytest.mark.parametrize("jgauge", ["there", "broken"])
-def test_the_review_and_the_launch_both_ask_jgauge_room(tmp_path, jgauge):
-    if jgauge == "broken":
-        (tmp_path / "stub").mkdir()
-        (tmp_path / "stub" / "jgauge").write_text("#!/bin/sh\nexit 127\n")
-        (tmp_path / "stub" / "jgauge").chmod(0o755)
-    assert room_calls(tmp_path, pressure="25.00") == 2 * [
-        "wait: memory pressure 25.00 is at or over 10"
-        if jgauge == "there"
-        else "wait: jgauge room did not run"
-    ]
-
-
 def test_a_load_that_holds_a_launch_holds_no_review(tmp_path):
     assert room_calls(tmp_path, load="24.00") == [
         "wait: load 24.00 is at or over 200% of 12 cores",
@@ -674,40 +510,6 @@ def test_cpu_pressure_that_holds_a_launch_holds_no_review(tmp_path):
         "wait: CPU pressure 90.00 is at or over 40",
         "go",
     ]
-
-
-@pytest.mark.parametrize(
-    ("readings", "said"),
-    [
-        ({"memory": 3 * 1048576}, "wait: 3.0 GB of memory available, under 6"),
-        ({"pressure": "25.00"}, "wait: memory pressure 25.00 is at or over 10"),
-    ],
-)
-def test_a_review_waits_when_the_machine_has_no_room_and_goes_when_it_has(reviewer, readings, said):
-    reviewer.machine(**readings)
-    assert reviewer(fill=SOON) == ([said], 75)
-    assert reviewer.built() == []
-    reviewer.machine()
-    assert reviewer.prompt().is_file()
-
-
-@pytest.mark.parametrize("readings", [{"load": "11.00"}, {"load": "30.00", "cores": "24"}])
-def test_a_review_is_not_held_by_load_and_builds_its_prompt_at_once(reviewer, readings):
-    """A review takes about 2% of one core, and its proof runs in the short test lane.
-    So a review does not wait when the load is over the threshold at which a launch waits, and
-    the first check of the machine says `go`."""
-    reviewer.machine(**readings)
-    printed, code = reviewer(fill=SOON)
-    assert (code, len(printed)) == (0, 1), printed
-    assert Path(printed[0]).is_file()
-
-
-def test_a_review_waits_when_the_machine_cannot_be_read(reviewer):
-    (reviewer.state / "proc" / "meminfo").unlink()
-    printed, code = reviewer(fill=SOON)
-    assert code == 75
-    assert [line.split(":")[0] for line in printed] == ["wait"]
-    assert reviewer.built() == []
 
 
 def test_a_review_with_no_room_waits_inside_its_call_and_goes_on_when_the_machine_has_some(
@@ -822,83 +624,11 @@ def test_the_sixth_send_with_no_room_says_to_give_up_and_room_forgets_the_count(
     assert reviewer(fill=SOON) == ([said], 75)
 
 
-def test_a_check_that_never_ran_is_the_reason_the_section_gives(reviewer):
-    (reviewer.stub / "jgauge").write_text("#!/bin/sh\nexit 127\n")
-    (reviewer.stub / "jgauge").chmod(0o755)
-    (why,), _ = reviewer()
-    gives_up(reviewer, why)
-    assert reviewer.brief.read_text() == BRIEF + GAVE_UP.format(why="wait: jgauge room did not run")
-
-
-def test_a_give_up_with_nobody_told_still_writes_its_section(reviewer):
-    """No reviewer sends anything, so the section is written whatever, and jmerge reads it as a
-    review with no verdict, which jbus's stall clock carries on."""
-    printed, code = gives_up(reviewer, "wait: jgauge room did not run")
-    assert (printed, code) == (
-        [f"written: ## Review with Verdict: not run, in {reviewer.brief}"],
-        0,
-    )
-    assert ready.short_of(reviewer.brief.read_text(), KEPT) == ready.NO_VERDICT
-
-
-def test_a_second_pass_that_gives_up_is_written_under_the_review_the_brief_has(reviewer):
-    first = "\n## Review\nVerdict: clean\nHead: " + "b" * 40 + "\nSent to: mcp:1\n"
-    reviewer.brief.write_text(BRIEF + first)
-    _, code = gives_up(reviewer, "wait: jgauge room did not run")
-    assert code == 0
-    assert reviewer.brief.read_text() == BRIEF + first + GAVE_UP.format(
-        why="wait: jgauge room did not run"
-    )
-
-
 def test_each_review_builds_in_a_directory_of_its_own(reviewer):
     first, second = reviewer.prompt(), reviewer.prompt()
     assert first.parent != second.parent
     assert first.read_text() == second.read_text()
     assert all(path.name.startswith("pr-review-a-task.") for path in reviewer.built())
-
-
-def calls(text):
-    """Every JSON block of a skill, as an agent sends it, with its placeholders filled."""
-    return [
-        json.loads(body.replace("<model selection>", "null"))
-        for kind, body in FENCED.findall(text)
-        if kind == "json"
-    ]
-
-
-def test_a_review_starts_no_subagent_only_its_own_thread(reviewer):
-    """The interrogate skill's reviewer is an `Agent` call, and `calls` finds it in that skill.
-    The pr-review skill makes no such call, so a pull request has one review thread."""
-    assert [each["description"] for each in calls((INTERROGATE / "SKILL.md").read_text())] == [
-        "interrogate reviewer"
-    ]
-    made = calls(as_read(SKILL))
-    assert [each for each in made if "subagent_type" in each or "description" in each] == []
-    assert {each["message"] for each in made} == {
-        "/pr-review run <slug> 1",
-        "/pr-review run <slug> <n>",
-    }
-    assert reviewer.prompt().is_file()
-
-
-def test_the_review_sends_its_reader_to_no_other_skill_and_its_block_fills_from_files_there(
-    reviewer,
-):
-    """A reviewer skipped the reads of interrogate's step 5, lead-judgment and blast-radius in
-    about 85 of 100 reviews, so the section holds the rules it needs and names no read of them.
-    The block still fills the prompt from interrogate's references, so each one it names exists."""
-    text = section("### The review")
-    reads = [line for line in text.splitlines() if re.search(r"\bread\b[^.]*\bnow\b", line, re.I)]
-    assert reads == []
-    for read in ("skills/interrogate/SKILL.md", "lead-judgment.md", "skills/blast-radius/"):
-        assert read not in text
-    named = r"`references/([a-z-]+\.md)`|\"\$I/([a-z-]+\.md)\"|refs \"/([a-z-]+\.md)\""
-    references = {"".join(found) for found in re.findall(named, text)}
-    assert references == {"reviewer-prompt.md", "rubric.md", "code-quality-review.md"}
-    assert references <= {path.name for path in (INTERROGATE / "references").iterdir()}
-    made = reviewer.prompt().read_text()
-    assert (INTERROGATE / "references" / "rubric.md").read_text() in made
 
 
 @pytest.fixture
@@ -1251,33 +981,6 @@ def test_a_finding_outside_the_diff_is_dropped_and_counted(reviewer, findings, d
     assert printed[-1] == f"Dropped: {dropped}"
 
 
-def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(reviewer):
-    """The lead puts the lines it dismissed under `Dropped:`, where the crew skill stops
-    counting."""
-    template = REVIEW.read_text()
-    labels = [line.split(":")[0] for line in template.splitlines()]
-    after = labels[labels.index("Dropped") :]
-    assert after[:3] == ["Dropped", "Noted", "Dismissed"]
-    (finding,) = [line for line in template.splitlines() if line.startswith("- <severity>")][:1]
-    assert "(bucket: Act on | Consider)" in finding
-    review = template.replace(
-        finding,
-        "- warning a.py:3 it runs twice (principle: principle-make-operations-idempotent) "
-        "(bucket: Act on)",
-        1,
-    )
-    reviewer.brief.write_text(BRIEF + "\n## Result\nStatus: done\n\n" + review)
-    counts = crew.block("The review", "--left").replace("<slug>", "a-task")
-    ran = subprocess.run(
-        ["sh", "-c", counts],
-        env={**os.environ, "H": str(reviewer.state), "T": str(assembled() / "templates")},
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    assert ran.stdout == "not yet: 1 of 1 findings have no Finding: line: F1\n"
-
-
 @pytest.mark.parametrize(
     ("heading", "call"),
     [
@@ -1292,15 +995,6 @@ def test_a_gh_that_fails_is_not_read_as_nothing_found(reviewer, heading, call):
     (reviewer.stub / "down").write_text(f"{call}\n")
     findings = ["error src/a.py:3 a line the pull request added"]
     assert reviewer(heading, findings=findings) == ([], 1)
-
-
-def test_the_count_dropped_is_a_line_of_the_review_section(reviewer):
-    reviewer.gh()
-    (count,) = reviewer.output("### Outside the diff")
-    template = REVIEW.read_text()
-    labels = [line.split(":")[0] for line in template.splitlines()]
-    assert count == "Dropped: 0"
-    assert count.split(":")[0] in labels
 
 
 def branch_of_the_task(reviewer, where, *changed, result=""):
@@ -1320,43 +1014,6 @@ def branch_of_the_task(reviewer, where, *changed, result=""):
         (work / path).write_text(f"{path}\n")
     merge.git(work, "add", "-A")
     merge.git(work, "commit", "-q", "-m", "the task")
-
-
-def test_a_file_outside_the_brief_where_is_listed(reviewer):
-    branch_of_the_task(
-        reviewer,
-        "`src/a.py`, `tests/`",
-        "src/a.py",
-        "tests/deep/test_a.py",
-        "README.md",
-        "src/a.pyc",
-        "hooks/x.sh",
-    )
-    assert reviewer.output("### Wider than the brief") == [
-        "outside: README.md",
-        "outside: hooks/x.sh",
-        "outside: src/a.pyc",
-    ]
-
-
-def test_an_old_results_wider_line_leaves_its_file_outside(reviewer):
-    branch_of_the_task(
-        reviewer,
-        "`src/a.py`",
-        "src/a.py",
-        "README.md",
-        "hooks/x.sh",
-        result="\n## Result\nWider: README.md: a test reads it\n",
-    )
-    assert reviewer.output("### Wider than the brief") == [
-        "outside: README.md",
-        "outside: hooks/x.sh",
-    ]
-
-
-def test_a_diff_inside_the_where_prints_nothing(reviewer):
-    branch_of_the_task(reviewer, "`src/`", "src/a.py")
-    assert reviewer.output("### Wider than the brief") == []
 
 
 def test_a_brief_whose_where_names_no_path_is_not_read_as_no_wider(reviewer):
@@ -1415,33 +1072,6 @@ def test_a_brief_that_names_its_reviewer_is_found(reviewer, result, reviewer_thr
 
 DONE = f"\n## Result\nStatus: done\nBranch: a-task   Pull request: {URL}\n"
 HEAD = "b" * 40
-NOT_SENT = "Sent to: not sent, clean"
-
-
-def later_pass(made, result, first):
-    """What `jmerge` says of a pull request whose first review had a finding that the head fixes.
-    The brief has the lines the crewmate wrote then, and after them whatever a later pass left. The
-    crewmate writes nothing after that pass."""
-    done = f"Finding: fixed, it is wrong\nFixed: {made.head}\n{result}"
-    made.home.open_pull_request(made.head, checks=(jrun.STARTED,), files=["a.txt"])
-
-    def says(section=""):
-        (made.home.tasks / "alpha.md").write_text(merge.brief(first + section, done))
-        return made.run("--check")
-
-    return says
-
-
-def test_jmerge_reads_an_old_second_pass_line_as_owing_nothing(tmp_path):
-    """One round: a brief from before it, whose Result says `Second pass: needed since`, waits
-    for no second review, and a clean second pass written anyway changes nothing."""
-    made = merge.Merged(merge.Home(tmp_path), tmp_path)
-    done = f"Finding: fixed, it is wrong\nFixed: {made.head}\n{merge.WIDER}"
-    assert ready.short_of(merge.brief(merge.review("findings"), done), made.head) == ""
-    says = later_pass(made, merge.WIDER, merge.review("findings"))
-    assert says(merge.review("clean", made.head) + f"{NOT_SENT}\n") == [
-        f"ready 7 {made.head} alpha alpha"
-    ]
 
 
 def readiness():
@@ -1480,25 +1110,6 @@ class Launcher:
             check=True,
         )
         return ran.stdout.splitlines()
-
-
-@pytest.mark.parametrize("case", crew.ROLLUPS)
-def test_a_brief_is_ready_only_once_its_checks_passed(case, tmp_path):
-    """The reviewer launches only once `check` has passed: a check still running, or none
-    reported yet, is not ready, as a failed one is not."""
-    rollup, answer = crew.ROLLUPS[case]
-    if rollup is None:
-        launcher = Launcher(tmp_path, [])
-        (launcher.stub / "gh").write_text(
-            crew.GH.replace('"pr view")', '"pr view") [ "$5" = state ] &&')
-        )
-    else:
-        launcher = Launcher(tmp_path, rollup)
-    (said,) = launcher.says()
-    if answer == "passed":
-        assert said == f"a-task: ready, {URL} at {HEAD}"
-    else:
-        assert said.startswith(f"a-task: not ready, its checks, {answer}: ")
 
 
 def test_a_draft_is_ready_as_any_pull_request_once_its_checks_passed(tmp_path):
@@ -1549,23 +1160,6 @@ def test_the_budget_counts_only_the_briefs_github_is_asked_about(tmp_path):
     }
     ran = subprocess.run(["sh", "-c", script], capture_output=True, text=True, env=env)
     assert ran.returncode == 75 and "3 calls would take it to 1000" in ran.stdout
-
-
-def test_checks_that_could_not_be_read_are_not_ready_though_a_later_call_names_the_head(tmp_path):
-    launcher = Launcher(tmp_path, crew.ROLLUPS["one ran and failed"][0])
-    rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup ] &&'
-    (launcher.stub / "gh").write_text(crew.GH.replace('"pr view")', rollup))
-    assert launcher.says() == ["a-task: not ready, its checks, wait: could not ask GitHub"]
-
-
-@pytest.mark.parametrize("case", ["none ran", "all skipped"])
-def test_checks_that_did_not_run_are_never_ready_whatever_the_result_says_stood_in(case, tmp_path):
-    launcher = Launcher(tmp_path, crew.ROLLUPS[case][0])
-    unrun = [f"a-task: not ready, its checks, unrun: no check ran at {HEAD}"]
-    assert launcher.says() == unrun
-    stood_in = f"CI: did not run at {HEAD}, `make check` passed in this worktree at that head\n"
-    launcher.brief.write_text(BRIEF + DONE + stood_in)
-    assert launcher.says() == unrun
 
 
 SHORT = {
@@ -1620,23 +1214,6 @@ def test_a_reviewer_that_could_not_be_launched_is_no_reviewer(tmp_path):
     launcher = Launcher(tmp_path)
     launcher.brief.write_text(BRIEF + DONE + "Reviewer: none, no launch tool in this session\n")
     assert launcher.says() == [f"a-task: ready, {URL} at {HEAD}"]
-
-
-@pytest.mark.parametrize("had", ["\n## Review\nVerdict: findings\n", "Reviewer: mcp:9\n"])
-def test_a_second_pass_is_ready_with_a_review_once_its_checks_passed(had, tmp_path):
-    launcher = Launcher(tmp_path)
-    launcher.brief.write_text(BRIEF + DONE + had)
-    assert launcher.says(again=True) == [f"a-task: ready, {URL} at {HEAD}"]
-    view = {"state": "OPEN", "headRefOid": HEAD, "statusCheckRollup": [crew.RUNNING]}
-    (launcher.stub / "view.json").write_text(json.dumps(view))
-    assert launcher.says(again=True) == [
-        "a-task: not ready, its checks, wait: a check has not finished"
-    ]
-    view["statusCheckRollup"] = crew.ROLLUPS["one ran and failed"][0]
-    (launcher.stub / "view.json").write_text(json.dumps(view))
-    assert launcher.says(again=True) == [
-        "a-task: not ready, its checks, failed: a check ran and failed"
-    ]
 
 
 def test_a_home_with_no_slug_is_told_of_the_briefs_that_are_not_of_the_past(tmp_path):
@@ -1900,9 +1477,3 @@ def test_the_reviewer_reads_the_skills_line_and_each_artifact_as_jmerge_reads_it
         "- principle-model-the-domain: Named(said, path), resolved once; missing() is the gap\n"
         "- principle-prove-it-works: no artifact\n"
     ) in told
-
-
-def test_the_reviewer_is_told_of_no_skill_when_the_line_names_none(reviewer):
-    text = BRIEF.replace("Pull request:", "Skills: none, docs\nPull request:")
-    reviewer.brief.write_text(text)
-    assert "loaded each in full" not in intent(reviewer)

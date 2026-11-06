@@ -8,7 +8,7 @@ description: Rerun the exhaustive check of main.json's red-main contract, the re
 `main.json` in a jbus project's state is the one record of main's red tip.
 `mainmoved.tell` (`features/jbus/src/jbus/mainmoved.py`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`features/jmerge/src/jmerge/mainjson.py`) reads it.
 A red main holds no pull request, so the record stops no merge.
-`jmerge.cli.Repo.again` reads it to ask GitHub for no merge of a red main into a red pull request, and `jbus.watch` reads its `failed` to tell a flake from a culprit's own red (`jbus.reverts`).
+`jmerge.cli.Repo.again` reads it to ask GitHub for no merge of a red main into a red pull request, and `jbus.culprits` reads its `failed` to tell a flake from a culprit's own red (`jbus.reverts`).
 A test runs the orders someone wrote down.
 This check runs every order of merges, check answers, reruns and passes within its bounds, through the real `tell` and the real `mainjson.read`, and checks three properties after every pass:
 
@@ -33,10 +33,10 @@ Rerun it when the diff touches any of these:
 - `features/jbus/src/jbus/mainmoved.py` (`tell`, `main_check`, `failed_at`, `landed`, the `STEPS` slot);
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `SETTLED`, `of`, `read`, `typed`, `FIX`, `failures`);
 - `features/jmerge/src/jmerge/cli.py` (`Repo.again`, which reads `main_state`) and `features/jmerge/src/jmerge/rows.py` (`main`);
-- `features/jbus/src/jbus/watch.py` where it reads `failed` for `jbus.reverts`;
-- `features/jbus/src/jbus/poll.py` where a pass runs `merge.merge` (`half.said = merge.merge(run)`) before the `after-expedite` slot, or the pass lock (`fcntl.flock`), and `features/jbus/src/jbus/merge.py`;
+- `features/jbus/src/jbus/culprits.py` (`kept_why`) where it reads `failed` for `jbus.reverts`;
+- `features/jbus/src/jbus/poll.py` where a pass runs `merge.merge` (`half.said = merge.merge(run)`) before the `after-expedite` slot, or the pass lock (`store.locked`, whose `fcntl.flock` is in `features/jsettings/src/jsettings/store.py`), and `features/jbus/src/jbus/merge.py`;
 - `features/jbus/src/jbus/watch.py` `_check` and `_judged`, the answers a tip's check can have;
-- `write_json` in `features/jbus/src/jbus/__init__.py`: the model takes a read to see a whole record, which `os.replace` gives;
+- `write_json` in `features/jsettings/src/jsettings/store.py`: the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
 - a move of any of these modules: the model imports them and stubs by module attribute, so a move changes its imports and its stubs, and the check is rerun on the moved code (unit 6 moved `jbus.mainstate` to `jmerge.mainjson` with the same counts).
 
@@ -150,6 +150,6 @@ When every step is backed, the trace is a real bug: report it with the trace, in
   Change `s1`, `s2` or `s3` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `7 passed` (or the new count).
 
 Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` in `mainmoved.py` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` in `mainmoved.py` breaks S2 (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
-On the fixed code, dropping `broken, waiting = tip, []` for `waiting = []` in `mainmoved.py` breaks S1 one tip at a time and over every order.
+On the fixed code, dropping `broken, waiting, unrun = tip, [], ""` for `waiting, unrun = [], ""` in `mainmoved.py` breaks S1 one tip at a time and over every order.
 Dropping `was.get("fixed") or` in `mainmoved.py` passes the walk, since the model writes no `fixed`, and fails `test_a_record_left_owing_a_message_ends_the_red_at_its_fixed_tip` in `features/jbus/tests/test_jbus_main_moved.py`, an older record with `fixed` where GitHub lists no tips.
 A break it was shown to catch on the code as it is today, on 2026-11-03: dropping `broken` from `green, broken, waiting, unrun = tip, "", [], ""` in `mainmoved.py` breaks S2 over every order (the trace above).

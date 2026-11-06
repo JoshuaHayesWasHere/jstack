@@ -223,10 +223,10 @@ def no_reviewer_by_rule(brief: str, head: str) -> bool:
 
 CHECKED = (
     'Run the check block of the crew skill\'s "Do the task" in your worktree at the head the '
-    "reason names: it runs the guards in a full test slot and writes the `Checked:` line "
+    "reason names: it runs the lint and the touched tests and writes the `Checked:` line "
     "`jmerge` reads. Where it ends other than 0, a 124 too, fix what it found, commit, push, and "
-    "run it again, until its line says `PART=guards exit 0` at the head. Never write a "
-    "`Checked:` line by hand."
+    "run it again, until its line says `PART=touched exit 0` (`PART=guards exit 0` on an "
+    "earlier head's line) at the head. Never write a `Checked:` line by hand."
 )
 TABLE = (
     Short(
@@ -571,7 +571,7 @@ UNTOLD = {
                 "queue-unreadable carries-unknown base-merge-asked base-merge-due "
                 "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
                 "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
-                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time",
+                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time merged-tree-no-slot",
                 _RUNNER,
             ),
             ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),

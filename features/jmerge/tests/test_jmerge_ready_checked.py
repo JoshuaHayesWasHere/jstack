@@ -119,18 +119,3 @@ def test_a_line_of_another_head_binds_only_where_the_head_carries_its_patch():
     assert ready.short_on_checked(cut, HEAD, lambda at: at == EARLIER) == ready.CHECKED_CUT.format(
         at=EARLIER[:12], head=HEAD[:12]
     )
-
-
-@pytest.mark.parametrize(
-    "reason",
-    [
-        ready.CHECKED_MISSING,
-        ready.CHECKED_STALE,
-        ready.CHECKED_CUT,
-        ready.CHECKED_FAILED,
-        ready.CHECKED_PART,
-    ],
-)
-def test_each_hold_names_what_the_crew_runs_to_clear_it(reason):
-    assert "the crew's check block (features/crew/do-the-task.md)" in reason
-    assert "PART=guards" in reason

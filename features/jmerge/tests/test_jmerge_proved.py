@@ -87,6 +87,15 @@ def test_a_pull_request_that_changes_code_and_says_tests_only_waits(merged):
     assert merged.untouched()
 
 
+def test_a_pull_request_that_changes_tests_docs_and_config_merges_on_its_head_run(merged):
+    """A removal of tests has no base run that fails, and the docs lint makes it carry the edit to
+    the doc that named them: docs and config change no code, so its head run proves it."""
+    files = (TEST, "features/x/docs/x.md", "pyproject.toml")
+    opened(merged, files, head_alone(head=merged.head))
+    (said,) = merged.run()
+    assert said.startswith("merged 7 alpha ")
+
+
 def test_a_pull_request_whose_tests_pass_at_its_base_waits(merged):
     opened(merged, ("a.py", TEST), proved(base_exit=0, head=merged.head))
     (said,) = merged.run()
@@ -174,18 +183,37 @@ def result(line=""):
         ),
         (one(TEST, "features/x/tests/conftest.py", "tests/data/a.json"), head_alone(), ""),
         (one(TEST, "features/x/tests/helpers.py"), head_alone(), ""),
+        (one(TEST, "README.md", "features/x/docs/x.md", "pyproject.toml"), head_alone(), ""),
+        (
+            one(
+                TEST,
+                "features/x/tests/test_gone.py",
+                "CONTRIBUTING.md",
+                removed=("features/x/tests/test_gone.py",),
+            ),
+            head_alone(),
+            "",
+        ),
+        (
+            one(TEST, "README.md", "a.py"),
+            head_alone(),
+            ready.PROVED_UNREAD.format(
+                fault="says tests only, and it changes a.py, which is no test file, docs or config"
+            ),
+        ),
         (
             one("a.py", TEST),
             head_alone(),
             ready.PROVED_UNREAD.format(
-                fault="says tests only, and it changes a.py, which is no test file"
+                fault="says tests only, and it changes a.py, which is no test file, docs or config"
             ),
         ),
         (
             one(TEST, "x/ok.py", removed=("x/ok.py",)),
             head_alone(),
             ready.PROVED_UNREAD.format(
-                fault="says tests only, and it changes x/ok.py, which is no test file"
+                fault="says tests only, and it changes x/ok.py, which is no test file, docs or "
+                "config"
             ),
         ),
         (

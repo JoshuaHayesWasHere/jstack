@@ -13,7 +13,10 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 **You own the exit condition.** Say what done is as a check that can fail, then drive to it without stopping. The brief's "Done when" is the predicate, and it is not yours to loosen.
 
-1. Turn the predicate into one command before the first change (`principles/principle-build-the-lever.md`): a script in the scratch directory `mktemp -d /tmp/<slug>-run.XXXXXX` that runs a check for each "Done when" line and prints `holds` or `does not hold` beside it, and exits zero only when all hold. A line that no command can check gets the nearest check that can fail, and the Result says what it leaves unproved (`principles/principle-prove-it-works.md`). Run it now and see it print `does not hold`. If it already says every line holds, the predicate is wrong or the task is done: find out which before any change.
+1. Turn the predicate into one command before the first change (`principles/principle-build-the-lever.md`): a script in the scratch directory `mktemp -d "${TMPDIR:-/tmp}/<slug>-run.XXXXXX"` that runs a check for each "Done when" line and prints `holds` or `does not hold` beside it, and exits zero only when all hold.
+   A line that no command can check gets the nearest check that can fail, and the Result says what it leaves unproved (`principles/principle-prove-it-works.md`).
+   Run it now and see it print `does not hold`.
+   If it already says every line holds, the predicate is wrong or the task is done: find out which before any change.
 2. Open the log: read `features/show-me-your-work/SKILL.md` in full and write the first row with its block, the predicate command and what it printed.
 3. Loop.
    Make the smallest change the evidence so far justifies, run the predicate command and the targeted tests of the files you changed, and read what they print.
@@ -27,7 +30,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
    What is outside **Where** is a queued row or nothing (`templates/a-fault-outside.md`).
    Ask nothing that an experiment can settle.
    A question only the user can answer is parked as a gate with your default, as `skills/crew/SKILL.md` "Do the task" says, and the run carries on (`principles/principle-never-block-on-the-human.md`).
-   The six cases of `templates/gates.md`, which that skill's "Carry on" never does on a default, are gates that hold the same way, and the run carries on beside them.
+   The cases of `templates/gates.md`, which that skill's "Carry on" never does on a default, are gates that hold the same way, and the run carries on beside them.
 5. A plateau is not a stop. After three rounds in which no line moved, read the log, then change the approach: another cause, a smaller step, the check itself read again. Stop only when the predicate command exits zero, or at a real dead end, which is a line that no change inside **Where** can make hold. Then the Result says `Status: blocked`, the line, and what was tried, from the log. Never edit the predicate command so that a line holds.
 6. Check the log as "Check the log before handing over" in the log skill says. Run the predicate command once more on the committed head with `git status --porcelain` printing nothing, and keep what it prints for the `Proof:` line.
 7. Run `features/writing/playbooks/opening-a-pr.md`.
@@ -44,7 +47,7 @@ Never done here, and who does it:
 - **Loosening "Done when".** The user does, in this thread or through the home. A line you think is wrong is a gate, and the run goes on to the line as written.
 - **Stopping to ask.**
   Nobody does.
-  A gate holds the question, and each of the six cases "Carry on" never does on a default holds its action too.
+  A gate holds the question, and each case of `templates/gates.md`, which "Carry on" never does on a default, holds its action too.
 - **Merging, to make a line hold.**
   `jmerge`, run by jbus, merges.
   A "Done when" line that needs a merge is reported as waiting on it.

@@ -66,7 +66,9 @@ else
 fi
 ```
 
-It reads a brief or a request by its path, by its path from the repo's home folder (`tasks/<slug>.md`), or by its slug, and anything else as a plain question. Its first line is the root of the repo this skill lives in: every path it prints after that is from that root. Then one line each:
+It reads a brief or a request by its path, by its path from the repo's home folder (`tasks/<slug>.md`), or by its slug, and anything else as a plain question.
+Its first line is the root of the repo this skill lives in: every path it prints after that is from that root's `source/`.
+Then one line each:
 
 - `role <skill>: <what to type> (<file>)`: who takes the work. A brief under `tasks/` is a crewmate's, `/crew <slug>`; a request under `scouts/` is a scout's, `/scout <slug>`; a question is the home's, `/home`.
 - `playbook <name>: <file> (<why>)`: the steps the role works through, from the file's `Playbook:` line, else the `Run by:` row of that role that fits, else that role's default. `playbook none` is no playbook.

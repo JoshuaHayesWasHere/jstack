@@ -11,6 +11,7 @@ import gzip
 import json
 import shlex
 import shutil
+import sqlite3
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,7 +22,8 @@ import pytest
 import jbus
 import jsettings
 from jbus import verbs
-from jbus.ci import collect, daily
+from jbus.ci import collect, daily, ruleset
+from jgauge import spend
 from test_jbus_ci import fire, unit
 from testing.paths import REPO as CHECKOUT
 
@@ -50,21 +52,70 @@ GH = [
 ]
 
 
+KEPT = CHECKOUT / ruleset.KEPT
+RULESET = ["gh", "api", "repos/JoshuaHayesWasHere/jstack/rulesets/25665226"]
+
+
 class Gh:
-    """Stands in for `gh`: each call is kept, and `gh run list` answers with `runs`."""
+    """Stands in for `gh`: each call is kept, `gh run list` answers with `runs` and `gh api` with
+    `ruleset`, the live ruleset, by default the checked-in body."""
 
     def __init__(self, runs=RUNS, code=0):
         self.runs, self.code, self.calls = runs, code, []
+        self.ruleset = json.loads(KEPT.read_text())
 
     def __call__(self, command):
         self.calls.append(list(command))
-        said = "" if self.code else json.dumps(self.runs)
+        given = self.ruleset if command[1] == "api" else self.runs
+        said = "" if self.code else json.dumps(given)
         return subprocess.CompletedProcess(command, self.code, said, "gh: HTTP 502")
 
 
 class NoCollect:
     def __init__(self, *_, **__):
         raise AssertionError("--day collects nothing: the passes keep the ledger")
+
+
+STORE = """
+CREATE TABLE orchestration_v2_projection_threads (
+    thread_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL);
+CREATE TABLE orchestration_v2_projection_runs (
+    run_id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, requested_at TEXT NOT NULL,
+    completed_at TEXT, payload_json TEXT NOT NULL);
+CREATE TABLE orchestration_v2_projection_run_attempts (attempt_id TEXT PRIMARY KEY, run_id TEXT);
+CREATE TABLE orchestration_v2_projection_provider_turns (
+    provider_turn_id TEXT PRIMARY KEY, run_attempt_id TEXT, payload_json TEXT NOT NULL);
+"""
+
+
+class Store:
+    """Stands in for T3 Code's store: `run` adds a run of a thread, by its title and project."""
+
+    def __init__(self, path):
+        self.path, self.runs = path, 0
+        with sqlite3.connect(path) as db:
+            db.executescript(STORE)
+
+    def run(self, title, start, done, given, output, project):
+        self.runs += 1
+        run, thread = f"run{self.runs}", f"thread:{project}:{title}"
+        usage = {"inputTokens": given, "outputTokens": output}
+        with sqlite3.connect(self.path) as db:
+            db.execute(
+                "INSERT OR IGNORE INTO orchestration_v2_projection_threads VALUES (?, ?, ?)",
+                (thread, project, title),
+            )
+            db.execute(
+                "INSERT INTO orchestration_v2_projection_runs VALUES (?, ?, ?, ?, ?)",
+                (run, thread, start, done, json.dumps({"startedAt": start})),
+            )
+            db.execute(
+                "INSERT INTO orchestration_v2_projection_run_attempts VALUES (?, ?)", (run, run)
+            )
+            db.execute(
+                "INSERT INTO orchestration_v2_projection_provider_turns VALUES (?, ?, ?)",
+                (run, run, json.dumps({"turnTokenUsage": usage})),
+            )
 
 
 def brief(home, slug):
@@ -92,6 +143,7 @@ def day(kitchen, monkeypatch):
     monkeypatch.setattr(collect, "Cli", NoCollect)
     gh = Gh()
     monkeypatch.setattr(daily, "ask", gh)
+    monkeypatch.setattr(spend, "STORE", kitchen.root / "t3" / "statev2.sqlite")
 
     class Day:
         pass
@@ -114,7 +166,18 @@ def day(kitchen, monkeypatch):
             lines.append(json.dumps(merged(slug, at)) + "\n")
         (state / "transitions.jsonl").write_text("".join(lines))
 
-    made.run, made.rows = run, rows
+    def store():
+        spend.STORE.parent.mkdir(parents=True, exist_ok=True)
+        return Store(spend.STORE)
+
+    def task(slug, *branches):
+        tasks = made.home / "tasks"
+        tasks.mkdir(parents=True, exist_ok=True)
+        lines = [f"Branch: {slug}   Pull request: {one}" for one in branches]
+        (tasks / f"{slug}.md").write_text("\n".join([f"# {slug}: a row", *lines, ""]))
+
+    made.run, made.rows, made.store, made.task = run, rows, store, task
+    made.project = jbus.load().projects[0].project_id
     return made
 
 
@@ -384,3 +447,184 @@ def test_ci_day_writes_a_moves_medians_as_the_number_writes_its_cells():
     assert daily._moved(shift, measures["wall"]) == "9 min to 16 min, moved"
     assert daily._moved(shift, measures["wait_p90_shard"]) == "4 s to 45 s, moved"
     assert daily._moved(shift, measures["red_share"]) == "20% to 20%, held"
+
+
+@pytest.fixture
+def guarded(day):
+    """The day's run in a checkout that keeps main's ruleset body, with the home's
+    `required-checks` naming check, borders and macos, as jstack's does."""
+    (day.kitchen.checkout / ruleset.KEPT).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(KEPT, day.kitchen.checkout / ruleset.KEPT)
+    (day.home / "required-checks").write_text("check\nborders\nmacos\n")
+    return day
+
+
+def told(day):
+    """What a pass tells the home about the ruleset."""
+    day.kitchen.poll(NOW.astimezone(UTC))
+    return [line for line in day.kitchen.wakes.said if "ruleset" in line]
+
+
+def lacking_macos(body):
+    body = json.loads(json.dumps(body))
+    for rule in body["rules"]:
+        if rule["type"] == "required_status_checks":
+            checks = rule["parameters"]["required_status_checks"]
+            checks[:] = [one for one in checks if one["context"] != "macos"]
+    return body
+
+
+def test_ci_day_ruleset_that_matches_tells_nobody_after_one_read(guarded):
+    code, said, _ = guarded.run()
+
+    assert code == 0, said
+    assert guarded.gh.calls == [GH, RULESET]
+    assert "ruleset 25665226 on JoshuaHayesWasHere/jstack matches" in said
+    assert told(guarded) == []
+
+
+def test_ci_day_ruleset_that_lacks_macos_tells_the_home_its_drift(guarded):
+    guarded.gh.ruleset = lacking_macos(guarded.gh.ruleset)
+
+    code, said, _ = guarded.run()
+
+    assert code == 0, said
+    (line,) = told(guarded)
+    assert "ruleset 25665226" in line and "drifted" in line
+    assert "required_status_checks" in line and "lacks macos of required-checks" in line
+
+
+def test_ci_day_ruleset_requiring_a_check_required_checks_does_not_name_is_drift(guarded):
+    (guarded.home / "required-checks").write_text("check\nborders\n")
+
+    guarded.run()
+
+    (line,) = told(guarded)
+    assert "requires macos, which required-checks does not name" in line
+    assert "rules differ" not in line
+
+
+@pytest.mark.parametrize(
+    ("code", "answer", "why"),
+    [(1, None, "gh: HTTP 502"), (0, {"message": "Not Found"}, "gh gave no rules")],
+)
+def test_ci_day_ruleset_gh_does_not_give_is_said_and_tells_nobody(guarded, code, answer, why):
+    guarded.gh.code, guarded.gh.ruleset = code, answer
+
+    ran, said, _ = guarded.run()
+
+    assert ran == 0, said
+    assert f"ruleset 25665226 not read: {why}" in said
+    assert told(guarded) == []
+
+
+def test_ci_day_ruleset_of_a_checkout_with_no_github_origin_is_said_and_never_asked(guarded):
+    guarded.kitchen.git("remote", "set-url", "origin", "/elsewhere/demo.git")
+
+    _, said, _ = guarded.run()
+
+    assert "ruleset 25665226 not read: the checkout has no GitHub origin" in said
+    assert guarded.gh.calls == []
+    assert told(guarded) == []
+
+
+def test_ci_day_ruleset_with_no_required_checks_file_is_held_to_jmerges_check_alone(guarded):
+    (guarded.home / "required-checks").unlink()
+
+    guarded.run()
+
+    (line,) = told(guarded)
+    assert "requires borders, macos, which required-checks does not name" in line
+
+
+PULL = "https://github.com/JoshuaHayesWasHere/jstack/pull/{}"
+
+
+def reviews(day):
+    """Five review launches on 11-04 and one on 11-02, of the fixture's pull requests:
+
+    - #1038 (`check` green at its newest head at 18:57:49Z): its first review at 18:40Z, two
+      runs of 5 and 2 minutes, before the green, and its scoped pass at 19:00Z, 5 minutes;
+    - #1041 (green at 19:09:28Z): one review at 19:10Z, 4 minutes;
+    - #1043 (green at 19:31:46Z): one review at 19:35Z, 2 minutes;
+    - a review of a slug whose brief names no pull request, and one of another T3 project;
+    - on 11-02, a review of a slug whose brief names #99999, which the ledger does not hold, and
+      one of a slug with no brief.
+    """
+    store = day.store()
+    us, them = day.project, "another-project"
+    review = "review: cicd-pstack-pins, 1"
+    store.run(review, "2026-11-04T18:40:00Z", "2026-11-04T18:45:00Z", 600_000, 6_000, us)
+    store.run(review, "2026-11-04T18:50:00Z", "2026-11-04T18:52:00Z", 400_000, 4_000, us)
+    scoped = "review: cicd-pstack-pins, scoped"
+    store.run(scoped, "2026-11-04T19:00:00Z", "2026-11-04T19:05:00Z", 500_000, 5_000, us)
+    pair = "review: cicd-macos-pair-reuse, 1"
+    store.run(pair, "2026-11-04T19:10:00Z", "2026-11-04T19:14:00Z", 300_000, 3_000, us)
+    health = "review: cicd-ci-health-numbers, 1"
+    store.run(health, "2026-11-04T19:35:00Z", "2026-11-04T19:37:00Z", 200_000, 2_000, us)
+    store.run("review: no-pull, 1", "2026-11-04T20:00:00Z", "2026-11-04T20:09:00Z", 9, 9, us)
+    store.run(pair, "2026-11-04T19:10:00Z", "2026-11-04T19:59:00Z", 9_000_000, 90_000, them)
+    gone = "review: gone-pull, 1"
+    store.run(gone, "2026-11-02T15:00:00Z", "2026-11-02T15:03:00Z", 2_000_000, 1_000, us)
+    unbriefed = "review: no-brief, 1"
+    store.run(unbriefed, "2026-11-02T16:00:00Z", "2026-11-02T16:01:00Z", 9, 9, us)
+    day.task("cicd-pstack-pins", PULL.format(1038), "none")
+    day.task("cicd-macos-pair-reuse", PULL.format(1041))
+    day.task("cicd-ci-health-numbers", PULL.format(1043))
+    day.task("no-pull", "none")
+    day.task("gone-pull", PULL.format(99999))
+
+
+def test_ci_day_gives_the_review_steps_launches_tokens_and_active_wall_per_pull_request(day):
+    """Per pull request, a day sums its launches: #1038's two are 1.5M input, 15k output and
+    12 minutes of runs, the 3 minutes between its first review's two turns not among them. The
+    p50 of the three pull requests is 300k, 3k and 4 min. The launch of a slug with no pull
+    request is a launch and no pull request's, and another project's is not counted."""
+    reviews(day)
+    found = by_day(day.run()[2])
+    column = {name: cells["11-04"] for name, cells in found.items()}
+    assert (column["review launches"], column["review launches n"]) == ("5", "3 PRs")
+    tokens = (column["review input tokens per PR p50"], column["review output tokens per PR p50"])
+    assert tokens == ("300k", "3k")
+    assert column["review input tokens per PR p50 n"] == "3 PRs"
+    wall = (column["review active wall per PR p50"], column["review active wall per PR p50 n"])
+    assert wall == ("4 min", "3 PRs")
+    assert (found["review launches"]["11-03"], found["review launches n"]["11-03"]) == (
+        "0",
+        "0 PRs",
+    )
+    assert found["review active wall per PR p50"]["11-03"] == "no data"
+
+
+def test_ci_day_counts_the_review_launches_before_check_passed_at_the_newest_head(day):
+    """Of the 4 launches on 11-04 joined to a pull request, only #1038's first came before
+    `check` was green at its newest head. On 11-02 the one launch's pull request has no `check`
+    in the ledger, so it is not counted either way, and a launch of a slug with no brief is a
+    launch alone."""
+    reviews(day)
+    found = by_day(day.run()[2])
+    before = "review launches before check"
+    assert (found[before]["11-04"], found[f"{before} n"]["11-04"]) == ("1", "4 launches")
+    assert (found["review launches"]["11-02"], found["review launches n"]["11-02"]) == (
+        "2",
+        "1 PRs",
+    )
+    assert found["review input tokens per PR p50"]["11-02"] == "2M"
+    assert (found[before]["11-02"], found[f"{before} n"]["11-02"]) == ("no data", "0 launches")
+
+
+def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_is_not_there(day):
+    code, said, text = day.run()
+    assert code == 0, said
+    assert f"T3 Code's store was not read: {spend.STORE} is not T3 Code's store" in text
+    assert set(by_day(text)["review launches"].values()) == {"no data"}
+    assert by_day(text)["red share"]["11-03"] == "62%"
+
+
+def test_ci_day_reads_the_review_numbers_as_no_data_when_t3_codes_store_cannot_be_read(day):
+    spend.STORE.parent.mkdir(parents=True, exist_ok=True)
+    spend.STORE.write_text("not a database")
+    code, said, text = day.run()
+    assert code == 0, said
+    assert f"T3 Code's store was not read: {spend.STORE} cannot be read: " in text
+    assert set(by_day(text)["review launches"].values()) == {"no data"}
