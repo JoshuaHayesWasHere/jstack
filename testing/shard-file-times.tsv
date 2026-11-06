@@ -366,7 +366,7 @@
 0.20	0.10	features/repo-guards/tests/test_module_size.py
 0.91	0.81	features/repo-guards/tests/test_names_resolve.py
 6.86	2.92	features/repo-guards/tests/test_new_lines_run.py
-95.00	0.10	features/repo-guards/tests/test_no_comments.py
+95.20	0.10	features/repo-guards/tests/test_no_comments.py
 0.20	0.10	features/repo-guards/tests/test_no_notes.py
 1.15	0.18	features/repo-guards/tests/test_one_way.py
 24.97	0.50	features/repo-guards/tests/test_playbook_wiring.py
@@ -409,7 +409,7 @@
 0.50	0.10	features/writing/tests/test_comment_lint.py
 3.80	0.10	features/writing/tests/test_prose_lint.py
 0.20	0.10	features/writing/tests/test_writing.py
-100.19	18.63	testing/tests/test_check_command.py
+87.89	18.63	testing/tests/test_check_command.py
 14.05	7.15	testing/tests/test_cross_cutting.py
 0.82	0.52	testing/tests/test_daemons.py
 0.70	0.10	testing/tests/test_hot_files.py
@@ -417,7 +417,8 @@
 1.81	0.69	testing/tests/test_jtrees_one_feature.py
 5.00	0.10	testing/tests/test_jtrees_schema.py
 0.20	0.10	testing/tests/test_loopback.py
-624.99	19.83	testing/tests/test_select_tests.py
-34.84	12.31	testing/tests/test_shards.py
+343.27	10.38	testing/tests/test_select_tests.py
+6.60	0.10	testing/tests/test_select_tests_rules.py
+34.94	12.31	testing/tests/test_shards.py
 0.49	0.39	testing/tests/test_test_plugins.py
 156.44	23.88	testing/tests/test_workflows.py
