@@ -8,7 +8,10 @@ The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/
 ## The start hook
 
 `features/home/hooks/home-start.sh` is a `SessionStart` hook.
-It does nothing outside T3 Code: a session T3 Code launches has `T3CODE_THREAD_ID` set to its thread's id.
+It does nothing outside T3 Code.
+A Claude session T3 Code launches has `T3CODE_THREAD_ID` set to its thread's id.
+A Codex session T3 Code launches runs in T3 Code's one shared `codex app-server`, which T3 Code starts with `CODEX_INTERNAL_ORIGINATOR_OVERRIDE` set to `T3 Code`, and Codex hands that variable to its hooks.
+A `codex` typed in a T3 Code terminal has neither, so it gets nothing from this hook.
 
 At every start of such a session (new, resumed, cleared, compacted or forked), it points the session's `TMPDIR` at the crew's scratch folder, `~/.cache/jstack/scratch/<repo>/<branch>`, when that folder is there, through `CLAUDE_ENV_FILE`.
 

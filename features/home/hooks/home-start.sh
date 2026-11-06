@@ -4,7 +4,7 @@ checkout=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)
 template=$checkout/templates/hook-message.md
 
 input=$(cat)
-[ -n "$T3CODE_THREAD_ID" ] || exit 0
+[ -n "$T3CODE_THREAD_ID" ] || [ "$CODEX_INTERNAL_ORIGINATOR_OVERRIDE" = "T3 Code" ] || exit 0
 
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
 [ -n "$cwd" ] && cd "$cwd" 2>/dev/null || exit 0
