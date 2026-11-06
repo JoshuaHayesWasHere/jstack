@@ -7,7 +7,8 @@ A streak is the failures in a row of one thing, under a key:
 - `home thread <project>` for a wake of the project's that its root home thread did not get, and
   `home thread <project> <thread>` for one another thread of its list did not get;
 - `blocking <project>` for a body of the project's that the second target did not take;
-- `jmerge <project>` for a `jmerge` that did not run;
+- `jmerge <project>` for a `jmerge` that did not run, or held the run lock past its timeout,
+  and not for one that found the lock held and did nothing (`jbus.merge`);
 - `snapshot` for a snapshot of the homes' state tree that did not finish;
 - `stale` for a look by `jbus alarm --stale` that found no pass ended within its limit;
 - `health <check>` for an incident `jbus.health` found;

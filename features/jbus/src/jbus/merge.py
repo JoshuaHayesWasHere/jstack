@@ -5,7 +5,8 @@ says, with no `--home`, so the run judges the pull requests of every home of the
 home's own run of `jmerge --home` merges nothing. Between passes the merge tick runs it too, a
 few seconds after a check ends (`tick`, `jbus.tick`). `jmerge` holds the repo's run lock for the
 whole of a run that may merge, so the pass, the tick and a hand run of the user's never run it
-together (`jmerge.lock`).
+together (`jmerge.lock`). The pass and the tick both run it with `--if-free`: a run that finds
+the lock held does nothing, and neither waits on another's run inside its own timeout.
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text, and `rebase` and `expedite` go by
@@ -43,9 +44,10 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
-from jmerge import ready
+from jmerge import lock, ready
 from jmerge.judgement import step
 from jmerge.lines import Line as Line
+from jsettings import proc
 
 if TYPE_CHECKING:
     from jbus.poll import Half
@@ -56,6 +58,9 @@ _NO_LIST = re.compile(
     r"(cannot be read|has a pattern that cannot be read)"
 )
 NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
+RUN = ("jmerge", "--if-free")
+"""The run of `jmerge` the pass and the tick make: with `--if-free`, a run that finds the run lock
+held does nothing and exits `lock.BUSY`, rather than wait inside `JMERGE_TIMEOUT`."""
 SWEEP = ("jmerge", "--sweep", "--check")
 UNRULED = re.compile(
     re.escape(ready.UNRULED_DROPS)
@@ -78,20 +83,29 @@ TOLD = (
 
 
 def merge(run: Pass) -> Said:
-    """Run `jmerge`, send each line it prints about a pull request, and return the lines.
+    """Run `jmerge --if-free`, send each line it prints about a pull request, and return the lines.
 
     Every line is a quiet event, including a `hold` line. `waiting` lists each hold that is
     the user's. The user learns of a hold when the hold joins that list: once for the pull request,
     not once for each head. `expedite` deals first with a hold that a crew can lift.
 
-    When `jmerge` does not run, that counts as a failure of the `jmerge` streak, and a run of
-    `jmerge` ends the streak. A run that stopped after printing a line also ends the streak, as such
-    a run always did, and the pass says that `jmerge` stopped. The `Said` that this function returns
-    is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did not reach.
+    A run of the tick's or one by hand may hold the run lock. With `--if-free` the pass's run then
+    does nothing and ends at once (`lock.BUSY`): it is no run, so it leaves the `jmerge` streak as
+    it was, and the next pass runs it again. Without it the pass would wait for the lock inside
+    `JMERGE_TIMEOUT` and count the other run's minutes as its own failure.
+
+    When `jmerge` does not run, or holds the run lock past `JMERGE_TIMEOUT`, that counts as a
+    failure of the `jmerge` streak, and a run of `jmerge` ends the streak. A run that stopped after
+    printing a line also ends the streak, as such a run always did, and the pass says that `jmerge`
+    stopped. The `Said` that this function returns is then `failed`, so jbus keeps what it knew of
+    the rows that `jmerge` did not reach, as it does for a busy run.
     """
-    ran = run.run("jmerge", timeout=JMERGE_TIMEOUT)
+    ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
     lines = _sent(run, ran)
     name, streak = run.project.name, alert.jmerge(run.project.name)
+    if ran.returncode == lock.BUSY:
+        run.say(f"wait {name}: jmerge is busy: another run holds its run lock")
+        return lines
     if not ran.returncode or lines:
         if lines.failed:
             run.say(f"wait {name}: jmerge stopped after {len(lines)} lines ({lines_of.said(ran)})")
@@ -101,10 +115,16 @@ def merge(run: Pass) -> Said:
         run.condition(name, NO_LIST, why, key=f"protected {run.day}")
     else:
         run.say(f"wait {name}: jmerge did not run ({why})")
-        alert.tell(
-            run, streak, alert.failed(run.config.state_dir, streak, why, now=run.now, user=run.user)
-        )
+        _failed(run, why)
     return lines
+
+
+def _failed(run: Pass, why: str) -> None:
+    """Count one failure of the project's `jmerge` streak, and raise its alert once it is due."""
+    streak = alert.jmerge(run.project.name)
+    alert.tell(
+        run, streak, alert.failed(run.config.state_dir, streak, why, now=run.now, user=run.user)
+    )
 
 
 def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
@@ -128,12 +148,17 @@ def tick(run: Pass) -> Said:
     """Run `jmerge` for the merge tick (`jbus.tick`), send its lines as `merge` does, and return
     them, `failed` where it did not run to its end.
 
-    It runs with `--if-free`, so a run of the pass's under way makes it do nothing, and it leaves
-    the `jmerge` streak alone: the tick runs every few seconds, and the pass's own run each
-    minute is what counts a `jmerge` that does not run. A run that did not end, busy or failed,
-    is the tick's to try again.
+    It runs with `--if-free`, as the pass does, so a run of the pass's under way makes it do
+    nothing. It leaves the `jmerge` streak alone for a run that ended, failed or not: the tick runs
+    every few seconds, and the pass's own run each minute is what counts a `jmerge` that does not
+    run. A run that held the run lock past `JMERGE_TIMEOUT` and was stopped is the one the tick
+    counts itself, since the pass, which does not wait on the lock, cannot see it. A run that did
+    not end, busy or failed, is the tick's to try again.
     """
-    return _sent(run, run.run("jmerge", "--if-free", timeout=JMERGE_TIMEOUT))
+    ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
+    if isinstance(ran, proc.TimedOut):
+        _failed(run, lines_of.said(ran))
+    return _sent(run, ran)
 
 
 def _shown(half: Half) -> None:

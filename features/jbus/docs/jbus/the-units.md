@@ -21,7 +21,7 @@ Each unit runs `~/.local/bin/jbus`.
 `jbus-merge.timer` merges a pull request within about 15 seconds of its last check ending, where the pass alone would take a minute or more.
 A tick asks GitHub nothing while the last pass saw no check going, and asks only with an ETag otherwise, which GitHub answers with a 304 that spends no API allowance until a workflow run ends.
 It runs `jmerge --if-free`, which does nothing while another run of `jmerge` is under way, since `jmerge` holds its run lock for the whole of a run that may merge.
-What a tick misses, the next pass does, since the pass runs `jmerge` as before.
+What a tick misses, the next pass does: the pass runs `jmerge --if-free` too, so a pass that finds a tick's run under way does nothing, and the next one with the lock free runs it.
 `jbus-merge.service` logs at `notice` and above (`LogLevelMax=notice`), so its start and end every 5 seconds stay out of the journal, and its own lines, which are `notice`, stay in.
 On macOS its agent runs every 5 seconds too (`StartInterval`).
 `jbus-stale.timer` catches a timer that stopped.
