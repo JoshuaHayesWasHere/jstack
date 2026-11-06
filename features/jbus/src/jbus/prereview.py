@@ -23,8 +23,8 @@ retry key: a pass that crashes after it launches no reviewer twice. A pass that 
 instance of the review pool capped launches nothing and marks nothing, and the next pass asks
 again.
 
-`tell` reads the same rows once each reviewer jbus launched has written its `## Review`
-(`review.reviewing`), and sends the crew one message under `prereviewed|<slug>|<head 12>`, the
+`tell` reads the same rows once each reviewer jbus launched has written a `## Review` that ran
+(`review.ran`), and sends the crew one message under `prereviewed|<slug>|<head 12>`, the
 head the sections reviewed: the review is in, with its findings by id, so the crew handles them
 and opens the pull request. It also marks the key of `threads.resume`'s own message that a Result
 owes its pull request (`owes-pull|<slug>|<thread>`), which this message takes the place of. Until
@@ -199,11 +199,13 @@ def launch(run: Pass, client: Client, world: World) -> None:
 
 def due(brief: str) -> tuple[str, tuple[str, ...], tuple[str, ...]] | None:
     """The head the review jbus launched saw, the `By:` lines of its sections and its findings
-    by id, once every reviewer jbus launched has written; None before then."""
-    if not review.launched(brief) or review.reviewing(brief):
+    by id, once every reviewer jbus launched has written a section that ran, as `jbus.reviewed`
+    reads them; None before then. A `Verdict: not run` section is no review: the row still
+    waits (`review.awaited`), and the clock asks its reviewer again."""
+    if not review.launched(brief) or review.launched(brief) > review.ran(brief):
         return None
     triage = findings.triage(brief)
-    ran = [one for one in triage.sections if one.head]
+    ran = [one for one in triage.sections if one.ran and one.head]
     head = ran[-1].head
     by = tuple(dict.fromkeys(one.by for one in ran if one.head == head and one.by))
     return head, by, tuple(findings.listed(triage))
