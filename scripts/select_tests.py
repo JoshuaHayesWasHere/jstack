@@ -118,8 +118,8 @@ the check's own environment leaves the step's list alone.
 `<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
 collects the selection with pytest, as `make test` does (`-m "not browser"`), in up to
 `COLLECTORS` processes at once, each a run of whole files (or, for `all`, of the `testpaths`
-folders), and deals out the test files, slowest first, each to the part that would end soonest
-so far
+folders), and deals out
+the test files, slowest first, each to the part that would end soonest so far
 (`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
 its slowest test, which no part ends before). So a part collects only its own files. A file
 whose tests sum past a part's share is cut by test into the fewest pieces that each fit a share,
