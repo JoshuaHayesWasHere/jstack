@@ -1,6 +1,7 @@
-"""`jbus line-wait` reads a home's `merge.log` and prints how long pull requests waited in jmerge's
-line on a day: the in-line PR-minutes, the merges, the PR-minutes per merge, and each time the head
-of the line had its check started again because another pull request merged past it.
+"""`jbus line-wait` (`jbus.linewait`) reads a home's `merge.log` and prints how long pull requests
+waited in jmerge's line on a day: the in-line PR-minutes, the merges, the PR-minutes per merge, and
+each time the head of the line had its check started again because another pull request merged
+past it.
 
 The tests write a `merge.log` into a home, run the verb as a user types it, and read what it
 prints. `merge-1032.log` is #1032's own lines of 2026-11-04 as jmerge logged them, with the
@@ -10,6 +11,8 @@ repo's URL put as example.com. The merge-queue-scout's parse gave it 82 in-line 
 
 import contextlib
 import io
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -121,3 +124,25 @@ def test_line_wait_clips_an_episode_to_the_window_and_ends_an_open_one_at_its_en
 
     assert said[1:3] == ["in-line PR-minutes: 100, over 2 pull requests", "merges: 0"]
     assert "PR-minutes per merge: none, no merge" in said
+
+
+def test_line_wait_ends_an_episode_where_github_says_the_pull_request_merged_by_hand(home):
+    """#9 merged by hand at 11:00, so jmerge logged no `merged` line for it; #10 was closed at
+    10:30. Their episodes end there and not at the end of the day."""
+    (home / "merge.log").write_text(in_line("10:00", 9, 1) + "\n" + in_line("10:00", 10, 1) + "\n")
+    state = home.parent.parent / "s" / "alpha"
+
+    def utc(clock):
+        return datetime.fromisoformat(f"2026-11-04 {clock}").astimezone(UTC)
+
+    (state / "ci-prs.jsonl").write_text(
+        json.dumps({"number": 9, "merged": f"{utc('11:00'):%Y-%m-%dT%H:%M:%SZ}", "closed": None})
+        + "\n"
+        + json.dumps({"number": 10, "merged": None, "closed": f"{utc('10:30'):%Y-%m-%dT%H:%M:%SZ}"})
+        + "\n"
+    )
+
+    said = line_wait()
+
+    assert "in-line PR-minutes: 90, over 2 pull requests" in said
+    assert "by pull request: #9 60, #10 30" in said
