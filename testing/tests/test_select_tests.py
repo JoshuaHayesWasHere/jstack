@@ -685,12 +685,28 @@ def test_the_guards_are_the_cross_cutting_the_catch_all_and_the_changed_tests(
     assert sorted(said[0] + said[1]) == repo.selected(head)
 
 
-def test_a_part_of_a_selection_of_every_test_is_every_test(repo):
-    head = repo.change(["pyproject.toml"])
+@pytest.mark.parametrize(
+    ("changed", "guards"),
+    [
+        (["pyproject.toml"], ["test_lone.py", "test_tree.py"]),
+        (
+            ["pyproject.toml", "testing/tests/test_beta.py"],
+            ["test_beta.py", "test_lone.py", "test_tree.py"],
+        ),
+    ],
+    ids=["a shared file", "a shared file and a test"],
+)
+def test_the_guards_of_a_selection_of_every_test_are_still_the_guards(tmp_path, changed, guards):
+    """A change that selects every test, as a deleted fixture or a change to select_tests.py
+    does, still gives the cross-cutting tests, the catch-all and the changed test files as its
+    guards, never `all`: the whole suite ran 9 to 10 min on jmerge's merged trees, past the
+    guards' 600 s, and held the merge line on 2026-11-05 (#1103, #1118). The rest is `all`."""
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+    head = repo.change(changed)
 
-    said = [repo.run("--part", part, repo.base, head).stdout for part in ("guards", "rest")]
-
-    assert said == ["all\n", "all\n"]
+    assert repo.selected(head) == ["all"]
+    said = [repo.run("--part", part, repo.base, head).stdout.split() for part in ("guards", "rest")]
+    assert said == [[f"testing/tests/{one}" for one in guards], ["all"]]
 
 
 TEE = """\
