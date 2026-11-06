@@ -898,7 +898,6 @@ def test_the_output_folder_model_keeps_every_rule_and_breaks_one_without_each_gu
         for ext in [".cfg", ".map.py"]:
             write(mutant / f"OutputFolder{ext}", model(ext))
         mutants.append((mutant, rule, story))
-    # The six runs share nothing, so they go at once: one after another they took most of a minute.
     with ThreadPoolExecutor(max_workers=1 + len(mutants)) as pool:
         r = pool.submit(node, "statechart", whole, tmp_path)
         broken = [
