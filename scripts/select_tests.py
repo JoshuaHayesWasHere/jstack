@@ -1308,6 +1308,16 @@ def everywhere(path):
     return True
 
 
+def forces(path, strict):
+    """Whether a changed path selects `all`: a path of `shared()`, or with `strict` one of
+    `EVERY_RUN`. Every path of `shared()` is of `EVERYTHING` or a module of the tests, so only
+    such a module needs the import graph to tell, and a change that forces `all` by
+    `EVERYTHING` reads no module."""
+    if strict:
+        return path in EVERY_RUN
+    return path in EVERYTHING or of_tests(path) and path.endswith(".py") and path in shared()
+
+
 def ruled(changed, follows=everywhere, cross=True, strict=False):
     """`(tests, why)`: the sorted test files the rules select for the changed paths, or
     `["all"]`, and for each cause the sorted files it selected, or the path that forced
@@ -1317,9 +1327,8 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     `all`: the rest of `shared()` reaches tests through its importers and names, as any path
     does."""
     ready()
-    forcing = shared() & set(EVERY_RUN) if strict else shared()
     for path in changed:
-        if path in forcing:
+        if forces(path, strict):
             return ["all"], {"forced-by": path}
     by_path = {path: name for name, path in modules().items()}
     found = {"imports": set(), "names": set(), "features": set()}

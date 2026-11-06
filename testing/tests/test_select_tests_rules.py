@@ -297,7 +297,7 @@ def test_every_python_file_under_features_selects_a_test():
 
 
 MUTANTS = {
-    "all": ("shared() & set(EVERY_RUN) if strict else shared()", "set()"),
+    "all": ("        if forces(path, strict):\n", "        if False:\n"),
     "plugin": (
         "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
         "return set(EVERYTHING)",
