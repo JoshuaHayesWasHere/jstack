@@ -44,6 +44,14 @@ def table(slots, used):
     )
 
 
+def blocks(filesystem, size, used):
+    """What `df -P` prints for a filesystem of `size` KiB with `used` KiB used."""
+    return (
+        "Filesystem     1024-blocks     Used Available Capacity Mounted on\n"
+        f"{filesystem} {size} {used} {size - used} {used * 100 // size}% /made/up\n"
+    )
+
+
 def put(path, text, mode=0o644):
     """Write the file whole. Write the text to a temporary file beside the target, then rename
     the temporary file into place over the target. A reader or an exec of the target then sees
@@ -57,9 +65,23 @@ def put(path, text, mode=0o644):
     part.replace(path)
 
 
-def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="0.00"):
+def machine(
+    where,
+    load,
+    cores,
+    memory,
+    pressure,
+    plan=FRESH,
+    slots=EMPTY,
+    cpu="0.00",
+    quota=None,
+    space=None,
+):
     """A machine made of files, as `room` reads one, and the environment that points `room`
-    there. A test can rewrite the machine's files while `room` reads them."""
+    there. A test can rewrite the machine's files while `room` reads them. `quota` is the
+    user's block quota on `$TMPFS` as quotactl gives it, `(hard limit in KiB, bytes used)`,
+    and with none the machine has no quota. `space` is what `df -P` says of `$TMPFS`, a
+    `(filesystem, KiB, KiB used)`, and with none `df -P` fails."""
     proc, stub, tmp = where / "proc", where / "stub", where / "stub" / "tmp"
     (proc / "pressure").mkdir(parents=True, exist_ok=True)
     tmp.mkdir(parents=True, exist_ok=True)
@@ -67,10 +89,20 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
         (tmp / "df").unlink(missing_ok=True)
     else:
         put(tmp / "df", slots if isinstance(slots, str) else table(*slots))
+    if space is None:
+        (tmp / "space").unlink(missing_ok=True)
+    else:
+        put(tmp / "space", blocks(*space))
     put(
         stub / "df",
-        '#!/bin/sh\n[ "$#" = 2 ] && [ "$1" = -Pi ] || exit 64\n'
-        'echo "$2" > "$(dirname "$0")/asked"\ncat "$2/df"\n',
+        '#!/bin/sh\n[ "$#" = 2 ] || exit 64\ncase $1 in\n'
+        '-Pi) echo "$2" > "$(dirname "$0")/asked"; cat "$2/df" ;;\n'
+        '-P) cat "$2/space" ;;\n*) exit 64 ;;\nesac\n',
+        0o755,
+    )
+    put(
+        stub / "python3",
+        "#!/bin/sh\nexit 1\n" if quota is None else f"#!/bin/sh\necho {quota[0]} {quota[1]}\n",
         0o755,
     )
     put(proc / "loadavg", f"{load} 1.10 0.90 2/2647 4039610\n")
@@ -100,6 +132,7 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
         "PROC": str(proc),
         "LIMITS": str(where / "limits"),
         "TMPFS": str(tmp),
+        "QUOTA": str(tmp),
         "PATH": f"{stub}:{BIN}:{os.environ['PATH']}",
         "XDG_CONFIG_HOME": str(where / "config"),
     }
@@ -281,10 +314,17 @@ def test_the_file_slots_are_those_of_tmp_unless_told_otherwise(tmp_path):
     assert (tmp_path / "stub" / "asked").read_text() == "/tmp\n"
 
 
-def test_the_file_slots_are_read_from_the_df_of_the_machine_it_runs_on(tmp_path):
+def test_the_file_slots_and_the_bytes_are_read_from_the_machine_it_runs_on(tmp_path):
     env = {**machine(tmp_path, **IDLE), "TMPFS": str(tmp_path)}
+    del env["QUOTA"]
     (tmp_path / "stub" / "df").unlink()
-    assert re.fullmatch(rf"go|wait: {tmp_path} has \d+ of \d+ file slots used, over 85%", says(env))
+    (tmp_path / "stub" / "python3").unlink()
+    assert re.fullmatch(
+        rf"go|wait: {tmp_path} has (\d+ of \d+ file slots used, over 85%"
+        r"|[\d.]+ (of your [\d.]+ GB quota|GB used of [\d.]+ GB, 80% of its size)"
+        r" used, at or over 70%)",
+        says(env),
+    )
 
 
 def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path):
@@ -294,6 +334,49 @@ def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path)
         "wait: memory pressure "
     )
     assert says(machine(tmp_path, **IDLE, **full)).endswith(" file slots used, over 85%")
+
+
+QUOTA_KIB = 26070960
+"""yelena's block quota on /tmp, 2026-11-05: 80% of its 32588700 KiB tmpfs, which pam_systemd
+sets at login."""
+SEVENTY = QUOTA_KIB * 70 // 100
+OVER_QUOTA = "wait: {} has 17.4 of your 24.9 GB quota used, at or over 70%"
+OVER_SIZE = "wait: {} has 17.4 GB used of 24.9 GB, 80% of its size, at or over 70%"
+
+
+@pytest.mark.parametrize(
+    ("quota", "space", "said"),
+    [
+        ((QUOTA_KIB, SEVENTY * 1024), None, OVER_QUOTA),
+        (
+            (QUOTA_KIB, QUOTA_KIB * 1024),
+            None,
+            "wait: {} has 24.9 of your 24.9 GB quota used, at or over 70%",
+        ),
+        ((QUOTA_KIB, SEVENTY * 1024 - 1), None, "go"),
+        ((QUOTA_KIB, SEVENTY * 1024), ("tmpfs", 32588700, 100), OVER_QUOTA),
+        ((QUOTA_KIB, 1024), ("tmpfs", 32588700, 32588600), "go"),
+        (None, ("tmpfs", 32588700, SEVENTY), OVER_SIZE),
+        (None, ("tmpfs", 32588700, SEVENTY - 1), "go"),
+        (None, ("/dev/nvme0n1p2", 32588700, 32588600), "go"),
+        (None, None, "go"),
+    ],
+)
+def test_tmp_at_70_percent_of_the_users_quota_waits_and_says_how_full(tmp_path, quota, space, said):
+    """/tmp filled the user's block quota on 2026-11-04 and 2026-11-05, and every command of
+    every agent failed with EDQUOT while room still said go. Room waits at 70% of the quota,
+    else at 70% of the 80% of a tmpfs that pam_systemd makes the quota."""
+    env = machine(tmp_path, **IDLE, quota=quota, space=space)
+    assert says(env) == said.format(env["TMPFS"])
+
+
+def test_the_bytes_are_named_after_the_file_slots_and_before_the_plan(tmp_path):
+    spent = {"five_hour": ("95", HOUR), "seven_day": ("95", HOUR)}
+    full = {"plan": spent, "quota": (QUOTA_KIB, QUOTA_KIB * 1024)}
+    assert says(machine(tmp_path, **IDLE, **full, slots=(1000, 1000))).endswith(
+        " file slots used, over 85%"
+    )
+    assert says(machine(tmp_path, **IDLE, **full)).endswith(" quota used, at or over 70%")
 
 
 @pytest.mark.parametrize("window", WINDOWS)

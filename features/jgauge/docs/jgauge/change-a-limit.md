@@ -71,6 +71,7 @@ On macOS, `jgauge room` reads only the load and the memory available, since macO
 | Memory available | Under 6 GB (`MEMORY=6`) |
 | Memory pressure, `some avg60` | At or over 10 (`PRESSURE=10`) |
 | File slots of `/tmp` used | Over 85% (`SLOTS=85`) |
+| Bytes of `/tmp` used, against your block quota there (quotactl), else 80% of a tmpfs | At or over 70% (`BYTES=70`) |
 
 They are in `features/jgauge/src/jgauge/room.sh`, the only implementation of the room check.
 `jgauge test-slot` stops a command in the short lane after 120 seconds (`SHORT_LIMIT_SECONDS`).

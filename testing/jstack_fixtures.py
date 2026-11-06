@@ -140,11 +140,13 @@ def no_machine_state(tmp_path_factory, monkeypatch):
 def no_sweep_of_tmp():
     """Point `TMPFS` at an empty directory of the run's own on `/tmp`, so the sweep that each
     `jgauge test-slot` runs as it lets its slot go never removes the machine's pytest runs, and
-    room still counts the file slots of `/tmp`. A test that needs its own `TMPFS` sets the
-    variable again itself."""
+    room still counts the file slots of `/tmp`. Point `QUOTA` at this checkout, on disk, so room
+    never holds a test's launch on the desk's /tmp quota, which a full run's own scratch fills.
+    A test that needs its own `TMPFS` or `QUOTA` sets the variable again itself."""
     own = tempfile.mkdtemp(prefix="jstack-tmpfs-", dir="/tmp")
     with pytest.MonkeyPatch.context() as run:
         run.setenv("TMPFS", own)
+        run.setenv("QUOTA", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         yield
     shutil.rmtree(own, ignore_errors=True)
 
