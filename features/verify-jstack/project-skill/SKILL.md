@@ -230,4 +230,4 @@ Each ends `e2e: ok` and prints the same lines on a rerun.
 When jstack changes, the feature files are what go stale first.
 `/maintain-verification-skill` finds this skill through `skills.json`, where `projectSkills` names it, but it reads a feature map only from the skill's own `features/` folder, which this skill does not have: on jstack it stops at `no feature map`.
 
-Each feature file also has a `Paths:` list, the paths it owns, and a `Tests:` list, the tests that read it in a way no import shows, and the map a `Cross-cutting:` list, each one entry per line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `testing/tests/test_select_tests.py` fails on a path the map leaves out.
+Each feature file also has a `Paths:` list, the paths it owns, and a `Tests:` list, the tests that read it in a way no import shows, and the map a `Cross-cutting:` list, each one entry per line: `scripts/select_tests.py <base> <head>` reads them, with the imports of the tree, to name the tests a diff needs, and `testing/tests/test_select_tests_rules.py` fails on a path the map leaves out.
