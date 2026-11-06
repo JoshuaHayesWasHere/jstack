@@ -47,7 +47,9 @@ jobs:
   # time the lookup takes. A stacked link's move onto main checks the pair its stacked run passed
   # where the move replays the same trees, so the move adds no round of the suite in series. The
   # lookup is plain python on the runner, with `gh` and the run's token (`actions: read`), before
-  # any `uv sync`.
+  # any `uv sync`. Where it reuses nothing, the same job selects the tests the change needs and
+  # deals their files out to the eight parts (`select`), so the parts start once this one job
+  # ends: a job of its own for that, after this one, held the parts back about 40 s more.
   reuse:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
@@ -57,6 +59,18 @@ jobs:
       reused: ${{ steps.reuse.outputs.reused }}
       failed: ${{ steps.failed.outputs.tests }}
       lookup: ${{ steps.failed.outcome }}
+      selection: ${{ steps.select.outputs.selection }}
+      files: ${{ steps.select.outputs.files }}
+      forced_by: ${{ steps.select.outputs.forced_by }}
+      tree: ${{ steps.tree.outputs.name }}
+      part1: ${{ steps.select.outputs.part1 }}
+      part2: ${{ steps.select.outputs.part2 }}
+      part3: ${{ steps.select.outputs.part3 }}
+      part4: ${{ steps.select.outputs.part4 }}
+      part5: ${{ steps.select.outputs.part5 }}
+      part6: ${{ steps.select.outputs.part6 }}
+      part7: ${{ steps.select.outputs.part7 }}
+      part8: ${{ steps.select.outputs.part8 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,45 +103,70 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: 'tests=$(python3 scripts/select_tests.py --failed-on-main 30 ~/.cache/jstack/failed-on-main.json) && echo "tests=$(echo $tests)" >> "$GITHUB_OUTPUT"'
+      # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
+      - name: green tree
+        id: tree
+        if: steps.reuse.outputs.reused != 'true'
+        run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      # What select_tests.py read of each module (`KEPT`), kept from a run before, so it parses
+      # again only the modules whose text changed: a cold run parsed every module, about 2 s of
+      # the step on a desk. A run restores the latest entry of the same selector and saves its
+      # own when the job passes. The key hashes the selector, so a changed script never starts
+      # from an entry an older one wrote, and the script itself drops a file whose salt is not
+      # its own.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.reuse.outputs.reused != 'true'
+        with:
+          path: .git/select_tests.facts
+          key: select-facts-${{ hashFiles('scripts/select_tests.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: select-facts-${{ hashFiles('scripts/select_tests.py') }}-
+      # scripts/select_tests.py adds its selection and its parts to the job summary, and gives
+      # this step the outputs `part1` to `part8` and `selection`: `all` where it selected the
+      # whole suite, which it does only for a change the whole suite rests on, however many test
+      # files a selection holds. It adds the tests that failed on main (the step above), and the
+      # summary names those it added. A selection of no test file fails here. It also gives
+      # `files`, `all` or how many test files it selected, and `forced_by`, the path that made it
+      # `all`, and writes the selection's list to `SELECTED` and the summary: each file it
+      # selected, the causes that selected it and the part that runs it. It collects nothing and
+      # needs no pytest, so it runs in the runner's python3 before any `uv sync`.
+      - name: select
+        id: select
+        if: steps.reuse.outputs.reused != 'true'
+        env:
+          FAILED_ON_MAIN: ${{ steps.failed.outputs.tests }}
+          SELECTED: ${{ runner.temp }}/selected-tests.txt
+        run: python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD
+      # The test files the check selected, one a line with why and its part, kept for each
+      # attempt, also where the selection failed. A list that cannot be kept costs that lookup
+      # and nothing else.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: "!cancelled() && steps.reuse.outputs.reused != 'true'"
+        continue-on-error: true
+        with:
+          name: selected-tests-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/selected-tests.txt
+          retention-days: 30
+          if-no-files-found: error
       # A pull request whose title, body or any commit from base to head credits an AI tool as a
       # co-author fails here, with each line named. It runs on every run, a reuse included: the
       # two trees fix the files, and not the title, the body or a commit's message, which a push
       # that keeps the trees can still change. It reads no test, so it runs here, once, and
       # `check` fails when this job did. The commits come from GitHub's compare API, not this
-      # checkout's two commits of history, and the patterns need only the runner's python3.
+      # checkout's two commits of history, and the patterns need only the runner's python3. It
+      # runs also where the selection failed, so a red check names both.
       - name: no AI co-author trailer
+        if: "!cancelled()"
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: PYTHONPATH=features/jmerge/src:features/jleak/src python3 scripts/no_ai_trailers.py
-  # A pull request's check is the fast one: the lint, and the tests its change reaches. On
-  # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
-  # commits of history are enough and the diff is read from the local git, with no cap on
-  # its files. A change the whole suite rests on runs all of it, but for the tests that open a
-  # real browser, which browser.yml runs. This job selects the tests once, collects them once and
-  # deals their files out to the eight parts by time (`select_tests.py --parts`), and runs the
-  # lint, which reads no test, once: each part ran the selection and the collection of the whole
-  # selection itself, about 38 s of each part's p50 374 s. It gives each part its files as the
-  # output `part<n>`, and `selection` and the tree for `check`'s marker.
-  select:
-    needs: reuse
-    # A lookup that failed reuses nothing, so the check runs: `!cancelled()` and not the implicit
-    # `success()`, which would skip it and fail `check`.
-    if: "!cancelled() && github.event_name == 'pull_request' && needs.reuse.outputs.reused != 'true'"
+  # The lint reads no test and needs no selection, so it is a job of its own that starts with
+  # `reuse` and ends before the parts start: it holds back no part, and it is never one of a
+  # head's jobs at once with them. It runs on a reuse too, where it passes on the same trees.
+  # `check` fails when it did.
+  lint:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    outputs:
-      selection: ${{ steps.select.outputs.selection }}
-      files: ${{ steps.select.outputs.files }}
-      forced_by: ${{ steps.select.outputs.forced_by }}
-      tree: ${{ steps.tree.outputs.name }}
-      part1: ${{ steps.select.outputs.part1 }}
-      part2: ${{ steps.select.outputs.part2 }}
-      part3: ${{ steps.select.outputs.part3 }}
-      part4: ${{ steps.select.outputs.part4 }}
-      part5: ${{ steps.select.outputs.part5 }}
-      part6: ${{ steps.select.outputs.part6 }}
-      part7: ${{ steps.select.outputs.part7 }}
-      part8: ${{ steps.select.outputs.part8 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -138,62 +177,20 @@ jobs:
           version: ${{ env.UV_VERSION }}
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
-      # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
-      - name: green tree
-        id: tree
-        run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
-      # What select_tests.py read of each module (`KEPT`), kept from a run before, so it parses
-      # again only the modules whose text changed: a cold run parsed every module, about 2 s of
-      # the step on a desk. A run restores the latest entry of the same selector and saves its
-      # own when the job passes. The key hashes the selector, so a changed script never starts
-      # from an entry an older one wrote, and the script itself drops a file whose salt is not
-      # its own.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .git/select_tests.facts
-          key: select-facts-${{ hashFiles('scripts/select_tests.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: select-facts-${{ hashFiles('scripts/select_tests.py') }}-
-      # scripts/select_tests.py adds its selection and its parts to the job summary, and gives
-      # this step the outputs `part1` to `part8` and `selection`: `all` where it selected the
-      # whole suite, which it does only for a change the whole suite rests on, however many test
-      # files a selection holds. It adds the tests that failed on main (`reuse`), and the summary
-      # names those it added. A selection that collects no test fails here. It also gives
-      # `files`, `all` or how many test files it selected, and `forced_by`, the path that made it
-      # `all`, and writes the selection's list to `SELECTED` and the summary: each file it
-      # selected, the causes that selected it and the part that runs it.
-      - name: select
-        id: select
-        env:
-          FAILED_ON_MAIN: ${{ needs.reuse.outputs.failed }}
-          SELECTED: ${{ runner.temp }}/selected-tests.txt
-        run: uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD
-      # After the selection, so that a lint that fails still hands the parts their tests, and a
-      # red check names every failing test as well as the lint. `check` fails when this job did.
       - name: prose lint
         run: python3 features/writing/scripts/prose_lint.py HEAD^1
       - name: make lint
         run: make lint BASE=HEAD^1
-      # The test files the check selected, one a line with why and its part, kept for each
-      # attempt whether the lint passed or failed. A list that cannot be kept costs that lookup
-      # and nothing else.
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: "!cancelled()"
-        continue-on-error: true
-        with:
-          name: selected-tests-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/selected-tests.txt
-          retention-days: 30
-          if-no-files-found: error
-  # The tests run as eight jobs side by side, each with the files `select` dealt it, and the job
+  # The tests run as eight jobs side by side, each with the files `reuse` dealt it, and the job
   # `check` below passes only when all eight did. Eight, not four, halves the check's wall: a
   # part took p50 7.2 min of four on 2026-10-28..11-02. The account runs at most 40 hosted jobs
-  # at once (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): `select` ends
-  # before the parts start, so a head's eight parts, borders and macos are ten jobs at once, and
-  # four heads run at once and a fifth queues.
+  # at once (no more than 40 ran in ci.jsonl since 10-14, and jobs queued there): `reuse` and
+  # `lint` end before the parts start, so a head's eight parts, borders and macos are ten jobs at
+  # once, and four heads run at once and a fifth queues.
   check-shard:
-    needs: [reuse, select]
-    # A part runs whatever `select` did, so that a lint that failed there still runs the tests,
-    # and a part that got no files fails on its first step.
+    needs: reuse
+    # A part runs whatever `reuse` did, so that a trailer that failed there still runs the
+    # tests, and a part that got no files fails on its first step.
     if: "!cancelled() && github.event_name == 'pull_request' && needs.reuse.outputs.reused != 'true'"
     name: check ${{ matrix.shard }} of 8
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
@@ -212,12 +209,12 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       # The part's files, or `none` where the selection left this part empty, which passes. A
-      # part that got nothing, as when `select` failed before its outputs, fails: with no files
-      # `make test` would run the whole suite.
+      # part that got nothing, as when the selection failed before its outputs, fails: with no
+      # files `make test` would run the whole suite.
       - name: part
         env:
-          PART: ${{ needs.select.outputs[format('part{0}', matrix.shard)] }}
-        run: '[ -n "$PART" ] || { echo "::error::this part got no selection from the job select"; exit 1; }'
+          PART: ${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}
+        run: '[ -n "$PART" ] || { echo "::error::this part got no selection from the job reuse"; exit 1; }'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -252,7 +249,7 @@ jobs:
       - name: make test
         id: suite
         env:
-          PART: ${{ needs.select.outputs[format('part{0}', matrix.shard)] }}
+          PART: ${{ needs.reuse.outputs[format('part{0}', matrix.shard)] }}
         run: '[ "$PART" = none ] || make test TESTS="$PART"'
       # After the suite, passed or failed, since a kept run is one TLC finished: a part whose
       # cache now holds runs it did not restore saves them, under the key it restored with (the
@@ -282,36 +279,37 @@ jobs:
         if: "!cancelled() && steps.suite.outcome != 'skipped'"
         continue-on-error: true
         env:
-          FULL: ${{ needs.select.outputs.selection == 'all' }}
-          NAME: ${{ needs.select.outputs.tree }}
-          FILES: ${{ needs.select.outputs.files }}
-          FORCED: ${{ needs.select.outputs.forced_by }}
+          FULL: ${{ needs.reuse.outputs.selection == 'all' }}
+          NAME: ${{ needs.reuse.outputs.tree }}
+          FILES: ${{ needs.reuse.outputs.files }}
+          FORCED: ${{ needs.reuse.outputs.forced_by }}
         run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && INODES=$(df --output=ipcent /tmp | tail -n 1 | tr -dc 0-9) && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}" ${FILES:+selection="$FILES"} ${FORCED:+reason="$FORCED"} ${INODES:+tmp_inode_pct="$INODES"}'
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
-  # whatever the parts did, and passes only when `select` and all eight parts passed: a job that
-  # failed, was cancelled or never ran fails it, where a skipped required check would count as
-  # passed.
+  # whatever the parts did, and passes only when `reuse`, `lint` and all eight parts passed: a
+  # job that failed, was cancelled or never ran fails it, where a skipped required check would
+  # count as passed.
   check:
     if: always() && github.event_name == 'pull_request'
-    needs: [reuse, select, check-shard]
+    needs: [reuse, lint, check-shard]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      # `select` and the parts are skipped only on a reuse, and then it passes on the pass it
-      # reuses. The `reuse` job, which runs the trailer check, passed in either case.
+      # The parts are skipped only on a reuse, and then it passes on the pass it reuses. The
+      # `reuse` job, which runs the selection and the trailer check, and `lint` passed in either
+      # case.
       - name: every part passed
         env:
           PARTS: ${{ needs.check-shard.result }}
-          SELECT: ${{ needs.select.result }}
+          LINT: ${{ needs.lint.result }}
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reused }}
-        run: '[ "$REUSE" = success ] && { [ "$REUSED" = true ] || [ "$SELECT $PARTS" = "success success" ]; } || { echo "::error::the reuse job ended $REUSE, the select job $SELECT, and the parts of the check $PARTS, not success"; exit 1; }'
+        run: '[ "$REUSE $LINT" = "success success" ] && { [ "$REUSED" = true ] || [ "$PARTS" = success ]; } || { echo "::error::the reuse job ended $REUSE, the lint $LINT, and the parts of the check $PARTS, not success"; exit 1; }'
       # The pass of the two trees, for a later run of them to reuse (`reuse`). A reuse leaves
       # none: the run it reused left one. One that cannot be kept costs that reuse and nothing
       # else.
       - name: checked trees marker
         id: checked
-        if: needs.check-shard.result == 'success' && needs.select.result == 'success' && needs.reuse.outputs.name != ''
+        if: needs.check-shard.result == 'success' && needs.lint.result == 'success' && needs.reuse.result == 'success' && needs.reuse.outputs.name != ''
         env:
           NAME: ${{ needs.reuse.outputs.name }}
         run: mkdir -p "$RUNNER_TEMP/checked-tree" && touch "$RUNNER_TEMP/checked-tree/$NAME"
@@ -333,25 +331,26 @@ jobs:
       # cannot be kept costs that skip and nothing else.
       - name: green tree marker
         id: marker
-        if: needs.check-shard.result == 'success' && needs.select.result == 'success' && needs.select.outputs.selection == 'all'
+        if: needs.check-shard.result == 'success' && needs.lint.result == 'success' && needs.reuse.result == 'success' && needs.reuse.outputs.selection == 'all'
         env:
-          NAME: ${{ needs.select.outputs.tree }}
+          NAME: ${{ needs.reuse.outputs.tree }}
         run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: upload
         if: steps.marker.outcome == 'success'
         continue-on-error: true
         with:
-          name: ${{ needs.select.outputs.tree }}
-          path: ${{ runner.temp }}/green-tree/${{ needs.select.outputs.tree }}
+          name: ${{ needs.reuse.outputs.tree }}
+          path: ${{ runner.temp }}/green-tree/${{ needs.reuse.outputs.tree }}
           retention-days: 7
           if-no-files-found: error
   # The facts `select` restores, built on main's tree and saved under the same key: a cache
   # saved on a pull request's ref is seen by that pull request only, and one saved on main by
   # every pull request, so a pull request's first run starts from main's facts and parses only
   # the modules it changed. A job of its own, beside the parts, so that it saves within a minute
-  # of the push and a failure here never fails `full`. It runs the selector's Python, after
-  # `uv sync`, since the facts are kept under a salt that holds the Python's version.
+  # of the push and a failure here never fails `full`. It runs the selector's Python, the
+  # runner's python3 as `reuse` does, since the facts are kept under a salt that holds the
+  # Python's version.
   select-facts:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
@@ -360,10 +359,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          version: ${{ env.UV_VERSION }}
-      - run: uv sync --locked
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .git/select_tests.facts
@@ -371,7 +366,7 @@ jobs:
           restore-keys: select-facts-${{ hashFiles('scripts/select_tests.py') }}-
       # Only the facts, not a selection: a selection would write its list into the run's summary.
       - name: facts
-        run: uv run python3 -c 'import sys; sys.path[0] = "scripts"; import select_tests; select_tests.facts()'
+        run: python3 -c 'import sys; sys.path[0] = "scripts"; import select_tests; select_tests.facts()'
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
   # real browser are not in it: browser.yml runs them, nightly and on a release. It runs as
   # four jobs side by side, split by time as the check's eight are, and the job `full` below
