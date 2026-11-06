@@ -448,11 +448,25 @@ def checking(node):
     return isinstance(node, ast.If) and ast.unparse(node.test) in CHECKING
 
 
+def walk(node):
+    """The nodes of a tree, in the order `ast.walk` gives them, as a list: about twice as quick
+    as `ast.walk`, which the script calls for each module and for each of its functions."""
+    found = [node]
+    for one in found:
+        for field in one._fields:
+            value = getattr(one, field, None)
+            if isinstance(value, ast.AST):
+                found.append(value)
+            elif isinstance(value, list):
+                found += [item for item in value if isinstance(item, ast.AST)]
+    return found
+
+
 def named(node):
     """The names a node and the nodes in it name: `f` of `f()`, of `x.f` and of `partial(f)`."""
     return {
         getattr(one, "attr", getattr(one, "id", ""))
-        for one in ast.walk(node)
+        for one in walk(node)
         if isinstance(one, (ast.Name, ast.Attribute))
     }
 
@@ -470,7 +484,7 @@ def at_import(tree):
             todo += ast.iter_child_nodes(node)
 
 
-def by_name(tree):
+def by_name(tree, nodes):
     """`(on import, holders, targets)`: whether the module imports by name when it is imported,
     the names that import by name when what they hold runs, and the modules its calls name in a
     string, as `import_module("a.b")` does.
@@ -480,16 +494,15 @@ def by_name(tree):
     holder too: whoever reads the registry `VERBS = (Verb(..., f),)` may call `f`. The module
     imports by name on import when it calls a holder then, or decorates with one. A holder that is
     a method, or that a decorator may register, is called where no import names it, so the module
-    counts as importing by name on import then too."""
-    functions = [
-        node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    ]
+    counts as importing by name on import then too. `nodes` are the tree's, as `ast.walk`
+    gives them."""
+    functions = [node for node in nodes if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
     holds = {}
     for one in functions:
         holds.setdefault(one.name, set()).update(named(one) - {one.name})
     records = {
         node.name
-        for node in ast.walk(tree)
+        for node in nodes
         if isinstance(node, ast.ClassDef)
         and "dataclass" in set().union(*map(named, node.decorator_list))
     }
@@ -513,14 +526,14 @@ def by_name(tree):
         holders |= more
     methods = {
         one.name
-        for node in ast.walk(tree)
+        for node in nodes
         if isinstance(node, ast.ClassDef)
         for one in node.body
         if isinstance(one, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
     targets = {
         node.args[0].value
-        for node in ast.walk(tree)
+        for node in nodes
         if isinstance(node, ast.Call) and named(node.func) & BY_NAME and node.args
         if isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)
     }
@@ -528,12 +541,13 @@ def by_name(tree):
     return on_import, frozenset(holders), frozenset(targets)
 
 
-def bound(tree):
+def bound(nodes):
     """Each name the module's imports bind, with the dotted name it is bound to: `a` for
     `import a.b`, `a.b` for `import a.b as b` and for `from a import b`. A star import binds
-    names this script does not read, so `from a import *` is kept as `*a`, bound to `a`."""
+    names this script does not read, so `from a import *` is kept as `*a`, bound to `a`. `nodes`
+    are a tree's, as `ast.walk` gives them."""
     found = {}
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 found[alias.asname or alias.name.split(".")[0]] = (
@@ -574,24 +588,25 @@ def read(tree):
     chain, and not as a path of its own: the `jbus` of `home / ".config" / "jbus"` is a folder,
     not the package run in a process."""
     names, words, args, paths, calls = set(), set(), set(), set(), set()
+    nodes = walk(tree)
     checked = {
         id(one)
-        for node in ast.walk(tree)
+        for node in nodes
         if checking(node)
         for part in node.body
-        for one in ast.walk(part)
+        for one in walk(part)
     }
     chains = [
         node
-        for node in ast.walk(tree)
+        for node in nodes
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)
     ]
     folders = {id(node.left) for node in chains} | {
         id(node.right) for node in chains if folder(spelled(node)[-2:-1])
     }
-    imports = bound(tree)
+    imports = bound(nodes)
     stars = [module for local, module in imports.items() if local.startswith("*")]
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, ast.Import) and id(node) not in checked:
             names |= {alias.name for alias in node.names}
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
@@ -611,7 +626,7 @@ def read(tree):
             args.add(node.arg)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             paths.add(tuple(spelled(node)))
-    return names, words, by_name(tree), args, paths, declared(tree), frozenset(calls), imports
+    return names, words, by_name(tree, nodes), args, paths, declared(tree), frozenset(calls), imports
 
 
 def parents(name):
@@ -775,10 +790,11 @@ def members(name):
     calls something. A docstring is no code, and a string that is a part of a chain of `/`, as
     the `"home"` of `state / "home"`, is a folder and names no skill."""
     tree = parsed(name)
-    imports = bound(tree)
+    nodes = walk(tree)
+    imports = bound(nodes)
     stars = [module for local, module in imports.items() if local.startswith("*")]
     unread = set()
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             if node.body and isinstance(node.body[0], ast.Expr):
                 unread.add(id(node.body[0].value))
@@ -789,7 +805,7 @@ def members(name):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
         words, dots, loaded, own, calls = set(), set(), set(), set(), False
-        for one in ast.walk(node):
+        for one in walk(node):
             if isinstance(one, ast.Constant) and isinstance(one.value, str):
                 if id(one) not in unread:
                     words |= {one.value, *WORDS.split(one.value)} & skills().keys()
@@ -1003,7 +1019,7 @@ def users(path):
 def modules_named(tree):
     """The tests' own modules that a tree's imports name, by the name each is bound to."""
     bound = {}
-    for node in ast.walk(tree):
+    for node in walk(tree):
         if isinstance(node, ast.Import):
             bound |= {(a.asname or a.name).split(".")[0]: a.name for a in node.names}
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
@@ -1024,7 +1040,7 @@ def used(node, bound):
     """The modules that a node uses, from `bound`, which maps each name to the module it is
     bound to."""
     return {
-        bound[one.id] for one in ast.walk(node) if isinstance(one, ast.Name) and one.id in bound
+        bound[one.id] for one in walk(node) if isinstance(one, ast.Name) and one.id in bound
     }
 
 
