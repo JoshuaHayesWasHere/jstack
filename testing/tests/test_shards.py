@@ -49,22 +49,20 @@ def test_the_parts_hold_each_selected_test_once_and_miss_none(selected):
     assert len(whole) > PARTS and all(parts)
 
 
-def test_the_whole_suite_s_parts_end_together_but_the_flow_spec_test_s_which_is_its_alone():
-    """Time, not count: the merge flow's TLC test, at its cold time, runs longer than the others'
-    share of a part over its workers, so its part holds it alone, and the other parts of the
-    whole suite, by the table's seconds, are no further apart than their slowest test."""
+def test_the_whole_suite_s_parts_end_together():
+    """Time, not count: the parts of the whole suite, by the table's seconds, are no further apart
+    than their slowest test, and the merge flow's TLC test, at the warm time CI runs it at, shares
+    its part."""
     whole, *parts = listed(
         ["-m", "not browser"],
         *(["-m", "not browser", f"--shard={k}/{PARTS}"] for k in range(1, PARTS + 1)),
     )
     times = read_times(TIMES)
     assert sum(key(test) in times for test in whole) > len(whole) / 3
-    assert [FLOW] in parts
-    rest = [part for part in parts if part != [FLOW]]
-    each = [sum(seconds(times, test) for test in part) for part in rest]
-    assert max(each) - min(each) <= max(seconds(times, test) for part in rest for test in part)
-    assert max(each) - min(each) < sum(each) / len(rest) / 20
-    assert max(each) / WORKERS < seconds(times, FLOW)
+    assert [FLOW] not in parts
+    each = [sum(seconds(times, test) for test in part) for part in parts]
+    assert max(each) - min(each) <= max(seconds(times, test) for part in parts for test in part)
+    assert max(each) - min(each) < sum(each) / len(parts) / 20
 
 
 def test_a_test_that_outlasts_the_others_share_has_a_part_alone_and_one_that_does_not_has_company():
@@ -99,17 +97,15 @@ FLOW = (
 )
 
 
-def test_the_flow_spec_test_counts_its_cold_time_and_not_the_floor():
+def test_the_flow_spec_test_counts_its_warm_time():
     """The merge flow's TLC test takes minutes when TLC runs (524 to 899 s in CI on 2026-11-03)
-    and well under a second where its cache holds the runs, as on a machine that recorded the
-    table. The table holds its cold time, so the split weighs it as the slowest test there is
-    and never deals it out as a test of `FLOOR`; a record that ran it warm and dropped the row
-    fails here."""
+    and a second or two where its cache holds the runs, as every part of the check restores
+    main's. The table holds its warm time, which CI's full runs on main record, so the split does
+    not give it a part of its own that ends minutes before the others; a table recorded with TLC
+    run cold fails here."""
     (whole,) = listed([FLOW.partition("::")[0]])
     assert FLOW in whole
-    times = read_times(TIMES)
-    assert seconds(times, FLOW) >= 500
-    assert seconds(times, FLOW) == max(times.values())
+    assert FLOOR < seconds(read_times(TIMES), FLOW) < 60
 
 
 def test_a_slow_test_has_a_part_to_itself_where_a_split_by_count_would_add_to_it(tmp_path):

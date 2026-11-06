@@ -114,17 +114,19 @@ the check's own environment leaves the step's list alone.
 `select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
 `<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
 collects the selection once with pytest, as `make test` does (`-m "not browser"`), and deals out
-the test files whole, slowest first, each to the part that would end soonest so far
+the test files, slowest first, each to the part that would end soonest so far
 (`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
-its slowest test, which no part ends before). So a part collects only its own files. With
-`$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each a part's files,
+its slowest test, which no part ends before). So a part collects only its own files. A file
+whose tests sum past a part's share is dealt by test instead, and each part that holds some of
+its tests gets the file and the word `--shard-tests=<keys>`, which runs only those. With
+`$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each a part's words,
 space-separated, or `none` for a part the selection left empty, and the summary gets one more
-line: `parts: <n> of <tests> tests in <files> files,
-<s> s of test time each`, from the least to the most. A selection that collects no test fails,
-as `make test` fails on one. In the selection's list each line then ends `part=<k>`, the part
-that runs the file (`-` for a file that collects no test), and an `all` lists every file of the
-suite with its part, after its first line. This form imports pytest, so it runs after `uv
-sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
+line: `parts: <n> of <tests> tests in <files> files, <s> s of test time each`, from the least to
+the most. A selection that collects no test fails, as `make test` fails on one. In the
+selection's list each line then ends `part=<k>`, the part that runs the file (`-` for a file
+that collects no test, and the parts, comma-separated, for a file dealt by test), and an `all`
+lists every file of the suite with its part, after its first line. This form imports pytest, so
+it runs after `uv sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
 `select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
@@ -1656,7 +1658,7 @@ def dealt(nodeids, times, count):
 
 
 def handed(tests, count):
-    """Hand the selection to `count` parts: print each part's files, one part a line, give the
+    """Hand the selection to `count` parts: print each part's words, one part a line, give the
     step the output `part<k>` of each and the summary its line, and return the parts."""
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
