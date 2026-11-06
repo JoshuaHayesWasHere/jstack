@@ -121,9 +121,9 @@ sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
 `select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
-it, the files the rules reached through imports, names and features alone. Each prints `all`
-where the selection is `all`. `jmerge` runs the guards on a pull request's tree merged over its
-base (`merged-tree-guards`).
+it, the files the rules reached through imports, names and features alone. Where the selection
+is `all`, `--part guards` still prints those guards, never `all`, and `--part rest` prints `all`.
+`jmerge` runs the guards on a pull request's tree merged over its base (`merged-tree-guards`).
 
 `select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
 edits, each one the check runs, and never `all`: a change that selects every test still names
