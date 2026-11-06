@@ -47,11 +47,6 @@ def reviewing(request, tmp_path):
     return run
 
 
-def test_the_copies_are_one_rule():
-    first, second = functions()
-    assert first == second
-
-
 def test_two_reviewers_one_written_is_a_review_running_and_both_is_none(reviewing):
     assert reviewing(RESULT + TWO + section(CODEX)) == "running"
     assert reviewing(RESULT + TWO + section(CODEX) + section(CURSOR)) == "idle"

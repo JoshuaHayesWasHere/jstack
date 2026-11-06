@@ -34,7 +34,8 @@ The full suite runs on each push to main, and when someone starts the workflow b
 It runs as four jobs side by side, `full 1 of 4` to `full 4 of 4`, and the job `full` passes only when all four passed.
 Each of the four first runs `scripts/green_tree.py`, which looks for a marker of the tree it checked out.
 The marker is a `green-tree-<tree>` artifact of a successful run of the workflow.
-With a marker, it skips `make check`.
+With a marker, a push's first run skips `make check`.
+A run started by hand, or a rerun, runs it whatever the marker (`scripts/green_tree.py`).
 Without one, it runs the whole suite and uploads the marker when the suite passes.
 If main did not move before the merge, main's tree is the tree the pull request's run checked out, so the suite runs on that tree only once.
 A test the selection missed fails the `full` job on main after the merge.

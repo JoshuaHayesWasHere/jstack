@@ -29,6 +29,7 @@ The store has one table for each record file of each project, with a `project` c
 | `spend_rows` | `spend-rows.jsonl` | a day's spend of one role and row, by the title jbus gave the thread |
 | `word_sends` | `word-sends.json` | the thread a carried word went to and when, or that it still waits |
 | `reverts` | `reverts.json` | a revert jbus opened for a red main, by its red tip: the culprit's `slug`, the revert's `branch` and its `pr` |
+| `drift` | the machine's `drift.jsonl` | a run of one drift probe: its `probe`, `word`, `status`, `found`, `sha` and `error` |
 | `stalls` | `stalls.jsonl` | a spell a running row's thread was quiet or hung: its line when a pass first saw it, and its line when a pass saw it end, with `until`, `minutes` and `became`; and the file's first line, `began`, when the first pass that ran `jbus.stall.spells` began the record |
 | `passes` | the machine's `passes.jsonl` | a pass of jbus: its start and its seconds, under the project `''` |
 | `launch_arms` | the launch records, `launches/<project>/<slug>/<sha>.json` | a launched record's arm of one dial (`dial`, `arm`, `covered` 1), or for a launch from before records named their arm, one row with no dial or arm and `covered` 0 |
@@ -56,7 +57,7 @@ The file is readable by you alone.
 
 ## The records jbus keeps for the store
 
-Four logs keep what jbus's snapshots overwrite, each written from what jbus already holds, so none costs a call to GitHub (`jbus.history`, `jbus.spent`):
+Five logs keep what jbus's snapshots overwrite, each written from what jbus already holds, so none costs a call to GitHub (`jbus.history`, `jbus.spent`):
 
 - `brief-versions.jsonl`: the queue's one writer of a stored brief adds a line each time the brief's sha changes, and keeps each version's text once in `brief-versions/<sha>.md` beside it, out of the store.
 - `row-pulls.jsonl`: a pass adds a line for each pull request it sees under a row's slug, once open and once merged.
@@ -103,17 +104,21 @@ The store also keeps the token usage of every Claude and Codex call that a T3 Co
 | Table | Source | One row is |
 |---|---|---|
 | `sessions` | T3 Code's store | a native Claude or Codex session, with its thread and the project, role and slug its title gives |
-| `calls` | Claude Code transcripts and Codex rollouts | a call: its session, its subagent where one made it, its model, its time and four counts |
+| `calls` | Claude Code transcripts and Codex rollouts | a call: its session, its subagent where one made it, its model, its time, four counts and its reasoning `effort` |
 
 Claude Code deletes a transcript whose last write is older than its `cleanupPeriodDays` setting, 30 days unless its settings say otherwise.
 Each pass copies the calls written since the last one, so a call is in the store long before its transcript is gone.
 A Claude call is one message, counted with its final counts once Claude Code wrote them.
 A Codex call is one `token_count` event.
 `input` is the input not read from the cache, for both.
+A Claude call's `effort` is the one its transcript's lines name (`effort`, written on each assistant line since Claude Code 2.1.303 on 2026-10-19, or `perTurnEffort` on a line whose `effort` is null), such as `medium`, `high` or `xhigh`, a subagent's its own.
+A call whose lines name none has none, never a guess from T3 Code's run record, which names only the effort jroles asked for: a Codex call, and a Claude call of an older Claude Code.
+The store gained `effort` with migration `v013_call_effort`, which drops each Claude transcript's cursor, so the next build reads every transcript still on disk again and sets the effort of each call it holds, and changes nothing else of it.
+A pass reads at most 16 MiB, the transcripts written since the last build first, so the reread holds up no new call; on a machine with gigabytes of transcripts, a `jbus telemetry` by hand finishes it in one go.
 
 | View | Gives |
 |---|---|
-| `call_rows` | each call of `calls`: `provider`, `call`, `session`, `agent`, `at`, `day`, `model`, the four counts (`input`, `cache_write`, `cache_read`, `output`) and `final`; its session's `thread`, `instance`, `project`, `role` and `slug`; its spend in the `units` of `jgauge spend`; and `dollars`, an estimate at the API list prices of `jgauge.spend.PRICES`, the dated table of `PRICED_ON`, none for a model the table does not price |
+| `call_rows` | each call of `calls`: `provider`, `call`, `session`, `agent`, `at`, `day`, `model`, the four counts (`input`, `cache_write`, `cache_read`, `output`), `final` and `effort`; its session's `thread`, `instance`, `project`, `role` and `slug`; its spend in the `units` of `jgauge spend`; and `dollars`, an estimate at the API list prices of `jgauge.spend.PRICES`, the dated table of `PRICED_ON`, none for a model the table does not price |
 | `row_spend` | each merged row's spend by role and provider: `project`, `slug`, `pr`, `merged_at`, `day` and `week` from `lead_times`, `role`, `provider`, `calls`, the four counts summed (`input`, `cache_write`, `cache_read`, `output`), `units`, the `dollars` of its priced calls, the estimate at `jgauge.spend.PRICES` that `call_rows` gives, and `unpriced`, the calls with no price |
 
 `jgauge spend` reads T3 Code's own count of each run, which leaves out the calls of a run's subagents.
@@ -172,6 +177,8 @@ sqlite3 ~/.local/state/jbus/telemetry.sqlite "SELECT sum(units) FROM call_rows W
 | `redos` | each later row that redoes a merged row and `how`: a `follow-up` or `main-red` fix whose go names it, a `main-red-<sha12>` fix of the row whose merge commit that red tip is, or a `revert` jbus opened, with when it came (`at`) |
 | `redo_rows` | each merged row in the week its 7 days end, `judged` once they ended by the last build, and the first row that redid it in them (`redone_by`, `how`) |
 | `weekly_redo` | each week's rows `redone` of those `judged`, those `waiting`, and the `rate`, in percent |
+| `merge_cost` | each successful merge's own spend by `role`, `provider`, `model` and `effort`: a successful merge is a row of `redo_rows` that is `judged` and has no `redone_by`; its `project`, `slug`, `pr`, `merged_at` and `week` from `redo_rows`, `calls`, the four raw counts (`input`, `cache_write`, `cache_read`, `output`), `units`, `dollars` and `unpriced` |
+| `weekly_merge_cost` | each `week` of `redo_rows`: its successful `merges`, those `waiting` whose 7 days are not over, their own `own_dollars`, and per merge the mean and median of their own dollars and units (`own_dollars_mean`, `own_dollars_median`, `own_units_mean`, `own_units_median`); and `all_in_dollars`, every priced call whose day plus 7 falls in the week, a home's, a scout's, an unmerged crew's and a redone row's too but no thread's of role `other`, over the successful merges (`all_in_per_merge`) |
 | `redo_since` | the first `day` of a follow-up's go that names its parent |
 | `drift_runs` | each run of the drift probes (`jbus.drift`): its `probes`, those `broken`, that is not held, and those `unrun`, read by `weekly_drift` |
 | `weekly_drift` | each week's S4: the week's last run of `drift_runs` |
@@ -226,12 +233,17 @@ It reads the store alone, calls no `gh` and runs no service, so it costs nothing
 jbus telemetry && jbus kpis
 ```
 
-Each of the 23 KPIs is a row: what it counts, its target, and last week and this week so far, each with its value, the count `n` it is of, and `met`, `missed`, `tracked` where it has no target yet, `no data` where nothing in the week counts, or `not covered` where the week begins before the records the KPI reads do, with a note that says when they begin.
+Each of the 24 KPIs is a row: what it counts, its target, and last week and this week so far, each with its value, the count `n` it is of, and `met`, `missed`, `tracked` where it has no target yet, `no data` where nothing in the week counts, or `not covered` where the week begins before the records the KPI reads do, with a note that says when they begin.
 The capped minutes are read for the week the reads begin in, from that day, and say so.
 A KPI the store has no instrument for yet says so, and names what it needs.
 A week starts on Sunday, as the views' does.
 The page names no row, path or thread, and no project but those the change failure rate says it covers.
 The store holds no text of a message.
+
+The first KPI is the headline, all-in dollars per successful merge: an estimate at API list prices of every priced call the week made, over the merges it made that were not redone, with a merge's own threads, mean and median, and their dollars by role, model and effort in its note.
+Dollars are the headline, and not raw tokens, because cache reads are most of every model's tokens and a small share of its dollars, so a raw sum ranks a long cheap session above a short dear one; `merge_cost` keeps the raw counts beside them.
+A week with merges whose 7 days are not over shows no figure, and says how many of its merges are judged: all-in would count their calls and not them, and run high.
+Each is judged by the end of the week it counts in, so this week shows none until about its last day, and last week always has one.
 
 The crew first load is what a `/crew` thread reads of jstack's before its work: the crew `SKILL.md` and the largest print of `jbus playbook crewmate`, so no crew's is larger.
 The harness's wrapper around the skill's expansion is not counted, nor the brief.

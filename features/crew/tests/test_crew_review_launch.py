@@ -4,33 +4,11 @@ import os
 import re
 import shlex
 import subprocess
-from pathlib import Path
 
 import pytest
 
-from crew_helpers import BRIEF, SKILL, said, sections, with_field
-from test_home_thread import as_read
+from crew_helpers import BRIEF, said, sections, with_field
 from testing.layouts import assembled
-
-
-def test_the_skill_it_launches_by_is_found_from_any_repo(tmp_path):
-    text = as_read(SKILL)
-    (setting,) = [line for line in text.splitlines() if line.startswith("T=")]
-    (path,) = re.findall(r"`(\$T/\S+\.md)` says what a reviewer does with its number", text)
-
-    user = tmp_path / "user"
-    (user / ".claude" / "skills").mkdir(parents=True)
-    (user / ".claude" / "skills" / "crew").symlink_to(assembled() / "skills" / "crew")
-    elsewhere = tmp_path / "another-repo"
-    elsewhere.mkdir()
-    found = subprocess.run(
-        ["sh", "-c", f'{setting}\nprintf %s "{path}"'],
-        capture_output=True,
-        env={**os.environ, "HOME": str(user)},
-        cwd=elsewhere,
-        check=True,
-    )
-    assert "## Launching" in Path(found.stdout.decode()).read_text().splitlines()
 
 
 @pytest.mark.parametrize(

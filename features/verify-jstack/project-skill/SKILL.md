@@ -18,7 +18,7 @@ What this skill cannot drive, so do not report it as verified: a real T3 thread 
 The tests cover the merge against a temporary origin (`features/home/tests/test_home_merge.py`).
 
 Run every command below from the root of this checkout unless it says otherwise.
-Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-jstack/project-skill/map.md) before a drive, then the file of the feature you are proving: its page in that folder, or `features/<name>/verify.md` once it has moved.
+Read [`features/verify-jstack/project-skill/map.md`](../../../features/verify-jstack/project-skill/map.md) before a drive, then the file of the feature you are proving: its `features/<name>/verify.md`, or its page in `testing/verify/`.
 
 ## Set up by a stand-in
 
@@ -223,6 +223,9 @@ All in `features/verify-jstack/project-skill/scripts/`, which `$VERIFY_JSTACK_SC
 | `fake-gh` | linked as `gh` on the sandbox's PATH, never run by hand | the stand-in for `gh`: answers from `gh/*.json`, exits 64 on `pr merge` |
 | `fake-systemctl` | linked as `systemctl` on the sandbox's PATH, never run by hand | the stand-in for `systemctl --user`: answers for the sandbox's HOME, links and unlinks as systemd does, starts nothing |
 | `fake-launchctl` | linked as `launchctl` on the sandbox's PATH, never run by hand | the stand-in for `launchctl` on macOS: loads and boots out agents as launchd does, starts nothing |
+
+After a change to these scripts, run the two deterministic end-to-end scripts in [`features/verify-jstack/e2e/`](../../../features/verify-jstack/e2e/README.md), each with `bash <script>` from a shell in no sandbox.
+Each ends `e2e: ok` and prints the same lines on a rerun.
 
 When jstack changes, the feature files are what go stale first.
 `/maintain-verification-skill` finds this skill through `skills.json`, where `projectSkills` names it, but it reads a feature map only from the skill's own `features/` folder, which this skill does not have: on jstack it stops at `no feature map`.

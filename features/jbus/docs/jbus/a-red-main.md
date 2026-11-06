@@ -98,7 +98,7 @@ It tells no crew anything: a pull request red over a red main is judged again by
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
 | `failed` | The tests that failed at `broken`, read once from the red run's logs. jbus reads them to tell a flake from a culprit's own red. |
-| `fixed` | Only in a record written before `tell` stopped telling crews: the green tip that ended the red while a message was owed. Main reads as green there, and the next pass writes no `fixed` again. |
+| `fixed` | Only in an old record, since `tell` writes it no more: the green tip that ended the red while a message was owed. Main reads as green there, and the next pass writes no `fixed` again. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.
 `jmerge` reads the file to ask for no merge of a red main into a red pull request ("Main is not red" in [jmerge](../../../jmerge/docs/jmerge.md)).
@@ -108,7 +108,7 @@ A tip whose check has not ended or was cancelled changes neither field, so a mai
 A cancelled run of main is not a failed check.
 That holds when its check run ended `cancelled`, and also when the run was cancelled before it had a job, so the commit has no check run.
 jbus asks GitHub to run it again (`gh run rerun <id>`) while GitHub's `run_attempt` for it is 1.
-It says `retro <slug>: main check cancelled twice at <sha>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha>, and GitHub did not run it again` when GitHub refuses.
+It says `retro <slug>: main check cancelled twice at <sha12>` when a later attempt is cancelled too, and `retro <slug>: main check cancelled at <sha12>, and GitHub did not run it again` when GitHub refuses.
 A job that `timeout-minutes` stops also ends `cancelled`, not `timed_out`.
 So jbus runs a suite that hangs on main again, and then reports `cancelled twice`, never `main check failed`.
 

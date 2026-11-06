@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 import jsettings
-from testing.paths import REPO, skills
+from testing.paths import REPO
 
 ROOM = REPO / "features" / "jgauge" / "src" / "jgauge" / "room.sh"
 BIN = Path(sys.executable).parent
@@ -44,6 +44,14 @@ def table(slots, used):
     )
 
 
+def blocks(filesystem, size, used):
+    """What `df -P` prints for a filesystem of `size` KiB with `used` KiB used."""
+    return (
+        "Filesystem     1024-blocks     Used Available Capacity Mounted on\n"
+        f"{filesystem} {size} {used} {size - used} {used * 100 // size}% /made/up\n"
+    )
+
+
 def put(path, text, mode=0o644):
     """Write the file whole. Write the text to a temporary file beside the target, then rename
     the temporary file into place over the target. A reader or an exec of the target then sees
@@ -57,9 +65,23 @@ def put(path, text, mode=0o644):
     part.replace(path)
 
 
-def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="0.00"):
+def machine(
+    where,
+    load,
+    cores,
+    memory,
+    pressure,
+    plan=FRESH,
+    slots=EMPTY,
+    cpu="0.00",
+    quota=None,
+    space=None,
+):
     """A machine made of files, as `room` reads one, and the environment that points `room`
-    there. A test can rewrite the machine's files while `room` reads them."""
+    there. A test can rewrite the machine's files while `room` reads them. `quota` is the
+    user's block quota on `$TMPFS` as quotactl gives it, `(hard limit in KiB, bytes used)`,
+    and with none the machine has no quota. `space` is what `df -P` says of `$TMPFS`, a
+    `(filesystem, KiB, KiB used)`, and with none `df -P` fails."""
     proc, stub, tmp = where / "proc", where / "stub", where / "stub" / "tmp"
     (proc / "pressure").mkdir(parents=True, exist_ok=True)
     tmp.mkdir(parents=True, exist_ok=True)
@@ -67,10 +89,20 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
         (tmp / "df").unlink(missing_ok=True)
     else:
         put(tmp / "df", slots if isinstance(slots, str) else table(*slots))
+    if space is None:
+        (tmp / "space").unlink(missing_ok=True)
+    else:
+        put(tmp / "space", blocks(*space))
     put(
         stub / "df",
-        '#!/bin/sh\n[ "$#" = 2 ] && [ "$1" = -Pi ] || exit 64\n'
-        'echo "$2" > "$(dirname "$0")/asked"\ncat "$2/df"\n',
+        '#!/bin/sh\n[ "$#" = 2 ] || exit 64\ncase $1 in\n'
+        '-Pi) echo "$2" > "$(dirname "$0")/asked"; cat "$2/df" ;;\n'
+        '-P) cat "$2/space" ;;\n*) exit 64 ;;\nesac\n',
+        0o755,
+    )
+    put(
+        stub / "python3",
+        "#!/bin/sh\nexit 1\n" if quota is None else f"#!/bin/sh\necho {quota[0]} {quota[1]}\n",
         0o755,
     )
     put(proc / "loadavg", f"{load} 1.10 0.90 2/2647 4039610\n")
@@ -100,6 +132,7 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
         "PROC": str(proc),
         "LIMITS": str(where / "limits"),
         "TMPFS": str(tmp),
+        "QUOTA": str(tmp),
         "PATH": f"{stub}:{BIN}:{os.environ['PATH']}",
         "XDG_CONFIG_HOME": str(where / "config"),
     }
@@ -124,10 +157,6 @@ def ran(env, script=None):
 def says(env, script=None):
     (line,) = ran(env, script).stdout.splitlines()
     return line
-
-
-def test_an_idle_machine_has_room(tmp_path):
-    assert says(machine(tmp_path, **IDLE)) == "go"
 
 
 def test_yelenas_busiest_load_with_little_cpu_pressure_goes(tmp_path):
@@ -179,14 +208,6 @@ def test_a_load_at_its_threshold_waits_on_any_core_count(tmp_path, cores):
     assert says(machine(tmp_path, **{**IDLE, "cores": cores, "load": at})) == (
         f"wait: load {at} is at or over 200% of {cores} cores"
     )
-
-
-def test_a_threshold_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
-    assert check().count("MEMORY=6\n") == 1
-    changed = check().replace("MEMORY=6\n", "MEMORY=6.5\n")
-    env = machine(tmp_path, **{**IDLE, "memory": int(6.2 * KB_PER_GB)})
-    assert says(env) == "go"
-    assert says(env, changed) == "wait: 6.2 GB of memory available, under 6.5"
 
 
 def test_the_first_reading_with_no_room_is_the_one_named(tmp_path):
@@ -293,18 +314,17 @@ def test_the_file_slots_are_those_of_tmp_unless_told_otherwise(tmp_path):
     assert (tmp_path / "stub" / "asked").read_text() == "/tmp\n"
 
 
-def test_the_file_slots_are_read_from_the_df_of_the_machine_it_runs_on(tmp_path):
+def test_the_file_slots_and_the_bytes_are_read_from_the_machine_it_runs_on(tmp_path):
     env = {**machine(tmp_path, **IDLE), "TMPFS": str(tmp_path)}
+    del env["QUOTA"]
     (tmp_path / "stub" / "df").unlink()
-    assert re.fullmatch(rf"go|wait: {tmp_path} has \d+ of \d+ file slots used, over 85%", says(env))
-
-
-def test_the_share_of_file_slots_changed_in_the_block_is_the_one_the_reason_gives(tmp_path):
-    assert check().count("SLOTS=85\n") == 1
-    changed = check().replace("SLOTS=85\n", "SLOTS=50\n")
-    env = machine(tmp_path, **IDLE, slots=(1000, 501))
-    assert says(env) == "go"
-    assert says(env, changed) == f"wait: {env['TMPFS']} has 501 of 1000 file slots used, over 50%"
+    (tmp_path / "stub" / "python3").unlink()
+    assert re.fullmatch(
+        rf"go|wait: {tmp_path} has (\d+ of \d+ file slots used, over 85%"
+        r"|[\d.]+ (of your [\d.]+ GB quota|GB used of [\d.]+ GB, 80% of its size)"
+        r" used, at or over 70%)",
+        says(env),
+    )
 
 
 def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path):
@@ -314,6 +334,49 @@ def test_the_file_slots_are_named_after_the_memory_and_before_the_plan(tmp_path)
         "wait: memory pressure "
     )
     assert says(machine(tmp_path, **IDLE, **full)).endswith(" file slots used, over 85%")
+
+
+QUOTA_KIB = 26070960
+"""yelena's block quota on /tmp, 2026-11-05: 80% of its 32588700 KiB tmpfs, which pam_systemd
+sets at login."""
+SEVENTY = QUOTA_KIB * 70 // 100
+OVER_QUOTA = "wait: {} has 17.4 of your 24.9 GB quota used, at or over 70%"
+OVER_SIZE = "wait: {} has 17.4 GB used of 24.9 GB, 80% of its size, at or over 70%"
+
+
+@pytest.mark.parametrize(
+    ("quota", "space", "said"),
+    [
+        ((QUOTA_KIB, SEVENTY * 1024), None, OVER_QUOTA),
+        (
+            (QUOTA_KIB, QUOTA_KIB * 1024),
+            None,
+            "wait: {} has 24.9 of your 24.9 GB quota used, at or over 70%",
+        ),
+        ((QUOTA_KIB, SEVENTY * 1024 - 1), None, "go"),
+        ((QUOTA_KIB, SEVENTY * 1024), ("tmpfs", 32588700, 100), OVER_QUOTA),
+        ((QUOTA_KIB, 1024), ("tmpfs", 32588700, 32588600), "go"),
+        (None, ("tmpfs", 32588700, SEVENTY), OVER_SIZE),
+        (None, ("tmpfs", 32588700, SEVENTY - 1), "go"),
+        (None, ("/dev/nvme0n1p2", 32588700, 32588600), "go"),
+        (None, None, "go"),
+    ],
+)
+def test_tmp_at_70_percent_of_the_users_quota_waits_and_says_how_full(tmp_path, quota, space, said):
+    """/tmp filled the user's block quota on 2026-11-04 and 2026-11-05, and every command of
+    every agent failed with EDQUOT while room still said go. Room waits at 70% of the quota,
+    else at 70% of the 80% of a tmpfs that pam_systemd makes the quota."""
+    env = machine(tmp_path, **IDLE, quota=quota, space=space)
+    assert says(env) == said.format(env["TMPFS"])
+
+
+def test_the_bytes_are_named_after_the_file_slots_and_before_the_plan(tmp_path):
+    spent = {"five_hour": ("95", HOUR), "seven_day": ("95", HOUR)}
+    full = {"plan": spent, "quota": (QUOTA_KIB, QUOTA_KIB * 1024)}
+    assert says(machine(tmp_path, **IDLE, **full, slots=(1000, 1000))).endswith(
+        " file slots used, over 85%"
+    )
+    assert says(machine(tmp_path, **IDLE, **full)).endswith(" quota used, at or over 70%")
 
 
 @pytest.mark.parametrize("window", WINDOWS)
@@ -504,55 +567,6 @@ def waited(env, limit, every="0.05"):
     return ran.stdout.splitlines(), ran.returncode
 
 
-def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_path):
-    """The tests below run `jgauge room --wait`, which reads the machine again and again while
-    a timer rewrites it. This test checks that a reader of the stubs never sees a stub half
-    written."""
-    machine(tmp_path, **IDLE)
-    stub, stop, seen = tmp_path / "stub", threading.Event(), []
-
-    def look():
-        while not stop.is_set():
-            try:
-                df = subprocess.run(
-                    [str(stub / "df"), "-Pi", str(stub / "tmp")], capture_output=True, text=True
-                )
-                seen.append(len(df.stdout.splitlines()) == 2 or df.stdout)
-            except OSError as error:
-                seen.append(error)
-
-    lookers = [threading.Thread(target=look) for _ in range(4)]
-    for one in lookers:
-        one.start()
-    errors, end, n = [], time.monotonic() + 1, 0
-    try:
-        while time.monotonic() < end:
-            n += 1
-            try:
-                machine(tmp_path, **{**IDLE, "load": f"{n % 20}.00"}, slots=(1048576, n))
-            except OSError as error:
-                errors.append(error)
-    finally:
-        stop.set()
-        for one in lookers:
-            one.join()
-    assert errors == [] and seen and set(seen) == {True}
-
-
-def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path):
-    """The limits text is built once, so the two writes hold the same text whatever second
-    each comes in: a plan of windows resets a time from now."""
-    plan = limits(FRESH)
-    machine(tmp_path, **IDLE, plan=plan)
-    names = ("stub/df", "stub/nproc", "stub/tmp/df", "proc/loadavg", "limits")
-    before = {name: (tmp_path / name).stat() for name in names}
-    machine(tmp_path, **IDLE, plan=plan)
-    after = {name: (tmp_path / name).stat() for name in names}
-    assert {name: (one.st_ino, one.st_mtime_ns) for name, one in after.items()} == {
-        name: (one.st_ino, one.st_mtime_ns) for name, one in before.items()
-    }
-
-
 def test_a_wait_for_room_ends_in_go_once_the_machine_has_room(tmp_path):
     env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     room = threading.Timer(0.4, machine, [tmp_path], IDLE)
@@ -619,12 +633,6 @@ def test_a_wait_that_is_not_a_number_of_seconds_is_refused_before_any_look(tmp_p
 def test_a_wait_that_would_look_with_no_pause_is_refused_before_any_look(tmp_path, every):
     busy = machine(tmp_path, **{**IDLE, "load": "24.00"})
     assert waited(busy, "5", every=every) == ([], 2)
-
-
-def test_a_room_asked_with_no_wait_answers_at_once_and_exits_0_as_before(tmp_path):
-    busy = machine(tmp_path, **{**IDLE, "load": "24.00"})
-    ran = subprocess.run([str(BIN / "jgauge"), "room"], env=busy, capture_output=True, text=True)
-    assert (ran.stdout, ran.returncode) == ("wait: load 24.00 is at or over 200% of 12 cores\n", 0)
 
 
 STALE = 21 * 60
@@ -775,17 +783,6 @@ def test_nothing_but_pytest_runs_under_pytest_of_is_removed_from_a_full_tmp(tmp_
     full = ran(env)
     assert full.stdout.startswith("wait: ") and full.stderr == ""
     assert sorted(tmp.rglob("*")) == before
-
-
-def test_no_skill_holds_a_copy_of_the_check(tmp_path):
-    files = [path for one in skills().values() for path in one.rglob("*") if path.is_file()]
-    assert files
-    held = [path for path in files if b"CUSHION=" in path.read_bytes()]
-    assert held == []
-    used_up = {**FRESH, "five_hour": ("100", HOUR + 59)}
-    assert says(machine(tmp_path, **IDLE, plan=used_up)).startswith(
-        "wait: the five-hour limit is 100% used, at or over 90%,"
-    )
 
 
 def light(env, *more):

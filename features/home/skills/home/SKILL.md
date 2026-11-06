@@ -73,7 +73,7 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that each `merged` line of jbus's is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | The note of each home archived here, dated, with what it had out and its `Was home:` line, and older notes. A start reads only the last `Was home:` line ("The home before this one"). | Unbounded |
 | `$M/plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that no home, jbus or tree counts the scope. `/home <scope>` moves it back. | Open tasks only |
-| `$H/fresh-check` | The repo's check command, a crewmate's one run of the check and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
+| `$H/fresh-check` | The repo's check command, which CI's check is the check of record for (a crewmate runs it once, but in a repo whose check selects its tests only the lint and the touched tests), and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
 | `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
 | `$H/standing.md` | None. A standing rule of the user's is code, the text of the skill step that needs it, or a queued row, and never a line in a file a thread reads at its start: not here, and not in Claude Code's auto-memory. `jbus rules` lists each such file, and jbus wakes the root home for each until it is gone. | Absent |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
@@ -85,8 +85,9 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 ## Carry on
 
 Proceed on reversible work without asking: do it, and write down what you did and why.
-Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside.
-What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first.
+Only the cases of `$T/gates.md` are never done on a default: deleting data (`deletes data`), a force-push to a shared branch (`rewrites history`), spending money (`spends money`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), changing access or secrets (`changes access or secrets`), and publishing a release or a package (`publishes`).
+This home runs no such command itself: the door goes in a row whose brief has `Holds: <the case>`, and the user's own go in T3 Code opens it for that row's crew ("Gates").
+What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the cases of `$T/gates.md` holds as above, and any other acts at once on the default that it is not done.
 When in doubt, act and write down what you did.
 Where no rule or script decides, weigh the work by jstack's vision and the user's judgment in `features/home/docs/vision.md`.
 

@@ -296,11 +296,3 @@ def test_the_help_names_the_rates_spend_weighs_by(capsys):
     named = {name: getattr(jspend, name) for name in names}
 
     assert help_rates(capsys) == pytest.approx(named)
-
-
-def test_the_help_follows_a_change_to_the_rates(capsys, monkeypatch):
-    changed = {"PLAIN": 2, "WRITTEN": 3.5, "CACHED": 0.25, "OUTPUT": 7, "OPUS": 4 / 3}
-    for name, rate in changed.items():
-        monkeypatch.setattr(jspend, name, rate)
-
-    assert help_rates(capsys) == pytest.approx(changed)

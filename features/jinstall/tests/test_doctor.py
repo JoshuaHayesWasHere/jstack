@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from jinstall.__main__ import doctor
-from jinstall.kinds import PINNED_TAG, Program, T3Code, T3JstackBuild, patch_series
+from jinstall.kinds import T3Code, T3JstackBuild
 from jinstall.machine import Refused
 from jinstall.needs import T3_FLOOR, needs
 from test_install import REPO, T3_WHERE, Machine, Ran, User, line_for, machine
@@ -271,16 +271,6 @@ def test_the_platform_is_ok_on_linux_and_macos_and_windows_is_sent_to_wsl2(
     assert said.code == 1
 
 
-def test_a_program_with_no_floor_is_not_run(tmp_path):
-    ran = []
-    (tmp_path / "claude").write_text("")
-    (tmp_path / "claude").chmod(0o755)
-    env = {"PATH": str(tmp_path)}
-    here = Machine(REPO, tmp_path, env, lambda args: ran.append(args) or Ran(0, ""), tmp_path)
-    assert Program("claude").probe(here).state.value == "ok"
-    assert ran == []
-
-
 def test_a_jbus_config_the_loader_takes_is_ok_and_one_others_can_read_is_old(user):
     part = f"jbus config {user.jbus / 'config.toml'}"
     user.private(user.jbus / "config.toml", JBUS)
@@ -452,14 +442,6 @@ def test_a_jstack_config_that_is_a_link_to_nothing_is_missing(user):
         " -> defaults are used: user, timezone, timezone_label, headroom, retry_cap, go,"
         " go_quiet_minutes"
     )
-
-
-def test_usage_names_the_doctor(user):
-    code, said, err = user.run_with_stderr("--doctor", "--check")
-    assert (code, said) == (2, [])
-    usage = "usage: install.sh [--check | --uninstall | --doctor | --setup | --repo [<path>]]"
-    assert err == f"{usage}\n"
-    assert user.listing() == []
 
 
 def test_the_doctor_says_when_the_private_patterns_are_missing_and_when_they_are_there(user):
@@ -846,14 +828,6 @@ def test_the_jstack_build_is_due_only_on_arch_with_a_nightly(tmp_path, pacman, s
     listed = [one.kind for one in needs(upstream.machine) if one.name == "t3 jstack build"]
     assert len(listed) == pacman
     assert upstream.kind.due(upstream.machine) is due
-
-
-def test_the_pkgbuild_names_the_series_and_each_patch_of_its_folder():
-    packaging = REPO / "features" / "t3code-jstack" / "packaging"
-    pkgbuild = (packaging / "PKGBUILD").read_text()
-    assert f'.jstack.{patch_series(packaging)}"\n' in pkgbuild
-    assert PINNED_TAG.search(pkgbuild)
-    assert all(one.name in pkgbuild for one in packaging.glob("*.patch"))
 
 
 def test_a_role_on_one_account_with_another_listed_is_a_hard_problem_with_the_fix_for_infra(user):

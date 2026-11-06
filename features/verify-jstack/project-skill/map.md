@@ -107,6 +107,7 @@ No recipe drives these yet: `jgauge session` and `jgauge test-slot`, `jbriefs`, 
 ## Cross-cutting tests
 
 A test file that reads the whole tree, and not the paths of one feature (it globs the repo, or every skill and every page at once), is cross-cutting: every diff runs it, and no `Tests:` line needs to name it.
+A change of the tests alone is the one exception: where every changed path is a module of a folder of tests that the head still holds (a test file, a helper of the tests or a `conftest.py`), `scripts/select_tests.py` selects only the changed test files and the tests that import or name a helper they changed, and runs neither the cross-cutting tests nor the catch-all.
 A test file reads the tree when it globs, walks or lists with `git ls-files` a folder of the checkout, the root, a `src/`, a folder of tests or any other.
 `testing/tests/test_cross_cutting.py` fails when such a test file is not on this list, and names the read it found.
 

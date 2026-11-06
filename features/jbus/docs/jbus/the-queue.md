@@ -102,7 +102,9 @@ The head must have the eight lines of `jbriefs.parse.REQUIRED`, `Task:`, `Done w
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-`add` then runs the eleven checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`:
+`add` then runs the thirteen checks of `jbriefs.parse.CHECKS` and the three of `jbus.queue.conduct`.
+The two checks of `jbriefs.parse.WARNED`, that `Done when:` is runnable and that `Proves it:` runs, only warn.
+The other eleven and the three of `conduct` are these:
 
 - `Task:` is 2,000 characters or fewer.
 - `Design:` names a file, or says `none, <why>`.
@@ -329,11 +331,11 @@ Its go on a row whose brief holds keeps a word of the view's and parks a gate fo
 
 #### Doors
 
-A door is an action that is irreversible or slow to revert, one of the six cases of the table in [Questions](questions.md#act-unless-stopped-and-the-gates-that-hold), and `party.DOORS` is that table.
+A door is an action that is irreversible or slow to revert, one of the cases of the table in [Questions](questions.md#act-unless-stopped-and-the-gates-that-hold), and `party.DOORS` is that table.
 A brief holds for a door when a line of its head, above its first `## `, is `Holds: <case>`, with several cases split by commas.
 A line that names a case the table does not have holds for every door.
 A brief also holds for each door that a command of its `Done when:` or `Proves it:` lines walks through, by the table's `runs` (`party.walks`), whether or not a `Holds:` line names it: `DSQL_STAGE=prod db/apply.sh dsql <file>`, `infra/deploy-backend.sh prod`, `scripts/deploy <service>`, `git push --force`, `gh release create` and the like.
-In those lines, never, do not or without hides the commands after it in its clause, and not run hides those of its own clause, so an aside hides no door beside it.
+In those lines, the words `never`, `do not` and `without` hide the commands after them in their clause, and `not run` hides the commands of its own clause, so an aside hides no door beside it.
 A command that runs dry, with `--dry-run` or `DRY_RUN=1`, or only prints its help walks through no door.
 `jbus queue add` prints `holds: <case>, from <the command>` for each such door that no `Holds:` line names, so the home writes the line.
 An act on a door goes through only for you, on words jbus read itself.
@@ -396,7 +398,7 @@ A change to the title, the `Task`, `Done when`, `Where`, `Do not touch` or `Size
 It is deterministic and asks no model.
 
 The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/meaning.py`): the title, `Task` (the goal), `Done when`, `Where`, `Do not touch` and `Size`.
-It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Stack`, `Read`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
+It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Holds`, `Builds on`, `Read`, `Instruments`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
 These say how the work is done or who runs it, not what it is for.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
 The fingerprint normalises each field in these steps:

@@ -6,12 +6,25 @@ import json
 import os
 import re
 import shutil
+import sys
+import threading
 import time
 from types import SimpleNamespace
 
+import pytest
+
+from jgauge import slot
 from jmerge import ready, treeguards
 from test_jmerge_fresh import git
 from testing.paths import REPO
+
+
+@pytest.fixture(autouse=True)
+def locks(tmp_path, monkeypatch):
+    """The test slots a run outside one takes, a machine of one full slot of its own."""
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path / "locks"))
+    monkeypatch.setenv("TEST_SLOTS", "1")
+    return tmp_path / "locks"
 
 
 def test_merged_tree_guard_named_from_the_output():
@@ -32,6 +45,26 @@ def test_merged_tree_guards_that_run_past_their_time_are_stopped_with_their_chil
     assert not marker.exists(), "the guards' child outlived the stop"
 
 
+def test_guards_stopped_at_their_time_end_quietly_where_a_stopped_group_answers_eperm(
+    tmp_path, monkeypatch
+):
+    """Darwin answers a kill of a group that holds only zombies with EPERM, where Linux gives
+    ESRCH: once the stop at the time limit has killed the group and `sh` is reaped, a second kill
+    of it is refused, and the run still ends with the guards stopped (nightly run 42059155018)."""
+    kill = os.killpg
+    killed = []
+
+    def darwin(group, sig):
+        if killed:
+            raise PermissionError(1, "Operation not permitted")
+        killed.append(group)
+        kill(group, sig)
+
+    monkeypatch.setattr(treeguards.os, "killpg", darwin)
+    ran = treeguards.run_guards("sleep 30", tmp_path, {}, timeout=1)
+    assert ran.code is None and ran.seconds < 10
+
+
 SCOUT = "features/verify-jstack/tests/test_verify_jstack.py::" + (
     "test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch"
 )
@@ -45,7 +78,7 @@ def jbus_environment():
     path = re.search(r"^Environment=PATH=(.*)$", unit, re.MULTILINE)[1]
     path = path.replace("%h", os.environ["HOME"])
     uv = os.path.dirname(shutil.which("uv"))
-    names = ("HOME", "USER", "LOGNAME", "LANG", "TMPDIR")
+    names = ("HOME", "USER", "LOGNAME", "LANG", "TMPDIR", "JGAUGE_LOCKS_DIR", "TEST_SLOTS")
     return {name: os.environ[name] for name in names if name in os.environ} | {
         "PATH": path if uv in path.split(":") else f"{uv}:{path}"
     }
@@ -108,13 +141,6 @@ def test_merged_tree_guards_that_passed_are_not_run_again(tmp_path):
     assert not (tree.state / treeguards.TREE).exists()
 
 
-def test_merged_tree_guards_start_no_more_once_a_run_spent_its_time(tmp_path):
-    tree = Tree(tmp_path)
-    guards = tree.guards("true")
-    guards.spent = treeguards.RUN_SECONDS
-    assert guards.of(tree.one, tree.tip) == (ready.MERGED_TREE_NO_TIME.format(**values(tree)), "")
-
-
 def test_merged_tree_of_a_head_that_conflicts_with_the_tip_waits_for_a_rebase(tmp_path):
     tree = Tree(tmp_path, ours="ours\n", theirs="theirs\n", path="a.txt")
     assert tree.guards("true").of(tree.one, tree.tip) == (ready.FRESH_CONFLICT, "")
@@ -162,3 +188,74 @@ def test_merged_tree_records_of_pull_requests_no_longer_open_are_dropped(tmp_pat
     guards.open_only({"8": "x"})
     assert json.loads((tree.state / treeguards.KEPT).read_text()) == {}
     assert treeguards.Guards(tree.main, tree.state, True).kept(tree.one, tree.tip) == ""
+
+
+HOLDS_THE_SLOT = (
+    f'test "$JGAUGE_TEST_SLOT" = full && "{sys.executable}" -c'
+    ' "from jgauge import slot; raise SystemExit(slot.free(slot.full(1)))"'
+)
+"""Guards that pass only where they run inside the machine's one full test slot, and hold it."""
+
+
+def test_merged_tree_guards_outside_a_slot_run_inside_a_full_one(tmp_path, monkeypatch):
+    """A `jmerge` that holds no slot runs the guards, a suite at `-n 6`, inside one of the full
+    lane's, so the machine runs no suite the slot count does not see. One that holds a slot
+    already runs them in it, and takes no second, which would wait on its own."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    tree = Tree(tmp_path)
+    said, note = tree.guards(HOLDS_THE_SLOT).of(tree.one, tree.tip)
+    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
+    monkeypatch.setenv(slot.HELD, "full")
+    ran = treeguards.run_guards('test "$JGAUGE_TEST_SLOT" = full', tmp_path, {}, 60)
+    assert ran.code == 0, ran.said
+
+
+def test_merged_tree_guards_with_every_slot_taken_wait_for_the_next_run(tmp_path, monkeypatch):
+    """With every full slot taken past `SLOT_SECONDS`, the guards do not start, and the pull
+    request waits for the next run, which keeps nothing of this one and runs them once a slot
+    is free. The rest of the run tries no more trees."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setattr(treeguards, "SLOT_SECONDS", 1)
+    tree = Tree(tmp_path)
+    marker = tmp_path / "ran"
+    guards = tree.guards(f"touch {marker}")
+    held, _ = slot.take(slot.full(1))
+    try:
+        unslotted = ready.MERGED_TREE_NO_SLOT.format(**values(tree), seconds=1)
+        assert guards.of(tree.one, tree.tip) == (unslotted, "")
+        guards.command = "true"
+        assert guards.of(tree.one, tree.tip) == (unslotted, "")
+    finally:
+        os.close(held)
+    assert not marker.exists() and guards.kept(tree.one, tree.tip) == ""
+    assert not (tree.state / treeguards.TREE).exists()
+    said, note = treeguards.Guards(tree.main, tree.state, True).of(tree.one, tree.tip)
+    assert said == "" and note
+    assert marker.exists()
+
+
+def test_merged_tree_guards_time_limit_counts_from_the_slot_not_the_wait(tmp_path, monkeypatch):
+    """The guards wait 4 s for the slot and run 1 s under a limit of 3 s: they pass, since the
+    limit and the seconds of the merge line count the run alone."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 3)
+    tree = Tree(tmp_path)
+    held, _ = slot.take(slot.full(1))
+    threading.Timer(4, os.close, (held,)).start()
+    began = time.monotonic()
+    said, note = tree.guards("sleep 1").of(tree.one, tree.tip)
+    assert time.monotonic() - began >= 4
+    assert said == ""
+    seconds = int(note.rsplit(" in ", 1)[1].removesuffix(" s"))
+    assert note == treeguards.PASSED.format(**values(tree), seconds=seconds) and seconds < 4
+
+
+def test_merged_tree_guards_whose_slot_command_fails_say_why_and_do_not_run(tmp_path, monkeypatch):
+    """A `jgauge test-slot` that ends before the guards start, here on a slot count it refuses,
+    is why the guards did not run, and nothing of it is a guard that failed."""
+    monkeypatch.delenv(slot.HELD, raising=False)
+    monkeypatch.setenv("TEST_SLOTS", "none")
+    marker = tmp_path / "ran"
+    why = treeguards.run_guards(f"touch {marker}", tmp_path, {}, 60)
+    assert isinstance(why, str) and "none" in why
+    assert not marker.exists()

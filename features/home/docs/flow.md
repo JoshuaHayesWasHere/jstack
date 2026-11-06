@@ -16,7 +16,7 @@ A message wakes a thread, and the records are files in that directory.
 | 3. The queue and the approval | You | The brief waits as a row of the queue. You approve that exact brief, named by its sha. |
 | 4. Launch | `jbus` | It launches an approved row once `jgauge room` prints `go` and each row its `depends` names is merged or done. Where one row it depends on is still open and has opened its pull request, it launches the row stacked on that pull request's branch. |
 | 5. The worktree | The crewmate | A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook. |
-| 6. The check | The check command | The repo's check command runs once, under a test slot. CI runs the repo's checks on the pull request the crewmate opens, and `jmerge` waits for the check named `check`, or for the checks the repo lists in `required-checks`. |
+| 6. The check | The check command | The repo's check command runs once, under a test slot, and again only after a fix for what it found. CI runs the repo's checks on the pull request the crewmate opens, and `jmerge` waits for the check named `check`, or for the checks the repo lists in `required-checks`. |
 | 7. The review | The reviewer | One fresh thread reviews each pull request, with no reviewer subagents. It reads the diff itself, judges what it found, and proves one safety fact by running code. It fixes nothing, and jbus archives it once the pull request merges or closes. |
 | 8. The findings | The crewmate | It ends every finding with a `Finding:` line, fixed or not fixed and why, then writes one `Fixed:` line. |
 | 9. `jmerge` | A command | It merges what is reviewed, fixed and green, at the head that was checked. A pull request whose last review round says `Meets the brief: no` waits for a fix and a scoped review. For the rest it prints `wait` or `hold` and the reason. `jbus` runs it on each pass, and no home runs it to merge. |
@@ -54,7 +54,7 @@ Without asking you, the threads do everything else that is reversible.
 | An approval | Before a task launches | That task does not launch. Other tasks go on. |
 | A gate | At any step of any thread | Nothing waits. The default stands until you change it. |
 | A held pull request | At the merge | The pull request stays open. Nothing else is held up unless it depends on it. |
-| One of the six doors | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
+| A door | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
 A brief that says `Review: review`, the home's default, gets one review round, launched once `check` has passed: the checks prove or fail the work first.

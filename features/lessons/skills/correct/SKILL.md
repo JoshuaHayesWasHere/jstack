@@ -19,7 +19,7 @@ Who is reading decides how far this goes:
 - A **crewmate** whose brief names this skill or that playbook does one correction, the class the brief names, start to finish. The playbook holds its steps.
 - An ordinary thread (no home for the repo) does both, on a branch.
 
-A path such as `features/lessons/skills/correct/playbooks/correct.md` or `principles/<name>.md` is from the root of the repo this skill lives in: `realpath ~/.claude/skills/correct/../..`.
+A path such as `playbooks/correct.md` or `principles/<name>.md` is from the root of the repo this skill lives in: `realpath ~/.claude/skills/correct/../..`.
 
 ## Find the mistake classes
 

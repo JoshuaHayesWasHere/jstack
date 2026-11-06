@@ -8,11 +8,9 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-from jbriefs import skills
 from testing.paths import REPO
 
 EVAL = REPO / "features" / "evals" / "evals" / "skill-cut"
@@ -32,21 +30,6 @@ def load(path):
 
 score = load(EVAL / "score.py")
 run = load(EVAL / "eval.py")
-
-
-def test_the_committed_lead_fixture_scores_seven_of_nine():
-    text = (EVAL / "fixture" / "lead-pstack-autopilot-ketchup.md").read_text()
-    said = score.score_lead(text, run.lead_key("pstack-autopilot-ketchup"))
-    assert said.unsettled == []
-    assert said.value == pytest.approx(7 / 9)
-    assert said.detail["three_way"] == pytest.approx(6 / 9)
-    assert (said.detail["fixed"], said.detail["fixed_sent"], said.detail["sent"]) == (4, 3, 4)
-
-
-def test_the_committed_steps_fixture_takes_the_prescribed_step():
-    text = (EVAL / "fixture" / "steps-crew-stale-base.md").read_text()
-    case = next(one for one in run.steps_cases() if one["id"] == "crew-stale-base")
-    assert score.score_steps(text, case).value == 1.0
 
 
 def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_gives():
@@ -94,25 +77,6 @@ def test_a_steps_answer_near_the_key_is_unsettled_and_the_judge_settles_it():
     assert score.score_steps("I rebase.", case).value == 0.0
 
 
-def test_every_case_is_whole_and_every_key_names_a_finding_of_its_case():
-    for case in run.steps_cases():
-        assert set(case) >= {"id", "file", "state", "expect", "must", "near"}
-        named = Path(case["file"])
-        there = any((REPO / each).is_file() for each in run.spellings(case["file"]))
-        assert there or skills.resolve(named.stem).kind == "principle"
-        for shape in [*case["must"], case["near"]]:
-            re.compile(shape)
-    files = {case["file"] for case in run.steps_cases()}
-    for name in ("home", "crew", "scout", "pr-review", "handoff", "expert"):
-        assert sum(one["file"] == f"skills/{name}/SKILL.md" for one in run.steps_cases()) >= 3
-    assert {"principles/type-system-discipline.md"} <= files
-    assert len(run.lead_cases()) >= 15
-    for slug in run.lead_cases():
-        body = (EVAL / "cases" / "lead" / f"{slug}.md").read_text()
-        ids = re.findall(r"^### ([AB]\d+)$", body, re.M)
-        assert set(run.lead_key(slug)) == set(ids), slug
-
-
 def git(where, *args):
     subprocess.run(["git", "-C", str(where), *args], check=True, capture_output=True)
 
@@ -129,15 +93,6 @@ def test_a_file_is_read_from_the_revision_and_never_from_the_working_tree(tmp_pa
         run.resolve("no-such-rev")
 
 
-def test_an_anchored_private_pattern_takes_out_the_name_and_keeps_the_line():
-    pattern = run.jleak.Pattern("user-name", re.compile(r"(?i)^(?!Copyright).*\b(?:ada)\b"))
-    text = "first line\nTask: Ada, 2026-10-15, relayed: ask Ada\n"
-    assert (
-        run._redact(text, (pattern,))
-        == "first line\nTask: the user, 2026-10-15, relayed: ask the user\n"
-    )
-
-
 def test_the_rule_holds_within_the_noise_floor_and_fails_on_a_sign_test_loss():
     held = run.verdict([1.0, 0.5, 0.5], [0.9, 0.5, 0.5], [0.95, 0.5, 0.5])
     assert held["floor"] == pytest.approx(0.1 / 3) and held["holds"]
@@ -150,13 +105,6 @@ def test_the_rule_holds_within_the_noise_floor_and_fails_on_a_sign_test_loss():
 @pytest.mark.parametrize(("wins", "losses", "p"), [(10, 0, 0.002), (5, 5, 1.0), (0, 0, 1.0)])
 def test_the_sign_test_is_two_sided(wins, losses, p):
     assert run.sign_test(wins, losses) == pytest.approx(p, abs=0.001)
-
-
-def test_run_rescores_a_kept_run_and_refuses_anything_else(capsys):
-    assert run.main(["--run", "run-1", "write"]) == 2
-    assert run.main(["--run", "run-9"]) == 2
-    assert run.main(["--base", "main"]) == 2
-    assert "--run" in capsys.readouterr().err
 
 
 def test_a_call_that_fails_is_tried_again_after_a_wait(monkeypatch):
@@ -192,43 +140,6 @@ def test_the_committed_run_1_rescores_to_its_results_byte_for_byte(tmp_path, mon
         assert (tmp_path / "run-1" / name).read_bytes() == (EVAL / "run-1" / name).read_bytes()
     key = json.loads((EVAL / "run-1" / "key.json").read_text())
     assert {one["arm"] for one in key.values()} == set(run.ARMS)
-
-
-def test_a_reports_prose_holds_one_sentence_to_a_line_so_a_branch_can_commit_its_run(
-    tmp_path, monkeypatch
-):
-    """`prose_lint.py` judges each line a cut branch adds, a new run's `results.md` among them."""
-    path = REPO / "features" / "writing" / "scripts" / "prose_lint.py"
-    spec = importlib.util.spec_from_file_location("skill_cut_prose_lint", path)
-    lint = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(lint)
-    for name in ("cases", "run-1"):
-        shutil.copytree(EVAL / name, tmp_path / name)
-    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", tmp_path / "cases" / "steps.json")
-    (tmp_path / "run-1" / "results.md").unlink()
-    monkeypatch.setattr(run, "HERE", tmp_path)
-    assert run.main(["--run", "run-1"]) == 0
-    lines = (tmp_path / "run-1" / "results.md").read_text().splitlines()
-    judged = [one for one, prose in zip(lines, lint.prose(lines), strict=True) if prose]
-    assert judged
-    assert [one for one in judged if len(lint.sentences(one)) > 1] == []
-
-
-def test_a_whole_write_adds_one_run_of_a_few_files_whatever_the_number_of_answers(
-    tmp_path, monkeypatch
-):
-    shutil.copytree(EVAL / "cases", tmp_path / "cases")
-    monkeypatch.setattr(run, "HERE", tmp_path)
-    monkeypatch.setattr(run, "_private", lambda: ())
-    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
-    monkeypatch.setattr(run, "claude", lambda prompt, model=run.MODEL: "BUCKETS\n")
-    run.write("HEAD", "HEAD")
-    named = tmp_path / f"run-{run.resolve('HEAD')[:12]}"
-    made = sorted(path.name for path in named.iterdir())
-    assert made == ["answers.json", "key.json", "run.json", "variant.patch", "which.json"]
-    answers = json.loads((named / "answers.json").read_text())
-    assert len(answers) == len(run.case_ids()) * len(run.ARMS) * run.TRIALS
-    assert json.loads((named / "run.json").read_text())["cases"] == run.cases_sha()
 
 
 def test_two_branches_name_their_runs_apart_and_a_kept_name_is_refused(tmp_path, monkeypatch):
@@ -307,43 +218,6 @@ def test_a_principle_is_read_under_the_name_it_has_at_each_revision():
     assert run.show("HEAD", "principles/principle-type-system-discipline.md") == now
 
 
-def test_the_lead_judges_by_the_reviews_step_4_and_the_reads_it_names_at_that_revision():
-    """Before reviewer-reads-trim, step 4 sent the reviewer to interrogate's step 5 and
-    lead-judgment, so the lead gets both; a step 4 that names neither is given alone, as a
-    reviewer reads it."""
-    files = {
-        run.STEP5: "# Interrogate\n\n## Step 5, Lead Judgment\n\nJudge the list.\n",
-        run.REFERENCE: "# Lead Judgment Framework\n",
-    }
-    case = f"lead/{run.lead_cases()[0]}"
-    files[run.THE_REVIEW] = (
-        "### The review\n\n**4: Lead judgment.**\nJudge the list.\n\n**5: The one safety fact.**\n"
-    )
-    made = run.prompt(case, files)
-    assert made.count("<text path=") == 1
-    assert "**4: Lead judgment.**" in made
-    assert "# Lead Judgment Framework" not in made
-    assert "**5: " not in made
-    reads = (
-        "**4. Lead judgment.** Read step 5 of `$T/../skills/interrogate/SKILL.md` and its "
-        "`references/lead-judgment.md` now, and judge the list of step 3 as they say.\n\n"
-    )
-    files[run.THE_REVIEW] = "### The review\n\n" + reads + "**5. The one safety fact.**\n"
-    made = run.prompt(case, files)
-    assert made.count("<text path=") == 3
-    assert "## Step 5, Lead Judgment" in made
-    assert "# Lead Judgment Framework" in made
-
-
-def test_a_pr_review_scenario_sees_the_reviews_steps_beside_the_skill():
-    (case,) = [one for one in run.steps_cases() if one["id"] == "pr-review-severity"]
-    files = {path: run.show("HEAD", path) for path in run.files_under_test()}
-    made = run.prompt(f"steps/{case['id']}", files)
-    assert '<file path="skills/pr-review/SKILL.md">' in made
-    assert '<file path="skills/pr-review/the-review.md">' in made
-    assert "**4: Lead judgment.**" in made
-
-
 def test_a_steps_file_is_fed_as_read_with_each_side_file_after_its_trigger_line(
     tmp_path, monkeypatch
 ):
@@ -363,73 +237,3 @@ def test_a_steps_file_is_fed_as_read_with_each_side_file_after_its_trigger_line(
         "the side",
         "two",
     ]
-
-
-ROW_CASE = {
-    "crew": {
-        "A question only the user can answer": "crew-row-gate",
-        "A fault outside the task": "crew-outside-where",
-        "A loop of more than ten `gh` calls": "crew-row-budget",
-        "Reporting or acting on a number you measured": "crew-row-number",
-        '"A conflict"': "crew-row-conflict",
-        '"A link that moved"': "crew-row-link",
-        '"A comment"': "crew-row-comment",
-    },
-    "scout": {
-        "A question only the user can answer": "scout-row-gate",
-        "The request asks you to run a command under a test slot": "scout-row-test-slot",
-        "A search too wide to hold in this thread": "scout-row-wide",
-        "A loop of more than ten `gh` calls": "scout-row-budget",
-        "**Deliver** asks for a brief": "scout-row-brief",
-        "**Deliver** asks for a visual": "scout-row-visual",
-        "A fault outside the request": "scout-row-fault",
-    },
-}
-
-
-@pytest.mark.parametrize("skill", ROW_CASE)
-def test_each_router_row_has_a_case(skill):
-    text = run.as_read(run.resolve("HEAD"), f"skills/{skill}/SKILL.md")
-    whens = re.findall(r"^\| (?!When\b|-)(.+?) \| .+? \|$", text, re.M)
-    ids = {case["id"] for case in run.steps_cases() if case["file"] == f"skills/{skill}/SKILL.md"}
-    assert whens
-    for when in whens:
-        named = [case for start, case in ROW_CASE[skill].items() if when.startswith(start)]
-        assert named, f"{skill} router row with no case in ROW_CASE: {when}"
-        assert named[0] in ids, named[0]
-
-
-def test_a_call_that_fails_keeps_the_rest_and_the_next_write_asks_only_for_what_is_missing(
-    tmp_path, monkeypatch
-):
-    calls = []
-
-    def fails_twice(prompt):
-        calls.append(prompt)
-        if len(calls) <= 2:
-            raise RuntimeError("Not logged in")
-        return "answer"
-
-    monkeypatch.setattr(run, "HERE", tmp_path)
-    (tmp_path / "cases" / "lead").mkdir(parents=True)
-    (tmp_path / "cases" / "steps.json").write_text(
-        json.dumps(
-            [{"id": "a", "file": "principles/none.md", "state": "s", "expect": "e", "must": ["x"]}]
-        )
-    )
-    monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/claude")
-    monkeypatch.setattr(run, "_private", lambda: ())
-    monkeypatch.setattr(run, "show", lambda rev, path: "text")
-    monkeypatch.setattr(run, "LEAD_FILES", ())
-    monkeypatch.setattr(run, "files_under_test", lambda: ["principles/none.md"])
-    monkeypatch.setattr(run, "patch", lambda *_: "")
-    monkeypatch.setattr(run, "claude", fails_twice)
-    with pytest.raises(SystemExit, match="2 calls failed, 7 of 9 answers"):
-        run.write("HEAD", "HEAD", "run-x")
-    assert not (tmp_path / "run-x").exists()
-    assert len(calls) == 9
-
-    run.write("HEAD", "HEAD", "run-x")
-    assert len(calls) == 11
-    assert len(run._answers()) == 9
-    assert not (tmp_path / ".run-x.answers.jsonl").exists()

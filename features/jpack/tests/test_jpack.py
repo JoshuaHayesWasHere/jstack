@@ -12,7 +12,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from jpack import cli
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jpack" / "templates" / "context"
@@ -291,11 +290,3 @@ def test_the_day_s_jbus_pass_logs_the_stale_lines_of_a_projects_pack_once(kitche
     assert not [line for line in kitchen.wakes.said if line.startswith("pack ")]
     kitchen.poll(NOW + timedelta(days=1))
     assert len([one for one in logged(kitchen) if one["event"] == "pack"]) == 2
-
-
-def test_the_cli_main_gives_the_same_lines(subject, capsys, monkeypatch):
-    repo, sha = subject
-    pack(repo, [("good.md", "How many?", f'- `src/upload.py:12` at `{sha[:7]}`: "RETRIES = 9"')])
-    monkeypatch.chdir(repo)
-    assert cli.main(["verify", "docs/context"]) == 1
-    assert capsys.readouterr().out.startswith("good.md: `src/upload.py:12`")

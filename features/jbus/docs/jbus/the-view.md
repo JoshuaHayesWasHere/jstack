@@ -209,7 +209,7 @@ To pick another option or to use your own words, open that gate by itself.
 The view records the answer as `jbus answer` records it.
 The record names the user of your settings, the time by the server's clock, and `jbus view` as the place.
 The answer is an act of yours over the view, a line of `acts.jsonl`, on `view` evidence that jbus did not read itself ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)).
-So the view refuses an answer to a gate with a `Holds:` line, and that gate stays open for your own answer, `jbus --as user answer <n> --message <thread>/<message>`.
+So the view refuses an answer to a gate with a `Holds:` line, and that gate stays open for your own answer, `jbus --as user answer <n> --default --message <thread>/<message>` (`--differs` for an answer that is not the default).
 An answer that is not the default goes to the thread that asked in the same request.
 It goes as one queued message, the same message a pass would send.
 If T3 Code refuses the message or does not reply, the view still closes the question, the page says why the answer was not sent, and the next pass sends it.

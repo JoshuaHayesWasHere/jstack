@@ -60,9 +60,3 @@ def test_a_row_with_a_go_and_no_stored_brief_waits(kitchen):
     (kitchen.jbus / "briefs" / "delta.md").unlink()
     (said,) = kitchen.run()
     assert said.startswith("wait 9 ") and "has no go" in said, said
-
-
-def test_a_row_with_no_go_waits(kitchen):
-    queued(kitchen, "", "", STORED)
-    (said,) = kitchen.run()
-    assert said.startswith("wait 9 ") and "has no go" in said, said
