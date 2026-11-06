@@ -36,7 +36,7 @@ list of files carries this token for them, since a node id can hold a space or a
 
 The table holds CI's times, not a desk's: the tests run several times slower on the 4 cores of
 GitHub's runner, and not by one factor. Each part of `full` keeps its junit report as the
-artifact `junit-<k>`, and `uv run python -m testing.shard` writes the table from the last
+artifact `junit-<attempt>-<k>`, and `uv run python -m testing.shard` writes the table from the last
 `RUNS` green full runs of main that kept them, each test's median over them. Main's full runs
 restore main's TLC cache, so the merge flow's TLC test is in at its warm time, as the check's
 parts run it. `--shard-record PATH` writes it from a run of this machine instead:
