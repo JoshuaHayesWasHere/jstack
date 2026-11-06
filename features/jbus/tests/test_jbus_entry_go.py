@@ -404,15 +404,17 @@ def test_under_silence_a_follow_up_two_hops_from_silences_go_waits_when_silence_
 
 
 def test_an_entry_a_follow_up_takes_from_its_parent_approves_nothing(kitchen):
-    """The row counts for its parent's entry in `jbus plan`, and still waits for the user's go:
-    only an entry the home gave with `--entry` is approved by that entry's go."""
+    """The row counts for its parent's entry in `jbus plan`, and its go is the follow-up rule's on
+    its parent's go, not the entry's: only an entry the home gave with `--entry` is approved by
+    that entry's go."""
     queued(kitchen, "alpha")
     assert plan_go(kitchen)[0] == 0
     queued(kitchen, "beta", entry="", text=brief("beta", "Follows: alpha\n"))
     kitchen.poll()
     assert rows(kitchen)["beta"]["parent_entry"] == "epic"
     assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
-    assert basis(kitchen, "beta") == ()
+    assert basis(kitchen, "beta") == (queue.RULE, queue.FOLLOW_REF)
+    assert rows(kitchen)["beta"]["approval"]["follows"] == "alpha"
 
 
 JVIEW_PLAN = """\
