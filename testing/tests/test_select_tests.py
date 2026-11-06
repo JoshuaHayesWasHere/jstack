@@ -4,8 +4,10 @@ tests import and name, and from the map in verify-jstack's `features/`.
 The test runs the script as CI runs it, with `python3 -I -S`, so it imports nothing installed.
 It runs it in a temporary git repo that holds a copy of the script, a copy of the packages
 the script imports from this checkout to read the map's patterns, and a few modules, docs and
-tests of its own. The tests that run the selector on this repo's own tree, its table of rules,
-their mutants and the map's tests, are in test_select_tests_rules.py."""
+tests of its own: the folders its `READ_SET` names, so a change runs these tests only where it
+reaches the selector. The tests that run the selector on this repo's own tree, its table of
+rules, their mutants and the map's tests, are in test_select_tests_rules.py, which every change
+runs."""
 
 import importlib.util
 import re
@@ -23,6 +25,7 @@ SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
+READ_SET = ("features/jbriefs/src/", "features/jmerge/src/", "features/jsettings/src/")
 
 README = """\
 # A map
@@ -222,6 +225,12 @@ class Repo:
 @pytest.fixture
 def repo(tmp_path):
     return Repo(tmp_path)
+
+
+def test_the_read_set_names_every_folder_of_packages_a_repo_copies():
+    """A change to a package the copy holds selects these tests through the `READ_SET`. An import
+    jmerge's reader of patterns gains copies one more folder, and it must join the read set."""
+    assert {f"{folder.relative_to(REPO).as_posix()}/" for folder in packages()} == set(READ_SET)
 
 
 def test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_chain(repo):
