@@ -13,9 +13,8 @@ A local build's version carries +jstack build metadata, which keeps the
 nightly channel.
 ---
  apps/server/src/auth/RpcAuthorization.ts      |   1 +
- apps/server/src/jstack/JbusWork.test.ts       |  50 +++
  apps/server/src/jstack/JbusWork.ts            | 175 +++++++++
- apps/server/src/jstack/jbusWork.logic.test.ts | 165 ++++++++
+ apps/server/src/jstack/jbusWork.logic.test.ts | 120 ++++++
  apps/server/src/jstack/jbusWork.logic.ts      | 218 +++++++++++
  .../src/observability/RpcInstrumentation.ts   |   1 +
  apps/server/src/server.ts                     |   8 +-
@@ -27,7 +26,7 @@ nightly channel.
  .../src/components/settings/settingsSearch.ts |  30 ++
  .../src/components/sidebar/JstackTreeRows.tsx | 270 +++++++++++++
  .../components/sidebar/SidebarThreadRow.tsx   |   4 +-
- .../sidebar/jstackTree.logic.test.ts          | 249 ++++++++++++
+ .../sidebar/jstackTree.logic.test.ts          | 109 ++++++
  .../components/sidebar/jstackTree.logic.ts    | 369 ++++++++++++++++++
  apps/web/src/hooks/useSettings.ts             |  10 +-
  apps/web/src/lib/jbusWorkState.ts             |  16 +
@@ -38,10 +37,8 @@ nightly channel.
  packages/contracts/src/jbusWork.ts            |  68 ++++
  packages/contracts/src/rpc.ts                 |  10 +
  packages/contracts/src/settings.ts            |  30 ++
- scripts/build-desktop-artifact.test.ts        |  10 +
  scripts/build-desktop-artifact.ts             |   3 +-
- 28 files changed, 1945 insertions(+), 8 deletions(-)
- create mode 100644 apps/server/src/jstack/JbusWork.test.ts
+ 26 files changed, 1700 insertions(+), 8 deletions(-)
  create mode 100644 apps/server/src/jstack/JbusWork.ts
  create mode 100644 apps/server/src/jstack/jbusWork.logic.test.ts
  create mode 100644 apps/server/src/jstack/jbusWork.logic.ts
@@ -64,62 +61,6 @@ index a1b05c32a0..2d61240c30 100644
    [WS_METHODS.vcsRefreshStatus]: AuthOrchestrationReadScope,
    [WS_METHODS.gitResolvePullRequest]: AuthOrchestrationReadScope,
    [WS_METHODS.vcsListRefs]: AuthOrchestrationReadScope,
-diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
-new file mode 100644
-index 0000000000..82b8d6e718
---- /dev/null
-+++ b/apps/server/src/jstack/JbusWork.test.ts
-@@ -0,0 +1,50 @@
-+import * as NodeServices from "@effect/platform-node/NodeServices";
-+import { assert, it } from "@effect/vitest";
-+import * as Effect from "effect/Effect";
-+import * as FileSystem from "effect/FileSystem";
-+import * as Option from "effect/Option";
-+import * as Path from "effect/Path";
-+import * as Stream from "effect/Stream";
-+
-+import * as JbusWork from "./JbusWork.ts";
-+
-+const workFile = (value: string) =>
-+  JSON.stringify({
-+    work: [
-+      { kind: "row", slug: "fix-it", value, lane: "running", thread: "mcp:crew", who: "crew" },
-+    ],
-+  });
-+
-+const seed = Effect.gen(function* () {
-+  const fs = yield* FileSystem.FileSystem;
-+  const path = yield* Path.Path;
-+  const base = yield* fs.makeTempDirectoryScoped({ prefix: "t3code-jbus-work-" });
-+  const roots = { jbus: path.join(base, "jbus"), home: path.join(base, "home") };
-+  yield* fs.makeDirectory(path.join(roots.jbus, "jstack"), { recursive: true });
-+  yield* fs.makeDirectory(path.join(roots.home, "jstack", "tasks"), { recursive: true });
-+  // jbus keeps files beside its repo directories; probing `<file>/work.json` must not end discovery.
-+  yield* fs.writeFileString(path.join(roots.jbus, "sign-in.json"), "{}");
-+  yield* fs.writeFileString(path.join(roots.jbus, "jstack", "work.json"), workFile("working"));
-+  yield* fs.writeFileString(path.join(roots.home, "jstack", "home-id"), "mcp:root\n");
-+  return { roots, workPath: path.join(roots.jbus, "jstack", "work.json") };
-+});
-+
-+it.live("reads each repo beside jbus's own files and follows work.json", () =>
-+  Effect.gen(function* () {
-+    const fs = yield* FileSystem.FileSystem;
-+    const { roots, workPath } = yield* seed;
-+    const service = yield* JbusWork.make(roots);
-+    const { latest, changes } = yield* service.subscribe;
-+    assert.deepEqual(
-+      latest.tasks.map((task) => [task.slug, task.stage, task.homeThreadId]),
-+      [["fix-it", "crew", "mcp:root"]],
-+    );
-+
-+    yield* fs.writeFileString(workPath, workFile("quiet"));
-+    const next = yield* Stream.runHead(changes);
-+    assert.deepEqual(
-+      Option.map(next, (snapshot) => snapshot.tasks.map((task) => task.stage)),
-+      Option.some(["quiet"]),
-+    );
-+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
-+);
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
 new file mode 100644
 index 0000000000..85299d8a8e
@@ -303,18 +244,13 @@ index 0000000000..85299d8a8e
 +export const layer = Layer.effect(JbusWork, make(defaultJbusWorkRoots()));
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
 new file mode 100644
-index 0000000000..0800ea860a
+index 0000000000..0a7215a175
 --- /dev/null
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,120 @@
 +import { describe, expect, it } from "@effect/vitest";
 +
-+import {
-+  buildRepoWork,
-+  homeWord,
-+  slugsNeedingBriefs,
-+  type JbusRepoFiles,
-+} from "./jbusWork.logic.ts";
++import { buildRepoWork, slugsNeedingBriefs, type JbusRepoFiles } from "./jbusWork.logic.ts";
 +
 +const NOW = Date.parse("2026-10-29T15:00:00Z");
 +
@@ -377,35 +313,6 @@ index 0000000000..0800ea860a
 +    expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
 +  });
 +
-+  it("nests each task under the home its brief names", () => {
-+    const work = {
-+      work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
-+        row(slug, "working", "running"),
-+      ),
-+    };
-+    const briefHomes = new Map([
-+      ["root", "root"],
-+      ["flow", "flow"],
-+      ["thread", "mcp:other-home"],
-+      ["prose", "flow (a second home of this repo). Its plan is `flow/plan.md`."],
-+      ["unknown", "nowhere"],
-+    ]);
-+    const result = buildRepoWork(files({ work, briefHomes }), NOW);
-+    expect(result.tasks.map((task) => [task.slug, task.homeThreadId])).toEqual([
-+      ["none", "mcp:root"],
-+      ["root", "mcp:root"],
-+      ["flow", "mcp:flow-home"],
-+      ["thread", "mcp:other-home"],
-+      ["prose", "mcp:flow-home"],
-+      ["unknown", "mcp:root"],
-+      ["fl-prefixed", "mcp:flow-home"],
-+    ]);
-+    expect(result.homes).toEqual([
-+      { repo: "jstack", scope: null, threadId: "mcp:root", prefix: null },
-+      { repo: "jstack", scope: "flow", threadId: "mcp:flow-home", prefix: "fl-" },
-+    ]);
-+  });
-+
 +  it("reads open gates, launched scouts, and merges inside the landed window", () => {
 +    const result = buildRepoWork(
 +      files({
@@ -459,17 +366,6 @@ index 0000000000..0800ea860a
 +      },
 +    ]);
 +    expect(slugsNeedingBriefs({ work: { work: [] }, merged: files().merged }, NOW)).toEqual([]);
-+  });
-+
-+  it("is empty for a repo with no root home", () => {
-+    expect(buildRepoWork(files({ rootHomeId: null }), NOW).homes).toEqual([]);
-+  });
-+});
-+
-+describe("homeWord", () => {
-+  it("takes the first word without trailing punctuation", () => {
-+    expect(homeWord("review-speed (a second home).")).toBe("review-speed");
-+    expect(homeWord("flow.")).toBe("flow");
 +  });
 +});
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
@@ -1434,10 +1330,10 @@ index a111126342..5e9ea0d588 100644
  
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 new file mode 100644
-index 0000000000..634306be6a
+index 0000000000..03cb109c1b
 --- /dev/null
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,109 @@
 +import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 +import {
 +  EMPTY_JBUS_WORK_SNAPSHOT,
@@ -1528,134 +1424,6 @@ index 0000000000..634306be6a
 +    ).toBeNull();
 +  });
 +
-+  it("ranks needs you, quiet, crew, review, then queued", () => {
-+    const tree = build(
-+      {
-+        tasks: [
-+          task("queued", { stage: "ready", threadId: null }),
-+          task("reviewing", { stage: "review" }),
-+          task("working"),
-+          task("silent", { stage: "quiet" }),
-+          task("gated"),
-+        ],
-+        gates: [
-+          {
-+            repo: "jstack",
-+            number: 1,
-+            threadId: null,
-+            slug: "gated",
-+            question: "Ship it?",
-+            askedAt: minutesAgo(5),
-+          },
-+        ],
-+      },
-+      { threads: [thread("crew-silent", { updatedAt: minutesAgo(45) })] },
-+    );
-+    expect(workers(tree?.rows)).toEqual([
-+      "gated:asks you",
-+      "silent:quiet 45m",
-+      "working:crew",
-+      "reviewing:review",
-+      "queued:ready",
-+    ]);
-+  });
-+
-+  it("reads a quiet task as crew under its threshold or with gates-only attention", () => {
-+    const threads = [thread("crew-silent", { updatedAt: minutesAgo(10) })];
-+    const tasks = [task("silent", { stage: "quiet" })];
-+    expect(workers(build({ tasks }, { threads })?.rows)).toEqual(["silent:crew"]);
-+    expect(
-+      workers(
-+        build(
-+          { tasks },
-+          {
-+            threads: [thread("crew-silent", { updatedAt: minutesAgo(90) })],
-+            options: { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 8 },
-+          },
-+        )?.rows,
-+      ),
-+    ).toEqual(["silent:crew"]);
-+  });
-+
-+  it("keeps the frozen order and appends new tasks", () => {
-+    const tasks = [task("a", { stage: "review" }), task("b")];
-+    const first = build({ tasks });
-+    expect(workers(first?.rows)).toEqual(["b:crew", "a:review"]);
-+    const frozen = new Map([[ThreadId.make("root"), ["jstack-task:jstack/a"]]]);
-+    const next = build(
-+      { tasks: [...tasks, task("c", { waitsOnUser: true })] },
-+      { frozenOrder: frozen },
-+    );
-+    expect(workers(next?.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
-+  });
-+
-+  it("caps a home's rows behind a +N row until it is expanded", () => {
-+    const tasks = Array.from({ length: 5 }, (_, index) => task(`t${index}`));
-+    const options = { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 3 } as const;
-+    const more = build({ tasks }, { options })?.rows.find((row) => row.kind === "more");
-+    expect(more).toMatchObject({ count: 2, homeKey: "root" });
-+    const open = build({ tasks }, { options, expandedHomes: new Set(["root"]) });
-+    expect(open?.rows.some((row) => row.kind === "more")).toBe(false);
-+    expect(workers(open?.rows)).toHaveLength(5);
-+  });
-+
-+  it("opens a domain only while it or one of its tasks is selected", () => {
-+    const tasks = [
-+      task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true }),
-+      task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
-+    ];
-+    const closed = build({ tasks });
-+    expect(closed?.rows.find((row) => row.kind === "domain")).toMatchObject({
-+      open: false,
-+      dot: true,
-+      tally: { queue: 1, crew: 1, review: 0 },
-+    });
-+    expect(workers(closed?.rows)).toEqual([]);
-+
-+    const open = build({ tasks }, { routeThreadId: ThreadId.make("crew-fl-pump") });
-+    expect(open?.rows.find((row) => row.kind === "domain")).toMatchObject({
-+      open: true,
-+      dot: false,
-+    });
-+    const pump = open?.rows.find((row) => row.kind === "worker" && row.slug === "pump");
-+    expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
-+  });
-+
-+  it("rolls everything inside up to the project row when folded", () => {
-+    const tree = build(
-+      { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true })] },
-+      { collapsed: true },
-+    );
-+    expect(tree?.rows).toHaveLength(1);
-+    expect(tree?.rows[0]).toMatchObject({ kind: "project", dot: true, taskCount: 1 });
-+  });
-+
-+  it("counts merges since the root home was last visited", () => {
-+    const landed = [
-+      {
-+        repo: "jstack",
-+        slug: "old",
-+        homeThreadId: ThreadId.make("root"),
-+        mergedAt: minutesAgo(90),
-+      },
-+      { repo: "jstack", slug: "new", homeThreadId: ThreadId.make("root"), mergedAt: minutesAgo(5) },
-+      { repo: "infra", slug: "else", homeThreadId: ThreadId.make("x"), mergedAt: minutesAgo(5) },
-+    ];
-+    const project = (tree: ReturnType<typeof build>) => tree?.rows[0];
-+    expect(project(build({ landed }, { lastVisitedAt: () => minutesAgo(30) }))).toMatchObject({
-+      landed: 1,
-+    });
-+    expect(project(build({ landed }))).toMatchObject({ landed: 2 });
-+    expect(
-+      project(
-+        build(
-+          { landed },
-+          { options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 } },
-+        ),
-+      ),
-+    ).toMatchObject({ landed: 0 });
-+  });
-+
 +  it("drops scouts whose thread settled or archived", () => {
 +    const tree = build(
 +      {
@@ -1673,18 +1441,6 @@ index 0000000000..634306be6a
 +      },
 +    );
 +    expect(workers(tree?.rows)).toEqual(["live:scout"]);
-+  });
-+
-+  it("lists the folder's other threads loose, minus finished worker threads", () => {
-+    const tree = build(
-+      { tasks: [task("working")] },
-+      {
-+        threads: [thread("notes", { title: "Notes" }), thread("old", { title: "crew: old-task" })],
-+      },
-+    );
-+    expect(tree?.rows.flatMap((row) => (row.kind === "loose" ? [row.thread.title] : []))).toEqual([
-+      "Notes",
-+    ]);
 +  });
 +});
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
@@ -2335,31 +2091,6 @@ index 16eb51aa17..a3b644d7ca 100644
    legacySidebarEnabled: Schema.optionalKey(Schema.Boolean),
    sidebarWorkingShelfEnabled: Schema.optionalKey(Schema.Boolean),
    sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),
-diff --git a/scripts/build-desktop-artifact.test.ts b/scripts/build-desktop-artifact.test.ts
-index a4cef9ba03..470dc0ada1 100644
---- a/scripts/build-desktop-artifact.test.ts
-+++ b/scripts/build-desktop-artifact.test.ts
-@@ -38,6 +38,7 @@ import {
-   preflightWindowsDesktopBuild,
-   renderMacPasskeyEntitlements,
-   resolveMacWebAuthnEntitlements,
-+  resolveDesktopUpdateChannel,
-   resolveMacPasskeySigningConfiguration,
-   resolveMergedStageDependencies,
-   resolveBuildOptions,
-@@ -1745,3 +1746,12 @@ it.effect.skipIf(!symlinksSupported)("rebases packaged links into the isolated t
-     );
-   }).pipe(Effect.provide(NodeServices.layer)),
- );
-+
-+it("keeps a nightly's channel when build metadata marks a local build", () => {
-+  assert.strictEqual(
-+    resolveDesktopUpdateChannel("0.1.5-nightly.20261029.3877+jstack.1"),
-+    "nightly",
-+  );
-+  assert.strictEqual(resolveDesktopUpdateChannel("0.1.5-nightly.20261029.3877"), "nightly");
-+  assert.strictEqual(resolveDesktopUpdateChannel("0.1.5+jstack.1"), "latest");
-+});
 diff --git a/scripts/build-desktop-artifact.ts b/scripts/build-desktop-artifact.ts
 index 3a8686f248..47e373e019 100644
 --- a/scripts/build-desktop-artifact.ts

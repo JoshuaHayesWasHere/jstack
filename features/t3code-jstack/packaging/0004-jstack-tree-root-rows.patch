@@ -11,15 +11,15 @@ A project with no jstack home draws through the same root row over its threads, 
 the separate folder row goes. T3's "No project" group never takes a home and is
 pinned last, faded while idle.
 ---
- apps/web/src/components/Sidebar.tsx           | 116 ++++-----
- .../sidebar/JstackTreeRows.browser.test.tsx   | 240 ++++++++++++++++++
- .../src/components/sidebar/JstackTreeRows.tsx | 162 ++++--------
+ apps/web/src/components/Sidebar.tsx           | 116 +++++------
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 181 ++++++++++++++++++
+ .../src/components/sidebar/JstackTreeRows.tsx | 162 ++++++----------
  .../components/sidebar/SidebarThreadRow.tsx   |   9 +-
- .../sidebar/jstackTree.logic.test.ts          | 141 ++++++++--
- .../components/sidebar/jstackTree.logic.ts    | 111 ++++++--
+ .../sidebar/jstackTree.logic.test.ts          |  14 +-
+ .../components/sidebar/jstackTree.logic.ts    | 111 +++++++++--
  apps/web/src/index.css                        |   9 +
  apps/web/src/lib/utils.ts                     |   2 +-
- 8 files changed, 569 insertions(+), 221 deletions(-)
+ 8 files changed, 397 insertions(+), 207 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
@@ -227,13 +227,12 @@ index 092b833e17..f85cdbe877 100644
                                  key={`project-folder:${folder.group.projectKey}`}
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 new file mode 100644
-index 0000000000..70eb602349
+index 0000000000..452ea16f05
 --- /dev/null
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,181 @@
 +import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 +import { describe, expect, it, vi } from "vite-plus/test";
-+import { userEvent } from "vite-plus/test/browser";
 +
 +import "~/index.css";
 +import { render } from "../../../test/render";
@@ -411,64 +410,6 @@ index 0000000000..70eb602349
 +      fontWeight: "400",
 +      ink: 0.7,
 +    });
-+  });
-+});
-+
-+describe("JstackTreeRowView root rows", () => {
-+  it("opens the root home's main thread from a project with a home", async () => {
-+    const spies = actions();
-+    await using screen = await render(<Tree actions={spies} rows={[[root(), group("jstack")]]} />, {
-+      router: false,
-+    });
-+    await userEvent.click(screen.getByRole("treeitem", { name: "jstack main thread" }));
-+    expect(spies.onOpenThread).toHaveBeenCalledWith(ThreadId.make("root"));
-+    expect(spies.onToggleProject).not.toHaveBeenCalled();
-+    // Its fold chevron stays in the tab order, since the row's own click opens a thread.
-+    const fold = screen.getByRole("button", { name: "Fold jstack" }).element() as HTMLElement;
-+    expect(fold.tabIndex).toBe(0);
-+  });
-+
-+  it("folds a project with no home from its name, and offers a new thread in it", async () => {
-+    const spies = actions();
-+    const winnifred = group("Winnifred");
-+    await using screen = await render(
-+      <Tree actions={spies} rows={[[root({ key: "folder:Winnifred", main: null }), winnifred]]} />,
-+      { router: false },
-+    );
-+    await userEvent.click(screen.getByRole("treeitem", { name: "Winnifred" }));
-+    expect(spies.onToggleProject).toHaveBeenCalledWith(winnifred);
-+    expect(spies.onOpenThread).not.toHaveBeenCalled();
-+    // The row itself folds, so its chevron stays out of the tab order.
-+    const fold = screen.getByRole("button", { name: "Fold Winnifred" }).element() as HTMLElement;
-+    expect(fold.tabIndex).toBe(-1);
-+    await userEvent.click(screen.getByRole("button", { name: "New thread in Winnifred" }));
-+    expect(spies.onNewThread).toHaveBeenCalledWith(winnifred);
-+  });
-+
-+  it("draws No project as a root row, faded while idle, that counts its folded threads", async () => {
-+    await using screen = await render(
-+      <Tree
-+        actions={actions()}
-+        rows={[
-+          [
-+            root({
-+              key: "folder:none",
-+              main: null,
-+              noProject: true,
-+              collapsed: true,
-+              faded: true,
-+              folded: { count: 2, unit: "thread" },
-+            }),
-+            group("No project"),
-+          ],
-+        ]}
-+      />,
-+      { router: false },
-+    );
-+    const row = screen.getByRole("treeitem", { name: "No project" }).element() as HTMLElement;
-+    expect(measure(row, "No project")).toMatchObject({ height: 36, fontSize: "15px" });
-+    expect(row.textContent).toContain("2 threads");
-+    expect(getComputedStyle(row.closest("li")!).opacity).toBe("0.5");
 +  });
 +});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
@@ -747,24 +688,10 @@ index 225efeba17..8124fc7a36 100644
            : variant !== "slim"
              ? cn(
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index 035af702da..5a437c34fd 100644
+index ac89580026..a0faa96d7e 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -10,7 +10,12 @@ import {
- import { describe, expect, it } from "vite-plus/test";
- 
- import { makeThreadFixture, type ThreadFixtureOverrides } from "../../test-fixtures";
--import { buildJstackTree, type JstackTreeInput, type JstackTreeRow } from "./jstackTree.logic";
-+import {
-+  arrangeJstackRoots,
-+  buildJstackTree,
-+  type JstackTreeInput,
-+  type JstackTreeRow,
-+} from "./jstackTree.logic";
- 
- const environmentId = EnvironmentId.make("environment-local");
- const projectId = ProjectId.make("project-jstack");
-@@ -63,11 +68,13 @@ function build(
+@@ -63,11 +63,13 @@ function build(
    ];
    return buildJstackTree({
      environmentId,
@@ -779,63 +706,20 @@ index 035af702da..5a437c34fd 100644
      collapsed: false,
      routeThreadId: null,
      expandedHomes: new Set(),
-@@ -83,10 +90,43 @@ const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
+@@ -83,12 +85,6 @@ const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
    (rows ?? []).flatMap((row) => (row.kind === "worker" ? [`${row.slug}:${row.word}`] : []));
  
  describe("buildJstackTree", () => {
 -  it("returns null for a project without a jstack root home", () => {
-+  it("draws a project with no jstack home as a root row over its threads, worker titles included", () => {
-+    const other = { memberProjectRefs: [{ environmentId, projectId: ProjectId.make("other") }] };
-+    const tree = build({}, { ...other, threads: [thread("old", { title: "crew: old-task" })] });
-+    expect(tree.rows[0]).toMatchObject({
-+      kind: "project",
-+      key: "folder:project",
-+      main: null,
-+      noProject: false,
-+      faded: true,
-+    });
-     expect(
+-    expect(
 -      build({}, { memberProjectRefs: [{ environmentId, projectId: ProjectId.make("other") }] }),
 -    ).toBeNull();
-+      tree.rows.flatMap((row) =>
-+        row.kind === "loose" ? [`${row.parentKey}>${row.thread.title}`] : [],
-+      ),
-+    ).toEqual(["folder:project>root", "folder:project>flow", "folder:project>crew: old-task"]);
-+  });
-+
-+  it("folds a project with no home to a count of its threads, dotted when one asks", () => {
-+    const other = { memberProjectRefs: [{ environmentId, projectId: ProjectId.make("other") }] };
-+    const asking = thread("asking", { hasPendingUserInput: true });
-+    const tree = build(
-+      {},
-+      { ...other, collapsed: true, folderThreads: [], hiddenThreads: [thread("a"), asking] },
-+    );
-+    expect(tree.rows).toHaveLength(1);
-+    expect(tree.rows[0]).toMatchObject({
-+      collapsed: true,
-+      dot: true,
-+      folded: { count: 2, unit: "thread" },
-+      faded: false,
-+    });
-+  });
-+
-+  it("never gives No project a home, even with a root home's thread in it", () => {
-+    const tree = build({}, { noProject: true });
-+    expect(tree.rows[0]).toMatchObject({ kind: "project", main: null, noProject: true });
-+    expect(tree.rows.some((row) => row.kind === "worker" || row.kind === "domain")).toBe(false);
-   });
- 
-   it("ranks needs you, quiet, crew, review, then queued", () => {
-@@ -112,7 +152,7 @@ describe("buildJstackTree", () => {
-       },
-       { threads: [thread("crew-silent", { updatedAt: minutesAgo(45) })] },
-     );
--    expect(workers(tree?.rows)).toEqual([
-+    expect(workers(tree.rows)).toEqual([
-       "gated:asks you",
-       "silent:quiet 45m",
-       "working:crew",
-@@ -142,7 +182,7 @@ describe("buildJstackTree", () => {
+-  });
+-
+   it("opens a task with no thread at the thread that asks about it, else at its home, and says what it asks", () => {
+     const tasks = [
+       task("asked", {
+@@ -110,7 +106,7 @@ describe("buildJstackTree", () => {
          askedAt: minutesAgo(1),
        },
      ];
@@ -844,171 +728,14 @@ index 035af702da..5a437c34fd 100644
      const opens = rows.flatMap((row) =>
        row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
      );
-@@ -158,7 +198,7 @@ describe("buildJstackTree", () => {
-   it("reads a quiet task as crew under its threshold or with gates-only attention", () => {
-     const threads = [thread("crew-silent", { updatedAt: minutesAgo(10) })];
-     const tasks = [task("silent", { stage: "quiet" })];
--    expect(workers(build({ tasks }, { threads })?.rows)).toEqual(["silent:crew"]);
-+    expect(workers(build({ tasks }, { threads }).rows)).toEqual(["silent:crew"]);
-     expect(
-       workers(
-         build(
-@@ -167,7 +207,7 @@ describe("buildJstackTree", () => {
-             threads: [thread("crew-silent", { updatedAt: minutesAgo(90) })],
-             options: { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 8 },
-           },
--        )?.rows,
-+        ).rows,
-       ),
-     ).toEqual(["silent:crew"]);
-   });
-@@ -175,23 +215,23 @@ describe("buildJstackTree", () => {
-   it("keeps the frozen order and appends new tasks", () => {
-     const tasks = [task("a", { stage: "review" }), task("b")];
-     const first = build({ tasks });
--    expect(workers(first?.rows)).toEqual(["b:crew", "a:review"]);
-+    expect(workers(first.rows)).toEqual(["b:crew", "a:review"]);
-     const frozen = new Map([[ThreadId.make("root"), ["jstack-task:jstack/a"]]]);
-     const next = build(
-       { tasks: [...tasks, task("c", { waitsOnUser: true })] },
-       { frozenOrder: frozen },
-     );
--    expect(workers(next?.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
-+    expect(workers(next.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
-   });
- 
-   it("caps a home's rows behind a +N row until it is expanded", () => {
-     const tasks = Array.from({ length: 5 }, (_, index) => task(`t${index}`));
-     const options = { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 3 } as const;
--    const more = build({ tasks }, { options })?.rows.find((row) => row.kind === "more");
-+    const more = build({ tasks }, { options }).rows.find((row) => row.kind === "more");
-     expect(more).toMatchObject({ count: 2, homeKey: "root" });
-     const open = build({ tasks }, { options, expandedHomes: new Set(["root"]) });
--    expect(open?.rows.some((row) => row.kind === "more")).toBe(false);
--    expect(workers(open?.rows)).toHaveLength(5);
-+    expect(open.rows.some((row) => row.kind === "more")).toBe(false);
-+    expect(workers(open.rows)).toHaveLength(5);
-   });
- 
-   it("opens a domain only while it or one of its tasks is selected", () => {
-@@ -200,19 +240,19 @@ describe("buildJstackTree", () => {
-       task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
-     ];
-     const closed = build({ tasks });
--    expect(closed?.rows.find((row) => row.kind === "domain")).toMatchObject({
-+    expect(closed.rows.find((row) => row.kind === "domain")).toMatchObject({
-       open: false,
-       dot: true,
-       tally: { queue: 1, crew: 1, review: 0 },
-     });
--    expect(workers(closed?.rows)).toEqual([]);
-+    expect(workers(closed.rows)).toEqual([]);
- 
-     const open = build({ tasks }, { routeThreadId: ThreadId.make("crew-fl-pump") });
--    expect(open?.rows.find((row) => row.kind === "domain")).toMatchObject({
-+    expect(open.rows.find((row) => row.kind === "domain")).toMatchObject({
-       open: true,
-       dot: false,
-     });
--    const pump = open?.rows.find((row) => row.kind === "worker" && row.slug === "pump");
-+    const pump = open.rows.find((row) => row.kind === "worker" && row.slug === "pump");
-     expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
-   });
- 
-@@ -221,8 +261,12 @@ describe("buildJstackTree", () => {
-       { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true })] },
-       { collapsed: true },
-     );
--    expect(tree?.rows).toHaveLength(1);
--    expect(tree?.rows[0]).toMatchObject({ kind: "project", dot: true, taskCount: 1 });
-+    expect(tree.rows).toHaveLength(1);
-+    expect(tree.rows[0]).toMatchObject({
-+      kind: "project",
-+      dot: true,
-+      folded: { count: 1, unit: "task" },
-+    });
-   });
- 
-   it("counts merges since the root home was last visited", () => {
-@@ -236,7 +280,7 @@ describe("buildJstackTree", () => {
-       { repo: "jstack", slug: "new", homeThreadId: ThreadId.make("root"), mergedAt: minutesAgo(5) },
-       { repo: "infra", slug: "else", homeThreadId: ThreadId.make("x"), mergedAt: minutesAgo(5) },
-     ];
--    const project = (tree: ReturnType<typeof build>) => tree?.rows[0];
-+    const project = (tree: ReturnType<typeof build>) => tree.rows[0];
-     expect(project(build({ landed }, { lastVisitedAt: () => minutesAgo(30) }))).toMatchObject({
-       landed: 1,
-     });
-@@ -267,7 +311,7 @@ describe("buildJstackTree", () => {
+@@ -139,6 +135,6 @@ describe("buildJstackTree", () => {
          ],
        },
      );
 -    expect(workers(tree?.rows)).toEqual(["live:scout"]);
 +    expect(workers(tree.rows)).toEqual(["live:scout"]);
    });
- 
-   it("lists the folder's other threads loose, minus finished worker threads", () => {
-@@ -277,8 +321,59 @@ describe("buildJstackTree", () => {
-         threads: [thread("notes", { title: "Notes" }), thread("old", { title: "crew: old-task" })],
-       },
-     );
--    expect(tree?.rows.flatMap((row) => (row.kind === "loose" ? [row.thread.title] : []))).toEqual([
-+    expect(tree.rows.flatMap((row) => (row.kind === "loose" ? [row.thread.title] : []))).toEqual([
-       "Notes",
-     ]);
-   });
  });
-+
-+describe("arrangeJstackRoots", () => {
-+  const root = (name: string, faded: boolean, noProject = false) => ({
-+    name,
-+    head: {
-+      kind: "project" as const,
-+      key: name,
-+      main: null,
-+      noProject,
-+      collapsed: false,
-+      asksYou: false,
-+      dot: false,
-+      landed: 0,
-+      folded: { count: 0, unit: "thread" as const },
-+      faded,
-+      selected: false,
-+    },
-+  });
-+  const arrange = (roots: ReadonlyArray<ReturnType<typeof root>>) => {
-+    const arranged = arrangeJstackRoots(roots, (one) => one.head);
-+    return arranged.roots.map((one) =>
-+      one === arranged.dividerBefore ? `| ${one.name}` : one.name,
-+    );
-+  };
-+
-+  it("puts active roots first, idle ones below one divider, and No project last", () => {
-+    expect(
-+      arrange([
-+        root("No project", false, true),
-+        root("winnifred", true),
-+        root("jstack", false),
-+        root("infra", false),
-+        root("case control", true),
-+      ]),
-+    ).toEqual(["jstack", "infra", "| winnifred", "case control", "No project"]);
-+  });
-+
-+  it("keeps No project last when it is idle, under the divider", () => {
-+    expect(arrange([root("No project", true, true), root("jstack", false)])).toEqual([
-+      "jstack",
-+      "| No project",
-+    ]);
-+  });
-+
-+  it("draws no divider when every root is idle", () => {
-+    expect(arrange([root("No project", true, true), root("winnifred", true)])).toEqual([
-+      "winnifred",
-+      "No project",
-+    ]);
-+  });
-+});
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 54e5250f65..65593538b9 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

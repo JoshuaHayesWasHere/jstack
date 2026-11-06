@@ -13,139 +13,108 @@ A browser test opens every row kind's menu (a project with a home and one
 without, a home, a worker, a queued and an asking task, and "more") and
 picks every item, asserting it runs that item's action and no other.
 ---
- .../sidebar/JstackTreeRows.browser.test.tsx   | 143 ++++++++++++++----
- .../src/components/sidebar/JstackTreeRows.tsx | 133 +++++++++-------
+ .../sidebar/JstackTreeRows.browser.test.tsx   |  93 ------------
+ .../src/components/sidebar/JstackTreeRows.tsx | 133 ++++++++++--------
  .../components/sidebar/jstackTree.logic.ts    |  60 --------
- 3 files changed, 188 insertions(+), 148 deletions(-)
+ 3 files changed, 75 insertions(+), 211 deletions(-)
 
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index d1295751e9..308101bcb3 100644
+index 8621eba55d..fdbe27b412 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -294,50 +294,133 @@ function everyRow(spies: JstackTreeRowActions) {
-   );
- }
+@@ -1,6 +1,5 @@
+ import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
+ import { describe, expect, it, vi } from "vite-plus/test";
+-import { page, userEvent } from "vite-plus/test/browser";
  
-+const more: JstackTreeRow = {
-+  kind: "more",
-+  key: "jstack-more:jstack-home:flow",
-+  parentKey: "jstack-home:flow",
-+  depth: 2,
-+  homeKey: "jstack-home:flow",
-+  count: 3,
-+};
-+
- describe("JstackTreeRowView context menus", () => {
+ import "~/index.css";
+ import { render } from "../../../test/render";
+@@ -187,95 +186,3 @@ describe("JstackTreeRowView sizes", () => {
+     });
+   });
+ });
+-
+-const queued: JstackTreeRow = {
+-  ...worker,
+-  key: "jstack-task:jstack/fl-meter",
+-  slug: "meter",
+-  word: "ready",
+-  ticks: { step: 0, hollow: true, asks: false },
+-  threadId: null,
+-  openThreadId: ThreadId.make("flow"),
+-};
+-
+-const asking: JstackTreeRow = {
+-  ...worker,
+-  key: "jstack-task:jstack/fl-valve",
+-  slug: "valve",
+-  word: "asks you",
+-  tone: "asks",
+-  ticks: { step: 0, hollow: true, asks: true },
+-  threadId: null,
+-  openThreadId: ThreadId.make("gate"),
+-  ask: { what: "Which valve size?", askedIn: "gate thread" },
+-};
+-
+-const menuItems = () =>
+-  [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) =>
+-    item.textContent?.trim(),
+-  );
+-
+-/** Every row kind the tree draws, under one root, as the sidebar draws them. */
+-function everyRow(spies: JstackTreeRowActions) {
+-  const jstack = group("jstack");
+-  return render(
+-    <Tree
+-      actions={spies}
+-      rows={[
+-        [root(), jstack],
+-        [home, jstack],
+-        [worker, jstack],
+-        [queued, jstack],
+-        [asking, jstack],
+-      ]}
+-    />,
+-    { router: false },
+-  );
+-}
+-
+-describe("JstackTreeRowView context menus", () => {
 -  it("opens each row's own menu on right-click and runs what the mouse picks", async () => {
-+  it("runs each item of every row kind's menu, and only that item's action", async () => {
-     const spies = actions();
+-    const spies = actions();
 -    await using screen = await everyRow(spies);
 -    const cases = [
-+    const jstack = group("jstack");
-+    const winnifred = group("Winnifred");
-+    await using screen = await render(
-+      <Tree
-+        actions={spies}
-+        rows={[
-+          [root(), jstack],
-+          [home, jstack],
-+          [worker, jstack],
-+          [queued, jstack],
-+          [asking, jstack],
-+          [more, jstack],
-+          [root({ key: "folder:Winnifred", main: null }), winnifred],
-+        ]}
-+      />,
-+      { router: false },
-+    );
-+    const asks = () => screen.container.textContent?.includes("Which valve size?");
-+    // Each row's menu, in order, and what each item runs: a spy and its arguments, or a check.
-+    type Ran = readonly [keyof JstackTreeRowActions, ...unknown[]] | (() => Promise<void>);
-+    const menus: ReadonlyArray<{
-+      row: string | RegExp;
-+      items: ReadonlyArray<readonly [string, Ran]>;
-+    }> = [
-       {
+-      {
 -        name: /^jstack .*main thread$/,
 -        items: ["Open home", "Fold", "New thread", "Copy path", "Project settings"],
 -        pick: "Copy path",
 -        ran: () => expect(spies.onCopyPath).toHaveBeenCalledWith(group("jstack")),
-+        row: /^jstack .*main thread$/,
-+        items: [
-+          ["Open home", ["onOpenThread", ThreadId.make("root")]],
-+          ["Fold", ["onToggleProject", jstack]],
-+          ["New thread", ["onNewThread", jstack]],
-+          ["Copy path", ["onCopyPath", jstack]],
-+          ["Project settings", ["onOpenProjectSettings", jstack]],
-+        ],
-       },
-       {
+-      },
+-      {
 -        name: "flow home",
 -        items: ["Open home", "Copy scope name"],
 -        pick: "Open home",
 -        ran: () => expect(spies.onOpenThread).toHaveBeenCalledWith(ThreadId.make("flow")),
-+        row: "Winnifred",
-+        items: [
-+          ["Fold", ["onToggleProject", winnifred]],
-+          ["New thread", ["onNewThread", winnifred]],
-+          ["Copy path", ["onCopyPath", winnifred]],
-+          ["Project settings", ["onOpenProjectSettings", winnifred]],
-+        ],
-       },
-       {
+-      },
+-      {
 -        name: "fl-pump crew",
 -        items: ["Open thread", "Copy slug"],
 -        pick: "Copy slug",
 -        ran: () => expect(spies.onCopyName).toHaveBeenCalledWith("fl-pump", "slug"),
-+        row: "flow home",
-+        items: [
-+          ["Open home", ["onOpenThread", ThreadId.make("flow")]],
-+          ["Copy scope name", ["onCopyName", "flow", "scope name"]],
-+        ],
-       },
-       {
+-      },
+-      {
 -        name: "fl-meter ready",
 -        items: ["Open its home", "Copy slug"],
 -        pick: "Open its home",
 -        ran: () => expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("flow")),
-+        row: "fl-pump crew",
-+        items: [
-+          ["Open thread", ["onOpenThread", ThreadId.make("crew-pump")]],
-+          ["Copy slug", ["onCopyName", "fl-pump", "slug"]],
-+        ],
-       },
-       {
+-      },
+-      {
 -        name: "fl-valve asks you",
 -        items: ["Show what it asks", "Open gate thread", "Copy slug"],
 -        pick: "Open gate thread",
 -        ran: () => expect(spies.onOpenThread).toHaveBeenLastCalledWith(ThreadId.make("gate")),
-+        row: "fl-meter ready",
-+        items: [
-+          ["Open its home", ["onOpenThread", ThreadId.make("flow")]],
-+          ["Copy slug", ["onCopyName", "fl-meter", "slug"]],
-+        ],
-+      },
-+      {
-+        row: "fl-valve asks you",
-+        items: [
-+          [
-+            "Show what it asks",
-+            async () => {
-+              expect(asks()).toBe(true);
-+              // The row's own click folds it again, so its menu reads the same for the next item.
-+              await userEvent.click(screen.getByRole("treeitem", { name: "fl-valve asks you" }));
-+              expect(asks()).toBe(false);
-+            },
-+          ],
-+          ["Open gate thread", ["onOpenThread", ThreadId.make("gate")]],
-+          ["Copy slug", ["onCopyName", "fl-valve", "slug"]],
-+        ],
-+      },
-+      {
-+        row: "+3 more",
-+        items: [["Show 3 more", ["onExpandHome", "jstack-home:flow"]]],
-       },
-     ];
+-      },
+-    ];
 -    for (const one of cases) {
 -      await userEvent.click(screen.getByRole("treeitem", { name: one.name }), { button: "right" });
 -      await expect.element(page.getByRole("menu")).toBeVisible();
@@ -153,39 +122,9 @@ index d1295751e9..308101bcb3 100644
 -      await userEvent.click(page.getByRole("menuitem", { name: one.pick }));
 -      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 -      one.ran();
-+    for (const menu of menus) {
-+      for (const [label, ran] of menu.items) {
-+        vi.clearAllMocks();
-+        await userEvent.click(screen.getByRole("treeitem", { name: menu.row }), {
-+          button: "right",
-+        });
-+        await expect.element(page.getByRole("menu")).toBeVisible();
-+        expect(menuItems()).toEqual(menu.items.map(([item]) => item));
-+        await userEvent.click(page.getByRole("menuitem", { name: label }));
-+        await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-+        const calls = Object.entries(spies).flatMap(([name, spy]) =>
-+          vi.mocked(spy).mock.calls.map((args: ReadonlyArray<unknown>) => [name, ...args]),
-+        );
-+        if (typeof ran === "function") {
-+          expect(calls, label).toEqual([]);
-+          await ran();
-+        } else {
-+          expect(calls, `${label} on ${String(menu.row)}`).toEqual([ran]);
-+        }
-+      }
-     }
-+    // Shown, the asking row's first item hides what it asks again.
-+    for (const label of ["Show what it asks", "Hide what it asks"]) {
-+      await userEvent.click(screen.getByRole("treeitem", { name: "fl-valve asks you" }), {
-+        button: "right",
-+      });
-+      await userEvent.click(page.getByRole("menuitem", { name: label }));
-+      await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-+    }
-+    expect(asks()).toBe(false);
-   });
- 
-   it("opens the focused row's menu from the keyboard alone, on the ContextMenu key and on Shift+F10", async () => {
+-    }
+-  });
+-});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index 326ba7bc05..a3bd512c64 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx

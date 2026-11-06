@@ -14,10 +14,10 @@ Subject: [PATCH 3/4] fix(web): a jstack task that asks before it has a thread
  6 files changed, 68 insertions(+), 9 deletions(-)
 
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index 0800ea860a..c9067961fc 100644
+index 0a7215a175..cc27939fb0 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -38,7 +38,11 @@ describe("buildRepoWork", () => {
+@@ -33,7 +33,11 @@ describe("buildRepoWork", () => {
        work: [
          row("a-ready", "ready", "queued", { thread: "" }),
          row("a-behind", "behind", "queued", { thread: "" }),
@@ -30,14 +30,14 @@ index 0800ea860a..c9067961fc 100644
          row("a-working", "working", "running"),
          row("a-quiet", "quiet", "running"),
          row("a-hung", "hung", "running", { who: "user" }),
-@@ -66,6 +70,7 @@ describe("buildRepoWork", () => {
+@@ -61,6 +65,7 @@ describe("buildRepoWork", () => {
        ["a-check", "review", "mcp:a-check", false],
      ]);
      expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
 +    expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
    });
  
-   it("nests each task under the home its brief names", () => {
+   it("reads open gates, launched scouts, and merges inside the landed window", () => {
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
 index 43e838a2f0..fc7d7ebc46 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
@@ -113,7 +113,7 @@ index 119f3f4a56..e495cff074 100644
          </li>
        );
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index cc07a375bd..035af702da 100644
+index 97fadcb7c1..ac89580026 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 @@ -36,6 +36,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
@@ -124,8 +124,8 @@ index cc07a375bd..035af702da 100644
    ...overrides,
  });
  
-@@ -120,9 +121,14 @@ describe("buildJstackTree", () => {
-     ]);
+@@ -88,9 +89,14 @@ describe("buildJstackTree", () => {
+     ).toBeNull();
    });
  
 -  it("opens a task with no thread at the thread that asks about it, else at its home", () => {
@@ -141,7 +141,7 @@ index cc07a375bd..035af702da 100644
        task("gated", { stage: "ready", threadId: null }),
        task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
      ];
-@@ -141,6 +147,12 @@ describe("buildJstackTree", () => {
+@@ -109,6 +115,12 @@ describe("buildJstackTree", () => {
        row.kind === "worker" ? [`${row.slug}>${row.openThreadId}`] : [],
      );
      expect(opens).toEqual(["asked>root", "gated>asking", "ready>flow"]);
@@ -153,7 +153,7 @@ index cc07a375bd..035af702da 100644
 +    ]);
    });
  
-   it("reads a quiet task as crew under its threshold or with gates-only attention", () => {
+   it("drops scouts whose thread settled or archived", () => {
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index 7fb9dde99f..54e5250f65 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

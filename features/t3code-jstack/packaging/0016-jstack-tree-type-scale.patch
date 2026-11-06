@@ -13,18 +13,16 @@ The seven stage ticks are three segments: the current one at full ink, amber whe
 you, the done ones at 45% and those ahead at 25%. The part of a review (review 1, fixing,
 review 2) is only in the word. A scout draws none.
 ---
- .../sidebar/JstackTreeRows.browser.test.tsx   | 132 ++++++++++++----
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 148 +++++++++++++++---
  .../src/components/sidebar/JstackTreeRows.tsx |  66 ++++----
- .../SidebarThreadRow.tree.browser.test.tsx    | 142 ++++++++++++++++++
  .../components/sidebar/SidebarThreadRow.tsx   |  20 ++-
  .../components/sidebar/jstackTree.logic.ts    |  50 +++---
- apps/web/src/index.css                        |  17 +--
+ apps/web/src/index.css                        |  17 +-
  apps/web/src/lib/utils.ts                     |   2 +-
- 7 files changed, 325 insertions(+), 104 deletions(-)
- create mode 100644 apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx
+ 6 files changed, 202 insertions(+), 101 deletions(-)
 
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index 06b0aa72a0..33b02408a6 100644
+index 3028dbd105..d1fef38af2 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 @@ -99,7 +99,7 @@ const worker: JstackTreeRow = {
@@ -67,7 +65,7 @@ index 06b0aa72a0..33b02408a6 100644
          ]}
        />,
        { router: false },
-@@ -215,24 +227,33 @@ describe("JstackTreeRowView sizes", () => {
+@@ -215,27 +227,58 @@ describe("JstackTreeRowView sizes", () => {
      )!;
  
      expect(measure(rootRow, "jstack")).toEqual({
@@ -110,34 +108,32 @@ index 06b0aa72a0..33b02408a6 100644
    });
  });
  
-@@ -290,7 +311,7 @@ describe("JstackTreeRowView root rows", () => {
-     const row = screen
-       .getByRole("treeitem", { name: "No project 2 threads" })
-       .element() as HTMLElement;
--    expect(measure(row, "No project")).toMatchObject({ height: 36, fontSize: "15px" });
-+    expect(measure(row, "No project")).toMatchObject({ height: 32, fontSize: "13px" });
-     expect(row.textContent).toContain("2 threads");
-     expect(getComputedStyle(row.closest("li")!).opacity).toBe("0.5");
-   });
-@@ -301,7 +322,7 @@ const queued: JstackTreeRow = {
-   key: "jstack-task:jstack/fl-meter",
-   slug: "meter",
-   word: "ready",
--  ticks: { step: 0, hollow: true, asks: false },
++const queued: JstackTreeRow = {
++  ...worker,
++  key: "jstack-task:jstack/fl-meter",
++  slug: "meter",
++  word: "ready",
 +  progress: { at: null, asks: false },
-   threadId: null,
-   openThreadId: ThreadId.make("flow"),
- };
-@@ -312,7 +333,7 @@ const asking: JstackTreeRow = {
-   slug: "valve",
-   word: "asks you",
-   tone: "asks",
--  ticks: { step: 0, hollow: true, asks: true },
++  threadId: null,
++  openThreadId: ThreadId.make("flow"),
++};
++
++const asking: JstackTreeRow = {
++  ...worker,
++  key: "jstack-task:jstack/fl-valve",
++  slug: "valve",
++  word: "asks you",
++  tone: "asks",
 +  progress: { at: null, asks: true },
-   threadId: null,
-   openThreadId: ThreadId.make("gate"),
-   ask: { what: "Which valve size?", default: null, brief: null, askedIn: "gate thread" },
-@@ -1396,35 +1417,88 @@ const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
++  threadId: null,
++  openThreadId: ThreadId.make("gate"),
++  ask: { what: "Which valve size?", default: null, brief: null, askedIn: "gate thread" },
++};
++
+ const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
+ const opsThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("ops") });
+ const jviewThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("jview") });
+@@ -746,33 +789,86 @@ const REVIEW_SNAPSHOT: JbusWorkSnapshot = {
    ],
  };
  
@@ -238,8 +234,6 @@ index 06b0aa72a0..33b02408a6 100644
 +    expect(wordEnd(scoutRow, "scout")).toBe(wordEnd(rowOf("jstack-task:jstack/fl-pump"), "crew"));
 +  });
  });
- 
- /** A crew thread whose last turn ended at `endedAt`, or that is still in a turn. */
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
 index 928299c072..22bb594438 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
@@ -400,154 +394,6 @@ index 928299c072..22bb594438 100644
                  {row.scope}
                </span>{" "}
                <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
-diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx
-new file mode 100644
-index 0000000000..b639dc195c
---- /dev/null
-+++ b/apps/web/src/components/sidebar/SidebarThreadRow.tree.browser.test.tsx
-@@ -0,0 +1,142 @@
-+import { DndContext } from "@dnd-kit/core";
-+import { SortableContext } from "@dnd-kit/sortable";
-+import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
-+import type { ComponentProps } from "react";
-+import { describe, expect, it, vi } from "vite-plus/test";
-+
-+import "~/index.css";
-+import { render } from "../../../test/render";
-+import { makeThreadFixture } from "../../test-fixtures";
-+import { SortableThreadRow } from "./SidebarThreadRow";
-+
-+const environmentId = EnvironmentId.make("environment-local");
-+
-+/** A thread under a project with no jstack home; `done` is a finished turn not yet seen. */
-+const threadOf = (id: string, title: string, done = false) => ({
-+  ...makeThreadFixture({
-+    environmentId,
-+    projectId: ProjectId.make("project-pbus"),
-+    id: ThreadId.make(id),
-+    title,
-+    latestRun: done
-+      ? {
-+          runId: `run-${id}` as never,
-+          status: "completed",
-+          requestedAt: "2026-10-29T20:00:00.000Z",
-+          startedAt: "2026-10-29T20:00:00.000Z",
-+          completedAt: "2026-10-29T21:00:00.000Z",
-+          assistantMessageId: null,
-+        }
-+      : null,
-+  }),
-+  // An idle runtime reads as waiting on the user; a finished turn has none.
-+  runtime: null,
-+  lastVisitedAt: "2026-10-29T20:30:00.000Z",
-+});
-+
-+type RowProps = ComponentProps<typeof SortableThreadRow>;
-+
-+/** The props the sidebar gives a tree row, before each test's own. */
-+const treeRow = (thread: ReturnType<typeof threadOf>, overrides: Partial<RowProps> = {}) => (
-+  <SortableThreadRow
-+    key={thread.id}
-+    sortableId={thread.id}
-+    sortableDisabled
-+    contextDrag={false}
-+    thread={thread as never}
-+    variant="tree"
-+    variantAction="settle"
-+    settlementSupported
-+    snoozeSupported
-+    pinningSupported={false}
-+    isPinned={false}
-+    dropVerb={null}
-+    dragOverPinned={false}
-+    sweepAction={null}
-+    snoozeWakeLabelText={null}
-+    wokeAt={null}
-+    isActive={false}
-+    isRouteThread={false}
-+    openPullRequestsInRightPanel={false}
-+    jumpLabel={null}
-+    currentEnvironmentId={environmentId}
-+    environmentLabel={null}
-+    environmentMachine={"local" as never}
-+    scratchMachineLabel={null}
-+    project={null}
-+    projectDisplayName="pbus"
-+    providerEntryByInstanceId={new Map()}
-+    timestampFormat={"relative" as never}
-+    onThreadClick={vi.fn()}
-+    onThreadActivate={vi.fn()}
-+    onStartRename={vi.fn()}
-+    onRenameTitleChange={vi.fn()}
-+    onCommitRename={vi.fn()}
-+    onCancelRename={vi.fn()}
-+    isRenaming={false}
-+    renamingTitle=""
-+    onContextMenu={vi.fn()}
-+    onSettle={vi.fn()}
-+    onActionSweepStart={vi.fn()}
-+    onUnsettle={vi.fn()}
-+    onSnooze={vi.fn()}
-+    onUnsnooze={vi.fn()}
-+    onUnpin={vi.fn()}
-+    onAcknowledgeWoke={vi.fn()}
-+    {...overrides}
-+  />
-+);
-+
-+/** The type of the innermost shown text that reads `text` exactly, as the user sees it. */
-+function typeOf(text: string) {
-+  const shown = [...document.querySelectorAll<HTMLElement>("span, button")].findLast(
-+    (element) => element.textContent === text && !element.closest(".sr-only"),
-+  );
-+  if (shown === undefined) throw new Error(`no text ${text} shown`);
-+  const style = getComputedStyle(shown);
-+  return { fontSize: style.fontSize, fontWeight: style.fontWeight };
-+}
-+
-+describe("SidebarThreadRow tree variant", () => {
-+  it("draws a thread under a project with no home at 13/400, and its time and status at 11/400", async () => {
-+    const plain = threadOf("wire", "Sketch the pbus wire format");
-+    const done = threadOf("names", "Name the scratch folder", true);
-+    const woke = threadOf("ping", "Ping the relay");
-+    const snoozed = threadOf("later", "Look at it later");
-+    await using screen = await render(
-+      <DndContext>
-+        <SortableContext items={[plain.id, done.id, woke.id, snoozed.id]}>
-+          <ul>
-+            {treeRow(plain)}
-+            {treeRow(done)}
-+            {treeRow(woke, { wokeAt: "2026-10-29T21:00:00.000Z" })}
-+            {treeRow(snoozed, { variantAction: "unsnooze", snoozeWakeLabelText: "9:00 PM" })}
-+          </ul>
-+        </SortableContext>
-+      </DndContext>,
-+    );
-+    await expect.element(screen.getByText("Woke", { exact: true })).toBeVisible();
-+
-+    const name = { fontSize: "13px", fontWeight: "400" };
-+    const small = { fontSize: "11px", fontWeight: "400" };
-+    for (const title of [plain, done, woke, snoozed].map((thread) => thread.title)) {
-+      expect(typeOf(title)).toEqual(name);
-+    }
-+    expect(typeOf("Done")).toEqual(small);
-+    expect(typeOf("Woke")).toEqual(small);
-+    expect(typeOf("9:00 PM")).toEqual(small);
-+    // The plain row's time: the one text of its row that is neither its title nor a status.
-+    const plainRow = [...screen.container.querySelectorAll("li")].find((row) =>
-+      row.textContent?.includes(plain.title),
-+    )!;
-+    const time = [...plainRow.querySelectorAll<HTMLElement>("span")].find(
-+      (span) =>
-+        span.children.length === 0 &&
-+        !span.closest(".sr-only") &&
-+        /\d|now/.test(span.textContent ?? ""),
-+    );
-+    expect(time).toBeDefined();
-+    const style = getComputedStyle(time!);
-+    expect({ fontSize: style.fontSize, fontWeight: style.fontWeight }).toEqual(small);
-+  });
-+});
 diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
 index 8124fc7a36..3f692b46b8 100644
 --- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx

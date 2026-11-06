@@ -9,14 +9,14 @@ the ask with the gate's default and the task's brief. A held row shows
 in review, where it was dropped from the tree.
 ---
  apps/server/src/jstack/JbusWork.ts            |   8 +-
- apps/server/src/jstack/jbusWork.logic.test.ts |  72 ++++++-
+ apps/server/src/jstack/jbusWork.logic.test.ts |  78 ++++++-
  apps/server/src/jstack/jbusWork.logic.ts      |  15 +-
- .../sidebar/JstackTreeRows.browser.test.tsx   | 176 +++++++++++++++++-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 197 +++++++++++++++++-
  .../src/components/sidebar/JstackTreeRows.tsx |   6 +
- .../sidebar/jstackTree.logic.test.ts          |  20 +-
+ .../sidebar/jstackTree.logic.test.ts          |  18 +-
  .../components/sidebar/jstackTree.logic.ts    |  11 +-
  packages/contracts/src/jbusWork.ts            |   7 +-
- 8 files changed, 307 insertions(+), 8 deletions(-)
+ 8 files changed, 330 insertions(+), 10 deletions(-)
 
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
 index cd023d437a..0ae67d556b 100644
@@ -55,18 +55,23 @@ index cd023d437a..0ae67d556b 100644
        nowMs,
      );
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index 86eeb4c699..635aad5877 100644
+index 5e758eaa30..f21843a338 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
-@@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
- import {
-   buildRepoWork,
-   homeWord,
+@@ -1,6 +1,11 @@
+ import { describe, expect, it } from "@effect/vitest";
+ 
+-import { buildRepoWork, slugsNeedingBriefs, type JbusRepoFiles } from "./jbusWork.logic.ts";
++import {
++  buildRepoWork,
 +  readBriefTitle,
-   slugsNeedingBriefs,
-   type JbusRepoFiles,
- } from "./jbusWork.logic.ts";
-@@ -30,6 +31,7 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
++  slugsNeedingBriefs,
++  type JbusRepoFiles,
++} from "./jbusWork.logic.ts";
+ 
+ const NOW = Date.parse("2026-10-29T15:00:00Z");
+ 
+@@ -25,6 +30,7 @@ const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
    merged: {},
    scouts: [],
    briefHomes: new Map(),
@@ -74,7 +79,7 @@ index 86eeb4c699..635aad5877 100644
    ...overrides,
  });
  
-@@ -66,7 +68,7 @@ describe("buildRepoWork", () => {
+@@ -61,7 +67,7 @@ describe("buildRepoWork", () => {
        ["a-unapproved", "ready", null, "approval"],
        ["a-working", "crew", "mcp:a-working", null],
        ["a-quiet", "quiet", "mcp:a-quiet", null],
@@ -83,7 +88,7 @@ index 86eeb4c699..635aad5877 100644
        ["a-asking", "crew", "mcp:a-asking", "answer"],
        ["a-review", "review", "mcp:a-review", null],
        ["a-findings", "review", "mcp:a-findings", null],
-@@ -76,6 +78,73 @@ describe("buildRepoWork", () => {
+@@ -71,6 +77,73 @@ describe("buildRepoWork", () => {
      expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
    });
  
@@ -154,10 +159,10 @@ index 86eeb4c699..635aad5877 100644
 +    expect(readBriefTitle("Task: x")).toBeNull();
 +  });
 +
-   it("nests each task under the home its brief names", () => {
-     const work = {
-       work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
-@@ -142,6 +211,7 @@ describe("buildRepoWork", () => {
+   it("reads open gates, launched scouts, and merges inside the landed window", () => {
+     const result = buildRepoWork(
+       files({
+@@ -108,6 +181,7 @@ describe("buildRepoWork", () => {
          threadId: "mcp:x",
          slug: "x",
          question: "keep it?",
@@ -234,38 +239,49 @@ index 0a809071ca..81a8cf9db0 100644
      });
    }
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index f9cb5c8b01..fe847a567f 100644
+index c7a8648d32..d116d72c2d 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -302,7 +302,7 @@ const asking: JstackTreeRow = {
-   ticks: { step: 0, hollow: true, asks: true },
-   threadId: null,
-   openThreadId: ThreadId.make("gate"),
--  ask: { what: "Which valve size?", askedIn: "gate thread" },
-+  ask: { what: "Which valve size?", default: null, brief: null, askedIn: "gate thread" },
- };
+@@ -1,12 +1,19 @@
+-import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
++import {
++  EMPTY_JBUS_WORK_SNAPSHOT,
++  EnvironmentId,
++  ProjectId,
++  ThreadId,
++  type JbusWorkSnapshot,
++} from "@t3tools/contracts";
+ import { describe, expect, it, vi } from "vite-plus/test";
++import { userEvent } from "vite-plus/test/browser";
  
- const menuItems = () =>
-@@ -586,6 +586,7 @@ const crewTask = (slug: string, home: string) => ({
-   pullRequest: null,
-   waitsOn: null,
-   waits: "",
-+  brief: null,
- });
+ import "~/index.css";
+ import { render } from "../../../test/render";
+ import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../../lib/sidebarTree";
+ import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
+ import { makeThreadFixture } from "../../test-fixtures";
+-import { type JstackRootRow, type JstackTreeRow } from "./jstackTree.logic";
++import { buildJstackTree, type JstackRootRow, type JstackTreeRow } from "./jstackTree.logic";
+ import { JstackTreeRowView, type JstackTreeRowActions } from "./JstackTreeRows";
  
- // Each home has a task running, so no row draws at the half ink of an idle one.
-@@ -878,6 +879,7 @@ const ROW_SNAPSHOT: JbusWorkSnapshot = {
-       threadId: ThreadId.make("crew-fl-valve"),
-       slug: "fl-valve",
-       question: "Which valve size?",
-+      default: "",
-       askedAt: "2026-10-29T11:59:00.000Z",
-     },
-   ],
-@@ -991,3 +993,175 @@ describe("JstackTreeRowView row actions", () => {
-     );
+ const environmentId = EnvironmentId.make("environment-local");
+@@ -206,3 +213,189 @@ describe("JstackTreeRowView sizes", () => {
+     });
    });
  });
++
++const flowThread = makeThreadFixture({ environmentId, projectId, id: ThreadId.make("flow") });
++const crewTask = (slug: string, home: string) => ({
++  repo: "jstack",
++  slug,
++  kind: "crew" as const,
++  stage: "crew" as const,
++  threadId: ThreadId.make(`crew-${slug}`),
++  homeThreadId: ThreadId.make(home),
++  pullRequest: null,
++  waitsOn: null,
++  waits: "",
++  brief: null,
++});
 +
 +const sidebarHome = ThreadId.make("sidebar");
 +
@@ -456,10 +472,10 @@ index 138d22a84e..23cc633a62 100644
                    <button
                      type="button"
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index e6ec2c9ec1..fd7d640a3f 100644
+index 00f37a311b..0f84ed6211 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -45,6 +45,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+@@ -37,6 +37,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
    pullRequest: null,
    waitsOn: null,
    waits: "",
@@ -467,15 +483,7 @@ index e6ec2c9ec1..fd7d640a3f 100644
    ...overrides,
  });
  
-@@ -152,6 +153,7 @@ describe("buildJstackTree", () => {
-             threadId: null,
-             slug: "gated",
-             question: "Ship it?",
-+            default: "",
-             askedAt: minutesAgo(5),
-           },
-         ],
-@@ -174,6 +176,7 @@ describe("buildJstackTree", () => {
+@@ -95,6 +96,7 @@ describe("buildJstackTree", () => {
          threadId: null,
          waitsOn: "approval",
          waits: "your approval",
@@ -483,7 +491,7 @@ index e6ec2c9ec1..fd7d640a3f 100644
        }),
        task("gated", { stage: "ready", threadId: null }),
        task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
-@@ -185,6 +188,7 @@ describe("buildJstackTree", () => {
+@@ -106,6 +108,7 @@ describe("buildJstackTree", () => {
          threadId: ThreadId.make("asking"),
          slug: "gated",
          question: "Approve?",
@@ -491,7 +499,7 @@ index e6ec2c9ec1..fd7d640a3f 100644
          askedAt: minutesAgo(1),
        },
      ];
-@@ -195,8 +199,19 @@ describe("buildJstackTree", () => {
+@@ -116,8 +119,19 @@ describe("buildJstackTree", () => {
      expect(opens).toEqual(["asked>root", "gated>asking", "ready>flow"]);
      const asks = rows.flatMap((row) => (row.kind === "worker" ? [[row.slug, row.ask]] : []));
      expect(asks).toEqual([
@@ -513,14 +521,6 @@ index e6ec2c9ec1..fd7d640a3f 100644
        ["ready", null],
      ]);
    });
-@@ -505,6 +520,7 @@ describe("row actions: approve, remove, answer and the brief", () => {
-     threadId: ThreadId.make("crew-fl-valve"),
-     slug: null,
-     question: "Which valve size?",
-+    default: "",
-     askedAt: minutesAgo(1),
-   };
-   const snapshot = { tasks: [meter, valve, tidy, pump], gates: [gate] };
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
 index b2808a1496..7f135ccfd8 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts

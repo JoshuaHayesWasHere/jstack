@@ -40,8 +40,12 @@ Preconditions:
 - A new sandbox, `env.sh` sourced, `doctor: ok`.
 - The shell is in `$VERIFY_JSTACK_SANDBOX/demo`, and `gh/open.json` is `[]`.
 
-- **Open a pull request.** Run `head=$("$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py)`. `gh/open.json` has pull request 7 on the branch `beta`, green, changing `src/beta/a.py`.
-- **Write its brief.** Run `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n' > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`. The brief has a Result and no review.
+- **Open a pull request.**
+  Run `base=$(git rev-parse HEAD) && head=$("$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py)`.
+  `gh/open.json` has pull request 7 on the branch `beta`, green, changing `src/beta/a.py`, and `base` is the demo's 40-hex `start` commit, the `BASE=` of each brief's `Checked:` line.
+- **Write its brief.**
+  Run `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n' "$base" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`.
+  The brief has a Result, whose `Checked:` line says the desk's check passed at the head, and no review.
 - **Ask, unreviewed.** Run `record jmerge-decision jmerge --check`. It prints `wait 7 https://example.test/pull/7: it has no review yet`.
 - **Add a clean review.** Run `printf '## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`. It prints `ready 7 <the head> beta beta`.
 - **Review after.**
@@ -50,11 +54,11 @@ Preconditions:
   Then run `f="${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md" && awk '{print} /^Pull request: open one when done$/ {print "Review: after"}' "$f" > "$f.new" && mv "$f.new" "$f"` and `record jmerge-decision jmerge --check` again.
   It prints the same `wait` line: an `after` brief is read as `review`, and its findings hold the merge.
 - **One round, a proof.**
-  Run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\nReview: twice\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFixed: none needed, declined\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:1 a made up one (bucket: Act on)\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
+  Run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\nReview: twice\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFixed: none needed, declined\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:1 a made up one (bucket: Act on)\n' "$base" "$head" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
   It prints `wait 7 https://example.test/pull/7: its findings are not handled: F1 block with no proof tag, so answer each by id, and a decline of one needs no cited reason`: the old `twice` brief is read as `review`, and the finding with no proof is named.
   Then run `printf 'Finding F1: not fixed, a made up one, because I disagree\n' >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
   It prints `ready 7 <the head> beta beta`: no second review is owed, and a decline of a finding with no proof counts with any reason.
-  Then run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFixed: none needed, declined\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:1 a made up one (bucket: Act on) (proof: `sh src/beta/proof.sh`, exit 1, it loops)\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
+  Then run `printf '# beta: a demo task\nWhere: src/beta/\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nReviewer: mcp:9 #1\nFixed: none needed, declined\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n\n## Review\nBy: demo #1\nVerdict: findings\nHead: %s\nFindings:\n- error src/beta/a.py:1 a made up one (bucket: Act on) (proof: `sh src/beta/proof.sh`, exit 1, it loops)\n' "$base" "$head" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
   It prints `wait 7 https://example.test/pull/7: its findings are not handled: F1 have no answer by id`.
   Then run `printf 'Finding F1: not fixed, a made up one, because I disagree\n' >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
   It prints `wait 7 https://example.test/pull/7: its findings are not handled: the decline of F1 cites no path:line, command or gate`: a proven finding holds until its decline cites one.
@@ -68,7 +72,7 @@ Preconditions:
   It prints `wait 7 https://example.test/pull/7: check has failed`.
 - **Review it clean at a real head.**
   The next step reads the pull request's head from git, so this step gives the pull request a real one.
-  Run `head=$(git commit-tree -p HEAD -m beta "$(git rev-parse 'HEAD^{tree}')") && git push -q origin "${head}:refs/heads/beta" && "$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py > /dev/null && jq --arg head "$head" '.[0].headRefOid = $head' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json" && printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
+  Run `head=$(git commit-tree -p HEAD -m beta "$(git rev-parse 'HEAD^{tree}')") && git push -q origin "${head}:refs/heads/beta" && "$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py > /dev/null && jq --arg head "$head" '.[0].headRefOid = $head' "$VERIFY_JSTACK_SANDBOX/gh/open.json" > "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" && mv "$VERIFY_JSTACK_SANDBOX/gh/open.json.new" "$VERIFY_JSTACK_SANDBOX/gh/open.json" && printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: make check-fast BASE=%s PART=guards exit 0 at %s\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$base" "$head" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
   It prints `ready 7 <the head> beta beta`.
 - **Over a main that moved.**
   The pull request's check started in 2000, and main gets a commit after it.
@@ -94,6 +98,7 @@ Preconditions:
 - `jmerge` reads the briefs from `$JBUS_HOME_DIR/<the main checkout's directory name>`, as jbus does, or from `$HOME/.local/state/home` where it is not set.
 - The recipe writes the brief through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops and writes nothing into the live briefs.
 - The review's `Head:` must be the pull request's head commit, whole. `open-pull.sh` prints it.
+- A brief with no `Checked:` line that ends 0 at the head waits with `its brief has no Checked: line` where a step expects `ready` ("Its Result proves the work" in [jmerge.md](docs/jmerge.md)), so each brief the recipe writes carries one, at the `head` it reviews.
 - Only the check named `check` decides green. Another check's name in `statusCheckRollup` changes nothing.
 - A plain `jmerge` on a ready pull request reaches `gh pr merge`, which the stand-in refuses with exit 64. That is the harness ending, not a jmerge failure, and it is not proof of a merge.
 - The stand-in answers a branch's check runs from the key of `gh/checks.json` that is the branch's name, as it answers a commit's from its sha.
