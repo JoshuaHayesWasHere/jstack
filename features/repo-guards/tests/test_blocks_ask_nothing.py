@@ -14,7 +14,17 @@ quotes, `$(...)`, backticks, here-documents, `case` patterns and wrappers such a
 `xargs` and `env`, so a word in quotes or a `case` pattern is no command. It fails too on a quote
 inside a `${...}` inside double quotes, as in `"${boot:-$P's home}"`, which the check reads
 otherwise than bash does and asks on (2.1.310: "the shell may read it differently than it was
-parsed"). No block is let off:
+parsed").
+
+A `trap`'s action is a script the shell runs later, so the lint reads it as one: a trap that
+removes, runs `eval` or starts an inner shell fails like the same command in the block. One
+action is let off: `rm -rf "$var"` (flags of `r`, `R` and `f` only, the variable in double
+quotes, nothing else in the action) where the same block sets `var=$(mktemp ...)`. That folder
+or file is scratch the block made in this run, so removing it deletes nothing of the user's, and
+a trap on `EXIT` is the only way a block clears its scratch after a slot's 124 as after a pass or
+a failure; on 2026-11-06 (Claude Code 2.1.316) such a trap ran with no ask in a crew. Any other
+path, a second path, an unquoted variable or a variable the block did not get from `mktemp`
+fails. No block is let off:
 one that fails is fixed by moving its delete or its background run into a jstack command, as
 `jbus forget`, `jmerge --remake` and `jgauge check` do, and never by a comment or a list.
 """
@@ -55,6 +65,8 @@ ARGUED_FLAGS = {
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=")
 OPERATORS = ("<<<", "<<-", ";;&", "&&", "||", ";;", ";&", "|&", "&>", ">>", ">&", "<&", ">|", "<<")
 REDIRECTS = frozenset({"<", ">", ">>", "&>", ">&", "<&", ">|", "<<<"})
+MKTEMP_SET = re.compile(r"(?:^|[;&|({\s])([A-Za-z_][A-Za-z0-9_]*)=\$\(\s*mktemp\b", re.M)
+OWN_MKTEMP_RM = re.compile(r'\s*rm\s+-[rRf]+\s+"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?"\s*')
 
 
 class Reader:
@@ -298,8 +310,25 @@ def why(words):
     return ""
 
 
-def reasons(script):
-    """Each reason a script asks, for every command in it and in its substitutions."""
+def trapped(words, made):
+    """Why the action of `trap [--] action signal...` asks, read as a script of its own. The one
+    action let off is `rm -<rRf> "$var"` of a variable in `made`."""
+    words = words[1:]
+    if words[:1] == ["--"]:
+        words = words[1:]
+    if not words or words[0] in ("-", "-l", "-p"):
+        return []
+    match = OWN_MKTEMP_RM.fullmatch(words[0])
+    if match and match.group(1) in made:
+        return []
+    return [f"trap {said}" for said in reasons(words[0], made)]
+
+
+def reasons(script, made=None):
+    """Each reason a script asks, for every command in it, in its substitutions and in the
+    action of each `trap` it sets."""
+    if made is None:
+        made = set(MKTEMP_SET.findall(script))
     reader = Reader(script)
     lists = [reader.tokens()]
     found = []
@@ -307,6 +336,10 @@ def reasons(script):
         lists.extend(reader.inner)
         reader.inner = []
         for words in commands(lists.pop()):
+            words = unwrapped(words)
+            if words[:1] == ["trap"]:
+                found.extend(trapped(words, made))
+                continue
             said = why(words)
             if said:
                 found.append(said)
@@ -394,7 +427,7 @@ MADE = 'tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")\n'
         (MADE + "trap 'rm -rf \"$HOME/work\"' EXIT", ["trap rm deletes"]),
         (MADE + "trap 'rm -rf \"$tree\" \"$other\"' EXIT", ["trap rm deletes"]),
         (MADE + "trap 'rm -rf $tree' EXIT", ["trap rm deletes"]),
-        (MADE + "trap -- 'rm -rf \"$tree\"; rm x' EXIT", ["trap rm deletes"]),
+        (MADE + "trap -- 'rm -rf \"$tree\"; rm x' EXIT", ["trap rm deletes"] * 2),
         ('trap "eval $cmd" EXIT', ["trap eval runs a script the check cannot read"]),
         ("x=$(trap 'rm y' EXIT)", ["trap rm deletes"]),
         ("trap - EXIT; trap -p; trap 'echo done' EXIT", []),
