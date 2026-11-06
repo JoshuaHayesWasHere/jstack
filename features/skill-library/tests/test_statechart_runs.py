@@ -12,6 +12,7 @@ import signal
 import subprocess
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -843,13 +844,13 @@ def test_the_output_folder_model_keeps_every_rule_and_breaks_one_without_each_gu
     def model(ext):
         return read(SCRIPTS / "model" / f"OutputFolder{ext}")
 
-    r = node(
-        "statechart",
-        ["from-spec", str(SCRIPTS / "model" / "OutputFolder.tla"), "--out", str(tmp_path / "out")],
-        tmp_path,
-    )
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert re.search(r"\nNo state breaks a rule\.\n", r.stdout)
+    whole = [
+        "from-spec",
+        str(SCRIPTS / "model" / "OutputFolder.tla"),
+        "--out",
+        str(tmp_path / "out"),
+    ]
+    mutants = []
     for i, (rule, guard, without, story) in enumerate(
         [
             (
@@ -896,6 +897,26 @@ def test_the_output_folder_model_keeps_every_rule_and_breaks_one_without_each_gu
         write(mutant / "OutputFolder.tla", model(".tla").replace(guard, without, 1))
         for ext in [".cfg", ".map.py"]:
             write(mutant / f"OutputFolder{ext}", model(ext))
-        m = node("statechart", ["from-spec", "OutputFolder.tla", "--expect-broken", rule], mutant)
+        mutants.append((mutant, rule, story))
+    # The six runs share nothing, so they go at once: one after another they took most of a minute.
+    with ThreadPoolExecutor(max_workers=1 + len(mutants)) as pool:
+        r = pool.submit(node, "statechart", whole, tmp_path)
+        broken = [
+            (
+                pool.submit(
+                    node,
+                    "statechart",
+                    ["from-spec", "OutputFolder.tla", "--expect-broken", rule],
+                    mutant,
+                ),
+                story,
+            )
+            for mutant, rule, story in mutants
+        ]
+    r = r.result()
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert re.search(r"\nNo state breaks a rule\.\n", r.stdout)
+    for m, story in broken:
+        m = m.result()
         assert m.returncode == 0, m.stdout + m.stderr
         assert re.search(story, m.stdout)
