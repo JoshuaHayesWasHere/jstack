@@ -40,7 +40,8 @@ artifact `junit-<attempt>-<k>`, and `uv run python -m testing.shard` writes the 
 `RUNS` green full runs of main that kept them, each test's median over them: that command, run at
 a desk with `gh` and its diff committed, is how the table is refreshed, when the parts' walls
 drift apart or many tests are added. Main's full runs restore main's TLC cache, so the merge
-flow's TLC test is in at its warm time, as the check's parts run it. `--shard-record PATH` writes it from a run of this machine instead:
+flow's TLC test is in at its warm time, as the check's parts run it. `--shard-record PATH`
+writes it from a run of this machine instead:
 `uv run pytest -n 4 -m "not browser" --shard-record PATH`. There a test whose time on this
 machine is not its time in CI pins its CI seconds with `@pytest.mark.shard_seconds(S)`, and the
 record writes S for it in place of the time it took."""
