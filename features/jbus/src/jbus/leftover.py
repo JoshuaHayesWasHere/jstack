@@ -2,7 +2,8 @@
 home closes it.
 
 A leftover is a row whose thread ended or whose pull request merged, and whose last Result
-has a `Left:` line that is not `none`. No thread is at work on it (`ended`). A row whose
+has a `Left:` line that is not `none`. No thread is at work on it, and no review before its pull
+request is due or running for it (`ended`). A row whose
 thread ended or hung with no Result at all is a leftover too, once its crew has had its
 carry-ons (`watch.unwritten`). For such a row, the `left` text states that reason, and the
 message says to carry the thread on, to remove the row, or to end it with a Result.
@@ -58,7 +59,7 @@ from typing import Any
 import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
-from jbus import mirror, questions, queue, read_json, verbs, write_json
+from jbus import mirror, questions, queue, read_json, review, verbs, write_json
 from jbus.passes import Pass
 from jbus.told import FILE as TOLD
 from jbus.told import told_to
@@ -168,9 +169,18 @@ def his(record: Record, now: datetime) -> str:
     return record.why
 
 
+def reviewing(run: Pass, slug: str) -> bool:
+    """Say whether a row's crew waits on the review before its pull request (`review.awaited`):
+    jbus has its reviewers to launch or to hear from, then tells the crew (`jbus.prereview`). Such
+    a row is still in flight, whatever its Result leaves, until every reviewer has written."""
+    brief = brief_of(run, slug)
+    return review.awaited(brief, mirror.last_result(brief))
+
+
 def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str]]:
     """Return the rows whose Result leaves something and that no thread is at work on, each
-    with its `why`.
+    with its `why`. A row whose review before its pull request is due or running (`reviewing`)
+    has not ended.
 
     jbus counts a merged row's thread as at work by the thread's status alone. jbus settles
     the thread of a merge before it tells that thread, and a settled thread that picked the
@@ -182,6 +192,8 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
         thread = world.thread(slug)
         told = bool(thread) and jsettings.thread_id(thread.get("threadId", "")) in run.told
         busy = told or at_work([thread] if thread else [], settled_too=True)
+        if row.get("status") == "left" and reviewing(run, slug):
+            continue
         if row.get("status") == "left" or (row.get("status") == "merged" and why and not busy):
             found.append((slug, why or ""))
     return found
@@ -297,7 +309,7 @@ def tell(
     kept: dict[str, Record] = {}
     for row in sorted(rows, key=queue.order):
         slug = row["slug"]
-        ended_now = row.get("status") in ("left", "merged")
+        ended_now = row.get("status") in ("left", "merged") and not reviewing(run, slug)
         if not (ended_now or slug in was) or slug in run.removed:
             continue
         brief = brief_of(run, slug)
