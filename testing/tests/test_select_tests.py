@@ -1349,29 +1349,46 @@ def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
     return ran, summary.read_text() if summary.exists() else "", given
 
 
-def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
-    """The selection is collected once and its files dealt out whole, slowest first, to the part
-    with the least time so far, so a part collects only its own files. A part the selection left
-    empty gets `none`, which the check's part passes on."""
+def test_parts_get_test_files_dealt_by_time_once_for_all_parts_and_one_past_a_share_by_test(
+    tmp_path,
+):
+    """The selection is collected once and its files dealt out slowest first, to the part with
+    the least time so far, so a part collects only its own files. A file whose tests sum past a
+    part's share (6 s of 16 s over 4 parts) is dealt by test: each part that holds some of its
+    tests gets the file and the word that names those tests. A single test of 10 s cannot be
+    split, and has a part of its own."""
+    from testing import shard
+
     ran, summary, given = parted(tmp_path, 4)
 
     assert ran.returncode == 0, ran.stderr
+    one, two = (shard.key(f"testing/tests/test_two.py::test_{n}") for n in ("one", "two"))
     assert given == {
         "selection": "some",
         "files": "3",
         "forced_by": "",
         "part1": "testing/tests/test_slow.py",
-        "part2": "testing/tests/test_two.py",
-        "part3": "testing/tests/test_tree.py",
-        "part4": "none",
+        "part2": f"testing/tests/test_two.py --shard-tests={one}",
+        "part3": f"testing/tests/test_two.py --shard-tests={two}",
+        "part4": "testing/tests/test_tree.py",
     }
-    assert "parts: 4 of 4 tests in 3 files, 0 0 6 10 s of test time each" in summary
+    assert "parts: 4 of 4 tests in 3 files, 0 3 3 10 s of test time each" in summary
     assert ran.stdout.splitlines()[-4:] == [
         "part 1: testing/tests/test_slow.py",
-        "part 2: testing/tests/test_two.py",
-        "part 3: testing/tests/test_tree.py",
-        "part 4: none",
+        f"part 2: testing/tests/test_two.py --shard-tests={one}",
+        f"part 3: testing/tests/test_two.py --shard-tests={two}",
+        "part 4: testing/tests/test_tree.py",
     ]
+    kept = (tmp_path / "selection.txt").read_text().splitlines()
+    assert "testing/tests/test_two.py imports,catch-all part=2,3" in kept
+
+
+def test_a_part_the_selection_leaves_empty_gets_none(tmp_path):
+    """Four tests over eight parts leave four empty, and the check's part passes on `none`."""
+    ran, _, given = parted(tmp_path, 8)
+
+    assert ran.returncode == 0, ran.stderr
+    assert [given[f"part{n}"] for n in range(1, 9)].count("none") == 4
 
 
 def test_every_selected_file_is_in_exactly_one_part(tmp_path):

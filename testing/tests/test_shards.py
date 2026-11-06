@@ -8,15 +8,17 @@ slowest test's time over another.
 The test asks pytest itself, as the jobs do: a separate pytest for the whole collection and one for
 each part, started side by side, each listing the node ids it would run."""
 
+import importlib.util
 import os
 import subprocess
 import sys
 from collections import Counter
+from xml.sax.saxutils import quoteattr
 
 import pytest
 
 from testing.paths import REPO
-from testing.shard import FLOOR, TIMES, WORKERS, key, read_times, seconds, split
+from testing.shard import FLOOR, TIMES, WORKERS, key, mangled, read_times, recorded, seconds, split
 
 PARTS = 8
 LIST = [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
@@ -178,6 +180,55 @@ def test_a_run_writes_a_test_s_pinned_seconds_in_place_of_the_time_it_took_here(
         key("test_pinned.py::test_warm"): 653.60,
         key("test_pinned.py::test_skipped"): 42,
     }
+
+
+def test_a_file_dealt_by_test_runs_each_of_its_tests_in_exactly_one_part(tmp_path):
+    """The job `select` deals a file whose tests sum past a part's share out by test, and hands
+    each part its files and the word `--shard-tests=<keys>`: pytest, given each part's words as
+    `make test TESTS=` gives them, runs every test of the files once, and a part with the file
+    whole beside it runs all of that one."""
+    spec = importlib.util.spec_from_file_location("select_tests", REPO / "scripts/select_tests.py")
+    select_tests = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(select_tests)
+    (big,) = listed([SOME[0]])
+    (small,) = listed([SOME[1]])
+    times = {key(test): 10 for test in big}
+    words, _ = select_tests.dealt(big + small, times, 3)
+    assert sum(SOME[0] in part for part in words) == 3
+    assert any(word.startswith("--shard-tests=") for part in words for word in part)
+    ran = listed(*words)
+    together = Counter(test for part in ran for test in part)
+    assert [test for test, times in together.items() if times > 1] == []
+    assert sorted(together) == sorted(big + small)
+
+
+def test_the_table_is_each_test_s_median_over_ci_s_junit_reports(tmp_path):
+    """`python -m testing.shard` writes the table from the junit reports of the full runs, each
+    run its parts' reports: a test's row is its median over the runs that ran it, so one cold
+    run of the merge flow's TLC test among warm ones leaves it at its warm time. A test that
+    took under `FLOOR` has no row, and one no collected node id matches is counted."""
+    tests = ["a/test_x.py::test_one", "a/test_x.py::TestB::test_two[a b's]", FLOW]
+    took = [[0.5, 3, 900], [0.7, 4, 2], [0.6, 5, 3]]
+    runs = []
+    for n, row in enumerate(took):
+        report = tmp_path / f"{n}.xml"
+        report.write_text(
+            "<testsuites><testsuite>"
+            + "".join(
+                f'<testcase classname={quoteattr(c)} name={quoteattr(m)} time="{t}"/>'
+                for (c, m), t in zip(map(mangled, tests), row, strict=True)
+            )
+            + '<testcase classname="gone" name="test_gone" time="1"/>'
+            + '<testcase classname="a.test_x" name="test_quick" time="0.01"/>'
+            + "</testsuite></testsuites>"
+        )
+        runs.append([report])
+    table, read, unknown = recorded(runs, [*tests, "a/test_x.py::test_quick"])
+    (tmp_path / "t.tsv").write_text(table)
+    times = read_times(tmp_path / "t.tsv")
+    assert [seconds(times, test) for test in tests] == [0.6, 4, 3]
+    assert len(times) == 3
+    assert (read, unknown) == (15, 3)
 
 
 def ended(run):

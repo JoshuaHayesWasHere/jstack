@@ -1550,12 +1550,17 @@ def summary(tests, why, changed):
 def reasons(tests, why, parts=None):
     """The selection's list, a line each: a selected test file and the causes that selected
     it, comma-separated; or first `all` and the path that forced it. With the `parts` it was
-    dealt to, each line ends `part=<k>`, `-` for a file that collects no test, and an `all`
-    lists each file of the suite after its first line."""
-    where = {one: at for at, part in enumerate(parts or [], 1) for one in part}
+    dealt to, each line ends `part=<k>`, `-` for a file that collects no test, or the parts
+    that run its tests, comma-separated, for a file dealt by test, and an `all` lists each file
+    of the suite after its first line."""
+    where = {}
+    for at, part in enumerate(parts or [], 1):
+        for one in part:
+            if not one.startswith("-"):
+                where.setdefault(one, []).append(str(at))
 
     def placed(one):
-        return "" if parts is None else f" part={where.get(one, '-')}"
+        return "" if parts is None else f" part={','.join(where.get(one, ['-']))}"
 
     if tests == ["all"]:
         return [
@@ -1613,22 +1618,41 @@ def node_ids(tests):
 
 
 def dealt(nodeids, times, count):
-    """The test files of each of `count` parts, sorted, and each part's seconds: whole files
-    dealt by `testing/shard.py`'s split, by the summed seconds of each file's tests in `times`
-    (its table) and the seconds of each file's slowest test. No tests at all fails."""
+    """The words of each of `count` parts, which the part hands `make test TESTS=`, and each part's
+    seconds. The test files are dealt by `testing/shard.py`'s split, by the summed seconds of each
+    file's tests in `times` (its table) and the seconds of each file's slowest test, which no part
+    ends before. A file whose tests sum past a part's share, the selection's seconds over `count`,
+    would make its part the last to end whole, so its tests are dealt one by one with the files:
+    a part that holds some of them gets the file and, after its files, the word
+    `--shard-tests=<key>,...`, which names them by `shard.key`. No tests at all fails."""
     from testing import shard
 
     if not nodeids:
         sys.exit("select_tests.py: the selection holds no test")
-    took, slowest = {}, {}
+    took, slowest, tests = {}, {}, {}
     for nodeid in nodeids:
         file = nodeid.partition("::")[0]
         took[file] = took.get(file, 0.0) + shard.seconds(times, nodeid)
         slowest[file] = max(slowest.get(file, 0.0), shard.seconds(times, nodeid))
+        tests.setdefault(file, []).append(nodeid)
+    share = sum(took.values()) / count
+    items = {}
+    for file, seconds in took.items():
+        if seconds > share and len(tests[file]) > 1:
+            items |= {nodeid: shard.seconds(times, nodeid) for nodeid in tests[file]}
+        else:
+            items[file] = seconds
     parts = shard.split(
-        list(took), {shard.key(file): s for file, s in took.items()}, count, slowest
+        list(items), {shard.key(item): seconds for item, seconds in items.items()}, count, slowest
     )
-    return [sorted(part) for part in parts], [sum(took[file] for file in part) for part in parts]
+    words = []
+    for part in parts:
+        keys = sorted(shard.key(item) for item in part if "::" in item)
+        words.append(
+            sorted({item.partition("::")[0] for item in part})
+            + ([f"--shard-tests={','.join(keys)}"] if keys else [])
+        )
+    return words, [sum(items[item] for item in part) for part in parts]
 
 
 def handed(tests, count):
@@ -1649,8 +1673,9 @@ def handed(tests, count):
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             each = " ".join(f"{one:.0f}" for one in sorted(seconds))
+            files = {word for part in parts for word in part if not word.startswith("-")}
             file.write(
-                f"parts: {count} of {len(nodeids)} tests in {sum(map(len, parts))} files,"
+                f"parts: {count} of {len(nodeids)} tests in {len(files)} files,"
                 f" {each} s of test time each\n\n"
             )
     return parts
