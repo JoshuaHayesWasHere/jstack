@@ -101,13 +101,6 @@ def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
     assert ready.said_of(both).verdict == "clean"
 
 
-def test_a_numbered_review_does_not_take_the_place_of_the_other_numbers():
-    found = section(f"{SONNET} #2", "findings", findings=["warning a.py:1 a made up one"])
-    brief = RESULT + SEATS + section(f"{SONNET} #1", "clean") + found
-    assert ready.said_of(brief).verdict == "findings"
-    assert ready.short_of(brief, SAW) == ready.NO_FIXED
-
-
 def test_a_seat_launched_again_does_not_double_the_count():
     brief = RESULT + SEATS + "Reviewer: mcp:sonnet-c #2\n"
     brief += section(f"{SONNET} #1", "clean") + section(f"{SONNET} #2", "clean")

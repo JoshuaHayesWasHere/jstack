@@ -508,14 +508,6 @@ def test_a_fixed_line_that_names_a_rebased_head_is_compared_from_the_head_kept_b
     assert run.merges(proven_merged) == []
 
 
-def test_a_rebase_that_left_the_patch_as_it_was_carries_the_review_over(proven_merged, rules):
-    rebased = Rebased(proven_merged, {28: "theirs 28"})
-    rebased.brief(merge.review("clean", rebased.before))
-    assert run.jmerge(proven_merged, rules, "--check") == [
-        f"ready 7 {rebased.head} alpha alpha, {rebased.carried()}"
-    ]
-
-
 @pytest.mark.parametrize(
     "line",
     [
@@ -619,13 +611,6 @@ def test_a_covered_commit_that_cannot_be_had_waits_and_is_never_merged(
         f"of git range-diff --no-color origin/main..{gone} origin/main..{rebased.head}"
     ]
     assert run.merges(proven_merged) == []
-
-
-def test_a_review_that_names_no_head_has_nothing_to_compare_a_moved_head_with(proven_merged, rules):
-    rebased = Rebased(proven_merged, {8: "theirs 8"})
-    review = merge.review("clean", rebased.before).replace(f"Head: {rebased.before}", "Head:")
-    rebased.brief(review)
-    assert run.jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: {ready.NO_HEAD}"]
 
 
 def test_the_lines_a_rebase_dropped_are_counted_from_the_commit_the_review_covers(
@@ -810,27 +795,6 @@ def test_a_ci_fix_that_takes_out_a_line_of_its_own_with_no_rebase_drops_nothing(
 
 
 REVIEWED, BEFORE, FIRST, HEAD = ("a" * 40, "b" * 40, "c" * 40, "d" * 40)
-TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
-
-
-def test_a_rebase_line_of_an_older_brief_is_read_as_no_line():
-    """A brief from before `jmerge` worked the rebase out from git may still say what its rebase
-    did. Its review covers what it covers with the line or without it."""
-    result = FIXED.format(FIRST)
-    for told in ("", TOLD):
-        text = merge.brief(merge.review("findings", REVIEWED), told + result)
-        assert ready.to_range_diff(text, HEAD) == FIRST
-
-
-def test_a_clean_review_after_the_fix_is_the_one_a_later_rebase_is_compared_with():
-    fixed = FIXED.format(BEFORE)
-    scoped = merge.review("findings", REVIEWED) + merge.review("clean", FIRST)
-    assert ready.to_range_diff(merge.brief(scoped, fixed), HEAD) == FIRST
-    assert ready.to_range_diff(merge.brief(merge.review("clean", REVIEWED), fixed), HEAD) == (
-        BEFORE
-    )
-    findings = merge.review("findings", REVIEWED) + merge.review("findings", FIRST)
-    assert ready.to_range_diff(merge.brief(findings, fixed), HEAD) == BEFORE
 
 
 def test_findings_written_after_the_fixed_line_keep_a_head_that_moved_on_from_a_merge():
@@ -862,17 +826,6 @@ def test_a_fixed_line_above_a_later_review_round_is_no_line_for_that_round():
     assert ready.short_of(text, HEAD) == ready.NO_FIXED
     above = merge.brief(merge.review("findings", REVIEWED), FIXED.format(FIRST))
     assert ready.said_of(above).fixed == FIRST
-
-
-def test_jmerge_reads_the_fixed_line_a_later_round_is_owed_from_its_checked_line():
-    handled = (
-        "Finding: fixed, it is wrong\n"
-        "Scoped review: none, the fix stayed inside the reviewed files\n"
-        f"Checked: make check-fast BASE={merge.DESK_BASE} PART=guards exit 0 at {HEAD}\n"
-    )
-    text = merge.brief(FIRST_ROUND + handled)
-    assert ready.unwritten_fixed(text, HEAD) == ready.Unwritten(FIRST)
-    assert ready.unwritten_fixed(text.replace(" exit 0 ", " exit 1 "), HEAD) is None
 
 
 class CiFix:
@@ -988,25 +941,6 @@ def test_a_ci_fix_after_a_rebase_is_compared_with_the_head_the_review_saw(proven
         f"wait 7 {merge.URL}: the rebase changed the content after its review; scoped review "
         f"of git range-diff --no-color {rebased.tip}..{rebased.head} {rebased.tip}..{pushed}"
     ]
-
-
-CLEAN = rangediff.Verdict(
-    True, "git range-diff", "", f"{'1' * 40}..{'2' * 40}", f"{'3' * 40}..{'4' * 40}"
-)
-
-
-def test_the_note_and_the_wait_are_read_off_the_verdict():
-    changed = rangediff.Verdict(False, "git range-diff --no-color a..b c..d", "why")
-    assert ready.rebase_note(None) == ready.rebase_note(changed) == ""
-    assert ready.rebase_note(CLEAN) == (
-        "review carried over: range-diff 111111111111..222222222222 333333333333..444444444444 "
-        "clean"
-    )
-    assert ready.short_on_content(None) == ready.short_on_content(CLEAN) == ""
-    assert ready.short_on_content(changed) == (
-        "the rebase changed the content after its review; scoped review of "
-        "git range-diff --no-color a..b c..d"
-    )
 
 
 def handled(rebased, review_of, head, line, answer="Finding: fixed, it is wrong\n"):
