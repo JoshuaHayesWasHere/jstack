@@ -101,29 +101,28 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
     `sh` runs it as a login shell, so the guards see the machine's PATH as a desk's shell and CI
     do, after the few entries jbus's unit gives `jmerge`: Arch keeps `shasum` in
     /usr/bin/core_perl, which only /etc/profile adds."""
-    with tempfile.TemporaryDirectory(prefix="jmerge-slot-") as scratch:
+    with (
+        tempfile.TemporaryDirectory(prefix="jmerge-slot-") as scratch,
+        contextlib.ExitStack() as held,
+    ):
         started = Path(scratch) / "started"
         argv = ["sh", "-lc", command]
         if not os.environ.get(slot.HELD):
             argv = [sys.executable, "-m", "jgauge", "test-slot", "--", "sh", "-c", _MARK]
             argv += [str(started), command]
         alive, tie = os.pipe()
-        try:
+        held.callback(os.close, tie)
+        with open(alive, "rb") as reading:
             process = subprocess.Popen(
                 ["sh", "-c", _TIED, "sh", *argv],
                 cwd=cwd,
                 env={**os.environ, **env},
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                stdin=alive,
+                stdin=reading,
                 text=True,
                 start_new_session=True,
             )
-        except BaseException:
-            os.close(tie)
-            raise
-        finally:
-            os.close(alive)
         try:
             asked = time.monotonic()
             if argv[0] == sys.executable and not _slotted(process, started):
@@ -144,7 +143,6 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
                 code = None
         finally:
             _stop(process.pid)
-            os.close(tie)
     return Ran(code, round(time.monotonic() - began), said or "", round(began - asked))
 
 
