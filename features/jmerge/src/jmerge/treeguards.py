@@ -12,10 +12,10 @@ They run inside a full test slot (`run_guards`), and a run that finds none free 
 `SLOT_SECONDS` leaves the pull request to the next run.
 
 A repo with no such file runs no guards. A head that holds the tip already is the tree its check
-ran on, so nothing is built for it. A pass or a failure of the guards on a head over a tip is kept
-in `merged-trees.json`, so a held pull request is not run again until its head or the tip moves.
-Guards stopped at their time limit keep nothing: the pull request waits for this run alone, and
-the next run tries them again.
+ran on, so nothing is built for it. A pass, a failure, or a stop at the time limit of the guards on
+a head over a tip is kept in `merged-trees.json`, so a held pull request is not run again until its
+head or the tip moves. A stopped tree is kept too, since running it again on the next run spends
+that run's time on the same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
 """
 
 from __future__ import annotations
@@ -263,10 +263,10 @@ class Guards:
         if isinstance(ran, str):
             return ready.MERGED_TREE_UNBUILT.format(**values, why=ran), ""
         self.spent += ran.waited + ran.seconds
-        if ran.code is None:
-            return ready.MERGED_TREE_UNENDED.format(**values, minutes=LIMIT_SECONDS // 60), ""
         said, note = "", ""
-        if ran.code:
+        if ran.code is None:
+            said = ready.MERGED_TREE_UNENDED.format(**values, minutes=LIMIT_SECONDS // 60)
+        elif ran.code:
             said = ready.MERGED_TREE_FAILS.format(**values, guard=guard(ran.said))
         else:
             note = PASSED.format(**values, seconds=ran.seconds)
