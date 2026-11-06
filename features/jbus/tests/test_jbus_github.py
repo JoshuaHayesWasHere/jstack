@@ -4,8 +4,7 @@ once per head:
 - A check that ran and failed is one message.
 - A conflict before the review is another message.
 - A conflict after the review is the rebase message.
-- When a green pull request owes the home a line, jbus tells its crew that it passed.
-- When a green pull request owes nothing, jbus tells its crew nothing.
+- A green pull request is told nothing: its review came before it opened (`jbus.prereview`).
 
 Like `test_jbus_main_moved.py`, the tests run the real pass against the fakes."""
 
@@ -305,16 +304,6 @@ def test_a_green_pull_request_reviewed_and_fixed_is_told_nothing(launched):
     assert [key for key in sent if key.startswith(told)] == []
 
 
-GREEN = (
-    "jbus: every check of your pull request #7 passed at cccccccccccc, and its review is owed a "
-    'launch on green. In your own worktree, run the block of "The checks", then do what "The '
-    'review" says of a passed check: launch the reviewer, or write the `Reviewer: none` line and '
-    "its message. "
-    "End your turn only once no check or proof you started runs in your "
-    "worktree: wait for one that runs, in this turn."
-)
-
-
 def result(kitchen, lines):
     brief = kitchen.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text() + "\n## Result\nStatus: done\n" + lines)
@@ -332,37 +321,22 @@ def test_a_green_pull_request_whose_crew_wrote_its_reviewer_none_line_is_told_no
     assert sends(launched) == []
 
 
-def test_a_green_pull_request_whose_brief_asks_for_no_review_is_told_once_for_a_head(launched):
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
-    launched.set("jmerge.txt", "")
-    launched.set("open.json", [pull(launched)])
-    passes(launched, 0, 3)
-    assert [(given["clientRequestId"], given["message"]) for given in sends(launched)] == [
-        ("green|alpha|cccccccccccc", GREEN)
-    ]
-
-
-@pytest.mark.parametrize("mode", ["review", "cleanup", "twice"])
-def test_a_pull_request_with_no_reviewer_yet_is_told_to_launch_it_once_its_check_passed(
-    launched, mode
-):
-    """The reviewer launches only once `check` has passed. A crew whose check still ran when it
-    opened the pull request launched nobody, so jbus tells it on green, once for a head, and
-    tells it nothing while the check runs or once a reviewer is out."""
+@pytest.mark.parametrize("mode", ["none", "review", "cleanup"])
+def test_a_green_pull_request_with_no_review_line_is_told_nothing_on_green(launched, mode):
+    """The review comes before the pull request, so no crew waits on green to launch its
+    reviewer: a green pull request with no reviewer line, whatever its brief's `Review:` line,
+    gets no message on green. Its review, or its `Reviewer: none` line, was the crew's to write
+    before it opened (the crew skill, "The review")."""
     brief = launched.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text().replace("Review: review\n", f"Review: {mode}\n"))
     result(launched, "Branch: alpha   Pull request: https://example.test/pull/7\n")
     launched.set("jmerge.txt", "")
-    running = [{"status": "IN_PROGRESS", "conclusion": ""}]
-    launched.set("open.json", [pull(launched, running)])
+    launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)
     assert sends(launched) == []
-    launched.set("open.json", [pull(launched)])
-    passes(launched, 6, 9)
-    assert [(given["clientRequestId"], given["message"]) for given in sends(launched)] == [
-        ("green|alpha|cccccccccccc", GREEN)
-    ]
+    assert not any(
+        key.startswith("green|") for key in jbus.read_json(launched.state / "sent.json", [])
+    )
 
 
 def test_a_pull_request_whose_reviewer_is_out_is_told_nothing_on_green(launched):
@@ -371,17 +345,6 @@ def test_a_pull_request_whose_reviewer_is_out_is_told_nothing_on_green(launched)
     launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)
     assert sends(launched) == []
-
-
-def test_a_drafts_green_check_is_told_as_any_pull_requests(launched):
-    """CI checks a draft on each push as it checks any open pull request (check.yml), so a
-    draft's green check is told as any other's: jbus reads no draft field of GitHub's."""
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
-    launched.set("jmerge.txt", "")
-    launched.set("open.json", [{**pull(launched), "isDraft": True}])
-    passes(launched, 0, 3)
-    assert keys(launched) == ["green|alpha|cccccccccccc"]
 
 
 REVIEWED = (
@@ -401,16 +364,6 @@ def test_no_green_line_is_owed_after_a_fix_whatever_the_switch_holds(launched):
     assert keys(launched) == []
 
 
-def test_a_pending_pull_request_that_owes_a_line_on_green_is_told_nothing_yet(launched):
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
-    launched.set("jmerge.txt", "")
-    running = [{"status": "IN_PROGRESS", "conclusion": ""}]
-    launched.set("open.json", [pull(launched, running)])
-    passes(launched, 0, 3)
-    assert sends(launched) == []
-
-
 def test_a_check_that_fails_again_after_its_rerun_at_one_head_is_told_once_more(launched):
     launched.set("open.json", [pull(launched, [failed()])])
     passes(launched, 0, 3)
@@ -426,28 +379,6 @@ def test_a_reviewed_pull_request_red_and_in_conflict_gets_the_rebase_message(lau
     launched.set("open.json", [pull(launched, [failed()], mergeable="CONFLICTING")])
     passes(launched, 0, 3, 6)
     assert keys(launched) == ["failed|alpha|cccccccccccc", "rebase|alpha|cccccccccccc"]
-
-
-def test_a_gated_line_of_an_old_head_does_not_hold_back_green_at_a_new_one(launched):
-    old = "Stale base: at " + "b" * 40 + ", check\n"
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
-    result(launched, old)
-    launched.set("jmerge.txt", "")
-    launched.set("open.json", [pull(launched)])
-    passes(launched, 0, 3)
-    assert keys(launched) == ["green|alpha|cccccccccccc"]
-
-
-def test_a_gated_line_of_this_head_holds_back_green(launched):
-    here = f"Stale base: at {HEAD}, check\n"
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
-    result(launched, here)
-    launched.set("jmerge.txt", "")
-    launched.set("open.json", [pull(launched)])
-    passes(launched, 0, 3)
-    assert sends(launched) == []
 
 
 def cancelled(conclusion="CANCELLED", job="11"):

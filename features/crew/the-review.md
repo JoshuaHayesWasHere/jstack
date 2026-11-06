@@ -1,31 +1,17 @@
 ## The review
 
-A pull request gets one review, and the crewmate that opened it starts it: nobody types `/pr-review`.
-The review itself is done by a reviewer, in a new thread.
-This thread only launches it.
+A change gets one review, before its pull request opens, and nobody types `/pr-review`.
+The order is the brief, the work and its desk proof, the review, the pull request, the merge: the review reads a head the desk proof passed, so it runs while nothing else does, and CI's check runs once, on the pull request that follows it.
+The review itself is done by a reviewer, in a new thread, and jbus launches it (`jbus.prereview`): this thread launches the first review of no brief.
 A fix pushed for its findings gets no review: one round, and the pull request merges on its checks once each blocking finding has its answer.
 The one later pass is the one a `Meets the brief: no` owes: see "A second pass".
 
-The time to launch is when `check` has passed at the pull request's head: the deterministic checks prove or fail the work first, and the reviewer reads only a head they passed.
-It goes by the first word the block of "The checks" prints.
-On `passed`, launch at once, in that turn.
-On `wait`, the checks still run: launch nothing, and end the turn, since jbus says when every check has passed.
-On `failed`, a red pull request is fixed first, and the reviewer is launched once the push that fixes it has passed.
-On `unrun` no check ran, and no reviewer is launched: "The checks" parks it as a gate.
-Where the block below prints `none`, or the session has no launch tool, the `Reviewer: none` line and its message to the home are written on `passed` too.
-
-Which of these it is, is what this prints, run with the first line of what the block of "The checks" printed in place of the words in angle brackets:
-
-```sh
-checked='<the line the block of "The checks" printed>'
-case ${checked%%:*} in
-passed) echo "launch: run the block below and do what it prints" ;;
-wait) echo "no launch yet: the checks still run, and the reviewer is launched once they have passed" ;;
-failed) echo "fix first: do what \"The checks\" says, and launch once the push has passed" ;;
-unrun) echo "no launch: no check ran, park the gate" ;;
-*) echo "not known: run the block of \"The checks\" first" ;;
-esac
-```
+The time is when the desk proof is on record at the head you pushed: the brief's last `Checked:` line exited 0 there, and its `Proved:` line holds for it, as "Do the task" writes both.
+Then, where the block below prints `launch a reviewer`, push with the first-push block of "Do the task", write the Result with `Branch: <branch>   Pull request: after the review`, open no pull request, and end your turn with one line: `Waiting on the review: jbus launches it and tells this thread when it is written.`
+jbus asks origin for the branch's head and `jmerge`'s own rules whether the two lines bind it, launches one reviewer for each line of the role map's review list in this worktree, and adds a `Reviewer: <threadId> #<n>` line for each under the Result.
+A desk proof that does not hold there launches nothing, and jbus tells the home.
+Nothing wakes this thread until the review is written: jbus's message `jbus: <slug>'s review at <head12> is written` is the wake, with the findings by id.
+On it, handle the findings as below, then open the pull request ("Do the task") and write a follow-up Result, `## Result, follow-up (<date>, the pull request opened after its review)`, that names it, with the `Finding` and `Fixed:` lines.
 
 What decides whether there is a reviewer to launch is this, run with the block at the top. It is the only check: do not go by what you remember of earlier messages.
 
@@ -51,16 +37,20 @@ A brief with no such line is `review`, and so is one whose line says more than `
 The same words inside the task's text or a result do not count.
 A `## Review` or `Reviewer:` line counts only at or after the first `## Result`: a `Reviewer:` line in the brief's head is the home's guidance for the reviewer, not a reviewer.
 
-- `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
+- `none: launch no reviewer`: the home wrote that the task gets no review, so nothing waits: open the pull request at once, as "Do the task" says.
+  Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there.
+  Then go on as "Stay on the pull request" says.
+  There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
 - `cleanup`: the brief is the day's warnings row, `warnings-<day>`, which jbus filed, and it gets one review, of its own diff alone.
-  Launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line: a fix for them gets no review.
+  jbus launches its reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line: a fix for them gets no review.
   Only an `error` of that review comes to this thread, whatever its bucket or tag, and every other finding is dropped, so a review with no error asks no line of you and `jmerge` merges it on its checks.
   No finding of it goes to another day's row, so no follow-up of a follow-up is queued.
   The `fixed and green` line below is sent once the `Fixed:` line is written, with no block of "A second pass" run for it.
-- `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
+- `review`, and `launch a reviewer`: jbus launches the review, as above: push, write the Result, and end your turn.
+  The reviewer runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
-To launch them, run the block below, and make one `t3_thread_launch` call for each `launch:` line it prints, with the JSON after `launch: ` as the call's arguments, as printed: `$T/../skills/pr-review/launching.md` says what a reviewer does with its number.
+A second pass and a scoped pass are this thread's to launch ("A second pass"), and so is a review where jbus runs no pass for this repo: to launch one, run the block below, and make one `t3_thread_launch` call for each `launch:` line it prints, with the JSON after `launch: ` as the call's arguments, as printed: `$T/../skills/pr-review/launching.md` says what a reviewer does with its number.
 Never write a launch's arguments by hand: with no `workspaceStrategy` the reviewer opens in the project's main checkout and refuses to run there, and the block gives each call this worktree and its branch.
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.
@@ -118,7 +108,7 @@ On `no launch`, make none, and add what it printed to the Result.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 
-A pull request with no reviewer is never merged and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open.
+A pull request with no reviewer is never merged, and this thread is idle, not `waiting`: nobody would know it is open.
 So it tells the home, once.
 Run this before adding the `Reviewer: none` line, with the block at the top:
 
@@ -127,17 +117,19 @@ B="$H/tasks/<slug>.md"
 if awk '/^## Result/ {result = 1} result && /^Reviewer: none/ {had = 1} END {exit !had}' "$B"; then
     echo "send nothing: the home was told of this pull request when that line was written"
 else
-    echo "tell the home: it is green and has no review"
+    echo "tell the home: it has no review"
 fi
 ```
 
-On `tell the home`, add the line, then send the thread that hears of a pull request ("Telling the home") one line: `<slug>: <pull request url> at <full head commit> is green and has no review (<the brief says Review: none, or no launch tool in this session>): it waits for the user's word`. The pull request is green by now, since that is when this section is reached. On `send nothing`, the line is there and the home has been told, or jbus merges and it was not to be: one message, not one per wake.
+On `tell the home`, add the line, then send the thread that hears of a pull request ("Telling the home") one line: `<slug>: <pull request url> at <full head commit> has no review (<the brief says Review: none, or no launch tool in this session>): it waits for the user's word`.
+On `send nothing`, the line is there and the home has been told, or jbus merges and it was not to be: one message, not one per wake.
 A pull request whose brief says `Review: none` is parked as no gate: `jmerge` holds it for the user's word and jbus lists it under Needs you, so `jbus gate` refuses that line as `settled`.
 
 The findings come as one message in this thread, from jbus and not from the reviewer, which writes its section in the brief and sends nothing.
-The message comes once every reviewer of the head has written its section and `jmerge` says the pull request waits on your answers, so the findings of all of them are handled together, and pushed once.
-It begins `jbus: <slug>'s pull request #<n> at <head12> has its review`, names the sections by their `By:` lines, and lists the findings by id.
-A clean review brings no message and asks no line of you: `jmerge` merges it once it is green.
+The first review's message comes before the pull request, once every reviewer jbus launched has written: it begins `jbus: <slug>'s review at <head12> is written`, names the sections by their `By:` lines, and lists the findings by id, or says the review is clean.
+Handle them as below, then open the pull request and write the follow-up Result that names it, with the `Finding` and `Fixed:` lines: a clean review asks only for the pull request.
+A later review's message, a scoped pass's or a rebase's, comes once the pull request is open and `jmerge` says it waits on your answers: it begins `jbus: <slug>'s pull request #<n> at <head12> has its review`, and a clean one brings no message, since `jmerge` merges it once it is green.
+The findings of every reviewer of a head are handled together, and pushed once.
 Fix what you agree with and say here why for the rest, each by its severity as below.
 Then run the check command, push with the block below that pushes a fix, add one line to the Result saying what woke you and what you did, and end your turn again.
 Handling the findings sends the home nothing.
@@ -244,7 +236,7 @@ Where that line is missing, `jmerge` reads it from git and the `Checked:` line (
 The Result has one `Fixed:` line. If you push again for a failed check after writing it with a commit, set it to the new head. A rebase leaves it as it is: `jmerge` compares the rebased head with the commit that line names ("A conflict").
 
 jbus is the only merger, so no home waits to hear that the pull request is fixed and green: "Telling the home" sends the `fixed and green` line to nobody, and `jmerge`, run by jbus, reads the `Fixed:` line from the brief on its next pass, once the head is green.
-Wait for no message that every check passed after a `Fixed:` line: jbus sends that message only for a brief with no reviewer launched, no `Reviewer: none` line and no `## Review` yet (`rebase.owed`, `features/jbus/src/jbus/rebase.py`).
+Wait for no message that every check passed: the review came before the pull request, so jbus sends none (`features/jbus/src/jbus/rebase.py`).
 The line is due only when the block of "A second pass" prints `none`, or prints `had` with the scoped review's findings handled: on `scoped` and on `write Scoped review:` the pull request is not ready.
 
 Where no check ran, the head is not green and the line is not sent: "The checks" parks it as a gate.

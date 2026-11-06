@@ -3,6 +3,8 @@
 A pull request is reviewed by a **reviewer**: a new thread that knows the brief and the pull request and nothing of the conversation that wrote the code. The thread `/pr-review` is typed in never reviews. It launches the reviewer, gives the user the link, and goes back to what it was doing.
 
 There is one pass per pull request: the reviewer reviews once and the crewmate fixes once.
+The first pass of a crewmate's brief is jbus's to launch, before the pull request opens: once the crewmate's desk proof, its `Checked:` and `Proved:` lines, binds the head it pushed, and its Result says `Pull request: after the review` (`jbus.prereview`).
+This file is how any other pass is launched: a scoped pass, a second pass, and a review the user asks for by name.
 A round that pushed nothing is not reviewed: what stands behind it is the pull request's own checks.
 A fix that changes any file, a test among them, gets one scoped pass, of the fix alone, by another reviewer, and that pass is the last ("A scoped pass").
 The crewmate's own check decides which it is (the crew skill, "A second pass").
@@ -117,8 +119,8 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    - its `Review:` line, read as above, is not `none`;
    - the pull request's checks have passed at its head.
      `jmerge --checks` prints its four answers: `passed`, `failed`, `wait`, `unrun` (the crew skill, "The checks").
-     Only `passed` is ready: the deterministic checks prove or fail the work before a reviewer reads it, so the reviewer reads only a head they passed.
-     `wait` is not ready, a check still running or a GitHub that could not be asked: jbus tells the crew when every check has passed, and the reviewer is launched then.
+     Only `passed` is ready: a pull request this list holds opened with no review before it, so its checks prove or fail the work before a reviewer reads it.
+     `wait` is not ready, a check still running or a GitHub that could not be asked: run the block again once it has passed.
      `failed` is never ready: a red pull request is fixed first, and its reviewer is launched once the push that fixes it has passed.
      `unrun` means no check ran, every one failed with no step run or was skipped, because the repo's CI starts no job: nothing stands in for a check that did not run, so the brief is not ready, whatever its Result says of a check command that passed in the crewmate's worktree.
 

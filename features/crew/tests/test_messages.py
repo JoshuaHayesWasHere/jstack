@@ -90,7 +90,7 @@ def test_a_follow_up_with_no_branch_line_is_not_decided_by_the_result_before_it(
 
 def test_a_pull_request_with_no_reviewer_tells_its_home_once(threads):
     threads.brief.write_text(BRIEF + result(URL) + "Noticed: the brief says Reviewer: none\n")
-    assert threads.crewmate_with_no_reviewer() == "tell the home: it is green and has no review"
+    assert threads.crewmate_with_no_reviewer() == "tell the home: it has no review"
     with threads.brief.open("a") as told:
         told.write("Reviewer: none, the brief says Review: none\n")
     assert threads.crewmate_with_no_reviewer().startswith("send nothing: ")

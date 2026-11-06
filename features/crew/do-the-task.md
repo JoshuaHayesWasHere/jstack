@@ -103,7 +103,8 @@
   With every slot of a lane taken, it ends 76, and the turn ends as a targeted run's does, with the same one line; on jbus's message run the block again, and it goes on from the first step that has not passed.
   It ends with the check's exit code, and on 0 the `touched:` line, each step's line and that exit code go on `Proof:`.
   A step that fails is the change's to fix, and every exit but 0 holds the pull request: a 124 reached no verdict, so run the block again.
-  The pull request is ready only once CI's check on it passed, as "The checks" says, and `Proof:` names CI's check at that head beside the desk's run.
+  This desk proof, the `Checked:` line and the `Proved:` line below, is what jbus launches the review on, before the pull request opens.
+  The pull request is ready to merge only once CI's check on it passed, as "The checks" says, and the follow-up Result's `Proof:` names CI's check at that head beside the desk's run.
   In any other repo the block runs `jgauge check`, and the rest of this step is about that run.
   It starts the check command on its own, holding one of the machine-wide test slots, and the call waits on it for up to 9 minutes. Give the call a time limit of 10 minutes, the longest a call in the foreground gets (`timeout: 600000` in Claude Code), and never send it to the background. With every slot taken, nothing runs: the check registers this thread as a waiter, and the block prints `waiting` and ends 76. That wait is the one time the turn ends: end it at once with the one line above, and on jbus's message run this block again, which starts the check afresh. A check runs as long as the check command takes once it holds a slot, longer where the command runs the whole suite, so one call is not always enough: on `running`, run the block again, in this turn, as many times as it takes, until it prints `done`. Never end your turn while your own check runs, and never say you will go on once it finishes: nothing wakes a thread when a command ends, only a message does, and the push, the Result and the pull request would never come. A check that a call or a turn before this one started is joined, not started again (`joined`), and one that ended after the last call gives what it said (`checked`). A check whose answer a call already gave runs afresh on the next call, so a failure that was not the change's (a flake, a full `/tmp`) is run again by running the block again. On `stale`, the check ran on files that have changed since, and its answer is no proof: run the block again. On `done`, the block ends with the command's exit code: put its last line on `Proof:`. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the check command is not how you find out whether an edit works: the targeted runs are. Run it again only after changing something to fix what that run found.
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one run of the check command, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself.
@@ -201,7 +202,8 @@
 
   `jmerge` waits on a `none` line where the pull request changes a test or a file of no kind the line names.
   A change to code is none of these: it adds or changes a test that fails without it.
-- If the brief says to open a pull request, open it once the checks pass and the first-push block below has pushed the branch, on the base this prints.
+- If the brief says to open a pull request, its review comes first: once the checks pass and the first-push block below has pushed the branch, write the Result with `Branch: <branch>   Pull request: after the review` and end your turn, as "The review" says, and jbus launches the reviewer at the head you pushed.
+  The pull request opens on jbus's message that the review is written, once its findings are handled, or at once where the brief says `Review: none`, on the base this prints.
   Do not merge.
   What follows it is under "Stay on the pull request".
   The base is the home's to give, never yours to choose.
@@ -276,7 +278,7 @@
   ```
 
   It asks `jmerge`'s own rule (`ready.short_on_checked`) of the brief's last `Checked:` line at the head, with no other head carried, and pushes only where the check block passed there: on `no push`, run the check block again at the head, fix what it finds, and run this block again.
-  A failure, a 124, a missing line and a line of another head each refuse the push, so no pull request opens on a head whose desk check did not pass.
+  A failure, a 124, a missing line and a line of another head each refuse the push, so no review is launched and no pull request opens on a head whose desk check did not pass.
   It is a block and not a git hook: a flag of `git push` skips a hook, and the check takes a slot of its own.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
