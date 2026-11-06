@@ -86,6 +86,21 @@ def test_a_reviewer_run_again_at_one_head_replaces_its_own_earlier_section():
     assert ready.short_of(pair + section(CODEX, "clean"), SAW) == ""
 
 
+def test_a_reviewer_not_run_after_its_own_run_at_one_head_keeps_the_verdict_that_ran():
+    """The reverse order of the test above: the same reviewer's `findings`, then its
+    `Verdict: not run` at the same head, is still a review with findings. A section that did not
+    run counts for nothing beside one of the same reviewer's that ran at that head, whichever
+    came last, while a later section that ran still replaces an earlier one."""
+    one = RESULT + "Reviewer: mcp:9\n"
+    found = section(CODEX, "findings", findings=["error a.py:1 x"])
+    brief = one + found + section(CODEX, "not run")
+    assert ready.said_of(brief).verdict == "findings"
+    assert ready.short_of(brief, SAW) == ready.NO_FIXED
+    again = one + section(CODEX, "not run") + section(CODEX, "clean")
+    assert ready.said_of(again).verdict == "clean"
+    assert ready.said_of(one + found + section(CODEX, "clean")).verdict == "clean"
+
+
 SONNET = "claudeAgent claude-sonnet-5-5 high"
 SEATS = "Reviewer: mcp:sonnet-a #1\nReviewer: mcp:sonnet-b #2\n"
 
