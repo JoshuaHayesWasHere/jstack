@@ -478,12 +478,14 @@ def test_a_runs_temporary_directory_goes_when_it_lets_its_slot_go(slots, stand_i
     assert list(stand_in.iterdir()) == []
 
 
-def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_under_tmp(
+def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_on_disk(
     slots, tmp_path
 ):
-    """A path with a hidden directory in it, such as `~/.local`, makes asar unpack no native
-    binaries, so a slot's `TMPDIR` is under `/tmp` (`TMPFS`) and has none. A second HOME on the
-    same `/tmp`, as a sandbox has, takes slots of its own and so a directory of its own."""
+    """A slot's `TMPDIR` holds a suite's basetemp, hundreds of MiB, so it is on disk under
+    `/var/tmp` and not on the `/tmp` (`TMPFS`) whose quota it would fill. A path with a hidden
+    directory in it, such as `~/.local`, makes asar unpack no native binaries, so it has none. A
+    second HOME on the same machine, as a sandbox has, takes slots of its own and so a directory
+    of its own."""
     says = f'echo "$TMPDIR" > "$D/tmpdir.$1"; {RUNS_UNTIL_RELEASED}'
     other = {"HOME": str(tmp_path / "other")}
     full, short = ["--slots", "2"], ["--short"]
@@ -494,8 +496,9 @@ def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_un
     own = {Path((slots.state / f"tmpdir.{n}").read_text().strip()) for n in "abcd"}
     assert len(own) == 4
     for path in own:
-        assert path.is_dir() and path.is_relative_to(slots.tmpfs)
-        assert not any(part.startswith(".") for part in path.relative_to(slots.tmpfs).parts)
+        assert path.is_dir() and path.is_relative_to("/var/tmp")
+        assert not path.is_relative_to(slots.tmpfs) and not path.is_relative_to("/tmp")
+        assert not any(part.startswith(".") for part in path.parts)
     for name in "abcd":
         slots.release(name)
 
