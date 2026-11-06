@@ -251,6 +251,37 @@ def test_the_selectors_own_tests_run_only_where_a_change_reaches_the_selector(ch
     assert (tests == ["all"] or SELECTOR_TESTS in tests) == runs
 
 
+WORKFLOW_TESTS = "testing/tests/test_workflows.py"
+
+
+@pytest.mark.parametrize(
+    ("changed", "runs"),
+    [
+        ([], False),
+        (["features/grilling/SKILL.md"], False),
+        (["features/jdrift/src/jdrift/__init__.py"], False),
+        ([".github/workflows/added.yml"], True),
+        ([".github/CODEOWNERS"], True),
+        (["features/jmerge/spec/Added.tla"], True),
+    ],
+    ids=[
+        "no change",
+        "a skill",
+        "a module no workflow test runs",
+        "a new workflow",
+        "a file under .github",
+        "a spec the tlc cache hashes",
+    ],
+)
+def test_the_workflow_tests_run_only_where_a_change_reaches_what_they_read(changed, runs):
+    """`test_workflows.py` takes minutes and is on no `Cross-cutting:` list: a change runs it
+    where it reaches a file under `.github/`, a file the TLC cache's key hashes, or a path it
+    spells or imports, and not else."""
+    tests, _ = select.selection(changed)
+
+    assert (tests == ["all"] or WORKFLOW_TESTS in tests) == runs
+
+
 def test_every_python_file_under_features_selects_a_test():
     """A change to a module runs a test of its own, beside the cross-cutting tests and the
     catch-all, which every change runs: a test file selects itself, and any other file a test
