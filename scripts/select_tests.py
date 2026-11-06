@@ -190,6 +190,7 @@ changes to the diff, which selects more tests and never fewer.
 """
 
 import ast
+import glob
 import hashlib
 import json
 import math
@@ -198,6 +199,7 @@ import pickle
 import re
 import subprocess
 import sys
+import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -263,6 +265,9 @@ BY_NAME = {"import_module", "__import__"}
 SKILL_INDEX = "testing.paths.skills"
 SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
+COLLECTORS = 8
+"""The most pytest processes `node_ids` collects in at once, each a run of the files: a hosted
+runner's 4 cores collect a selection in about a third of the time one process takes."""
 KEPT = "select_tests.facts"
 """The file in the repo's git directory that keeps each module's `facts` from one run to the
 next, by its path and a hash of its text: a module that has not changed is not parsed again."""
@@ -1782,24 +1787,49 @@ def unmapped(changed):
 
 def node_ids(tests):
     """The node ids pytest collects from the selected test files, or from the whole suite for
-    `all`, with the browser tests left out as `make test` leaves them."""
-    named = [] if tests == ["all"] else tests
-    ran = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
-        + ["-m", "not browser", *named],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if ran.returncode == 5:
-        return []
-    if ran.returncode:
-        sys.exit(
-            f"select_tests.py: pytest could not collect the selection:\n{ran.stdout}{ran.stderr}"
+    `all` (`suite`), with the browser tests left out as `make test` leaves them. Up to
+    `COLLECTORS` processes collect at once, each a run of the files or folders, so each file's
+    tests come whole from one: the parts deal whole files, and sort them."""
+    named = suite() if tests == ["all"] else tests
+    count = max(1, min(COLLECTORS, os.cpu_count() or 1, len(named)))
+    runs = [named[len(named) * at // count : len(named) * (at + 1) // count] for at in range(count)]
+
+    def collect(share):
+        return subprocess.run(
+            [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
+            + ["-m", "not browser", *share],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
         )
+
+    with ThreadPoolExecutor(max_workers=count) as pool:
+        ran = list(pool.map(collect, runs))
+    for one in ran:
+        if one.returncode not in (0, 5):
+            sys.exit(
+                "select_tests.py: pytest could not collect the selection:\n"
+                f"{one.stdout}{one.stderr}"
+            )
     return [
-        line for line in ran.stdout.splitlines() if "::" in line and " " not in line.split("::")[0]
+        line
+        for one in ran
+        for line in one.stdout.splitlines()
+        if "::" in line and " " not in line.split("::")[0]
     ]
+
+
+def suite():
+    """What pytest collects the whole suite from when it is given no path: each entry of the
+    `testpaths` of `pyproject.toml`, a glob from the root, its matches sorted. It is nothing,
+    and pytest is given no path, where pytest reads another file's config or finds no match."""
+    if not (ROOT / "pyproject.toml").is_file() or any(
+        (ROOT / one).exists() for one in ("pytest.ini", ".pytest.ini")
+    ):
+        return []
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    entries = config.get("tool", {}).get("pytest", {}).get("ini_options", {}).get("testpaths", [])
+    return [one for entry in entries for one in sorted(glob.glob(entry, root_dir=ROOT, recursive=True))]
 
 
 def dealt(nodeids, times, count):
