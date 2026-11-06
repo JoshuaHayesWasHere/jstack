@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from testing import shard
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "jmerge" / "spec"
@@ -47,6 +48,16 @@ def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
     assert "FixAfterARedCheckWaitsOnlyOnYou" in flow.PROBES
     for probe in flow.PROBES:
         assert any(line.startswith(f"ok    today: {probe} holds") for line in lines)
+
+
+def test_a_desk_record_writes_the_tlc_test_at_its_warm_ci_time():
+    """CI's parts restore main's TLC cache, so the TLC test takes under a second there, and a
+    desk's `--shard-record` writes the seconds its `shard_seconds` pin gives in place of the
+    minutes a cold desk takes: the pin is the warm time, as the table recorded from main's full
+    runs holds it."""
+    test = test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own
+    (pin,) = [mark.args[0] for mark in test.pytestmark if mark.name == shard.PINNED]
+    assert shard.FLOOR <= pin < 60
 
 
 def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
