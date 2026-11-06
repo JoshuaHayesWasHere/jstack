@@ -25,6 +25,7 @@ find_java = tools.find_java
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")
 @pytest.mark.timeout(1200)
+@pytest.mark.shard_seconds(653.60)
 def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
     ran = subprocess.run(
         [sys.executable, str(SPEC / "flow_canaries.py")], capture_output=True, text=True, cwd=REPO

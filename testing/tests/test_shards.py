@@ -150,6 +150,36 @@ def test_a_run_writes_the_table_the_split_reads_with_the_tests_that_took_the_flo
     assert seconds(times, "test_two.py::test_slow") >= FLOOR * 4
 
 
+def test_a_run_writes_a_test_s_pinned_seconds_in_place_of_the_time_it_took_here(tmp_path):
+    """A test whose CI time this machine does not see, as the merge flow's TLC test runs warm in
+    well under `FLOOR` where its cache holds the runs, pins its seconds with `shard_seconds`, and
+    `--shard-record` writes them, also from xdist's workers and also where the test is skipped,
+    so a refresh by the command alone keeps its row at its cold time."""
+    (tmp_path / "test_pinned.py").write_text(
+        "import pytest\n\n"
+        "@pytest.mark.shard_seconds(653.60)\n"
+        "def test_warm():\n    pass\n\n"
+        "@pytest.mark.shard_seconds(42)\n"
+        "@pytest.mark.skip(reason='no Java')\n"
+        "def test_skipped():\n    pass\n\n"
+        "def test_quick():\n    pass\n"
+    )
+    table = tmp_path / "times.tsv"
+    run = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "testing.shard"]
+    ran = subprocess.run(
+        [*run, "--strict-markers", "-n", "2", f"--shard-record={table}", "test_pinned.py"],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(REPO)},
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stdout[-2000:]
+    assert read_times(table) == {
+        key("test_pinned.py::test_warm"): 653.60,
+        key("test_pinned.py::test_skipped"): 42,
+    }
+
+
 def ended(run):
     """The exit status and the output of a pytest started with its output piped."""
     out, _ = run.communicate(timeout=100)
