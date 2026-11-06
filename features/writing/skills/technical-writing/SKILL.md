@@ -2,7 +2,7 @@
 name: technical-writing
 description: "Write or review docs, READMEs, RFCs, PR descriptions and commit messages to a layered standard: Diataxis structure, Google developer style, STE rules and Global English."
 tip: holds docs, readmes and pull request descriptions to one writing standard | write the docs | write the readme | update the readme | write documentation | write an rfc | pr description
-card: "House standards for text and code | 1 | A layered writing standard: structure, sentence style, instruction rules and syntax that reads well in translation. | Reach for it when you write or review a doc, a pull request description or a commit message. | op: the operator; plain: a step of `opening-a-pr`"
+card: "House standards for text and code | 1 | A layered writing standard: structure, sentence style, instruction rules and syntax that reads well in translation. | Reach for it when you write or review a doc, a pull request description or a commit message. | op: the operator"
 ---
 
 # Technical writing

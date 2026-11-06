@@ -40,6 +40,14 @@ launches stacked on an open row it depends on. Every other approved row waits wi
 a crew launched onto a red main finds its check failed on main's break. A red main holds no pull
 request (`jmerge.mainjson`); this rule holds back launches only.
 
+Each crew gets a scratch folder on disk, `~/.cache/jstack/scratch/<repo>/<slug>`
+(`JSTACK_SCRATCH_DIR` in place of `~/.cache/jstack/scratch`), made before its launch (`scratch`).
+`t3_thread_launch` takes no environment, so the session-start hook
+(`features/home/hooks/home-start.sh`) points the thread's `TMPDIR` at the folder it finds for its
+worktree's repo and branch, and every `mktemp`, clone and worktree the thread makes goes there and
+not in /tmp, whose tmpfs quota full repo copies filled. `jbus.threads.settle` removes the folder,
+and prunes the worktrees that were in it, once it settles the crew's thread (`clear_scratch`).
+
 jbus never holds back a launch because another brief names the same file, since each crew
 has its own worktree and branch. The crew of the pull request that merges second rebases that
 pull request, and `jbus.rebase` tells that crew to.
@@ -50,6 +58,7 @@ from __future__ import annotations
 import itertools
 import os
 import re
+import shutil
 from collections import Counter
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
@@ -75,6 +84,22 @@ def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
     crewmate's."""
     found = records(run, slug, role)
     return next((r["thread"] for _, r in reversed(found) if r.get("thread")), "")
+
+
+def scratch(run: Pass, slug: str) -> Path:
+    """Return the scratch folder of the slug's crew, which is its thread's `TMPDIR`."""
+    root = os.environ.get("JSTACK_SCRATCH_DIR") or Path.home() / ".cache" / "jstack" / "scratch"
+    return Path(root) / run.project.checkout.name / slug
+
+
+def clear_scratch(run: Pass, slug: str) -> None:
+    """Remove the slug's scratch folder, then the registrations of the worktrees made in it."""
+    folder = scratch(run, slug)
+    if not folder.exists():
+        return
+    shutil.rmtree(folder, ignore_errors=True)
+    run.run("git", "worktree", "prune")
+    run.say(f"cleared {slug}: its scratch folder {folder}")
 
 
 def write_thread(
@@ -599,6 +624,7 @@ class Turns:
             retried = read_json(path, {}).get("state") == "retry"
             intent = {"key": key, "state": "intent", "at": run.now.isoformat()}
             write_json(path, {**intent, "retried": True} if retried else intent)
+            scratch(run, slug).mkdir(parents=True, exist_ok=True)
             try:
                 reply = client.call(
                     "t3_thread_launch",

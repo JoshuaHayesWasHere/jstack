@@ -11,14 +11,13 @@ CREW = REPO / "features" / "crew"
 SKILL = REPO / "features" / "crew" / "SKILL.md"
 
 
-def test_the_skill_names_each_case_jbus_holds_and_counts_them_right():
+def test_the_skill_names_each_case_jbus_holds():
     """The cases never done on a default are the ones jbus parks as holding gates
-    (`jbus.party.CASES`), no fewer and no other."""
+    (`jbus.party.CASES`), no fewer and no other. The line gives no count of them:
+    features/repo-guards/tests/test_gate_counts.py holds that."""
     (line,) = [one for one in SKILL.read_text().splitlines() if "never done on a default" in one]
     named = re.findall(r"\(`([^`]+)`\)", line)
     assert sorted(named) == sorted(party.CASES)
-    words = {4: "Four", 5: "Five", 6: "Six", 7: "Seven"}
-    assert line.startswith(f"{words[len(party.CASES)]} things only")
 
 
 def test_each_scoped_reviewer_line_the_skill_asks_for_names_its_head():

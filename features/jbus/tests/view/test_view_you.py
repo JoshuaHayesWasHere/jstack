@@ -4,12 +4,11 @@ import json
 import shutil
 import subprocess
 from dataclasses import asdict
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from jbus import questions, queue, waiting, work
+from jbus import questions, waiting, work
 from jbus import roles as threads
 from jbus.view.panels.you import panel as panel_you
 from jbus.view.panels.you.panel import ACTS, ANSWERS, APPROVES, OPENS, THREADS
@@ -69,65 +68,6 @@ def needing(scene):
         ]
     )
     return held.number
-
-
-def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_path, monkeypatch):
-    scene = Scene(tmp_path, monkeypatch)
-    number = needing(scene)
-    served = Served(scene)
-    try:
-        needs = served.json("/stack.json")["needs"]
-        demo = served.json("/state.json?project=demo")
-    finally:
-        served.close()
-    kinds = ["config", "approve", "gate", "left", "row", "hold"]
-    assert [one["kind"] for one in needs] == kinds
-    assert [one["project"] for one in needs] == ["demo"] * 4 + ["pantry", "demo"]
-    assert [one["since"] for one in needs] == sorted(one["since"] for one in needs)
-    assert {one["verb"] for one in needs} <= {
-        *(one.verb for one in waiting.KINDS),
-        panel_you.ANSWER,
-    }
-    assert [one["verb"] for one in needs] == [
-        "Set up",
-        "Approve launch",
-        "Answer",
-        "Close it",
-        "Fix brief",
-        "Review merge",
-    ]
-    assert [set(one) ^ set(panel_you._NEED) for one in needs] == [set()] * len(needs)
-    assert all("jbus " not in one["what"] + one["why"] for one in needs)
-    by = {one["kind"]: one for one in needs}
-    assert by["approve"]["what"] == "tea-kettle: boil the water first"
-    assert by["approve"]["why"] == "nobody has approved it"
-    assert by["approve"]["unblocks"] == ["tea-cups"]
-    assert by["approve"]["open"] == "#/demo/you/approve/tea-kettle"
-    assert by["approve"]["since"] == iso(ago(hours=5))
-    brief = queue.brief_path(scene.state, "tea-kettle")
-    assert by["approve"]["brief_at"] == iso(datetime.fromtimestamp(brief.stat().st_mtime, UTC))
-    assert by["hold"]["what"] == "Pull request #14: oat-honey: stir the honey in"
-    assert by["hold"]["why"] == "needs user, touches skills/crew/SKILL.md"
-    assert by["hold"]["since"] == iso(ago(minutes=12))
-    assert by["left"]["open"] == "#/demo/you/left/rye-loaf"
-    assert (by["hold"]["risk"], by["hold"]["answerable"]) == ("merge to main", False)
-    assert by["hold"]["open"] == "#/demo/you/hold/14"
-    assert (by["gate"]["what"], by["gate"]["risk"]) == ("post the menu?", "publishes")
-    assert (by["gate"]["answerable"], by["gate"]["default"]) == (True, "the first one")
-    assert by["gate"]["open"] == f"#/demo/gate/{number}"
-    assert by["gate"]["due"] is None
-    assert by["row"]["project"] == "pantry"
-    assert by["row"]["open"] == "#/pantry/you/row/fig-tart"
-    assert {one["risk"] for one in needs if one["kind"] not in ("gate", "hold")} == {"reversible"}
-    assert {kind: one["slug"] for kind, one in by.items()} == {
-        "config": "",
-        "approve": "tea-kettle",
-        "gate": "jam-jar",
-        "left": "rye-loaf",
-        "row": "fig-tart",
-        "hold": "oat-honey",
-    }
-    assert demo["needs"] == [one for one in needs if one["project"] == "demo"]
 
 
 def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_with_them(

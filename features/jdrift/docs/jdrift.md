@@ -25,7 +25,7 @@ An upstream path in the map can carry a pin of its own, as `pstack/<path>@<commi
 It keeps a clone of pstack under `${XDG_CACHE_HOME:-~/.cache}/jstack/` and updates it to pstack's `main`.
 It needs only `git` and the network, calls no model, and changes nothing in the repo.
 
-It prints one line for each upstream path the map names, then the lines for jstack's own files and pstack's new ones:
+It prints a header line, `pstack <pin> .. <main>: <n> commits touch pstack/`, then one line for each upstream path the map names, then the lines for jstack's own files and pstack's new ones:
 
 | Line | Means |
 |---|---|

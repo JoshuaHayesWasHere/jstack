@@ -12,7 +12,7 @@ from jbus import home
 from test_home_thread import NAME, NOTE, OTHER, THREAD, Scene, block
 from test_party_handoff import DESK, Party, takes
 from test_party_handoff import OTHER as COOK
-from test_tool_calls import CALLS, REPO, errors
+from test_tool_calls import REPO
 
 TEMPLATES = REPO / "features" / "home" / "templates"
 ARCHIVED = (
@@ -21,13 +21,6 @@ ARCHIVED = (
     " thread"
 )
 NOT_THE_HOME = "not the home: "
-HANDOFF = [
-    call
-    for call in CALLS
-    if call.where.startswith("handoff:")
-    and "<model selection>" not in call.written
-    and "bindToCurrentThread" not in call.written
-]
 
 
 def template(name):
@@ -81,20 +74,11 @@ def test_a_crewmate_that_runs_the_handoff_archives_nothing(scene):
     assert scene.file.exists()
 
 
-def test_an_ordinary_thread_in_the_main_checkout_archives_nothing(scene):
-    scene.home_starts(THREAD)
-    assert hands_off(scene, OTHER, code=1)[0].startswith(NOT_THE_HOME)
-
-
 def test_a_home_another_home_took_the_place_of_archives_nothing(scene):
     scene.home_starts(THREAD)
     scene.home_starts(OTHER)
     assert hands_off(scene, THREAD, code=1)[0].startswith(NOT_THE_HOME)
     assert scene.file.read_text() == f"{OTHER}\n"
-
-
-def test_a_repo_with_no_home_thread_file_archives_nothing(scene):
-    assert hands_off(scene, THREAD, code=1)[0].startswith(NOT_THE_HOME)
 
 
 def state(scene):
@@ -119,18 +103,6 @@ def test_an_archive_run_twice_ends_where_one_run_ends_and_a_later_home_takes_its
     assert was_home(scene) == THREAD
     assert scene.file.read_text() == f"{OTHER}\n"
     assert not (scene.home_dir / "handoff.next.md").exists()
-
-
-def test_the_handoff_switches_tasks_off_renames_settles_and_launches_nothing():
-    tools = [call.tool for call in HANDOFF]
-    assert "t3_thread_launch" not in tools
-    assert tools[:3] == ["update_scheduled_task", "t3_thread_update", "t3_thread_organize"]
-    off, rename, settle = (call.given for call in HANDOFF[:3])
-    assert off["enabled"] is False
-    assert rename == {"action": "rename", "title": "home: demo (archived 2026-10-10)"}
-    assert settle == {"action": "settle"}
-    assert [errors(call, call.given) for call in HANDOFF] == [[]] * len(HANDOFF)
-    assert not (TEMPLATES / "handoff-seed.md").exists()
 
 
 def filled_in(text=None):

@@ -26,6 +26,7 @@ A desk's share is also the test slots' count: every slot at once runs at most on
 for each of the machine's processors. CI is not in that budget, since it runs on GitHub's machines.
 """
 
+import fcntl
 import os
 import re
 import shlex
@@ -43,7 +44,7 @@ from testing.paths import REPO
 
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT", "SHARD")
-SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "SELECTED")
+SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "SELECTED", "JGAUGE_TEST_SLOT")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
@@ -271,6 +272,47 @@ def test_a_test_that_hangs_fails_by_name_inside_its_bound_and_the_run_goes_on(tm
     assert "FAILED test_scratch.py::test_a_hangs" in ran.stdout
     assert "Timeout (>2.0s)" in ran.stdout
     assert took < 30
+
+
+TLC_IN_A_TEST = """
+import os, subprocess, sys
+
+sys.path.insert(0, os.environ["STATECHART_SCRIPTS"])
+from statechart import tools
+
+
+def test_tlc_runs():
+    ran = tools.in_test_slot(["echo", "ran"])
+    assert subprocess.run(ran, capture_output=True, text=True, timeout=10).stdout == "ran\\n"
+"""
+
+
+def test_on_a_runner_of_githubs_own_a_tlc_run_in_the_suite_waits_on_no_test_slot(tmp_path):
+    """A runner of GitHub's own runs the suite alone, so a TLC run in it takes no jgauge slot:
+    with every slot taken, it still runs at once. A macos-15 runner has 3 cores, which jgauge
+    gives one slot, and each TLC run of the suite queued on it (nightly run 42059155018)."""
+    (tmp_path / "test_scratch.py").write_text(TLC_IN_A_TEST)
+    locks = tmp_path / "locks"
+    locks.mkdir()
+    env = {name: value for name, value in outside_a_run().items() if name not in SET_BY_A_RUN}
+    env |= {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted", "TEST_SLOTS": "1"}
+    env |= {"JGAUGE_LOCKS_DIR": str(locks), "PATH": f"{Path(sys.executable).parent}:{env['PATH']}"}
+    env["STATECHART_SCRIPTS"] = str(REPO / "features/skill-library/skills/statechart/scripts")
+    held = os.open(locks / "test-slot.1.lock", os.O_RDWR | os.O_CREAT)
+    fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        ran = subprocess.run(
+            ["make", "--no-print-directory", "test", "TEST_WORKERS=0"]
+            + [f"TESTS={tmp_path / 'test_scratch.py'} --basetemp={tmp_path / 'base'}"],
+            cwd=REPO,
+            env=env | UNLIMITED,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    finally:
+        os.close(held)
+    assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout + ran.stderr
 
 
 def test_the_bound_of_a_test_is_well_inside_the_jobs_limit():

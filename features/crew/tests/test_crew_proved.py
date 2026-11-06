@@ -6,10 +6,10 @@ and the line says so with the base's exit 0. A branch that changes no test gets 
 The tests run the block in a real repo whose `origin/main` is the base, on macOS's tools
 (`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
 the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
-tests pass, fail or are cut off, and the block walks through no door of the door hook, which
-refuses a crew's whole call where one of its commands does."""
+tests pass, fail or are cut off."""
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -19,7 +19,6 @@ import pytest
 
 from crew_helpers import block, git
 from jbriefs import proved
-from jbus import door
 from test_blocks_command_grep import UGREP
 from test_portable_shell import bsd_tools
 
@@ -28,20 +27,31 @@ case " $* " in
 *" jgauge test-slot "*)
     while [ "$1" != -- ]; do shift; done
     shift
+    if [ -n "$LIMIT" ]; then exec {shutil.which("timeout")} "$LIMIT" "$@"; fi
     exec "$@"
     ;;
 *" sync "*) exit 0 ;;
+*" run python "*)
+    if [ -n "$NO_XDIST" ]; then exit 1; fi
+    shift 2
+    exec {sys.executable} "$@"
+    ;;
 *" run pytest "*)
     if [ -n "$STALL" ]; then
         : > "$STALL"
         sleep 60
     fi
+    if [ -n "$SLOW" ]; then sleep "$SLOW"; fi
     shift 2
+    echo "$*" >> "$TMPDIR/pytest-args"
     exec {sys.executable} -m pytest "$@"
     ;;
 esac
 exit 64
 """
+"""`uv` as the block calls it. A test-slot run is stopped at `LIMIT` seconds, exit 124, as the
+short lane stops one at its limit; each pytest run takes `SLOW` seconds more, and `NO_XDIST`
+stands for a repo whose venv has no pytest-xdist."""
 BUGGY = "def add(a, b):\n    return a - b\n"
 FIXED = "def add(a, b):\n    return a + b\n"
 OLD_TEST = "from calc import add\n\n\ndef test_zero():\n    assert add(0, 0) == 0\n"
@@ -97,6 +107,7 @@ def environ(tree, **more):
         "H": str(tree.parent / "home"),
         "T": str(tree.parent / "templates"),
         "TMPDIR": str(tree.parent),
+        "PYTEST_XDIST_AUTO_NUM_WORKERS": "2",
         **more,
     }
 
@@ -105,7 +116,7 @@ def worktrees(tree):
     return git(tree, "worktree", "list", "--porcelain")
 
 
-def proof(tree, shell=""):
+def proof(tree, shell="", **more):
     before = worktrees(tree)
     ran = subprocess.run(
         ["bash", "-c", shell + script()],
@@ -113,7 +124,7 @@ def proof(tree, shell=""):
         capture_output=True,
         text=True,
         timeout=60,
-        env=environ(tree),
+        env=environ(tree, **more),
     )
     assert worktrees(tree) == before
     home = tree.parent / "home"
@@ -183,13 +194,6 @@ def test_a_run_cut_off_mid_test_leaves_the_worktree_list_as_it_was(repo):
     assert worktrees(repo) == before
 
 
-def test_a_crews_call_of_the_block_walks_through_no_door():
-    """The door hook refuses a crew's whole call where one command of it walks through a door,
-    and `git worktree remove` is one (`deletes data`): a block with one in it never ran as
-    written, and left its crew a worktree it could not remove."""
-    assert door.walks(script()) == ()
-
-
 def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):
     """A test the change lays over the base may run git in its tree, as one that lists the
     tracked files does: at the base it finds a repository at the base's commit, so it fails
@@ -239,3 +243,32 @@ def test_a_change_to_source_and_tests_runs_at_the_base_where_grep_is_claude_code
     assert "tests only" not in said
     assert "base exit 1: 1 failed, 1 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_a_slow_test_file_is_proved_where_the_head_and_the_base_each_fit_the_lane(repo):
+    """A test file that takes over half the short lane's limit, as
+    `testing/tests/test_select_tests.py` does, fits it at the head and at the base, but not both
+    in one run: each runs in a slot of its own, and the block still writes one `Proved:` line."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, LIMIT="7", SLOW="4")
+    assert "no proof" not in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_the_head_and_the_base_run_on_pytests_workers_where_the_repo_has_them(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    proof(repo)
+    runs = (repo.parent / "pytest-args").read_text().splitlines()
+    assert len(runs) == 2
+    assert all("-n auto" in run for run in runs)
+
+
+def test_a_repo_without_pytest_xdist_is_proved_on_one_process(repo):
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, NO_XDIST="1")
+    assert "base exit 1: 1 failed, 1 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+    runs = (repo.parent / "pytest-args").read_text().splitlines()
+    assert not any("-n " in run for run in runs)

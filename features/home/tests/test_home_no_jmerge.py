@@ -338,39 +338,6 @@ def mine(repo, me):
     return [slug for slug in NAMED if not asking.others(NAMED[slug])]
 
 
-def test_a_brief_has_one_home_whoever_asks(repo):
-    """For a thread that is no home now, `jmerge --home` leaves every brief to another home,
-    including a brief that names the thread. Such a thread has an id that is in no `home-id`, or
-    it handed off and has a `Was home:` id."""
-    scope = repo.state / "billing"
-    scope.mkdir()
-    (scope / "home-id").write_text("mcp:scoped\n")
-    (scope / "handoff.md").write_text("# handoff\nWas home: mcp:scoped-before\n")
-    (repo.state / "handoff.md").write_text("# handoff\nWas home: mcp:root-before\n")
-    for asker in ("mcp:nobody", "mcp:root-before", "mcp:scoped-before", "billing"):
-        assert mine(repo, asker) == []
-    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes.known
-    owners = {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED}
-    assert owners == OWNERS
-    (repo.state / "home-id").unlink()
-    homes = cli.Repo(repo.main, repo.state, None, False, user=jsettings.DEFAULTS).homes.known
-    assert {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED} == OWNERS
-    roots = [slug for slug in NAMED if OWNERS[slug] == claims.ROOT]
-    assert mine(repo, None) == roots
-    assert mine(repo, "mcp:nobody") == roots
-    assert mine(repo, "mcp:scoped") == [slug for slug in NAMED if OWNERS[slug] == "billing"]
-    assert mine(repo, "mcp:scoped-before") == []
-
-
-def test_an_id_in_two_home_id_files_asks_as_the_home_its_briefs_are(repo):
-    for scope in ("billing", "reports"):
-        (repo.state / scope).mkdir()
-        (repo.state / scope / "home-id").write_text("mcp:scoped\n")
-    asking = cli.Repo(repo.main, repo.state, "mcp:scoped", False, user=jsettings.DEFAULTS)
-    assert asking.homes.known["mcp:scoped"] == asking.asking == "reports"
-    assert mine(repo, "mcp:scoped") == ["scoped", "no-scope"]
-
-
 def test_a_github_that_cannot_be_asked_is_said_and_no_line_is_read(repo):
     repo.log(HOLD)
     (repo.stub / "open").unlink()

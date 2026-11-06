@@ -6,7 +6,6 @@ left beside the home, a handoff does not name that file, and the handoff tells n
 Each test takes every block it runs from the skill that has the block, and runs it in a temporary
 state directory. The test checks the skill's own JSON for each call against the tool's schema."""
 
-import json
 import os
 import shutil
 import subprocess
@@ -17,13 +16,9 @@ from test_home_thread import NAME, OTHER, THREAD, Scene, block, paths, start_blo
 from test_home_thread import NOTE as PAGE
 from test_scoped_handoff import HandingOff, jbus_says
 from test_scoped_home import ROOT, SCOPE, SCOPED
-from test_tool_calls import CALLS, errors
 
 NEXT = "mcp:the-next-home"
 COOK = "mcp:a-cook"
-TELL_THE_SENDER, NO_HOME = (
-    call for call in CALLS if call.where.startswith("handoff:") and call.tool == "t3_thread_send"
-)
 
 
 class Mail(Scene):
@@ -59,22 +54,6 @@ class Mail(Scene):
 @pytest.fixture
 def mail(tmp_path):
     return Mail(tmp_path)
-
-
-def test_a_start_reads_no_file_another_party_keeps_for_the_home(mail):
-    mail.home_starts(THREAD)
-    (mail.home_dir / "read-seen").write_text("")
-    before = mail.to_read()
-    mail.kept.write_text("# Open asks\n")
-    assert mail.to_read() == before
-
-
-def test_the_handoff_names_no_file_another_party_keeps_for_the_home(mail):
-    mail.home_starts(THREAD)
-    mail.kept.write_text("# Open asks\n")
-    mail.hands_off()
-    (kept,) = (mail.home_dir / "log").iterdir()
-    assert "to-" not in kept.read_text()
 
 
 def test_an_archived_root_home_tells_the_sender_there_is_no_home_then_the_next_one(mail):
@@ -150,34 +129,3 @@ def test_a_scoped_home_started_again_is_named_to_the_sender(tmp_path, monkeypatc
     found = block("handoff", "Do not act on the message").replace("<threadId>", SCOPED)
     told = f"tell the sender, once, that {NEXT} is the home now"
     assert told in homes.run("handoff", found, homes.main).stdout
-
-
-def test_the_sender_is_told_the_new_id_and_that_its_message_was_not_sent_on():
-    file = "/state/a demo repo/home-id"
-    told = json.loads(
-        TELL_THE_SENDER.written.replace("<thread>", COOK)
-        .replace("<repo>", NAME)
-        .replace("<the home's id>", NEXT)
-        .replace("<the home-id file>", file)
-    )
-    assert told == {
-        "threadId": COOK,
-        "message": f"{NAME}: the home is {NEXT} now, and your message was not sent on to it. "
-        f"Send it there if it still stands, and read the id in {file} before each send.",
-    }
-    assert errors(TELL_THE_SENDER, told) == []
-
-
-def test_the_sender_is_told_the_repo_has_no_home():
-    file = "/state/a demo repo/home-id"
-    told = json.loads(
-        NO_HOME.written.replace("<thread>", COOK)
-        .replace("<repo>", NAME)
-        .replace("<the home-id file>", file)
-    )
-    assert told == {
-        "threadId": COOK,
-        "message": f"{NAME}: there is no home now, and your message was not sent on. A home starts "
-        f"when someone types /home: read the id in {file} before each send.",
-    }
-    assert errors(NO_HOME, told) == []

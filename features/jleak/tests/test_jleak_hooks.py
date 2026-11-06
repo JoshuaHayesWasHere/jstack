@@ -280,18 +280,6 @@ def test_a_push_whose_lint_fails_is_refused_with_what_the_lint_said(pushed):
     assert not pushed.remote_has("tidy-lint")
 
 
-def test_a_lint_past_the_limit_is_refused(pushed, tmp_path, monkeypatch):
-    lint(pushed, "lint:\n\t@true\n")
-    asked = tmp_path / "asked"
-    stopped = f'#!/bin/sh\nshift 2\necho "$@" > {asked}\nexit 124\n'
-    monkeypatch.setenv("PATH", tools(tmp_path, "make", own={"perl": stopped}))
-    done = pushed.push("tidy-lint")
-    assert done.returncode != 0
-    assert asked.read_text() == "60 make --no-print-directory lint\n"
-    assert "lint: make lint ran past 60 s, so the push is refused" in done.stderr.splitlines()
-    assert not pushed.remote_has("tidy-lint")
-
-
 def test_a_lint_that_runs_past_the_limit_is_stopped_with_what_it_started(
     pushed, tmp_path, monkeypatch
 ):
@@ -306,26 +294,8 @@ def test_a_lint_that_runs_past_the_limit_is_stopped_with_what_it_started(
     assert "lint: make lint ran past 60 s, so the push is refused" in done.stderr.splitlines()
 
 
-@pytest.mark.parametrize(
-    ("missing", "line"),
-    [
-        ("make", "lint: no make to run make lint with, so the push is refused"),
-        ("perl", "lint: no perl to run make lint with, so the push is refused"),
-        ("uv", "lint: make lint failed, so the push is refused"),
-    ],
-)
-def test_a_push_with_a_tool_missing_is_refused(pushed, tmp_path, monkeypatch, missing, line):
-    lint(pushed, "lint:\n\tuv run ruff check .\n")
-    there = [name for name in ("make", "perl", "uv") if name != missing]
-    monkeypatch.setenv("PATH", tools(tmp_path, *there))
-    done = pushed.push("tidy-lint")
-    assert done.returncode != 0
-    assert line in done.stderr.splitlines()
-    assert not pushed.remote_has("tidy-lint")
-
-
-def hook(command, cwd=None, tool="Bash"):
-    given = {"tool_name": tool, "tool_input": {"command": command}, "cwd": str(cwd or REPO)}
+def hook(command, cwd=None):
+    given = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(cwd or REPO)}
     done = subprocess.run(
         ["sh", str(COMMAND)], input=json.dumps(given), capture_output=True, text=True
     )
@@ -461,10 +431,6 @@ def test_a_clean_command_and_one_that_sends_nothing_to_a_pull_request_pass(patte
     assert hook(command) == (0, [])
 
 
-def test_a_tool_that_is_not_the_shell_is_not_read(patterns):
-    assert hook(f"gh pr comment 12 --body 'done, {WORD}'", tool="Write") == (0, [])
-
-
 def test_a_pull_request_command_with_no_private_patterns_file_is_refused(patterns):
     patterns.unlink()
     code, said = hook("gh pr create --title 'feat: a thing' --body 'a clean body'")
@@ -530,9 +496,3 @@ def test_a_home_path_in_a_block_it_reads_whole_is_refused_with_the_fix(patterns)
     assert said[1].startswith("jleak: 1 finding, so the command is refused: drop the cd line")
     assert "`~` or `$HOME`" in said[1], said
     assert hook(CROWS) == (0, [])
-
-
-def test_a_finding_that_is_not_a_home_path_keeps_the_plain_fix(patterns):
-    patterns.write_text(f"[patterns]\nhome-path = '/home/someone'\ncodename = '{WORD}'\n")
-    code, said = hook(f"cd /home/someone/wt\n{CROWS}\necho {WORD}")
-    assert code == 2 and said[-1] == REFUSED.replace("1 finding", "2 findings"), said

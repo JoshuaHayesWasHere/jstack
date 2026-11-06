@@ -21,7 +21,7 @@ Its first word is one of four answers:
 `jmerge --checks` is the one reading of a pull request's checks: the pr-review skill and jbus call the same one.
 A failed check whose job GitHub will not give counts as one that ran.
 A check run more than once at the head, one cancelled and run again included, counts by its latest run, the one that started last: `jmerge` reads it the same way.
-The merge is stricter still, and goes by one check: `jmerge` merges only when the check named `check` passed at the head, whatever the other checks say.
+The merge goes by the checks the repo names: `jmerge` merges only when each check its `$H/required-checks` file names passed at the head, or the check named `check` where there is no such file (features/jmerge/docs/jmerge.md, "Name the checks a merge waits for").
 
 **A failed check** is the change's own, a base that moved, or a flake, and this says which. Run it in this worktree with the block at the top, after the check command, with what the check command did here in place of the words in angle brackets, `failed` or `passed`:
 

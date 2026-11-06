@@ -54,9 +54,9 @@ This thread writes in `$E` and nowhere else. One thread at a time is the expert,
 
 Proceed on reversible work without asking: do it, then say what you did and why.
 For an expert that is reading, and writing in its own folder.
-Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`).
+Only the cases of `$T/gates.md` are never done on a default: deleting data (`deletes data`), a force-push to a shared branch (`rewrites history`), spending money (`spends money`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), changing access or secrets (`changes access or secrets`), and publishing a release or a package (`publishes`).
 Each goes to jbus as a gate that holds, sent as "What an expert never does" sends a finding, but with the action as its default in place of "nothing was changed": you do its fail-safe instead, its `Holds:` line names the case written beside it and its `Fail-safe:` line what you prepared.
-What the user's global instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other is sent with the default that it is not done.
+What the user's global instructions tell a thread to confirm first is a gate too: one of the cases of `$T/gates.md` holds as above, and any other is sent with the default that it is not done.
 
 ## When an expert starts
 

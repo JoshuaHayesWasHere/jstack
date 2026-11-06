@@ -21,7 +21,7 @@ To work on jstack itself, install from a clone, as [Set up a checkout](../../../
 | `jinstall --setup` | Goes through every need once, in order, and prints one line for each. [Setup](troubleshooting/setup.md) has each line and what to do. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. Prints one line for each hook. |
-| `jinstall --uninstall` | Removes what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |
+| `jinstall --uninstall` | Removes what it put, and keeps what is yours. From a checkout, it removes the checkout's editable tool. A release's `jinstall` keeps the tool it runs from: run `uv tool uninstall jstack` afterwards to remove it. |
 
 `--setup` puts every part that [What the install writes](#what-the-install-writes) lists.
 Where no file is there yet, it also writes your jstack config and a role map where every role inherits.
@@ -106,6 +106,7 @@ The install leaves every other key of those files as it was.
 
 jleak's `pre-push` and `commit-msg` hooks go into every repo jstack works in:
 
+- jstack's own checkout, the one `install.sh` runs from
 - the checkout of each project of `jbus`'s config, which `/new-home` adds
 - each repo you set up with `jinstall --repo`, whose path the install records in `~/.local/state/jstack/repos`
 
@@ -194,7 +195,7 @@ The next install removes a link there whose skill no feature declares.
 An install from a release makes none of these links.
 Neither does a run under a HOME that is not your own, when the checkout is outside that HOME.
 A linked worktree gets none either.
-Under your own HOME, `install.sh` refuses to run from a worktree, so a worktree reads a project skill from its feature's folder.
+Under your own HOME, an install that writes, `--setup` and `--repo` refuse to run from a worktree, so a worktree reads a project skill from its feature's folder.
 
 ### The green copy
 

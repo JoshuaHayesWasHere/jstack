@@ -30,6 +30,14 @@ CGROUP ?= $(if $(wildcard /proc/self/cgroup),/sys/fs/cgroup$(shell sed -n 's/^0:
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))
 PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)
+# A runner of GitHub's own runs the suite alone, so the TLC runs the suite starts take no jgauge
+# test slot: `JGAUGE_TEST_SLOT` says one is held (features/jgauge/src/jgauge/slot.py). Were they
+# to take one, a macos-15 runner's 3 cores, which jgauge gives a single slot, would queue each on
+# the one before it, and its wait counts against the bound of the test that started it.
+ifeq ($(GITHUB_ACTIONS) $(RUNNER_ENVIRONMENT),true github-hosted)
+JGAUGE_TEST_SLOT ?= runner
+export JGAUGE_TEST_SLOT
+endif
 TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n" -ge 2 ] || n=2; echo "$$n")
 # Workers take the next test as each finishes (`worksteal`), so a slow file does not hold up
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`
@@ -67,14 +75,23 @@ check: lint test
 # The check of a change: prose_lint.py on the prose lines the diff from BASE adds, the lint, and the
 # files select_tests.py names for the diff, one a line, which the unquoted `echo` puts on one; or
 # `make check` where it says `all`. CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge.
-# A desk runs `PART=guards` alone (features/crew/do-the-task.md): the lint and the guard tests,
-# which must pass, while CI's check runs the rest. `PART=rest`, the other tests the selection
-# names and no lint, stays for a run by hand.
+# A desk's check is `PART=touched` (features/crew/do-the-task.md): the lint and the test files the
+# change adds or edits, and never the whole suite, even where the selection is `all`: CI's check
+# runs the rest of it. The crew's check block runs it in steps, the lint and then each file alone,
+# so each fits the short lane. `PART=guards`, the lint and the guard tests, is what jmerge runs on
+# a pull request's tree merged over its base; `PART=rest`, the other tests the selection names and
+# no lint, stays for a run by hand.
 # PART stays out of the environment, as TESTS does, so a make that a guard test runs is whole.
 unexport PART
 .PHONY: check-fast
 check-fast:
 	@tests=$$(python3 scripts/select_tests.py $(if $(PART),--part '$(PART)') '$(BASE)' HEAD) || exit; \
+	if [ '$(PART)' = touched ]; then \
+		python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
+		$(MAKE) --no-print-directory lint || exit; \
+		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
+		exit 0; \
+	fi; \
 	if [ '$(PART)' = rest ]; then \
 		[ "$$tests" != all ] || exec $(MAKE) --no-print-directory test; \
 		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \

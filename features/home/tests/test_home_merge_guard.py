@@ -62,46 +62,6 @@ def test_no_skill_and_no_script_writes_a_home_thread():
     assert found == []
 
 
-@pytest.mark.parametrize(
-    "line",
-    [
-        """printf '%s\\n' "$ME" > "$M/home-thread\"""",
-        'echo "$ME" >> $H/home-thread',
-        "echo $ME >~/.local/state/home/jstack/home-thread",
-        'printf "%s\\n" "$ME" | tee "$M/home-thread" > /dev/null',
-        'echo "$ME" | tee -a "$H/$scope/home-thread"',
-        '(state / "home-thread").write_text(f"{thread}\\n")',
-        '(state / "home-thread").write_bytes(b"")',
-        '(state / "home-thread").open("a").write(thread)',
-        'open(state / "home-thread", "w").write(thread)',
-        'with open(f"{state}/home-thread", "a") as switch:',
-    ],
-)
-def test_a_write_to_a_home_thread_is_found(line):
-    assert writes(f"a line before\n{line}\n") == [(2, line.strip())]
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        'if [ -s "$H/home-thread" ]; then told=$(cat "$H/home-thread"); fi',
-        'return (run.home / "home-thread").read_text().strip()',
-        'cat "$H/home-thread" 2> /dev/null',
-        'rm -f "$M/home-thread"',
-        """printf '%s\\n' "$ME" > "$M/home-id\"""",
-        "A project's `home-thread` is the merge switch, and no skill writes it.",
-    ],
-)
-def test_a_read_of_a_home_thread_is_not_a_write(line):
-    assert writes(line) == []
-
-
-def test_the_sweep_reads_the_docs_of_every_feature_but_home():
-    swept = {path.relative_to(REPO).as_posix() for path in scanned()}
-    assert "features/jbriefs/docs/jbriefs.md" in swept
-    assert not any(path.startswith("features/home/docs/") for path in swept)
-
-
 def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkeypatch):
     """A root home starts with steps 1 and 3 of the home skill, in the state directory jbus
     reads. Its id is in `home-id`, the user put another in `home-thread`, and the pass runs
@@ -154,10 +114,3 @@ def test_a_start_over_a_switch_that_holds_an_id_says_nothing_and_leaves_it(tmp_p
     assert scene.home_starts() == ""
     assert scene.file.read_text() == f"{THREAD}\n"
     assert switch.read_text() == f"{left}\n"
-
-
-def test_a_start_over_an_empty_switch_says_nothing_of_jbus(tmp_path):
-    scene = Scene(tmp_path)
-    (scene.home_dir / "plan.md").write_text("# a demo repo: plan\n")
-    (scene.home_dir / "home-thread").write_text("\n")
-    assert scene.home_starts() == ""

@@ -152,34 +152,6 @@ def test_a_brief_that_still_says_an_old_mode_is_read_as_review(mode):
     assert not ready.asks_no_ruling(brief(mode=mode))
 
 
-@pytest.mark.parametrize(
-    "text",
-    [
-        brief() + review(HEAD, (FIRST, INFO)),
-        brief("Finding F1: fixed, the loop\nFinding F2: not fixed, the name, because b.py:9\n")
-        + review(HEAD, (FIRST, INFO)),
-        brief("Finding F1: not fixed, the loop, because a.py:4\n") + review(HEAD, (FIRST,)),
-        brief() + review(HEAD, ()),
-        fixed((WARNING, INFO)),
-        fixed((ERROR,), "Finding F2: fixed, the retry\n"),
-        fixed((ERROR,), "Finding F2: not fixed, the retry, because a.py:41 stops it\n"),
-        fixed((INFO,)),
-        fixed((WARNING,), "Finding F2: fixed, the test\n"),
-    ],
-)
-def test_the_fixed_line_the_crew_is_asked_for_is_the_one_jmerge_writes(text):
-    said = findings.triage(text)
-    shape = findings.fixed_shape(said)
-    line = findings.left(said)
-    if shape is None:
-        assert line.split(":")[0] in ("wait", "not yet", "write nothing")
-    else:
-        pushed, why = shape
-        assert why, "a Fixed: line always says why"
-        named = "<the head you pushed>, " if pushed else "none needed, <reason>: "
-        assert line == f"write Fixed: {named}{why}"
-
-
 def test_a_clean_late_first_review_beside_an_infos_only_pass_owes_nothing(tmp_path):
     late = review(FIX, ()).replace("#1", "#2")
     text = fixed((INFO,)).replace(

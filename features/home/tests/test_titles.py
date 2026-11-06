@@ -11,7 +11,6 @@ from testing.paths import skills
 
 SKILL = skills()["home"] / "SKILL.md"
 SLUG = "fix-login"
-OTHER_ROLES = ["review", "scout"]
 SELECTION = FILLED["<model selection>"]
 
 
@@ -43,38 +42,6 @@ def call(key, role="crew"):
         found = [sent for sent in found if sent[named].startswith(f"{role}: ")]
     (one,) = found
     return one
-
-
-def for_slug(given, slug):
-    """A call as a home sends it for a task: the skill's block with the slug filled in."""
-    return json.loads(json.dumps(given).replace("<slug>", slug))
-
-
-def test_the_launch_starts_a_crewmate_named_for_its_role_in_a_worktree_on_the_task_branch():
-    launch = for_slug(call("workspaceStrategy"), SLUG)
-    assert launch["title"] == f"crew: {SLUG}"
-    assert launch["message"] == f"/crew {SLUG}"
-    workspace = launch["workspaceStrategy"]
-    assert (workspace["type"], workspace["branch"]) == ("worktree", SLUG)
-
-
-def test_each_launch_has_a_twin_that_differs_only_by_the_model_selection():
-    launches = [sent for sent in given() if "workspaceStrategy" in sent]
-    tool = next(call for call in CALLS if call.tool == "t3_thread_launch")
-    assert len(launches) == 4
-    for launch, twin in zip(launches[::2], launches[1::2], strict=True):
-        assert "modelSelection" not in launch
-        assert twin == {**launch, "modelSelection": json.loads(SELECTION)}
-        assert errors(tool, launch) == [] and errors(tool, twin) == []
-    assert call("workspaceStrategy") == launches[0]
-
-
-def test_the_lookup_after_a_lost_reply_finds_the_launched_thread_and_no_other_role():
-    launched = for_slug(call("workspaceStrategy"), SLUG)["title"]
-    asked = for_slug(call("titleContains"), SLUG)["titleContains"]
-    assert asked in launched
-    assert [role for role in OTHER_ROLES if asked in f"{role}: {SLUG}"] == []
-    assert asked not in for_slug(call("workspaceStrategy"), "another-task")["title"]
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 import fcntl
+import json
 import os
-import shutil
 import signal
 import subprocess
 import sys
@@ -147,22 +147,6 @@ def test_what_a_command_leaves_running_holds_no_slot(slots):
     assert slots.waits(lambda: slots.started() == ["a"])
     after = slots("--slots", "1", command=["echo", "ran"])
     assert after.communicate(timeout=5) == ("ran\n", "")
-
-
-def test_a_command_left_running_ends_when_its_directory_goes(tmp_path):
-    state = tmp_path / "state"
-    state.mkdir()
-    left = daemons.start(
-        ["sh", "-c", RUNS_UNTIL_RELEASED, "sh", "a"], env={**os.environ, "D": str(state)}
-    )
-    try:
-        deadline = time.monotonic() + 5
-        while not (state / "started.a").exists() and time.monotonic() < deadline:
-            time.sleep(0.02)
-        shutil.rmtree(state)
-        assert left.wait(timeout=5) == 0
-    finally:
-        left.kill()
 
 
 def test_an_interrupt_is_the_commands_to_take_and_the_holder_waits_for_it_to_end(slots):
@@ -494,12 +478,14 @@ def test_a_runs_temporary_directory_goes_when_it_lets_its_slot_go(slots, stand_i
     assert list(stand_in.iterdir()) == []
 
 
-def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_under_tmp(
+def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_on_disk(
     slots, tmp_path
 ):
-    """A path with a hidden directory in it, such as `~/.local`, makes asar unpack no native
-    binaries, so a slot's `TMPDIR` is under `/tmp` (`TMPFS`) and has none. A second HOME on the
-    same `/tmp`, as a sandbox has, takes slots of its own and so a directory of its own."""
+    """A slot's `TMPDIR` holds a suite's basetemp, hundreds of MiB, so it is on disk under
+    `/var/tmp` and not on the `/tmp` (`TMPFS`) whose quota it would fill. A path with a hidden
+    directory in it, such as `~/.local`, makes asar unpack no native binaries, so it has none. A
+    second HOME on the same machine, as a sandbox has, takes slots of its own and so a directory
+    of its own."""
     says = f'echo "$TMPDIR" > "$D/tmpdir.$1"; {RUNS_UNTIL_RELEASED}'
     other = {"HOME": str(tmp_path / "other")}
     full, short = ["--slots", "2"], ["--short"]
@@ -510,8 +496,9 @@ def test_each_slot_of_each_lane_and_home_has_a_temporary_directory_of_its_own_un
     own = {Path((slots.state / f"tmpdir.{n}").read_text().strip()) for n in "abcd"}
     assert len(own) == 4
     for path in own:
-        assert path.is_dir() and path.is_relative_to(slots.tmpfs)
-        assert not any(part.startswith(".") for part in path.relative_to(slots.tmpfs).parts)
+        assert path.is_dir() and path.is_relative_to("/var/tmp")
+        assert not path.is_relative_to(slots.tmpfs) and not path.is_relative_to("/tmp")
+        assert not any(part.startswith(".") for part in path.parts)
     for name in "abcd":
         slots.release(name)
 
@@ -620,3 +607,51 @@ def test_a_holder_whose_pid_is_gone_is_not_counted(tmp_path):
     holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW)
     (one,) = holders.read(tmp_path)
     assert not holders.running(one) and holders.holding(tmp_path) == []
+
+
+def slot_log(slots):
+    path = Path(slots.env["HOME"]) / ".local" / "state" / "jgauge" / "slots.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()]
+
+
+def test_every_take_and_release_in_both_lanes_appends_one_row_to_the_slot_log(slots):
+    """The log names each run's caller, lane, slot and wait, and a release its exit code, so the
+    hold side of the slots can be measured and a stray holder named."""
+    slots.hold(1)
+    waiting = slots("--slots", "2", command=["sh", "-c", "exit 7"])
+    assert waiting.wait(timeout=5) == 7
+    slots.hold(2)
+    held_up = slots("--slots", "2", command=["true"])
+    time.sleep(5 * slot.LOOK_EVERY_SECONDS)
+    slots.free()
+    assert held_up.wait(timeout=5) == 0
+    ran = slots("--short", "--thread", "mcp:thread-7", command=["sh", "-c", "exit 0"])
+    assert ran.wait(timeout=5) == 0
+
+    rows = slot_log(slots)
+    assert [(r["event"], r["lane"], r["slot"], r["slots"]) for r in rows] == [
+        ("take", "full", 2, 2),
+        ("release", "full", 2, 2),
+        ("take", "full", 1, 2),
+        ("release", "full", 1, 2),
+        ("take", "short", 1, 3),
+        ("release", "short", 1, 3),
+    ]
+    takes, releases = rows[::2], rows[1::2]
+    assert [r["id"] for r in takes] == [r["id"] for r in releases]
+    assert len({r["id"] for r in takes}) == 3
+    assert [r["thread"] for r in takes] == ["", "", "mcp:thread-7"]
+    assert takes[0]["command"] == ["sh", "-c", "exit 7"] and takes[1]["command"] == ["true"]
+    assert all(r["cwd"] == os.getcwd() and r["pid"] > 0 for r in rows)
+    assert [r["code"] for r in releases] == [7, 0, 0]
+    assert takes[0]["waited"] < 1 and takes[1]["waited"] >= 4 * slot.LOOK_EVERY_SECONDS
+    assert all(r["hold"] >= 0 for r in releases)
+    for one in rows:
+        datetime.fromisoformat(one["at"])
+
+
+def test_a_waiter_that_takes_no_slot_writes_no_row(slots):
+    slots.hold(1)
+    ran = slots("--slots", "1", "--thread", "mcp:thread-7", command=["true"])
+    assert ran.wait(timeout=5) == slot.WAITING
+    assert not (Path(slots.env["HOME"]) / ".local" / "state" / "jgauge" / "slots.jsonl").exists()

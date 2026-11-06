@@ -356,13 +356,7 @@ def _stamp(at: datetime) -> str:
     return at.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-RUNS = """
-WITH r AS (
-    SELECT run_id, thread_id, ordinal, status, provider_instance_id, requested_at, payload_json
-    FROM orchestration_v2_projection_runs
-    WHERE requested_at < :until AND (completed_at IS NULL OR completed_at >= :since)
-        AND json_extract(payload_json, '$.modelSelection.model') LIKE 'claude%'
-), u AS (
+USAGE = """u AS (
     SELECT a.run_id,
         sum(json_extract(p.payload_json, '$.turnTokenUsage.inputTokens')) input,
         sum(json_extract(p.payload_json, '$.turnTokenUsage.cachedInputTokens')) cached,
@@ -373,7 +367,17 @@ WITH r AS (
     JOIN orchestration_v2_projection_provider_turns p ON p.run_attempt_id = a.attempt_id
     WHERE a.run_id IN (SELECT run_id FROM r)
     GROUP BY a.run_id
-)
+)"""
+"""Each run of `r`'s tokens, summed over its attempts' provider turns, and whether any turn's
+usage is only partial: one definition of a run's tokens, for `RUNS` and `REVIEWS` both."""
+
+RUNS = f"""
+WITH r AS (
+    SELECT run_id, thread_id, ordinal, status, provider_instance_id, requested_at, payload_json
+    FROM orchestration_v2_projection_runs
+    WHERE requested_at < :until AND (completed_at IS NULL OR completed_at >= :since)
+        AND json_extract(payload_json, '$.modelSelection.model') LIKE 'claude%'
+), {USAGE}
 SELECT r.run_id, r.provider_instance_id, json_extract(r.payload_json, '$.modelSelection.model'),
     t.title, coalesce(pr.title, ''), t.project_id, r.ordinal, r.status,
     coalesce(json_extract(r.payload_json, '$.startedAt'), r.requested_at),
@@ -492,3 +496,73 @@ def read(
         if project is None or in_project == project
     ]
     return runs, capped, instances
+
+
+REVIEW = "review: "
+"""The start of a review thread's title, which jbus gives it: `review: <slug>, <round>`."""
+
+REVIEWS = f"""
+WITH r AS (
+    SELECT r.run_id, r.thread_id, r.requested_at, r.completed_at, r.payload_json
+    FROM orchestration_v2_projection_runs r
+    JOIN orchestration_v2_projection_threads t ON t.thread_id = r.thread_id
+    WHERE t.project_id = :project AND substr(t.title, 1, {len(REVIEW)}) = '{REVIEW}'
+        AND r.requested_at >= :since AND r.requested_at < :until
+), {USAGE}
+SELECT r.thread_id, t.title,
+    coalesce(json_extract(r.payload_json, '$.startedAt'), r.requested_at), r.completed_at,
+    coalesce(u.input, 0), coalesce(u.cached, 0), coalesce(u.written, 0), coalesce(u.output, 0)
+FROM r
+JOIN orchestration_v2_projection_threads t ON t.thread_id = r.thread_id
+LEFT JOIN u ON u.run_id = r.run_id
+"""
+
+
+@dataclass(frozen=True)
+class Launch:
+    """One launch of the reviewer: a thread jbus titled `review: <slug>, <round>`, of any model,
+    a failed launch among them. Its `start` is its first run's, its `active` the seconds its runs
+    ran, each from its start to its completion, so a wait between two turns is not in it, and a
+    run not completed adds nothing. Its `tokens` are its runs' summed."""
+
+    thread: str
+    slug: str
+    start: datetime
+    active: float
+    tokens: Tokens
+    runs: int
+
+
+def reviews(store: Path, project_id: str, since: datetime, until: datetime) -> list[Launch]:
+    """Each review launch of the T3 Code project `project_id` with a run requested in
+    [since, until), oldest first. A launch counts the runs in that span only."""
+    if not store.is_file():
+        raise Refused(f"{store} is not T3 Code's store")
+    edges = {"project": project_id, "since": _stamp(since), "until": _stamp(until)}
+    try:
+        with contextlib.closing(sqlite3.connect(f"file:{store}?mode=ro", uri=True)) as db:
+            found = db.execute(REVIEWS, edges).fetchall()
+    except sqlite3.Error as error:
+        raise Refused(f"{store} cannot be read: {error}") from None
+    threads: dict[str, list[tuple]] = defaultdict(list)
+    for row in found:
+        threads[row[0]].append(row)
+    launches = []
+    for thread, rows in threads.items():
+        title = rows[0][1]
+        starts = [_at(start) for _, _, start, *_ in rows]
+        active = sum(
+            (_at(done) - _at(start)).total_seconds() for _, _, start, done, *_ in rows if done
+        )
+        sums = [sum(int(row[i]) for row in rows) for i in range(4, 8)]
+        launches.append(
+            Launch(
+                thread=thread,
+                slug=title[len(REVIEW) :].split(",")[0].strip(),
+                start=min(starts),
+                active=active,
+                tokens=Tokens(*sums),
+                runs=len(rows),
+            )
+        )
+    return sorted(launches, key=lambda one: one.start)

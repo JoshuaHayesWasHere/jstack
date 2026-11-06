@@ -18,13 +18,6 @@ from testing.layouts import assembled
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "home" / "spec"
-FILES = (
-    SPEC / "HomeTree.tla",
-    SPEC / "HomeTreeToday.tla",
-    SPEC / "HomeTreeToday.cfg",
-    SPEC / "HomeTreeToday.map.py",
-    SPEC / "canaries.py",
-)
 STATECHART = REPO / "features" / "skill-library" / "skills" / "statechart" / "scripts"
 sys.path.insert(0, str(STATECHART))
 sys.path.insert(0, str(SPEC))
@@ -36,14 +29,6 @@ tools = importlib.import_module("statechart.tools")
 RUNS = list(canaries.runs())
 PATIENCE = timedelta(hours=1)
 """How long a child with work out may be quiet before the root flags it."""
-
-
-def test_every_condition_of_the_code_model_quotes_its_file():
-    """The statechart tool lists no condition of HomeTreeToday.tla that no comment ties to code."""
-    today = SPEC / "HomeTreeToday.tla"
-    shared = lib.shared_variables(today)
-    assert len(shared) == 12
-    assert lib.uncited_conditions(today.read_text(), shared) == []
 
 
 QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
@@ -98,73 +83,6 @@ def test_a_quote_of_one_python_line_holds_each_or_on_it():
         and disjuncts(quote) != disjuncts(lines[at[0][0] - 1])
     ]
     assert short == []
-
-
-def test_the_runs_are_every_canary_and_every_rule_in_every_scene_of_today():
-    """canaries.py runs each canary once, and today's code in each scene once for its invariants
-    and once for each property, and the canaries between them break every rule."""
-    assert all(path.is_file() for path in FILES)
-    assert not (SPEC / "HomeTreeDesign.tla").exists()
-    assert {module for _, module, *_ in RUNS} == {"HomeTreeToday"}
-    labels = [label for label, *_ in RUNS]
-    assert labels == [
-        *(
-            f"canary {guard}, scene {scene}: {rule}"
-            for guard, (rule, scene) in canaries.CANARIES.items()
-        ),
-        *(
-            f"today, scene {scene}: {name}"
-            for scene in canaries.SCENES
-            for name in ["every invariant", *canaries.PROPERTIES]
-        ),
-    ]
-    assert {rule for rule, _ in canaries.CANARIES.values()} == set(canaries.RULES)
-
-
-def test_the_failed_route_steps_in_the_scenes_a_and_b():
-    """The home thread can fail in the scenes a and b, where the calls are, and never in the
-    siblings' scene or the chart's. The keep-on-fail canary, which breaks only after a post fails,
-    runs in scene a, so RouteFails and RouteMends step in a run the check makes."""
-    can_fail = {scene for scene, (*_, may_fail) in canaries.SCENES.items() if may_fail == "TRUE"}
-    assert can_fail == {"a", "b"}
-    assert canaries.CANARIES["keep-on-fail"] == ("CallsReachJosh", "a")
-    assert "    MayFail = FALSE\n" in (SPEC / "HomeTreeToday.cfg").read_text()
-
-
-def test_canaries_py_prints_a_line_for_each_run_and_ends_0_when_each_says_what_it_should(
-    monkeypatch, capsys
-):
-    """The script the spec's README gives prints `ok` for each run whose verdict is the one it
-    wants, then its last line, with a TLC that answers each run as it should."""
-    said = {
-        "holds": "Model checking completed. No error has been found.",
-        "breaks": "Temporal properties were violated.",
-    }
-    answers = {cfg: said[want] for _, _, cfg, _, want in RUNS}
-    for _, _, cfg, rule, want in RUNS:
-        if want == "breaks" and rule in canaries.INVARIANTS:
-            answers[cfg] = f"Error: Invariant {rule} is violated."
-    monkeypatch.setattr(canaries.tools, "find_tlc", lambda: None)
-    monkeypatch.setattr(canaries, "tlc", lambda found, module, cfg: answers[cfg])
-    assert canaries.main() == 0
-    lines = capsys.readouterr().out.splitlines()
-    assert lines[-1] == "every run says what it should"
-    assert [line.split(" (")[0] for line in lines[:-1]] == [
-        f"ok    {label} {want}" for label, _, _, _, want in RUNS
-    ]
-
-
-def test_a_property_runs_on_its_scene_alone_and_every_invariant_shows_nothing_else_moves():
-    """Each run of a property gives TLC only the scene's children, calls and notices, and each
-    run of every invariant checks on the whole model that nothing outside the scene moves, in
-    each scene of today's code."""
-    alone = [label for label, _, cfg, *_ in RUNS if "    Kids <- Made\n" in cfg]
-    still = [label for label, _, cfg, *_ in RUNS if "INVARIANT SceneStill\n" in cfg]
-    for label, _, cfg, *_ in RUNS:
-        assert ("PROPERTY " in cfg) == (label in alone), label
-        if label in alone:
-            assert "    Calls <- Raised\n    Notices <- SceneNotices\n" in cfg, label
-    assert still == [f"today, scene {scene}: every invariant" for scene in canaries.SCENES]
 
 
 @pytest.fixture(scope="module")

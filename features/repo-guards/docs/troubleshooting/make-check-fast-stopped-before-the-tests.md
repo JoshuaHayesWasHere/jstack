@@ -1,7 +1,7 @@
 # `make check-fast` stopped before the tests
 
 `make check-fast BASE=<rev>` runs the lint and the tests `scripts/select_tests.py` names for the diff from `<rev>` to `HEAD`, or `make check` where the script prints `all`.
-A pull request's CI runs it with `BASE=HEAD^1`.
+A pull request's CI makes the same selection itself, with `scripts/select_tests.py --parts 8 HEAD^1 HEAD` and `make lint BASE=HEAD^1` (`.github/workflows/check.yml`).
 A desk takes `origin/main` by default.
 Neither the script's list nor `make check` has the tests marked `browser`: those open a real browser.
 `make check-browser` runs them: nightly, on a release tag, by hand, and on a pull request that changes the view, its tests or the workflow (`.github/workflows/browser.yml`).

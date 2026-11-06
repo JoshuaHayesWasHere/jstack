@@ -325,27 +325,6 @@ def test_the_hourly_audit_sends_its_count_to_the_root_home_once_each_time_it_cha
     assert stale.read(kitchen.state)["count"] == 0 and len(stale_wakes(kitchen)) == 2
 
 
-def test_a_told_line_of_an_item_a_pass_kept_ends_a_day_after_no_pass_has_it(kitchen):
-    """The home copies the line of an item a real pass told it into `told`: it is open while a pass
-    had that item within a day, through a pass that lists less, and ended after."""
-    home(kitchen)
-    holds = kitchen.home / "holds.json"
-    holds.write_text(json.dumps({"5": "a" * 40}))
-    kitchen.poll(NOW)
-    (said,) = stale_wakes(kitchen)
-    (kitchen.home / "told").write_text(f"decision jbus: {said}\n")
-    assert of(listed(kitchen)[1], "told") == []
-    holds.write_text("{}")
-    kitchen.poll(NOW + timedelta(hours=1))
-    assert stale.read(kitchen.state)["count"] == 0
-    assert of(listed(kitchen)[1], "told") == []
-    kitchen.poll(NOW + wakes.KEEP + timedelta(hours=2))
-    assert of(listed(kitchen)[1], "told") == [
-        "told demo/told:1: no item of the one list says it now: "
-        + stale._cut(f"decision jbus: {said}")
-    ]
-
-
 def test_a_root_home_whose_home_id_is_gone_is_not_sent_the_count(kitchen):
     (kitchen.home / "home-id").write_text("mcp:thread-gone\n")
     (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))

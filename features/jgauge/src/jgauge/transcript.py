@@ -86,6 +86,10 @@ class Call:
     final: bool = False
     first_ts: str | None = None
     last_ts: str | None = None
+    effort: str | None = None
+    """The reasoning effort the first of its lines that names one names (Claude Code 2.1.303
+    and later write `effort` on each assistant line, and `perTurnEffort` where a line's `effort`
+    is null), or None where none does."""
 
     @property
     def input_side(self) -> int:
@@ -108,6 +112,8 @@ def calls(entries: list[dict]) -> list[Call]:
         call = found.setdefault(key, Call(key, model))
         stamp = entry.get("timestamp") if isinstance(entry.get("timestamp"), str) else None
         call.first_ts = call.first_ts or stamp
+        effort = entry.get("effort") or entry.get("perTurnEffort")
+        call.effort = call.effort or (effort if isinstance(effort, str) and effort else None)
         call.last_ts = stamp or call.last_ts
         stopped = bool(message.get("stop_reason"))
         if call.final and not stopped:

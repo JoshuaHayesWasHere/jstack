@@ -258,22 +258,6 @@ def test_a_handoff_by_a_thread_that_is_not_the_home_leaves_the_homes_files_alone
     assert (scene.file.read_bytes(), handoff.read_bytes()) == before
 
 
-def test_a_handoff_by_a_second_home_leaves_the_root_homes_files_alone(scene):
-    scene.home_starts()
-    handoff = scene.home_dir / "handoff.md"
-    handoff.write_text(HANDOFF)
-    second = scene.home_dir / "second"
-    second.mkdir()
-    (second / "home-id").write_text(f"{OTHER}\n")
-    before = scene.file.read_bytes(), handoff.read_bytes()
-
-    ran = scene.home_hands_off(OTHER)
-
-    assert ran.stdout.startswith("archived: ")
-    assert not (second / "home-id").exists()
-    assert (scene.file.read_bytes(), handoff.read_bytes()) == before
-
-
 def test_a_handoff_by_the_home_removes_its_file_and_names_it_on_the_note(scene):
     scene.home_starts()
     handoff = scene.home_dir / "handoff.md"

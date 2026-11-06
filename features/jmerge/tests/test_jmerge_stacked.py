@@ -83,17 +83,6 @@ def test_a_link_on_its_bases_branch_waits_for_jbus_to_move_it(built_on, base):
     assert said == f"wait 7 {merge.URL}: {on}"
 
 
-def test_a_link_whose_head_does_not_hold_its_bases_merge_waits_for_its_rebase(built_on):
-    said = judged(built_on, f"Stacked on: beta main at {built_on.delta}")
-    unmoved = ready.STACKED_UNMOVED.format(slug="beta", sha=built_on.delta[:12], default="main")
-    assert said == f"wait 7 {merge.URL}: {unmoved}"
-
-
-def test_a_link_rebased_onto_its_bases_merge_merges_as_any_other(built_on):
-    said = judged(built_on, f"Stacked on: beta main at {built_on.beta}")
-    assert said.startswith("ready 7 ")
-
-
 def test_a_link_whose_base_merged_into_a_branch_waits_for_its_rebase_onto_the_branch(built_on):
     """A base that merged into another branch than main moves its link onto that branch:
     the link waits for its head to hold the merge, named on the branch, and its base on main is

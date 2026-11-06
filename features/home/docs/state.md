@@ -12,7 +12,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `merge.log` | The lines `jmerge` printed, each after the time it was printed. |
 | `off` | Present when the automatic home is switched off for the repo. |
 | `merge-off` | Present when the automatic merge is switched off for the repo. |
-| `fresh-check` | The repo's check command, one line, which a crewmate runs once and `jbus queue add` holds a brief's check line to. Optional. |
+| `fresh-check` | The repo's check command, one line, which CI's check runs and `jbus queue add` holds a brief's check line to. A crewmate runs it once as the check of its change, but in a repo whose pull request check selects its tests, as jstack's does, the crewmate runs only the lint and the tests its change touches, and CI's check runs the rest (`features/crew/do-the-task.md`). Optional. |
 | `home-thread` | The sweep switch. With a thread id in it, the home runs `jmerge --sweep` at its start; empty or missing, nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. You write it by hand. |
 
 No file here holds a standing rule of yours: a standing rule is code, the text of the skill step that needs it, or a queued row.
@@ -28,6 +28,9 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `blockers.json` | Each blocker this home briefed a fix of, by its key, with each fix queued for it: `jbus queue add` counts them against `retry_cap` ([Decisions](../../jbus/docs/jbus/decisions.md)). |
 | `home-id` | The home's thread id. The home's start writes it. |
 | `prefix` | A scoped home's slug prefix, such as `ux-`, which starts each of its briefs and requests. The root home writes it when it makes the scope. |
+| `read-seen` | The Result and Report headings a start has shown this home, one a line, so each is shown once. |
+| `told` | Each decision and stop a turn's end told you, one a line, so each is told once. |
+| `merge-seen` | How many lines of `merge.log` this home has read, so each `merged` line is relayed once. |
 | `log/` | The note of each home archived here, dated: what it had out that jbus did not hold, what was uncommitted, what it handed to the root home, and its `Was home:` line. Older notes too. |
 | `plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that nothing counts the scope as a home. `/home <scope>` moves it back. |
 
