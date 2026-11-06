@@ -425,7 +425,7 @@ MADE = 'tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")\n'
         ("f=$(mktemp)\ntrap 'rm -f \"${f}\"' EXIT INT", []),
         ("trap 'rm -rf \"$tree\"' EXIT", ["trap rm deletes"]),
         (MADE + "trap 'rm -rf \"$HOME/work\"' EXIT", ["trap rm deletes"]),
-        (MADE + "trap 'rm -rf \"$tree\" \"$other\"' EXIT", ["trap rm deletes"]),
+        (MADE + 'trap \'rm -rf "$tree" "$other"\' EXIT', ["trap rm deletes"]),
         (MADE + "trap 'rm -rf $tree' EXIT", ["trap rm deletes"]),
         (MADE + "trap -- 'rm -rf \"$tree\"; rm x' EXIT", ["trap rm deletes"] * 2),
         ('trap "eval $cmd" EXIT', ["trap eval runs a script the check cannot read"]),
