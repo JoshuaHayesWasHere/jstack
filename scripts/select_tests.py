@@ -494,8 +494,14 @@ def by_name(tree, nodes):
     holder too: whoever reads the registry `VERBS = (Verb(..., f),)` may call `f`. The module
     imports by name on import when it calls a holder then, or decorates with one. A holder that is
     a method, or that a decorator may register, is called where no import names it, so the module
-    counts as importing by name on import then too. `nodes` are the tree's, as `ast.walk`
-    gives them."""
+    counts as importing by name on import then too. `nodes` are the tree's, as `walk` gives
+    them. A module that names no function of `BY_NAME` anywhere has none of the three."""
+    if not any(
+        isinstance(node, (ast.Name, ast.Attribute))
+        and getattr(node, "attr", getattr(node, "id", "")) in BY_NAME
+        for node in nodes
+    ):
+        return False, frozenset(), frozenset()
     functions = [node for node in nodes if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
     holds = {}
     for one in functions:
