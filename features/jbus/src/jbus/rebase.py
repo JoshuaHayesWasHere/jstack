@@ -7,7 +7,6 @@ branch moved under the pull request or when the pull request conflicts with its 
 so on a `wait` line. `tell` reads those lines and sends the crew one message for each head. The
 message names a backup ref for the head that the rebase rewrites, and a lease that names that head.
 With the backup ref and the lease, a rebase never loses what was on the branch.
-jbus alone merges, so no home waits on a crew's line on green after a fix (`owed`).
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
 the key in `sent.json` as a mark of the send. So a pass that got no answer tries again, and jbus
@@ -45,7 +44,7 @@ sends a thread at most one of them. jbus writes no mark for a message that it de
 pass decides again, using the head and the reasons as they are then.
 
 T3 Code has no watch that wakes a crew. Instead, `github` calls `deliver` to send the crew a message
-for each thing on GitHub that needs the crew to act. There are three such things.
+for each thing on GitHub that needs the crew to act. There are two such things.
 
 The first is a check that ran and failed at a head, under `failed|<slug>|<head 12>`, with the
 failure told beside it: GitHub's merge of main onto a head told of the same failure is not told
@@ -61,10 +60,8 @@ has written the review, `github` sends the rebase message instead, whatever `jme
 `github` does not wait for `jmerge` here, because a red check hides the conflict from the line
 that `jmerge` prints.
 
-The third is a head at which every check passed, under the key `green|<slug>|<head 12>`. `github`
-sends this message only where the crew owes a line on green and no reviewer that the crew launched
-is still out (`owed`). `github` sends nothing for a green pull request when the crew owes nothing.
-"""
+No message comes when every check passed: the review came before the pull request opened
+(`jbus.prereview`), so a green pull request owes its crew no line."""
 
 from __future__ import annotations
 
@@ -100,7 +97,6 @@ EVENTS = {
     "failed": "quiet",
     "conflict": "quiet",
     "refailed": "quiet",
-    "green": "quiet",
 }
 STALE = (ready.MAIN_CHANGED.code, ready.CONFLICTS.code)
 """The codes of the `wait` reasons that only a rebase lifts: the default branch changed under the
@@ -154,12 +150,6 @@ CONFLICTED = (
     "jbus: your pull request #{number} is in conflict with its base at {short}. In your own "
     'worktree, run the first block of "A conflict" as it is, and do what it prints: it does '
     "not rebase while a review is running. " + END_TURN
-)
-GREEN = (
-    "jbus: every check of your pull request #{number} passed at {short}, and its review is owed "
-    'a launch on green. In your own worktree, run the block of "The checks", then do what "The '
-    'review" says of a passed check: launch the reviewer, or write the `Reviewer: none` line and '
-    "its message. " + END_TURN
 )
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
 SENT, REFUSED_SEND, OWED, ALREADY = "sent", "refused", "owed", "already"
@@ -260,7 +250,7 @@ def scoping(run: Pass, world: World, number: int, head: str) -> bool:
 
 def github(run: Pass, client: Client, world: World) -> None:
     """For each crew, send one message of each kind, once per head, when GitHub says the crew's pull
-    request is red, in conflict with its base, or green with a line owed on it."""
+    request is red, or in conflict with its base."""
     sent = run.box.sent()
     for slug, pull in world.open.items():
         head, number = pull.get("headRefOid", ""), pull["number"]
@@ -291,10 +281,6 @@ def github(run: Pass, client: Client, world: World) -> None:
             else:
                 ask = _asked("conflict", CONFLICTED, head)
             deliver(run, client, world, number, reason, ask)
-        green = mark("green", slug, head) not in sent and checks(pull) == "passed"
-        green = green and pull.get("mergeable") != "CONFLICTING"
-        if green and owed(run, brief, head):
-            deliver(run, client, world, number, "green", _asked("green", GREEN, head))
 
 
 def worktree(client: Client, thread: str) -> str | None:
@@ -325,33 +311,10 @@ def crew(run: Pass, slug: str) -> str:
     return str(row.get("thread") or "")
 
 
-def owed(run: Pass, brief: str, head: str) -> bool:
-    """Say whether the crew owes a line on green: its reviewer's launch, or the `Reviewer: none`
-    line and its message.
-
-    The reviewer is launched only once `check` has passed, so a crew whose check was still
-    running when it opened the pull request launched nothing and waits for this message. It owes
-    the line where the brief has no reviewer launched, no `Reviewer: none` line, no `## Review`,
-    and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. A brief whose `Review:` line is
-    not `none` owes it only once it has a `## Result`, which the crew writes before it launches:
-    a crew that stopped before its Result is carried on by the clock (`jbus.clock`) instead.
-    The crew writes the `Reviewer:` line when it launches, and the `Reviewer: none` line when it
-    sends its message. Each of the other three lines comes with a gate or a message that already
-    tells of the pull request. jbus alone merges, so no home waits to hear of a fix on green.
-    """
-    reviewed = "".join(below.line(brief, "Review:").split()[:1]) != "none"
-    if reviewed and not below.results(brief):
-        return False
-    said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
-    gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
-    return not (review.launched(brief) or said_none or review.reviewed(brief) or gated)
-
-
 def _asked(kind: str, message: str, head: str) -> Ask:
     what = {
         "failed": "failed check",
         "refailed": "failed rerun",
-        "green": "green check",
     }.get(kind, kind)
     return Ask(
         kind,

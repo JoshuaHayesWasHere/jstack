@@ -85,12 +85,10 @@ The only other way out is the user's `Waived:` line ("The review").
   Then run the block again and do what it says.
 - `none`: no review of the fix.
   Go on to the `Fixed:` line.
-- `scoped: launch the scoped reviewer ... with /pr-review run <slug> scoped <old range> <new range>`: launch it once the fixed head's checks have passed, as the first review is launched.
-  Go by the first word the block of "The checks" prints for the fixed head, and run no block of "The review": its second block counts the first reviewer and would say to launch none.
-  On `passed`, launch one reviewer now, by the launch block of "The review" with `scoped` and the message the line gives, whole.
-  On `wait`, launch none and end your turn: jbus says when every check has passed, and the launch follows then.
-  On `failed`, fix and push with the block of "The review" that pushes a fix first, then run this block again: it gives the ranges of the head there is then.
-  On `unrun`, launch none: "The checks" parks the gate.
+- `scoped: launch the scoped reviewer ... with /pr-review run <slug> scoped <old range> <new range>`: launch it once the fixed head's desk proof is on record, as the first review is launched on the desk proof, whether or not the pull request is open yet.
+  The desk proof is the brief's last `Checked:` line exiting 0 at the fixed head and its `Proved:` line run there, as "Do the task" writes both after the fix; run no block of "The review": its second block counts the first reviewer and would say to launch none.
+  Where both hold at the fixed head, launch one reviewer now, by the launch block of "The review" with `scoped` and the message the line gives, whole.
+  Where the check block failed there, fix and push with the block of "The review" that pushes a fix first, then run this block again: it gives the ranges of the head there is then.
   After the launch, add the line `Scoped reviewer: <threadId>, of <the head the message's second range ends at, in full>` to the Result, under the `Scoped review:` line, send the home nothing, and go on as "Stay on the pull request" says.
   Where the line says `in place of the one that stopped at <head>`, a reviewer launched for that head wrote no section, because the head moved under it: put the new line in place of that reviewer's line and do not add under it, also where a message from jbus says to add it, since "A conflict" counts every reviewer line against the sections written and would wait for the stopped one for good.
   If the session has no `t3_thread_launch`, write `Scoped reviewer: none, no launch tool in this session, of <that head>` and send the thread that hears of a pull request ("Telling the home") one line, once: `<slug>: <pull request url> at <full head commit> is fixed, and its scoped review could not be launched (no launch tool in this session): it waits for the user's word`.

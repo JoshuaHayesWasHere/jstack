@@ -37,7 +37,9 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 Never done here, and who does it:
 
 - **Splitting the work across workers.** One crewmate, one worktree, one pull request. A feature that is really several pull requests is the home's to split: say so in the Result and build only what "Done when" asks.
-- **A second opinion on the design, past step 4's.** There is one review, after the pull request is green, by the reviewer. A design the user must settle is a question in this thread.
+- **A second opinion on the design, past step 4's.**
+  There is one review, by the reviewer jbus launches once the desk proof is on record, before the pull request opens.
+  A design the user must settle is a question in this thread.
 - **Follow-up pull requests.**
   Nothing is stacked.
   A follow-up is a row, queued as `templates/a-fault-outside.md` says.

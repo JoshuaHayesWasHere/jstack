@@ -114,7 +114,7 @@ Never merge: `jmerge`, run by jbus, merges.
 
 1. Read `$T/result.md` now. Append it, filled in, to `$H/tasks/<slug>.md`.
    Its lines, in order, with the lines only some results have between them: `Status:`, `Done when:`, `Proof:`, `Branch:` and `Pull request:`, `Changed:`, `Playbook:`, `Skills run:`, `Steers:`, `Left:`.
-   Where the brief asks for a pull request, the Result is written only once it is open, and its `Pull request:` line names it.
+   Where the brief asks for a pull request, the Result is written at the desk proof with `Pull request: after the review` ("The review"), and once the pull request is open a follow-up Result names it on its `Pull request:` line.
 2. See whether the home is told.
    Run this in one call with the block at the top.
    It is the only check:
@@ -122,11 +122,12 @@ Never merge: `jmerge`, run by jbus, merges.
    ```sh
    B="$H/tasks/<slug>.md"
    awk '
-       /^## Result/ {pr = ""; paused = 0; result = 1}
+       /^## Result/ {pr = ""; paused = 0; after = 0; result = 1}
        result && $(1) == "Status:" {paused = ($(2) ~ /^paused[,.:;]?$/)}
-       result && $(1) == "Branch:" {pr = $(NF)}
+       result && $(1) == "Branch:" {pr = $(NF); after = ($(0) ~ /Pull request: after the review$/)}
        END {
            if (pr == "") print "write the Result first: the last one has no Branch line"
+           else if (after) print "send nothing: the pull request opens after its review, which jbus launches: end your turn, and jbus tells this thread when it is written"
            else if (pr ~ /^http/) print "send nothing: " pr " is open, and a home that merges hears of it once, when its checks have passed: go on with stay-on-the-pr.md"
            else if (paused) print "tell the home: the task is paused and has not ended: go on with telling-the-home.md"
            else print "tell the home: the task ends with no pull request: go on with telling-the-home.md, then no-pr-end.md"
@@ -161,7 +162,7 @@ When a block prints `tell the home`, or a step sends a line about the pull reque
 
 ## The review
 
-Once the pull request is open: read `$T/../skills/crew/the-review.md` now, once.
+Once the desk proof is on record, before the pull request opens: read `$T/../skills/crew/the-review.md` now, once.
 
 ### A second pass
 

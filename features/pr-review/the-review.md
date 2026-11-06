@@ -76,7 +76,7 @@ I="$T/../skills/interrogate/references"
 D=$(mktemp -d "${TMPDIR:-/tmp}/pr-review-<slug>.XXXXXX") || exit 1
 printf '%s\n' "$INTENT" > "$D/intent"
 printf '%s\n' "$SCOPE" | awk '/^4\. / {on = 1} /^   When the remedy/ || /^6\. / {on = 0} on' > "$D/questions"
-{ echo '~~~~~~diff' && gh pr diff <url> && echo '~~~~~~'; } > "$D/code" && [ "$(wc -l < "$D/code")" -gt 2 ] ||
+{ echo '~~~~~~diff' && git diff --no-color '<the base>' '<the head>' && echo '~~~~~~'; } > "$D/code" && [ "$(wc -l < "$D/code")" -gt 2 ] ||
   { echo "no diff was read: nothing to review" >&2; exit 1; }
 awk -v dir="$D" -v refs="$I" '
   BEGIN {
@@ -106,7 +106,7 @@ awk -v dir="$D" -v refs="$I" '
 echo "$D/prompt.md"
 ```
 
-- Send the block whole, as it is, with only the slug and the pull request's url filled in, and with the block at the top, which sets `H` and `T`.
+- Send the block whole, as it is, with only the slug, and the base and the head "Start" kept, filled in, and with the block at the top, which sets `H` and `T`.
 - First it asks the machine for room.
   It prints `go`, or `wait: ` and the first reading with no room.
   A `note: ` line says a limit is not known, and the review goes on all the same.
@@ -118,13 +118,13 @@ echo "$D/prompt.md"
   That text is how the scope rule and the six questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
 - Last it fills the interrogate skill's `references/reviewer-prompt.md` and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`.
   Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
-- Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
+- Exit code 1 means `git diff` gave no diff or the template could not be filled, and the line above it says which.
   Nothing was reviewed: send the block once more.
   If it fails again, write a section with `Verdict: not run` and the reason, and stop without settling.
   It tells nobody, since jbus reads the section.
 
 **3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
-`check` passed at this head before this thread was launched, so what it runs already holds: the reading looks for what blocks, whether the change meets the brief and is secure, stable and fast enough, and not for nits or warnings.
+The crewmate's desk proof passed at this head before jbus launched this thread, so the lint and the tests the change touches already hold: the reading looks for what blocks, whether the change meets the brief and is secure, stable and fast enough, and not for nits or warnings.
 
 **4: Lead judgment.**
 Judge the list of step 3 as a pragmatic senior engineer, not as a tally: merge the findings that say the same thing, then put each in one of pstack's four buckets.
@@ -156,7 +156,7 @@ Hold back what a reading that finds nothing critical fills itself with:
 - A finding that says only that the change touches a file outside the brief's `Where` is the section's `Outside Where:` line, which "Wider than the brief" writes from `jmerge --scope`: dismiss it, with that as the reason.
 - A finding of a class a check owns, a guard test of `features/repo-guards/tests` or a lint of `make lint` that fails on it, as a doc naming a module or a path the tree lacks (`test_names_resolve.py`) or an added line no test runs (`test_new_lines_run.py`), is that check's to fail before a reviewer sees it: dismiss it, with "the check owns it" as the reason.
 - A finding that flags a pattern the rest of the repo follows, or asks for what the brief's decisions rule out, missed context: dismiss it.
-- A finding of a class a check owns, such as lint, formatting, types, a guard test or a test the suite runs, is the check's: `check` passed before this review, so dismiss it, with `the check owns it` as the reason.
+- A finding of a class a check owns, such as lint, formatting, types, a guard test or a test the suite runs, is the check's: the desk's lint and touched tests passed before this review, and CI's `check` runs the rest on the pull request, so dismiss it, with `the check owns it` as the reason.
   A check that misses a case is a guard to add, not a finding of this pull request.
 - More than five **Act on** findings is a sign the list is not filtered hard enough.
 
@@ -200,7 +200,7 @@ THE_PROOF_ENDS_HERE
 ```
 
 - The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`.
-  It is never the repo's whole suite and never its check command: CI's `check` ran those, and the reviewer is launched only once it has passed at this head.
+  It is never the repo's whole suite and never its check command: the crewmate's desk proof ran the lint and the touched tests before jbus launched this reviewer, and CI's `check` runs the rest on the pull request that opens after the review.
 - The block starts the proof on its own, under `jgauge test-slot --short`, which holds one of the slots of the short lane: no full suite takes those, so it waits only behind other short runs.
   `<thread id>` is this review thread's own id: the `t3-code` server's `t3_thread_configure` with no arguments gives it as `threadId` (if your harness defers it, load it first).
   Send the block as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
@@ -230,5 +230,5 @@ THE_PROOF_ENDS_HERE
   `jmerge` holds the pull request while the last round's line says `no`, and also where a section of that round has no line of this shape or a count that is not the brief's: a skipped or skimmed check is no pass.
   Each unmet line is also a finding, so the crew has it to fix, and the way out is that fix and a scoped review whose own line says `yes`.
 - `Head:` is the head reviewed, and `Patch-id:` is `git patch-id --stable` of the diff from the base to that head. The block of step 1 of "After the review" prints both lines whole.
-- CI's `check` is not the verdict, but it is the precondition: a reviewer is launched only once `check` has passed at the head it reviews, never while it runs and never on one whose check failed.
-  A green pull request can still have findings, and `jmerge` merges only one that is green.
+- The desk proof is not the verdict, but it is the precondition: jbus launches a reviewer only once the brief's `Checked:` and `Proved:` lines bind the head it reviews, before the pull request opens, so the review and CI's `check` never wait on each other.
+  The pull request opens after the review, and `jmerge` merges it only once its required checks passed at its head and its review is done.

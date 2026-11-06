@@ -47,6 +47,22 @@ case "$1 $2" in
 esac
 """
 
+GIT = """\
+#!/bin/sh
+if [ "$1" = diff ] && [ "$3" = BASE ] && [ "$4" = HEAD-UNDER-REVIEW ]; then
+    case $2 in
+    --no-color) grep -qsx diff "$STUB/down" && exit 128; cat "$STUB/diff" ;;
+    --name-only) grep -qsx view "$STUB/down" && exit 128; jq -r '.files[].path' "$STUB/view.json" ;;
+    *) exit 64 ;;
+    esac
+    exit
+fi
+exec {git} "$@"
+"""
+"""A `git` that gives the diff of the change under review, from the base and the head the
+reviewer's Start kept, as the canned diff and files `gh` gives, and runs every other call."""
+PLACES = {"'<the base>'": "BASE", "'<the head>'": "HEAD-UNDER-REVIEW"}
+
 DIFF = """\
 diff --git a/src/a.py b/src/a.py
 index 1111111..2222222 100644
@@ -129,6 +145,8 @@ def reviewer(tmp_path):
     uv(stub)
     (stub / "gh").write_text(GH)
     (stub / "gh").chmod(0o755)
+    (stub / "git").write_text(GIT.format(git=shutil.which("git")))
+    (stub / "git").chmod(0o755)
     (stub / "diff").write_text(DIFF)
     env = {
         **os.environ,
@@ -150,6 +168,8 @@ def reviewer(tmp_path):
         the block still runs."""
         script = block(heading, about).replace("<slug>", "a-task").replace("<url>", URL)
         script = script.replace("<the findings, one to a line>", "\n".join(findings))
+        for words, value in PLACES.items():
+            script = script.replace(words, value)
         for words, value in (fill or {}).items():
             assert words in script
             script = script.replace(words, value)
@@ -183,11 +203,15 @@ def reviewer(tmp_path):
         assert Path(path).parent in built()
         return Path(path)
 
-    def pull_request(number, *files, title="a title"):
-        return {"number": number, "title": title, "files": [{"path": path} for path in files]}
+    def pull_request(number, *files, title="a title", branch=None):
+        listed = {"number": number, "title": title, "files": [{"path": path} for path in files]}
+        return {**listed, "headRefName": branch or f"branch-{number}"}
 
     def gh(diff=DIFF, files=(), others=()):
-        mine = pull_request(7, *files)
+        here = subprocess.run(
+            ["git", "symbolic-ref", "--short", "HEAD"], cwd=work, capture_output=True, text=True
+        ).stdout.strip()
+        mine = pull_request(7, *files, branch=here)
         (stub / "diff").write_text(diff)
         (stub / "view.json").write_text(json.dumps(mine))
         (stub / "list.json").write_text(json.dumps([mine, *others]))
@@ -814,17 +838,16 @@ def test_a_proof_sent_without_the_block_at_the_top_runs_nothing(proof):
 
 
 class Reviewed(crew.PullRequest):
-    """A pull request's worktree at the head a reviewer kept, and what GitHub says its head is."""
+    """A crewmate's worktree at the head a reviewer kept, pushed to origin, and the base it kept."""
 
     def __init__(self, tmp_path):
         super().__init__(tmp_path, None, "other.txt")
         self.started = crew.git(self.work, "rev-parse", "HEAD~1")
         self.commit(self.work, "second.txt", "more\n", "the second commit")
-        self.says_head(self.head())
+        self.pushes(self.head())
 
-    def says_head(self, head):
-        view = {"baseRefName": "main", "headRefOid": head}
-        (self.stub / "view.json").write_text(json.dumps(view))
+    def pushes(self, head):
+        crew.git(self.work, "push", "-q", "-f", "origin", f"{head}:refs/heads/a-task")
 
     def patch_id(self, since, head):
         patch = crew.git(self.work, "diff", since, head) + "\n"
@@ -834,8 +857,11 @@ class Reviewed(crew.PullRequest):
         return named.stdout.split()[0]
 
     def checked(self, kept):
-        script = block("### After the review", "patch-id").replace("<url>", URL)
+        crew.git(self.work, "fetch", "-q", "origin")
+        base = crew.git(self.work, "merge-base", "origin/main", kept)
+        script = block("### After the review", "patch-id")
         script = script.replace("<the head kept at the start>", kept)
+        script = script.replace("<the base kept at the start>", base)
         ran = subprocess.run(
             ["sh", "-c", script],
             capture_output=True,
@@ -868,18 +894,18 @@ def test_the_patch_id_is_the_same_after_a_rebase_that_left_the_patch_as_it_was(t
     crew.git(pr.work, "rebase", "-q", "origin/main")
     assert pr.head() != before
     assert crew.git(pr.work, "rev-parse", "HEAD~2") == pr.landed
-    pr.says_head(pr.head())
+    pr.pushes(pr.head())
     assert pr.checked(pr.head()) == (
         [f"Head: {pr.head()}   Unchanged by the review: yes", patch],
         0,
     )
     pr.commit(pr.work, "third.txt", "wider\n", "a fix")
-    pr.says_head(pr.head())
+    pr.pushes(pr.head())
     assert pr.checked(pr.head())[0][1] not in (patch, "Patch-id: ")
 
 
-def moved_on_github(pr):
-    pr.says_head("c" * 40)
+def moved_on_origin(pr):
+    pr.pushes(pr.started)
 
 
 def moved_here(pr):
@@ -890,7 +916,7 @@ def left_uncommitted(pr):
     (pr.work / "left.txt").write_text("a proof wrote here\n")
 
 
-@pytest.mark.parametrize("moved", [moved_on_github, moved_here, left_uncommitted])
+@pytest.mark.parametrize("moved", [moved_on_origin, moved_here, left_uncommitted])
 def test_a_head_that_moved_under_the_review_is_said_to_have(moved, tmp_path):
     pr = Reviewed(tmp_path)
     kept = pr.head()
@@ -903,25 +929,19 @@ def test_the_head_reviewed_is_named_whatever_could_not_be_asked(tmp_path):
     """A section with no `Head:` leaves the crew skill and `jmerge` no reviewed head to read."""
     pr = Reviewed(tmp_path)
     head = pr.head()
+    (_, patch), _ = pr.checked(head)
+    base = crew.git(pr.work, "merge-base", "origin/main", head)
     shutil.rmtree(tmp_path / "origin.git")
-    assert pr.checked(head) == (
-        [
-            f"Head: {head}   Unchanged by the review: yes",
-            "Patch-id: not worked out, could not fetch origin/main",
-        ],
-        1,
-    )
-    (pr.stub / "view.json").unlink()
-    assert pr.checked(head) == (
-        [
-            f"Head: {head}   Unchanged by the review: not checked, could not ask GitHub",
-            "Patch-id: not worked out, could not ask GitHub",
-        ],
+    script = block("### After the review", "patch-id").replace("<the head kept at the start>", head)
+    script = script.replace("<the base kept at the start>", base)
+    ran = subprocess.run(["sh", "-c", script], capture_output=True, text=True, cwd=pr.work)
+    assert (ran.stdout.splitlines(), ran.returncode) == (
+        [f"Head: {head}   Unchanged by the review: not checked, could not ask origin", patch],
         1,
     )
     state = tmp_path / "state"
     (state / "tasks").mkdir(parents=True)
-    section = "\n".join(pr.checked(head)[0])
+    section = ran.stdout.strip()
     brief = f"{crew.BRIEF}\n## Review\nVerdict: findings\n{section}\nFindings:\n- info a.py it\n"
     (state / "tasks" / "alpha.md").write_text(brief)
     ran = subprocess.run(

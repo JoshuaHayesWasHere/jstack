@@ -214,7 +214,6 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
         "failed",
         "conflict",
         "refailed",
-        "green",
     }
     assert sent[("mirror.py", "what")] == {"result", "review", "report", "gate", "gate answered"}
     assert sent[("wake.py", "kind")] == set()
