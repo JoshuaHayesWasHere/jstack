@@ -154,30 +154,30 @@ names Darwin. A name reaches a test only from a changed path of the tests or one
 an import does, and a feature's paths reach none of its tests. A pull request's macOS job
 selects so, and the run on each merge commit into main runs the whole `--within`.
 
-Every test that failed on main in the last 30 days, and that main has not passed since, runs on
-each pull request's check, whatever the rules select: timing tests that no pull request reached
-broke main in 8 of the audit's 15 reds. `$FAILED_ON_MAIN` names them, space-separated, and the selection adds each one that is a
-test file the check runs. The summary then gets one more line: `failed on main: <n> test files,
-<k> added to the selection: <the files>`, the files the rules had not selected already. Where the
-variable is not set, as on a desk, the selection and the summary are what the rules make.
+Every test that failed on main in the last 30 days, and that main has not passed since, runs on each
+pull request's check, whatever the rules select: timing tests that no pull request reached broke
+main in 8 of the audit's 15 reds. `$FAILED_ON_MAIN` names them, space-separated, and the selection
+adds each one that is a test file the check runs. The summary then gets one more line: `failed on
+main: <n> test files, <k> added to the selection: <the files>`, the files the rules had not selected
+already. Where the variable is not set, as on a desk, the selection and the summary are what the
+rules make.
 
-`select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per
-line: the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's
-run of `check.yml` on main, created in the last `<days>` days, with every attempt of a run that
-was run again, and that no later green run of main in those days has passed. A green run ran the
-whole suite, a rerun that passed is one, and runs are ordered by id: GitHub numbers them as they
-are created, so a green run of an older commit that ends after a red one passes nothing of it. A
-test that fails and then passes on main drops out at the first green run after its failure. It
-reads GitHub's REST API at
-`$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails, naming the answer,
-where GitHub refuses. A completed job and its log never change, so the JSON file `<kept>` keeps
-the red jobs of each run's attempt and the files each one's log named, for the runs still in the
-window. GitHub gives a filtered list of runs 1,000 at most, and main has more in a month, so the
-lookup lists a day at a time. It keeps each day's red runs and newest green run too, and lists again only the last
-`SETTLED` days, where a rerun of main still lands: a lookup with the file reads about 4 lists. A
-rerun of a run older than that is missed. It reads the days, the job lists and the logs `READS`
-at a time. Storage holds no log for some red jobs, and
-such a job names no test.
+`select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per line:
+the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's run of
+`check.yml` on main, created in the last `<days>` days, with every attempt of a run that was run
+again, and that no later green run of main in those days has passed. A green run ran the whole
+suite, a rerun that passed is one, and runs are ordered by id: GitHub numbers them as they are
+created, so a green run of an older commit that ends after a red one passes nothing of it. A test
+that fails and then passes on main drops out at the first green run after its failure. It reads
+GitHub's REST API at `$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails,
+naming the answer, where GitHub refuses. A completed job and its log never change, so the JSON file
+`<kept>` keeps the red jobs of each run's attempt and the files each one's log named, for the runs
+still in the window. GitHub gives a filtered list of runs 1,000 at most, and main has more in a
+month, so the lookup lists a day at a time. It keeps each day's red runs and newest green run too,
+and lists again only the last `SETTLED` days, where a rerun of main still lands: a lookup with the
+file reads about 4 lists. A rerun of a run older than that is missed. It reads the days, the job
+lists and the logs `READS` at a time. Storage holds no log for some red jobs, and such a job names
+no test.
 
 The diff is two-dot. So for a pull request, `<base>` is where it branched from main (`git
 merge-base`) or the parent of its merge commit. A base that main has moved past adds main's own
