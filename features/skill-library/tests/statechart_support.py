@@ -684,6 +684,13 @@ def tlc_started(tmp):
     return any(f.startswith("tlc-") for f in os.listdir(tmp))
 
 
+def tlc_read_pay(tmp):
+    """TLC has read Pay.tla: it writes Naturals.tla, which Pay extends, to its own java.io.tmpdir
+    only once it has parsed Pay.tla. Its work folder alone appears before Java has started, and on
+    a loaded machine a fixed wait after it can still end before TLC reads the spec."""
+    return any(os.path.exists(tmp / f / "tmp" / "Naturals.tla") for f in os.listdir(tmp))
+
+
 def staged(directory):
     return [f for f in os.listdir(directory) if f.startswith(".")]
 
@@ -700,8 +707,7 @@ def changed_mid_run(directory, wrap=(), env=None):
     )
     second = None
     try:
-        until(lambda: tlc_started(tmp))
-        time.sleep(0.5)
+        until(lambda: tlc_read_pay(tmp))
         write_slow_pay(directory, 20000, "Receipt")
         second = Run(directory, wrap=wrap, env={**env, "TMPDIR": str(own_tmp(directory, "tmp-b"))})
         paid_status, paid_stderr = first.done()
