@@ -685,12 +685,28 @@ def test_the_guards_are_the_cross_cutting_the_catch_all_and_the_changed_tests(
     assert sorted(said[0] + said[1]) == repo.selected(head)
 
 
-def test_a_part_of_a_selection_of_every_test_is_every_test(repo):
-    head = repo.change(["pyproject.toml"])
+@pytest.mark.parametrize(
+    ("changed", "guards"),
+    [
+        (["pyproject.toml"], ["test_lone.py", "test_tree.py"]),
+        (
+            ["pyproject.toml", "testing/tests/test_beta.py"],
+            ["test_beta.py", "test_lone.py", "test_tree.py"],
+        ),
+    ],
+    ids=["a shared file", "a shared file and a test"],
+)
+def test_the_guards_of_a_selection_of_every_test_are_still_the_guards(tmp_path, changed, guards):
+    """A change that selects every test, as a deleted fixture or a change to select_tests.py
+    does, still gives the cross-cutting tests, the catch-all and the changed test files as its
+    guards, never `all`: the whole suite ran 9 to 10 min on jmerge's merged trees, past the
+    guards' 600 s, and held the merge line on 2026-11-05 (#1103, #1118). The rest is `all`."""
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+    head = repo.change(changed)
 
-    said = [repo.run("--part", part, repo.base, head).stdout for part in ("guards", "rest")]
-
-    assert said == ["all\n", "all\n"]
+    assert repo.selected(head) == ["all"]
+    said = [repo.run("--part", part, repo.base, head).stdout.split() for part in ("guards", "rest")]
+    assert said == [[f"testing/tests/{one}" for one in guards], ["all"]]
 
 
 TEE = """\
@@ -1134,7 +1150,7 @@ def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_o
 
     for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
         assert set(selected) >= STATECHART_TESTS
-        assert set(why["imports"]) >= STATECHART_TESTS
+        assert set(why["imports"]) | set(why["models"]) >= STATECHART_TESTS
 
 
 MERGED = {
@@ -1172,6 +1188,12 @@ def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_br
 
 
 VIEW = "features/jbus/tests/view/"
+FLOW_SPEC = "features/jmerge/tests/test_flow_spec.py"
+STATECHART_RUNS = (
+    "features/skill-library/tests/test_statechart_runs.py",
+    "features/skill-library/tests/test_statechart_specs.py",
+)
+MODEL_CHECKS = (FLOW_SPEC, *STATECHART_RUNS)
 TABLE = [
     ("all", ["pyproject.toml"], {"all"}, ()),
     ("all", ["uv.lock"], {"all"}, ()),
@@ -1290,9 +1312,20 @@ TABLE = [
     (
         "paths",
         ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
-        {"features/skill-library/tests/test_statechart_runs.py"},
+        {"features/skill-library/tests/test_statechart_charts.py"},
         (),
     ),
+    ("models", ["features/jmerge/spec/FlowToday.tla"], {FLOW_SPEC}, STATECHART_RUNS),
+    (
+        "models",
+        ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
+        {FLOW_SPEC, *STATECHART_RUNS},
+        (),
+    ),
+    ("models", ["features/jbus/src/jbus/watch.py"], {FLOW_SPEC}, STATECHART_RUNS),
+    ("models-only", ["features/jgauge/docs/limits.md"], set(), MODEL_CHECKS),
+    ("models-only", ["features/jbus/src/jbus/boxes.py"], set(), MODEL_CHECKS),
+    ("models-only", ["features/jmerge/verify.md"], set(), MODEL_CHECKS),
     ("cross-cutting", ["README.md"], set(select.cross_cutting()), ()),
     (
         "browser",
@@ -1391,6 +1424,8 @@ MUTANTS = {
         "tests if (ROOT / one).is_file() and not opens_browser(one)}",
         "tests if (ROOT / one).is_file()}",
     ),
+    "models": ("if any(owns(paths, path) for path in changed)", "if False"),
+    "models-only": ("found[key] -= models().keys()", "pass"),
     "failed-on-main": ("added = set(failed) & collected() - chosen", "added = set()"),
 }
 

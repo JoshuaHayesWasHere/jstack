@@ -6,6 +6,7 @@ the fakes.
 
 import ast
 import string
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -13,8 +14,9 @@ from zoneinfo import ZoneInfo
 import pytest
 
 import jsettings
+from jbus import alert, merge
 from jbus.view import state as view_state
-from jmerge import judgement, ready
+from jmerge import judgement, lock, ready
 from test_jbus_kitchen import DAY, NOW, PASS, QUARTER_PAST_FIVE
 from test_jbus_leftover import loud
 from test_jbus_queue import add
@@ -27,7 +29,7 @@ def test_jbus_merges_whatever_the_switch_holds(kitchen):
     kitchen.set("jmerge.txt", "merged 7 alpha abc1234\n")
     (kitchen.home / "home-thread").write_text("mcp:the-home\n")
     assert not any(line.startswith("skipped") for line in kitchen.poll())
-    assert kitchen.log("jmerge") == [""]
+    assert kitchen.log("jmerge") == ["--if-free"]
     assert kitchen.lines("jmerge") == ["merged 7 alpha abc1234"]
 
 
@@ -58,7 +60,7 @@ def test_once_a_day_what_a_sweep_would_remove_is_one_event(kitchen):
     kitchen.set("sweep.txt", "\n".join([*REMOVABLE, KEPT]) + "\n")
     kitchen.quiet()
     kitchen.poll(QUARTER_PAST_FIVE - timedelta(minutes=1))
-    assert kitchen.log("jmerge") == ["", ""] and kitchen.events("sweep") == []
+    assert kitchen.log("jmerge") == ["--if-free", "--if-free"] and kitchen.events("sweep") == []
     kitchen.poll(QUARTER_PAST_FIVE)
     kitchen.poll(QUARTER_PAST_FIVE + timedelta(hours=3))
     (event,) = kitchen.events("sweep")
@@ -169,7 +171,7 @@ NO_LIST = "condition demo: jmerge has no readable protected-paths list, nothing 
 def test_a_jmerge_with_no_protected_paths_list_is_a_gate_once_a_day(kitchen, said):
     kitchen.set("jmerge-dies", said)
     printed = kitchen.poll() + kitchen.poll(NOW + timedelta(minutes=3))
-    assert kitchen.log("jmerge") == ["", ""]
+    assert kitchen.log("jmerge") == ["--if-free", "--if-free"]
     assert kitchen.lines() == [NO_LIST]
     assert kitchen.events()[0]["text"] == said
     assert not [line for line in printed if "jmerge did not run" in line]
@@ -182,6 +184,76 @@ def test_a_jmerge_that_stops_for_another_reason_is_still_said_on_each_pass(kitch
     printed = kitchen.poll() + kitchen.poll(NOW + timedelta(minutes=3))
     assert printed.count("wait demo: jmerge did not run (jmerge: gh is not installed)") == 2
     assert kitchen.lines() == []
+
+
+LOCKING = """\
+#!{python}
+import sys, time
+from pathlib import Path
+from jmerge import lock
+
+stub = Path({stub!r})
+if "--sweep" in sys.argv:
+    sys.exit(0)
+with lock.running(stub, wait="--if-free" not in sys.argv) as free:
+    if not free:
+        print(lock.BUSY_LINE.format(path=stub / lock.RUN), flush=True)
+        sys.exit(lock.BUSY)
+    time.sleep(float((stub / "jmerge-sleep").read_text()))
+    print((stub / "jmerge.txt").read_text(), end="")
+"""
+
+
+@pytest.fixture
+def locking(kitchen, monkeypatch):
+    """The kitchen with a `jmerge` that takes the real run lock (`jmerge.lock.running`) in the
+    stub directory as the real command does, and a `JMERGE_TIMEOUT` of one second. It is a
+    process of its own, so the pass's timeout stops it."""
+    script = kitchen.stub / "jmerge"
+    script.write_text(LOCKING.format(python=sys.executable, stub=str(kitchen.stub)))
+    monkeypatch.setattr(merge, "JMERGE_TIMEOUT", 1)
+    kitchen.quiet()
+    return kitchen
+
+
+def held(kitchen):
+    """Hold the run lock as another run of `jmerge` does, a tick's or one by hand."""
+    return lock.running(kitchen.stub, wait=True)
+
+
+def streak(kitchen):
+    return kitchen.status()["streaks"].get(alert.jmerge("demo"))
+
+
+def test_a_pass_that_finds_the_run_lock_held_does_nothing_and_counts_no_failure(locking):
+    """The pass runs `jmerge --if-free`: with another run holding the run lock, it returns busy
+    at once rather than wait inside its own timeout, and the `jmerge` streak is left as it
+    was."""
+    with held(locking):
+        printed = locking.poll()
+    assert streak(locking) is None
+    assert not [line for line in printed if "jmerge did not run" in line]
+    assert "wait demo: jmerge is busy: another run holds its run lock" in printed
+
+
+def test_a_busy_pass_leaves_a_streak_as_it_was(locking):
+    locking.set("jmerge-sleep", "5")
+    locking.poll()
+    assert streak(locking)["count"] == 1
+    locking.set("jmerge-sleep", "0")
+    with held(locking):
+        locking.poll(NOW + PASS)
+    assert streak(locking)["count"] == 1
+
+
+def test_a_jmerge_that_held_the_lock_past_its_timeout_still_counts_and_alerts(locking):
+    locking.set("jmerge-sleep", "5")
+    for passes in range(3):
+        printed = locking.poll(NOW + passes * PASS)
+    assert streak(locking)["count"] == 3
+    assert any("jmerge did not run (" in line and "timed out" in line for line in printed)
+    (alerted,) = locking.lines("alert")
+    assert alerted.startswith("alert: jmerge demo failed 3 times in a row since ")
 
 
 STEPS = {name: reason.step for name, reason in ready.reasons().items()}

@@ -2,18 +2,20 @@
 none of GitHub's API allowance while no check ends (`jbus.tick`). It runs `jmerge --if-free`, so
 one merger runs at a time (`features/jmerge/tests/test_jmerge_one_run.py`), and it keeps what it
 saw only once `jmerge` ran to its end, so a tick that dies or finds `jmerge` busy loses no merge.
-The pass runs `jmerge` as it always did. The tests run the real tick and pass against the fakes
+The pass runs `jmerge --if-free` too. The tests run the real tick and pass against the fakes
 (`test_jbus_kitchen.py`).
 """
 
 import json
+import sys
 from datetime import timedelta
 
 import pytest
 
 import jbus
-from jbus import merge, tick
+from jbus import alert, merge, tick
 from test_jbus_kitchen import NOW, Kitchen, rate_limit
+from test_jbus_merge import LOCKING
 from test_jbus_row_ends import sends
 
 
@@ -29,13 +31,16 @@ MERGED = "merged 7 alpha abc1234"
 
 
 def ticks(kitchen):
-    said = []
+    said, before = [], len(kitchen.log("jmerge"))
     assert tick.tick(jbus.load(), said.append) == 0
+    kitchen.tick_runs = getattr(kitchen, "tick_runs", 0) + len(kitchen.log("jmerge")) - before
     return said
 
 
 def runs(kitchen):
-    return kitchen.log("jmerge").count("--if-free")
+    """The runs of `jmerge` the ticks started. The pass runs it with `--if-free` too, so the
+    args alone do not tell them apart."""
+    return getattr(kitchen, "tick_runs", 0)
 
 
 def asked(kitchen):
@@ -128,11 +133,16 @@ def test_a_tick_that_dies_before_jmerge_ends_loses_no_merge(watched, monkeypatch
 
 
 def test_the_pass_runs_jmerge_whatever_the_tick_did(watched):
-    """What the tick missed, the next pass does: it runs `jmerge` itself, and waits for a run of
-    the tick's rather than skip it (no `--if-free`)."""
+    """What the tick missed, the next pass does: it runs `jmerge --if-free` itself. Where a run
+    of the tick's holds the run lock, the pass does nothing and counts no failure, and the next
+    pass that finds it free merges."""
     watched.set("jmerge-busy", "")
     watched.poll()
-    assert watched.log("jmerge")[-1] == ""
+    assert watched.log("jmerge")[-1] == "--if-free"
+    assert MERGED not in watched.lines("jmerge")
+    assert alert.jmerge("demo") not in alert.streaks(watched.state_dir)
+    (watched.stub / "jmerge-busy").unlink()
+    watched.poll()
     assert MERGED in watched.lines("jmerge")
 
 
@@ -142,6 +152,22 @@ def test_the_tick_leaves_the_jmerge_streak_to_the_pass(watched):
         ended(watched, run_id)
         ticks(watched)
     assert watched.lines("alert") == []
+
+
+def test_a_tick_whose_jmerge_held_the_lock_past_its_timeout_counts_a_failure(watched, monkeypatch):
+    """The pass no longer waits on a tick's run, so it cannot see one that does not end: the
+    tick counts its own `jmerge` that held the run lock past `JMERGE_TIMEOUT`, and three in a
+    row alert as the pass's do."""
+    script = watched.stub / "jmerge"
+    script.write_text(LOCKING.format(python=sys.executable, stub=str(watched.stub)))
+    watched.set("jmerge-sleep", "5")
+    monkeypatch.setattr(merge, "JMERGE_TIMEOUT", 1)
+    for run_id in range(2, 5):
+        ended(watched, run_id)
+        ticks(watched)
+    assert alert.streaks(watched.state_dir)[alert.jmerge("demo")]["count"] == 3
+    (alerted,) = watched.lines("alert")
+    assert alerted.startswith("alert: jmerge demo failed 3 times in a row since ")
 
 
 def test_a_skill_the_tick_merged_is_told_to_each_thread_out_on_the_next_pass(watched):
