@@ -132,13 +132,15 @@ def test_over_main_a_base_that_cannot_be_fetched_waits_saying_so(kitchen, monkey
 
 
 def test_over_main_a_head_git_cannot_merge_over_the_tip_waits_with_why(kitchen, monkeypatch):
-    """A head this checkout does not have is no conflict: it waits with what git said, judged
-    over no tip."""
+    """A head with no history in common with main is no conflict: git refuses the merge, and the
+    pull request waits with what git said, judged over no tip."""
     kitchen.crew("two", 7, OURS)
     kitchen.on_main(THEIRS)
     here = repo(kitchen, monkeypatch)
-    one = replace(ready.pull_request(kitchen.pulls["two"]), head="f" * 40)
+    main = kitchen.home.main
+    tree = git(main, "rev-parse", "HEAD^{tree}")
+    alone = git(main, "commit-tree", tree, "-m", "a history of its own")
+    one = replace(ready.pull_request(kitchen.pulls["two"]), head=alone)
     why, judged = here.over_main(one, ())
-    assert why.startswith("its head could not be merged over today's base (")
-    assert why != ready.FRESH_CONFLICT
+    assert why == ready.UNMERGED.format(why="fatal: refusing to merge unrelated histories")
     assert judged == ready.Judged()
