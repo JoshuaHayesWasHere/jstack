@@ -16,7 +16,7 @@ from collections import Counter
 import pytest
 
 from testing.paths import REPO
-from testing.shard import FLOOR, TIMES, WORKERS, key, read_times, seconds, split
+from testing.split import FLOOR, TIMES, WORKERS, key, read_times, seconds, split
 
 PARTS = 8
 LIST = [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
@@ -63,6 +63,33 @@ def test_the_whole_suite_s_parts_end_together_but_the_flow_spec_test_s_which_is_
     assert max(each) - min(each) <= max(seconds(times, test) for part in rest for test in part)
     assert max(each) - min(each) < sum(each) / len(rest) / 20
     assert max(each) / WORKERS < seconds(times, FLOW)
+
+
+def test_the_check_s_parts_deal_each_file_the_suite_collects_once_with_no_collection():
+    """The check's parts run whole files, which its `reuse` job deals from the file table with no
+    collection (`scripts/select_tests.py --parts`): for an `all` each file the whole suite
+    collects is in exactly one part and none else is, so each test runs once, and the flow spec's
+    file, at its cold time, has a part alone."""
+    (whole,) = listed(["-m", "not browser"])
+    ran = subprocess.run(
+        [sys.executable, "-S", "-c", DEAL],
+        cwd=REPO,
+        env={"PATH": os.environ["PATH"]},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    parts = [line.partition(": ")[2].split() for line in ran.stdout.splitlines()]
+    together = Counter(file for part in parts for file in part if file != "none")
+    assert [file for file, times in together.items() if times > 1] == []
+    assert sorted(together) == sorted({test.partition("::")[0] for test in whole})
+    assert [FLOW.partition("::")[0]] in parts
+
+
+DEAL = (
+    "import runpy, sys; sys.argv = ['select_tests.py']; "
+    "select = runpy.run_path('scripts/select_tests.py'); select['handed'](['all'], 8)"
+)
 
 
 def test_a_test_that_outlasts_the_others_share_has_a_part_alone_and_one_that_does_not_has_company():

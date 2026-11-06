@@ -461,31 +461,6 @@ def selected(copy):
     return ran.stdout.split()
 
 
-def test_a_selection_pytest_cannot_collect_fails_the_select_step_and_still_keeps_its_list(
-    tmp_path,
-):
-    """The job `select` fails where pytest cannot collect the selection, and the run that fails
-    there is the one that most needs the list of what was selected: the step still writes it to
-    `SELECTED`, which the job keeps as an artifact, and to its summary."""
-    broken = "features/jdrift/tests/test_drift.py"
-    copy, _, _ = changed_copy(tmp_path, broken, "\nraise SystemExit('no collect')\n")
-    files = {name: tmp_path / name.lower() for name in ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY")}
-    files["SELECTED"] = tmp_path / "selected"
-    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
-    ran = subprocess.run(
-        [sys.executable, "scripts/select_tests.py", "--parts", "2", "HEAD^1", "HEAD"],
-        cwd=copy,
-        env=env | {name: str(file) for name, file in files.items()},
-        capture_output=True,
-        text=True,
-    )
-    assert ran.returncode != 0 and "pytest could not collect the selection" in ran.stderr
-    kept = files["SELECTED"].read_text().splitlines() if files["SELECTED"].exists() else []
-    assert any(line.startswith(f"{broken} ") for line in kept), kept
-    assert all((copy / line.split()[0]).is_file() for line in kept), kept
-    assert "\n".join(kept) in files["GITHUB_STEP_SUMMARY"].read_text()
-
-
 SRC = sorted(str(path.relative_to(REPO)) for path in REPO.glob("features/*/src"))
 LINT = [
     "run ruff check .",
