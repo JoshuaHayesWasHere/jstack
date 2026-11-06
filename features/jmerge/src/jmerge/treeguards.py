@@ -149,7 +149,7 @@ def run_guards(command: str, cwd: Path, env: dict[str, str], timeout: float) -> 
 
 
 _TIED = (
-    'exec 3<&0; { cat <&3 > /dev/null; kill -s KILL 0; } < /dev/null > /dev/null 2>&1 & '
+    "exec 3<&0; { cat <&3 > /dev/null; kill -s KILL 0; } < /dev/null > /dev/null 2>&1 & "
     'exec 3<&-; exec "$@" < /dev/null'
 )
 """What the session runs first: a watcher that kills the session's group once its stdin, the
