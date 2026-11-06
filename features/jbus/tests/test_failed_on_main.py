@@ -8,12 +8,12 @@ port (`$GITHUB_API_URL`). The selection runs the script on this repo, as `make c
 
 `RUNS` are the push runs of check.yml on main, each with its latest attempt, conclusion and time,
 their ids rising with time as GitHub's do. Run 40 fails two tests and green run 50 passes them
-after; run 50's first attempt failed a third, which its rerun passed. Run 60, after the green,
-fails a fourth, and run 70 fails the third again. 150 cancelled pushes on one day fill a second
-page of that day, and 1100 more over the window pass the 1,000 results GitHub gives a filtered list
-(`SEARCHED`), so a lookup that lists the whole window at once is refused. `JOBS` are each run's
-jobs over every attempt, and `LOGS` what the red ones' logs say. Storage holds no log for job 64,
-as it holds none for some red jobs on GitHub."""
+after; run 50's first attempt failed a third and a fourth, which its rerun passed. Run 60, after
+the green, fails a fifth, and run 70 fails the third again. 150 cancelled pushes on one day fill a
+second page of that day, and 1100 more over the window pass the 1,000 results GitHub gives a
+filtered list (`SEARCHED`), so a lookup that lists the whole window at once is refused. `JOBS` are
+each run's jobs over every attempt, and `LOGS` what the red ones' logs say. Storage holds no log
+for job 64, as it holds none for some red jobs on GitHub."""
 
 import importlib.util
 import json
@@ -78,7 +78,10 @@ LOGS = {
         "ERROR features/jbus/tests/test_jbus_budget.py - ImportError while importing",
         "FAILED features/jmerge/tests/test_flow_spec.py::test_x - Timeout",
     ),
-    51: log("ERROR features/jgauge/tests/test_slot.py::test_wait - TimeoutError"),
+    51: log(
+        "ERROR features/jgauge/tests/test_slot.py::test_wait - TimeoutError",
+        "FAILED features/jgauge/tests/test_room.py::test_x - its rerun passed",
+    ),
     61: log(
         "\x1b[31mFAILED\x1b[0m features/home/tests/test_home_tree_spec.py::test_spec[a] - assert 1",
         "FAILED features/home/tests/test_home_tree_spec.py::test_other - Timeout",
@@ -202,6 +205,17 @@ def test_a_green_run_of_an_older_commit_passes_nothing_a_later_run_failed(github
         RUNS.pop()
     assert done.returncode == 0, done.stderr
     assert done.stdout.splitlines() == FAILED
+
+
+def test_the_newest_green_run_on_a_days_second_page_passes_what_failed_before_it(github, tmp_path):
+    """Run 65 is listed after the 194 other runs of its day, on that day's second page."""
+    RUNS.append({"id": 65, "run_attempt": 1, "conclusion": "success", "created_at": stamp(1)})
+    try:
+        done = lookup(github, tmp_path / "kept.json")
+    finally:
+        RUNS.pop()
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.splitlines() == ["features/jgauge/tests/test_slot.py"]
 
 
 def test_a_green_run_after_every_failure_leaves_no_test(github, tmp_path):
