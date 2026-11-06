@@ -1134,7 +1134,7 @@ def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_o
 
     for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
         assert set(selected) >= STATECHART_TESTS
-        assert set(why["imports"]) >= STATECHART_TESTS
+        assert set(why["imports"]) | set(why["models"]) >= STATECHART_TESTS
 
 
 MERGED = {
@@ -1172,6 +1172,12 @@ def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_br
 
 
 VIEW = "features/jbus/tests/view/"
+FLOW_SPEC = "features/jmerge/tests/test_flow_spec.py"
+STATECHART_RUNS = (
+    "features/skill-library/tests/test_statechart_runs.py",
+    "features/skill-library/tests/test_statechart_specs.py",
+)
+MODEL_CHECKS = (FLOW_SPEC, *STATECHART_RUNS)
 TABLE = [
     ("all", ["pyproject.toml"], {"all"}, ()),
     ("all", ["uv.lock"], {"all"}, ()),
@@ -1290,9 +1296,20 @@ TABLE = [
     (
         "paths",
         ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
-        {"features/skill-library/tests/test_statechart_runs.py"},
+        {"features/skill-library/tests/test_statechart_charts.py"},
         (),
     ),
+    ("models", ["features/jmerge/spec/FlowToday.tla"], {FLOW_SPEC}, STATECHART_RUNS),
+    (
+        "models",
+        ["features/skill-library/skills/statechart/scripts/statechart/lib.py"],
+        {FLOW_SPEC, *STATECHART_RUNS},
+        (),
+    ),
+    ("models", ["features/jbus/src/jbus/watch.py"], {FLOW_SPEC}, STATECHART_RUNS),
+    ("models-only", ["features/jgauge/docs/limits.md"], set(), MODEL_CHECKS),
+    ("models-only", ["features/jbus/src/jbus/boxes.py"], set(), MODEL_CHECKS),
+    ("models-only", ["features/jmerge/verify.md"], set(), MODEL_CHECKS),
     ("cross-cutting", ["README.md"], set(select.cross_cutting()), ()),
     (
         "browser",
@@ -1391,6 +1408,8 @@ MUTANTS = {
         "tests if (ROOT / one).is_file() and not opens_browser(one)}",
         "tests if (ROOT / one).is_file()}",
     ),
+    "models": ("if any(owns(paths, path) for path in changed)", "if False"),
+    "models-only": ("found[key] -= models().keys()", "pass"),
     "failed-on-main": ("added = set(failed) & collected() - chosen", "added = set()"),
 }
 
