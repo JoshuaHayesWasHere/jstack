@@ -27,11 +27,11 @@ name, which spells the config folder's variable (`CONFIG`) and its default (`KEP
 A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own
 `systemd --user`, which adopts what a unit of it left, as it is for jbus, a user service. Where
 there is no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory
-and the files it holds open, and the one reaper is 1, launchd. There the environment is not read,
-since macOS's `ps -E` showed none for the user's own processes on the macOS job: a temporary
-folder and a scout's session then tie no process to a task, and only a folder or an argument
-under a worktree does. `ps` gives the command line as one string, so its arguments are split at
-spaces there: a path with a space in it, as an app bundle's, is read as several arguments.
+and the files it holds open, and the one reaper is 1, launchd (`LAUNCHD`). There the environment
+is not read, since macOS's `ps -E` showed none for the user's own processes on the macOS job:
+a temporary folder and a scout's session then tie no process to a task, and only a folder or an
+argument under a worktree does. `ps` gives the command line as one string, so its arguments are
+split at spaces there: a path with a space in it, as an app bundle's, is read as several arguments.
 A process is never stopped when its parent is not a reaper, when it is not the user's, when it is
 jbus or one of its ancestors, when it is T3 Code's or the agent's own (`OWN`), or when it or a
 process under it holds a test slot (`SLOT`): a check or a proof that still runs. Of those left, a
@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from jbus.poll import Half
 
 ROOT = Path("/proc")
+LAUNCHD = 1
 WORKTREES = Path.home() / ".t3" / "worktrees"
 TEMP = (Path("/tmp"), Path("/var/tmp"))
 GAP = 1.0
@@ -254,7 +255,7 @@ def _from_ps() -> tuple[dict[int, int], list[Proc]]:
     """The same, from `ps` and `lsof`, where the one reaper is 1, launchd."""
     listed = _ps()
     uid = os.getuid()
-    left = [one for one in listed.values() if one.ppid == 1 and one.uid == uid]
+    left = [one for one in listed.values() if one.ppid == LAUNCHD and one.uid == uid]
     return {pid: one.ppid for pid, one in listed.items()}, _located(left)
 
 
