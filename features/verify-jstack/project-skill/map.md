@@ -155,5 +155,4 @@ Cross-cutting:
 - `features/repo-guards/tests/test_tool_project.py`
 - `features/verify-jstack/tests/test_verify_jstack.py`
 - `features/jbus/tests/view/test_view_sources.py`
-- `testing/tests/test_workflows.py`
 - `features/skill-library/tests/test_statechart_tlc_bounds.py`

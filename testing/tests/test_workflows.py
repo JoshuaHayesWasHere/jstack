@@ -45,7 +45,11 @@ The drift step keeps jdrift's clone of pstack in the runner's temporary director
 does not outlive the job.
 
 Every setup-uv step installs one exact uv, the workflow's own `UV_VERSION`, and every
-workflow names the same one: with no version, setup-uv fetches the latest release on each job."""
+workflow names the same one: with no version, setup-uv fetches the latest release on each job.
+
+The module reads every file under `.github/` and the files the TLC cache's key hashes, the spec
+files and statechart's scripts, through globs: its `READ_SET` names them, so a change runs these
+tests only where it reaches one of them, or a path the tests spell or import, and not else."""
 
 import json
 import os
@@ -74,6 +78,7 @@ NIGHTLY = WORKFLOWS / "macos-nightly.yml"
 MAC = WORKFLOWS / "macos.yml"
 MAC_QUICK = REPO / "testing" / "macos-quick.txt"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
+READ_SET = ("/.github/", "spec/", "statechart/")
 HOSTED = "ubuntu-24.04"
 MACOS = "macos-15"
 
