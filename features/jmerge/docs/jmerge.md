@@ -362,6 +362,8 @@ A repo with no such file runs no guards, and a pull request that overlaps none o
 2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
 3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
    A worktree that a stopped run left there is removed first.
+   The command runs inside a full test slot, through `jgauge test-slot`, as every other suite on the machine does: it is a suite at `-n 6`, and outside a slot it would be one the slot count does not see.
+   A `jmerge` that already holds a slot (`JGAUGE_TEST_SLOT` set) runs it in that one, since a second would wait on its own.
 4. Where the command exits 0, and the tip has not moved meanwhile, it merges.
    The line of the merge says `the guards passed on its tree merged over <base> at <tip12> in <s> s`, and `merge.log` keeps that line.
 
@@ -370,9 +372,12 @@ A non-zero exit holds the pull request with `merged over today's <base> at <tip1
 The guard is the first test pytest calls `FAILED`, else the make target the run stopped in, such as `lint`, else the last line the command printed.
 A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
 
-The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
+The guards wait at most 15 s for a slot (`SLOT_SECONDS`).
+With every full slot still taken, they do not start, and the pull request waits as `every full test slot stayed taken for 15 s, so the guards did not start on its tree merged over <base> at <tip12>: the next run tries again`.
+That run tries no more trees, and keeps nothing: jbus's next pass runs `jmerge` again about a minute later (`jbus.tick` runs it sooner only when a check ends), so a skip costs a merge about a minute, where a wait inside the run would hold every other merge of it, for as long as a full suite holds a slot.
+The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), counted from when they hold the slot, and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
 A stopped run is kept for no later run: the pull request waits for this run alone, and the next run tries the guards again, since a run that crossed the limit once on a loaded machine says nothing of the tree.
-A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
+A run starts no guards once it has spent 4 minutes on them and their waits for a slot (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
 A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
 `merged-trees.json` in the state directory keeps a pass or a failure of the guards on a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
 A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.
