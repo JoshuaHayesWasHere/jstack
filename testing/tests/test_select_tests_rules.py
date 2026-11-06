@@ -1,9 +1,11 @@
 """The rules of `scripts/select_tests.py` held against this repo's own tree: one row of a table
 for each rule, a mutant of the selector for each rule that must fail its row, and the map's tests
-that read the repo's map, the files git tracks, and the imports the tests make.
+that read the repo's map, the files git tracks, and the imports the tests make, then the tests
+that a change to one of this repo's own files must select, on a pull request and on a Mac.
 
-Each of these runs the selector on today's tree, several seconds a test, so they sit apart from
-test_select_tests.py, whose tests run the selector in small repos of their own."""
+Each of these runs the selector on today's tree, whose first run in a process takes seconds, so
+they sit apart from test_select_tests.py, whose tests run the selector in small repos of their
+own."""
 
 import importlib.util
 import json
@@ -13,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from testing.paths import REPO, sources
+from test_home_thread import named
+from testing.paths import REPO, skills, sources
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
@@ -22,7 +25,6 @@ SPEC.loader.exec_module(select)
 
 
 OWNED = "scripts/".split()
-
 ALSO = ("install.sh",)
 
 VIEW = "features/jbus/tests/view/"
@@ -493,3 +495,239 @@ def test_the_import_graph_has_every_import_that_importing_the_tests_makes():
         != Path(file).relative_to(REPO).as_posix()
     ]
     assert (missing, found["failed"], unread) == ([], [], [])
+
+
+def test_a_change_to_the_home_skill_selects_the_tests_that_reach_it_and_not_most_of_them():
+    """210 tests import `test_home_thread`, whose helpers name the home, crew, handoff and scout
+    skills. Those that take no helper that reads the home skill do not run its blocks: once,
+    their imports alone made a change to it select 315 of 400 test files.
+    `test_crew_reviewing.py` takes `blocks` from it and reads the crew skill alone."""
+    home, _ = select.selection(["features/home/skills/home/SKILL.md"])
+    crew, _ = select.selection(["features/crew/SKILL.md"])
+
+    assert "features/crew/tests/test_crew_reviewing.py" in set(crew) - set(home)
+    assert len(home) < len(select.collected()) * 2 / 3
+
+
+def test_the_selector_finds_the_skills_the_index_finds():
+    assert select.skills() == {
+        name: folder.relative_to(REPO).as_posix() for name, folder in skills().items()
+    }
+
+
+@pytest.mark.parametrize(
+    "path, reader",
+    [
+        ("features/home/skills/home/SKILL.md", "features/home/tests/test_quiet_turns.py"),
+        ("features/home/skills/home/SKILL.md", "features/home/tests/test_home_start.py"),
+        ("features/home/skills/handoff/SKILL.md", "features/home/tests/test_handoff_mail.py"),
+        ("features/crew/a-gate.md", "features/jbus/tests/test_gates.py"),
+        ("features/ketchup/SKILL.md", "features/home/tests/test_home_needs.py"),
+    ],
+)
+def test_a_change_to_a_skill_selects_the_tests_that_run_its_shell_blocks(path, reader):
+    """Each test runs a block of the skill that `test_home_thread` takes from
+    `skills()[name] / "SKILL.md"`, with the files that skill folds in. A break of the home skill's
+    turn-end block once failed `test_quiet_turns.py`, and the selection ran without it."""
+    tests, _ = select.selection([path])
+
+    assert reader in tests
+
+
+def test_the_selector_follows_the_includes_the_tests_fold_in():
+    """`as_read` folds in each file beside a skill that a line of it says to read now. The
+    selector must find the same files, or a change to one runs none of the tests that read it."""
+    folded = {
+        (path, found.relative_to(REPO).as_posix())
+        for path in select.tracked()
+        if path.endswith(".md") and (REPO / path).is_file()
+        for found in named(REPO / path)
+    }
+    found = {(includer, path) for path, by in select.included().items() for includer in by}
+
+    assert folded
+    assert found == folded
+
+
+@pytest.mark.parametrize(
+    ("changed", "reader"),
+    [
+        (
+            "features/lessons/skills/reflect/references/synthesizer.md",
+            "features/lessons/tests/test_lessons.py",
+        ),
+        ("features/crew/playbooks/bug-fix.md", "features/tdd/tests/test_tdd_skill.py"),
+    ],
+    ids=["a skill's own file", "a playbook a skill names"],
+)
+def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test(changed, reader):
+    """`test_lessons.py` declares the folders of the lessons skills in its `READ_SET`, and a
+    change to a file in one of them selects it. `test_tdd_skill.py` checks each playbook the tdd
+    skill names, through `skill_blocks`. Neither feature lists the test, and no test spells the
+    file."""
+    tests, _ = select.selection([changed])
+
+    assert reader in tests
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["scripts/select_tests.py", "Makefile", ".github/workflows/check.yml", "testing/shard.py"],
+)
+def test_in_this_repo_a_change_to_what_picks_and_runs_the_tests_selects_all(path):
+    assert select.selection([path]) == (["all"], {"forced-by": path})
+
+
+def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page():
+    selected, _ = select.selection(["features/jbus/src/jbus/view/page.html"])
+
+    assert "features/jbus/tests/view/test_view_server.py" in selected
+    assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
+    assert set(select.cross_cutting()) <= set(selected)
+    assert "features/jroles/tests/test_jroles_mirror.py" not in selected
+
+
+@pytest.mark.parametrize("panel", ["bus", "checks", "slow", "you"])
+def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(panel):
+    selected, _ = select.selection([f"features/jbus/src/jbus/view/panels/{panel}/panel.py"])
+
+    assert f"features/jbus/tests/view/test_view_{panel}.py" in selected
+    assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
+
+
+def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
+    selected, why = select.selection(["scripts/jtrees/crawl.py"])
+
+    assert {
+        "testing/tests/test_jtrees.py",
+        "testing/tests/test_jtrees_one_feature.py",
+        "features/jinstall/tests/test_layout.py",
+    } <= set(selected)
+    assert why["imports"]
+
+
+STATECHART_TESTS = {
+    "features/home/tests/test_home_tree_spec.py",
+    "features/skill-library/tests/test_statechart_charts.py",
+    "features/skill-library/tests/test_statechart_runs.py",
+    "features/skill-library/tests/test_statechart_specs.py",
+    "features/skill-library/tests/test_statechart_tlc_bounds.py",
+    "features/skill-library/tests/test_statechart_tlc_cache.py",
+}
+
+
+def test_a_change_to_a_statechart_script_selects_the_tests_that_put_its_folder_on_the_path():
+    script = "features/skill-library/skills/statechart/scripts/statechart/lib.py"
+
+    for selected, why in [select.selection([script]), select.ruled([script], cross=False)]:
+        assert set(selected) >= STATECHART_TESTS
+        assert set(why["imports"]) | set(why["models"]) >= STATECHART_TESTS
+
+
+MERGED = {
+    "#330": (
+        [
+            "features/jbus/docs/jbus/the-sign-in.md",
+            "features/jbus/docs/jbus/when-jbus-fails.md",
+            "features/jbus/src/jbus/alert.py",
+            "features/jbus/src/jbus/signin.py",
+            "features/jbus/src/jbus/wake.py",
+            "features/jbus/tests/test_jbus_wake_home.py",
+        ],
+        "features/repo-guards/tests/test_module_size.py",
+    ),
+    "#337": (
+        [
+            "features/jbus/tests/fixtures/jbus-view/probe.js",
+            "features/jbus/tests/view/page/browser.py",
+            "features/jbus/tests/view/page/test_view_page_budgets.py",
+        ],
+        "features/jbus/tests/view/test_view_sources.py",
+    ),
+}
+
+
+@pytest.mark.parametrize(("changed", "broken"), MERGED.values(), ids=MERGED.keys())
+def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_broke(
+    changed, broken
+):
+    """The paths each pull request changed. Its check ran neither test, and main went red after
+    the merge: #330 pushed `jbus/wake.py` over the cap of lines, #337 put a URL in a view test."""
+    tests, _ = select.selection(changed)
+
+    assert broken in tests
+
+
+MAC_LIST = "testing/macos-quick.txt"
+CLI = "features/jmerge/src/jmerge/cli.py"
+
+
+def mac_within(path, strict=False):
+    """The tests of the macOS quick list a change to `path` in this repo reaches on a Mac."""
+    entries = (REPO / MAC_LIST).read_text().split()
+    return select.within(entries, [path], MAC_LIST, strict)
+
+
+def test_strict_within_is_a_part_of_within_for_every_tracked_path():
+    """A pull request's macos job selects with `--strict`, and the run on each merge commit with
+    `--within` alone. Each test a pull request runs on a Mac is one its merge's run runs again,
+    so no path reaches a Mac test on a pull request that its merge's run would leave out."""
+    wider = []
+    for path in sorted(select.tracked()):
+        within, strict = mac_within(path), mac_within(path, strict=True)
+        assert strict == ["all"] or set(strict) <= set(within), path
+        wider += [path] if set(strict) < set(within) else []
+    assert wider, "strict narrows nothing"
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["features/crew/verify.md", "features/jbus/verify.md", "README.md", "features/crew/SKILL.md"],
+    ids=["a feature's page", "jbus's page", "a doc a test names", "a skill tests read"],
+)
+def test_strict_within_reaches_no_mac_test_through_a_feature_or_a_name_of_code_off_darwin(path):
+    """A feature's paths and its page reach its listed tests in `--within`, and a doc or skill
+    reaches the tests that spell it. A change to neither runs differently on a Mac, so with
+    `--strict` it reaches no Mac test, and the merge's run checks it on a Mac minutes later."""
+    assert mac_within(path)
+    assert mac_within(path, strict=True) == []
+
+
+@pytest.mark.parametrize(
+    ("path", "test"),
+    [
+        ("features/jbus/src/jbus/launchd.py", "features/jbus/tests/test_jbus_launchd.py"),
+        (
+            "features/jgauge/tests/test_machine_sizes.py",
+            "features/jgauge/tests/test_machine_sizes.py",
+        ),
+    ],
+    ids=["code that names Darwin", "a listed test"],
+)
+def test_strict_within_keeps_what_darwin_code_and_the_tests_reach(path, test):
+    """An import or a name from code that names Darwin, or from the tests, reaches a Mac test
+    with `--strict` as it does without it."""
+    assert test in mac_within(path, strict=True)
+    assert mac_within(path, strict=True) == mac_within(path)
+
+
+@pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])
+def test_strict_within_is_all_where_within_is(path):
+    assert mac_within(path, strict=True) == mac_within(path) == ["all"]
+
+
+def test_strict_darwin_reaches_the_importers_of_an_edit_inside_clis_darwin_branch():
+    """In this repo, an edit to the function of jmerge's CLI that branches on Darwin reaches every
+    listed test that imports the CLI, as the run on each merge commit does, and an edit away from
+    it reaches none of them."""
+    text = (REPO / CLI).read_text()
+    branch = next(at for at, one in enumerate(text.splitlines(), 1) if "sys.platform ==" in one)
+    entries = (REPO / MAC_LIST).read_text().split()
+
+    def reached(line):
+        edit = [({line}, text), ({line}, text)]
+        return select.within(entries, [CLI], MAC_LIST, strict=True, edited={CLI: edit})
+
+    assert reached(branch) == mac_within(CLI)
+    assert len(reached(branch)) > 10
+    assert reached(10) == []
