@@ -122,10 +122,8 @@ sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 `select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
 it, the files the rules reached through imports, names and features alone. Each prints `all`
-where the selection is `all`. `--part desk` prints both from one selection, each file after the
-name of its part, `guards <file>` or `rest <file>`, the guards first, and `all` alone where the
-selection is `all`. `jmerge` runs the guards on a pull request's tree merged over its base
-(`merged-tree-guards`).
+where the selection is `all`. `jmerge` runs the guards on a pull request's tree merged over its
+base (`merged-tree-guards`).
 
 `select_tests.py --part touched <base> <head>` prints the test files the change itself adds or
 edits, each one the check runs, and never `all`: a change that selects every test still names
@@ -1157,7 +1155,7 @@ def selection(changed, failed=()):
     return sorted(chosen | added), {**why, "catch-all": sorted(lone), "added": sorted(added)}
 
 
-DESK_PARTS = ("guards", "rest", "desk", "touched")
+DESK_PARTS = ("guards", "rest", "touched")
 
 
 def touched(changed):
@@ -1174,15 +1172,11 @@ def guards(changed, tests):
 
 
 def desk_part(name, changed, tests):
-    """The `guards` or the `rest` of a selection's `tests`, or for `desk` both, each file after
-    the name of its part."""
+    """The `guards` or the `rest` of a selection's `tests`."""
     first = guards(changed, tests)
     if name == "guards" or tests == ["all"]:
         return first
-    rest = sorted(set(tests) - set(first))
-    if name == "rest":
-        return rest
-    return [f"guards {one}" for one in first] + [f"rest {one}" for one in rest]
+    return sorted(set(tests) - set(first))
 
 
 def ask(path, gone=None, **query):
@@ -1475,7 +1469,7 @@ def main(argv):
     if len(argv) != 2:
         sys.exit(
             "usage: select_tests.py [--within <list> [--strict] | --parts <n>] <base> <head>\n"
-            "       select_tests.py --part guards|rest|desk|touched <base> <head>\n"
+            "       select_tests.py --part guards|rest|touched <base> <head>\n"
             "       select_tests.py --failed-on-main <days> <kept>"
         )
     diff = subprocess.run(
