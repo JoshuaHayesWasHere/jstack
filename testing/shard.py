@@ -29,7 +29,10 @@ controller sets the exit status and never collects, so each worker tells it whet
 selection had tests. `testing/tests/test_shards.py` holds the parts to the whole collection.
 
 `--shard-record PATH` writes the table from a run: `uv run pytest -n 4 -m "not browser"
---shard-record testing/shard-times.tsv` after tests are added or grow slow."""
+--shard-record testing/shard-times.tsv` after tests are added or grow slow. A test whose time on
+this machine is not its time in CI, as the merge flow's TLC test runs in well under a second
+where its cache holds the runs, pins its CI seconds with `@pytest.mark.shard_seconds(S)`, and the
+record writes S for it in place of the time it took."""
 
 import hashlib
 from pathlib import Path
@@ -148,32 +151,56 @@ def pytest_testnodedown(node, error):
         node.config.stash[SELECTED] = True
 
 
+PINNED = "shard_seconds"
+
+
 class Record:
     """Each test's setup, call and teardown, summed, written to the table at the end where it is
-    `FLOOR` or more. It runs where the reports end up: under xdist on the controller, which hears
-    every worker's."""
+    `FLOOR` or more, or the seconds its `shard_seconds` marker pins in their place. It runs where
+    the reports end up: under xdist on the controller, which hears every worker's, and a report
+    carries the pin there in its user properties."""
 
     def __init__(self, path: Path):
         self.path = path
         self.seconds: dict[str, float] = {}
+        self.pinned: dict[str, float] = {}
 
     def pytest_runtest_logreport(self, report):
         self.seconds[report.nodeid] = self.seconds.get(report.nodeid, 0.0) + report.duration
+        for name, value in report.user_properties:
+            if name == PINNED:
+                self.pinned[report.nodeid] = value
 
     def pytest_sessionfinish(self):
         self.path.write_text(
             "".join(
                 f"{took:.2f}\t{test}\n"
-                for test, took in sorted((key(test), took) for test, took in self.seconds.items())
+                for test, took in sorted(
+                    (key(test), self.pinned.get(test, took)) for test, took in self.seconds.items()
+                )
                 if took >= FLOOR
             )
         )
 
 
 def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        f"{PINNED}(seconds): the test's seconds in CI, which --shard-record writes in place of"
+        " the time it took here",
+    )
     record = config.getoption("shard_record")
     if record and not hasattr(config, "workerinput"):
         config.pluginmanager.register(Record(Path(record)), "shard-record")
+
+
+def pytest_itemcollected(item):
+    """Put the test's pinned seconds in its user properties, which each of its reports carries,
+    also from an xdist worker to the controller where the record runs, and also where it is
+    skipped, as on a machine with no Java."""
+    marker = item.get_closest_marker(PINNED)
+    if marker and item.config.getoption("shard_record"):
+        item.user_properties.append((PINNED, float(marker.args[0])))
 
 
 def pytest_sessionfinish(session, exitstatus):
