@@ -163,13 +163,13 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
 
     For a scoped wait it is the last `Scoped reviewer:` line of this head, or else the last one.
     Otherwise it is the last
-    `Reviewer:` line whose seat, `#<n>`, has written no `## Review` with that seat on its `By:`
-    line."""
+    `Reviewer:` line whose seat, `#<n>`, has written no `## Review` that ran with that seat on
+    its `By:` line: a `Verdict: not run` section leaves its seat to be asked again."""
     if kind == "scoped":
         named = below.reviewers(brief, "Scoped reviewer", head)
         named = named or below.reviewers(brief, "Scoped reviewer")
     else:
-        bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections)
+        bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections if one.ran)
         wrote = {seat[1] for seat in bys if seat}
         named = below.reviewers(brief, "Reviewer")
         named = [said for said in named if (s := _SEAT.search(said)) is None or s[1] not in wrote]
