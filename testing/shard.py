@@ -1,24 +1,7 @@
 """`--shard K/N`: run only the K-th of N parts of the tests the run selected, so that N jobs run
 the suite side by side. `make check SHARD=K/N` passes it, and the check workflow's matrix runs
-the eight parts of its check and the four of its full run that way.
-
-The parts are split by time, so that they end together: a job's wall is its part's, and the check
-waits on its slowest part. `testing/shard-times.tsv` holds the seconds of each test that took
-`FLOOR` or more in a whole run of the suite, by `key`, a short sha256 of its node id: a node id
-can hold a placeholder in the shape of a private value, such as a thread id, which the push hook
-refuses, and the keys keep the table small. A test the table does not hold counts as `FLOOR`:
-half the suite takes less, and the table leaves those out to stay small, and a new test is most
-likely one of them.
-
-A part runs its tests on `WORKERS` workers at once, so it ends once its tests' summed time over
-`WORKERS` has passed, and never before its slowest test, which one worker runs alone. The
-selected tests are dealt out slowest first, each to the part it would end soonest in, and where
-it would end as soon in several, to the one with the fewest seconds so far. So a test longer than
-the others' share of a part, as the merge flow's TLC test is when TLC runs (its cold time is its
-row), gets a part of its own, and tests that move no part's end spread over the parts by their
-seconds, and do not pile onto the part whose slowest test leaves its workers room.
-`WORKERS` is the Makefile's TEST_WORKERS in CI, one for each of the 4 cores of GitHub's hosted
-runner: a constant, not this machine's count, so every job deals the same parts.
+the four parts of its full run that way. The split by time and its tables are
+`testing/split.py`'s.
 
 The split reads only the selected tests' node ids and the table, so every xdist worker and every
 job works out the same parts for the same selection, and each test is in exactly one part. The
@@ -28,20 +11,18 @@ empty. A selection with no tests at all fails in every part, as it fails whole: 
 controller sets the exit status and never collects, so each worker tells it whether the
 selection had tests. `testing/tests/test_shards.py` holds the parts to the whole collection.
 
-`--shard-record PATH` writes the table from a run: `uv run pytest -n 4 -m "not browser"
---shard-record testing/shard-times.tsv` after tests are added or grow slow. A test whose time on
-this machine is not its time in CI, as the merge flow's TLC test runs in well under a second
-where its cache holds the runs, pins its CI seconds with `@pytest.mark.shard_seconds(S)`, and the
-record writes S for it in place of the time it took."""
+`--shard-record PATH` writes the table from a run, and the file table beside it:
+`uv run pytest -n 4 -m "not browser" --shard-record testing/shard-times.tsv` after tests are
+added or grow slow. A test whose time on this machine is not its time in CI, as the merge flow's
+TLC test runs in well under a second where its cache holds the runs, pins its CI seconds with
+`@pytest.mark.shard_seconds(S)`, and the record writes S for it in place of the time it took, in
+both tables."""
 
-import hashlib
 from pathlib import Path
 
 import pytest
 
-TIMES = Path(__file__).with_name("shard-times.tsv")
-FLOOR = 0.1
-WORKERS = 4
+from testing.split import FILE_TIMES, FLOOR, TIMES, file_table, key, read_times, split
 
 
 def pytest_addoption(parser):
@@ -59,58 +40,9 @@ def pytest_addoption(parser):
     parser.addoption(
         "--shard-record",
         metavar="PATH",
-        help="write the seconds of each test in this run that took 0.1 s or more to PATH",
+        help="write the seconds of each test in this run that took 0.1 s or more to PATH, and"
+        " each test file's to shard-file-times.tsv beside it",
     )
-
-
-def key(nodeid: str) -> str:
-    """The test's key in the table: the first 16 hex digits of the sha256 of its node id."""
-    return hashlib.sha256(nodeid.encode()).hexdigest()[:16]
-
-
-def read_times(path: Path) -> dict[str, float]:
-    """The table's seconds by key: a line is the seconds, a tab, and the key. With no table every
-    test counts as `FLOOR`, so the parts split by count."""
-    if not path.exists():
-        return {}
-    times = {}
-    for line in path.read_text().splitlines():
-        seconds, _, test = line.partition("\t")
-        times[test] = float(seconds)
-    return times
-
-
-def seconds(times: dict[str, float], nodeid: str) -> float:
-    """The test's seconds in the table, or `FLOOR` for a test it does not hold."""
-    return times.get(key(nodeid), FLOOR)
-
-
-def split(
-    items: list[str], times: dict[str, float], parts: int, slowest: dict[str, float] | None = None
-) -> list[list[str]]:
-    """The items of each part, dealt slowest first to the part each would end soonest in, and of
-    those to the one with the fewest seconds so far: a part ends at its items' summed seconds over
-    `WORKERS`, and never before its slowest test. An item is a test, or a file of tests whose
-    slowest test's seconds `slowest` gives."""
-    slowest = slowest or {}
-    summed = [0.0] * parts
-    longest = [0.0] * parts
-    dealt: list[list[str]] = [[] for _ in range(parts)]
-    for item in sorted(items, key=lambda one: (-seconds(times, one), one)):
-        took = seconds(times, item)
-        slow = slowest.get(item, took)
-        at = min(
-            range(parts),
-            key=lambda one: (
-                max(longest[one], slow, (summed[one] + took) / WORKERS),
-                summed[one],
-                one,
-            ),
-        )
-        dealt[at].append(item)
-        summed[at] += took
-        longest[at] = max(longest[at], slow)
-    return dealt
 
 
 def shard(config) -> tuple[int, int] | None:
@@ -156,9 +88,10 @@ PINNED = "shard_seconds"
 
 class Record:
     """Each test's setup, call and teardown, summed, written to the table at the end where it is
-    `FLOOR` or more, or the seconds its `shard_seconds` marker pins in their place. It runs where
-    the reports end up: under xdist on the controller, which hears every worker's, and a report
-    carries the pin there in its user properties."""
+    `FLOOR` or more, or the seconds its `shard_seconds` marker pins in their place, and each test
+    file's to the file table beside it. It runs where the reports end up: under xdist on the
+    controller, which hears every worker's, and a report carries the pin there in its user
+    properties."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -172,15 +105,15 @@ class Record:
                 self.pinned[report.nodeid] = value
 
     def pytest_sessionfinish(self):
+        took = {test: self.pinned.get(test, spent) for test, spent in self.seconds.items()}
         self.path.write_text(
             "".join(
-                f"{took:.2f}\t{test}\n"
-                for test, took in sorted(
-                    (key(test), self.pinned.get(test, took)) for test, took in self.seconds.items()
-                )
-                if took >= FLOOR
+                f"{spent:.2f}\t{test}\n"
+                for test, spent in sorted((key(test), spent) for test, spent in took.items())
+                if spent >= FLOOR
             )
         )
+        self.path.with_name(FILE_TIMES.name).write_text(file_table(took))
 
 
 def pytest_configure(config):

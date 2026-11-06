@@ -1290,17 +1290,18 @@ def test_a_path_that_forces_all_says_all_to_the_steps_outputs(repo, tmp_path):
 
 
 def timed(seconds):
-    """A times table, as `testing/shard.py` reads it, of these seconds by node id."""
-    from testing import shard
+    """A file table, as `testing/split.py` writes and reads it, of these tests' seconds by node
+    id."""
+    from testing import split
 
-    return "".join(f"{took:.2f}\t{shard.key(test)}\n" for test, took in seconds.items())
+    return split.file_table(seconds)
 
 
 PARTED = {
     "conftest.py": "",
     "testing/__init__.py": "",
-    "testing/shard.py": (REPO / "testing" / "shard.py").read_text(),
-    "testing/shard-times.tsv": timed(
+    "testing/split.py": (REPO / "testing" / "split.py").read_text(),
+    "testing/shard-file-times.tsv": timed(
         {
             "testing/tests/test_slow.py::test_slow": 10,
             "testing/tests/test_two.py::test_one": 3,
@@ -1314,13 +1315,13 @@ PARTED = {
 
 
 def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
-    """`--parts <count>` over a change to these test files, run as the job `select` runs it, with
-    the venv's python: what it printed, its summary, and what it gave the step's outputs."""
+    """`--parts <count>` over a change to these test files, run as the job `reuse` runs it, with
+    no pytest at hand: what it printed, its summary, and what it gave the step's outputs."""
     repo = Repo(tmp_path / "repo", files=dict(files))
     head = repo.change([*(f"testing/tests/test_{name}.py" for name in changed), OUTSIDE])
     summary, output = tmp_path / "summary.md", tmp_path / "output"
     ran = subprocess.run(
-        [sys.executable, repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
+        [sys.executable, "-S", repo.root / "scripts" / "select_tests.py", "--parts", str(count)]
         + [repo.base, head],
         cwd=repo.root,
         capture_output=True,
@@ -1341,8 +1342,9 @@ def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
 
 
 def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
-    """The selection is collected once and its files dealt out whole, slowest first, to the part
-    with the least time so far, so a part collects only its own files. A part the selection left
+    """The selection's files are dealt out whole by the file table, with no collection, slowest
+    first, to the part with the least time so far, so a part collects only its own files. A file
+    the table does not hold counts `FLOOR` for each test it defines. A part the selection left
     empty gets `none`, which the check's part passes on."""
     ran, summary, given = parted(tmp_path, 4)
 
@@ -1356,7 +1358,7 @@ def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
         "part3": "testing/tests/test_tree.py",
         "part4": "none",
     }
-    assert "parts: 4 of 4 tests in 3 files, 0 0 6 10 s of test time each" in summary
+    assert "parts: 4 of 3 files, 0 0 6 10 s of test time each" in summary
     assert ran.stdout.splitlines()[-4:] == [
         "part 1: testing/tests/test_slow.py",
         "part 2: testing/tests/test_two.py",
@@ -1378,21 +1380,8 @@ def test_every_selected_file_is_in_exactly_one_part(tmp_path):
     }
 
 
-def test_a_selection_that_collects_no_test_fails_and_gives_no_part(tmp_path):
-    """No part gets a selection, and the check's parts each fail on that, as a selection with no
-    tests failed every part before."""
-    files = {
-        name: "" if name.startswith("testing/tests/") else text for name, text in PARTED.items()
-    }
-    ran, _, given = parted(tmp_path, 8, files=files)
-
-    assert ran.returncode != 0
-    assert "the selection holds no test" in ran.stderr
-    assert [key for key in given if key.startswith("part")] == []
-
-
 def test_the_selections_list_names_the_part_that_runs_each_file(tmp_path):
-    """The job `select` keeps each part's selection: every file with why and its part."""
+    """The job `reuse` keeps each part's selection: every file with why and its part."""
     ran, summary, _ = parted(tmp_path, 2)
 
     assert ran.returncode == 0, ran.stderr
@@ -1415,7 +1404,7 @@ def test_an_all_dealt_to_parts_lists_every_file_with_its_part():
     ]
 
 
-def test_the_deal_of_no_tests_fails():
+def test_the_deal_of_no_test_file_fails():
     with pytest.raises(SystemExit, match="holds no test"):
         select.dealt([], {}, 8)
 
@@ -1424,13 +1413,14 @@ def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_qui
     """Files are dealt whole, and a part never ends before the slowest test of its files: a file
     of one 60 s test gets a part to itself, and a file of 60 tests of 1 s, as long in all, shares
     one, since its tests spread over the part's workers."""
-    from testing import shard
+    from testing import split
 
     serial = ["a/test_serial.py::test_long"]
     spread = [f"a/test_spread.py::test_{n}" for n in range(60)]
     rest = [f"a/test_{n}.py::test_one" for n in range(200)]
-    times = {shard.key(serial[0]): 60} | {shard.key(test): 1 for test in spread + rest}
-    parts, _ = select.dealt(serial + spread + rest, times, 4)
+    took = {serial[0]: 60} | dict.fromkeys(spread + rest, 1)
+    files = split.by_file(took)
+    parts, _ = select.dealt(sorted(files), files, 4)
     assert ["a/test_serial.py"] in parts
     (spreads,) = [part for part in parts if "a/test_spread.py" in part]
     assert len(spreads) > 1
