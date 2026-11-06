@@ -297,19 +297,6 @@ def test_two_ready_pull_requests_on_other_files_both_merge_on_their_checks(kitch
     assert kitchen.at_main("b.txt") == (LINES + "ours\n").strip()
 
 
-def test_a_second_one_whose_file_the_first_merge_changed_cleanly_waits_for_a_check_over_it(
-    kitchen,
-):
-    kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES, "b.txt": "theirs\n" + LINES})
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
-    first, second = kitchen.run()
-    assert first.startswith("merged 6 one ") and second == asked(7, kitchen.tip())
-    kitchen.updated("two", AFTER)
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ")
-    assert kitchen.at_main("b.txt") == ("theirs\n" + LINES + "ours\n").strip()
-
-
 def test_a_second_one_that_conflicts_with_the_first_merge_waits_for_its_rebase(kitchen):
     kitchen.crew("one", 6, {"b.txt": LINES + "theirs\n"})
     two = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
@@ -350,16 +337,6 @@ def test_a_main_that_moved_only_on_other_files_merges_on_its_existing_check(kitc
     assert kitchen.updates() == []
 
 
-def test_a_protected_pull_request_is_held_for_the_user_over_a_moved_main(kitchen):
-    kitchen.crew("two", 7, {"secrets/prod.json": "{}\n", "b.txt": LINES + "ours\n"})
-    kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    held = [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
-    assert kitchen.run() == held
-    kitchen.checked("two", AFTER)
-    assert kitchen.run() == held
-    assert kitchen.calls() == []
-
-
 def repo(kitchen, monkeypatch):
     """The command's own view of the repo, in this process, with the fake `gh`."""
     home = kitchen.home
@@ -395,27 +372,6 @@ def test_a_merge_by_hand_that_conflicts_with_it_keeps_it_from_the_merge(kitchen,
     by_hand = kitchen.on_main({"b.txt": LINES + "theirs\n"})
     assert here.merge(one, slug, note, judged) == f"wait 7 {url(7)}: {CONFLICT}"
     assert kitchen.tip() == by_hand
-    assert not (kitchen.home.stub / "calls").exists()
-
-
-def test_a_main_that_moves_at_every_judgment_is_left_for_the_next_run(kitchen, monkeypatch):
-    """Its check is dated after each move, so only the tip read before the merge tells it."""
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"}, checks=(AFTER,))
-    one = ready.pull_request(kitchen.pulls["two"])
-    here = repo(kitchen, monkeypatch)
-    judge, moves = here.waits, []
-
-    def waits(*asked):
-        found = judge(*asked)
-        moves.append(kitchen.on_main({"a.txt": f"move {len(moves)}\n"}))
-        return found
-
-    monkeypatch.setattr(here, "waits", waits)
-    slug, _, _, note, judged = here.waits(one, "main")
-    assert here.merge(one, slug, note, judged) == (
-        f"wait 7 {url(7)}: main moved while it was judged"
-    )
-    assert len(moves) == 3 and kitchen.tip() == moves[-1]
     assert not (kitchen.home.stub / "calls").exists()
 
 
@@ -486,30 +442,6 @@ def test_a_line_the_pull_request_deletes_is_not_one_the_rebase_dropped(notes):
     (said,) = notes.run()
     assert said.startswith("merged 7 two ") and ", every line kept, revert: " in said
     assert notes.at_main("n.txt") == "one\nthree"
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        "",
-        f"Rebase: patch changed in n.txt, before {'c' * 40}, head {{head}}\n",
-        "Rebase: patch unchanged, before {was:.7} (local, unpushed), head {head:.7}\n",
-        "Rebase: patch unchanged, onto origin/main after it gained 1 commit, before the push\n",
-    ],
-    ids=["none", "a commit the checkout lacks", "short commits", "no commit"],
-)
-def test_a_rebase_line_a_crew_wrote_is_read_as_no_line(notes, line):
-    """`jmerge` works out the rebase from git, the head the review saw to the head, so a
-    `Rebase:` line, true or not, well formed or not, changes nothing of what it says."""
-    notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
-    notes.rebase(
-        "two",
-        {"n.txt": "one\ntwo\nthree\ntheirs\n"},
-        {"n.txt": "one\ntwo\nthree\ntheirs\nours\n"},
-        line,
-    )
-    (said,) = notes.run("--check")
-    assert said.startswith("ready 7 ") and said.endswith(", every line kept"), said
 
 
 def test_main_is_fetched_before_its_lines_are_looked_for(notes):

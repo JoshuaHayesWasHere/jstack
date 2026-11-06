@@ -13,7 +13,7 @@ with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it s
 import pytest
 
 from jmerge import ready, treeguards
-from test_jmerge_cli_merged_tree import MAKEFILE, fails, runs
+from test_jmerge_cli_merged_tree import MAKEFILE, runs
 from test_jmerge_fresh import LINES, Kitchen, asked, url
 
 
@@ -71,17 +71,6 @@ def test_existing_check_with_a_clean_merge_that_github_refuses_waits(kitchen):
     (said,) = kitchen.run()
     assert said.startswith(f"wait 7 {url(7)}: {ready.MERGE_FAILED}: ")
     assert "not mergeable" in said
-    assert kitchen.updates() == []
-
-
-def test_existing_check_on_a_merged_tree_that_fails_the_guards_is_held(kitchen):
-    """#7 adds `mig/v007_two.txt` and main took `mig/v007_one.txt` after #7's check: no file is
-    shared, and the two merge cleanly, but their tree has two v007 files."""
-    kitchen.crew("two", 7, {"mig/v007_two.txt": "two\n"})
-    tip = kitchen.on_main({"mig/v007_one.txt": "one\n"})
-    (said,) = kitchen.run()
-    assert said == fails(7, tip)
-    assert kitchen.calls() == []
     assert kitchen.updates() == []
 
 

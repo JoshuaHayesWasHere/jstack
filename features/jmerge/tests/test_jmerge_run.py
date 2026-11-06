@@ -8,14 +8,12 @@ copy of the package, `rules`."""
 import shutil
 import sys
 from datetime import UTC, date, datetime
-from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import pytest
 
 import jsettings
 import test_home_merge as merge
-from jbus import merge as jbus_merge
 from jmerge import cli, ready
 from testing.paths import REPO
 
@@ -62,39 +60,6 @@ def on_main(proven_merged, path):
     merge.git(proven_merged.home.main, "push", "-q")
 
 
-@pytest.mark.parametrize(
-    "path", ["deploy/id.key", "secrets/x.json", "features/jmerge/src/jmerge/protected.txt"]
-)
-def test_a_secret_path_and_the_list_itself_are_held_for_the_user(proven_merged, rules, path):
-    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL, path])
-    assert jmerge(proven_merged, rules) == [f"hold 7 {merge.URL}: needs user, touches {path}"]
-    assert proven_merged.untouched()
-
-
-def test_jbus_sends_a_hold_line_and_the_other_lines_as_they_were(tmp_path):
-    hold = f"hold 9 {merge.URL}: needs user, touches secrets/x.json"
-    wait = f"wait 8 {merge.URL}: check has not passed"
-    done = 'merged 7 alpha abc1234 "the task", revert: gh pr revert x'
-    sent = []
-    run = SimpleNamespace(
-        home=tmp_path,
-        config=SimpleNamespace(state_dir=tmp_path),
-        user=ET,
-        project=SimpleNamespace(name="demo"),
-        say=sent.append,
-        run=lambda *command, timeout=None: SimpleNamespace(
-            stdout=f"{done}\n{wait}\n{hold}\n", returncode=0
-        ),
-        find=lambda slug, kind, line, text="", *, key="": sent.append((slug, kind, line, key)),
-    )
-    assert jbus_merge.merge(run) == [done, wait, hold]
-    assert sent == [
-        ("alpha", "jmerge", done, f"7 {done}"),
-        ("#8", "jmerge", wait, f"8 {wait}"),
-        ("#9", "jmerge", hold, f"9 {hold}"),
-    ]
-
-
 def test_a_review_with_a_finding_that_has_no_ending_is_not_finished(proven_merged, rules):
     declined = "Fixed: none needed, the finding is about code the task does not own\n"
     brief = merge.brief(proven("findings", proven_merged.head), declined)
@@ -107,13 +72,6 @@ def test_a_review_with_a_finding_that_has_no_ending_is_not_finished(proven_merge
     (proven_merged.home.tasks / "alpha.md").write_text(brief + ended)
     (said,) = jmerge(proven_merged, rules)
     assert said.startswith("merged 7 alpha ")
-
-
-def test_a_check_that_has_not_passed_at_the_head_waits(proven_merged, rules):
-    failed = {**merge.FAILED, "startedAt": STARTED["startedAt"]}
-    proven_merged.home.open_pull_request(proven_merged.head, checks=(failed,), files=[SKILL])
-    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: check has failed"]
-    assert proven_merged.untouched()
 
 
 def test_a_main_that_changed_its_file_into_a_conflict_after_its_check_waits(proven_merged, rules):

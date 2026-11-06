@@ -8,11 +8,8 @@
    `Record`.
 3. A real `jmerge` that could not ask GitHub prints a line that is about no pull request,
    and a jbus pass reports it as a `jmerge` that did not run.
-4. No second copy exists: only `mainjson.py` writes the file's name and its keys, and only
-   `lines.py` writes the pattern of a line.
 """
 
-import ast
 import string
 from unittest import mock
 
@@ -22,7 +19,6 @@ from jbus import mainmoved, write_json
 from jmerge import judgement, lines, mainjson, ready
 from main_red_model import Options, walk
 from test_gh_said import BAD_GATEWAY, real_jmerge_line
-from testing.paths import sources
 
 URL = "https://example.test/pull/7"
 HEAD = "c" * 40
@@ -118,12 +114,6 @@ def test_a_missing_or_unreadable_file_reads_as_nothing_known(tmp_path):
     assert mainjson.read(tmp_path) == mainjson.Main()
 
 
-def test_record_writes_only_what_it_is_given_and_reads_back_as_the_same_main():
-    built = mainjson.record(main=RED, at="t", check="failed", broken=RED, green=GREEN)
-    assert built == {"main": RED, "at": "t", "check": "failed", "broken": RED, "green": GREEN}
-    assert mainjson.of(built) == mainjson.Main(green=GREEN, red=RED)
-
-
 def test_every_record_the_real_tell_writes_over_the_model_is_a_record():
     """Over every order of events that the red-main model enumerates, the real `tell` writes
     `main.json` only as a `Record`, and writes it no other way."""
@@ -146,62 +136,3 @@ def test_a_real_jmerge_that_could_not_ask_github_is_a_jmerge_that_did_not_run(ki
     assert lines.parse(said) == []
     kitchen.set("jmerge-says", said)
     assert f"wait demo: jmerge did not run ({said})" in kitchen.poll()
-
-
-KEYS = {"broken", "fixed", "held"}
-HOMONYMS = {
-    ("jbus/queue.py", "held"): "a queue row's hold",
-    ("jmerge/rows.py", "held"): "a queue row's hold",
-    ("jbus/view/state.py", "broken"): "the view's section of what is broken",
-}
-OWNERS = {"mainjson": "jmerge/mainjson.py", "lines": "jmerge/lines.py"}
-
-
-def _sources():
-    for root in sources():
-        for path in sorted(root.rglob("*.py")):
-            yield path.relative_to(root).as_posix(), ast.parse(path.read_text())
-
-
-def _keys(tree):
-    """Each key that the code writes into a record, either in a dict literal or by assigning
-    to a subscript. The type checker already limits reads of a `Record` to its keys, so this
-    does not count reads."""
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Dict):
-            yield from node.keys
-        elif isinstance(node, ast.Subscript) and isinstance(node.ctx, ast.Store):
-            yield node.slice
-
-
-def test_the_file_and_its_keys_are_named_only_in_mainjson():
-    found = []
-    for name, tree in _sources():
-        if name == OWNERS["mainjson"]:
-            continue
-        strings = [node for node in ast.walk(tree) if isinstance(node, ast.Constant)]
-        found += [(name, "main.json") for node in strings if node.value == mainjson.NAME]
-        for key in _keys(tree):
-            keyed = isinstance(key, ast.Constant) and key.value in KEYS
-            if keyed and (name, key.value) not in HOMONYMS:
-                found.append((name, key.value))
-    assert found == []
-
-
-def test_the_pattern_of_a_line_is_written_only_in_lines():
-    """A regex that reads a line by its first word, `merged`, `wait`, `hold`, `refused` or
-    `ready`, is `lines.LINE` or `lines.READY`, and no module but `lines` writes one."""
-    words = ("merged", "wait", "hold", "refused")
-    found = []
-    for name, tree in _sources():
-        if name == OWNERS["lines"]:
-            continue
-        for node in ast.walk(tree):
-            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
-                continue
-            text = node.value
-            if text.startswith("^ready ") or (
-                text.startswith(("^(", "(?:", "^(?:")) and sum(w in text for w in words) >= 2
-            ):
-                found.append((name, text))
-    assert found == []

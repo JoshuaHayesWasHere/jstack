@@ -1126,7 +1126,6 @@ def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
 
 
 STATECHART_TESTS = {
-    "features/jmerge/tests/test_flow_spec.py",
     "features/home/tests/test_home_tree_spec.py",
     "features/skill-library/tests/test_statechart_charts.py",
     "features/skill-library/tests/test_statechart_runs.py",

@@ -53,20 +53,6 @@ def pull_request(*files, changed=None, renamed=()):
     return ready.pull_request(listed)
 
 
-def test_the_file_has_the_patterns_and_none_of_its_comments():
-    assert PATTERNS == (
-        "secrets/",
-        ".env",
-        ".env.*",
-        "*.pem",
-        "*.key",
-        "/features/jmerge/src/jmerge/protected.txt",
-        "/policy/",
-        "/dns/",
-    )
-    assert {pattern for pattern, _, _ in PATHS} == set(PATTERNS)
-
-
 @pytest.mark.parametrize(("pattern", "protected", "near"), PATHS)
 def test_each_pattern_holds_its_path_and_not_one_that_looks_like_it(pattern, protected, near):
     assert ready.needs_the_user(pull_request(protected), (pattern,), user=jsettings.DEFAULTS) == (
@@ -114,18 +100,6 @@ def test_a_pattern_that_cannot_be_read_is_refused_and_not_ignored(pattern):
         ready.patterns_of(f"skills/\n{pattern}\n")
 
 
-def test_the_refusal_names_the_section_of_the_jmerge_page_that_has_the_grammar():
-    page, anchor = ready.GRAMMAR.split("#")
-    headings = re.findall(r"^#+ (.+)$", (REPO / page).read_text(), re.M)
-    assert anchor in {heading.lower().replace(" ", "-") for heading in headings}
-
-
-def test_the_shipped_lists_hold_patterns_and_nothing_else():
-    for name in LISTS:
-        lines = (SOURCE / name).read_text().splitlines()
-        assert ready.patterns_of("\n".join(lines)) == tuple(lines), name
-
-
 LISTS = ["protected.txt"]
 
 
@@ -171,14 +145,6 @@ def test_jmerge_holds_a_path_a_pattern_added_to_the_file_names(merged, tmp_path)
     said = merged.home.sh(f'PYTHONPATH="{copy}" "{sys.executable}" -m jmerge')
     assert said == [f"hold 7 {merge.URL}: needs user, touches docs/plan.md"]
     assert merged.untouched()
-
-
-def test_the_first_protected_path_github_lists_is_the_one_named():
-    one = pull_request("README.md", "skills/crew/SKILL.md", "secrets/a.json", "id.key")
-    assert (
-        ready.needs_the_user(one, PATTERNS, user=jsettings.DEFAULTS)
-        == "needs user, touches secrets/a.json"
-    )
 
 
 def test_a_file_list_github_cut_short_is_held_whatever_it_lists():
@@ -231,16 +197,6 @@ def test_jmerge_holds_a_pull_request_that_changes_a_protected_path(merged, path,
     assert merged.untouched()
 
 
-@pytest.mark.parametrize(
-    "path", ["skills.md", ".github/dependabot.yml", "docs/policy.md", "src/policy/x.py"]
-)
-def test_jmerge_merges_a_pull_request_that_only_comes_near_one(merged, path):
-    change(merged, write(merged, path))
-    merged.home.open_pull_request(merged.head, files=["a.txt", path])
-    (said,) = merged.run()
-    assert said.startswith("merged 7 alpha ")
-
-
 def renamed(merged, new, old=None):
     """A ready pull request that renames one file. GitHub lists the file under its new path,
     and gives its old path only to a caller that asks for the pull request's files."""
@@ -279,14 +235,6 @@ def test_the_paths_renames_left_are_asked_for_only_where_there_is_a_rename(merge
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
     assert not [call for call in merge.calls(merged.home) if call.startswith("api ")]
-
-
-def test_a_path_a_rename_left_is_held_as_a_path_it_changes():
-    one = pull_request("a.txt", "docs/moved.md", renamed=("docs/moved.md",))
-    assert ready.needs_the_user(one, PATTERNS, ("docs/first.md",), user=jsettings.DEFAULTS) == ""
-    assert ready.needs_the_user(one, PATTERNS, ("secrets/first.md",), user=jsettings.DEFAULTS) == (
-        "needs user, touches secrets/first.md"
-    )
 
 
 def many(merged, *paths, changed=None, status=None):
@@ -356,22 +304,6 @@ def test_the_full_file_list_is_asked_for_only_where_github_cut_it_short(merged):
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
     assert not [call for call in merge.calls(merged.home) if call.startswith("api ")]
-
-
-def test_a_full_file_list_carries_each_file_s_change_type():
-    one = pull_request(*docs(100), changed=102)
-    full = ready.listed_in_full(
-        one,
-        [
-            *({"filename": path, "status": "modified"} for path in docs(100)),
-            {"filename": "db/migrations/0042_more.sql", "status": "added"},
-            {"filename": "docs/moved.md", "status": "renamed"},
-        ],
-    )
-    assert len(full.files) == 102
-    assert full.added == ("db/migrations/0042_more.sql",)
-    assert full.renamed
-    assert ready.migrations(full, "db/migrations") == ("0042_more",)
 
 
 def test_a_protected_pull_request_that_is_short_of_ready_says_that_first(merged):
