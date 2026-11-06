@@ -19,7 +19,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
    ```sh
    name=<a name a user would give the project>
    skeleton=<the set's directory>
-   key=${key:-$(mktemp -d)/key.tsv}
+   key=${key:-$(mktemp -d "${TMPDIR:-/tmp}/$name-key.XXXXXX")/key.tsv}
    for model in <each model on the brief's Candidates line>; do
        d=$(mktemp -d "${TMPDIR:-/tmp}/$name.XXXXXX")
        cp -R "$skeleton/." "$d"

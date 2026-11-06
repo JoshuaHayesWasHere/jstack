@@ -17,8 +17,8 @@
   B="$H/tasks/<slug>.md"
   head=$(git rev-parse HEAD)
   clean=$(git status --porcelain)
-  out=$(mktemp)
-  code=$(mktemp)
+  out=$(mktemp "${TMPDIR:-/tmp}/out.XXXXXX")
+  code=$(mktemp "${TMPDIR:-/tmp}/code.XXXXXX")
   {
   if [ -f scripts/select_tests.py ]; then
       on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
@@ -128,7 +128,7 @@
   else
       kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
       exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
-      tree=$(mktemp -d)
+      tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")
       if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
           only=
           sides='head base'
