@@ -368,6 +368,12 @@ def of_tests(path):
     return bool(TESTS.match(path)) or path.startswith(SHARED)
 
 
+@cache
+def ours():
+    """The modules of the tests' own (`of_tests`), by name."""
+    return frozenset(name for name, path in modules().items() if of_tests(path))
+
+
 def plumbing(path):
     """Whether a path is of `testing/`, the package every test loads, and not of the repo's own
     tests under it."""
@@ -863,7 +869,7 @@ def reached(name):
     todo, seen = [name], set()
     while todo:
         one = todo.pop()
-        if one not in seen and of_tests(modules()[one]):
+        if one not in seen and one in ours():
             seen.add(one)
             todo += edges()[one]
     return frozenset(seen)
@@ -962,7 +968,7 @@ def uses(at):
             todo += [(module, ask) for module in givers(one[0]) if ask in defined(module)][:1]
         for dot in through:
             module, _, member = dot.rpartition(".")
-            if of_tests(modules().get(module, "")):
+            if module in ours():
                 todo.append((module, member))
     return frozenset(words), frozenset(dots)
 
