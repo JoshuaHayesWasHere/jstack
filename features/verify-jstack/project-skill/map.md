@@ -143,7 +143,6 @@ Cross-cutting:
 - `features/repo-guards/tests/test_readme_current.py`
 - `features/jgauge/tests/test_room.py`
 - `features/repo-guards/tests/test_run_not_read.py`
-- `testing/tests/test_select_tests.py`
 - `testing/tests/test_select_tests_rules.py`
 - `features/repo-guards/tests/test_skill_args.py`
 - `features/repo-guards/tests/test_skill_frontmatter.py`
