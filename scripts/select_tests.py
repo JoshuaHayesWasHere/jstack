@@ -146,10 +146,13 @@ every test imports the CLI of a feature, so through any other module a change wo
 the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
 cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
 changed path is one every test depends on, or the list itself. It writes nothing to the
-summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a name
-reaches a test only from a changed path of the tests or one that names Darwin, as an import does,
-and a feature's paths reach none of its tests. A pull request's macOS job selects so, and the
-run on each merge commit into main runs the whole `--within`.
+summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a
+module counts only where the diff's lines, in its base or its head, fall in a function that asks
+for Darwin in code (`sys.platform`, `platform.system`, the string `darwin`, a name such as
+`on_darwin`), not in a docstring or a comment; a file that is no Python counts where its text
+names Darwin. A name reaches a test only from a changed path of the tests or one that counts, as
+an import does, and a feature's paths reach none of its tests. A pull request's macOS job
+selects so, and the run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days runs on each pull request's check, whatever
 the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
@@ -236,6 +239,7 @@ EVERYTHING = (
 )
 BACKTICKED = re.compile(r"`([^`]+)`")
 DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
+HUNK = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
@@ -1344,22 +1348,135 @@ def told(tests, why, failed):
 
 def on_a_mac(path):
     """Whether a change to this path can run differently on a Mac: a path of the tests, or a
-    file whose text names Darwin."""
+    file whose text names Darwin. The run on each merge commit selects so."""
     file = ROOT / path
     return (
         of_tests(path) or file.is_file() and bool(DARWIN.search(file.read_text(errors="replace")))
     )
 
 
-def within(entries, changed, listed, strict=False):
+def names_darwin(node):
+    """Whether an AST node is code that asks for Darwin: `sys.platform`, `platform.system`, the
+    string `darwin` itself, or a name that spells it, such as `on_darwin`. A docstring or a
+    comment is none of these."""
+    match node:
+        case ast.Attribute(attr="platform", value=ast.Name(id="sys")):
+            return True
+        case ast.Attribute(attr="system", value=ast.Name(id="platform")):
+            return True
+        case ast.Constant(value="darwin" | "Darwin"):
+            return True
+        case ast.Name(id=name) | ast.Attribute(attr=name):
+            return "darwin" in name or "Darwin" in name
+        case ast.FunctionDef(name=name) | ast.AsyncFunctionDef(name=name):
+            return "darwin" in name or "Darwin" in name
+    return False
+
+
+def darwin_spans(text):
+    """The first and last line of each piece of a module's code that branches on Darwin: the
+    innermost function that asks for Darwin, or, outside any function, the top-level statement
+    that does. `None` where the text is no Python."""
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return None
+    spans = set()
+
+    def walk(node, span):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            first = min([node.lineno, *(one.lineno for one in node.decorator_list)])
+            span = (first, node.end_lineno)
+        if names_darwin(node):
+            spans.add(span)
+        for child in ast.iter_child_nodes(node):
+            walk(child, span)
+
+    for statement in tree.body:
+        walk(statement, (statement.lineno, statement.end_lineno))
+    return sorted(spans)
+
+
+def branches_on_darwin(path, edit=None):
+    """Whether a change to a module runs code that branches on Darwin: a line `edit` touched,
+    before or after, falls in one of `darwin_spans`. Without an `edit` the whole file counts as
+    changed. A file that is no Python counts when its text names Darwin."""
+    sides = [(None, (ROOT / path).read_text(errors="replace"))] if edit is None else edit
+    for lines, text in sides:
+        if text is None:
+            continue
+        spans = darwin_spans(text) if path.endswith(".py") else None
+        if spans is None:
+            if DARWIN.search(text):
+                return True
+        elif any(lines is None or any(a <= one <= b for one in lines) for a, b in spans):
+            return True
+    return False
+
+
+def edits(base, head, changed):
+    """For each changed path, its two sides: the lines the diff touched in `base`'s text and
+    that text, then the same of `head`. A side with no file has no text. Where a hunk only adds
+    or only drops lines, the lines on each side of where it did count as touched. A path the
+    diff shows no hunk header for, such as one git quotes, is left out, so all of it counts."""
+    diff = subprocess.run(
+        ["git", "diff", "-U0", "--no-renames", base, head],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if diff.returncode:
+        raise Unread(f"git diff -U0 failed: {diff.stderr.strip()}")
+    touched, seen = {path: (set(), set()) for path in changed}, set()
+    path, header = None, False
+    for line in diff.stdout.splitlines():
+        if line.startswith("diff --git "):
+            path, header = None, True
+        elif header and line.startswith(("+++ b/", "--- a/")):
+            path = line[6:] if line[6:] in touched else path
+            seen |= {path} - {None}
+        elif hunk := HUNK.match(line):
+            header = False
+            sides = (hunk.group(1, 2), hunk.group(3, 4))
+            for side, (start, count) in zip(touched.get(path, ()), sides, strict=False):
+                start, count = int(start), 1 if count is None else int(count)
+                side |= set(range(start, start + count)) if count else {start, start + 1}
+
+    def text(commit, path):
+        shown = subprocess.run(
+            ["git", "show", f"{commit}:{path}"], cwd=ROOT, capture_output=True, text=True
+        )
+        return shown.stdout if shown.returncode == 0 else None
+
+    return {
+        path: [(old, text(base, path)), (new, text(head, path))]
+        for path, (old, new) in touched.items()
+        if path in seen
+    }
+
+
+def within(entries, changed, listed, strict=False, edited=None):
     """The test files of a list's `entries` the changed paths reach on a Mac, sorted, or
     `["all"]`. `listed` is the list's own path. With `strict`, only a changed path of the tests
-    or one that names Darwin reaches a test, by an import or by its name, and a feature's paths
-    reach none of its listed tests: what a pull request's macos job runs, a part of what the run
-    on each merge commit runs."""
+    or a change to code that branches on Darwin (`branches_on_darwin`, with `edited`'s sides of
+    each path) reaches a test, by an import or by its name, and a feature's paths reach none of
+    its listed tests: what a pull request's macos job runs, a part of what the run on each merge
+    commit runs."""
     if listed in changed:
         return ["all"]
-    tests, _ = ruled(changed, on_a_mac, cross=False, strict=strict)
+    edited = edited or {}
+
+    @cache
+    def follows(path):
+        if not strict:
+            return on_a_mac(path)
+        return (
+            of_tests(path)
+            or (path in edited or (ROOT / path).is_file())
+            and (branches_on_darwin(path, edited.get(path)))
+        )
+
+    tests, _ = ruled(changed, follows, cross=False, strict=strict)
     if tests == ["all"]:
         return tests
     return [
@@ -1540,7 +1657,9 @@ def main(argv):
     if listed is not None:
         entries = (ROOT / listed).read_text().split()
         try:
-            tests = within(entries, changed, listed, strict)
+            tests = within(
+                entries, changed, listed, strict, edits(*argv, changed) if strict else None
+            )
         except Unread as error:
             print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
             tests = ["all"]
