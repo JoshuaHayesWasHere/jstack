@@ -1,16 +1,19 @@
-"""A pull request's check runs every test that failed on main in the last 30 days, whatever the
-selection picks: `scripts/select_tests.py --failed-on-main <days> <kept>` reads them from the logs
-of main's red check jobs, and `$FAILED_ON_MAIN` adds them to the selection.
+"""A pull request's check runs every test that failed on main in the last 30 days and that main
+has not passed since, whatever the selection picks: `scripts/select_tests.py --failed-on-main
+<days> <kept>` reads them from the logs of main's red check jobs, and `$FAILED_ON_MAIN` adds them
+to the selection.
 
 The lookup runs as CI runs it, `python3 -I -S`, against a stand-in for GitHub's REST API on a local
 port (`$GITHUB_API_URL`). The selection runs the script on this repo, as `make check-fast` does.
 
-`RUNS` are the push runs of check.yml on main, each with its latest attempt, conclusion and time.
-150 green pushes on one day fill a second page of that day, and 1100 more over the window pass
-the 1,000 results GitHub gives a filtered list (`SEARCHED`), so a lookup that lists the whole
-window at once is refused. `JOBS` are each run's jobs over every attempt, and `LOGS` what the
-red ones' logs say. Storage holds no log for job 14, as it holds none for some red jobs on
-GitHub."""
+`RUNS` are the push runs of check.yml on main, each with its latest attempt, conclusion and time,
+their ids rising with time as GitHub's do. Run 40 fails two tests and green run 50 passes them
+after; run 50's first attempt failed a third, which its rerun passed. Run 60, after the green,
+fails a fourth, and run 70 fails the third again. 150 cancelled pushes on one day fill a second
+page of that day, and 1100 more over the window pass the 1,000 results GitHub gives a filtered list
+(`SEARCHED`), so a lookup that lists the whole window at once is refused. `JOBS` are each run's
+jobs over every attempt, and `LOGS` what the red ones' logs say. Storage holds no log for job 64,
+as it holds none for some red jobs on GitHub."""
 
 import importlib.util
 import json
@@ -40,49 +43,55 @@ def log(*lines):
 
 
 RUNS = [
-    {"id": 1, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(2)},
-    {"id": 2, "run_attempt": 2, "conclusion": "success", "created_at": stamp(5)},
-    {"id": 3, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(45)},
+    {"id": 30, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(45)},
+    {"id": 40, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(20)},
+    {"id": 50, "run_attempt": 2, "conclusion": "success", "created_at": stamp(5)},
+    {"id": 60, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(2)},
+    {"id": 70, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(1)},
     *(
-        {"id": 100 + n, "run_attempt": 1, "conclusion": "success", "created_at": stamp(1)}
+        {"id": 100 + n, "run_attempt": 1, "conclusion": "cancelled", "created_at": stamp(1)}
         for n in range(150)
     ),
     *(
-        {"id": 1000 + n, "run_attempt": 1, "conclusion": "success", "created_at": stamp(n % 26)}
+        {"id": 1000 + n, "run_attempt": 1, "conclusion": "cancelled", "created_at": stamp(n % 26)}
         for n in range(1100)
     ),
-    {"id": 4, "run_attempt": 1, "conclusion": "failure", "created_at": stamp(20)},
 ]
 JOBS = {
-    1: [
-        {"id": 11, "conclusion": "failure", "run_attempt": 1},
-        {"id": 12, "conclusion": "success", "run_attempt": 1},
-        {"id": 13, "conclusion": "failure", "run_attempt": 1},
-        {"id": 14, "conclusion": "failure", "run_attempt": 1},
+    30: [{"id": 31, "conclusion": "failure", "run_attempt": 1}],
+    40: [{"id": 41, "conclusion": "failure", "run_attempt": 1}],
+    50: [
+        {"id": 51, "conclusion": "failure", "run_attempt": 1},
+        {"id": 52, "conclusion": "success", "run_attempt": 2},
     ],
-    2: [
-        {"id": 21, "conclusion": "failure", "run_attempt": 1},
-        {"id": 22, "conclusion": "success", "run_attempt": 2},
+    60: [
+        {"id": 61, "conclusion": "failure", "run_attempt": 1},
+        {"id": 62, "conclusion": "success", "run_attempt": 1},
+        {"id": 63, "conclusion": "failure", "run_attempt": 1},
+        {"id": 64, "conclusion": "failure", "run_attempt": 1},
     ],
-    3: [{"id": 31, "conclusion": "failure", "run_attempt": 1}],
-    4: [{"id": 41, "conclusion": "failure", "run_attempt": 1}],
+    70: [{"id": 71, "conclusion": "failure", "run_attempt": 1}],
 }
 LOGS = {
-    11: log(
+    31: log("FAILED features/old/tests/test_too_old.py::test_x - older than the window"),
+    41: log(
+        "ERROR features/jbus/tests/test_jbus_budget.py - ImportError while importing",
+        "FAILED features/jmerge/tests/test_flow_spec.py::test_x - Timeout",
+    ),
+    51: log("ERROR features/jgauge/tests/test_slot.py::test_wait - TimeoutError"),
+    61: log(
         "\x1b[31mFAILED\x1b[0m features/home/tests/test_home_tree_spec.py::test_spec[a] - assert 1",
         "FAILED features/home/tests/test_home_tree_spec.py::test_other - Timeout",
     ),
-    12: log("FAILED features/never/tests/test_green_job.py::test_x - a green job's log"),
-    13: log("##[error]Process completed with exit code 1.", "Found 6 errors."),
-    21: log("ERROR features/jgauge/tests/test_slot.py::test_wait - TimeoutError"),
-    31: log("FAILED features/old/tests/test_too_old.py::test_x - older than the window"),
-    41: log("ERROR features/jbus/tests/test_jbus_budget.py - ImportError while importing"),
+    62: log("FAILED features/never/tests/test_green_job.py::test_x - a green job's log"),
+    63: log("##[error]Process completed with exit code 1.", "Found 6 errors."),
+    71: log("FAILED features/jgauge/tests/test_slot.py::test_wait - Timeout"),
 }
 FAILED = [
     "features/home/tests/test_home_tree_spec.py",
-    "features/jbus/tests/test_jbus_budget.py",
     "features/jgauge/tests/test_slot.py",
 ]
+PASSED_SINCE = "features/jmerge/tests/test_flow_spec.py"
 
 
 class GitHub(BaseHTTPRequestHandler):
@@ -175,10 +184,34 @@ def lookup(api, kept, token=TOKEN):
     )
 
 
-def test_the_lookup_names_each_test_a_red_job_of_main_failed_in_the_window(github, tmp_path):
+def test_the_lookup_names_each_test_a_red_job_of_main_failed_and_no_green_run_passed_since(
+    github, tmp_path
+):
     done = lookup(github, tmp_path / "kept.json")
     assert done.returncode == 0, done.stderr
     assert done.stdout.splitlines() == FAILED
+
+
+def test_a_green_run_of_an_older_commit_passes_nothing_a_later_run_failed(github, tmp_path):
+    """Run 55 checked a commit before run 60's and ended after it, green: run 60's test is still
+    red on main."""
+    RUNS.append({"id": 55, "run_attempt": 1, "conclusion": "success", "created_at": stamp(0)})
+    try:
+        done = lookup(github, tmp_path / "kept.json")
+    finally:
+        RUNS.pop()
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.splitlines() == FAILED
+
+
+def test_a_green_run_after_every_failure_leaves_no_test(github, tmp_path):
+    RUNS.append({"id": 80, "run_attempt": 1, "conclusion": "success", "created_at": stamp(0)})
+    try:
+        done = lookup(github, tmp_path / "kept.json")
+    finally:
+        RUNS.pop()
+    assert done.returncode == 0, done.stderr
+    assert done.stdout == "\n"
 
 
 def test_a_second_lookup_reads_no_log_or_job_list_it_kept(github, tmp_path):
@@ -239,6 +272,20 @@ def test_the_selection_adds_each_test_that_failed_on_main(select, monkeypatch, c
     assert set(tests) == set(plain) | {RED}
     assert tests == sorted(tests)
     assert f"failed on main: 3 test files, 1 added to the selection: {RED}\n" in summary
+
+
+def test_a_test_main_passed_since_it_failed_stays_out_of_a_selection_the_rules_leave_it_out_of(
+    github, select, monkeypatch, capsys, tmp_path
+):
+    """The lookup feeds the selection as CI's `reuse` and `select` jobs do. Main failed the
+    model check, minutes of TLC that no rule selects for a change outside what it checks, and
+    passed it since, so the check of such a change does not run it."""
+    done = lookup(github, tmp_path / "kept.json")
+    assert done.returncode == 0, done.stderr
+    tests, summary = selected(select, monkeypatch, capsys, tmp_path, " ".join(done.stdout.split()))
+    assert PASSED_SINCE not in tests
+    assert RED in tests
+    assert PASSED_SINCE not in summary
 
 
 def test_a_run_with_no_lookup_leaves_the_summary_to_the_rules(
