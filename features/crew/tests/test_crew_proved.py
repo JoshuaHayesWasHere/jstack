@@ -6,7 +6,8 @@ and the line says so with the base's exit 0. A branch that changes no test gets 
 The tests run the block in a real repo whose `origin/main` is the base, on macOS's tools
 (`bsd_tools`), with a `uv` on PATH that runs pytest on this interpreter, takes the slot by running
 the command, and syncs nothing. Each run leaves `git worktree list` as it found it, whether its
-tests pass, fail or are cut off."""
+tests pass, fail or are cut off, and each that ends leaves no copy of the base in its temp
+directory, whether its tests pass, fail or hit the lane's time limit."""
 
 import os
 import shlex
@@ -128,6 +129,10 @@ def worktrees(tree):
     return git(tree, "worktree", "list", "--porcelain")
 
 
+def copies(tree):
+    return sorted(path.name for path in tree.parent.glob("base.*"))
+
+
 def proof(tree, shell="", **more):
     before = worktrees(tree)
     ran = subprocess.run(
@@ -139,6 +144,7 @@ def proof(tree, shell="", **more):
         env=environ(tree, **more),
     )
     assert worktrees(tree) == before
+    assert copies(tree) == []
     home = tree.parent / "home"
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
 
@@ -289,6 +295,15 @@ def test_a_slow_test_file_is_proved_where_the_head_and_the_base_each_fit_the_lan
     said, line = proof(repo, LIMIT="7", SLOW="4")
     assert "no proof" not in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_a_run_that_hits_the_lanes_time_limit_leaves_no_copy_of_the_base(repo):
+    """A slot's run cut at the lane's limit ends 124, and the block goes on to print no proof:
+    the copy of the base it made goes with it, as after a pass or a failure."""
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, LIMIT="1", SLOW="5")
+    assert "no proof: the slot's run ended 124" in said
+    assert line is None
 
 
 def test_the_head_and_the_base_run_on_pytests_workers_where_the_repo_has_them(repo):
