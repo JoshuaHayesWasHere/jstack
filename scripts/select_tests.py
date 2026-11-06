@@ -115,24 +115,25 @@ beside `$GITHUB_OUTPUT`, which the suite's fixtures clear, so a test that runs t
 the check's own environment leaves the step's list alone.
 
 `select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
-`<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
-collects the selection with pytest, as `make test` does (`-m "not browser"`), in up to
-`COLLECTORS` processes at once, each a run of whole files (or, for `all`, of the `testpaths`
-folders), and deals out
-the test files, slowest first, each to the part that would end soonest so far
-(`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
-its slowest test, which no part ends before). So a part collects only its own files. A file
-whose tests sum past a part's share is cut by test into the fewest pieces that each fit a share,
-and each part that holds a piece gets the file and the word `--shard-tests=<keys>`, which runs
-only those. With `$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each
-a part's words, space-separated, or `none` for a part the selection left empty, and the summary
-gets one more line: `parts: <n> of <tests> tests in <files> files, <s> s of test time each`,
-from the least to the most. A selection that collects no test fails, as `make test` fails on
-one. In the selection's list each line then ends `part=<k>`, the part that runs the file (`-`
-for a file that collects no test, and the parts, comma-separated, for a file cut by test), and
-an `all` lists every file of the suite with its part, after its first line. This form imports
-pytest, so it runs after `uv sync`, as `uv run python3 scripts/select_tests.py --parts 8 HEAD^1
-HEAD`.
+`<n>` parts that run side by side, as the check workflow's job `reuse` does for its eight. It
+deals out the test files, the files of the suite the check runs for an `all`, slowest first, each
+to the part that would end soonest so far (`testing/split.py`'s split, over each file's seconds
+and its slowest test's, which no part ends before, from `testing/shard-file-times.tsv`; a file
+the table does not hold counts `FLOOR` for each test its source defines). A file whose tests sum
+past a part's share is cut by test into the fewest pieces that each fit a share, from the rows of
+`testing/shard-times.tsv` that name the file, and each part that holds a piece gets the file and
+a word that picks its tests: `--shard-tests=<file>:<keys>`, which runs only those, or, for the one
+piece that holds the file's tests the table does not hold, `--shard-skip=<file>:<keys>`, which
+runs all of the file but the other pieces' tests. It collects nothing, so a part collects only
+its own files, and a file pytest cannot collect fails the part that runs it. With
+`$GITHUB_OUTPUT` set it gives the step the outputs `part1` to `part<n>`, each a part's words,
+space-separated, or `none` for a part the selection left empty, and the summary gets one more
+line: `parts: <n> of <files> files, <s> s of test time each`, from the least to the most. A
+selection of no test file fails, as `make test` fails on one. In the selection's list each line
+then ends `part=<k>`, the part that runs the file, or the parts, comma-separated, for a file cut
+by test, and an `all` lists every file of the suite with its part, after its first line. Like the
+rest of the script it needs no pytest, so it runs in the runner's own `python3`, before any `uv
+sync`: `python3 scripts/select_tests.py --parts 8 HEAD^1 HEAD`.
 
 `select_tests.py --part guards <base> <head>` prints only the guards of the selection: the
 cross-cutting tests, the catch-all and the changed test files. `--part rest` prints the rest of
@@ -195,7 +196,6 @@ changes to the diff, which selects more tests and never fewer.
 """
 
 import ast
-import glob
 import hashlib
 import json
 import math
@@ -204,7 +204,6 @@ import pickle
 import re
 import subprocess
 import sys
-import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -270,10 +269,9 @@ BY_NAME = {"import_module", "__import__"}
 SKILL_INDEX = "testing.paths.skills"
 SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
-COLLECTORS = 8
-"""The most pytest processes `node_ids` collects in at once, each a run of the files, and never
-more than the machine has cores: a collection imports and rewrites each test module, which one
-process does a file at a time."""
+REST = "rest"
+"""The item of a file cut by test that stands for its tests the table does not hold (`dealt`): no
+key of a test, which is hex."""
 KEPT = "select_tests.facts"
 """The file in the repo's git directory that keeps each module's `facts` from one run to the
 next, by its path and a hash of its text: a module that has not changed is not parsed again."""
@@ -1741,9 +1739,8 @@ def summary(tests, why, changed):
 def reasons(tests, why, parts=None):
     """The selection's list, a line each: a selected test file and the causes that selected
     it, comma-separated; or first `all` and the path that forced it. With the `parts` it was
-    dealt to, each line ends `part=<k>`, `-` for a file that collects no test, or the parts
-    that run its tests, comma-separated, for a file dealt by test, and an `all` lists each file
-    of the suite after its first line."""
+    dealt to, each line ends `part=<k>`, or the parts that run its tests, comma-separated, for a
+    file dealt by test, and an `all` lists each file of the suite after its first line."""
     where = {}
     for at, part in enumerate(parts or [], 1):
         for one in part:
@@ -1786,112 +1783,86 @@ def unmapped(changed):
     )
 
 
-def node_ids(tests):
-    """The node ids pytest collects from the selected test files, or from the whole suite for
-    `all` (`suite`), with the browser tests left out as `make test` leaves them. Up to
-    `COLLECTORS` processes collect at once, each a run of the files or folders, so each file's
-    tests come whole from one: the parts deal whole files, and sort them."""
-    named = suite() if tests == ["all"] else tests
-    count = max(1, min(COLLECTORS, os.cpu_count() or 1, len(named)))
-    shares = [
-        named[len(named) * at // count : len(named) * (at + 1) // count] for at in range(count)
-    ]
+def guessed(file):
+    """The seconds of a test file the file table does not hold, a new one most likely: `FLOOR`
+    for each test its source defines, and `FLOOR` at least."""
+    from testing.split import FLOOR
 
-    def collect(share):
-        return subprocess.run(
-            [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
-            + ["-m", "not browser", *share],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-    with ThreadPoolExecutor(max_workers=count) as pool:
-        ran = list(pool.map(collect, shares))
-    for one in ran:
-        if one.returncode not in (0, 5):
-            sys.exit(
-                "select_tests.py: pytest could not collect the selection:\n"
-                f"{one.stdout}{one.stderr}"
-            )
-    return [
-        line
-        for one in ran
-        for line in one.stdout.splitlines()
-        if "::" in line and " " not in line.split("::")[0]
-    ]
+    defined = re.findall(r"^\s*(?:async\s+)?def test", (ROOT / file).read_text(), re.M)
+    return FLOOR * max(len(defined), 1), FLOOR
 
 
-def suite():
-    """What pytest collects the whole suite from when it is given no path: each entry of the
-    `testpaths` of `pyproject.toml`, a glob from the root, its matches sorted. It is nothing,
-    and pytest is given no path, where pytest reads another file's config or finds no match."""
-    if not (ROOT / "pyproject.toml").is_file() or any(
-        (ROOT / one).exists() for one in ("pytest.ini", ".pytest.ini")
-    ):
-        return []
-    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    entries = config.get("tool", {}).get("pytest", {}).get("ini_options", {}).get("testpaths", [])
-    return [
-        one for entry in entries for one in sorted(glob.glob(entry, root_dir=ROOT, recursive=True))
-    ]
-
-
-def dealt(nodeids, times, count):
+def dealt(files, table, tests, count):
     """The words of each of `count` parts, which the part hands `make test TESTS=`, and each part's
-    seconds. The test files are dealt by `testing/shard.py`'s split, by the summed seconds of each
-    file's tests in `times` (its table) and the seconds of each file's slowest test, which no part
-    ends before. A file whose tests sum past a part's share, the selection's seconds over `count`,
-    would make its part the last to end whole, so it is cut by test into the fewest pieces that
-    each fit a share, split as evenly by seconds, and the pieces are dealt with the files. Fewest,
-    since a test file can build a cache once a worker, as the selector's tests build its import
-    graph, and each part a piece lands in builds it again. A part that holds a piece gets the file
-    and, after its files, the word `--shard-tests=<key>,...`, which names its tests by
-    `shard.key`. No tests at all fails."""
-    from testing import shard
+    seconds. The test files are dealt by `testing/split.py`'s split, by each file's seconds and its
+    slowest test's in the file table `table`, or as `guessed` for a file it does not hold. A file
+    whose tests sum past a part's share, the selection's seconds over `count`, would make its part
+    the last to end whole, so it is cut by test into the fewest pieces that each fit a share, split
+    as evenly by seconds, and no more than the table has rows of it, and the pieces are dealt with
+    the files. Fewest, since a test file can
+    build a cache once a worker, as the selector's tests build its import graph, and each part a
+    piece lands in builds it again. The pieces are cut from `tests`, the keys and seconds of each
+    file's tests in the table, and one more item, `REST`: the file's tests the table does not hold,
+    the ones under `FLOOR` and the ones added since, whose seconds are what the file table holds
+    past the rows. A part that holds a piece gets the file and, after its files, a word that picks
+    the piece's tests: `--shard-tests=<file>:<key>,...`, or, for the piece that holds `REST`,
+    `--shard-skip=<file>:<key>,...` with the keys of the pieces of the other parts, so that a test
+    the table does not name runs in exactly one part. No file at all fails."""
+    from testing import split
 
-    if not nodeids:
+    if not files:
         sys.exit("select_tests.py: the selection holds no test")
-    took, slowest, tests = {}, {}, {}
-    for nodeid in nodeids:
-        file = nodeid.partition("::")[0]
-        took[file] = took.get(file, 0.0) + shard.seconds(times, nodeid)
-        slowest[file] = max(slowest.get(file, 0.0), shard.seconds(times, nodeid))
-        tests.setdefault(file, []).append(nodeid)
-    share = sum(took.values()) / count
-    items, pieces = {}, {}
-    for file, seconds in took.items():
-        cut = min(len(tests[file]), math.ceil(seconds / share))
+    took = {file: table.get(file) or guessed(file) for file in files}
+    share = sum(summed for summed, _ in took.values()) / count
+    items, slowest, pieces = {}, {}, {}
+    for file, (summed, slow) in took.items():
+        known = tests.get(file, {})
+        cut = min(len(known), math.ceil(summed / share))
         if cut < 2:
-            items[file] = seconds
+            items[file], slowest[file] = summed, slow
             continue
-        for at, piece in enumerate(shard.split(tests[file], times, cut), 1):
+        times = {split.key(one): spent for one, spent in known.items()}
+        times[split.key(REST)] = max(summed - sum(known.values()), split.FLOOR)
+        for at, piece in enumerate(split.split([*known, REST], times, cut), 1):
             name = f"{file}::{at}"
             pieces[name] = piece
-            items[name] = sum(shard.seconds(times, nodeid) for nodeid in piece)
-            slowest[name] = max(shard.seconds(times, nodeid) for nodeid in piece)
-    parts = shard.split(
-        list(items), {shard.key(item): seconds for item, seconds in items.items()}, count, slowest
+            items[name] = sum(split.seconds(times, one) for one in piece)
+            slowest[name] = max(known.get(one, split.FLOOR) for one in piece)
+    parts = split.split(
+        list(items), {split.key(item): seconds for item, seconds in items.items()}, count, slowest
     )
     words = []
     for part in parts:
-        keys = sorted(shard.key(nodeid) for item in part for nodeid in pieces.get(item, ()))
-        words.append(
-            sorted({item.partition("::")[0] for item in part})
-            + ([f"--shard-tests={','.join(keys)}"] if keys else [])
-        )
+        named = sorted({item.partition("::")[0] for item in part})
+        picks = []
+        for file in named:
+            mine = [one for item in part if item.startswith(f"{file}::") for one in pieces[item]]
+            if REST in mine:
+                others = sorted(
+                    one
+                    for item, piece in pieces.items()
+                    if item.startswith(f"{file}::") and item not in part
+                    for one in piece
+                )
+                picks += [f"--shard-skip={file}:{','.join(others)}"] if others else []
+            elif mine:
+                picks.append(f"--shard-tests={file}:{','.join(sorted(mine))}")
+        words.append(named + picks)
     return words, [sum(items[item] for item in part) for part in parts]
 
 
 def handed(tests, count):
-    """Hand the selection to `count` parts: print each part's words, one part a line, give the
-    step the output `part<k>` of each and the summary its line, and return the parts."""
+    """Hand the selection to `count` parts, the files of the suite the check runs for `all`:
+    print each part's words, one part a line, give the step the output `part<k>` of each and the
+    summary its line, and return the parts."""
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
-    from testing import shard
+    from testing import split
 
-    nodeids = node_ids(tests)
-    parts, seconds = dealt(nodeids, shard.read_times(shard.TIMES), count)
+    files = sorted(collected()) if tests == ["all"] else tests
+    parts, seconds = dealt(
+        files, split.read_file_times(split.FILE_TIMES), split.read_tests(split.TIMES), count
+    )
     for at, part in enumerate(parts, 1):
         print(f"part {at}: {' '.join(part) or 'none'}")
     if os.environ.get("GITHUB_OUTPUT"):
@@ -1902,10 +1873,7 @@ def handed(tests, count):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as file:
             each = " ".join(f"{one:.0f}" for one in sorted(seconds))
             files = {word for part in parts for word in part if not word.startswith("-")}
-            file.write(
-                f"parts: {count} of {len(nodeids)} tests in {len(files)} files,"
-                f" {each} s of test time each\n\n"
-            )
+            file.write(f"parts: {count} of {len(files)} files, {each} s of test time each\n\n")
     return parts
 
 

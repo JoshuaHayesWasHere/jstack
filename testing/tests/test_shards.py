@@ -19,7 +19,20 @@ import pytest
 
 from testing import shard
 from testing.paths import REPO
-from testing.shard import FLOOR, TIMES, WORKERS, key, mangled, read_times, recorded, seconds, split
+from testing.shard import mangled, recorded
+from testing.split import (
+    FLOOR,
+    TIMES,
+    WORKERS,
+    by_file,
+    file_table,
+    key,
+    read_file_times,
+    read_times,
+    seconds,
+    split,
+    table,
+)
 
 PARTS = 8
 LIST = [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"]
@@ -64,6 +77,35 @@ def test_the_whole_suite_s_parts_end_together():
     each = [sum(seconds(times, test) for test in part) for part in parts]
     assert max(each) - min(each) <= max(seconds(times, test) for part in parts for test in part)
     assert max(each) - min(each) < sum(each) / len(parts) / 20
+
+
+def test_the_check_s_parts_deal_each_test_the_suite_collects_once_with_no_collection():
+    """The check's parts run the words its `reuse` job deals from the tables with no collection
+    (`scripts/select_tests.py --parts`): files, and for a file past a part's share the words that
+    pick its tests. For an `all`, pytest given each part's words runs each test the whole suite
+    collects in exactly one part, and none else."""
+    ran = subprocess.run(
+        [sys.executable, "-S", "-c", DEAL],
+        cwd=REPO,
+        env={"PATH": os.environ["PATH"]},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    parts = [line.partition(": ")[2].split() for line in ran.stdout.splitlines()]
+    assert len(parts) == PARTS and "none" not in [word for part in parts for word in part]
+    whole, *ran_parts = listed(
+        ["-m", "not browser"], *(["-m", "not browser", *part] for part in parts)
+    )
+    together = Counter(test for part in ran_parts for test in part)
+    assert [test for test, times in together.items() if times > 1] == []
+    assert sorted(together) == sorted(whole)
+
+
+DEAL = (
+    "import runpy, sys; sys.argv = ['select_tests.py']; "
+    "select = runpy.run_path('scripts/select_tests.py'); select['handed'](['all'], 8)"
+)
 
 
 def test_a_test_that_outlasts_the_others_share_has_a_part_alone_and_one_that_does_not_has_company():
@@ -180,19 +222,23 @@ def test_a_run_writes_a_test_s_pinned_seconds_in_place_of_the_time_it_took_here(
 
 
 def test_a_file_dealt_by_test_runs_each_of_its_tests_in_exactly_one_part(tmp_path):
-    """The job `select` deals a file whose tests sum past a part's share out by test, and hands
-    each part its files and the word `--shard-tests=<keys>`: pytest, given each part's words as
-    `make test TESTS=` gives them, runs every test of the files once, and a part with the file
-    whole beside it runs all of that one."""
+    """The job `reuse` deals a file whose tests sum past a part's share out by test, from the
+    table's rows of that file, and hands each part its files and a word that picks the tests:
+    pytest, given each part's words as `make test TESTS=` gives them, runs every test of the files
+    once. A test of the file the table does not hold, as one added since, runs too, in the one
+    part that skips the others' tests, and a part with the other file whole runs all of that one."""
     spec = importlib.util.spec_from_file_location("select_tests", REPO / "scripts/select_tests.py")
     select_tests = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(select_tests)
     (big,) = listed([SOME[0]])
     (small,) = listed([SOME[1]])
-    times = {key(test): 10 for test in big}
-    words, _ = select_tests.dealt(big + small, times, 3)
+    took = dict.fromkeys(big, 10) | dict.fromkeys(small, 0.0)
+    unheld = big[len(big) // 2]
+    tests = {SOME[0]: {key(test): 10 for test in big if test != unheld}}
+    words, _ = select_tests.dealt(SOME[:2], by_file(took), tests, 3)
     assert sum(SOME[0] in part for part in words) == 3
-    assert any(word.startswith("--shard-tests=") for part in words for word in part)
+    picks = [word.partition("=")[0] for part in words for word in part if word.startswith("-")]
+    assert sorted(picks) == ["--shard-skip", "--shard-tests", "--shard-tests"]
     ran = listed(*words)
     together = Counter(test for part in ran for test in part)
     assert [test for test, times in together.items() if times > 1] == []
@@ -200,10 +246,11 @@ def test_a_file_dealt_by_test_runs_each_of_its_tests_in_exactly_one_part(tmp_pat
 
 
 def test_the_table_is_each_test_s_median_over_ci_s_junit_reports(tmp_path):
-    """`python -m testing.shard` writes the table from the junit reports of the full runs, each
+    """`python -m testing.shard` writes the tables from the junit reports of the full runs, each
     run its parts' reports: a test's row is its median over the runs that ran it, so one cold
     run of the merge flow's TLC test among warm ones leaves it at its warm time. A test that
-    took under `FLOOR` has no row, and one no collected node id matches is counted."""
+    took under `FLOOR` has no row, and one no collected node id matches is counted. The file
+    table sums each file's tests, a quick one and one no run ran at `FLOOR` each."""
     tests = ["a/test_x.py::test_one", "a/test_x.py::TestB::test_two[a b's]", FLOW]
     took = [[0.5, 3, 900], [0.7, 4, 2], [0.6, 5, 3]]
     runs = []
@@ -220,12 +267,18 @@ def test_the_table_is_each_test_s_median_over_ci_s_junit_reports(tmp_path):
             + "</testsuite></testsuites>"
         )
         runs.append([report])
-    table, read, unknown = recorded(runs, [*tests, "a/test_x.py::test_quick"])
-    (tmp_path / "t.tsv").write_text(table)
+    unrun = "a/test_x.py::test_new"
+    took, read, unknown = recorded(runs, [*tests, "a/test_x.py::test_quick", unrun])
+    (tmp_path / "t.tsv").write_text(table(took))
     times = read_times(tmp_path / "t.tsv")
     assert [seconds(times, test) for test in tests] == [0.6, 4, 3]
     assert len(times) == 3
     assert (read, unknown) == (15, 3)
+    (tmp_path / "f.tsv").write_text(file_table(took))
+    assert read_file_times(tmp_path / "f.tsv") == {
+        "a/test_x.py": (pytest.approx(0.6 + 4 + FLOOR + FLOOR), 4),
+        FLOW.partition("::")[0]: (3, 3),
+    }
 
 
 GH = """#!{python}
