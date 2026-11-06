@@ -27,11 +27,13 @@ room() (
   PRESSURE=10
   CUSHION=${HEADROOM:-90}
   SLOTS=85
+  BYTES=70
   mac=0
   if [ -z "${PROC:-}" ] && [ "$(uname -s 2> /dev/null)" = Darwin ]; then mac=1; fi
   PROC=${PROC:-/proc}
   LIMITS=${LIMITS:-$HOME/.local/state/claude/limits}
   TMPFS=${TMPFS:-/tmp}
+  QUOTA=${QUOTA:-$TMPFS}
   SKIP_LOAD=${SKIP_LOAD:-0}
   POOL=${POOL:-claudeAgent}
   if ! awk -v pool="$POOL" 'BEGIN {exit !(pool ~ /^[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*( [A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*)*$/)}'; then
@@ -81,8 +83,27 @@ room() (
       }'
     fi
   fi
+  read_bytes() {
+    quota=$(python3 -c '
+import ctypes, os, sys
+QUOTACTL_FD = 443
+Q_GETQUOTA_USER = 0x80000700
+if_dqblk = (ctypes.c_uint64 * 9)()
+fd = os.open(sys.argv[1], os.O_RDONLY)
+if ctypes.CDLL(None).syscall(QUOTACTL_FD, fd, Q_GETQUOTA_USER, os.getuid(), if_dqblk) == 0:
+    hard_kib, soft_kib, used_bytes = if_dqblk[:3]
+    if hard_kib:
+        print(hard_kib, used_bytes)' "$QUOTA" 2> /dev/null)
+    if echo "$quota" | awk '{exit !(NF == 2 && $(1) ~ /^[1-9][0-9]*$/ && $(2) ~ /^[0-9]+$/)}'; then
+      echo "$quota" | awk '{print $(1), int($(2) / 1024), "quota"}'
+    else
+      df -P "$QUOTA" 2> /dev/null | awk 'NR == 2 && $(1) == "tmpfs" && $(2) ~ /^[0-9]+$/ && $(3) ~ /^[0-9]+$/ {print int($(2) * 80 / 100), $(3), "size"}'
+    fi
+  }
+  if [ "$tmp" = 1 ]; then space=$(read_bytes); fi
   said=$(awk -v busy="$load" -v cores="$cores" -v stalled="$stalled" -v memory="$memory" -v pressure="$pressure" \
     -v psi="$psi" -v tmp="$tmp" -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
+    -v space="$space" -v BYTES="$BYTES" -v QUOTA="$QUOTA" \
     -v LOAD="$LOAD" -v CPU="$CPU" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
     -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v pool="$POOL" -v hollow="$hollow" -v now="$(date +%s)" '
     function span(left) {
@@ -141,6 +162,9 @@ room() (
       else if (psi && pressure >= PRESSURE) why = "memory pressure " pressure " is at or over " PRESSURE
       else if (tmp && (slots !~ /^[0-9]+$/ || taken !~ /^[0-9]+$/)) why = "the file slots of " TMPFS " could not be read"
       else if (tmp && taken * 100 > slots * SLOTS) why = TMPFS " has " taken " of " slots " file slots used, over " SLOTS "%"
+      else if (tmp && split(space, bytes, " ") == 3 && bytes[2] * 100 >= bytes[1] * BYTES)
+        why = sprintf(bytes[3] == "quota" ? "%s has %.1f of your %.1f GB quota used, at or over %s%%" : "%s has %.1f GB used of %.1f GB, 80%% of its size, at or over %s%%",
+          QUOTA, bytes[2] / 1048576, bytes[1] / 1048576, BYTES)
       # Room holds back a launch only while every instance of a line of the pool is full. For a
       # pool of one, the reason names its first full window; for a larger pool, each instance
       # and the first reset.

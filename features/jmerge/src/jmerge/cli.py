@@ -687,11 +687,12 @@ class Repo:
         share none of the base's changed paths merges on its existing check, with no update of
         its branch and no rerun (Josh's rule of 2026-11-02, #847, back on 2026-11-04 with
         GitHub's strict rule off): `Repo.merge` runs the fast guards on its tree merged over
-        the tip first (`treeguards`), which catch a clash two pull requests make with no shared
-        file, as #923 and #935 made with two new `v007_` files. A repo with no guards has
-        nothing that checks that tree, so its pull request takes the line as one that overlaps.
-        One that overlaps has GitHub merge the base into its branch (`rejudge.BaseMerge`), and
-        its check at the new head decides. GitHub merges the base into one branch of each base
+        the tip first (`treeguards`), where the repo names them, which catch a clash two pull
+        requests make with no shared file, as #923 and #935 made with two new `v007_` files. A
+        repo with no guards merges it on its existing check alike, with main's own run and jbus's
+        reverts behind it (Josh, 2026-11-05: "we don't need every pr to be up to date"). One
+        that overlaps has GitHub merge the base into its branch (`rejudge.BaseMerge`), and its
+        check at the new head decides. GitHub merges the base into one branch of each base
         at a time, the first into that base to get this far in merge order while no other holds
         its line (`self.line`); every other into that base that overlaps waits in line behind
         it, so each merge costs one CI round and not one for each open pull request."""
@@ -708,8 +709,7 @@ class Repo:
             return ready.FRESH_CONFLICT, ""
         if merged.returncode:
             return ready.UNMERGED.format(why=lines.said(merged)), ""
-        shared = left is None or bool({*one.files, *left} & set(paths))
-        if not shared and self.guards.command:
+        if left is not None and not {*one.files, *left} & set(paths):
             return "", tip
         return self.in_turn(one, tip, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE), ""
 

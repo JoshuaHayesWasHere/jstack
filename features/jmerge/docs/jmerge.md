@@ -300,7 +300,7 @@ A head that merges cleanly then goes one of two ways, by its files.
 - **It overlaps none of main's changes: it merges on its existing check.**
   None of the pull request's files, nor the old path of a file it renamed, is a path main changed since its check started.
   GitHub is asked for no update of its branch, and no check runs again.
-  Before the merge, `jmerge` runs the fast guards on its tree merged over main ("The guards on the merged tree"), which catch a clash two pull requests make with no file in common, as #923 and #935 made on 2026-11-03 with two new `v007_` files.
+  Before the merge, where the repo names them, `jmerge` runs the fast guards on its tree merged over main ("The guards on the merged tree"), which catch a clash two pull requests make with no file in common, as #923 and #935 made on 2026-11-03 with two new `v007_` files.
   A merge that GitHub refuses waits as `the merge failed: <what GitHub said>`, and the next run judges it again.
   It takes no place in the line below, and merges while a pull request that overlaps holds it.
 - **It overlaps: it goes through the line.**
@@ -309,7 +309,9 @@ A head that merges cleanly then goes one of two ways, by its files.
   GitHub's check at the new head ran over today's main, and it decides by the normal path: the pull request merges once that check passes, and waits as `check has failed` if it fails.
   The review stands across that merge, as across a rebase: its range-diff shows no content.
 
-A repo with no `merged-tree-guards` file has nothing that checks the merged tree, so each of its pull requests whose check main moved past goes through the line, whatever its files.
+A repo with no `merged-tree-guards` file runs nothing on the merged tree, and a pull request that overlaps none of main's changes merges on its existing check all the same, with main's own run and jbus's revert of a red main's culprit behind it.
+Josh, 2026-11-05: "we don't need every pr to be up to date".
+jstack's guards were off from 15:15 that day, when they outran the 17 minutes jbus gives `jmerge`, and while every such pull request still went through the line, `merge.log` had 418 `in line behind` waits for 16 merges from 15:00 to 18:26, against none from 08:00 to 15:00 with the guards on.
 A pull request whose renamed files GitHub did not give is held for you before this (`ready.needs_the_user`), and one you accept is judged as one that overlaps.
 GitHub's strict "up to date" rule is off on main (ruleset 25665226, `features/repo-guards/main-ruleset.json`, since 2026-11-04), so GitHub merges a pull request whose branch does not hold main's tip.
 Were it on, GitHub would refuse each merge on an existing check, and each would wait as `the merge failed`.
@@ -354,7 +356,7 @@ Two pull requests can each pass their check alone and break main together, as #9
 The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
 jstack's is `make check-fast PART=guards`: the lint, the cross-cutting tests, the catch-all and the changed test files, 385 s in one run on 2026-11-04.
-A repo with no such file runs no guards, and a pull request whose check main moved past goes through the line ("Merges cleanly over today's main").
+A repo with no such file runs no guards, and a pull request that overlaps none of main's changes merges on its existing check with nothing run on its merged tree ("Merges cleanly over today's main").
 
 1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.
 2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.

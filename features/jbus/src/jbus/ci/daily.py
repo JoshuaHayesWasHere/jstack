@@ -9,12 +9,17 @@ definition. In short:
   midnight, never UTC (`days`). A day with fewer than `FLOOR` pull requests with a `check` run
   reads `no data` for every number from the ledger, its n still shown, since the ledger misses
   runs while jbus is down.
-- Every number but main-red comes from the ledger the passes keep (`ci.jsonl`, `ci-prs.jsonl`),
-  with jmerge's shadow pull requests (`LINE`) left out. `--day` collects nothing.
+- Every number but main-red and the review step's comes from the ledger the passes keep
+  (`ci.jsonl`, `ci-prs.jsonl`), with jmerge's shadow pull requests (`LINE`) left out. `--day`
+  collects nothing.
 - Main-red is the spell method (`spells`): from a failed run of check.yml on a push to main to the
   next success's last update, split at local midnight. It reads main's runs from one
   `gh run list` (`RUNS`), the only call to GitHub. `gh` shows a run's last attempt only, so a red
   that went green on a rerun is no spell. A day older than the oldest run it gave reads `no data`.
+- The review step's numbers come from T3 Code's store (`jgauge.spend.reviews`): each thread
+  jbus titled `review: <slug>, <round>` is a launch, joined to the pull request its slug's brief
+  names on a `Branch:` line (`pulls`), and to when `check` passed at that pull request's newest
+  head in the ledger (`Ledger.passed`). They are not under the floor, since the store gives them.
 - A day whose shard wait p90 is over `WAVE` seconds is a wave day.
 - Before and after (`Shift`): for each row whose brief names the `SCOPE` home and that merged in
   the last `BACK` (transitions.jsonl, its last merge), the median over the `SIDE` busy days before
@@ -41,7 +46,9 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs import home as homes
+from jbus import watch
 from jbus.ci import ledger, numbers
+from jgauge import spend
 from jsettings import proc
 
 DAYS, FLOOR, SIDE = 7, 20, 3
@@ -50,6 +57,9 @@ WAVE = 300.0
 BACK, NEAR, LOOKBACK = timedelta(days=14), timedelta(days=3), timedelta(days=21)
 """The rows merged in the last `BACK` get a before and after; two within `NEAR` share it; the
 busy days before a merge are sought at most `LOOKBACK` back."""
+REACH = timedelta(days=DAYS) + BACK + LOOKBACK
+"""How far back the review launches are read: as far as a day the report gives or a before and
+after counts."""
 SCOPE = "cicd"
 LINE = "jstack/line/"
 """The branches of jmerge's shadow pull requests, which test the line and are no crew's work."""
@@ -91,12 +101,38 @@ class Cell:
 
 @dataclass
 class Ledger:
-    """What a day's numbers are counted from: the ledger's facts, and main's runs as
-    `gh run list` gave them, or None with `said`, why there are none."""
+    """What a day's numbers are counted from: the ledger's facts; main's runs as `gh run list`
+    gave them, or None with `said`, why there are none; and the review launches T3 Code's store
+    gave, or None with `unread`, why there are none, with the pull request each launch's slug
+    names (`pulls`)."""
 
     facts: numbers.Facts
     runs: list[dict[str, Any]] | None
     said: str = ""
+    launches: list[spend.Launch] | None = None
+    unread: str = ""
+    pulls: dict[str, int] = field(default_factory=dict)
+
+    @cached_property
+    def passed(self) -> dict[int, datetime | None]:
+        """For each pull request whose newest head has a `check` job in the ledger, the first
+        completion of a green one at that head, or None where none was green."""
+        heads = {int(one["number"]): one.get("head") for one in self.facts.pulls}
+        found: dict[int, datetime | None] = {}
+        for job in self.facts.jobs:
+            pr = job.get("pr")
+            if (
+                pr is None
+                or job["name"] != numbers.CHECK
+                or job["event"] != "pull_request"
+                or job["sha"] != heads.get(int(pr))
+            ):
+                continue
+            green = job["conclusion"] == "success" and job.get("completed")
+            at = jsettings.when(job["completed"]) if green else None
+            was = found.get(int(pr))
+            found[int(pr)] = was if at is None or (was is not None and was <= at) else at
+        return found
 
     @cached_property
     def spells(self) -> list[tuple[datetime, datetime]]:
@@ -211,6 +247,51 @@ def _wall(given: Ledger, start: datetime, end: datetime) -> Count:
     return (numbers.percentile(found, 0.5) if found else None), len(found)
 
 
+def _launched(given: Ledger, start: datetime, end: datetime) -> list[spend.Launch] | None:
+    if given.launches is None:
+        return None
+    return [one for one in given.launches if start <= one.start < end]
+
+
+def _by_pull(given: Ledger, start: datetime, end: datetime) -> dict[int, list[spend.Launch]]:
+    found: dict[int, list[spend.Launch]] = defaultdict(list)
+    for one in _launched(given, start, end) or []:
+        if one.slug in given.pulls:
+            found[given.pulls[one.slug]].append(one)
+    return found
+
+
+def _launches(given: Ledger, start: datetime, end: datetime) -> Count:
+    launched = _launched(given, start, end)
+    if launched is None:
+        return None, 0
+    return len(launched), len(_by_pull(given, start, end))
+
+
+def _per_pull(
+    weigh: Callable[[spend.Launch], float],
+) -> Callable[[Ledger, datetime, datetime], Count]:
+    def read(given: Ledger, start: datetime, end: datetime) -> Count:
+        sums = [
+            sum(weigh(one) for one in launched) for launched in _by_pull(given, start, end).values()
+        ]
+        return (numbers.percentile(sums, 0.5) if sums else None), len(sums)
+
+    return read
+
+
+def _before_check(given: Ledger, start: datetime, end: datetime) -> Count:
+    known = [
+        (one, given.passed[pr])
+        for pr, launched in _by_pull(given, start, end).items()
+        if pr in given.passed
+        for one in launched
+    ]
+    if not known:
+        return None, 0
+    return sum(1 for one, passed in known if passed is None or one.start < passed), len(known)
+
+
 def _main_red(given: Ledger, start: datetime, end: datetime) -> Count:
     if given.runs is None or given.reach is None or given.reach > start:
         return None, 0
@@ -253,6 +334,12 @@ def _minutes(value: float) -> str:
     return f"{_text(value)} min"
 
 
+def _tokens(value: float) -> str:
+    if value >= 1e6:
+        return f"{_text(value / 1e6)}M"
+    return f"{_text(value / 1e3, 0)}k" if value >= 1e3 else _text(value, 0)
+
+
 MEASURES = (
     Measure("red_share", "red share", "PRs", "at most 30%", _number(numbers.red_share), _percent),
     Measure("head_shas", "head shas per merged PR", "merged PRs", "at most 3", _shas, _text),
@@ -290,6 +377,51 @@ MEASURES = (
         _percent,
     ),
     Measure("main_red", "main-red", "runs", "at most 30 min", _main_red, _minutes, floored=False),
+    Measure(
+        "review_launches",
+        "review launches",
+        "PRs",
+        "",
+        _launches,
+        lambda v: _text(v, 0),
+        floored=False,
+    ),
+    Measure(
+        "review_input",
+        "review input tokens per PR p50",
+        "PRs",
+        "",
+        _per_pull(lambda one: one.tokens.input),
+        _tokens,
+        floored=False,
+    ),
+    Measure(
+        "review_output",
+        "review output tokens per PR p50",
+        "PRs",
+        "",
+        _per_pull(lambda one: one.tokens.output),
+        _tokens,
+        floored=False,
+    ),
+    Measure(
+        "review_wall",
+        "review active wall per PR p50",
+        "PRs",
+        "",
+        _per_pull(lambda one: one.active / 60),
+        _minutes,
+        floored=False,
+    ),
+    Measure(
+        "review_before_check",
+        "review launches before check",
+        "launches",
+        "",
+        _before_check,
+        lambda v: _text(v, 0),
+        floored=False,
+    ),
 )
 
 
@@ -454,6 +586,16 @@ def body(
             "that reads `no data`. gh shows a run's last attempt only, so a red that went "
             "green on a rerun is no spell."
         )
+    if given.launches is None:
+        store = f"T3 Code's store was not read: {given.unread}. The review numbers read `no data`."
+    else:
+        store = (
+            f"The review numbers read the {len(given.launches)} review launches T3 Code's store"
+            f" gave for the {len(given.pulls)} slugs whose brief names a pull request on a"
+            " `Branch:` line; a launch of a slug that names none is in `review launches` alone,"
+            " and a launch counts in `before check` only where the ledger has a `check` job at"
+            " its pull request's newest head."
+        )
     names = [one.name for one in MEASURES]
     moved = [
         row("row", "merged", "before", "after", *names, "notes"),
@@ -491,6 +633,8 @@ def body(
             "",
             reach,
             "",
+            store,
+            "",
             "## By day",
             "",
             *table,
@@ -527,6 +671,28 @@ def facts_of(state: Path, now: datetime) -> numbers.Facts:
     )
 
 
+def reviewed(
+    config: jbus.Config, project: jbus.Project, now: datetime
+) -> tuple[list[spend.Launch] | None, str, dict[str, int]]:
+    """The review launches of the project's T3 Code project back to `REACH` before `now`, or None
+    and why, and the pull request each launch's slug names: the first `Branch:` line of its brief
+    that names one, as `jbus.watch.tied` reads it."""
+    try:
+        launches = spend.reviews(spend.STORE, project.project_id, now - REACH, now)
+    except spend.Refused as error:
+        return None, str(error), {}
+    tasks, pulls = config.home(project) / "tasks", {}
+    for slug in {one.slug for one in launches}:
+        try:
+            lines = (tasks / f"{slug}.md").read_text(errors="replace").splitlines()
+        except OSError:
+            continue
+        named = [watch.named(line)[1] for line in lines if line.startswith("Branch:")]
+        if number := next((one for one in named if one), ""):
+            pulls[slug] = int(number)
+    return launches, "", pulls
+
+
 def main_runs(repo: str) -> tuple[list[dict[str, Any]] | None, str]:
     """Main's runs of check.yml from the one `gh run list`, or None and why."""
     done = ask([part.format(repo=repo) for part in RUNS])
@@ -545,7 +711,8 @@ def one(config: jbus.Config, project: jbus.Project, now: datetime, repo: str | N
     """Write the day's report of one project, and nothing else."""
     user = config.user
     runs, said = main_runs(repo) if repo else (None, "the checkout has no GitHub origin")
-    given = Ledger(facts_of(config.state(project), now), runs, said)
+    launches, unread, pulls = reviewed(config, project, now)
+    given = Ledger(facts_of(config.state(project), now), runs, said, launches, unread, pulls)
     by_day = Days(given, user)
     newest = user.local(now).date() - timedelta(days=1)
     shown = [by_day[when] for when, _, _ in days(user, newest - timedelta(days=DAYS - 1), newest)]
