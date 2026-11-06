@@ -1,10 +1,11 @@
 """A follow-up of an approved row is approved by the follow-up rule when it is queued.
 
 The rule (`queue.FOLLOW_UP`) reads the row, its brief and the parent's row: the row names its parent
-P (a `Follows: P` line), the row is P's (its entry is P's), and P's go holds. jbus knows the rule by
-what it says, and reads no file of the home for it. A row of new work waits for the user's go, and
-only its decision reaches the user. Every test runs the real `jbus queue add` and `approve`, and a
-pass, against the kitchen's fakes. The pass's own approvals are in `test_jbus_follow_up_pass.py`.
+P (a `Follows: P` line), its brief holds no case of gates.md, and P's go holds; a home's row needs
+no `--entry` for it. jbus knows the rule by what it says, and reads no file of the home for it. A
+row of new work waits for the user's go, and only its decision reaches the user. Every test runs
+the real `jbus queue add` and `approve`, and a pass, against the kitchen's fakes. The pass's own
+approvals are in `test_jbus_follow_up_pass.py`.
 """
 
 import json
@@ -51,8 +52,8 @@ def follows(parent):
 
 
 def unit(kitchen, slug, parent):
-    """Queue `slug` as a unit of alpha's entry that follows `parent`."""
-    return add(kitchen, slug, "--entry", "alpha", text=brief(slug, follows(parent)))
+    """Queue `slug` as a home does, with no `--entry`, as a row that follows `parent`."""
+    return add(kitchen, slug, text=brief(slug, follows(parent)))
 
 
 def decided(kitchen):
@@ -127,9 +128,8 @@ def brief_of(kitchen, slug):
         (
             "beta",
             (),
-            brief("beta", follows("alpha")),
-            "beta is no fix jbus filed and does not do work for alpha's plan entry alpha: its "
-            "entry is beta",
+            brief("beta", follows("alpha") + "Holds: publishes\n"),
+            "beta's brief holds a case of gates.md, publishes",
         ),
         (
             "beta",
@@ -142,7 +142,7 @@ def brief_of(kitchen, slug):
     ids=[
         "no parent row",
         "a second unit of an unapproved row",
-        "a Follows line with no entry of the parent's",
+        "a follow-up whose brief holds a door case",
         "a parent removed unmerged",
     ],
 )
@@ -271,21 +271,27 @@ def test_a_held_follow_up_queued_again_with_a_new_brief_is_not_approved_by_rule(
     assert "decision alpha-2" in decided(kitchen)
 
 
-def test_an_entry_the_parent_only_inherited_makes_no_follow_up_unit(kitchen):
-    """`beta` counts for alpha's entry `epic` without being filed under it, so a row given
-    `--entry epic` that follows it is no unit of it, and a row given `--entry beta` still is: the
-    rule compares the entries the home gave."""
-    add(kitchen, "alpha", "--entry", "epic")
+def test_a_home_queues_a_follow_up_with_no_entry_and_add_approves_it_by_rule(kitchen):
+    """The replay of 2026-11-06: a home queues `Follows: alpha` with no `--entry`, and alpha's go
+    holds. The row is approved by rule in the same add, so no decision of it reaches the user."""
+    add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
-    add(kitchen, "beta", text=brief("beta", follows("alpha")))
-    assert go(kitchen, "beta")[0] == 0
-    assert rows(kitchen)["beta"]["parent_entry"] == "epic"
-    said = add(kitchen, "gamma", "--entry", "epic", text=brief("gamma", follows("beta")))
-    assert said == [
-        "gamma waits for the user's go, not a follow-up: gamma is no fix jbus filed and does not "
-        "do work for beta's plan entry beta: its entry is epic"
-    ]
-    assert rows(kitchen)["gamma"]["approved"] == ""
-    text = brief("delta", follows("beta"))
-    add(kitchen, "delta", "--entry", "beta", text=text)
-    assert rows(kitchen)["delta"]["approval"]["follows"] == "beta"
+    kitchen.quiet()
+    said = add(kitchen, "beta", text=brief("beta", follows("alpha")))
+    line = BY_RULE.format(parent="alpha", ran=RAN)
+    assert said == [f"approved beta: brief {sha12(brief_of(kitchen, 'beta'))}, {line}"]
+    made = rows(kitchen)["beta"]["approval"]
+    assert (made["basis"], made["ref"], made["follows"]) == ("rule", "follow-up", "alpha")
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(seconds=blockers.APPROVE_GRACE_SECONDS))
+    assert decided(kitchen) == []
+
+
+def test_a_follow_up_with_no_entry_gets_its_go_when_its_parent_does(kitchen):
+    add(kitchen, "alpha", "--entry", "epic")
+    unit(kitchen, "beta", "alpha")
+    assert rows(kitchen)["beta"]["approved"] == ""
+    code, said = go(kitchen, "alpha")
+    assert code == 0
+    assert said.splitlines()[0].startswith("approved beta: brief ")
+    assert rows(kitchen)["beta"]["approval"]["follows"] == "alpha"

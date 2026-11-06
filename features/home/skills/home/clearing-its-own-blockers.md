@@ -39,7 +39,7 @@ When green: <the exact check that ends the work, such as `check` passing on the 
 
 The `When green:` line is the fix's stop condition, and it is also the last line of its "Done when": once it holds, the work ends, whatever else is seen.
 A fix with no such line is refused by `jbus queue add`, with nothing queued: write the line, and queue it again.
-Queue it with `jbus queue add`, and approve it by the follow-up rule (`jbus queue approve <slug> --sha <sha12> --follows <the row it fixes>`) where that row's go holds; otherwise the row waits for the user's go, which the pass raises as a decision.
+Write `Follows: <the row it fixes>` in its brief's head and queue it with `jbus queue add`: where that row's go holds, the same `add` approves it by the follow-up rule, and the home approves nothing. Otherwise the row waits for the user's go, which the pass raises as a decision.
 A refused or stuck row is fixed and queued again the same way: its fix brief names the row's key, `row:<slug>`.
 
 Each blocker has a retry cap, `retry_cap` in `~/.config/jstack/config.toml` (2 with none).

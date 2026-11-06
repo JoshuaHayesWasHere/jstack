@@ -209,10 +209,10 @@ day's warnings row."""
 FOLLOW_UP = (
     "a row is a follow-up of the row P, and jbus approves it by the follow-up rule "
     f"({FOLLOW_RULE}) when it is queued and on each pass, when it names P (its brief's head has a "
-    "line `Follows: P`), when it is of a follow-up's kind (a fix jbus filed, a row jbus's pass "
-    f"queued whose brief's Decisions: line begins `{RED_DECIDED}`; or, when it is queued, a row "
-    "whose --entry is P's plan entry), and when P's go holds (P is a row of the queue, or went "
-    "as merged, and its go is the user's word or this rule's); a fix jbus filed that names no "
+    "line `Follows: P`), when its brief holds no case of gates.md, when it is queued (by a home, "
+    "with or without --entry) or is a fix jbus filed (a row jbus's pass queued whose brief's "
+    f"Decisions: line begins `{RED_DECIDED}`), and when P's go holds (P is a row of the queue, or "
+    "went as merged, and its go is the user's word or this rule's); a fix jbus filed that names no "
     "parent is approved by the same rule on the red run its brief's Task: line quotes, and the "
     "day's warnings row, a row jbus's pass queued whose brief's Decisions: line begins "
     f"`{findings.CLEANUP_DECIDED.strip()}`, on the later reviews that line names; any other row "
@@ -1002,14 +1002,14 @@ def red_run(text: str) -> str:
     return found.group(1) if found else task.strip()
 
 
-def follow_up(batch: _Batch, slug: str, units: bool = True) -> str:
+def follow_up(batch: _Batch, slug: str) -> str:
     """Return the parent that the row `slug` follows up by the follow-up rule, nothing for a fix
     jbus filed from a red check that names no parent (`filed`), or refuse with why the row is not
     a follow-up. The rule is `FOLLOW_UP`, and it reads the row, its brief and the
-    parent's row, never a judgment. A fix jbus filed is one, and so, where `units` is set, is a
-    row that does work for its parent's plan entry. The parent's go must
-    hold (`_parent`). A row whose go an edit voided is one only where it names the parent its go
-    named, and a row the user's word approved is never one: the user approves it again."""
+    parent's row, never a judgment. A row that names its parent, a home's or one jbus filed, is
+    one where the parent's go holds (`_parent`), the same check `approve --follows` makes. A row
+    whose go an edit voided is one only where it names the parent its go named, and a row the
+    user's word approved is never one: the user approves it again."""
     text = batch.brief(slug) or ""
     named = named_parent(slug, text)
     row = batch.row(slug)
@@ -1024,17 +1024,9 @@ def follow_up(batch: _Batch, slug: str, units: bool = True) -> str:
         return ""
     if not named:
         raise Refused(f"refused: {slug} names no parent: no Follows: line")
-    parent, _ = _parent_row(batch, slug, named)
     if made and made.basis == RULE and made.follows != named:
         raise Refused(
             f"refused: {slug}'s go followed {made.follows}, and its brief now follows {named}"
-        )
-    unit = units and given_entry(row) == given_entry(parent)
-    if not filed(row, text) and not unit:
-        raise Refused(
-            f"refused: {slug} is no fix jbus filed "
-            f"and does not do work for {named}'s plan entry "
-            f"{given_entry(parent)}: its entry is {given_entry(row)}"
         )
     _parent(batch, slug, named)
     return named
@@ -1044,7 +1036,6 @@ def _by_rule(
     batch: _Batch,
     slug: str,
     user: jsettings.Settings | None,
-    units: bool = True,
     ran_by: dict[str, str] | None = None,
 ) -> str:
     """Approve by the follow-up rule a row that waits for a go and has no hold, and return the line
@@ -1057,7 +1048,7 @@ def _by_rule(
     if row.get("approved") and judgement.approved_text(row, text):
         return ""
     try:
-        parent = follow_up(batch, slug, units)
+        parent = follow_up(batch, slug)
         verb = Approve(slug, RULE, FOLLOW_REF, "", parent)
         return _do(verb, batch, user, None, {}, {}, ran_by)
     except Refused as error:
@@ -2218,7 +2209,7 @@ def follow_ups(state: Path, user: jsettings.Settings) -> list[str]:
                 line
                 for row in sorted(rows, key=order)
                 if filed(row, batch.brief(row["slug"]) or "")
-                for line in [_by_rule(batch, row["slug"], user, False, PASS)]
+                for line in [_by_rule(batch, row["slug"], user, PASS)]
                 if line.startswith("approved ")
             ]
             said += lines
