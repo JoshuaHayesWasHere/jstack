@@ -154,9 +154,9 @@ names Darwin. A name reaches a test only from a changed path of the tests or one
 an import does, and a feature's paths reach none of its tests. A pull request's macOS job
 selects so, and the run on each merge commit into main runs the whole `--within`.
 
-Every test that failed on main in the last 30 days runs on each pull request's check, whatever
-the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
-reds. `$FAILED_ON_MAIN` names them, space-separated, and the selection adds each one that is a
+Every test that failed on main in the last 30 days, and that main has not passed since, runs on
+each pull request's check, whatever the rules select: timing tests that no pull request reached
+broke main in 8 of the audit's 15 reds. `$FAILED_ON_MAIN` names them, space-separated, and the selection adds each one that is a
 test file the check runs. The summary then gets one more line: `failed on main: <n> test files,
 <k> added to the selection: <the files>`, the files the rules had not selected already. Where the
 variable is not set, as on a desk, the selection and the summary are what the rules make.
@@ -164,12 +164,16 @@ variable is not set, as on a desk, the selection and the summary are what the ru
 `select_tests.py --failed-on-main <days> <kept>` prints those test files, sorted and one per
 line: the files a `FAILED` or `ERROR` line of pytest's names in the log of a red job of a push's
 run of `check.yml` on main, created in the last `<days>` days, with every attempt of a run that
-was run again, since a rerun that passed hides a flaky test. It reads GitHub's REST API at
+was run again, and that no later green run of main in those days has passed. A green run ran the
+whole suite, a rerun that passed is one, and runs are ordered by id: GitHub numbers them as they
+are created, so a green run of an older commit that ends after a red one passes nothing of it. A
+test that fails and then passes on main drops out at the first green run after its failure. It
+reads GitHub's REST API at
 `$GITHUB_API_URL` for `$GITHUB_REPOSITORY` with `$GITHUB_TOKEN`, and fails, naming the answer,
 where GitHub refuses. A completed job and its log never change, so the JSON file `<kept>` keeps
 the red jobs of each run's attempt and the files each one's log named, for the runs still in the
 window. GitHub gives a filtered list of runs 1,000 at most, and main has more in a month, so the
-lookup lists a day at a time. It keeps each day's red runs too, and lists again only the last
+lookup lists a day at a time. It keeps each day's red runs and newest green run too, and lists again only the last
 `SETTLED` days, where a rerun of main still lands: a lookup with the file reads about 4 lists. A
 rerun of a run older than that is missed. It reads the days, the job lists and the logs `READS`
 at a time. Storage holds no log for some red jobs, and
@@ -1266,8 +1270,9 @@ def side_by_side(read, items):
 
 
 def red_runs(day):
-    """The completed push runs of `WORKFLOW` on main created on a UTC `day` that failed or
-    were run again, each as `<id>/<attempt>`. GitHub gives a filtered list 1,000 runs at most,
+    """The completed push runs of `WORKFLOW` on main created on a UTC `day`: `red`, the ones
+    that failed or were run again, and `green`, the newest that passed, or `None`. Each is
+    `<id>/<attempt>`, and `later` orders them. GitHub gives a filtered list 1,000 runs at most,
     and main has more in a month, so a day is listed at a time."""
 
     def page(number):
@@ -1286,14 +1291,24 @@ def red_runs(day):
 
     first = page(1)
     rest = [page(number) for number in range(2, -(-first["total_count"] // PER_PAGE) + 1)]
-    return sorted(
-        {
-            f"{run['id']}/{run['run_attempt']}"
-            for one in (first, *rest)
-            for run in one["workflow_runs"]
-            if run["conclusion"] == "failure" or run["run_attempt"] > 1
-        }
-    )
+    runs = [run for one in (first, *rest) for run in one["workflow_runs"]]
+    green = [f"{run['id']}/{run['run_attempt']}" for run in runs if run["conclusion"] == "success"]
+    return {
+        "red": sorted(
+            {
+                f"{run['id']}/{run['run_attempt']}"
+                for run in runs
+                if run["conclusion"] == "failure" or run["run_attempt"] > 1
+            }
+        ),
+        "green": max(green, key=later, default=None),
+    }
+
+
+def later(run):
+    """A run's place in time as `(id, attempt)`: GitHub numbers runs as they are created, so a
+    larger id checked a later commit of main, and a rerun comes after the attempts before it."""
+    return tuple(map(int, run.split("/")))
 
 
 def named_in(log):
@@ -1314,9 +1329,12 @@ def logged(job):
 
 
 def failed_on_main(days, kept_path):
-    """The test files a red job of main's runs of the last `days` days named, sorted. `kept`
-    holds what earlier lookups read, and is left with the days, runs and jobs still in the
-    window. The last `SETTLED` days are listed again, and an older one only when `kept` lacks it."""
+    """The test files a red job of main's runs of the last `days` days named and no later green
+    run of main has passed, sorted. A green run ran the whole suite, so a test it passed is red on
+    main no more, and a rerun that passed counts as one, since its red jobs are an earlier
+    attempt's. `kept` holds what earlier lookups read, and is left with the days, runs and jobs
+    still in the window. The last `SETTLED` days are listed again, and an older one only when
+    `kept` lacks it."""
     kept = {"days": {}, "runs": {}, "jobs": {}}
     if kept_path.is_file():
         kept |= json.loads(kept_path.read_text())
@@ -1325,7 +1343,7 @@ def failed_on_main(days, kept_path):
     listed = dict.fromkeys(window[:SETTLED])
     listed |= {day: kept["days"].get(day) for day in window[SETTLED:]}
     listed |= side_by_side(red_runs, [day for day, runs in listed.items() if runs is None])
-    runs = {run: kept["runs"].get(run) for day in window for run in listed[day]}
+    runs = {run: kept["runs"].get(run) for day in window for run in listed[day]["red"]}
     runs |= side_by_side(red_jobs, [run for run, jobs in runs.items() if jobs is None])
     red = sorted({job for jobs in runs.values() for job in jobs})
     jobs = {job: kept["jobs"].get(job) for job in red}
@@ -1333,7 +1351,14 @@ def failed_on_main(days, kept_path):
     kept_path.parent.mkdir(parents=True, exist_ok=True)
     kept = {"days": listed, "runs": runs, "jobs": jobs}
     kept_path.write_text(json.dumps(kept, indent=1, sort_keys=True) + "\n")
-    return sorted({test for tests in jobs.values() for test in tests})
+    last = {}
+    for run in sorted(runs, key=later):
+        last |= {test: run for job in runs[run] for test in jobs[job]}
+    greens = [day["green"] for day in listed.values() if day["green"]]
+    if not greens:
+        return sorted(last)
+    passed = later(max(greens, key=later))
+    return sorted(test for test, run in last.items() if later(run) > passed)
 
 
 def told(tests, why, failed):
