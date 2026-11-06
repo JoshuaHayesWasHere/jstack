@@ -3,9 +3,11 @@
 
 jmerge merges main into one pull request at a time, the head of the line, and every other green
 pull request whose check ran over an older main waits behind it with `[in-line]`. A pull request's
-in-line episode starts at its `[in-line]` line and ends at its next line of any other kind, or at
-the end of the window while it is still in line. `merge.log` writes a pull request's line only
-when its reason changes, so an episode is one start and one end, to the minute.
+in-line episode starts at its `[in-line]` line and ends at its next line of any other kind, at
+its merge or close as GitHub gives it in the CI ledger's `ci-prs.jsonl` (a pull request merged by
+hand gets no line of jmerge's), or at the end of the window while it is still in line, whichever
+comes first. `merge.log` writes a pull request's line only when its reason changes, so an episode
+is one start and one end, to the minute.
 `merge-waits.jsonl` cannot give this: a row starts its `ready` again at each new head, so a merged
 row shows no in-line time.
 
@@ -28,9 +30,11 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 
 import jbus
 from jbus import verbs
+from jbus.ci import ledger
 from jmerge import lines, ready
 
 _STAMP = len("2026-11-04 08:24 ")
@@ -69,8 +73,23 @@ def _timed(text: str) -> Iterator[tuple[datetime, lines.Line]]:
             yield at, said
 
 
-def measure(text: str, since: datetime, until: datetime) -> LineWait:
-    """Read `merge.log`'s text for the window from `since` to `until`."""
+def ends(pulls: Path) -> dict[int, datetime]:
+    """When each pull request of the ledger at `pulls` merged or closed, whichever came first, in
+    the machine's local time, as `merge.log` writes it."""
+    found: dict[int, datetime] = {}
+    for one in ledger.read(pulls):
+        stamps = [one.get("merged"), one.get("closed")]
+        times = [
+            datetime.fromisoformat(at).astimezone().replace(tzinfo=None) for at in stamps if at
+        ]
+        if times and isinstance(one.get("number"), int):
+            found[one["number"]] = min(times)
+    return found
+
+
+def measure(text: str, since: datetime, until: datetime, ended: dict[int, datetime]) -> LineWait:
+    """Read `merge.log`'s text for the window from `since` to `until`, where `ended` gives when
+    each pull request merged or closed on GitHub."""
     minutes: dict[int, int] = {}
     merges: list[int] = []
     restarts: list[Restart] = []
@@ -79,7 +98,8 @@ def measure(text: str, since: datetime, until: datetime) -> LineWait:
     head: int | None = None
 
     def count(number: int, start: datetime, end: datetime) -> None:
-        spent = (min(end, until) - max(start, since)) // timedelta(minutes=1)
+        last = min(end, until, ended.get(number, end))
+        spent = (last - max(start, since)) // timedelta(minutes=1)
         if spent > 0:
             minutes[number] = minutes.get(number, 0) + spent
 
@@ -172,7 +192,8 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
     since = datetime.combine(day, args.since or time())
     midnight = datetime.combine(day, time()) + timedelta(days=1)
     until = min(datetime.combine(day, args.until) if args.until else midnight, now)
-    wait = measure(log.read_text(errors="replace"), since, until)
+    gone = ends(config.state(project) / ledger.PULLS)
+    wait = measure(log.read_text(errors="replace"), since, until, gone)
     print("\n".join(report(wait, project.name, log)))
     return 0
 
