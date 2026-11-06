@@ -193,7 +193,8 @@ def test_the_installed_hook_runs_at_every_kind_of_session_start():
     """The harness runs the hook only where its matcher matches the session's source, so a crew
     resumed or compacted would otherwise lose its TMPDIR."""
     (entry,) = [
-        hook for hook in json.loads((REPO / "skills.json").read_text())["hooks"]
+        hook
+        for hook in json.loads((REPO / "skills.json").read_text())["hooks"]
         if hook["name"] == "home-start.sh"
     ]
     for event in entry["events"]:

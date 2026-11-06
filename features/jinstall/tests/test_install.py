@@ -131,7 +131,9 @@ def laid(home, harness="claude-code"):
     return home / LAYOUTS / harness
 
 
-def group(script, home, matcher="startup", refuses=False, harness="claude-code"):
+def group(
+    script, home, matcher="startup|resume|clear|compact|fork", refuses=False, harness="claude-code"
+):
     run = f"sh '{laid(home, harness) / 'hooks' / script}'"
     command = run if refuses else f"{run} 2>/dev/null || true"
     hook = {"type": "command", "command": command, "timeout": 30 if refuses else 5}

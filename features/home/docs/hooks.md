@@ -8,12 +8,15 @@ The entry in `~/.codex/hooks.json` names Codex's layout, `~/.local/share/jstack/
 ## The start hook
 
 `features/home/hooks/home-start.sh` is a `SessionStart` hook.
+It does nothing outside T3 Code: a session T3 Code launches has `T3CODE_THREAD_ID` set to its thread's id.
+
+At every start of such a session (new, resumed, cleared, compacted or forked), it points the session's `TMPDIR` at the crew's scratch folder, `~/.cache/jstack/scratch/<repo>/<branch>`, when that folder is there, through `CLAUDE_ENV_FILE`.
+
 It makes a new T3 Code thread the repo's home without anyone typing `/home`.
 It prints `features/home/templates/hook-message.md`, which tells the thread to read the `home` skill's `SKILL.md` and follow it before its first reply.
 It prints nothing unless all of these hold:
 
-- the session is new, not a resume, a `/clear` or a compaction;
-- it runs inside T3 Code, where `T3_CODE_MCP_AUTHORIZATION` or `T3_MCP_BEARER_TOKEN` is set;
+- the session is new, not a resume, a `/clear`, a compaction or a fork;
 - its directory is not under T3 Code's scratch folder, `~/.t3/scratch`;
 - its directory is a repo's main checkout, not a worktree, a submodule or a bare repo;
 - the repo has no `off` file in `~/.local/state/home/<repo>/`.
@@ -27,7 +30,7 @@ The hook needs `jq`, `git` and `awk`. `install.sh` merges this group into `~/.cl
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup",
+        "matcher": "startup|resume|clear|compact|fork",
         "hooks": [
           {
             "type": "command",
