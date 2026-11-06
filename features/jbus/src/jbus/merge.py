@@ -58,6 +58,9 @@ _NO_LIST = re.compile(
     r"(cannot be read|has a pattern that cannot be read)"
 )
 NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
+RUN = ("jmerge", "--if-free")
+"""The run of `jmerge` the pass and the tick make: with `--if-free`, a run that finds the run lock
+held does nothing and exits `lock.BUSY`, rather than wait inside `JMERGE_TIMEOUT`."""
 SWEEP = ("jmerge", "--sweep", "--check")
 UNRULED = re.compile(
     re.escape(ready.UNRULED_DROPS)
@@ -97,7 +100,7 @@ def merge(run: Pass) -> Said:
     stopped. The `Said` that this function returns is then `failed`, so jbus keeps what it knew of
     the rows that `jmerge` did not reach, as it does for a busy run.
     """
-    ran = run.run("jmerge", "--if-free", timeout=JMERGE_TIMEOUT)
+    ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
     lines = _sent(run, ran)
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if ran.returncode == lock.BUSY:
@@ -152,7 +155,7 @@ def tick(run: Pass) -> Said:
     counts itself, since the pass, which does not wait on the lock, cannot see it. A run that did
     not end, busy or failed, is the tick's to try again.
     """
-    ran = run.run("jmerge", "--if-free", timeout=JMERGE_TIMEOUT)
+    ran = run.run(*RUN, timeout=JMERGE_TIMEOUT)
     if isinstance(ran, proc.TimedOut):
         _failed(run, lines_of.said(ran))
     return _sent(run, ran)
