@@ -578,7 +578,7 @@ def folder(before):
     return bool(before) and before[0] not in (None, "bin")
 
 
-def read(tree):
+def read(tree, nodes):
     """Return what this script reads from a module's tree: the names the module imports, the
     words of its string constants, where it imports by name (`by_name`), the names of its
     functions' arguments, the paths it spells, its read set, the dotted names it names through
@@ -586,9 +586,8 @@ def read(tree):
     so it is named under each module the module star-imports. An import in an `if TYPE_CHECKING:`
     is no import: it never runs. A string that is a `folder` of a chain of `/` is spelled with the
     chain, and not as a path of its own: the `jbus` of `home / ".config" / "jbus"` is a folder,
-    not the package run in a process."""
+    not the package run in a process. `nodes` are the tree's, as `walk` gives them."""
     names, words, args, paths, calls = set(), set(), set(), set(), set()
-    nodes = walk(tree)
     checked = {
         id(one)
         for node in nodes
@@ -634,22 +633,29 @@ def parents(name):
     return {".".join(parts[:end]) for end in range(1, len(parts) + 1)}
 
 
-def parsed(name):
-    """A module's tree. It is parsed again on each call: a cache of the trees of every module
-    makes each collection of garbage walk them, and the script slower."""
-    return ast.parse((ROOT / modules()[name]).read_text())
+@cache
+def facts():
+    """Each module, with `(read, defined, members)`: what `read` finds in its source, the
+    fixtures it defines (`defines`), and for a module of the tests what its top-level names
+    hold (`holding`), from one parse of its file. No tree is kept: a cache of the trees of every
+    module makes each collection of garbage walk them, and the script slower."""
+    found = {}
+    for name, path in modules().items():
+        try:
+            tree = ast.parse((ROOT / path).read_text())
+        except SyntaxError as error:
+            raise Unread(f"{path}: {error}") from error
+        nodes = walk(tree)
+        mine = defines(tree)
+        held = holding(tree, nodes, mine) if of_tests(path) else None
+        found[name] = (read(tree, nodes), mine, held)
+    return found
 
 
 @cache
 def sources():
     """Each module, with what `read` finds in its source."""
-    found = {}
-    for name, path in modules().items():
-        try:
-            found[name] = read(parsed(name))
-        except SyntaxError as error:
-            raise Unread(f"{path}: {error}") from error
-    return found
+    return {name: one[0] for name, one in facts().items()}
 
 
 @cache
@@ -779,8 +785,12 @@ def skills():
     return {folder.name: folder.relative_to(ROOT).as_posix() for folder in sorted(found)}
 
 
-@cache
 def members(name):
+    """`holding` of a module of the tests."""
+    return facts()[name][2]
+
+
+def holding(tree, nodes, mine):
     """Each name a module binds at its top level, with what its code holds: `(words, names,
     dotted, asks)`, the skills its strings name, the module's own names it reads and does not
     bind itself (`f` of `f()`, not `x` of `x = 1` nor `f` of `x.f`), the dotted names it names
@@ -788,9 +798,8 @@ def members(name):
     arguments. A name an import binds holds the dotted name it is bound to. The key `None` holds
     the code that runs on import: each statement that binds no name, and each assignment that
     calls something. A docstring is no code, and a string that is a part of a chain of `/`, as
-    the `"home"` of `state / "home"`, is a folder and names no skill."""
-    tree = parsed(name)
-    nodes = walk(tree)
+    the `"home"` of `state / "home"`, is a folder and names no skill. `nodes` are the tree's, as
+    `walk` gives them, and `mine` the fixtures it defines."""
     imports = bound(nodes)
     stars = [module for local, module in imports.items() if local.startswith("*")]
     unread = set()
@@ -829,7 +838,7 @@ def members(name):
             keys = {None}
         asks = set()
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
-            node.name.startswith("test") or node.name in defined(name)
+            node.name.startswith("test") or node.name in mine
         ):
             asks = {one.arg for one in node.args.args}
         for key in keys:
@@ -1086,13 +1095,17 @@ def shared():
     return {modules()[one] for one in found} | whole | set(EVERYTHING)
 
 
-@cache
 def defined(name):
-    """The fixtures a module defines at its top level: a test that asks for one of them by name
-    gets its own, and not a plugin's."""
+    """The fixtures a module defines at its top level (`defines`)."""
+    return facts()[name][1]
+
+
+def defines(tree):
+    """The fixtures a module's tree defines at its top level: a test that asks for one of them
+    by name gets its own, and not a plugin's."""
     return {
         node.name
-        for node in parsed(name).body
+        for node in tree.body
         if "fixture" in "".join(ast.unparse(one) for one in getattr(node, "decorator_list", ()))
     }
 
@@ -1112,11 +1125,24 @@ def asking(module):
     hit = {name for name, (used, _) in fixtures.items() if used & reaching}
     while more := {name for name, (_, asks) in fixtures.items() if asks & hit} - hit:
         hit |= more
+    return {test for test, asks in askers().items() if hit & asks}
+
+
+@cache
+def askers():
+    """Each test file, with the names it may ask a plugin for: its arguments and its words, but
+    the fixtures it has of its own."""
     return {
-        modules()[name]
+        modules()[name]: (args | words) - own(name)
         for name, (_, words, _, args, _, _, _, _) in sources().items()
-        if TEST.fullmatch(modules()[name]) and (hit - own(name)) & (args | words)
+        if TEST.fullmatch(modules()[name])
     }
+
+
+@cache
+def runs(test):
+    """Whether the check runs this test file: it is there, and it does not open a browser."""
+    return (ROOT / test).is_file() and not opens_browser(test)
 
 
 @cache
@@ -1179,7 +1205,7 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
         test for test, paths in models().items() if any(owns(paths, path) for path in changed)
     }
     present = {
-        key: {one for one in tests if (ROOT / one).is_file() and not opens_browser(one)}
+        key: {one for one in tests if runs(one)}
         for key, tests in found.items()
     }
     return sorted(set().union(*present.values())), {
@@ -1192,7 +1218,7 @@ def collected():
     return {
         one
         for one in modules().values()
-        if TEST.fullmatch(one) and (ROOT / one).is_file() and not opens_browser(one)
+        if TEST.fullmatch(one) and runs(one)
     }
 
 
