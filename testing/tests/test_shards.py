@@ -21,6 +21,7 @@ from testing import shard
 from testing.paths import REPO
 from testing.shard import mangled, recorded
 from testing.split import (
+    FILE_TIMES,
     FLOOR,
     TIMES,
     WORKERS,
@@ -218,6 +219,9 @@ def test_a_run_writes_a_test_s_pinned_seconds_in_place_of_the_time_it_took_here(
     assert read_times(table) == {
         key("test_pinned.py::test_warm"): 653.60,
         key("test_pinned.py::test_skipped"): 42,
+    }
+    assert read_file_times(tmp_path / FILE_TIMES.name) == {
+        "test_pinned.py": (653.60 + 42 + FLOOR, 653.60)
     }
 
 
