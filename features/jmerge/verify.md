@@ -62,6 +62,10 @@ Preconditions:
   It prints `wait 7 https://example.test/pull/7: its findings are not handled: F1 have no answer by id`.
   Then run `printf 'Finding F1: not fixed, a made up one, because I disagree\n' >> "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"` and `record jmerge-decision jmerge --check` again.
   It prints `wait 7 https://example.test/pull/7: its findings are not handled: the decline of F1 cites no path:line, command or gate`: a proven finding holds until its decline cites one.
+- **Clean it again.**
+  The next two steps each need a brief with nothing else to wait on, so the line printed is the one they test.
+  Run `printf '# beta: a demo task\nWhere: `src/beta/`\nPull request: open one when done\n\n## Result\nStatus: done\nBranch: beta   Pull request: https://example.test/pull/7\nChecked: jgauge check exit 0 at %s\n\n## Review\nVerdict: clean\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$head" "$head" > "${VERIFY_JSTACK_SANDBOX:?}/home/.local/state/home/demo/tasks/beta.md"`, then `record jmerge-decision jmerge --check`.
+  It prints `ready 7 <the head> beta beta`.
 - **Touch a protected path.** Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta secrets/a.key`, then `record jmerge-decision jmerge --check`. It prints `hold 7 https://example.test/pull/7: needs user, touches secrets/a.key`.
 - **Fail the check.**
   Run `"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py FAILURE`, then `record jmerge-decision jmerge --check`.
