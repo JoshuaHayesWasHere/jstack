@@ -380,3 +380,25 @@ def test_no_block_a_thread_runs_deletes_or_starts_an_inner_shell():
 )
 def test_the_reader_finds_a_delete_or_an_inner_shell_only_in_command_position(script, said):
     assert reasons(script) == said
+
+
+MADE = 'tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")\n'
+
+
+@pytest.mark.parametrize(
+    ("script", "said"),
+    [
+        (MADE + "trap 'rm -rf \"$tree\"' EXIT", []),
+        ("f=$(mktemp)\ntrap 'rm -f \"${f}\"' EXIT INT", []),
+        ("trap 'rm -rf \"$tree\"' EXIT", ["trap rm deletes"]),
+        (MADE + "trap 'rm -rf \"$HOME/work\"' EXIT", ["trap rm deletes"]),
+        (MADE + "trap 'rm -rf \"$tree\" \"$other\"' EXIT", ["trap rm deletes"]),
+        (MADE + "trap 'rm -rf $tree' EXIT", ["trap rm deletes"]),
+        (MADE + "trap -- 'rm -rf \"$tree\"; rm x' EXIT", ["trap rm deletes"]),
+        ('trap "eval $cmd" EXIT', ["trap eval runs a script the check cannot read"]),
+        ("x=$(trap 'rm y' EXIT)", ["trap rm deletes"]),
+        ("trap - EXIT; trap -p; trap 'echo done' EXIT", []),
+    ],
+)
+def test_a_trap_removes_only_what_its_own_block_made_with_mktemp(script, said):
+    assert reasons(script) == said
