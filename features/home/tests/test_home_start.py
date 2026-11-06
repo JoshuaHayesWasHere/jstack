@@ -21,6 +21,7 @@ NAME = "demo"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 
 T3 = "T3CODE_THREAD_ID"
+T3_CODEX = "CODEX_INTERNAL_ORIGINATOR_OVERRIDE"
 HOMES = "JBUS_HOME_DIR"
 MARK = "$first"
 FIRST, USUAL, *REST = (
@@ -67,16 +68,33 @@ class Scene:
         self.main.mkdir(parents=True)
         git(self.main, "init", "-q")
 
-    def start(self, cwd=None, *, source="startup", t3=True, homes=None, env_file=None, **more):
+    def start(
+        self,
+        cwd=None,
+        *,
+        source="startup",
+        t3="claude",
+        originator=None,
+        homes=None,
+        env_file=None,
+        **more,
+    ):
         """Run the session-start hook as the harness does for a thread opened in `cwd`. `t3`
-        says whether T3 Code launched the session, which sets `T3CODE_THREAD_ID` to the thread's
-        id. `homes` is the `JBUS_HOME_DIR` the thread has, or None for none."""
-        env = {key: value for key, value in os.environ.items() if key not in (T3, HOMES)}
+        names the agent T3 Code launched the session as, or None for a session T3 Code did not
+        launch. T3 Code sets `T3CODE_THREAD_ID` to a Claude session's thread id, and starts its
+        shared `codex app-server` with `CODEX_INTERNAL_ORIGINATOR_OVERRIDE=T3 Code`, which Codex
+        hands to its hooks. `originator` sets that variable to another client's name. `homes` is
+        the `JBUS_HOME_DIR` the thread has, or None for none."""
+        env = {key: value for key, value in os.environ.items() if key not in (T3, T3_CODEX, HOMES)}
         env["HOME"] = str(self.user)
         if homes:
             env[HOMES] = str(homes)
-        if t3:
+        if t3 == "claude":
             env[T3] = "mcp:a-thread"
+        if t3 == "codex":
+            env[T3_CODEX] = "T3 Code"
+        if originator:
+            env[T3_CODEX] = originator
         env.pop("CLAUDE_ENV_FILE", None)
         if env_file:
             env["CLAUDE_ENV_FILE"] = str(env_file)
@@ -116,6 +134,14 @@ def test_a_repo_with_no_state_directory_gets_the_line_for_a_first_home(tmp_path,
     scene = Scene(tmp_path, name)
     assert scene.start() == scene.said(first=True)
     assert not scene.home_dir.exists()
+
+
+def test_a_codex_thread_t3_code_opens_gets_the_line_too(scene):
+    assert scene.start(t3="codex") == scene.said(first=True)
+
+
+def test_a_codex_session_another_client_started_gets_no_line(scene):
+    assert scene.start(t3=None, originator="codex_vscode") == ""
 
 
 def test_a_state_directory_no_home_has_started_in_is_still_a_first_home(scene):
@@ -256,7 +282,7 @@ def a_bare_repo(scene, tmp_path):
 
 
 def outside_t3(scene, tmp_path):
-    return {"t3": False}
+    return {"t3": None}
 
 
 def a_resume(scene, tmp_path):
