@@ -1349,29 +1349,46 @@ def parted(tmp_path, count, files=PARTED, changed=("slow", "two")):
     return ran, summary.read_text() if summary.exists() else "", given
 
 
-def test_parts_get_whole_test_files_dealt_by_time_once_for_all_parts(tmp_path):
-    """The selection is collected once and its files dealt out whole, slowest first, to the part
-    with the least time so far, so a part collects only its own files. A part the selection left
-    empty gets `none`, which the check's part passes on."""
+def test_parts_get_test_files_dealt_by_time_once_for_all_parts_and_one_past_a_share_by_test(
+    tmp_path,
+):
+    """The selection is collected once and its files dealt out slowest first, to the part with
+    the least time so far, so a part collects only its own files. A file whose tests sum past a
+    part's share (6 s of 16 s over 4 parts) is dealt by test: each part that holds some of its
+    tests gets the file and the word that names those tests. A single test of 10 s cannot be
+    split, and has a part of its own."""
+    from testing import shard
+
     ran, summary, given = parted(tmp_path, 4)
 
     assert ran.returncode == 0, ran.stderr
+    one, two = (shard.key(f"testing/tests/test_two.py::test_{n}") for n in ("one", "two"))
     assert given == {
         "selection": "some",
         "files": "3",
         "forced_by": "",
         "part1": "testing/tests/test_slow.py",
-        "part2": "testing/tests/test_two.py",
-        "part3": "testing/tests/test_tree.py",
-        "part4": "none",
+        "part2": f"testing/tests/test_two.py --shard-tests={one}",
+        "part3": f"testing/tests/test_two.py --shard-tests={two}",
+        "part4": "testing/tests/test_tree.py",
     }
-    assert "parts: 4 of 4 tests in 3 files, 0 0 6 10 s of test time each" in summary
+    assert "parts: 4 of 4 tests in 3 files, 0 3 3 10 s of test time each" in summary
     assert ran.stdout.splitlines()[-4:] == [
         "part 1: testing/tests/test_slow.py",
-        "part 2: testing/tests/test_two.py",
-        "part 3: testing/tests/test_tree.py",
-        "part 4: none",
+        f"part 2: testing/tests/test_two.py --shard-tests={one}",
+        f"part 3: testing/tests/test_two.py --shard-tests={two}",
+        "part 4: testing/tests/test_tree.py",
     ]
+    kept = (tmp_path / "selection.txt").read_text().splitlines()
+    assert "testing/tests/test_two.py imports,catch-all part=2,3" in kept
+
+
+def test_a_part_the_selection_leaves_empty_gets_none(tmp_path):
+    """Four tests over eight parts leave four empty, and the check's part passes on `none`."""
+    ran, _, given = parted(tmp_path, 8)
+
+    assert ran.returncode == 0, ran.stderr
+    assert [given[f"part{n}"] for n in range(1, 9)].count("none") == 4
 
 
 def test_every_selected_file_is_in_exactly_one_part(tmp_path):
@@ -1427,6 +1444,24 @@ def test_an_all_dealt_to_parts_lists_every_file_with_its_part():
 def test_the_deal_of_no_tests_fails():
     with pytest.raises(SystemExit, match="holds no test"):
         select.dealt([], {}, 8)
+
+
+def test_a_file_past_a_part_s_share_is_cut_into_the_fewest_pieces_that_fit_a_share():
+    """A file of 40 tests of 10 s beside 200 files of 1 s, over 4 parts: its 400 s are past a
+    share of 150 s, so it is cut into 3 pieces, each in a part of its own, and not spread over
+    every part, since each part a piece lands in builds the file's caches again. Each test of it
+    is named in exactly one part's `--shard-tests`."""
+    from testing import shard
+
+    big = [f"a/test_big.py::test_{n}" for n in range(40)]
+    rest = [f"a/test_{n}.py::test_one" for n in range(200)]
+    times = {shard.key(test): 10 for test in big} | {shard.key(test): 1 for test in rest}
+    parts, seconds = select.dealt(big + rest, times, 4)
+    holding = [part for part in parts if "a/test_big.py" in part]
+    assert len(holding) == 3
+    named = [key for part in holding for key in part[-1].removeprefix("--shard-tests=").split(",")]
+    assert sorted(named) == sorted(shard.key(test) for test in big)
+    assert max(seconds) - min(seconds) <= 10
 
 
 def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_quick_tests_is_not():
