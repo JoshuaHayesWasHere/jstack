@@ -1165,18 +1165,22 @@ def touched(changed):
 
 def guards(changed, tests):
     """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
-    tests, the catch-all and the changed test files. `["all"]` stays `["all"]`."""
+    tests, the catch-all and the changed test files. A selection of `["all"]` gives them all the
+    same, never the whole suite, which outran jmerge's 600 s on a merged tree: CI's check of the
+    pull request runs the rest."""
+    first = set(cross_cutting()) | unowned() | set(changed)
     if tests == ["all"]:
-        return tests
-    return sorted(set(tests) & (set(cross_cutting()) | unowned() | set(changed)))
+        return sorted(first & collected())
+    return sorted(set(tests) & first)
 
 
 def desk_part(name, changed, tests):
-    """The `guards` or the `rest` of a selection's `tests`."""
-    first = guards(changed, tests)
-    if name == "guards" or tests == ["all"]:
-        return first
-    return sorted(set(tests) - set(first))
+    """The `guards` or the `rest` of a selection's `tests`. The rest of `["all"]` is `["all"]`."""
+    if name == "guards":
+        return guards(changed, tests)
+    if tests == ["all"]:
+        return tests
+    return sorted(set(tests) - set(guards(changed, tests)))
 
 
 def ask(path, gone=None, **query):
