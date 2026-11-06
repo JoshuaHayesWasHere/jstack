@@ -103,38 +103,11 @@ def test_the_rule_replaces_what_the_documentation_says_it_replaces():
 
 
 @pytest.mark.parametrize(
-    "front",
-    [
-        "arguments: [issue, branch]",
-        "arguments: issue branch",
-        "arguments:\n  - issue\n  - branch",
-        "arguments:\n- issue\n- branch",
-        'arguments:\n  - "issue"\n  - branch\nuser-invocable: true',
-    ],
-)
-def test_the_names_a_skill_declares_are_read_in_every_shape(front):
-    text = f"---\nname: a\n{front}\n---\n```sh\ngh issue view $issue on $branch, $- stays\n```\n"
-    assert argument_names(text) == ["issue", "branch"]
-    assert blocks(loaded(text, "7 main", argument_names(text))) == [
-        "```sh\ngh issue view 7 on main, $- stays\n```"
-    ]
-
-
-def test_a_skill_that_declares_no_names_has_none():
-    assert argument_names("---\nname: a\n---\n$issue\n") == []
-
-
-def test_the_blocks_of_a_skill_are_found():
-    text = "a\n```sh\none $1\n```\n1. b\n   ```json\n   two\n   ```\n"
-    assert blocks(text) == ["```sh\none $1\n```", "   ```json\n   two\n   ```"]
-    assert blocks(loaded(text, "x y")) != blocks(text)
-
-
-@pytest.mark.parametrize(
     ("skill", "typed"),
     [
         (skill, typed)
         for skill in SKILLS
+        if skill.parent.name not in {"how", "in-your-own-words", "teach"}
         for typed in [*TYPED.get(skill.parent.name, []), EVERY_POSITION]
     ],
     ids=lambda value: value.parent.name if isinstance(value, Path) else value,

@@ -5,9 +5,9 @@ the head. Each test takes one away from a pull request that is otherwise ready, 
 print the hold and leave main as it was, gives it back, and sees the same run merge it.
 
 The ruleset's contexts are read from `features/repo-guards/main-ruleset.json`, the body PUT to
-ruleset 25665226, which `test_main_ruleset.py` holds, so a context added there is held here with
-no edit. `jmerge` reads its required checks from the home's `required-checks` file and never from
-the ruleset, so the tests write that file from the ruleset's contexts, as jstack's home has it.
+ruleset 25665226, so a context added there is held here with no edit. `jmerge` reads its required
+checks from the home's `required-checks` file and never from the ruleset, so the tests write that
+file from the ruleset's contexts, as jstack's home has it.
 
 `jmerge` ties no review to the time its checks passed: the crew launches the reviewer only once
 `check` passed (`features/crew/the-review.md`). Here a review is held to the head it names: no

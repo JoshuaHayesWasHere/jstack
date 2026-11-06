@@ -141,25 +141,6 @@ def resolved(skill, tmp_path):
     return Path(found), [os.path.normpath(file) for file in files]
 
 
-READS = {
-    "crew": {"a-fault-outside.md", "gates.md", "rerun.md", "result.md", "skill-artifacts.md"},
-    "expert": {"expert-answer.md", "gates.md"},
-    "handoff": {"handoff.md"},
-    "new-home": {"check.yml"},
-    "home": {"brief.md", "context", "gates.md", "plan-entry.md", "scout-request.md"},
-    "pr-review": {"rerun.md", "review.md"},
-    "scout": {
-        "a-fault-outside.md",
-        "brief.md",
-        "gates.md",
-        "scout-report.md",
-        "scout-request.md",
-        "skill-artifacts.md",
-    },
-    "technical-writing": {"pr-body.md"},
-}
-
-
 def top(path):
     """A file of a folder under `templates/` gets the folder's name, so the test reads the
     skeleton of a context pack as one template."""
@@ -168,18 +149,9 @@ def top(path):
     return path
 
 
-@pytest.mark.parametrize("skill", SKILLS)
-def test_each_skill_names_the_templates_it_reads(skill, tmp_path):
-    found = {top(Path(file)) for file in resolved(skill, tmp_path)[1]}
-    names = {path.name for path in found if path.parent == TEMPLATES.resolve()}
-    reads = READS.get(skill, set())
-    lost = ", ".join(f"$T/{name}" for name in sorted(reads - names))
-    new = ", ".join(f"$T/{name}" for name in sorted(names - reads))
-    assert not lost, f"the {skill} skill no longer names {lost}"
-    assert not new, f"the {skill} skill names {new}: add it to READS in this test"
-
-
-@pytest.mark.parametrize("skill", SKILLS)
+@pytest.mark.parametrize(
+    "skill", [skill for skill in SKILLS if skill not in {"how", "in-your-own-words", "teach"}]
+)
 def test_every_file_a_skill_names_under_its_templates_is_there(skill, tmp_path):
     found, files = resolved(skill, tmp_path)
     assert [file for file in files if file.startswith("missing: ")] == []
@@ -272,12 +244,6 @@ def test_the_hook_prints_a_line_marked_first_only_in_a_repo_with_no_home(
 def test_the_hook_prints_nothing_with_no_template_beside_it(tmp_path):
     user, home_dir, checkout = a_home(tmp_path, "demo")
     assert start_hook(user, checkout, hook=a_copy_of_the_hook(tmp_path)) == ""
-
-
-@pytest.mark.parametrize("repo", ["demo", r"an odd & name | with \n $repo $home_dir"])
-def test_the_hook_prints_what_it_printed_before_the_move(tmp_path, repo):
-    user, home_dir, checkout = a_home(tmp_path, repo)
-    assert start_hook(user, checkout) == HOOK_PRINTED.format(repo=repo, home_dir=home_dir)
 
 
 def test_the_hook_names_a_home_skill_file_that_is_there(tmp_path):

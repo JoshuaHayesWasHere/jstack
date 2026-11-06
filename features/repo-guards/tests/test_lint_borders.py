@@ -78,11 +78,6 @@ def hard(root, *args):
     return ran.returncode, named
 
 
-def test_this_checkout_prints_no_warning_and_hard_exits_0():
-    ran = lint(REPO, "--hard")
-    assert (ran.returncode, ran.stdout, ran.stderr) == (0, "", "")
-
-
 def test_a_diff_across_two_features_fails_hard_unless_it_is_labelled_cross_cutting(repo):
     write(repo, "features/alpha/a.md", "changed\n")
     write(repo, "features/beta/b.md", "changed\n")

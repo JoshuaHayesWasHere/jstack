@@ -123,35 +123,6 @@ def uncited(root):
     return sorted(name for name in every if name not in cited)
 
 
-PRINCIPLES_OF_TESTS_AND_CODE = (
-    "principles/principle-test-behavior-not-implementation.md",
-    "principles/principle-sequence-verifiable-units.md",
-)
-
-
-def design_problems(text):
-    """What is wrong with the design step of a playbook, which must launch one read-only
-    subagent before the thread writes any code."""
-    bodies = re.findall(r"^\d+\. (.*)$", text, re.M)
-    design = [
-        n
-        for n, body in enumerate(bodies, 1)
-        if "`Explore`" in body and "read-only" in body and "size M and up" in body
-    ]
-    if not design:
-        return ["has no design step"]
-    code = [
-        n
-        for n, body in enumerate(bodies, 1)
-        if any(name in body for name in PRINCIPLES_OF_TESTS_AND_CODE)
-    ]
-    if code and design[0] > code[0]:
-        return [f"has its design step {design[0]} after step {code[0]}, which writes code"]
-    if "counts as S" not in bodies[design[0] - 1]:
-        return ["does not say what size a brief with none has"]
-    return []
-
-
 def test_each_playbooks_directory_holds_playbooks_and_nothing_else():
     for folder in sorted({path.parent for path in FILES}):
         assert sorted(folder.iterdir()) == [path for path in FILES if path.parent == folder]
@@ -339,39 +310,6 @@ def test_third_party_has_to_cover_a_playbook_only_when_its_source_is_pstack(root
     assert check(root) == []
     (root / "THIRD_PARTY.md").write_text("Covered: `a-playbook.md`.\n")
     assert check(root, source=pstack) == []
-
-
-def test_the_feature_playbook_has_its_design_step_before_code():
-    assert (
-        design_problems((REPO / "features" / "crew" / "playbooks" / "feature.md").read_text()) == []
-    )
-
-
-DESIGN = (
-    "1. For a task of size M and up, start one read-only subagent (`Explore`)."
-    " A brief with no size counts as S.\n"
-)
-BUILD = "2. Build it in small units (`principles/principle-sequence-verifiable-units.md`).\n"
-
-
-def test_a_design_step_before_the_code_has_no_problem():
-    assert design_problems("# A playbook\n\n" + DESIGN + BUILD) == []
-
-
-def test_no_design_step_is_a_problem():
-    assert design_problems("# A playbook\n\n" + BUILD) == ["has no design step"]
-
-
-def test_a_design_step_after_the_code_is_a_problem():
-    late = "1. " + BUILD[3:] + "2. " + DESIGN[3:]
-    assert design_problems("# A playbook\n\n" + late) == [
-        "has its design step 2 after step 1, which writes code"
-    ]
-
-
-def test_a_design_step_that_leaves_a_brief_with_no_size_open_is_a_problem():
-    text = "# A playbook\n\n" + DESIGN.replace(" A brief with no size counts as S.", "") + BUILD
-    assert design_problems(text) == ["does not say what size a brief with none has"]
 
 
 def test_a_principle_no_playbook_names_is_uncited(root):

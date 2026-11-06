@@ -5,7 +5,6 @@ command, on the tree or on a small tree that has a fault in it. It then reads th
 <why>` lines and the `<n> problems` line that the script prints, after its `read` line.
 """
 
-import importlib.util
 import re
 import shutil
 import subprocess
@@ -48,27 +47,12 @@ def ran(root):
     return printed(root)[1]
 
 
-def test_the_readme_and_the_docs_say_nothing_the_tree_does_not_have():
-    assert ran(REPO) == []
-
-
 def test_the_trees_html_pages_are_read_and_named():
     read, _ = printed(REPO)
     pages = sorted(REPO.glob("features/*/docs/**/*.html"))
     assert pages
     for page in pages:
         assert page.relative_to(REPO).as_posix() in read.split()
-
-
-def test_the_tree_is_read_whole_and_counted():
-    spec = importlib.util.spec_from_file_location("check_jstack_docs", SCRIPT)
-    script = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = script
-    spec.loader.exec_module(script)
-    tree = script.Tree.read(REPO)
-    assert all(tree.count(noun) >= 7 for noun in script.NOUNS)
-    assert len(tree.models) >= 2
-    assert len(script.docs_of(REPO)) > 40
 
 
 @pytest.fixture

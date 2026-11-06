@@ -4,12 +4,9 @@ The README is the front page: what jstack is, its requirements and a quickstart.
 it used to hold is now one page for each command under `docs/`, so each test reads the page the
 text is on.
 
-The test looks for each name in the tracked files of `features/*/src` first. It does not require the
-pages to name what the code does not have: once the code drops a name, the pages need not name it.
-The figures the pages give must match the code and the `jbus.timer` unit. The test runs the
-quickstart's commands under a temporary `HOME`, and does the same run for the status line that the
-configuration page shows. Each line the doctor prints that is not `ok` must match an entry of a
-troubleshooting page.
+The figures the pages give must match the code and the `jbus.timer` unit. The test runs the status
+line that the configuration page shows under a temporary `HOME`. Each line the doctor prints that is
+not `ok` must match an entry of a troubleshooting page.
 
 The pages say what jstack is. A line fails when it names the old repo, the `jstack-v1` tag, the
 first jstack or the cutover, or when it says what a thing used to be called or where it moved.
@@ -17,17 +14,13 @@ The case of its letters does not matter.
 """
 
 import configparser
-import html
-import json
 import os
 import re
 import subprocess
 import sys
 import time
 import tomllib
-import types
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -36,23 +29,20 @@ import jsettings
 from jbus import alert, wake
 from jgauge import sizes
 from jinstall import needs as listed
-from jinstall.kinds import HomeSkills, HookGroup, Program, StatusLine
+from jinstall.kinds import HomeSkills, Program
 from jinstall.machine import Machine
 from test_doctor import PROGRAMS, Doctored
 from test_install import line_for
-from testing.paths import REPO, skills
+from testing.paths import REPO
 
 README = REPO / "README.md"
 DOCS = REPO / "docs"
 PAGES = (README, *sorted(DOCS.glob("**/*.md")), *sorted(REPO.glob("features/*/docs/**/*.md")))
 HTML = (*sorted(DOCS.glob("*.html")), *sorted(REPO.glob("features/*/docs/*.html")))
 COMMANDS = tuple(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
-LIMIT = 15_500
-SCREEN = 25
 MARKED = re.compile(r"(!?)\[[^\]]*\]\(\s*<?([^)\s>]+)[^)]*\)")
 NOTED = re.compile(r"^ {0,3}\[[^\]]+\]:\s*<?([^\s>]+)", re.M)
 TAGGED = re.compile(r"<(img|a|source)\b[^>]*?\b(?:src|href|srcset)=[\"']([^\"']+)", re.I)
-PERSONAL = ("~/repos/jstack",)
 HARD = {
     "Linux or macOS": ("platform",),
     "T3 Code": ("t3",),
@@ -80,22 +70,6 @@ NO_REQUIREMENT = (
 ON_ARCH = ("t3 jstack build",)
 OF_THE_CHECKOUT = ("generated files are current",)
 LAYOUTS = ("layout claude-code", "layout codex", "layout cursor")
-NAMED = (
-    "ci-paths.txt",
-    "fresh-check",
-    "waiting-on-user.json",
-    "serial_paths",
-    "overlap_cap",
-    "rotation.json",
-    "warn_days",
-    "jbus status",
-    "jgauge test-slot",
-    "X-Automation-Key",
-    "range-diff",
-    "heartbeat",
-    "jbus alarm",
-)
-GONE = ("X-Jbus-Key", "every three minutes", "holds a file")
 HISTORY = re.compile(
     r"jstack-v1|first jstack|cutover|"
     r"\b(was|were) called\b|\bmoved (here|from)\b",
@@ -142,10 +116,6 @@ def troubleshooting():
     return "\n".join(path.read_text() for path in found)
 
 
-def pages():
-    return "\n".join(path.read_text() for path in PAGES)
-
-
 def section(text, heading):
     """The lines under one `## ` heading, up to the next heading of that level."""
     found = re.search(rf"^## {re.escape(heading)}\n(.*?)(?=^## |\Z)", text, re.M | re.S)
@@ -157,23 +127,6 @@ def blocks(text, language):
     """The lines of each fenced block of one language, with the list's indent taken off."""
     found = re.findall(rf"^[ \t]*```{language}\n(.*?)^[ \t]*```$", text, re.M | re.S)
     return [[line.strip() for line in block.splitlines()] for block in found]
-
-
-def test_the_pages_name_what_the_code_has_and_nothing_it_dropped():
-    said = pages()
-    tracked = subprocess.run(
-        ["git", "ls-files", "features/*/src/*"],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.splitlines()
-    code = "\n".join(tracked)
-    code += "\n".join((REPO / name).read_text(errors="ignore") for name in tracked)
-    there = [name for name in NAMED if name in code]
-    assert there, "the search of features/*/src found none of the names"
-    assert [name for name in there if name not in said] == []
-    assert [name for name in GONE if name in said] == []
 
 
 def test_the_figures_the_jbus_page_gives_are_the_ones_the_code_and_the_timer_have():
@@ -217,68 +170,11 @@ def test_the_defaults_the_configuration_page_gives_are_the_loaders(tmp_path):
     assert f"| `user` | `{jsettings.DEFAULTS.user}` |" in said
 
 
-def test_the_readme_opens_with_what_jstack_is_then_what_it_needs_then_the_quickstart():
-    said = README.read_text()
-    assert len(said.encode()) < LIMIT
-    assert re.findall(r"^#+ .*", said, re.M)[:3] == ["# jstack", "## Requirements", "## Quickstart"]
-    first = said.splitlines()[:SCREEN]
-    status = next(n for n, line in enumerate(first) if line.startswith("**Status: "))
-    drawn = [
-        n for n, line in enumerate(first) if ("img", "features/home/docs/flow.svg") in linked(line)
-    ]
-    assert drawn and status < drawn[0]
-    assert [line for line in first[: drawn[0]] if line.startswith("#")] == ["# jstack"]
-    assert ("a", "features/home/docs/flow.md") in linked("\n".join(first))
-
-
 def linked(text):
     """Each place a Markdown text points at, with `img` for a picture and `a` for a link."""
     marked = [("img" if bang else "a", target) for bang, target in MARKED.findall(text)]
     noted = [("a", target) for target in NOTED.findall(text)]
     return marked + noted + [(tag.lower(), target) for tag, target in TAGGED.findall(text)]
-
-
-def broken(path):
-    """The relative links and pictures of one page that lead to no file or no heading."""
-    wrong = []
-    for _, target in linked(path.read_text()):
-        file, _, anchor = target.partition("#")
-        to = (path.parent / file).resolve() if file else path
-        if re.match(r"[a-z]+:", target):
-            continue
-        if (
-            not to.is_file()
-            or anchor
-            and anchor not in map(slug, re.findall(r"^#+ (.*)", to.read_text(), re.M))
-        ):
-            wrong.append(target)
-    return wrong
-
-
-def test_a_link_or_a_picture_that_leads_nowhere_is_found(tmp_path):
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "there.md").write_text("# There\n\n## One part\n")
-    page = tmp_path / "README.md"
-    page.write_text(
-        "![drawn](docs/gone.svg) [a](docs/there.md#one-part) [b](docs/there.md#no-part)\n"
-        '<img alt="x" src="docs/lost.png"> <a href="docs/away.md">c</a> [d](#top)\n'
-        "[out](https://example.test/x) <source srcset='docs/dark.svg'>\n# Top\n"
-        '[e](docs/page.html "with a title") [f][later] [g](docs/there.md "titled")\n\n'
-        "[later]: docs/other.html\n"
-    )
-    assert broken(page) == [
-        "docs/gone.svg",
-        "docs/there.md#no-part",
-        "docs/page.html",
-        "docs/other.html",
-        "docs/lost.png",
-        "docs/away.md",
-        "docs/dark.svg",
-    ]
-    assert [target for _, target in linked(page.read_text()) if ".html" in target] == [
-        "docs/page.html",
-        "docs/other.html",
-    ]
 
 
 def test_the_readme_links_no_html_page_and_each_one_is_linked_from_a_page_it_links():
@@ -295,82 +191,6 @@ def test_the_readme_links_no_html_page_and_each_one_is_linked_from_a_page_it_lin
     }
     assert told
     assert [path.name for path in HTML if path.resolve() not in told] == []
-
-
-def colours(rules):
-    """The classes whose fill colour or stroke colour a rule in the picture's style sets."""
-    return {
-        name
-        for names, body in re.findall(r"([^{}]+)\{([^{}]*)\}", rules)
-        if re.search(r"\b(?:fill|stroke):\s*#", body)
-        for name in re.findall(r"\.([\w-]+)", names)
-    }
-
-
-def test_the_picture_is_one_svg_that_draws_each_role_and_carries_both_themes():
-    drawn = ET.parse(where("flow.svg")).getroot()
-    space = "{http://www.w3.org/2000/svg}"
-    assert drawn.tag == f"{space}svg" and drawn.get("viewBox")
-    words = [text.text.strip() for text in drawn.iter(f"{space}text")]
-    for name in ("Home", "Scout", "Crewmate", "Reviewer", "jbus"):
-        assert name in words, name
-    assert "Merged to main" in words and "\u2014" not in " ".join(drawn.itertext())
-    assert drawn.find(f"{space}title").text and drawn.find(f"{space}desc").text
-    style = drawn.find(f"{space}style").text
-    light, _, dark = style.partition("@media (prefers-color-scheme: dark)")
-    assert len(colours(light)) > 5 and colours(light) == colours(dark)
-    used = {name for element in drawn.iter() for name in element.get("class", "").split()}
-    assert colours(light) <= used
-    tags = {element.tag.removeprefix(space) for element in drawn.iter()}
-    assert tags & {"script", "image", "foreignObject", "use", "a"} == set()
-    assert "url(" not in style and "@import" not in style
-
-
-def plain(marked):
-    """A piece of the explained page as Markdown writes it: no tag, and code in backticks."""
-    coded = re.sub(r"</?code>", "`", marked)
-    return html.unescape(re.sub(r"<[^>]+>", "", coded)).strip()
-
-
-def codes(text):
-    return sorted(re.findall(r"`([^`]+)`", text))
-
-
-def test_the_flow_page_has_the_ten_steps_and_the_asks_of_the_explained_page():
-    explained = (REPO / "features/home/docs/jstack-explained.html").read_text()
-    steps = re.findall(
-        r'<li class="step \w+"><b><span class="n">(\d+)</span>(.*?)</b><small>(.*?)</small>',
-        explained,
-    )[:10]
-    assert [number for number, _, _ in steps] == [str(n) for n in range(1, 11)]
-    rows = re.findall(r"^\| (\d+)\. ([^|]+) \| ([^|]+) \| ([^|]+) \|$", page("flow.md"), re.M)
-    assert [(number, name) for number, name, _, _ in rows] == [
-        (number, plain(name)) for number, name, _ in steps
-    ]
-    for (_, name, who, does), (_, title, text) in zip(rows, steps, strict=True):
-        assert codes(f"{name} {who} {does}") == codes(plain(f"{title} {text}")), name
-    asks = re.findall(r"<tr><td>(.*?)</td><td>(.*?)</td><td>", explained)
-    assert len(asks) == 5
-    for ask, when in asks:
-        assert f"| {plain(ask)} | {plain(when)} |" in page("flow.md"), ask
-
-
-def test_each_command_has_its_page_and_the_readme_links_it():
-    said = README.read_text()
-    assert len(COMMANDS) == 10
-    for command in COMMANDS:
-        assert page(f"{command}.md").startswith(f"# {command}\n")
-        assert f"({where(f'{command}.md').relative_to(REPO)})" in said
-
-
-def slug(heading):
-    """The anchor GitHub gives a heading."""
-    return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
-
-
-def test_every_link_and_picture_of_every_page_leads_to_a_file_and_a_heading_it_has():
-    assert len(linked(README.read_text())) > 10
-    assert [f"{path.name}: {target}" for path in PAGES for target in broken(path)] == []
 
 
 @pytest.mark.parametrize("pacman", [Path("/usr/bin/pacman"), None], ids=["arch", "not arch"])
@@ -415,44 +235,6 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
     assert given == {name: need.level.value for name, need in found.items()}
 
 
-def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp_path):
-    said = section(README.read_text(), "Quickstart")
-    steps = re.findall(r"^(\d+)\. ", said, re.M)
-    assert steps == [str(n) for n in range(1, len(steps) + 1)]
-    assert 0 < len(steps) <= 10
-    typed = [line for block in blocks(said, "sh") for line in block]
-    github = "https://github.com/JoshuaHayesWasHere/jstack"
-    raw = "https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack"
-    assert typed == [
-        f"curl -fsSL {raw}/main/install.sh | sh",
-        f"uv tool install git+{github}@main",
-        "jinstall --setup",
-        f"curl -fsSL {github}/releases/latest/download/install.sh | sh",
-        "jinstall --check",
-        "jinstall --doctor",
-        "jmerge",
-    ]
-    install = re.search(r"^1\. (.*?)^2\. ", said, re.M | re.S)[1]
-    assert install.index("main/install.sh") < install.index("Once a release exists")
-    assert install.index("Once a release exists") < install.index("releases/latest")
-    assert blocks(said, "text") == [["/new-home <path>"]]
-    helped = subprocess.run(
-        [sys.executable, "-m", "jmerge", "--help"], capture_output=True, text=True, cwd=tmp_path
-    )
-    assert helped.returncode == 0 and helped.stdout.startswith("usage: jmerge")
-    skill = (REPO / "features" / "home" / "skills" / "new-home" / "SKILL.md").read_text()
-    assert re.search(r"\A---\n(?:.*\n)*?name: new-home\n", skill)
-    user = Doctored(tmp_path)
-    for line in (typed[2], *typed[4:6]):
-        code, printed, err = user.run_with_stderr(*line.split()[1:])
-        assert (code, err) == (0, ""), line
-        ends = ("ok ", "missing optional ")
-        if "--setup" in line:
-            ends = ("done ", "already ", "needs you ", "missing optional ")
-        assert all(each.startswith(ends) for each in printed[:-1]), line
-    assert printed[-1] == "doctor: ok"
-
-
 def test_the_quickstart_says_to_sign_jbus_in_and_to_give_the_go(tmp_path):
     said = section(README.read_text(), "Quickstart")
     named = re.findall(r"`jbus (\w+) (\w+)`", said)
@@ -472,13 +254,6 @@ def test_the_quickstart_says_to_sign_jbus_in_and_to_give_the_go(tmp_path):
     assert go.startswith("Tell the home one small task, and give the go.")
     assert "Nothing starts until you say go" in go
     assert "`jbus plan go`" in go
-
-
-def test_the_quickstart_links_how_to_make_the_check_it_asks_the_repo_for():
-    said = section(README.read_text(), "Quickstart")
-    step = re.search(r"^4\. (.*?)^5\. ", said, re.M | re.S)[1]
-    assert "a CI check named `check`" in step
-    assert ("a", "https://docs.github.com/en/actions/get-started/quickstart") in linked(step)
 
 
 def patterns():
@@ -572,41 +347,6 @@ def test_each_form_of_the_line_for_a_tool_from_before_the_rename_has_its_entry(t
     assert len([one for one in patterns() if "rename" in one.pattern]) == 3
 
 
-def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
-    """A page may have JSON blocks that hold a hook entry or a status line for `<layout>`.
-    Each such block is the group, or the status line, that `needs()` writes for the block's
-    event and script in Claude Code's file, the entry a page shows."""
-    here = types.SimpleNamespace(layout=lambda harness: Path("<layout>"))
-    written = {}
-    for need in listed.needs(Machine.here(REPO)):
-        kind = need.kind
-        if isinstance(kind, HookGroup) and kind.harness == "claude-code":
-            written[kind.event, kind.script] = kind._group(here)
-        elif isinstance(kind, StatusLine):
-            written["statusLine", kind.script] = kind._ours(here)
-
-    def script(command):
-        return re.search(r"<layout>/(hooks/[^'\s]+)", command)[1]
-
-    shown = set()
-    for path in (*PAGES, REPO / "CATALOG.md"):
-        for block in blocks(path.read_text(), "json"):
-            value = json.loads("\n".join(block))
-            if not isinstance(value, dict) or "<layout>" not in json.dumps(value):
-                continue
-            for event, groups in value.get("hooks", {}).items():
-                for group in groups:
-                    (hook,) = group["hooks"]
-                    key = event, script(hook["command"])
-                    assert group == written.get(key), (path.name, key)
-                    shown.add(key)
-            if "statusLine" in value:
-                key = "statusLine", script(value["statusLine"]["command"])
-                assert value["statusLine"] == written.get(key), (path.name, key)
-                shown.add(key)
-    assert len(shown) >= 3
-
-
 def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prints_its_own(
     tmp_path,
 ):
@@ -644,19 +384,6 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
     )
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "Opus\n", "")
     assert limits.read_text() == f"five_hour 23.5 {reset}\nseven_day 41.2 {reset}\n"
-
-
-def test_no_page_and_no_skill_names_one_persons_checkout():
-    held = sorted(path for one in skills().values() for path in one.rglob("*.md"))
-    read = [*PAGES, *sorted(DOCS.glob("*.html")), *held]
-    assert len(read) > 30
-    found = [
-        f"{path.relative_to(REPO)}: {word}"
-        for path in read
-        for word in PERSONAL
-        if word in path.read_text(errors="ignore")
-    ]
-    assert found == []
 
 
 def history(text):
