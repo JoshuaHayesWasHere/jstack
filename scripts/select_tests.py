@@ -1009,9 +1009,20 @@ def read_sets():
     return found
 
 
+@cache
+def globbed():
+    """Each pattern of a read set, with the test files whose read set holds it: the read sets
+    share most of their patterns."""
+    found = {}
+    for test, patterns in read_sets().items():
+        for pattern in patterns:
+            found.setdefault(pattern, set()).add(test)
+    return found
+
+
 def globbers(path):
     """The test files whose read set matches this path."""
-    return {test for test, patterns in read_sets().items() if owns(patterns, path)}
+    return set().union(*(tests for pattern, tests in globbed().items() if owns([pattern], path)))
 
 
 def inside(parts, spelling):
