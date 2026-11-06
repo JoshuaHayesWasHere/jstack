@@ -10,7 +10,8 @@ GitHub for the repo's last completed workflow runs, with the ETag it kept (`SEEN
 
 The tick keeps the ETag only once `jmerge` ran to its end, so a tick that dies, a `jmerge` that
 was busy with the pass's own run, or one that failed leaves the change to the next tick. The pass
-runs `jmerge` as it always did, so what the tick misses the next pass does. A merge of the
+runs `jmerge --if-free` each minute too, so what the tick misses the next pass with the run lock
+free does. A merge of the
 tick's that changed a skill is kept for the next pass's `reload.tell` before the ETag is
 (`reload.keep`), since `jmerge` prints its `merged` line once. One run of `jmerge`
 runs at a time, by its run lock (`jmerge.lock`). A tick reads GitHub's API budget before it asks
