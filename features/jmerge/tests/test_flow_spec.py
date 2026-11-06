@@ -50,14 +50,17 @@ def test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own():
         assert any(line.startswith(f"ok    today: {probe} holds") for line in lines)
 
 
-def test_a_desk_record_writes_the_tlc_test_at_its_warm_ci_time():
+def test_a_desk_record_writes_the_tlc_test_at_the_table_s_warm_time():
     """CI's parts restore main's TLC cache, so the TLC test takes under a second there, and a
     desk's `--shard-record` writes the seconds its `shard_seconds` pin gives in place of the
-    minutes a cold desk takes: the pin is the warm time, as the table recorded from main's full
-    runs holds it."""
+    minutes a cold desk takes. The pin is the figure the table, recorded from main's full runs,
+    holds for it, so the two records agree: #1173's pin stayed at the cold 653.60 s once the
+    table held the warm time."""
     test = test_today_and_the_design_hold_their_rules_and_each_canary_breaks_its_own
     (pin,) = [mark.args[0] for mark in test.pytestmark if mark.name == shard.PINNED]
-    assert shard.FLOOR <= pin < 60
+    nodeid = f"features/jmerge/tests/test_flow_spec.py::{test.__name__}"
+    table = shard.seconds(shard.read_times(shard.TIMES), nodeid)
+    assert pin == table, f"pin the TLC test at the table's figure: shard_seconds({table:.2f})"
 
 
 def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
