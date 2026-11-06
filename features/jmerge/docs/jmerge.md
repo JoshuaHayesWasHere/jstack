@@ -296,14 +296,14 @@ When there are none, the check ran over today's main, and it counts.
 When there are any, `jmerge` merges the head over today's main with `git merge-tree`.
 A head that does not merge over today's main waits with `it conflicts with today's main`, on the `rebase` step, and GitHub is asked nothing.
 
-A head that merges cleanly then goes one of two ways, by its files.
+A head that merges cleanly then goes one of three ways, by its files, the repo's guards and what it is.
 
 - **It overlaps none of main's changes: it merges on its existing check.**
   None of the pull request's files, nor the old path of a file it renamed, is a path main changed since its check started.
   GitHub is asked for no update of its branch, and no check runs again.
   Before the merge, where the repo names them, `jmerge` runs the fast guards on its tree merged over main ("The guards on the merged tree"), which catch a clash two pull requests make with no file in common, as #923 and #935 made on 2026-11-03 with two new `v007_` files.
   A merge that GitHub refuses waits as `the merge failed: <what GitHub said>`, and the next run judges it again.
-  It takes no place in the line below, and merges while a pull request that overlaps holds it.
+  It takes no place in the line below, and merges while a pull request that goes through the line holds it.
 - **It overlaps, in a repo that names guards: it merges on the guards on its merged tree.**
   Some of its files are paths main changed since its check started, and the repo has a `merged-tree-guards` file.
   It merges as one that overlaps none does: GitHub is asked for no update of its branch, no check runs again, and the guards on its tree merged over main decide, with main's own run and jbus's revert of a red main's culprit behind it.
