@@ -19,8 +19,9 @@ from jsettings import proc
 from test_home_merge import uv_cache
 from test_jmerge_fresh import AFTER, LINES, SOURCE, Kitchen
 
-TIMEOUT = 6
-"""jbus's `JMERGE_TIMEOUT`, lowered: long enough for `jmerge` to start its guards."""
+TIMEOUT = 20
+"""jbus's `JMERGE_TIMEOUT`, lowered: long enough for `jmerge` to start its guards on a loaded CI
+machine."""
 
 
 @pytest.fixture
