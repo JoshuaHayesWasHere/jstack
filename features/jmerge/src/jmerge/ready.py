@@ -855,13 +855,20 @@ def unanswered(said: Said) -> str:
 
 
 def _round(said: Said) -> None:
+    """The last head's verdict: the worst of its reviewers' last sections, a reviewer's scoped
+    pass apart from its full review. A section that did not run counts for nothing beside one
+    of the same reviewer's that ran at that head, so a scoped pass that found no room does not
+    hide the review that ran; another reviewer's that did not run still holds the round."""
     if not said.rounds:
         return
     heads: dict[str, dict[tuple[str, bool], str]] = {}
     for number, one in enumerate(said.rounds):
         heads.setdefault(one.head or f"#{number}", {})[(one.by, one.scoped)] = one.verdict
     last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
-    said.verdict = _worst(list(last.values()))
+    ran = {by for (by, _), verdict in last.items() if verdict in _RANKS}
+    said.verdict = _worst(
+        [verdict for (by, _), verdict in last.items() if verdict in _RANKS or by not in ran]
+    )
     said.ran = sum(
         any(verdict in ("clean", "findings") for verdict in one.values()) for one in heads.values()
     )

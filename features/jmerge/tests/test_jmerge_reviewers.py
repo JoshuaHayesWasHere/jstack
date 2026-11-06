@@ -90,6 +90,21 @@ SONNET = "claudeAgent claude-sonnet-5-5 high"
 SEATS = "Reviewer: mcp:sonnet-a #1\nReviewer: mcp:sonnet-b #2\n"
 
 
+def test_a_scoped_pass_that_did_not_run_leaves_the_verdict_to_the_review_that_ran():
+    """#1146 waited on `its review has no verdict`: its reviewer's scoped pass at the head said
+    `Verdict: not run` (no room in /tmp), and the same reviewer's full review at that head said
+    `findings`. A section that did not run counts for nothing beside one of the same reviewer's
+    that ran at the head, and holds the merge where it is all there is at the head."""
+    one = RESULT + "Reviewer: mcp:9 #1\n"
+    not_run = section(f"{SONNET} #1", "not run").replace("By:", "Scope: a.py\nBy:")
+    found = section(f"{SONNET} #1", "findings", findings=["error a.py:1 x"])
+    for brief in (one + not_run + found, one + found + not_run):
+        assert ready.said_of(brief).verdict == "findings"
+        assert ready.short_of(brief, SAW) == ready.NO_FIXED
+    assert ready.said_of(one + not_run).verdict not in ("clean", "findings")
+    assert ready.short_of(one + not_run, SAW) == ready.NO_VERDICT
+
+
 def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
     """Two Sonnet reviewers write the same model and effort, so the number tells them apart.
     A brief with only one numbered review waits, and a brief with both numbered reviews
