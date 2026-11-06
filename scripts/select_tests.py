@@ -3,7 +3,10 @@
 It reads what changed with `git diff --name-only --no-renames <base> <head>`. It prints the
 test files to run, sorted and one per line, or it prints `all`. It reads the imports of the
 tree checked out here, so the same two commits give the same lines. It needs only the standard
-library, so it runs before `uv sync`.
+library, so it runs before `uv sync`. It keeps what it read of each module in
+`select_tests.facts` in the repo's git directory, by a hash of the module's text and of this
+script, and parses again only a module whose text changed: the selection is the same with the
+file or without it.
 
 A changed module selects the test files that import it, directly or through any chain of modules. So
 the script also selects a test file that imports a module that imports the changed module. The
@@ -113,8 +116,10 @@ the check's own environment leaves the step's list alone.
 
 `select_tests.py --parts <n> <base> <head>` selects the same way, then hands the selection to
 `<n>` parts that run side by side, as the check workflow's job `select` does for its eight. It
-collects the selection once with pytest, as `make test` does (`-m "not browser"`), and deals out
-the test files, slowest first, each to the part that would end soonest so far
+collects the selection with pytest, as `make test` does (`-m "not browser"`), in up to
+`COLLECTORS` processes at once, each a run of whole files (or, for `all`, of the `testpaths`
+folders), and deals out the test files, slowest first, each to the part that would end soonest
+so far
 (`testing/shard.py`'s split, over each file's tests summed from `testing/shard-times.tsv`, and
 its slowest test, which no part ends before). So a part collects only its own files. A file
 whose tests sum past a part's share is cut by test into the fewest pieces that each fit a share,
@@ -520,7 +525,9 @@ def by_name(tree, nodes):
         for node in nodes
     ):
         return False, frozenset(), frozenset()
-    functions = [node for node in nodes if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    functions = [
+        node for node in nodes if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
     holds = {}
     for one in functions:
         holds.setdefault(one.name, set()).update(named(one) - {one.name})
@@ -613,16 +620,10 @@ def read(tree, nodes):
     not the package run in a process. `nodes` are the tree's, as `walk` gives them."""
     names, words, args, paths, calls = set(), set(), set(), set(), set()
     checked = {
-        id(one)
-        for node in nodes
-        if checking(node)
-        for part in node.body
-        for one in walk(part)
+        id(one) for node in nodes if checking(node) for part in node.body for one in walk(part)
     }
     chains = [
-        node
-        for node in nodes
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)
+        node for node in nodes if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)
     ]
     folders = {id(node.left) for node in chains} | {
         id(node.right) for node in chains if folder(spelled(node)[-2:-1])
@@ -649,7 +650,16 @@ def read(tree, nodes):
             args.add(node.arg)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             paths.add(tuple(spelled(node)))
-    return names, words, by_name(tree, nodes), args, paths, declared(tree), frozenset(calls), imports
+    return (
+        names,
+        words,
+        by_name(tree, nodes),
+        args,
+        paths,
+        declared(tree),
+        frozenset(calls),
+        imports,
+    )
 
 
 def parents(name):
@@ -1183,9 +1193,7 @@ def plugins():
 def used(node, bound):
     """The modules that a node uses, from `bound`, which maps each name to the module it is
     bound to."""
-    return {
-        bound[one.id] for one in walk(node) if isinstance(one, ast.Name) and one.id in bound
-    }
+    return {bound[one.id] for one in walk(node) if isinstance(one, ast.Name) and one.id in bound}
 
 
 @cache
@@ -1267,8 +1275,7 @@ def reaches_through():
     """Each fixture of a plugin, with the modules it reaches through those it uses: each of
     them, and what each imports through any chain."""
     return {
-        name: frozenset().union(*map(imported, used))
-        for name, (used, _) in conftest()[1].items()
+        name: frozenset().union(*map(imported, used)) for name, (used, _) in conftest()[1].items()
     }
 
 
@@ -1348,10 +1355,7 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     found["models"] = {
         test for test, paths in models().items() if any(owns(paths, path) for path in changed)
     }
-    present = {
-        key: {one for one in tests if runs(one)}
-        for key, tests in found.items()
-    }
+    present = {key: {one for one in tests if runs(one)} for key, tests in found.items()}
     return sorted(set().union(*present.values())), {
         key: sorted(one) for key, one in present.items()
     }
@@ -1359,11 +1363,7 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
 
 def collected():
     """The test files the check runs: each one there is, but the ones marked `browser`."""
-    return {
-        one
-        for one in modules().values()
-        if TEST.fullmatch(one) and runs(one)
-    }
+    return {one for one in modules().values() if TEST.fullmatch(one) and runs(one)}
 
 
 @cache
@@ -1829,7 +1829,9 @@ def suite():
         return []
     config = tomllib.loads((ROOT / "pyproject.toml").read_text())
     entries = config.get("tool", {}).get("pytest", {}).get("ini_options", {}).get("testpaths", [])
-    return [one for entry in entries for one in sorted(glob.glob(entry, root_dir=ROOT, recursive=True))]
+    return [
+        one for entry in entries for one in sorted(glob.glob(entry, root_dir=ROOT, recursive=True))
+    ]
 
 
 def dealt(nodeids, times, count):
