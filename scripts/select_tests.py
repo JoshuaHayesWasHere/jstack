@@ -329,6 +329,7 @@ def features():
     return {name: (listed(text, "Paths"), listed(text, "Tests")) for name, text in texts.items()}
 
 
+@cache
 def cross_cutting():
     return listed((ROOT / CROSS).read_text(), "Cross-cutting")
 
@@ -653,8 +654,8 @@ def facts():
             raise Unread(f"{path}: {error}") from error
         nodes = walk(tree)
         mine = defines(tree)
-        held = holding(tree, nodes, mine) if of_tests(path) else None
-        found[name] = (read(tree, nodes), mine, held)
+        one = read(tree, nodes)
+        found[name] = (one, mine, holding(tree, nodes, mine, one[7]) if of_tests(path) else None)
     return found
 
 
@@ -796,7 +797,7 @@ def members(name):
     return facts()[name][2]
 
 
-def holding(tree, nodes, mine):
+def holding(tree, nodes, mine, imports):
     """Each name a module binds at its top level, with what its code holds: `(words, names,
     dotted, asks)`, the skills its strings name, the module's own names it reads and does not
     bind itself (`f` of `f()`, not `x` of `x = 1` nor `f` of `x.f`), the dotted names it names
@@ -805,8 +806,8 @@ def holding(tree, nodes, mine):
     the code that runs on import: each statement that binds no name, and each assignment that
     calls something. A docstring is no code, and a string that is a part of a chain of `/`, as
     the `"home"` of `state / "home"`, is a folder and names no skill. `nodes` are the tree's, as
-    `walk` gives them, and `mine` the fixtures it defines."""
-    imports = bound(nodes)
+    `walk` gives them, `mine` the fixtures it defines and `imports` what its imports bind
+    (`bound`)."""
     stars = [module for local, module in imports.items() if local.startswith("*")]
     unread = set()
     for node in nodes:
