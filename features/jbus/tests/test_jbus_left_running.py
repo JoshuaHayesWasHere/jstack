@@ -324,11 +324,13 @@ def test_with_no_proc_to_read_as_on_a_mac_a_busy_stray_is_still_stopped(
     """macOS has no /proc, and there `ps` and `lsof` say what a process is. A missing `ROOT`
     stands in for it here. The process names its worktree, since this machine may have no `lsof`
     to give its working directory, and the gap is over a second, since Linux's `ps` gives CPU
-    time in whole seconds."""
-    monkeypatch.setattr(strays, "ROOT", tmp_path / "no-proc")
-    monkeypatch.setattr(strays, "GAP", 1.5)
+    time in whole seconds. launchd stands for the reaper the process really went to: 1 at a
+    desk, and the user's `systemd --user` when the test runs under a unit of it, as jbus's are."""
     tree, _ = ended_crew(kitchen, tmp_path)
     stray.append(orphan(tree, "yes", str(tree)))
+    monkeypatch.setattr(strays, "LAUNCHD", parent(stray[0]))
+    monkeypatch.setattr(strays, "ROOT", tmp_path / "no-proc")
+    monkeypatch.setattr(strays, "GAP", 1.5)
     kitchen.poll()
     assert not alive(stray[0])
 
