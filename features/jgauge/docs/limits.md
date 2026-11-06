@@ -82,6 +82,15 @@ While 4 or more threads waited, CPU pressure was 31 at the median and 40 at most
 The threads were waiting for CPU time, and the slot count was not too low.
 The one stall came from a review that the reviewer had not written, and the machine did not cause it.
 
+### Measuring the slots
+
+The rows above count waits from jbus's `slot-wake` events, which say who waited and for how long, but not who held the slots.
+Since 2026-11-05 `jgauge test-slot` appends one row to `~/.local/state/jgauge/slots.jsonl` at each take and each release, in both lanes ([jgauge](jgauge.md#the-slot-log)).
+`jgauge sample --report --since --until` reads it and prints, for each lane, the holds, the mean occupancy, and the wait in the call at p50 and p90.
+It also prints the mean occupancy over the time a thread of that lane waited for a slot, from the `slot-wake` events.
+While a thread waits, every slot of its lane should be held, so a share near 100% says the log sees every holder.
+A share well under 100% says a holder takes slots without `jgauge test-slot`, or with another `--slots`, and the log's `command` and `cwd` name the runs it does see.
+
 ## The machine's sizes
 
 | Limit | Where | Value | Protects | Its yelena basis |
@@ -107,7 +116,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | CPU pressure line | `features/jgauge/src/jgauge/room.sh` | `CPU=40` | Launches stop when work waits for a core | A share of time. Five suites reach 30 and six reach 55, so it holds the sixth. |
 | Memory floor, GB | `features/jgauge/src/jgauge/room.sh` | `MEMORY=6` | Room for one more launch and its check | A floor, not a size. A launch and a suite are 1.4 GB, and the idle machine has 49 GiB available. |
 | Memory pressure line | `features/jgauge/src/jgauge/room.sh` | `PRESSURE=10` | Launches stop when work waits for memory | A share of time. It was 0 in every run. |
-| Plan cushion, percent | `features/jgauge/src/jgauge/room.sh` | `CUSHION=${HEADROOM:-90}` | A launch passes an account by before its plan window is used up | The provider's, not the machine's. The user's `headroom` in `config.toml` sets it, and with none it is `CUSHION=90`. |
+| Plan cushion, percent | `features/jgauge/src/jgauge/room.sh` | `CUSHION=${HEADROOM:-90}` | A launch passes an account by before its plan window is used up | The provider's, not the machine's. The user's `headroom` in `~/.config/jstack/config.toml` sets it, and with none it is `CUSHION=90`. |
 | `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh` | `SLOTS=85` | `/tmp` never fills, which fails every shell | A share. Six suites at once peak at 36%. |
 | A review skips the load | `features/jgauge/src/jgauge/cli.py` | `"--light",` | A review is not held by load it does not add | A review is about 2% of a core |
 | Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py` | `room_passes=int(raw.get("room_passes", 10)),` | The owner hears of a row room holds for long | The busy night's hold was 7 passes |
@@ -129,6 +138,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | jbus's pass | `features/jbus/units/jbus.timer` | `OnUnitActiveSec=1min` | How soon a launch, a wake or a merge happens | The busy night's passes took 29 s on average and 51.5 s at most |
 | A sample of the load | `features/jgauge/units/jgauge-sample.timer` | `OnUnitActiveSec=15s` | The load history | A sample is one read of `/proc` |
 | A look for a missing pass | `features/jbus/units/jbus-stale.timer` | `OnUnitActiveSec=15min` | An alert when jbus stops | Design choice |
+| The slot log's history | `features/jgauge/src/jgauge/slotlog.py` | `KEEP_DAYS = 30` | The slot log stays small: a take past it drops the rows over 29 days old | As the load log keeps |
 | A thread waits for a test slot | `features/jgauge/src/jgauge/sample.py` | `STALL_MINUTES = 5` | What the report counts as a stall | Design choice |
 | The report's low CPU pressure | `features/jgauge/src/jgauge/sample.py` | `PRESSURE_LINE = 10.0` | A load over the line while CPU pressure is low is load room needn't hold | Design choice, and not room's memory `PRESSURE` |
 | The hourly resend of what waits on the user | `features/jbus/src/jbus/stall.py` | `AGAIN = 60 * 60` | The owner is told again, once an hour | Design choice |

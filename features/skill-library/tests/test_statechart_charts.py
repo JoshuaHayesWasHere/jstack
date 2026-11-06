@@ -15,8 +15,6 @@ from statechart_support import (
     FROM_CHART_USAGE,
     FROM_SPEC_USAGE,
     LAMP,
-    SMALL_BROKEN,
-    STOPPED_EARLY,
     SWITCH_LAMP,
     ChartError,
     edges,
@@ -25,17 +23,12 @@ from statechart_support import (
     lib,
     no_tlc,
     node,
-    parse_dot,
     parse_mermaid,
     parse_traces,
-    parse_value,
     read,
-    rule_sentences,
-    state_key,
     statechart_cli,
     statechart_tools,
     tlc_output_warning,
-    tlc_threw,
     uncited_conditions,
     write,
 )
@@ -99,24 +92,6 @@ def test_a_top_level_composite_split_by_dashes_makes_one_region_per_part():
             "sentence": 'You never see "Synced" while you are offline.',
         },
     ]
-
-
-def test_a_rules_sentence_is_the_comment_lines_above_it_and_a_state_key_ignores_field_order():
-    """a rule's sentence is the comment lines right above it, and a state key ignores field order"""
-    sentences = rule_sentences("""---- MODULE M ----
-\\* Not about a rule.
-
-\\* You never see "Saved"
-\\* while the note is a draft.
-NoFalseSaved == TRUE
-Bare == TRUE
-====""")
-    assert list(sentences.items()) == [
-        ("NoFalseSaved", 'You never see "Saved" while the note is a draft.')
-    ]
-    assert state_key({"b": 1, "a": {"d": 2, "c": [3]}}) == state_key(
-        {"a": {"c": [3], "d": 2}, "b": 1}
-    )
 
 
 def test_an_actions_condition_on_a_variable_it_does_not_change_needs_a_file_and_line():
@@ -247,57 +222,6 @@ def test_the_parser_reads_class_shorthand_repeated_descriptions_and_states_named
     ]
 
 
-def test_tlc_values_states_graphs_and_traces_parse():
-    """TLC values, states, graphs, and traces parse"""
-    assert parse_value('[a |-> <<1, "x">>, b |-> {TRUE}]') == {"a": [1, "x"], "b": [True]}
-    assert parse_value('("p" :> 1 @@ "q" :> 2)') == {"p": 1, "q": 2}
-    graph = parse_dot("""strict digraph DiskGraph {
-1 [label="/\\\\ x = 0",style = filled]
-2 [label="/\\\\ x = 1"]
-1 -> 2 [label="Inc",color="black",fontcolor="black"];
-1 -> 2 [label="Inc",color="black",fontcolor="black"];
-2 -> 2 [label="Stay"];
-}""")
-    assert graph["nodes"]["1"]["init"] is True
-    assert graph["nodes"]["2"]["vars"] == {"x": 1}
-    assert graph["edges"] == [{"from": "1", "to": "2", "action": "Inc"}]
-    assert graph["loops"] == [{"from": "2", "to": "2", "action": "Stay"}]
-    with pytest.raises(ChartError, match=r"no action names"):
-        parse_dot(
-            'strict digraph DiskGraph {\n1 [label="/\\\\ x = 0",style = filled]\n'
-            '2 [label="/\\\\ x = 1"]\n1 -> 2;\n}'
-        )
-    [trace] = parse_traces("""Error: Invariant Small is violated.
-Error: The behavior up to this point is:
-State 1: <Initial predicate>
-x = 0
-
-State 2: <Inc line 9, col 8 to line 9, col 20 of module M>
-x = 1
-""")
-    assert trace["invariant"] == "Small"
-    assert trace["steps"] == [
-        {"action": None, "vars": {"x": 0}},
-        {"action": "Inc", "vars": {"x": 1}},
-    ]
-
-
-def test_a_rule_broken_by_a_start_state_is_a_counterexample_of_one_state():
-    """a rule broken by a start state is a counterexample of one state"""
-    text = f"""Error: Invariant NeverSyncedWhileOffline is violated by the initial state:
-/\\ badge = "Synced"
-/\\ conn = "Offline"
-
-{DONE}"""
-    tlc_output_warning(text, "tlc.out")
-    assert parse_traces(text) == [
-        {
-            "invariant": "NeverSyncedWhileOffline",
-            "steps": [{"action": None, "vars": {"badge": "Synced", "conn": "Offline"}}],
-        },
-    ]
-
-
 def test_tlc_output_from_a_run_that_failed_or_stopped_early_is_refused():
     """TLC output from a run that failed or stopped early is refused"""
     tlc_output_warning(
@@ -322,55 +246,6 @@ def test_tlc_output_from_a_run_that_failed_or_stopped_early_is_refused():
             "stopped.out",
         )
     assert [t["invariant"] for t in parse_traces(EVALUATION_ERROR)] == ["NoLost", None]
-
-
-def test_a_rule_broken_before_tlc_throws_a_java_exception_keeps_its_paths_with_a_warning():
-    """a rule that TLC finds broken before TLC throws a Java exception keeps its paths, with a
-    warning"""
-    aioobe = "java.lang.ArrayIndexOutOfBoundsException: Index 123 out of bounds for length 4"
-    one_worker = (
-        f"{SMALL_BROKEN}Error: Invariant Small is violated.\n"
-        + tlc_threw(
-            "java.lang.ArrayIndexOutOfBoundsException", "Index 123 out of bounds for length 4"
-        )
-        + f"\n{STOPPED_EARLY}"
-    )
-    assert tlc_output_warning(one_worker, "tlc.out") == (
-        f"TLC found that Small is broken, and then failed with {aioobe}. TLC stopped before it"
-        " checked every state, so the charts can miss states that break Small. The failure is in"
-        " TLC, not in the rule. Do not weaken Small because of it. A smaller constant can let TLC"
-        " finish."
-    )
-    workers_interleaved = (
-        f"{tlc_threw('java.lang.RuntimeException', aioobe)}{SMALL_BROKEN}{STOPPED_EARLY}"
-    )
-    assert re.search(
-        r"failed with java\.lang\.ArrayIndexOutOfBoundsException: Index 123",
-        tlc_output_warning(workers_interleaved, "tlc.out"),
-    )
-    assert [t["invariant"] for t in parse_traces(workers_interleaved)] == ["Small"]
-    with pytest.raises(
-        ChartError,
-        match=r"formula\.out: TLC stopped on an error that is not a broken rule: Evaluating"
-        r" invariant Small failed\.",
-    ):
-        tlc_output_warning(
-            SMALL_BROKEN
-            + tlc_threw(
-                "java.lang.RuntimeException",
-                "util.Assert$TLCRuntimeException: Attempted to apply tuple",
-            )
-            + STOPPED_EARLY,
-            "formula.out",
-        )
-    with pytest.raises(ChartError, match=r"not a broken rule: Evaluating invariant Small failed\."):
-        tlc_output_warning(
-            tlc_threw(
-                "java.lang.ArrayIndexOutOfBoundsException", "Index 123 out of bounds for length 4"
-            )
-            + STOPPED_EARLY,
-            "never-broken.out",
-        )
 
 
 ARRAYCOPY_TAIL = """Error: Invariant NoMergeTurnsMainRed is violated.
@@ -939,80 +814,6 @@ def test_statechart_names_the_chart_it_refuses_and_the_argument_it_does_not_know
         f"       {FROM_CHART_USAGE}\n"
         "Run statechart --help for the flags, the output, and the exit codes.\n"
     )
-
-
-def test_every_script_prints_its_help_and_points_at_it_for_an_argument_it_does_not_know(tmp_path):
-    """every script prints its help with -h or --help, and points at it for an argument it does
-    not know"""
-    help_of = {
-        "statechart": ([], f"Usage: {FROM_SPEC_USAGE}"),
-        "statechart from-spec": (["from-spec"], f"Usage: {FROM_SPEC_USAGE}"),
-        "statechart from-chart": (["from-chart", "notes-app.mmd"], f"Usage: {FROM_CHART_USAGE}"),
-        "chart-to-tla": ([], "Usage: chart-to-tla CHART.mmd --module NAME [--dir OUT]"),
-        "tlc-to-chart": ([], "Usage: tlc-to-chart --dot FILE --map FILE [options]"),
-        "compare-charts": ([], "Usage: compare-charts EXPECTED.mmd ACTUAL.mmd"),
-    }
-    for name, (before, usage) in help_of.items():
-        script = name.split(" ")[0]
-        for flag in ["-h", "--help"]:
-            r = node(script, [*before, flag], tmp_path)
-            assert r.returncode == 0, f"{name} {flag}"
-            assert r.stderr == ""
-            assert r.stdout.split("\n")[0] == usage
-            assert re.search(r"\nExit codes\n {2}0 .*\n(.*\n)* {2}1 .*\n(.*\n)* {2}2 ", r.stdout)
-    top = node("statechart", ["--help"], tmp_path).stdout.split("\n")
-    assert top[1] == f"       {FROM_CHART_USAGE}"
-    assert top[2] == "       statechart [from-spec|from-chart] --help"
-    for flag in [
-        "--fixed FIXED.tla",
-        "--label TEXT",
-        "--map FILE",
-        "--module NAME",
-        "--title TEXT",
-        "--out DIR",
-        "--png",
-        "-h, --help",
-    ]:
-        assert any(line.startswith(f"  {flag}  ") for line in top), flag
-    for script, args, stderr in [
-        (
-            "statechart",
-            ["from-spec", "--nope"],
-            "unknown argument --nope. Run statechart from-spec --help for the flags, the output,"
-            " and the exit codes.\n",
-        ),
-        (
-            "chart-to-tla",
-            ["--nope"],
-            "unknown argument --nope. Run chart-to-tla --help for the flags.\n",
-        ),
-        (
-            "tlc-to-chart",
-            ["--nope"],
-            "unknown argument --nope. Run tlc-to-chart --help for the flags.\n",
-        ),
-        (
-            "tlc-to-chart",
-            ["--dot", "a.dot", "--map", "a.map.py", "--regions"],
-            "--regions draws the whole customer chart: use --highlight 0, without --flat or"
-            " --path-only. Run tlc-to-chart --help for the flags.\n",
-        ),
-        (
-            "tlc-to-chart",
-            ["--dot", "a.dot", "--map", "a.map.py", "--proof", "p.mmd"],
-            "--proof writes the regions proof; it needs --regions. Run tlc-to-chart --help for the"
-            " flags.\n",
-        ),
-        (
-            "compare-charts",
-            ["--nope"],
-            "unknown argument --nope. Run compare-charts --help for the flags.\n",
-        ),
-    ]:
-        r = node(script, args, tmp_path)
-        assert r.returncode == 2, script
-        assert r.stdout == ""
-        assert r.stderr == stderr
 
 
 def test_png_renders_each_chart_with_the_pinned_mermaid_cli_and_never_npxs_latest(

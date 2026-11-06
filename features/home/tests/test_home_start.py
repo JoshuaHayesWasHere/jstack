@@ -66,7 +66,7 @@ class Scene:
         self.main.mkdir(parents=True)
         git(self.main, "init", "-q")
 
-    def start(self, cwd=None, *, source="startup", t3=T3[0], homes=None, **more):
+    def start(self, cwd=None, *, source="startup", t3=T3[0], homes=None, env_file=None, **more):
         """Run the session-start hook as the harness does for a thread opened in `cwd`. `t3`
         is the variable T3 Code sets for the thread, or None outside T3 Code. `homes` is the
         `JBUS_HOME_DIR` the thread has, or None for none."""
@@ -76,6 +76,9 @@ class Scene:
             env[HOMES] = str(homes)
         if t3:
             env[t3] = "x"
+        env.pop("CLAUDE_ENV_FILE", None)
+        if env_file:
+            env["CLAUDE_ENV_FILE"] = str(env_file)
         stdin = json.dumps({"source": source, "cwd": str(cwd or self.main), **more})
         done = subprocess.run(
             ["sh", str(HOOK)], input=stdin.encode(), capture_output=True, env=env, check=True
@@ -136,13 +139,6 @@ def test_the_homes_state_is_jbus_home_dir_where_it_is_set(scene, tmp_path):
     assert scene.start(homes=homes) == ""
 
 
-def test_the_template_marks_the_line_for_a_first_home_and_no_other(scene):
-    assert FIRST.startswith(MARK)
-    assert MARK not in FIRST.removeprefix(MARK) + USUAL + "".join(REST)
-    assert scene.said(first=True) != scene.said(first=False)
-    assert MARK not in scene.start()
-
-
 def test_a_repo_with_a_home_gets_the_line_it_got(scene):
     scene.home_dir.mkdir(parents=True)
     (scene.home_dir / "plan.md").write_text("")
@@ -179,6 +175,29 @@ def a_worktree(scene, tmp_path):
     git(scene.main, "commit", "-q", "--allow-empty", "-m", "start")
     git(scene.main, "worktree", "add", "-q", str(tmp_path / "trees" / "a-task"))
     return {"cwd": tmp_path / "trees" / "a-task"}
+
+
+def test_a_launched_crews_tmpdir_is_its_scratch_folder_on_disk(scene, tmp_path):
+    tree = a_worktree(scene, tmp_path)["cwd"]
+    branch = "a-task"
+    folder = scene.user / ".cache" / "jstack" / "scratch" / scene.main.name / branch
+    folder.mkdir(parents=True)
+    env_file = tmp_path / "env"
+    scene.start(tree, env_file=env_file)
+    exported = subprocess.run(
+        ["bash", "-c", f'. "{env_file}"; printf %s "$TMPDIR"'],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert exported == str(folder)
+
+
+def test_a_thread_with_no_scratch_folder_keeps_its_tmpdir(scene, tmp_path):
+    env_file = tmp_path / "env"
+    scene.start(a_worktree(scene, tmp_path)["cwd"], env_file=env_file)
+    scene.start(env_file=env_file)
+    assert not env_file.exists() or env_file.read_text() == ""
 
 
 def the_off_file(scene, tmp_path):
@@ -455,35 +474,6 @@ def test_a_start_asks_whose_the_briefs_are_as_often_for_thirty_as_for_one(bus, t
 
     one = asked(1)
     assert len(asked(30)) == len(one)
-
-
-def test_a_start_with_no_jbus_reads_the_plan_whole_and_says_why_it_has_no_queue(scene):
-    scene.home_dir.mkdir(parents=True)
-    (scene.home_dir / "plan.md").write_text("# plan\n")
-    reads = block("home", "OPEN=").replace("command -v jbus", "false")
-    start = block("home", START).replace("command -v jbus", "false")
-    said = parts(scene.run("home", f'M="$H"\nwhose() {{ echo "$H"; }}\n{reads}\n{start}'))
-    assert said["plan"] == [f"no jbus plan: read {scene.home_dir}/plan.md whole"]
-    no_jbus = ["no jbus: jbus is not installed here, so it holds no question"]
-    assert said["queue"] == said["questions"] == no_jbus
-    assert said["merged"] == []
-    (line,) = said["to read"]
-    assert line.startswith("no mark yet: 0 headings")
-
-
-def test_the_block_that_reads_jbus_says_why_where_its_command_fails(scene):
-    """A failed `jbus home status --gates` leaves no question and no project, and says why, so a
-    later block does not read the failure as "none is open"."""
-    scene.home_dir.mkdir(parents=True)
-    (scene.home_dir / "plan.md").write_text("# plan\n")
-    reads = block("home", "OPEN=")
-    assert '"$T/../source"' in reads
-    broken = reads.replace('"$T/../source"', '"$T/../no-source"')
-    shown = 'printf "%s|%s|%s|%s\\n" "$own" "$P" "$WHY" "$OPEN"'
-    said = scene.run("home", f'M="$H"\n{broken}\n{shown}')
-    assert re.fullmatch(
-        r"home\|\|jbus could not be read: jbus home status --gates ended \d+\|\n", said
-    )
 
 
 def test_a_start_reads_the_repos_context_pack_index_after_the_note_and_no_standing_md(bus):

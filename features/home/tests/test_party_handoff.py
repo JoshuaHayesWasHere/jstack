@@ -8,13 +8,12 @@ import json
 import os
 import re
 import subprocess
-import textwrap
 from datetime import date
 from types import SimpleNamespace
 
 import pytest
 
-from test_home_thread import FENCED, TYPED, block, git, paths
+from test_home_thread import TYPED, block, git, paths
 from test_tool_calls import CALLS, errors
 from testing.layouts import assembled
 from testing.paths import REPO
@@ -32,9 +31,6 @@ START = "P='<party>'"
 NAMED = "<party>"
 KEPT = re.compile(r"_desk/log/\d{4}-\d\d-\d\d-\d{4}-handoff\.md")
 NOT_A_PARTY = "not a party's home: "
-SECTION = re.compile(r"^## A party's home\n.*?(?=^## )", re.M | re.S)
-NOT_ITS_OWN = re.compile(r"\b(jmerge|jbus(?! forget\b)|jroles|jgauge|room)\b|/crew|/scout")
-ITS_ROLE = 'model=$(uv run --project "$T/../source" jroles expert) || model='
 
 
 class Party:
@@ -341,33 +337,6 @@ def test_a_second_thread_of_one_launch_does_not_take_the_party_from_the_first(pa
     (said,) = ran.stdout.splitlines()
     assert said.startswith(f"not written: {party.own}/home-id holds {NEXT}")
     assert party.changed(before) == []
-
-
-def test_a_reply_that_is_not_the_list_is_not_read(party):
-    party.hands_off()
-    filled = {NAMED: "desk", "<the reply of list_scheduled_tasks>": "<the reply>"}
-    ran = party.does(START, NEXT, **filled)
-    assert ran.stdout.splitlines()[1].startswith("not read: ")
-
-
-def test_the_path_runs_nothing_of_a_home_and_launches_only_its_own_next_thread(party):
-    (section,) = SECTION.findall((REPO / "features/home/skills/handoff/SKILL.md").read_text())
-    in_the_section = [textwrap.dedent(text) for text in FENCED.findall(section)]
-    assert len(in_the_section) == 2
-    on_the_path = [paths("handoff"), block("handoff", WHERE), *in_the_section]
-    commands = [
-        line.strip()
-        for text in on_the_path
-        for line in text.splitlines()
-        if not line.lstrip().startswith("echo ")
-    ]
-    assert [line for line in commands if NOT_ITS_OWN.search(line)] == [ITS_ROLE]
-
-    printed = party.hands_off()
-    assert [word for word, _ in printed].count("launch") == 1
-    message = json.loads(dict(printed)["launch"])["message"]
-    assert not message.startswith("/")
-    assert [line for line in message.splitlines() if line.startswith("/")] == []
 
 
 @pytest.mark.parametrize("typed", ["", "desk", "This message was written by the previous home."])

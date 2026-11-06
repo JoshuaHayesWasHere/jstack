@@ -51,12 +51,8 @@ lib = importlib.import_module("statechart.lib")
 statechart_tools = importlib.import_module("statechart.tools")
 statechart_cli = importlib.import_module("statechart.cli")
 ChartError = lib.ChartError
-parse_dot = lib.parse_dot
 parse_mermaid = lib.parse_mermaid
 parse_traces = lib.parse_traces
-parse_value = lib.parse_value
-rule_sentences = lib.rule_sentences
-state_key = lib.state_key
 tlc_output_warning = lib.tlc_output_warning
 uncited_conditions = lib.uncited_conditions
 
@@ -142,12 +138,6 @@ Error: The error occurred when TLC was evaluating the nested
 expressions at the following positions:
     The error call stack is empty.
 """
-
-
-SMALL_BROKEN = (
-    "Error: Invariant Small is violated.\nError: The behavior up to this point is:\n"
-    "State 1: <Initial predicate>\nx = 0\n\n"
-)
 
 
 STOPPED_EARLY = "9 states generated, 9 distinct states found, 4 states left on queue.\n"

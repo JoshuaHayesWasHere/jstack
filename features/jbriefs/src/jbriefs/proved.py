@@ -36,10 +36,11 @@ _PROVED_TESTS_ONLY = re.compile(
 )
 TEST_FILE = re.compile(r"(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$")
 """A file of a pull request's tests: one under a `tests/` or `test/` directory, a `test_*.py` or
-`*_test.py`, and a `conftest.py`. A pull request whose every file is one changes no code, so the
-code at its base is its head's own and its tests pass there too: its `Proved: <tests> head exit
-<n> at <head>, tests only` line runs them at the head alone. The proof block's `grep -E` matches
-the same files."""
+`*_test.py`, and a `conftest.py`. A pull request whose every file is one, or of an `EXEMPT` kind,
+changes no code, so the code at its base is its head's own and its tests pass there too: its
+`Proved: <tests> head exit <n> at <head>, tests only` line runs them at the head alone. The proof
+block's `grep -E` matches the test files alone, so it prints that line only where every file is
+one."""
 _PROVED_NONE = re.compile(r"Proved: none, (?P<kinds>.+)")
 _KIND_SEPARATOR = re.compile(r"\s*,\s*|\s+and\s+")
 
@@ -52,9 +53,9 @@ class Proved:
     over the merge-base's code (`base_exit`, 1 where they fail there) and at the head
     (`head_exit`, 0 where they pass): `Proved: <tests> base exit 1 at <base>, head exit 0 at
     <head>`. For one that changes no test, `kinds` names the kinds of change it is, from
-    `EXEMPT`: `Proved: none, docs and config`. For one whose every file is a `TEST_FILE`,
-    `tests_only` is set and the line has the head's run alone: `Proved: <tests> head exit 0 at
-    <head>, tests only`. `fault` says why the line has none of these shapes."""
+    `EXEMPT`: `Proved: none, docs and config`. For one whose every file is a `TEST_FILE` or of
+    an `EXEMPT` kind, `tests_only` is set and the line has the head's run alone: `Proved: <tests>
+    head exit 0 at <head>, tests only`. `fault` says why the line has none of these shapes."""
 
     tests: tuple[str, ...] = ()
     base_exit: int = -1

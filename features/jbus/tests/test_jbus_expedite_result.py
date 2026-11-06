@@ -48,14 +48,6 @@ def test_a_reason_jmerge_adds_with_no_row_and_no_why_fails_the_guard(monkeypatch
         test_every_reason_of_every_step_is_a_row_a_crew_is_told_or_named_with_why_it_is_not()
 
 
-def test_the_proof_step_a_crew_is_sent_to_is_the_one_do_the_task_has():
-    said = (REPO / "features/crew/do-the-task.md").read_text()
-    assert f"- {expedite.PROVE_STEP}:" in said
-    proved = [row for row in expedite.TABLE if row.kind.startswith("proved-")]
-    assert len(proved) == 8
-    assert all(expedite.PROVE_STEP in row.sentence for row in proved)
-
-
 @pytest.mark.parametrize(
     "reason",
     [

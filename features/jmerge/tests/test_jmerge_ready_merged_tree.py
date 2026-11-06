@@ -8,7 +8,14 @@ import pytest
 from jmerge import lines, ready
 
 URL = "https://example.test/pull/7"
-FILLED = {"base": "main", "tip": "a" * 12, "guard": "lint", "minutes": 10, "why": "it said no"}
+FILLED = {
+    "base": "main",
+    "tip": "a" * 12,
+    "guard": "lint",
+    "minutes": 10,
+    "why": "it said no",
+    "seconds": 15,
+}
 
 
 @pytest.mark.parametrize(
@@ -18,6 +25,7 @@ FILLED = {"base": "main", "tip": "a" * 12, "guard": "lint", "minutes": 10, "why"
         (ready.MERGED_TREE_UNENDED, "merged-tree-unended", "check"),
         (ready.MERGED_TREE_UNBUILT, "merged-tree-unbuilt", "check"),
         (ready.MERGED_TREE_NO_TIME, "merged-tree-no-time", "check"),
+        (ready.MERGED_TREE_NO_SLOT, "merged-tree-no-slot", "check"),
     ],
 )
 def test_merged_tree_waits_carry_their_code_and_step_as_printed_and_as_logged(reason, code, step):

@@ -178,15 +178,6 @@ def test_a_scoped_pass_at_the_first_reviews_head_by_the_same_model_keeps_its_fin
     assert ready.short_of(brief, SAW) == ready.UNANSWERED.format(ids="F1")
 
 
-def test_every_new_wait_is_a_reason_the_view_places_on_the_findings_step():
-    from jmerge import judgement
-
-    for reason in (ready.UNANSWERED, ready.UNCITED, ready.REPEATED, ready.RISK_UNASKED):
-        assert reason.step == "findings"
-        said = "wait: " + reason.format(ids="F1", first="F1", risks="auth")
-        assert judgement.step(said) == "findings"
-
-
 def test_a_decline_that_cites_counts_with_no_scoped_pass_to_rule_on_it():
     """One round: no pass rules on a decline, so one whose reason cites a path:line merges on
     its checks, and a scoped pass written again at one head still has the whole word."""

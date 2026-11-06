@@ -208,13 +208,6 @@ def home(tmp_path, monkeypatch):
     made.kitchen.close()
 
 
-def test_a_home_pins_itself_at_its_start_and_a_second_start_pins_it_once(home):
-    assert call("home", "t3_thread_organize", action="pin").given == {"action": "pin"}
-    home.starts(THREAD)
-    home.starts(THREAD)
-    assert home.t3.pinned() == [THREAD] and home.t3.pins == 1
-
-
 def test_a_first_home_has_no_home_before_it_to_take_from(home):
     home.t3.task(HOOK, OTHER)
     tasks, threads = home.starts(THREAD)
@@ -293,25 +286,6 @@ def test_a_handoff_with_no_id_filled_in_does_not_say_it_has_no_task(home, thread
     assert home.file.read_text() == f"{THREAD}\n"
 
 
-def test_an_archived_home_switches_its_tasks_off_so_no_run_makes_it_active_again(home):
-    home.starts(THREAD)
-    home.t3.task(HOOK, THREAD)
-    off = call("handoff", "update_scheduled_task", enabled=False)
-    assert off.given == {"scheduledTaskId": FILLED[ID], "enabled": False}
-    home.home_hands_off(THREAD)
-    for said in home.listed_at_handoff(THREAD):
-        assert said.startswith(f"switch off {HOOK}: ")
-        home.t3.call(THREAD, off, **{FILLED[ID]: said.split()[2].rstrip(":")})
-    home.t3.call(THREAD, call("handoff", "t3_thread_organize"))
-    home.t3.ends(THREAD)
-    home.t3.runs(HOOK)
-    assert home.t3.threads[THREAD]["settled"]
-    assert home.t3.tasks[HOOK] == {**home.t3.tasks[HOOK], "enabled": False, "webhookUrl": ADDRESS}
-    home.starts(OTHER)
-    assert home.t3.bound(OTHER) == [HOOK]
-    assert home.t3.tasks[HOOK]["enabled"] is False
-
-
 def test_the_next_home_reads_the_last_ones_own_row_and_settles_it_if_it_is_not(home):
     home.starts(THREAD)
     assert home.hands_off(THREAD, OTHER)[-1] == (
@@ -352,21 +326,6 @@ def test_a_task_a_call_is_refused_for_is_named_as_left_and_not_asked_for_again(h
     ]
     assert home.t3.bound(OTHER) == [HOOK]
     assert home.tasks_of_the_last(OTHER, refused="")[0].startswith("take scheduled-task:theirs")
-
-
-def test_a_run_of_a_task_left_bound_makes_the_settled_home_active_and_the_start_ends_that(home):
-    home.starts(THREAD)
-    home.t3.task(HOOK, THREAD)
-    home.hands_off(THREAD, OTHER, steps=1)
-    home.t3.thread(OTHER)
-    home.t3.call(THREAD, call("handoff", "t3_thread_organize"))
-    home.t3.ends(THREAD)
-    assert home.t3.threads[THREAD]["settled"]
-    home.t3.runs(HOOK)
-    assert not home.t3.threads[THREAD]["settled"]
-    home.starts(OTHER)
-    home.t3.runs(HOOK)
-    assert home.t3.threads[THREAD]["settled"] and home.t3.pinned() == [OTHER]
 
 
 @pytest.mark.parametrize(

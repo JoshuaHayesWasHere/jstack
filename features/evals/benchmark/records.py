@@ -17,6 +17,9 @@ And from --repo (default: the checkout this file is in):
 - The skills' sh blocks at --before and --after, for the home start run's two sides.
 A source that is not on disk counts as empty, and stderr names it.
 
+Each window ends at --until (default: now) and starts --days (or --churn-days) before it, so
+two runs with one --until over records that did not change write the same --json.
+
 --against <an earlier --json> prints each duty's change since that run.
 """
 
@@ -95,7 +98,7 @@ def first_command(path: Path, main_dir: str) -> tuple[str, str]:
     return "none", ""
 
 
-def usage_of(path: Path, since: datetime) -> list[dict]:
+def usage_of(path: Path, since: datetime, until: datetime) -> list[dict]:
     """One record per assistant message: when, model, the four token counts, and whether it was
     the session's start (the turns before the second real user message)."""
     seen: dict[str, dict] = {}
@@ -119,7 +122,7 @@ def usage_of(path: Path, since: datetime) -> list[dict]:
         if not u or m.get("model") in (None, "<synthetic>"):
             continue
         at = datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00"))
-        if at < since:
+        if not since <= at <= until:
             continue
         mid = m.get("id") or r.get("uuid")
         answered = True
@@ -155,8 +158,7 @@ def price(rec: dict, table: dict) -> float:
     )
 
 
-def tokens(days: int, home: Path, project: str, main_dir: str) -> dict:
-    since = datetime.now(UTC) - timedelta(days=days)
+def tokens(since: datetime, until: datetime, home: Path, project: str, main_dir: str) -> dict:
     table = rates(home / ".t3" / "userdata" / "usage-model-rates.json")
     projects = home / ".claude" / "projects"
     if not projects.is_dir():
@@ -169,9 +171,9 @@ def tokens(days: int, home: Path, project: str, main_dir: str) -> dict:
             if datetime.fromtimestamp(f.stat().st_mtime, UTC) < since:
                 continue
             role, args = first_command(f, main_dir)
-            recs = usage_of(f, since)
+            recs = usage_of(f, since, until)
             for sub in (d / f.stem / "subagents").glob("*.jsonl"):
-                recs += [dict(x, start=False) for x in usage_of(sub, since)]
+                recs += [dict(x, start=False) for x in usage_of(sub, since, until)]
             if not recs:
                 continue
             unpriced |= {x["model"] for x in recs if table and not rate_of(x["model"], table)}
@@ -205,8 +207,7 @@ def tokens(days: int, home: Path, project: str, main_dir: str) -> dict:
     }
 
 
-def events(days: int, path: Path) -> dict:
-    since = datetime.now(UTC) - timedelta(days=days)
+def events(since: datetime, until: datetime, path: Path) -> dict:
     kinds = collections.Counter()
     approved, merged = {}, {}
     for line in lines_of(path):
@@ -215,7 +216,7 @@ def events(days: int, path: Path) -> dict:
         except json.JSONDecodeError:
             continue
         at = datetime.fromisoformat(e["at"])
-        if at < since:
+        if not since <= at <= until:
             continue
         k = e.get("event") or e.get("kind") or e.get("type")
         kinds[k] += 1
@@ -262,14 +263,15 @@ MERGE_KINDS = [
 ]
 
 
-def merge_log(days: int, path: Path) -> dict:
-    """Distinct pull requests each kind held at least once, and the lines it took."""
-    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
+def merge_log(since: datetime, until: datetime, path: Path) -> dict:
+    """Distinct pull requests each kind held at least once, and the lines it took. The log's
+    times are local and to the minute, so the window is too."""
+    first, last = (t.astimezone().strftime("%Y-%m-%d %H:%M") for t in (since, until))
     prs = collections.defaultdict(set)
     lines = collections.Counter()
     merged = 0
     for line in lines_of(path):
-        if line[:16] < since:
+        if not first <= line[:16] <= last:
             continue
         if line[17:].startswith("merged "):
             merged += 1
@@ -286,13 +288,14 @@ def merge_log(days: int, path: Path) -> dict:
     }
 
 
-def commits_of(days: int, repo: Path) -> list[tuple[str, list[list[str]]]]:
+def commits_of(since: datetime, until: datetime, repo: Path) -> list[tuple[str, list[list[str]]]]:
     """Each commit of the window: its subject and its numstat rows. A rename is a delete and an
     add, so a file moved onto a duty's path counts to that duty."""
     out = git(
         repo,
         "log",
-        f"--since={days}.days",
+        f"--since={since.isoformat()}",
+        f"--until={until.isoformat()}",
         "--no-merges",
         "--no-renames",
         "--format=@%s",
@@ -400,7 +403,10 @@ def print_ledger(ledger: dict) -> None:
 
 
 def print_against(path: str, earlier: dict, ledger: dict) -> None:
-    print(f"against {path}, generated {earlier.get('generated', 'at no date given')[:10]}:")
+    if "until" in earlier:
+        print(f"against {path}, read to {earlier['until'][:10]}:")
+    else:
+        print(f"against {path}, generated {earlier.get('generated', 'at no date given')[:10]}:")
     then = earlier["upkeep"]
     windows = then.get("days"), then.get("churn_days")
     if windows != (ledger["days"], ledger["churn_days"]):
@@ -467,11 +473,24 @@ def skill_text(commit: str, repo: Path) -> dict:
     }
 
 
+def parse_until(text: str) -> datetime:
+    """A time with no zone is UTC."""
+    t = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC)
+
+
+def iso_z(t: datetime) -> str:
+    return t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--before", required=True, help="the commit before the skill cuts")
     ap.add_argument("--after", required=True, help="the commit after the skill cuts")
     ap.add_argument("--days", type=int, default=7)
+    ap.add_argument(
+        "--until", help="the UTC time each window ends at, as 2026-11-03T01:37:48Z; now by default"
+    )
     ap.add_argument("--churn-days", type=int, default=90)
     ap.add_argument("--project", default="jstack", help="the project whose records are read")
     ap.add_argument("--home", type=Path, default=Path.home(), help="where the records are")
@@ -489,18 +508,23 @@ def main() -> None:
         earlier = earlier_ledger(Path(a.against))
         if earlier is None:
             ap.error(f"--against: no ledger of duties in {a.against}")
+    try:
+        until = parse_until(a.until) if a.until else datetime.now(UTC)
+    except ValueError as e:
+        ap.error(f"--until: {e}")
+    since = until - timedelta(days=a.days)
     home = a.home
     repo = Path(git(a.repo, "rev-parse", "--show-toplevel").stdout.strip())
     for paths in DUTIES.values():
         for path in paths:
             if not (repo / path).exists():
                 print(f"a duty's path is not on disk: {path.rstrip('/')}", file=sys.stderr)
-    history = commits_of(a.churn_days, repo)
-    t = tokens(a.days, home, a.project, main_checkout_dir(repo))
-    ev = events(a.days, home / ".local/state/jbus" / a.project / "events.jsonl")
-    held = merge_log(a.days, home / ".local/state/home" / a.project / "merge.log")
+    history = commits_of(until - timedelta(days=a.churn_days), until, repo)
+    t = tokens(since, until, home, a.project, main_checkout_dir(repo))
+    ev = events(since, until, home / ".local/state/jbus" / a.project / "events.jsonl")
+    held = merge_log(since, until, home / ".local/state/home" / a.project / "merge.log")
     res = {
-        "generated": datetime.now(UTC).isoformat(),
+        "until": iso_z(until),
         "days": a.days,
         "tokens": t,
         "events": ev,
@@ -521,11 +545,13 @@ def main() -> None:
     res["upkeep"] = {
         "days": a.days,
         "churn_days": a.churn_days,
-        "duties": upkeep(history, commits_of(a.days, repo), doing / n if ev["merged"] else None),
+        "duties": upkeep(
+            history, commits_of(since, until, repo), doing / n if ev["merged"] else None
+        ),
     }
     if a.json:
         Path(a.json).write_text(json.dumps(res, indent=1, default=str))
-    print(f"window: {a.days} days since {t['since'][:16]}")
+    print(f"window: {a.days} days since {t['since'][:16]} to {res['until'][:16]}")
     print(
         f"{'role':<12}{'sess':>6}{'msgs':>8}{'in':>10}{'out':>10}{'cache_w':>12}{'cache_r':>14}{'tools':>8}{'usd':>10}"
     )

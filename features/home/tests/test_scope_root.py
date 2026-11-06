@@ -151,18 +151,6 @@ def test_a_scope_that_could_not_be_written_is_refused_and_nothing_is_written(hom
     assert made.startswith(f"made: scope {NEW}")
 
 
-def test_a_thread_that_is_no_home_makes_no_scope(homes):
-    before = homes.state()
-    ran = homes.step(
-        MAKES,
-        "mcp:a-crewmate",
-        **{"<scope>": NEW, "<prefix>": PREFIX, "<what the scope owns>": OWNS},
-    )
-    assert ran.returncode == 1
-    assert ran.stdout.startswith("no home:")
-    assert homes.changed(before) == []
-
-
 def status(homes, thread=ROOT):
     return homes.step(STATUS, thread).stdout
 

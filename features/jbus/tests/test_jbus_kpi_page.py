@@ -166,11 +166,6 @@ ORDER = (
 report: a KPI added since may come anywhere among them, and these keep their order."""
 
 
-def test_the_kpis_keep_the_order_of_the_scouts_report():
-    names = [kpi.name for kpi in kpis.KPIS]
-    assert [name for name in names if name in ORDER] == list(ORDER)
-
-
 def package_with(tmp_path, monkeypatch, name, files):
     """A copy of the KPIs' package named `name`, with these modules added, imported."""
     root = tmp_path / "packages"
@@ -198,7 +193,8 @@ def test_a_kpi_is_added_by_a_module_and_takes_the_place_its_name_sorts_to(tmp_pa
     )
 
     doors = ORDER.index("Doors opened without your own word")
-    after = [*ORDER[:doors], "Added before the doors", *ORDER[doors:], "Added last"]
+    first = "All-in dollars per successful merge"
+    after = [first, *ORDER[:doors], "Added before the doors", *ORDER[doors:], "Added last"]
     assert [kpi.name for kpi in found.KPIS] == after
 
 

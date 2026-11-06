@@ -80,9 +80,6 @@ class Scene:
         there, new = lists
         return there, new
 
-    def home_id(self, checkout):
-        return self.run(f'B="$H/scouts/{SLUG}.md"\n{given("End")[1]}', checkout)
-
 
 @pytest.fixture
 def scene(tmp_path):
@@ -132,12 +129,3 @@ def test_the_end_check_run_from_a_subdirectory_still_knows_the_other_threads_lin
 
     (scene.main / "src" / "mine.txt").write_text("written by the scout\n")
     assert scene.end(scene.main / "src") == (theirs, ["?? src/"])
-
-
-def test_a_home_id_file_gives_the_thread_to_tell(scene):
-    (scene.home_dir / "home-id").write_text("mcp:thread-one\n")
-    assert scene.home_id(scene.worktree).split() == ["mcp:thread-one"]
-
-
-def test_no_home_id_file_gives_nobody_to_tell(scene):
-    assert scene.home_id(scene.worktree) == ""

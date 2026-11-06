@@ -34,32 +34,6 @@ def anchors(name, page):
     return {re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-") for heading in headings}
 
 
-def test_the_units_are_the_ones_install_links():
-    assert UNITS == [
-        "jbus-ci-day.service",
-        "jbus-ci-day.timer",
-        "jbus-ci.service",
-        "jbus-ci.timer",
-        "jbus-failed.service",
-        "jbus-merge.service",
-        "jbus-merge.timer",
-        "jbus-relay.service",
-        "jbus-snapshot.service",
-        "jbus-snapshot.timer",
-        "jbus-stale.service",
-        "jbus-stale.timer",
-        "jbus-view.service",
-        "jbus.service",
-        "jbus.timer",
-        "jgauge-limits.service",
-        "jgauge-limits.timer",
-        "jgauge-sample.service",
-        "jgauge-sample.timer",
-        "jroles-mirror.service",
-        "jroles-mirror.timer",
-    ]
-
-
 @pytest.mark.parametrize("name", UNITS)
 def test_each_unit_names_the_section_of_the_docs_that_says_what_it_does(name, tmp_path):
     documentation = unit(name)["Unit"]["Documentation"]

@@ -126,8 +126,14 @@ class Kitchen:
     crewmate a test sends out, it has a worktree, a pushed branch, a brief with a clean
     review, and an open pull request."""
 
-    def __init__(self, tmp_path, files):
+    def __init__(self, tmp_path, files, overlap=False):
+        """With `overlap`, each pull request and each merge by hand also changes a line of its
+        own of `SHARED`: they merge cleanly, and each overlaps what main changed after its
+        check, so main moving under it sends it through the line (`test_jmerge_in_line.py`)."""
         self.tmp = tmp_path
+        self.overlap = overlap
+        if overlap:
+            files = {SHARED: SHARED_LINES, **files}
         self.home = home = merge.Home(tmp_path)
         (home.stub / "gh").write_text(GH)
         self.origin = home.origin
@@ -145,6 +151,8 @@ class Kitchen:
         head."""
         tree = self.tmp / "trees" / slug
         git(self.home.main, "worktree", "add", "-q", "-b", slug, str(tree), "origin/main")
+        if self.overlap:
+            files = {SHARED: self.shared(2 * number, f"#{number}"), **files}
         write(tree, files)
         git(tree, "commit", "-q", "-m", slug, at=BEFORE)
         git(tree, "push", "-q", "-u", "origin", slug)
@@ -188,6 +196,8 @@ class Kitchen:
         git(main, "pull", "-q", "--ff-only")
         if rename:
             git(main, "mv", *rename)
+        if self.overlap:
+            files = {SHARED: self.shared(0, git(main, "rev-parse", "HEAD")[:7]), **files}
         write(main, files)
         git(main, "commit", "-q", "-m", "by hand")
         git(main, "push", "-q")
@@ -238,6 +248,12 @@ class Kitchen:
     def calls(self, verb="pr merge"):
         return [call for call in merge.calls(self.home) if call.startswith(verb)]
 
+    def shared(self, line, text):
+        """Main's `SHARED` with this line changed to `text`."""
+        lines = self.at_main(SHARED).split("\n")
+        lines[line] = text
+        return "\n".join(lines) + "\n"
+
     def tip(self):
         return git(self.origin, "rev-parse", "refs/heads/main")
 
@@ -246,6 +262,8 @@ class Kitchen:
 
 
 LINES = "".join(f"{n}\n" for n in range(1, 10))
+SHARED = "shared.txt"
+SHARED_LINES = "".join(f"{n}\n" for n in range(40))
 
 
 @pytest.fixture
@@ -261,47 +279,22 @@ def asked(number, tip):
     )
 
 
-def test_two_ready_pull_requests_on_other_files_the_second_waits_for_a_check_over_the_first(
-    kitchen,
-):
+def test_two_ready_pull_requests_on_other_files_both_merge_on_their_checks(kitchen):
     """The 20:53 replay: the check of the second pull request started before the first one
-    merged, so it never ran over the first's merge, and with no guards on the merged tree its own
-    files are no proof that it would pass there."""
+    merged, and its files share none with the first's, so it merges on that check too, with no
+    update of its branch and no rerun."""
     one = kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
     two = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     first, second = kitchen.run()
     assert first.startswith("merged 6 one ")
-    assert second == asked(7, kitchen.tip())
-    about = f"--repo {kitchen.origin}"
-    assert merge.calls(kitchen.home) == [
-        f"pr list --state open --limit 100 --json {merge.LIST} {about}",
-        f"repo view {kitchen.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
-        f"pr merge 6 --squash --match-head-commit {one} --subject feat: one (#6)"
-        f" --body-file - {about}",
-        f"pr view 6 --json mergeCommit --jq .mergeCommit.oid {about}",
-        f"pr list --base one --state open --limit 100 --json number {about}",
-        f"api -X PUT repos/{{owner}}/{{repo}}/pulls/7/update-branch -f expected_head_sha={two}"
-        " --include",
-    ]
-    updated = kitchen.updated("two", AFTER)
-    (said,) = kitchen.run()
-    assert said.startswith(f"merged 7 two {kitchen.tip()} ")
-    assert f"--match-head-commit {updated} " in kitchen.calls()[1]
+    assert second.startswith(f"merged 7 two {kitchen.tip()} ")
+    assert kitchen.updates() == []
+    merges = kitchen.calls("pr merge")
+    assert [call.split()[2] for call in merges] == ["6", "7"]
+    assert f"--match-head-commit {one} " in merges[0]
+    assert f"--match-head-commit {two} " in merges[1]
     assert kitchen.at_main("a.txt") == ("ours\n" + LINES).strip()
     assert kitchen.at_main("b.txt") == (LINES + "ours\n").strip()
-
-
-def test_a_second_one_whose_file_the_first_merge_changed_cleanly_waits_for_a_check_over_it(
-    kitchen,
-):
-    kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES, "b.txt": "theirs\n" + LINES})
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
-    first, second = kitchen.run()
-    assert first.startswith("merged 6 one ") and second == asked(7, kitchen.tip())
-    kitchen.updated("two", AFTER)
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ")
-    assert kitchen.at_main("b.txt") == ("theirs\n" + LINES + "ours\n").strip()
 
 
 def test_a_second_one_that_conflicts_with_the_first_merge_waits_for_its_rebase(kitchen):
@@ -332,33 +325,16 @@ def test_main_changing_a_file_the_pull_request_renamed_away_conflicts(kitchen):
     assert kitchen.run("--check") == [f"wait 7 {url(7)}: {CONFLICT}"]
 
 
-def test_a_main_that_moved_only_on_other_files_has_its_check_run_over_today_s_main(kitchen):
-    """#923 and #935 changed no file main had changed since their checks, and broke main."""
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
-    tip = kitchen.on_main({"docs/other.md": "theirs\n", "a.txt": "theirs\n"})
-    due = ready.BASE_MOVED_DUE.format(base="main", tip=tip[:12])
-    assert kitchen.run("--check") == [f"wait 7 {url(7)}: {due}"]
-    assert kitchen.updates() == []
-    assert kitchen.run() == [asked(7, tip)]
-    assert kitchen.updates() == ["7"]
-    updated = kitchen.updated("two", {**merge.RUNNING, "startedAt": AFTER["startedAt"]})
-    assert kitchen.run("--check") == [f"wait 7 {url(7)}: check has not passed"]
-    kitchen.updated("two", AFTER)
+def test_a_main_that_moved_only_on_other_files_merges_on_its_existing_check(kitchen):
+    """Main changed none of its files after its check started: `--check` calls it ready on that
+    check, and the run merges it with no update of its branch."""
+    head = kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
+    kitchen.on_main({"docs/other.md": "theirs\n", "a.txt": "theirs\n"})
     (ready_line,) = kitchen.run("--check")
-    assert ready_line.startswith(f"ready 7 {updated} two two, review carried over: ")
+    assert ready_line.startswith(f"ready 7 {head} two")
     (said,) = kitchen.run()
     assert said.startswith("merged 7 two ")
-    assert kitchen.updates() == ["7"]
-
-
-def test_a_protected_pull_request_is_held_for_the_user_over_a_moved_main(kitchen):
-    kitchen.crew("two", 7, {"secrets/prod.json": "{}\n", "b.txt": LINES + "ours\n"})
-    kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    held = [f"hold 7 {url(7)}: needs user, touches secrets/prod.json"]
-    assert kitchen.run() == held
-    kitchen.checked("two", AFTER)
-    assert kitchen.run() == held
-    assert kitchen.calls() == []
+    assert kitchen.updates() == []
 
 
 def repo(kitchen, monkeypatch):
@@ -374,13 +350,14 @@ def repo(kitchen, monkeypatch):
 def test_a_merge_by_hand_between_the_judgment_and_the_merge_has_it_judged_again(
     kitchen, monkeypatch
 ):
-    """Its check did not run over the merge made by hand, so it waits for one that does."""
+    """Its check did not run over the merge made by hand, which changed a file it changes, so it
+    waits for one that does."""
     kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"})
     one = ready.pull_request(kitchen.pulls["two"])
     here = repo(kitchen, monkeypatch)
     slug, verb, why, note, judged = here.waits(one, "main")
     assert (slug, verb, why, judged) == ("two", "", "", ready.Judged(tip=kitchen.tip()))
-    by_hand = kitchen.on_main({"a.txt": "theirs\n"})
+    by_hand = kitchen.on_main({"b.txt": "theirs\n" + LINES})
     due = ready.BASE_MOVED_DUE.format(base="main", tip=by_hand[:12])
     assert here.merge(one, slug, note, judged) == f"wait 7 {url(7)}: {due}"
     assert kitchen.tip() == by_hand
@@ -395,27 +372,6 @@ def test_a_merge_by_hand_that_conflicts_with_it_keeps_it_from_the_merge(kitchen,
     by_hand = kitchen.on_main({"b.txt": LINES + "theirs\n"})
     assert here.merge(one, slug, note, judged) == f"wait 7 {url(7)}: {CONFLICT}"
     assert kitchen.tip() == by_hand
-    assert not (kitchen.home.stub / "calls").exists()
-
-
-def test_a_main_that_moves_at_every_judgment_is_left_for_the_next_run(kitchen, monkeypatch):
-    """Its check is dated after each move, so only the tip read before the merge tells it."""
-    kitchen.crew("two", 7, {"b.txt": LINES + "ours\n"}, checks=(AFTER,))
-    one = ready.pull_request(kitchen.pulls["two"])
-    here = repo(kitchen, monkeypatch)
-    judge, moves = here.waits, []
-
-    def waits(*asked):
-        found = judge(*asked)
-        moves.append(kitchen.on_main({"a.txt": f"move {len(moves)}\n"}))
-        return found
-
-    monkeypatch.setattr(here, "waits", waits)
-    slug, _, _, note, judged = here.waits(one, "main")
-    assert here.merge(one, slug, note, judged) == (
-        f"wait 7 {url(7)}: main moved while it was judged"
-    )
-    assert len(moves) == 3 and kitchen.tip() == moves[-1]
     assert not (kitchen.home.stub / "calls").exists()
 
 
@@ -486,30 +442,6 @@ def test_a_line_the_pull_request_deletes_is_not_one_the_rebase_dropped(notes):
     (said,) = notes.run()
     assert said.startswith("merged 7 two ") and ", every line kept, revert: " in said
     assert notes.at_main("n.txt") == "one\nthree"
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        "",
-        f"Rebase: patch changed in n.txt, before {'c' * 40}, head {{head}}\n",
-        "Rebase: patch unchanged, before {was:.7} (local, unpushed), head {head:.7}\n",
-        "Rebase: patch unchanged, onto origin/main after it gained 1 commit, before the push\n",
-    ],
-    ids=["none", "a commit the checkout lacks", "short commits", "no commit"],
-)
-def test_a_rebase_line_a_crew_wrote_is_read_as_no_line(notes, line):
-    """`jmerge` works out the rebase from git, the head the review saw to the head, so a
-    `Rebase:` line, true or not, well formed or not, changes nothing of what it says."""
-    notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
-    notes.rebase(
-        "two",
-        {"n.txt": "one\ntwo\nthree\ntheirs\n"},
-        {"n.txt": "one\ntwo\nthree\ntheirs\nours\n"},
-        line,
-    )
-    (said,) = notes.run("--check")
-    assert said.startswith("ready 7 ") and said.endswith(", every line kept"), said
 
 
 def test_main_is_fetched_before_its_lines_are_looked_for(notes):

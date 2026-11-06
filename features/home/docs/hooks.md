@@ -70,7 +70,7 @@ The sender's thread is the one T3 Code's store, `~/.t3/userdata/statev2.sqlite`,
 A session the store does not know, a store that cannot be read and a repo with no homes' state let the send go: what is not known to be a home's or a reviewer's send is not refused.
 
 The hook needs `git` and Python 3.12 or newer, or the release's own Python.
-A hook that cannot judge refuses the send: no such Python, a `jbriefs.sends` that ends any way but 0 or 2, and one that runs past 25 seconds each end it 2, through `features/jbus/hooks/judge.sh`.
+A hook that cannot judge refuses the send and ends 2, through `features/jbus/hooks/judge.sh`: when it finds no such Python, when `jbriefs.sends` ends any way but 0 or 2, and when `jbriefs.sends` runs past 25 seconds.
 Each refusal is a quiet `hook` event in the repo's jbus log, with the hook, the call and the reason, which `jbus events` prints.
 `install.sh` merges this group into `~/.claude/settings.json`, where `onFailure` refuses the send too when the hook itself fails or runs out of time:
 

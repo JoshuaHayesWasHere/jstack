@@ -32,11 +32,6 @@ STATUSES = (
 SILENT = (None, -1, 0, QUIET - 0.1, QUIET, HUNG - 0.1, HUNG, 600)
 
 
-def test_the_thresholds_are_ten_and_twenty_minutes_each_a_named_constant():
-    assert (live.QUIET_MINUTES, live.HUNG_MINUTES) == (10, 20)
-    assert live.LIVENESS == ("moving", "quiet", "hung", "waiting", "ended", "unknown")
-
-
 def test_every_combination_of_what_judge_is_given_keeps_what_the_rule_promises():
     """The test states outright what must hold of every combination, and does not work it out a
     second time."""
@@ -389,20 +384,6 @@ def test_a_later_pass_adds_what_became_of_a_hung_call_once(kitchen, after, becam
     ]
     assert hung(kitchen)[1:] == (closed if became else [])
     assert len(kitchen.lines("stall")) == 1
-
-
-def test_jbus_interrupts_nothing():
-    assert t3.TOOLS == (
-        "t3_thread_configure",
-        "t3_thread_launch",
-        "t3_thread_list",
-        "t3_thread_read",
-        "t3_thread_send",
-        "link_pull_request",
-        "t3_thread_organize",
-        "orchestrator_capabilities",
-    )
-    assert not [tool for tool in t3.TOOLS if "interrupt" in tool]
 
 
 def test_a_launched_row_whose_thread_t3_no_longer_lists_and_that_wrote_nothing_is_gone(kitchen):

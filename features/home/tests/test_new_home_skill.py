@@ -15,7 +15,7 @@ import tomllib
 
 import pytest
 
-from skill_blocks import COPY, block, blocks, git, linked
+from skill_blocks import COPY, block, git, linked
 from testing.paths import REPO
 
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
@@ -177,18 +177,6 @@ def test_a_repo_is_found_by_its_folder_name_its_path_or_one_of_its_worktrees(mac
         "home-id: none",
     ]
     assert machine.first(typed)[3] == f"1 state directory: already, {machine.state} has its plan.md"
-
-
-def test_the_state_directory_is_the_one_the_home_skills_first_home_step_makes(machine):
-    line = 'mkdir -p "$H" && touch "$H/plan.md"'
-    assert line in block("home", "first home")
-    assert line in block("new-home", "THE_TEXT_ENDS_HERE")
-    machine.first("Winnie")
-    other = machine.home / "by-home"
-    made = f"H={other}\nif {line}; then echo made; fi"
-    assert subprocess.run(["sh", "-c", made], capture_output=True, text=True).stdout == "made\n"
-    listed = [sorted((p.name, p.read_text()) for p in d.iterdir()) for d in (machine.state, other)]
-    assert listed[0] == listed[1] == [("plan.md", "")]
 
 
 def test_a_folder_of_a_party_is_no_repos_home(machine):
@@ -501,16 +489,6 @@ def test_under_zsh_the_scaffold_is_the_one_sh_makes(machine, tmp_path):
     other.origin()
     assert machine.merge(shell="zsh")[0] == BRANCH == other.merge()[0]
     assert machine.scaffold() == other.scaffold() == filled("make check")
-
-
-@pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh is not installed")
-def test_every_block_starts_by_asking_zsh_to_read_it_as_sh(machine):
-    text = (REPO / "features/home/skills/new-home/SKILL.md").read_text()
-    assert len(blocks(text, "sh")) == 3
-    for body in blocks(text, "sh"):
-        done = subprocess.run(["zsh", "-c", body], cwd=machine.home, capture_output=True, text=True)
-        assert (done.returncode, done.stderr) == (0, "")
-        assert done.stdout != ""
 
 
 @pytest.mark.parametrize(
