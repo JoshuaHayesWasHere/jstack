@@ -139,10 +139,13 @@ every test imports the CLI of a feature, so through any other module a change wo
 the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
 cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
 changed path is one every test depends on, or the list itself. It writes nothing to the
-summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a name
-reaches a test only from a changed path of the tests or one that names Darwin, as an import does,
-and a feature's paths reach none of its tests. A pull request's macOS job selects so, and the
-run on each merge commit into main runs the whole `--within`.
+summary or the outputs. `--within <list> --strict <base> <head>` prints a part of that: a
+module counts only where the diff's lines, in its base or its head, fall in a function that asks
+for Darwin in code (`sys.platform`, `platform.system`, the string `darwin`, a name such as
+`on_darwin`), not in a docstring or a comment; a file that is no Python counts where its text
+names Darwin. A name reaches a test only from a changed path of the tests or one that counts, as
+an import does, and a feature's paths reach none of its tests. A pull request's macOS job
+selects so, and the run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days runs on each pull request's check, whatever
 the rules select: timing tests that no pull request reached broke main in 8 of the audit's 15
