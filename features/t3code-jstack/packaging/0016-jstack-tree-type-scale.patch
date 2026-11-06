@@ -1,4 +1,4 @@
-From 1a9277a0b726ecd2266c026cbd14e54465df4d89 Mon Sep 17 00:00:00 2001
+From b34bb32b742f70f0269cda3635358caec70baeee Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 22:02:52 -0400
 Subject: [PATCH] feat(web): the jstack tree keeps to two type sizes and two
@@ -395,10 +395,10 @@ index 928299c072..22bb594438 100644
                </span>{" "}
                <span className="shrink-0 text-2xs text-sidebar-muted-foreground">starting...</span>
 diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
-index 8124fc7a36..3f692b46b8 100644
+index fff4f8f8d8..7909f9e56c 100644
 --- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx
 +++ b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
-@@ -1015,9 +1015,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1017,9 +1017,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
        aria-hidden
        className={cn(
          "min-w-0 flex-1 text-start transition-opacity motion-reduce:transition-none",
@@ -410,7 +410,7 @@ index 8124fc7a36..3f692b46b8 100644
            : cn("text-sm", shouldRecede ? "font-normal" : "font-medium"),
          variant === "tree"
            ? cn(
-@@ -1293,7 +1293,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1294,7 +1294,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                      )}
                    >
                      {variantAction === "unsnooze" && props.snoozeWakeLabelText !== null ? (
@@ -424,7 +424,7 @@ index 8124fc7a36..3f692b46b8 100644
                          {/* The clock tells a wake time from an age at a glance. */}
                          <AlarmClockIcon aria-hidden className="size-3" />
                          {props.snoozeWakeLabelText}
-@@ -1306,7 +1311,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1307,7 +1312,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                                type="button"
                                aria-label="Dismiss Woke notification"
                                onClick={handleAcknowledgeWokeClick}
@@ -437,7 +437,7 @@ index 8124fc7a36..3f692b46b8 100644
                              >
                                <AlarmClockIcon aria-hidden className="size-3" />
                                <span role="status">Woke</span>
-@@ -1329,7 +1338,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
+@@ -1330,7 +1339,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                        // Folder rows have no status line, so the status takes the time slot.
                        <span
                          className={cn(
@@ -561,7 +561,7 @@ index 4ec30f0d80..49fc71ce96 100644
        openThreadId,
        ask:
 diff --git a/apps/web/src/index.css b/apps/web/src/index.css
-index 2ad7223f08..dd05f9bcef 100644
+index 4d6a795810..f672895f9f 100644
 --- a/apps/web/src/index.css
 +++ b/apps/web/src/index.css
 @@ -188,15 +188,14 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil

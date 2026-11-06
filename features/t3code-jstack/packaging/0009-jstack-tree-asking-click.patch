@@ -1,4 +1,4 @@
-From b602a02764a783b2cfeadfbe50341663b2d06111 Mon Sep 17 00:00:00 2001
+From 570268210f2ccb6f5af42c317b674d664a03ac08 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:30:56 -0400
 Subject: [PATCH] fix(web): a jstack "asks you" row opens what it asks

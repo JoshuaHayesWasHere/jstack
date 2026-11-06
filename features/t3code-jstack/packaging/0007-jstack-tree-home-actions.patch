@@ -1,4 +1,4 @@
-From 743cb0ed2bf1bbc27e2457dbc57170c0b3a0a618 Mon Sep 17 00:00:00 2001
+From 7ccc63838705eda6bfa9e8a6ef19973a016eab02 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:12:45 -0400
 Subject: [PATCH] feat(web): jstack tree home actions: New child home inline,
@@ -314,11 +314,12 @@ index fc7d7ebc46..3a93cb3923 100644
    gates: snapshots.flatMap((each) => each.gates),
    landed: snapshots.flatMap((each) => each.landed),
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index bbd3afb10b..e5b36ba422 100644
+index bf428cd92b..3ab374da1e 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -1,5 +1,9 @@
- import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../lib/sidebarTree";
+@@ -1,6 +1,10 @@
+ import { liveShellEnvironmentIdsAtom } from "../state/shell";
+ import { attachSidebarTree } from "../lib/sidebarTree";
 -import { type EnvironmentId, type ScopedProjectRef } from "@t3tools/contracts";
 +import {
 +  type EnvironmentId,
@@ -328,7 +329,7 @@ index bbd3afb10b..e5b36ba422 100644
  import type { EnvironmentServerConfig } from "@t3tools/client-runtime/connection";
  import { ThreadContextDragGhost } from "./chat/ThreadContextDragGhost";
  import {
-@@ -257,7 +261,14 @@ import {
+@@ -269,7 +273,14 @@ import {
    SidebarProjectFolderHeader,
    sidebarFolderRowId,
  } from "./sidebar/SidebarProjectFolderHeader";
@@ -344,7 +345,7 @@ index bbd3afb10b..e5b36ba422 100644
  import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
  import { useJbusWork } from "../lib/jbusWorkState";
  import {
-@@ -1332,6 +1343,28 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1405,6 +1416,28 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      string,
      ReadonlyArray<string>
    > | null>(null);
@@ -373,7 +374,7 @@ index bbd3afb10b..e5b36ba422 100644
    const jstackRoots: Array<{
      readonly folder: NonNullable<typeof projectFolders>[number];
      readonly tree: JstackTree;
-@@ -1359,6 +1392,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1432,6 +1465,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
            routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null,
          expandedHomes: jstackExpandedHomes,
          frozenOrder: jstackFrozenOrder,
@@ -382,7 +383,7 @@ index bbd3afb10b..e5b36ba422 100644
          lastVisitedAt: (thread) =>
            resolveThreadLastVisitedAt(
              thread.lastVisitedAt,
-@@ -1388,6 +1423,69 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1461,6 +1496,69 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      onCopyPath: (group) => copyPathToClipboard(group.workspaceRoot, { path: group.workspaceRoot }),
      onOpenProjectSettings: openProjectSettings,
      onCopyName: (name, what) => copyJstackNameToClipboard(name, { name, what }),

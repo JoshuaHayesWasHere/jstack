@@ -1,7 +1,7 @@
-From dbfc5eee79d4046a127f7f9ac385fc9ee3427012 Mon Sep 17 00:00:00 2001
+From 78341db9eb10bc4ea7de9b22c3312de81f61d2cb Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 18:23:50 -0400
-Subject: [PATCH 12/12] feat(web): a jstack home with no live work is one line, which
+Subject: [PATCH] feat(web): a jstack home with no live work is one line, which
  unfolds to what it merged lately
 
 The idle line under a child home is gone. A home with nothing live shows its name and its age,
@@ -16,10 +16,10 @@ them, newest first. A home with live work keeps its tally and opens as before.
  5 files changed, 527 insertions(+), 25 deletions(-)
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
-index 78ab0c2fb5..b00baebdca 100644
+index 85fe804038..1ca9425f9e 100644
 --- a/apps/web/src/components/Sidebar.tsx
 +++ b/apps/web/src/components/Sidebar.tsx
-@@ -1347,6 +1347,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1418,6 +1418,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
    const [jstackExpandedHomes, setJstackExpandedHomes] = useState<ReadonlySet<string>>(
      () => new Set(),
    );
@@ -29,7 +29,7 @@ index 78ab0c2fb5..b00baebdca 100644
    // Rows keep their order while the pointer is in the sidebar, so a row never moves under it.
    const [jstackFrozenOrder, setJstackFrozenOrder] = useState<ReadonlyMap<
      string,
-@@ -1403,6 +1406,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1474,6 +1477,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
          routeThreadId:
            routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null,
          expandedHomes: jstackExpandedHomes,
@@ -37,7 +37,7 @@ index 78ab0c2fb5..b00baebdca 100644
          frozenOrder: jstackFrozenOrder,
          childHomeEditor: jstackChildHomeEditor === folder.group.projectKey,
          answering: jstackAnswering,
-@@ -1488,6 +1492,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+@@ -1559,6 +1563,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
      },
      onToggleProject: toggleProjectFolder,
      onExpandHome: (homeKey) => setJstackExpandedHomes((current) => new Set(current).add(homeKey)),
