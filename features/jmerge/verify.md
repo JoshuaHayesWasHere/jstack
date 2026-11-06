@@ -96,4 +96,5 @@ Preconditions:
 - Every line of `jmerge --check` exits 0, `wait` and `hold` included. Assert on the line, not the exit code.
 - `jmerge` without `--check` appends each line to `merge.log` in the repo's state. `--check` writes nothing.
 - `jmerge` reads no `fresh-check` file.
-  A green pull request whose check main moved past on none of its files is ready on that check. One whose file main changed waits for GitHub's update of its branch: where its head merges cleanly over today's main, `jmerge --check` says `main moved after its check started: GitHub is to merge main at <tip12> into it`, and the check at the new head decides ("Merges cleanly over today's main" in [jmerge.md](docs/jmerge.md)).
+  A green pull request whose check main moved past on none of its files is ready on that check.
+  One whose file main changed waits for GitHub's update of its branch: where its head merges cleanly over today's main, `jmerge --check` says `main moved after its check started: GitHub is to merge main at <tip12> into it`, and the check at the new head decides ("Merges cleanly over today's main" in [jmerge.md](docs/jmerge.md)).
