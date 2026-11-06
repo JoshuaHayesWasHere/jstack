@@ -10,6 +10,7 @@ the line: GitHub merges main into the branch, and its check at the new head deci
 The tests run the command against a real origin and a fake `gh` (`test_jmerge_fresh.Kitchen`)."""
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -128,3 +129,16 @@ def test_over_main_a_base_that_cannot_be_fetched_waits_saying_so(kitchen, monkey
     assert why == "main could not be fetched to see what changed after its check"
     assert judged == ready.Judged()
     assert kitchen.updates() == []
+
+
+def test_over_main_a_head_git_cannot_merge_over_the_tip_waits_with_why(kitchen, monkeypatch):
+    """A head this checkout does not have is no conflict: it waits with what git said, judged
+    over no tip."""
+    kitchen.crew("two", 7, OURS)
+    kitchen.on_main(THEIRS)
+    here = repo(kitchen, monkeypatch)
+    one = replace(ready.pull_request(kitchen.pulls["two"]), head="f" * 40)
+    why, judged = here.over_main(one, ())
+    assert why.startswith("its head could not be merged over today's base (")
+    assert why != ready.FRESH_CONFLICT
+    assert judged == ready.Judged()
