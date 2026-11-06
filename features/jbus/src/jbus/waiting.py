@@ -97,6 +97,7 @@ from jbriefs import below
 from jbus import (
     alert,
     leftover,
+    locked,
     merge,
     mirror,
     party,
@@ -105,6 +106,8 @@ from jbus import (
     read_json,
     redact,
     verbs,
+    watch,
+    work,
     write_json,
 )
 from jbus.passes import CONDITION, Pass, Slot
@@ -146,6 +149,7 @@ Item = dict[str, Any]
 
 
 NAME = "waiting-on-user.json"
+LOCK = "waiting.lock"
 BLOCKS = "blocking.json"
 PAUSE = {one.case: one.named for one in party.DOORS if one.named}
 KEEP_REMINDED = timedelta(days=14)
@@ -429,13 +433,16 @@ def keep(
         items[key] = {"kind": kind(key), **named, **items.get(key, {}), **root}
     for key in [key for key in items if kind(key) == "approve"]:
         items.pop(f"row:{key.partition(':')[2]}", None)
-        if not _approvable(run, key.partition(":")[2]):
-            del items[key]
     now = run.now.isoformat()
     for key, one in items.items():
         stamps = [one.get("since", now), before.get(key, {}).get("since", now)]
         one["since"] = _earlier(*stamps)
-    listed = sorted(items.values(), key=lambda one: kinds().index(one["kind"]))
+    with locked(run.state, LOCK):
+        settled = {key for key in items if kind(key) == "approve" and not _waits(run, items[key])}
+        listed = [one for one in items.values() if one["key"] not in settled]
+        listed.sort(key=lambda one: kinds().index(one["kind"]))
+        write_json(path(run.state), listed, mode=0o600)
+    items = {one["key"]: one for one in listed}
     if was is not None and set(before) != set(items):
         new = [one for one in listed if one["key"] not in before]
         gone = [one for key, one in before.items() if key not in items]
@@ -447,15 +454,76 @@ def keep(
         marked = [f"{'+' if one in new else ' '} {one['line']}" for one in listed]
         marked += [f"- {one['line']}" for one in gone]
         run.box.send("", EVENT, line, "\n".join(marked))
-    write_json(path(run.state), listed, mode=0o600)
     return listed
 
 
-def _approvable(run: Pass, slug: str) -> bool:
-    """Say whether a row has a brief for the user to approve. The rows a pass read can be older
-    than a removal that ran while the pass did, so this reads `removed.json` and the stored brief
-    again. A row that is there with no brief is `_briefless`'s to report."""
-    return slug not in run.removed and bool((queue.brief(run.state, slug) or "").strip())
+def row_facet(run: Pass, row: queue.Row, rows: list[queue.Row]) -> work.Row:
+    """Return the `Row` facet of a row as the queue has it now. Which of its depends are final
+    comes from the rows' own status, since no world is asked (`watch.final`)."""
+    return watch.row_of(run, row, watch.unmet(run, None, row, watch.final(run, None, rows)))
+
+
+def acted(run: Pass, verb: str, subject: str) -> None:
+    """Show an act that was done in `work.json` and `waiting-on-user.json` at once, so the view
+    does not wait for the next pass. A go, an answer that closed a question, and a remove are the
+    acts that do it. The row's line is judged again from the facts the last pass kept with the
+    row's go as it is now, or goes with the row; the list drops what the act settled. Each step
+    reads the queue as it is when it runs, so running it twice, or after the next pass, writes
+    nothing new."""
+    closed: list[str] = []
+    if verb == "answer":
+        asked = questions.question(run.state, int(subject)) if subject.isdigit() else None
+        if asked is None:
+            return
+        slug, closed = asked.slug, [f"gate:q{asked.number}"]
+    elif verb in ("go", "remove"):
+        slug = subject
+    else:
+        return
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        rows = None
+    if rows is not None and slug:
+        row = next((one for one in rows if one["slug"] == slug), None)
+
+        def change(one: dict[str, Any]) -> Any:
+            return work.GONE if row is None else work.restate(one, row_facet(run, row, rows))
+
+        work.update(run.state, slug, change)
+    settle(run, slug, closed)
+
+
+def settle(run: Pass, slug: str, closed: Collection[str]) -> None:
+    """Take out of the list, at once, what an act settled: the keys in `closed`, the row's
+    `approve` item once its go holds, and every item of a row that was removed (`read`). The
+    pass would take each out too, as `keep` does; this does it under `LOCK` with no pass, and
+    writes nothing where nothing is settled, so it does the same however often it runs."""
+    with locked(run.state, LOCK):
+        kept = read_json(path(run.state), None)
+        items = read(run.state)
+        if items is None:
+            return
+        left = [
+            one
+            for one in items
+            if one["key"] not in closed
+            if not (one["kind"] == "approve" and one.get("slug") == slug and not _waits(run, one))
+        ]
+        if left != kept:
+            write_json(path(run.state), left, mode=0o600)
+
+
+def _waits(run: Pass, one: Item) -> bool:
+    """Say whether an `approve` item still waits on the user: its row is there with a brief to
+    approve and no go that holds for it (`judgement.has_go`), so a changed brief still waits to
+    be approved again. The rows a pass read can be older than a go or a removal that ran while
+    the pass did, so this reads the row, `removed.json` and the stored brief again. A row that is
+    there with no brief is `_briefless`'s to report."""
+    slug = one.get("slug") or one["key"].partition(":")[2]
+    row, text = queue.current(run.state, slug)
+    gone_ahead = row is not None and judgement.has_go(row, text)
+    return slug not in run.removed and bool((text or "").strip()) and not gone_ahead
 
 
 def paused(text: str, slugs: Collection[str] = ()) -> str:

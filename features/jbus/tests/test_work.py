@@ -10,10 +10,10 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import queue, work
+from jbus import queue, waiting, watch, work
 from jmerge import ready
-from test_jbus_kitchen import NOW, Kitchen, iso
-from test_jbus_queue import add, rows
+from test_jbus_kitchen import ASK, NOW, SAID_AT, Kitchen, iso
+from test_jbus_queue import add, go, rows
 from test_jbus_row_ends import branched
 
 PULL = "https://example.test/pull/9"
@@ -376,3 +376,64 @@ def test_a_home_and_a_scout_at_work_are_held_by_their_role(kitchen):
         ("home", "its thread"),
         ("scout", "its thread"),
     ]
+
+
+def waits(kitchen):
+    """Return the keys of `waiting-on-user.json`, as the file has them now."""
+    return {one["key"] for one in jbus.read_json(kitchen.state / waiting.NAME, [])}
+
+
+def test_a_go_shows_before_any_pass_and_the_next_pass_writes_what_it_showed(kitchen):
+    add(kitchen, "beta", approve=False)
+    add(kitchen, "alpha", depends="beta", approve=False)
+    kitchen.poll()
+    assert (judged(kitchen)["who"], "approve:alpha" in waits(kitchen)) == ("user", True)
+    assert go(kitchen, "alpha")[0] == 0
+    shown = judged(kitchen)
+    assert (shown["value"], shown["who"], shown["facts"]["row"]) == (
+        "behind",
+        "dep",
+        "approved and behind",
+    )
+    assert "approve:alpha" not in waits(kitchen) and "approve:beta" in waits(kitchen)
+    kitchen.poll()
+    assert judged(kitchen) == shown
+    assert "approve:alpha" not in waits(kitchen)
+
+
+def test_a_go_given_while_a_pass_runs_is_not_written_back_as_unapproved(kitchen, monkeypatch):
+    add(kitchen, "alpha", approve=False)
+    kitchen.poll()
+    out = watch.judged
+
+    def given(*args):
+        assert go(kitchen, "alpha")[0] == 0
+        return out(*args)
+
+    monkeypatch.setattr(watch, "judged", given)
+    kitchen.poll()
+    line = judged(kitchen)
+    assert (line["value"], line["who"]) == ("ready", "bus")
+    assert "approve:alpha" not in waits(kitchen)
+
+
+def test_a_remove_takes_the_rows_line_and_its_waits_out_before_any_pass(kitchen):
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "beta", approve=False)
+    kitchen.poll()
+    typed = ("--by", "user", "--at", "2026-10-12 10:58 ET")
+    assert kitchen.main("--project", "demo", "queue", "remove", "alpha", *typed)[0] == 0
+    kept = json.loads((kitchen.state / work.NAME).read_text())["work"]
+    assert [one["key"] for one in kept if one["kind"] == "row"] == ["beta"]
+    assert waits(kitchen) == {"approve:beta"}
+
+
+def test_an_answer_takes_its_question_off_the_list_before_any_pass(kitchen):
+    add(kitchen, "alpha")
+    kitchen.main("gate", "alpha", stdin=ASK)
+    kitchen.poll()
+    assert "gate:q1" in waits(kitchen)
+    kitchen.clock_reads(SAID_AT)
+    said = ("--by", "user", "--at", SAID_AT, "--default", "the", "first")
+    assert kitchen.main("answer", "1", *said)[0] == 0
+    assert "gate:q1" not in waits(kitchen)
