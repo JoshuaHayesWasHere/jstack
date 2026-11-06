@@ -531,7 +531,8 @@ def _waits(run: Pass, one: Item) -> bool:
     slug = one.get("slug") or one["key"].partition(":")[2]
     row, text = queue.current(run.state, slug)
     gone_ahead = row is not None and judgement.has_go(row, text)
-    return slug not in run.removed and bool((text or "").strip()) and not gone_ahead
+    there = bool((queue.brief(run.state, slug) or "").strip())
+    return slug not in run.removed and there and not gone_ahead
 
 
 def paused(text: str, slugs: Collection[str] = ()) -> str:
