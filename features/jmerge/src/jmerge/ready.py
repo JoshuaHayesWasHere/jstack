@@ -1385,7 +1385,12 @@ def needs_the_user(
 
 @dataclass(frozen=True)
 class Judged:
+    """The base's tip a pull request was judged over, and whether its files overlap what that
+    base changed since its check started: such a one merges on the guards on its tree merged
+    over `tip`, and goes through the line where they fail or were stopped (`cli.Repo.over_main`)."""
+
     tip: str = ""
+    overlaps: bool = False
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")

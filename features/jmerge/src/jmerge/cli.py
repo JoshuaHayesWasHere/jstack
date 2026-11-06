@@ -679,39 +679,50 @@ class Repo:
                 lost.append(ready.Drop(file, theirs, ours))
         return tuple(lost)
 
-    def over_main(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str]:
-        """Why the head waits over today's base, or nothing, and the base's tip it was judged
-        over. Where the base changed no path since the check started, the check ran over
-        today's base. Where it did, a head that conflicts with the tip with `git merge-tree`
-        waits for a rebase. A clean one whose files, and the old paths of its renames (`left`),
-        share none of the base's changed paths merges on its existing check, with no update of
-        its branch and no rerun (Josh's rule of 2026-11-02, #847, back on 2026-11-04 with
-        GitHub's strict rule off): `Repo.merge` runs the fast guards on its tree merged over
-        the tip first (`treeguards`), where the repo names them, which catch a clash two pull
-        requests make with no shared file, as #923 and #935 made with two new `v007_` files. A
-        repo with no guards merges it on its existing check alike, with main's own run and jbus's
-        reverts behind it (Josh, 2026-11-05: "we don't need every pr to be up to date"). One
-        that overlaps has GitHub merge the base into its branch (`rejudge.BaseMerge`), and its
-        check at the new head decides. GitHub merges the base into one branch of each base
-        at a time, the first into that base to get this far in merge order while no other holds
-        its line (`self.line`); every other into that base that overlaps waits in line behind
-        it, so each merge costs one CI round and not one for each open pull request."""
+    def over_main(
+        self, one: ready.PullRequest, left: tuple[str, ...] | None
+    ) -> tuple[str, ready.Judged]:
+        """Why the head waits over today's base, or nothing, and what it was judged over: the
+        base's tip, and whether its files overlap the base's changes. Where the base changed no
+        path since the check started, the check ran over today's base. Where it did, a head that
+        conflicts with the tip with `git merge-tree` waits for a rebase. A clean one merges on
+        its existing check, with no update of its branch and no rerun, and `Repo.merge` runs the
+        fast guards on its tree merged over the tip first (`treeguards`), where the repo names
+        them. That holds for one whose files, and the old paths of its renames (`left`), share
+        none of the base's changed paths (Josh's rule of 2026-11-02, #847, back on 2026-11-04
+        with GitHub's strict rule off), where the guards catch a clash two pull requests make
+        with no shared file, as #923 and #935 made with two new `v007_` files. A repo with no
+        guards merges such a one on its existing check alike (Josh, 2026-11-05: "we don't need
+        every pr to be up to date"). It holds too for one that overlaps, in a repo that names
+        guards (Josh's vision of 2026-11-06, item F: "merge as soon as green, not stopping to
+        rebase if not needed or to catch up with main"), with main's own run and jbus's reverts
+        behind it. Such a one whose guards failed or were stopped at its head over the tip, one
+        in a repo with no guards, and a revert jbus opened, whose path is its own, have GitHub
+        merge the base into the branch (`in_turn`), and the check at the new head decides."""
         if one.started is None:
-            return "", ""
+            return "", ready.Judged()
         moved = self.moved(one.base, one.started)
         if moved is None:
-            return f"{one.base} could not be fetched to see what changed after its check", ""
+            why = f"{one.base} could not be fetched to see what changed after its check"
+            return why, ready.Judged()
         tip, paths = moved
         if not paths:
-            return "", tip
+            return "", ready.Judged(tip)
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, one.head)
         if merged.returncode == 1:
-            return ready.FRESH_CONFLICT, ""
+            return ready.FRESH_CONFLICT, ready.Judged()
         if merged.returncode:
-            return ready.UNMERGED.format(why=lines.said(merged)), ""
+            return ready.UNMERGED.format(why=lines.said(merged)), ready.Judged()
         if left is not None and not {*one.files, *left} & set(paths):
-            return "", tip
-        return self.in_turn(one, tip, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE), ""
+            return "", ready.Judged(tip)
+        if not self.guards.command or self.is_revert(one) or self.guards.kept(one, tip):
+            return self.base_moved(one, tip), ready.Judged()
+        return "", ready.Judged(tip, overlaps=True)
+
+    def base_moved(self, one: ready.PullRequest, tip: str) -> str:
+        """Why a green pull request waits for GitHub's merge of its base at `tip` into its
+        branch, in its turn (`in_turn`)."""
+        return self.in_turn(one, tip, ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
 
     def in_turn(self, one: ready.PullRequest, tip: str, asked: str, due: str) -> str:
         """Why the pull request waits for GitHub's merge of the base at `tip` into its branch:
@@ -967,8 +978,8 @@ class Repo:
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
         if one.draft:
             return Judgement(brief.stem, "wait", ready.HAND_DRAFT, note, None)
-        short, tip = self.over_main(one, left)
-        short = short or self.guards.kept(one, tip)
+        short, judged = self.over_main(one, left)
+        short = short or self.guards.kept(one, judged.tip)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
@@ -978,7 +989,6 @@ class Repo:
             )
         if one.number in self.order:
             self.through = one.number
-        judged = ready.Judged(tip)
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
@@ -1320,6 +1330,8 @@ class Repo:
             return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
         tip = judged.tip or _run(self.main, "git", "rev-parse", f"origin/{one.base}").stdout.strip()
         guarded, passed = self.guards.of(one, tip)
+        if guarded and judged.overlaps and self.guards.kept(one, tip):
+            guarded = self.base_moved(one, tip)
         if guarded:
             return lines.waits("wait", number, one.url, guarded)
         body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)

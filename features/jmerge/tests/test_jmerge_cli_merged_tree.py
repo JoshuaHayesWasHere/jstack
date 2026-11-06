@@ -115,12 +115,11 @@ def test_merged_tree_with_no_guards_file_merges_as_before(kitchen):
 
 def test_merged_tree_held_pull_request_holds_up_no_other(kitchen):
     """#7, held for its crew, keeps no place that #8 behind it waits for: #8, whose check main
-    moved past on a file it changes too, has GitHub merge main into its branch in the same run."""
+    moved past on a file it changes too, merges on its guards in the same run."""
     kitchen.crew("one", 6, {"mig/v007_one.txt": "one\n", "a.txt": LINES + "one\n"})
     kitchen.crew("two", 7, {"mig/v007_two.txt": "two\n"}, checks=(AFTER,))
     kitchen.crew("three", 8, {"a.txt": "three\n" + LINES}, checks=(STARTED,))
     first, second, third = kitchen.run()
-    tip = kitchen.tip()
-    assert first.startswith("merged 6 one ") and second == fails(7, tip)
-    assert third == f"wait 8 {url(8)}: " + ready.BASE_MOVED_ASKED.format(base="main", tip=tip[:12])
-    assert kitchen.updates() == ["8"]
+    assert first.startswith("merged 6 one ") and second == fails(7, first.split()[3])
+    assert third.startswith(f"merged 8 three {kitchen.tip()} ")
+    assert kitchen.updates() == []
