@@ -156,21 +156,45 @@ def test_merged_tree_that_cannot_be_built_says_why(tmp_path):
     assert said.endswith("already exists)")
 
 
-def test_merged_tree_guards_past_their_limit_wait_once_and_run_again_next_run(
+def test_merged_tree_guards_past_their_limit_are_kept_until_the_head_or_the_tip_moves(
     tmp_path, monkeypatch
 ):
+    """Guards stopped at their limit are kept for the head over the tip, as a pass or a failure
+    is: the next run does not start them again on the same tree, so one slow tree does not take
+    every run's time (#1103 over 21bdee0d25ca, six runs stopped on 2026-11-05), and another pull
+    request of that run gets its guards. A new head or a new tip runs them again."""
     monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 1)
     tree = Tree(tmp_path)
-    guards = tree.guards("sleep 20")
+    base = git(tree.main, "rev-parse", f"{tree.tip}^")
+    git(tree.main, "checkout", "-q", base)
+    other = SimpleNamespace(number=8, head=tree.commit({"e.txt": "e\n"}), base="main")
     unended = ready.MERGED_TREE_UNENDED.format(**values(tree), minutes=0)
-    assert guards.of(tree.one, tree.tip) == (unended, "")
-    assert guards.kept(tree.one, tree.tip) == ""
-    assert not (tree.state / treeguards.KEPT).exists()
-    again = treeguards.Guards(tree.main, tree.state, True)
-    assert again.kept(tree.one, tree.tip) == ""
-    again.command = "true"
-    said, note = again.of(tree.one, tree.tip)
-    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
+    assert tree.guards("sleep 20").of(tree.one, tree.tip) == (unended, "")
+    kept = json.loads((tree.state / treeguards.KEPT).read_text())["7"]
+    assert (kept["head"], kept["tip"], kept["said"]) == (tree.head, tree.tip, unended)
+
+    marker = tmp_path / "ran"
+    again = tree.guards(f"touch {marker}")
+    assert again.kept(tree.one, tree.tip) == unended
+    assert again.of(tree.one, tree.tip) == (unended, "")
+    assert not marker.exists(), "the stopped tree's guards ran again on the same head and tip"
+    said, note = again.of(other, tree.tip)
+    assert said == "" and note and marker.exists()
+
+    marker.unlink()
+    git(tree.main, "checkout", "-q", tree.head)
+    tree.one.head = tree.commit({"b.txt": "b2\n"})
+    said, note = tree.guards(f"touch {marker}").of(tree.one, tree.tip)
+    assert said == "" and note and marker.exists()
+
+    marker.unlink()
+    tree.one.head = tree.head
+    git(tree.main, "checkout", "-q", tree.tip)
+    tip = tree.commit({"f.txt": "f\n"})
+    git(tree.main, "push", "-q", "origin", "HEAD:main")
+    (tree.state / treeguards.KEPT).write_text(json.dumps({"7": kept}))
+    said, note = tree.guards(f"touch {marker}").of(tree.one, tip)
+    assert said == "" and note and marker.exists()
 
 
 def test_merged_tree_that_passed_while_main_moved_waits_for_the_next_run(tmp_path):
