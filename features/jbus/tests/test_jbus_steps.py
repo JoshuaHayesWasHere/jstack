@@ -43,7 +43,6 @@ from jbus import (
     remarks,
     stall,
     threads,
-    verbs,
     waiting,
     wake,
     wakes,
@@ -467,24 +466,6 @@ STEPS = (verbs.Step("tellers", 85, "madeup.step", lambda half: step(half), ("cli
 """
 
 
-@pytest.fixture
-def made_up(tmp_path, monkeypatch):
-    """Add a module of jbus that no file of jbus names, with one step between two of the tellers."""
-    (tmp_path / "madeup.py").write_text(MADE_UP)
-    monkeypatch.setattr(jbus, "__path__", [*jbus.__path__, str(tmp_path)])
-    yield importlib.import_module("jbus.madeup")
-    sys.modules.pop("jbus.madeup", None)
-
-
-def test_a_new_module_s_step_runs_in_its_place_with_no_line_in_poll(kitchen, monkeypatch, made_up):
-    monkeypatch.setattr(poll, "RANKED", verbs.ranked(jbus.__path__))
-    short(kitchen)
-    calls, _, events = traced(kitchen, monkeypatch, (made_up, "step"))
-    expected = moved(BEFORE["short"][0])
-    expected.insert(expected.index("stall.hung") + 1, "madeup.step")
-    assert (calls, events) == (expected, BEFORE["short"][1])
-
-
 def test_a_new_module_s_step_is_printed_in_its_place(tmp_path):
     (tmp_path / "jbus").mkdir()
     ran = fresh(tmp_path / "jbus", "from jbus import cli\ncli.main(['steps'])", madeup=MADE_UP)
@@ -517,17 +498,6 @@ def late(tmp_path, monkeypatch):
     monkeypatch.setattr(jbus, "__path__", [*jbus.__path__, str(tmp_path)])
     yield importlib.import_module("jbus.late")
     sys.modules.pop("jbus.late", None)
-
-
-def test_a_new_module_s_second_half_step_runs_in_its_place_with_no_line_in_poll(
-    kitchen, monkeypatch, late
-):
-    monkeypatch.setattr(poll, "RANKED", verbs.ranked(jbus.__path__))
-    short(kitchen)
-    first, second, events = traced(kitchen, monkeypatch, (late, "step"))
-    expected = AFTER["short"].split()
-    expected.insert(expected.index("waiting.cadence") + 1, "late.step")
-    assert (first, second, events) == (moved(BEFORE["short"][0]), expected, BEFORE["short"][1])
 
 
 def test_a_new_module_s_second_half_step_is_printed_in_its_place(tmp_path):

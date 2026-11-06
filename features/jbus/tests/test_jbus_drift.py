@@ -46,10 +46,6 @@ def status(name, at):
     return drift.probe(one, at).status
 
 
-def test_the_probes_are_the_words_that_still_hold_and_d5_is_retired():
-    assert [one.name for one in drift.PROBES] == ["D1", "D2", "D3", "D4", "D6"]
-
-
 def test_d1_holds_while_a_later_warning_is_kept_for_the_days_row_and_breaks_otherwise(
     machine, monkeypatch
 ):

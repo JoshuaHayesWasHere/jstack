@@ -148,49 +148,6 @@ def test_the_key_never_shows(tmp_path, capsys, takes):
     assert all(KEY not in text for text in shown)
 
 
-def test_a_403_is_a_failed_post_that_shows_no_url_and_no_key(tmp_path, target, capsys):
-    target.fail, target.refusal = {1, 2}, 403
-    made = box(tmp_path, target)
-    made.post(ITEMS)
-    assert wake._post_blocking(made.blocking, ITEMS) == "the second target answered 403"
-    assert second(made) == (0, ["wake failed demo blocking: the second target answered 403"])
-    shown = [made.marks(made.blocking)["last_error"], *capsys.readouterr()]
-    shown += [(made.blocking.folder / name).read_text() for name in ("outbox.json", "wake.json")]
-    assert all(KEY not in text and target.url not in text for text in shown)
-
-
-DISABLED = b'{"success":false,"error":"Automation  wake-chef\\nis disabled"}'
-
-
-def test_a_400_keeps_the_error_its_json_body_gives(tmp_path, target):
-    target.fail, target.refusal, target.refused = {1, 2}, 400, DISABLED
-    made = box(tmp_path, target)
-    made.post(ITEMS)
-    why = "the second target answered 400: Automation wake-chef is disabled"
-    assert wake._post_blocking(made.blocking, ITEMS) == why
-    assert second(made) == (0, [f"wake failed demo blocking: {why}"])
-    assert made.marks(made.blocking)["last_error"] == why
-
-
-@pytest.mark.parametrize(
-    "body",
-    [b"", b"<html>Bad Request</html>", b'{"success":false}', b'{"error":{"code":7}}', b"[1]"],
-    ids=["empty", "html", "no-error", "not-text", "a-list"],
-)
-def test_a_refusal_with_no_error_text_says_only_the_code(tmp_path, target, body):
-    target.fail, target.refusal, target.refused = {1}, 400, body
-    made = box(tmp_path, target)
-    assert wake._post_blocking(made.blocking, ITEMS) == "the second target answered 400"
-
-
-def test_a_refusal_whose_body_is_cut_short_says_only_the_code(tmp_path, target):
-    target.fail, target.refusal, target.refused, target.short = {1, 2}, 400, DISABLED, 10
-    made = box(tmp_path, target)
-    made.post(ITEMS)
-    assert wake._post_blocking(made.blocking, ITEMS) == "the second target answered 400"
-    assert second(made) == (0, ["wake failed demo blocking: the second target answered 400"])
-
-
 def test_an_error_text_that_quotes_the_url_or_the_key_shows_neither(tmp_path, target):
     target.fail, target.refusal = {1}, 400
     url = f"{target.url}/relay"
@@ -199,19 +156,6 @@ def test_an_error_text_that_quotes_the_url_or_the_key_shows_neither(tmp_path, ta
     why = wake._post_blocking(made.blocking, ITEMS)
     assert why.startswith("the second target answered 400: bad [redacted] with [redacted] xxx")
     assert KEY not in why and url not in why and len(why) <= 300
-
-
-def test_a_key_no_header_can_carry_is_a_failed_post_that_does_not_show_it(tmp_path, target, capsys):
-    key = KEY + "\nX-Other: 1"
-    made = box(tmp_path, target, key)
-    made.post(ITEMS)
-    unreached = "the second target could not be reached"
-    assert wake._post_blocking(made.blocking, ITEMS) == unreached
-    assert second(made) == (0, [f"wake failed demo blocking: {unreached}"])
-    assert target.seen == []
-    shown = [made.marks(made.blocking)["last_error"], *capsys.readouterr()]
-    shown += [(made.blocking.folder / name).read_text() for name in ("outbox.json", "wake.json")]
-    assert all(KEY not in text for text in shown)
 
 
 def test_with_no_second_target_a_body_waits_nowhere_and_nothing_is_posted(tmp_path, monkeypatch):

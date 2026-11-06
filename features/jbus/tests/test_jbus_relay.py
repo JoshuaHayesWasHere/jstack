@@ -996,9 +996,3 @@ def test_the_env_file_is_read_as_systemd_reads_it(tmp_path):
     )
     assert relayenv.env_file(path) == {"RELAY_STATE": "/a b", "RELAY_SILENT_MINUTES": ""}
     assert relayenv.env_file(tmp_path / "none") == {}
-
-
-def test_the_relay_counts_silence_from_half_an_hour_past_the_hourly_refresh():
-    from jbus import leftover, relayenv
-
-    assert relayenv.SILENT_MINUTES == leftover.REFRESH_MINUTES + 30

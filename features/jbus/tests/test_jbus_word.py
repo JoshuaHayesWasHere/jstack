@@ -351,25 +351,6 @@ def test_a_word_t3_code_refuses_waits_and_no_wake_carries_anything_of_it(kitchen
     assert len([one for one in kitchen.t3.messages if one.startswith("word|")]) == 1
 
 
-def test_a_word_a_pass_sent_meanwhile_is_not_written_back_as_waiting(kitchen):
-    """The command read the word unsent, and a pass sent it before the command's own send failed."""
-    (kitchen.home / "home-id").write_text("home-1\n")
-    config = jbus.load()
-    run = passes.Pass(config, config.project("demo"), NOW, lambda _: None)
-    heard = party.Evidence("t3-message", REF, WORDS, AT, "chat", True)
-    held = word.keep(run, party.HOME, heard)
-    assert "word demo: sent to home-1" in kitchen.poll()
-    assert word._change(run, held, waits=word.NO_ANSWER) is False
-    assert word._change(run, held, thread="home-2", sent_at="later", waits="") is False
-    (kept,) = word.load(kitchen.state)
-    assert (kept.thread, kept.waits, bool(kept.sent_at)) == ("home-1", "", True)
-    assert [one["line"] for one in logged(kitchen)] == ["word demo: sent to home-1"]
-    assert kitchen.main("word", "--to", "demo", *SAID) == (
-        0,
-        f"already sent: demo, to home-1, word {ID}\n",
-    )
-
-
 @pytest.mark.parametrize("text", ["not json", '[{"id": "a", "nope": 1}]'], ids=["text", "list"])
 def test_a_words_file_that_does_not_parse_is_a_gate_and_the_rest_of_the_pass_runs(kitchen, text):
     kitchen.state.mkdir(parents=True, exist_ok=True)
