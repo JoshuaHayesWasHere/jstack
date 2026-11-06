@@ -158,7 +158,7 @@ It sends nobody anything.
    Its `By:` line says whose it is, so that this reviewer's section at the same head, once it runs again, takes its place, and another reviewer's does not.
    Its `Scope:` line, on a scoped pass, keeps it a scoped pass: a scoped section takes the place of no section but a scoped one, so the first review of the same head keeps its findings.
    Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict").
-   jbus's stall clock (`jbus.clock`) reads a review with no verdict as a wait on the review: it carries the crewmate on, and then tells the home.
+   jbus's stall clock (`jbus.clock`) reads a review with no verdict as a wait on the review: it asks this reviewer again, with `/pr-review run <slug> again`, and then tells the home.
    Sent a second time for the same head, the block writes no second section.
 2. Say the same in this thread in two lines, and stop without settling: a thread that settled would look like a review that was done.
 
