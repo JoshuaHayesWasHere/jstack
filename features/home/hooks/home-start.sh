@@ -10,6 +10,12 @@ input=$(cat)
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty')
 [ -n "$cwd" ] && cd "$cwd" 2>/dev/null || exit 0
 
+if [ -n "$CLAUDE_ENV_FILE" ] && common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) &&
+  branch=$(git branch --show-current 2>/dev/null) && [ -n "$branch" ]; then
+  folder=${JSTACK_SCRATCH_DIR:-$HOME/.cache/jstack/scratch}/$(basename "$(dirname "$common")")/$branch
+  [ -d "$folder" ] && printf "export TMPDIR='%s'\n" "$folder" >>"$CLAUDE_ENV_FILE"
+fi
+
 scratch=$(cd "$HOME/.t3/scratch" 2>/dev/null && pwd -P)
 case $(pwd -P)/ in
 "${scratch:-/nowhere}"/*) exit 0 ;;

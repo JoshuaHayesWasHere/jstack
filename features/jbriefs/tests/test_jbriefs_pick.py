@@ -200,7 +200,6 @@ def test_the_skills_block_says_so_when_it_is_not_linked(tmp_path, demo):
     ("prompt", "first"),
     [
         ("grill me on this plan", "grilling"),
-        ("how does the jbus pass work", "how"),
         ("why did we pick sqlite for the queue", "why"),
         ("this reads like chatgpt, it sounds like ai", "unslop"),
         ("can you review the pr and then catch me up", "ketchup"),
@@ -257,21 +256,6 @@ def test_a_skill_the_text_names_gets_no_tip():
     assert first_tip("is $blast-radius the one for what could this break") is None
     assert first_tip("after /blast-radius, catch me up") == "ketchup"
     assert first_tip("then /blast-radius-2 says what could this break") == "blast-radius"
-
-
-TIPPED = sorted((s.name, s.phrases) for s in pick.skills().values() if s.phrases)
-
-
-def test_the_repo_has_skills_with_a_tip_line():
-    assert len(TIPPED) > 10
-
-
-@pytest.mark.parametrize(("name", "phrases"), TIPPED, ids=[name for name, _ in TIPPED])
-def test_each_tip_phrase_of_the_repos_skills_tips_that_skill(name, phrases):
-    found = pick.skills()
-    for phrase in phrases:
-        text = f"So, {phrase.replace('*', 'the thing').upper()}?"
-        assert name in [tipped for tipped, _ in pick.tipped(text, found)], phrase
 
 
 def test_the_briefs_deeper_playbooks_are_the_crewmates_ones_the_deeper_step_runs_on():

@@ -301,7 +301,7 @@ A head that merges cleanly then goes one of two ways, by its files.
 - **It overlaps none of main's changes: it merges on its existing check.**
   None of the pull request's files, nor the old path of a file it renamed, is a path main changed since its check started.
   GitHub is asked for no update of its branch, and no check runs again.
-  Before the merge, `jmerge` runs the fast guards on its tree merged over main ("The guards on the merged tree"), which catch a clash two pull requests make with no file in common, as #923 and #935 made on 2026-11-03 with two new `v007_` files.
+  Before the merge, where the repo names them, `jmerge` runs the fast guards on its tree merged over main ("The guards on the merged tree"), which catch a clash two pull requests make with no file in common, as #923 and #935 made on 2026-11-03 with two new `v007_` files.
   A merge that GitHub refuses waits as `the merge failed: <what GitHub said>`, and the next run judges it again.
   It takes no place in the line below, and merges while a pull request that overlaps holds it.
 - **It overlaps: it goes through the line.**
@@ -310,7 +310,9 @@ A head that merges cleanly then goes one of two ways, by its files.
   GitHub's check at the new head ran over today's main, and it decides by the normal path: the pull request merges once that check passes, and waits as `check has failed` if it fails.
   The review stands across that merge, as across a rebase: its range-diff shows no content.
 
-A repo with no `merged-tree-guards` file has nothing that checks the merged tree, so each of its pull requests whose check main moved past goes through the line, whatever its files.
+A repo with no `merged-tree-guards` file runs nothing on the merged tree, and a pull request that overlaps none of main's changes merges on its existing check all the same, with main's own run and jbus's revert of a red main's culprit behind it.
+Josh, 2026-11-05: "we don't need every pr to be up to date".
+jstack's guards were off from 15:15 that day, when they outran the 17 minutes jbus gives `jmerge`, and while every such pull request still went through the line, `merge.log` had 418 `in line behind` waits for 16 merges from 15:00 to 18:26, against none from 08:00 to 15:00 with the guards on.
 A pull request whose renamed files GitHub did not give is held for you before this (`ready.needs_the_user`), and one you accept is judged as one that overlaps.
 GitHub's strict "up to date" rule is off on main (ruleset 25665226, `features/repo-guards/main-ruleset.json`, since 2026-11-04), so GitHub merges a pull request whose branch does not hold main's tip.
 Were it on, GitHub would refuse each merge on an existing check, and each would wait as `the merge failed`.
@@ -355,12 +357,14 @@ Two pull requests can each pass their check alone and break main together, as #9
 The clash shows on the tree of one merged over the other, so before it merges a pull request whose head does not hold the tip of its base, `jmerge` checks the tree of that head merged over the tip (`features/jmerge/src/jmerge/treeguards.py`).
 The command is the first line of the state's `merged-tree-guards` file that is not blank.
 jstack's is `make check-fast PART=guards`: the lint, the cross-cutting tests, the catch-all and the changed test files, 385 s in one run on 2026-11-04.
-A repo with no such file runs no guards, and a pull request whose check main moved past goes through the line ("Merges cleanly over today's main").
+A repo with no such file runs no guards, and a pull request that overlaps none of main's changes merges on its existing check with nothing run on its merged tree ("Merges cleanly over today's main").
 
 1. With the merge lock held and the base's tip read, `jmerge` merges the head over that tip with `git merge-tree`.
 2. It makes the tree a local commit whose parents are the tip and the head, as GitHub's merge ref is, and pushes nothing.
 3. It checks the commit out at `merged-tree` in the state directory, runs the command there with `BASE` set to the tip, and removes the worktree.
    A worktree that a stopped run left there is removed first.
+   The command runs inside a full test slot, through `jgauge test-slot`, as every other suite on the machine does: it is a suite at `-n 6`, and outside a slot it would be one the slot count does not see.
+   A `jmerge` that already holds a slot (`JGAUGE_TEST_SLOT` set) runs it in that one, since a second would wait on its own.
 4. Where the command exits 0, and the tip has not moved meanwhile, it merges.
    The line of the merge says `the guards passed on its tree merged over <base> at <tip12> in <s> s`, and `merge.log` keeps that line.
 
@@ -369,9 +373,12 @@ A non-zero exit holds the pull request with `merged over today's <base> at <tip1
 The guard is the first test pytest calls `FAILED`, else the make target the run stopped in, such as `lint`, else the last line the command printed.
 A tip that moved while the guards ran waits as `<base> moved while it was judged`, and the next run builds the tree over the new tip.
 
-The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
+The guards wait at most 15 s for a slot (`SLOT_SECONDS`).
+With every full slot still taken, they do not start, and the pull request waits as `every full test slot stayed taken for 15 s, so the guards did not start on its tree merged over <base> at <tip12>: the next run tries again`.
+That run tries no more trees, and keeps nothing: jbus's next pass runs `jmerge` again about a minute later (`jbus.tick` runs it sooner only when a check ends), so a skip costs a merge about a minute, where a wait inside the run would hold every other merge of it, for as long as a full suite holds a slot.
+The guards run at most 10 minutes on one tree (`LIMIT_SECONDS`), counted from when they hold the slot, and stop with every process they started; that waits as `the guards on its tree merged over today's <base> at <tip12> ran past 10 minutes and were stopped`.
 A stopped run is kept for no later run: the pull request waits for this run alone, and the next run tries the guards again, since a run that crossed the limit once on a loaded machine says nothing of the tree.
-A run starts no guards once it has spent 4 minutes on them (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
+A run starts no guards once it has spent 4 minutes on them and their waits for a slot (`RUN_SECONDS`), so it ends inside the 17 minutes jbus gives it, and a pull request left over waits for the next run.
 A tree that cannot be built waits with why, and a head that conflicts with the tip waits as `it conflicts with today's main`.
 `merged-trees.json` in the state directory keeps a pass or a failure of the guards on a head over a tip, so a held pull request is not run again until its head or the tip moves, and `--check`, which runs no guards, shows the held line too.
 A held pull request gives up its base's line ("Merges cleanly over today's main"), since it waits on its crew.

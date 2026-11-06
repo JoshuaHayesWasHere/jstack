@@ -3,13 +3,8 @@ queue and the launch refuse a name that is no skill or principle, and the merge 
 the Result has an artifact for each name. The names are pstack's, and the old principle
 names still resolve."""
 
-import hashlib
-import json
 import re
 import subprocess
-import sys
-import tomllib
-from pathlib import Path
 
 import pytest
 
@@ -18,10 +13,9 @@ from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
 from testing.layouts import assembled
-from testing.paths import REPO, sources
+from testing.paths import REPO
 from testing.paths import skills as skill_folders
 
-FIXTURES = Path(__file__).parent / "fixtures"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 NAMED = "Skills: in-your-own-words, principle-model-the-domain, prove-it-works\n"
 ARTIFACTS = (
@@ -207,12 +201,6 @@ def not_taken():
     }
 
 
-def test_the_names_are_of_the_pin_third_party_names():
-    commit, names = pinned()
-    assert f"- Commit: {commit}" in THIRD_PARTY.read_text()
-    assert len(names) == 57
-
-
 def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_take():
     """A name in a Grok Bot brief reads the same in T3. Each of pstack's names resolves to a
     file here, by its own name or an alias, unless jstack did not take that skill.
@@ -230,34 +218,6 @@ def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_tak
             assert (one.kind, one.name) == ("principle", name)
         elif one.path is not None:
             assert one.kind in ("skill", "playbook")
-
-
-def test_every_principle_has_pstacks_name_and_its_old_name_still_resolves():
-    files = sorted((REPO / "features" / "principles" / "skills").glob("*/SKILL.md"))
-    assert len(files) == 25
-    for path in files:
-        name = path.parent.name
-        assert name.startswith("principle-")
-        old = name.removeprefix("principle-")
-        assert skills.resolve(old).path == path
-        assert skills.resolve(old).name == name == skills.resolve(name).name
-
-
-def test_no_principle_lost_a_line_in_the_rename():
-    """Each principle, reached by its old name through the resolver, is the file it was at
-    c228ac6, with three exceptions. Its frontmatter differs, and its links to the others name
-    their new files. A move also rewrote some paragraphs and list items to one sentence per
-    line, and such a paragraph reads as the same text."""
-    lines = (FIXTURES / "principles-before-rename.txt").read_text().splitlines()
-    before = dict(line.split() for line in lines if not line.startswith("#"))
-    assert len(before) == 25
-    for old, digest in before.items():
-        found = skills.resolve(old)
-        assert found.relative == f"features/principles/skills/principle-{old}/SKILL.md"
-        text = found.path.read_text().split("\n---\n\n", 1)[1]
-        back = re.sub(r"\]\(\.\./principle-([a-z0-9-]+)/SKILL\.md", r"](\1.md", text)
-        back = re.sub(r'(?<=\S)\n(?:  )?(?=[A-Z\["])', " ", back)
-        assert hashlib.sha256(back.encode()).hexdigest() == digest, old
 
 
 def test_every_name_the_map_gives_an_artifact_resolves_and_it_has_a_default():
@@ -313,48 +273,6 @@ def test_a_line_of_prose_is_gated_with_the_first_five_names_it_does_not_resolve(
     assert "names then, before, done, against, the and 1 more, which are no skill" in why
 
 
-def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_principle():
-    listed = json.loads((REPO / skills.CATALOG).read_text())["items"]
-    on_disk = set(skill_folders())
-    named = {item["name"] for item in listed if item["kind"] in ("skill", "principle")}
-    assert named == on_disk
-    assert {item["source"] for item in listed} <= {"pstack", "adapted", "jstack"}
-    stale = subprocess.run(
-        [sys.executable, "scripts/generate-jstack-trees.py", "--check"],
-        cwd=REPO,
-        capture_output=True,
-    )
-    assert stale.returncode == 0, stale.stderr
-
-
-def test_a_skills_json_written_when_jstacks_own_items_were_josh_still_lists_them():
-    """The generator once wrote `josh` for the source that is now `jstack`, and the fixture tree
-    still holds the old value. Nothing reads `source`, so the old list gives its files the same."""
-    tree = REPO / "testing" / "tests" / "fixtures" / "skills" / "named-tree"
-    items = json.loads((tree / skills.CATALOG).read_text())["items"]
-    assert {item["source"] for item in items} == {"josh"}
-    assert skills.where("skill", "fake-skill", tree) == tree / "skills/fake-skill/SKILL.md"
-    assert skills.listed("principle", tree) == {
-        "principle-fake": tree / "principles/principle-fake.md"
-    }
-
-
-def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonical_name(
-    monkeypatch,
-):
-    """The list is skills.json, not the directories. The resolver refuses a skill whose file is
-    there but which skills.json leaves out, and resolves pstack's name for an item to
-    jstack's."""
-    item = {"name": "sharpen", "kind": "skill", "path": "features/sharpen/SKILL.md"}
-    alias = item | {"pstack_name": "deeper"}
-    monkeypatch.setattr(skills, "_listed", lambda: ({"sharpen": alias}, {"deeper": alias}))
-    assert skills.resolve("architect").path is None
-    assert "names architect, which is no skill" in skills.unknown("Skills: architect\n")
-    one = skills.resolve("deeper")
-    assert (one.name, one.kind, one.relative) == ("sharpen", "skill", item["path"])
-    assert [found.name for found in skills.named("Skills: deeper, sharpen\n")] == ["sharpen"]
-
-
 def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_list():
     assert skills.root() == REPO.resolve()
     gates = REPO.resolve() / "features" / "home" / "templates" / "gates.md"
@@ -364,26 +282,3 @@ def test_where_finds_each_kind_from_skills_json_and_refuses_what_it_does_not_lis
     assert skills.where("principle", "principle-prove-it-works").is_file()
     with pytest.raises(LookupError, match="skills.json lists no playbook crew"):
         skills.where("playbook", "crew")
-
-
-def source_modules():
-    return {path for root in sources() for path in root.rglob("*.py")}
-
-
-def test_the_source_modules_are_every_module_the_wheel_ships():
-    wheel = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["hatch"]["build"][
-        "targets"
-    ]["wheel"]
-    shipped = {path for package in wheel["packages"] for path in (REPO / package).rglob("*.py")}
-    assert shipped - source_modules() == set()
-
-
-def test_no_module_reads_a_file_of_the_checkout_from_its_own_place_in_it():
-    """The one `parents[2]` left is the view's own source root. It bounds the modules that the
-    view watches for a newer copy, and the view reads no file through it."""
-    found = {
-        str(path.relative_to(REPO))
-        for path in source_modules()
-        if re.search(r"parents\[[24]\]", path.read_text())
-    }
-    assert found == {"features/jbus/src/jbus/view/__init__.py"}

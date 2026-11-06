@@ -29,6 +29,12 @@ def test_a_machine_with_room_launches(kitchen):
     assert not any("no room" in line for line in said) and kitchen.lines("note") == []
 
 
+def test_a_launched_crew_has_its_scratch_folder_on_disk_before_its_thread_starts(kitchen):
+    approved(kitchen, "alpha")
+    kitchen.poll()
+    assert (kitchen.root / "scratch" / kitchen.checkout.name / "alpha").is_dir()
+
+
 def test_a_machine_with_no_room_launches_no_row_that_pass_and_sends_nothing(kitchen):
     kitchen.config(max_running=5)
     approved(kitchen, "alpha", priority=1)

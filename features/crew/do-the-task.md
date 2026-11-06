@@ -5,6 +5,7 @@
   A step the short lane stops at its time limit (exit 124) runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
   A 124 is never a pass and never a failure: it is no verdict.
   The cross-cutting tests, the catch-all and the tests the change reaches through imports, names and features are CI's to run: the desk does not run them.
+  A change of the tests alone, where every changed path is a module of a folder of tests that the head still holds, selects only the changed test files and the tests that import or name a helper they changed, so CI runs no catch-all for it, and a cross-cutting test only where it is one of those.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
   A base branch that is gone, as one is once it merged, is `origin/main` too.
   In any other repo the check is the repo's check command, the first line of `$H/fresh-check` with its `jgauge test-slot --` left off (the block takes the slot itself), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.

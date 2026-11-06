@@ -53,7 +53,7 @@ Copy these steps into the todo list as this phase's entries.
    The prompt is the design-sketch task, the Phase A grounding, and the text below the line `---` in `references/runner-prompt.md` and in `references/rationale-template.md`.
    The rubric is interface depth (which candidate hides more complexity behind a smaller, simpler public surface) and the flags in [`references/design-red-flags.md`](references/design-red-flags.md) this task is most likely to raise, six criteria at most.
    Write both down before either candidate.
-2. Write candidate a to the prompt: its usage and its type sketch, in a scratch worktree, `git worktree add --detach <path> HEAD`.
+2. Write candidate a to the prompt: its usage and its type sketch, in a scratch worktree, `git worktree add --detach "$(mktemp -d "${TMPDIR:-/tmp}/a.XXXXXX")/a" HEAD`.
 3. Write candidate b to the same prompt in a second worktree, a whole other shape and not a point fix inside a's (`principles/principle-exhaust-the-design-space.md`).
    Name what of a's shape it gives up.
 4. Score each against the rubric, criterion by criterion and not on how it feels, and screen each against the other flags.

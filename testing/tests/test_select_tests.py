@@ -672,8 +672,7 @@ def test_a_test_no_rule_selects_runs_beside_what_a_change_selects(tmp_path):
 def test_the_guards_are_the_cross_cutting_the_catch_all_and_the_changed_tests(
     tmp_path, changed, guards, rest
 ):
-    """A desk runs `--part guards` first and must see it pass, then `--part rest`, and `--part
-    desk` names both from one selection: the two split the selection, and the guards are the
+    """`--part guards` and `--part rest` split the selection, and the guards are the
     cross-cutting tests, the catch-all and the changed test files, never a file the change
     reaches by an import alone."""
     repo = Repo(tmp_path, files={**FILES, **LONE})
@@ -684,19 +683,14 @@ def test_the_guards_are_the_cross_cutting_the_catch_all_and_the_changed_tests(
     said = [ran.stdout.split() for ran in parts]
     assert said == [[f"testing/tests/{one}" for one in names] for names in (guards, rest)]
     assert sorted(said[0] + said[1]) == repo.selected(head)
-    both = repo.run("--part", "desk", repo.base, head)
-    assert (both.returncode, both.stdout.splitlines()) == (
-        0,
-        [f"guards {one}" for one in said[0]] + [f"rest {one}" for one in said[1]],
-    ), both.stderr
 
 
 def test_a_part_of_a_selection_of_every_test_is_every_test(repo):
     head = repo.change(["pyproject.toml"])
 
-    assert [
-        repo.run("--part", part, repo.base, head).stdout for part in ("guards", "rest", "desk")
-    ] == ["all\n", "all\n", "all\n"]
+    said = [repo.run("--part", part, repo.base, head).stdout for part in ("guards", "rest")]
+
+    assert said == ["all\n", "all\n"]
 
 
 TEE = """\
@@ -766,9 +760,10 @@ def test_a_read_set_of_a_module_of_the_tests_selects_the_tests_that_import_it(gl
     ids=["a skill's own file", "a playbook a skill names"],
 )
 def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test(changed, reader):
-    """`test_lessons.py` reads every file of the lessons skills through `rglob`, and an em dash
-    in one of them fails it. `test_tdd_skill.py` checks each playbook the tdd skill names, through
-    `skill_blocks`. Neither feature lists the test, and no test spells the file."""
+    """`test_lessons.py` declares the folders of the lessons skills in its `READ_SET`, and a
+    change to a file in one of them selects it. `test_tdd_skill.py` checks each playbook the tdd
+    skill names, through `skill_blocks`. Neither feature lists the test, and no test spells the
+    file."""
     tests, _ = select.selection([changed])
 
     assert reader in tests
@@ -1125,7 +1120,6 @@ def test_a_change_to_the_crawl_of_jtrees_selects_the_tests_that_import_it():
 
 
 STATECHART_TESTS = {
-    "features/jmerge/tests/test_flow_spec.py",
     "features/home/tests/test_home_tree_spec.py",
     "features/skill-library/tests/test_statechart_charts.py",
     "features/skill-library/tests/test_statechart_runs.py",
@@ -2005,8 +1999,12 @@ def test_a_file_whose_slowest_test_outlasts_a_part_is_dealt_alone_and_one_of_qui
     assert len(spreads) > 1
 
 
-@pytest.mark.parametrize("argv", [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"]])
-def test_parts_takes_a_count_of_one_or_more(argv):
+@pytest.mark.parametrize(
+    "argv",
+    [["--parts", "0", "a", "b"], ["--parts", "x", "a", "b"], ["--part", "desk", "a", "b"]],
+    ids=["no parts", "a count that is no number", "the desk part, which is gone"],
+)
+def test_parts_takes_a_count_of_one_or_more_and_part_only_its_named_parts(argv):
     with pytest.raises(SystemExit, match="usage"):
         select.main(argv)
 
