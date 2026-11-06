@@ -3,6 +3,7 @@ to its thread, settles each thread of a finished task once, and settles a scout'
 when its page has ended. Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
+import subprocess
 from datetime import timedelta
 
 import pytest
@@ -100,6 +101,26 @@ def test_the_threads_of_a_finished_slug_and_those_under_them_are_settled_once_ea
     crew["settled"] = gone["settled"] = False
     kitchen.poll(NOW + timedelta(minutes=9))
     assert len(settles(kitchen)) == 8 and (crew["settled"], gone["settled"]) == (False, False)
+
+
+def test_a_settled_crew_leaves_no_scratch_folder_and_no_worktree_made_in_it(kitchen):
+    scratch = kitchen.root / "scratch" / kitchen.checkout.name
+    for slug in ("alpha", "beta"):
+        (scratch / slug / "a-clone").mkdir(parents=True)
+        kitchen.t3.thread(slug, "completed")
+    kitchen.git("worktree", "add", "-q", "--detach", str(scratch / "alpha" / "a-worktree"))
+    kitchen.brief("alpha", RESULT)
+    kitchen.brief("beta", RESULT.replace("Status: done", "Status: paused"))
+    kitchen.poll()
+    assert not (scratch / "alpha").exists() and (scratch / "beta" / "a-clone").is_dir()
+    listed = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=kitchen.checkout,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "a-worktree" not in listed
 
 
 def test_a_task_that_is_not_done_or_has_a_pull_request_open_keeps_its_threads(kitchen):

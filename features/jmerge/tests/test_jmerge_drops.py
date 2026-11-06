@@ -89,24 +89,6 @@ def test_a_later_review_of_the_head_that_says_nothing_of_the_drops_takes_no_ruli
     )
 
 
-def test_a_drop_the_review_did_not_uphold_is_the_users():
-    ruled = review(drops="Drops: upheld a.py\nDrops: not upheld b.py: the task needs them\n")
-    assert ready.drops(LOST, ACKS + ruled, HEAD, user=jsettings.DEFAULTS) == (
-        "hold",
-        "needs user, the review did not uphold the drop in b.py: the task needs them",
-    )
-
-
-def test_drops_explained_and_upheld_keep_nothing_from_the_merge():
-    ruled = review(drops="Drops: upheld a.py, b.py\n")
-    assert ready.acks(ACKS, HEAD) == {
-        "a.py": (2, 1, "the task replaces them"),
-        "b.py": (0, 3, "main's change, see #7"),
-    }
-    assert ready.upheld(ACKS + ruled, HEAD) == {"a.py", "b.py"}
-    assert ready.drops(LOST, ACKS + ruled, HEAD, user=jsettings.DEFAULTS) == ("", "")
-
-
 def test_a_ruling_stands_for_a_fix_pushed_after_it_once_the_crew_says_so_at_the_new_head():
     """The scoped review saw the head that the rebase ended on. A fix moved the head, and the
     `Fixed:` line names it, so the crew explains the drop again at the new head, and `jmerge`

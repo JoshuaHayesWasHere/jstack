@@ -450,10 +450,12 @@ SETTLED = (
         (_words(r"\bFixed\b"), _words(r"\b124\b|short lane|time limit|timed out|\blimit\b")),
         "an exit 124 never passes: a check cut short reached no verdict, and jmerge holds a "
         "pull request whose last Checked: line ends 124 (features/crew/do-the-task.md; "
-        "features/jmerge/src/jmerge/ready.py, short_on_checked). The desk runs only the guards, "
-        "in a full test slot with no time limit, and CI's check runs the rest",
+        "features/jmerge/src/jmerge/ready.py, short_on_checked). The desk runs only the lint and "
+        "the touched tests, and a step the short lane stops runs again alone in a full test slot "
+        "with no time limit, and CI's check runs the rest",
         "treat the 124 as a failure: run the check block again at the head, fix what it finds, "
-        "and go on only once its Checked: line says PART=guards exit 0",
+        "and go on only once its Checked: line says PART=touched exit 0 (PART=guards exit 0 on a "
+        "line of an earlier head)",
     ),
     Settled(
         "a red that is its base's",
@@ -492,7 +494,7 @@ WAITS = (
     "the Default: line waits for the user's word, and a pass closes a gate with no Holds: line "
     "with its default at once, so nobody is left to give that word. Write as the default what "
     "is done with no word, which the user's answer can still take back, or, where the default "
-    "is one of the six cases of the gates table, add Holds: and Fail-safe: under Undo:"
+    "is one of the cases of the gates table, add Holds: and Fail-safe: under Undo:"
 )
 
 

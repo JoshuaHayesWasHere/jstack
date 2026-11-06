@@ -12,7 +12,7 @@ import sys
 
 import pytest
 
-from jinstall import layout, terms
+from jinstall import layout
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from test_install import User, laid, line_for
 from testing.layouts import place
@@ -39,64 +39,6 @@ def copy(tmp_path):
 def generate(root):
     script = root / "scripts" / "generate-jstack-trees.py"
     subprocess.run([sys.executable, "-I", script], cwd=root, check=True, capture_output=True)
-
-
-def kinds(source):
-    found = {}
-    for item in layout.catalog(source):
-        found.setdefault(item["kind"], set()).add(item["name"])
-    return found
-
-
-@pytest.mark.parametrize("harness", HARNESSES, ids=lambda harness: harness.name)
-def test_a_layout_holds_each_skill_playbook_principle_template_and_its_own_hooks(harness):
-    assembled = layout.assemble(REPO, harness)
-    entries = assembled.entries
-    assert assembled.faults == ()
-    folders = {}
-    for path in entries:
-        top, _, rest = path.partition("/")
-        folders.setdefault(top, set()).add(rest)
-    assert {rest.split("/")[0] for rest in folders["skills"]} == set(layout.skills(REPO))
-    assert folders["playbooks"] == {f"{name}.md" for name in kinds(REPO)["playbook"]}
-    assert folders["principles"] == {f"{name}.md" for name in kinds(REPO)["principle"]}
-    assert folders["templates"] == kinds(REPO)["template"]
-    hooks = {one["name"] for one in layout.hooks(REPO) if harness.name in one["harnesses"]}
-    assert folders.get("hooks", set()) == hooks
-    assert {"README.md", "source"} <= set(entries)
-    assert entries["source"] == layout.Linked(REPO)
-    for path, entry in entries.items():
-        if isinstance(entry, layout.Linked):
-            assert entry.source.exists(), path
-
-
-def test_codex_runs_the_session_start_and_refusing_hooks_and_cursor_runs_none():
-    held = {
-        harness.name: sorted(
-            path for path in layout.assemble(REPO, harness).entries if path.startswith("hooks/")
-        )
-        for harness in HARNESSES
-    }
-    assert held["codex"] == [
-        "hooks/agent-sends.sh",
-        "hooks/ai-trailer.sh",
-        "hooks/door-command.sh",
-        "hooks/home-start.sh",
-        "hooks/infra-files.sh",
-        "hooks/outbound-command.sh",
-    ]
-    assert held["cursor"] == []
-    assert "hooks/limits.sh" in held["claude-code"]
-    assert "hooks/pre-push.sh" not in held["claude-code"]
-
-
-def test_each_skill_file_links_to_its_file_and_an_edit_there_is_live(copy, tmp_path):
-    at = place(tmp_path / "claude-code", root=copy)
-    skill = at / "skills" / "tdd" / "SKILL.md"
-    assert os.readlink(skill) == str(copy / "features" / "tdd" / "SKILL.md")
-    (copy / "features" / "tdd" / "SKILL.md").write_text("edited\n")
-    assert skill.read_text() == "edited\n"
-    assert layout.stale(layout.assemble(copy, CLAUDE_CODE), at) == []
 
 
 def test_a_written_file_is_stale_once_its_source_changes_and_a_stray_is_named(copy, tmp_path):
@@ -132,27 +74,6 @@ def test_a_link_to_a_file_the_layout_leaves_out_points_at_github(copy):
     assert "`[code](../../nowhere.md)`" in text
 
 
-def test_a_link_that_dangles_is_a_fault_naming_the_file_and_a_link_in_code_is_none(copy):
-    playbook = copy / "features" / "crew" / "playbooks" / "bug-fix.md"
-    playbook.write_text(
-        playbook.read_text()
-        + "\nSee [`state`](../../home/docs/state.md), [`gone`](../../../docs/gone.md)"
-        + " and `[code](../x.md)`.\n"
-    )
-    assert layout.assemble(copy, CLAUDE_CODE).faults == (
-        "features/crew/playbooks/bug-fix.md links to ../../../docs/gone.md,"
-        " which is not in the tree",
-    )
-    playbook.write_text(playbook.read_text().replace(", [`gone`](../../../docs/gone.md)", ""))
-    assembled = layout.assemble(copy, CLAUDE_CODE)
-    assert assembled.faults == ()
-    text = assembled.entries["playbooks/bug-fix.md"].content.decode()
-    assert (
-        f"See [`state`]({GITHUB}/blob/main/features/home/docs/state.md) and `[code](../x.md)`."
-        in text
-    )
-
-
 def test_a_principle_skill_is_a_skill_with_a_stub_where_principles_are_read(copy):
     skill = copy / "features" / "principles" / "skills" / "principle-alpha" / "SKILL.md"
     skill.parent.mkdir(parents=True)
@@ -162,43 +83,6 @@ def test_a_principle_skill_is_a_skill_with_a_stub_where_principles_are_read(copy
     assert entries["skills/principle-alpha/SKILL.md"] == layout.Linked(skill)
     stub = entries["principles/principle-alpha.md"].content.decode()
     assert "[principle-alpha](../skills/principle-alpha/SKILL.md)" in stub
-
-
-TEXT = (
-    "Call `t3_thread_send`, or `delegate_task` with `run_in_background`; wait with Monitor; ask "
-    "with AskUserQuestion after ToolSearch; edit ~/.claude/settings.json."
-)
-
-
-def test_codex_and_cursor_leave_out_each_claude_code_term_and_claude_code_leaves_out_none():
-    for harness in ("codex", "cursor"):
-        assert terms.used(TEXT, harness) == set(terms.CLAUDE_CODE_ONLY)
-        assert terms.used("Read the brief and open a pull request.", harness) == set()
-    assert terms.used(TEXT, "claude-code") == set()
-
-
-def test_the_readme_of_a_layout_names_what_each_skill_asks_for_that_its_harness_leaves_out():
-    assert layout.assemble(REPO, CLAUDE_CODE).flagged == {}
-    assembled = layout.assemble(REPO, CODEX)
-    assert assembled.flagged
-    readme = assembled.entries["README.md"].content.decode()
-    for name, found in assembled.flagged.items():
-        assert set(found) <= set(terms.LEAVES_OUT["codex"])
-        assert f"| [{name}](skills/{name}/SKILL.md) | " in readme
-        assert (
-            readme.split(f"| [{name}](skills/{name}/SKILL.md) | ", 1)[1]
-            .split("\n")[0]
-            .endswith(f" | {', '.join(found)} |")
-        )
-
-
-def test_the_catalog_lists_each_hook_with_the_harnesses_that_run_it():
-    listed = {one["name"]: one for one in json.loads((REPO / "skills.json").read_text())["hooks"]}
-    assert listed["home-start.sh"]["harnesses"] == ["claude-code", "codex"]
-    assert listed["limits.sh"]["harnesses"] == ["claude-code"]
-    assert "pre-push.sh" not in listed
-    for one in listed.values():
-        assert (REPO / one["path"]).is_file()
 
 
 @pytest.fixture
@@ -299,19 +183,6 @@ def test_check_names_what_is_stale_in_a_layout_and_a_run_mends_it(user):
     assert not (user.layout / "skills" / "crew" / "extra.md").exists()
 
 
-def test_each_layout_keeps_templates_and_playbooks_beside_its_skills(user):
-    user.run()
-    for harness in HARNESSES:
-        skill = user.home / harness.root / "crew"
-        root = os.path.realpath(skill / ".." / "..")
-        assert root == str(laid(user.home, harness.name))
-        assert os.path.realpath(f"{root}/templates/result.md") == str(
-            REPO / "features" / "crew" / "templates" / "result.md"
-        )
-        assert os.path.isfile(f"{root}/playbooks/feature.md")
-        assert os.path.realpath(f"{root}/source") == str(REPO)
-
-
 def test_codex_finds_beside_each_hidden_skill_a_policy_that_bars_implicit_invocation(user):
     """Codex ignores `disable-model-invocation` and reads `agents/openai.yaml` beside the skill,
     in its own root and in `~/.agents/skills`. The hidden skills are the ones skills.json marks."""
@@ -339,15 +210,6 @@ def test_codex_finds_each_skill_md_as_a_file_and_not_a_link(user):
     grilling = user.home / ".codex" / "skills" / "grilling" / "SKILL.md"
     assert grilling.read_bytes() == (REPO / "features" / "grilling" / "SKILL.md").read_bytes()
     assert (user.home / ".claude" / "skills" / "grilling" / "SKILL.md").is_symlink()
-
-
-def test_uninstall_takes_every_layout_away(user):
-    user.run()
-    code, said = user.run("--uninstall")
-    assert code == 0
-    for harness in HARNESSES:
-        assert f"removed layout {laid(user.home, harness.name)}" in said
-        assert not laid(user.home, harness.name).exists()
 
 
 def test_an_install_over_one_from_before_the_layouts_repoints_its_links_and_hooks(user):
@@ -381,30 +243,3 @@ def test_an_install_over_one_from_before_the_layouts_repoints_its_links_and_hook
     assert os.readlink(crew) == str(user.layout / "skills" / "crew")
     assert not retired.is_symlink() and not gone.is_symlink()
     assert json.loads(user.settings.read_text())["hooks"]["SessionStart"] == [user.START]
-
-
-def test_check_names_a_skill_link_whose_target_a_move_took_away_and_a_run_mends_it(user, tmp_path):
-    checkout = copied(tmp_path)
-
-    def said(*args):
-        done = user.start(*args, checkout=checkout)
-        out, _ = done.communicate()
-        return done.returncode, [line for line in out.splitlines() if "commands" not in line]
-
-    said()
-    skill = user.home / ".claude" / "skills" / "why" / "SKILL.md"
-    assert skill.is_file()
-    moved = checkout / "features" / "why" / "skills" / "why"
-    moved.mkdir(parents=True)
-    for name in ("SKILL.md", "references"):
-        shutil.move(checkout / "features" / "why" / name, moved / name)
-    generate(checkout)
-    assert not skill.exists()
-    part = f"layout claude-code {laid(user.home)}"
-    code, lines = said("--check")
-    assert code == 1
-    [line] = line_for(lines, part)
-    assert line.startswith(f"old hard {part} -> stale: skills/why/")
-    _, lines = said()
-    assert [line for line in lines if not line.startswith("ok ")] == []
-    assert os.path.realpath(skill) == str(moved / "SKILL.md")

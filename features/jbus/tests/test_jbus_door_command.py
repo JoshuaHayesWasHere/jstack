@@ -11,6 +11,7 @@ migration of its deploy brief. No test touches the machine's own files.
 import json
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -235,3 +236,70 @@ def test_the_command_line_is_read_in_pieces_with_a_heredocs_body_left_out():
         "`e <<EOF`",
         "`f`",
     ]
+
+
+def test_a_thread_removes_a_worktree_it_added_and_not_one_it_did_not(home):
+    """The bisect copies of 2026-11-05 (flowbisect-*, nl-*, tg-*) stayed in /tmp because the
+    door refused their own thread's `git worktree remove`."""
+    mine, theirs, old = (home / "tmp" / name for name in ("flowbisect-1", "nl-2", "tg-3"))
+    old.parent.mkdir()
+    git("worktree", "add", "-q", "--detach", str(old), cwd=home / "repos" / "Winnifred")
+    assert run(home, ROOT, f"git worktree add -q --detach {mine} HEAD") == (0, "")
+    assert run(home, SCOUT, f"git worktree add -q --detach {theirs}") == (0, "")
+    assert run(home, ROOT, f"git worktree add -q {old}") == (0, "")
+
+    assert run(home, ROOT, f'git worktree remove --force "{mine}"') == (0, "")
+    for other in (theirs, old):
+        code, said = run(home, ROOT, f"git worktree remove --force {other}")
+        assert code == 2 and "walks through a door (deletes data)" in said, said
+    code, said = run(home, ROOT, f"git worktree remove {mine} && git push -f origin main")
+    assert code == 2 and "(rewrites history)" in said, said
+
+
+def test_a_worktree_named_through_a_variable_is_its_threads_where_the_command_sets_it(home):
+    path = home / "tmp" / "mtg-base"
+    made = f"d={path}; git worktree add -q --detach $d HEAD && git -C $d log -1"
+    assert run(home, FLOW_CREW, made) == (0, "")
+    assert run(home, FLOW_CREW, f'd={path}; git worktree remove --force "${{d}}"') == (0, "")
+    assert run(home, FLOW_CREW, "git worktree remove --force $d")[0] == 2
+    assert (
+        run(home, FLOW_CREW, f"bash -c 'git worktree remove /x'; git worktree remove {path}")[0]
+        == 2
+    )
+
+
+def test_the_last_thread_to_add_a_path_owns_it(home):
+    path = home / "tmp" / "lab-ab-2-main"
+    assert run(home, ROOT, f"git worktree add {path}") == (0, "")
+    assert run(home, ROOT, f"git worktree remove {path}") == (0, "")
+    assert run(home, SCOUT, f"git worktree add {path}") == (0, "")
+    assert run(home, ROOT, f"git worktree remove {path}")[0] == 2
+    assert run(home, SCOUT, f"git worktree remove {path}") == (0, "")
+
+
+def test_the_worktrees_a_command_line_adds_and_removes(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    said = door.worktrees(
+        "D=/tmp/nl-1; git -C ~/repos/x worktree add -b try -q $D/main HEAD;"
+        " git worktree add ~/copy && git worktree remove -f ${D}/main\n"
+        "git worktree remove $(mktemp -d) | git worktree add ../rel; E=$(mktemp -d)"
+        " git worktree add $E; git worktree list"
+    )
+    assert said == [
+        ("add", Path("/tmp/nl-1/main")),
+        ("add", tmp_path / "copy"),
+        ("remove", Path("/tmp/nl-1/main")),
+        ("remove", None),
+        ("add", None),
+        ("add", None),
+    ]
+    assert door.worktrees("git worktree remove 'unclosed") == []
+
+
+def test_a_remove_reads_no_record_or_a_cut_one_as_no_worktree_of_the_thread(home):
+    path = home / "tmp" / "tg-1"
+    assert run(home, ROOT, f"git worktree remove {path}")[0] == 2
+    assert run(home, ROOT, f"git worktree add {path}") == (0, "")
+    kept = home / ".local" / "state" / "jbus" / "Winnifred" / door.OWN
+    kept.write_text('{"thread": "mcp:cut\n' + kept.read_text())
+    assert run(home, ROOT, f"git worktree remove {path}") == (0, "")

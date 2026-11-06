@@ -75,14 +75,23 @@ check: lint test
 # The check of a change: prose_lint.py on the prose lines the diff from BASE adds, the lint, and the
 # files select_tests.py names for the diff, one a line, which the unquoted `echo` puts on one; or
 # `make check` where it says `all`. CI runs it with BASE=HEAD^1, the tip of main on GitHub's merge.
-# A desk runs `PART=guards` alone (features/crew/do-the-task.md): the lint and the guard tests,
-# which must pass, while CI's check runs the rest. `PART=rest`, the other tests the selection
-# names and no lint, stays for a run by hand.
+# A desk's check is `PART=touched` (features/crew/do-the-task.md): the lint and the test files the
+# change adds or edits, and never the whole suite, even where the selection is `all`: CI's check
+# runs the rest of it. The crew's check block runs it in steps, the lint and then each file alone,
+# so each fits the short lane. `PART=guards`, the lint and the guard tests, is what jmerge runs on
+# a pull request's tree merged over its base; `PART=rest`, the other tests the selection names and
+# no lint, stays for a run by hand.
 # PART stays out of the environment, as TESTS does, so a make that a guard test runs is whole.
 unexport PART
 .PHONY: check-fast
 check-fast:
 	@tests=$$(python3 scripts/select_tests.py $(if $(PART),--part '$(PART)') '$(BASE)' HEAD) || exit; \
+	if [ '$(PART)' = touched ]; then \
+		python3 features/writing/scripts/prose_lint.py '$(BASE)' || exit; \
+		$(MAKE) --no-print-directory lint || exit; \
+		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
+		exit 0; \
+	fi; \
 	if [ '$(PART)' = rest ]; then \
 		[ "$$tests" != all ] || exec $(MAKE) --no-print-directory test; \
 		[ -z "$$tests" ] || exec $(MAKE) --no-print-directory test TESTS="$$(echo $$tests)"; \
