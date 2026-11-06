@@ -190,9 +190,11 @@ changes to the diff, which selects more tests and never fewer.
 """
 
 import ast
+import hashlib
 import json
 import math
 import os
+import pickle
 import re
 import subprocess
 import sys
@@ -203,6 +205,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -260,6 +263,9 @@ BY_NAME = {"import_module", "__import__"}
 SKILL_INDEX = "testing.paths.skills"
 SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
+KEPT = "select_tests.facts"
+"""The file in the repo's git directory that keeps each module's `facts` from one run to the
+next, by its path and a hash of its text: a module that has not changed is not parsed again."""
 FAILED_ON_MAIN = "FAILED_ON_MAIN"
 WORKFLOW = "check.yml"
 PER_PAGE = 100
@@ -644,19 +650,73 @@ def parents(name):
 def facts():
     """Each module, with `(read, defined, members)`: what `read` finds in its source, the
     fixtures it defines (`defines`), and for a module of the tests what its top-level names
-    hold (`holding`), from one parse of its file. No tree is kept: a cache of the trees of every
-    module makes each collection of garbage walk them, and the script slower."""
-    found = {}
+    hold (`holding`), from one parse of its file, or from `KEPT` where its text is the same as
+    when they were kept. No tree is kept: a cache of the trees of every module makes each
+    collection of garbage walk them, and the script slower."""
+    salt, where = kept()
+    old = load(where, salt)
+    found, new = {}, {}
     for name, path in modules().items():
-        try:
-            tree = ast.parse((ROOT / path).read_text())
-        except SyntaxError as error:
-            raise Unread(f"{path}: {error}") from error
-        nodes = walk(tree)
-        mine = defines(tree)
-        one = read(tree, nodes)
-        found[name] = (one, mine, holding(tree, nodes, mine, one[7]) if of_tests(path) else None)
+        text = (ROOT / path).read_text()
+        digest = hashlib.sha1(text.encode()).digest()
+        if path in old and old[path][0] == digest:
+            found[name] = old[path][1]
+        else:
+            try:
+                tree = ast.parse(text)
+            except SyntaxError as error:
+                raise Unread(f"{path}: {error}") from error
+            nodes = walk(tree)
+            mine = defines(tree)
+            one = read(tree, nodes)
+            held = holding(tree, nodes, mine, one[7]) if of_tests(path) else None
+            found[name] = (one, mine, held)
+        new[path] = (digest, found[name])
+    if where and (new.keys() != old.keys() or any(new[one][0] != old[one][0] for one in new)):
+        keep(where, salt, new)
     return found
+
+
+def kept():
+    """`(salt, path)`: what each module's facts rest on besides its own text (this script,
+    jmerge's reader of patterns, the skills' names and the Python), and the path of `KEPT`, or
+    `None` outside a git repo."""
+    ran = subprocess.run(
+        ["git", "rev-parse", "--git-common-dir"], cwd=ROOT, capture_output=True, text=True
+    )
+    where = None if ran.returncode else ROOT / ran.stdout.strip() / KEPT
+    readers = [ROOT / "src", *sorted(ROOT.glob("features/*/src"))]
+    patterns = [one / "jmerge" / "ready.py" for one in readers]
+    salt = hashlib.sha1(Path(__file__).read_bytes())
+    salt.update(next((one.read_bytes() for one in patterns if one.is_file()), b""))
+    salt.update("\n".join([sys.version, *sorted(skills())]).encode())
+    return salt.digest(), where
+
+
+def load(where, salt):
+    """The facts `KEPT` holds by each module's path, with the hash of its text, or none where
+    the file is missing, unreadable or kept under another salt."""
+    try:
+        with open(where, "rb") as file:
+            held = pickle.load(file)
+    except Exception:
+        return {}
+    return held[1] if isinstance(held, tuple) and held[0] == salt else {}
+
+
+def keep(where, salt, held):
+    """Write `KEPT` whole, in place of the old one at once, or leave it: a run that cannot write
+    it selects the same."""
+    try:
+        with NamedTemporaryFile(dir=where.parent, prefix=f"{KEPT}.", delete=False) as file:
+            try:
+                pickle.dump((salt, held), file, protocol=pickle.HIGHEST_PROTOCOL)
+            except BaseException:
+                os.unlink(file.name)
+                raise
+        os.replace(file.name, where)
+    except OSError:
+        pass
 
 
 @cache
