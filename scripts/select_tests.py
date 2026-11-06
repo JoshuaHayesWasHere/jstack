@@ -271,8 +271,9 @@ SKILL_INDEX = "testing.paths.skills"
 SKILL_SPOTS = ("skills/*/SKILL.md", "features/*/SKILL.md", "features/*/skills/*/SKILL.md")
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 COLLECTORS = 8
-"""The most pytest processes `node_ids` collects in at once, each a run of the files: a hosted
-runner's 4 cores collect a selection in about a third of the time one process takes."""
+"""The most pytest processes `node_ids` collects in at once, each a run of the files, and never
+more than the machine has cores: a collection imports and rewrites each test module, which one
+process does a file at a time."""
 KEPT = "select_tests.facts"
 """The file in the repo's git directory that keeps each module's `facts` from one run to the
 next, by its path and a hash of its text: a module that has not changed is not parsed again."""
@@ -1792,7 +1793,9 @@ def node_ids(tests):
     tests come whole from one: the parts deal whole files, and sort them."""
     named = suite() if tests == ["all"] else tests
     count = max(1, min(COLLECTORS, os.cpu_count() or 1, len(named)))
-    runs = [named[len(named) * at // count : len(named) * (at + 1) // count] for at in range(count)]
+    shares = [
+        named[len(named) * at // count : len(named) * (at + 1) // count] for at in range(count)
+    ]
 
     def collect(share):
         return subprocess.run(
@@ -1804,7 +1807,7 @@ def node_ids(tests):
         )
 
     with ThreadPoolExecutor(max_workers=count) as pool:
-        ran = list(pool.map(collect, runs))
+        ran = list(pool.map(collect, shares))
     for one in ran:
         if one.returncode not in (0, 5):
             sys.exit(
