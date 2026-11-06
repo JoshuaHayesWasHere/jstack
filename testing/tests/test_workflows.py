@@ -858,12 +858,16 @@ def outputs(text):
 QUEUE = "features/jbus/src/jbus/queue.py"
 DARWIN_LISTED = "features/jgauge/tests/test_machine_sizes.py"
 DARWIN_SOURCE = "features/jbus/src/jbus/launchd.py"
+DARWIN_CODE = '\n\ndef on_a_mac():\n    return sys.platform == "darwin"\n'
+"""A function that branches on Darwin: a pull request's `--strict` counts a change to a module
+on a Mac only where it edits one."""
 
 
 @pytest.fixture(scope="module")
 def merged(tmp_path_factory):
     """Run the macos-select job's selection step, as the runner does, on a pull request's merge
-    commit whose one change over main is text added to a path, a blank line by default. main is
+    commit whose one change over main is text added to a path: a blank line by default, and
+    `DARWIN_CODE` to `DARWIN_SOURCE`, so that change is to code that branches on Darwin. main is
     this repo's HEAD with the selection's files as they are here. It gives the paths the step
     wrote, its summary and its outputs, read as GitHub reads them."""
     root = tmp_path_factory.mktemp("mac")
@@ -881,7 +885,8 @@ def merged(tmp_path_factory):
     (bin / "uv").chmod(0o755)
     shell = summary_step("reached tests", MAC)
 
-    def run(path, text="\n", event="pull_request"):
+    def run(path, text=None, event="pull_request"):
+        text = text or (DARWIN_CODE if path == DARWIN_SOURCE else "\n")
         subprocess.run([*git, "reset", "-q", "--hard", main], check=True)
         with (repo / path).open("a") as file:
             file.write(text)
