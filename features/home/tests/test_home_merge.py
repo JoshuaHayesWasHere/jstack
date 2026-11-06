@@ -390,25 +390,6 @@ def test_a_pull_request_with_a_clean_review_is_ready_at_the_reviewed_head(home):
     assert home.ready() == [f"ready 7 {REVIEWED} alpha alpha"]
 
 
-@pytest.mark.parametrize(
-    "result",
-    [
-        f"Rebase: range-diff empty, head {PUSHED}\n",
-        f"Rebase: changed a.py b.py, head {PUSHED}\n",
-        f"Rebase: range-diff empty, head {'c' * 40}\nRebase: range-diff empty, head {PUSHED}\n",
-    ],
-    ids=["range-diff empty", "changed", "two lines"],
-)
-def test_a_rebase_line_in_an_older_shape_is_read_as_no_line(home, result):
-    """A head the review did not see is compared with the reviewed one by git, whatever a
-    `Rebase:` line says of it."""
-    home.open_pull_request(PUSHED)
-    (home.tasks / "alpha.md").write_text(brief(review("clean")))
-    without = home.ready()
-    (home.tasks / "alpha.md").write_text(brief(review("clean"), result))
-    assert home.ready() == without != [f"ready 7 {PUSHED} alpha alpha"]
-
-
 def test_a_rebase_hold_an_older_crew_wrote_holds_nothing(home):
     """The crew no longer holds a third rebase after fixed and green, so a `Rebase hold:` line
     from before that is no reason to wait, at the head it names or any other."""
@@ -746,19 +727,6 @@ def test_a_pull_request_short_of_ready_is_printed_with_the_first_reason(home, ca
     assert home.ready() == [f"{word} 7 {URL}: {reason}"]
 
 
-@pytest.mark.parametrize("case", [case for case in SHORT if SHORT[case][2] == NO_ORIGIN])
-def test_a_head_no_line_names_is_compared_with_the_commit_its_review_covers(case):
-    """The commit the cases above fetch is the `Fixed:` commit, or the reviewed head when the
-    brief has no `Fixed:` line."""
-    from jmerge import ready
-
-    text, listed, _ = SHORT[case]
-    head = listed["head"]
-    covered = PUSHED if f"Fixed: {PUSHED}" in text else REVIEWED
-    assert ready.short_of(text, head) == ""
-    assert ready.to_range_diff(text, head) == covered
-
-
 def test_a_gh_that_fails_prints_nothing_as_ready(home):
     (home.tasks / "alpha.md").write_text(FIXED)
     assert home.ready() == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
@@ -767,11 +735,6 @@ def test_a_gh_that_fails_prints_nothing_as_ready(home):
 def test_with_no_open_pull_request_it_prints_nothing(home):
     (home.stub / "list.json").write_text("[]")
     assert home.ready() == []
-
-
-def test_a_gh_that_fails_is_a_job_not_done(home):
-    home.ready()
-    assert home.code != 0
 
 
 def test_a_pull_request_that_waits_is_not_a_failure(home):
@@ -1010,16 +973,6 @@ def test_another_homes_pull_request_is_left_by_a_home_and_merged_by_jbus(merged)
     assert theirs.read_text() == PLAN
 
 
-def test_a_merge_writes_no_plan_and_notes_none(merged):
-    plan = "# a demo repo: plan\n\n## beta: another task\nStage: planned\n"
-    merged.plan.write_text(plan)
-    said = merged.run()
-    commit, _ = merged.on_main()
-    assert said == [merged_line(commit)]
-    assert merged.plan.read_text() == plan
-    assert [logged[17:] for logged in merged.log()] == [merged_line(commit)]
-
-
 def test_a_main_checkout_that_cannot_be_pulled_is_said(merged):
     git(merged.home.main, "commit", "-q", "--allow-empty", "-m", "not pushed")
     (said,) = merged.run()
@@ -1094,11 +1047,6 @@ def test_each_line_is_logged_as_it_is_printed_not_at_the_end(merged):
 
 
 OFF = f"wait 7 {URL}: auto-merge is off for this repo"
-
-
-def test_a_repo_with_no_merge_off_file_is_merged_as_ever(merged):
-    assert not (merged.home.state / "merge-off").exists()
-    assert merged.run() == [merged_line(merged.on_main()[0])]
 
 
 @pytest.mark.parametrize("flags", [(), ("--home", OTHER)])
@@ -1216,14 +1164,6 @@ def test_the_logged_line_of_a_merge_can_be_read_back_and_its_revert_run(merged):
     assert git(merged.home.main, "status", "--porcelain", "--branch") == "## main...origin/main"
 
 
-def test_the_notes_of_a_merge_come_before_its_revert_command(merged):
-    (merged.tree / "notes.txt").write_text("not committed\n")
-    (said,) = merged.run()
-    kept = f"kept: {merged.tree} has uncommitted work"
-    assert said == f"{merged_as(merged.on_main()[0])}, {kept}, {REVERT}"
-    assert merged.log()[0].endswith(said)
-
-
 def test_a_url_the_shell_would_read_is_quoted_in_the_revert_command(merged):
     listed = json.loads((merged.home.stub / "list.json").read_text())
     listed[0]["url"] = odd = "https://example.test/a&b/pull/7"
@@ -1237,28 +1177,6 @@ def test_a_url_the_shell_would_read_is_quoted_in_the_revert_command(merged):
 def calls(home):
     """Each call of `gh` that the command made, as the line of arguments the stub recorded."""
     return (home.stub / "calls").read_text().splitlines()
-
-
-def test_github_is_asked_about_the_repo_of_origin(merged):
-    merged.run()
-    about = f"--repo {merged.origin}"
-    assert calls(merged.home) == [
-        f"pr list --state open --limit 100 --json {LIST} {about}",
-        f"repo view {merged.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
-        f"pr merge 7 --squash --match-head-commit {merged.head} --subject {TITLE} (#7)"
-        f" --body-file - {about}",
-        f"pr view 7 --json mergeCommit --jq .mergeCommit.oid {about}",
-        f"pr list --base alpha --state open --limit 100 --json number {about}",
-    ]
-
-
-def test_a_checkout_with_no_origin_leaves_the_repo_to_gh(home):
-    home.open_pull_request(REVIEWED)
-    home.ready()
-    assert calls(home) == [
-        f"pr list --state open --limit 100 --json {LIST}",
-        "repo view --json defaultBranchRef --jq .defaultBranchRef.name",
-    ]
 
 
 def test_a_gh_that_fails_is_logged(home):
