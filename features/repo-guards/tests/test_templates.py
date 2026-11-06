@@ -71,7 +71,7 @@ def a_home(tmp_path, repo):
 def start_hook(user, checkout, *, hook=HOOK, cwd=None):
     """Run the session-start hook as the harness does for a new T3 Code thread, with the homes'
     state under `user`: `JBUS_HOME_DIR`, which the hook honours, is left unset."""
-    env = {**os.environ, "HOME": str(user), "T3_CODE_MCP_AUTHORIZATION": "x"}
+    env = {**os.environ, "HOME": str(user), "T3CODE_THREAD_ID": "mcp:a-thread"}
     env.pop("JBUS_HOME_DIR", None)
     stdin = json.dumps({"source": "startup", "cwd": str(checkout)})
     done = subprocess.run(

@@ -52,7 +52,7 @@ The feature's own docs say what its script does and show the entry the install w
 <!-- generated: hooks by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
 | Hook | Script | Harnesses | Feature |
 |---|---|---|---|
-| `SessionStart`, matcher `startup` | [features/home/hooks/home-start.sh](features/home/hooks/home-start.sh) | claude-code, codex | `home` |
+| `SessionStart`, matcher `startup|resume|clear|compact|fork` | [features/home/hooks/home-start.sh](features/home/hooks/home-start.sh) | claude-code, codex | `home` |
 | `PreToolUse`, matcher `mcp__t3[-_]code__t3_thread_send`, refuses | [features/home/hooks/agent-sends.sh](features/home/hooks/agent-sends.sh) | claude-code, codex | `home` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jbus/hooks/door-command.sh](features/jbus/hooks/door-command.sh) | claude-code, codex | `jbus` |
 | the status line | [features/jgauge/hooks/limits.sh](features/jgauge/hooks/limits.sh) | claude-code | `jgauge` |
