@@ -497,6 +497,7 @@ def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
 ):
     """A step that finds no short slot registers the thread as a waiter and ends the block 76,
     with no `Checked:` line: a wait is no verdict either."""
+    monkeypatch.setenv("JGAUGE_SHORT_WAIT_SECONDS", "0")
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
