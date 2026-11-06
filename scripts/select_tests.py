@@ -1116,7 +1116,7 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     `all`: the rest of `shared()` reaches tests through its importers and names, as any path
     does."""
     ready()
-    forcing = set(EVERY_RUN) if strict else shared()
+    forcing = shared() & set(EVERY_RUN) if strict else shared()
     for path in changed:
         if path in forcing:
             return ["all"], {"forced-by": path}
