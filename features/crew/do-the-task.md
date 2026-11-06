@@ -130,6 +130,7 @@
       kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
       exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
       tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX")
+      trap 'rm -rf "$tree"' EXIT
       if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
           only=
           sides='head base'
@@ -181,7 +182,7 @@
   The head run and the base run each take a short slot of their own, so each has the lane's whole time limit, and each runs on pytest's workers (`-n auto --dist worksteal`) where the tree's venv has pytest-xdist, on one process where it has not.
   The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
-  The copy stays in the temp directory, as scratch does.
+  The block removes its copy when its shell exits, after a pass, a failure or a slot's 124 alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright leaves its copy there, as other scratch is left.
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
   A branch whose every changed file, a deleted one too, is such a file or of a kind `jbriefs.proved.EXEMPT` names (docs, config, listed below) changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
   A test made faster, split or cleaned up is such a branch, and so is a removal of tests with the doc that named them.
