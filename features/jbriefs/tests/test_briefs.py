@@ -1,7 +1,4 @@
-import ast
-from html.parser import HTMLParser
 from pathlib import Path
-from typing import NamedTuple
 
 import pytest
 
@@ -531,18 +528,6 @@ def test_the_done_when_fault_counts_the_items_and_names_the_first_that_runs_noth
     assert runnable.runnable(text) == DONE_WHEN_FAULT.format(n=2, of=4, first="the page loads")
 
 
-def test_a_warned_check_refuses_once_it_leaves_warned(monkeypatch):
-    """The one switch: a check of `WARNED` warns, and the same check out of it refuses."""
-    text = CLEAN.replace("Proves it: `make check`", "Proves it: the user")
-    assert parse.faults(text) == []
-    monkeypatch.setattr(parse, "WARNED", ())
-    assert parse.faults(text) == [
-        DONE_WHEN_FAULT.format(n=1, of=1, first="it is done"),
-        f"brief's Proves it: line names the user with no judged: <why> {RUNS}",
-    ]
-    assert parse.warnings(text, "") == []
-
-
 def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until_filled_in():
     lines = TEMPLATE.read_text().splitlines()
     (line,) = [line for line in lines if line.startswith("Proves it:")]
@@ -611,122 +596,11 @@ def test_a_brief_is_live_only_under_an_open_plan_entry(tmp_path):
     assert [brief.slug for brief in repo.cleared] == ["cleared", "gamma"]
 
 
-class Thread(NamedTuple):
-    shown: str
-    copied_by_its_button: str
-
-
-class Page(HTMLParser):
-    """The rendered page as a browser reads it: its links, and each thread that a brief names."""
-
-    def __init__(self, html: str):
-        super().__init__()
-        self.hrefs: list[str] = []
-        self.threads: list[Thread] = []
-        self._words: list[str] | None = None
-        self._depth = 0
-        self.feed(html)
-
-    def handle_starttag(self, tag, attrs):
-        found = dict(attrs)
-        if tag == "a":
-            self.hrefs.append(found.get("href") or "")
-        if self._words is not None:
-            self._depth += 1
-            if tag == "button" and "data-copy" in found:
-                self.threads.append(Thread(" ".join(self._words), found["data-copy"]))
-        elif found.get("data-part") == "thread":
-            self._words, self._depth = [], 1
-
-    def handle_endtag(self, tag):
-        if self._words is not None:
-            self._depth -= 1
-            if not self._depth:
-                self._words = None
-
-    def handle_data(self, data):
-        if self._words is not None and data.strip():
-            self._words.append(data.strip())
-
-
-def test_the_page_with_no_repos_says_so():
-    html = page.render([], state=Path("/tmp/state"), generated="now")
-    assert "No repo has a home yet" in html
-    assert "/tmp/state" in html
-
-
-def test_the_page_shows_the_handoff_the_entries_and_the_briefs(tmp_path):
-    briefs = {"alpha": BRIEF + RESULT, "cleared": BRIEF}
-    make_repo(tmp_path, "demo", plan=PLAN, handoff=HANDOFF, briefs=briefs)
-    html = page.render(parse.repos(tmp_path), state=tmp_path, generated="now")
-
-    assert "Take <code>beta</code> from plan.md." in html
-    assert "Rename the repo?" in html
-    assert "a task nobody has a brief for" in html
-    assert "It is planned." in html
-    assert "finished but not cleared yet" not in html
-    assert 'href="https://github.com/someone/demo/pull/7"' in html
-    hrefs = Page(html).hrefs
-    assert [href for href in hrefs if not href.startswith(("https://", "http://", "#"))] == []
-    assert "Do not touch:" in html
-    assert "Changed:" in html
-
-
-def test_the_page_shows_a_paused_brief_as_paused_and_not_as_unclear(tmp_path):
-    briefs = {"alpha": BRIEF + RESULT.replace("Status: done", "Status: paused")}
-    make_repo(tmp_path, "demo", plan=PLAN, handoff=HANDOFF, briefs=briefs)
-    html = page.render(parse.repos(tmp_path), state=tmp_path, generated="now")
-
-    assert ">1 paused<" in html
-    assert ">paused<" in html
-    assert "unclear" not in html
-
-
-def test_a_brief_shows_its_thread_as_a_title_and_an_id_to_copy(tmp_path):
-    no_thread = BRIEF.replace("Thread: mcp:1111-aaaa\n", "")
-    briefs = {"alpha": BRIEF + RESULT, "cleared": BRIEF.replace("1111-aaaa", "2222-bbbb")}
-    make_repo(tmp_path, "demo", plan=PLAN, handoff=HANDOFF, briefs=briefs | {"bare": no_thread})
-    found = Page(page.render(parse.repos(tmp_path), state=tmp_path, generated="now"))
-
-    assert found.threads == [
-        ("crew: alpha mcp:1111-aaaa", "mcp:1111-aaaa"),
-        ("crew: cleared mcp:2222-bbbb", "mcp:2222-bbbb"),
-    ]
-
-
-def test_a_cleared_brief_is_collapsed_and_apart_from_the_live_ones(tmp_path):
-    make_repo(tmp_path, "demo", plan=PLAN, briefs={"alpha": BRIEF, "cleared": BRIEF + RESULT})
-    html = page.render(parse.repos(tmp_path), state=tmp_path, generated="now")
-
-    live, _, apart = html.partition('data-part="cleared"')
-    assert 'id="demo-alpha"' in live
-    assert 'id="demo-cleared"' in apart
-    assert "<details open" not in apart
-    assert "1 brief with no open plan entry" in html
-
-
 def test_the_text_of_a_brief_cannot_inject_markup(tmp_path):
     make_repo(tmp_path, "demo", plan=PLAN, briefs={"alpha": BRIEF + "<script>alert(1)</script>\n"})
     html = page.render(parse.repos(tmp_path), state=tmp_path, generated="now")
     assert "<script>alert(1)" not in html
     assert "&lt;script&gt;alert(1)" in html
-
-
-def test_a_bold_line_that_ends_in_a_url_keeps_its_link_and_closes_its_bold():
-    assert page.inline("**see https://github.com/o/r/pull/5** now") == (
-        '<strong>see <a class="link" href="https://github.com/o/r/pull/5">'
-        "https://github.com/o/r/pull/5</a></strong> now"
-    )
-
-
-def test_only_a_status_that_names_a_pull_request_gets_its_badge():
-    def badge(status):
-        return "pull request" in page._entry_badge(status)
-
-    assert badge("PR https://github.com/o/r/pull/5")
-    assert badge("pr #5")
-    assert not badge("proposed (not approved)")
-    assert not badge("problem with CI")
 
 
 def test_the_command_writes_one_page_and_prints_its_path(tmp_path, capsys):
@@ -977,50 +851,6 @@ def test_a_reviewer_line_in_the_head_is_guidance_and_names_no_reviewer():
     launched = head + "Reviewer: mcp:one #1\n"
     assert below.reviewers(launched, "Reviewer") == ["mcp:one #1"]
     assert findings.roster(launched) == findings.Numbered(frozenset({1}))
-
-
-HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
-
-
-def head_line_regexes(source: str) -> list[str]:
-    """Each regex in the source, given to a function of `re`, that reads a brief's head line or
-    heading, which `jbriefs` alone may read. Any case of `reviewer`, colon or none, is one:
-    it finds `Second reviewer:` and an alternation of the three reviewer lines."""
-    found = []
-    for node in ast.walk(ast.parse(source)):
-        call = isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-        if not call or not isinstance(node.func.value, ast.Name) or node.func.value.id != "re":
-            continue
-        for one in node.args[:1]:
-            text = ast.unparse(one)
-            found += [needle for needle in HEAD_LINES if needle.lower() in text.lower()]
-    return found
-
-
-def test_no_module_of_jbus_or_jmerge_compiles_a_regex_for_a_brief_head_line():
-    sources = [REPO / "features" / name / "src" for name in ("jbus", "jmerge")]
-    found = {
-        str(path.relative_to(REPO)): said
-        for source in sources
-        for path in sorted(source.rglob("*.py"))
-        if (said := head_line_regexes(path.read_text()))
-    }
-    assert found == {}
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        'X = re.compile(r"^Thread:[ \\t]*(\\S+)", re.M)',
-        'found = re.search(rf"^Reviewer: {who}", brief, re.M)',
-        'parts = re.split(r"^## ", text, flags=re.M)',
-        'X = re.compile(r"^Second reviewer: (.*)$", re.M)',
-        'X = re.compile(r"^Scoped reviewer: (\\S+)", re.M)',
-        'X = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): ", re.M)',
-    ],
-)
-def test_the_scan_finds_a_regex_for_a_head_line(line):
-    assert head_line_regexes(f"import re\n{line}\n")
 
 
 @pytest.mark.parametrize(

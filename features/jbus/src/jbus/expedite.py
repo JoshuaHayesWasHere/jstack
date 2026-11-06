@@ -571,7 +571,7 @@ UNTOLD = {
                 "queue-unreadable carries-unknown base-merge-asked base-merge-due "
                 "base-merge-refused base-moved-asked base-moved-due in-line queued-restarted "
                 "queued-unopened queued-unclosed queued-gave-up queued-unrestarted "
-                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time",
+                "merged-tree-unended merged-tree-unbuilt merged-tree-no-time merged-tree-no-slot",
                 _RUNNER,
             ),
             ("merges-after carries-after stacked-on migration-merging migration-rebasing", _AHEAD),

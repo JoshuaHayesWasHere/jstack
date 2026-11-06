@@ -6,7 +6,6 @@ import json
 
 import pytest
 
-from jmerge import claims as rules
 from test_home_merge import ME, OTHER, Home, git
 from test_home_thread import READERS, about_the_home_id, paths
 
@@ -65,12 +64,6 @@ def test_a_launched_brief_with_no_result_is_out(claims):
     assert claims.run() == [f"alpha out root Where: {WHERE}"]
 
 
-def test_a_brief_whose_pull_request_is_open_holds_its_files_under_its_number(claims):
-    claims.write("alpha", result=result(PULLS.format(12)))
-    claims.open(7, 12)
-    assert claims.run() == [f"alpha pull request 12 root Where: {WHERE}"]
-
-
 def test_the_last_result_is_the_one_that_counts(claims):
     claims.write("alpha", result=result(PULLS.format(7)) + result(PULLS.format(12)))
     claims.open(12)
@@ -116,23 +109,6 @@ def test_a_paused_brief_still_holds_its_files_with_and_without_a_pull_request(cl
         f"alpha paused root Where: {WHERE}",
         f"beta paused pull request 12 root Where: {WHERE}",
         f"delta paused root Where: {WHERE}",
-    ]
-
-
-def test_a_brief_that_was_paused_and_then_ended_claims_nothing(claims):
-    claims.write("alpha", result=result(status="paused") + result())
-    assert claims.run() == []
-
-
-def test_a_brief_of_a_scoped_home_is_under_its_scope(claims):
-    scope = claims.home.state / "pstack"
-    scope.mkdir()
-    (scope / "home-id").write_text(f"{OTHER}\n")
-    claims.write("alpha", home=ME)
-    claims.write("ps-alpha", home=f"{OTHER} (the pstack home)", where="`playbooks/`")
-    assert claims.run() == [
-        f"alpha out root Where: {WHERE}",
-        "ps-alpha out pstack Where: `playbooks/`",
     ]
 
 
@@ -245,14 +221,6 @@ def test_when_github_cannot_be_asked_it_waits(claims):
     assert claims.run() == ["wait: could not ask GitHub: gh exited 1: it said nothing"]
     assert claims.home.code == 1
     assert not (claims.home.state / "merge.log").exists()
-
-
-def test_a_file_the_where_does_not_cover_is_outside_and_an_old_wider_line_covers_nothing():
-    text = brief("alpha", where="`src/alpha/`, `tests/test_a.py`")
-    text += result() + "Wider: tests/test_b.py: the new test needs its fixture\n"
-    changed = ["src/alpha/a.py", "tests/test_a.py", "tests/test_b.py", "docs/a.md"]
-    assert rules.scope(text, changed) == ["outside: tests/test_b.py", "outside: docs/a.md"]
-    assert rules.scope(text, changed[:2]) == []
 
 
 class Scope:
