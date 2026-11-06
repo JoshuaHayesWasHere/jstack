@@ -2,16 +2,18 @@
 tests import and name, and from the map in verify-jstack's `features/`.
 
 The test runs the script as CI runs it, with `python3 -I -S`, so it imports nothing installed.
-It runs it in a temporary git repo that holds a copy of the script, a copy of `src/` as it is,
-and a few modules, docs and tests of its own. The tests that run the selector on this repo's
-own tree, its table of rules, their mutants and the map's tests, are in
-test_select_tests_rules.py."""
+It runs it in a temporary git repo that holds a copy of the script, a copy of the packages
+the script imports from this checkout to read the map's patterns, and a few modules, docs and
+tests of its own. The tests that run the selector on this repo's own tree, its table of rules,
+their mutants and the map's tests, are in test_select_tests_rules.py."""
 
 import importlib.util
 import re
 import shutil
 import subprocess
 import sys
+from functools import cache
+from pathlib import Path
 
 import pytest
 
@@ -132,14 +134,40 @@ def write(repo, files):
         (repo / name).write_text(text)
 
 
+LOADS = """
+import sys
+sys.path[:0] = sys.argv[1:]
+import jmerge.ready
+for one in list(sys.modules.values()):
+    print(getattr(one, "__file__", None) or "")
+"""
+
+
+@cache
+def packages():
+    """The folders of packages that importing jmerge's reader of patterns loads, as
+    `select_tests.py`'s `ready()` imports it: the only code of this checkout the script runs.
+    A copy of every folder would have the script parse each of this repo's modules on each run,
+    about 2 s of a core for every test that runs it."""
+    ran = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", LOADS, *map(str, sources())],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    loaded = [Path(one) for one in ran.stdout.splitlines() if one]
+    return [folder for folder in sources() if any(one.is_relative_to(folder) for one in loaded)]
+
+
 class Repo:
-    """A repo with the script, a copy of each folder of packages, a map and a few modules and
-    tests."""
+    """A repo with the script, a copy of the folders of packages it imports, a map and a few
+    modules and tests."""
 
     def __init__(self, root, features=None, files=None):
         self.root = root
         shutil.copy2(SCRIPT, self.put("scripts/select_tests.py"))
-        for folder in sources():
+        for folder in packages():
             shutil.copytree(
                 folder,
                 root / folder.relative_to(REPO),
