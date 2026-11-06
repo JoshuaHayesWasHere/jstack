@@ -270,8 +270,9 @@ def test_a_change_to_source_and_tests_runs_at_the_base_where_grep_is_claude_code
 
 def test_a_slow_test_file_is_proved_where_the_head_and_the_base_each_fit_the_lane(repo):
     """A test file that takes over half the short lane's limit, as
-    `testing/tests/test_select_tests.py` does, fits it at the head and at the base, but not both
-    in one run: each runs in a slot of its own, and the block still writes one `Proved:` line."""
+    `testing/tests/test_select_tests.py` did before its tests of the real tree moved out, fits it
+    at the head and at the base, but not both in one run: each runs in a slot of its own, and the
+    block still writes one `Proved:` line."""
     base = git(repo, "rev-parse", "HEAD")
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
     said, line = proof(repo, LIMIT="7", SLOW="4")

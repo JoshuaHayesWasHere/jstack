@@ -59,4 +59,4 @@ A collector reads the choice of every run from that line.
 The script never prints a test module that marks itself `browser`.
 `browser.yml` runs such a module with `make check-browser` nightly, on a release, by hand, and on a pull request into main that changes the view.
 A test the selection missed fails the `full` job on main after the merge.
-`testing/tests/test_select_tests.py` fails when no feature owns a path, or when no change selects a test file.
+`testing/tests/test_select_tests_rules.py` fails when no feature owns a path, or when no change selects a test file.
