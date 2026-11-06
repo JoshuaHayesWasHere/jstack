@@ -37,9 +37,10 @@ list of files carries this token for them, since a node id can hold a space or a
 The table holds CI's times, not a desk's: the tests run several times slower on the 4 cores of
 GitHub's runner, and not by one factor. Each part of `full` keeps its junit report as the
 artifact `junit-<attempt>-<k>`, and `uv run python -m testing.shard` writes the table from the last
-`RUNS` green full runs of main that kept them, each test's median over them. Main's full runs
-restore main's TLC cache, so the merge flow's TLC test is in at its warm time, as the check's
-parts run it. `--shard-record PATH` writes it from a run of this machine instead:
+`RUNS` green full runs of main that kept them, each test's median over them: that command, run at
+a desk with `gh` and its diff committed, is how the table is refreshed, when the parts' walls
+drift apart or many tests are added. Main's full runs restore main's TLC cache, so the merge
+flow's TLC test is in at its warm time, as the check's parts run it. `--shard-record PATH` writes it from a run of this machine instead:
 `uv run pytest -n 4 -m "not browser" --shard-record PATH`. There a test whose time on this
 machine is not its time in CI pins its CI seconds with `@pytest.mark.shard_seconds(S)`, and the
 record writes S for it in place of the time it took."""
