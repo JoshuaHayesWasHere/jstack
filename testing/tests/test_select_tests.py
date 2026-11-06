@@ -2126,3 +2126,98 @@ def test_strict_within_keeps_what_darwin_code_and_the_tests_reach(path, test):
 @pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])
 def test_strict_within_is_all_where_within_is(path):
     assert mac_within(path, strict=True) == mac_within(path) == ["all"]
+
+
+CLI = "features/jmerge/src/jmerge/cli.py"
+TREEGUARDS = "features/jmerge/src/jmerge/treeguards.py"
+ON_A_MAC = {
+    "conftest.py": "",
+    MAC_LIST: "testing/tests/test_cli_on_a_mac.py\ntesting/tests/test_guards_on_a_mac.py\n",
+    "testing/tests/test_cli_on_a_mac.py": "from jmerge import cli\n",
+    "testing/tests/test_guards_on_a_mac.py": "from jmerge import treeguards\n",
+}
+
+
+@pytest.fixture
+def mac_repo(tmp_path):
+    return Repo(tmp_path, files=ON_A_MAC)
+
+
+def edit_line(repo, path, line):
+    """Commit an edit of the first line of `path` that holds `line`, as a change's diff would
+    make it, and return the new head."""
+    file = repo.root / path
+    lines = file.read_text().splitlines(keepends=True)
+    at = next(at for at, one in enumerate(lines) if line in one)
+    lines[at] = lines[at].replace(line, line + " ", 1)
+    file.write_text("".join(lines))
+    return repo.commit()
+
+
+def on_a_mac(repo, head, *strict):
+    ran = repo.run("--within", MAC_LIST, *strict, repo.base, head)
+    assert ran.returncode == 0, ran.stderr
+    return ran.stdout.split()
+
+
+@pytest.mark.parametrize(
+    ("path", "line", "reached"),
+    [
+        (TREEGUARDS, "EPERM on Darwin", []),
+        (CLI, "def _cwds_from_lsof", []),
+        (CLI, "on_a_mac = sys.platform", ["testing/tests/test_cli_on_a_mac.py"]),
+        (
+            CLI,
+            "when no list of every process could be read",
+            ["testing/tests/test_cli_on_a_mac.py"],
+        ),
+    ],
+    ids=[
+        "a docstring that names Darwin",
+        "a function away from the Darwin branch",
+        "the line that branches on darwin",
+        "the docstring of the function that branches on darwin",
+    ],
+)
+def test_strict_darwin_counts_a_change_only_inside_code_that_branches_on_darwin(
+    mac_repo, path, line, reached
+):
+    """A pull request's macos job runs a change to a module on a Mac only when the change edits a
+    function that asks for Darwin in code. The run on each merge commit still runs every test of
+    the list the module reaches whose text names Darwin, wherever the change is."""
+    head = edit_line(mac_repo, path, line)
+
+    assert on_a_mac(mac_repo, head, "--strict") == reached
+    own = "cli" if path == CLI else "guards"
+    assert f"testing/tests/test_{own}_on_a_mac.py" in on_a_mac(mac_repo, head)
+
+
+def test_strict_darwin_counts_a_deleted_darwin_branch(mac_repo):
+    """A change that drops the line that asks for Darwin leaves no Darwin code in its head, and
+    still runs on a Mac: the base's side of the diff counts as well."""
+    file = mac_repo.root / CLI
+    file.write_text(
+        file.read_text().replace(
+            'on_a_mac = sys.platform == "darwin" and Path("/proc") == PROC', "on_a_mac = False"
+        )
+    )
+    head = mac_repo.commit()
+
+    assert on_a_mac(mac_repo, head, "--strict") == ["testing/tests/test_cli_on_a_mac.py"]
+
+
+def test_strict_darwin_reaches_the_importers_of_an_edit_inside_clis_darwin_branch():
+    """In this repo, an edit to the function of jmerge's CLI that branches on Darwin reaches every
+    listed test that imports the CLI, as the run on each merge commit does, and an edit away from
+    it reaches none of them."""
+    text = (REPO / CLI).read_text()
+    branch = next(at for at, one in enumerate(text.splitlines(), 1) if "sys.platform ==" in one)
+    entries = (REPO / MAC_LIST).read_text().split()
+
+    def reached(line):
+        edit = [({line}, text), ({line}, text)]
+        return select.within(entries, [CLI], MAC_LIST, strict=True, edited={CLI: edit})
+
+    assert reached(branch) == mac_within(CLI)
+    assert len(reached(branch)) > 10
+    assert reached(10) == []
