@@ -354,6 +354,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
     Archive each review thread whose pull request merged or closed, with the threads under it.
 
     `settle` skips a thread that is still at work, and the threads under it, until the next pass.
+    Once a crew's thread is settled, its scratch folder goes (`dispatch.clear_scratch`).
     """
     over = finished(run, world)
     slug_of: dict[str, str] = {}
@@ -410,6 +411,9 @@ def settle(run: Pass, client: Client, world: World) -> None:
                 break
             run.box.mark(key)
             run.say(f"{action}d {slug}: {thread.get('title') or 'a thread'} {at}")
+        else:
+            if str(thread.get("title", "")).startswith(watch.TITLE):
+                dispatch.clear_scratch(run, slug)
 
 
 def resume(run: Pass, client: Client, world: World) -> None:

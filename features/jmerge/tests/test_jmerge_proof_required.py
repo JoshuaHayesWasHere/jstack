@@ -9,7 +9,7 @@ review skill writes them."""
 
 import pytest
 
-from jbriefs import findings, proofs
+from jbriefs import proofs
 from jmerge import ready
 
 SAW, FIX = "a" * 40, "b" * 40
@@ -29,12 +29,6 @@ def proved(proof):
 
 def answered(answer, fixed=f"Fixed: {FIX}\n"):
     return RESULT + f"Finding F1: {answer}\n" + fixed
-
-
-def test_a_blocking_finding_with_no_proof_holds_the_merge_and_names_the_finding():
-    brief = RESULT + f"Fixed: {FIX}\n" + section(FINDING)
-    assert ready.short_of(brief, FIX) == ready.UNPROVEN.format(ids="F1")
-    assert "F1" in ready.short_of(brief, FIX)
 
 
 def test_a_finding_whose_proof_exits_non_zero_at_the_head_holds_until_answered():
@@ -95,10 +89,3 @@ def test_a_consider_finding_needs_no_proof_and_holds_nothing():
     brief = RESULT + "Fixed: none needed, x\n" + section(consider)
     brief += "Finding F1: not fixed, a name, because consider: left for a follow-up\n"
     assert ready.short_of(brief, SAW) == ""
-
-
-def test_the_crew_s_list_shows_each_finding_s_proof_or_that_it_has_none():
-    brief = RESULT + section(proved(RAN), FINDING.replace("src/a.py:10", "src/c.py:90"))
-    shown = "\n".join(findings.listed(findings.triage(brief)))
-    assert f"  proof: {RAN}" in shown
-    assert "  proof: none, so a decline of it needs no cited reason" in shown

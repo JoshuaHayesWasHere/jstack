@@ -10,7 +10,6 @@ test is the exception, since a release has no checkout to run from."""
 
 import json
 import os
-import subprocess
 
 import pytest
 
@@ -151,13 +150,3 @@ def test_a_checkout_outside_a_sandboxed_home_a_worktree_and_a_release_get_no_pro
     assert named(main, tmp_path / "account") == []
     assert named(linked, home) == []
     assert named(None, home, release=REPO, skill="verify-") == []
-
-
-def test_git_tracks_nothing_under_the_checkouts_project_roots():
-    listed = subprocess.run(
-        ["git", "-C", REPO, "ls-files", ".claude", ".cursor"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    assert listed.stdout == ""

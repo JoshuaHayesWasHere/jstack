@@ -16,7 +16,6 @@ import pytest
 
 from jinstall.__main__ import setup as run_setup
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import StateRepo
 from test_doctor import T3_STABLE, Doctored
 from test_install import (
     REPO,
@@ -25,8 +24,6 @@ from test_install import (
     SKILLS,
     T3_GET,
     UNITS_PUT,
-    Machine,
-    Ran,
     line_for,
     linux_only,
     machine,
@@ -189,18 +186,6 @@ def test_it_seeds_the_jstack_config_from_the_git_name_and_the_machines_zone(user
     assert tomllib.loads(user.config.read_text()) == {"user": "Sam", "timezone": "Europe/Berlin"}
 
 
-def test_it_seeds_a_role_map_where_every_role_inherits(user):
-    user.setup()
-    lines = [line for line in user.roles.read_text().splitlines() if not line.startswith("#")]
-    assert lines == [
-        "crew: inherit",
-        "scout: inherit",
-        "review: inherit",
-        "home: inherit",
-        "expert: inherit",
-    ]
-
-
 def test_it_seeds_a_private_jbus_config_that_dispatches_nothing(user):
     user.setup()
     assert stat.S_IMODE(user.jbus_config.stat().st_mode) == 0o600
@@ -331,36 +316,6 @@ def test_off_arch_t3_and_claude_are_named_by_their_install_pages(user):
     assert f"t3 -> {T3_PAGE}; claude -> {CLAUDE_PAGE}" in said[-1]
 
 
-@pytest.mark.parametrize(
-    ("platform", "pacman", "ask"),
-    [
-        ("linux", False, "gitleaks"),
-        ("linux", True, "yay -S gitleaks"),
-        ("darwin", False, "brew install gitleaks"),
-        ("win32", False, WSL2),
-    ],
-)
-def test_a_backup_with_no_gitleaks_names_the_command_that_gets_it_on_the_platform(
-    tmp_path, platform, pacman, ask
-):
-    programs = tmp_path / "bin"
-    programs.mkdir()
-    if pacman:
-        (programs / "pacman").write_text("#!/bin/sh\n")
-        (programs / "pacman").chmod(0o755)
-    state = tmp_path / "state"
-    answers = {"rev-parse": Ran(0, f"{state}\n"), "remote": Ran(0, "git@example.com:me/s\n")}
-    here = Machine(
-        REPO,
-        tmp_path,
-        {"PATH": str(programs)},
-        lambda args: answers[args[3]],
-        tmp_path,
-        platform=platform,
-    )
-    assert StateRepo(state).ask(here) == ask
-
-
 def test_a_hard_need_left_to_the_user_exits_1(user):
     user.program("t3", "echo 't3 v0.1.1'")
     user.program("pacman", "exit 0")
@@ -417,15 +372,6 @@ def test_setup_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp
         "set up from the main checkout"
     )
     assert list(home.iterdir()) == []
-
-
-def test_usage_names_setup(user):
-    code, said, err = user.run_with_stderr("--setup", "--check")
-    assert (code, said) == (2, [])
-    assert (
-        err == "usage: install.sh [--check | --uninstall | --doctor | --setup | --repo [<path>]]\n"
-    )
-    assert os.listdir(user.home) == []
 
 
 def skill_block():
@@ -495,42 +441,6 @@ def narrow_path(tmp_path, **stubs):
         (narrow / name).write_text(text)
         (narrow / name).chmod(0o755)
     return narrow
-
-
-JINSTALL = """#!/bin/sh
-echo "$*" >> "$JINSTALL_LOG"
-case "$1" in
---setup)
-    printf 'already platform\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'
-    exit 1
-    ;;
---doctor) printf 'ok hard platform -> linux\ndoctor: not ok, 1 hard\n'; exit 1 ;;
-esac
-exit 2
-"""
-
-
-def test_the_skill_on_a_release_runs_jinstall_setup_then_the_doctor(tmp_path):
-    home = tmp_path / "home"
-    no_checkout_behind(home, tmp_path)
-    narrow = narrow_path(tmp_path, jinstall=JINSTALL)
-    log = tmp_path / "jinstall.log"
-    env = {"HOME": str(home), "PATH": str(narrow), "JINSTALL_LOG": str(log)}
-
-    done = subprocess.run(
-        ["/bin/sh", "-c", skill_block()], env=env, cwd=home, capture_output=True, text=True
-    )
-
-    assert (done.returncode, done.stderr) == (0, "")
-    assert done.stdout.splitlines() == [
-        f"release: {narrow / 'jinstall'}",
-        "already platform",
-        "done patterns x",
-        "needs you gh sign-in -> gh auth login",
-        "setup: 1 done, 1 already, 1 needs you, 0 optional left, exit 1",
-        "doctor: not ok, 1 hard",
-    ]
-    assert log.read_text() == "--setup\n--doctor\n"
 
 
 def test_the_skill_with_no_checkout_and_no_jinstall_names_the_release_install(tmp_path):

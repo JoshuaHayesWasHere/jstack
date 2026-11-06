@@ -32,7 +32,7 @@ On Windows, it says to install jstack inside WSL2, and there each program is ins
 
 | Program | Install page | Homebrew, on macOS | Arch package |
 |---|---|---|---|
-| T3 Code, stable or nightly | [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | `brew install --cask t3-code`, on Apple Silicon | `t3code-bin`, or `t3code-nightly-bin` for the nightly |
+| T3 Code, stable or nightly | [t3.codes](https://t3.codes), or [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | `brew install --cask t3-code`, on Apple Silicon | `t3code-bin`, or `t3code-nightly-bin` for the nightly |
 | Claude Code, `claude` | [Set up Claude Code](https://code.claude.com/docs/en/setup) | `brew install --cask claude-code` | `claude-code` |
 | `uv` | [Installing uv](https://docs.astral.sh/uv/getting-started/installation/) | `brew install uv` | `uv` |
 | `git` | [git downloads](https://git-scm.com/downloads) | `brew install git` | `git` |

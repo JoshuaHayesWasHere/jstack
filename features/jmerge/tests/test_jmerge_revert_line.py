@@ -33,7 +33,7 @@ def lined(merged):
 @pytest.fixture
 def kitchen(tmp_path):
     files = {"a.txt": LINES, "b.txt": LINES, "c.txt": LINES, "d.txt": LINES}
-    kitchen = Kitchen(tmp_path, {**files, "Makefile": "check:\n"})
+    kitchen = Kitchen(tmp_path, {**files, "Makefile": "check:\n"}, overlap=True)
     kitchen.jbus = queue_of(kitchen.home, []).parent
     return kitchen
 

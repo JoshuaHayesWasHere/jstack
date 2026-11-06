@@ -152,7 +152,7 @@ Read the proposed edits once more yourself. Any that a check, a test, a shell bl
 Nothing is applied. Show, with no preamble:
 
 - **Proposed edits**: the synthesiser's table. One row per edit: the problem, the change, and the file and section it would land in.
-- **Proposed plan entries**: one per item, in the shape of `templates/plan-entry.md` of this skill's repo with `Status: proposed`, each with a "Done when" a crewmate could meet, the evidence, and a t-shirt size.
+- **Proposed plan entries**: one per item, in the shape of `templates/plan-entry.md` of this skill's repo with `Stage: proposed`, each with a "Done when" a crewmate could meet, the evidence, and a t-shirt size.
 - **Rejected**: one line each, with the synthesiser's reason.
 - The cost, if it can be read: the four subagents' token counts as the Agent results gave them.
 
