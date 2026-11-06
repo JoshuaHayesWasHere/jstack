@@ -79,6 +79,9 @@ From one run that sees it wait to the next, the wait is the code of the reason t
 A pull request that waits does not make `jmerge` exit non-zero.
 `jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, when it refuses an `--accept`, or when it cannot read the protected list or a pattern in it.
 With `--if-free` it exits 75 while another run holds the run lock (`lock.BUSY`).
+jbus's pass and its merge tick both run `jmerge --if-free` (`features/jbus/src/jbus/merge.py`), so neither waits on the other's run inside its own 17 min timeout (`JMERGE_TIMEOUT`).
+A run that exits 75 did nothing, and jbus counts no failure for it: the next pass or tick runs `jmerge` again.
+A run that held the lock past that timeout and was stopped counts one failure of the `jmerge` streak, whether the pass or the tick started it, and three in a row raise the alert.
 
 ## What ready means
 
@@ -555,7 +558,7 @@ Any other party's accept on a door, a home's or one on typed words, parks a gate
 | `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`. |
 | `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
 | `--remake` | Merges nothing. While a rebase is stopped in this worktree it prints the files to resolve by hand, under `resolve these by hand and git add them, then run this again:`. Once only generated files are left, it makes each one again: it takes the base's version and runs the command the `generated` key of the repo's `[[project]]` in jbus's config gives it (`generated = ["<file> -> <command>", ...]`), `uv lock` for `uv.lock` when the key names none or the config cannot be read, and prints `made again: <file>, by <command> over the base's version`, or `not made: ...` where the command did not write it. With no rebase stopped it prints `no rebase is stopped here: nothing to make again`, and with nothing left `nothing is left to resolve: git rebase --continue`. The crew skill's "A conflict" runs it each time the rebase stops. |
-| `--if-free` | Does nothing and exits 75 while another run holds the repo's run lock, which every run that may merge or remove holds for the whole run, in place of waiting for it (`jbus tick` runs it so). |
+| `--if-free` | Does nothing and exits 75 while another run holds the repo's run lock, which every run that may merge or remove holds for the whole run, in place of waiting for it (jbus's pass and `jbus tick` run it so). |
 | `--home <id>` | The home that is asking: says what `jmerge` would do of that home's pull requests, as `--check` does, and merges nothing. |
 
 `jmerge` stops most of the `git` and `gh` commands it runs after 120 seconds, or after `JMERGE_TIMEOUT` seconds when that variable is set, and counts such a command as failed.

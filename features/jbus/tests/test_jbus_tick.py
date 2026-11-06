@@ -31,13 +31,16 @@ MERGED = "merged 7 alpha abc1234"
 
 
 def ticks(kitchen):
-    said = []
+    said, before = [], len(kitchen.log("jmerge"))
     assert tick.tick(jbus.load(), said.append) == 0
+    kitchen.tick_runs = getattr(kitchen, "tick_runs", 0) + len(kitchen.log("jmerge")) - before
     return said
 
 
 def runs(kitchen):
-    return kitchen.log("jmerge").count("--if-free")
+    """The runs of `jmerge` the ticks started. The pass runs it with `--if-free` too, so the
+    args alone do not tell them apart."""
+    return getattr(kitchen, "tick_runs", 0)
 
 
 def asked(kitchen):
@@ -137,7 +140,7 @@ def test_the_pass_runs_jmerge_whatever_the_tick_did(watched):
     watched.poll()
     assert watched.log("jmerge")[-1] == "--if-free"
     assert MERGED not in watched.lines("jmerge")
-    assert alert.jmerge("demo") not in watched.status()["streaks"]
+    assert alert.jmerge("demo") not in alert.streaks(watched.state_dir)
     (watched.stub / "jmerge-busy").unlink()
     watched.poll()
     assert MERGED in watched.lines("jmerge")
@@ -162,7 +165,7 @@ def test_a_tick_whose_jmerge_held_the_lock_past_its_timeout_counts_a_failure(wat
     for run_id in range(2, 5):
         ended(watched, run_id)
         ticks(watched)
-    assert watched.status()["streaks"][alert.jmerge("demo")]["count"] == 3
+    assert alert.streaks(watched.state_dir)[alert.jmerge("demo")]["count"] == 3
     (alerted,) = watched.lines("alert")
     assert alerted.startswith("alert: jmerge demo failed 3 times in a row since ")
 
