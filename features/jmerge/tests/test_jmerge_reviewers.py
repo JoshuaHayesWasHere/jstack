@@ -98,8 +98,9 @@ def test_a_scoped_pass_that_did_not_run_leaves_the_verdict_to_the_review_that_ra
     one = RESULT + "Reviewer: mcp:9 #1\n"
     not_run = section(f"{SONNET} #1", "not run").replace("By:", "Scope: a.py\nBy:")
     found = section(f"{SONNET} #1", "findings", findings=["error a.py:1 x"])
-    assert ready.said_of(one + not_run + found).verdict == "findings"
-    assert ready.short_of(one + not_run + found, SAW) == ready.NO_FIXED
+    for brief in (one + not_run + found, one + found + not_run):
+        assert ready.said_of(brief).verdict == "findings"
+        assert ready.short_of(brief, SAW) == ready.NO_FIXED
     assert ready.said_of(one + not_run).verdict not in ("clean", "findings")
     assert ready.short_of(one + not_run, SAW) == ready.NO_VERDICT
 
