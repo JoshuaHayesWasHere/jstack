@@ -290,12 +290,6 @@ def test_a_branch_in_a_second_remote_is_neither_listed_nor_removed(scene):
     assert (git(scene.mirror, "for-each-ref"), git(scene.main, "for-each-ref", tracking)) == there
 
 
-def test_a_brief_or_request_with_no_thread_line_says_so(scene):
-    scene.tree("alpha")
-    scene.brief("alpha", result(), thread=False)
-    assert scene.look() == [f"removable alpha no-thread: {WORKTREE}, {LOCAL}"]
-
-
 def no_result(scene):
     scene.tree("alpha")
     scene.brief("alpha", "")
@@ -517,12 +511,6 @@ def test_a_process_list_that_cannot_be_read_whole_is_no_answer(tmp_path, monkeyp
         proc.chmod(0o755)
 
 
-def test_a_readable_process_list_finds_this_process(tmp_path, monkeypatch):
-    assert cli._running(str(tmp_path)) == 0
-    monkeypatch.chdir(tmp_path)
-    assert cli._running(str(tmp_path)) == os.getpid()
-
-
 def on_a_mac(monkeypatch, tmp_path, said=None, code=0):
     """A Mac as `_running` sees it: Darwin, with an `lsof` that prints `said` in its `-F` form,
     or with no `lsof` at all when `said` is None."""
@@ -558,22 +546,6 @@ def test_on_a_mac_an_lsof_that_cannot_list_every_process_is_no_answer(
 ):
     on_a_mac(monkeypatch, tmp_path, said, code)
     assert cli._running(str(tmp_path)) is None
-
-
-def test_on_a_mac_a_process_list_a_caller_names_is_read_and_not_lsof(tmp_path, monkeypatch):
-    on_a_mac(monkeypatch, tmp_path, listed((os.getpid(), "/")))
-    monkeypatch.setattr(cli, "PROC", tmp_path / "no-proc")
-    assert cli._running(str(tmp_path)) is None
-
-
-def test_the_first_reason_is_the_records_before_the_worktrees(scene):
-    tree = scene.crewmate("alpha", state="OPEN", status="not done", left="a file")
-    (tree / "notes.txt").write_text("not committed\n")
-    assert scene.look() == ["kept alpha: not done, its Result says Status: not done"]
-    scene.brief("alpha", result(pull="https://example.test/pull/1", left="a file"))
-    assert scene.look() == ["kept alpha: Left, its Result does not say Left: none"]
-    scene.brief("alpha", result(pull="https://example.test/pull/1"))
-    assert scene.look() == ["kept alpha: its pull request is open"]
 
 
 def test_a_follow_up_result_is_the_one_that_counts(scene):

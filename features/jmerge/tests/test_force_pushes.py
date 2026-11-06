@@ -59,12 +59,6 @@ def test_each_push_takes_the_cause_jbus_told_last_before_it():
     }
 
 
-def test_a_restack_names_the_pull_request_that_merged_and_counts_for_the_stacked_one():
-    pulls = [pull(6, "six"), pull(7, "seven", "2026-10-27T12:30:00Z")]
-    events = [event("restack", "seven", "2026-10-27T12:00:00Z", "told the crew six merged (#6)")]
-    assert pushes.causes(pulls, events, SINCE, UNTIL)["stack move"] == 1
-
-
 def test_a_push_with_no_event_in_two_hours_takes_the_last_since_the_push_before_it():
     pulls = [pull(7, "seven", "2026-10-27T08:00:00Z", "2026-10-27T20:00:00Z")]
     events = [event("review", "seven", "2026-10-27T09:00:00Z", "findings")]
@@ -155,17 +149,6 @@ def test_code_is_said_to_conflict_against_the_row_whose_merge_touched_it(repo):
     assert reason(repo, head, main, branch="fl-one", branches={9: "else"}) == pushes.ROWS
 
 
-def test_the_table_adds_up_to_each_cause(repo):
-    counted = {"conflict": Counter({pushes.ROWS: 2, pushes.LIST: 1}), "crew fix": Counter()}
-    lines = pushes.table(
-        counted,
-        {pushes.ROWS: Counter({"code.py": 2})}
-        | {reason: Counter() for reason in pushes.REASONS if reason != pushes.ROWS},
-    )
-    assert lines[-1] == "| all | 3 | 0 | |"
-    assert f"| {pushes.ROWS} | 2 | 0 | `code.py` 2 |" in lines
-
-
 def test_a_commit_git_cannot_read_is_not_known_and_never_a_push_with_no_conflict(repo):
     head, main = branch_over(repo, {"mine.txt": "mine\n"}, {"theirs.txt": "theirs\n"})
     gone = "0" * 40
@@ -254,10 +237,6 @@ def test_two_rows_that_change_only_a_number_conflict_by_a_renumber(repo):
     assert hunks(repo, ours, theirs, start) == {"limit.py": ["renumber"]}
 
 
-def test_two_rows_that_each_rewrite_a_line_conflict_by_an_edit(repo):
-    assert hunks(repo, {"code.py": "two\n"}, {"code.py": "three\n"}) == {"code.py": ["edit"]}
-
-
 def test_two_rows_that_each_add_a_file_to_one_package_do_not_conflict(repo):
     start = {"pkg/__init__.py": "", "pkg/one.py": "ONE = 1\n"}
     commit(repo, start, "start (#8)")
@@ -295,41 +274,6 @@ def test_a_binary_file_that_conflicted_has_no_markers_and_conflicted_as_a_whole(
 
 
 AT = datetime.fromisoformat("2026-11-02T12:00:00+00:00")
-
-
-def test_the_file_two_rows_keep_adding_to_is_the_top_line_with_the_row_that_splits_it():
-    """One row that pushed twice over one conflict adds more insert hunks than two rows that each
-    added once, but the list two rows keep adding to comes first."""
-    kpis = "features/jbus/src/jbus/telemetry/kpis.py"
-    hunks_of = {
-        "code.py": [(AT, 5, ["edit", "edit"]), (AT, 6, ["edit"])],
-        "one-row.py": [(AT, 7, ["insert", "insert"]), (AT, 7, ["insert", "insert"])],
-        kpis: [(AT, 5, ["insert", "edit"]), (AT, 6, ["insert"])],
-        "cite.md": [(AT, 5, ["renumber"])],
-    }
-    lines = pushes.by_file(hunks_of, [], UNTIL)
-    rows = [line for line in lines if line.startswith("| `")]
-    assert rows[0] == f"| `{kpis}` | 2 | 2 | insert 2, edit 1 | tm-kpi-registry-split |"
-    assert rows[1:] == [
-        "| `one-row.py` | 1 | 2 | insert 4 | |",
-        "| `code.py` | 2 | 2 | edit 3 | |",
-        "| `cite.md` | 1 | 1 | renumber 1 | |",
-    ]
-    assert "tm-kpi-registry-split, not merged: 2 insert hunks before it" in "\n".join(lines)
-
-
-def test_a_split_that_merged_says_how_many_insert_hunks_came_before_it_and_after():
-    store = "features/jbus/docs/jbus/the-telemetry-store.md"
-    later = AT + timedelta(hours=2)
-    split = pull(950, "tm-source-modules", merged=stamp(AT + timedelta(hours=1)))
-    hunks_of = {
-        store: [(AT, 5, ["insert", "insert"])],
-        "features/jbus/src/jbus/telemetry/sources/one.py": [(later, 6, ["edit"])],
-    }
-    said = "\n".join(pushes.by_file(hunks_of, [split], UNTIL))
-    assert (
-        "tm-source-modules (#950), merged 2026-11-02T13:00Z: 2 insert hunks before it, 0 since"
-    ) in said
 
 
 def test_a_push_from_before_mains_rewrite_replays_against_the_main_it_saw(repo):

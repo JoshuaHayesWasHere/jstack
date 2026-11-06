@@ -5,10 +5,10 @@ Each KPI is a module of this package, `k<NN>_<slug>.py`, whose `KPI` is one `Kpi
 holds them in the order of the modules' names (`jbus.telemetry.entries`). `NN` is the KPI's place
 on the page: the first 23 are in the order of the telemetry-plane scout's report
 (`scouts/telemetry-plane.md` in the home, its section 2), and a KPI added since takes a number
-after them, or between two where it belongs there. Two KPIs of the same number are in the order
-of their slugs. A KPI is `Measured` by a weekly view of the store (`jbus.telemetry.views`), or
-`Lacks` the instrument it needs, which the page says. The targets are the report's, which the
-user confirms or changes in the KPI's module.
+after them, or before or between two where it belongs there, as the headline `k00` does. Two
+KPIs of the same number are in the order of their slugs. A KPI is `Measured` by a weekly view of
+the store (`jbus.telemetry.views`), or `Lacks` the instrument it needs, which the page says. The
+targets are the report's, which the user confirms or changes in the KPI's module.
 
 A week starts on Sunday in the user's zone, as the views' `week` does. Each week of the two gets
 its own `Reading`: its value, how many it is of, and its `Status`. This week is the one so far.

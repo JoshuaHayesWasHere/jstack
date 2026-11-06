@@ -3,8 +3,8 @@ files overlap none of the files main changed since the check started and its hea
 cleanly over today's main (`jmerge.cli.Repo.over_main`): GitHub is asked for no update of its
 branch, and no check runs again. The fast guards run on its tree merged over main first
 (`test_jmerge_cli_merged_tree.py`), and hold it when the two clash. A pull request that shares
-a file with main's changes goes through the one-at-a-time line (`test_jmerge_in_line.py`), and
-so does every one in a repo with no guards to run on its merged tree.
+a file with main's changes goes through the one-at-a-time line (`test_jmerge_in_line.py`). A
+repo with no guards runs nothing on the merged tree, and merges on the existing check alike.
 
 The tests run the command against a real origin and a fake `gh` (`test_jmerge_fresh.Kitchen`),
 with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it since
@@ -13,7 +13,7 @@ with GitHub's strict "up to date" rule off on main, as ruleset 25665226 has it s
 import pytest
 
 from jmerge import ready, treeguards
-from test_jmerge_cli_merged_tree import MAKEFILE, fails, runs
+from test_jmerge_cli_merged_tree import MAKEFILE, runs
 from test_jmerge_fresh import LINES, Kitchen, asked, url
 
 
@@ -74,22 +74,23 @@ def test_existing_check_with_a_clean_merge_that_github_refuses_waits(kitchen):
     assert kitchen.updates() == []
 
 
-def test_existing_check_on_a_merged_tree_that_fails_the_guards_is_held(kitchen):
-    """#7 adds `mig/v007_two.txt` and main took `mig/v007_one.txt` after #7's check: no file is
-    shared, and the two merge cleanly, but their tree has two v007 files."""
-    kitchen.crew("two", 7, {"mig/v007_two.txt": "two\n"})
-    tip = kitchen.on_main({"mig/v007_one.txt": "one\n"})
-    (said,) = kitchen.run()
-    assert said == fails(7, tip)
-    assert kitchen.calls() == []
-    assert kitchen.updates() == []
-
-
-def test_existing_check_in_a_repo_with_no_guards_goes_through_the_line(kitchen):
-    """With no `merged-tree-guards` file, nothing checks the merged tree, so a check main moved
-    past counts for nothing over today's main."""
+def test_existing_check_in_a_repo_with_no_guards_merges_with_no_update(kitchen):
+    """With no `merged-tree-guards` file, nothing runs on the merged tree, and a pull request
+    that overlaps none of main's changes still merges on its existing check: no update of its
+    branch, and no rerun (Josh, 2026-11-05: "we don't need every pr to be up to date")."""
     (kitchen.home.state / treeguards.NAME).unlink()
     kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.on_main({"a.txt": LINES + "main\n"})
+    (said,) = kitchen.run()
+    assert said.startswith(f"merged 7 two {kitchen.tip()} ")
+    assert kitchen.updates() == []
+    assert runs(kitchen) == 0
+    assert kitchen.at_main("b.txt").startswith("ours")
+
+
+def test_existing_check_in_a_repo_with_no_guards_and_an_overlap_goes_through_the_line(kitchen):
+    (kitchen.home.state / treeguards.NAME).unlink()
+    kitchen.crew("two", 7, {"a.txt": "ours\n" + LINES})
     tip = kitchen.on_main({"a.txt": LINES + "main\n"})
     assert kitchen.run() == [asked(7, tip)]
     assert kitchen.updates() == ["7"]

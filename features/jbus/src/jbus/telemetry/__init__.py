@@ -351,11 +351,13 @@ def build(config: jbus.Config, where: Path | None = None, most: int | None = Non
 
 
 def _tokens(config, connection, zone, most: int | None, built: Built) -> None:
-    """Copy the sessions T3 names, then the new calls of their transcripts, oldest file first,
-    within what is left of `most`."""
+    """Copy the sessions T3 names, then the new calls of their transcripts, those written since
+    the last build first and then the rest oldest first, within what is left of `most`."""
     found = tokens.sessions(config)
     built.rows["sessions"] += tokens.keep_sessions(connection, found)
-    for one in tokens.transcripts({(each.provider, each.session) for each in found}):
+    (last,) = connection.execute("SELECT max(at) FROM builds").fetchone()
+    since = datetime.fromisoformat(last.replace("Z", "+00:00")) if last else None
+    for one in tokens.transcripts({(each.provider, each.session) for each in found}, since):
         changed, read, left = tokens.read(
             connection, one, zone, None if most is None else most - built.bytes
         )
