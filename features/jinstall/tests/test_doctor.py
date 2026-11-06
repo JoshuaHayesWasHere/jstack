@@ -810,19 +810,20 @@ def test_the_pkgbuild_builds_upstreams_stable_release_with_every_patch_and_the_n
     """A bare makepkg builds a stable tag, `v<major>.<minor>.<patch>`, under the stable name,
     and keeps the nightly's commands as links for autostart entries and scripts."""
     env = {key: value for key, value in os.environ.items() if key != "T3CODE_JSTACK_TAG"}
-    said = subprocess.run(
+    ran = subprocess.run(
         [
             "bash",
             "-c",
-            'source PKGBUILD; printf "%s\\n" "$_tag" "$pkgver" "$pkgdesc" "${provides[*]}"'
-            ' "${conflicts[*]}" "${_patches[*]}" "${#sha256sums[@]}"; declare -f package',
+            'source ./PKGBUILD && printf "%s\\n" "$_tag" "$pkgver" "$pkgdesc" "${provides[*]}"'
+            ' "${conflicts[*]}" "${_patches[*]}" "${#sha256sums[@]}" && declare -f package',
         ],
         cwd=PACKAGING,
         env=env,
         capture_output=True,
         text=True,
-        check=True,
-    ).stdout.splitlines()
+    )
+    assert ran.returncode == 0, ran.stderr
+    said = ran.stdout.splitlines()
     tag, version, description, provides, conflicts, patches, sums = said[:7]
     package = "\n".join(said[7:])
     assert re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag)
