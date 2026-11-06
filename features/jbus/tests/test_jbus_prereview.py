@@ -10,7 +10,10 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 from jbus import clock, prereview
+from jgauge import slot, waiters
+from jroles import ledger
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add
 
@@ -152,3 +155,87 @@ def test_a_review_before_the_pull_request_that_never_comes_is_asked_again_by_the
         kitchen.poll(NOW + timedelta(minutes=minutes))
     asked = [one for one in sends(kitchen) if one["threadId"] == made["threadId"]]
     assert [one["message"] for one in asked] == ["/pr-review run alpha again"]
+
+
+def launched_after(kitchen, minutes=0):
+    kitchen.poll(NOW + timedelta(minutes=minutes))
+    return reviewers(kitchen)
+
+
+def test_the_review_launch_takes_the_model_of_the_role_map_s_review_line(kitchen, jstack_config):
+    proved_crew(kitchen)
+    (jstack_config.parent / "roles").write_text(
+        "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=high\n"
+    )
+    (launched,) = launched_after(kitchen)
+    assert launched["modelSelection"]["model"] == "claude-sonnet-5-5"
+    assert launched["modelSelection"]["instanceId"] == "claudeAgent"
+
+
+def test_a_review_pool_that_is_capped_launches_no_reviewer_until_it_has_room(
+    kitchen, jstack_config
+):
+    proved_crew(kitchen)
+    (jstack_config.parent / "roles").write_text(
+        "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=high\n"
+    )
+    full = ledger.file_of("claudeAgent")
+    resets = NOW + timedelta(minutes=40)
+    full.write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    said = kitchen.poll()
+    assert reviewers(kitchen) == []
+    assert any(line.startswith("wait alpha: no reviewer launched: ") for line in said), said
+    full.unlink()
+    assert len(launched_after(kitchen, 3)) == 1
+
+
+def test_a_role_map_that_gives_the_review_no_model_launches_one_reviewer_that_inherits(
+    kitchen, jstack_config
+):
+    proved_crew(kitchen)
+    (jstack_config.parent / "roles").write_text("review: not a line the role map reads\n")
+    said = kitchen.poll()
+    (launched,) = reviewers(kitchen)
+    assert "modelSelection" not in launched
+    assert any(line.startswith("note alpha: the role map gives the review no") for line in said)
+
+
+def test_a_crew_thread_t3_code_names_no_worktree_for_gets_no_reviewer(kitchen):
+    thread, _, _ = proved_crew(kitchen)
+    del thread["worktreePath"]
+    kitchen.poll()
+    assert reviewers(kitchen) == []
+    assert kitchen.lines("condition") == [f"condition alpha: {prereview.NO_TREE}"]
+
+
+def test_a_review_launch_t3_code_refuses_is_a_condition_once_and_is_not_tried_again(kitchen):
+    proved_crew(kitchen)
+    kitchen.t3.refuse = "no more threads"
+    for minutes in (0, 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert len(reviewers(kitchen)) == 1
+    assert kitchen.lines("condition") == [f"condition alpha: {prereview.LOST}"]
+
+
+@pytest.mark.parametrize("fault", ["refused", "no answer", "held"])
+def test_the_review_message_t3_code_does_not_take_is_tried_again_or_is_a_gate(kitchen, fault):
+    thread, path, head = proved_crew(kitchen)
+    kitchen.poll()
+    path.write_text(path.read_text() + section(head))
+    if fault == "refused":
+        kitchen.t3.refuse_send = True
+    elif fault == "no answer":
+        kitchen.t3.lose_send = True
+    else:
+        command = ["uv", "run", "pytest", "tests/test_alpha.py"]
+        lane = slot.short()
+        waiters.register(slot.locks_dir(), thread["threadId"], "short", lane.slots, command, NOW)
+    kitchen.poll(NOW + timedelta(minutes=3))
+    key = f"prereviewed|alpha|{head[:12]}"
+    marked = key in jbus.read_json(kitchen.state / "sent.json", [])
+    if fault == "refused":
+        assert kitchen.lines("condition") == [
+            "condition alpha: T3 Code refused the review's message"
+        ]
+    else:
+        assert not marked

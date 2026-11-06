@@ -37,7 +37,6 @@ from typing import Any
 
 import jroles
 from jbriefs import below, findings
-from jbriefs.home import thread_of
 from jbus import END_TURN, mirror, outbox, rebase, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -181,16 +180,13 @@ def launch(run: Pass, client: Client, world: World) -> None:
         run.box.mark(key)
         lines = []
         for n, routed in enumerate(routes or [None], start=1):
+            asked = arguments(run, slug, n, tree, branch, routed)
             try:
-                reply = client.call(
-                    "t3_thread_launch", arguments(run, slug, n, tree, branch, routed)
-                )
+                made, why = (client.call("t3_thread_launch", asked) or {}).get("threadId"), ""
             except (T3Refused, T3Error) as error:
-                run.condition(slug, LOST, f"reviewer #{n} at {head}: {error}", key=f"lost {key}")
-                break
-            made = reply.get("threadId") if isinstance(reply, dict) else None
+                made, why = None, f": {error}"
             if not made:
-                run.condition(slug, LOST, f"reviewer #{n} at {head}", key=f"lost {key}")
+                run.condition(slug, LOST, f"reviewer #{n} at {head}{why}", key=f"lost {key}")
                 break
             lines.append(f"Reviewer: {made} #{n}\n")
         if lines:
@@ -208,8 +204,6 @@ def due(brief: str) -> tuple[str, tuple[str, ...], tuple[str, ...]] | None:
         return None
     triage = findings.triage(brief)
     ran = [one for one in triage.sections if one.head]
-    if not ran:
-        return None
     head = ran[-1].head
     by = tuple(dict.fromkeys(one.by for one in ran if one.head == head and one.by))
     return head, by, tuple(findings.listed(triage))
@@ -227,8 +221,6 @@ def tell(run: Pass, client: Client, world: World) -> None:
         if key in sent:
             continue
         at = thread["threadId"]
-        if thread_of(run.home, slug) != at:
-            continue
         text = MESSAGE.format(
             slug=slug,
             head=head[:12],
