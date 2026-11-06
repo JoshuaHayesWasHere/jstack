@@ -378,8 +378,8 @@ def keep(
     read_all: bool,
     spent: str | None = "",
 ) -> list[Item]:
-    """Rewrite the list, and log one quiet event when the new list's keys differ from the old
-    list's.
+    """Rewrite the list, and log one quiet event when the new list's keys differ from the list
+    the file holds as it is written (`_rewrite`).
 
     `roots` is the list that `stall.tell` returns. `derived` says the rows' statuses are this
     pass's, and `read_all` says that `dispatch` read every row of the queue in this pass.
@@ -441,19 +441,7 @@ def keep(
         settled = {key for key in items if kind(key) == "approve" and not _waits(run, items[key])}
         listed = [one for one in items.values() if one["key"] not in settled]
         listed.sort(key=lambda one: kinds().index(one["kind"]))
-        write_json(path(run.state), listed, mode=0o600)
-    items = {one["key"]: one for one in listed}
-    if was is not None and set(before) != set(items):
-        new = [one for one in listed if one["key"] not in before]
-        gone = [one for key, one in before.items() if key not in items]
-        names = f" ({', '.join(map(short, new))})" if new else ""
-        line = (
-            f"{EVENT} {run.project.name}: {len(listed)} wait on {run.user.user}, "
-            f"{len(new)} new{names}, {len(gone)} gone"
-        )
-        marked = [f"{'+' if one in new else ' '} {one['line']}" for one in listed]
-        marked += [f"- {one['line']}" for one in gone]
-        run.box.send("", EVENT, line, "\n".join(marked))
+        _rewrite(run, read(run.state), listed)
     return listed
 
 
@@ -511,7 +499,27 @@ def settle(run: Pass, slug: str, closed: Collection[str]) -> None:
             if not (one["kind"] == "approve" and one.get("slug") == slug and not _waits(run, one))
         ]
         if left != kept:
-            write_json(path(run.state), left, mode=0o600)
+            _rewrite(run, items, left)
+
+
+def _rewrite(run: Pass, was: list[Item] | None, listed: list[Item]) -> None:
+    """Write the list, and log one quiet event when its keys differ from those of `was`, the
+    list as the file had it. The caller holds `LOCK`, so each change is logged once, by the
+    writer that made it: a pass, or an act that settled an item (`settle`)."""
+    write_json(path(run.state), listed, mode=0o600)
+    before = {one["key"]: one for one in was or []}
+    if was is None or set(before) == {one["key"] for one in listed}:
+        return
+    new = [one for one in listed if one["key"] not in before]
+    gone = [one for key, one in before.items() if key not in {one["key"] for one in listed}]
+    names = f" ({', '.join(map(short, new))})" if new else ""
+    line = (
+        f"{EVENT} {run.project.name}: {len(listed)} wait on {run.user.user}, "
+        f"{len(new)} new{names}, {len(gone)} gone"
+    )
+    marked = [f"{'+' if one in new else ' '} {one['line']}" for one in listed]
+    marked += [f"- {one['line']}" for one in gone]
+    run.box.send("", EVENT, line, "\n".join(marked))
 
 
 def _waits(run: Pass, one: Item) -> bool:
