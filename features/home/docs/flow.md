@@ -57,7 +57,7 @@ Without asking you, the threads do everything else that is reversible.
 | A door | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
-A brief that says `Review: review`, the home's default, gets one review round, launched once `check` has passed: the checks prove or fail the work first.
+A brief that says `Review: review`, the home's default, gets one review round, before its pull request opens: jbus launches it once the crew's desk proof binds its pushed head, so the review runs while nothing else does, and CI's check runs once, on the pull request that follows it.
 A finding blocks the merge only with a proof, a run that exits non-zero at the head, a failed check, a doc line the pull request made wrong, an unmet `Done when` line, or a measure, and the crewmate answers each before the merge.
 A fix pushed for the findings gets no review: the pull request's checks stand behind it.
 The one later pass is a scoped review that judges again a `Meets the brief: no`.

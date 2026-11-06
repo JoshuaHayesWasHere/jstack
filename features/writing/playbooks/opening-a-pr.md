@@ -53,10 +53,10 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    fi
    ```
 
-   CI checks it on each push, before its review, and `jmerge` marks no draft ready.
+   CI checks it on each push, after its review, and `jmerge` marks no draft ready.
    A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there.
    Run `gh pr view` before you say anything about its state.
-7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, start the one review once the checks have passed, end the turn.
+7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, end the turn.
    With none, steps 5 and 6 are `skip: the brief asks for no pull request` and the task ends as `skills/crew/SKILL.md` "End" says.
 
 Never done here, and who does it:
@@ -64,9 +64,10 @@ Never done here, and who does it:
 - **Merge.**
   `jmerge`, run by jbus, merges a pull request that is reviewed, fixed and green.
   One it holds waits for the user's word.
-- **Review**: one reviewer, in a new thread, reviews once, launched as `skills/crew/SKILL.md` "The review" says.
+- **Review**: one reviewer, in a new thread, reviews once, launched by jbus at the desk proof, before the pull request opens, as `skills/crew/SKILL.md` "The review" says.
   Fix what you agree with, and push back, with a reason, on the rest.
   A fix gets no review: one round, and it merges on its checks ("A second pass").
 - **Poll.** jbus wakes this thread when its pull request needs it: no loop, no watcher of your own.
 
-**Hand over:** the open pull request and the Result, to the reviewer and the home, as step 7 says. With no pull request, the Result alone, to the home.
+**Hand over:** the open pull request and the Result, to the home, as step 7 says.
+With no pull request, the Result alone, to the home.
