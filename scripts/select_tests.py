@@ -151,7 +151,10 @@ module counts only where the diff's lines, in its base or its head, fall in a fu
 for Darwin in code (`sys.platform`, `platform.system`, the string `darwin`, a name such as
 `on_darwin`), not in a docstring or a comment; a file that is no Python counts where its text
 names Darwin. A name reaches a test only from a changed path of the tests or one that counts, as
-an import does, and a feature's paths reach none of its tests. A pull request's macOS job
+an import does, a feature's paths reach none of its tests, and only `EVERY_RUN`, which changes
+every run, and the list itself print `all`: the rest of what every test depends on, such as the
+fixtures, the Makefile and check.yml, reaches the tests that import or name it. A pull request's
+macOS job
 selects so, and the run on each merge commit into main runs the whole `--within`.
 
 Every test that failed on main in the last 30 days runs on each pull request's check, whatever
@@ -229,10 +232,11 @@ as the code it models, runs it too, and so does a change to the test file itself
 change reaches these tests through an import or a name, so this table alone selects them.
 Main's full run and the nightly run them whatever changed."""
 CITED = re.compile(r"features/[\w-]+/src/[\w/]+\.py")
+EVERY_RUN = ("pyproject.toml", "uv.lock", "conftest.py")
+"""The files that change every run of the tests, on a Mac too: the dependencies and the root
+`conftest.py`, which loads the plugins. A change to one selects `all`, with `strict` too."""
 EVERYTHING = (
-    "pyproject.toml",
-    "uv.lock",
-    "conftest.py",
+    *EVERY_RUN,
     "scripts/select_tests.py",
     "Makefile",
     ".github/workflows/check.yml",
@@ -1108,10 +1112,13 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
     `["all"]`, and for each cause the sorted files it selected, or the path that forced
     `all`. An import reaches a test only from a changed path that `follows` holds for, and the
     cross-cutting tests count only with `cross`. With `strict` a name reaches a test only from
-    such a path too, and a feature's paths reach none of its tests."""
+    such a path too, a feature's paths reach none of its tests, and only `EVERY_RUN` forces
+    `all`: the rest of `shared()` reaches tests through its importers and names, as any path
+    does."""
     ready()
+    forcing = set(EVERY_RUN) if strict else shared()
     for path in changed:
-        if path in shared():
+        if path in forcing:
             return ["all"], {"forced-by": path}
     by_path = {path: name for name, path in modules().items()}
     found = {"imports": set(), "names": set(), "features": set()}

@@ -238,7 +238,7 @@ def test_every_python_file_under_features_selects_a_test():
 
 
 MUTANTS = {
-    "all": ("if path in shared():\n            return", "if path in ():\n            return"),
+    "all": ("shared() & set(EVERY_RUN) if strict else shared()", "set()"),
     "plugin": (
         "return {modules()[one] for one in found} | whole | set(EVERYTHING)",
         "return set(EVERYTHING)",
@@ -671,12 +671,13 @@ def mac_within(path, strict=False):
 def test_strict_within_is_a_part_of_within_for_every_tracked_path():
     """A pull request's macos job selects with `--strict`, and the run on each merge commit with
     `--within` alone. Each test a pull request runs on a Mac is one its merge's run runs again,
-    so no path reaches a Mac test on a pull request that its merge's run would leave out."""
+    so no path reaches a Mac test on a pull request that its merge's run would leave out. Where
+    `within` is `all`, the merge's run runs the whole list."""
     wider = []
     for path in sorted(select.tracked()):
         within, strict = mac_within(path), mac_within(path, strict=True)
-        assert strict == ["all"] or set(strict) <= set(within), path
-        wider += [path] if set(strict) < set(within) else []
+        assert strict == ["all"] or within == ["all"] or set(strict) <= set(within), path
+        wider += [path] if strict != within and strict != ["all"] else []
     assert wider, "strict narrows nothing"
 
 
@@ -709,6 +710,23 @@ def test_strict_within_keeps_what_darwin_code_and_the_tests_reach(path, test):
     with `--strict` as it does without it."""
     assert test in mac_within(path, strict=True)
     assert mac_within(path, strict=True) == mac_within(path)
+
+
+def test_strict_within_is_all_only_for_what_changes_every_run_and_within_for_all_tests_load():
+    """The run on each merge commit runs the whole list for a change to any file every test
+    loads. A pull request's run does so only for the dependencies and the root conftest.py,
+    which change every run of the tests: the rest, such as the fixtures, the Makefile, check.yml
+    and this script, reach the Mac tests that import or name them, a part of the whole list."""
+    every_run = {"pyproject.toml", "uv.lock", "conftest.py"}
+    plumbing = sorted(select.shared() - every_run)
+    assert plumbing
+    for path in sorted(select.shared()):
+        assert mac_within(path) == ["all"], path
+    for path in every_run:
+        assert mac_within(path, strict=True) == ["all"], path
+    for path in plumbing:
+        strict = mac_within(path, strict=True)
+        assert strict != ["all"] and set(strict) <= set(select.tracked()), path
 
 
 @pytest.mark.parametrize("path", ["uv.lock", MAC_LIST])

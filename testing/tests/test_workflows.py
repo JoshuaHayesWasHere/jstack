@@ -984,6 +984,22 @@ def test_a_pull_requests_strict_macos_selects_a_part_of_what_the_push_of_its_mer
     assert reached and set(reached) <= set(merged(path, event="push")[0])
 
 
+@pytest.mark.parametrize(
+    "path", ["Makefile", "testing/paths.py"], ids=["the Makefile", "a module of the fixtures"]
+)
+def test_a_pull_requests_strict_macos_runs_the_whole_list_for_no_plumbing_its_push_does(
+    merged, path
+):
+    """A change to a file every test loads, but that changes no Mac run by itself, runs the whole
+    list on the push of its merge, and on its pull request only the list's tests that import or
+    name it."""
+    whole = MAC_QUICK.read_text().splitlines()
+    assert merged(path, event="push")[0] == whole
+    reached, summary, _ = merged(path)
+    assert reached != whole
+    assert not summary.startswith("macOS: the selection is all")
+
+
 ADDED = "features/jbus/tests/test_item.py"
 
 
