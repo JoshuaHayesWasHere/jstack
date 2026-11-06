@@ -105,6 +105,22 @@ def test_a_scoped_pass_that_did_not_run_leaves_the_verdict_to_the_review_that_ra
     assert ready.short_of(one + not_run, SAW) == ready.NO_VERDICT
 
 
+def test_one_seat_on_two_instances_is_one_reviewer_for_the_verdict():
+    """Review finding F1 on #1181: seat #1 wrote `Verdict: not run` on one provider instance,
+    was launched again on another and wrote `findings` at the same head. Where the roster is
+    numbered the seat is the reviewer, so its section that ran gives the verdict; another
+    seat's not-run section still holds the round."""
+    one = RESULT + "Reviewer: mcp:9 #1\n"
+    not_run = section("claudeAgent_x claude-sonnet-5-5 high #1", "not run")
+    found = section(
+        "claudeAgent_y claude-sonnet-5-5 high #1", "findings", findings=["error a.py:1 x"]
+    )
+    assert ready.said_of(one + not_run + found).verdict == "findings"
+    assert ready.short_of(one + not_run + found, SAW) == ready.NO_FIXED
+    two = RESULT + SEATS + found.replace("high #1", "high #2") + not_run
+    assert ready.short_of(two, SAW) == ready.NO_VERDICT
+
+
 def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
     """Two Sonnet reviewers write the same model and effort, so the number tells them apart.
     A brief with only one numbered review waits, and a brief with both numbered reviews

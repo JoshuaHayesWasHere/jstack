@@ -718,10 +718,14 @@ def being_rebased(why: str) -> bool:
 
 @dataclass
 class Round:
+    """One section as the round reads it. `reviewer` tells one reviewer from another: the
+    seat (`findings.Section.seat`) where the roster is numbered, so one seat's sections written
+    on two instances are one reviewer, and the whole `By:` text where it is not."""
+
     verdict: str = ""
     head: str = ""
     found: int = 0
-    by: str = ""
+    reviewer: str | int = ""
     scoped: bool = False
 
 
@@ -756,9 +760,11 @@ def said_of(text: str) -> Said:
     said.triage = triage
     said.mode = triage.mode
     said.written = bool(triage.sections)
+    numbered = isinstance(triage.roster, findings.Numbered)
     said.rounds = [
-        Round(one.verdict, one.head, one.found, one.by, one.scoped)
+        Round(one.verdict, one.head, one.found, one.by if seat is None else seat, one.scoped)
         for one in triage.roster.counted(triage.sections)
+        for seat in [one.seat if numbered else None]
     ]
     said.reviewed = next((one.head for one in reversed(triage.sections) if one.head), "")
     sent = [one for one in triage.findings if one.blocks]
@@ -861,13 +867,13 @@ def _round(said: Said) -> None:
     hide the review that ran; another reviewer's that did not run still holds the round."""
     if not said.rounds:
         return
-    heads: dict[str, dict[tuple[str, bool], str]] = {}
+    heads: dict[str, dict[tuple[str | int, bool], str]] = {}
     for number, one in enumerate(said.rounds):
-        heads.setdefault(one.head or f"#{number}", {})[(one.by, one.scoped)] = one.verdict
+        heads.setdefault(one.head or f"#{number}", {})[(one.reviewer, one.scoped)] = one.verdict
     last = heads[said.rounds[-1].head or f"#{len(said.rounds) - 1}"]
-    ran = {by for (by, _), verdict in last.items() if verdict in _RANKS}
+    ran = {who for (who, _), verdict in last.items() if verdict in _RANKS}
     said.verdict = _worst(
-        [verdict for (by, _), verdict in last.items() if verdict in _RANKS or by not in ran]
+        [verdict for (who, _), verdict in last.items() if verdict in _RANKS or who not in ran]
     )
     said.ran = sum(
         any(verdict in ("clean", "findings") for verdict in one.values()) for one in heads.values()
