@@ -125,23 +125,17 @@ def test_a_main_that_changed_its_file_into_a_conflict_after_its_check_waits(prov
     assert merges(proven_merged) == []
 
 
-def moved(proven_merged):
-    """The line of a pull request whose check started before main's tip, in a run that asks
-    GitHub nothing."""
-    tip = merge.git(proven_merged.home.main, "rev-parse", "HEAD")
-    return f"wait 7 {merge.URL}: " + ready.BASE_MOVED_DUE.format(base="main", tip=tip[:12])
-
-
 @pytest.mark.parametrize("path", ["docs/other.md", "Makefile"])
-def test_a_main_that_moved_only_on_other_files_waits_for_a_check_over_it(
+def test_a_main_that_moved_only_on_other_files_merges_on_its_existing_check(
     proven_merged, rules, path
 ):
     on_main(proven_merged, path)
     proven_merged.home.open_pull_request(
         proven_merged.head, checks=(STARTED,), files=["a.txt", SKILL]
     )
-    assert jmerge(proven_merged, rules, "--check") == [moved(proven_merged)]
-    assert merges(proven_merged) == []
+    (said,) = jmerge(proven_merged, rules)
+    assert said.startswith("merged 7 alpha ")
+    assert "update-branch" not in "".join(merge.calls(proven_merged.home))
 
 
 def test_a_check_that_started_after_main_changed_the_file_is_fresh(proven_merged, rules):
@@ -286,13 +280,15 @@ def test_a_main_that_moved_while_it_was_judged_has_it_judged_again_before_the_me
     assert not (proven_merged.home.stub / "calls").exists()
 
 
-def test_a_main_that_moved_on_another_path_while_it_was_judged_waits_for_a_check_over_it(
+def test_a_main_that_moved_on_another_path_while_it_was_judged_merges_on_its_check(
     proven_merged, monkeypatch
 ):
+    """The tip moved after the judgment, on no file of its own: judged again over the new tip,
+    it merges on the check it has, with no update of its branch."""
     proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
     one = pull_request(SKILL, head=proven_merged.head)
     here = repo(proven_merged, monkeypatch)
     *_, judged = here.waits(one, "main")
     on_main(proven_merged, "docs/other.md")
-    assert here.merge(one, "alpha", "", judged) == moved(proven_merged)
-    assert not (proven_merged.home.stub / "calls").exists()
+    assert here.merge(one, "alpha", "", judged).startswith("merged 7 alpha ")
+    assert "update-branch" not in "".join(merge.calls(proven_merged.home))

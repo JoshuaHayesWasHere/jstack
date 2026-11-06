@@ -20,7 +20,7 @@ from test_jmerge_in_line import RUNNING, behind
 @pytest.fixture
 def kitchen(tmp_path):
     files = {"a.txt": LINES, "b.txt": LINES, "c.txt": LINES, "d.txt": LINES}
-    kitchen = Kitchen(tmp_path, {**files, "Makefile": "check:\n"})
+    kitchen = Kitchen(tmp_path, {**files, "Makefile": "check:\n"}, overlap=True)
     kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
     kitchen.crew("three", 8, {"c.txt": "ours\n" + LINES})
     return kitchen
