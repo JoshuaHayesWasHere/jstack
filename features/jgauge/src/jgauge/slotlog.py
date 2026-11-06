@@ -14,7 +14,8 @@ A row is one JSON object:
   holds the slot;
 - `lane`, `full` or `short`, `slot`, the slot's number, and `slots`, the lane's size as the
   caller counted it, so a run with `--slots 5` shows as one;
-- `thread`, the thread id or nothing, `command` and `cwd`, which name the caller;
+- `thread`, the thread id or nothing, `command` and `cwd`, which name the caller, `cwd` empty
+  when the caller's directory was removed before the call;
 - on a take, `waited`, the seconds the call waited for the slot;
 - on a release, `code`, the command's exit code, and `hold`, the seconds the slot was held.
 
@@ -120,6 +121,10 @@ def take(
     log: Path, lane: str, slot: int, slots: int, thread: str, command: list[str], waited: float
 ) -> Taken:
     now = datetime.now(UTC)
+    try:
+        cwd = os.getcwd()
+    except OSError:
+        cwd = ""
     fields = {
         "id": secrets.token_hex(6),
         "pid": os.getpid(),
@@ -128,7 +133,7 @@ def take(
         "slots": slots,
         "thread": thread,
         "command": command,
-        "cwd": os.getcwd(),
+        "cwd": cwd,
     }
     _append(log, {"at": _stamp(now), "event": "take", **fields, "waited": round(waited, 3)})
     return Taken(log, now, fields)
