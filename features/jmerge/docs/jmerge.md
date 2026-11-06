@@ -168,7 +168,8 @@ The section "Protected paths" describes one more hold.
   The pull request waits on the `result` step while one of three lines of its brief's Result is short (`ready.short_of`, `ready.short_on_proved`, `ready.short_on_checked`).
   `Skills run:` has an artifact for each skill the brief's `Skills:` line names (`skills-unrun`).
   A pull request that changes tests has a `Proved:` line that names each of them, with their run ending 1 at its base and 0 at its head.
-  One that changes only test files needs only the run at its head, and one that changes no test needs no line.
+  One that changes only test files, and files of a kind `jbriefs.proved.EXEMPT` names (docs, config), needs only the run at its head, its `tests only` line: a removal of tests with the edit to the doc that named them is one.
+  A `tests only` line on one that changes any other file holds it, and one that changes no test needs no line.
   The last `Checked:` line names the desk's whole check, `make check-fast BASE=<sha> PART=touched` (the lint and the touched tests), `make check-fast BASE=<sha> PART=guards` (the desk's check before 2026-11-05) or `jgauge check`, ending 0 at the head, or at a head whose patch the head carries unchanged.
   An exit of 124 is a time limit, and holds the pull request like any other exit but 0.
   On the two-step line the crew's check block once wrote, only the guards' step counts.
