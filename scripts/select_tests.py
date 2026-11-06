@@ -829,6 +829,30 @@ def importers(names):
     return found
 
 
+@cache
+def imported(name):
+    """The modules a module imports, through any chain, and the module itself."""
+    found, todo = set(), [name]
+    while todo:
+        one = todo.pop()
+        if one not in found:
+            found.add(one)
+            todo += edges()[one]
+    return frozenset(found)
+
+
+@cache
+def testers():
+    """Each module, with the test files that import it, through any chain, or are it: what
+    `test_files(importers([module]))` gives, for every module at once."""
+    found = {}
+    for name, path in modules().items():
+        if TEST.fullmatch(path):
+            for one in imported(name):
+                found.setdefault(one, set()).add(path)
+    return found
+
+
 def test_files(names):
     return {modules()[name] for name in names if TEST.fullmatch(modules()[name])}
 
@@ -1209,12 +1233,21 @@ def asking(module):
     """The test files that ask for a plugin's fixture that reaches `module`. The fixture
     reaches it when it uses `module`, uses a module that imports `module`, or asks for another
     fixture that reaches it. This leaves out a test file with its own fixture of that name."""
-    reaching = importers([module])
     fixtures = conftest()[1]
-    hit = {name for name, (used, _) in fixtures.items() if used & reaching}
+    hit = {name for name, one in reaches_through().items() if module in one}
     while more := {name for name, (_, asks) in fixtures.items() if asks & hit} - hit:
         hit |= more
     return {test for test, asks in askers().items() if hit & asks}
+
+
+@cache
+def reaches_through():
+    """Each fixture of a plugin, with the modules it reaches through those it uses: each of
+    them, and what each imports through any chain."""
+    return {
+        name: frozenset().union(*map(imported, used))
+        for name, (used, _) in conftest()[1].items()
+    }
 
 
 @cache
@@ -1264,7 +1297,7 @@ def ruled(changed, follows=everywhere, cross=True, strict=False):
         counts = not strict or follows(path)
         if path in by_path:
             if follows(path):
-                found["imports"] |= test_files(importers([by_path[path]])) | asking(by_path[path])
+                found["imports"] |= testers().get(by_path[path], set()) | asking(by_path[path])
             if of_tests(path) and counts:
                 found["names"] |= readers(path)
         elif FIXTURES.match(path):
