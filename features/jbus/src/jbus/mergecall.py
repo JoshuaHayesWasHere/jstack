@@ -62,9 +62,20 @@ SANDBOX = ".verify-jstack-sandbox"
 NUMBER = "<number>"
 _PUNCTUATION = set(";&|()")
 _PASS_ON = {
-    "do", "then", "else", "if", "elif", "while", "until", "{", "!", "command", "exec", "time",
+    "do",
+    "then",
+    "else",
+    "if",
+    "elif",
+    "while",
+    "until",
+    "{",
+    "!",
+    "command",
+    "exec",
+    "time",
     "nohup",
-}  # fmt: skip
+}
 _ASSIGN = re.compile(r"[A-Za-z_]\w*=.*", re.S)
 _VARIABLE = re.compile(r"\$(?:\{(\w+)\}|(\w+))")
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
@@ -73,13 +84,39 @@ _MUTATIONS = re.compile(r"\b(?:mergePullRequest|enablePullRequestAutoMerge)\b")
 _URL = re.compile(r"github\.com/([^/\s]+)/([^/\s]+)/pull/(\d+)")
 _REMOTE = re.compile(r"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$")
 _MERGE_TAKES_ONE = {
-    "-R", "--repo", "-b", "--body", "-F", "--body-file", "-t", "--subject",
-    "-A", "--author-email", "--match-head-commit",
-}  # fmt: skip
+    "-R",
+    "--repo",
+    "-b",
+    "--body",
+    "-F",
+    "--body-file",
+    "-t",
+    "--subject",
+    "-A",
+    "--author-email",
+    "--match-head-commit",
+}
 _API_TAKES_ONE = {
-    "-R", "--repo", "-X", "--method", "-H", "--header", "-f", "--raw-field", "-F", "--field",
-    "-q", "--jq", "-t", "--template", "--hostname", "--input", "-p", "--preview", "--cache",
-}  # fmt: skip
+    "-R",
+    "--repo",
+    "-X",
+    "--method",
+    "-H",
+    "--header",
+    "-f",
+    "--raw-field",
+    "-F",
+    "--field",
+    "-q",
+    "--jq",
+    "-t",
+    "--template",
+    "--hostname",
+    "--input",
+    "-p",
+    "--preview",
+    "--cache",
+}
 _WRAPPERS = {
     "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a"},
     "timeout": {"-s", "--signal", "-k", "--kill-after"},
