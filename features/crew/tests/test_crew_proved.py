@@ -258,6 +258,18 @@ def test_a_run_stopped_mid_test_leaves_no_copy_of_the_base(repo):
     assert copies(repo) == []
 
 
+def test_a_temp_directory_that_is_gone_leaves_the_branch_checked_out(repo):
+    """A thread's TMPDIR can be gone, as a settled row's scratch is: no copy of the base can be
+    made, and the block says so and leaves the worktree on its branch, never checked out at the
+    base in its place."""
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, TMPDIR=str(repo.parent / "gone"))
+    assert said.startswith("no proof: no copy of the base could be made in ")
+    assert line is None
+    assert git(repo, "rev-parse", "HEAD") == head
+    assert git(repo, "branch", "--show-current") == "main"
+
+
 def test_a_test_that_reads_git_runs_at_the_base_in_a_repo_of_its_own(repo):
     """A test the change lays over the base may run git in its tree, as one that lists the
     tracked files does: at the base it finds a repository at the base's commit, so it fails
