@@ -34,6 +34,7 @@ from jbus import (
     scouts,
     t3,
     verbs,
+    waiting,
     wake,
     watch,
     word,
@@ -141,6 +142,9 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         for _, verb in queue.parse(text):
             if isinstance(verb, queue.Add):
                 _warn(config, project, verb.slug, verb.text)
+            elif isinstance(verb, (queue.Approve, queue.Remove)):
+                acted = "go" if isinstance(verb, queue.Approve) else "remove"
+                waiting.acted(run, acted, verb.slug)
         return 0
     if args.verb == "verify":
         return _verify(state, args.slug, args.brief)
