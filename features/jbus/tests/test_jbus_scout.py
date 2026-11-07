@@ -12,9 +12,11 @@ import pytest
 
 from jbriefs import parse
 from jbus import queue
+from jgauge import slot, waiters
 from test_jbus_entry_go import PLAN, plan_go
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_queue import brief, go, rows
+from test_jbus_slot_wake import Slots
 
 AT = "2026-10-12 10:58 ET"
 
@@ -427,3 +429,26 @@ def test_the_scout_verbs_are_gone(kitchen):
     code, _ = kitchen.main("scout", "show")
 
     assert code == 2
+
+
+@pytest.mark.parametrize("waits", [True, False], ids=["a slot wait", "no wait"])
+def test_a_scout_thread_that_ended_its_turn_on_a_slotwait_is_not_left(kitchen, waits):
+    """cicd-good-broken-pr-tests-scout, 2026-11-05: the scout ended its turn on "Waiting on a test
+    slot", and the next pass marked its row left with "its thread is gone". A thread with a
+    registered wait is waiting: jbus wakes it when a slot is free (`slotwait`)."""
+    slots = Slots(slot.locks_dir())
+    slots.hold("full")
+    add(kitchen, "alpha")
+    go(kitchen, "alpha")
+    kitchen.poll()
+    thread = scout_thread(kitchen, "alpha")
+    thread |= {"status": "completed", "updatedAt": iso(NOW - timedelta(minutes=40))}
+    kitchen.t3.at_work.discard(thread["threadId"])
+    if waits:
+        waiters.register(slot.locks_dir(), thread["threadId"], "full", 2, ["make", "check"], NOW)
+    try:
+        for minutes in (3, 60, 180):
+            kitchen.poll(NOW + timedelta(minutes=minutes))
+            assert (rows(kitchen)["alpha"]["status"] == "left") is not waits, rows(kitchen)["alpha"]["why"]
+    finally:
+        slots.close()
