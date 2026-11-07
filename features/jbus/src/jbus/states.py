@@ -17,13 +17,16 @@ from typing import TYPE_CHECKING, Any
 import jsettings
 from jbriefs.home import home_of, thread_of
 from jbus import (
+    blockers,
     cancelled,
     dispatch,
     leftover,
     locked,
     merge,
+    mirror,
     queue,
     restated,
+    review,
     stall,
     threads,
     verbs,
@@ -112,20 +115,19 @@ def keep_work(half: Half) -> None:
     run, rows, states = half.run, half.table or [], half.states
     if states is None:
         return
-    held = leftover.read(run.state)
+    held, gated = leftover.read(run.state), blockers.holding(run)
     listed = []
     for row in rows:
         slug = row["slug"]
         state = states.of(row, dispatch.launched(run, slug, queue.role(row)))
         record = held.get(slug)
-        home = bool(record and not record.busy and not leftover.his(record, run.now))
-        busy = bool(record and record.busy)
         role = "scout" if queue.role(row) == queue.SCOUT else ""
         scout = {"scout": str(work.scouting(state))} if role else {}
         why = str(row.get("why", ""))
+        unhomed = leftover.his(record, run.now) if record else ""
         line = work.entry(
             state,
-            work.holder(state, role=role, home=home, busy=busy, why=why),
+            work.holder(state, role, why, _closer(run, slug, record, gated), unhomed),
             key=slug,
             kind="row",
             slug=slug,
@@ -146,6 +148,20 @@ def keep_work(half: Half) -> None:
     following = restated.following(run.config.state_dir)
     for key, what in restated.drift(before, written, following) if was else []:
         run.box.send(key, DRIFT, f"{DRIFT} {key}: {what}")
+
+
+def _closer(
+    run: Pass, slug: str, record: leftover.Record | None, gated: frozenset[str]
+) -> work.Closer:
+    """Return who closes a row where its facts alone do not say (`work.Closer`)."""
+    if slug in gated:
+        return work.Closer.USER
+    brief = watch.brief_of(run, slug)
+    if review.awaited(brief, mirror.last_result(brief)):
+        return work.Closer.REVIEW
+    if record and record.busy:
+        return work.Closer.BUSY
+    return work.Closer.HOME
 
 
 def _pulled(

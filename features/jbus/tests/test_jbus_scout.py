@@ -278,7 +278,7 @@ def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen
     reported(kitchen, "look", status="not done")
     kitchen.poll(NOW + timedelta(minutes=9))
     line = judged(kitchen, "look")
-    assert (line["scout"], line["value"], line["who"]) == ("scouting", "leftover", "user")
+    assert (line["scout"], line["value"], line["who"]) == ("scouting", "leftover", "home")
     assert rows(kitchen)["look"]["status"] == "left"
 
     reported(kitchen, "look")

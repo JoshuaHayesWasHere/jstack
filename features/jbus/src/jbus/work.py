@@ -242,9 +242,9 @@ PATTERNS = (
     Pattern(
         "leftover",
         "Ended, with a leftover",
-        "user",
-        "your word on that note",
-        "gate",
+        "home",
+        "its home",
+        "running",
         thread=THERE,
         written=_set(Written.LEFTOVER, Written.MALFORMED),
         pull=_set(Pull.NONE, Pull.MERGED),
@@ -262,9 +262,9 @@ PATTERNS = (
     Pattern(
         "closed",
         "Closed",
-        "user",
-        "your word on how it ends",
-        "gate",
+        "home",
+        "its home",
+        "running",
         thread=STILL,
         pull=_set(Pull.CLOSED),
     ),
@@ -530,24 +530,56 @@ def parent(why: str) -> str:
     return fields["slug"] if fields else ""
 
 
+class Closer(StrEnum):
+    """`Closer` is who closes a row where its facts alone do not say, as the pass reads it beside
+    them. One value holds for a row, and the pass picks it in this order:
+
+    - `user`: a gate of the user's holds the row, one `jbus needs` lists (`blockers.holding`);
+    - `review`: the row's last Result opens its pull request after a review that is not written
+      (`review.awaited`), so the row waits on that review, whatever its `Left:` line says;
+    - `busy`: a thread is at work on what the row left (`leftover.json`);
+    - `home`: anything else, and a row that ended with something left is its home's to close."""
+
+    USER = "user"
+    REVIEW = "review"
+    BUSY = "busy"
+    HOME = "home"
+
+
+ENDED = ("leftover", "closed")
+REVIEWED = ("leftover", "quiet")
+
+
 def holder(
-    state: State, role: str = "", home: bool = False, busy: bool = False, why: str = ""
+    state: State,
+    role: str = "",
+    why: str = "",
+    closer: Closer = Closer.HOME,
+    unhomed: str = "",
 ) -> Holder:
-    """Return who holds a state, which is its pattern's holder except in four cases.
+    """Return who holds a state, which is its pattern's holder except where `closer` says
+    otherwise (`Closer`), and in two other cases.
+
+    A gate of the user's holds the row for the user, whatever else holds, so `who` is `user`
+    on a row `jbus needs` lists. A row whose Result waits on its review (`Closer.REVIEW`) and
+    that ended or is quiet is held by its reviewer. A row that ended with something left, or
+    whose pull request closed, is its home's to close: jbus tells the home, and the user is not
+    asked (`jbus.leftover`). A thread at work on the leftover holds it instead (`Closer.BUSY`).
+    `unhomed` is why no home has it yet (`leftover.his`): the row still waits on a home, and
+    `waits` says why.
 
     A stacked row is held by the row it is stacked on, which its `why` names (`parent`): it
     waits for that row to merge, and no check runner or crewmate moves it.
 
-    `role` is the role of a thread that belongs to no row. When such a thread is at work, the
-    holder is that role, not a crewmate, and the state is on no lane of the line. A leftover or
-    a closed pull request is the user's, with two exceptions. When `leftover.json` says that the
-    pull request's home has it (`home`), the home holds the state. When its record says a thread
-    is at work on the leftover (`busy`), the crewmate holds the state. Either holder is on the lane
-    of work that is running.
+    `role` is the role of a thread that belongs to no row, or of a scout's row. When such a
+    thread is at work, the holder is that role, not a crewmate, and the state is on no lane of
+    the line.
 
     A role's holder is in `roles.ROLES`.
     """
     pattern = state.pattern
+    if closer == Closer.USER:
+        return Holder("user", "your answer", "gate")
     if role:
         if pattern.who != "crew":
             return Holder(state.who, state.waits, "")
@@ -556,12 +588,14 @@ def holder(
         return Holder(held, waits, "")
     if state.value == "stacked" and (above := parent(why)):
         return Holder(above, f"{above} to merge", pattern.lane)
-    if state.value not in ("leftover", "closed"):
+    if closer == Closer.REVIEW and state.value in REVIEWED:
+        return Holder("rev", "its review", "review")
+    if state.value not in ENDED:
         return Holder(state.who, state.waits, pattern.lane)
-    if busy and state.value == "leftover":
+    if closer == Closer.BUSY and state.value == "leftover":
         return Holder("crew", "its crewmate", "running")
-    if home:
-        return Holder("home", "its home", "running")
+    if unhomed:
+        return Holder(state.who, f"a home to close it: {unhomed}", pattern.lane)
     return Holder(state.who, state.waits, pattern.lane)
 
 

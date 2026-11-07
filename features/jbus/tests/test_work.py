@@ -101,7 +101,7 @@ def test_merged_with_a_leftover(kitchen):
     assert (line["value"], line["name"], line["who"]) == (
         "leftover",
         "Ended, with a leftover",
-        "user",
+        "home",
     )
     assert rows(kitchen)["alpha"]["status"] == "merged"
 
@@ -300,15 +300,21 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def test_who_holds_a_state_is_its_patterns_holder_but_for_a_leftover_and_a_thread_by_role():
+    """A row that ended with something left is never the user's but where a gate of the user's
+    holds it: its home closes it, or a thread at work on it, or its review is still to come."""
     holders = {"user", "crew", "rev", "ci", "bus", "dep", "ok", "home", "unknown"}
     roles = {"crew", "rev", "scout", "home", "other"}
     for facts in work.every():
         state = work.judge(facts)
-        for home in (False, True):
-            for busy in (False, True):
-                held = work.holder(state, home=home, busy=busy)
+        for closer in work.Closer:
+            for unhomed in ("", "it has no home"):
+                held = work.holder(state, closer=closer, unhomed=unhomed)
                 assert held.who in holders
-                if state.value not in ("leftover", "closed"):
+                if closer == work.Closer.USER:
+                    assert held == work.Holder("user", "your answer", "gate")
+                elif state.value in ("leftover", "closed"):
+                    assert held.who != "user"
+                elif closer != work.Closer.REVIEW or state.value != "quiet":
                     assert held == work.Holder(state.who, state.waits, state.pattern.lane)
         for role in ("crew", "reviewer", "scout", "home", "other"):
             held = work.holder(state, role=role)
