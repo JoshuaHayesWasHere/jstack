@@ -1,7 +1,7 @@
-"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its ten tools, and nothing else. It
-refuses any call that changes a thread unless the call has the one form jbus makes, and it refuses
-the call before it goes out. When the sign-in is about to run out, it says so on the first pass of
-each day.
+"""`jbus.t3` is the one way jbus reaches T3 Code: the sign-in, its twelve tools, and nothing else.
+It refuses any call that changes a thread unless the call has the one form jbus makes, and it
+refuses the call before it goes out. When the sign-in is about to run out, it says so on the first
+pass of each day.
 
 Every test runs the real command or the real client against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
@@ -59,12 +59,14 @@ def test_the_fixture_is_the_servers_mcp_url_its_tools_and_a_token_with_no_secret
     assert FIXTURE["token_response"]["access_token"] == "str"
 
 
-def test_a_tool_that_is_not_one_of_the_ten_is_never_called(kitchen):
+def test_a_tool_that_is_not_one_of_the_twelve_is_never_called(kitchen):
     assert sorted(t3.TOOLS) == [
         "link_pull_request",
         "list_scheduled_tasks",
         "orchestrator_capabilities",
         "schedule_task",
+        "t3_project_list",
+        "t3_project_update",
         "t3_thread_configure",
         "t3_thread_launch",
         "t3_thread_list",
@@ -123,6 +125,17 @@ SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestI
             "only called to switch a task it names off or on",
         ),
         ("schedule_task", {"scheduledTaskId": "", "enabled": True}, "names no task"),
+        (
+            "t3_project_update",
+            {"projectId": "mcp:other", "archived": True, "title": "renamed"},
+            "only called to archive or unarchive a project it names",
+        ),
+        (
+            "t3_project_update",
+            {"projectId": "mcp:other", "workspaceRoot": "/elsewhere"},
+            "only called to archive or unarchive a project it names",
+        ),
+        ("t3_project_update", {"projectId": "", "archived": True}, "names no project"),
         ("t3_thread_organize", {"action": "settle", "threadId": ""}, "names no thread"),
         (
             "t3_thread_organize",

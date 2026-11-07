@@ -34,6 +34,8 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
   On the real machine T3 Code keeps the selection, and a usage limit ends a run because the provider says so.
 - `fake_t3.py` answers `orchestrator_capabilities` with each instance of `t3/capabilities.json` and its constraints, none until a drive writes some, and `t3_thread_read` with the `recentRuns` a drive keeps on the thread in `t3/threads.json`.
   On the real machine T3 Code lists each instance it has, and gives one `Provider is not authenticated.` when its provider's sign-in lapsed.
+- `fake_t3.py` answers `t3_project_list` with the projects of `t3/projects.json`, none until a drive writes some, and `t3_project_update` by setting or clearing that project's `archivedAt` there.
+  On the real machine T3 Code lists every project it has, and an archived one leaves its sidebar.
 - `fake_t3.py` takes each wake jbus sends the home thread, `mcp:sandbox-home`, and writes the lines of its items to `t3/wake.jsonl`.
   On the real machine the wake queues in the project's home thread, which T3 Code can refuse.
 - `notify-send` is a script that appends to `notify.log`. The real machine shows a notification on a desktop session.
