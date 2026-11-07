@@ -195,6 +195,8 @@ Never write a review's line yourself, and never rewrite one: the judgement is th
 The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief that rests on the user's own message, or the bot's word, that names this row, says it waives and quotes that line, which jbus checks: your own message, the home's, or the user's go waives nothing.
 
 A fix is one or more new commits on the head GitHub has, never an amend, a squash or a rebase: a rewritten head is a force-push, which costs a new run and a new look at what the review saw, and a default branch that moved is no reason for one ("A conflict").
+Run the check block of "Do the task" at the fix's head first: jleak's `pre-push` hook asks `jmerge`'s rule (`ready.short_on_checked`) of each head a crew's worktree pushes, as the first push block does, and refuses one whose last `Checked:` line does not bind it with `crew-push: refused: <why>`.
+On that line nothing was pushed: run the check block at the head the line names, fix what it finds, and push again.
 Push it with this, the one way a fix, a failed check's included, is pushed:
 
 ```sh
