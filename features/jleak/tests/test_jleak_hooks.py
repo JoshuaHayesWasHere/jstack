@@ -225,6 +225,124 @@ def test_deleting_a_branch_on_the_remote_is_not_checked(pushed):
     assert not pushed.remote_has("tidy-notes")
 
 
+CREW = "tidy-crew"
+CHECK = "make check-fast BASE=" + "0" * 40 + " PART=touched"
+
+
+class Crew:
+    """A crew's worktree of `pushed`'s repo on the branch `CREW`, and its brief in the homes'
+    state, `JBUS_HOME_DIR/<repo>/tasks/<branch>.md`, with a `Thread:` line as a launch writes."""
+
+    def __init__(self, pushed, homes):
+        self.pushed, self.tree = pushed, pushed.repo.parent / "crew"
+        pushed.git("worktree", "add", "-q", "-b", CREW, str(self.tree))
+        self.brief = homes / pushed.repo.name / "tasks" / f"{CREW}.md"
+        self.brief.parent.mkdir(parents=True)
+        self.brief.write_text(f"# {CREW}: a task\nThread: mcp:a-thread\n")
+
+    def commit(self, text):
+        (self.tree / "notes.md").write_text(text)
+        git = ["git", "-C", str(self.tree), *GIT]
+        subprocess.run([*git, "commit", "-q", "-am", "docs: more"], check=True)
+        return subprocess.run(
+            [*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    def checked(self, head, exit=0):
+        with self.brief.open("a") as brief:
+            brief.write(f"Checked: {CHECK} exit {exit} at {head}\n")
+
+    def push(self, *flags):
+        return subprocess.run(
+            ["git", "-C", str(self.tree), "push", "-q", *flags, "origin", CREW],
+            capture_output=True,
+            text=True,
+        )
+
+
+@pytest.fixture
+def crew(pushed, tmp_path, monkeypatch):
+    homes = tmp_path / "homes"
+    monkeypatch.setenv("JBUS_HOME_DIR", str(homes))
+    return Crew(pushed, homes)
+
+
+def refusal(head):
+    return f'run the check block of "Do the task" at {head[:12]}, then push again'
+
+
+def test_pre_push_refuses_a_crew_head_its_brief_has_no_checked_line_for(crew):
+    head = crew.commit("a line\nand one more\n")
+    done = crew.push()
+    assert done.returncode != 0
+    [line] = [one for one in done.stderr.splitlines() if one.startswith("crew-push: ")]
+    assert line.startswith("crew-push: refused: its brief has no Checked: line")
+    assert line.endswith(f": {refusal(head)}")
+    assert not crew.pushed.remote_has(CREW)
+
+
+def test_pre_push_refuses_a_fix_pushed_over_a_head_the_check_passed_at(crew):
+    first = crew.commit("a line\nand one more\n")
+    crew.checked(first)
+    assert crew.push().returncode == 0
+    fix = crew.commit("a line\nand one more\nand a fix\n")
+    done = crew.push()
+    assert done.returncode != 0
+    assert f"its last Checked: line is of {first[:12]}" in done.stderr
+    assert refusal(fix) in done.stderr
+    assert crew.pushed.git("rev-parse", f"origin/{CREW}") == first
+
+
+@pytest.mark.parametrize("exit", [1, 124])
+def test_pre_push_refuses_a_crew_head_whose_check_did_not_pass(crew, exit):
+    head = crew.commit("a line\nand one more\n")
+    crew.checked(head, exit)
+    done = crew.push()
+    assert done.returncode != 0
+    assert refusal(head) in done.stderr
+
+
+def test_pre_push_lets_a_crew_head_its_check_passed_at_through(crew):
+    head = crew.commit("a line\nand one more\n")
+    crew.checked(head)
+    done = crew.push()
+    assert (done.returncode, done.stderr) == (0, "")
+    assert crew.pushed.remote_has(CREW)
+
+
+def test_pre_push_lets_a_crew_delete_its_branch_with_no_check(crew):
+    crew.checked(crew.commit("a line\nand one more\n"))
+    assert crew.push().returncode == 0
+    crew.commit("a line\nand one more\nunchecked\n")
+    done = crew.push("--delete")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert not crew.pushed.remote_has(CREW)
+
+
+def test_pre_push_from_the_main_checkout_is_not_a_crew_push(crew):
+    """jbus's restack pushes a link's rebased head from the main checkout, which the link's
+    brief has no Checked: line for."""
+    head = crew.commit("a line\nand one more\n")
+    done = crew.pushed.push(f"{head}:refs/heads/{CREW}")
+    assert (done.returncode, done.stderr) == (0, "")
+    assert crew.pushed.remote_has(CREW)
+
+
+def test_pre_push_with_no_homes_state_is_not_a_crew_push(crew, tmp_path, monkeypatch):
+    monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "no-homes"))
+    crew.commit("a line\nand one more\n")
+    done = crew.push()
+    assert (done.returncode, done.stderr) == (0, "")
+    assert crew.pushed.remote_has(CREW)
+
+
+def test_pre_push_of_a_branch_whose_brief_no_thread_launched_is_not_a_crew_push(crew):
+    crew.brief.write_text(f"# {CREW}: a task\n")
+    crew.commit("a line\nand one more\n")
+    done = crew.push()
+    assert (done.returncode, done.stderr) == (0, "")
+
+
 def lint(pushed, recipe, branch="tidy-lint"):
     """Commits a Makefile with `recipe` and switches to a branch to push it on."""
     pushed.git("switch", "-q", "-c", branch)
