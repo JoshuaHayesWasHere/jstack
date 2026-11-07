@@ -38,9 +38,10 @@ judges a unit loaded from a link by the file behind it, and a unit owes a reload
 (`NeedDaemonReload`, "changed on disk" in `systemctl cat`) while that file is newer than the one
 it loaded. Each tip's tree is a checkout of its own, so after any move every unit's file is a
 new one, though its content may be the same, and systemd's units name a tree the next move
-removes. So each move to a tree that holds units runs `systemctl --user daemon-reload`, and then
-`try-restart` on each timer the new tip changed, added or dropped, by content against the tree it
-leaves (`units`), so a timer whose interval changed runs on the new one at once (`reload`). A
+removes. So a move runs `systemctl --user daemon-reload` where systemd's unit folder links a unit
+into the tree it leaves (`linked`), or where the new tip changed, added or dropped a unit file, by
+content against that tree (`units`), and then `try-restart` on each timer among the changed ones,
+so a timer whose interval changed runs on the new one at once (`reload`). A
 timer whose content is the same is not restarted, so its schedule runs on. A service is not
 restarted: the pass that moves the copy runs in jbus.service, and a oneshot runs the new file on
 its next start. `try-restart` starts no timer that was not running, so a reload run twice ends
@@ -49,7 +50,10 @@ the same. Before it points the link, the move writes the reload it owes systemd 
 and only a reload that systemd took every call of clears them. A reload systemd refuses raises a
 condition for the tip, and each pass asks again, with no new tip, until systemd takes it, so
 neither a refusal nor a pass that died before its reload leaves systemd on the old units, nor
-any unit owing a reload. A move to a tree with no unit, and one on launchd, reloads nothing.
+any unit owing a reload. A move on a machine that links no unit through the copy and changes
+none, and one on launchd, reloads nothing. Nor does one whose user manager does not read this
+HOME (`ours`), as a test's or a sandbox's HOME is not the one the account's manager reads: the
+move owes it nothing, as `jinstall.machine.Machine.systemctl` asks it nothing.
 
 The links themselves do not move: the install links each unit to its file under the copy's path,
 which names whichever tree is green, so a move leaves every link as the install made it. That path
@@ -255,6 +259,25 @@ def units(before: Path, after: Path) -> list[str]:
     return sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
 
 
+def linked(tree: Path, env: Mapping[str, str] | None = None) -> bool:
+    """Whether systemd's user unit folder, `${XDG_CONFIG_HOME:-~/.config}/systemd/user`, holds a
+    link that resolves into `tree`, so that systemd loaded a unit from it."""
+    env = os.environ if env is None else env
+    folder = Path(env.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "systemd" / "user"
+    if not folder.is_dir():
+        return False
+    return any(one.is_symlink() and one.resolve().is_relative_to(tree) for one in folder.iterdir())
+
+
+def ours(env: Mapping[str, str] | None = None) -> bool:
+    """Whether the user manager that `systemctl --user` reaches reads this HOME: it answers
+    `show-environment` with `HOME=` this HOME. One that does not answer is not ours either."""
+    env = os.environ if env is None else env
+    said = proc.run("systemctl", "--user", "show-environment", timeout=60)
+    home = env.get("HOME") or str(Path.home())
+    return said.returncode == 0 and f"HOME={home}" in said.stdout.splitlines()
+
+
 def reload(run: Pass, copy: Path) -> None:
     """Have systemd read again the units of the tip a move owes it, as `green.json` keeps it, and
     restart each changed unit that is a timer of the tree the copy names. Clear the debt only once
@@ -312,8 +335,7 @@ def _advance(run: Pass, copy: Path) -> None:
         return
     before = copy.resolve()
     changed = units(before, tree)
-    linked = changed or any(path.is_file() for path in tree.glob(UNITS))
-    if linked and launchd.manager() == "systemd":
+    if (changed or linked(before)) and launchd.manager() == "systemd" and ours():
         owed = sorted({*record.get("reload", []), *changed})
         write_json(run.state / FILE, {**record, "reload": owed, "at": green})
     _point(copy, tree)

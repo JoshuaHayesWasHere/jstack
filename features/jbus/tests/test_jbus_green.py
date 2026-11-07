@@ -92,6 +92,7 @@ def systemctl(kitchen):
     refuse = kitchen.stub / "systemctl.refuse"
     fake.write_text(
         f'#!/bin/sh\necho "$*" >> {kitchen.stub / "systemctl.log"}\n'
+        '[ "$2" = show-environment ] && echo "HOME=$HOME"\n'
         f'[ "$*" = "--user daemon-reload" ] && [ -f {refuse} ] || exit 0\nrm -f {refuse}\n'
         'echo "Failed to connect to bus: No medium found" >&2\nexit 1\n'
     )
@@ -127,7 +128,8 @@ TIMER = "[Timer]\nOnUnitActiveSec={}\n\n[Install]\nWantedBy=timers.target\n"
 SERVICE = "[Service]\nType=oneshot\nExecStart=jbus tick\n"
 
 
-READS = {"show", "list-units", "list-timers", "is-active", "is-enabled", "status", "cat"}
+READS = {"show", "show-environment", "list-units", "list-timers", "is-active", "is-enabled"}
+READS |= {"status", "cat"}
 """The calls a pass makes to read systemd, which change nothing in it."""
 
 
@@ -137,7 +139,7 @@ def calls(log):
     return [one for one in kept if one.split()[1] not in READS]
 
 
-def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_restarts_none(
+def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_calls_nothing(
     copied, systemctl
 ):
     """The day of #1240: main set jbus-merge.timer to 2 s and the copy moved, but systemd kept
@@ -165,19 +167,25 @@ def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_re
     unchanged = land(copied, "success", {"features/new.txt": "new\n"})
     said = copied.poll()
     assert at(copied.copy) == unchanged
-    assert calls(systemctl) == ["--user daemon-reload"]
-    assert f"green demo: systemd reloaded the units of {unchanged[:12]}" in said
+    assert calls(systemctl) == []
+    assert not [line for line in said if "systemd" in line]
 
 
 @pytest.fixture
-def systemd(copied, systemctl):
+def systemd(copied, systemctl, tmp_path, monkeypatch):
     """A systemctl that loads units as systemd does: a daemon-reload keeps the mtime of each unit
     file the copy links, through the link, and a unit owes a reload while the file behind its link
-    is newer than the one systemd loaded, as `NeedDaemonReload` says."""
+    is newer than the one systemd loaded, as `NeedDaemonReload` says. The unit folder is the
+    test's own, and `link` links a unit into it through the copy, as the install does."""
+    folder = tmp_path / "config" / "systemd" / "user"
+    folder.mkdir(parents=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     loaded = copied.stub / "systemd.loaded"
     copied.stub.joinpath("systemctl").write_text(
         f"#!{sys.executable}\nimport json, pathlib, sys\n"
         f"open({str(systemctl)!r}, 'a').write(' '.join(sys.argv[1:]) + '\\n')\n"
+        "if sys.argv[2:] == ['show-environment']:\n"
+        "    print('HOME=' + __import__('os').environ['HOME'])\n"
         "if sys.argv[1:] == ['--user', 'daemon-reload']:\n"
         f"    units = pathlib.Path({str(copied.copy)!r}).glob({green.UNITS!r})\n"
         "    mtimes = {one.name: one.stat().st_mtime_ns for one in units}\n"
@@ -193,6 +201,11 @@ def systemd(copied, systemctl):
             if one.stat().st_mtime_ns > kept.get(one.name, 0)
         )
 
+    def link(*names):
+        for name in names:
+            (folder / name).symlink_to(copied.copy / "features/jbus/units" / name)
+
+    owing.link = link
     return owing
 
 
@@ -205,19 +218,39 @@ def test_a_move_that_changes_no_unit_leaves_no_unit_owing_systemd_a_reload(copie
     land(copied, "success", {units + "jbus-merge.timer": TIMER.format("2s")})
     land(copied, "success", {units + "jbus-merge.service": SERVICE})
     copied.poll()
+    systemd.link("jbus-merge.timer", "jbus-merge.service")
     assert systemd() == []
     (copied.stub / "systemctl.log").unlink()
 
     unchanged = land(copied, "success", {"features/new.txt": "new\n"})
-    copied.poll()
+    said = copied.poll()
     assert at(copied.copy) == unchanged
     assert systemd() == []
-    assert not [one for one in calls(copied.stub / "systemctl.log") if "try-restart" in one]
+    assert calls(copied.stub / "systemctl.log") == ["--user daemon-reload"]
+    assert f"green demo: systemd reloaded the units of {unchanged[:12]}" in said
+
+
+def test_a_manager_that_reads_another_home_is_asked_for_no_reload(copied, systemd, systemctl):
+    """A test or a sandbox runs a move under a HOME of its own, whose units link through its
+    copy, while `systemctl --user` reaches the account's manager, which reads another HOME: the
+    move asks that manager for nothing, as the install does."""
+    copied.stub.joinpath("systemctl").write_text(
+        f'#!/bin/sh\necho "$*" >> {systemctl}\n'
+        '[ "$2" = show-environment ] && echo "HOME=/home/someone-else"\nexit 0\n'
+    )
+    systemd.link("jbus.timer")
+    systemctl.unlink()
+    land(copied, "success", {"features/jbus/units/jbus.timer": TIMER.format("1min")})
+    said = copied.poll()
+    assert calls(systemctl) == []
+    assert gates(copied) == []
+    assert not [line for line in said if "systemd" in line]
 
 
 def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copied, systemctl):
     copied.stub.joinpath("systemctl").write_text(
         f'#!/bin/sh\necho "$*" >> {systemctl}\n'
+        '[ "$2" = show-environment ] && { echo "HOME=$HOME"; exit 0; }\n'
         '[ "$2" = daemon-reload ] && { echo "Failed to connect to bus" >&2; exit 1; }\nexit 0\n'
     )
     moved = land(copied, "success", {"features/jbus/units/jbus.timer": TIMER.format("1min")})
