@@ -97,7 +97,7 @@ def main() -> int:
     and end 0 either way."""
     try:
         reason = answer(json.load(sys.stdin))
-    except Exception:  # a Stop hook fails open, whatever broke
+    except Exception:
         return 0
     if reason:
         print(json.dumps({"decision": "block", "reason": reason}))
