@@ -200,7 +200,8 @@ def _readme(source: Path, harness: Harness, flagged: dict[str, tuple[str, ...]])
     return (
         f"{HEADER.format(source=source)}# jstack for {harness.title}\n\n"
         f"This folder is jstack as {harness.title} reads it. Each file is a link to its file in "
-        f"{source}, so an edit there is live, and the next install adds a new skill. {copied}"
+        f"{source}, so an edit there is live, and the next install, or the next move of a green "
+        f"copy, adds a new skill. {copied}"
         f"`~/{harness.root}` links each skill here.\n\n"
         f"The last column names what a skill asks for that {harness.title} does not have.\n\n"
         f"| Skill | What it is for | What {harness.title} leaves out |\n|---|---|---|\n{rows}"

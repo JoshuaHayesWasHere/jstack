@@ -183,7 +183,7 @@ In a checkout that jbus does not watch, each file of a skill links to its file t
 In a watched checkout, each file of a skill links to its file in the green copy, so an edit is live once it is on main and green.
 Codex's layout is the exception for `SKILL.md`, a copy that the next install brings up to date.
 In a watched checkout, each move of the green copy also puts each layout again (`jinstall.green.relink`): a file main adds, once `make trees` has listed it in `skills.json`, is linked with no install, a link to a file main drops goes, and each copy is written again.
-A new skill still needs the next install for its link under the harness's skills root, such as `~/.claude/skills/<name>`.
+The move then puts what points into each layout it put: the link of each skill under the harness's skills root (`~/.claude/skills/<name>`, `~/.codex/skills/<name>`, `~/.agents/skills/<name>`), the removal of a link there to a skill main dropped, and the entries of the harness's hooks file for each hook main adds or drops.
 jleak's git hooks also go into the checkout that jstack is installed from, where each is a `hard` need.
 
 ### The checkout's own skills
@@ -238,7 +238,7 @@ A tip whose check passed but that does not import on this machine is dropped at 
 The copy moves on at the next green tip.
 Each move installs the tool again from the copy, since the tool's editable paths name the tree the copy points at, not the copy.
 Where uv cannot install it, the copy goes back to the tree the tool runs, the pass raises the condition `the green copy could not move`, and the next pass tries again.
-A new skill is linked by the next `install.sh`, as in any checkout.
+Each move also puts each harness layout again, with the link of each skill under its skills root and the entries of its hooks file (`jinstall.green.relink`), so a skill or hook main adds needs no `install.sh`.
 
 So when a commit breaks main, even `import jbus`, the passes go on from the copy, and jbus reverts or fixes the red main as before.
 

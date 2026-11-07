@@ -21,9 +21,9 @@ from pathlib import Path
 import jbus
 from jbus import green as copies
 from jinstall.harnesses import HARNESSES
-from jinstall.kinds import Found, State
+from jinstall.kinds import Carried, Found, GoneLink, HookGroup, RetiredHook, State
 from jinstall.layout import UNREADABLE, Layout, folder
-from jinstall.machine import Dropped, Machine, Refused
+from jinstall.machine import Dropped, Machine, Moved, Refused
 from jmerge import mainjson
 
 
@@ -92,18 +92,47 @@ def relink(copy: Path) -> list[str]:
     each link to a file it dropped, and write each rewritten copy again. jbus calls it each time
     it moves the copy (`jbus.green.move`), since the layouts link files one by one and would
     otherwise hold only the files of the tip the last install saw. A layout whose `source` names
-    anything else, or that is not there, is left as it is. Return why each layout it could not
-    put was not put, one line each."""
+    anything else, or that is not there, is left as it is.
+
+    For each layout it put, it then puts what points into it, as the install does: the link of
+    each skill under the harness's skills root (`skills <harness>`), and the removal of each link
+    there to a skill the tip dropped (GoneLink), so a harness lists a new skill with no install
+    and no dropped one. The same goes for the hook entries of the harness's hooks file
+    (`hooks <file>`, RetiredHook): the layout's `hooks/` now holds the scripts of the new tip, so
+    an entry for a dropped script would run a file that is gone on every call. A Claude home
+    other than ~/.claude reads its skills through ~/.claude/skills (`HomeSkills`), so it needs
+    nothing more. Return why each layout or need it could not put was not put, one line each."""
+    from jinstall.needs import needs
+
     machine = replace(Machine.here(copies.of(copy)), green=copy)
-    faults = []
+    faults, put = [], []
     for harness in HARNESSES:
         source = folder(machine, harness) / "source"
         if not source.is_symlink() or os.readlink(source) != str(copy):
             continue
         try:
             Layout(harness).put(machine)
+            put.append(harness)
         except (Refused, *UNREADABLE) as why:
             faults.append(f"layout {harness.name}: {why}")
+    if not put:
+        return faults
+    roots = {machine.home / harness.root for harness in put}
+    names = {harness.name for harness in put}
+    for need in needs(machine):
+        kind = need.kind
+        if not isinstance(kind, Carried) or not (
+            need.fold in {f"skills {name}" for name in names}
+            or (isinstance(kind, GoneLink) and kind.path.parent in roots)
+            or (isinstance(kind, (HookGroup, RetiredHook)) and kind.harness in names)
+        ):
+            continue
+        try:
+            found = kind.probe(machine)
+            if found.state is not State.OK and found.replaceable:
+                kind.put(machine)
+        except (OSError, Moved, Refused) as why:
+            faults.append(f"{need.name}: {why}")
     return faults
 
 

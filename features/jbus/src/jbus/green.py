@@ -28,7 +28,9 @@ and the next pass tries again. The tree the link named before stays until the ne
 command that still runs in it. Last, it puts each harness's layout again from the new tip
 (`jinstall.green.relink`), as `install.sh` would: the layouts link the copy's files one by one,
 so a file main added would otherwise reach no harness, and one it dropped would leave a link that
-dangles, until the next install.
+dangles, until the next install. With each layout it puts the links under the harness's skills
+root and the entries of its hooks file, so a skill or hook main adds is live and one it drops is
+gone.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps. A crew's worktree is not the copy: `uv run` there runs that
