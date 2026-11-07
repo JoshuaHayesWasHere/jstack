@@ -137,8 +137,13 @@ jobs:
               echo "$line"
               [ "$tests" = all ] || sed 's/.*/- `&`/' "$reached"
           } | tee -a "$GITHUB_STEP_SUMMARY"
-          files=$(wc -l < "$reached")
-          parts=$(seq -s , 1 "$(( files < 1 ? 1 : files > 3 ? 3 : files ))")
+          # No seq or wc: the tests run this step on a Mac too, where seq ends its list with the
+          # separator and wc pads its count.
+          case $(grep -c . "$reached" || true) in
+          0 | 1) parts=1 ;;
+          2) parts=1,2 ;;
+          *) parts=1,2,3 ;;
+          esac
           {
               if [ -s "$reached" ]; then echo run=true; else echo run=false; fi
               echo "parts=[$parts]"
