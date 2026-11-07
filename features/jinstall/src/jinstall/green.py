@@ -119,11 +119,7 @@ def relink(copy: Path) -> list[str]:
         return faults
     roots = {machine.home / harness.root for harness in put}
     names = {harness.name for harness in put}
-    try:
-        listed = needs(machine)
-    except (OSError, Refused, *UNREADABLE) as why:
-        return [*faults, f"the skills and hooks of {copy}: {why}"]
-    for need in listed:
+    for need in needs(machine):
         kind = need.kind
         if not isinstance(kind, Carried) or not (
             need.fold in {f"skills {name}" for name in names}

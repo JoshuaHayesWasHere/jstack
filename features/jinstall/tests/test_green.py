@@ -322,3 +322,35 @@ def test_a_skill_main_adds_or_drops_after_the_install_reaches_the_skills_roots_w
         assert not (root / "bro").is_symlink(), root
         assert [one for one in root.iterdir() if one.is_symlink() and not one.exists()] == []
     assert [file for file in hooked if "agent-sends.sh" in file.read_text()] == []
+
+
+def test_a_skill_link_the_move_cannot_put_is_its_green_condition_and_the_copy_still_moves(
+    tmp_path, monkeypatch
+):
+    """A skills root the move cannot write leaves the copy at the new tip and raises the condition
+    that the harness does not link the copy's files, naming the link it could not put."""
+    user, said = install_watched(tmp_path)
+    skill = user.checkout / "features/later/SKILL.md"
+    skill.parent.mkdir()
+    skill.write_text("---\nname: later\ndescription: a skill main adds.\n---\n\n# later\n")
+    catalogued(
+        user.checkout,
+        lambda catalog: catalog["items"].append(
+            {
+                "name": "later",
+                "kind": "skill",
+                "path": "features/later/SKILL.md",
+                "source": "pstack",
+            }
+        ),
+    )
+    shut = user.home / ".claude/skills"
+    shut.chmod(0o555)
+    try:
+        raised, new = merged_and_moved(user, monkeypatch)
+    finally:
+        shut.chmod(0o755)
+    assert head(user.copy) == new, said
+    assert [args[1] for args in raised] == [copies.UNLINKED]
+    assert raised[0][2].startswith(f"at {new[:12]}: {shut / 'later'}: "), raised
+    assert not (shut / "later").is_symlink()
