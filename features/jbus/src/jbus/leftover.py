@@ -70,6 +70,7 @@ NAME = "leftover.json"
 CLOSE_MINUTES = 30
 REMIND_MINUTES = 15
 REFRESH_MINUTES = 60
+OPENING_MINUTES = 5
 NO_HOME = "it has no home: no home-id names a thread for the home of its brief"
 UNLISTED = "its home's thread {thread} is not one T3 Code lists as not settled"
 UNSEEN = "its home is not told yet: T3 Code did not list the threads that are out"
