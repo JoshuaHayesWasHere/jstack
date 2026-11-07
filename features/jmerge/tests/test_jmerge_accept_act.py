@@ -291,17 +291,78 @@ def test_a_plain_run_still_waits_on_the_proved_line(kitchen):
     assert kitchen.calls() == []
 
 
-def test_the_accept_of_a_pull_request_with_no_brief_is_refused_with_why(kitchen):
-    """#739 had no brief when the user said to merge it on 2026-10-30."""
-    kitchen.crew("bump", 9, {"a.txt": "ours\n" + LINES})
-    (kitchen.home.tasks / "bump.md").unlink()
+def unbriefed(kitchen, slug, number, checks=None):
+    """A pull request no brief names, as a dependabot bump or #739 was: a plain run waits on it
+    for its brief."""
+    kitchen.crew(slug, number, {"a.txt": "ours\n" + LINES})
+    if checks is not None:
+        kitchen.pulls[slug]["statusCheckRollup"] = merge.rollup(checks)
+        (kitchen.home.stub / "list.json").write_text(json.dumps(list(kitchen.pulls.values())))
+    (kitchen.home.tasks / f"{slug}.md").unlink()
+    (waits,) = kitchen.run()
+    assert waits == f"wait {number} {url(number)}: no brief has a Result that names it", waits
+
+
+def test_the_users_word_merges_a_pull_request_with_no_brief_and_logs_the_word(kitchen):
+    """#739 had no brief when the user said "sidebar approved, merge it into main" on
+    2026-10-30, and a home merged it with `gh pr merge`: the accept merges it on the user's own
+    message, and its `merged` line in `merge.log` names the pull request for its slug and the
+    message it was accepted on."""
+    unbriefed(kitchen, "bump", 9)
     ref = said(kitchen, "merge 9")
     out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out[0].startswith(f"accepted 9 {url(9)}: no brief has a Result that names it"), out
+    assert [call.split()[2] for call in kitchen.calls()] == ["9"]
+    assert last(kitchen) == ("accept", "user", "t3-message", "done")
+    assert acts.read(kitchen.jbus)[-1]["action"]["subject"] == "#9"
+    (line,) = [
+        one
+        for one in (kitchen.home.state / "merge.log").read_text().splitlines()
+        if " merged 9 " in one
+    ]
+    assert line[17:].startswith("merged 9 #9 "), line
+    assert f", accepted by {jsettings.DEFAULTS.user} at " in line
+    assert line.split(", revert: ")[0].endswith(f" on {ref}"), line
+
+
+def test_a_typed_accept_of_a_pull_request_with_no_brief_merges_nothing_and_says_why(kitchen):
+    unbriefed(kitchen, "bump", 9)
+    out = accept(kitchen, 9)
     assert kitchen.home.code == 1, (out, kitchen.home.stderr)
     assert out[-1] == (
         f"refused 9 {url(9)}: it is not held, it waits: no brief has a Result that names it: "
         + judgement.UNLIFTED[ready.NO_BRIEF.code]
     )
+    assert kitchen.calls() == []
+
+
+def test_the_users_word_merges_no_pull_request_with_no_brief_whose_check_failed(kitchen):
+    unbriefed(kitchen, "bump", 9, checks=[merge.FAILED])
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 9 {url(9)}: check has failed", out
+    assert kitchen.calls() == []
+
+
+def test_the_users_word_merges_no_pull_request_with_no_brief_that_conflicts_with_main(kitchen):
+    unbriefed(kitchen, "bump", 9)
+    kitchen.on_main({"a.txt": "main\n" + LINES})
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 9 {url(9)}: {ready.FRESH_CONFLICT}", out
+    assert kitchen.calls() == []
+
+
+def test_the_users_word_merges_no_pull_request_with_no_brief_while_merge_is_off(kitchen):
+    unbriefed(kitchen, "bump", 9)
+    (kitchen.home.state / "merge-off").write_text("")
+    ref = said(kitchen, "merge 9")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1] == f"wait 9 {url(9)}: {ready.MERGE_OFF}", out
     assert kitchen.calls() == []
 
 

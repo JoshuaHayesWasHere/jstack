@@ -889,6 +889,8 @@ class Repo:
 
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
+        if brief is None and not one.draft and self.accepted == (one.number, one.head):
+            return self.unbriefed(one, default, red)
         if brief is None:
             why = ready.HAND_DRAFT if one.draft else ready.NO_BRIEF
             return Judgement("", "wait", why, "", None)
@@ -992,6 +994,32 @@ class Repo:
         if one.number in self.order:
             self.through = one.number
         return Judgement(brief.stem, "", "", note, judged)
+
+    def unbriefed(self, one: ready.PullRequest, default: str, red: str) -> Judgement:
+        """The judgement of a pull request no brief names, which the user's own message accepts
+        (`accept`), by every rule that needs no brief: its base is one jmerge merges into, its
+        required checks passed at its head, a protected path is a hold the accept lifts, and a
+        door the user's word opens, it merges over today's base in its turn, as `judged` has it,
+        and `merge-off` holds it. With no brief, no review, Result or queue row is there to judge,
+        and its slug is empty."""
+        self.trunk = default
+        self.lifts = []
+        short = ready.held(one, default, None, self.bases) or ready.short_on_github(one)
+        if short:
+            return Judgement("", judgement.verb(short), short, "", None)
+        left = self.left(one)
+        needs = ready.needs_the_user(one, self.protected, left, user=self.user)
+        if short := self.lift(needs, self.lifted(one)) or red:
+            return Judgement("", judgement.verb(short), short, "", None)
+        short, judged = self.over_main(one, left)
+        short = (
+            short or self.guards.kept(one, judged.tip) or self.short_on_migrations(one, one.base)
+        )
+        if short:
+            return Judgement("", "wait", short, "", None)
+        if (self.state / "merge-off").exists():
+            return Judgement("", judgement.verb(ready.MERGE_OFF), ready.MERGE_OFF, "", None)
+        return Judgement("", "", "", "", judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
         """The hold on a pull request into main for its own browser run (`browser_red`). A red
@@ -1166,7 +1194,10 @@ class Repo:
         keeps a record of it; one it does not is refused with why (`judgement.UNLIFTED`). One
         that waits only on its turn in line takes the head of the line instead (`take_line`). A
         draft is not merged: the accept says what it waits on (`HAND_DRAFT`) and marks nothing
-        ready. The `merged` line names the word it was accepted on. With `acting`,
+        ready. The `merged` line names the word it was accepted on. A pull request no brief names
+        merges on the user's own message alone (`--message`), judged by every rule that needs no
+        brief (`unbriefed`), and its `merged` line names it `#<number>` for its slug, as jbus
+        names a line with no slug. With `acting`,
         the accept is an act of the bus's (`jmerge.bus`): a door the party may not open parks a
         gate and merges nothing. `check` says what it would do, and is no act."""
         about = f"{one.number} {one.url}"
@@ -1174,24 +1205,30 @@ class Repo:
         if first.verb == "wait" and ready.code_of(first.why) == ready.IN_LINE.code:
             return self.take_line(one, default, first.slug, (by, when, message), say, check, acting)
         waived = first.verb == "wait" and judgement.accepted(first.why)
-        if first.verb != "hold" and not waived:
+        unbriefed = first.verb == "wait" and ready.code_of(first.why) == ready.NO_BRIEF.code
+        heard = unbriefed and (bool(acting and message) or (check and not by))
+        if first.verb != "hold" and not waived and not heard:
             state = f"it waits: {first.why}" if first.verb else "jmerge merges it by itself"
             unlifted = judgement.UNLIFTED.get(ready.code_of(first.why)) if first.verb else None
             say(f"refused {about}: it is not held, {state}" + (f": {unlifted}" if unlifted else ""))
             return 1
         was = self.holds().get(str(one.number), "")
-        if not waived and was != one.head:
+        if not waived and not heard and was != one.head:
             held = f"was at {was[:12]}" if was else "is not on record, run jmerge first"
             say(f"refused {about}: its hold {held}, and its head is {one.head[:12]}")
             return 1
-        text = _read(self.state / "tasks" / f"{first.slug}.md")
+        text = "" if heard else _read(self.state / "tasks" / f"{first.slug}.md")
         at = self.proven_at(one, text)
-        proven = proof.fact(text, at)
+        proven = None if heard else proof.fact(text, at)
         unreviewed = ready.said_of(text).mode == ready.NONE
-        if proven is None and not unreviewed:
+        if proven is None and not unreviewed and not heard:
             say(f"refused {about}: {proof.short(text, at)}")
             return 1
         safe = "no review proof, its brief says Review: none"
+        if heard:
+            safe = (
+                "no review proof, no brief names it, so it merges on the user's own message alone"
+            )
         if proven:
             safe = f"safe because {proven[0]} (proven at {at[:12]})"
         self.accepted = (one.number, one.head)
@@ -1200,9 +1237,10 @@ class Repo:
             say(lines.waits(found.verb, one.number, one.url, found.why))
             return 1
         why = " and ".join(self.lifts) or first.why
+        slug = found.slug or f"#{one.number}"
         if check:
             notes = [f"accepted: {why}", safe]
-            say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
+            say(lines.ready(one.number, one.head, one.branch, slug, notes))
             return 0
         ran: list[str] = []
 
@@ -1212,7 +1250,7 @@ class Repo:
             ran.append(one.head)
             say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
             self.word = word
-            said = self.merge(one, found.slug, found.note, found.judged)
+            said = self.merge(one, slug, found.note, found.judged)
             say(said)
             if not said.startswith("merged "):
                 raise jsettings.Refused(said)

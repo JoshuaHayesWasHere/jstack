@@ -538,11 +538,11 @@ It refuses a pull request that is not held, other than one waiting in line ("A p
 It also lifts one kind of `wait`: a Result's `Proved:` line (the `proved-*` codes, `jmerge.judgement.WAIVED`), which your word stands in for as it does for `Review: none`.
 No run keeps a record of a wait, so it lifts it at the head GitHub gives now, and the merge still names that head.
 A plain `jmerge` still waits on that line for its crew to fix.
-Every other wait but one in line ("A pull request waiting in line" below) is refused, `refused <number> <url>: it is not held, it waits: <reason>`, and two of them end with why and the way through (`jmerge.judgement.UNLIFTED`):
+Every other wait but one in line ("A pull request waiting in line" below) is refused, `refused <number> <url>: it is not held, it waits: <reason>`, but for a pull request no brief names on your own message, below, and two of them end with why and the way through (`jmerge.judgement.UNLIFTED`):
 
 | The wait | Why the accept refuses it |
 |---|---|
-| `no brief has a Result that names it` (`no-brief`) | with no brief, no `Review:` line, review or Result is there to stand on |
+| `no brief has a Result that names it` (`no-brief`) | with no brief, no `Review:` line, review or Result is there to stand on, so only your own message merges it: `jmerge --accept <number> --as user --message <thread id>/<message id>` |
 | `its base is <base>, not <default>` (`base`) | `jbus project bases <project> --add <base>` names its base a merge base, and `jmerge` then merges it on main's rules |
 
 **A proven safety fact.**
@@ -557,6 +557,14 @@ Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, revi
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` applies.
 The `merged` line of an accept carries the word it rests on as a note before its revert command, `accepted by <user> at <when>`, with ` on <thread id>/<message id>` where `--message` named your message.
 `jmerge --accept <number> --check` says what it would do.
+
+**A pull request no brief names.**
+A dependabot bump, or a pull request opened by hand, has no brief, and a plain `jmerge` waits on it with `no brief has a Result that names it`.
+Your own message merges it, `--message`, as `--as user` or carried by a home; typed words, `--by` and `--at`, are refused.
+With no brief there is no review, Result or queue row to judge, so the accept judges it by every rule that needs no brief: its base is one `jmerge` merges into, its required checks passed at its head, it merges over today's base in its turn, a protected path is a door your message opens, and `merge-off` holds it.
+It needs no hold on record and no proven safety fact: your word stands in for both, as it does for `Review: none`.
+One that falls short of any of those merges nothing, and the accept prints its `wait` line and ends 1.
+Its `merged` line names it `#<number>` for its slug, as jbus names a line with no slug, so a reader of `merge.log` finds no brief of it and the root home is told of it: `merged <number> #<number> <commit> "<title>", accepted by <user> at <when> on <thread id>/<message id>, revert: <command>`.
 
 The accept of a held draft merges nothing and marks nothing ready: it prints the draft's wait and ends 1, and keeps no record, so the next run holds it again.
 
@@ -575,7 +583,7 @@ Where the checkout is a project of jbus's, the accept is an act of jbus's, one l
 `--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.
 An accept opens a door when the brief holds for one, by a `Holds:` line or a command it runs, and when the pull request touches a protected path, the case "changes access or secrets".
 Only you open a door, on your own message: `--as user` with `--message`.
-Any other party's accept on a door, a home's or one on typed words, parks a gate for you, `may jmerge merge pull request <number> of <slug>? It holds for <cases>`, and merges nothing.
+Any other party's accept on a door, a home's or one on typed words, parks a gate for you, `may jmerge merge pull request <number> of <slug>? It holds for <cases>`, with no ` of <slug>` for a pull request no brief names, and merges nothing.
 `--message` in a checkout that is no project of jbus's is refused, and there the accept runs on `--by` and `--at` alone and nothing logs it.
 `--check` is no act and records nothing.
 
