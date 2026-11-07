@@ -213,6 +213,39 @@ def test_a_pull_request_on_a_step_is_that_step_and_a_hung_thread_over_it_is_hung
     assert rows(kitchen)["alpha"]["status"] == "pr"
 
 
+def _open_with(kitchen, reason):
+    """Open alpha (#9) and beta (#8), each with its Result, and have `jmerge` say `reason` of
+    alpha, then run a pass."""
+    for slug, number in (("beta", 8), ("alpha", 9)):
+        add(kitchen, slug)
+        url = f"https://example.test/pull/{number}"
+        kitchen.brief(slug, result(branch=f"{slug}   Pull request: {url}"))
+        kitchen.t3.thread(slug, "completed")
+    kitchen.set("open.json", [kitchen.opened("beta", 8), kitchen.opened("alpha", 9)])
+    kitchen.set("jmerge.txt", f"wait 9 {PULL}: {reason}\n")
+    kitchen.poll()
+
+
+def test_a_row_stacked_on_an_open_parent_waits_on_that_row_and_not_on_the_check_runner(kitchen):
+    """The 2026-11-07 tree: two stacked rows said `waits the check runner` while jmerge held each
+    behind the row it is stacked on."""
+    _open_with(kitchen, ready.STACKED_ON.format(branch="beta", slug="beta", default="main"))
+    line = judged(kitchen)
+    assert line["who"] == "beta"
+    assert line["waits"].startswith("beta ")
+    assert "check runner" not in line["waits"]
+    assert line["why"] == rows(kitchen)["alpha"]["why"]
+    assert "it is stacked on beta" in line["why"]
+
+
+def test_a_row_whose_check_runs_still_waits_on_the_check_runner(kitchen):
+    _open_with(kitchen, ready.LIVE_RUN.format(check="check", head="c" * 12, state="in progress"))
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["waits"]) == ("check", "ci", "the check runner")
+    assert line["why"] == rows(kitchen)["alpha"]["why"]
+    assert "is in progress" in line["why"]
+
+
 def test_a_pass_that_could_not_ask(kitchen):
     add(kitchen, "alpha")
     kitchen.t3.thread("alpha", "running")
