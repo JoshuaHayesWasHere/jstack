@@ -1,0 +1,88 @@
+From 0b47bd3ad253e96aa1290b2ba2f02cac9423472a Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Sat, 7 Nov 2026 13:44:10 -0500
+Subject: [PATCH] test(web): replay the jstack tree at 2026-11-07 18:25Z, where
+ three pull requests waiting on CI read stalled
+
+The replay's rows are jbus's work.json lines of that minute: three in check that wait on the
+check runner (who ci) and one in rebase held by jbus (who crew). Their crews' last turns ended
+near 15:32Z, as a crew's does once its pull request is up, and the tree said stalled 2h for
+the three, which the user read as held behind another pull request. This fails until the tree
+reads jbus's who.
+---
+ .../sidebar/jstackTree.logic.test.ts          | 61 +++++++++++++++++++
+ 1 file changed, 61 insertions(+)
+
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+index 400212be83..722a624144 100644
+--- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -167,4 +167,65 @@ describe("buildJstackTree", () => {
+     });
+     expect(idle.rows[0]).toMatchObject({ kind: "project", landed: 2 });
+   });
++
++  // Replay of the jstack tree at 2026-11-07 18:25Z: three pull requests waited on CI, by
++  // work.json, and one on its crew, held by jbus. Their crews had been idle since 15:32Z, as a
++  // crew is once its pull request is up, and the tree said "stalled 2h" for the three. The shot
++  // said "held 8m" of a hold since 18:17:03, so its clock was past 18:25:03.
++  it("says stalled only where jbus says the crew owes the next move", () => {
++    const at = Date.parse("2026-11-07T18:25:30.000Z");
++    const ended = (slug: string, completedAt: string) =>
++      thread(`crew-${slug}`, {
++        updatedAt: completedAt,
++        latestRun: {
++          runId: `run-${slug}` as never,
++          status: "completed",
++          requestedAt: completedAt,
++          startedAt: completedAt,
++          completedAt,
++          assistantMessageId: null,
++        } as never,
++      });
++    const onCi = { stage: "check", who: "ci", waits: "the check runner" } as const;
++    const tasks = [
++      task("ci2m-select-graph-cache", { ...onCi, pullRequest: "#1201" }),
++      task("select-facts-cached-in-ci", { ...onCi, pullRequest: "#1202" }),
++      task("select-facts-warm-from-main", { ...onCi, pullRequest: "#1203" }),
++      task("ci2m-select-into-reuse", {
++        stage: "rebase",
++        who: "crew",
++        waits: "its crewmate",
++        pullRequest: "#1204",
++        held: { since: "2026-11-07T18:17:03Z", reason: "it conflicts with its base" },
++      }),
++    ];
++    const threads = [
++      ended("ci2m-select-graph-cache", "2026-11-07T15:32:17Z"),
++      ended("select-facts-cached-in-ci", "2026-11-07T15:39:46Z"),
++      ended("select-facts-warm-from-main", "2026-11-07T15:32:11Z"),
++      ended("ci2m-select-into-reuse", "2026-11-07T15:32:08Z"),
++    ];
++    const rows = build({ tasks }, { threads, nowMs: at }).rows.flatMap((row) =>
++      row.kind === "worker" ? [row] : [],
++    );
++    const said = Object.fromEntries(
++      rows.map((row) => [
++        row.slug,
++        [row.stage, row.waited === null ? null : `${row.waited.kind} ${row.waited.age}`],
++      ]),
++    );
++    expect(said).toEqual({
++      "ci2m-select-graph-cache": ["checks", null],
++      "select-facts-cached-in-ci": ["checks", null],
++      "select-facts-warm-from-main": ["checks", null],
++      "ci2m-select-into-reuse": ["rebase", "held 8m"],
++    });
++
++    // The same crew, idle as long, is stalled once jbus says it owes the next move.
++    const owed = build(
++      { tasks: [task("ci2m-select-into-reuse", { ...tasks[3], held: null })] },
++      { threads: [threads[3]!], nowMs: at },
++    ).rows.find((row) => row.kind === "worker");
++    expect(owed).toMatchObject({ waited: { kind: "stalled", age: "2h" } });
++  });
+ });
+-- 
+2.56.0
+

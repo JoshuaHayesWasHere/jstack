@@ -1,0 +1,41 @@
+From 786b29b3aae8e83a2c7bbc108ed2c8c9d2e11ba8 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Sat, 7 Nov 2026 13:45:28 -0500
+Subject: [PATCH] chore: homeWord and projectsToAsk are file-local, since their
+ tests left the series
+
+knip:check, which the commit hook runs, found both exported and imported nowhere.
+---
+ apps/server/src/jstack/jbusWork.logic.ts          | 2 +-
+ apps/web/src/components/sidebar/jstackAskOnAdd.ts | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+index aad82b709f..6228074a16 100644
+--- a/apps/server/src/jstack/jbusWork.logic.ts
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -166,7 +166,7 @@ export const briefBody = (brief: string): string => {
+ };
+ 
+ /** The first word of a brief's `Home:` line: `root`, a scope, or a home's thread id. */
+-export const homeWord = (line: string): string => {
++const homeWord = (line: string): string => {
+   const first = line.trim().split(/\s+/)[0] ?? "";
+   return first.replace(/[.,;:)]+$/, "");
+ };
+diff --git a/apps/web/src/components/sidebar/jstackAskOnAdd.ts b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
+index 3c06b8d492..555216c594 100644
+--- a/apps/web/src/components/sidebar/jstackAskOnAdd.ts
++++ b/apps/web/src/components/sidebar/jstackAskOnAdd.ts
+@@ -55,7 +55,7 @@ function projectKey(ref: ScopedProjectRef): string {
+  * is seen once any of its members is, and every member of a root counts as seen from then on,
+  * whether it was asked about or already had a home.
+  */
+-export function projectsToAsk(
++function projectsToAsk(
+   seen: ReadonlySet<string> | null,
+   candidates: ReadonlyArray<JstackAskCandidate>,
+ ): { readonly seen: ReadonlySet<string>; readonly ask: ReadonlyArray<SidebarProjectSnapshot> } {
+-- 
+2.56.0
+
