@@ -14,7 +14,7 @@ import jsettings
 import test_home_merge as merge
 from jbus import acts
 from jmerge import cli, ready, rejudge
-from test_jmerge_accept_act import jmerge, on_bus, said
+from test_jmerge_accept_act import accept, jmerge, on_bus, said
 from test_jmerge_fresh import AFTER, LINES, SHARED, STARTED, Kitchen, asked, git, url, write
 from test_jmerge_order import queue_of, row
 
@@ -313,3 +313,48 @@ def test_the_users_accept_of_one_in_line_gives_it_the_head_of_the_line_and_logs_
     log = (kitchen.home.state / "merge.log").read_text()
     assert f"{third}\n" in log
     assert kitchen.updates() == ["7", "9"]
+
+
+def lined_up(kitchen):
+    """#7 at the head of main's line, and #9 in line behind it."""
+    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
+    kitchen.crew("four", 9, {"a.txt": "ours\n" + LINES})
+    tip = kitchen.on_main({"d.txt": "theirs\n"})
+    assert kitchen.run() == [asked(7, tip), behind(9, 7)]
+    return tip
+
+
+def test_an_accept_of_one_in_line_on_typed_words_moves_nothing(bused):
+    kitchen = bused
+    tip = lined_up(kitchen)
+    out = accept(kitchen, 9)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out == [f"refused 9 {url(9)}: it waits in line, and only --message gives it the head"]
+    assert kitchen.run() == [asked(7, tip), behind(9, 7)]
+    assert kitchen.updates() == ["7"]
+
+
+def test_an_accept_of_one_in_line_with_check_says_what_it_would_do_and_moves_nothing(bused):
+    kitchen = bused
+    tip = lined_up(kitchen)
+    ref = said(kitchen, "merge 9 by hand")
+    out = jmerge(kitchen, "--accept", "9", "--message", ref, "--check")
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out == [f"accepted 9 {url(9)}: it would take the head of the line of main from #7"]
+    assert kitchen.run() == [asked(7, tip), behind(9, 7)]
+    assert kitchen.updates() == ["7"]
+
+
+def test_where_github_refuses_the_update_the_line_stays_as_it_was(bused):
+    kitchen = bused
+    tip = lined_up(kitchen)
+    (kitchen.home.stub / "refuse").write_text("")
+    ref = said(kitchen, "merge 9 by hand")
+    out = jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    refused = ready.BASE_MERGE_REFUSED.format(
+        base="main", tip=tip[:12], why="merge conflict between base and head"
+    )
+    assert out == [f"wait 9 {url(9)}: {refused}"]
+    assert acts.read(kitchen.jbus)[-1]["outcome"] == "refused"
+    assert kitchen.run()[0] == asked(7, tip)

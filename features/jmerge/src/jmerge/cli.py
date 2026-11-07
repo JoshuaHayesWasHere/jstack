@@ -1252,10 +1252,8 @@ class Repo:
             say(f"accepted {about}: it would take the head of the line of {one.base} from #{ahead}")
             return 0
         accepted = f"accepted by {by} at {when} on {message}"
-        ran: list[str] = []
 
         def does() -> str:
-            ran.append(one.head)
             self.line[one.base] = one.number
             self.base_merge.accept(one.number, accepted)
             found = self.waits(one, default)
@@ -1263,9 +1261,7 @@ class Repo:
                 self.base_merge.release(one.number)
                 if ahead is not None:
                     self.line[one.base] = ahead
-                said = lines.waits(found.verb, one.number, one.url, found.why)
-                say(said)
-                raise jsettings.Refused(said)
+                raise jsettings.Refused(lines.waits(found.verb, one.number, one.url, found.why))
             if ahead is not None:
                 self.base_merge.release(ahead)
             took = f"accepted {about}: it takes the head of the line of {one.base} from #{ahead}"
@@ -1273,19 +1269,13 @@ class Repo:
             say(lines.waits(found.verb, one.number, one.url, found.why))
             return took
 
-        if acting is None:
-            try:
-                does()
-            except jsettings.Refused:
-                return 1
-            return 0
+        assert acting is not None, "main refuses --message where jbus has no project"
         text = _read(self.state / "tasks" / f"{slug}.md")
         touched = bool(ready.protected_path(one, self.protected, self.left(one) or ()))
         outcome, line = bus.found().accept(acting, one.number, slug, one.head, text, touched, does)
         if outcome == "done":
             return 0
-        if not ran:
-            say(line)
+        say(line)
         return 1
 
     def clear_up(self, branch: str, head: str) -> str:
