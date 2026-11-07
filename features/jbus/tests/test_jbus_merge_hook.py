@@ -9,12 +9,14 @@ commands are the ones homes ran on 2026-10-21, 2026-10-30 and 2026-11-04 (transc
 a71e21cb and 1f719b26). No test touches the machine's own files.
 """
 
+import io
 import json
 import os
 import subprocess
 
 import pytest
 
+from jbus import mergecall
 from test_home_sends import ROOT, git, session
 from test_home_sends import store as t3_store
 from testing.paths import REPO
@@ -37,7 +39,9 @@ def home(tmp_path):
     config.write_text(
         'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "jstack"\n'
         f"checkout = {json.dumps(str(home / 'repos' / 'jstack'))}\n"
-        'projectId = "a-project"\n'
+        'projectId = "a-project"\n\n[[project]]\nname = "gone"\n'
+        f"checkout = {json.dumps(str(home / 'repos' / 'gone'))}\n"
+        'projectId = "another-project"\n'
     )
     config.chmod(0o600)
     sandbox = home / "verify-jstack.abc123"
@@ -191,3 +195,62 @@ def test_a_config_that_does_not_load_refuses_the_merge(home):
     assert code == 2
     assert "jbus's config does not load" in said
     assert run(home, "gh pr view 5") == (0, "")
+
+
+def test_the_judge_reads_each_merge_of_a_command_in_order(tmp_path):
+    """`jbus.mergecall.merges`, which the hook asks, in the process: the number, the repo it
+    names and the directory a `cd` moved it to."""
+    found = mergecall.merges(
+        f"cd {tmp_path}; gh pr merge 3 --squash && gh pr merge --repo {SLUG} 4; "
+        "for n in 5 6; do gh pr merge $n; done; gh pr merge $1",
+        tmp_path / "elsewhere",
+    )
+    assert [(one.number, one.names, one.at) for one in found] == [
+        ("3", "", tmp_path),
+        ("4", SLUG, tmp_path),
+        ("5", "", tmp_path),
+        ("6", "", tmp_path),
+        ("<number>", "", tmp_path),
+    ]
+
+
+def test_the_judge_follows_each_way_a_command_names_its_directory_and_wrapper(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "sub").mkdir()
+    for command, number, names, at in (
+        ("cd ~/sub && gh pr merge 1", "1", "", tmp_path / "sub"),
+        ('cd "$dir" && gh pr merge 2', "2", "", tmp_path),
+        ("cd sub; gh pr merge 3", "3", "", tmp_path / "sub"),
+        ("eval gh pr merge 4", "4", "", tmp_path),
+        ("env -u GH_TOKEN FOO=1 gh pr merge 5", "5", "", tmp_path),
+        (f"gh pr merge --repo={SLUG} 6", "6", SLUG, tmp_path),
+        (". ~/env.sh; gh pr merge 7", "7", "", tmp_path),
+        (". $X/env.sh; gh pr merge 8", "8", "", tmp_path),
+    ):
+        (found,) = mergecall.merges(command, tmp_path)
+        assert (found.number, found.names, found.at) == (number, names, at), command
+    assert mergecall.merges("gh pr merge 9 'unclosed", tmp_path) == []
+
+
+def test_a_named_repo_with_no_jbus_config_goes_and_with_a_broken_one_is_refused(home):
+    config = home / ".config" / "jbus" / "config.toml"
+    config.write_text("[[project]\n")
+    code, said = run(home, f"gh pr merge --repo {SLUG} 5")
+    assert code == 2 and "jbus's config does not load" in said
+    config.unlink()
+    assert run(home, f"gh pr merge --repo {SLUG} 5") == (0, "")
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        "not json",
+        json.dumps({"tool_name": "Read", "tool_input": {"command": "gh pr merge 5"}}),
+        json.dumps({"tool_name": "Bash", "tool_input": {}}),
+    ],
+)
+def test_a_call_that_runs_no_command_goes(given, monkeypatch):
+    monkeypatch.setattr("sys.stdin", io.StringIO(given))
+    assert mergecall.main() == 0
