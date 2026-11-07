@@ -241,7 +241,8 @@ def follow(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> int:
     """Follow T3 Code's events until `stop` is set, restating each line they move. A lost stream
-    is opened again, at once and then up to `BACKOFF` seconds apart."""
+    is opened again, at once and then up to `BACKOFF` seconds apart, until a read succeeds: a store
+    that opens and cannot be read is lost as often as one that does not open."""
     stop = stop or threading.Event()
     where = where or boxes.store()
     where.parent.mkdir(parents=True, exist_ok=True)
@@ -255,8 +256,8 @@ def follow(
                     store = Store(where)
                     say(f"follow: T3 Code's events at {where}, from event {store.sequence}")
                     _record(config, since, lost, why)
-                    pause, said = 0.0, ""
                 restate(config, store.settled() if woke else store.read())
+                pause, said = 0.0, ""
             except Lost as error:
                 if store is not None:
                     store.close()

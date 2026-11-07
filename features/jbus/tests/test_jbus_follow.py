@@ -279,3 +279,22 @@ def test_an_event_committed_while_the_follower_reads_is_read_and_not_passed_over
     assert store.read() == []
     assert [(one.thread, one.facet) for one in store.read()] == [("mcp:t", work.Thread.MOVING)]
     store.close()
+
+
+def test_a_store_that_opens_and_cannot_be_read_is_opened_again_only_backoff_apart(
+    tmp_path, kitchen
+):
+    where = tmp_path / "t3" / "userdata" / "statev2.sqlite"
+    where.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(where) as db:
+        db.execute("create table orchestration_events (sequence integer primary key)")
+    db.close()
+    said, stop = [], threading.Event()
+    runs = threading.Thread(target=follow.follow, args=(jbus.load(), said.append, stop, where))
+    runs.start()
+    time.sleep(2)
+    stop.set()
+    runs.join(WAIT)
+    opens = sum("from event" in one for one in said)
+    assert 1 <= opens <= 4, said[:6]
+    assert jbus.read_json(kitchen.state_dir / restated.FOLLOW, {})["lost"] == opens
