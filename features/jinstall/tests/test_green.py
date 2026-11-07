@@ -6,6 +6,7 @@ does not break jbus. A checkout jbus does not watch installs from itself, as bef
 import json
 import os
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -149,3 +150,54 @@ def test_the_copy_of_another_checkout_is_not_written_over(small, tmp_path):
     found = GreenCopy(machine.green).probe(machine)
     assert (found.detail, found.replaceable) == (f"the green copy of {other}", False)
     assert GreenCopy(machine.green).drop(machine).removed == ()
+
+
+def test_a_file_main_adds_or_drops_after_the_install_reaches_the_harness_when_green_moves(
+    tmp_path, monkeypatch
+):
+    """The layouts link each file of the green copy that the last install saw. jbus moves the
+    copy on every green merge, so the move relinks them: a template main adds is there with no
+    install, and one main drops leaves no link behind (#1212's proved.sh, 2026-11-07)."""
+    checkout = tmp_path / "checkout"
+    subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(checkout)], check=True)
+    user = User(tmp_path)
+    watched(user, checkout)
+    done = user.start(checkout=checkout)
+    out, err = done.communicate()
+    copy = user.home / ".local" / "share" / "jstack" / "green"
+    templates = laid(user.home) / "templates"
+    assert (templates / "check.yml").is_file(), out + err
+
+    (checkout / "features/crew/templates/new.sh").write_text("echo new\n")
+    (checkout / "features/home/templates/check.yml").unlink()
+    catalog = json.loads((checkout / "skills.json").read_text())
+    catalog["items"] = [one for one in catalog["items"] if one["name"] != "check.yml"] + [
+        {"name": "new.sh", "kind": "template", "path": "features/crew/templates/new.sh"}
+    ]
+    (checkout / "skills.json").write_text(json.dumps(catalog, indent=2) + "\n")
+    subprocess.run(["git", "-C", str(checkout), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(checkout), *COMMIT, "-m", "a merge"], check=True)
+    new = head(checkout)
+    state = tmp_path / "state" / "jstack"
+    state.mkdir(parents=True)
+    (state / "main.json").write_text(json.dumps({"main": new, "check": "green", "green": new}))
+
+    for name, value in {"HOME": user.home, "JBUS_CONFIG_DIR": user.jbus}.items():
+        monkeypatch.setenv(name, str(value))
+    for name in [one for one in os.environ if one.startswith("XDG_")]:
+        monkeypatch.delenv(name)
+    monkeypatch.setattr(copies, "_reinstall", lambda tree: "")
+    said, raised = [], []
+    run = SimpleNamespace(
+        project=SimpleNamespace(name="jstack", checkout=checkout),
+        state=state,
+        say=said.append,
+        condition=lambda *args, **kwargs: raised.append(args),
+    )
+    copies.move(run, copy)
+
+    assert (raised, head(copy)) == ([], new), said
+    assert (templates / "new.sh").read_text() == "echo new\n"
+    assert not (templates / "check.yml").is_symlink()
+    dangling = [one for one in templates.rglob("*") if one.is_symlink() and not one.exists()]
+    assert dangling == []
