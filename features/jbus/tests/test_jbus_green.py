@@ -162,6 +162,19 @@ def test_a_move_that_changes_a_timer_restarts_it_and_one_that_changes_no_unit_ca
     assert not [line for line in said if "systemd" in line]
 
 
+def test_a_reload_systemd_refuses_raises_a_condition_and_restarts_no_timer(copied, systemctl):
+    copied.stub.joinpath("systemctl").write_text(
+        f'#!/bin/sh\necho "$*" >> {systemctl}\n'
+        '[ "$2" = daemon-reload ] && { echo "Failed to connect to bus" >&2; exit 1; }\nexit 0\n'
+    )
+    moved = land(copied, "success", {"features/jbus/units/jbus.timer": TIMER.format("1min")})
+    said = copied.poll()
+    assert at(copied.copy) == moved
+    assert calls(systemctl) == ["--user daemon-reload"]
+    assert gates(copied) == [f"condition green: {green.UNRELOADED}"]
+    assert not [line for line in said if "systemd reloaded" in line]
+
+
 def test_a_tip_whose_check_failed_and_that_does_not_import_leaves_the_copy_where_it_was(copied):
     """The day of #923 and #935: main's tip fails to import jbus. Its check fails, so the copy,
     and so every command a pass runs, stays at the last green tip, and the pass runs on."""
