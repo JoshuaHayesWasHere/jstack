@@ -22,7 +22,7 @@ from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
 from jinstall.machine import Machine, Ran
-from test_install import TIMERS, User, line_for
+from test_install import ALWAYS, User, line_for
 from testing.paths import REPO
 
 LAUNCHCTL = REPO / "features" / "verify-jstack" / "project-skill" / "scripts" / "fake-launchctl"
@@ -91,11 +91,11 @@ def test_setup_writes_and_bootstraps_each_agent_and_a_second_run_writes_nothing(
 
     assert line_for(setup(mac.machine()).lines, mac.line) == [f"done {mac.line}"]
     assert sorted(path.name for path in mac.agents.iterdir()) == sorted(
-        f"{label(name)}.plist" for name in TIMERS
+        f"{label(name)}.plist" for name in ALWAYS
     )
-    assert mac.bootstraps() == wanted(mac, TIMERS)
+    assert mac.bootstraps() == wanted(mac, ALWAYS)
     assert all(line.split()[1] == GUI for line in mac.calls("bootstrap"))
-    for name in TIMERS:
+    for name in ALWAYS:
         said = plistlib.loads(mac.plist(name).read_bytes())
         assert said["Label"] == label(name)
         assert launchd.made_from(mac.plist(name).read_text()) == str(REPO)
@@ -104,7 +104,7 @@ def test_setup_writes_and_bootstraps_each_agent_and_a_second_run_writes_nothing(
     assert line_for(setup(mac.machine()).lines, mac.line) == [f"already {mac.line}"]
     assert mac.snapshot() == before
     assert [line.split()[0] for line in mac.said(mac.launchctl_log)[calls:]] == ["print"] * len(
-        TIMERS
+        ALWAYS
     )
 
 
@@ -160,10 +160,10 @@ def test_uninstall_boots_out_each_agent_and_removes_its_plist(mac):
     done = uninstall(mac.machine())
 
     assert [line for line in done.lines if " agent " in line] == [
-        f"removed agent {path}" for path in wanted(mac, TIMERS)
+        f"removed agent {path}" for path in wanted(mac, ALWAYS)
     ]
     assert sorted(line.split()[-1] for line in mac.calls("bootout")) == sorted(
-        f"{GUI}/{label(name)}" for name in TIMERS
+        f"{GUI}/{label(name)}" for name in ALWAYS
     )
     assert not mac.agents.exists() or not list(mac.agents.iterdir())
     assert not list(mac.loaded.iterdir())
@@ -234,7 +234,7 @@ def test_the_owners_mac_runs_the_ci_relay_and_snapshot_agents_and_drops_one_noth
     mac.as_owner()
     setup(mac.machine())
     opted = ["jbus-ci-day.timer", "jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
-    assert mac.bootstraps() == wanted(mac, [*TIMERS, *opted])
+    assert mac.bootstraps() == wanted(mac, [*ALWAYS, *opted])
     relay = plistlib.loads(mac.plist("jbus-relay.service").read_bytes())
     assert (relay["RunAtLoad"], relay["KeepAlive"]) == (True, {"SuccessfulExit": False})
 
@@ -256,6 +256,14 @@ def test_a_plist_no_install_made_is_left_as_it_is(mac):
         assert mine.read_text() == "<plist><dict/></plist>\n"
     differs = f"old optional {mac.line} -> {mine.name} -> not jstack's, differs"
     assert mac.said_by(install, False) == [differs]
+
+
+def test_every_mac_keeps_the_follower_alive_and_restarts_it_after_a_failure(mac):
+    mac.with_jbus()
+    setup(mac.machine())
+    follow = plistlib.loads(mac.plist("jbus-follow.service").read_bytes())
+    assert (follow["RunAtLoad"], follow["KeepAlive"]) == (True, {"SuccessfulExit": False})
+    assert follow["ProgramArguments"][-1].endswith("/.local/bin/jbus follow")
 
 
 def test_the_view_gets_no_agent_as_systemd_enables_no_view(mac):

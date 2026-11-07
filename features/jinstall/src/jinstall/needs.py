@@ -72,6 +72,10 @@ from jroles.mirror import mirrors
 from jsettings import paths
 
 T3_FLOOR = "0.1.2-nightly.20261022.3526"
+ALWAYS = ("jbus-follow.service",)
+"""The services that run all the time on every machine, which the install enables beside every
+timer: on macOS each is a launchd agent kept alive. Any other service a timer starts, an opted
+unit's need turns on, or nothing does, as the view."""
 CLAUDE_PAGE = "https://code.claude.com/docs/en/setup"
 UV_FLOOR: tuple[int, ...] | None = None
 
@@ -329,14 +333,16 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         "jbus-relay.service": RelayKeys(relay),
         "jbus-snapshot.timer": StateRepo(state),
     }
-    timers = tuple(name for name in names if name.endswith(".timer") and name not in opted)
+    always = tuple(
+        name for name in names if (name.endswith(".timer") or name in ALWAYS) and name not in opted
+    )
     chosen = tuple((name, need) for name, need in opted.items() if name in names)
     if machine.platform == "darwin":
         made = launchd.agents(templates(machine), home)
-        units = Agents(home / "Library" / "LaunchAgents", made, timers, jbus, chosen)
+        units = Agents(home / "Library" / "LaunchAgents", made, always, jbus, chosen)
     else:
         systemd = machine.config_home() / "systemd" / "user"
-        units = Units(systemd, tuple(names), timers, jbus, chosen)
+        units = Units(systemd, tuple(names), always, jbus, chosen)
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)
 

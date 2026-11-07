@@ -974,12 +974,12 @@ def wanted_by(template: Path) -> str:
 
 
 def split(
-    machine: Machine, timers: tuple[str, ...], opted: tuple[tuple[str, Kind], ...]
+    machine: Machine, always: tuple[str, ...], opted: tuple[tuple[str, Kind], ...]
 ) -> tuple[list[str], list[str]]:
     """The units to turn on, and the opted units to turn off, by what each opted unit's need
     answers now: on while it is ok, off while it is missing, and neither while it is old. The
     systemd units and the launchd agents (`jinstall.agents`) take the same answer."""
-    on, off = list(timers), []
+    on, off = list(always), []
     for name, need in opted:
         state = need.probe(machine).state
         if state is State.OK:
@@ -993,8 +993,9 @@ def split(
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
     install links ~/.config/systemd/user/<name> to its template, and it enables each of
-    `timers`. The template is the checkout's, or else the release's. The checkout's template is
-    the file that the links pointed at before the committed harness copy
+    `always`, the units every machine runs: each timer, and each service of `needs.ALWAYS`.
+    The template is the checkout's, or else the release's. The checkout's template is the file
+    that the links pointed at before the committed harness copy
     (`harness/jstack/claude-code`, the first of `BEFORE`), and that systemd's own links under
     the `.wants` folder of the unit's `WantedBy=` still point at.
 
@@ -1004,11 +1005,11 @@ class Units:
 
     due: jbus is set up (its config is there), or a unit of this checkout's is there.
     ok: every link points at its template, and ~/.local/bin/jbus is there, since the units run
-      it. When the manager reads this HOME, each timer and each opted unit whose need is ok is
+      it. When the manager reads this HOME, each of `always` and each opted unit whose need is ok is
       also enabled, no opted unit whose need is missing is, and no reload is due. With a manager
       that reads another HOME (a sandbox), the probe checks only the links. Under the account's
       own HOME, a manager that does not answer makes the need old, since nothing enabled the
-      timer.
+      unit.
     old: the detail names the first piece that is not so: `lacks jbus-failed.service`,
       `jbus.timer is not enabled`, `jbus-ci.timer is enabled, and nothing asks for it`,
       `needs daemon-reload`. A regular file whose bytes equal its template is a copy that
@@ -1019,15 +1020,16 @@ class Units:
     foreign: something other than a regular file or a link where a unit goes. The need is also
       foreign for two cases that no put repairs: `no ~/.local/bin/jbus`, and a manager that did
       not answer.
-    put: refuse when there is no ~/.local/bin/jbus, so no timer starts on a missing program.
+    put: refuse when there is no ~/.local/bin/jbus, so no unit starts on a missing program.
       Otherwise disable --now each opted unit that is enabled while its need is missing, make
       `timers.target.wants` through the machine, move each unit made by hand aside to
       `<name>.<time>.bak` beside it, which systemd does not read, and say so, link each unit to
       its template, write or remove `VIEW_DROP_IN`, run daemon-reload, and run enable --now on
       each unit that is to be on. A changed drop-in restarts `jbus-view.service` where it runs.
       A config that jbus's loader refuses leaves the drop-in as it is.
-    drop: run disable --now on each timer and opted unit whose link is the install's, unlink
-      each link that points at its template, remove the drop-in, and run daemon-reload.
+    drop: run disable --now on each of `always` and each opted unit whose link is the
+      install's, unlink each link that points at its template, remove the drop-in, and run
+      daemon-reload.
       systemd's disable unlinks a linked unit by itself, and drop unlinks the links that it
       leaves. A backup stays: it is the user's.
     Each systemctl step goes through `machine.systemctl`. So with a manager that reads
@@ -1035,7 +1037,7 @@ class Units:
 
     directory: Path
     names: tuple[str, ...]
-    timers: tuple[str, ...]
+    always: tuple[str, ...]
     config: Path
     opted: tuple[tuple[str, Kind], ...] = ()
 
@@ -1090,7 +1092,7 @@ class Units:
         return self.directory / f"{target}.wants" / name
 
     def _split(self, machine: Machine) -> tuple[list[str], list[str]]:
-        return split(machine, self.timers, self.opted)
+        return split(machine, self.always, self.opted)
 
     def _enabled(self, machine: Machine, name: str) -> bool:
         ran = machine.systemctl("is-enabled", name)
@@ -1186,7 +1188,7 @@ class Units:
         ours = self._ours(machine)
         if not ours:
             return Dropped()
-        for name in [*self.timers, *(name for name, _ in self.opted)]:
+        for name in [*self.always, *(name for name, _ in self.opted)]:
             if name in ours:
                 wanted = self._wanted(machine, name)
                 self._systemctl(machine, "disable", "--now", name)
