@@ -57,14 +57,16 @@ on them, for its crew to fix. #1071 waited on its `Proved:` line on 2026-11-05 w
 to merge it, and a home merged it with `gh pr merge`."""
 UNLIFTED = {
     ready.NO_BRIEF.code: "with no brief, no Review: line, review or Result is there for an "
-    "accept to stand on",
+    "accept to stand on, so only the user's own message merges it: jmerge --accept <number> "
+    "--as user --message <thread id>/<message id>",
     ready.BASE.code: "jmerge merges into the default branch and the merge bases jbus's config "
     "names: `jbus project bases <project> --add <base>` names its base one, and jmerge then "
     "merges it on main's rules",
 }
 """Why `jmerge --accept` lifts no wait of these codes, and the way through, which its refusal
-prints: the cases homes merged by hand with `gh pr merge` that an accept does not merge. One
-in line takes the head of the line on the user's message instead (`cli.Repo.take_line`)."""
+prints: the cases homes merged by hand with `gh pr merge` that an accept does not merge, or
+merges on the user's own message alone (`no-brief`, `cli.Repo.unbriefed`). One in line takes the
+head of the line on the user's message instead (`cli.Repo.take_line`)."""
 
 
 @dataclass(frozen=True)
