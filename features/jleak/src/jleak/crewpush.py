@@ -24,7 +24,9 @@ REFUSED = (
 
 
 def refused(refs: Iterable[str]) -> list[str]:
-    """Why each crew head among `refs`, what git writes to a `pre-push` hook, may not be pushed."""
+    """Why each crew head among `refs`, what git writes to a `pre-push` hook, may not be pushed.
+    It imports `jmerge` only once the push is a worktree's, so `jleak` alone imports no other
+    command's feature."""
     heads = [
         (local, remote.removeprefix("refs/heads/"))
         for _, local, remote, _ in (ref.split() for ref in refs if len(ref.split()) == 4)
@@ -36,7 +38,7 @@ def refused(refs: Iterable[str]) -> list[str]:
     own, common = git(*asked).splitlines()
     if own == common:
         return []
-    from jmerge import ready  # here, so `jleak` alone imports no other command's feature
+    from jmerge import ready
 
     tasks = homes_dir() / Path(common).parent.name / "tasks"
     found = []
