@@ -187,9 +187,9 @@ def _merged_by_hand(ground: Ground) -> list[Breach]:
         pulls = {
             pull.get("number"): pull
             for pull in json.loads(merged.read_text()).values()
-            if isinstance(pull, dict)
+            if isinstance(pull, dict) and isinstance(pull.get("number"), int)
         }
-        for number, pull in sorted(pulls.items(), key=lambda one: str(one[0])):
+        for number, pull in sorted(pulls.items()):
             at, base = pull.get("mergedAt"), pull.get("baseRefName")
             if not isinstance(at, str):
                 continue
