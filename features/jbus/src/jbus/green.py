@@ -39,8 +39,12 @@ whose new tip changed, added or dropped a unit file, by content against the tree
 has among them, so a timer whose interval changed runs on the new one at once (`reload`). A
 service is not restarted: the pass that moves the copy runs in jbus.service, and a oneshot runs
 the new file on its next start. `try-restart` starts no timer that was not running, so a reload
-run twice ends the same. A move that changes no unit calls systemctl not at all, and on launchd
-nothing is reloaded. A reload systemd refuses raises a condition for the tip.
+run twice ends the same. Before it points the link, the move writes the units it owes systemd in
+`green.json`, as `reload` and `at`, the tip that changed them, and only a reload that systemd took
+every call of clears them. A reload systemd refuses raises a condition for the tip, and each pass
+asks again, with no new tip, until systemd takes it, so neither a refusal nor a pass that died
+before its reload leaves systemd on the old units. A move that changes no unit owes nothing and
+calls systemctl not at all, and on launchd nothing is reloaded.
 
 Each move prints one line, `green <project>: the commands now run from <new 12>, in place of
 <old 12>`, which the pass's log keeps, and one that reloaded units a second, `green <project>:
@@ -77,7 +81,10 @@ BUILT = ("pyproject.toml", "uv.lock")
 """The files whose change makes `move` import the new tip in an environment uv makes for it."""
 
 FILE = "green.json"
-"""The project's record of the tip the copy would not import, `{"refused": <sha>}`."""
+"""The project's record of the copy: `refused`, the tip it would not import, and `reload`, the unit
+files whose reload a move owes systemd, with `at`, the tip that changed them."""
+
+OWED = ("reload", "at")
 
 NO_IMPORT = "the green copy does not import"
 MOVE_FAILED = "the green copy could not move"
@@ -236,12 +243,17 @@ def units(before: Path, after: Path) -> list[str]:
     return sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
 
 
-def reload(run: Pass, changed: list[str], tree: Path, green: str) -> None:
-    """Have systemd read the `changed` units again, and restart each of them that is a timer of
-    `tree`, the tree the copy now names."""
-    if not changed or launchd.manager() != "systemd":
+def reload(run: Pass, copy: Path) -> None:
+    """Have systemd read again the units a move owes it, as `green.json` keeps them, and restart
+    each of them that is a timer of the tree the copy names. Clear the debt only once systemd took
+    every call, so a pass that finds it refused, or never asked, asks again."""
+    record = read_json(run.state / FILE, {})
+    owed = record.get("reload") or []
+    if not owed:
         return
-    timers = [one for one in changed if one.endswith(".timer") and any(tree.glob(UNITS[:-1] + one))]
+    green = str(record.get("at", ""))
+    tree = copy.resolve()
+    timers = [one for one in owed if one.endswith(".timer") and any(tree.glob(UNITS[:-1] + one))]
     asks = [["daemon-reload"]] + ([["try-restart", *timers]] if timers else [])
     for asked in asks:
         said = proc.run("systemctl", "--user", *asked, timeout=60)
@@ -249,20 +261,28 @@ def reload(run: Pass, changed: list[str], tree: Path, green: str) -> None:
             why = f"at {green[:12]}: systemctl --user {' '.join(asked)}: {_said(said)}"
             run.condition("green", UNRELOADED, why, key=green[:12])
             return
+    write_json(run.state / FILE, {key: value for key, value in record.items() if key not in OWED})
     restarted = f", and restarted {', '.join(timers)}" if timers else ""
-    run.say(f"green {run.project.name}: systemd reloaded {', '.join(changed)}{restarted}")
+    run.say(f"green {run.project.name}: systemd reloaded {', '.join(owed)}{restarted}")
 
 
 def move(run: Pass, copy: Path | None = None) -> None:
     """Move the green copy of the project's checkout to main's green tip, when there is such a
-    copy and the tip is newer than the one it holds."""
+    copy and the tip is newer than the one it holds, then have systemd reload the units any move
+    still owes it."""
     copy = path() if copy is None else copy
     made_from = of(copy)
     if made_from is None or made_from.resolve() != run.project.checkout.resolve():
         return
+    _advance(run, copy)
+    reload(run, copy)
+
+
+def _advance(run: Pass, copy: Path) -> None:
     green = mainjson.read(run.state).green
     held = at(copy)
-    refused = read_json(run.state / FILE, {}).get("refused")
+    record = read_json(run.state / FILE, {})
+    refused = record.get("refused")
     if not green or not held or green in (held, refused):
         return
     tree = trees(copy) / green
@@ -272,15 +292,20 @@ def move(run: Pass, copy: Path | None = None) -> None:
     changed = _built(copy) != _built(tree)
     if broke := imports(tree, fresh=changed):
         shutil.rmtree(tree)
-        write_json(run.state / FILE, {"refused": green})
+        write_json(run.state / FILE, {**record, "refused": green})
         why = f"at {green[:12]}, so it stays at {held[:12]}: {broke}"
         run.condition("green", NO_IMPORT, why, key=green[:12])
         run.say(f"green {run.project.name}: {green[:12]} does not import, kept {held[:12]}")
         return
     before = copy.resolve()
+    changed = units(before, tree)
+    if changed and launchd.manager() == "systemd":
+        owed = sorted({*record.get("reload", []), *changed})
+        write_json(run.state / FILE, {**record, "reload": owed, "at": green})
     _point(copy, tree)
     if why := _reinstall(copy):
         _point(copy, before)
+        write_json(run.state / FILE, record)
         shutil.rmtree(tree)
         why = f"uv tool install at {green[:12]}: {why}"
         run.condition("green", MOVE_FAILED, why, key=green[:12])
@@ -295,7 +320,6 @@ def move(run: Pass, copy: Path | None = None) -> None:
     run.say(
         f"green {run.project.name}: the commands now run from {green[:12]}, in place of {held[:12]}"
     )
-    reload(run, units(before, tree), tree, green)
 
 
 STEPS = (verbs.Step("close", 45, "green.move", lambda half: move(half.run), ()),)
