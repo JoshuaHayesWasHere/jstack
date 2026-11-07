@@ -5,10 +5,13 @@ Like `test_jbus_kitchen.py`, the tests run the real commands and the real pass a
 Code server, `gh` and `jmerge`. Nothing reaches the network.
 """
 
+import json
 from datetime import timedelta
 
+import pytest
+
 import jbus
-from jbus import acts, verbs
+from jbus import acts, questions, verbs, work
 from test_jbus_kitchen import GATE, NOW, RESULT
 from test_jbus_questions import held
 from test_jbus_queue import add, brief, go, sha12
@@ -118,3 +121,45 @@ def test_a_project_no_pass_has_listed_is_not_said_to_have_nothing_waiting(kitche
         "not known: other: no pass has listed what waits there yet",
         "nothing else known waits on user in other",
     ]
+
+
+AWAITS_REVIEW = (
+    "\n## Result\nStatus: done\nBranch: a-branch   Pull request: after the review\n"
+    "Left: the docs page\n"
+)
+
+
+@pytest.mark.parametrize("homed", [True, False], ids=["a home", "no home"])
+def test_a_row_work_json_says_is_the_users_is_one_jbus_needs_lists(kitchen, homed):
+    """The sidebar draws `work.json`'s `who`: a row it says waits on the user is one `jbus needs`
+    lists, and no other. A row that ended with something left is its home's to close, even
+    while no home thread is there to tell; a row whose Result opens its pull request after a
+    review not written yet waits on that review, whatever its `Left:` line says; a gate of the
+    user's that holds its row is the user's."""
+    if homed:
+        at = kitchen.t3.thread("demo", "completed", title="home: demo")
+        (kitchen.home / "home-id").write_text(at["threadId"] + "\n")
+    add(kitchen, "left")
+    kitchen.brief(
+        "left",
+        "\n## Result\nStatus: done\nBranch: a-branch   Pull request: none\nLeft: the docs page\n",
+    )
+    kitchen.t3.thread("left", "completed")
+    add(kitchen, "reviewed")
+    kitchen.brief("reviewed", "Review: review\n" + AWAITS_REVIEW)
+    kitchen.t3.thread("reviewed", "completed")
+    add(kitchen, "gated")
+    assert kitchen.main("gate", "gated", stdin=held())[0] == 0
+    for minutes in (0, 1):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    lines = {one["key"]: one for one in json.loads((kitchen.state / work.NAME).read_text())["work"]}
+    asked = {str(one.number): one.slug for one in questions.load(kitchen.state)}
+    listed = {
+        asked[said.split()[2].rstrip(":")]
+        for said in needs(kitchen)
+        if said.startswith("demo question ")
+    }
+    assert {key for key, one in lines.items() if one["who"] == "user"} == listed == {"gated"}
+    assert (lines["left"]["who"], lines["left"]["value"]) == ("home", "leftover")
+    assert lines["left"]["waits"].startswith("its home" if homed else "a home")
+    assert (lines["reviewed"]["who"], lines["reviewed"]["waits"]) == ("rev", "its review")
