@@ -7,6 +7,8 @@ Each unit runs `~/.local/bin/jbus`.
 Where the checkout has a green copy (`jbus.green`), the links point through it, so each move of the copy to main's next green tip changes the files systemd runs.
 systemd keeps running the units it loaded until it reads them again, so a move whose tip changed, added or dropped a unit file of `features/*/units/` runs `systemctl --user daemon-reload`, then `systemctl --user try-restart` on each changed timer, and the pass's log names them: `green <project>: systemd reloaded <units>, and restarted <timers>`.
 A timer that was not running stays stopped, and a service is not restarted: its next start runs the new file.
+The move writes the units it owes systemd in the project's `green.json` before it points the copy, and clears them only once systemctl took every call.
+A reload systemctl refuses raises a condition, and each later pass tries it again, with no new green tip, until it holds, so neither a refusal nor a pass that died before its reload leaves systemd on the old units.
 A move that changes no unit calls systemctl not at all, and on macOS a move reloads no agent.
 
 | Unit | Runs | When | Enabled by the install |
