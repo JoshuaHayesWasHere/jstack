@@ -39,9 +39,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import jsettings
-from jbriefs import below
+from jbriefs import below, findings
 from jbriefs import home as homes
-from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
+from jbus import Refused, budget, queue, read_json, review, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import last_result, sections
@@ -517,14 +517,21 @@ def owes_pull(run: Pass, slug: str, brief: str, result: str) -> bool:
     """Say whether a crew's Result that would end its task clean still owes the pull request its
     brief asks for (`Pull request: open one ...`): its `Branch:` line names none, and that branch
     has a commit of its own (`own`). Such a task is not done, whatever its `Status:` says: its row
-    runs, and its thread is told once to open it (`threads.resume`). A crew that found nothing to
-    change owes nothing. Nor does a brief whose `Pull request:` line says none, a scout's or a
-    report's, or a follow-up Result, a later round: the home's close of a row nothing more is
-    wanted of (`leftover`), or the crew's answer once it was told. The rule is judged as a row
-    moves to done: a row the table had at done when the pass began owes nothing (`Pass.done`)."""
+    runs, and its thread is told once to open it (`threads.resume`). A Result that says its pull
+    request opens after its review (`review.before_pull`) owes it whatever the brief's header
+    says, when the brief asks for a review: the crew waits on that review (`jbus.prereview`). A
+    crew that found nothing to change owes nothing. Nor does a brief whose `Pull request:` line
+    says none, a scout's or a report's, or a follow-up Result, a later round: the home's close of
+    a row nothing more is wanted of (`leftover`), or the crew's answer once it was told. The rule
+    is judged as a row moves to done: a row the table had at done when the pass began owes
+    nothing (`Pass.done`)."""
     if not result.startswith("## Result\n") or unfinished(result):
         return False
-    if slug in run.done or not _ASKS.search(brief.split("\n## ")[0]):
+    if slug in run.done:
+        return False
+    if review.before_pull(result) and findings.mode_of(brief) != findings.NONE:
+        return True
+    if not _ASKS.search(brief.split("\n## ")[0]):
         return False
     return own(run, below.line(result, "Branch:").split()[0])
 
