@@ -354,3 +354,17 @@ def test_a_skill_link_the_move_cannot_put_is_its_green_condition_and_the_copy_st
     assert [args[1] for args in raised] == [copies.UNLINKED]
     assert raised[0][2].startswith(f"at {new[:12]}: {shut / 'later'}: "), raised
     assert not (shut / "later").is_symlink()
+
+
+def test_a_move_of_a_copy_no_layout_links_puts_nothing(tmp_path, monkeypatch):
+    """A machine whose layouts were not assembled from the green copy, such as one jbus moves a
+    copy on before any install ran, gets no layout, skill link or hook entry from the move."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    for name in [one for one in os.environ if one.startswith("XDG_")]:
+        monkeypatch.delenv(name)
+    copy = tmp_path / "green"
+    assert copies.make(REPO, copy, head(REPO)) == ""
+    assert green.relink(copy) == []
+    assert sorted(path.name for path in home.iterdir()) == []
