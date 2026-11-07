@@ -26,14 +26,17 @@ someone interrupted it, or it ended. jbus interrupts nothing and sends the threa
 
 `twice` ends a row's loop of failed checks. It keeps, in `fails.json`, each head at which the row's
 pull request failed a required check (`rebase.ran_and_failed`, a check the home's `required-checks`
-names, or jmerge's default where it names none). A row that is held already is not counted. A head
-whose base is main's red tip, the `broken` tip of `main.json`, is kept apart and counted for
-nothing: main failed there, not the row. At the second head, a push or a merge of main alike,
-`twice` holds the row (`jbus queue hold`) and pages the Chef once, a gate `check failed twice` that
-names the row, the pull request, both heads and the failed jobs at each. The outbox then sends the
-crew of a held row no rebase and no fix message (`outbox.FIXES`), so none goes out at a third
-head. The row's `why` says `check failed twice` while it is held. The hold is lifted as any
-hold is, by an approve, and the count starts again from none.
+names, or jmerge's default where it names none). A row that is held already is not counted. A
+pull request's check runs on GitHub's merge of its head into main, and a failed job's log names
+that main (`tested`). A head whose check ran on a main whose own check failed, a tip `main.json`
+called `broken` (`mainmoved.main_check`), is kept apart and counted for nothing: main failed
+there, not the row, whatever commit the head's branch was based on (#1177, 2026-11-06). At the
+second head, a push or a merge of main alike, `twice` holds the row (`jbus queue hold`) and pages
+the Chef once, a gate `check failed twice` that names the row, the pull request, both heads and
+the failed jobs at each. The outbox then sends the crew of a held row no rebase and no fix message
+(`outbox.FIXES`), so none goes out at a third head. The row's `why` says `check failed twice`
+while it is held. The hold is lifted as any hold is, by an approve, and the count starts again
+from none.
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
 the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
@@ -42,19 +45,21 @@ the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import jsettings
 from jbus import Refused, alert, cancelled, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched
+from jbus.mainmoved import main_check
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TWICE, World, task_brief
-from jmerge import judgement, mainjson
+from jbus.watch import FAILS, TWICE, World, job_log, task_brief
+from jmerge import judgement
 from jmerge import stacked as stacks
 from jmerge.lines import READY
 from jsettings import store
@@ -353,17 +358,20 @@ def _failure(red: rebase.Red, names: list[str]) -> dict[str, Any]:
     return {"checks": names, "jobs": [f"{repo} job {job}" for repo, job in red.jobs]}
 
 
-def _on_red(run: Pass, red: str, head: str) -> bool | None:
-    """Say whether the head holds main's red tip: its check ran on a main that was red. None where
-    GitHub gave no compare, so the head is judged again on a later pass."""
-    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{red}...{head}")
-    try:
-        said = json.loads(asked.stdout) if asked.returncode == 0 else None
-    except ValueError:
-        said = None
-    if not isinstance(said, dict) or "status" not in said:
-        return None
-    return said["status"] in ("ahead", "identical")
+def tested(run: Pass, head: str, red: rebase.Red) -> str | None:
+    """Return the main that the head's failed check ran on: the commit that GitHub merged the head
+    into, as the first failed job's log that names the merge says, or nothing where no log names
+    one. None where a log GitHub did not give might have named it, so the head is judged again on
+    a later pass."""
+    named = re.compile(rf"Merge {re.escape(head)} into ([0-9a-f]{{40}})")
+    unread = False
+    for repo, job in red.jobs:
+        log = job_log(run, repo, job)
+        found = named.search(log) if log is not None else None
+        if found:
+            return found.group(1)
+        unread = unread or log is None
+    return None if unread else ""
 
 
 def _said(head: str, one: dict[str, Any]) -> str:
@@ -373,12 +381,12 @@ def _said(head: str, one: dict[str, Any]) -> str:
 
 def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     """Count, for each row's open pull request, the heads at which a required check failed, and
-    hold the row and page the Chef once at the second (`TWICE`). A head on main's red tip is not
-    counted. A held row is counted no further; once its hold is lifted, its count starts again."""
+    hold the row and page the Chef once at the second (`TWICE`). A head whose check ran on a red
+    main is not counted. A held row is counted no further; once its hold is lifted, its count
+    starts again."""
     path = run.state / FAILS
     was: dict[str, Any] = read_json(path, {})
     table = {row["slug"]: row for row in rows}
-    red = mainjson.read(run.state).red
     required = cancelled.required(run)
     kept: dict[str, Any] = {}
     for slug, pull in world.open.items():
@@ -396,14 +404,16 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         names = [name for name in found.names if name in required]
         if not names:
             continue
-        on = _on_red(run, red, head) if red else False
-        if on is None:
-            run.say(f"wait {slug}: GitHub gave no compare of {head[:12]} with main's red tip")
+        main = tested(run, head, found)
+        check = main_check(run, main) if main else ""
+        if main is None or check == "pending":
+            run.say(f"wait {slug}: not yet known which main {head[:12]} was checked on, or if red")
             continue
-        if on:
+        if check == "failed":
             on_red.append(head)
             run.say(
-                f"failed {slug}: #{pull['number']} at {head[:12]} is on main's red tip, not counted"
+                f"failed {slug}: #{pull['number']} at {head[:12]} ran on main's red "
+                f"{main[:12]}, not counted"
             )
             continue
         heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}
