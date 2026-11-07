@@ -1,7 +1,7 @@
 # <slug>: <one line>
 Task: "<the request, in the user's words>"
 Done when:
-- <a check> (in `<the file it lands in, under Where>`)
+- <a check, ending (in `path/of/the/file`), the file it lands in, under Where, or (in none)>
 Proves it: <what outside the agent shows it holds: a test or a command, a metric, a dataset, an external judge or the user, never the crew's own review>
 Size: S | M | L
 Where: <files or areas it concerns>
