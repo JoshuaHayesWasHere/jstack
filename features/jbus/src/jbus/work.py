@@ -609,17 +609,21 @@ def stored(one: dict[str, Any]) -> Facts | None:
 
 
 def restate(
-    one: dict[str, Any], row: Row | None = None, pull: Pull | None = None, why: str | None = None
+    one: dict[str, Any],
+    row: Row | None = None,
+    pull: Pull | None = None,
+    why: str | None = None,
+    thread: Thread | None = None,
 ) -> dict[str, Any]:
-    """Return a row's line of `work.json` judged again from its stored facts, with `row` as the
-    new `Row` facet and `pull` as the new `Pull` facet where given, as the writer of that input
-    knows it. A new approved facet beside an approved one is the pass's to tell apart, since only
-    the pass sees which depends merged; and a state that keeps its value keeps its holder and its
-    `why`, which the pass worked out from more than the facts. A state whose value changed has no
-    `why` until the next pass judges one, since the one it had was judged for the old state,
-    unless the writer gives one (`why`), as a run of `jmerge` does with its reason. A line
-    restated with the facets and the `why` it has comes back as it is, so a writer that runs
-    twice writes nothing the second time."""
+    """Return a line of `work.json` judged again from its stored facts, with `row` as the new
+    `Row` facet, `pull` as the new `Pull` facet and `thread` as the new `Thread` facet where given,
+    as the writer of that input knows it. A new approved facet beside an approved one is the
+    pass's to tell apart, since only the pass sees which depends merged; and a state that keeps
+    its value keeps its holder and its `why`, which the pass worked out from more than the facts.
+    A state whose value changed has no `why` until the next pass judges one, since the one it had
+    was judged for the old state, unless the writer gives one (`why`), as a run of `jmerge` does
+    with its reason. A line restated with the facets and the `why` it has comes back as it is, so
+    a writer that runs twice writes nothing the second time."""
     facts = stored(one)
     if facts is None:
         return one
@@ -628,6 +632,8 @@ def restate(
         made = replace(made, row=row)
     if pull is not None:
         made = replace(made, pull=pull)
+    if thread is not None:
+        made = replace(made, thread=thread, seen="")
     had = str(one.get("why", ""))
     said = had if why is None else why
     if made == facts and said == had:

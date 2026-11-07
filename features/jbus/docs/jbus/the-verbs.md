@@ -35,6 +35,7 @@ Each table is sorted by its verb, so that two pull requests that each add a verb
 | `jbus digest --json [--since <time>]` | Prints what waits and what moved over every project, as one JSON object. `--json` is required, since JSON is the one form there is. `--since` sets the time it counts merges from, and is a day ago when you do not give it. |
 | `jbus events [--slug <slug>] [--since <time>]` | Prints the project's event log as JSON, one event a line, oldest first. `--slug` keeps the events of one slug, and `--since` keeps those sent at or after a time. |
 | `jbus failover --replay <items.json> --thread <id> [--dry-run]` | Replays one recorded usage limit for one live thread, makes the move a pass would make, and prints that move. It keeps the cap out of the ledger. `--dry-run` prints the move and writes nothing. [A usage limit](../working-on-jbus/tying-a-crewmate-to-its-thread.md#a-usage-limit) has the rest. |
+| `jbus follow` | Follows T3 Code's events in its store, `statev2.sqlite`, read only, and restates the line of `work.json` of each thread whose turn started, ended, waits on you, or was settled or archived, within milliseconds of the event and with no pass between. It runs until it is stopped, opens a lost store again, and leaves what it missed to the next pass, which logs it as drift. [The units](the-units.md) has the rest. |
 | `jbus flow [--since <time>] [--until <time>] [--json] [--rows] [--jobs] [--no-github] [--no-journal] [--journal <file>]` | Prints how work flowed over a window, the last 7 days by default, from the event logs, jbus's journal, the jobs `jbus ci` kept and GitHub: each row's time from approved to merged, split into working and waiting, with the waits ranked by hours lost. It writes nothing, and its help says what each flag adds or leaves out. |
 | `jbus health` | Prints one line for each check of the machine (disk, timeouts, the relay and the usage quota), with its number and its limit, and exits 1 when one is over. It pages nothing. A pass runs the same checks and pages. [The health check](the-health-check.md) has the rest. |
 | `jbus item propose\|approve\|drop\|show\|list` | Proposes, approves or drops a work item, or prints one or every one. [Work items](work-items.md) has each verb. |
@@ -105,6 +106,7 @@ These verbs take no project of their own, and read none, every project, or the o
 - `jbus budget`
 - `jbus digest`
 - `jbus flow`
+- `jbus follow`
 - `jbus forget`
 - `jbus health`
 - `jbus home`

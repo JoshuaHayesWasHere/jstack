@@ -29,10 +29,18 @@ Each writer of a row's inputs restates that row's line under `work.lock` as it w
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
 each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
+A thread's state has a writer too: `jbus follow` follows T3 Code's events and restates the line of each thread whose turn started, ended or waits on you, or that was settled or archived.
+T3 Code takes jbus's sign-in only at its MCP endpoint, which pushes nothing, so the follower reads the events where T3 Code keeps them, the table `orchestration_events` of `$T3CODE_HOME/userdata/statev2.sqlite`, read only, woken by inotify on Linux and every quarter second elsewhere.
+A turn that ends with nothing written it leaves for the pass, which alone tells whether the row is lost or waits on jbus.
+So a thread's turn reaches `work.json` within milliseconds of T3 Code's event: `features/jbus/tests/thread_live_probe.py` times it.
+No unit runs `jbus follow` yet: run it yourself, and the pass judges a thread's state as before while it does not run.
 The pass still judges every row from all it saw and writes the whole file.
 It keeps a pull request's step that a tick's run restated after the pass's own run of `jmerge` ended, since that run judged later; each run marks what it restated with the time it ended.
+It keeps a thread's state that the follower restated from an event after the pass began, since T3 Code may have answered the pass before that event; the follower marks each line with the time of its event.
 Where it finds a row's line otherwise than a writer should have left it, it corrects the line and logs a `work-drift` event, which is quiet and tells nobody: a go, or a pull request's step that `jmerge` restated, that the pass judges otherwise, a value that does not follow from the line's own facts, or a line missing or left over.
-What the pass alone sees, such as a thread's state, is no drift.
+While the follower has run on the machine (`follow.json` in jbus's state), a thread's state is such a line too, where the pass finds the thread under way, ended, settled or archived otherwise and the line's value changes: an event the follower missed, as while its stream was lost.
+A follower that loses its stream, since the store cannot be read or another file took its place, opens it again and reads on from the store's last event, so it never writes an old event over a line a pass judged since: what it missed waits for the next pass.
+How long a thread was quiet, and so whether it hung, only the pass sees, and that is no drift.
 `held.json` and `checks.json` are no input of a line: the sidebar reads `held.json` itself, and main's checks reach a row through `jmerge`'s next verdict.
 `jbus-stale.timer` catches a timer that stopped.
 A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](when-jbus-fails.md)).
