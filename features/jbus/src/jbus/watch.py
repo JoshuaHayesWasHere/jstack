@@ -784,7 +784,7 @@ def _scouted(
     slug = row["slug"]
     one = seen.one_out("scout", slug)
     said = thread(one, str((one or {}).get("live", ""))) if one else None
-    if said in OVER and world is not None and world.awaits({"threadId": one["id"]}):
+    if one and said in OVER and world is not None and world.awaits({"threadId": one["id"]}):
         said = work.Thread.QUIET
     written = owed(run, "scout", slug)
     if one is None and launched:
