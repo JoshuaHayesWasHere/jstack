@@ -611,6 +611,22 @@ def test_a_ticks_verdict_shows_before_any_pass_and_the_next_pass_keeps_it(kitche
     assert said(kitchen) == ("merged", True)
 
 
+def test_a_ticks_stacked_verdict_shows_its_parent_as_the_holder_before_any_pass(kitchen):
+    on_review(kitchen)
+    stacked = ready.STACKED_ON.format(branch="beta", slug="beta", default="main")
+    a_tick_says(kitchen, f"wait 9 {PULL}: {stacked}")
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["waits"]) == ("stacked", "beta", "beta to merge")
+    assert line["why"] == f"wait: {stacked}"
+    a_tick_says(kitchen, f"wait 9 {PULL}: {ready.NO_REVIEW}", run_id=2)
+    line = judged(kitchen)
+    assert (line["value"], line["who"], line["why"]) == (
+        "review",
+        "rev",
+        f"wait: {ready.NO_REVIEW}",
+    )
+
+
 def test_a_ticks_verdict_given_while_a_pass_runs_is_not_written_back(kitchen, monkeypatch):
     """The pass judged from its own run of `jmerge`, and a tick that ran after it began judged
     later: the pass keeps the tick's facet (`work.kept`)."""

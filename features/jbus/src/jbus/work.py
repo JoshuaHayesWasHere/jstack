@@ -611,16 +611,17 @@ def stored(one: dict[str, Any]) -> Facts | None:
 
 
 def restate(
-    one: dict[str, Any], row: Row | None = None, pull: Pull | None = None
+    one: dict[str, Any], row: Row | None = None, pull: Pull | None = None, why: str | None = None
 ) -> dict[str, Any]:
     """Return a row's line of `work.json` judged again from its stored facts, with `row` as the
     new `Row` facet and `pull` as the new `Pull` facet where given, as the writer of that input
     knows it. A new approved facet beside an approved one is the pass's to tell apart, since only
     the pass sees which depends merged; and a state that keeps its value keeps its holder and its
     `why`, which the pass worked out from more than the facts. A state whose value changed has no
-    `why` until the next pass judges one, since the one it had was judged for the old state. A
-    line restated with the facets it has comes back as it is, so a writer that runs twice writes
-    nothing the second time."""
+    `why` until the next pass judges one, since the one it had was judged for the old state,
+    unless the writer gives one (`why`), as a run of `jmerge` does with its reason. A line
+    restated with the facets and the `why` it has comes back as it is, so a writer that runs
+    twice writes nothing the second time."""
     facts = stored(one)
     if facts is None:
         return one
@@ -629,18 +630,23 @@ def restate(
         made = replace(made, row=row)
     if pull is not None:
         made = replace(made, pull=pull)
-    if made == facts:
+    had = str(one.get("why", ""))
+    said = had if why is None else why
+    if made == facts and said == had:
         return one
     asked = made.question == Question.OPEN
     state = unforeseen(made) if made.seen and not asked else judge(made)
-    if state.value == one["value"]:
+    if state.value == one["value"] and said == had:
         return {**one, "confirmed": state.confirmed, "facts": state.facts.said()}
     about = {name: value for name, value in one.items() if name not in _JUDGED}
-    if "why" in about:
+    if why is not None:
+        about["why"] = why
+    elif "why" in about and state.value != one["value"]:
         about["why"] = ""
     role = "scout" if "scout" in one else ""
     scout = {"scout": str(scouting(state))} if role else {}
-    return entry(state, holder(state, role=role), **about, **scout)
+    held = holder(state, role=role, why=str(about.get("why", "")))
+    return entry(state, held, **about, **scout)
 
 
 _JUDGED = frozenset({"value", "name", "who", "waits", "lane", "confirmed", "facts", "scout"})
@@ -716,12 +722,12 @@ def fresh(row: dict[str, Any], facet: Row, scout: bool) -> dict[str, Any]:
     return entry(state, holder(state, role="scout" if scout else ""), **about, **said)
 
 
-def pulled(state_dir: Path, said: dict[int, Pull], at: str) -> None:
+def pulled(state_dir: Path, said: dict[int, tuple[Pull, str]], at: str) -> None:
     """Restate the `Pull` facet of the line of each pull request that a run of `jmerge` judged,
-    by its number, as `jmerge` judged it, and mark the line `PULLED` at `at`, when the run ended
-    (`Said.at`). The pass and the
-    merge tick both call this as their run of `jmerge` ends (`merge._sent`), so a verdict reaches
-    the view at once. The pass keeps a facet that a run after its own restated (`kept`)."""
+    by its number, as `jmerge` judged it, with its reason as the line's `why`, and mark the line
+    `PULLED` at `at`, when the run ended (`Said.at`). The pass and the merge tick both call this
+    as their run of `jmerge` ends (`merge._sent`), so a verdict reaches the view at once. The
+    pass keeps a facet that a run after its own restated (`kept`)."""
     if not said:
         return
 
@@ -730,7 +736,8 @@ def pulled(state_dir: Path, said: dict[int, Pull], at: str) -> None:
         for one in lines:
             number = str(one.get("pr", "")).removeprefix("#") if _is_row(one) else ""
             if number.isdigit() and int(number) in said:
-                made = restate(one, pull=said[int(number)])
+                pull, why = said[int(number)]
+                made = restate(one, pull=pull, why=why)
                 if made is not one:
                     one = {**made, PULLED: at}
             work.append(one)

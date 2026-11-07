@@ -146,21 +146,23 @@ def _sent(run: Pass, ran: subprocess.CompletedProcess[str]) -> Said:
     return lines
 
 
-def verdicts(lines: Said) -> dict[int, work.Pull]:
+def verdicts(lines: Said) -> dict[int, tuple[work.Pull, str]]:
     """Return the `Pull` facet each line of a run of `jmerge` gives its pull request, by number,
-    the last line of a number winning: `merged` for a merge, and for a `wait` or a `hold` the step
-    of `word: reason` (`step`), as the pass reads it (`jbus.watch.waits`), or `other` where no
-    rule names the reason."""
+    with the line's `why`, the last line of a number winning: `merged` for a merge, with no
+    `why`, and for a `wait` or a `hold` the step of `word: reason` (`step`), as the pass reads it
+    (`jbus.watch.waits`), or `other` where no rule names the reason, with `word: reason` as the
+    `why`, the shape the queue keeps."""
     found = {}
     for text in lines:
         line = parse(text)
         if line is None:
             continue
         if line.word == "merged":
-            found[line.number] = work.Pull.MERGED
+            found[line.number] = (work.Pull.MERGED, "")
         elif line.word in ("wait", "hold") and line.reason:
-            said = step(f"{line.word}: {line.reason}")
-            found[line.number] = work.Pull(said) if said else work.Pull.OTHER
+            why = f"{line.word}: {line.reason}"
+            said = step(why)
+            found[line.number] = (work.Pull(said) if said else work.Pull.OTHER, why)
     return found
 
 

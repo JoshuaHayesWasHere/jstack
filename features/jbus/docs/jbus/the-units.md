@@ -27,7 +27,7 @@ On macOS its agent runs every 5 seconds too (`StartInterval`).
 `work.json`, the state of each row that the view and T3 Code's sidebar draw, waits for neither timer.
 Each writer of a row's inputs restates that row's line under `work.lock` as it writes:
 each write of the queue (`jbus queue add`, `approve`, `hold`, `remove` and the pass's own rewrite of the table) restates each row's go, adds the line of a new row and takes out the line of a row that went;
-each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged.
+each run of `jmerge`, the tick's and the pass's, restates the step of each pull request it judged, with its reason as the line's `why`.
 So a change reaches `work.json` within milliseconds of its write: `features/jbus/tests/work_live_probe.py` times it.
 The pass still judges every row from all it saw and writes the whole file.
 It keeps a pull request's step that a tick's run restated after the pass's own run of `jmerge` ended, since that run judged later; each run marks what it restated with the time it ended.
