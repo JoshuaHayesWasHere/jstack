@@ -14,13 +14,14 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
+from jleak.sources import NO_COMMIT, git
 from jmerge import ready
 from jsettings.paths import homes_dir
 
-from jleak.sources import NO_COMMIT, git
-
 THREAD = re.compile(r"^Thread: \S", re.MULTILINE)
-REFUSED = 'crew-push: refused: {why}: run the check block of "Do the task" at {head}, then push again'
+REFUSED = (
+    'crew-push: refused: {why}: run the check block of "Do the task" at {head}, then push again'
+)
 
 
 def refused(refs: Iterable[str]) -> list[str]:
@@ -28,7 +29,8 @@ def refused(refs: Iterable[str]) -> list[str]:
     lines = [ref.split() for ref in refs if len(ref.split()) == 4]
     if not lines:
         return []
-    own, common = git("rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir").split()
+    asked = ("rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+    own, common = git(*asked).splitlines()
     if own == common:
         return []
     tasks = homes_dir() / Path(common).parent.name / "tasks"
